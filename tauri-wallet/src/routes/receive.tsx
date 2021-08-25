@@ -1,13 +1,15 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { Card, CardContent, Grid, Typography } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
 import { CopyToClipboard, Layout, NymCard, Page } from '../components'
 import { useMediaQuery } from '@material-ui/core'
 import { theme } from '../theme'
+import { ClientContext } from '../context/main'
 
 export const Receive = () => {
+  const { client } = useContext(ClientContext)
   const matches = useMediaQuery('(min-width:769px)')
-  const address = 'Example address here'
+
   return (
     <Page>
       <Layout>
@@ -34,9 +36,9 @@ export const Receive = () => {
                     variant={matches ? 'h5' : 'subtitle1'}
                     style={{ wordBreak: 'break-word' }}
                   >
-                    {address}
+                    {client.address}
                   </Typography>
-                  <CopyToClipboard text={address} />
+                  <CopyToClipboard text={client.address} />
                 </Card>
               </Grid>
             </Grid>

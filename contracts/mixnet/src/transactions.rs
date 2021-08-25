@@ -739,7 +739,7 @@ pub mod tests {
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
         add_gateway, add_mixnode, gateway_fixture, good_gateway_bond, good_mixnode_bond,
-        mix_node_fixture,
+        mix_node_fixture, raw_delegation_fixture,
     };
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
@@ -1807,7 +1807,7 @@ pub mod tests {
             .unwrap();
 
         mix_delegations(&mut deps.storage, &node_identity)
-            .save(b"delegator", &Uint128(initial_delegation))
+            .save(b"delegator", &raw_delegation_fixture(initial_delegation))
             .unwrap();
 
         let bond_reward_rate = read_mixnode_epoch_bond_reward_rate(deps.as_ref().storage);
@@ -1906,7 +1906,7 @@ pub mod tests {
             .unwrap();
 
         gateway_delegations(&mut deps.storage, &node_identity)
-            .save(b"delegator", &Uint128(initial_delegation))
+            .save(b"delegator", &raw_delegation_fixture(initial_delegation))
             .unwrap();
 
         let bond_reward_rate = read_gateway_epoch_bond_reward_rate(deps.as_ref().storage);
@@ -2032,6 +2032,7 @@ pub mod tests {
                 }),
                 try_delegate_to_mixnode(
                     deps.as_mut(),
+                    mock_env(),
                     mock_info("sender", &coins(123, DENOM)),
                     "non-existent-mix-identity".into()
                 )
@@ -2048,13 +2049,14 @@ pub mod tests {
             let delegation = coin(123, DENOM);
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert_eq!(
-                delegation.amount,
+                RawDelegationData::new(delegation.amount, mock_env().block.height),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -2091,6 +2093,7 @@ pub mod tests {
                 }),
                 try_delegate_to_mixnode(
                     deps.as_mut(),
+                    mock_env(),
                     mock_info(delegation_owner.as_str(), &coins(123, DENOM)),
                     identity
                 )
@@ -2110,13 +2113,14 @@ pub mod tests {
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert_eq!(
-                delegation.amount,
+                RawDelegationData::new(delegation.amount, mock_env().block.height),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -2149,6 +2153,7 @@ pub mod tests {
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &vec![delegation1.clone()]),
                 identity.clone(),
             )
@@ -2156,13 +2161,17 @@ pub mod tests {
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &vec![delegation2.clone()]),
                 identity.clone(),
             )
             .unwrap();
 
             assert_eq!(
-                delegation1.amount + delegation2.amount,
+                RawDelegationData::new(
+                    delegation1.amount + delegation2.amount,
+                    mock_env().block.height
+                ),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -2194,6 +2203,7 @@ pub mod tests {
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
@@ -2207,6 +2217,7 @@ pub mod tests {
                 }),
                 try_delegate_to_mixnode(
                     deps.as_mut(),
+                    mock_env(),
                     mock_info(delegation_owner.as_str(), &coins(50, DENOM)),
                     identity
                 )
@@ -2224,6 +2235,7 @@ pub mod tests {
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(123, DENOM)),
                 identity1.clone()
             )
@@ -2231,17 +2243,17 @@ pub mod tests {
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(42, DENOM)),
                 identity2.clone()
             )
             .is_ok());
 
             assert_eq!(
-                123,
+                RawDelegationData::new(123u128.into(), mock_env().block.height),
                 mix_delegations_read(&deps.storage, &identity1)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
-                    .u128()
             );
             assert!(
                 reverse_mix_delegations_read(&deps.storage, &delegation_owner)
@@ -2250,11 +2262,10 @@ pub mod tests {
             );
 
             assert_eq!(
-                42,
+                RawDelegationData::new(42u128.into(), mock_env().block.height),
                 mix_delegations_read(&deps.storage, &identity2)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
-                    .u128()
             );
             assert!(
                 reverse_mix_delegations_read(&deps.storage, &delegation_owner)
@@ -2274,6 +2285,7 @@ pub mod tests {
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info("sender1", &vec![delegation1.clone()]),
                 identity.clone()
             )
@@ -2281,6 +2293,7 @@ pub mod tests {
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info("sender2", &vec![delegation2.clone()]),
                 identity.clone()
             )
@@ -2307,6 +2320,7 @@ pub mod tests {
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
@@ -2315,11 +2329,10 @@ pub mod tests {
             try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
 
             assert_eq!(
-                100,
+                RawDelegationData::new(100u128.into(), mock_env().block.height),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
-                    .u128()
             );
             assert!(
                 reverse_mix_delegations_read(&deps.storage, &delegation_owner)
@@ -2366,6 +2379,7 @@ pub mod tests {
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
@@ -2421,6 +2435,7 @@ pub mod tests {
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
@@ -2471,6 +2486,7 @@ pub mod tests {
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner1.as_str(), &vec![delegation1.clone()]),
                 identity.clone()
             )
@@ -2478,6 +2494,7 @@ pub mod tests {
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner2.as_str(), &vec![delegation2.clone()]),
                 identity.clone()
             )
@@ -2518,13 +2535,13 @@ pub mod tests {
         let identity = add_mixnode(node_owner, good_mixnode_bond(), &mut deps);
 
         mix_delegations(&mut deps.storage, &identity)
-            .save(b"delegator1", &Uint128(initial_delegation1))
+            .save(b"delegator1", &raw_delegation_fixture(initial_delegation1))
             .unwrap();
         mix_delegations(&mut deps.storage, &identity)
-            .save(b"delegator2", &Uint128(initial_delegation2))
+            .save(b"delegator2", &raw_delegation_fixture(initial_delegation2))
             .unwrap();
         mix_delegations(&mut deps.storage, &identity)
-            .save(b"delegator3", &Uint128(initial_delegation3))
+            .save(b"delegator3", &raw_delegation_fixture(initial_delegation3))
             .unwrap();
 
         let bond_reward = read_mixnode_epoch_bond_reward_rate(deps.as_ref().storage);
@@ -2555,6 +2572,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2562,6 +2580,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2569,6 +2588,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2611,6 +2631,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2618,6 +2639,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2625,6 +2647,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2654,6 +2677,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2661,6 +2685,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2668,6 +2693,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2694,6 +2720,7 @@ pub mod tests {
                 }),
                 try_delegate_to_gateway(
                     deps.as_mut(),
+                    mock_env(),
                     mock_info("sender", &coins(123, DENOM)),
                     "non-existent-gateway-identity".into()
                 )
@@ -2710,13 +2737,14 @@ pub mod tests {
             let delegation = coin(123, DENOM);
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert_eq!(
-                delegation.amount,
+                RawDelegationData::new(delegation.amount, mock_env().block.height),
                 gateway_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -2753,6 +2781,7 @@ pub mod tests {
                 }),
                 try_delegate_to_gateway(
                     deps.as_mut(),
+                    mock_env(),
                     mock_info(delegation_owner.as_str(), &coins(123, DENOM)),
                     identity
                 )
@@ -2772,13 +2801,14 @@ pub mod tests {
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert_eq!(
-                delegation.amount,
+                RawDelegationData::new(delegation.amount, mock_env().block.height),
                 gateway_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -2811,6 +2841,7 @@ pub mod tests {
 
             try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &vec![delegation1.clone()]),
                 identity.clone(),
             )
@@ -2818,13 +2849,17 @@ pub mod tests {
 
             try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &vec![delegation2.clone()]),
                 identity.clone(),
             )
             .unwrap();
 
             assert_eq!(
-                delegation1.amount + delegation2.amount,
+                RawDelegationData::new(
+                    delegation1.amount + delegation2.amount,
+                    mock_env().block.height
+                ),
                 gateway_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -2856,6 +2891,7 @@ pub mod tests {
 
             try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
@@ -2869,6 +2905,7 @@ pub mod tests {
                 }),
                 try_delegate_to_gateway(
                     deps.as_mut(),
+                    mock_env(),
                     mock_info(delegation_owner.as_str(), &coins(50, DENOM)),
                     identity.clone()
                 )
@@ -2886,6 +2923,7 @@ pub mod tests {
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(123, DENOM)),
                 identity1.clone()
             )
@@ -2893,17 +2931,17 @@ pub mod tests {
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(42, DENOM)),
                 identity2.clone()
             )
             .is_ok());
 
             assert_eq!(
-                123,
+                RawDelegationData::new(123u128.into(), mock_env().block.height),
                 gateway_delegations_read(&deps.storage, &identity1)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
-                    .u128()
             );
             assert!(
                 reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
@@ -2912,11 +2950,10 @@ pub mod tests {
             );
 
             assert_eq!(
-                42,
+                RawDelegationData::new(42u128.into(), mock_env().block.height),
                 gateway_delegations_read(&deps.storage, &identity2)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
-                    .u128()
             );
             assert!(
                 reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
@@ -2936,6 +2973,7 @@ pub mod tests {
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info("sender1", &vec![delegation1.clone()]),
                 identity.clone()
             )
@@ -2943,6 +2981,7 @@ pub mod tests {
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info("sender2", &vec![delegation2.clone()]),
                 identity.clone()
             )
@@ -2969,6 +3008,7 @@ pub mod tests {
 
             try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
@@ -2977,11 +3017,10 @@ pub mod tests {
             try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[])).unwrap();
 
             assert_eq!(
-                100,
+                RawDelegationData::new(100u128.into(), mock_env().block.height),
                 gateway_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
-                    .u128()
             );
             assert!(
                 reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
@@ -3028,6 +3067,7 @@ pub mod tests {
 
             try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
@@ -3083,6 +3123,7 @@ pub mod tests {
 
             try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
@@ -3133,6 +3174,7 @@ pub mod tests {
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner1.as_str(), &vec![delegation1.clone()]),
                 identity.clone()
             )
@@ -3140,6 +3182,7 @@ pub mod tests {
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(delegation_owner2.as_str(), &vec![delegation2.clone()]),
                 identity.clone()
             )
@@ -3180,13 +3223,13 @@ pub mod tests {
         let identity = add_gateway(node_owner, good_gateway_bond(), &mut deps);
 
         gateway_delegations(&mut deps.storage, &identity)
-            .save(b"delegator1", &Uint128(initial_delegation1))
+            .save(b"delegator1", &raw_delegation_fixture(initial_delegation1))
             .unwrap();
         gateway_delegations(&mut deps.storage, &identity)
-            .save(b"delegator2", &Uint128(initial_delegation2))
+            .save(b"delegator2", &raw_delegation_fixture(initial_delegation2))
             .unwrap();
         gateway_delegations(&mut deps.storage, &identity)
-            .save(b"delegator3", &Uint128(initial_delegation3))
+            .save(b"delegator3", &raw_delegation_fixture(initial_delegation3))
             .unwrap();
 
         let bond_reward = read_gateway_epoch_bond_reward_rate(deps.as_ref().storage);
@@ -3217,6 +3260,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3224,6 +3268,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3231,6 +3276,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3273,6 +3319,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3280,6 +3327,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3287,6 +3335,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3316,6 +3365,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3323,6 +3373,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3330,6 +3381,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3378,7 +3430,7 @@ pub mod tests {
                 let mut write_bucket = mix_delegations(&mut deps.storage, &node_identity);
                 for i in 1..=total_delegations {
                     let delegator = Addr::unchecked(format!("delegator{}", i));
-                    let delegation = Uint128(i as u128);
+                    let delegation = raw_delegation_fixture(i as u128);
                     write_bucket
                         .save(delegator.as_bytes(), &delegation)
                         .unwrap();

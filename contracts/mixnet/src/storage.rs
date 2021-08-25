@@ -382,6 +382,7 @@ mod tests {
     use super::*;
     use crate::support::tests::helpers::{
         gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
+        raw_delegation_fixture,
     };
     use config::defaults::DENOM;
     use cosmwasm_std::testing::MockStorage;
@@ -523,7 +524,7 @@ mod tests {
 
             let delegator_address = Addr::unchecked("bob");
             mix_delegations(&mut deps.storage, &node_identity)
-                .save(delegator_address.as_bytes(), &Uint128(1000))
+                .save(delegator_address.as_bytes(), &raw_delegation_fixture(1000))
                 .unwrap();
 
             let total_increase =
@@ -533,7 +534,7 @@ mod tests {
             assert_eq!(Uint128(1), total_increase);
 
             assert_eq!(
-                Uint128(1001),
+                raw_delegation_fixture(1001),
                 mix_delegations_read(&mut deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()
@@ -551,7 +552,7 @@ mod tests {
             for i in 0..100 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 mix_delegations(&mut deps.storage, &node_identity)
-                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .save(delegator_address.as_bytes(), &raw_delegation_fixture(1000))
                     .unwrap();
             }
 
@@ -564,7 +565,7 @@ mod tests {
             for i in 0..100 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 assert_eq!(
-                    Uint128(1001),
+                    raw_delegation_fixture(1001),
                     mix_delegations_read(&mut deps.storage, &node_identity)
                         .load(delegator_address.as_bytes())
                         .unwrap()
@@ -583,7 +584,7 @@ mod tests {
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 mix_delegations(&mut deps.storage, &node_identity)
-                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .save(delegator_address.as_bytes(), &raw_delegation_fixture(1000))
                     .unwrap();
             }
 
@@ -599,7 +600,7 @@ mod tests {
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 assert_eq!(
-                    Uint128(1001),
+                    raw_delegation_fixture(1001),
                     mix_delegations_read(&mut deps.storage, &node_identity)
                         .load(delegator_address.as_bytes())
                         .unwrap()
@@ -716,7 +717,7 @@ mod tests {
 
             let delegator_address = Addr::unchecked("bob");
             gateway_delegations(&mut deps.storage, &node_identity)
-                .save(delegator_address.as_bytes(), &Uint128(1000))
+                .save(delegator_address.as_bytes(), &raw_delegation_fixture(1000))
                 .unwrap();
 
             let total_increase = increase_gateway_delegated_stakes(
@@ -729,7 +730,7 @@ mod tests {
             assert_eq!(Uint128(1), total_increase);
 
             assert_eq!(
-                Uint128(1001),
+                raw_delegation_fixture(1001),
                 gateway_delegations_read(&mut deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()
@@ -747,7 +748,7 @@ mod tests {
             for i in 0..100 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 gateway_delegations(&mut deps.storage, &node_identity)
-                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .save(delegator_address.as_bytes(), &raw_delegation_fixture(1000))
                     .unwrap();
             }
 
@@ -763,7 +764,7 @@ mod tests {
             for i in 0..100 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 assert_eq!(
-                    Uint128(1001),
+                    raw_delegation_fixture(1001),
                     gateway_delegations_read(&mut deps.storage, &node_identity)
                         .load(delegator_address.as_bytes())
                         .unwrap()
@@ -782,7 +783,7 @@ mod tests {
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 gateway_delegations(&mut deps.storage, &node_identity)
-                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .save(delegator_address.as_bytes(), &raw_delegation_fixture(1000))
                     .unwrap();
             }
 
@@ -801,7 +802,7 @@ mod tests {
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 assert_eq!(
-                    Uint128(1001),
+                    raw_delegation_fixture(1001),
                     gateway_delegations_read(&mut deps.storage, &node_identity)
                         .load(delegator_address.as_bytes())
                         .unwrap()

@@ -1,16 +1,25 @@
 import { createTheme } from '@material-ui/core'
 
-export const theme = createTheme({
-  shape: {
-    borderRadius: 24,
+const nymPalette = {
+  primary: {
+    main: '#F4731B',
   },
+  secondary: {
+    main: '#009FA8',
+  },
+}
+
+export const theme = createTheme({
   palette: {
     primary: {
-      main: '#F4731B',
+      main: nymPalette.primary.main,
     },
     secondary: {
-      main: '#009FA8',
+      main: nymPalette.secondary.main,
     },
+  },
+  shape: {
+    borderRadius: 24,
   },
   overrides: {
     MuiButton: {

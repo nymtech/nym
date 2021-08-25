@@ -243,7 +243,7 @@ impl<C> Client<C> {
         Ok(delegations)
     }
 
-    pub async fn get_all_nymd_mixnode_reverse_delegations(
+    pub async fn get_all_nymd_reverse_mixnode_delegations(
         &self,
         delegation_owner: &cosmos_sdk::AccountId,
     ) -> Result<Vec<mixnet_contract::IdentityKey>, ValidatorClientError>
@@ -255,7 +255,7 @@ impl<C> Client<C> {
         loop {
             let mut paged_response = self
                 .nymd
-                .get_mix_reverse_delegations_paged(
+                .get_reverse_mix_delegations_paged(
                     mixnet_contract::Addr::unchecked(delegation_owner.as_ref()),
                     start_after.take(),
                     self.mixnode_delegations_page_limit,
@@ -282,7 +282,7 @@ impl<C> Client<C> {
     {
         let mut delegations = Vec::new();
         for node_identity in self
-            .get_all_nymd_mixnode_reverse_delegations(delegation_owner)
+            .get_all_nymd_reverse_mixnode_delegations(delegation_owner)
             .await?
         {
             let delegation = self
@@ -325,7 +325,7 @@ impl<C> Client<C> {
         Ok(delegations)
     }
 
-    pub async fn get_all_nymd_gateway_reverse_delegations(
+    pub async fn get_all_nymd_reverse_gateway_delegations(
         &self,
         delegation_owner: &cosmos_sdk::AccountId,
     ) -> Result<Vec<mixnet_contract::IdentityKey>, ValidatorClientError>
@@ -337,7 +337,7 @@ impl<C> Client<C> {
         loop {
             let mut paged_response = self
                 .nymd
-                .get_gateway_reverse_delegations_paged(
+                .get_reverse_gateway_delegations_paged(
                     mixnet_contract::Addr::unchecked(delegation_owner.as_ref()),
                     start_after.take(),
                     self.mixnode_delegations_page_limit,
@@ -364,7 +364,7 @@ impl<C> Client<C> {
     {
         let mut delegations = Vec::new();
         for node_identity in self
-            .get_all_nymd_gateway_reverse_delegations(delegation_owner)
+            .get_all_nymd_reverse_gateway_delegations(delegation_owner)
             .await?
         {
             let delegation = self

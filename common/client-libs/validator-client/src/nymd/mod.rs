@@ -18,8 +18,9 @@ use cosmwasm_std::Coin;
 use mixnet_contract::{
     Addr, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
     LayerDistribution, MixNode, MixOwnershipResponse, PagedGatewayDelegationsResponse,
-    PagedGatewayResponse, PagedGatewayReverseDelegationsResponse, PagedMixDelegationsResponse,
-    PagedMixReverseDelegationsResponse, PagedMixnodeResponse, QueryMsg, StateParams,
+    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
+    PagedReverseGatewayDelegationsResponse, PagedReverseMixDelegationsResponse, QueryMsg,
+    StateParams,
 };
 use serde::Serialize;
 use std::collections::HashMap;
@@ -261,16 +262,16 @@ impl<C> NymdClient<C> {
     }
 
     /// Gets list of all the mixnodes on which a particular address delegated.
-    pub async fn get_mix_reverse_delegations_paged(
+    pub async fn get_reverse_mix_delegations_paged(
         &self,
         delegation_owner: Addr,
         start_after: Option<IdentityKey>,
         page_limit: Option<u32>,
-    ) -> Result<PagedMixReverseDelegationsResponse, NymdError>
+    ) -> Result<PagedReverseMixDelegationsResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetMixReverseDelegations {
+        let request = QueryMsg::GetReverseMixDelegations {
             delegation_owner,
             start_after,
             limit: page_limit,
@@ -319,16 +320,16 @@ impl<C> NymdClient<C> {
     }
 
     /// Gets list of all the gateways on which a particular address delegated.
-    pub async fn get_gateway_reverse_delegations_paged(
+    pub async fn get_reverse_gateway_delegations_paged(
         &self,
         delegation_owner: Addr,
         start_after: Option<IdentityKey>,
         page_limit: Option<u32>,
-    ) -> Result<PagedGatewayReverseDelegationsResponse, NymdError>
+    ) -> Result<PagedReverseGatewayDelegationsResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetGatewayReverseDelegations {
+        let request = QueryMsg::GetReverseGatewayDelegations {
             delegation_owner,
             start_after,
             limit: page_limit,

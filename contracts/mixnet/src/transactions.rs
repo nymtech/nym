@@ -572,7 +572,7 @@ pub(crate) fn try_delegate_to_mixnode(
         None => delegation_bucket.save(sender_bytes, &info.funds[0].amount)?,
     }
 
-    mix_reverse_delegations(deps.storage, &info.sender).save(mix_identity.as_bytes(), &())?;
+    reverse_mix_delegations(deps.storage, &info.sender).save(mix_identity.as_bytes(), &())?;
 
     Ok(Response::default())
 }
@@ -588,7 +588,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
         Some(delegation) => {
             // remove delegation from the buckets
             delegation_bucket.remove(sender_bytes);
-            mix_reverse_delegations(deps.storage, &info.sender).remove(mix_identity.as_bytes());
+            reverse_mix_delegations(deps.storage, &info.sender).remove(mix_identity.as_bytes());
 
             // send delegated funds back to the delegation owner
             let messages = vec![BankMsg::Send {
@@ -659,7 +659,7 @@ pub(crate) fn try_delegate_to_gateway(
         None => delegation_bucket.save(sender_bytes, &info.funds[0].amount)?,
     }
 
-    gateway_reverse_delegations(deps.storage, &info.sender)
+    reverse_gateway_delegations(deps.storage, &info.sender)
         .save(gateway_identity.as_bytes(), &())?;
 
     Ok(Response::default())
@@ -676,7 +676,7 @@ pub(crate) fn try_remove_delegation_from_gateway(
         Some(delegation) => {
             // remove delegation from the buckets
             delegation_bucket.remove(sender_bytes);
-            gateway_reverse_delegations(deps.storage, &info.sender)
+            reverse_gateway_delegations(deps.storage, &info.sender)
                 .remove(gateway_identity.as_bytes());
 
             // send delegated funds back to the delegation owner
@@ -2055,7 +2055,7 @@ pub mod tests {
                     .unwrap()
             );
             assert!(
-                mix_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity.as_bytes())
                     .is_ok()
             );
@@ -2117,7 +2117,7 @@ pub mod tests {
                     .unwrap()
             );
             assert!(
-                mix_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity.as_bytes())
                     .is_ok()
             );
@@ -2163,7 +2163,7 @@ pub mod tests {
                     .unwrap()
             );
             assert!(
-                mix_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity.as_bytes())
                     .is_ok()
             );
@@ -2239,7 +2239,7 @@ pub mod tests {
                     .u128()
             );
             assert!(
-                mix_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity1.as_bytes())
                     .is_ok()
             );
@@ -2252,7 +2252,7 @@ pub mod tests {
                     .u128()
             );
             assert!(
-                mix_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity2.as_bytes())
                     .is_ok()
             );
@@ -2317,7 +2317,7 @@ pub mod tests {
                     .u128()
             );
             assert!(
-                mix_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity.as_bytes())
                     .is_ok()
             );
@@ -2389,7 +2389,7 @@ pub mod tests {
                 .unwrap()
                 .is_none());
             assert!(
-                mix_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .may_load(identity.as_bytes())
                     .unwrap()
                     .is_none()
@@ -2446,7 +2446,7 @@ pub mod tests {
                 .unwrap()
                 .is_none());
             assert!(
-                mix_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .may_load(identity.as_bytes())
                     .unwrap()
                     .is_none()
@@ -2717,7 +2717,7 @@ pub mod tests {
                     .unwrap()
             );
             assert!(
-                gateway_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity.as_bytes())
                     .is_ok()
             );
@@ -2779,7 +2779,7 @@ pub mod tests {
                     .unwrap()
             );
             assert!(
-                gateway_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity.as_bytes())
                     .is_ok()
             );
@@ -2825,7 +2825,7 @@ pub mod tests {
                     .unwrap()
             );
             assert!(
-                gateway_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity.as_bytes())
                     .is_ok()
             );
@@ -2901,7 +2901,7 @@ pub mod tests {
                     .u128()
             );
             assert!(
-                gateway_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity1.as_bytes())
                     .is_ok()
             );
@@ -2914,7 +2914,7 @@ pub mod tests {
                     .u128()
             );
             assert!(
-                gateway_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity2.as_bytes())
                     .is_ok()
             );
@@ -2979,7 +2979,7 @@ pub mod tests {
                     .u128()
             );
             assert!(
-                gateway_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity.as_bytes())
                     .is_ok()
             );
@@ -3051,7 +3051,7 @@ pub mod tests {
                 .unwrap()
                 .is_none());
             assert!(
-                mix_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .may_load(identity.as_bytes())
                     .unwrap()
                     .is_none()
@@ -3108,7 +3108,7 @@ pub mod tests {
                 .unwrap()
                 .is_none());
             assert!(
-                gateway_reverse_delegations_read(&deps.storage, &delegation_owner)
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
                     .may_load(identity.as_bytes())
                     .unwrap()
                     .is_none()

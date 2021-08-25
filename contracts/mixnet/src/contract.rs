@@ -4,7 +4,7 @@
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
 use crate::storage::{
-    config, gateway_reverse_delegations, layer_distribution, mix_reverse_delegations,
+    config, reverse_gateway_delegations, layer_distribution, reverse_mix_delegations,
 };
 use crate::{error::ContractError, queries, transactions};
 use config::defaults::NETWORK_MONITOR_ADDRESS;
@@ -154,11 +154,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             start_after,
             limit,
         )?),
-        QueryMsg::GetMixReverseDelegations {
+        QueryMsg::GetReverseMixDelegations {
             delegation_owner,
             start_after,
             limit,
-        } => to_binary(&queries::query_mixnode_reverse_delegations_paged(
+        } => to_binary(&queries::query_reverse_mixnode_delegations_paged(
             deps,
             delegation_owner,
             start_after,
@@ -182,11 +182,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             start_after,
             limit,
         )?),
-        QueryMsg::GetGatewayReverseDelegations {
+        QueryMsg::GetReverseGatewayDelegations {
             delegation_owner,
             start_after,
             limit,
-        } => to_binary(&queries::query_gateway_reverse_delegations_paged(
+        } => to_binary(&queries::query_reverse_gateway_delegations_paged(
             deps,
             delegation_owner,
             start_after,
@@ -305,7 +305,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
     for mix_identity in mixnodes_identities {
         let delegations = get_all_mixnode_delegations(&deps, &mix_identity)?;
         for delegation in delegations {
-            mix_reverse_delegations(deps.storage, &delegation.owner())
+            reverse_mix_delegations(deps.storage, &delegation.owner())
                 .save(mix_identity.as_bytes(), &())?;
         }
     }
@@ -314,7 +314,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
     for gateway_identity in gateways_identities {
         let delegations = get_all_gateway_delegations(&deps, &gateway_identity)?;
         for delegation in delegations {
-            gateway_reverse_delegations(deps.storage, &delegation.owner())
+            reverse_gateway_delegations(deps.storage, &delegation.owner())
                 .save(gateway_identity.as_bytes(), &())?;
         }
     }

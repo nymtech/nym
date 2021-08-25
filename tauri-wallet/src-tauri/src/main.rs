@@ -33,8 +33,12 @@ async fn connect_with_mnemonic(
     Ok(mnemonic) => mnemonic,
     Err(e) => return Err(BackendError::from(e).to_string()),
   };
-  let r_state = state.read().await;
-  let client = _connect_with_mnemonic(mnemonic, &r_state.config);
+  let client;
+  {
+    let r_state = state.read().await;
+    client = _connect_with_mnemonic(mnemonic, &r_state.config);
+  }
+
   let mut w_state = state.write().await;
   w_state.signing_client = Some(client);
   Ok(true)
@@ -52,8 +56,11 @@ async fn get_balance(
         balance.insert("amount", coin.amount.to_string());
         balance.insert("denom", coin.denom.to_string());
         Ok(balance)
-      },
-      Ok(None) => Err(format!("No balance available for address {}", client.address())),
+      }
+      Ok(None) => Err(format!(
+        "No balance available for address {}",
+        client.address()
+      )),
       Err(e) => Err(BackendError::from(e).to_string()),
     }
   } else {
@@ -76,7 +83,6 @@ fn main() {
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
-
 
 mod test {
   #![allow(unused_imports)]

@@ -1,11 +1,11 @@
 [package]
-name = "Nym-Wallet"
+name = "nym_wallet"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
 repository = ""
-default-run = "Nym-Wallet"
+default-run = "nym_wallet"
 edition = "2018"
 build = "src/build.rs"
 
@@ -20,7 +20,10 @@ serde = { version = "1.0", features = ["derive"] }
 tauri = { version = "1.0.0-beta.6", features = [] }
 tokio = { version = "1.10", features = ["sync"] }
 dirs = "3.0"
-url = "2.2"
+# url = "2.2"
+bip39 = "1.0"
+thiserror = "1.0"
+tendermint-rpc = "0.21.0"
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nymd-client",

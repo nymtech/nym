@@ -5,22 +5,6 @@
 version = 3
 
 [[package]]
-name = "Nym-Wallet"
-version = "0.1.0"
-dependencies = [
- "config",
- "dirs",
- "mixnet-contract",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tokio",
- "url",
- "validator-client",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3518,6 +3502,24 @@ dependencies = [
  "url",
  "validator-client",
  "version-checker",
+]
+
+[[package]]
+name = "nym_wallet"
+version = "0.1.0"
+dependencies = [
+ "bip39",
+ "config",
+ "dirs",
+ "mixnet-contract",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tendermint-rpc",
+ "thiserror",
+ "tokio",
+ "validator-client",
 ]
 
 [[package]]

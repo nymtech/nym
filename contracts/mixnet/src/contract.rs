@@ -4,7 +4,7 @@
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
 use crate::storage::{
-    config, reverse_gateway_delegations, layer_distribution, reverse_mix_delegations,
+    config, layer_distribution, reverse_gateway_delegations, reverse_mix_delegations,
 };
 use crate::{error::ContractError, queries, transactions};
 use config::defaults::NETWORK_MONITOR_ADDRESS;

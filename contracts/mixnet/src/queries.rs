@@ -125,7 +125,9 @@ pub(crate) fn query_mixnode_delegations_paged(
         .map(|res| {
             res.map(|entry| {
                 Delegation::new(
-                    Addr::unchecked(String::from_utf8(entry.0).unwrap()),
+                    Addr::unchecked(String::from_utf8(entry.0).expect(
+                        "Non-UTF8 address used as key in bucket. The storage is corrupted!",
+                    )),
                     coin(entry.1.u128(), DENOM),
                 )
             })
@@ -155,7 +157,12 @@ pub(crate) fn query_mixnode_reverse_delegations_paged(
     let delegations = mix_reverse_delegations_read(deps.storage, &delegation_owner)
         .range(start.as_deref(), None, Order::Ascending)
         .take(limit)
-        .map(|res| res.map(|entry| String::from_utf8(entry.0).unwrap()))
+        .map(|res| {
+            res.map(|entry| {
+                String::from_utf8(entry.0)
+                    .expect("Non-UTF8 address used as key in bucket. The storage is corrupted!")
+            })
+        })
         .collect::<StdResult<Vec<IdentityKey>>>()?;
 
     let start_next_after = delegations.last().cloned();
@@ -202,7 +209,9 @@ pub(crate) fn query_gateway_delegations_paged(
         .map(|res| {
             res.map(|entry| {
                 Delegation::new(
-                    Addr::unchecked(String::from_utf8(entry.0).unwrap()),
+                    Addr::unchecked(String::from_utf8(entry.0).expect(
+                        "Non-UTF8 address used as key in bucket. The storage is corrupted!",
+                    )),
                     coin(entry.1.u128(), DENOM),
                 )
             })
@@ -232,7 +241,12 @@ pub(crate) fn query_gateway_reverse_delegations_paged(
     let delegations = gateway_reverse_delegations_read(deps.storage, &delegation_owner)
         .range(start.as_deref(), None, Order::Ascending)
         .take(limit)
-        .map(|res| res.map(|entry| String::from_utf8(entry.0).unwrap()))
+        .map(|res| {
+            res.map(|entry| {
+                String::from_utf8(entry.0)
+                    .expect("Non-UTF8 address used as key in bucket. The storage is corrupted!")
+            })
+        })
         .collect::<StdResult<Vec<IdentityKey>>>()?;
 
     let start_next_after = delegations.last().cloned();

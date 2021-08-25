@@ -15,6 +15,7 @@ use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, Si
 use cosmos_sdk::staking::{MsgDelegate, MsgUndelegate};
 use cosmos_sdk::tx::{Fee, Msg, MsgType, SignDoc, SignerInfo};
 use cosmos_sdk::{cosmwasm, rpc, tx, AccountId, Coin};
+use log::debug;
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
@@ -287,7 +288,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await?
             .check_response()?;
 
-        println!(
+        debug!(
             "gas wanted: {:?}, gas used: {:?}",
             tx_res.deliver_tx.gas_wanted, tx_res.deliver_tx.gas_used
         );

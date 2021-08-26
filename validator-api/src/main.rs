@@ -22,7 +22,6 @@ use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use std::process;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::Notify;
 use url::Url;
 

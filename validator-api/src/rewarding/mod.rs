@@ -340,6 +340,7 @@ impl Rewarder {
 
         for (i, mix_chunk) in eligible_mixnodes.chunks(MAX_TO_REWARD_AT_ONCE).enumerate() {
             if let Err(err) = self.nymd_client.reward_mixnodes(mix_chunk).await {
+                error!("failed to reward mixnodes... - {}", err);
                 failed_chunks.push(FailedMixnodeRewardChunkDetails {
                     possibly_unrewarded: mix_chunk.to_vec(),
                     error_message: err.to_string(),
@@ -384,6 +385,7 @@ impl Rewarder {
 
         for (i, gateway_chunk) in eligible_gateways.chunks(MAX_TO_REWARD_AT_ONCE).enumerate() {
             if let Err(err) = self.nymd_client.reward_gateways(gateway_chunk).await {
+                error!("failed to reward gateways... - {}", err);
                 failed_chunks.push(FailedGatewayRewardChunkDetails {
                     possibly_unrewarded: gateway_chunk.to_vec(),
                     error_message: err.to_string(),

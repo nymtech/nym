@@ -5,7 +5,7 @@ use crate::node_status_api::models::Uptime;
 use crate::node_status_api::{FIFTEEN_MINUTES, ONE_HOUR};
 use crate::storage::models::NodeStatus;
 use log::warn;
-use std::cmp::max;
+use std::cmp::min;
 use time::OffsetDateTime;
 
 // A temporary helper struct used to produce reports for active nodes.
@@ -75,8 +75,8 @@ impl NodeUptimes {
                 ipv6_hour_up,
                 last_hour_test_runs,
             );
-            ipv4_hour_up = max(ipv4_hour_up, last_hour_test_runs);
-            ipv6_hour_up = max(ipv6_hour_up, last_hour_test_runs);
+            ipv4_hour_up = min(ipv4_hour_up, last_hour_test_runs);
+            ipv6_hour_up = min(ipv6_hour_up, last_hour_test_runs);
         }
 
         if ipv4_day_up > last_day_test_runs || ipv6_day_up > last_day_test_runs {
@@ -86,8 +86,8 @@ impl NodeUptimes {
                 ipv6_day_up,
                 last_day_test_runs,
             );
-            ipv4_day_up = max(ipv4_day_up, last_day_test_runs);
-            ipv6_day_up = max(ipv6_day_up, last_day_test_runs);
+            ipv4_day_up = min(ipv4_day_up, last_day_test_runs);
+            ipv6_day_up = min(ipv6_day_up, last_day_test_runs);
         }
 
         // the unwraps in Uptime::from_ratio are fine because it's impossible for us to have more "up" results

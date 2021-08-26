@@ -112,12 +112,10 @@ pub enum ClientControlRequest {
         iv: String,
     },
     #[serde(alias = "handshakePayload")]
-    RegisterHandshakeInitRequest {
-        data: Vec<u8>,
-    },
+    RegisterHandshakeInitRequest { data: Vec<u8> },
     BandwidthCredential {
         enc_credential: Vec<u8>,
-        iv: String,
+        iv: Vec<u8>,
     },
 }
 
@@ -146,7 +144,7 @@ impl ClientControlRequest {
 
                 Some(ClientControlRequest::BandwidthCredential {
                     enc_credential,
-                    iv: iv.to_base58_string(),
+                    iv: iv.to_bytes(),
                 })
             }
             _ => None,

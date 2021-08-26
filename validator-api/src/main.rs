@@ -352,12 +352,13 @@ async fn main() -> Result<()> {
     let config = match Config::load_from_file(None) {
         Ok(cfg) => cfg,
         Err(_) => {
+            let config_path = Config::default_config_file_path(None)
+                .into_os_string()
+                .into_string()
+                .unwrap();
             warn!(
-                "Configuration file could not be found at {}. Using the default values.",
-                Config::default_config_file_path(None)
-                    .into_os_string()
-                    .into_string()
-                    .unwrap()
+                "Could not load the configuration file from {}. Either the file did not exist or was malformed. Using the default values instead",
+                config_path
             );
             Config::new()
         }

@@ -16,8 +16,16 @@ pub(crate) struct ActiveNode {
     pub(crate) owner: String,
 }
 
+pub(crate) struct EpochRewarding {
+    #[allow(dead_code)]
+    pub(crate) id: i64,
+    pub(crate) epoch_timestamp: i64,
+    pub(crate) finished: bool,
+}
+
 pub(crate) struct RewardingReport {
-    pub(crate) timestamp: UnixTimestamp,
+    // references particular epoch_rewarding
+    pub(crate) epoch_rewarding_id: i64,
 
     pub(crate) eligible_mixnodes: i64,
     pub(crate) eligible_gateways: i64,
@@ -27,8 +35,8 @@ pub(crate) struct RewardingReport {
 }
 
 pub(crate) struct FailedMixnodeRewardChunk {
-    // references particular RewardingReport (there can be multiple chunks in a report)
-    pub(crate) report_id: i64,
+    // references particular epoch_rewarding (there can be multiple chunks in a rewarding epoch)
+    pub(crate) epoch_rewarding_id: i64,
     pub(crate) error_message: String,
 }
 
@@ -40,8 +48,8 @@ pub(crate) struct PossiblyUnrewardedMixnode {
 }
 
 pub(crate) struct FailedGatewayRewardChunk {
-    // references particular RewardingReport (there can be multiple chunks in a report)
-    pub(crate) report_id: i64,
+    // references particular epoch_rewarding (there can be multiple chunks in a rewarding epoch)
+    pub(crate) epoch_rewarding_id: i64,
     pub(crate) error_message: String,
 }
 

@@ -9,8 +9,8 @@ use crate::node_status_api::models::{
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    FailedGatewayRewardChunk, FailedMixnodeRewardChunk, NodeStatus, PossiblyUnrewardedGateway,
-    PossiblyUnrewardedMixnode, RewardingReport,
+    EpochRewarding, FailedGatewayRewardChunk, FailedMixnodeRewardChunk, NodeStatus,
+    PossiblyUnrewardedGateway, PossiblyUnrewardedMixnode, RewardingReport,
 };
 use rocket::fairing::{self, AdHoc};
 use rocket::{Build, Rocket};
@@ -554,29 +554,51 @@ impl NodeStatusStorage {
     // TODO: Should all of the below really return a "NodeStatusApi" Errors?
     ////////////////////////////////////////////////////////////////////////
 
-    /// Inserts new rewarding report into the database. Returns id of the newly created entry.
+    /// Inserts information about starting new epoch rewarding into the database.
+    /// Returns id of the newly created entry.
     ///
     /// # Arguments
     ///
-    /// * `report`: report to insert into the database
-    pub(crate) async fn insert_rewarding_report(
+    /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
+    pub(crate) async fn insert_started_epoch_rewarding(
         &self,
-        report: RewardingReport,
+        epoch_timestamp: UnixTimestamp,
     ) -> Result<i64, NodeStatusApiError> {
         self.manager
-            .insert_rewarding_report(report)
+            .insert_new_epoch_rewarding(epoch_timestamp)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)
     }
 
-    /// Tries to obtain the most recent rewarding report currently stored.
+    /// Tries to obtain the most recent epoch rewarding entry currently stored.
     ///
-    /// Returns None if no report exists.
-    pub(crate) async fn get_most_recent_rewarding_report(
+    /// Returns None if no data exists.
+    pub(crate) async fn get_most_recent_epoch_rewarding_entry(
         &self,
-    ) -> Result<Option<RewardingReport>, NodeStatusApiError> {
+    ) -> Result<Option<EpochRewarding>, NodeStatusApiError> {
         self.manager
-            .get_most_recent_rewarding_report()
+            .get_most_recent_epoch_rewarding_entry()
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    }
+
+    /// Sets the `finished` field on the epoch rewarding to true and inserts the rewarding report into
+    /// the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `report`: report to insert into the database
+    pub(crate) async fn finish_rewarding_epoch_and_insert_report(
+        &self,
+        report: RewardingReport,
+    ) -> Result<(), NodeStatusApiError> {
+        self.manager
+            .update_finished_epoch_rewarding(report.epoch_rewarding_id)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
+
+        self.manager
+            .insert_rewarding_report(report)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)
     }

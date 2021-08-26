@@ -1,14 +1,26 @@
+-- table to write information about any rewarding that has already begun
+-- in case the process crashes during the procedure.
+-- this would prevent people from somehow purposely crashing it and getting multiple rewards
+-- per epoch
+CREATE TABLE epoch_rewarding
+(
+    id              INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    epoch_timestamp INTEGER NOT NULL,
+    finished        BOOLEAN NOT NULL
+);
+
 -- for each epoch there shall be a summary
 CREATE TABLE rewarding_report
 (
-    id                           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    timestamp                    INTEGER NOT NULL,
+    epoch_rewarding_id           INTEGER NOT NULL,
 
     eligible_mixnodes            INTEGER NOT NULL,
     eligible_gateways            INTEGER NOT NULL,
 
     possibly_unrewarded_mixnodes INTEGER NOT NULL,
-    possibly_unrewarded_gateways INTEGER NOT NULL
+    possibly_unrewarded_gateways INTEGER NOT NULL,
+
+    FOREIGN KEY (epoch_rewarding_id) REFERENCES epoch_rewarding (id)
 );
 
 -- containing possibly many (ideally zero!) failed reward entries
@@ -20,7 +32,7 @@ CREATE TABLE failed_mixnode_reward_chunk
 
     reward_summary_id INTEGER NOT NULL,
 
-    FOREIGN KEY (reward_summary_id) REFERENCES rewarding_report (id)
+    FOREIGN KEY (reward_summary_id) REFERENCES epoch_rewarding (id)
 );
 
 
@@ -31,7 +43,7 @@ CREATE TABLE failed_gateway_reward_chunk
 
     reward_summary_id INTEGER NOT NULL,
 
-    FOREIGN KEY (reward_summary_id) REFERENCES rewarding_report (id)
+    FOREIGN KEY (reward_summary_id) REFERENCES epoch_rewarding (id)
 );
 
 

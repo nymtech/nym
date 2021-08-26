@@ -414,7 +414,7 @@ impl Rewarder {
     ///
     /// # Arguments
     ///
-    /// * `epoch_start`: starting time of the current rewarding epoch
+    /// * `epoch_rewarding_id`: id of the current epoch rewarding.
     ///
     /// * `active_mixnodes`: list of the nodes that were tested at least once by the network monitor
     ///                      in the last epoch.
@@ -423,7 +423,7 @@ impl Rewarder {
     ///                      in the last epoch.
     async fn distribute_rewards(
         &self,
-        epoch_start: OffsetDateTime,
+        epoch_rewarding_id: i64,
         active_mixnodes: &[MixnodeStatusReport],
         active_gateways: &[GatewayStatusReport],
     ) -> Result<(RewardingReport, Option<FailureData>), RewardingError> {
@@ -448,7 +448,7 @@ impl Rewarder {
             .await;
 
         let report = RewardingReport {
-            timestamp: epoch_start.unix_timestamp(),
+            epoch_rewarding_id,
             eligible_mixnodes: eligible_mixnodes.len() as i64,
             eligible_gateways: eligible_gateways.len() as i64,
             possibly_unrewarded_mixnodes: failure_data
@@ -488,11 +488,11 @@ impl Rewarder {
     ///
     /// * `failure_data`: information regarding nodes that might have not received reward this epoch.
     ///
-    /// * `rewarding_report_id`: id of the reward report for this epoch.
+    /// * `epoch_rewarding_id`: id of the current epoch rewarding.
     async fn save_failure_information(
         &self,
         failure_data: FailureData,
-        rewarding_report_id: i64,
+        epoch_rewarding_id: i64,
     ) -> Result<(), RewardingError> {
         if let Some(failed_mixnode_chunks) = failure_data.mixnodes {
             for failed_chunk in failed_mixnode_chunks.into_iter() {
@@ -500,7 +500,7 @@ impl Rewarder {
                 let chunk_id = self
                     .storage
                     .insert_failed_mixnode_reward_chunk(FailedMixnodeRewardChunk {
-                        report_id: rewarding_report_id,
+                        epoch_rewarding_id,
                         error_message: failed_chunk.error_message,
                     })
                     .await?;
@@ -524,7 +524,7 @@ impl Rewarder {
                 let chunk_id = self
                     .storage
                     .insert_failed_gateway_reward_chunk(FailedGatewayRewardChunk {
-                        report_id: rewarding_report_id,
+                        epoch_rewarding_id,
                         error_message: failed_chunk.error_message,
                     })
                     .await?;
@@ -585,8 +585,17 @@ impl Rewarder {
         &self,
         epoch_datetime: OffsetDateTime,
     ) -> Result<bool, RewardingError> {
-        if let Some(last_report) = self.storage.get_most_recent_rewarding_report().await? {
-            Ok(last_report.timestamp >= epoch_datetime.unix_timestamp())
+        if let Some(lastest_entry) = self.storage.get_most_recent_epoch_rewarding_entry().await? {
+            // log error if latest attempt wasn't finished. This error implies the process has crashed
+            // during the rewards distribution
+            if !lastest_entry.finished {
+                error!(
+                    "It seems that we haven't successfully finished distributing rewards at {} epoch",
+                    OffsetDateTime::from_unix_timestamp(lastest_entry.epoch_timestamp).unwrap()
+                )
+            }
+
+            Ok(lastest_entry.epoch_timestamp >= epoch_datetime.unix_timestamp())
         } else {
             // not a single reward has ever been distributed yet
             Ok(false)
@@ -653,14 +662,26 @@ impl Rewarder {
 
         let (active_mixnodes, active_gateways) = self.get_active_nodes().await?;
 
-        let (report, failure_data) = self
-            .distribute_rewards(epoch_start, &active_mixnodes, &active_gateways)
+        // insert information about beginning the procedure (so that if we crash during it,
+        // we wouldn't attempt to possibly double reward operators)
+        let epoch_rewarding_id = self
+            .storage
+            .insert_started_epoch_rewarding(epoch_start.unix_timestamp())
             .await?;
 
-        let report_id = self.storage.insert_rewarding_report(report).await?;
+        let (report, failure_data) = self
+            .distribute_rewards(epoch_rewarding_id, &active_mixnodes, &active_gateways)
+            .await?;
+
+        self.storage
+            .finish_rewarding_epoch_and_insert_report(report)
+            .await?;
 
         if let Some(failure_data) = failure_data {
-            if let Err(err) = self.save_failure_information(failure_data, report_id).await {
+            if let Err(err) = self
+                .save_failure_information(failure_data, epoch_rewarding_id)
+                .await
+            {
                 error!("failed to save information about rewarding failures!");
                 // TODO: should we just terminate the process here?
                 return Err(err);

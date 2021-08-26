@@ -21,6 +21,7 @@ pub enum GatewayClientError {
     NoSharedKeyAvailable,
     ConnectionAbruptlyClosed,
     MalformedResponse,
+    SerializeCredential,
     NotAuthenticated,
     NotEnoughBandwidth,
     UnexpectedResponse,
@@ -103,6 +104,9 @@ impl fmt::Display for GatewayClientError {
             GatewayClientError::UnexpectedResponse => write!(f, "received an unexpected response"),
             GatewayClientError::NotEnoughBandwidth => {
                 write!(f, "client does not have enough bandwidth")
+            }
+            GatewayClientError::SerializeCredential => {
+                write!(f, "credential could not be serialized")
             }
         }
     }

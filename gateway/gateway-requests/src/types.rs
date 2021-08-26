@@ -135,16 +135,21 @@ impl ClientControlRequest {
     }
 
     pub fn new_enc_bandwidth_credential(
-        credential: Credential,
+        credential: &Credential,
         shared_key: &SharedKeys,
         iv: AuthenticationIV,
-    ) -> Self {
-        let enc_credential =
-            shared_key.encrypt_and_tag(&bincode::serialize(&credential).unwrap(), Some(iv.inner()));
+    ) -> Option<Self> {
+        match bincode::serialize(credential) {
+            Ok(serialized_credential) => {
+                let enc_credential =
+                    shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
 
-        ClientControlRequest::BandwidthCredential {
-            enc_credential,
-            iv: iv.to_base58_string(),
+                Some(ClientControlRequest::BandwidthCredential {
+                    enc_credential,
+                    iv: iv.to_base58_string(),
+                })
+            }
+            _ => None,
         }
     }
 

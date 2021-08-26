@@ -468,10 +468,11 @@ impl GatewayClient {
         let iv = AuthenticationIV::new_random(&mut rng);
 
         let msg = ClientControlRequest::new_enc_bandwidth_credential(
-            self.coconut_credential.clone(),
+            &self.coconut_credential,
             self.shared_key.as_ref().unwrap(),
             iv,
         )
+        .ok_or(GatewayClientError::SerializeCredential)?
         .into();
         self.has_bandwidth = match self.send_websocket_message(msg).await? {
             ServerResponse::Bandwidth { status } => Ok(status),

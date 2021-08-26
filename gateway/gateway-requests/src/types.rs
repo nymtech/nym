@@ -101,7 +101,7 @@ impl From<MixPacketFormattingError> for GatewayRequestsError {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientControlRequest {
     // TODO: should this also contain a MAC considering that at this point we already

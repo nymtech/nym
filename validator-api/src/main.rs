@@ -7,7 +7,7 @@ extern crate rocket;
 use crate::cache::ValidatorCacheRefresher;
 use crate::config::Config;
 use crate::network_monitor::tested_network::good_topology::parse_topology_file;
-use crate::network_monitor::{new_monitor_runnables, NetworkMonitorRunnables};
+use crate::network_monitor::NetworkMonitorBuilder;
 use crate::nymd_client::Client;
 use crate::storage::NodeStatusStorage;
 use ::config::{defaults::DEFAULT_VALIDATOR_API_PORT, NymConfig};
@@ -16,10 +16,14 @@ use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
 use coconut::InternalSignRequest;
 use log::info;
+use rocket::fairing::AdHoc;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use std::process;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::Notify;
 use url::Url;
 
 pub(crate) mod cache;
@@ -214,10 +218,16 @@ fn setup_cors() -> Result<Cors> {
     Ok(cors)
 }
 
-async fn setup_network_monitor(
-    config: &Config,
+fn setup_liftoff_notify(notify: Arc<Notify>) -> AdHoc {
+    AdHoc::on_liftoff("Liftoff notifier", |_| {
+        Box::pin(async move { notify.notify_one() })
+    })
+}
+
+fn setup_network_monitor<'a>(
+    config: &'a Config,
     rocket: &Rocket<Ignite>,
-) -> Option<NetworkMonitorRunnables> {
+) -> Option<NetworkMonitorBuilder<'a>> {
     if !config.get_network_monitor_enabled() {
         return None;
     }
@@ -230,19 +240,16 @@ async fn setup_network_monitor(
     let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
     network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
 
-    Some(
-        new_monitor_runnables(
-            config,
-            v4_topology,
-            v6_topology,
-            node_status_storage,
-            validator_cache,
-        )
-        .await,
-    )
+    Some(NetworkMonitorBuilder::new(
+        config,
+        v4_topology,
+        v6_topology,
+        node_status_storage,
+        validator_cache,
+    ))
 }
 
-async fn setup_rocket(config: &Config) -> Result<Rocket<Ignite>> {
+async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Rocket<Ignite>> {
     // let's build our rocket!
     let rocket_config = rocket::config::Config {
         // TODO: probably the port should be configurable?
@@ -251,6 +258,7 @@ async fn setup_rocket(config: &Config) -> Result<Rocket<Ignite>> {
     };
     let rocket = rocket::custom(rocket_config)
         .attach(setup_cors()?)
+        .attach(setup_liftoff_notify(liftoff_notify))
         .attach(ValidatorCache::stage())
         .attach(InternalSignRequest::stage(config.keypair()));
 
@@ -290,10 +298,11 @@ async fn main() -> Result<()> {
 
     let matches = parse_args();
     let config = override_config(config, &matches);
+    let liftoff_notify = Arc::new(Notify::new());
 
     // let's build our rocket!
-    let rocket = setup_rocket(&config).await?;
-    let monitor_runnables = setup_network_monitor(&config, &rocket).await;
+    let rocket = setup_rocket(&config, Arc::clone(&liftoff_notify)).await?;
+    let monitor_builder = setup_network_monitor(&config, &rocket);
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
@@ -321,18 +330,23 @@ async fn main() -> Result<()> {
         tokio::spawn(async move { validator_cache_refresher.run().await });
     }
 
-    if let Some(runnables) = monitor_runnables {
+    // launch the rocket!
+    let shutdown_handle = rocket.shutdown();
+    tokio::spawn(rocket.launch());
+
+    // to finish building our monitor, we need to have rocket up and running so that we could
+    // obtain our bandwidth credential
+    if let Some(monitor_builder) = monitor_builder {
         info!("Starting network monitor...");
-        // spawn network monitor!
+        // wait for rocket's liftoff stage
+        liftoff_notify.notified().await;
+
+        // we're ready to go! spawn the network monitor!
+        let runnables = monitor_builder.build().await;
         runnables.spawn_tasks();
     } else {
         info!("Network monitoring is disabled.");
     }
-
-    // and launch the rocket
-    let shutdown_handle = rocket.shutdown();
-
-    tokio::spawn(rocket.launch());
 
     wait_for_interrupt().await;
     shutdown_handle.notify();

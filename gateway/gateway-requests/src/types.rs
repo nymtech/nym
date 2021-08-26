@@ -193,6 +193,7 @@ impl TryInto<String> for ClientControlRequest {
 pub enum ServerResponse {
     Authenticate { status: bool },
     Register { status: bool },
+    // Maybe we could return the remaining bandwidth?
     Bandwidth { status: bool },
     Send { status: bool },
     Error { message: String },

@@ -222,7 +222,7 @@ impl Rewarder {
     /// subset that are eligible for any rewards.
     ///
     /// As of right now, it is a rather straightforward process. It is only checked whether the node
-    /// is currently bonded.
+    /// is currently bonded and has uptime > 0.
     /// Unlike the typescript rewards script, it currently does not look at the verloc data nor
     /// whether the non-mixing ports are open.
     ///
@@ -261,6 +261,7 @@ impl Rewarder {
                         total_delegations,
                     })
             })
+            .filter(|node| node.uptime.u8() > 0)
             .collect();
 
         Ok(eligible_nodes)
@@ -270,7 +271,7 @@ impl Rewarder {
     /// subset that are eligible for any rewards.
     ///
     /// As of right now, it is a rather straightforward process. It is only checked whether the node
-    /// is currently bonded.
+    /// is currently bonded and has uptime > 0.
     /// Unlike the typescript rewards script, it currently does not look at the non-mixing ports are open.
     ///
     /// The method also obtains the number of delegators towards the node in order to more accurately
@@ -300,6 +301,7 @@ impl Rewarder {
                         total_delegations,
                     })
             })
+            .filter(|node| node.uptime.u8() > 0)
             .collect();
 
         Ok(eligible_nodes)

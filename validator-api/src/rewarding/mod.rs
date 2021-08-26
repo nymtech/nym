@@ -434,14 +434,15 @@ impl Rewarder {
             return Err(RewardingError::NoMixnodesToReward);
         }
 
-        failure_data.mixnodes = self
-            .distribute_rewards_to_mixnodes(&eligible_mixnodes)
-            .await;
-
         let eligible_gateways = self.determine_eligible_gateways(active_gateways).await?;
         if eligible_gateways.is_empty() {
             return Err(RewardingError::NoGatewaysToReward);
         }
+
+        failure_data.mixnodes = self
+            .distribute_rewards_to_mixnodes(&eligible_mixnodes)
+            .await;
+
         failure_data.gateways = self
             .distribute_rewards_to_gateways(&eligible_gateways)
             .await;

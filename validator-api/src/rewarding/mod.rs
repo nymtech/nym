@@ -586,7 +586,7 @@ impl Rewarder {
         epoch_datetime: OffsetDateTime,
     ) -> Result<bool, RewardingError> {
         if let Some(last_report) = self.storage.get_most_recent_rewarding_report().await? {
-            Ok(last_report.timestamp == epoch_datetime.unix_timestamp())
+            Ok(last_report.timestamp >= epoch_datetime.unix_timestamp())
         } else {
             // not a single reward has ever been distributed yet
             Ok(false)

@@ -10,7 +10,7 @@ use futures::{
     StreamExt,
 };
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
-use gateway_requests::authentication::iv::AuthenticationIV;
+use gateway_requests::authentication::iv::IV;
 use gateway_requests::registration::handshake::SharedKeys;
 use log::*;
 use nymsphinx::DestinationAddressBytes;
@@ -34,7 +34,7 @@ pub(crate) enum ClientsHandlerRequest {
     Authenticate(
         DestinationAddressBytes,
         EncryptedAddressBytes,
-        AuthenticationIV,
+        IV,
         MixMessageSender,
         ClientsHandlerResponseSender,
     ),
@@ -193,7 +193,7 @@ impl ClientsHandler {
         &mut self,
         address: DestinationAddressBytes,
         encrypted_address: EncryptedAddressBytes,
-        iv: AuthenticationIV,
+        iv: IV,
         comm_channel: MixMessageSender,
         res_channel: ClientsHandlerResponseSender,
     ) {

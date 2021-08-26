@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::authentication::iv::AuthenticationIV;
+use crate::authentication::iv::IV;
 use crate::registration::handshake::shared_key::SharedKeys;
 use crypto::symmetric::stream_cipher;
 use nymsphinx::params::GatewayEncryptionAlgorithm;
@@ -23,7 +23,7 @@ pub enum EncryptedAddressConversionError {
 }
 
 impl EncryptedAddressBytes {
-    pub fn new(address: &DestinationAddressBytes, key: &SharedKeys, iv: &AuthenticationIV) -> Self {
+    pub fn new(address: &DestinationAddressBytes, key: &SharedKeys, iv: &IV) -> Self {
         let ciphertext = stream_cipher::encrypt::<GatewayEncryptionAlgorithm>(
             key.encryption_key(),
             iv.inner(),
@@ -35,12 +35,7 @@ impl EncryptedAddressBytes {
         EncryptedAddressBytes(enc_address)
     }
 
-    pub fn verify(
-        &self,
-        address: &DestinationAddressBytes,
-        key: &SharedKeys,
-        iv: &AuthenticationIV,
-    ) -> bool {
+    pub fn verify(&self, address: &DestinationAddressBytes, key: &SharedKeys, iv: &IV) -> bool {
         self == &Self::new(address, key, iv)
     }
 

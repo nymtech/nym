@@ -12,7 +12,7 @@ use coconut_interface::Credential;
 use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
-use gateway_requests::authentication::iv::AuthenticationIV;
+use gateway_requests::authentication::iv::IV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
@@ -418,7 +418,7 @@ impl GatewayClient {
         let shared_key = shared_key
             .as_ref()
             .unwrap_or_else(|| self.shared_key.as_ref().unwrap());
-        let iv = AuthenticationIV::new_random(&mut rng);
+        let iv = IV::new_random(&mut rng);
         let self_address = self
             .local_identity
             .as_ref()
@@ -465,7 +465,7 @@ impl GatewayClient {
         }
 
         let mut rng = OsRng;
-        let iv = AuthenticationIV::new_random(&mut rng);
+        let iv = IV::new_random(&mut rng);
 
         let msg = ClientControlRequest::new_enc_bandwidth_credential(
             &self.coconut_credential,

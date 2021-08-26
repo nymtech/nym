@@ -14,7 +14,7 @@ use futures::{
     SinkExt, StreamExt,
 };
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
-use gateway_requests::authentication::iv::AuthenticationIV;
+use gateway_requests::authentication::iv::IV;
 use gateway_requests::registration::handshake::error::HandshakeError;
 use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys};
 use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};
@@ -241,7 +241,7 @@ where
             }
         };
 
-        let iv = match AuthenticationIV::try_from_base58_string(iv) {
+        let iv = match IV::try_from_base58_string(iv) {
             Ok(iv) => iv,
             Err(e) => {
                 trace!("failed to parse received IV {:?}", e);
@@ -351,7 +351,7 @@ where
         if self.shared_key.is_none() {
             return ServerResponse::new_error("No shared key has been exchanged with the gateway");
         }
-        let iv = match AuthenticationIV::try_from_bytes(&iv) {
+        let iv = match IV::try_from_bytes(&iv) {
             Ok(iv) => iv,
             Err(e) => {
                 trace!("failed to parse received IV {:?}", e);

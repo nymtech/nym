@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
-use crate::authentication::iv::AuthenticationIV;
+use crate::authentication::iv::IV;
 use crate::registration::handshake::SharedKeys;
 use crate::GatewayMacSize;
 use coconut_interface::Credential;
@@ -123,7 +123,7 @@ impl ClientControlRequest {
     pub fn new_authenticate(
         address: DestinationAddressBytes,
         enc_address: EncryptedAddressBytes,
-        iv: AuthenticationIV,
+        iv: IV,
     ) -> Self {
         ClientControlRequest::Authenticate {
             address: address.as_base58_string(),
@@ -135,7 +135,7 @@ impl ClientControlRequest {
     pub fn new_enc_bandwidth_credential(
         credential: &Credential,
         shared_key: &SharedKeys,
-        iv: AuthenticationIV,
+        iv: IV,
     ) -> Option<Self> {
         match bincode::serialize(credential) {
             Ok(serialized_credential) => {
@@ -154,7 +154,7 @@ impl ClientControlRequest {
     pub fn try_from_enc_bandwidth_credential(
         enc_credential: Vec<u8>,
         shared_key: &SharedKeys,
-        iv: AuthenticationIV,
+        iv: IV,
     ) -> Result<Credential, GatewayRequestsError> {
         let credential = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
         bincode::deserialize(&credential).map_err(|_| GatewayRequestsError::MalformedEncryption)

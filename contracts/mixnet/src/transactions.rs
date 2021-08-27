@@ -427,12 +427,12 @@ pub(crate) fn try_reward_mixnode(
 
     let bond_reward_rate = read_mixnode_epoch_bond_reward_rate(deps.storage);
     let delegation_reward_rate = read_mixnode_epoch_delegation_reward_rate(deps.storage);
-    let bond_scaled_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
-    let delegation_scaled_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
+    let scaled_bond_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
+    let scaled_delegation_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
 
-    let node_reward = current_bond.bond_amount.amount * bond_scaled_reward_rate;
+    let node_reward = current_bond.bond_amount.amount * scaled_bond_reward_rate;
     let total_delegation_reward =
-        increase_mix_delegated_stakes(deps.storage, &mix_identity, delegation_scaled_reward_rate)?;
+        increase_mix_delegated_stakes(deps.storage, &mix_identity, scaled_delegation_reward_rate)?;
 
     // update current bond with the reward given to the node and the delegators
     current_bond.bond_amount.amount += node_reward;
@@ -477,7 +477,7 @@ pub(crate) fn try_reward_gateway(
     }
 
     // check if the bond even exists
-    let mut current_bond = match gateways(deps.storage).load(gateway_identity.as_bytes()) {
+    let mut current_bond = match gateways_read(deps.storage).load(gateway_identity.as_bytes()) {
         Ok(bond) => bond,
         Err(_) => {
             return Ok(Response {

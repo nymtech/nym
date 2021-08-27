@@ -8,7 +8,10 @@ mod msg;
 mod types;
 
 pub use cosmwasm_std::{Addr, Coin};
-pub use delegation::{Delegation, PagedGatewayDelegationsResponse, PagedMixDelegationsResponse};
+pub use delegation::{
+    Delegation, PagedGatewayDelegationsResponse, PagedMixDelegationsResponse,
+    PagedReverseGatewayDelegationsResponse, PagedReverseMixDelegationsResponse,
+};
 pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayResponse};
 pub use mixnode::{Layer, MixNode, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse};
 pub use msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};

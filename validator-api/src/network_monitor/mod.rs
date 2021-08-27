@@ -31,6 +31,103 @@ pub(crate) mod monitor;
 pub(crate) mod test_packet;
 pub(crate) mod tested_network;
 
+pub(crate) struct NetworkMonitorBuilder<'a> {
+    config: &'a Config,
+    tested_network: TestedNetwork,
+    node_status_storage: NodeStatusStorage,
+    validator_cache: ValidatorCache,
+}
+
+impl<'a> NetworkMonitorBuilder<'a> {
+    pub(crate) fn new(
+        config: &'a Config,
+        v4_topology: NymTopology,
+        v6_topology: NymTopology,
+        node_status_storage: NodeStatusStorage,
+        validator_cache: ValidatorCache,
+    ) -> Self {
+        let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
+
+        NetworkMonitorBuilder {
+            config,
+            tested_network,
+            node_status_storage,
+            validator_cache,
+        }
+    }
+
+    pub(crate) async fn build(self) -> NetworkMonitorRunnables {
+        // TODO: in the future I guess this should somehow change to distribute the load
+        let tested_mix_gateway = self.tested_network.main_v4_gateway().clone();
+        info!(
+            "* gateway for testing mixnodes: {}",
+            tested_mix_gateway.identity_key.to_base58_string()
+        );
+
+        // TODO: those keys change constant throughout the whole execution of the monitor.
+        // and on top of that, they are used with ALL the gateways -> presumably this should change
+        // in the future
+        let mut rng = rand::rngs::OsRng;
+
+        let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
+        let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
+
+        let test_mixnode_sender = Recipient::new(
+            *identity_keypair.public_key(),
+            *encryption_keypair.public_key(),
+            tested_mix_gateway.identity_key,
+        );
+
+        let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
+        let (received_processor_sender_channel, received_processor_receiver_channel) =
+            mpsc::unbounded();
+
+        let packet_preparer = new_packet_preparer(
+            self.validator_cache,
+            self.tested_network.clone(),
+            test_mixnode_sender,
+            *identity_keypair.public_key(),
+            *encryption_keypair.public_key(),
+        );
+
+        let bandwidth_credential =
+            TEMPORARY_obtain_bandwidth_credential(self.config, identity_keypair.public_key()).await;
+
+        let packet_sender = new_packet_sender(
+            self.config,
+            gateway_status_update_sender,
+            Arc::clone(&identity_keypair),
+            bandwidth_credential,
+            self.config.get_gateway_sending_rate(),
+        );
+
+        let received_processor = new_received_processor(
+            received_processor_receiver_channel,
+            Arc::clone(&encryption_keypair),
+        );
+        let summary_producer = new_summary_producer(self.config.get_detailed_report());
+        let packet_receiver = new_packet_receiver(
+            gateway_status_update_receiver,
+            received_processor_sender_channel,
+        );
+
+        let monitor = monitor::Monitor::new(
+            self.config,
+            packet_preparer,
+            packet_sender,
+            received_processor,
+            summary_producer,
+            self.node_status_storage,
+            self.tested_network,
+        );
+
+        NetworkMonitorRunnables {
+            monitor,
+            packet_receiver,
+        }
+    }
+}
+
 pub(crate) struct NetworkMonitorRunnables {
     monitor: Monitor,
     packet_receiver: PacketReceiver,
@@ -45,85 +142,6 @@ impl NetworkMonitorRunnables {
         let mut monitor = self.monitor;
         tokio::spawn(async move { packet_receiver.run().await });
         tokio::spawn(async move { monitor.run().await });
-    }
-}
-
-pub(crate) async fn new_monitor_runnables(
-    config: &Config,
-    v4_topology: NymTopology,
-    v6_topology: NymTopology,
-    node_status_storage: NodeStatusStorage,
-    validator_cache: ValidatorCache,
-) -> NetworkMonitorRunnables {
-    // TODO: in the future I guess this should somehow change to distribute the load
-    let tested_mix_gateway = v4_topology.gateways()[0].clone();
-    info!(
-        "* gateway for testing mixnodes: {}",
-        tested_mix_gateway.identity_key.to_base58_string()
-    );
-
-    let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
-
-    // TODO: those keys change constant throughout the whole execution of the monitor.
-    // and on top of that, they are used with ALL the gateways -> presumably this should change
-    // in the future
-    let mut rng = rand::rngs::OsRng;
-
-    let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
-    let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
-
-    let test_mixnode_sender = Recipient::new(
-        *identity_keypair.public_key(),
-        *encryption_keypair.public_key(),
-        tested_mix_gateway.identity_key,
-    );
-
-    let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
-    let (received_processor_sender_channel, received_processor_receiver_channel) =
-        mpsc::unbounded();
-
-    let packet_preparer = new_packet_preparer(
-        validator_cache,
-        tested_network.clone(),
-        test_mixnode_sender,
-        *identity_keypair.public_key(),
-        *encryption_keypair.public_key(),
-    );
-
-    let bandwidth_credential =
-        TEMPORARY_obtain_bandwidth_credential(config, identity_keypair.public_key()).await;
-
-    let packet_sender = new_packet_sender(
-        config,
-        gateway_status_update_sender,
-        Arc::clone(&identity_keypair),
-        bandwidth_credential,
-        config.get_gateway_sending_rate(),
-    );
-
-    let received_processor = new_received_processor(
-        received_processor_receiver_channel,
-        Arc::clone(&encryption_keypair),
-    );
-    let summary_producer = new_summary_producer(config.get_detailed_report());
-    let packet_receiver = new_packet_receiver(
-        gateway_status_update_receiver,
-        received_processor_sender_channel,
-    );
-
-    let monitor = monitor::Monitor::new(
-        config,
-        packet_preparer,
-        packet_sender,
-        received_processor,
-        summary_producer,
-        node_status_storage,
-        tested_network,
-    );
-
-    NetworkMonitorRunnables {
-        monitor,
-        packet_receiver,
     }
 }
 

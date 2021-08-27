@@ -247,6 +247,58 @@ impl<C> Client<C> {
         Ok(delegations)
     }
 
+    pub async fn get_all_nymd_reverse_mixnode_delegations(
+        &self,
+        delegation_owner: &cosmos_sdk::AccountId,
+    ) -> Result<Vec<mixnet_contract::IdentityKey>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let mut delegations = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_reverse_mix_delegations_paged(
+                    mixnet_contract::Addr::unchecked(delegation_owner.as_ref()),
+                    start_after.take(),
+                    self.mixnode_delegations_page_limit,
+                )
+                .await?;
+            delegations.append(&mut paged_response.delegated_nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(delegations)
+    }
+
+    pub async fn get_all_nymd_mixnode_delegations_of_owner(
+        &self,
+        delegation_owner: &cosmos_sdk::AccountId,
+    ) -> Result<Vec<mixnet_contract::Delegation>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let mut delegations = Vec::new();
+        for node_identity in self
+            .get_all_nymd_reverse_mixnode_delegations(delegation_owner)
+            .await?
+        {
+            let delegation = self
+                .nymd
+                .get_mix_delegation(node_identity, delegation_owner)
+                .await?;
+            delegations.push(delegation);
+        }
+
+        Ok(delegations)
+    }
+
     pub async fn get_all_nymd_gateway_delegations(
         &self,
         identity: mixnet_contract::IdentityKey,
@@ -272,6 +324,58 @@ impl<C> Client<C> {
             } else {
                 break;
             }
+        }
+
+        Ok(delegations)
+    }
+
+    pub async fn get_all_nymd_reverse_gateway_delegations(
+        &self,
+        delegation_owner: &cosmos_sdk::AccountId,
+    ) -> Result<Vec<mixnet_contract::IdentityKey>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let mut delegations = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_reverse_gateway_delegations_paged(
+                    mixnet_contract::Addr::unchecked(delegation_owner.as_ref()),
+                    start_after.take(),
+                    self.mixnode_delegations_page_limit,
+                )
+                .await?;
+            delegations.append(&mut paged_response.delegated_nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(delegations)
+    }
+
+    pub async fn get_all_nymd_gateway_delegations_of_owner(
+        &self,
+        delegation_owner: &cosmos_sdk::AccountId,
+    ) -> Result<Vec<mixnet_contract::Delegation>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let mut delegations = Vec::new();
+        for node_identity in self
+            .get_all_nymd_reverse_gateway_delegations(delegation_owner)
+            .await?
+        {
+            let delegation = self
+                .nymd
+                .get_gateway_delegation(node_identity, delegation_owner)
+                .await?;
+            delegations.push(delegation);
         }
 
         Ok(delegations)

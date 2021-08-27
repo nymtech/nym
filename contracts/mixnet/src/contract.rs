@@ -4,7 +4,8 @@
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
 use crate::storage::{
-    config, layer_distribution, reverse_gateway_delegations, reverse_mix_delegations,
+    config, gateway_delegations, gateway_old_delegations_read, layer_distribution, mix_delegations,
+    mix_old_delegations_read,
 };
 use crate::{error::ContractError, queries, transactions};
 use config::defaults::NETWORK_MONITOR_ADDRESS;
@@ -14,7 +15,7 @@ use cosmwasm_std::{
 };
 use mixnet_contract::{
     Delegation, ExecuteMsg, IdentityKey, IdentityKeyRef, InstantiateMsg, MigrateMsg, QueryMsg,
-    StateParams,
+    RawDelegationData, StateParams,
 };
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
@@ -206,7 +207,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    const TWENTY_FOUR_HOURS_BLOCKS: u64 = 18000;
+
     fn get_all_mixnodes_identities(deps: &DepsMut) -> Result<Vec<IdentityKey>, ContractError> {
         let mut mixnode_bonds = Vec::new();
         let mut start_after = None;
@@ -258,7 +261,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
         let mut delegations = Vec::new();
         let mut start_after = None;
         loop {
-            let mut paged_response = queries::query_mixnode_delegations_paged(
+            let mut paged_response = queries::query_mixnode_old_delegations_paged(
                 deps.as_ref(),
                 mix_identity.into(),
                 start_after,
@@ -283,7 +286,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
         let mut delegations = Vec::new();
         let mut start_after = None;
         loop {
-            let mut paged_response = queries::query_gateway_delegations_paged(
+            let mut paged_response = queries::query_gateway_old_delegations_paged(
                 deps.as_ref(),
                 gateway_identity.into(),
                 start_after,
@@ -301,12 +304,17 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
         Ok(delegations)
     }
 
+    let old_enough_blockstamp = env.block.height - TWENTY_FOUR_HOURS_BLOCKS;
+
     let mixnodes_identities = get_all_mixnodes_identities(&deps)?;
     for mix_identity in mixnodes_identities {
         let delegations = get_all_mixnode_delegations(&deps, &mix_identity)?;
         for delegation in delegations {
-            reverse_mix_delegations(deps.storage, &delegation.owner())
-                .save(mix_identity.as_bytes(), &())?;
+            let old_delegation_bucket = mix_old_delegations_read(deps.storage, &mix_identity);
+            let amount = old_delegation_bucket.load(delegation.owner().as_bytes())?;
+            let new_delegation_data = RawDelegationData::new(amount, old_enough_blockstamp);
+            let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
+            delegation_bucket.save(delegation.owner().as_bytes(), &new_delegation_data)?;
         }
     }
 
@@ -314,8 +322,12 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
     for gateway_identity in gateways_identities {
         let delegations = get_all_gateway_delegations(&deps, &gateway_identity)?;
         for delegation in delegations {
-            reverse_gateway_delegations(deps.storage, &delegation.owner())
-                .save(gateway_identity.as_bytes(), &())?;
+            let old_delegation_bucket =
+                gateway_old_delegations_read(deps.storage, &gateway_identity);
+            let amount = old_delegation_bucket.load(delegation.owner().as_bytes())?;
+            let new_delegation_data = RawDelegationData::new(amount, old_enough_blockstamp);
+            let mut delegation_bucket = gateway_delegations(deps.storage, &gateway_identity);
+            delegation_bucket.save(delegation.owner().as_bytes(), &new_delegation_data)?;
         }
     }
 

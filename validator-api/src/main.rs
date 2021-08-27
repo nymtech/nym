@@ -79,6 +79,12 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .long(NYMD_VALIDATOR_ARG)
                 .takes_value(true)
         )
+        .arg(
+            Arg::with_name(API_VALIDATORS_ARG)
+                .help("specifies list of all validators on the network issuing coconut credentials. Ensure they are properly ordered")
+                .long(API_VALIDATORS_ARG)
+                .takes_value(true)
+        )
         .arg(Arg::with_name(MIXNET_CONTRACT_ARG)
                  .long(MIXNET_CONTRACT_ARG)
                  .help("Address of the validator contract managing the network")

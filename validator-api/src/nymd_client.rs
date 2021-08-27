@@ -119,7 +119,7 @@ impl<C> Client<C> {
         let base_gas_limit = MIXNODE_REWARD_OP_BASE_GAS_LIMIT * nodes as u64
             + PER_MIXNODE_DELEGATION_GAS_INCREASE * total_delegations as u64;
 
-        let total_gas_limit = (base_gas_limit as f64 * REWARDING_GAS_LIMIT_MULTIPIER as u64);
+        let total_gas_limit = (base_gas_limit as f64 * REWARDING_GAS_LIMIT_MULTIPIER) as u64;
 
         self.0
             .read()
@@ -132,7 +132,7 @@ impl<C> Client<C> {
         let base_gas_limit = GATEWAY_REWARD_OP_BASE_GAS_LIMIT * nodes as u64
             + PER_GATEWAY_DELEGATION_GAS_INCREASE * total_delegations as u64;
 
-        let total_gas_limit = (base_gas_limit as f64 * REWARDING_GAS_LIMIT_MULTIPIER as u64);
+        let total_gas_limit = (base_gas_limit as f64 * REWARDING_GAS_LIMIT_MULTIPIER) as u64;
 
         self.0
             .read()

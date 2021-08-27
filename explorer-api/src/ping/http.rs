@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
 
 use rocket::serde::json::Json;
@@ -80,32 +80,81 @@ async fn port_check(bond: &MixNodeBond) -> HashMap<u16, bool> {
     ports
 }
 
+fn resolve_host(host: &str, port: u16) -> Option<SocketAddr> {
+    match format!("{}:{}", host, port).to_socket_addrs() {
+        Ok(mut addrs) => addrs.next(),
+        Err(e) => {
+            error!("Failed to resolve {}:{} - {}", host, port, e);
+            None
+        }
+    }
+}
+
 async fn do_port_check(host: &str, port: u16) -> bool {
-    let addr = format!("{}:{}", host, port)
-        .to_socket_addrs()
-        .unwrap()
-        .next()
-        .unwrap();
-    match tokio::time::timeout(
-        CONNECTION_TIMEOUT_SECONDS,
-        tokio::net::TcpStream::connect(addr),
-    )
-    .await
-    {
-        Ok(Ok(_stream)) => {
-            // didn't timeout and tcp stream is open
-            trace!("Successfully pinged {}", addr);
-            true
-        }
-        Ok(Err(_stream_err)) => {
-            error!("{} ping failed {:}", addr, _stream_err);
-            // didn't timeout but couldn't open tcp stream
-            false
-        }
-        Err(_timeout) => {
-            // timed out
-            error!("{} timed out {:}", addr, _timeout);
-            false
-        }
+    match resolve_host(host, port) {
+        Some(addr) => match tokio::time::timeout(
+            CONNECTION_TIMEOUT_SECONDS,
+            tokio::net::TcpStream::connect(addr),
+        )
+        .await
+        {
+            Ok(Ok(_stream)) => {
+                // didn't timeout and tcp stream is open
+                trace!("Successfully pinged {}", addr);
+                true
+            }
+            Ok(Err(_stream_err)) => {
+                error!("{} ping failed {:}", addr, _stream_err);
+                // didn't timeout but couldn't open tcp stream
+                false
+            }
+            Err(_timeout) => {
+                // timed out
+                error!("{} timed out {:}", addr, _timeout);
+                false
+            }
+        },
+        None => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_host_with_valid_ip_address_returns_some() {
+        assert!(resolve_host("8.8.8.8", 1234).is_some());
+        assert!(resolve_host("2001:4860:4860::8888", 1234).is_some());
+    }
+
+    #[test]
+    fn resolve_host_with_valid_hostname_returns_some() {
+        assert!(resolve_host("nymtech.net", 1234).is_some());
+    }
+
+    #[test]
+    fn resolve_host_with_malformed_ip_address_returns_some() {
+        // these have missing values filled in
+        assert!(resolve_host("1.2.3", 1234).is_some()); // 1.2.0.3
+        assert!(resolve_host("1.2", 1234).is_some()); // 1.0.0.2
+        assert!(resolve_host("1", 1234).is_some()); // 0.0.0.1
+    }
+
+    #[test]
+    fn resolve_host_with_unknown_hostname_returns_none() {
+        assert!(resolve_host(
+            "some-unknown-hostname-that-will-never-resolve.nymtech.net",
+            1234
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn resolve_host_with_bad_strings_return_none() {
+        assert!(resolve_host("", 1234).is_none());
+        assert!(resolve_host("🤘", 1234).is_none());
+        assert!(resolve_host("@", 1234).is_none());
+        assert!(resolve_host("*", 1234).is_none());
     }
 }

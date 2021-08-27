@@ -3,14 +3,19 @@
 
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
-use crate::storage::{config, layer_distribution};
+use crate::storage::{
+    config, layer_distribution, reverse_gateway_delegations, reverse_mix_delegations,
+};
 use crate::{error::ContractError, queries, transactions};
 use config::defaults::NETWORK_MONITOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
 };
-use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateParams};
+use mixnet_contract::{
+    Delegation, ExecuteMsg, IdentityKey, IdentityKeyRef, InstantiateMsg, MigrateMsg, QueryMsg,
+    StateParams,
+};
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -149,6 +154,16 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             start_after,
             limit,
         )?),
+        QueryMsg::GetReverseMixDelegations {
+            delegation_owner,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_reverse_mixnode_delegations_paged(
+            deps,
+            delegation_owner,
+            start_after,
+            limit,
+        )?),
         QueryMsg::GetMixDelegation {
             mix_identity,
             address,
@@ -167,6 +182,16 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             start_after,
             limit,
         )?),
+        QueryMsg::GetReverseGatewayDelegations {
+            delegation_owner,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_reverse_gateway_delegations_paged(
+            deps,
+            delegation_owner,
+            start_after,
+            limit,
+        )?),
         QueryMsg::GetGatewayDelegation {
             gateway_identity,
             address,
@@ -181,7 +206,119 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    fn get_all_mixnodes_identities(deps: &DepsMut) -> Result<Vec<IdentityKey>, ContractError> {
+        let mut mixnode_bonds = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response =
+                queries::query_mixnodes_paged(deps.as_ref(), start_after, None)?;
+            mixnode_bonds.append(&mut paged_response.nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+        let mixnodes = mixnode_bonds
+            .into_iter()
+            .map(|bond| bond.mix_node.identity_key)
+            .collect();
+
+        Ok(mixnodes)
+    }
+
+    fn get_all_gateways_identities(deps: &DepsMut) -> Result<Vec<IdentityKey>, ContractError> {
+        let mut gateway_bonds = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response =
+                queries::query_gateways_paged(deps.as_ref(), start_after, None)?;
+            gateway_bonds.append(&mut paged_response.nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+        let gateways = gateway_bonds
+            .into_iter()
+            .map(|bond| bond.gateway.identity_key)
+            .collect();
+
+        Ok(gateways)
+    }
+
+    fn get_all_mixnode_delegations(
+        deps: &DepsMut,
+        mix_identity: IdentityKeyRef,
+    ) -> Result<Vec<Delegation>, ContractError> {
+        let mut delegations = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = queries::query_mixnode_delegations_paged(
+                deps.as_ref(),
+                mix_identity.into(),
+                start_after,
+                None,
+            )?;
+            delegations.append(&mut paged_response.delegations);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(delegations)
+    }
+
+    fn get_all_gateway_delegations(
+        deps: &DepsMut,
+        gateway_identity: IdentityKeyRef,
+    ) -> Result<Vec<Delegation>, ContractError> {
+        let mut delegations = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = queries::query_gateway_delegations_paged(
+                deps.as_ref(),
+                gateway_identity.into(),
+                start_after,
+                None,
+            )?;
+            delegations.append(&mut paged_response.delegations);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(delegations)
+    }
+
+    let mixnodes_identities = get_all_mixnodes_identities(&deps)?;
+    for mix_identity in mixnodes_identities {
+        let delegations = get_all_mixnode_delegations(&deps, &mix_identity)?;
+        for delegation in delegations {
+            reverse_mix_delegations(deps.storage, &delegation.owner())
+                .save(mix_identity.as_bytes(), &())?;
+        }
+    }
+
+    let gateways_identities = get_all_gateways_identities(&deps)?;
+    for gateway_identity in gateways_identities {
+        let delegations = get_all_gateway_delegations(&deps, &gateway_identity)?;
+        for delegation in delegations {
+            reverse_gateway_delegations(deps.storage, &delegation.owner())
+                .save(gateway_identity.as_bytes(), &())?;
+        }
+    }
+
     Ok(Default::default())
 }
 

@@ -719,6 +719,7 @@ impl Rewarder {
 
         // if the process has just started, wait for at least an hour to have some monitor data
         // if we want to be giving out rewards now
+        info!("The rewarding task has just begun - waiting for one hour before beginning the first cycle");
         sleep(ONE_HOUR).await;
 
         loop {

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
-use gateway_requests::authentication::iv::IV;
 use gateway_requests::generic_array::typenum::Unsigned;
+use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::{SharedKeySize, SharedKeys};
 use log::*;
 use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};

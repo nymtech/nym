@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crypto::generic_array::{typenum::Unsigned, GenericArray};
-use crypto::symmetric::stream_cipher::{random_iv, NewStreamCipher, IV as OtherIV};
+use crypto::symmetric::stream_cipher::{random_iv, NewStreamCipher, IV as CryptoIV};
 use nymsphinx::params::GatewayEncryptionAlgorithm;
 use rand::{CryptoRng, RngCore};
 
@@ -10,7 +10,7 @@ type NonceSize = <GatewayEncryptionAlgorithm as NewStreamCipher>::NonceSize;
 
 // I think 'IV' looks better than 'Iv', feel free to change that.
 #[allow(clippy::upper_case_acronyms)]
-pub struct IV(OtherIV<GatewayEncryptionAlgorithm>);
+pub struct IV(CryptoIV<GatewayEncryptionAlgorithm>);
 
 #[derive(Debug)]
 // I think 'IV' looks better than 'Iv', feel free to change that.
@@ -42,7 +42,7 @@ impl IV {
         self.0.as_ref()
     }
 
-    pub fn inner(&self) -> &OtherIV<GatewayEncryptionAlgorithm> {
+    pub fn inner(&self) -> &CryptoIV<GatewayEncryptionAlgorithm> {
         &self.0
     }
 

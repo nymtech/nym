@@ -14,7 +14,7 @@ use futures::{
     SinkExt, StreamExt,
 };
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
-use gateway_requests::authentication::iv::IV;
+use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::error::HandshakeError;
 use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys};
 use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};

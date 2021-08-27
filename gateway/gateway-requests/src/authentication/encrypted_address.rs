@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::authentication::iv::IV;
+use crate::iv::IV;
 use crate::registration::handshake::shared_key::SharedKeys;
 use crypto::symmetric::stream_cipher;
 use nymsphinx::params::GatewayEncryptionAlgorithm;

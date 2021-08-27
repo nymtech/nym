@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
-use crate::authentication::iv::IV;
+use crate::iv::IV;
 use crate::registration::handshake::SharedKeys;
 use crate::GatewayMacSize;
 use coconut_interface::Credential;

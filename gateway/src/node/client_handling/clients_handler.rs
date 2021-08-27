@@ -10,7 +10,7 @@ use futures::{
     StreamExt,
 };
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
-use gateway_requests::authentication::iv::IV;
+use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::SharedKeys;
 use log::*;
 use nymsphinx::DestinationAddressBytes;

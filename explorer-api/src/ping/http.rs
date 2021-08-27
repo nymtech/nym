@@ -5,9 +5,10 @@ use std::time::Duration;
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 
+use mixnet_contract::MixNodeBond;
+
 use crate::ping::models::PingResponse;
 use crate::state::ExplorerApiStateContext;
-use mixnet_contract::MixNodeBond;
 
 const CONNECTION_TIMEOUT_SECONDS: Duration = Duration::from_secs(10);
 
@@ -80,18 +81,31 @@ async fn port_check(bond: &MixNodeBond) -> HashMap<u16, bool> {
     ports
 }
 
-fn resolve_host(host: &str, port: u16) -> Option<SocketAddr> {
-    match format!("{}:{}", host, port).to_socket_addrs() {
+fn sanitize_and_resolve_host(host: &str, port: u16) -> Option<SocketAddr> {
+    // trim the host
+    let trimmed_host = host.trim();
+
+    // host must be at least one non-whitespace character
+    if trimmed_host.is_empty() {
+        return None;
+    }
+
+    // the host string should hopefully parse and resolve into a valid socket address
+    let parsed_host = format!("{}:{}", trimmed_host, port);
+    match parsed_host.to_socket_addrs() {
         Ok(mut addrs) => addrs.next(),
         Err(e) => {
-            error!("Failed to resolve {}:{} - {}", host, port, e);
+            error!(
+                "Failed to resolve {}:{} -> {}. Error: {}",
+                host, port, parsed_host, e
+            );
             None
         }
     }
 }
 
 async fn do_port_check(host: &str, port: u16) -> bool {
-    match resolve_host(host, port) {
+    match sanitize_and_resolve_host(host, port) {
         Some(addr) => match tokio::time::timeout(
             CONNECTION_TIMEOUT_SECONDS,
             tokio::net::TcpStream::connect(addr),
@@ -124,26 +138,25 @@ mod tests {
 
     #[test]
     fn resolve_host_with_valid_ip_address_returns_some() {
-        assert!(resolve_host("8.8.8.8", 1234).is_some());
-        assert!(resolve_host("2001:4860:4860::8888", 1234).is_some());
+        assert!(sanitize_and_resolve_host("8.8.8.8", 1234).is_some());
+        assert!(sanitize_and_resolve_host("2001:4860:4860::8888", 1234).is_some());
     }
 
     #[test]
     fn resolve_host_with_valid_hostname_returns_some() {
-        assert!(resolve_host("nymtech.net", 1234).is_some());
+        assert!(sanitize_and_resolve_host("nymtech.net", 1234).is_some());
     }
 
     #[test]
-    fn resolve_host_with_malformed_ip_address_returns_some() {
-        // these have missing values filled in
-        assert!(resolve_host("1.2.3", 1234).is_some()); // 1.2.0.3
-        assert!(resolve_host("1.2", 1234).is_some()); // 1.0.0.2
-        assert!(resolve_host("1", 1234).is_some()); // 0.0.0.1
+    fn resolve_host_with_malformed_ip_address_returns_none() {
+        // these are invalid ip addresses
+        assert!(sanitize_and_resolve_host("192.168.1.999", 1234).is_none());
+        assert!(sanitize_and_resolve_host("10.999.999.999", 1234).is_none());
     }
 
     #[test]
     fn resolve_host_with_unknown_hostname_returns_none() {
-        assert!(resolve_host(
+        assert!(sanitize_and_resolve_host(
             "some-unknown-hostname-that-will-never-resolve.nymtech.net",
             1234
         )
@@ -152,9 +165,11 @@ mod tests {
 
     #[test]
     fn resolve_host_with_bad_strings_return_none() {
-        assert!(resolve_host("", 1234).is_none());
-        assert!(resolve_host("🤘", 1234).is_none());
-        assert!(resolve_host("@", 1234).is_none());
-        assert!(resolve_host("*", 1234).is_none());
+        assert!(sanitize_and_resolve_host("", 1234).is_none());
+        assert!(sanitize_and_resolve_host(" ", 1234).is_none());
+        assert!(sanitize_and_resolve_host(" 🤘 ", 1234).is_none());
+        assert!(sanitize_and_resolve_host("🤘", 1234).is_none());
+        assert!(sanitize_and_resolve_host("@", 1234).is_none());
+        assert!(sanitize_and_resolve_host("*", 1234).is_none());
     }
 }

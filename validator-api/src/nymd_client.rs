@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::rewarding::{
     error::RewardingError, GatewayToReward, MixnodeToReward, GATEWAY_REWARD_OP_BASE_GAS_LIMIT,
     MIXNODE_REWARD_OP_BASE_GAS_LIMIT, PER_GATEWAY_DELEGATION_GAS_INCREASE,
-    PER_MIXNODE_DELEGATION_GAS_INCREASE,
+    PER_MIXNODE_DELEGATION_GAS_INCREASE, REWARDING_GAS_LIMIT_MULTIPIER,
 };
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract::{Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond};
@@ -116,8 +116,10 @@ impl<C> Client<C> {
     }
 
     async fn estimate_mixnode_reward_fees(&self, nodes: usize, total_delegations: usize) -> Fee {
-        let total_gas_limit = MIXNODE_REWARD_OP_BASE_GAS_LIMIT * nodes as u64
+        let base_gas_limit = MIXNODE_REWARD_OP_BASE_GAS_LIMIT * nodes as u64
             + PER_MIXNODE_DELEGATION_GAS_INCREASE * total_delegations as u64;
+
+        let total_gas_limit = (base_gas_limit as f64 * REWARDING_GAS_LIMIT_MULTIPIER as u64);
 
         self.0
             .read()
@@ -127,8 +129,10 @@ impl<C> Client<C> {
     }
 
     async fn estimate_gateway_reward_fees(&self, nodes: usize, total_delegations: usize) -> Fee {
-        let total_gas_limit = GATEWAY_REWARD_OP_BASE_GAS_LIMIT * nodes as u64
+        let base_gas_limit = GATEWAY_REWARD_OP_BASE_GAS_LIMIT * nodes as u64
             + PER_GATEWAY_DELEGATION_GAS_INCREASE * total_delegations as u64;
+
+        let total_gas_limit = (base_gas_limit as f64 * REWARDING_GAS_LIMIT_MULTIPIER as u64);
 
         self.0
             .read()

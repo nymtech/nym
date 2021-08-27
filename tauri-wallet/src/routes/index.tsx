@@ -10,6 +10,7 @@ import { Send } from './send'
 import { SignIn } from './sign-in'
 import { Unbond } from './unbond'
 import { Undelegate } from './undelegate'
+import { InternalDocs } from './internal-docs'
 
 export const Routes = () => (
   <Router>
@@ -38,9 +39,9 @@ export const Routes = () => (
       <Route path="/undelegate">
         <Undelegate />
       </Route>
-      <Route path="/signin">
-        <SignIn />
-      </Route>
+        <Route path="/docs">
+          <InternalDocs />
+        </Route>
       <Route path="*">
         <NotFound />
       </Route>

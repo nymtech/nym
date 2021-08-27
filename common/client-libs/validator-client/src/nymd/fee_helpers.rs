@@ -4,7 +4,6 @@
 use crate::nymd::GasPrice;
 use cosmos_sdk::tx::{Fee, Gas};
 use cosmos_sdk::Coin;
-use cosmwasm_std::Uint128;
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum Operation {
@@ -28,13 +27,7 @@ pub enum Operation {
 }
 
 pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
-    let limit_uint128 = Uint128::from(gas_limit.value());
-    let amount = gas_price.amount * limit_uint128;
-    assert!(amount.u128() <= u64::MAX as u128);
-    Coin {
-        denom: gas_price.denom.clone(),
-        amount: (amount.u128() as u64).into(),
-    }
+    gas_price * gas_limit
 }
 
 impl Operation {

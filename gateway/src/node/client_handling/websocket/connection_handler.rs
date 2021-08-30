@@ -14,7 +14,7 @@ use futures::{
     SinkExt, StreamExt,
 };
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
-use gateway_requests::authentication::iv::AuthenticationIV;
+use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::error::HandshakeError;
 use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys};
 use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};
@@ -53,6 +53,8 @@ pub(crate) struct Handle<R, S> {
     rng: R,
     remote_address: Option<DestinationAddressBytes>,
     shared_key: Option<SharedKeys>,
+    // TODO: This should be replaced by an actual bandwidth value, with 0 meaning no bandwidth
+    has_bandwidth: bool,
     clients_handler_sender: ClientsHandlerRequestSender,
     outbound_mix_sender: MixForwardingSender,
     socket_connection: SocketStream<S>,
@@ -79,6 +81,7 @@ where
             rng,
             remote_address: None,
             shared_key: None,
+            has_bandwidth: false,
             clients_handler_sender,
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
@@ -119,7 +122,6 @@ where
                     ws_stream,
                     self.local_identity.as_ref(),
                     init_msg,
-                    &self.aggregated_verification_key,
                 )
                 .await
             }
@@ -192,6 +194,9 @@ where
     }
 
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
+        if !self.has_bandwidth {
+            return ServerResponse::new_error("Not enough bandwidth").into();
+        }
         trace!("Handling binary message (presumably sphinx packet)");
 
         // this function decrypts the request and checks the MAC
@@ -236,7 +241,7 @@ where
             }
         };
 
-        let iv = match AuthenticationIV::try_from_base58_string(iv) {
+        let iv = match IV::try_from_base58_string(iv) {
             Ok(iv) => iv,
             Err(e) => {
                 trace!("failed to parse received IV {:?}", e);
@@ -342,12 +347,45 @@ where
         }
     }
 
-    // currently there are no valid control messages you can send after authentication
-    async fn handle_text(&mut self, _: String) -> Message {
-        trace!("Handling text message (presumably control message)");
+    async fn handle_bandwidth(&mut self, enc_credential: Vec<u8>, iv: Vec<u8>) -> ServerResponse {
+        if self.shared_key.is_none() {
+            return ServerResponse::new_error("No shared key has been exchanged with the gateway");
+        }
+        let iv = match IV::try_from_bytes(&iv) {
+            Ok(iv) => iv,
+            Err(e) => {
+                trace!("failed to parse received IV {:?}", e);
+                return ServerResponse::new_error("malformed iv");
+            }
+        };
+        let credential = match ClientControlRequest::try_from_enc_bandwidth_credential(
+            enc_credential,
+            self.shared_key.as_ref().unwrap(),
+            iv,
+        ) {
+            Ok(c) => c,
+            Err(e) => {
+                return ServerResponse::new_error(e.to_string());
+            }
+        };
+        let status = credential.verify(&self.aggregated_verification_key);
+        self.has_bandwidth = status;
+        ServerResponse::Bandwidth { status }
+    }
 
-        error!("Currently there are no text messages besides 'Authenticate' and 'Register' and they were already dealt with!");
-        ServerResponse::new_error("invalid request").into()
+    // currently the bandwidth credential request is the only one we can receive after
+    // authentication
+    async fn handle_text(&mut self, raw_request: String) -> Message {
+        if let Ok(request) = ClientControlRequest::try_from(raw_request) {
+            match request {
+                ClientControlRequest::BandwidthCredential { enc_credential, iv } => {
+                    self.handle_bandwidth(enc_credential, iv).await.into()
+                }
+                _ => ServerResponse::new_error("invalid request").into(),
+            }
+        } else {
+            ServerResponse::new_error("malformed request").into()
+        }
     }
 
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
@@ -384,6 +422,7 @@ where
                 ClientControlRequest::RegisterHandshakeInitRequest { data } => {
                     self.handle_register(data, mix_sender).await
                 }
+                _ => ServerResponse::new_error("invalid request"),
             }
         } else {
             // TODO: is this a malformed request or rather a network error and

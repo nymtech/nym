@@ -543,7 +543,10 @@ mod tests {
 
             let delegator_address = Addr::unchecked("bob");
             mix_delegations(&mut deps.storage, &node_identity)
-                .save(delegator_address.as_bytes(), &raw_delegation_fixture(1000))
+                .save(
+                    delegator_address.as_bytes(),
+                    &RawDelegationData::new(1000u128.into(), 42),
+                )
                 .unwrap();
 
             let total_increase =
@@ -552,8 +555,9 @@ mod tests {
 
             assert_eq!(Uint128(1), total_increase);
 
+            // amount is incremented, block height remains the same
             assert_eq!(
-                raw_delegation_fixture(1001),
+                RawDelegationData::new(1001u128.into(), 42),
                 mix_delegations_read(&mut deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()
@@ -736,7 +740,10 @@ mod tests {
 
             let delegator_address = Addr::unchecked("bob");
             gateway_delegations(&mut deps.storage, &node_identity)
-                .save(delegator_address.as_bytes(), &raw_delegation_fixture(1000))
+                .save(
+                    delegator_address.as_bytes(),
+                    &RawDelegationData::new(1000u128.into(), 42),
+                )
                 .unwrap();
 
             let total_increase = increase_gateway_delegated_stakes(
@@ -748,8 +755,9 @@ mod tests {
 
             assert_eq!(Uint128(1), total_increase);
 
+            // amount is incremented, block height remains the same
             assert_eq!(
-                raw_delegation_fixture(1001),
+                RawDelegationData::new(1001u128.into(), 42),
                 gateway_delegations_read(&mut deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()

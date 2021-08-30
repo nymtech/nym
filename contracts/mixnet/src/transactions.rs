@@ -2194,6 +2194,106 @@ pub mod tests {
         }
 
         #[test]
+        fn block_height_is_updated_on_new_delegation() {
+            let mut deps = helpers::init_contract();
+            let mixnode_owner = "bob";
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
+            let delegation = coin(100, DENOM);
+
+            let env1 = mock_env();
+            let mut env2 = mock_env();
+            let initial_height = env1.block.height;
+            let updated_height = initial_height + 42;
+            // second env has grown in block height
+            env2.block.height = updated_height;
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                env1,
+                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation.amount, initial_height),
+                mix_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner.as_bytes())
+                    .unwrap()
+            );
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                env2,
+                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation.amount + delegation.amount, updated_height),
+                mix_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner.as_bytes())
+                    .unwrap()
+            );
+        }
+
+        #[test]
+        fn block_height_is_not_updated_on_different_delegator() {
+            let mut deps = helpers::init_contract();
+            let mixnode_owner = "bob";
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner1 = Addr::unchecked("sender1");
+            let delegation_owner2 = Addr::unchecked("sender2");
+            let delegation1 = coin(100, DENOM);
+            let delegation2 = coin(120, DENOM);
+
+            let env1 = mock_env();
+            let mut env2 = mock_env();
+            let initial_height = env1.block.height;
+            let second_height = initial_height + 42;
+            // second env has grown in block height
+            env2.block.height = second_height;
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                env1,
+                mock_info(delegation_owner1.as_str(), &vec![delegation1.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation1.amount, initial_height),
+                mix_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner1.as_bytes())
+                    .unwrap()
+            );
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                env2,
+                mock_info(delegation_owner2.as_str(), &vec![delegation2.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation1.amount, initial_height),
+                mix_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner1.as_bytes())
+                    .unwrap()
+            );
+            assert_eq!(
+                RawDelegationData::new(delegation2.amount, second_height),
+                mix_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner2.as_bytes())
+                    .unwrap()
+            );
+        }
+
+        #[test]
         fn is_disallowed_for_already_delegated_node_if_it_unbonded() {
             let mut deps = helpers::init_contract();
 
@@ -2879,6 +2979,106 @@ pub mod tests {
                     .total_delegation
                     .amount
             )
+        }
+
+        #[test]
+        fn block_height_is_updated_on_new_delegation() {
+            let mut deps = helpers::init_contract();
+            let gateway_owner = "bob";
+            let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
+            let delegation = coin(100, DENOM);
+
+            let env1 = mock_env();
+            let mut env2 = mock_env();
+            let initial_height = env1.block.height;
+            let updated_height = initial_height + 42;
+            // second env has grown in block height
+            env2.block.height = updated_height;
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                env1,
+                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation.amount, initial_height),
+                gateway_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner.as_bytes())
+                    .unwrap()
+            );
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                env2,
+                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation.amount + delegation.amount, updated_height),
+                gateway_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner.as_bytes())
+                    .unwrap()
+            );
+        }
+
+        #[test]
+        fn block_height_is_not_updated_on_different_delegator() {
+            let mut deps = helpers::init_contract();
+            let gateway_owner = "bob";
+            let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner1 = Addr::unchecked("sender1");
+            let delegation_owner2 = Addr::unchecked("sender2");
+            let delegation1 = coin(100, DENOM);
+            let delegation2 = coin(120, DENOM);
+
+            let env1 = mock_env();
+            let mut env2 = mock_env();
+            let initial_height = env1.block.height;
+            let second_height = initial_height + 42;
+            // second env has grown in block height
+            env2.block.height = second_height;
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                env1,
+                mock_info(delegation_owner1.as_str(), &vec![delegation1.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation1.amount, initial_height),
+                gateway_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner1.as_bytes())
+                    .unwrap()
+            );
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                env2,
+                mock_info(delegation_owner2.as_str(), &vec![delegation2.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation1.amount, initial_height),
+                gateway_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner1.as_bytes())
+                    .unwrap()
+            );
+            assert_eq!(
+                RawDelegationData::new(delegation2.amount, second_height),
+                gateway_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner2.as_bytes())
+                    .unwrap()
+            );
         }
 
         #[test]

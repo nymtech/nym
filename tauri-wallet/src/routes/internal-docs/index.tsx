@@ -7,7 +7,7 @@ export const InternalDocs = () => {
     return (
       <Page>
         <Layout>
-          <NymCard title="Docs" subheader="Internal API docs" noPadding>
+          <NymCard title="Docs" subheader="Internal API docs">
             <ApiList />
           </NymCard>
         </Layout>

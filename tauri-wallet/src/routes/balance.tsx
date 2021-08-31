@@ -43,7 +43,7 @@ export const Balance = () => {
                   style={{ padding: theme.spacing(2, 3) }}
                   action={<RefreshAction />}
                 >
-                  {'The current balance is ' + balance}
+                  {'The current balance is ' + balance?.amount}
                 </Alert>
               )}
             </Grid>

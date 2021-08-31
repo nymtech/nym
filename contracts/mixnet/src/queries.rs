@@ -3,10 +3,9 @@
 
 use crate::error::ContractError;
 use crate::storage::{
-    gateway_delegations_read, gateway_old_delegations_read, gateways_owners_read, gateways_read,
-    mix_delegations_read, mix_old_delegations_read, mixnodes_owners_read, mixnodes_read,
-    read_layer_distribution, read_state_params, reverse_gateway_delegations_read,
-    reverse_mix_delegations_read,
+    gateway_delegations_read, gateways_owners_read, gateways_read, mix_delegations_read,
+    mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params,
+    reverse_gateway_delegations_read, reverse_mix_delegations_read,
 };
 use config::defaults::DENOM;
 use cosmwasm_std::Deps;
@@ -144,41 +143,6 @@ pub(crate) fn query_mixnode_delegations_paged(
     ))
 }
 
-pub(crate) fn query_mixnode_old_delegations_paged(
-    deps: Deps,
-    mix_identity: IdentityKey,
-    start_after: Option<Addr>,
-    limit: Option<u32>,
-) -> StdResult<PagedMixDelegationsResponse> {
-    let limit = limit
-        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
-        .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
-    let start = calculate_start_value(start_after);
-
-    let delegations = mix_old_delegations_read(deps.storage, &mix_identity)
-        .range(start.as_deref(), None, Order::Ascending)
-        .take(limit)
-        .map(|res| {
-            res.map(|entry| {
-                Delegation::new(
-                    Addr::unchecked(String::from_utf8(entry.0).expect(
-                        "Non-UTF8 address used as key in bucket. The storage is corrupted!",
-                    )),
-                    coin(entry.1.u128(), DENOM),
-                )
-            })
-        })
-        .collect::<StdResult<Vec<Delegation>>>()?;
-
-    let start_next_after = delegations.last().map(|delegation| delegation.owner());
-
-    Ok(PagedMixDelegationsResponse::new(
-        mix_identity,
-        delegations,
-        start_next_after,
-    ))
-}
-
 pub(crate) fn query_reverse_mixnode_delegations_paged(
     deps: Deps,
     delegation_owner: Addr,
@@ -249,41 +213,6 @@ pub(crate) fn query_gateway_delegations_paged(
                         "Non-UTF8 address used as key in bucket. The storage is corrupted!",
                     )),
                     coin(entry.1.amount.u128(), DENOM),
-                )
-            })
-        })
-        .collect::<StdResult<Vec<Delegation>>>()?;
-
-    let start_next_after = delegations.last().map(|delegation| delegation.owner());
-
-    Ok(PagedGatewayDelegationsResponse::new(
-        gateway_identity,
-        delegations,
-        start_next_after,
-    ))
-}
-
-pub(crate) fn query_gateway_old_delegations_paged(
-    deps: Deps,
-    gateway_identity: IdentityKey,
-    start_after: Option<Addr>,
-    limit: Option<u32>,
-) -> StdResult<PagedGatewayDelegationsResponse> {
-    let limit = limit
-        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
-        .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
-    let start = calculate_start_value(start_after);
-
-    let delegations = gateway_old_delegations_read(deps.storage, &gateway_identity)
-        .range(start.as_deref(), None, Order::Ascending)
-        .take(limit)
-        .map(|res| {
-            res.map(|entry| {
-                Delegation::new(
-                    Addr::unchecked(String::from_utf8(entry.0).expect(
-                        "Non-UTF8 address used as key in bucket. The storage is corrupted!",
-                    )),
-                    coin(entry.1.u128(), DENOM),
                 )
             })
         })

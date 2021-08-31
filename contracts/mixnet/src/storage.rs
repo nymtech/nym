@@ -315,14 +315,6 @@ pub fn reverse_mix_delegations_read<'a>(
     ReadonlyBucket::multilevel(storage, &[PREFIX_REVERSE_MIX_DELEGATION, owner.as_bytes()])
 }
 
-// This function will need to be deleted, once the migration is completed
-pub fn mix_old_delegations_read<'a>(
-    storage: &'a dyn Storage,
-    mix_identity: IdentityKeyRef,
-) -> ReadonlyBucket<'a, Uint128> {
-    ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
-}
-
 pub fn gateway_delegations<'a>(
     storage: &'a mut dyn Storage,
     gateway_identity: IdentityKeyRef,
@@ -360,17 +352,6 @@ pub fn reverse_gateway_delegations_read<'a>(
     ReadonlyBucket::multilevel(
         storage,
         &[PREFIX_REVERSE_GATEWAY_DELEGATION, owner.as_bytes()],
-    )
-}
-
-// This function will need to be deleted, once the migration is completed
-pub fn gateway_old_delegations_read<'a>(
-    storage: &'a dyn Storage,
-    gateway_identity: IdentityKeyRef,
-) -> ReadonlyBucket<'a, Uint128> {
-    ReadonlyBucket::multilevel(
-        storage,
-        &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
     )
 }
 

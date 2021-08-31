@@ -39,7 +39,7 @@ pub(crate) const PER_GATEWAY_DELEGATION_GAS_INCREASE: u64 = 2750;
 
 // Another safety net in case of contract changes,
 // the calculated total gas limit is going to get multiplied by that value.
-pub(crate) const REWARDING_GAS_LIMIT_MULTIPIER: f64 = 1.05;
+pub(crate) const REWARDING_GAS_LIMIT_MULTIPLIER: f64 = 1.05;
 
 pub(crate) const MAX_TO_REWARD_AT_ONCE: usize = 50;
 
@@ -252,7 +252,7 @@ impl Rewarder {
         let mixnode_delegators = self.produce_mixnode_delegators_map().await?;
 
         // 1. go through all active mixnodes
-        // 2. filter out nodes that are currently no bonded (as `mixnode_delegators` was obtained by
+        // 2. filter out nodes that are currently not bonded (as `mixnode_delegators` was obtained by
         //    querying the validator)
         // 3. determine uptime and attach delegators count
         let eligible_nodes = active_mixnodes
@@ -353,12 +353,12 @@ impl Rewarder {
                 })
             }
             let rewarded = i * MAX_TO_REWARD_AT_ONCE + mix_chunk.len();
-            let perc = rewarded as f32 * 100.0 / eligible_mixnodes.len() as f32;
+            let percentage = rewarded as f32 * 100.0 / eligible_mixnodes.len() as f32;
             info!(
                 "Rewarded {} / {} mixnodes\t{:.2}%",
                 rewarded,
                 eligible_mixnodes.len(),
-                perc
+                percentage
             );
         }
 
@@ -399,12 +399,12 @@ impl Rewarder {
             }
 
             let rewarded = i * MAX_TO_REWARD_AT_ONCE + gateway_chunk.len();
-            let perc = rewarded as f32 * 100.0 / eligible_gateways.len() as f32;
+            let percentage = rewarded as f32 * 100.0 / eligible_gateways.len() as f32;
             info!(
                 "Rewarded {} / {} gateways\t{:.2}%",
                 rewarded,
                 eligible_gateways.len(),
-                perc
+                percentage
             );
         }
 

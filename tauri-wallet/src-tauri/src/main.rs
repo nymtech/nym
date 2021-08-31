@@ -56,10 +56,7 @@ async fn connect_with_mnemonic(
   );
   ret.insert(
     "client_address",
-    match client.contract_address() {
-      Ok(address) => address.to_string(),
-      Err(e) => format_err!(e),
-    },
+    client.address().to_string()
   );
   ret.insert(
     "denom",

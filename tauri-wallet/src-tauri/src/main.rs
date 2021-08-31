@@ -6,10 +6,9 @@
 use bip39::Mnemonic;
 use error::BackendError;
 use std::collections::HashMap;
-use std::error::Error;
-use std::fmt::Display;
 use std::str::FromStr;
 use validator_client::nymd::{NymdClient, SigningNymdClient};
+use cosmos_sdk::AccountId;
 
 mod config;
 mod error;
@@ -71,7 +70,7 @@ async fn connect_with_mnemonic(
   );
   let mut w_state = state.write().await;
   w_state.signing_client = Some(client);
-  
+
   Ok(ret)
 }
 
@@ -100,8 +99,11 @@ async fn get_balance(
 }
 
 fn _connect_with_mnemonic(mnemonic: Mnemonic, config: &Config) -> NymdClient<SigningNymdClient> {
-  match NymdClient::connect_with_mnemonic(config.get_nymd_validator_url().unwrap(), None, mnemonic)
-  {
+  match NymdClient::connect_with_mnemonic(
+    config.get_nymd_validator_url().unwrap(),
+    Some(AccountId::from_str(&config.get_mixnet_contract_address()).unwrap()),
+    mnemonic,
+  ) {
     Ok(client) => client,
     Err(e) => panic!("{}", e),
   }

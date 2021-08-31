@@ -39,9 +39,9 @@ export const Routes = () => (
       <Route path="/undelegate">
         <Undelegate />
       </Route>
-        <Route path="/docs">
-          <InternalDocs />
-        </Route>
+      <Route path="/docs">
+        <InternalDocs />
+      </Route>
       <Route path="*">
         <NotFound />
       </Route>

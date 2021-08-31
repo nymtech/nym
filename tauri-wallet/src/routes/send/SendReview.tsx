@@ -10,7 +10,7 @@ export const SendReview = ({
   recipientAddress: string
   amount: string
 }) => {
-  const { client } = useContext(ClientContext)
+  const { clientDetails } = useContext(ClientContext)
   const theme: Theme = useTheme()
   return (
     <Card
@@ -19,7 +19,10 @@ export const SendReview = ({
     >
       <Grid container spacing={2}>
         <Grid item xs={12}>
-          <SendReviewField title="From" subtitle={client.address} />
+          <SendReviewField
+            title="From"
+            subtitle={clientDetails?.client_address!}
+          />
         </Grid>
         <Grid item xs={12}>
           <Divider light />

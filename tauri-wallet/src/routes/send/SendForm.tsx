@@ -11,7 +11,7 @@ export const SendForm = ({
   updateRecipAddress: (address: string) => void
   updateAmount: (amount: string) => void
 }) => {
-  const { address } = useContext(ClientContext)
+  const { clientDetails } = useContext(ClientContext)
 
   return (
     <Grid container spacing={3}>
@@ -23,7 +23,7 @@ export const SendForm = ({
           name="sender"
           label="Sender address"
           fullWidth
-          value={address}
+          value={clientDetails?.client_address}
           disabled={true}
         />
       </Grid>

@@ -208,8 +208,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 
 #[entry_point]
 pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    const TWENTY_FOUR_HOURS_BLOCKS: u64 = 18000;
-
     fn get_all_mixnodes_identities(deps: &DepsMut) -> Result<Vec<IdentityKey>, ContractError> {
         let mut mixnode_bonds = Vec::new();
         let mut start_after = None;
@@ -304,15 +302,13 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
         Ok(delegations)
     }
 
-    let old_enough_blockstamp = env.block.height - TWENTY_FOUR_HOURS_BLOCKS;
-
     let mixnodes_identities = get_all_mixnodes_identities(&deps)?;
     for mix_identity in mixnodes_identities {
         let delegations = get_all_mixnode_delegations(&deps, &mix_identity)?;
         for delegation in delegations {
             let old_delegation_bucket = mix_old_delegations_read(deps.storage, &mix_identity);
             let amount = old_delegation_bucket.load(delegation.owner().as_bytes())?;
-            let new_delegation_data = RawDelegationData::new(amount, old_enough_blockstamp);
+            let new_delegation_data = RawDelegationData::new(amount, env.block.height);
             let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
             delegation_bucket.save(delegation.owner().as_bytes(), &new_delegation_data)?;
         }
@@ -325,7 +321,7 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
             let old_delegation_bucket =
                 gateway_old_delegations_read(deps.storage, &gateway_identity);
             let amount = old_delegation_bucket.load(delegation.owner().as_bytes())?;
-            let new_delegation_data = RawDelegationData::new(amount, old_enough_blockstamp);
+            let new_delegation_data = RawDelegationData::new(amount, env.block.height);
             let mut delegation_bucket = gateway_delegations(deps.storage, &gateway_identity);
             delegation_bucket.save(delegation.owner().as_bytes(), &new_delegation_data)?;
         }

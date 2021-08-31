@@ -245,6 +245,8 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
                             "Non-UTF8 address used as key in bucket. The storage is corrupted!",
                         )),
                         coin(entry.1.u128(), DENOM),
+                        // dummy data, used as a placeholder in the context of migration
+                        42,
                     )
                 })
             })
@@ -280,6 +282,8 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
                             "Non-UTF8 address used as key in bucket. The storage is corrupted!",
                         )),
                         coin(entry.1.u128(), DENOM),
+                        // dummy data, used as a placeholder in the context of migration
+                        42,
                     )
                 })
             })

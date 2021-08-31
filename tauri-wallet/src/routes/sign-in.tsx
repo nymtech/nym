@@ -11,8 +11,8 @@ import {
 } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
 import { useTheme } from '@material-ui/styles'
-import logo from '../images/logo.png'
 import { invoke } from '@tauri-apps/api'
+import logo from '../images/logo.png'
 import { ClientContext } from '../context/main'
 import { TClientDetails } from '../types/global'
 

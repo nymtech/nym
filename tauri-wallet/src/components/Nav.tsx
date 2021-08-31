@@ -1,5 +1,5 @@
 import React, { useContext } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   List,
   ListItem,
@@ -16,9 +16,10 @@ import {
   ExitToApp,
   HowToVote,
   MoneyOff,
-  Description
+  Description,
 } from '@material-ui/icons'
 import { makeStyles } from '@material-ui/styles'
+import clsx from 'clsx'
 import { ClientContext } from '../context/main'
 
 let routesSchema = [
@@ -60,13 +61,11 @@ let routesSchema = [
 ]
 
 if (process.env.NODE_ENV) {
-  routesSchema.push(
-    {
-      label: 'Docs',
-      route: '/docs',
-      Icon: <Description />,
-    },
-  )
+  routesSchema.push({
+    label: 'Docs',
+    route: '/docs',
+    Icon: <Description />,
+  })
 }
 
 const useStyles = makeStyles((theme: Theme) => ({
@@ -94,11 +93,21 @@ export const Nav = () => {
       <List>
         {routesSchema.map((r, i) => (
           <ListItem button component={Link} to={r.route} key={i}>
-            <ListItemIcon className={classes.navItem}>{r.Icon}</ListItemIcon>
+            <ListItemIcon
+              className={clsx([
+                classes.navItem,
+                location.pathname === r.route ? classes.selected : undefined,
+              ])}
+            >
+              {r.Icon}
+            </ListItemIcon>
             <ListItemText
               primary={r.label}
               primaryTypographyProps={{
-                className: classes.navItem,
+                className: clsx([
+                  classes.navItem,
+                  location.pathname === r.route ? classes.selected : undefined,
+                ]),
               }}
             />
           </ListItem>

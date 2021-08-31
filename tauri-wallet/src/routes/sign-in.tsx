@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useContext, useState } from 'react'
 import {
   TextField,
   CircularProgress,
@@ -14,11 +14,14 @@ import { useTheme } from '@material-ui/styles'
 import logo from '../images/logo.png'
 import { useHistory } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api'
+import { ClientContext } from '../context/main'
 
 export const SignIn = () => {
   const [mnemonic, setMnemonic] = useState<string>('')
   const [inputError, setInputError] = useState<string | undefined>()
   const [isLoading, setIsLoading] = useState(false)
+
+  const { logIn } = useContext(ClientContext)
 
   const theme: Theme = useTheme()
   const history = useHistory()
@@ -30,15 +33,14 @@ export const SignIn = () => {
     setInputError(undefined)
 
     invoke('connect_with_mnemonic', { mnemonic })
-      .then((res) => {
-        setIsLoading(false)
-        console.log(res)
-        history.push('/bond')
+      .then(() => {
+        logIn()
       })
       .catch((e) => {
-        setIsLoading(false)
         setInputError(e)
       })
+
+    setIsLoading(false)
   }
 
   return (

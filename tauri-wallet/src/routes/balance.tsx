@@ -9,47 +9,45 @@ import { Alert } from '@material-ui/lab'
 import { theme } from '../theme'
 
 export const Balance = () => {
-  const { client } = useContext(ClientContext)
+  const { balance, balanceError, getBalance } = useContext(ClientContext)
+
+  const RefreshAction = () => (
+    <Button
+      variant="contained"
+      size="small"
+      color="primary"
+      type="submit"
+      onClick={getBalance}
+      disabled={false}
+      disableElevation
+      startIcon={<Refresh />}
+    >
+      Refresh
+    </Button>
+  )
+
   return (
     <Page>
       <Layout>
         <NymCard title="Check Balance">
-          {client === null ? (
-            <NoClientError />
-          ) : (
-            <Grid container direction="column" spacing={2}>
-              <Grid item>
-                <Confirmation
-                  isLoading={false}
-                  error={null}
-                  progressMessage="Checking balance..."
-                  SuccessMessage={
-                    <Alert
-                      severity="success"
-                      style={{ padding: theme.spacing(2, 3) }}
-                      action={
-                        <Button
-                          variant="contained"
-                          size="small"
-                          color="primary"
-                          type="submit"
-                          onClick={() => {}}
-                          disabled={false}
-                          disableElevation
-                          startIcon={<Refresh />}
-                        >
-                          Refresh
-                        </Button>
-                      }
-                    >
-                      {'The current balance is ' + client.balance}
-                    </Alert>
-                  }
-                  failureMessage="Failed to check the account balance!"
-                />
-              </Grid>
+          <Grid container direction="column" spacing={2}>
+            <Grid item>
+              {balanceError && (
+                <Alert severity="error" action={<RefreshAction />}>
+                  {balanceError}
+                </Alert>
+              )}
+              {!balanceError && (
+                <Alert
+                  severity="success"
+                  style={{ padding: theme.spacing(2, 3) }}
+                  action={<RefreshAction />}
+                >
+                  {'The current balance is ' + balance}
+                </Alert>
+              )}
             </Grid>
-          )}
+          </Grid>
         </NymCard>
       </Layout>
     </Page>

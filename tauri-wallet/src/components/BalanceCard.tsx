@@ -1,6 +1,7 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect } from 'react'
 import {
   CardContent,
+  CircularProgress,
   IconButton,
   Typography,
   useTheme,
@@ -8,10 +9,16 @@ import {
 import { ClientContext } from '../context/main'
 import { FileCopy, Refresh } from '@material-ui/icons'
 import { NymCard } from './NymCard'
+import { Alert } from '@material-ui/lab'
 
 export const BalanceCard = () => {
   const theme = useTheme()
-  const { client } = useContext(ClientContext)
+  const { balance, balanceError, balanceLoading, getBalance } =
+    useContext(ClientContext)
+
+  useEffect(() => {
+    getBalance()
+  }, [])
 
   return (
     <div style={{ margin: theme.spacing(3) }}>
@@ -20,13 +27,23 @@ export const BalanceCard = () => {
         subheader="Current wallet balance"
         noPadding
         Action={
-          <IconButton>
+          <IconButton onClick={getBalance}>
             <Refresh />
           </IconButton>
         }
       >
         <CardContent>
-          <Typography>{client.balance}</Typography>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            {balanceLoading ? (
+              <CircularProgress size={28} />
+            ) : balanceError ? (
+              <Alert severity="error" style={{ width: '100%' }}>
+                {balanceError}
+              </Alert>
+            ) : (
+              <Typography>{balance}</Typography>
+            )}
+          </div>
         </CardContent>
       </NymCard>
     </div>
@@ -35,7 +52,7 @@ export const BalanceCard = () => {
 
 export const AddressCard = () => {
   const theme = useTheme()
-  const { client } = useContext(ClientContext)
+  const { address } = useContext(ClientContext)
   return (
     <div style={{ margin: theme.spacing(3) }}>
       <NymCard
@@ -48,7 +65,7 @@ export const AddressCard = () => {
           </IconButton>
         }
       >
-        <CardContent>{client.address}</CardContent>
+        <CardContent>{address}</CardContent>
       </NymCard>
     </div>
   )

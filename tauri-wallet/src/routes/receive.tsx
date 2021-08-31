@@ -7,43 +7,41 @@ import { theme } from '../theme'
 import { ClientContext } from '../context/main'
 
 export const Receive = () => {
-  const { client } = useContext(ClientContext)
+  const { address } = useContext(ClientContext)
   const matches = useMediaQuery('(min-width:769px)')
 
   return (
     <Page>
       <Layout>
-        <>
-          <NymCard title="Receive Nym">
-            <Grid container direction="column" spacing={1}>
-              <Grid item>
-                <Alert severity="info">
-                  You can receive tokens by providing this address to the sender
-                </Alert>
-              </Grid>
-              <Grid item>
-                <Card
-                  style={{
-                    margin: theme.spacing(1, 0),
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    padding: theme.spacing(3),
-                  }}
-                  variant="outlined"
-                >
-                  <Typography
-                    variant={matches ? 'h5' : 'subtitle1'}
-                    style={{ wordBreak: 'break-word' }}
-                  >
-                    {client.address}
-                  </Typography>
-                  <CopyToClipboard text={client.address} />
-                </Card>
-              </Grid>
+        <NymCard title="Receive Nym">
+          <Grid container direction="column" spacing={1}>
+            <Grid item>
+              <Alert severity="info">
+                You can receive tokens by providing this address to the sender
+              </Alert>
             </Grid>
-          </NymCard>
-        </>
+            <Grid item>
+              <Card
+                style={{
+                  margin: theme.spacing(1, 0),
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  padding: theme.spacing(3),
+                }}
+                variant="outlined"
+              >
+                <Typography
+                  variant={matches ? 'h5' : 'subtitle1'}
+                  style={{ wordBreak: 'break-word' }}
+                >
+                  {address}
+                </Typography>
+                <CopyToClipboard text={address} />
+              </Card>
+            </Grid>
+          </Grid>
+        </NymCard>
       </Layout>
     </Page>
   )

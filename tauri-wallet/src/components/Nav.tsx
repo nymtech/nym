@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   List,
@@ -18,8 +18,7 @@ import {
   MoneyOff,
 } from '@material-ui/icons'
 import { makeStyles } from '@material-ui/styles'
-import clsx from 'clsx'
-import { theme } from '../theme'
+import { ClientContext } from '../context/main'
 
 const routesSchema = [
   {
@@ -57,11 +56,6 @@ const routesSchema = [
     route: '/undelegate',
     Icon: <Cancel />,
   },
-  {
-    label: 'Log out',
-    route: '/signin',
-    Icon: <ExitToApp />,
-  },
 ]
 
 const useStyles = makeStyles((theme: Theme) => ({
@@ -76,7 +70,7 @@ const useStyles = makeStyles((theme: Theme) => ({
 
 export const Nav = () => {
   const classes = useStyles()
-  const location = useLocation()
+  const { logOut } = useContext(ClientContext)
 
   return (
     <div
@@ -89,25 +83,26 @@ export const Nav = () => {
       <List>
         {routesSchema.map((r, i) => (
           <ListItem button component={Link} to={r.route} key={i}>
-            <ListItemIcon
-              className={clsx([
-                classes.navItem,
-                location.pathname === r.route ? classes.selected : undefined,
-              ])}
-            >
-              {r.Icon}
-            </ListItemIcon>
+            <ListItemIcon className={classes.navItem}>{r.Icon}</ListItemIcon>
             <ListItemText
               primary={r.label}
               primaryTypographyProps={{
-                className: clsx([
-                  classes.navItem,
-                  location.pathname === r.route ? classes.selected : undefined,
-                ]),
+                className: classes.navItem,
               }}
             />
           </ListItem>
         ))}
+        <ListItem button onClick={logOut}>
+          <ListItemIcon className={classes.navItem}>
+            <ExitToApp />
+          </ListItemIcon>
+          <ListItemText
+            primary="Log out"
+            primaryTypographyProps={{
+              className: classes.navItem,
+            }}
+          />
+        </ListItem>
       </List>
     </div>
   )

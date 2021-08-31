@@ -2,10 +2,25 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::{Addr, IdentityKey};
-use cosmwasm_std::Coin;
+use cosmwasm_std::{Coin, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct RawDelegationData {
+    pub amount: Uint128,
+    pub block_height: u64,
+}
+
+impl RawDelegationData {
+    pub fn new(amount: Uint128, block_height: u64) -> Self {
+        RawDelegationData {
+            amount,
+            block_height,
+        }
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct Delegation {

@@ -128,7 +128,7 @@ pub(crate) fn query_mixnode_delegations_paged(
                     Addr::unchecked(String::from_utf8(entry.0).expect(
                         "Non-UTF8 address used as key in bucket. The storage is corrupted!",
                     )),
-                    coin(entry.1.u128(), DENOM),
+                    coin(entry.1.amount.u128(), DENOM),
                 )
             })
         })
@@ -183,7 +183,7 @@ pub(crate) fn query_mixnode_delegation(
     match mix_delegations_read(deps.storage, &mix_identity).may_load(address.as_bytes())? {
         Some(delegation_value) => Ok(Delegation::new(
             address,
-            coin(delegation_value.u128(), DENOM),
+            coin(delegation_value.amount.u128(), DENOM),
         )),
         None => Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
@@ -212,7 +212,7 @@ pub(crate) fn query_gateway_delegations_paged(
                     Addr::unchecked(String::from_utf8(entry.0).expect(
                         "Non-UTF8 address used as key in bucket. The storage is corrupted!",
                     )),
-                    coin(entry.1.u128(), DENOM),
+                    coin(entry.1.amount.u128(), DENOM),
                 )
             })
         })
@@ -267,7 +267,7 @@ pub(crate) fn query_gateway_delegation(
     match gateway_delegations_read(deps.storage, &gateway_identity).may_load(address.as_bytes())? {
         Some(delegation_value) => Ok(Delegation::new(
             address,
-            coin(delegation_value.u128(), DENOM),
+            coin(delegation_value.amount.u128(), DENOM),
         )),
         None => Err(ContractError::NoGatewayDelegationFound {
             identity: gateway_identity,
@@ -282,10 +282,12 @@ mod tests {
     use crate::state::State;
     use crate::storage::{config, gateway_delegations, gateways, mix_delegations, mixnodes};
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{good_gateway_bond, good_mixnode_bond};
+    use crate::support::tests::helpers::{
+        good_gateway_bond, good_mixnode_bond, raw_delegation_fixture,
+    };
     use crate::transactions;
     use cosmwasm_std::testing::mock_info;
-    use cosmwasm_std::{Addr, Storage, Uint128};
+    use cosmwasm_std::{Addr, Storage};
     use mixnet_contract::{Gateway, MixNode};
 
     #[test]
@@ -632,14 +634,12 @@ mod tests {
     #[cfg(test)]
     mod querying_for_mixnode_delegations_paged {
         use super::*;
-        use crate::storage::mix_delegations;
-        use cosmwasm_std::Uint128;
 
         fn store_n_delegations(n: u32, storage: &mut dyn Storage, node_identity: &IdentityKey) {
             for i in 0..n {
                 let address = format!("address{}", i);
                 mix_delegations(storage, node_identity)
-                    .save(address.as_bytes(), &Uint128(42))
+                    .save(address.as_bytes(), &raw_delegation_fixture(42))
                     .unwrap();
             }
         }
@@ -711,7 +711,7 @@ mod tests {
             let node_identity: IdentityKey = "foo".into();
 
             mix_delegations(&mut deps.storage, &node_identity)
-                .save("1".as_bytes(), &Uint128(42))
+                .save("1".as_bytes(), &raw_delegation_fixture(42))
                 .unwrap();
 
             let per_page = 2;
@@ -728,7 +728,7 @@ mod tests {
 
             // save another
             mix_delegations(&mut deps.storage, &node_identity)
-                .save("2".as_bytes(), &Uint128(42))
+                .save("2".as_bytes(), &raw_delegation_fixture(42))
                 .unwrap();
 
             // page1 should have 2 results on it
@@ -742,7 +742,7 @@ mod tests {
             assert_eq!(2, page1.delegations.len());
 
             mix_delegations(&mut deps.storage, &node_identity)
-                .save("3".as_bytes(), &Uint128(42))
+                .save("3".as_bytes(), &raw_delegation_fixture(42))
                 .unwrap();
 
             // page1 still has 2 results
@@ -769,7 +769,7 @@ mod tests {
 
             // save another one
             mix_delegations(&mut deps.storage, &node_identity)
-                .save("4".as_bytes(), &Uint128(42))
+                .save("4".as_bytes(), &raw_delegation_fixture(42))
                 .unwrap();
 
             let start_after = Addr::unchecked("2");
@@ -793,7 +793,7 @@ mod tests {
         let delegation_owner = Addr::unchecked("bar");
 
         mix_delegations(&mut deps.storage, &node_identity)
-            .save(delegation_owner.as_bytes(), &Uint128(42))
+            .save(delegation_owner.as_bytes(), &raw_delegation_fixture(42))
             .unwrap();
 
         assert_eq!(
@@ -825,7 +825,7 @@ mod tests {
 
         // add delegation from a different address
         mix_delegations(&mut deps.storage, &node_identity1)
-            .save(delegation_owner2.as_bytes(), &Uint128(42))
+            .save(delegation_owner2.as_bytes(), &raw_delegation_fixture(42))
             .unwrap();
 
         assert_eq!(
@@ -842,7 +842,7 @@ mod tests {
 
         // add delegation for a different node
         mix_delegations(&mut deps.storage, &node_identity2)
-            .save(delegation_owner1.as_bytes(), &Uint128(42))
+            .save(delegation_owner1.as_bytes(), &raw_delegation_fixture(42))
             .unwrap();
 
         assert_eq!(
@@ -1019,13 +1019,12 @@ mod tests {
     mod querying_for_gateway_delegations_paged {
         use super::*;
         use crate::storage::gateway_delegations;
-        use cosmwasm_std::Uint128;
 
         fn store_n_delegations(n: u32, storage: &mut dyn Storage, node_identity: &IdentityKey) {
             for i in 0..n {
                 let address = format!("address{}", i);
                 gateway_delegations(storage, node_identity)
-                    .save(address.as_bytes(), &Uint128(42))
+                    .save(address.as_bytes(), &raw_delegation_fixture(42))
                     .unwrap();
             }
         }
@@ -1097,7 +1096,7 @@ mod tests {
             let node_identity: IdentityKey = "foo".into();
 
             gateway_delegations(&mut deps.storage, &node_identity)
-                .save("1".as_bytes(), &Uint128(42))
+                .save("1".as_bytes(), &raw_delegation_fixture(42))
                 .unwrap();
 
             let per_page = 2;
@@ -1114,7 +1113,7 @@ mod tests {
 
             // save another
             gateway_delegations(&mut deps.storage, &node_identity)
-                .save("2".as_bytes(), &Uint128(42))
+                .save("2".as_bytes(), &raw_delegation_fixture(42))
                 .unwrap();
 
             // page1 should have 2 results on it
@@ -1128,7 +1127,7 @@ mod tests {
             assert_eq!(2, page1.delegations.len());
 
             gateway_delegations(&mut deps.storage, &node_identity)
-                .save("3".as_bytes(), &Uint128(42))
+                .save("3".as_bytes(), &raw_delegation_fixture(42))
                 .unwrap();
 
             // page1 still has 2 results
@@ -1155,7 +1154,7 @@ mod tests {
 
             // save another one
             gateway_delegations(&mut deps.storage, &node_identity)
-                .save("4".as_bytes(), &Uint128(42))
+                .save("4".as_bytes(), &raw_delegation_fixture(42))
                 .unwrap();
 
             let start_after = Addr::unchecked("2");
@@ -1179,7 +1178,7 @@ mod tests {
         let delegation_owner = Addr::unchecked("bar");
 
         gateway_delegations(&mut deps.storage, &node_identity)
-            .save(delegation_owner.as_bytes(), &Uint128(42))
+            .save(delegation_owner.as_bytes(), &raw_delegation_fixture(42))
             .unwrap();
 
         assert_eq!(
@@ -1211,7 +1210,7 @@ mod tests {
 
         // add delegation from a different address
         gateway_delegations(&mut deps.storage, &node_identity1)
-            .save(delegation_owner2.as_bytes(), &Uint128(42))
+            .save(delegation_owner2.as_bytes(), &raw_delegation_fixture(42))
             .unwrap();
 
         assert_eq!(
@@ -1228,7 +1227,7 @@ mod tests {
 
         // add delegation for a different node
         gateway_delegations(&mut deps.storage, &node_identity2)
-            .save(delegation_owner1.as_bytes(), &Uint128(42))
+            .save(delegation_owner1.as_bytes(), &raw_delegation_fixture(42))
             .unwrap();
 
         assert_eq!(

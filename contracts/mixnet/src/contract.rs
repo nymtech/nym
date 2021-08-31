@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::calculate_epoch_reward_rate;
+use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
 use crate::state::State;
-use crate::storage::{
-    config, layer_distribution, reverse_gateway_delegations, reverse_mix_delegations,
-};
+use crate::storage::{config, gateway_delegations, layer_distribution, mix_delegations};
 use crate::{error::ContractError, queries, transactions};
-use config::defaults::NETWORK_MONITOR_ADDRESS;
+use config::defaults::{DENOM, NETWORK_MONITOR_ADDRESS};
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Uint128,
+    coin, entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
+    QueryResponse, Response, StdResult, Storage, Uint128,
 };
+use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{
-    Delegation, ExecuteMsg, IdentityKey, IdentityKeyRef, InstantiateMsg, MigrateMsg, QueryMsg,
+    Delegation, ExecuteMsg, IdentityKey, IdentityKeyRef, InstantiateMsg, MigrateMsg,
+    PagedGatewayDelegationsResponse, PagedMixDelegationsResponse, QueryMsg, RawDelegationData,
     StateParams,
 };
 
@@ -94,7 +95,7 @@ pub fn instantiate(
 #[entry_point]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
@@ -113,13 +114,13 @@ pub fn execute(
             transactions::try_reward_gateway(deps, info, identity, uptime)
         }
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
-            transactions::try_delegate_to_mixnode(deps, info, mix_identity)
+            transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
             transactions::try_remove_delegation_from_mixnode(deps, info, mix_identity)
         }
         ExecuteMsg::DelegateToGateway { gateway_identity } => {
-            transactions::try_delegate_to_gateway(deps, info, gateway_identity)
+            transactions::try_delegate_to_gateway(deps, env, info, gateway_identity)
         }
         ExecuteMsg::UndelegateFromGateway { gateway_identity } => {
             transactions::try_remove_delegation_from_gateway(deps, info, gateway_identity)
@@ -206,7 +207,110 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    const PREFIX_MIX_DELEGATION: &[u8] = b"md";
+    const PREFIX_GATEWAY_DELEGATION: &[u8] = b"gd";
+    const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 500;
+
+    fn calculate_start_value<S: AsRef<str>>(start_after: Option<S>) -> Option<Vec<u8>> {
+        start_after.as_ref().map(|identity| {
+            identity
+                .as_ref()
+                .as_bytes()
+                .iter()
+                .cloned()
+                .chain(std::iter::once(0))
+                .collect()
+        })
+    }
+
+    fn query_mixnode_old_delegations_paged(
+        deps: Deps,
+        mix_identity: IdentityKey,
+        start_after: Option<Addr>,
+        limit: Option<u32>,
+    ) -> StdResult<PagedMixDelegationsResponse> {
+        let limit = limit
+            .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
+            .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
+        let start = calculate_start_value(start_after);
+
+        let delegations = mix_old_delegations_read(deps.storage, &mix_identity)
+            .range(start.as_deref(), None, Order::Ascending)
+            .take(limit)
+            .map(|res| {
+                res.map(|entry| {
+                    Delegation::new(
+                        Addr::unchecked(String::from_utf8(entry.0).expect(
+                            "Non-UTF8 address used as key in bucket. The storage is corrupted!",
+                        )),
+                        coin(entry.1.u128(), DENOM),
+                    )
+                })
+            })
+            .collect::<StdResult<Vec<Delegation>>>()?;
+
+        let start_next_after = delegations.last().map(|delegation| delegation.owner());
+
+        Ok(PagedMixDelegationsResponse::new(
+            mix_identity,
+            delegations,
+            start_next_after,
+        ))
+    }
+
+    fn query_gateway_old_delegations_paged(
+        deps: Deps,
+        gateway_identity: IdentityKey,
+        start_after: Option<Addr>,
+        limit: Option<u32>,
+    ) -> StdResult<PagedGatewayDelegationsResponse> {
+        let limit = limit
+            .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
+            .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
+        let start = calculate_start_value(start_after);
+
+        let delegations = gateway_old_delegations_read(deps.storage, &gateway_identity)
+            .range(start.as_deref(), None, Order::Ascending)
+            .take(limit)
+            .map(|res| {
+                res.map(|entry| {
+                    Delegation::new(
+                        Addr::unchecked(String::from_utf8(entry.0).expect(
+                            "Non-UTF8 address used as key in bucket. The storage is corrupted!",
+                        )),
+                        coin(entry.1.u128(), DENOM),
+                    )
+                })
+            })
+            .collect::<StdResult<Vec<Delegation>>>()?;
+
+        let start_next_after = delegations.last().map(|delegation| delegation.owner());
+
+        Ok(PagedGatewayDelegationsResponse::new(
+            gateway_identity,
+            delegations,
+            start_next_after,
+        ))
+    }
+
+    fn mix_old_delegations_read<'a>(
+        storage: &'a dyn Storage,
+        mix_identity: IdentityKeyRef,
+    ) -> ReadonlyBucket<'a, Uint128> {
+        ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
+    }
+
+    fn gateway_old_delegations_read<'a>(
+        storage: &'a dyn Storage,
+        gateway_identity: IdentityKeyRef,
+    ) -> ReadonlyBucket<'a, Uint128> {
+        ReadonlyBucket::multilevel(
+            storage,
+            &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
+        )
+    }
+
     fn get_all_mixnodes_identities(deps: &DepsMut) -> Result<Vec<IdentityKey>, ContractError> {
         let mut mixnode_bonds = Vec::new();
         let mut start_after = None;
@@ -258,7 +362,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
         let mut delegations = Vec::new();
         let mut start_after = None;
         loop {
-            let mut paged_response = queries::query_mixnode_delegations_paged(
+            let mut paged_response = query_mixnode_old_delegations_paged(
                 deps.as_ref(),
                 mix_identity.into(),
                 start_after,
@@ -283,7 +387,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
         let mut delegations = Vec::new();
         let mut start_after = None;
         loop {
-            let mut paged_response = queries::query_gateway_delegations_paged(
+            let mut paged_response = query_gateway_old_delegations_paged(
                 deps.as_ref(),
                 gateway_identity.into(),
                 start_after,
@@ -305,8 +409,11 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
     for mix_identity in mixnodes_identities {
         let delegations = get_all_mixnode_delegations(&deps, &mix_identity)?;
         for delegation in delegations {
-            reverse_mix_delegations(deps.storage, &delegation.owner())
-                .save(mix_identity.as_bytes(), &())?;
+            let old_delegation_bucket = mix_old_delegations_read(deps.storage, &mix_identity);
+            let amount = old_delegation_bucket.load(delegation.owner().as_bytes())?;
+            let new_delegation_data = RawDelegationData::new(amount, env.block.height);
+            let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
+            delegation_bucket.save(delegation.owner().as_bytes(), &new_delegation_data)?;
         }
     }
 
@@ -314,8 +421,12 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
     for gateway_identity in gateways_identities {
         let delegations = get_all_gateway_delegations(&deps, &gateway_identity)?;
         for delegation in delegations {
-            reverse_gateway_delegations(deps.storage, &delegation.owner())
-                .save(gateway_identity.as_bytes(), &())?;
+            let old_delegation_bucket =
+                gateway_old_delegations_read(deps.storage, &gateway_identity);
+            let amount = old_delegation_bucket.load(delegation.owner().as_bytes())?;
+            let new_delegation_data = RawDelegationData::new(amount, env.block.height);
+            let mut delegation_bucket = gateway_delegations(deps.storage, &gateway_identity);
+            delegation_bucket.save(delegation.owner().as_bytes(), &new_delegation_data)?;
         }
     }
 

@@ -95,7 +95,7 @@ fn sanitize_and_resolve_host(host: &str, port: u16) -> Option<SocketAddr> {
     match parsed_host.to_socket_addrs() {
         Ok(mut addrs) => addrs.next(),
         Err(e) => {
-            error!(
+            warn!(
                 "Failed to resolve {}:{} -> {}. Error: {}",
                 host, port, parsed_host, e
             );
@@ -118,13 +118,13 @@ async fn do_port_check(host: &str, port: u16) -> bool {
                 true
             }
             Ok(Err(_stream_err)) => {
-                error!("{} ping failed {:}", addr, _stream_err);
+                warn!("{} ping failed {:}", addr, _stream_err);
                 // didn't timeout but couldn't open tcp stream
                 false
             }
             Err(_timeout) => {
                 // timed out
-                error!("{} timed out {:}", addr, _timeout);
+                warn!("{} timed out {:}", addr, _timeout);
                 false
             }
         },

@@ -1,9 +1,9 @@
 import React from 'react'
-import { AddressCard, BalanceCard } from './BalanceCard'
+import { Divider } from '@material-ui/core'
+import { AddressCard, BalanceCard } from './NavigationCards'
 import { Nav } from './Nav'
 import Logo from '../images/logo.png'
 import { theme } from '../theme'
-import { Divider } from '@material-ui/core'
 
 export const Page = ({ children }: { children: React.ReactElement }) => {
   return (

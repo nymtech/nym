@@ -16,11 +16,12 @@ import {
   ExitToApp,
   HowToVote,
   MoneyOff,
+  Description
 } from '@material-ui/icons'
 import { makeStyles } from '@material-ui/styles'
 import { ClientContext } from '../context/main'
 
-const routesSchema = [
+let routesSchema = [
   {
     label: 'Balance',
     route: '/balance',
@@ -57,6 +58,16 @@ const routesSchema = [
     Icon: <Cancel />,
   },
 ]
+
+if (process.env.NODE_ENV) {
+  routesSchema.push(
+    {
+      label: 'Docs',
+      route: '/docs',
+      Icon: <Description />,
+    },
+  )
+}
 
 const useStyles = makeStyles((theme: Theme) => ({
   navItem: {

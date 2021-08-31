@@ -7,7 +7,7 @@ import { theme } from '../theme'
 import { ClientContext } from '../context/main'
 
 export const Receive = () => {
-  const { address } = useContext(ClientContext)
+  const { clientDetails } = useContext(ClientContext)
   const matches = useMediaQuery('(min-width:769px)')
 
   return (
@@ -35,9 +35,9 @@ export const Receive = () => {
                   variant={matches ? 'h5' : 'subtitle1'}
                   style={{ wordBreak: 'break-word' }}
                 >
-                  {address}
+                  {clientDetails?.client_address}
                 </Typography>
-                <CopyToClipboard text={address} />
+                <CopyToClipboard text={clientDetails?.client_address || ''} />
               </Card>
             </Grid>
           </Grid>

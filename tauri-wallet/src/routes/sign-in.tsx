@@ -12,9 +12,9 @@ import {
 import { Alert } from '@material-ui/lab'
 import { useTheme } from '@material-ui/styles'
 import logo from '../images/logo.png'
-import { useHistory } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api'
 import { ClientContext } from '../context/main'
+import { TClientDetails } from '../types/global'
 
 export const SignIn = () => {
   const [mnemonic, setMnemonic] = useState<string>('')
@@ -24,7 +24,6 @@ export const SignIn = () => {
   const { logIn } = useContext(ClientContext)
 
   const theme: Theme = useTheme()
-  const history = useHistory()
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -33,8 +32,8 @@ export const SignIn = () => {
     setInputError(undefined)
 
     invoke('connect_with_mnemonic', { mnemonic })
-      .then(() => {
-        logIn()
+      .then((res) => {
+        logIn(res as TClientDetails)
       })
       .catch((e) => {
         setInputError(e)

@@ -1,14 +1,14 @@
 import { invoke } from '@tauri-apps/api/tauri'
 import React, { createContext, useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
+import { TBalance, TClientDetails } from '../types/global'
 
 type TClientContext = {
-  isLoggedIn: boolean
-  address: string
-  balance?: string
+  clientDetails?: TClientDetails
+  balance?: TBalance
   balanceLoading: boolean
   balanceError?: string
-  logIn: () => void
+  logIn: (clientDetails: TClientDetails) => void
   logOut: () => void
   getBalance: () => void
 }
@@ -20,10 +20,10 @@ export const ClientContextProvider = ({
 }: {
   children: React.ReactNode
 }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [balance, setBalance] = useState<string>()
+  const [balance, setBalance] = useState<TBalance>()
   const [balanceError, setBalanceError] = useState<string>()
   const [balanceLoading, setBalanceLoading] = useState(false)
+  const [clientDetails, setClientDetails] = useState<TClientDetails>()
 
   const history = useHistory()
 
@@ -32,26 +32,27 @@ export const ClientContextProvider = ({
     setBalanceError(undefined)
     invoke('get_balance')
       .then((balance) => {
-        setBalance(balance as string)
+        setBalance(balance as TBalance)
       })
       .catch((e) => setBalanceError(e))
     setBalanceLoading(false)
   }
 
-  const logIn = () => setIsLoggedIn(true)
-  const logOut = () => setIsLoggedIn(false)
+  const logIn = (clientDetails: TClientDetails) =>
+    setClientDetails(clientDetails)
+
+  const logOut = () => setClientDetails(undefined)
 
   useEffect(() => {
-    !isLoggedIn ? history.push('/signin') : history.push('/bond')
-  }, [isLoggedIn])
+    !clientDetails ? history.push('/signin') : history.push('/bond')
+  }, [clientDetails])
 
   return (
     <ClientContext.Provider
       value={{
-        isLoggedIn,
         balance,
         balanceError,
-        address: 'punk1s63y29jf8f3ft64z0vh80g3c76ty8lnyr74eur',
+        clientDetails,
         balanceLoading,
         logIn,
         logOut,

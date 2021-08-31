@@ -10,6 +10,7 @@ import { ClientContext } from '../context/main'
 import { FileCopy, Refresh } from '@material-ui/icons'
 import { NymCard } from './NymCard'
 import { Alert } from '@material-ui/lab'
+import { handleCopy } from './CopyToClipboard'
 
 export const BalanceCard = () => {
   const theme = useTheme()
@@ -41,7 +42,7 @@ export const BalanceCard = () => {
                 {balanceError}
               </Alert>
             ) : (
-              <Typography>{balance}</Typography>
+              <Typography>{balance?.amount}</Typography>
             )}
           </div>
         </CardContent>
@@ -52,7 +53,7 @@ export const BalanceCard = () => {
 
 export const AddressCard = () => {
   const theme = useTheme()
-  const { address } = useContext(ClientContext)
+  const { clientDetails } = useContext(ClientContext)
   return (
     <div style={{ margin: theme.spacing(3) }}>
       <NymCard
@@ -60,12 +61,19 @@ export const AddressCard = () => {
         subheader="Wallet payments address"
         noPadding
         Action={
-          <IconButton>
+          <IconButton
+            onClick={() =>
+              handleCopy({
+                text: clientDetails?.client_address || '',
+                cb: () => {},
+              })
+            }
+          >
             <FileCopy />
           </IconButton>
         }
       >
-        <CardContent>{address}</CardContent>
+        <CardContent>{clientDetails?.client_address}</CardContent>
       </NymCard>
     </div>
   )

@@ -86,9 +86,9 @@ impl Config {
     }
   }
 
-  //   pub fn get_mixnet_contract_address(&self) -> String {
-  //     self.base.mixnet_contract_address.clone()
-  //   }
+  pub fn get_mixnet_contract_address(&self) -> String {
+    self.base.mixnet_contract_address.clone()
+  }
 
   //   pub fn get_mnemonic(&self) -> String {
   //     self.base.mnemonic.clone()

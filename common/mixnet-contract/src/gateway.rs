@@ -24,15 +24,17 @@ pub struct GatewayBond {
     pub bond_amount: Coin,
     pub total_delegation: Coin,
     pub owner: Addr,
+    pub block_height: u64,
     pub gateway: Gateway,
 }
 
 impl GatewayBond {
-    pub fn new(bond_amount: Coin, owner: Addr, gateway: Gateway) -> Self {
+    pub fn new(bond_amount: Coin, owner: Addr, block_height: u64, gateway: Gateway) -> Self {
         GatewayBond {
             total_delegation: coin(0, &bond_amount.denom),
             bond_amount,
             owner,
+            block_height,
             gateway,
         }
     }

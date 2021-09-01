@@ -435,6 +435,7 @@ mod tests {
             total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
             layer: Layer::One,
+            block_height: 12_345,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
@@ -468,6 +469,7 @@ mod tests {
             bond_amount: coin(bond_value, DENOM),
             total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
+            block_height: 12_345,
             gateway: Gateway {
                 identity_key: node_identity.clone(),
                 ..gateway_fixture()

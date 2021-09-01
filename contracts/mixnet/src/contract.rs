@@ -94,9 +94,13 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::BondMixnode { mix_node } => transactions::try_add_mixnode(deps, info, mix_node),
+        ExecuteMsg::BondMixnode { mix_node } => {
+            transactions::try_add_mixnode(deps, env, info, mix_node)
+        }
         ExecuteMsg::UnbondMixnode {} => transactions::try_remove_mixnode(deps, info),
-        ExecuteMsg::BondGateway { gateway } => transactions::try_add_gateway(deps, info, gateway),
+        ExecuteMsg::BondGateway { gateway } => {
+            transactions::try_add_gateway(deps, env, info, gateway)
+        }
         ExecuteMsg::UnbondGateway {} => transactions::try_remove_gateway(deps, info),
         ExecuteMsg::UpdateStateParams(params) => {
             transactions::try_update_state_params(deps, info, params)

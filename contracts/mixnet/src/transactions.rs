@@ -87,6 +87,7 @@ fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
 
 pub(crate) fn try_add_mixnode(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<Response, ContractError> {
@@ -126,7 +127,13 @@ pub(crate) fn try_add_mixnode(
     let layer_distribution = queries::query_layer_distribution(deps.as_ref());
     let layer = layer_distribution.choose_with_fewest();
 
-    let mut bond = MixNodeBond::new(info.funds[0].clone(), info.sender.clone(), layer, mix_node);
+    let mut bond = MixNodeBond::new(
+        info.funds[0].clone(),
+        info.sender.clone(),
+        layer,
+        env.block.height,
+        mix_node,
+    );
 
     // this might potentially require more gas if a significant number of delegations was there
     let delegations_bucket = mix_delegations_read(deps.storage, &bond.mix_node.identity_key);
@@ -216,6 +223,7 @@ fn validate_gateway_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
 
 pub(crate) fn try_add_gateway(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     gateway: Gateway,
 ) -> Result<Response, ContractError> {
@@ -252,7 +260,12 @@ pub(crate) fn try_add_gateway(
     let minimum_bond = read_state_params(deps.storage).minimum_gateway_bond;
     validate_gateway_bond(&info.funds, minimum_bond)?;
 
-    let mut bond = GatewayBond::new(info.funds[0].clone(), info.sender.clone(), gateway);
+    let mut bond = GatewayBond::new(
+        info.funds[0].clone(),
+        info.sender.clone(),
+        env.block.height,
+        gateway,
+    );
 
     // this might potentially require more gas if a significant number of delegations was there
     let delegations_bucket = gateway_delegations_read(deps.storage, &bond.gateway.identity_key);
@@ -1082,6 +1095,7 @@ pub mod tests {
         let info = mock_info("fred", &good_mixnode_bond());
         try_add_mixnode(
             deps.as_mut(),
+            mock_env(),
             info,
             MixNode {
                 identity_key: "fredsmixnode".to_string(),
@@ -1481,6 +1495,7 @@ pub mod tests {
         let info = mock_info("fred", &good_gateway_bond());
         try_add_gateway(
             deps.as_mut(),
+            mock_env(),
             info,
             Gateway {
                 identity_key: "fredsgateway".into(),
@@ -1796,6 +1811,7 @@ pub mod tests {
             total_delegation: coin(initial_delegation, DENOM),
             owner: node_owner.clone(),
             layer: Layer::One,
+            block_height: 12_345,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
@@ -1895,6 +1911,7 @@ pub mod tests {
             bond_amount: coin(initial_bond, DENOM),
             total_delegation: coin(initial_delegation, DENOM),
             owner: node_owner.clone(),
+            block_height: 12_345,
             gateway: Gateway {
                 identity_key: node_identity.clone(),
                 ..gateway_fixture()
@@ -3651,6 +3668,7 @@ pub mod tests {
         for owner in ["alice", "bob"] {
             try_add_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(owner, &good_mixnode_bond()),
                 MixNode {
                     identity_key: owner.to_string(),

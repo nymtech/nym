@@ -35,16 +35,24 @@ pub struct MixNodeBond {
     pub total_delegation: Coin,
     pub owner: Addr,
     pub layer: Layer,
+    pub block_height: u64,
     pub mix_node: MixNode,
 }
 
 impl MixNodeBond {
-    pub fn new(bond_amount: Coin, owner: Addr, layer: Layer, mix_node: MixNode) -> Self {
+    pub fn new(
+        bond_amount: Coin,
+        owner: Addr,
+        layer: Layer,
+        block_height: u64,
+        mix_node: MixNode,
+    ) -> Self {
         MixNodeBond {
             total_delegation: coin(0, &bond_amount.denom),
             bond_amount,
             owner,
             layer,
+            block_height,
             mix_node,
         }
     }

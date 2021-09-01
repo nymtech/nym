@@ -149,7 +149,7 @@ async fn get_balance(
         let mut balance = HashMap::new();
         balance.insert("amount", coin.amount.to_string());
         balance.insert("denom", coin.denom.to_string());
-        balance.insert("printableBalance", printable_coin(Some(coin))?);
+        balance.insert("printable_balance", printable_coin(Some(coin))?);
         Ok(balance)
       }
       Ok(None) => Err(format!(

@@ -106,10 +106,10 @@ pub fn execute(
             transactions::try_update_state_params(deps, info, params)
         }
         ExecuteMsg::RewardMixnode { identity, uptime } => {
-            transactions::try_reward_mixnode(deps, info, identity, uptime)
+            transactions::try_reward_mixnode(deps, env, info, identity, uptime)
         }
         ExecuteMsg::RewardGateway { identity, uptime } => {
-            transactions::try_reward_gateway(deps, info, identity, uptime)
+            transactions::try_reward_gateway(deps, env, info, identity, uptime)
         }
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)

@@ -1,13 +1,14 @@
-import React, { useContext, useEffect } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import {
   CardContent,
   CircularProgress,
   IconButton,
+  Tooltip,
   Typography,
   useTheme,
 } from '@material-ui/core'
 import { ClientContext } from '../context/main'
-import { FileCopy, Refresh } from '@material-ui/icons'
+import { CheckCircleOutline, FileCopy, Refresh } from '@material-ui/icons'
 import { NymCard } from './NymCard'
 import { Alert } from '@material-ui/lab'
 import { handleCopy } from './CopyToClipboard'
@@ -28,15 +29,17 @@ export const BalanceCard = () => {
         subheader="Current wallet balance"
         noPadding
         Action={
-          <IconButton onClick={getBalance}>
-            <Refresh />
-          </IconButton>
+          <Tooltip title="Refresh balance">
+            <IconButton onClick={getBalance}>
+              <Refresh />
+            </IconButton>
+          </Tooltip>
         }
       >
         <CardContent>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             {balanceLoading ? (
-              <CircularProgress size={28} />
+              <CircularProgress size={24} />
             ) : balanceError ? (
               <Alert severity="error" style={{ width: '100%' }}>
                 {balanceError}
@@ -50,10 +53,18 @@ export const BalanceCard = () => {
     </div>
   )
 }
+enum EnumCopyState {
+  copying,
+  copySuccess,
+}
 
 export const AddressCard = () => {
-  const theme = useTheme()
   const { clientDetails } = useContext(ClientContext)
+
+  const [copyState, setCopyState] = useState<EnumCopyState>()
+
+  const theme = useTheme()
+
   return (
     <div style={{ margin: theme.spacing(3) }}>
       <NymCard
@@ -61,16 +72,35 @@ export const AddressCard = () => {
         subheader="Wallet payments address"
         noPadding
         Action={
-          <IconButton
-            onClick={() =>
-              handleCopy({
-                text: clientDetails?.client_address || '',
-                cb: () => {},
-              })
-            }
-          >
-            <FileCopy />
-          </IconButton>
+          <Tooltip title={!copyState ? 'Copy address' : 'Copied'}>
+            <IconButton
+              disabled={!!copyState}
+              onClick={async () => {
+                setCopyState(EnumCopyState.copying)
+                await handleCopy({
+                  text: clientDetails?.client_address || '',
+                  cb: (isCopied) => {
+                    if (isCopied) {
+                      setCopyState(EnumCopyState.copySuccess)
+                      setTimeout(() => {
+                        setCopyState(undefined)
+                      }, 2500)
+                    }
+                  },
+                })
+              }}
+            >
+              {copyState === EnumCopyState.copying ? (
+                <CircularProgress size={24} />
+              ) : copyState === EnumCopyState.copySuccess ? (
+                <CheckCircleOutline
+                  style={{ color: theme.palette.success.main }}
+                />
+              ) : (
+                <FileCopy />
+              )}
+            </IconButton>
+          </Tooltip>
         }
       >
         <CardContent>{clientDetails?.client_address}</CardContent>

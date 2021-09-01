@@ -7,6 +7,9 @@ const nymPalette = {
   secondary: {
     main: '#009FA8',
   },
+  background: {
+    main: '#121726',
+  },
 }
 
 export const theme = createTheme({
@@ -34,6 +37,14 @@ export const theme = createTheme({
     MuiStepIcon: {
       text: {
         fill: '#fff',
+      },
+    },
+
+    MuiTooltip: {
+      tooltipPlacementBottom: {
+        background: nymPalette.background.main,
+        padding: '8px 12px',
+        fontSize: 12,
       },
     },
   },

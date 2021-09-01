@@ -20,11 +20,11 @@ export const handleCopy = async ({
   text: string
   cb: (success: boolean) => void
 }) => {
-  cb(false)
   const res = await copy(text)
-  console.log(res)
   if (res.success) {
-    cb(true)
+    setTimeout(() => {
+      cb(true)
+    }, 750)
   } else {
     console.log(res.value)
   }

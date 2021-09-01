@@ -35,7 +35,9 @@ export const ClientContextProvider = ({
         setBalance(balance as TBalance)
       })
       .catch((e) => setBalanceError(e))
-    setBalanceLoading(false)
+    setTimeout(() => {
+      setBalanceLoading(false)
+    }, 1000)
   }
 
   const logIn = (clientDetails: TClientDetails) =>

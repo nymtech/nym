@@ -1,6 +1,6 @@
-import { invoke } from '@tauri-apps/api/tauri'
 import React, { createContext, useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
+import { invoke } from '@tauri-apps/api/tauri'
 import { TBalance, TClientDetails } from '../types/global'
 
 type TClientContext = {
@@ -39,6 +39,10 @@ export const ClientContextProvider = ({
       setBalanceLoading(false)
     }, 1000)
   }
+
+  useEffect(() => {
+    getBalance()
+  }, [])
 
   const logIn = (clientDetails: TClientDetails) =>
     setClientDetails(clientDetails)

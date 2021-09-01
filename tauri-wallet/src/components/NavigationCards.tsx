@@ -18,10 +18,6 @@ export const BalanceCard = () => {
   const { balance, balanceError, balanceLoading, getBalance } =
     useContext(ClientContext)
 
-  useEffect(() => {
-    getBalance()
-  }, [])
-
   return (
     <div style={{ margin: theme.spacing(3) }}>
       <NymCard

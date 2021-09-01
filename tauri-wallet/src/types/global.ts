@@ -16,6 +16,7 @@ export type TNodeOwnership = {
 export type TBalance = {
   amount: string
   demon: EnumDemon
+  printableBalance: string
 }
 
 export type TClientDetails = {

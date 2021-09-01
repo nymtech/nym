@@ -567,6 +567,62 @@ mod tests {
         }
 
         #[test]
+        fn when_there_is_a_single_delegation_depending_on_blockstamp() {
+            let mut deps = mock_dependencies(&[]);
+            let node_identity: IdentityKey = "nodeidentity".into();
+            let delegation_blockstamp = 42;
+
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            let delegator_address = Addr::unchecked("bob");
+            mix_delegations(&mut deps.storage, &node_identity)
+                .save(
+                    delegator_address.as_bytes(),
+                    &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                )
+                .unwrap();
+
+            let total_increase = increase_mix_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+                delegation_blockstamp + MINIMUM_BLOCK_AGE_FOR_REWARDING - 1,
+            )
+            .unwrap();
+
+            // there was no increase
+            assert!(total_increase.is_zero());
+
+            // amount is not incremented
+            assert_eq!(
+                RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                mix_delegations_read(&mut deps.storage, &node_identity)
+                    .load(delegator_address.as_bytes())
+                    .unwrap()
+            );
+
+            let total_increase = increase_mix_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+                delegation_blockstamp + MINIMUM_BLOCK_AGE_FOR_REWARDING,
+            )
+            .unwrap();
+
+            // there is an increase now, that the lock period has passed
+            assert_eq!(Uint128(1), total_increase);
+
+            // amount is incremented
+            assert_eq!(
+                RawDelegationData::new(1001u128.into(), delegation_blockstamp),
+                mix_delegations_read(&mut deps.storage, &node_identity)
+                    .load(delegator_address.as_bytes())
+                    .unwrap()
+            )
+        }
+
+        #[test]
         fn when_there_are_multiple_delegations() {
             let mut deps = mock_dependencies(&[]);
             let node_identity: IdentityKey = "nodeidentity".into();
@@ -779,6 +835,62 @@ mod tests {
             // amount is incremented, block height remains the same
             assert_eq!(
                 RawDelegationData::new(1001u128.into(), 42),
+                gateway_delegations_read(&mut deps.storage, &node_identity)
+                    .load(delegator_address.as_bytes())
+                    .unwrap()
+            )
+        }
+
+        #[test]
+        fn when_there_is_a_single_delegation_depending_on_blockstamp() {
+            let mut deps = mock_dependencies(&[]);
+            let node_identity: IdentityKey = "nodeidentity".into();
+            let delegation_blockstamp = 42;
+
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            let delegator_address = Addr::unchecked("bob");
+            gateway_delegations(&mut deps.storage, &node_identity)
+                .save(
+                    delegator_address.as_bytes(),
+                    &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                )
+                .unwrap();
+
+            let total_increase = increase_gateway_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+                delegation_blockstamp + MINIMUM_BLOCK_AGE_FOR_REWARDING - 1,
+            )
+            .unwrap();
+
+            // there was no increase
+            assert!(total_increase.is_zero());
+
+            // amount is not incremented
+            assert_eq!(
+                RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                gateway_delegations_read(&mut deps.storage, &node_identity)
+                    .load(delegator_address.as_bytes())
+                    .unwrap()
+            );
+
+            let total_increase = increase_gateway_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+                delegation_blockstamp + MINIMUM_BLOCK_AGE_FOR_REWARDING,
+            )
+            .unwrap();
+
+            // there is an increase now, that the lock period has passed
+            assert_eq!(Uint128(1), total_increase);
+
+            // amount is incremented
+            assert_eq!(
+                RawDelegationData::new(1001u128.into(), delegation_blockstamp),
                 gateway_delegations_read(&mut deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()

@@ -1912,6 +1912,134 @@ pub mod tests {
     }
 
     #[test]
+    fn rewarding_mixnode_blockstamp_based() {
+        let mut deps = helpers::init_contract();
+        let mut env = mock_env();
+        let current_state = config(deps.as_mut().storage).load().unwrap();
+        let network_monitor_address = current_state.network_monitor_address;
+
+        let node_owner: Addr = Addr::unchecked("node-owner");
+        let node_identity: IdentityKey = "nodeidentity".into();
+
+        let initial_bond = 100_000000;
+        let initial_delegation = 200_000000;
+        let mixnode_bond = MixNodeBond {
+            bond_amount: coin(initial_bond, DENOM),
+            total_delegation: coin(initial_delegation, DENOM),
+            owner: node_owner.clone(),
+            layer: Layer::One,
+            block_height: env.block.height,
+            mix_node: MixNode {
+                identity_key: node_identity.clone(),
+                ..mix_node_fixture()
+            },
+        };
+
+        mixnodes(deps.as_mut().storage)
+            .save(node_identity.as_bytes(), &mixnode_bond)
+            .unwrap();
+
+        // delegation happens later, but not later enough
+        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+
+        mix_delegations(&mut deps.storage, &node_identity)
+            .save(
+                b"delegator",
+                &RawDelegationData::new(initial_delegation.into(), env.block.height),
+            )
+            .unwrap();
+
+        let bond_reward_rate = read_mixnode_epoch_bond_reward_rate(deps.as_ref().storage);
+        let delegation_reward_rate =
+            read_mixnode_epoch_delegation_reward_rate(deps.as_ref().storage);
+        let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 100).unwrap();
+        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 100).unwrap();
+
+        // no reward is due
+        let expected_bond_reward = Uint128(0);
+        let expected_delegation_reward = Uint128(0);
+        let expected_bond = expected_bond_reward + Uint128(initial_bond);
+        let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
+
+        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+        assert_eq!(
+            expected_delegation,
+            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
+            ],
+            res.attributes
+        );
+
+        // reward can happen now, but only for bonded node
+        env.block.height += 1;
+        let expected_bond_reward = expected_bond * scaled_bond_reward;
+        let expected_delegation_reward = Uint128(0);
+        let expected_bond = expected_bond_reward + expected_bond;
+        let expected_delegation = expected_delegation_reward + expected_delegation;
+
+        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+        assert_eq!(
+            expected_delegation,
+            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
+            ],
+            res.attributes
+        );
+
+        // reward happens now, both for node owner and delegators
+        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+        let expected_bond_reward = expected_bond * scaled_bond_reward;
+        let expected_delegation_reward = expected_delegation * scaled_delegation_reward;
+        let expected_bond = expected_bond_reward + expected_bond;
+        let expected_delegation = expected_delegation_reward + expected_delegation;
+
+        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+        assert_eq!(
+            expected_delegation,
+            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
+            ],
+            res.attributes
+        );
+    }
+
+    #[test]
     fn rewarding_gateway() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
@@ -2005,6 +2133,133 @@ pub mod tests {
             read_gateway_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
         );
 
+        assert_eq!(
+            expected_delegation,
+            read_gateway_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
+            ],
+            res.attributes
+        );
+    }
+
+    #[test]
+    fn rewarding_gateway_blockstamp_based() {
+        let mut deps = helpers::init_contract();
+        let mut env = mock_env();
+        let current_state = config(deps.as_mut().storage).load().unwrap();
+        let network_monitor_address = current_state.network_monitor_address;
+
+        let node_owner: Addr = Addr::unchecked("node-owner");
+        let node_identity: IdentityKey = "nodeidentity".into();
+
+        let initial_bond = 100_000000;
+        let initial_delegation = 200_000000;
+        let gateway_bond = GatewayBond {
+            bond_amount: coin(initial_bond, DENOM),
+            total_delegation: coin(initial_delegation, DENOM),
+            owner: node_owner.clone(),
+            block_height: env.block.height,
+            gateway: Gateway {
+                identity_key: node_identity.clone(),
+                ..gateway_fixture()
+            },
+        };
+
+        gateways(deps.as_mut().storage)
+            .save(node_identity.as_bytes(), &gateway_bond)
+            .unwrap();
+
+        // delegation happens later, but not later enough
+        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+
+        gateway_delegations(&mut deps.storage, &node_identity)
+            .save(
+                b"delegator",
+                &RawDelegationData::new(initial_delegation.into(), env.block.height),
+            )
+            .unwrap();
+
+        let bond_reward_rate = read_gateway_epoch_bond_reward_rate(deps.as_ref().storage);
+        let delegation_reward_rate =
+            read_gateway_epoch_delegation_reward_rate(deps.as_ref().storage);
+        let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 100).unwrap();
+        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 100).unwrap();
+
+        // no reward is due
+        let expected_bond_reward = Uint128(0);
+        let expected_delegation_reward = Uint128(0);
+        let expected_bond = expected_bond_reward + Uint128(initial_bond);
+        let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
+
+        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let res = try_reward_gateway(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_gateway_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+        assert_eq!(
+            expected_delegation,
+            read_gateway_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
+            ],
+            res.attributes
+        );
+
+        // reward can happen now, but only for bonded node
+        env.block.height += 1;
+        let expected_bond_reward = expected_bond * scaled_bond_reward;
+        let expected_delegation_reward = Uint128(0);
+        let expected_bond = expected_bond_reward + expected_bond;
+        let expected_delegation = expected_delegation_reward + expected_delegation;
+
+        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let res = try_reward_gateway(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_gateway_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+        assert_eq!(
+            expected_delegation,
+            read_gateway_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
+            ],
+            res.attributes
+        );
+
+        // reward happens now, both for node owner and delegators
+        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+        let expected_bond_reward = expected_bond * scaled_bond_reward;
+        let expected_delegation_reward = expected_delegation * scaled_delegation_reward;
+        let expected_bond = expected_bond_reward + expected_bond;
+        let expected_delegation = expected_delegation_reward + expected_delegation;
+
+        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let res = try_reward_gateway(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_gateway_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
         assert_eq!(
             expected_delegation,
             read_gateway_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()

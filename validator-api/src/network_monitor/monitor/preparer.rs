@@ -13,6 +13,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::forwarding::packet::MixPacket;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
+use std::time::Duration;
 use topology::{gateway, mix};
 
 // declared type aliases for easier code reasoning
@@ -167,10 +168,31 @@ impl PacketPreparer {
     }
 
     pub(crate) async fn wait_for_validator_cache_initial_values(&self) {
+        // wait for the cache to get initialised
         self.validator_cache.wait_for_initial_values().await;
+
+        // now wait for our "good" topology to be online
+        info!("Waiting for 'good' topology to be online");
+        let initialisation_backoff = Duration::from_secs(30);
+        loop {
+            let gateways = self.validator_cache.gateways().await;
+            let mixnodes = self.validator_cache.mixnodes().await;
+            if self
+                .tested_network
+                .is_online(&mixnodes.into_inner(), &gateways.into_inner())
+            {
+                break;
+            } else {
+                info!(
+                    "Our 'good' topology is still not offline. Going to check again in {:?}",
+                    initialisation_backoff
+                );
+                tokio::time::sleep(initialisation_backoff).await;
+            }
+        }
     }
 
-    async fn get_network_nodes(&mut self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
+    async fn get_network_nodes(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
         info!(target: "Monitor", "Obtaining network topology...");
 
         let mixnodes = self.validator_cache.mixnodes().await.into_inner();

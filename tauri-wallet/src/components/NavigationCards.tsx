@@ -69,33 +69,35 @@ export const AddressCard = () => {
         noPadding
         Action={
           <Tooltip title={!copyState ? 'Copy address' : 'Copied'}>
-            <IconButton
-              disabled={!!copyState}
-              onClick={async () => {
-                setCopyState(EnumCopyState.copying)
-                await handleCopy({
-                  text: clientDetails?.client_address || '',
-                  cb: (isCopied) => {
-                    if (isCopied) {
-                      setCopyState(EnumCopyState.copySuccess)
-                      setTimeout(() => {
-                        setCopyState(undefined)
-                      }, 2500)
-                    }
-                  },
-                })
-              }}
-            >
-              {copyState === EnumCopyState.copying ? (
-                <CircularProgress size={24} />
-              ) : copyState === EnumCopyState.copySuccess ? (
-                <CheckCircleOutline
-                  style={{ color: theme.palette.success.main }}
-                />
-              ) : (
-                <FileCopy />
-              )}
-            </IconButton>
+            <span>
+              <IconButton
+                disabled={!!copyState}
+                onClick={async () => {
+                  setCopyState(EnumCopyState.copying)
+                  await handleCopy({
+                    text: clientDetails?.client_address || '',
+                    cb: (isCopied) => {
+                      if (isCopied) {
+                        setCopyState(EnumCopyState.copySuccess)
+                        setTimeout(() => {
+                          setCopyState(undefined)
+                        }, 2500)
+                      }
+                    },
+                  })
+                }}
+              >
+                {copyState === EnumCopyState.copying ? (
+                  <CircularProgress size={24} />
+                ) : copyState === EnumCopyState.copySuccess ? (
+                  <CheckCircleOutline
+                    style={{ color: theme.palette.success.main }}
+                  />
+                ) : (
+                  <FileCopy />
+                )}
+              </IconButton>
+            </span>
           </Tooltip>
         }
       >

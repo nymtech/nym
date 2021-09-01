@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@babel/preset-typescript": "^7.15.0",
+    "@hookform/resolvers": "^2.8.0",
     "@material-ui/core": "^4.12.3",
     "@material-ui/icons": "^4.11.2",
     "@material-ui/lab": "^4.0.0-alpha.60",
@@ -19,7 +20,10 @@
     "clsx": "^1.1.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "react-router-dom": "^5.2.0"
+    "react-hook-form": "^7.14.2",
+    "react-router-dom": "^5.2.0",
+    "semver": "^6.3.0",
+    "yup": "^0.32.9"
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",
@@ -30,6 +34,7 @@
     "@tauri-apps/cli": "^1.0.0-beta.9",
     "@types/bs58": "^4.0.1",
     "@types/react-router-dom": "^5.1.8",
+    "@types/semver": "^7.3.8",
     "babel-loader": "^8.2.2",
     "css-loader": "^6.2.0",
     "favicons-webpack-plugin": "^5.0.2",
@@ -39,6 +44,6 @@
     "url-loader": "^4.1.1",
     "webpack": "^5.50.0",
     "webpack-cli": "^4.8.0",
-    "webpack-dev-server": "^3.11.2"
+    "webpack-dev-server": "^4.1.0"
   }
 }

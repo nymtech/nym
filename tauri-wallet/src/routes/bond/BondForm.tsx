@@ -8,20 +8,84 @@ import {
   TextField,
   Theme,
 } from '@material-ui/core'
-import { EnumNodeType } from '../../types/global'
 import { useTheme } from '@material-ui/styles'
+import { useForm } from 'react-hook-form'
+import { yupResolver } from '@hookform/resolvers/yup'
+import * as Yup from 'yup'
+import { EnumNodeType } from '../../types/global'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
+import {
+  isValidHostname,
+  validateAmount,
+  validateKey,
+  validateVersion,
+} from '../../utils'
 
 type TBondNodeFormProps = {
   // minimumBond: Coin
   // onSubmit: (values: BondingInformation) => void
 }
 
+type TBondFormFields = {
+  identityKey: string
+  sphinxKey: string
+  amount: string
+  host: string
+  version: string
+}
+
+const validationSchema = Yup.object().shape({
+  identityKey: Yup.string()
+    .required('An indentity key is required')
+    .test('valid-id-key', 'A valid identity key is required', function (value) {
+      return validateKey(value || '')
+    }),
+  sphinxKey: Yup.string()
+    .required('A sphinx key is required')
+    .test(
+      'valid-sphinx-key',
+      'A valid sphinx key is required',
+      function (value) {
+        return validateKey(value || '')
+      }
+    ),
+  amount: Yup.string()
+    .required('An amount is required')
+    .test(
+      'valid-amount',
+      'A valid amount is required (min 100 punks)',
+      function (value) {
+        return validateAmount(value || '', '100000000')
+        // minimum amount needs to come from the backend - replace when available
+      }
+    ),
+
+  host: Yup.string()
+    .required('A host is required')
+    .test('valid-amount', 'A valid host is required', function (value) {
+      return !!value ? isValidHostname(value) : false
+    }),
+  version: Yup.string()
+    .required('A version is required')
+    .test('valid-version', 'A valid version is required', function (value) {
+      return !!value ? validateVersion(value) : false
+    }),
+})
+
 export const BondNodeForm = () => {
   const [advancedShown, setAdvancedShown] = React.useState(false)
   const [nodeType, setNodeType] = useState(EnumNodeType.Mixnode)
 
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<TBondFormFields>({ resolver: yupResolver(validationSchema) })
+
   const theme: Theme = useTheme()
+  console.log(errors)
+
+  const onSubmit = (data: TBondFormFields) => console.log(data)
 
   return (
     <form>
@@ -35,32 +99,41 @@ export const BondNodeForm = () => {
           </Grid>
           <Grid item xs={12}>
             <TextField
+              {...register('identityKey')}
               variant="outlined"
               required
               id="identityKey"
               name="identityKey"
               label="Identity key"
               fullWidth
+              error={!!errors.identityKey}
+              helperText={errors.identityKey?.message}
             />
           </Grid>
           <Grid item xs={12}>
             <TextField
+              {...register('sphinxKey')}
               variant="outlined"
               required
               id="sphinxKey"
               name="sphinxKey"
               label="Sphinx key"
+              error={!!errors.sphinxKey}
+              helperText={errors.sphinxKey?.message}
               fullWidth
             />
           </Grid>
           <Grid item xs={12} sm={9}>
             <TextField
+              {...register('amount')}
               variant="outlined"
               required
               id="amount"
               name="amount"
               label="Amount to bond"
               fullWidth
+              error={!!errors.amount}
+              helperText={errors.amount?.message}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">punks</InputAdornment>
@@ -71,12 +144,15 @@ export const BondNodeForm = () => {
 
           <Grid item xs={12} sm={6}>
             <TextField
+              {...register('host')}
               variant="outlined"
               required
               id="host"
               name="host"
               label="Host"
               fullWidth
+              error={!!errors.host}
+              helperText={errors.host?.message}
             />
           </Grid>
 
@@ -96,12 +172,15 @@ export const BondNodeForm = () => {
 
           <Grid item xs={12} sm={6}>
             <TextField
+              {...register('version')}
               variant="outlined"
               required
               id="version"
               name="version"
               label="Version"
               fullWidth
+              error={!!errors.version}
+              helperText={errors.version?.message}
             />
           </Grid>
 
@@ -185,6 +264,7 @@ export const BondNodeForm = () => {
           type="submit"
           size="large"
           disableElevation
+          onClick={handleSubmit(onSubmit)}
         >
           Bond
         </Button>

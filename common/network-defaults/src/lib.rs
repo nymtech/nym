@@ -84,5 +84,5 @@ pub const DEFAULT_VALIDATOR_API_PORT: u16 = 8080;
 pub const VALIDATOR_API_VERSION: &str = "v1";
 
 // REWARDING
-pub const DEFAULT_FIRST_EPOCH: OffsetDateTime = time::macros::datetime!(2021-08-23 12:00 UTC);
+pub const DEFAULT_FIRST_EPOCH_START: OffsetDateTime = time::macros::datetime!(2021-08-23 12:00 UTC);
 pub const DEFAULT_EPOCH_LENGTH: Duration = Duration::from_secs(24 * 60 * 60); // 24h

@@ -9,6 +9,7 @@ use crate::config::Config;
 use crate::network_monitor::tested_network::good_topology::parse_topology_file;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::nymd_client::Client;
+use crate::rewarding::epoch::Epoch;
 use crate::rewarding::Rewarder;
 use crate::storage::NodeStatusStorage;
 use ::config::{defaults::DEFAULT_VALIDATOR_API_PORT, NymConfig};
@@ -53,6 +54,7 @@ const NYMD_VALIDATOR_ARG: &str = "nymd-validator";
 
 const EPOCH_LENGTH_ARG: &str = "epoch-length";
 const FIRST_REWARDING_EPOCH_ARG: &str = "first-epoch";
+const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 
 pub(crate) const PENALISE_OUTDATED: bool = false;
 
@@ -144,6 +146,13 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
                 .long(EPOCH_LENGTH_ARG)
         )
+        .arg(
+            Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
+                .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given epoch.")
+                .takes_value(true)
+                .long(REWARDING_MONITOR_THRESHOLD_ARG)
+        )
+
         .get_matches()
 }
 
@@ -232,6 +241,15 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_epoch_length(Duration::from_secs(epoch_length * 60 * 60));
     }
 
+    if let Some(monitor_threshold) = matches
+        .value_of(REWARDING_MONITOR_THRESHOLD_ARG)
+        .map(|t| t.parse::<u8>())
+    {
+        let monitor_threshold =
+            monitor_threshold.expect("Provided monitor threshold is not a number!");
+        config = config.with_minimum_epoch_monitor_threshold(monitor_threshold)
+    }
+
     if matches.is_present(DETAILED_REPORT_ARG) {
         config = config.detailed_network_monitor_report(true)
     }
@@ -304,6 +322,15 @@ fn setup_network_monitor<'a>(
     ))
 }
 
+fn expected_monitor_test_runs(config: &Config) -> usize {
+    let epoch_length = config.get_epoch_length();
+    let test_delay = config.get_network_monitor_run_interval();
+
+    // this is just a rough estimate. In real world there will be slightly fewer test runs
+    // as they are not instantaneous and hence do not happen exactly every test_delay
+    (epoch_length.as_secs() / test_delay.as_secs()) as usize
+}
+
 fn setup_rewarder(
     config: &Config,
     rocket: &Rocket<Ignite>,
@@ -314,12 +341,17 @@ fn setup_rewarder(
         let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
         let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
+        let first_epoch = Epoch::new(
+            config.get_first_rewarding_epoch(),
+            config.get_epoch_length(),
+        );
         Some(Rewarder::new(
             nymd_client.clone(),
             validator_cache,
             node_status_storage,
-            config.get_first_rewarding_epoch(),
-            config.get_epoch_length(),
+            first_epoch,
+            expected_monitor_test_runs(config),
+            config.get_minimum_epoch_monitor_threshold(),
         ))
     } else if config.get_rewarding_enabled() {
         warn!("Cannot enable rewarding with the network monitor being disabled");

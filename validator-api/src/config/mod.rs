@@ -4,7 +4,7 @@
 use crate::config::template::config_template;
 use coconut_interface::{Base58, KeyPair};
 use config::defaults::{
-    default_api_endpoints, DEFAULT_EPOCH_LENGTH, DEFAULT_FIRST_EPOCH,
+    default_api_endpoints, DEFAULT_EPOCH_LENGTH, DEFAULT_FIRST_EPOCH_START,
     DEFAULT_MIXNET_CONTRACT_ADDRESS,
 };
 use config::NymConfig;
@@ -27,6 +27,7 @@ const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
 
 const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(60);
+const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -229,6 +230,11 @@ pub struct Rewarding {
     /// Current length of the epoch. If modified `first_rewarding_epoch` should also get changed.
     #[serde(with = "humantime_serde")]
     epoch_length: Duration,
+
+    /// Specifies the minimum percentage of monitor test run data present in order to
+    /// distribute rewards for given epoch.
+    /// Note, only values in range 0-100 are valid
+    minimum_epoch_monitor_threshold: u8,
 }
 
 impl Default for Rewarding {
@@ -236,8 +242,9 @@ impl Default for Rewarding {
         Rewarding {
             enabled: false,
             mnemonic: String::default(),
-            first_rewarding_epoch: DEFAULT_FIRST_EPOCH,
+            first_rewarding_epoch: DEFAULT_FIRST_EPOCH_START,
             epoch_length: DEFAULT_EPOCH_LENGTH,
+            minimum_epoch_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
         }
     }
 }
@@ -308,6 +315,11 @@ impl Config {
 
     pub fn with_epoch_length(mut self, epoch_length: Duration) -> Self {
         self.rewarding.epoch_length = epoch_length;
+        self
+    }
+
+    pub fn with_minimum_epoch_monitor_threshold(mut self, threshold: u8) -> Self {
+        self.rewarding.minimum_epoch_monitor_threshold = threshold;
         self
     }
 
@@ -389,5 +401,9 @@ impl Config {
 
     pub fn get_epoch_length(&self) -> Duration {
         self.rewarding.epoch_length
+    }
+
+    pub fn get_minimum_epoch_monitor_threshold(&self) -> u8 {
+        self.rewarding.minimum_epoch_monitor_threshold
     }
 }

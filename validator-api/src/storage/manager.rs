@@ -249,84 +249,112 @@ impl StorageManager {
     }
 
     /// Gets all ipv4 statuses for mixnode with particular id that were inserted
-    /// into the database after the specified unix timestamp.
-    pub(super) async fn get_mixnode_ipv4_statuses_since_by_id(
+    /// into the database within the specified time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `until`: unix timestamp indicating the upper bound interval of the selection.
+    pub(super) async fn get_mixnode_ipv4_statuses_by_id(
         &self,
         id: i64,
-        timestamp: UnixTimestamp,
+        since: UnixTimestamp,
+        until: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
         sqlx::query_as!(
             NodeStatus,
             r#"
                 SELECT timestamp, up
                     FROM mixnode_ipv4_status
-                    WHERE mixnode_details_id=? AND timestamp > ?;
+                    WHERE mixnode_details_id=? AND timestamp > ? AND timestamp < ?;
             "#,
             id,
-            timestamp
+            since,
+            until,
         )
         .fetch_all(&self.connection_pool)
         .await
     }
 
     /// Gets all ipv6 statuses for mixnode with particular id that were inserted
-    /// into the database after the specified unix timestamp.
-    pub(super) async fn get_mixnode_ipv6_statuses_since_by_id(
+    /// into the database within the specified time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `until`: unix timestamp indicating the upper bound interval of the selection.
+    pub(super) async fn get_mixnode_ipv6_statuses_by_id(
         &self,
         id: i64,
-        timestamp: UnixTimestamp,
+        since: UnixTimestamp,
+        until: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
         sqlx::query_as!(
             NodeStatus,
             r#"
                 SELECT timestamp, up
                     FROM mixnode_ipv6_status
-                    WHERE mixnode_details_id=? AND timestamp > ?;
+                    WHERE mixnode_details_id=? AND timestamp > ? AND timestamp < ?;
             "#,
             id,
-            timestamp
+            since,
+            until,
         )
         .fetch_all(&self.connection_pool)
         .await
     }
 
     /// Gets all ipv4 statuses for gateway with particular id that were inserted
-    /// into the database after the specified unix timestamp.
-    pub(super) async fn get_gateway_ipv4_statuses_since_by_id(
+    /// into the database within the specified time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `until`: unix timestamp indicating the upper bound interval of the selection.
+    pub(super) async fn get_gateway_ipv4_statuses_by_id(
         &self,
         id: i64,
-        timestamp: UnixTimestamp,
+        since: UnixTimestamp,
+        until: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
         sqlx::query_as!(
             NodeStatus,
             r#"
                 SELECT timestamp, up
                     FROM gateway_ipv4_status
-                    WHERE gateway_details_id=? AND timestamp > ?;
+                    WHERE gateway_details_id=? AND timestamp > ? AND timestamp < ?;
             "#,
             id,
-            timestamp
+            since,
+            until,
         )
         .fetch_all(&self.connection_pool)
         .await
     }
 
     /// Gets all ipv6 statuses for gateway with particular id that were inserted
-    /// into the database after the specified unix timestamp.
-    pub(super) async fn get_gateway_ipv6_statuses_since_by_id(
+    /// into the database within the specified time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `until`: unix timestamp indicating the upper bound interval of the selection.
+    pub(super) async fn get_gateway_ipv6_statuses_by_id(
         &self,
         id: i64,
-        timestamp: UnixTimestamp,
+        since: UnixTimestamp,
+        until: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
         sqlx::query_as!(
             NodeStatus,
             r#"
                 SELECT timestamp, up
                     FROM gateway_ipv6_status
-                    WHERE gateway_details_id=? AND timestamp > ?;
+                    WHERE gateway_details_id=? AND timestamp > ? AND timestamp < ?;
             "#,
             id,
-            timestamp
+            since,
+            until,
         )
         .fetch_all(&self.connection_pool)
         .await
@@ -604,14 +632,16 @@ impl StorageManager {
     }
 
     /// Returns public key, owner and id of all mixnodes that have had any ipv4 statuses submitted
-    /// since the provided timestamp.
+    /// within the provided time interval.
     ///
     /// # Arguments
     ///
-    /// * `timestamp`: indicates the lower bound timestamp for deciding whether given mixnode is active
-    pub(super) async fn get_all_active_mixnodes(
+    /// * `since`: indicates the lower bound timestamp for deciding whether given mixnode is active
+    /// * `until`: indicates the upper bound timestamp for deciding whether given mixnode is active
+    pub(super) async fn get_all_active_mixnodes_in_interval(
         &self,
-        timestamp: UnixTimestamp,
+        since: UnixTimestamp,
+        until: UnixTimestamp,
     ) -> Result<Vec<ActiveNode>, sqlx::Error> {
         // find mixnode details of all nodes that have had at least 1 ipv4 status since the provided
         // timestamp
@@ -625,24 +655,27 @@ impl StorageManager {
                     JOIN mixnode_ipv4_status
                     ON mixnode_details.id = mixnode_ipv4_status.mixnode_details_id
                     WHERE EXISTS (
-                        SELECT 1 FROM mixnode_ipv4_status WHERE timestamp > ?
+                        SELECT 1 FROM mixnode_ipv4_status WHERE timestamp > ? AND timestamp < ?
                     )
             "#,
-            timestamp
+            since,
+            until
         )
         .fetch_all(&self.connection_pool)
         .await
     }
 
     /// Returns public key, owner and id of all gateways that have had any ipv4 statuses submitted
-    /// since the provided timestamp.
+    /// within the provided time interval.
     ///
     /// # Arguments
     ///
-    /// * `timestamp`: indicates the lower bound timestamp for deciding whether given gateway is active
-    pub(super) async fn get_all_active_gateways(
+    /// * `since`: indicates the lower bound timestamp for deciding whether given gateway is active
+    /// * `until`: indicates the upper bound timestamp for deciding whether given gateway is active
+    pub(super) async fn get_all_active_gateways_in_interval(
         &self,
-        timestamp: UnixTimestamp,
+        since: UnixTimestamp,
+        until: UnixTimestamp,
     ) -> Result<Vec<ActiveNode>, sqlx::Error> {
         sqlx::query_as!(
             ActiveNode,
@@ -652,10 +685,11 @@ impl StorageManager {
                     JOIN gateway_ipv4_status
                     ON gateway_details.id = gateway_ipv4_status.gateway_details_id
                     WHERE EXISTS (
-                        SELECT 1 FROM gateway_ipv4_status WHERE timestamp > ?
+                        SELECT 1 FROM gateway_ipv4_status WHERE timestamp > ? AND timestamp < ?
                     )
             "#,
-            timestamp
+            since,
+            until,
         )
         .fetch_all(&self.connection_pool)
         .await
@@ -704,19 +738,42 @@ impl StorageManager {
         Ok(())
     }
 
-    /// Tries to obtain the most recent epoch rewarding entry currently stored.
+    // /// Tries to obtain the most recent epoch rewarding entry currently stored.
+    // ///
+    // /// Returns None if no data exists.
+    // pub(super) async fn get_most_recent_epoch_rewarding_entry(
+    //     &self,
+    // ) -> Result<Option<EpochRewarding>, sqlx::Error> {
+    //     sqlx::query_as!(
+    //         EpochRewarding,
+    //         r#"
+    //             SELECT * FROM epoch_rewarding
+    //             ORDER BY epoch_timestamp DESC
+    //             LIMIT 1
+    //         "#,
+    //     )
+    //     .fetch_optional(&self.connection_pool)
+    //     .await
+    // }
+
+    /// Tries to obtain the epoch rewarding entry that has the provided timestamp.
     ///
     /// Returns None if no data exists.
-    pub(super) async fn get_most_recent_epoch_rewarding_entry(
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
+    pub(super) async fn get_epoch_rewarding_entry(
         &self,
+        epoch_timestamp: UnixTimestamp,
     ) -> Result<Option<EpochRewarding>, sqlx::Error> {
         sqlx::query_as!(
             EpochRewarding,
             r#"
                 SELECT * FROM epoch_rewarding
-                ORDER BY epoch_timestamp DESC
-                LIMIT 1
+                WHERE epoch_timestamp = ?
             "#,
+            epoch_timestamp
         )
         .fetch_optional(&self.connection_pool)
         .await
@@ -830,19 +887,28 @@ impl StorageManager {
         Ok(())
     }
 
-    pub(super) async fn get_all_active_mixnodes_statuses(
+    /// Obtains all statuses of active mixnodes from the specified time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `until`: unix timestamp indicating the upper bound interval of the selection.
+    pub(super) async fn get_all_active_mixnodes_statuses_in_interval(
         &self,
         since: UnixTimestamp,
+        until: UnixTimestamp,
     ) -> Result<Vec<ActiveNodeDayStatuses>, sqlx::Error> {
-        let active_nodes = self.get_all_active_mixnodes(since).await?;
+        let active_nodes = self
+            .get_all_active_mixnodes_in_interval(since, until)
+            .await?;
 
         let mut active_day_statuses = Vec::with_capacity(active_nodes.len());
         for active_node in active_nodes.into_iter() {
             let ipv4_statuses = self
-                .get_mixnode_ipv4_statuses_since_by_id(active_node.id, since)
+                .get_mixnode_ipv4_statuses_by_id(active_node.id, since, until)
                 .await?;
             let ipv6_statuses = self
-                .get_mixnode_ipv6_statuses_since_by_id(active_node.id, since)
+                .get_mixnode_ipv6_statuses_by_id(active_node.id, since, until)
                 .await?;
 
             let statuses = ActiveNodeDayStatuses {
@@ -858,19 +924,28 @@ impl StorageManager {
         Ok(active_day_statuses)
     }
 
-    pub(super) async fn get_all_active_gateways_statuses(
+    /// Obtains all statuses of active gateways from the specified time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `until`: unix timestamp indicating the upper bound interval of the selection.
+    pub(super) async fn get_all_active_gateways_statuses_in_interval(
         &self,
         since: UnixTimestamp,
+        until: UnixTimestamp,
     ) -> Result<Vec<ActiveNodeDayStatuses>, sqlx::Error> {
-        let active_nodes = self.get_all_active_gateways(since).await?;
+        let active_nodes = self
+            .get_all_active_gateways_in_interval(since, until)
+            .await?;
 
         let mut active_day_statuses = Vec::with_capacity(active_nodes.len());
         for active_node in active_nodes.into_iter() {
             let ipv4_statuses = self
-                .get_gateway_ipv4_statuses_since_by_id(active_node.id, since)
+                .get_gateway_ipv4_statuses_by_id(active_node.id, since, until)
                 .await?;
             let ipv6_statuses = self
-                .get_gateway_ipv6_statuses_since_by_id(active_node.id, since)
+                .get_gateway_ipv6_statuses_by_id(active_node.id, since, until)
                 .await?;
 
             let statuses = ActiveNodeDayStatuses {

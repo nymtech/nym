@@ -19,6 +19,7 @@ pub(crate) struct ActiveNode {
 pub(crate) struct EpochRewarding {
     #[allow(dead_code)]
     pub(crate) id: i64,
+    #[allow(dead_code)]
     pub(crate) epoch_timestamp: i64,
     pub(crate) finished: bool,
 }

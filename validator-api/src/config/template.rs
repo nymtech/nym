@@ -89,5 +89,10 @@ first_rewarding_epoch = '{{ rewarding.first_rewarding_epoch }}'
 # Current length of the epoch. If modified `first_rewarding_epoch` should also get changed.
 epoch_length = '{{ rewarding.epoch_length }}'
 
+# Specifies the minimum percentage of monitor test run data present in order to
+# distribute rewards for given epoch.
+# Note, only values in range 0-100 are valid
+minimum_epoch_monitor_threshold = {{ rewarding.minimum_epoch_monitor_threshold }}
+
 "#
 }

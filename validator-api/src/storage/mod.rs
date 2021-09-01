@@ -22,7 +22,7 @@ pub(crate) mod manager;
 pub(crate) mod models;
 
 // A type alias to be more explicit about type of timestamp used.
-type UnixTimestamp = i64;
+pub(crate) type UnixTimestamp = i64;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
@@ -297,32 +297,38 @@ impl NodeStatusStorage {
         ))
     }
 
-    // NOTE: this method will go away once we move payments into the validator-api
-    // it just helps us to get rid of having to query for reports of each node individually
-    pub(crate) async fn get_all_active_mixnode_reports(
+    /// Obtain status reports of mixnodes that were active in the specified time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `end`: unix timestamp indicating the upper bound interval of the selection.
+    // NOTE: even though the arguments would suggest this function is generic in regards to
+    // epoch length, the constructed reports still assume the epochs are 24h in length.
+    pub(crate) async fn get_all_active_mixnode_reports_in_interval(
         &self,
+        start: UnixTimestamp,
+        end: UnixTimestamp,
     ) -> Result<Vec<MixnodeStatusReport>, NodeStatusApiError> {
-        let now = OffsetDateTime::now_utc();
-        let day_ago = (now - ONE_DAY).unix_timestamp();
-        let hour_ago = (now - ONE_HOUR).unix_timestamp();
+        if (end - start) as u64 != ONE_DAY.as_secs() {
+            warn!("Our current epoch length breaks the 24h length assumption")
+        }
+
+        let hour_ago = end - ONE_HOUR.as_secs() as i64;
 
         // determine the number of runs the mixnodes should have been online for
-        let last_hour_runs_count = self
-            .get_monitor_runs_count(hour_ago, now.unix_timestamp())
-            .await?;
-        let last_day_runs_count = self
-            .get_monitor_runs_count(day_ago, now.unix_timestamp())
-            .await?;
+        let last_hour_runs_count = self.get_monitor_runs_count(hour_ago, end).await?;
+        let last_day_runs_count = self.get_monitor_runs_count(start, end).await?;
 
         let reports = self
             .manager
-            .get_all_active_mixnodes_statuses(day_ago)
+            .get_all_active_mixnodes_statuses_in_interval(start, end)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
             .into_iter()
             .map(|statuses| {
                 MixnodeStatusReport::construct_from_last_day_reports(
-                    now,
+                    OffsetDateTime::from_unix_timestamp(end).unwrap(),
                     statuses.identity,
                     statuses.owner,
                     statuses.ipv4_statuses,
@@ -336,32 +342,38 @@ impl NodeStatusStorage {
         Ok(reports)
     }
 
-    // NOTE: this method will go away once we move payments into the validator-api
-    // it just helps us to get rid of having to query for reports of each node individually
-    pub(crate) async fn get_all_active_gateway_reports(
+    /// Obtain status reports of gateways that were active in the specified time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `end`: unix timestamp indicating the upper bound interval of the selection.
+    // NOTE: even though the arguments would suggest this function is generic in regards to
+    // epoch length, the constructed reports still assume the epochs are 24h in length.
+    pub(crate) async fn get_all_active_gateway_reports_in_interval(
         &self,
+        start: UnixTimestamp,
+        end: UnixTimestamp,
     ) -> Result<Vec<GatewayStatusReport>, NodeStatusApiError> {
-        let now = OffsetDateTime::now_utc();
-        let day_ago = (now - ONE_DAY).unix_timestamp();
-        let hour_ago = (now - ONE_HOUR).unix_timestamp();
+        if (end - start) as u64 != ONE_DAY.as_secs() {
+            warn!("Our current epoch length breaks the 24h length assumption")
+        }
 
-        // determine the number of runs the gateways should have been online for
-        let last_hour_runs_count = self
-            .get_monitor_runs_count(hour_ago, now.unix_timestamp())
-            .await?;
-        let last_day_runs_count = self
-            .get_monitor_runs_count(day_ago, now.unix_timestamp())
-            .await?;
+        let hour_ago = end - ONE_HOUR.as_secs() as i64;
+
+        // determine the number of runs the mixnodes should have been online for
+        let last_hour_runs_count = self.get_monitor_runs_count(hour_ago, end).await?;
+        let last_day_runs_count = self.get_monitor_runs_count(start, end).await?;
 
         let reports = self
             .manager
-            .get_all_active_gateways_statuses(day_ago)
+            .get_all_active_gateways_statuses_in_interval(start, end)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
             .into_iter()
             .map(|statuses| {
                 GatewayStatusReport::construct_from_last_day_reports(
-                    now,
+                    OffsetDateTime::from_unix_timestamp(end).unwrap(),
                     statuses.identity,
                     statuses.owner,
                     statuses.ipv4_statuses,
@@ -570,14 +582,31 @@ impl NodeStatusStorage {
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)
     }
 
-    /// Tries to obtain the most recent epoch rewarding entry currently stored.
+    // /// Tries to obtain the most recent epoch rewarding entry currently stored.
+    // ///
+    // /// Returns None if no data exists.
+    // pub(crate) async fn get_most_recent_epoch_rewarding_entry(
+    //     &self,
+    // ) -> Result<Option<EpochRewarding>, NodeStatusApiError> {
+    //     self.manager
+    //         .get_most_recent_epoch_rewarding_entry()
+    //         .await
+    //         .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    // }
+
+    /// Tries to obtain the epoch rewarding entry that has the provided timestamp.
     ///
     /// Returns None if no data exists.
-    pub(crate) async fn get_most_recent_epoch_rewarding_entry(
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
+    pub(super) async fn get_epoch_rewarding_entry(
         &self,
+        epoch_timestamp: UnixTimestamp,
     ) -> Result<Option<EpochRewarding>, NodeStatusApiError> {
         self.manager
-            .get_most_recent_epoch_rewarding_entry()
+            .get_epoch_rewarding_entry(epoch_timestamp)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)
     }

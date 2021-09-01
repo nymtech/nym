@@ -629,9 +629,9 @@ impl Rewarder {
     ///
     /// * `epoch`: epoch to check
     async fn check_epoch_eligibility(&self, epoch: Epoch) -> Result<bool, RewardingError> {
-        if self.check_if_rewarding_happened_at_epoch(epoch).await? {
-            Ok(false)
-        } else if !self.check_for_monitor_data(epoch).await? {
+        if self.check_if_rewarding_happened_at_epoch(epoch).await?
+            || !self.check_for_monitor_data(epoch).await?
+        {
             Ok(false)
         } else {
             // we haven't sent rewards during the epoch and we have enough monitor test data

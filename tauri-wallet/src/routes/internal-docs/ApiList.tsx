@@ -1,6 +1,5 @@
 import React from 'react'
-import { List, ListItem, Theme } from '@material-ui/core'
-import { useTheme } from '@material-ui/styles'
+import { List, ListItem } from '@material-ui/core'
 import { DocEntry } from './DocEntry'
 
 export const ApiList = () => {

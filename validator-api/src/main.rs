@@ -189,11 +189,11 @@ fn setup_logging() {
 
 fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if matches.is_present(MONITORING_ENABLED) {
-        config = config.enabled_network_monitor(true)
+        config = config.with_network_monitor_enabled(true)
     }
 
     if matches.is_present(REWARDING_ENABLED) {
-        config = config.enabled_rewarding(true)
+        config = config.with_rewarding_enabled(true)
     }
 
     if let Some(v4_topology_path) = matches.value_of(V4_TOPOLOGY_ARG) {
@@ -251,7 +251,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     }
 
     if matches.is_present(DETAILED_REPORT_ARG) {
-        config = config.detailed_network_monitor_report(true)
+        config = config.with_detailed_network_monitor_report(true)
     }
     if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
         let keypair_bs58 = std::fs::read_to_string(keypair_path)

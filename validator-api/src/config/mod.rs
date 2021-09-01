@@ -258,17 +258,17 @@ impl Config {
         KeyPair::try_from_bs58(self.base.keypair_bs58.clone()).unwrap()
     }
 
-    pub fn enabled_network_monitor(mut self, enabled: bool) -> Self {
+    pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {
         self.network_monitor.enabled = enabled;
         self
     }
 
-    pub fn enabled_rewarding(mut self, enabled: bool) -> Self {
+    pub fn with_rewarding_enabled(mut self, enabled: bool) -> Self {
         self.rewarding.enabled = enabled;
         self
     }
 
-    pub fn detailed_network_monitor_report(mut self, detailed: bool) -> Self {
+    pub fn with_detailed_network_monitor_report(mut self, detailed: bool) -> Self {
         self.network_monitor.print_detailed_report = detailed;
         self
     }

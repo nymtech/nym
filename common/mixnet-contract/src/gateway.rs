@@ -7,6 +7,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
+use crate::current_block_height;
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct Gateway {
     pub host: String,
@@ -24,6 +26,7 @@ pub struct GatewayBond {
     pub bond_amount: Coin,
     pub total_delegation: Coin,
     pub owner: Addr,
+    #[serde(default = "current_block_height")]
     pub block_height: u64,
     pub gateway: Gateway,
 }

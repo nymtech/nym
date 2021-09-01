@@ -667,7 +667,10 @@ impl Rewarder {
 
         // check if rewards weren't already given out for the current epoch
         // (it can happen for negative variance if the process crashed)
-        if self.check_epoch_eligibility(current_epoch).await? {
+        if !self
+            .check_if_rewarding_happened_at_epoch(current_epoch)
+            .await?
+        {
             return Ok(current_epoch);
         }
 

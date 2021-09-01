@@ -12,7 +12,7 @@ use mixnet_contract::{Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeB
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use validator_client::nymd::{
-    CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
+    CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient, TendermintTime,
 };
 use validator_client::ValidatorClientError;
 
@@ -73,6 +73,25 @@ impl Client<SigningNymdClient> {
 }
 
 impl<C> Client<C> {
+    // a helper function for the future to obtain the current block timestamp
+    #[allow(dead_code)]
+    pub(crate) async fn current_block_timestamp(
+        &self,
+    ) -> Result<TendermintTime, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let time = self
+            .0
+            .read()
+            .await
+            .nymd
+            .get_current_block_timestamp()
+            .await?;
+
+        Ok(time)
+    }
+
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,

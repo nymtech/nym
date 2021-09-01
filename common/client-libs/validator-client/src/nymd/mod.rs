@@ -28,6 +28,7 @@ pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::gas_price::GasPrice;
 pub use cosmos_sdk::rpc::HttpClient as QueryNymdClient;
+pub use cosmos_sdk::tendermint::Time as TendermintTime;
 pub use cosmos_sdk::tx::{Fee, Gas};
 pub use cosmos_sdk::Coin as CosmosCoin;
 pub use signing_client::Client as SigningNymdClient;
@@ -151,6 +152,13 @@ impl<C> NymdClient<C> {
 
     pub fn calculate_custom_fee(&self, gas_limit: impl Into<Gas>) -> Fee {
         Operation::determine_custom_fee(&self.gas_price, gas_limit.into())
+    }
+
+    pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.client.get_block(None).await?.block.header.time)
     }
 
     pub async fn get_balance(&self, address: &AccountId) -> Result<Option<CosmosCoin>, NymdError>

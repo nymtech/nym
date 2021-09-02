@@ -4,7 +4,7 @@
 use crate::nymd_client::Client;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract::{GatewayBond, MixNodeBond, StateParams};
 use rocket::fairing::AdHoc;
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -75,13 +75,17 @@ impl<C> ValidatorCacheRefresher<C> {
             self.nymd_client.get_gateways()
         )?;
 
+        let state_params = self.nymd_client.get_state_params().await?;
+
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
             mixnodes.len(),
             gateways.len()
         );
 
-        self.cache.update_cache(mixnodes, gateways).await;
+        self.cache
+            .update_cache(mixnodes, gateways, state_params)
+            .await;
 
         Ok(())
     }
@@ -122,7 +126,34 @@ impl ValidatorCache {
         })
     }
 
-    async fn update_cache(&self, mixnodes: Vec<MixNodeBond>, gateways: Vec<GatewayBond>) {
+    // TODO: check if all nodes can be compared together,
+    // i.e. they all have the same denom for bonds and delegations
+    fn verify_mixnodes(&self, mixnodes: &[MixNodeBond]) -> bool {
+        false
+    }
+
+    // TODO: check if all nodes can be compared together,
+    // i.e. they all have the same denom for bonds and delegations
+    fn verify_gateways(&self, gateways: &[GatewayBond]) -> bool {
+        false
+    }
+
+    async fn update_cache(
+        &self,
+        mut mixnodes: Vec<MixNodeBond>,
+        mut gateways: Vec<GatewayBond>,
+        state: StateParams,
+    ) {
+        if self.verify_mixnodes(&mixnodes) && self.verify_gateways(&gateways) {
+            mixnodes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            gateways.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+            // TODO: here take
+            // state.mixnode_active_set_size top mixnodes
+            // state.gateway_active_set_size top gateways
+            // and set those as active set
+        }
+
         self.inner.mixnodes.write().await.set(mixnodes);
         self.inner.gateways.write().await.set(gateways);
     }
@@ -133,6 +164,14 @@ impl ValidatorCache {
 
     pub async fn gateways(&self) -> Cache<Vec<GatewayBond>> {
         self.inner.gateways.read().await.clone()
+    }
+
+    pub async fn active_mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
+        todo!()
+    }
+
+    pub async fn active_gateways(&self) -> Cache<Vec<GatewayBond>> {
+        todo!()
     }
 
     pub fn initialised(&self) -> bool {

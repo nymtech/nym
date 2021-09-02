@@ -6,9 +6,10 @@ use cosmwasm_std::{coin, Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use std::cmp::Ordering;
 use std::fmt::Display;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct MixNode {
     pub host: String,
     pub mix_port: u16,
@@ -20,7 +21,9 @@ pub struct MixNode {
     pub version: String,
 }
 
-#[derive(Copy, Clone, Debug, Serialize_repr, PartialEq, Deserialize_repr, JsonSchema)]
+#[derive(
+    Copy, Clone, Debug, Serialize_repr, PartialEq, PartialOrd, Deserialize_repr, JsonSchema,
+)]
 #[repr(u8)]
 pub enum Layer {
     Gateway = 0,
@@ -63,6 +66,63 @@ impl MixNodeBond {
 
     pub fn mix_node(&self) -> &MixNode {
         &self.mix_node
+    }
+}
+
+impl PartialOrd for MixNodeBond {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // first remove invalid cases
+        if self.bond_amount.denom != self.total_delegation.denom {
+            return None;
+        }
+
+        if other.bond_amount.denom != other.total_delegation.denom {
+            return None;
+        }
+
+        if self.bond_amount.denom != other.bond_amount.denom {
+            return None;
+        }
+
+        // try to order by total bond + delegation
+        let total_cmp = (self.bond_amount.amount + self.total_delegation.amount)
+            .partial_cmp(&(self.bond_amount.amount + self.total_delegation.amount))?;
+
+        if total_cmp != Ordering::Equal {
+            return Some(total_cmp);
+        }
+
+        // then if those are equal, prefer higher bond over delegation
+        let bond_cmp = self
+            .bond_amount
+            .amount
+            .partial_cmp(&other.bond_amount.amount)?;
+        if bond_cmp != Ordering::Equal {
+            return Some(bond_cmp);
+        }
+
+        // finally look at delegation (I'm not sure we can get here, but better safe than sorry)
+        let delegation_cmp = self
+            .total_delegation
+            .amount
+            .partial_cmp(&other.total_delegation.amount)?;
+        if delegation_cmp != Ordering::Equal {
+            return Some(delegation_cmp);
+        }
+
+        // then go by the rest of the fields in order. It doesn't really matter at this point
+        // but we should be deterministic.
+        let owner_cmp = self.owner.partial_cmp(&other.owner)?;
+        if owner_cmp != Ordering::Equal {
+            return Some(owner_cmp);
+        }
+
+        let layer_cmp = self.layer.partial_cmp(&other.layer)?;
+        if layer_cmp != Ordering::Equal {
+            return Some(layer_cmp);
+        }
+
+        self.mix_node.partial_cmp(&other.mix_node)
     }
 }
 

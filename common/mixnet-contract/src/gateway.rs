@@ -5,9 +5,10 @@ use crate::{IdentityKey, SphinxKey};
 use cosmwasm_std::{coin, Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::fmt::Display;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct Gateway {
     pub host: String,
     pub mix_port: u16,
@@ -51,6 +52,58 @@ impl GatewayBond {
 
     pub fn gateway(&self) -> &Gateway {
         &self.gateway
+    }
+}
+
+impl PartialOrd for GatewayBond {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // first remove invalid cases
+        if self.bond_amount.denom != self.total_delegation.denom {
+            return None;
+        }
+
+        if other.bond_amount.denom != other.total_delegation.denom {
+            return None;
+        }
+
+        if self.bond_amount.denom != other.bond_amount.denom {
+            return None;
+        }
+
+        // try to order by total bond + delegation
+        let total_cmp = (self.bond_amount.amount + self.total_delegation.amount)
+            .partial_cmp(&(self.bond_amount.amount + self.total_delegation.amount))?;
+
+        if total_cmp != Ordering::Equal {
+            return Some(total_cmp);
+        }
+
+        // then if those are equal, prefer higher bond over delegation
+        let bond_cmp = self
+            .bond_amount
+            .amount
+            .partial_cmp(&other.bond_amount.amount)?;
+        if bond_cmp != Ordering::Equal {
+            return Some(bond_cmp);
+        }
+
+        // finally look at delegation (I'm not sure we can get here, but better safe than sorry)
+        let delegation_cmp = self
+            .total_delegation
+            .amount
+            .partial_cmp(&other.total_delegation.amount)?;
+        if delegation_cmp != Ordering::Equal {
+            return Some(delegation_cmp);
+        }
+
+        // then go by the rest of the fields in order. It doesn't really matter at this point
+        // but we should be deterministic.
+        let owner_cmp = self.owner.partial_cmp(&other.owner)?;
+        if owner_cmp != Ordering::Equal {
+            return Some(owner_cmp);
+        }
+
+        self.gateway.partial_cmp(&other.gateway)
     }
 }
 

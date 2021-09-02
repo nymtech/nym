@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::error::NymdError;
-use cosmos_sdk::tendermint::abci;
+use cosmrs::tendermint::abci;
 use itertools::Itertools;
 use serde::Deserialize;
 

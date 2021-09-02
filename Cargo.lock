@@ -905,8 +905,9 @@ dependencies = [
 
 [[package]]
 name = "cosmos-sdk-proto"
-version = "0.6.0"
-source = "git+https://github.com/cosmos/cosmos-rust/#ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7115eae4b8518967b8e737a3ef76025f2d007de7906d88c18f00b8bbfc70f51e"
 dependencies = [
  "prost",
  "prost-types",
@@ -914,9 +915,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "cosmos_sdk"
-version = "0.2.0"
-source = "git+https://github.com/cosmos/cosmos-rust/#ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30"
+name = "cosmrs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "609eba7eee6d9929927cbdf15f9fe96d250c316c5e1b983c4a47a10f60da5ea7"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto",
@@ -6325,7 +6327,7 @@ dependencies = [
  "bip39",
  "coconut-interface",
  "config",
- "cosmos_sdk",
+ "cosmrs",
  "cosmwasm-std",
  "flate2",
  "itertools 0.10.1",

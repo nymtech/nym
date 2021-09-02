@@ -9,11 +9,10 @@ use crate::nymd::cosmwasm_client::types::{
 use crate::nymd::error::NymdError;
 use crate::nymd::fee_helpers::Operation;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use cosmos_sdk::rpc::endpoint::broadcast;
-use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClientUrl};
-use cosmos_sdk::tx::{Fee, Gas};
-use cosmos_sdk::Coin as CosmosCoin;
-use cosmos_sdk::{AccountId, Denom};
+use cosmrs::rpc::endpoint::broadcast;
+use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
+use cosmrs::tx::{Fee, Gas};
+
 use cosmwasm_std::Coin;
 use mixnet_contract::{
     Addr, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
@@ -29,7 +28,9 @@ use std::convert::TryInto;
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::gas_price::GasPrice;
-pub use cosmos_sdk::rpc::HttpClient as QueryNymdClient;
+pub use cosmrs::rpc::HttpClient as QueryNymdClient;
+pub use cosmrs::Coin as CosmosCoin;
+pub use cosmrs::{AccountId, Denom};
 pub use signing_client::Client as SigningNymdClient;
 
 pub mod cosmwasm_client;

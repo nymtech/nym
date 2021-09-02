@@ -3,7 +3,7 @@
 
 use crate::nymd::error::NymdError;
 use config::defaults;
-use cosmos_sdk::Denom;
+use cosmrs::Denom;
 use cosmwasm_std::Decimal;
 use std::str::FromStr;
 

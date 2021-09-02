@@ -3,14 +3,20 @@
   windows_subsystem = "windows"
 )]
 
+use ::config::defaults::DENOM;
 use bip39::Mnemonic;
 use cosmos_sdk::Coin as CosmosCoin;
+use cosmos_sdk::Denom as CosmosDenom;
 use cosmos_sdk::{AccountId, Decimal};
-use cosmwasm_std::Coin;
+use cosmwasm_std::Coin as CosmWasmCoin;
 use error::BackendError;
 use mixnet_contract::MixNode;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
+use std::fmt;
 use std::str::FromStr;
+use ts_rs::{export, TS};
 use validator_client::nymd::{NymdClient, SigningNymdClient};
 
 mod config;
@@ -22,86 +28,153 @@ use tokio::sync::RwLock;
 
 use crate::config::Config;
 
-#[derive(Debug, Default)]
-struct State {
-  config: Config,
-  signing_client: Option<NymdClient<SigningNymdClient>>,
-}
-
 macro_rules! format_err {
   ($e:expr) => {
     format!("line {}: {}", line!(), $e)
   };
 }
 
-fn printable_coin(coin: Option<CosmosCoin>) -> Result<String, String> {
-  if let Some(coin) = coin {
-    let amount = match native_to_printable(&coin.amount.to_string()) {
-      Ok(amount) => amount,
-      Err(e) => return Err(e),
-    };
-    let ticker = if coin.denom.to_string().starts_with("u") {
-      coin.denom.to_string()[1..].to_uppercase()
-    } else {
-      coin.denom.to_string().to_uppercase()
-    };
-    Ok(format!("{} {}", amount, ticker))
-  } else {
-    Ok("0".to_string())
-  }
+#[derive(TS, Serialize, Deserialize)]
+struct Balance {
+  coin: Coin,
+  printable_balance: String,
 }
 
-fn printable_balance(balance: Option<Vec<CosmosCoin>>) -> Result<String, String> {
-  if let Some(balance) = balance {
-    if !balance.is_empty() {
-      return Ok(
-        balance
-          .into_iter()
-          .map(|coin| match printable_coin(Some(coin)) {
-            Ok(native) => native,
-            Err(e) => e,
-          })
-          .collect::<Vec<String>>()
-          .join(", "),
-      );
+enum Denom {
+  Major,
+  Minor,
+}
+
+impl fmt::Display for Denom {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match *self {
+      Denom::Major => f.write_str(&DENOM[1..].to_uppercase()),
+      Denom::Minor => f.write_str(DENOM),
     }
   }
-  Ok("-".to_string())
 }
 
-// converts display amount, such as "12.0346" to its native token representation,
-// with 6 fractional digits. So in that case it would result in "12034600"
-// Basically does the same job as `displayAmountToNative` but without the requirement
-// of having the coinMap
-#[tauri::command]
-fn printable_balance_to_native(amount: &str) -> Result<String, String> {
-  match amount.parse::<f64>() {
-    Ok(f) => match Decimal::from_str(&(f * 1_000_000.).to_string()) {
-      Ok(amount) => Ok(amount.to_string()),
-      Err(e) => Err(format_err!(format!(
-        "Could not convert `{}` to Decimal",
-        amount
-      ))),
-    },
-    Err(e) => Err(format_err!(format!(
-      "Could not convert `{}` to f64",
-      amount
-    ))),
+impl FromStr for Denom {
+  type Err = String;
+
+  fn from_str(s: &str) -> Result<Denom, String> {
+    if s.to_lowercase() == DENOM.to_lowercase() {
+      Ok(Denom::Minor)
+    } else if s.to_lowercase() == DENOM[1..].to_lowercase() {
+      Ok(Denom::Major)
+    } else {
+      Err(format_err!(format!(
+        "{} is not a valid denomination string",
+        s
+      )))
+    }
   }
 }
 
-#[tauri::command]
-fn native_to_printable(native_value: &str) -> Result<String, String> {
-  match Decimal::from_str(native_value) {
-    Ok(decimal) => Ok(format!(
-      "{}",
-      decimal.to_string().parse::<f64>().unwrap() / 1_000_000.
-    )),
-    Err(e) => Err(format_err!(format!(
-      "Could not convert `{}` to Decimal",
-      native_value
-    ))),
+// Proxy types to allow TS generation
+#[derive(TS, Serialize, Deserialize, Clone)]
+struct Coin {
+  amount: String,
+  denom: String,
+}
+
+impl fmt::Display for Coin {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.write_str(&format!("{} {}", self.amount, self.denom))
   }
+}
+
+impl Coin {
+  fn to_major(&self) -> Coin {
+    if let Ok(denom) = Denom::from_str(&self.denom) {
+      match denom {
+        Denom::Major => self.clone(),
+        Denom::Minor => Coin {
+          amount: (self.amount.parse::<f64>().unwrap() / 1_000_000.).to_string(),
+          denom: Denom::Major.to_string(),
+        },
+      }
+    } else {
+      unreachable!()
+    }
+  }
+
+  fn to_minor(&self) -> Coin {
+    if let Ok(denom) = Denom::from_str(&self.denom) {
+      match denom {
+        Denom::Minor => self.clone(),
+        Denom::Major => Coin {
+          amount: (self.amount.parse::<f64>().unwrap() * 1_000_000.).to_string(),
+          denom: Denom::Minor.to_string(),
+        },
+      }
+    } else {
+      unreachable!()
+    }
+  }
+}
+
+impl TryFrom<Coin> for CosmWasmCoin {
+  type Error = String;
+
+  fn try_from(coin: Coin) -> Result<CosmWasmCoin, String> {
+    match serde_json::to_value(coin) {
+      Ok(value) => match serde_json::from_value(value) {
+        Ok(coin) => Ok(coin),
+        Err(e) => Err(format_err!(e)),
+      },
+      Err(e) => Err(format_err!(e)),
+    }
+  }
+}
+
+// There is some confusion here over coins and denoms, it feels like we should use types to differentiate between the two
+impl TryFrom<Coin> for CosmosCoin {
+  type Error = String;
+
+  fn try_from(coin: Coin) -> Result<CosmosCoin, String> {
+    let coin = coin.to_minor();
+    match Decimal::from_str(&coin.amount) {
+      Ok(d) => Ok(CosmosCoin {
+        amount: d,
+        denom: CosmosDenom::from_str(&coin.denom).unwrap(),
+      }),
+      Err(e) => Err(format_err!(e)),
+    }
+  }
+}
+
+impl From<CosmosCoin> for Coin {
+  fn from(c: CosmosCoin) -> Coin {
+    Coin {
+      amount: c.amount.to_string(),
+      denom: c.denom.to_string(),
+    }
+  }
+}
+
+#[derive(Debug, Default)]
+struct State {
+  config: Config,
+  signing_client: Option<NymdClient<SigningNymdClient>>,
+}
+
+#[tauri::command]
+fn major_to_minor(amount: String) -> Result<Coin, String> {
+  let coin = Coin {
+    amount,
+    denom: Denom::Major.to_string(),
+  };
+  Ok(coin.to_minor())
+}
+
+#[tauri::command]
+fn minor_to_major(amount: String) -> Result<Coin, String> {
+  let coin = Coin {
+    amount,
+    denom: Denom::Minor.to_string(),
+  };
+  Ok(coin.to_major())
 }
 
 #[tauri::command]
@@ -142,18 +215,19 @@ async fn connect_with_mnemonic(
 }
 
 #[tauri::command]
-async fn get_balance(
-  state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<HashMap<&str, String>, String> {
+async fn get_balance(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<Balance, String> {
   let r_state = state.read().await;
   if let Some(client) = &r_state.signing_client {
     match client.get_balance(client.address()).await {
       Ok(Some(coin)) => {
-        let mut balance = HashMap::new();
-        balance.insert("amount", coin.amount.to_string());
-        balance.insert("denom", coin.denom.to_string());
-        balance.insert("printable_balance", printable_coin(Some(coin))?);
-        Ok(balance)
+        let coin = Coin {
+          amount: coin.amount.to_string(),
+          denom: coin.denom.to_string(),
+        };
+        Ok(Balance {
+          coin: coin.clone(),
+          printable_balance: coin.to_string(),
+        })
       }
       Ok(None) => Err(format!(
         "No balance available for address {}",
@@ -199,12 +273,31 @@ async fn owns_gateway(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<boo
 }
 
 #[tauri::command]
+async fn unbond_mixnode(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<(), String> {
+  let r_state = state.read().await;
+  if let Some(client) = &r_state.signing_client {
+    match client.unbond_mixnode().await {
+      Ok(_result) => Ok(()),
+      Err(e) => Err(format_err!(e)),
+    }
+  } else {
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
+  }
+}
+
+#[tauri::command]
 async fn bond_mixnode(
   mixnode: MixNode,
   bond: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), String> {
   let r_state = state.read().await;
+  let bond: CosmWasmCoin = match bond.try_into() {
+    Ok(b) => b,
+    Err(e) => return Err(format_err!(e)),
+  };
   if let Some(client) = &r_state.signing_client {
     match client.bond_mixnode(mixnode, bond).await {
       Ok(_result) => Ok(()),
@@ -234,12 +327,19 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       connect_with_mnemonic,
       get_balance,
-      printable_balance_to_native,
-      native_to_printable,
+      minor_to_major,
+      major_to_minor,
       owns_gateway,
       owns_mixnode,
-      bond_mixnode
+      bond_mixnode,
+      unbond_mixnode
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
+}
+
+export! {
+  MixNode => "../src/types/rust/mixnode.ts",
+  Coin => "../src/types/rust/coin.ts",
+  Balance => "../src/types/rust/balance.ts"
 }

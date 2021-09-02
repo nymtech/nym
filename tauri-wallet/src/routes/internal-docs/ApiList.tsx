@@ -19,7 +19,7 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: 'printable_balance_to_native',
+            name: 'minor_to_major',
             args: [{ name: 'amount', type: 'str' }],
           }}
         />
@@ -27,15 +27,15 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: 'native_to_printable',
-            args: [{ name: 'nativeValue', type: 'str' }],
+            name: 'major_to_minor',
+            args: [{ name: 'amount', type: 'str' }],
           }}
         />
       </ListItem>
       <ListItem>
         <DocEntry
           function={{
-            name: "owns_mixnode",
+            name: 'owns_mixnode',
             args: [],
           }}
         />
@@ -43,7 +43,7 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "owns_gateway",
+            name: 'owns_gateway',
             args: [],
           }}
         />
@@ -51,10 +51,10 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "bond_mixnode",
+            name: 'bond_mixnode',
             args: [
-              { name: "mixnode", type: "object" },
-              { name: "bond", type: "object" },
+              { name: 'mixnode', type: 'object' },
+              { name: 'bond', type: 'object' },
             ],
           }}
         />

@@ -1,9 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::{
-  default_api_endpoints, default_validators, ValidatorDetails, DEFAULT_MIXNET_CONTRACT_ADDRESS,
-};
+use config::defaults::{default_validators, ValidatorDetails, DEFAULT_MIXNET_CONTRACT_ADDRESS};
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -32,9 +30,6 @@ pub struct Base {
 
   /// Mnemonic (currently of the network monitor) used for rewarding
   mnemonic: String,
-
-  // Avoid breaking derives for now
-  keypair_bs58: String,
 }
 
 impl Default for Base {
@@ -43,7 +38,6 @@ impl Default for Base {
       validators: default_validators(),
       mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
       mnemonic: String::default(),
-      keypair_bs58: String::default(),
     }
   }
 }

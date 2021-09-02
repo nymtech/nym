@@ -32,6 +32,9 @@ export const theme = createTheme({
       containedPrimary: {
         color: 'white',
       },
+      text: {
+        padding: '12px 24px',
+      },
     },
 
     MuiStepIcon: {

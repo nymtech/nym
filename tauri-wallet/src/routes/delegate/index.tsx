@@ -1,5 +1,5 @@
 import React from 'react'
-import { DelegateForm } from './DelegateForm'
+import { DelegateForm } from './_DelegateForm'
 import { Layout, NymCard, Page } from '../../components'
 
 export const Delegate = () => {

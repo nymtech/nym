@@ -32,6 +32,7 @@ pub const INITIAL_MIXNODE_DELEGATION_REWARD_RATE: u64 = 110;
 pub const INITIAL_GATEWAY_DELEGATION_REWARD_RATE: u64 = 110;
 
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
+pub const INITIAL_GATEWAY_ACTIVE_SET_SIZE: u32 = 20;
 
 fn default_initial_state(owner: Addr) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
@@ -51,6 +52,7 @@ fn default_initial_state(owner: Addr) -> State {
             mixnode_delegation_reward_rate,
             gateway_delegation_reward_rate,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+            gateway_active_set_size: INITIAL_GATEWAY_ACTIVE_SET_SIZE,
         },
         mixnode_epoch_bond_reward: calculate_epoch_reward_rate(
             INITIAL_DEFAULT_EPOCH_LENGTH,

@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React from 'react'
 import {
   Button,
   Checkbox,
+  FormControl,
   FormControlLabel,
   Grid,
   InputAdornment,
@@ -21,6 +22,7 @@ type TBondNodeFormProps = {
 }
 
 type TBondFormFields = {
+  withAdvancedOptions: boolean
   nodeType: EnumNodeType
   identityKey: string
   sphinxKey: string
@@ -34,14 +36,8 @@ type TBondFormFields = {
   httpApiPort: number
 }
 
-const defaultPorts = {
-  mixPort: 1789,
-  verlocPort: 1790,
-  httpApiPort: 8000,
-  clientsPort: 9000,
-}
-
 const defaultValues = {
+  withAdvancedOptions: false,
   nodeType: EnumNodeType.Mixnode,
   identityKey: '',
   sphinxKey: '',
@@ -49,14 +45,14 @@ const defaultValues = {
   host: '',
   version: '',
   location: undefined,
-  ...defaultPorts,
+  mixPort: 1789,
+  verlocPort: 1790,
+  httpApiPort: 8000,
+  clientsPort: 9000,
 }
 
-export const BondNodeForm = () => {
-  const [advancedShown, setAdvancedShown] = React.useState(false)
-
+export const BondForm = () => {
   const {
-    reset,
     register,
     handleSubmit,
     setValue,
@@ -67,14 +63,18 @@ export const BondNodeForm = () => {
     defaultValues,
   })
 
-  const watchNodeType = watch('nodeType', EnumNodeType.Mixnode)
+  const watchNodeType = watch('nodeType', defaultValues.nodeType)
+  const watchAdvancedOptions = watch(
+    'withAdvancedOptions',
+    defaultValues.withAdvancedOptions
+  )
 
   const onSubmit = (data: TBondFormFields) => console.log(data)
 
   const theme: Theme = useTheme()
 
   return (
-    <form>
+    <FormControl fullWidth>
       <div style={{ padding: theme.spacing(3, 5) }}>
         <Grid container spacing={3}>
           <Grid item xs={12}>
@@ -82,18 +82,8 @@ export const BondNodeForm = () => {
               nodeType={watchNodeType}
               setNodeType={(nodeType) => {
                 setValue('nodeType', nodeType)
-                // reset(
-                //   {
-                //     // location:
-                //     //   nodeType === EnumNodeType.Mixnode ? undefined : '',
-                //     ...defaultPorts,
-                //   },
-                //   {
-                //     keepErrors: true,
-                //     keepDirty: true,
-                //     keepValues: true,
-                //   }
-                // )
+                if (nodeType === EnumNodeType.Mixnode)
+                  setValue('location', undefined)
               }}
             />
           </Grid>
@@ -191,26 +181,33 @@ export const BondNodeForm = () => {
             <FormControlLabel
               control={
                 <Checkbox
-                  checked={advancedShown}
+                  checked={watchAdvancedOptions}
                   onChange={() => {
-                    setAdvancedShown((shown) => {
-                      if (shown) {
-                        reset(defaultPorts, {
-                          keepErrors: true,
-                          keepDirty: true,
-                          keepValues: true,
-                        })
-                      }
-                      return !shown
-                    })
+                    if (watchAdvancedOptions) {
+                      setValue('mixPort', defaultValues.mixPort, {
+                        shouldValidate: true,
+                      })
+                      setValue('clientsPort', defaultValues.clientsPort, {
+                        shouldValidate: true,
+                      })
+                      setValue('verlocPort', defaultValues.verlocPort, {
+                        shouldValidate: true,
+                      })
+                      setValue('httpApiPort', defaultValues.httpApiPort, {
+                        shouldValidate: true,
+                      })
+                      setValue('withAdvancedOptions', false)
+                      resizeTo
+                    } else {
+                      setValue('withAdvancedOptions', true)
+                    }
                   }}
                 />
               }
               label="Use advanced options"
             />
           </Grid>
-
-          {advancedShown && (
+          {watchAdvancedOptions && (
             <>
               <Grid item xs={12} sm={4}>
                 <TextField
@@ -303,6 +300,6 @@ export const BondNodeForm = () => {
           Bond
         </Button>
       </div>
-    </form>
+    </FormControl>
   )
 }

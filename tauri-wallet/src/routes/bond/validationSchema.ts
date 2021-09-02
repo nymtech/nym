@@ -45,7 +45,6 @@ export const validationSchema = Yup.object().shape({
       return !!value ? validateVersion(value) : false
     }),
   location: Yup.lazy((value) => {
-    console.log('LOCATION = ' + value)
     if (!!value) {
       return Yup.string()
         .required('A location is required')

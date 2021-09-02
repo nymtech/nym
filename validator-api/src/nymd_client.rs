@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract::{GatewayBond, MixNodeBond, StateParams};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use validator_client::nymd::{CosmWasmClient, QueryNymdClient, SigningNymdClient};
@@ -71,6 +71,13 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         self.0.read().await.get_all_nymd_gateways().await
+    }
+
+    pub(crate) async fn get_state_params(&self) -> Result<StateParams, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0.read().await.get_state_params().await
     }
 
     #[allow(dead_code)]

@@ -7,7 +7,7 @@ use crate::nymd::{
 };
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract::{GatewayBond, MixNodeBond, StateParams};
 use url::Url;
 
 #[cfg(feature = "nymd-client")]
@@ -164,6 +164,13 @@ impl<C> Client<C> {
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.validator_api.get_gateways().await?)
+    }
+
+    pub async fn get_state_params(&self) -> Result<StateParams, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_state_params().await?)
     }
 
     // basically handles paging for us

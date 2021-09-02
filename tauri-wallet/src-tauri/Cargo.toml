@@ -25,7 +25,12 @@ bip39 = "1.0"
 thiserror = "1.0"
 tendermint-rpc = "0.21.0"
 
-cosmos_sdk = { git = "https://github.com/cosmos/cosmos-rust/", rev="ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30", features = ["rpc", "bip32", "cosmwasm"] }
+cosmos_sdk = { git = "https://github.com/cosmos/cosmos-rust/", rev = "ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30", features = [
+    "rpc",
+    "bip32",
+    "cosmwasm",
+] }
+cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch = "0.14.1-updatedk256" }
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nymd-client",

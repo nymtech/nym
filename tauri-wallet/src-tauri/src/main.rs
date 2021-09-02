@@ -4,8 +4,11 @@
 )]
 
 use bip39::Mnemonic;
-use cosmos_sdk::{AccountId, Coin, Decimal};
+use cosmos_sdk::Coin as CosmosCoin;
+use cosmos_sdk::{AccountId, Decimal};
+use cosmwasm_std::Coin;
 use error::BackendError;
+use mixnet_contract::MixNode;
 use std::collections::HashMap;
 use std::str::FromStr;
 use validator_client::nymd::{NymdClient, SigningNymdClient};
@@ -31,7 +34,7 @@ macro_rules! format_err {
   };
 }
 
-fn printable_coin(coin: Option<Coin>) -> Result<String, String> {
+fn printable_coin(coin: Option<CosmosCoin>) -> Result<String, String> {
   if let Some(coin) = coin {
     let amount = match native_to_printable(&coin.amount.to_string()) {
       Ok(amount) => amount,
@@ -48,7 +51,7 @@ fn printable_coin(coin: Option<Coin>) -> Result<String, String> {
   }
 }
 
-fn printable_balance(balance: Option<Vec<Coin>>) -> Result<String, String> {
+fn printable_balance(balance: Option<Vec<CosmosCoin>>) -> Result<String, String> {
   if let Some(balance) = balance {
     if !balance.is_empty() {
       return Ok(
@@ -159,7 +162,58 @@ async fn get_balance(
       Err(e) => Err(BackendError::from(e).to_string()),
     }
   } else {
-    Err(String::from("Client has not been initialized yet"))
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
+  }
+}
+
+#[tauri::command]
+async fn owns_mixnode(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<bool, String> {
+  let r_state = state.read().await;
+  if let Some(client) = &r_state.signing_client {
+    match client.owns_mixnode(client.address()).await {
+      Ok(o) => Ok(o),
+      Err(e) => Err(format_err!(e)),
+    }
+  } else {
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
+  }
+}
+
+#[tauri::command]
+async fn owns_gateway(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<bool, String> {
+  let r_state = state.read().await;
+  if let Some(client) = &r_state.signing_client {
+    match client.owns_gateway(client.address()).await {
+      Ok(o) => Ok(o),
+      Err(e) => Err(format_err!(e)),
+    }
+  } else {
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
+  }
+}
+
+#[tauri::command]
+async fn bond_mixnode(
+  mixnode: MixNode,
+  bond: Coin,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), String> {
+  let r_state = state.read().await;
+  if let Some(client) = &r_state.signing_client {
+    match client.bond_mixnode(mixnode, bond).await {
+      Ok(_result) => Ok(()),
+      Err(e) => Err(format_err!(e)),
+    }
+  } else {
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
   }
 }
 
@@ -181,7 +235,10 @@ fn main() {
       connect_with_mnemonic,
       get_balance,
       printable_balance_to_native,
-      native_to_printable
+      native_to_printable,
+      owns_gateway,
+      owns_mixnode,
+      bond_mixnode
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

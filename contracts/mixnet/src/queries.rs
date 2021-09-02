@@ -129,6 +129,7 @@ pub(crate) fn query_mixnode_delegations_paged(
                         "Non-UTF8 address used as key in bucket. The storage is corrupted!",
                     )),
                     coin(entry.1.amount.u128(), DENOM),
+                    entry.1.block_height,
                 )
             })
         })
@@ -184,6 +185,7 @@ pub(crate) fn query_mixnode_delegation(
         Some(delegation_value) => Ok(Delegation::new(
             address,
             coin(delegation_value.amount.u128(), DENOM),
+            delegation_value.block_height,
         )),
         None => Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
@@ -213,6 +215,7 @@ pub(crate) fn query_gateway_delegations_paged(
                         "Non-UTF8 address used as key in bucket. The storage is corrupted!",
                     )),
                     coin(entry.1.amount.u128(), DENOM),
+                    entry.1.block_height,
                 )
             })
         })
@@ -268,6 +271,7 @@ pub(crate) fn query_gateway_delegation(
         Some(delegation_value) => Ok(Delegation::new(
             address,
             coin(delegation_value.amount.u128(), DENOM),
+            delegation_value.block_height,
         )),
         None => Err(ContractError::NoGatewayDelegationFound {
             identity: gateway_identity,
@@ -288,7 +292,7 @@ mod tests {
     use crate::transactions;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::{Addr, Storage};
-    use mixnet_contract::{Gateway, MixNode};
+    use mixnet_contract::{Gateway, MixNode, RawDelegationData};
 
     #[test]
     fn mixnodes_empty_on_init() {
@@ -793,11 +797,18 @@ mod tests {
         let delegation_owner = Addr::unchecked("bar");
 
         mix_delegations(&mut deps.storage, &node_identity)
-            .save(delegation_owner.as_bytes(), &raw_delegation_fixture(42))
+            .save(
+                delegation_owner.as_bytes(),
+                &RawDelegationData::new(42u128.into(), 12_345),
+            )
             .unwrap();
 
         assert_eq!(
-            Ok(Delegation::new(delegation_owner.clone(), coin(42, DENOM))),
+            Ok(Delegation::new(
+                delegation_owner.clone(),
+                coin(42, DENOM),
+                12_345
+            )),
             query_mixnode_delegation(deps.as_ref(), node_identity, delegation_owner)
         )
     }
@@ -1178,11 +1189,18 @@ mod tests {
         let delegation_owner = Addr::unchecked("bar");
 
         gateway_delegations(&mut deps.storage, &node_identity)
-            .save(delegation_owner.as_bytes(), &raw_delegation_fixture(42))
+            .save(
+                delegation_owner.as_bytes(),
+                &&RawDelegationData::new(42u128.into(), 12_345),
+            )
             .unwrap();
 
         assert_eq!(
-            Ok(Delegation::new(delegation_owner.clone(), coin(42, DENOM))),
+            Ok(Delegation::new(
+                delegation_owner.clone(),
+                coin(42, DENOM),
+                12_345
+            )),
             query_gateway_delegation(deps.as_ref(), node_identity, delegation_owner)
         )
     }

@@ -26,11 +26,16 @@ impl RawDelegationData {
 pub struct Delegation {
     owner: Addr,
     amount: Coin,
+    block_height: u64,
 }
 
 impl Delegation {
-    pub fn new(owner: Addr, amount: Coin) -> Self {
-        Delegation { owner, amount }
+    pub fn new(owner: Addr, amount: Coin, block_height: u64) -> Self {
+        Delegation {
+            owner,
+            amount,
+            block_height,
+        }
     }
 
     pub fn amount(&self) -> &Coin {
@@ -46,8 +51,8 @@ impl Display for Delegation {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{} {} delegated by {}",
-            self.amount.amount, self.amount.denom, self.owner
+            "{} {} delegated by {} at block {}",
+            self.amount.amount, self.amount.denom, self.owner, self.block_height
         )
     }
 }

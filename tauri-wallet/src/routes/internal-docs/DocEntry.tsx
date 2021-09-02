@@ -34,7 +34,11 @@ const argKey = (functionName: string, arg: string) => `${functionName}_${arg}`
 function collectArgs(functionName: string, args: ArgDef[]) {
     let invokeArgs = {}
     for (let arg of args) {
-        invokeArgs[arg.name] = document.getElementById(argKey(functionName, arg.name)).value
+        if (arg.type === 'object') {
+            invokeArgs[arg.name] = JSON.parse(document.getElementById(argKey(functionName, arg.name)).value)
+        } else {
+            invokeArgs[arg.name] = document.getElementById(argKey(functionName, arg.name)).value
+        }
     }
     return invokeArgs
 }

@@ -34,7 +34,7 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "printable_balance_to_native",
+            name: "minor_to_major",
             args: [{ name: "amount", type: "str" }],
           }}
         />
@@ -42,8 +42,8 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "native_to_printable",
-            args: [{ name: "nativeValue", type: "str" }],
+            name: "major_to_minor",
+            args: [{ name: "amount", type: "str" }],
           }}
         />
       </ListItem>

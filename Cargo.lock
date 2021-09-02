@@ -3501,6 +3501,7 @@ dependencies = [
  "bip39",
  "config",
  "cosmos_sdk",
+ "cosmwasm-std",
  "dirs",
  "mixnet-contract",
  "serde",

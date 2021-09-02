@@ -32,6 +32,33 @@ export const ApiList = () => {
           }}
         />
       </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "owns_mixnode",
+            args: [],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "owns_gateway",
+            args: [],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "bond_mixnode",
+            args: [
+              { name: "mixnode", type: "object" },
+              { name: "bond", type: "object" },
+            ],
+          }}
+        />
+      </ListItem>
     </List>
   )
 }

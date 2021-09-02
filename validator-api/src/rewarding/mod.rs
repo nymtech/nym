@@ -667,6 +667,8 @@ impl Rewarder {
 
         // check if rewards weren't already given out for the current epoch
         // (it can happen for negative variance if the process crashed)
+        // note that if the epoch ends at say 12:00 and it's 11:59 and we just started,
+        // we might end up skipping this epoch regardless
         if !self
             .check_if_rewarding_happened_at_epoch(current_epoch)
             .await?
@@ -787,6 +789,22 @@ impl Rewarder {
         Ok(available >= self.minimum_epoch_monitor_threshold as f32)
     }
 
+    /// Waits until the next epoch starts
+    ///
+    /// # Arguments
+    ///
+    /// * `current_epoch`: current epoch that we want to wait out
+    async fn wait_until_next_epoch(&self, current_epoch: Epoch) {
+        let now = OffsetDateTime::now_utc();
+        let until_end = current_epoch.end() - now;
+
+        // otherwise it means the epoch is already over and the next one has begun
+        if until_end.is_positive() {
+            // we know for sure that the duration here is positive so conversion can't fail
+            sleep(until_end.try_into().unwrap()).await;
+        }
+    }
+
     pub(crate) async fn run(&self) {
         // whatever happens, we shouldn't do anything until the cache is initialised
         self.validator_cache.wait_for_initial_values().await;
@@ -811,7 +829,9 @@ impl Rewarder {
                 }
             };
 
-            // wait's until the start of the *next* epoch, e.g. end of the current epoch
+            // wait's until the start of the *next* epoch, e.g. end of the current chosen epoch
+            // (it could be none, for example if we are distributing overdue rewards for the previous epoch)
+            // plus add a bit of variance
             if let Some(remaining_time) =
                 self.determine_delay_until_next_rewarding(next_rewarding_epoch)
             {
@@ -827,6 +847,19 @@ impl Rewarder {
                     "Starting reward distribution for epoch {} immediately!",
                     next_rewarding_epoch
                 );
+            }
+
+            // it's time to distribute rewards, however, first let's see if we have enough data to go through with it
+            // (consider the case of rewards being distributed every 24h at 12:00pm and validator-api
+            // starting for the very first time at 11:00am. It's not going to have enough data for
+            // rewards for the *current* epoch, but we couldn't have known that at startup)
+            match self.check_for_monitor_data(next_rewarding_epoch).await {
+                Err(_) | Ok(false) => {
+                    warn!("We do not have sufficient monitor data to perform rewarding in this epoch ({})", next_rewarding_epoch);
+                    self.wait_until_next_epoch(next_rewarding_epoch).await;
+                    continue;
+                }
+                _ => (),
             }
 
             if let Err(err) = self.perform_rewarding(next_rewarding_epoch).await {

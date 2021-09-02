@@ -5,15 +5,15 @@
 
 use crate::nymd::cosmwasm_client::logs::Log;
 use crate::nymd::error::NymdError;
-use cosmos_sdk::crypto::PublicKey;
-use cosmos_sdk::proto::cosmos::auth::v1beta1::BaseAccount;
-use cosmos_sdk::proto::cosmwasm::wasm::v1beta1::{
+use cosmrs::crypto::PublicKey;
+use cosmrs::proto::cosmos::auth::v1beta1::BaseAccount;
+use cosmrs::proto::cosmwasm::wasm::v1beta1::{
     CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
     ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo,
 };
-use cosmos_sdk::tendermint::chain;
-use cosmos_sdk::tx::{AccountNumber, SequenceNumber};
-use cosmos_sdk::{tx, AccountId, Coin};
+use cosmrs::tendermint::chain;
+use cosmrs::tx::{AccountNumber, SequenceNumber};
+use cosmrs::{tx, AccountId, Coin};
 use serde::Serialize;
 use std::convert::TryFrom;
 

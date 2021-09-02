@@ -3,7 +3,7 @@
 
 use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl};
+use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl};
 use std::convert::TryInto;
 
 pub mod client;

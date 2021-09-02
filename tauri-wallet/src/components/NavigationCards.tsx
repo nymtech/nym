@@ -41,7 +41,7 @@ export const BalanceCard = () => {
                 {balanceError}
               </Alert>
             ) : (
-              <Typography>{balance?.printableBalance}</Typography>
+              <Typography>{balance?.printable_balance}</Typography>
             )}
           </div>
         </CardContent>

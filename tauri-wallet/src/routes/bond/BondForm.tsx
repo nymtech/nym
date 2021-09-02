@@ -11,15 +11,9 @@ import {
 import { useTheme } from '@material-ui/styles'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
-import * as Yup from 'yup'
 import { EnumNodeType } from '../../types/global'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
-import {
-  isValidHostname,
-  validateAmount,
-  validateKey,
-  validateVersion,
-} from '../../utils'
+import { validationSchema } from './validationSchema'
 
 type TBondNodeFormProps = {
   // minimumBond: Coin
@@ -27,65 +21,57 @@ type TBondNodeFormProps = {
 }
 
 type TBondFormFields = {
+  nodeType: EnumNodeType
   identityKey: string
   sphinxKey: string
   amount: string
   host: string
   version: string
+  location?: string
+  mixPort: number
+  verlocPort: number
+  clientsPort: number
+  httpApiPort: number
 }
 
-const validationSchema = Yup.object().shape({
-  identityKey: Yup.string()
-    .required('An indentity key is required')
-    .test('valid-id-key', 'A valid identity key is required', function (value) {
-      return validateKey(value || '')
-    }),
-  sphinxKey: Yup.string()
-    .required('A sphinx key is required')
-    .test(
-      'valid-sphinx-key',
-      'A valid sphinx key is required',
-      function (value) {
-        return validateKey(value || '')
-      }
-    ),
-  amount: Yup.string()
-    .required('An amount is required')
-    .test(
-      'valid-amount',
-      'A valid amount is required (min 100 punks)',
-      function (value) {
-        return validateAmount(value || '', '100000000')
-        // minimum amount needs to come from the backend - replace when available
-      }
-    ),
+const defaultPorts = {
+  mixPort: 1789,
+  verlocPort: 1790,
+  httpApiPort: 8000,
+  clientsPort: 9000,
+}
 
-  host: Yup.string()
-    .required('A host is required')
-    .test('valid-amount', 'A valid host is required', function (value) {
-      return !!value ? isValidHostname(value) : false
-    }),
-  version: Yup.string()
-    .required('A version is required')
-    .test('valid-version', 'A valid version is required', function (value) {
-      return !!value ? validateVersion(value) : false
-    }),
-})
+const defaultValues = {
+  nodeType: EnumNodeType.Mixnode,
+  identityKey: '',
+  sphinxKey: '',
+  amount: '',
+  host: '',
+  version: '',
+  location: undefined,
+  ...defaultPorts,
+}
 
 export const BondNodeForm = () => {
   const [advancedShown, setAdvancedShown] = React.useState(false)
-  const [nodeType, setNodeType] = useState(EnumNodeType.Mixnode)
 
   const {
+    reset,
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
-  } = useForm<TBondFormFields>({ resolver: yupResolver(validationSchema) })
+  } = useForm<TBondFormFields>({
+    resolver: yupResolver(validationSchema),
+    defaultValues,
+  })
 
-  const theme: Theme = useTheme()
-  console.log(errors)
+  const watchNodeType = watch('nodeType', EnumNodeType.Mixnode)
 
   const onSubmit = (data: TBondFormFields) => console.log(data)
+
+  const theme: Theme = useTheme()
 
   return (
     <form>
@@ -93,8 +79,22 @@ export const BondNodeForm = () => {
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <NodeTypeSelector
-              nodeType={nodeType}
-              setNodeType={(nodeType) => setNodeType(nodeType)}
+              nodeType={watchNodeType}
+              setNodeType={(nodeType) => {
+                setValue('nodeType', nodeType)
+                // reset(
+                //   {
+                //     // location:
+                //     //   nodeType === EnumNodeType.Mixnode ? undefined : '',
+                //     ...defaultPorts,
+                //   },
+                //   {
+                //     keepErrors: true,
+                //     keepDirty: true,
+                //     keepValues: true,
+                //   }
+                // )
+              }}
             />
           </Grid>
           <Grid item xs={12}>
@@ -158,14 +158,17 @@ export const BondNodeForm = () => {
 
           {/* if it's a gateway - get location */}
           <Grid item xs={6}>
-            {nodeType === EnumNodeType.Gateway && (
+            {watchNodeType === EnumNodeType.Gateway && (
               <TextField
+                {...register('location')}
                 variant="outlined"
                 required
                 id="location"
                 name="location"
                 label="Location"
                 fullWidth
+                error={!!errors.location}
+                helperText={errors.location?.message}
               />
             )}
           </Grid>
@@ -191,6 +194,13 @@ export const BondNodeForm = () => {
                   checked={advancedShown}
                   onChange={() => {
                     setAdvancedShown((shown) => {
+                      if (shown) {
+                        reset(defaultPorts, {
+                          keepErrors: true,
+                          keepDirty: true,
+                          keepValues: true,
+                        })
+                      }
                       return !shown
                     })
                   }}
@@ -204,43 +214,66 @@ export const BondNodeForm = () => {
             <>
               <Grid item xs={12} sm={4}>
                 <TextField
+                  {...register('mixPort', { valueAsNumber: true })}
                   variant="outlined"
                   id="mixPort"
                   name="mixPort"
                   label="Mix Port"
                   fullWidth
+                  error={!!errors.mixPort}
+                  helperText={
+                    errors.mixPort?.message && 'A valid port value is required'
+                  }
                 />
               </Grid>
-              {nodeType === EnumNodeType.Mixnode ? (
+              {watchNodeType === EnumNodeType.Mixnode ? (
                 <>
                   <Grid item xs={12} sm={4}>
                     <TextField
+                      {...register('verlocPort', { valueAsNumber: true })}
                       variant="outlined"
                       id="verlocPort"
                       name="verlocPort"
                       label="Verloc Port"
                       fullWidth
+                      error={!!errors.verlocPort}
+                      helperText={
+                        errors.verlocPort?.message &&
+                        'A valid port value is required'
+                      }
                     />
                   </Grid>
 
                   <Grid item xs={12} sm={4}>
                     <TextField
+                      {...register('httpApiPort', { valueAsNumber: true })}
                       variant="outlined"
                       id="httpApiPort"
                       name="httpApiPort"
                       label="HTTP API Port"
                       fullWidth
+                      error={!!errors.httpApiPort}
+                      helperText={
+                        errors.httpApiPort?.message &&
+                        'A valid port value is required'
+                      }
                     />
                   </Grid>
                 </>
               ) : (
                 <Grid item xs={12} sm={4}>
                   <TextField
+                    {...register('clientsPort', { valueAsNumber: true })}
                     variant="outlined"
                     id="clientsPort"
                     name="clientsPort"
                     label="client WS API Port"
                     fullWidth
+                    error={!!errors.clientsPort}
+                    helperText={
+                      errors.clientsPort?.message &&
+                      'A valid port value is required'
+                    }
                   />
                 </Grid>
               )}
@@ -259,6 +292,7 @@ export const BondNodeForm = () => {
         }}
       >
         <Button
+          disabled={Object.keys(errors).length > 0}
           variant="contained"
           color="primary"
           type="submit"

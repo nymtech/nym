@@ -47,9 +47,9 @@ enum Denom {
 
 impl fmt::Display for Denom {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      &Denom::Major => f.write_str(&DENOM[1..].to_uppercase()),
-      &Denom::Minor => f.write_str(DENOM),
+    match *self {
+      Denom::Major => f.write_str(&DENOM[1..].to_uppercase()),
+      Denom::Minor => f.write_str(DENOM),
     }
   }
 }
@@ -162,7 +162,7 @@ struct State {
 #[tauri::command]
 fn major_to_minor(amount: String) -> Result<Coin, String> {
   let coin = Coin {
-    amount: amount,
+    amount,
     denom: Denom::Major.to_string(),
   };
   Ok(coin.to_minor())
@@ -171,7 +171,7 @@ fn major_to_minor(amount: String) -> Result<Coin, String> {
 #[tauri::command]
 fn minor_to_major(amount: String) -> Result<Coin, String> {
   let coin = Coin {
-    amount: amount,
+    amount,
     denom: Denom::Minor.to_string(),
   };
   Ok(coin.to_major())
@@ -272,9 +272,20 @@ async fn owns_gateway(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<boo
   }
 }
 
-// coin: {"denom": "upunk", "amount": 0}
-
-// {"host": "", "mix_port": 0, "verloc_port": 0, "http_api_port": 0, "sphinx_key": "", "identity_key": "", "version": ""}
+#[tauri::command]
+async fn unbond_mixnode(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<(), String> {
+  let r_state = state.read().await;
+  if let Some(client) = &r_state.signing_client {
+    match client.unbond_mixnode().await {
+      Ok(_result) => Ok(()),
+      Err(e) => Err(format_err!(e)),
+    }
+  } else {
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
+  }
+}
 
 #[tauri::command]
 async fn bond_mixnode(
@@ -320,7 +331,8 @@ fn main() {
       major_to_minor,
       owns_gateway,
       owns_mixnode,
-      bond_mixnode
+      bond_mixnode,
+      unbond_mixnode
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

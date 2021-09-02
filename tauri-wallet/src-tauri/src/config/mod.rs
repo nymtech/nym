@@ -1,9 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::{
-  default_api_endpoints, default_validators, ValidatorDetails, DEFAULT_MIXNET_CONTRACT_ADDRESS
-};
+use config::defaults::{default_validators, ValidatorDetails, DEFAULT_MIXNET_CONTRACT_ADDRESS};
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -39,7 +37,7 @@ impl Default for Base {
     Base {
       validators: default_validators(),
       mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
-      mnemonic: String::default()
+      mnemonic: String::default(),
     }
   }
 }

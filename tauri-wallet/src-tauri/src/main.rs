@@ -226,7 +226,7 @@ async fn get_balance(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<Bala
         };
         Ok(Balance {
           coin: coin.clone(),
-          printable_balance: coin.to_string(),
+          printable_balance: coin.to_major().to_string(),
         })
       }
       Ok(None) => Err(format!(

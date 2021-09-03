@@ -5,9 +5,12 @@
 use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
+#[cfg(feature = "nymd-client")]
+use mixnet_contract::StateParams;
+
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-use mixnet_contract::{GatewayBond, MixNodeBond, StateParams};
+use mixnet_contract::{GatewayBond, MixNodeBond};
 use url::Url;
 
 #[cfg(feature = "nymd-client")]

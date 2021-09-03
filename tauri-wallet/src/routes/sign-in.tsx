@@ -31,7 +31,7 @@ export const SignIn = () => {
     setIsLoading(true)
     setInputError(undefined)
 
-    invoke('connect_with_mnemonic', { mnemonic })
+    await invoke('connect_with_mnemonic', { mnemonic })
       .then((res) => {
         logIn(res as TClientDetails)
       })

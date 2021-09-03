@@ -1,19 +1,18 @@
 import React from 'react'
-import { Layout, NymCard, Page } from '../../components'
+import { NymCard } from '../../components'
 import { UndelegateForm } from './UndelegateForm'
+import { Layout } from '../../layouts'
 
 export const Undelegate = () => {
   return (
-    <Page>
-      <Layout>
-        <NymCard
-          title="Undelegate"
-          subheader="Undelegate from a mixnode or gateway"
-          noPadding
-        >
-          <UndelegateForm />
-        </NymCard>
-      </Layout>
-    </Page>
+    <Layout>
+      <NymCard
+        title="Undelegate"
+        subheader="Undelegate from a mixnode or gateway"
+        noPadding
+      >
+        <UndelegateForm />
+      </NymCard>
+    </Layout>
   )
 }

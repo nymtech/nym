@@ -1,9 +1,10 @@
 import React, { useContext } from 'react'
 import { Button, Grid } from '@material-ui/core'
-import { Refresh } from '@material-ui/icons'
-import { Layout, NymCard, Page } from '../components'
-import { ClientContext } from '../context/main'
 import { Alert } from '@material-ui/lab'
+import { Refresh } from '@material-ui/icons'
+import { NymCard } from '../components'
+import { Layout } from '../layouts'
+import { ClientContext } from '../context/main'
 import { theme } from '../theme'
 
 export const Balance = () => {
@@ -25,29 +26,27 @@ export const Balance = () => {
   )
 
   return (
-    <Page>
-      <Layout>
-        <NymCard title="Check Balance">
-          <Grid container direction="column" spacing={2}>
-            <Grid item>
-              {balanceError && (
-                <Alert severity="error" action={<RefreshAction />}>
-                  {balanceError}
-                </Alert>
-              )}
-              {!balanceError && (
-                <Alert
-                  severity="success"
-                  style={{ padding: theme.spacing(2, 3) }}
-                  action={<RefreshAction />}
-                >
-                  {'The current balance is ' + balance?.amount}
-                </Alert>
-              )}
-            </Grid>
+    <Layout>
+      <NymCard title="Check Balance">
+        <Grid container direction="column" spacing={2}>
+          <Grid item>
+            {balanceError && (
+              <Alert severity="error" action={<RefreshAction />}>
+                {balanceError}
+              </Alert>
+            )}
+            {!balanceError && (
+              <Alert
+                severity="success"
+                style={{ padding: theme.spacing(2, 3) }}
+                action={<RefreshAction />}
+              >
+                {'The current balance is ' + balance?.printable_balance}
+              </Alert>
+            )}
           </Grid>
-        </NymCard>
-      </Layout>
-    </Page>
+        </Grid>
+      </NymCard>
+    </Layout>
   )
 }

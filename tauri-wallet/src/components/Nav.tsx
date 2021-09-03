@@ -1,5 +1,5 @@
 import React, { useContext } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   List,
   ListItem,
@@ -81,6 +81,7 @@ const useStyles = makeStyles((theme: Theme) => ({
 export const Nav = () => {
   const classes = useStyles()
   const { logOut } = useContext(ClientContext)
+  const location = useLocation()
 
   return (
     <div

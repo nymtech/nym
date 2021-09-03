@@ -1,14 +1,12 @@
 import React, { useState } from 'react'
-import { Layout, Page } from '../components'
+import { Layout } from '../layouts'
 
 export const NotFound = () => {
   return (
-    <Page>
-      <Layout>
-        <>
-          <h1>404</h1>
-        </>
-      </Layout>
-    </Page>
+    <Layout>
+      <>
+        <h1>404</h1>
+      </>
+    </Layout>
   )
 }

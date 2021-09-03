@@ -1,21 +1,38 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import ReactDOM from 'react-dom'
 import { CssBaseline, ThemeProvider } from '@material-ui/core'
 import { BrowserRouter as Router } from 'react-router-dom'
 import { Routes } from './routes'
 import { theme } from './theme'
-import { ClientContextProvider } from './context/main'
+import { ClientContext, ClientContextProvider } from './context/main'
+import { ApplicationLayout } from './layouts'
+import { SignIn } from './routes/sign-in'
 
-const App = () => (
-  <ThemeProvider theme={theme}>
-    <CssBaseline />
+const AppWrapper = () => {
+  const { clientDetails } = useContext(ClientContext)
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      {!clientDetails ? (
+        <SignIn />
+      ) : (
+        <ApplicationLayout>
+          <Routes />
+        </ApplicationLayout>
+      )}
+    </ThemeProvider>
+  )
+}
+
+const App = () => {
+  return (
     <Router>
       <ClientContextProvider>
-        <Routes />
+        <AppWrapper />
       </ClientContextProvider>
     </Router>
-  </ThemeProvider>
-)
+  )
+}
 
 const root = document.getElementById('root')
 

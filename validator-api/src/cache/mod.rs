@@ -127,7 +127,12 @@ impl ValidatorCache {
             rocket.manage(Self::new()).mount(
                 // this format! is so ugly...
                 format!("/{}", VALIDATOR_API_VERSION),
-                routes![routes::get_mixnodes, routes::get_gateways],
+                routes![
+                    routes::get_mixnodes,
+                    routes::get_gateways,
+                    routes::get_active_mixnodes,
+                    routes::get_active_gateways
+                ],
             )
         })
     }

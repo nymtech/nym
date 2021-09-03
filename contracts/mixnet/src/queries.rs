@@ -623,6 +623,7 @@ mod tests {
                 mixnode_delegation_reward_rate: "7.89".parse().unwrap(),
                 gateway_delegation_reward_rate: "0.12".parse().unwrap(),
                 mixnode_active_set_size: 1000,
+                gateway_active_set_size: 20,
             },
             mixnode_epoch_bond_reward: "1.23".parse().unwrap(),
             gateway_epoch_bond_reward: "4.56".parse().unwrap(),

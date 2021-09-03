@@ -101,6 +101,44 @@ export const ApiList = () => {
           }}
         />
       </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "delegate_to_mixnode",
+            args: [
+              { name: "identity", type: "str" },
+              { name: "amount", type: "object" },
+            ],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "undelegate_from_mixnode",
+            args: [{ name: "identity", type: "str" }],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "delegate_to_gateway",
+            args: [
+              { name: "identity", type: "str" },
+              { name: "amount", type: "object" },
+            ],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "undelegate_from_gateway",
+            args: [{ name: "identity", type: "str" }],
+          }}
+        />
+      </ListItem>
     </List>
   );
 };

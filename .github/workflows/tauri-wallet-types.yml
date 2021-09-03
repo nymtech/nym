@@ -2,10 +2,6 @@ name: Generate TS types
 
 on: push
 
-defaults:
-  run:
-     working-directory: tauri-wallet/src-tauri
-
 jobs:
   tauri-wallet-types:
     runs-on: ubuntu-latest
@@ -13,10 +9,9 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
+          toolchain: stable[
+      - name: generate
+        run: cd tauri-wallet/src-tauri && cargo test
       - uses: EndBug/add-and-commit@v7.2.1 # https://github.com/marketplace/actions/add-commit
         with:
           add: '["tauri-wallet"]'

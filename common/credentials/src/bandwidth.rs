@@ -11,7 +11,7 @@ use crate::utils::{obtain_aggregate_signature, prepare_credential_for_spending};
 use coconut_interface::{hash_to_scalar, Credential, Parameters, Signature, VerificationKey};
 use url::Url;
 
-const BANDWIDTH_VALUE: &str = "Bandwidth: infinite (for now)";
+const BANDWIDTH_VALUE: u64 = 1024 * 1024; // 1 MB
 
 pub const PUBLIC_ATTRIBUTES: u32 = 1;
 pub const PRIVATE_ATTRIBUTES: u32 = 1;
@@ -19,8 +19,8 @@ pub const TOTAL_ATTRIBUTES: u32 = PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES;
 
 // TODO: this definitely has to be moved somewhere else. It's just a temporary solution
 pub async fn obtain_signature(raw_identity: &[u8], validators: &[Url]) -> Result<Signature, Error> {
-    let public_attributes = vec![hash_to_scalar(raw_identity)];
-    let private_attributes = vec![hash_to_scalar(BANDWIDTH_VALUE)];
+    let public_attributes = vec![hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes())];
+    let private_attributes = vec![hash_to_scalar(raw_identity)];
 
     let params = Parameters::new(TOTAL_ATTRIBUTES)?;
 
@@ -32,8 +32,8 @@ pub fn prepare_for_spending(
     signature: &Signature,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
-    let public_attributes = vec![hash_to_scalar(raw_identity)];
-    let private_attributes = vec![hash_to_scalar(BANDWIDTH_VALUE)];
+    let public_attributes = vec![hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes())];
+    let private_attributes = vec![hash_to_scalar(raw_identity)];
 
     let params = Parameters::new(TOTAL_ATTRIBUTES)?;
 

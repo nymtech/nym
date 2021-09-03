@@ -6,8 +6,9 @@ use cosmwasm_std::{coin, Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use ts_rs::TS;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema, TS)]
 pub struct Gateway {
     pub host: String,
     pub mix_port: u16,

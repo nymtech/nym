@@ -74,6 +74,33 @@ export const ApiList = () => {
           }}
         />
       </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "unbond_mixnode",
+            args: [],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "bond_gateway",
+            args: [
+              { name: "gateway", type: "object" },
+              { name: "bond", type: "object" },
+            ],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "unbond_gateway",
+            args: [],
+          }}
+        />
+      </ListItem>
     </List>
   );
 };

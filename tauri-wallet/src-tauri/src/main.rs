@@ -10,7 +10,7 @@ use cosmos_sdk::Denom as CosmosDenom;
 use cosmos_sdk::{AccountId, Decimal};
 use cosmwasm_std::Coin as CosmWasmCoin;
 use error::BackendError;
-use mixnet_contract::MixNode;
+use mixnet_contract::{Gateway, MixNode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
@@ -310,6 +310,44 @@ async fn bond_mixnode(
   }
 }
 
+#[tauri::command]
+async fn bond_gateway(
+  gateway: Gateway,
+  bond: Coin,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), String> {
+  let r_state = state.read().await;
+  let bond: CosmWasmCoin = match bond.try_into() {
+    Ok(b) => b,
+    Err(e) => return Err(format_err!(e)),
+  };
+  if let Some(client) = &r_state.signing_client {
+    match client.bond_gateway(gateway, bond).await {
+      Ok(_result) => Ok(()),
+      Err(e) => Err(format_err!(e)),
+    }
+  } else {
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
+  }
+}
+
+#[tauri::command]
+async fn unbond_gateway(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<(), String> {
+  let r_state = state.read().await;
+  if let Some(client) = &r_state.signing_client {
+    match client.unbond_gateway().await {
+      Ok(_result) => Ok(()),
+      Err(e) => Err(format_err!(e)),
+    }
+  } else {
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
+  }
+}
+
 fn _connect_with_mnemonic(mnemonic: Mnemonic, config: &Config) -> NymdClient<SigningNymdClient> {
   match NymdClient::connect_with_mnemonic(
     config.get_nymd_validator_url().unwrap(),
@@ -332,7 +370,9 @@ fn main() {
       owns_gateway,
       owns_mixnode,
       bond_mixnode,
-      unbond_mixnode
+      unbond_mixnode,
+      bond_gateway,
+      unbond_gateway,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
@@ -341,5 +381,6 @@ fn main() {
 export! {
   MixNode => "../src/types/rust/mixnode.ts",
   Coin => "../src/types/rust/coin.ts",
-  Balance => "../src/types/rust/balance.ts"
+  Balance => "../src/types/rust/balance.ts",
+  Gateway => "../src/types/rust/gateway.ts"
 }

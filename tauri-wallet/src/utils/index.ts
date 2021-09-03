@@ -1,6 +1,7 @@
 import bs58 from 'bs58'
 import { minor, valid } from 'semver'
 import { invoke } from '@tauri-apps/api'
+import { Coin } from '../types'
 
 export const validateKey = (key: string): boolean => {
   // it must be a valid base58 key
@@ -15,23 +16,22 @@ export const validateKey = (key: string): boolean => {
 }
 
 export const validateAmount = async (
-  rawValue: string,
+  amount: string,
   minimum: string
 ): Promise<boolean> => {
   // tests basic coin value requirements, like no more than 6 decimal places, value lower than total supply, etc
-  if (!basicRawCoinValueValidation(rawValue)) {
+  if (!basicRawCoinValueValidation(amount)) {
     return false
   }
 
   try {
-    const nativeValueString: string = await invoke(
-      'printable_balance_to_native',
-      { amount: rawValue }
-    )
+    const minorValueStr: Coin = await invoke('major_to_minor', {
+      amount,
+    })
 
-    let nativeValue = parseInt(nativeValueString)
+    const minorValue = parseInt(minorValueStr.amount)
 
-    return nativeValue >= parseInt(minimum)
+    return minorValue >= parseInt(minimum)
   } catch (e) {
     console.log(e)
     return false
@@ -41,13 +41,14 @@ export const validateAmount = async (
 }
 
 export const basicRawCoinValueValidation = (rawAmount: string): boolean => {
-  let amountFloat = parseFloat(rawAmount)
+  const amountFloat = parseFloat(rawAmount)
+
   if (isNaN(amountFloat)) {
     return false
   }
 
   // it cannot have more than 6 decimal places
-  if (amountFloat != parseFloat(amountFloat.toFixed(6))) {
+  if (amountFloat !== parseInt(amountFloat.toFixed(6))) {
     return false
   }
 

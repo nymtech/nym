@@ -11,7 +11,9 @@ export const validationSchema = Yup.object().shape({
     ),
   amount: Yup.string()
     .required()
-    .test('valid-amount-key', 'A valid amount key is required', (value) =>
-      !!value ? validateAmount(value, '1000000') : false
+    .test(
+      'valid-amount-key',
+      'A valid amount is required (min 100 punks)',
+      (value) => (!!value ? validateAmount(value, '100000000') : false)
     ),
 })

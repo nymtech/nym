@@ -3,7 +3,7 @@ name: Continuous integration
 on: [push, pull_request]
 
 jobs:
-  ci:
+  build:
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.rust == 'nightly' || matrix.rust == 'beta' }}
     strategy:

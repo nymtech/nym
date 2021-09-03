@@ -139,6 +139,18 @@ export const ApiList = () => {
           }}
         />
       </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "send",
+            args: [
+              { name: "address", type: "str" },
+              { name: "amount", type: "object" },
+              { name: "memo", type: "str" },
+            ],
+          }}
+        />
+      </ListItem>
     </List>
   );
 };

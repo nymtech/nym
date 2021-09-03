@@ -430,6 +430,29 @@ async fn unbond_gateway(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<(
   }
 }
 
+#[tauri::command]
+async fn send(address: &str, amount: Coin, memo: String, state: tauri::State<'_, Arc<RwLock<State>>>,) -> Result<(), String> {
+  let address = match AccountId::from_str(address) {
+    Ok(addy) => addy,
+    Err(e) => return Err(format_err!(e))
+  };
+  let amount: CosmosCoin = match amount.try_into() {
+    Ok(b) => b,
+    Err(e) => return Err(format_err!(e)),
+  };
+  let r_state = state.read().await;
+  if let Some(client) = &r_state.signing_client {
+    match client.send(&address, vec!(amount), memo).await {
+      Ok(_result) => Ok(()),
+      Err(e) => Err(format_err!(e)),
+    }
+  } else {
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
+  }
+}
+
 fn _connect_with_mnemonic(mnemonic: Mnemonic, config: &Config) -> NymdClient<SigningNymdClient> {
   match NymdClient::connect_with_mnemonic(
     config.get_nymd_validator_url().unwrap(),
@@ -458,7 +481,8 @@ fn main() {
       delegate_to_mixnode,
       undelegate_from_mixnode,
       delegate_to_gateway,
-      undelegate_from_gateway
+      undelegate_from_gateway,
+      send
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

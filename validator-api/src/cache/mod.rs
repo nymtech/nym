@@ -7,7 +7,7 @@ use config::defaults::VALIDATOR_API_VERSION;
 use mixnet_contract::{GatewayBond, MixNodeBond, StateParams};
 use rocket::fairing::AdHoc;
 use serde::Serialize;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
@@ -31,6 +31,12 @@ struct ValidatorCacheInner {
     initialised: AtomicBool,
     mixnodes: RwLock<Cache<Vec<MixNodeBond>>>,
     gateways: RwLock<Cache<Vec<GatewayBond>>>,
+
+    active_mixnodes_available: AtomicBool,
+    active_gateways_available: AtomicBool,
+
+    current_mixnode_active_set_size: AtomicUsize,
+    current_gateway_active_set_size: AtomicUsize,
 }
 
 #[derive(Default, Serialize, Clone)]
@@ -129,12 +135,36 @@ impl ValidatorCache {
     // TODO: check if all nodes can be compared together,
     // i.e. they all have the same denom for bonds and delegations
     fn verify_mixnodes(&self, mixnodes: &[MixNodeBond]) -> bool {
-        false
+        if mixnodes.is_empty() {
+            return true;
+        }
+        let expected_denom = &mixnodes[0].bond_amount.denom;
+        for mixnode in mixnodes {
+            if &mixnode.bond_amount.denom != expected_denom
+                || &mixnode.total_delegation.denom != expected_denom
+            {
+                return false;
+            }
+        }
+
+        true
     }
 
     // TODO: check if all nodes can be compared together,
     // i.e. they all have the same denom for bonds and delegations
     fn verify_gateways(&self, gateways: &[GatewayBond]) -> bool {
+        if gateways.is_empty() {
+            return true;
+        }
+        let expected_denom = &gateways[0].bond_amount.denom;
+        for gateway in gateways {
+            if &gateway.bond_amount.denom != expected_denom
+                || &gateway.total_delegation.denom != expected_denom
+            {
+                return false;
+            }
+        }
+
         false
     }
 
@@ -144,14 +174,41 @@ impl ValidatorCache {
         mut gateways: Vec<GatewayBond>,
         state: StateParams,
     ) {
-        if self.verify_mixnodes(&mixnodes) && self.verify_gateways(&gateways) {
-            mixnodes.sort_by(|a, b| a.partial_cmp(b).unwrap());
-            gateways.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        // if our data is valid, it means the active sets are available,
+        // otherwise we must explicitly indicate nobody can read this data
 
-            // TODO: here take
-            // state.mixnode_active_set_size top mixnodes
-            // state.gateway_active_set_size top gateways
-            // and set those as active set
+        if self.verify_mixnodes(&mixnodes) {
+            // partial_cmp can only fail if the nodes have different denomination,
+            // but we just checked for that hence the unwraps are fine here
+            // Note the reverse order of comparison so that the "highest" node would be first
+            mixnodes.sort_by(|a, b| b.partial_cmp(a).unwrap());
+            self.inner
+                .active_mixnodes_available
+                .store(true, Ordering::SeqCst);
+            self.inner
+                .current_mixnode_active_set_size
+                .store(state.mixnode_active_set_size as usize, Ordering::SeqCst);
+        } else {
+            self.inner
+                .active_mixnodes_available
+                .store(false, Ordering::SeqCst);
+        }
+
+        if self.verify_gateways(&gateways) {
+            // partial_cmp can only fail if the nodes have different denomination,
+            // but we just checked for that hence the unwraps are fine here
+            // Note the reverse order of comparison so that the "highest" node would be first
+            gateways.sort_by(|a, b| b.partial_cmp(a).unwrap());
+            self.inner
+                .active_gateways_available
+                .store(true, Ordering::SeqCst);
+            self.inner
+                .current_gateway_active_set_size
+                .store(state.gateway_active_set_size as usize, Ordering::SeqCst);
+        } else {
+            self.inner
+                .active_gateways_available
+                .store(false, Ordering::SeqCst);
         }
 
         self.inner.mixnodes.write().await.set(mixnodes);
@@ -166,12 +223,52 @@ impl ValidatorCache {
         self.inner.gateways.read().await.clone()
     }
 
-    pub async fn active_mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
-        todo!()
+    pub async fn active_mixnodes(&self) -> Option<Cache<Vec<MixNodeBond>>> {
+        // if active set is available, it means it is already sorted
+        if self.inner.active_mixnodes_available.load(Ordering::SeqCst) {
+            let cache = self.inner.mixnodes.read().await;
+            let timestamp = cache.as_at;
+            let nodes = cache
+                .value
+                .iter()
+                .take(
+                    self.inner
+                        .current_mixnode_active_set_size
+                        .load(Ordering::SeqCst),
+                )
+                .cloned()
+                .collect();
+            Some(Cache {
+                value: nodes,
+                as_at: timestamp,
+            })
+        } else {
+            None
+        }
     }
 
-    pub async fn active_gateways(&self) -> Cache<Vec<GatewayBond>> {
-        todo!()
+    pub async fn active_gateways(&self) -> Option<Cache<Vec<GatewayBond>>> {
+        // if active set is available, it means it is already sorted
+        if self.inner.active_gateways_available.load(Ordering::SeqCst) {
+            let cache = self.inner.gateways.read().await;
+            let timestamp = cache.as_at;
+            let nodes = cache
+                .value
+                .iter()
+                .take(
+                    self.inner
+                        .current_gateway_active_set_size
+                        .load(Ordering::SeqCst),
+                )
+                .cloned()
+                .collect();
+            Some(Cache {
+                value: nodes,
+                as_at: timestamp,
+            })
+        } else {
+            None
+        }
     }
 
     pub fn initialised(&self) -> bool {
@@ -185,6 +282,10 @@ impl ValidatorCacheInner {
             initialised: AtomicBool::new(false),
             mixnodes: RwLock::new(Cache::default()),
             gateways: RwLock::new(Cache::default()),
+            active_mixnodes_available: AtomicBool::new(false),
+            active_gateways_available: AtomicBool::new(false),
+            current_mixnode_active_set_size: Default::default(),
+            current_gateway_active_set_size: Default::default(),
         }
     }
 }

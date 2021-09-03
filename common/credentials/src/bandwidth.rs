@@ -32,15 +32,15 @@ pub fn prepare_for_spending(
     signature: &Signature,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
-    let public_attributes = vec![hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes())];
-    let private_attributes = vec![hash_to_scalar(raw_identity)];
+    let public_attributes = vec![BANDWIDTH_VALUE.to_be_bytes().to_vec()];
+    let private_attributes = vec![raw_identity.to_vec()];
 
     let params = Parameters::new(TOTAL_ATTRIBUTES)?;
 
     prepare_credential_for_spending(
         &params,
-        &public_attributes,
-        &private_attributes,
+        public_attributes,
+        private_attributes,
         signature,
         verification_key,
     )

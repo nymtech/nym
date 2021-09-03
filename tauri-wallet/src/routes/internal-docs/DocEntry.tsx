@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Button, Card, TextField } from '@material-ui/core'
 import { invoke } from '@tauri-apps/api'
 import CardContent from '@material-ui/core/CardContent'
@@ -21,13 +21,20 @@ const argKey = (functionName: string, arg: string) => `${functionName}_${arg}`
 
 function collectArgs(functionName: string, args: ArgDef[]) {
   let invokeArgs: { [key: string]: string } = {}
+
   args.forEach((arg) => {
-    const elem: HTMLElement | null = document.getElementById(
+    let elem: HTMLElement | null = document.getElementById(
       argKey(functionName, arg.name)
     )
-    if (elem) invokeArgs[arg.name] = (elem as HTMLInputElement).value || ''
-  })
 
+    if (arg.type === 'object') {
+      console.log(arg)
+      invokeArgs[arg.name] = JSON.parse((elem as HTMLInputElement).value)
+    } else {
+      invokeArgs[arg.name] = (elem as HTMLInputElement).value || ''
+    }
+  })
+  console.log(invokeArgs)
   return invokeArgs
 }
 

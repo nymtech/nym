@@ -311,6 +311,88 @@ async fn bond_mixnode(
 }
 
 #[tauri::command]
+async fn delegate_to_mixnode(
+  identity: String,
+  amount: Coin,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), String> {
+  let r_state = state.read().await;
+  let bond: CosmWasmCoin = match amount.try_into() {
+    Ok(b) => b,
+    Err(e) => return Err(format_err!(e)),
+  };
+  if let Some(client) = &r_state.signing_client {
+    match client.delegate_to_mixnode(identity, bond).await {
+      Ok(_result) => Ok(()),
+      Err(e) => Err(format_err!(e)),
+    }
+  } else {
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
+  }
+}
+
+#[tauri::command]
+async fn undelegate_from_mixnode(
+  identity: String,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), String> {
+  let r_state = state.read().await;
+  if let Some(client) = &r_state.signing_client {
+    match client.remove_mixnode_delegation(identity).await {
+      Ok(_result) => Ok(()),
+      Err(e) => Err(format_err!(e)),
+    }
+  } else {
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
+  }
+}
+
+#[tauri::command]
+async fn delegate_to_gateway(
+  identity: String,
+  amount: Coin,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), String> {
+  let r_state = state.read().await;
+  let bond: CosmWasmCoin = match amount.try_into() {
+    Ok(b) => b,
+    Err(e) => return Err(format_err!(e)),
+  };
+  if let Some(client) = &r_state.signing_client {
+    match client.delegate_to_gateway(identity, bond).await {
+      Ok(_result) => Ok(()),
+      Err(e) => Err(format_err!(e)),
+    }
+  } else {
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
+  }
+}
+
+#[tauri::command]
+async fn undelegate_from_gateway(
+  identity: String,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), String> {
+  let r_state = state.read().await;
+  if let Some(client) = &r_state.signing_client {
+    match client.remove_gateway_delegation(identity).await {
+      Ok(_result) => Ok(()),
+      Err(e) => Err(format_err!(e)),
+    }
+  } else {
+    Err(String::from(
+      "Client has not been initialized yet, connect with mnemonic to initialize",
+    ))
+  }
+}
+
+#[tauri::command]
 async fn bond_gateway(
   gateway: Gateway,
   bond: Coin,
@@ -373,6 +455,10 @@ fn main() {
       unbond_mixnode,
       bond_gateway,
       unbond_gateway,
+      delegate_to_mixnode,
+      undelegate_from_mixnode,
+      delegate_to_gateway,
+      undelegate_from_gateway
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

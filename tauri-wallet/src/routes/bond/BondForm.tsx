@@ -15,6 +15,7 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import { EnumNodeType } from '../../types/global'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { validationSchema } from './validationSchema'
+import { Gateway, MixNode } from '../../types'
 
 type TBondNodeFormProps = {
   // minimumBond: Coin
@@ -51,6 +52,28 @@ const defaultValues = {
   clientsPort: 9000,
 }
 
+const formatData = (data: TBondFormFields) => {
+  const payload: { [key: string]: any } = {
+    identity_key: data.identityKey,
+    sphinx_key: data.sphinxKey,
+    host: data.host,
+    version: data.version,
+    mix_port: data.mixPort,
+  }
+
+  if (data.nodeType === EnumNodeType.Mixnode) {
+    payload.verloc_port = data.verlocPort
+    payload.http_api_port = data.httpApiPort
+    return payload as MixNode
+  }
+
+  if (data.nodeType == EnumNodeType.Gateway) {
+    payload.clients_port = data.clientsPort
+    payload.location = data.location
+    return payload as Gateway
+  }
+}
+
 export const BondForm = () => {
   const {
     register,
@@ -69,7 +92,10 @@ export const BondForm = () => {
     defaultValues.withAdvancedOptions
   )
 
-  const onSubmit = (data: TBondFormFields) => console.log(data)
+  const onSubmit = (data: TBondFormFields) => {
+    const formattedData = formatData(data)
+    console.log(formattedData)
+  }
 
   const theme: Theme = useTheme()
 

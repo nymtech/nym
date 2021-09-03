@@ -20,6 +20,7 @@ export const Balance = () => {
       disabled={false}
       disableElevation
       startIcon={<Refresh />}
+      style={{ marginRight: theme.spacing(2) }}
     >
       Refresh
     </Button>
@@ -31,7 +32,11 @@ export const Balance = () => {
         <Grid container direction="column" spacing={2}>
           <Grid item>
             {balanceError && (
-              <Alert severity="error" action={<RefreshAction />}>
+              <Alert
+                severity="error"
+                action={<RefreshAction />}
+                style={{ padding: theme.spacing(2) }}
+              >
                 {balanceError}
               </Alert>
             )}

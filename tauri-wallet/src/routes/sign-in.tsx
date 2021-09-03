@@ -117,7 +117,7 @@ export const SignIn = () => {
                 </Button>
               </Grid>
               {inputError && (
-                <Grid item>
+                <Grid item style={{ marginTop: theme.spacing(1) }}>
                   <Alert severity="error">{inputError}</Alert>
                 </Grid>
               )}

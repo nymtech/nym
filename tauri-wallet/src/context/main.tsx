@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState } from 'react'
+import React, { createContext, useCallback, useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/tauri'
 import { Balance, TClientDetails } from '../types'
@@ -27,7 +27,7 @@ export const ClientContextProvider = ({
 
   const history = useHistory()
 
-  const getBalance = () => {
+  const getBalance = useCallback(() => {
     setBalanceLoading(true)
     setBalanceError(undefined)
     invoke('get_balance')
@@ -38,11 +38,11 @@ export const ClientContextProvider = ({
     setTimeout(() => {
       setBalanceLoading(false)
     }, 1000)
-  }
+  }, [])
 
   useEffect(() => {
-    getBalance()
-  }, [])
+    if (clientDetails) getBalance()
+  }, [clientDetails, getBalance])
 
   const logIn = (clientDetails: TClientDetails) =>
     setClientDetails(clientDetails)

@@ -6,11 +6,13 @@ jobs:
   tauri-wallet-types:
     runs-on: ubuntu-latest
     steps:
+      - name: Prepare
+        run: sudo apt-get update && sudo apt-get install pango -y
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: generate
+      - name: Generate TS
         run: cd tauri-wallet/src-tauri && cargo test
       - uses: EndBug/add-and-commit@v7.2.1 # https://github.com/marketplace/actions/add-commit
         with:

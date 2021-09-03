@@ -3,7 +3,7 @@ name: Wasm Client
 on: [push, pull_request]
 
 jobs:
-  ci:
+  wasm:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

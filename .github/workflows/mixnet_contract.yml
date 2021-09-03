@@ -3,7 +3,7 @@ name: Mixnet Contract
 on: [push, pull_request]
 
 jobs:
-  ci:
+  mixnet-contract:
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
     runs-on: ubuntu-latest

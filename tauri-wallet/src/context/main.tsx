@@ -1,11 +1,11 @@
 import React, { createContext, useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/tauri'
-import { TBalance, TClientDetails } from '../types/global'
+import { Balance, TClientDetails } from '../types'
 
 type TClientContext = {
   clientDetails?: TClientDetails
-  balance?: TBalance
+  balance?: Balance
   balanceLoading: boolean
   balanceError?: string
   logIn: (clientDetails: TClientDetails) => void
@@ -20,7 +20,7 @@ export const ClientContextProvider = ({
 }: {
   children: React.ReactNode
 }) => {
-  const [balance, setBalance] = useState<TBalance>()
+  const [balance, setBalance] = useState<Balance>()
   const [balanceError, setBalanceError] = useState<string>()
   const [balanceLoading, setBalanceLoading] = useState(false)
   const [clientDetails, setClientDetails] = useState<TClientDetails>()
@@ -32,7 +32,7 @@ export const ClientContextProvider = ({
     setBalanceError(undefined)
     invoke('get_balance')
       .then((balance) => {
-        setBalance(balance as TBalance)
+        setBalance(balance as Balance)
       })
       .catch((e) => setBalanceError(e))
     setTimeout(() => {

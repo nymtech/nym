@@ -59,6 +59,83 @@ export const ApiList = () => {
           }}
         />
       </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "unbond_mixnode",
+            args: [],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "bond_gateway",
+            args: [
+              { name: "gateway", type: "object" },
+              { name: "bond", type: "object" },
+            ],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "unbond_gateway",
+            args: [],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "delegate_to_mixnode",
+            args: [
+              { name: "identity", type: "str" },
+              { name: "amount", type: "object" },
+            ],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "undelegate_from_mixnode",
+            args: [{ name: "identity", type: "str" }],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "delegate_to_gateway",
+            args: [
+              { name: "identity", type: "str" },
+              { name: "amount", type: "object" },
+            ],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "undelegate_from_gateway",
+            args: [{ name: "identity", type: "str" }],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "send",
+            args: [
+              { name: "address", type: "str" },
+              { name: "amount", type: "object" },
+              { name: "memo", type: "str" },
+            ],
+          }}
+        />
+      </ListItem>
     </List>
   )
 }

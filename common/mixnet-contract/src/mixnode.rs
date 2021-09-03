@@ -162,3 +162,90 @@ pub struct MixOwnershipResponse {
     pub address: Addr,
     pub has_node: bool,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mixnode_fixture() -> MixNode {
+        MixNode {
+            host: "1.1.1.1".to_string(),
+            mix_port: 123,
+            verloc_port: 456,
+            http_api_port: 789,
+            sphinx_key: "sphinxkey".to_string(),
+            identity_key: "identitykey".to_string(),
+            version: "0.11.0".to_string(),
+        }
+    }
+
+    #[test]
+    fn mixnode_bond_partial_ord() {
+        let _150foos = Coin::new(150, "foo");
+        let _50foos = Coin::new(50, "foo");
+        let _0foos = Coin::new(0, "foo");
+
+        let mix1 = MixNodeBond {
+            bond_amount: _150foos.clone(),
+            total_delegation: _50foos.clone(),
+            owner: Addr::unchecked("foo1"),
+            layer: Layer::One,
+            mix_node: mixnode_fixture(),
+        };
+
+        let mix2 = MixNodeBond {
+            bond_amount: _150foos.clone(),
+            total_delegation: _50foos.clone(),
+            owner: Addr::unchecked("foo2"),
+            layer: Layer::One,
+            mix_node: mixnode_fixture(),
+        };
+
+        let mix3 = MixNodeBond {
+            bond_amount: _50foos,
+            total_delegation: _150foos.clone(),
+            owner: Addr::unchecked("foo3"),
+            layer: Layer::One,
+            mix_node: mixnode_fixture(),
+        };
+
+        let mix4 = MixNodeBond {
+            bond_amount: _150foos.clone(),
+            total_delegation: _0foos.clone(),
+            owner: Addr::unchecked("foo4"),
+            layer: Layer::One,
+            mix_node: mixnode_fixture(),
+        };
+
+        let mix5 = MixNodeBond {
+            bond_amount: _0foos,
+            total_delegation: _150foos,
+            owner: Addr::unchecked("foo5"),
+            layer: Layer::One,
+            mix_node: mixnode_fixture(),
+        };
+
+        // summary:
+        // mix1: 150bond + 50delegation, foo1
+        // mix2: 150bond + 50delegation, foo2
+        // mix3: 50bond + 150delegation, foo3
+        // mix4: 150bond + 0delegation, foo4
+        // mix5: 0bond + 150delegation, foo5
+
+        // highest total bond+delegation is used
+        // then bond followed by delegation
+        // finally just the rest of the fields
+
+        // mix1 has higher total than mix4 or mix5
+        assert!(mix1 > mix4);
+        assert!(mix1 > mix5);
+
+        // mix1 has the same total as mix3, however, mix1 has more tokens in bond
+        assert!(mix1 > mix3);
+        // same case for mix4 and mix5
+        assert!(mix4 > mix5);
+
+        // same bond and delegation, so it's just ordered by owner string representation
+        assert!(mix1 < mix2);
+    }
+}

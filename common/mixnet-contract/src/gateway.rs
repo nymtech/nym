@@ -143,3 +143,85 @@ pub struct GatewayOwnershipResponse {
     pub address: Addr,
     pub has_gateway: bool,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn gateway_fixture() -> Gateway {
+        Gateway {
+            host: "1.1.1.1".to_string(),
+            mix_port: 123,
+            clients_port: 456,
+            location: "foomplandia".to_string(),
+            sphinx_key: "sphinxkey".to_string(),
+            identity_key: "identitykey".to_string(),
+            version: "0.11.0".to_string(),
+        }
+    }
+
+    #[test]
+    fn gateway_bond_partial_ord() {
+        let _150foos = Coin::new(150, "foo");
+        let _50foos = Coin::new(50, "foo");
+        let _0foos = Coin::new(0, "foo");
+
+        let gate1 = GatewayBond {
+            bond_amount: _150foos.clone(),
+            total_delegation: _50foos.clone(),
+            owner: Addr::unchecked("foo1"),
+            gateway: gateway_fixture(),
+        };
+
+        let gate2 = GatewayBond {
+            bond_amount: _150foos.clone(),
+            total_delegation: _50foos.clone(),
+            owner: Addr::unchecked("foo2"),
+            gateway: gateway_fixture(),
+        };
+
+        let gate3 = GatewayBond {
+            bond_amount: _50foos,
+            total_delegation: _150foos.clone(),
+            owner: Addr::unchecked("foo3"),
+            gateway: gateway_fixture(),
+        };
+
+        let gate4 = GatewayBond {
+            bond_amount: _150foos.clone(),
+            total_delegation: _0foos.clone(),
+            owner: Addr::unchecked("foo4"),
+            gateway: gateway_fixture(),
+        };
+
+        let gate5 = GatewayBond {
+            bond_amount: _0foos,
+            total_delegation: _150foos,
+            owner: Addr::unchecked("foo5"),
+            gateway: gateway_fixture(),
+        };
+
+        // summary:
+        // gate1: 150bond + 50delegation, foo1
+        // gate2: 150bond + 50delegation, foo2
+        // gate3: 50bond + 150delegation, foo3
+        // gate4: 150bond + 0delegation, foo4
+        // gate5: 0bond + 150delegation, foo5
+
+        // highest total bond+delegation is used
+        // then bond followed by delegation
+        // finally just the rest of the fields
+
+        // gate1 has higher total than gate4 or gate5
+        assert!(gate1 > gate4);
+        assert!(gate1 > gate5);
+
+        // gate1 has the same total as gate3, however, gate1 has more tokens in bond
+        assert!(gate1 > gate3);
+        // same case for gate4 and gate5
+        assert!(gate4 > gate5);
+
+        // same bond and delegation, so it's just ordered by owner string representation
+        assert!(gate1 < gate2);
+    }
+}

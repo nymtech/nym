@@ -12,6 +12,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
 };
+use cosmwasm_storage::{singleton_read, ReadonlySingleton};
 use mixnet_contract::{
     Delegation, ExecuteMsg, IdentityKey, IdentityKeyRef, InstantiateMsg, MigrateMsg, QueryMsg,
     StateParams,
@@ -320,6 +321,52 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
                 .save(gateway_identity.as_bytes(), &())?;
         }
     }
+
+    struct OldStateParams {
+        epoch_length: u32,
+        minimum_mixnode_bond: Uint128,
+        minimum_gateway_bond: Uint128,
+        mixnode_bond_reward_rate: Decimal,
+        gateway_bond_reward_rate: Decimal,
+        mixnode_delegation_reward_rate: Decimal,
+        gateway_delegation_reward_rate: Decimal,
+        mixnode_active_set_size: u32,
+    }
+
+    // adding gateways active set
+    struct OldState {
+        owner: Addr,
+        network_monitor_address: Addr,
+        params: OldStateParams,
+        mixnode_epoch_bond_reward: Decimal,
+        gateway_epoch_bond_reward: Decimal,
+        mixnode_epoch_delegation_reward: Decimal,
+        gateway_epoch_delegation_reward: Decimal,
+    }
+
+    let old_state: OldState = singleton_read(deps.storage, b"config").load()?;
+
+    let new_state = State {
+        owner: old_state.owner,
+        network_monitor_address: old_state.network,
+        params: StateParams {
+            epoch_length: old_state.params.epoch_length,
+            minimum_mixnode_bond: old_state.params.minimum_mixnode_bond,
+            minimum_gateway_bond: old_state.params.minimum_gateway_bond,
+            mixnode_bond_reward_rate: old_state.params.mixnode_bond_reward_rate,
+            gateway_bond_reward_rate: old_state.params.gateway_bond_reward_rate,
+            mixnode_delegation_reward_rate: old_state.params.mixnode_delegation_reward_rate,
+            gateway_delegation_reward_rate: old_state.params.gateway_delegation_reward_rate,
+            mixnode_active_set_size: old_state.params.mixnode_active_set_size,
+            gateway_active_set_size: INITIAL_GATEWAY_ACTIVE_SET_SIZE,
+        },
+        mixnode_epoch_bond_reward: old_state.mixnode_epoch_bond_reward,
+        gateway_epoch_bond_reward: old_state.gateway_epoch_bond_reward,
+        mixnode_epoch_delegation_reward: old_state.mixnode_epoch_delegation_reward,
+        gateway_epoch_delegation_reward: old_state.gateway_epoch_delegation_reward,
+    };
+
+    config(deps.storage).save(&new_state)?;
 
     Ok(Default::default())
 }

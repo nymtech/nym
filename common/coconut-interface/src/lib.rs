@@ -3,10 +3,6 @@
 
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
-use sha2::{
-    digest::{generic_array::typenum::Unsigned, Digest},
-    Sha256,
-};
 
 pub use coconut_rs::*;
 
@@ -146,22 +142,4 @@ impl VerificationKeyResponse {
     pub fn new(key: VerificationKey) -> VerificationKeyResponse {
         VerificationKeyResponse { key }
     }
-}
-
-pub fn hash_to_scalar<M>(msg: M) -> Attribute
-where
-    M: AsRef<[u8]>,
-{
-    let mut h = Sha256::new();
-    h.update(msg);
-    let digest = h.finalize();
-
-    let mut bytes = [0u8; 64];
-    let pad_size = 64usize
-        .checked_sub(<Sha256 as Digest>::OutputSize::to_usize())
-        .unwrap_or_default();
-
-    bytes[pad_size..].copy_from_slice(&digest);
-
-    Attribute::from_bytes_wide(&bytes)
 }

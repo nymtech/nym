@@ -5,7 +5,6 @@ pub mod helpers {
     use crate::contract::{instantiate, INITIAL_MIXNODE_BOND};
     use crate::transactions::{try_add_gateway, try_add_mixnode};
     use config::defaults::DENOM;
-    use cosmwasm_std::coin;
     use cosmwasm_std::from_binary;
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
@@ -16,10 +15,11 @@ pub mod helpers {
     use cosmwasm_std::Addr;
     use cosmwasm_std::Coin;
     use cosmwasm_std::OwnedDeps;
+    use cosmwasm_std::{coin, Uint128};
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::{
         Gateway, GatewayBond, InstantiateMsg, Layer, MixNode, MixNodeBond, PagedGatewayResponse,
-        PagedMixnodeResponse, QueryMsg,
+        PagedMixnodeResponse, QueryMsg, RawDelegationData,
     };
 
     pub fn add_mixnode(
@@ -157,6 +157,10 @@ pub mod helpers {
             version: "0.10.0".to_string(),
         };
         GatewayBond::new(coin(50, DENOM), Addr::unchecked("foo"), gateway)
+    }
+
+    pub fn raw_delegation_fixture(amount: u128) -> RawDelegationData {
+        RawDelegationData::new(Uint128(amount), 42)
     }
 
     pub fn query_contract_balance(

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::cosmwasm_client::types::ContractCodeId;
-use cosmos_sdk::tendermint::block;
-use cosmos_sdk::{bip32, rpc, tx, AccountId};
+use cosmrs::tendermint::block;
+use cosmrs::{bip32, rpc, tx, AccountId};
 use std::io;
 use thiserror::Error;
 

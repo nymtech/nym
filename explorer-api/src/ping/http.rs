@@ -1,13 +1,14 @@
 use std::collections::HashMap;
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
 
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 
+use mixnet_contract::MixNodeBond;
+
 use crate::ping::models::PingResponse;
 use crate::state::ExplorerApiStateContext;
-use mixnet_contract::MixNodeBond;
 
 const CONNECTION_TIMEOUT_SECONDS: Duration = Duration::from_secs(10);
 
@@ -80,32 +81,95 @@ async fn port_check(bond: &MixNodeBond) -> HashMap<u16, bool> {
     ports
 }
 
+fn sanitize_and_resolve_host(host: &str, port: u16) -> Option<SocketAddr> {
+    // trim the host
+    let trimmed_host = host.trim();
+
+    // host must be at least one non-whitespace character
+    if trimmed_host.is_empty() {
+        return None;
+    }
+
+    // the host string should hopefully parse and resolve into a valid socket address
+    let parsed_host = format!("{}:{}", trimmed_host, port);
+    match parsed_host.to_socket_addrs() {
+        Ok(mut addrs) => addrs.next(),
+        Err(e) => {
+            warn!(
+                "Failed to resolve {}:{} -> {}. Error: {}",
+                host, port, parsed_host, e
+            );
+            None
+        }
+    }
+}
+
 async fn do_port_check(host: &str, port: u16) -> bool {
-    let addr = format!("{}:{}", host, port)
-        .to_socket_addrs()
-        .unwrap()
-        .next()
-        .unwrap();
-    match tokio::time::timeout(
-        CONNECTION_TIMEOUT_SECONDS,
-        tokio::net::TcpStream::connect(addr),
-    )
-    .await
-    {
-        Ok(Ok(_stream)) => {
-            // didn't timeout and tcp stream is open
-            trace!("Successfully pinged {}", addr);
-            true
-        }
-        Ok(Err(_stream_err)) => {
-            error!("{} ping failed {:}", addr, _stream_err);
-            // didn't timeout but couldn't open tcp stream
-            false
-        }
-        Err(_timeout) => {
-            // timed out
-            error!("{} timed out {:}", addr, _timeout);
-            false
-        }
+    match sanitize_and_resolve_host(host, port) {
+        Some(addr) => match tokio::time::timeout(
+            CONNECTION_TIMEOUT_SECONDS,
+            tokio::net::TcpStream::connect(addr),
+        )
+        .await
+        {
+            Ok(Ok(_stream)) => {
+                // didn't timeout and tcp stream is open
+                trace!("Successfully pinged {}", addr);
+                true
+            }
+            Ok(Err(_stream_err)) => {
+                warn!("{} ping failed {:}", addr, _stream_err);
+                // didn't timeout but couldn't open tcp stream
+                false
+            }
+            Err(_timeout) => {
+                // timed out
+                warn!("{} timed out {:}", addr, _timeout);
+                false
+            }
+        },
+        None => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_host_with_valid_ip_address_returns_some() {
+        assert!(sanitize_and_resolve_host("8.8.8.8", 1234).is_some());
+        assert!(sanitize_and_resolve_host("2001:4860:4860::8888", 1234).is_some());
+    }
+
+    #[test]
+    fn resolve_host_with_valid_hostname_returns_some() {
+        assert!(sanitize_and_resolve_host("nymtech.net", 1234).is_some());
+    }
+
+    #[test]
+    fn resolve_host_with_malformed_ip_address_returns_none() {
+        // these are invalid ip addresses
+        assert!(sanitize_and_resolve_host("192.168.1.999", 1234).is_none());
+        assert!(sanitize_and_resolve_host("10.999.999.999", 1234).is_none());
+    }
+
+    #[test]
+    fn resolve_host_with_unknown_hostname_returns_none() {
+        assert!(sanitize_and_resolve_host(
+            "some-unknown-hostname-that-will-never-resolve.nymtech.net",
+            1234
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn resolve_host_with_bad_strings_return_none() {
+        assert!(sanitize_and_resolve_host("", 1234).is_none());
+        assert!(sanitize_and_resolve_host(" ", 1234).is_none());
+        assert!(sanitize_and_resolve_host(" 🤘 ", 1234).is_none());
+        assert!(sanitize_and_resolve_host("🤘", 1234).is_none());
+        assert!(sanitize_and_resolve_host("@", 1234).is_none());
+        assert!(sanitize_and_resolve_host("*", 1234).is_none());
     }
 }

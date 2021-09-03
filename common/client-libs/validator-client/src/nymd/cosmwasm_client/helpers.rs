@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::error::NymdError;
-use cosmos_sdk::proto::cosmos::base::query::v1beta1::PageRequest;
-use cosmos_sdk::rpc::endpoint::broadcast;
+use cosmrs::proto::cosmos::base::query::v1beta1::PageRequest;
+use cosmrs::rpc::endpoint::broadcast;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::io::Write;

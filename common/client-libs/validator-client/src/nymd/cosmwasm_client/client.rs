@@ -8,21 +8,21 @@ use crate::nymd::cosmwasm_client::types::{
 };
 use crate::nymd::error::NymdError;
 use async_trait::async_trait;
-use cosmos_sdk::proto::cosmos::auth::v1beta1::{
+use cosmrs::proto::cosmos::auth::v1beta1::{
     BaseAccount, QueryAccountRequest, QueryAccountResponse,
 };
-use cosmos_sdk::proto::cosmos::bank::v1beta1::{
+use cosmrs::proto::cosmos::bank::v1beta1::{
     QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
 };
-use cosmos_sdk::proto::cosmwasm::wasm::v1beta1::*;
-use cosmos_sdk::rpc::endpoint::block::Response as BlockResponse;
-use cosmos_sdk::rpc::endpoint::broadcast;
-use cosmos_sdk::rpc::endpoint::tx::Response as TxResponse;
-use cosmos_sdk::rpc::query::Query;
-use cosmos_sdk::rpc::{self, HttpClient, Order};
-use cosmos_sdk::tendermint::abci::Transaction;
-use cosmos_sdk::tendermint::{abci, block, chain};
-use cosmos_sdk::{AccountId, Coin, Denom};
+use cosmrs::proto::cosmwasm::wasm::v1beta1::*;
+use cosmrs::rpc::endpoint::block::Response as BlockResponse;
+use cosmrs::rpc::endpoint::broadcast;
+use cosmrs::rpc::endpoint::tx::Response as TxResponse;
+use cosmrs::rpc::query::Query;
+use cosmrs::rpc::{self, HttpClient, Order};
+use cosmrs::tendermint::abci::Transaction;
+use cosmrs::tendermint::{abci, block, chain};
+use cosmrs::{AccountId, Coin, Denom};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};

@@ -2,6 +2,7 @@ import React from 'react'
 import {
   Button,
   Checkbox,
+  CircularProgress,
   FormControl,
   FormControlLabel,
   Grid,
@@ -16,11 +17,7 @@ import { EnumNodeType } from '../../types/global'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { validationSchema } from './validationSchema'
 import { Gateway, MixNode } from '../../types'
-
-type TBondNodeFormProps = {
-  // minimumBond: Coin
-  // onSubmit: (values: BondingInformation) => void
-}
+import { invoke } from '@tauri-apps/api'
 
 type TBondFormFields = {
   withAdvancedOptions: boolean
@@ -59,28 +56,35 @@ const formatData = (data: TBondFormFields) => {
     host: data.host,
     version: data.version,
     mix_port: data.mixPort,
+    amount: data.amount,
   }
 
   if (data.nodeType === EnumNodeType.Mixnode) {
     payload.verloc_port = data.verlocPort
     payload.http_api_port = data.httpApiPort
-    return payload as MixNode
+    return payload as MixNode & { amount: number }
   }
 
   if (data.nodeType == EnumNodeType.Gateway) {
     payload.clients_port = data.clientsPort
     payload.location = data.location
-    return payload as Gateway
+    return payload as Gateway & { amount: number }
   }
 }
 
-export const BondForm = () => {
+export const BondForm = ({
+  onError,
+  onSuccess,
+}: {
+  onError: (message?: string) => void
+  onSuccess: (message?: string) => void
+}) => {
   const {
     register,
     handleSubmit,
     setValue,
     watch,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<TBondFormFields>({
     resolver: yupResolver(validationSchema),
     defaultValues,
@@ -92,9 +96,18 @@ export const BondForm = () => {
     defaultValues.withAdvancedOptions
   )
 
-  const onSubmit = (data: TBondFormFields) => {
+  const onSubmit = async (data: TBondFormFields) => {
     const formattedData = formatData(data)
-    console.log(formattedData)
+    await invoke('bond_mixnode', {
+      mixnode: formattedData,
+      bond: { amount: formattedData?.amount, denom: 'punk' },
+    })
+      .then((res: any) => {
+        onSuccess(res)
+      })
+      .catch((e) => {
+        onError(e)
+      })
   }
 
   const theme: Theme = useTheme()
@@ -315,13 +328,14 @@ export const BondForm = () => {
         }}
       >
         <Button
-          disabled={Object.keys(errors).length > 0}
+          disabled={isSubmitting}
           variant="contained"
           color="primary"
           type="submit"
           size="large"
           disableElevation
           onClick={handleSubmit(onSubmit)}
+          endIcon={isSubmitting && <CircularProgress size={20} />}
         >
           Bond
         </Button>

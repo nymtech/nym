@@ -87,3 +87,6 @@ export const validateLocation = (location: string): boolean => {
 
 export const validateRawPort = (rawPort: number): boolean =>
   !isNaN(rawPort) && rawPort >= 1 && rawPort <= 65535
+
+export const truncate = (text: string, trim: number) =>
+  text.substring(0, trim) + '...'

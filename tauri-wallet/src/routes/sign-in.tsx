@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import {
   TextField,
   CircularProgress,
@@ -31,15 +31,15 @@ export const SignIn = () => {
     setIsLoading(true)
     setInputError(undefined)
 
-    await invoke('connect_with_mnemonic', { mnemonic })
+    invoke('connect_with_mnemonic', { mnemonic })
       .then((res) => {
+        setIsLoading(false)
         logIn(res as TClientDetails)
       })
       .catch((e) => {
+        setIsLoading(false)
         setInputError(e)
       })
-
-    setIsLoading(false)
   }
 
   return (

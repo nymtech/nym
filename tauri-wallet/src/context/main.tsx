@@ -42,16 +42,13 @@ export const ClientContextProvider = ({
 
   useEffect(() => {
     if (clientDetails) getBalance()
+    !clientDetails ? history.push('/signin') : history.push('/bond')
   }, [clientDetails, getBalance])
 
   const logIn = (clientDetails: TClientDetails) =>
     setClientDetails(clientDetails)
 
   const logOut = () => setClientDetails(undefined)
-
-  useEffect(() => {
-    !clientDetails ? history.push('/signin') : history.push('/bond')
-  }, [clientDetails])
 
   return (
     <ClientContext.Provider

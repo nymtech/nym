@@ -12,6 +12,7 @@ import { CheckCircleOutline, FileCopy, Refresh } from '@material-ui/icons'
 import { NymCard } from './NymCard'
 import { Alert } from '@material-ui/lab'
 import { handleCopy } from './CopyToClipboard'
+import { truncate } from '../utils'
 
 export const BalanceCard = () => {
   const theme = useTheme()
@@ -41,7 +42,7 @@ export const BalanceCard = () => {
                 {balanceError}
               </Alert>
             ) : (
-              <Typography>{balance?.printable_balance}</Typography>
+              <Typography variant="h6">{balance?.printable_balance}</Typography>
             )}
           </div>
         </CardContent>
@@ -101,7 +102,13 @@ export const AddressCard = () => {
           </Tooltip>
         }
       >
-        <CardContent>{clientDetails?.client_address}</CardContent>
+        <CardContent>
+          <Typography
+            style={{ fontWeight: theme.typography.fontWeightRegular }}
+          >
+            {truncate(clientDetails?.client_address!, 35)}
+          </Typography>
+        </CardContent>
       </NymCard>
     </div>
   )

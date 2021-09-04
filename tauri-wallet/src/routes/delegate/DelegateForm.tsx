@@ -13,6 +13,7 @@ import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { EnumNodeType } from '../../types/global'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
+import { invoke } from '@tauri-apps/api'
 
 type TDelegateForm = {
   nodeType: EnumNodeType
@@ -26,7 +27,13 @@ const defaultValues: TDelegateForm = {
   amount: '',
 }
 
-export const DelegateForm = () => {
+export const DelegateForm = ({
+  onError,
+  onSuccess,
+}: {
+  onError: (message?: string) => void
+  onSuccess: (message?: string) => void
+}) => {
   const theme = useTheme<Theme>()
   const {
     register,
@@ -41,7 +48,20 @@ export const DelegateForm = () => {
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
 
-  const onSubmit = (data: TDelegateForm) => console.log(data)
+  const onSubmit = (data: TDelegateForm) => {
+    invoke('delegate_to_mixnode', {
+      identity: data.identity,
+      amount: { denom: 'punk', amount: data.amount },
+    })
+      .then((res: any) => {
+        console.log(res)
+        onSuccess(res)
+      })
+      .catch((e) => {
+        console.log(e)
+        onError(e)
+      })
+  }
 
   return (
     <FormControl fullWidth>

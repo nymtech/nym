@@ -1,8 +1,7 @@
+import React, { useEffect, useState } from 'react'
 import { Card, CircularProgress, Theme, Typography } from '@material-ui/core'
 import { CheckCircleOutline } from '@material-ui/icons'
 import { useTheme } from '@material-ui/styles'
-import React, { useEffect, useState } from 'react'
-import { SendReviewField } from './SendReview'
 
 export const SendConfirmation = ({
   amount,

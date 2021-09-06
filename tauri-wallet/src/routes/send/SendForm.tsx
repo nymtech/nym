@@ -1,5 +1,5 @@
 import React, { useContext } from 'react'
-import { Grid, InputAdornment, TextField, Typography } from '@material-ui/core'
+import { Grid, InputAdornment, TextField } from '@material-ui/core'
 import { ClientContext } from '../../context/main'
 
 export const SendForm = ({

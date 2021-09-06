@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useState } from 'react'
 import {
   TextField,
   CircularProgress,
@@ -12,7 +12,7 @@ import {
 import { Alert } from '@material-ui/lab'
 import { useTheme } from '@material-ui/styles'
 import { invoke } from '@tauri-apps/api'
-import logo from '../images/logo.png'
+import logo from '../images/logo-background.svg'
 import { ClientContext } from '../context/main'
 import { TClientDetails } from '../types/global'
 

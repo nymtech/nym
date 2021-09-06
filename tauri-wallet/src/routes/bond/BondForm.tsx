@@ -36,7 +36,7 @@ type TBondFormFields = {
 
 const defaultValues = {
   withAdvancedOptions: false,
-  nodeType: EnumNodeType.Mixnode,
+  nodeType: EnumNodeType.mixnode,
   identityKey: '',
   sphinxKey: '',
   amount: '',
@@ -57,18 +57,19 @@ const formatData = (data: TBondFormFields) => {
     version: data.version,
     mix_port: data.mixPort,
     amount: data.amount,
+    nodeType: data.nodeType,
   }
 
-  if (data.nodeType === EnumNodeType.Mixnode) {
+  if (data.nodeType === EnumNodeType.mixnode) {
     payload.verloc_port = data.verlocPort
     payload.http_api_port = data.httpApiPort
-    return payload as MixNode & { amount: number }
+    return payload as MixNode & { amount: number; nodeType: EnumNodeType }
   }
 
-  if (data.nodeType == EnumNodeType.Gateway) {
+  if (data.nodeType == EnumNodeType.gateway) {
     payload.clients_port = data.clientsPort
     payload.location = data.location
-    return payload as Gateway & { amount: number }
+    return payload as Gateway & { amount: number; nodeType: EnumNodeType }
   }
 }
 
@@ -98,8 +99,8 @@ export const BondForm = ({
 
   const onSubmit = async (data: TBondFormFields) => {
     const formattedData = formatData(data)
-    await invoke('bond_mixnode', {
-      mixnode: formattedData,
+    await invoke(`bond_${data.nodeType}`, {
+      [data.nodeType]: formattedData,
       bond: { amount: formattedData?.amount, denom: 'punk' },
     })
       .then((res: any) => {
@@ -121,7 +122,7 @@ export const BondForm = ({
               nodeType={watchNodeType}
               setNodeType={(nodeType) => {
                 setValue('nodeType', nodeType)
-                if (nodeType === EnumNodeType.Mixnode)
+                if (nodeType === EnumNodeType.mixnode)
                   setValue('location', undefined)
               }}
             />
@@ -187,7 +188,7 @@ export const BondForm = ({
 
           {/* if it's a gateway - get location */}
           <Grid item xs={6}>
-            {watchNodeType === EnumNodeType.Gateway && (
+            {watchNodeType === EnumNodeType.gateway && (
               <TextField
                 {...register('location')}
                 variant="outlined"
@@ -262,7 +263,7 @@ export const BondForm = ({
                   }
                 />
               </Grid>
-              {watchNodeType === EnumNodeType.Mixnode ? (
+              {watchNodeType === EnumNodeType.mixnode ? (
                 <>
                   <Grid item xs={12} sm={4}>
                     <TextField

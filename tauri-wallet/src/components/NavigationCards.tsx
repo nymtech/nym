@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import {
   CardContent,
   CircularProgress,
@@ -13,11 +13,14 @@ import { NymCard } from './NymCard'
 import { Alert } from '@material-ui/lab'
 import { handleCopy } from './CopyToClipboard'
 import { truncate } from '../utils'
+import { useGetBalance } from '../hooks/useGetBalance'
 
 export const BalanceCard = () => {
   const theme = useTheme()
-  const { balance, balanceError, balanceLoading, getBalance } =
-    useContext(ClientContext)
+
+  const { balance, isLoading, error, getBalance } = useGetBalance()
+
+  useEffect(getBalance, [])
 
   return (
     <div style={{ margin: theme.spacing(3) }}>
@@ -35,11 +38,11 @@ export const BalanceCard = () => {
       >
         <CardContent>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            {balanceLoading ? (
+            {isLoading ? (
               <CircularProgress size={24} />
-            ) : balanceError ? (
+            ) : error ? (
               <Alert severity="error" style={{ width: '100%' }}>
-                {balanceError}
+                {error}
               </Alert>
             ) : (
               <Typography variant="h6">{balance?.printable_balance}</Typography>

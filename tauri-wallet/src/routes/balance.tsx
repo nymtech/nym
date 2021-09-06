@@ -1,14 +1,16 @@
-import React, { useContext } from 'react'
-import { Button, Grid } from '@material-ui/core'
+import React, { useEffect } from 'react'
+import { Button, CircularProgress, Grid } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
 import { Refresh } from '@material-ui/icons'
 import { NymCard } from '../components'
 import { Layout } from '../layouts'
-import { ClientContext } from '../context/main'
 import { theme } from '../theme'
+import { useGetBalance } from '../hooks/useGetBalance'
 
 export const Balance = () => {
-  const { balance, balanceError, getBalance } = useContext(ClientContext)
+  const { balance, isLoading, error, getBalance } = useGetBalance()
+
+  useEffect(getBalance, [])
 
   const RefreshAction = () => (
     <Button
@@ -17,9 +19,10 @@ export const Balance = () => {
       color="primary"
       type="submit"
       onClick={getBalance}
-      disabled={false}
+      disabled={isLoading}
       disableElevation
       startIcon={<Refresh />}
+      endIcon={isLoading && <CircularProgress size={20} />}
       style={{ marginRight: theme.spacing(2) }}
     >
       Refresh
@@ -31,16 +34,16 @@ export const Balance = () => {
       <NymCard title="Check Balance">
         <Grid container direction="column" spacing={2}>
           <Grid item>
-            {balanceError && (
+            {error && (
               <Alert
                 severity="error"
                 action={<RefreshAction />}
                 style={{ padding: theme.spacing(2) }}
               >
-                {balanceError}
+                {error}
               </Alert>
             )}
-            {!balanceError && (
+            {!error && (
               <Alert
                 severity="success"
                 style={{ padding: theme.spacing(2, 3) }}

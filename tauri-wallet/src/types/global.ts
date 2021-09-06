@@ -1,6 +1,6 @@
 export enum EnumNodeType {
-  Mixnode = 'Mixnode',
-  Gateway = 'Gateway',
+  mixnode = 'mixnode',
+  gateway = 'gateway',
 }
 
 export type TNodeOwnership = {

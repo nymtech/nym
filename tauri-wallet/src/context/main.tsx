@@ -1,16 +1,11 @@
 import React, { createContext, useCallback, useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
-import { invoke } from '@tauri-apps/api/tauri'
-import { Balance, TClientDetails } from '../types'
+import { TClientDetails } from '../types'
 
 type TClientContext = {
   clientDetails?: TClientDetails
-  balance?: Balance
-  balanceLoading: boolean
-  balanceError?: string
   logIn: (clientDetails: TClientDetails) => void
   logOut: () => void
-  getBalance: () => void
 }
 
 export const ClientContext = createContext({} as TClientContext)
@@ -20,30 +15,13 @@ export const ClientContextProvider = ({
 }: {
   children: React.ReactNode
 }) => {
-  const [balance, setBalance] = useState<Balance>()
-  const [balanceError, setBalanceError] = useState<string>()
-  const [balanceLoading, setBalanceLoading] = useState(false)
   const [clientDetails, setClientDetails] = useState<TClientDetails>()
 
   const history = useHistory()
 
-  const getBalance = useCallback(() => {
-    setBalanceLoading(true)
-    setBalanceError(undefined)
-    invoke('get_balance')
-      .then((balance) => {
-        setBalance(balance as Balance)
-      })
-      .catch((e) => setBalanceError(e))
-    setTimeout(() => {
-      setBalanceLoading(false)
-    }, 1000)
-  }, [])
-
   useEffect(() => {
-    if (clientDetails) getBalance()
     !clientDetails ? history.push('/signin') : history.push('/bond')
-  }, [clientDetails, getBalance])
+  }, [clientDetails])
 
   const logIn = (clientDetails: TClientDetails) =>
     setClientDetails(clientDetails)
@@ -53,13 +31,9 @@ export const ClientContextProvider = ({
   return (
     <ClientContext.Provider
       value={{
-        balance,
-        balanceError,
         clientDetails,
-        balanceLoading,
         logIn,
         logOut,
-        getBalance,
       }}
     >
       {children}

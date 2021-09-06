@@ -21,7 +21,7 @@ type TFormData = {
 }
 
 const defaultValues = {
-  nodeType: EnumNodeType.Mixnode,
+  nodeType: EnumNodeType.mixnode,
   identity: '',
 }
 

@@ -23,7 +23,7 @@ type TDelegateForm = {
 }
 
 const defaultValues: TDelegateForm = {
-  nodeType: EnumNodeType.Mixnode,
+  nodeType: EnumNodeType.mixnode,
   identity: '',
   amount: '',
 }
@@ -50,7 +50,7 @@ export const DelegateForm = ({
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
 
   const onSubmit = async (data: TDelegateForm) => {
-    await invoke('delegate_to_mixnode', {
+    await invoke(`delegate_to_${data.nodeType}`, {
       identity: data.identity,
       amount: { denom: 'punk', amount: data.amount },
     })

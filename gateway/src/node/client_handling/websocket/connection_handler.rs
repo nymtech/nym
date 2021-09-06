@@ -23,9 +23,12 @@ use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use nymsphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
+use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::sync::RwLock;
 use tokio_tungstenite::{
     tungstenite::{protocol::Message, Error as WsError},
     WebSocketStream,
@@ -53,14 +56,13 @@ pub(crate) struct Handle<R, S> {
     rng: R,
     remote_address: Option<DestinationAddressBytes>,
     shared_key: Option<SharedKeys>,
-    // TODO: This should be replaced by an actual bandwidth value, with 0 meaning no bandwidth
-    has_bandwidth: bool,
     clients_handler_sender: ClientsHandlerRequestSender,
     outbound_mix_sender: MixForwardingSender,
     socket_connection: SocketStream<S>,
     local_identity: Arc<identity::KeyPair>,
 
     aggregated_verification_key: VerificationKey,
+    bandwidths: Arc<RwLock<HashMap<DestinationAddressBytes, AtomicU64>>>,
 }
 
 impl<R, S> Handle<R, S>
@@ -76,18 +78,32 @@ where
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
         aggregated_verification_key: VerificationKey,
+        bandwidths: Arc<RwLock<HashMap<DestinationAddressBytes, AtomicU64>>>,
     ) -> Self {
         Handle {
             rng,
             remote_address: None,
             shared_key: None,
-            has_bandwidth: false,
             clients_handler_sender,
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,
             aggregated_verification_key,
+            bandwidths,
         }
+    }
+
+    async fn consume_bandwidth(&self) -> bool {
+        if let Some(remote_address) = self.remote_address {
+            if let Some(bandwidth) = self.bandwidths.write().await.get_mut(&remote_address) {
+                let bandwidth_mut = bandwidth.get_mut();
+                if *bandwidth_mut > 0 {
+                    *bandwidth_mut -= 1;
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     async fn perform_websocket_handshake(&mut self) -> Result<(), WsError>
@@ -194,9 +210,6 @@ where
     }
 
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
-        if !self.has_bandwidth {
-            return ServerResponse::new_error("Not enough bandwidth").into();
-        }
         trace!("Handling binary message (presumably sphinx packet)");
 
         // this function decrypts the request and checks the MAC
@@ -210,8 +223,12 @@ where
             Ok(request) => match request {
                 // currently only a single type exists
                 BinaryRequest::ForwardSphinx(mix_packet) => {
-                    self.outbound_mix_sender.unbounded_send(mix_packet).unwrap();
-                    ServerResponse::Send { status: true }
+                    if self.consume_bandwidth().await {
+                        self.outbound_mix_sender.unbounded_send(mix_packet).unwrap();
+                        ServerResponse::Send { status: true }
+                    } else {
+                        ServerResponse::new_error("Not enough bandwidth")
+                    }
                 }
             },
         }
@@ -351,6 +368,9 @@ where
         if self.shared_key.is_none() {
             return ServerResponse::new_error("No shared key has been exchanged with the gateway");
         }
+        if self.remote_address.is_none() {
+            return ServerResponse::new_error("No remote address has been set");
+        }
         let iv = match IV::try_from_bytes(&iv) {
             Ok(iv) => iv,
             Err(e) => {
@@ -368,9 +388,32 @@ where
                 return ServerResponse::new_error(e.to_string());
             }
         };
-        let status = credential.verify(&self.aggregated_verification_key);
-        self.has_bandwidth = status;
-        ServerResponse::Bandwidth { status }
+        if credential.verify(&self.aggregated_verification_key) {
+            match credential.public_attributes().get(0) {
+                None => ServerResponse::new_error("Bandwidth value not found"),
+                Some(attr) => match <[u8; 8]>::try_from(attr.as_slice()) {
+                    Ok(increase_bytes) => {
+                        let increase = u64::from_be_bytes(increase_bytes);
+                        let mut db = self.bandwidths.write().await;
+                        let remote_address = self.remote_address.unwrap();
+                        if let Some(bandwidth) = db.get_mut(&remote_address) {
+                            let bandwidth_mut = bandwidth.get_mut();
+                            if let Some(new_bandwidth) = bandwidth_mut.checked_add(increase) {
+                                *bandwidth_mut = new_bandwidth;
+                            } else {
+                                return ServerResponse::new_error("Overflow on bandwidth occurs. Use some of the already allocated bandwidth before increasing it");
+                            }
+                        } else {
+                            db.insert(remote_address, AtomicU64::new(increase));
+                        }
+                        ServerResponse::Bandwidth { status: true }
+                    }
+                    Err(_) => ServerResponse::new_error("Bandwidth value not on 8 bytes"),
+                },
+            }
+        } else {
+            ServerResponse::Bandwidth { status: false }
+        }
     }
 
     // currently the bandwidth credential request is the only one we can receive after

@@ -7,10 +7,13 @@ use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
+use nymsphinx::DestinationAddressBytes;
 use rand::rngs::OsRng;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::process;
-use std::sync::Arc;
+use std::sync::{atomic::AtomicU64, Arc};
+use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 pub(crate) struct Listener {
@@ -46,6 +49,9 @@ impl Listener {
             }
         };
 
+        let bandwidths: Arc<RwLock<HashMap<DestinationAddressBytes, AtomicU64>>> =
+            Arc::new(RwLock::new(HashMap::new()));
+
         loop {
             match tcp_listener.accept().await {
                 Ok((socket, remote_addr)) => {
@@ -59,6 +65,7 @@ impl Listener {
                         outbound_mix_sender.clone(),
                         Arc::clone(&self.local_identity),
                         self.aggregated_verification_key.clone(),
+                        Arc::clone(&bandwidths),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }

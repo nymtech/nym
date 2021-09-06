@@ -25,6 +25,7 @@ use nymsphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::mem;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -93,12 +94,12 @@ where
         }
     }
 
-    async fn consume_bandwidth(&self) -> bool {
+    async fn consume_bandwidth(&self, consumed: u64) -> bool {
         if let Some(remote_address) = self.remote_address {
             if let Some(bandwidth) = self.bandwidths.write().await.get_mut(&remote_address) {
                 let bandwidth_mut = bandwidth.get_mut();
-                if *bandwidth_mut > 0 {
-                    *bandwidth_mut -= 1;
+                if *bandwidth_mut >= consumed {
+                    *bandwidth_mut -= consumed;
                     return true;
                 }
             }
@@ -223,7 +224,8 @@ where
             Ok(request) => match request {
                 // currently only a single type exists
                 BinaryRequest::ForwardSphinx(mix_packet) => {
-                    if self.consume_bandwidth().await {
+                    let consumed_bandwidth = mem::size_of_val(&mix_packet) as u64;
+                    if self.consume_bandwidth(consumed_bandwidth).await {
                         self.outbound_mix_sender.unbounded_send(mix_packet).unwrap();
                         ServerResponse::Send { status: true }
                     } else {

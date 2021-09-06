@@ -1000,9 +1000,7 @@ name = "credentials"
 version = "0.1.0"
 dependencies = [
  "coconut-interface",
- "nymsphinx",
  "thiserror",
- "tokio",
  "url",
  "validator-client",
 ]
@@ -1875,6 +1873,7 @@ dependencies = [
  "bincode",
  "bs58",
  "coconut-interface",
+ "credentials",
  "crypto",
  "futures",
  "log",

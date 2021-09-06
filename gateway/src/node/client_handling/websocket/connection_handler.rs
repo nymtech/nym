@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::client_handling::bandwidth::{Bandwidth, BandwidthDatabase};
 use crate::node::client_handling::clients_handler::{
     ClientsHandlerRequest, ClientsHandlerRequestSender, ClientsHandlerResponse,
 };
@@ -8,7 +9,6 @@ use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
 use coconut_interface::VerificationKey;
-use credentials::bandwidth::{Bandwidth, BandwidthDatabase};
 use crypto::asymmetric::identity;
 use futures::{
     channel::{mpsc, oneshot},

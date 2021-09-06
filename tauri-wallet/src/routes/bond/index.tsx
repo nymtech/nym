@@ -2,13 +2,13 @@ import React, { useState } from 'react'
 import { Button, Theme } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
 import { useTheme } from '@material-ui/styles'
+import { BondForm } from './BondForm'
 import { NymCard } from '../../components'
 import {
   EnumRequestStatus,
   RequestStatus,
 } from '../../components/RequestStatus'
 import { Layout } from '../../layouts'
-import { BondForm } from './BondForm'
 
 export const Bond = () => {
   const [status, setStatus] = useState(EnumRequestStatus.initial)
@@ -36,14 +36,14 @@ export const Bond = () => {
             <>
               <RequestStatus
                 status={status}
-                onSuccess={() => (
+                Success={
                   <Alert severity="success">Successfully bonded node</Alert>
-                )}
-                onError={() => (
+                }
+                Error={
                   <Alert severity="error">
                     An error occurred with the request: {message}
                   </Alert>
-                )}
+                }
               />
               <div
                 style={{

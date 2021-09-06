@@ -17,7 +17,9 @@ import { ClientContext } from '../context/main'
 import { TClientDetails } from '../types/global'
 
 export const SignIn = () => {
-  const [mnemonic, setMnemonic] = useState<string>('')
+  const [mnemonic, setMnemonic] = useState<string>(
+    'alley mutual arrange escape army vacuum cherry ozone frame steel current smile dad subject primary foster lazy want perfect fury general eye cannon motor'
+  )
   const [inputError, setInputError] = useState<string | undefined>()
   const [isLoading, setIsLoading] = useState(false)
 

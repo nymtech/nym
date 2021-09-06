@@ -31,8 +31,9 @@ export const Delegate = () => {
                 setStatus(EnumRequestStatus.error)
                 setMessage(message)
               }}
-              onSuccess={() => {
+              onSuccess={(message?: string) => {
                 setStatus(EnumRequestStatus.success)
+                setMessage(message)
               }}
             />
           )}
@@ -40,12 +41,12 @@ export const Delegate = () => {
             <>
               <RequestStatus
                 status={status}
-                onError={() => (
+                Error={
                   <Alert severity="error">
                     An error occurred with the request: {message}
                   </Alert>
-                )}
-                onSuccess={() => {}}
+                }
+                Success={<Alert severity="success">{message}</Alert>}
               />
               <div
                 style={{

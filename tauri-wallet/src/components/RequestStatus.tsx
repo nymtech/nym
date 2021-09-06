@@ -11,12 +11,12 @@ export enum EnumRequestStatus {
 
 export const RequestStatus = ({
   status,
-  onSuccess,
-  onError,
+  Success,
+  Error,
 }: {
   status: EnumRequestStatus
-  onSuccess: () => void
-  onError: () => void
+  Success: React.ReactNode
+  Error: React.ReactNode
 }) => {
   const theme: Theme = useTheme()
   return (
@@ -26,8 +26,8 @@ export const RequestStatus = ({
           <CircularProgress size={48} />
         </div>
       )}
-      {status === EnumRequestStatus.success && onSuccess()}
-      {status === EnumRequestStatus.error && onError()}
+      {status === EnumRequestStatus.success && Success}
+      {status === EnumRequestStatus.error && Error}
     </div>
   )
 }

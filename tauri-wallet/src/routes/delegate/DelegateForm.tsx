@@ -1,6 +1,7 @@
 import React from 'react'
 import {
   Button,
+  CircularProgress,
   FormControl,
   Grid,
   InputAdornment,
@@ -40,7 +41,7 @@ export const DelegateForm = ({
     setValue,
     watch,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<TDelegateForm>({
     defaultValues,
     resolver: yupResolver(validationSchema),
@@ -48,8 +49,8 @@ export const DelegateForm = ({
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
 
-  const onSubmit = (data: TDelegateForm) => {
-    invoke('delegate_to_mixnode', {
+  const onSubmit = async (data: TDelegateForm) => {
+    await invoke('delegate_to_mixnode', {
       identity: data.identity,
       amount: { denom: 'punk', amount: data.amount },
     })
@@ -119,10 +120,12 @@ export const DelegateForm = ({
       >
         <Button
           onClick={handleSubmit(onSubmit)}
+          disabled={isSubmitting}
           variant="contained"
           color="primary"
           type="submit"
           disableElevation
+          endIcon={isSubmitting && <CircularProgress size={20} />}
         >
           Delegate stake
         </Button>

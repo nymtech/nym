@@ -17,6 +17,7 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::str::FromStr;
 use ts_rs::{export, TS};
+use validator_client::nymd::GasPrice;
 use validator_client::nymd::{NymdClient, SigningNymdClient};
 
 mod config;
@@ -76,6 +77,15 @@ impl FromStr for Denom {
 struct Coin {
   amount: String,
   denom: String,
+}
+
+impl From<GasPrice> for Coin {
+  fn from(g: GasPrice) -> Coin {
+    Coin {
+      amount: g.amount.to_string(),
+      denom: g.denom.to_string(),
+    }
+  }
 }
 
 impl fmt::Display for Coin {
@@ -159,6 +169,14 @@ struct State {
   signing_client: Option<NymdClient<SigningNymdClient>>,
 }
 
+impl State {
+  fn client(&self) -> Result<&NymdClient<SigningNymdClient>, String> {
+    self.signing_client.as_ref().ok_or_else(|| {
+      "Client has not been initialized yet, connect with mnemonic to initialize".to_string()
+    })
+  }
+}
+
 #[tauri::command]
 fn major_to_minor(amount: String) -> Result<Coin, String> {
   let coin = Coin {
@@ -217,73 +235,53 @@ async fn connect_with_mnemonic(
 #[tauri::command]
 async fn get_balance(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<Balance, String> {
   let r_state = state.read().await;
-  if let Some(client) = &r_state.signing_client {
-    match client.get_balance(client.address()).await {
-      Ok(Some(coin)) => {
-        let coin = Coin {
-          amount: coin.amount.to_string(),
-          denom: coin.denom.to_string(),
-        };
-        Ok(Balance {
-          coin: coin.clone(),
-          printable_balance: coin.to_major().to_string(),
-        })
-      }
-      Ok(None) => Err(format!(
-        "No balance available for address {}",
-        client.address()
-      )),
-      Err(e) => Err(BackendError::from(e).to_string()),
+  let client = r_state.client()?;
+  match client.get_balance(client.address()).await {
+    Ok(Some(coin)) => {
+      let coin = Coin {
+        amount: coin.amount.to_string(),
+        denom: coin.denom.to_string(),
+      };
+      Ok(Balance {
+        coin: coin.clone(),
+        printable_balance: coin.to_major().to_string(),
+      })
     }
-  } else {
-    Err(String::from(
-      "Client has not been initialized yet, connect with mnemonic to initialize",
-    ))
+    Ok(None) => Err(format!(
+      "No balance available for address {}",
+      client.address()
+    )),
+    Err(e) => Err(BackendError::from(e).to_string()),
   }
 }
 
 #[tauri::command]
 async fn owns_mixnode(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<bool, String> {
   let r_state = state.read().await;
-  if let Some(client) = &r_state.signing_client {
-    match client.owns_mixnode(client.address()).await {
-      Ok(o) => Ok(o),
-      Err(e) => Err(format_err!(e)),
-    }
-  } else {
-    Err(String::from(
-      "Client has not been initialized yet, connect with mnemonic to initialize",
-    ))
+  let client = r_state.client()?;
+  match client.owns_mixnode(client.address()).await {
+    Ok(o) => Ok(o),
+    Err(e) => Err(format_err!(e)),
   }
 }
 
 #[tauri::command]
 async fn owns_gateway(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<bool, String> {
   let r_state = state.read().await;
-  if let Some(client) = &r_state.signing_client {
-    match client.owns_gateway(client.address()).await {
-      Ok(o) => Ok(o),
-      Err(e) => Err(format_err!(e)),
-    }
-  } else {
-    Err(String::from(
-      "Client has not been initialized yet, connect with mnemonic to initialize",
-    ))
+  let client = r_state.client()?;
+  match client.owns_gateway(client.address()).await {
+    Ok(o) => Ok(o),
+    Err(e) => Err(format_err!(e)),
   }
 }
 
 #[tauri::command]
 async fn unbond_mixnode(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<(), String> {
   let r_state = state.read().await;
-  if let Some(client) = &r_state.signing_client {
-    match client.unbond_mixnode().await {
-      Ok(_result) => Ok(()),
-      Err(e) => Err(format_err!(e)),
-    }
-  } else {
-    Err(String::from(
-      "Client has not been initialized yet, connect with mnemonic to initialize",
-    ))
+  let client = r_state.client()?;
+  match client.unbond_mixnode().await {
+    Ok(_result) => Ok(()),
+    Err(e) => Err(format_err!(e)),
   }
 }
 
@@ -298,15 +296,10 @@ async fn bond_mixnode(
     Ok(b) => b,
     Err(e) => return Err(format_err!(e)),
   };
-  if let Some(client) = &r_state.signing_client {
-    match client.bond_mixnode(mixnode, bond).await {
-      Ok(_result) => Ok(()),
-      Err(e) => Err(format_err!(e)),
-    }
-  } else {
-    Err(String::from(
-      "Client has not been initialized yet, connect with mnemonic to initialize",
-    ))
+  let client = r_state.client()?;
+  match client.bond_mixnode(mixnode, bond).await {
+    Ok(_result) => Ok(()),
+    Err(e) => Err(format_err!(e)),
   }
 }
 
@@ -321,15 +314,10 @@ async fn delegate_to_mixnode(
     Ok(b) => b,
     Err(e) => return Err(format_err!(e)),
   };
-  if let Some(client) = &r_state.signing_client {
-    match client.delegate_to_mixnode(identity, bond).await {
-      Ok(_result) => Ok(()),
-      Err(e) => Err(format_err!(e)),
-    }
-  } else {
-    Err(String::from(
-      "Client has not been initialized yet, connect with mnemonic to initialize",
-    ))
+  let client = r_state.client()?;
+  match client.delegate_to_mixnode(identity, bond).await {
+    Ok(_result) => Ok(()),
+    Err(e) => Err(format_err!(e)),
   }
 }
 
@@ -339,15 +327,10 @@ async fn undelegate_from_mixnode(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), String> {
   let r_state = state.read().await;
-  if let Some(client) = &r_state.signing_client {
-    match client.remove_mixnode_delegation(identity).await {
-      Ok(_result) => Ok(()),
-      Err(e) => Err(format_err!(e)),
-    }
-  } else {
-    Err(String::from(
-      "Client has not been initialized yet, connect with mnemonic to initialize",
-    ))
+  let client = r_state.client()?;
+  match client.remove_mixnode_delegation(identity).await {
+    Ok(_result) => Ok(()),
+    Err(e) => Err(format_err!(e)),
   }
 }
 
@@ -362,15 +345,10 @@ async fn delegate_to_gateway(
     Ok(b) => b,
     Err(e) => return Err(format_err!(e)),
   };
-  if let Some(client) = &r_state.signing_client {
-    match client.delegate_to_gateway(identity, bond).await {
-      Ok(_result) => Ok(()),
-      Err(e) => Err(format_err!(e)),
-    }
-  } else {
-    Err(String::from(
-      "Client has not been initialized yet, connect with mnemonic to initialize",
-    ))
+  let client = r_state.client()?;
+  match client.delegate_to_gateway(identity, bond).await {
+    Ok(_result) => Ok(()),
+    Err(e) => Err(format_err!(e)),
   }
 }
 
@@ -380,15 +358,10 @@ async fn undelegate_from_gateway(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), String> {
   let r_state = state.read().await;
-  if let Some(client) = &r_state.signing_client {
-    match client.remove_gateway_delegation(identity).await {
-      Ok(_result) => Ok(()),
-      Err(e) => Err(format_err!(e)),
-    }
-  } else {
-    Err(String::from(
-      "Client has not been initialized yet, connect with mnemonic to initialize",
-    ))
+  let client = r_state.client()?;
+  match client.remove_gateway_delegation(identity).await {
+    Ok(_result) => Ok(()),
+    Err(e) => Err(format_err!(e)),
   }
 }
 
@@ -403,54 +376,65 @@ async fn bond_gateway(
     Ok(b) => b,
     Err(e) => return Err(format_err!(e)),
   };
-  if let Some(client) = &r_state.signing_client {
-    match client.bond_gateway(gateway, bond).await {
-      Ok(_result) => Ok(()),
-      Err(e) => Err(format_err!(e)),
-    }
-  } else {
-    Err(String::from(
-      "Client has not been initialized yet, connect with mnemonic to initialize",
-    ))
+  let client = r_state.client()?;
+  match client.bond_gateway(gateway, bond).await {
+    Ok(_result) => Ok(()),
+    Err(e) => Err(format_err!(e)),
   }
 }
 
 #[tauri::command]
 async fn unbond_gateway(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<(), String> {
   let r_state = state.read().await;
-  if let Some(client) = &r_state.signing_client {
-    match client.unbond_gateway().await {
-      Ok(_result) => Ok(()),
-      Err(e) => Err(format_err!(e)),
-    }
-  } else {
-    Err(String::from(
-      "Client has not been initialized yet, connect with mnemonic to initialize",
-    ))
+  let client = r_state.client()?;
+  match client.unbond_gateway().await {
+    Ok(_result) => Ok(()),
+    Err(e) => Err(format_err!(e)),
   }
 }
 
 #[tauri::command]
-async fn send(address: &str, amount: Coin, memo: String, state: tauri::State<'_, Arc<RwLock<State>>>,) -> Result<(), String> {
+async fn send(
+  address: &str,
+  amount: Coin,
+  memo: String,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), String> {
   let address = match AccountId::from_str(address) {
     Ok(addy) => addy,
-    Err(e) => return Err(format_err!(e))
+    Err(e) => return Err(format_err!(e)),
   };
   let amount: CosmosCoin = match amount.try_into() {
     Ok(b) => b,
     Err(e) => return Err(format_err!(e)),
   };
   let r_state = state.read().await;
-  if let Some(client) = &r_state.signing_client {
-    match client.send(&address, vec!(amount), memo).await {
-      Ok(_result) => Ok(()),
-      Err(e) => Err(format_err!(e)),
-    }
-  } else {
-    Err(String::from(
-      "Client has not been initialized yet, connect with mnemonic to initialize",
-    ))
+  let client = r_state.client()?;
+  match client.send(&address, vec![amount], memo).await {
+    Ok(_result) => Ok(()),
+    Err(e) => Err(format_err!(e)),
   }
+}
+
+#[tauri::command]
+async fn get_gas_price(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<Coin, String> {
+  let r_state = state.read().await;
+  let client = r_state.client()?;
+  let coin = client.get_gas_price().into();
+  Ok(coin)
+}
+
+#[tauri::command]
+async fn get_gas_limits(
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<HashMap<String, u64>, String> {
+  let r_state = state.read().await;
+  let client = r_state.client()?;
+  let mut limits = HashMap::new();
+  for (k, v) in client.get_custom_gas_limits() {
+    limits.insert(k.to_string(), v.value());
+  }
+  Ok(limits)
 }
 
 fn _connect_with_mnemonic(mnemonic: Mnemonic, config: &Config) -> NymdClient<SigningNymdClient> {
@@ -482,7 +466,9 @@ fn main() {
       undelegate_from_mixnode,
       delegate_to_gateway,
       undelegate_from_gateway,
-      send
+      send,
+      get_gas_price,
+      get_gas_limits
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

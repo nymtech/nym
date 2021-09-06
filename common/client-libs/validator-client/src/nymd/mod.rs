@@ -122,6 +122,14 @@ impl<C> NymdClient<C> {
         self.custom_gas_limits.insert(operation, limit);
     }
 
+    pub fn get_gas_price(&self) -> GasPrice {
+        self.gas_price.clone()
+    }
+
+    pub fn get_custom_gas_limits(&self) -> HashMap<Operation, Gas> {
+        self.custom_gas_limits.clone()
+    }
+
     pub fn contract_address(&self) -> Result<&AccountId, NymdError> {
         self.contract_address
             .as_ref()

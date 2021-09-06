@@ -3612,9 +3612,11 @@ name = "nym_wallet"
 version = "0.1.0"
 dependencies = [
  "bip39",
+ "coconut-interface",
  "config",
  "cosmos_sdk",
  "cosmwasm-std",
+ "credentials",
  "dirs",
  "mixnet-contract",
  "serde",
@@ -3625,6 +3627,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "ts-rs",
+ "url",
  "validator-client",
 ]
 

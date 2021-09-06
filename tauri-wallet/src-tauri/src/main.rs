@@ -16,19 +16,25 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::str::FromStr;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use ts_rs::{export, TS};
 use validator_client::nymd::GasPrice;
 use validator_client::nymd::{NymdClient, SigningNymdClient};
 
+mod coconut;
 mod config;
 mod error;
-// mod nymd_client;
+mod state;
 
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use crate::coconut::{
+  delete_credential, get_credential, list_credentials, randomise_credential, verify_credential,
+};
+use crate::state::State;
 
 use crate::config::Config;
 
+#[macro_export]
 macro_rules! format_err {
   ($e:expr) => {
     format!("line {}: {}", line!(), $e)
@@ -163,20 +169,6 @@ impl From<CosmosCoin> for Coin {
   }
 }
 
-#[derive(Debug, Default)]
-struct State {
-  config: Config,
-  signing_client: Option<NymdClient<SigningNymdClient>>,
-}
-
-impl State {
-  fn client(&self) -> Result<&NymdClient<SigningNymdClient>, String> {
-    self.signing_client.as_ref().ok_or_else(|| {
-      "Client has not been initialized yet, connect with mnemonic to initialize".to_string()
-    })
-  }
-}
-
 #[tauri::command]
 fn major_to_minor(amount: String) -> Result<Coin, String> {
   let coin = Coin {
@@ -207,7 +199,7 @@ async fn connect_with_mnemonic(
   let client;
   {
     let r_state = state.read().await;
-    client = _connect_with_mnemonic(mnemonic, &r_state.config);
+    client = _connect_with_mnemonic(mnemonic, &r_state.config());
   }
 
   let mut ret = HashMap::new();
@@ -227,7 +219,7 @@ async fn connect_with_mnemonic(
     },
   );
   let mut w_state = state.write().await;
-  w_state.signing_client = Some(client);
+  w_state.set_client(client);
 
   Ok(ret)
 }
@@ -468,7 +460,12 @@ fn main() {
       undelegate_from_gateway,
       send,
       get_gas_price,
-      get_gas_limits
+      get_gas_limits,
+      get_credential,
+      randomise_credential,
+      delete_credential,
+      list_credentials,
+      verify_credential
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

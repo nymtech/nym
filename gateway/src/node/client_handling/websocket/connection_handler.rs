@@ -8,6 +8,7 @@ use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
 use coconut_interface::VerificationKey;
+use credentials::bandwidth::{Bandwidth, BandwidthDatabase};
 use crypto::asymmetric::identity;
 use futures::{
     channel::{mpsc, oneshot},
@@ -23,13 +24,10 @@ use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use nymsphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::mem;
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::sync::RwLock;
 use tokio_tungstenite::{
     tungstenite::{protocol::Message, Error as WsError},
     WebSocketStream,
@@ -63,7 +61,7 @@ pub(crate) struct Handle<R, S> {
     local_identity: Arc<identity::KeyPair>,
 
     aggregated_verification_key: VerificationKey,
-    bandwidths: Arc<RwLock<HashMap<DestinationAddressBytes, AtomicU64>>>,
+    bandwidths: BandwidthDatabase,
 }
 
 impl<R, S> Handle<R, S>
@@ -79,7 +77,7 @@ where
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
         aggregated_verification_key: VerificationKey,
-        bandwidths: Arc<RwLock<HashMap<DestinationAddressBytes, AtomicU64>>>,
+        bandwidths: BandwidthDatabase,
     ) -> Self {
         Handle {
             rng,
@@ -92,19 +90,6 @@ where
             aggregated_verification_key,
             bandwidths,
         }
-    }
-
-    async fn consume_bandwidth(&self, consumed: u64) -> bool {
-        if let Some(remote_address) = self.remote_address {
-            if let Some(bandwidth) = self.bandwidths.write().await.get_mut(&remote_address) {
-                let bandwidth_mut = bandwidth.get_mut();
-                if *bandwidth_mut >= consumed {
-                    *bandwidth_mut -= consumed;
-                    return true;
-                }
-            }
-        }
-        false
     }
 
     async fn perform_websocket_handshake(&mut self) -> Result<(), WsError>
@@ -225,7 +210,13 @@ where
                 // currently only a single type exists
                 BinaryRequest::ForwardSphinx(mix_packet) => {
                     let consumed_bandwidth = mem::size_of_val(&mix_packet) as u64;
-                    if self.consume_bandwidth(consumed_bandwidth).await {
+                    if Bandwidth::consume_bandwidth(
+                        &self.bandwidths,
+                        &self.remote_address.unwrap(),
+                        consumed_bandwidth,
+                    )
+                    .await
+                    {
                         self.outbound_mix_sender.unbounded_send(mix_packet).unwrap();
                         ServerResponse::Send { status: true }
                     } else {
@@ -391,26 +382,23 @@ where
             }
         };
         if credential.verify(&self.aggregated_verification_key) {
-            match credential.public_attributes().get(0) {
-                None => ServerResponse::new_error("Bandwidth value not found"),
-                Some(attr) => match <[u8; 8]>::try_from(attr.as_slice()) {
-                    Ok(increase_bytes) => {
-                        let increase = u64::from_be_bytes(increase_bytes);
-                        let mut db = self.bandwidths.write().await;
-                        let remote_address = self.remote_address.unwrap();
-                        if let Some(bandwidth) = db.get_mut(&remote_address) {
-                            let bandwidth_mut = bandwidth.get_mut();
-                            if let Some(new_bandwidth) = bandwidth_mut.checked_add(increase) {
-                                *bandwidth_mut = new_bandwidth;
-                            } else {
-                                return ServerResponse::new_error("Overflow on bandwidth occurs. Use some of the already allocated bandwidth before increasing it");
-                            }
-                        } else {
-                            db.insert(remote_address, AtomicU64::new(increase));
-                        }
-                        ServerResponse::Bandwidth { status: true }
+            match Bandwidth::try_from(credential) {
+                Ok(bandwidth) => {
+                    if let Err(e) = Bandwidth::increase_bandwidth(
+                        &self.bandwidths,
+                        &self.remote_address.unwrap(),
+                        bandwidth.value(),
+                    )
+                    .await
+                    {
+                        return ServerResponse::Error {
+                            message: format!("{:?}", e),
+                        };
                     }
-                    Err(_) => ServerResponse::new_error("Bandwidth value not on 8 bytes"),
+                    ServerResponse::Bandwidth { status: true }
+                }
+                Err(e) => ServerResponse::Error {
+                    message: format!("{:?}", e),
                 },
             }
         } else {

@@ -18,4 +18,13 @@ pub enum Error {
 
     #[error("Run into a validato client error - {0}")]
     ValidatorClientError(#[from] ValidatorClientError),
+
+    #[error("Not enough public attributes were specified")]
+    NotEnoughPublicAttributes,
+
+    #[error("Bandwidth is expected to be represented on 8 bytes")]
+    InvalidBandwidthSize,
+
+    #[error("Bandwidth value doesn't fit in 8 bytes. Use some of the already allocated bandwidth")]
+    BandwidthOverflow,
 }

@@ -1000,7 +1000,9 @@ name = "credentials"
 version = "0.1.0"
 dependencies = [
  "coconut-interface",
+ "nymsphinx",
  "thiserror",
+ "tokio",
  "url",
  "validator-client",
 ]

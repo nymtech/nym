@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { NymCard } from '../../components'
 import { SendWizard } from './SendWizard'
 import { Layout } from '../../layouts'

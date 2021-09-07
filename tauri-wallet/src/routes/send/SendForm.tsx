@@ -1,63 +1,56 @@
-import React, { useContext } from 'react'
+import React from 'react'
 import { Grid, InputAdornment, TextField } from '@material-ui/core'
-import { ClientContext } from '../../context/main'
+import { useFormContext } from 'react-hook-form'
 
-export const SendForm = ({
-  formData,
-  updateRecipAddress,
-  updateAmount,
-}: {
-  formData: { toAddress: string; sendAmount: string }
-  updateRecipAddress: (address: string) => void
-  updateAmount: (amount: string) => void
-}) => {
-  const { clientDetails } = useContext(ClientContext)
+export const SendForm = () => {
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext()
 
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
         <TextField
+          {...register('from')}
           required
           variant="outlined"
-          id="sender"
-          name="sender"
-          label="Sender address"
+          id="from"
+          name="from"
+          label="From"
           fullWidth
-          value={clientDetails?.client_address}
           disabled={true}
         />
       </Grid>
 
       <Grid item xs={12}>
         <TextField
+          {...register('to')}
           required
           variant="outlined"
-          id="recipient"
-          name="recipient"
-          label="Recipient address"
+          id="to"
+          name="to"
+          label="To"
           fullWidth
           autoFocus
-          value={formData.toAddress}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            updateRecipAddress(e.target.value)
-          }
+          error={!!errors.recipient}
+          helperText={errors.recipient?.message}
         />
       </Grid>
       <Grid item xs={12} sm={6}>
         <TextField
+          {...register('amount')}
           required
           variant="outlined"
           id="amount"
           name="amount"
           label="Amount"
           fullWidth
+          error={!!errors.amount}
+          helperText={errors.amount?.message}
           InputProps={{
             endAdornment: <InputAdornment position="end">punks</InputAdornment>,
           }}
-          value={formData.sendAmount}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            updateAmount(e.target.value)
-          }
         />
       </Grid>
     </Grid>

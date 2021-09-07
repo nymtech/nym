@@ -1,26 +1,20 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Card, CircularProgress, Theme, Typography } from '@material-ui/core'
 import { CheckCircleOutline } from '@material-ui/icons'
 import { useTheme } from '@material-ui/styles'
+import { SendError } from './SendError'
+import { TFormData } from './SendWizard'
 
 export const SendConfirmation = ({
-  amount,
-  recipient,
-  onFinish,
+  data,
+  error,
+  isLoading,
 }: {
-  amount: string
-  recipient: string
-  onFinish: () => void
+  data?: Pick<TFormData, 'to' | 'amount'>
+  error?: string
+  isLoading: boolean
 }) => {
   const theme: Theme = useTheme()
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    setTimeout(() => {
-      setIsLoading(false)
-      onFinish()
-    }, 3000)
-  }, [])
 
   return (
     <div
@@ -32,9 +26,9 @@ export const SendConfirmation = ({
         width: '100%',
       }}
     >
-      {isLoading ? (
-        <CircularProgress size={48} />
-      ) : (
+      {isLoading && <CircularProgress size={48} />}
+      {!isLoading && !!error && <SendError message={error} />}
+      {!isLoading && data && (
         <>
           <div
             style={{
@@ -66,7 +60,7 @@ export const SendConfirmation = ({
                 </Typography>
               </div>
               <div style={{ wordBreak: 'break-all' }}>
-                <Typography>{recipient}</Typography>
+                <Typography>{data.to}</Typography>
               </div>
             </div>
             <div style={{ display: 'flex' }}>
@@ -76,7 +70,7 @@ export const SendConfirmation = ({
                 </Typography>
               </div>
               <div>
-                <Typography>{amount + ' punks'}</Typography>
+                <Typography>{data.amount + ' punks'}</Typography>
               </div>
             </div>
           </Card>

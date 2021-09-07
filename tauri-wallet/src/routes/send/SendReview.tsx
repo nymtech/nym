@@ -1,17 +1,16 @@
+import React from 'react'
 import { Card, Divider, Grid, Theme, Typography } from '@material-ui/core'
 import { useTheme } from '@material-ui/styles'
-import React, { useContext } from 'react'
-import { ClientContext } from '../../context/main'
+import { useFormContext } from 'react-hook-form'
+import { TFormData } from './SendWizard'
 
-export const SendReview = ({
-  recipientAddress,
-  amount,
-}: {
-  recipientAddress: string
-  amount: string
-}) => {
-  const { clientDetails } = useContext(ClientContext)
+export const SendReview = () => {
+  const { getValues } = useFormContext()
+
+  const values: TFormData = getValues()
+
   const theme: Theme = useTheme()
+
   return (
     <Card
       variant="outlined"
@@ -19,22 +18,19 @@ export const SendReview = ({
     >
       <Grid container spacing={2}>
         <Grid item xs={12}>
-          <SendReviewField
-            title="From"
-            subtitle={clientDetails?.client_address!}
-          />
+          <SendReviewField title="From" subtitle={values.from} />
         </Grid>
         <Grid item xs={12}>
           <Divider light />
         </Grid>
         <Grid item xs={12}>
-          <SendReviewField title="To" subtitle={recipientAddress} />
+          <SendReviewField title="To" subtitle={values.to} />
         </Grid>
         <Grid item xs={12}>
           <Divider light />
         </Grid>
         <Grid item xs={12}>
-          <SendReviewField title="Amount" subtitle={amount} />
+          <SendReviewField title="Amount" subtitle={values.amount} />
         </Grid>
       </Grid>
     </Card>

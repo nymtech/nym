@@ -1,14 +1,11 @@
 import React, { useState } from 'react'
-import { Alert, AlertTitle } from '@material-ui/lab'
 import Head from 'next/head'
 import { ThemeProvider } from '@material-ui/core/styles'
 import CssBaseline from '@material-ui/core/CssBaseline'
 import { theme } from '../lib/theme'
 import type { AppProps } from 'next/app'
 import { ValidatorClientContext } from '../contexts/ValidatorClient'
-import { Close } from '@material-ui/icons'
-import { IconButton } from '@material-ui/core'
-
+import { AppAlert } from '../components/AppAlert'
 // TODO: should it perhaps be pulled from some config or also user provided?
 export const BONDING_CONTRACT_ADDRESS: string =
   'punk10pyejy66429refv3g35g2t7am0was7yalwrzen'
@@ -49,21 +46,6 @@ export default function Application(props: AppProps) {
       <ValidatorClientContext.Provider value={{ client, setClient }}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          {showAlert && (
-            <Alert
-              severity="info"
-              action={
-                <IconButton size="small" onClick={() => setShowAlert(false)}>
-                  <Close />
-                </IconButton>
-              }
-            >
-              <AlertTitle>Network maintenance</AlertTitle>
-              Testnet Milhon is currently down for maintenance. You may find
-              that certain features in the wallet do not work during this
-              period.
-            </Alert>
-          )}
           <Component {...pageProps} />
         </ThemeProvider>
       </ValidatorClientContext.Provider>

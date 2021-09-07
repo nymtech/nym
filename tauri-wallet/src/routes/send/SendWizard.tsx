@@ -6,10 +6,10 @@ import { useTheme } from '@material-ui/styles'
 import { SendForm } from './SendForm'
 import { SendReview } from './SendReview'
 import { SendConfirmation } from './SendConfirmation'
-import { SendError } from './SendError'
 import { ClientContext } from '../../context/main'
 import { validationSchema } from './validationSchema'
 import { invoke } from '@tauri-apps/api'
+import { TauriTxResult } from '../../types/rust/tauritxresult'
 
 const defaultValues = {
   amount: '',
@@ -28,8 +28,7 @@ export const SendWizard = () => {
   const [activeStep, setActiveStep] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [requestError, setRequestError] = useState<string>()
-  const [confirmedData, setConfirmedData] =
-    useState<{ amount: string; recipient: string }>()
+  const [confirmedData, setConfirmedData] = useState<TauriTxResult['details']>()
 
   const steps = ['Enter address', 'Review and send', 'Await confirmation']
 
@@ -50,6 +49,9 @@ export const SendWizard = () => {
 
   const handleFinish = () => {
     methods.reset()
+    setIsLoading(false)
+    setRequestError(undefined)
+    setConfirmedData(undefined)
     setActiveStep(0)
   }
 
@@ -62,13 +64,10 @@ export const SendWizard = () => {
       amount: { denom: 'punk', amount: formState.amount },
       memo: formState.memo,
     })
-      .then((res) => {
-        console.log(res)
+      .then((res: any) => {
+        const { details } = res as TauriTxResult
         setActiveStep((s) => s + 1)
-        setConfirmedData({
-          amount: formState.amount,
-          recipient: formState.to,
-        })
+        setConfirmedData(details)
 
         setIsLoading(false)
       })

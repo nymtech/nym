@@ -33,8 +33,8 @@ export const SendForm = () => {
           label="To"
           fullWidth
           autoFocus
-          error={!!errors.recipient}
-          helperText={errors.recipient?.message}
+          error={!!errors.to}
+          helperText={errors.to?.message}
         />
       </Grid>
       <Grid item xs={12} sm={6}>

@@ -41,11 +41,11 @@ export const validateAmount = async (
 }
 
 export const basicRawCoinValueValidation = (rawAmount: string): boolean => {
-  const amountFloat = parseFloat(rawAmount)
-
-  if (isNaN(amountFloat)) {
+  if (!Number(rawAmount)) {
     return false
   }
+
+  const amountFloat = parseFloat(rawAmount)
 
   // it cannot have more than 6 decimal places
   if (amountFloat !== parseInt(amountFloat.toFixed(6))) {

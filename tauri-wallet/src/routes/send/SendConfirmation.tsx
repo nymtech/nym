@@ -3,14 +3,14 @@ import { Card, CircularProgress, Theme, Typography } from '@material-ui/core'
 import { CheckCircleOutline } from '@material-ui/icons'
 import { useTheme } from '@material-ui/styles'
 import { SendError } from './SendError'
-import { TFormData } from './SendWizard'
+import { TauriTxResult } from '../../types/rust/tauritxresult'
 
 export const SendConfirmation = ({
   data,
   error,
   isLoading,
 }: {
-  data?: Pick<TFormData, 'to' | 'amount'>
+  data?: TauriTxResult['details']
   error?: string
   isLoading: boolean
 }) => {
@@ -60,7 +60,7 @@ export const SendConfirmation = ({
                 </Typography>
               </div>
               <div style={{ wordBreak: 'break-all' }}>
-                <Typography>{data.to}</Typography>
+                <Typography>{data.to_address}</Typography>
               </div>
             </div>
             <div style={{ display: 'flex' }}>
@@ -70,7 +70,7 @@ export const SendConfirmation = ({
                 </Typography>
               </div>
               <div>
-                <Typography>{data.amount + ' punks'}</Typography>
+                <Typography>{data.amount.amount + ' punks'}</Typography>
               </div>
             </div>
           </Card>

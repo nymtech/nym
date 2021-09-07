@@ -1,8 +1,8 @@
 import * as Yup from 'yup'
-import { validateAmount, validateKey } from '../../utils'
+import { validateAmount } from '../../utils'
 
 export const validationSchema = Yup.object().shape({
-  to: Yup.string().required(),
+  to: Yup.string().strict().trim('Cannot have leading space').required(),
   amount: Yup.string()
     .required()
     .test('valid-amount', 'A valid amount is required', (amount) => {

@@ -12,6 +12,7 @@ use cosmwasm_std::Coin as CosmWasmCoin;
 use error::BackendError;
 use mixnet_contract::{Gateway, MixNode};
 use serde::{Deserialize, Serialize};
+use tendermint_rpc::endpoint::broadcast::tx_commit::Response;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
@@ -77,6 +78,36 @@ impl FromStr for Denom {
     }
   }
 }
+
+#[derive(Deserialize, Serialize, TS)]
+struct TauriTxResult {
+    code: u32,
+    gas_wanted: u64,
+    gas_used: u64,
+    block_height: u64,
+    details: TransactionDetails,
+}
+
+#[derive(Deserialize, Serialize, TS)]
+struct TransactionDetails {
+  from_address: String,
+  to_address: String,
+  amount: Coin
+}
+
+
+impl TauriTxResult {
+  fn new(t: Response, details: TransactionDetails) -> TauriTxResult {
+    TauriTxResult {
+      code: t.check_tx.code.value(),
+      gas_wanted: t.check_tx.gas_wanted.value(),
+      gas_used: t.check_tx.gas_used.value(),
+      block_height: t.height.value(),
+      details
+    }
+  }
+}
+
 
 // Proxy types to allow TS generation
 #[derive(TS, Serialize, Deserialize, Clone)]
@@ -391,19 +422,23 @@ async fn send(
   amount: Coin,
   memo: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<(), String> {
+) -> Result<TauriTxResult, String> {
   let address = match AccountId::from_str(address) {
     Ok(addy) => addy,
     Err(e) => return Err(format_err!(e)),
   };
-  let amount: CosmosCoin = match amount.try_into() {
+  let cosmos_amount: CosmosCoin = match amount.clone().try_into() {
     Ok(b) => b,
     Err(e) => return Err(format_err!(e)),
   };
   let r_state = state.read().await;
   let client = r_state.client()?;
-  match client.send(&address, vec![amount], memo).await {
-    Ok(_result) => Ok(()),
+  match client.send(&address, vec![cosmos_amount], memo).await {
+    Ok(result) => Ok(TauriTxResult::new(result, TransactionDetails {
+      from_address: client.address().to_string(),
+      to_address: address.to_string(),
+      amount: amount.into()
+    })),
     Err(e) => Err(format_err!(e)),
   }
 }
@@ -475,5 +510,7 @@ export! {
   MixNode => "../src/types/rust/mixnode.ts",
   Coin => "../src/types/rust/coin.ts",
   Balance => "../src/types/rust/balance.ts",
-  Gateway => "../src/types/rust/gateway.ts"
+  Gateway => "../src/types/rust/gateway.ts",
+  TauriTxResult => "../src/types/rust/tauritxresult.ts",
+  TransactionDetails => "../src/types/rust/transactiondetails.ts"
 }

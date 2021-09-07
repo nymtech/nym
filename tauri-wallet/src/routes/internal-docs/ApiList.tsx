@@ -136,6 +136,22 @@ export const ApiList = () => {
           }}
         />
       </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "get_gas_price",
+            args: [],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "get_gas_limits",
+            args: [],
+          }}
+        />
+      </ListItem>
     </List>
   )
 }

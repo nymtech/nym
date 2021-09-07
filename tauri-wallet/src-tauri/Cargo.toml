@@ -25,6 +25,7 @@ bip39 = "1.0"
 thiserror = "1.0"
 tendermint-rpc = "0.21.0"
 ts-rs = "3.0"
+url = "2.0"
 
 cosmos_sdk = { git = "https://github.com/cosmos/cosmos-rust/", rev = "ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30", features = [
     "rpc",
@@ -38,6 +39,8 @@ validator-client = { path = "../../common/client-libs/validator-client", feature
 ] }
 mixnet-contract = { path = "../../common/mixnet-contract" }
 config = { path = "../../common/config" }
+coconut-interface = { path = "../../common/coconut-interface" }
+credentials = { path = "../../common/credentials" }
 
 [features]
 default = ["custom-protocol"]

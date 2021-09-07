@@ -6,7 +6,7 @@ import { Layout } from '../../layouts'
 export const Send = () => {
   return (
     <Layout>
-      <NymCard title="Send tokens" noPadding>
+      <NymCard title="Send PUNK" noPadding>
         <SendWizard />
       </NymCard>
     </Layout>

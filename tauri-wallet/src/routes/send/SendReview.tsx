@@ -1,20 +1,25 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { Card, Divider, Grid, Theme, Typography } from '@material-ui/core'
 import { useTheme } from '@material-ui/styles'
 import { useFormContext } from 'react-hook-form'
-import { TFormData } from './SendWizard'
+import { ClientContext } from '../../context/main'
 
 export const SendReview = () => {
+  const { gasPrice } = useContext(ClientContext)
   const { getValues } = useFormContext()
 
-  const values: TFormData = getValues()
+  const values = getValues()
 
   const theme: Theme = useTheme()
 
   return (
     <Card
       variant="outlined"
-      style={{ width: '100%', padding: theme.spacing(2) }}
+      style={{
+        width: '100%',
+        padding: theme.spacing(2),
+        margin: theme.spacing(3, 0),
+      }}
     >
       <Grid container spacing={2}>
         <Grid item xs={12}>
@@ -32,6 +37,15 @@ export const SendReview = () => {
         <Grid item xs={12}>
           <SendReviewField title="Amount" subtitle={values.amount} />
         </Grid>
+        <Grid item xs={12}>
+          <Divider light />
+        </Grid>
+        <Grid item xs={12}>
+          <SendReviewField
+            title="Transfer fee"
+            subtitle={gasPrice?.amount + ' PUNK'}
+          />
+        </Grid>
       </Grid>
     </Card>
   )
@@ -42,7 +56,7 @@ export const SendReviewField = ({
   subtitle,
 }: {
   title: string
-  subtitle: string
+  subtitle?: string
 }) => {
   const theme: Theme = useTheme()
   return (

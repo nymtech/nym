@@ -3,12 +3,12 @@ import { useForm, FormProvider } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { Button, Step, StepLabel, Stepper, Theme } from '@material-ui/core'
 import { useTheme } from '@material-ui/styles'
+import { invoke } from '@tauri-apps/api'
 import { SendForm } from './SendForm'
 import { SendReview } from './SendReview'
 import { SendConfirmation } from './SendConfirmation'
 import { ClientContext } from '../../context/main'
 import { validationSchema } from './validationSchema'
-import { invoke } from '@tauri-apps/api'
 import { TauriTxResult } from '../../types/rust/tauritxresult'
 
 const defaultValues = {

@@ -1,5 +1,6 @@
-// import PageMixnodes from './PageMixnodes';
-// import PageGateways from './PageGateways';
-// import PageOverview from './PageOverview';
+import PageGateways from './Gateways';
+import PageOverview from './Overview';
+import PageMixnodes from './Mixnodes';
+import PageMixnodesMap from './MixnodesMap';
 
-// export { PageMixnodes, PageGateways, PageOverview };
+export { PageGateways, PageMixnodes, PageMixnodesMap, PageOverview };

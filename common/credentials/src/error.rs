@@ -25,6 +25,9 @@ pub enum Error {
     #[error("Bandwidth is expected to be represented on 8 bytes")]
     InvalidBandwidthSize,
 
-    #[error("Bandwidth value doesn't fit in 8 bytes. Use some of the already allocated bandwidth")]
-    BandwidthOverflow,
+    #[error("Bandwidth operation overflowed. {0}")]
+    BandwidthOverflow(String),
+
+    #[error("There is not associated bandwidth for the given client")]
+    MissingBandwidth,
 }

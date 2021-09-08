@@ -210,17 +210,17 @@ where
                 // currently only a single type exists
                 BinaryRequest::ForwardSphinx(mix_packet) => {
                     let consumed_bandwidth = mem::size_of_val(&mix_packet) as u64;
-                    if Bandwidth::consume_bandwidth(
+                    if let Err(e) = Bandwidth::consume_bandwidth(
                         &self.bandwidths,
                         &self.remote_address.unwrap(),
                         consumed_bandwidth,
                     )
                     .await
                     {
+                        ServerResponse::new_error(format!("{:?}", e))
+                    } else {
                         self.outbound_mix_sender.unbounded_send(mix_packet).unwrap();
                         ServerResponse::Send { status: true }
-                    } else {
-                        ServerResponse::new_error("Not enough bandwidth")
                     }
                 }
             },

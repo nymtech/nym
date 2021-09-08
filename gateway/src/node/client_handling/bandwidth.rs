@@ -3,7 +3,6 @@
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -11,9 +10,13 @@ use coconut_interface::Credential;
 use credentials::error::Error;
 use nymsphinx::DestinationAddressBytes;
 
-pub type BandwidthDatabase = Arc<RwLock<HashMap<DestinationAddressBytes, AtomicU64>>>;
-
 const BANDWIDTH_INDEX: usize = 0;
+
+pub type BandwidthDatabase = Arc<RwLock<HashMap<DestinationAddressBytes, u64>>>;
+
+pub fn empty_bandwidth_database() -> BandwidthDatabase {
+    Arc::new(RwLock::new(HashMap::new()))
+}
 
 pub struct Bandwidth {
     value: u64,
@@ -28,15 +31,19 @@ impl Bandwidth {
         bandwidths: &BandwidthDatabase,
         remote_address: &DestinationAddressBytes,
         consumed: u64,
-    ) -> bool {
+    ) -> Result<(), Error> {
         if let Some(bandwidth) = bandwidths.write().await.get_mut(remote_address) {
-            let bandwidth_mut = bandwidth.get_mut();
-            if *bandwidth_mut >= consumed {
-                *bandwidth_mut -= consumed;
-                return true;
+            if let Some(res) = bandwidth.checked_sub(consumed) {
+                *bandwidth = res;
+                Ok(())
+            } else {
+                Err(Error::BandwidthOverflow(String::from(
+                    "Allocate more bandwidth for consumption",
+                )))
             }
+        } else {
+            Err(Error::MissingBandwidth)
         }
-        false
     }
 
     pub async fn increase_bandwidth(
@@ -46,14 +53,15 @@ impl Bandwidth {
     ) -> Result<(), Error> {
         let mut db = bandwidths.write().await;
         if let Some(bandwidth) = db.get_mut(remote_address) {
-            let bandwidth_mut = bandwidth.get_mut();
-            if let Some(new_bandwidth) = bandwidth_mut.checked_add(increase) {
-                *bandwidth_mut = new_bandwidth;
+            if let Some(new_bandwidth) = bandwidth.checked_add(increase) {
+                *bandwidth = new_bandwidth;
             } else {
-                return Err(Error::BandwidthOverflow);
+                return Err(Error::BandwidthOverflow(String::from(
+                    "Use some of the already allocated bandwidth",
+                )));
             }
         } else {
-            db.insert(*remote_address, AtomicU64::new(increase));
+            db.insert(*remote_address, increase);
         }
         Ok(())
     }

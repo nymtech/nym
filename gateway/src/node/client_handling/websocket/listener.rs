@@ -1,19 +1,17 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::client_handling::bandwidth::empty_bandwidth_database;
 use crate::node::client_handling::clients_handler::ClientsHandlerRequestSender;
 use crate::node::client_handling::websocket::connection_handler::Handle;
 use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
-use nymsphinx::DestinationAddressBytes;
 use rand::rngs::OsRng;
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::process;
-use std::sync::{atomic::AtomicU64, Arc};
-use tokio::sync::RwLock;
+use std::sync::Arc;
 use tokio::task::JoinHandle;
 
 pub(crate) struct Listener {
@@ -49,8 +47,7 @@ impl Listener {
             }
         };
 
-        let bandwidths: Arc<RwLock<HashMap<DestinationAddressBytes, AtomicU64>>> =
-            Arc::new(RwLock::new(HashMap::new()));
+        let bandwidths = empty_bandwidth_database();
 
         loop {
             match tcp_listener.accept().await {

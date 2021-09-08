@@ -31,6 +31,7 @@ pub mod helpers {
         let key = format!("{}mixnode", sender);
         try_add_mixnode(
             deps.as_mut(),
+            mock_env(),
             info,
             MixNode {
                 identity_key: key.clone(),
@@ -67,6 +68,7 @@ pub mod helpers {
         let key = format!("{}gateway", sender);
         try_add_gateway(
             deps.as_mut(),
+            mock_env(),
             info,
             Gateway {
                 identity_key: key.clone(),
@@ -129,6 +131,7 @@ pub mod helpers {
             coin(50, DENOM),
             Addr::unchecked("foo"),
             Layer::One,
+            12_345,
             mix_node,
         )
     }
@@ -156,7 +159,7 @@ pub mod helpers {
             identity_key: "identity".to_string(),
             version: "0.10.0".to_string(),
         };
-        GatewayBond::new(coin(50, DENOM), Addr::unchecked("foo"), gateway)
+        GatewayBond::new(coin(50, DENOM), Addr::unchecked("foo"), 12_345, gateway)
     }
 
     pub fn raw_delegation_fixture(amount: u128) -> RawDelegationData {

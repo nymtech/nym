@@ -94,18 +94,22 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::BondMixnode { mix_node } => transactions::try_add_mixnode(deps, info, mix_node),
+        ExecuteMsg::BondMixnode { mix_node } => {
+            transactions::try_add_mixnode(deps, env, info, mix_node)
+        }
         ExecuteMsg::UnbondMixnode {} => transactions::try_remove_mixnode(deps, info),
-        ExecuteMsg::BondGateway { gateway } => transactions::try_add_gateway(deps, info, gateway),
+        ExecuteMsg::BondGateway { gateway } => {
+            transactions::try_add_gateway(deps, env, info, gateway)
+        }
         ExecuteMsg::UnbondGateway {} => transactions::try_remove_gateway(deps, info),
         ExecuteMsg::UpdateStateParams(params) => {
             transactions::try_update_state_params(deps, info, params)
         }
         ExecuteMsg::RewardMixnode { identity, uptime } => {
-            transactions::try_reward_mixnode(deps, info, identity, uptime)
+            transactions::try_reward_mixnode(deps, env, info, identity, uptime)
         }
         ExecuteMsg::RewardGateway { identity, uptime } => {
-            transactions::try_reward_gateway(deps, info, identity, uptime)
+            transactions::try_reward_gateway(deps, env, info, identity, uptime)
         }
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
@@ -201,7 +205,33 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    use crate::storage::{gateways, gateways_read, mixnodes, mixnodes_read};
+    use cosmwasm_std::{Order, StdResult};
+    use mixnet_contract::CURRENT_BLOCK_HEIGHT;
+    use mixnet_contract::{GatewayBond, MixNodeBond};
+    use std::sync::atomic::Ordering;
+
+    CURRENT_BLOCK_HEIGHT.store(env.block.height, Ordering::Relaxed);
+
+    let bonds = mixnodes_read(deps.storage)
+        .range(None, None, Order::Ascending)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<MixNodeBond>>>()?;
+
+    for bond in bonds {
+        mixnodes(deps.storage).save(bond.identity().as_bytes(), &bond)?;
+    }
+
+    let bonds = gateways_read(deps.storage)
+        .range(None, None, Order::Ascending)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<GatewayBond>>>()?;
+
+    for bond in bonds {
+        gateways(deps.storage).save(bond.identity().as_bytes(), &bond)?;
+    }
+
     Ok(Default::default())
 }
 

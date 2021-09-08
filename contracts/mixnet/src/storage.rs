@@ -195,7 +195,8 @@ pub(crate) fn increase_mix_delegated_stakes(
         );
 
         // and for each of them increase the stake proportionally to the reward
-        // if they have delegated for long enough
+        // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
+        // since they delegated
         for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
             if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= reward_blockstamp {
                 let reward = delegation.amount * scaled_reward_rate;
@@ -243,7 +244,8 @@ pub(crate) fn increase_gateway_delegated_stakes(
         );
 
         // and for each of them increase the stake proportionally to the reward
-        // if they have delegated for long enough
+        // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
+        // since they delegated
         for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
             if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= reward_blockstamp {
                 let reward = delegation.amount * scaled_reward_rate;

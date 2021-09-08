@@ -5,6 +5,12 @@ import {
   Switch,
   NavLink,
 } from 'react-router-dom';
+import {
+  PageOverview,
+  PageMixnodes,
+  PageMixnodesMap,
+  PageGateways,
+} from 'src/pages';
 
 export const Routes: React.FC = () => (
   <Router>
@@ -16,16 +22,16 @@ export const Routes: React.FC = () => (
     </div>
     <Switch>
       <Route exact path="/">
-        <h1>OVERVIEW</h1>
+        <PageOverview />
       </Route>
       <Route exact path="/mixnodes">
-        <h1>MIX-NODES</h1>
+        <PageMixnodes />
       </Route>
       <Route path="/mixnodes/map">
-        <h1>THE MIX-NODES MAP</h1>
+        <PageMixnodesMap />
       </Route>
       <Route path="/gateways">
-        <h1>GATEWAYS</h1>
+        <PageGateways />
       </Route>
     </Switch>
   </Router>

@@ -1,17 +1,23 @@
 import * as React from 'react';
-import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Route,
+  Switch,
+  Link,
+  NavLink,
+} from 'react-router-dom';
 
 export const Routes: React.FC = () => (
   <Router>
     <Switch>
-      <Route path="/">
-        <div>Home</div>
+      <Route exact path="/">
+        <h1>OVERVIEW</h1>
       </Route>
       <Route path="/mixnodes">
-        <div>Mixnodes</div>
+        <h1>MIX NODES</h1>
       </Route>
       <Route path="/gateways">
-        <div>Gateways</div>
+        <h1>GATEWAYS</h1>
       </Route>
     </Switch>
   </Router>

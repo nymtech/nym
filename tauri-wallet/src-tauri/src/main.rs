@@ -437,7 +437,7 @@ async fn send(
     Ok(result) => Ok(TauriTxResult::new(result, TransactionDetails {
       from_address: client.address().to_string(),
       to_address: address.to_string(),
-      amount: amount.into()
+      amount
     })),
     Err(e) => Err(format_err!(e)),
   }

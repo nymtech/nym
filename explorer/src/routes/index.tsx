@@ -7,6 +7,12 @@ export const Routes: React.FC = () => (
       <Route path="/">
         <div>Home</div>
       </Route>
+      <Route path="/mixnodes">
+        <div>Mixnodes</div>
+      </Route>
+      <Route path="/gateways">
+        <div>Gateways</div>
+      </Route>
     </Switch>
   </Router>
 );

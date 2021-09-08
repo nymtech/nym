@@ -290,7 +290,7 @@ mod tests {
         good_gateway_bond, good_mixnode_bond, raw_delegation_fixture,
     };
     use crate::transactions;
-    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Addr, Storage};
     use mixnet_contract::{Gateway, MixNode, RawDelegationData};
 
@@ -546,8 +546,13 @@ mod tests {
             identity_key: "bobsnode".into(),
             ..helpers::mix_node_fixture()
         };
-        transactions::try_add_mixnode(deps.as_mut(), mock_info("bob", &good_mixnode_bond()), node)
-            .unwrap();
+        transactions::try_add_mixnode(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("bob", &good_mixnode_bond()),
+            node,
+        )
+        .unwrap();
 
         let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(!res.has_node);
@@ -557,8 +562,13 @@ mod tests {
             identity_key: "fredsnode".into(),
             ..helpers::mix_node_fixture()
         };
-        transactions::try_add_mixnode(deps.as_mut(), mock_info("fred", &good_mixnode_bond()), node)
-            .unwrap();
+        transactions::try_add_mixnode(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("fred", &good_mixnode_bond()),
+            node,
+        )
+        .unwrap();
 
         let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(res.has_node);
@@ -583,8 +593,13 @@ mod tests {
             identity_key: "bobsnode".into(),
             ..helpers::gateway_fixture()
         };
-        transactions::try_add_gateway(deps.as_mut(), mock_info("bob", &good_gateway_bond()), node)
-            .unwrap();
+        transactions::try_add_gateway(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("bob", &good_gateway_bond()),
+            node,
+        )
+        .unwrap();
 
         let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(!res.has_gateway);
@@ -594,8 +609,13 @@ mod tests {
             identity_key: "fredsnode".into(),
             ..helpers::gateway_fixture()
         };
-        transactions::try_add_gateway(deps.as_mut(), mock_info("fred", &good_gateway_bond()), node)
-            .unwrap();
+        transactions::try_add_gateway(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("fred", &good_gateway_bond()),
+            node,
+        )
+        .unwrap();
 
         let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(res.has_gateway);

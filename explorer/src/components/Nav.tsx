@@ -7,12 +7,27 @@ import { makeStyles, ClassNameMap } from '@material-ui/styles';
 const useStyles = makeStyles((theme: Theme) => ({
   navBar: {
     backgroundColor: '#242C3D',
+    marginTop: 60,
     height: '100vh',
-    padding: 24,
-    width: 110,
+    width: 80,
     transition: '0.2s ease-in-out',
     display: 'flex',
     flexDirection: 'column',
+  },
+  hamburgerIcon: {
+    color: '#5C616D',
+  },
+  navListItem: {
+    borderTop: 0.4,
+    height: '72px',
+    // borderStyle: 'solid !important',
+    // borderWidth: '0.1px !important',
+    // borderColor: 'rgba(255, 255, 255, 0.2) !important',
+    // borderLeft: 'none !important',
+    padding: '24px !important',
+  },
+  activeListItem: {
+    backgroundColor: '#111826 !important',
   },
   navItem: {
     color: '#fff',
@@ -70,31 +85,50 @@ export default function Nav(): ReactElement {
     <>
       <div
         className={classes.navBar}
-        style={sidebar ? { width: 290 } : { width: 110 }}
+        style={sidebar ? { width: 290 } : { width: 80 }}
       >
         <List>
-          <ListItem button onClick={showSidebar} style={{ height: 72 }}>
+          <ListItem
+            button
+            className={classes.navListItem}
+            onClick={showSidebar}
+            style={{ height: 72 }}
+          >
             <ListItemIcon>
-              {sidebar ? <Close /> : <Menu style={{ color: '#5C616D' }} />}
+              {sidebar ? (
+                <Close className={classes.hamburgerIcon} />
+              ) : (
+                <Menu className={classes.hamburgerIcon} />
+              )}
             </ListItemIcon>
           </ListItem>
-          {routesSchema.map(({ route, Icon, label }) => (
-            <ListItem button component={Link} to={route} style={{ height: 72 }}>
-              <ListItemIcon>{Icon}</ListItemIcon>
-              {sidebar && (
-                <p
-                  className={classes.navItem}
-                  style={
-                    location.pathname === route
-                      ? { color: 'orange' }
-                      : { color: '#F2F2F2' }
-                  }
+          {routesSchema.map(({ route, Icon, label }) => {
+            const isSelected: boolean = location.pathname === route;
+            return (
+              <React.Fragment key={route}>
+                <ListItem
+                  key={route}
+                  button
+                  component={Link}
+                  to={route}
+                  className={`${classes.navListItem} ${
+                    isSelected && classes.activeListItem
+                  }`}
                 >
-                  {label}
-                </p>
-              )}
-            </ListItem>
-          ))}
+                  <ListItemIcon>{Icon}</ListItemIcon>
+                  {sidebar && (
+                    <p
+                      className={`${classes.navItem} ${
+                        isSelected && classes.selected
+                      }`}
+                    >
+                      {label}
+                    </p>
+                  )}
+                </ListItem>
+              </React.Fragment>
+            );
+          })}
         </List>
       </div>
     </>

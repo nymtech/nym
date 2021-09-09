@@ -62,7 +62,7 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "unbond_mixnode",
+            name: 'unbond_mixnode',
             args: [],
           }}
         />
@@ -70,10 +70,10 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "bond_gateway",
+            name: 'bond_gateway',
             args: [
-              { name: "gateway", type: "object" },
-              { name: "bond", type: "object" },
+              { name: 'gateway', type: 'object' },
+              { name: 'bond', type: 'object' },
             ],
           }}
         />
@@ -81,7 +81,7 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "unbond_gateway",
+            name: 'unbond_gateway',
             args: [],
           }}
         />
@@ -89,10 +89,10 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "delegate_to_mixnode",
+            name: 'delegate_to_mixnode',
             args: [
-              { name: "identity", type: "str" },
-              { name: "amount", type: "object" },
+              { name: 'identity', type: 'str' },
+              { name: 'amount', type: 'object' },
             ],
           }}
         />
@@ -100,18 +100,18 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "undelegate_from_mixnode",
-            args: [{ name: "identity", type: "str" }],
+            name: 'undelegate_from_mixnode',
+            args: [{ name: 'identity', type: 'str' }],
           }}
         />
       </ListItem>
       <ListItem>
         <DocEntry
           function={{
-            name: "delegate_to_gateway",
+            name: 'delegate_to_gateway',
             args: [
-              { name: "identity", type: "str" },
-              { name: "amount", type: "object" },
+              { name: 'identity', type: 'str' },
+              { name: 'amount', type: 'object' },
             ],
           }}
         />
@@ -119,19 +119,19 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "undelegate_from_gateway",
-            args: [{ name: "identity", type: "str" }],
+            name: 'undelegate_from_gateway',
+            args: [{ name: 'identity', type: 'str' }],
           }}
         />
       </ListItem>
       <ListItem>
         <DocEntry
           function={{
-            name: "send",
+            name: 'send',
             args: [
-              { name: "address", type: "str" },
-              { name: "amount", type: "object" },
-              { name: "memo", type: "str" },
+              { name: 'address', type: 'str' },
+              { name: 'amount', type: 'object' },
+              { name: 'memo', type: 'str' },
             ],
           }}
         />
@@ -139,7 +139,15 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "get_gas_price",
+            name: 'get_fee',
+            args: [{ name: 'operation', type: 'str' }],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: 'create_new_account',
             args: [],
           }}
         />
@@ -147,8 +155,8 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "get_gas_limits",
-            args: [],
+            name: 'connect_with_mnemonic',
+            args: [{ name: 'mnemonic', type: 'str' }],
           }}
         />
       </ListItem>

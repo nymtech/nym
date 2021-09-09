@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::client_handling::bandwidth::empty_bandwidth_database;
 use crate::node::client_handling::clients_handler::ClientsHandlerRequestSender;
 use crate::node::client_handling::websocket::connection_handler::Handle;
 use coconut_interface::VerificationKey;
@@ -46,6 +47,8 @@ impl Listener {
             }
         };
 
+        let bandwidths = empty_bandwidth_database();
+
         loop {
             match tcp_listener.accept().await {
                 Ok((socket, remote_addr)) => {
@@ -59,6 +62,7 @@ impl Listener {
                         outbound_mix_sender.clone(),
                         Arc::clone(&self.local_identity),
                         self.aggregated_verification_key.clone(),
+                        Arc::clone(&bandwidths),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }

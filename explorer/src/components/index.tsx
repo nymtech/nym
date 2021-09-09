@@ -1,3 +1,2 @@
-import WorldMap from './WorldMap';
-
-export { WorldMap };
+export * from './Nav';
+export * from './WorldMap';

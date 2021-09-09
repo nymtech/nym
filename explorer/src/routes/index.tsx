@@ -3,8 +3,10 @@ import {
   BrowserRouter as Router,
   Route,
   Switch,
-  NavLink,
+  // NavLink,
 } from 'react-router-dom';
+import Nav from 'src/components/Nav';
+
 import {
   PageOverview,
   PageMixnodes,
@@ -14,24 +16,22 @@ import {
 
 export const Routes: React.FC = () => (
   <Router>
-    <div style={{ display: 'flex', flexDirection: 'column', margin: 30 }}>
-      <NavLink to="/">Overview</NavLink>
-      <NavLink to="/mixnodes">Mix Nodes</NavLink>
-      <NavLink to="/mixnodes/map">Mix Nodes MAP</NavLink>
-      <NavLink to="/gateways">Gateways</NavLink>
+    <div style={{ height: 72, width: '100vw', backgroundColor: '#070B15' }}>
+      top menu
     </div>
+    <Nav />
     <Switch>
       <Route exact path="/">
         <PageOverview />
       </Route>
-      <Route exact path="/mixnodes">
+      <Route exact path="/overview">
+        <PageOverview />
+      </Route>
+      <Route exact path="/network-components">
         <PageMixnodes />
       </Route>
-      <Route path="/mixnodes/map">
+      <Route path="/nodemap">
         <PageMixnodesMap />
-      </Route>
-      <Route path="/gateways">
-        <PageGateways />
       </Route>
     </Switch>
   </Router>

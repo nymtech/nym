@@ -1,6 +1,6 @@
-import { invoke } from '@tauri-apps/api'
-import React, { createContext, useCallback, useEffect, useState } from 'react'
+import React, { createContext, useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
+import { invoke } from '@tauri-apps/api'
 import { Coin, TClientDetails } from '../types'
 
 type TClientContext = {
@@ -23,7 +23,7 @@ export const ClientContextProvider = ({
   const history = useHistory()
 
   useEffect(() => {
-    !clientDetails ? history.push('/signin') : history.push('/bond')
+    !clientDetails ? history.push('/signin') : history.push('/balance')
   }, [clientDetails])
 
   const logIn = async (clientDetails: TClientDetails) => {

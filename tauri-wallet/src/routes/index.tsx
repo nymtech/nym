@@ -13,7 +13,7 @@ import { InternalDocs } from './internal-docs'
 
 export const Routes = () => (
   <Switch>
-    <Route path="/signin" exact>
+    <Route path="/signin">
       <SignIn />
     </Route>
     <Route path="/balance">

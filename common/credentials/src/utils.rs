@@ -3,9 +3,9 @@
 
 use crate::error::Error;
 use coconut_interface::{
-    aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign, prove_credential,
-    Attribute, BlindSignRequestBody, Credential, Parameters, Signature, SignatureShare,
-    VerificationKey,
+    aggregate_signature_shares, aggregate_verification_keys, hash_to_scalar, prepare_blind_sign,
+    prove_credential, Attribute, BlindSignRequestBody, Credential, Parameters, Signature,
+    SignatureShare, VerificationKey,
 };
 use url::Url;
 
@@ -118,12 +118,16 @@ pub async fn obtain_aggregate_signature(
 // TODO: better type flow
 pub fn prepare_credential_for_spending(
     params: &Parameters,
-    public_attributes: &[Attribute],
-    private_attributes: &[Attribute],
+    public_attributes: Vec<Vec<u8>>,
+    private_attributes: Vec<Vec<u8>>,
     signature: &Signature,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
-    let theta = prove_credential(params, verification_key, signature, private_attributes)?;
+    let private_attributes = private_attributes
+        .iter()
+        .map(hash_to_scalar)
+        .collect::<Vec<Attribute>>();
+    let theta = prove_credential(params, verification_key, signature, &private_attributes)?;
 
     Ok(Credential::new(
         (public_attributes.len() + private_attributes.len()) as u32,

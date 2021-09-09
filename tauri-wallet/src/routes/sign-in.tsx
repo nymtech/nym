@@ -1,5 +1,4 @@
 import React, { useContext, useState } from 'react'
-import { useHistory } from 'react-router-dom'
 import {
   TextField,
   CircularProgress,
@@ -15,8 +14,10 @@ import { useTheme } from '@material-ui/styles'
 import { ArrowBack } from '@material-ui/icons'
 import { invoke } from '@tauri-apps/api'
 import logo from '../images/logo-background.svg'
+import logo_alt from '../images/logo.png'
 import { ClientContext } from '../context/main'
 import { TClientDetails } from '../types/global'
+import { theme } from '../theme'
 
 export const SignIn = () => {
   const theme: Theme = useTheme()
@@ -98,86 +99,81 @@ const SignInContent = ({
   }
 
   return (
-    <Card
-      style={{
-        width: 600,
-        padding: theme.spacing(6, 10),
-        borderRadius: theme.shape.borderRadius,
-      }}
-    >
-      <Typography variant="h4">Sign in</Typography>
-      <form noValidate onSubmit={handleSignIn}>
-        <Grid container direction="column" spacing={1}>
-          <Grid item>
-            <TextField
-              value={mnemonic}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setMnemonic(e.target.value)
-              }
-              size="medium"
-              variant="outlined"
-              margin="normal"
-              required
-              fullWidth
-              id="mnemonic"
-              label="BIP-39 Mnemonic"
-              name="mnemonic"
-              autoComplete="mnemonic"
-              autoFocus
-              disabled={isLoading}
-            />
-          </Grid>
-          <Grid item>
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={isLoading}
-              endIcon={isLoading && <CircularProgress size={20} />}
-              disableElevation
-            >
-              {!isLoading ? 'Sign In' : 'Signing in'}
-            </Button>
-          </Grid>
-          {inputError && (
-            <Grid item style={{ marginTop: theme.spacing(1) }}>
-              <Alert severity="error">{inputError}</Alert>
+    <SignInCard>
+      <>
+        <Typography variant="h4">Sign in</Typography>
+        <form noValidate onSubmit={handleSignIn}>
+          <Grid container direction="column" spacing={1}>
+            <Grid item>
+              <TextField
+                style={{ background: 'white' }}
+                value={mnemonic}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setMnemonic(e.target.value)
+                }
+                size="medium"
+                variant="outlined"
+                margin="normal"
+                required
+                fullWidth
+                id="mnemonic"
+                label="BIP-39 Mnemonic"
+                name="mnemonic"
+                autoComplete="mnemonic"
+                autoFocus
+                disabled={isLoading}
+              />
             </Grid>
-          )}
-          <Grid item style={{ marginTop: theme.spacing(1) }}>
-            <Typography variant="body2" component="span">
-              Don't have an account?
-            </Typography>{' '}
-            <Link href="#" onClick={showCreateAccount}>
-              Create one
-            </Link>
+            <Grid item>
+              <Button
+                fullWidth
+                variant="contained"
+                color="primary"
+                type="submit"
+                disabled={isLoading}
+                endIcon={isLoading && <CircularProgress size={20} />}
+                disableElevation
+              >
+                {!isLoading ? 'Sign In' : 'Signing in'}
+              </Button>
+            </Grid>
+            {inputError && (
+              <Grid item style={{ marginTop: theme.spacing(1) }}>
+                <Alert severity="error">{inputError}</Alert>
+              </Grid>
+            )}
+            <Grid item style={{ marginTop: theme.spacing(1) }}>
+              <Typography variant="body2" component="span">
+                Don't have an account?
+              </Typography>{' '}
+              <Link href="#" onClick={showCreateAccount}>
+                Create one
+              </Link>
+            </Grid>
           </Grid>
-        </Grid>
-      </form>
-    </Card>
+        </form>
+      </>
+    </SignInCard>
   )
 }
 
 const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
-  const theme: Theme = useTheme()
   return (
-    <>
-      <Card
-        style={{
-          width: 600,
-          padding: theme.spacing(6, 10),
-          borderRadius: theme.shape.borderRadius,
-        }}
-      >
-        <img src={logo} />
-        <Typography variant="h4">Create wallet</Typography>
-        <Grid container direction="column" spacing={1}>
+    <SignInCard>
+      <>
+        <Grid
+          container
+          direction="column"
+          justifyContent="space-between"
+          style={{ height: '100%' }}
+        >
           <Grid item>
+            <Typography variant="h4">Create wallet</Typography>
             <Typography color="textSecondary">
               Create an new wallet to start using the Nym network
             </Typography>
           </Grid>
+
           <Grid item>
             <Button
               fullWidth
@@ -185,11 +181,10 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
               color="primary"
               type="submit"
               disableElevation
+              style={{ marginBottom: theme.spacing(1) }}
             >
               Create
             </Button>
-          </Grid>
-          <Grid item>
             <Button
               fullWidth
               variant="text"
@@ -200,6 +195,36 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
             </Button>
           </Grid>
         </Grid>
+      </>
+    </SignInCard>
+  )
+}
+
+const SignInCard: React.FC = ({ children }) => {
+  const theme: Theme = useTheme()
+  return (
+    <>
+      <Card
+        style={{
+          width: 600,
+          padding: theme.spacing(6, 10),
+          borderRadius: theme.shape.borderRadius,
+          position: 'relative',
+          height: 300,
+        }}
+      >
+        <img
+          src={logo_alt}
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: '-17.5%',
+            height: 300,
+            filter: 'grayscale(100%)',
+            opacity: 0.1,
+          }}
+        />
+        {children}
       </Card>
     </>
   )

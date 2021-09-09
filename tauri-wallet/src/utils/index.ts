@@ -1,6 +1,6 @@
+import { invoke } from '@tauri-apps/api'
 import bs58 from 'bs58'
 import { minor, valid } from 'semver'
-import { invoke } from '@tauri-apps/api'
 import { Coin } from '../types'
 
 export const validateKey = (key: string): boolean => {
@@ -90,3 +90,13 @@ export const validateRawPort = (rawPort: number): boolean =>
 
 export const truncate = (text: string, trim: number) =>
   text.substring(0, trim) + '...'
+
+// export const getDisplaySendGasFee = async (): Promise<string> => {
+//   const nymGasFee: any = await invoke('get_gas_price')
+//   const nymGasLimit: any = await invoke('get_gas_limits')
+
+//   const table = buildFeeTable(nymGasFee, nymGasLimit, nymGasLimit)
+
+//   console.log({ nymGasFee, nymGasLimit })
+//   return 'coin'
+// }

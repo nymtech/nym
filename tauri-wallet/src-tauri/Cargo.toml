@@ -1,7 +1,7 @@
 [package]
 name = "nym_wallet"
 version = "0.1.0"
-description = "A Tauri App"
+description = "Nym Native Wallet"
 authors = ["you"]
 license = ""
 repository = ""
@@ -26,6 +26,7 @@ thiserror = "1.0"
 tendermint-rpc = "0.21.0"
 ts-rs = "3.0"
 url = "2.0"
+rand = "0.6.5"
 
 cosmos_sdk = { git = "https://github.com/cosmos/cosmos-rust/", rev = "ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30", features = [
     "rpc",

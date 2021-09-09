@@ -4,7 +4,7 @@
 )]
 
 use ::config::defaults::DENOM;
-use bip39::Mnemonic;
+use bip39::{Language, Mnemonic};
 use cosmos_sdk::Coin as CosmosCoin;
 use cosmos_sdk::Denom as CosmosDenom;
 use cosmos_sdk::{AccountId, Decimal};
@@ -12,14 +12,15 @@ use cosmwasm_std::Coin as CosmWasmCoin;
 use error::BackendError;
 use mixnet_contract::{Gateway, MixNode};
 use serde::{Deserialize, Serialize};
-use tendermint_rpc::endpoint::broadcast::tx_commit::Response;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
+use tendermint_rpc::endpoint::broadcast::tx_commit::Response;
 use tokio::sync::RwLock;
 use ts_rs::{export, TS};
+use validator_client::nymd::fee_helpers::default_gas_limits;
 use validator_client::nymd::GasPrice;
 use validator_client::nymd::{NymdClient, SigningNymdClient};
 
@@ -81,20 +82,19 @@ impl FromStr for Denom {
 
 #[derive(Deserialize, Serialize, TS)]
 struct TauriTxResult {
-    code: u32,
-    gas_wanted: u64,
-    gas_used: u64,
-    block_height: u64,
-    details: TransactionDetails,
+  code: u32,
+  gas_wanted: u64,
+  gas_used: u64,
+  block_height: u64,
+  details: TransactionDetails,
 }
 
 #[derive(Deserialize, Serialize, TS)]
 struct TransactionDetails {
   from_address: String,
   to_address: String,
-  amount: Coin
+  amount: Coin,
 }
-
 
 impl TauriTxResult {
   fn new(t: Response, details: TransactionDetails) -> TauriTxResult {
@@ -103,11 +103,10 @@ impl TauriTxResult {
       gas_wanted: t.check_tx.gas_wanted.value(),
       gas_used: t.check_tx.gas_used.value(),
       block_height: t.height.value(),
-      details
+      details,
     }
   }
 }
-
 
 // Proxy types to allow TS generation
 #[derive(TS, Serialize, Deserialize, Clone)]
@@ -434,11 +433,14 @@ async fn send(
   let r_state = state.read().await;
   let client = r_state.client()?;
   match client.send(&address, vec![cosmos_amount], memo).await {
-    Ok(result) => Ok(TauriTxResult::new(result, TransactionDetails {
-      from_address: client.address().to_string(),
-      to_address: address.to_string(),
-      amount
-    })),
+    Ok(result) => Ok(TauriTxResult::new(
+      result,
+      TransactionDetails {
+        from_address: client.address().to_string(),
+        to_address: address.to_string(),
+        amount,
+      },
+    )),
     Err(e) => Err(format_err!(e)),
   }
 }
@@ -452,16 +454,20 @@ async fn get_gas_price(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<Co
 }
 
 #[tauri::command]
-async fn get_gas_limits(
-  state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<HashMap<String, u64>, String> {
-  let r_state = state.read().await;
-  let client = r_state.client()?;
+async fn get_gas_limits() -> HashMap<String, u64> {
   let mut limits = HashMap::new();
-  for (k, v) in client.get_custom_gas_limits() {
+  for (k, v) in default_gas_limits() {
     limits.insert(k.to_string(), v.value());
   }
-  Ok(limits)
+  limits
+}
+
+#[tauri::command]
+async fn random_mnemonic() -> String {
+  let mut rng = rand::thread_rng();
+  Mnemonic::generate_in_with(&mut rng, Language::English, 24)
+    .unwrap()
+    .to_string()
 }
 
 fn _connect_with_mnemonic(mnemonic: Mnemonic, config: &Config) -> NymdClient<SigningNymdClient> {
@@ -500,7 +506,8 @@ fn main() {
       randomise_credential,
       delete_credential,
       list_credentials,
-      verify_credential
+      verify_credential,
+      random_mnemonic
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

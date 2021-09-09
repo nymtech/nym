@@ -6,6 +6,7 @@ use cosmos_sdk::tx::{Fee, Gas};
 use cosmos_sdk::Coin;
 use cosmwasm_std::Uint128;
 use std::fmt;
+use std::collections::HashMap;
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum Operation {
@@ -40,28 +41,28 @@ pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
 
 impl fmt::Display for Operation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      match *self {
-        Operation::Upload => f.write_str("Upload"),
-        Operation::Init => f.write_str("Init"),
-        Operation::Migrate => f.write_str("Migrate"),
-        Operation::ChangeAdmin => f.write_str("ChangeAdmin"),
-        Operation::Send => f.write_str("Send"),
-        Operation::BondMixnode => f.write_str("BondMixnode"),
-        Operation::UnbondMixnode => f.write_str("UnbondMixnode"),
-        Operation::DelegateToMixnode => f.write_str("DelegateToMixnode"),
-        Operation::UndelegateFromMixnode => f.write_str("UndelegateFromMixnode"),
-        Operation::BondGateway => f.write_str("BondGateway"),
-        Operation::UnbondGateway => f.write_str("UnbondGateway"),
-        Operation::DelegateToGateway => f.write_str("DelegateToGateway"),
-        Operation::UndelegateFromGateway => f.write_str("UndelegateFromGateway"),
-        Operation::UpdateStateParams => f.write_str("UpdateStateParams"),
-      }
+        match *self {
+            Operation::Upload => f.write_str("Upload"),
+            Operation::Init => f.write_str("Init"),
+            Operation::Migrate => f.write_str("Migrate"),
+            Operation::ChangeAdmin => f.write_str("ChangeAdmin"),
+            Operation::Send => f.write_str("Send"),
+            Operation::BondMixnode => f.write_str("BondMixnode"),
+            Operation::UnbondMixnode => f.write_str("UnbondMixnode"),
+            Operation::DelegateToMixnode => f.write_str("DelegateToMixnode"),
+            Operation::UndelegateFromMixnode => f.write_str("UndelegateFromMixnode"),
+            Operation::BondGateway => f.write_str("BondGateway"),
+            Operation::UnbondGateway => f.write_str("UnbondGateway"),
+            Operation::DelegateToGateway => f.write_str("DelegateToGateway"),
+            Operation::UndelegateFromGateway => f.write_str("UndelegateFromGateway"),
+            Operation::UpdateStateParams => f.write_str("UpdateStateParams"),
+        }
     }
-  }
+}
 
 impl Operation {
     // TODO: some value tweaking
-    pub(crate) fn default_gas_limit(&self) -> Gas {
+    pub fn default_gas_limit(&self) -> Gas {
         match self {
             Operation::Upload => 2_500_000u64.into(),
             Operation::Init => 500_000u64.into(),
@@ -93,6 +94,25 @@ impl Operation {
         let fee = calculate_fee(gas_price, gas_limit);
         Fee::from_amount_and_gas(fee, gas_limit)
     }
+}
+
+pub fn default_gas_limits() -> HashMap<Operation, Gas> {
+    let mut limits = HashMap::new();
+    limits.insert(Operation::Upload, 2_500_000u64.into());
+    limits.insert(Operation::Init, 500_000u64.into());
+    limits.insert(Operation::Migrate, 200_000u64.into());
+    limits.insert(Operation::ChangeAdmin, 80_000u64.into());
+    limits.insert(Operation::Send, 80_000u64.into());
+    limits.insert(Operation::BondMixnode, 175_000u64.into());
+    limits.insert(Operation::UnbondMixnode, 175_000u64.into());
+    limits.insert(Operation::DelegateToMixnode, 175_000u64.into());
+    limits.insert(Operation::UndelegateFromMixnode, 175_000u64.into());
+    limits.insert(Operation::BondGateway, 175_000u64.into());
+    limits.insert(Operation::UnbondGateway, 175_000u64.into());
+    limits.insert(Operation::DelegateToGateway, 175_000u64.into());
+    limits.insert(Operation::UndelegateFromGateway, 175_000u64.into());
+    limits.insert(Operation::UpdateStateParams, 175_000u64.into());
+    limits
 }
 
 #[cfg(test)]

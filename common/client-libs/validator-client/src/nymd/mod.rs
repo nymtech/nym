@@ -151,7 +151,7 @@ impl<C> NymdClient<C> {
         &self.client_address.as_ref().unwrap()[0]
     }
 
-    fn get_fee(&self, operation: Operation) -> Fee {
+    pub fn get_fee(&self, operation: Operation) -> Fee {
         let gas_limit = self.custom_gas_limits.get(&operation).cloned();
         operation.determine_fee(&self.gas_price, gas_limit)
     }

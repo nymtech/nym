@@ -6,9 +6,10 @@ use cosmos_sdk::tx::{Fee, Gas};
 use cosmos_sdk::Coin;
 use cosmwasm_std::Uint128;
 use std::fmt;
-use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
+use ts_rs::TS;
 
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, TS)]
 pub enum Operation {
     Upload,
     Init,
@@ -94,25 +95,6 @@ impl Operation {
         let fee = calculate_fee(gas_price, gas_limit);
         Fee::from_amount_and_gas(fee, gas_limit)
     }
-}
-
-pub fn default_gas_limits() -> HashMap<Operation, Gas> {
-    let mut limits = HashMap::new();
-    limits.insert(Operation::Upload, 2_500_000u64.into());
-    limits.insert(Operation::Init, 500_000u64.into());
-    limits.insert(Operation::Migrate, 200_000u64.into());
-    limits.insert(Operation::ChangeAdmin, 80_000u64.into());
-    limits.insert(Operation::Send, 80_000u64.into());
-    limits.insert(Operation::BondMixnode, 175_000u64.into());
-    limits.insert(Operation::UnbondMixnode, 175_000u64.into());
-    limits.insert(Operation::DelegateToMixnode, 175_000u64.into());
-    limits.insert(Operation::UndelegateFromMixnode, 175_000u64.into());
-    limits.insert(Operation::BondGateway, 175_000u64.into());
-    limits.insert(Operation::UnbondGateway, 175_000u64.into());
-    limits.insert(Operation::DelegateToGateway, 175_000u64.into());
-    limits.insert(Operation::UndelegateFromGateway, 175_000u64.into());
-    limits.insert(Operation::UpdateStateParams, 175_000u64.into());
-    limits
 }
 
 #[cfg(test)]

@@ -21,14 +21,6 @@ export const ApiList = () => {
   return (
     <List>
       <ListItem>
-        <DocEntry
-          function={{
-            name: "connect_with_mnemonic",
-            args: [{ name: "mnemonic", type: "str" }],
-          }}
-        />
-      </ListItem>
-      <ListItem>
         <DocEntry function={{ name: "get_balance", args: [] }} />
       </ListItem>
       <ListItem>
@@ -154,7 +146,15 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "get_gas_price",
+            name: "get_fee",
+            args: [{name: "operation", type: "object"}],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry
+          function={{
+            name: "create_new_account",
             args: [],
           }}
         />
@@ -162,8 +162,8 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "get_gas_limits",
-            args: [],
+            name: "connect_with_mnemonic",
+            args: [{ name: "mnemonic", type: "str" }],
           }}
         />
       </ListItem>

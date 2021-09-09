@@ -15,12 +15,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
+use std::ops::Add;
 use std::str::FromStr;
 use std::sync::Arc;
 use tendermint_rpc::endpoint::broadcast::tx_commit::Response;
 use tokio::sync::RwLock;
 use ts_rs::{export, TS};
-use validator_client::nymd::fee_helpers::default_gas_limits;
+use validator_client::nymd::fee_helpers::Operation;
 use validator_client::nymd::GasPrice;
 use validator_client::nymd::{NymdClient, SigningNymdClient};
 
@@ -127,6 +128,28 @@ impl From<GasPrice> for Coin {
 impl fmt::Display for Coin {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.write_str(&format!("{} {}", self.amount, self.denom))
+  }
+}
+
+// Allows adding minor and major denominations, output will have the LHS denom.
+impl Add for Coin {
+  type Output = Self;
+
+  fn add(self, rhs: Self) -> Self {
+    let denom = Denom::from_str(&self.denom).unwrap();
+    let lhs = self.to_minor();
+    let rhs = rhs.to_minor();
+    let lhs_amount = lhs.amount.parse::<u64>().unwrap();
+    let rhs_amount = rhs.amount.parse::<u64>().unwrap();
+    let amount = lhs_amount + rhs_amount;
+    let coin = Coin {
+      amount: amount.to_string(),
+      denom: Denom::Minor.to_string(),
+    };
+    match denom {
+      Denom::Major => coin.to_major(),
+      Denom::Minor => coin,
+    }
   }
 }
 
@@ -446,28 +469,37 @@ async fn send(
 }
 
 #[tauri::command]
-async fn get_gas_price(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<Coin, String> {
+async fn get_fee(
+  operation: Operation,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Coin, String> {
   let r_state = state.read().await;
   let client = r_state.client()?;
-  let coin = client.get_gas_price().into();
+  let fee = client.get_fee(operation);
+  let mut coin = Coin {
+    amount: "0".to_string(),
+    denom: "upunk".to_string(),
+  };
+  for f in fee.amount {
+    coin = coin + f.into();
+  }
+
   Ok(coin)
 }
 
 #[tauri::command]
-async fn get_gas_limits() -> HashMap<String, u64> {
-  let mut limits = HashMap::new();
-  for (k, v) in default_gas_limits() {
-    limits.insert(k.to_string(), v.value());
-  }
-  limits
+async fn create_new_account(
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<HashMap<&str, String>, String> {
+  let mnemonic = random_mnemonic();
+  let mut client = connect_with_mnemonic(mnemonic.to_string(), state).await?;
+  client.insert("mnemonic", mnemonic.to_string());
+  Ok(client)
 }
 
-#[tauri::command]
-async fn random_mnemonic() -> String {
+fn random_mnemonic() -> Mnemonic {
   let mut rng = rand::thread_rng();
-  Mnemonic::generate_in_with(&mut rng, Language::English, 24)
-    .unwrap()
-    .to_string()
+  Mnemonic::generate_in_with(&mut rng, Language::English, 24).unwrap()
 }
 
 fn _connect_with_mnemonic(mnemonic: Mnemonic, config: &Config) -> NymdClient<SigningNymdClient> {
@@ -500,14 +532,13 @@ fn main() {
       delegate_to_gateway,
       undelegate_from_gateway,
       send,
-      get_gas_price,
-      get_gas_limits,
       get_credential,
       randomise_credential,
       delete_credential,
       list_credentials,
       verify_credential,
-      random_mnemonic
+      create_new_account,
+      get_fee
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
@@ -519,5 +550,6 @@ export! {
   Balance => "../src/types/rust/balance.ts",
   Gateway => "../src/types/rust/gateway.ts",
   TauriTxResult => "../src/types/rust/tauritxresult.ts",
-  TransactionDetails => "../src/types/rust/transactiondetails.ts"
+  TransactionDetails => "../src/types/rust/transactiondetails.ts",
+  Operation => "../src/types/rust/operation.ts"
 }

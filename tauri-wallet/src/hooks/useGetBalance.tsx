@@ -2,12 +2,19 @@ import { useState } from 'react'
 import { invoke } from '@tauri-apps/api'
 import { Balance } from '../types'
 
-export const useGetBalance = () => {
+export type TUseGetBalance = {
+  error?: string
+  balance?: Balance
+  isLoading: boolean
+  fetchBalance: () => void
+}
+
+export const useGetBalance = (): TUseGetBalance => {
   const [balance, setBalance] = useState<Balance>()
   const [error, setEror] = useState<string>()
   const [isLoading, setIsLoading] = useState(false)
 
-  const getBalance = () => {
+  const fetchBalance = () => {
     setIsLoading(true)
     setEror(undefined)
     invoke('get_balance')
@@ -24,6 +31,6 @@ export const useGetBalance = () => {
     error,
     isLoading,
     balance,
-    getBalance,
+    fetchBalance,
   }
 }

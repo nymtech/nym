@@ -13,14 +13,12 @@ import { NymCard } from './NymCard'
 import { Alert } from '@material-ui/lab'
 import { handleCopy } from './CopyToClipboard'
 import { truncate } from '../utils'
-import { useGetBalance } from '../hooks/useGetBalance'
 
 export const BalanceCard = () => {
+  const { getBalance } = useContext(ClientContext)
   const theme = useTheme()
 
-  const { balance, isLoading, error, getBalance } = useGetBalance()
-
-  useEffect(getBalance, [])
+  useEffect(getBalance.fetchBalance, [])
 
   return (
     <div style={{ margin: theme.spacing(3) }}>
@@ -30,7 +28,7 @@ export const BalanceCard = () => {
         noPadding
         Action={
           <Tooltip title="Refresh balance">
-            <IconButton onClick={getBalance}>
+            <IconButton onClick={getBalance.fetchBalance}>
               <Refresh />
             </IconButton>
           </Tooltip>
@@ -38,14 +36,16 @@ export const BalanceCard = () => {
       >
         <CardContent>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            {isLoading ? (
+            {getBalance.isLoading ? (
               <CircularProgress size={24} />
-            ) : error ? (
+            ) : getBalance.error ? (
               <Alert severity="error" style={{ width: '100%' }}>
-                {error}
+                {getBalance.error}
               </Alert>
             ) : (
-              <Typography variant="h6">{balance?.printable_balance}</Typography>
+              <Typography variant="h6">
+                {getBalance.balance?.printable_balance}
+              </Typography>
             )}
           </div>
         </CardContent>

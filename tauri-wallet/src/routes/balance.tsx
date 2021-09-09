@@ -8,9 +8,9 @@ import { theme } from '../theme'
 import { useGetBalance } from '../hooks/useGetBalance'
 
 export const Balance = () => {
-  const { balance, isLoading, error, getBalance } = useGetBalance()
+  const { balance, isLoading, error, fetchBalance } = useGetBalance()
 
-  useEffect(getBalance, [])
+  useEffect(fetchBalance, [])
 
   const RefreshAction = () => (
     <Button
@@ -18,7 +18,7 @@ export const Balance = () => {
       size="small"
       color="primary"
       type="submit"
-      onClick={getBalance}
+      onClick={fetchBalance}
       disabled={isLoading}
       disableElevation
       startIcon={<Refresh />}

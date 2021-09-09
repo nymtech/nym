@@ -30,6 +30,8 @@ export const SendWizard = () => {
   const [requestError, setRequestError] = useState<string>()
   const [confirmedData, setConfirmedData] = useState<TauriTxResult['details']>()
 
+  const { getBalance } = useContext(ClientContext)
+
   const steps = ['Enter address', 'Review and send', 'Await confirmation']
 
   const { clientDetails } = useContext(ClientContext)
@@ -68,8 +70,8 @@ export const SendWizard = () => {
         const { details } = res as TauriTxResult
         setActiveStep((s) => s + 1)
         setConfirmedData(details)
-
         setIsLoading(false)
+        getBalance.fetchBalance()
       })
       .catch((e) => {
         setRequestError(e)

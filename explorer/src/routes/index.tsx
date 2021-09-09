@@ -6,6 +6,7 @@ import {
   // NavLink,
 } from 'react-router-dom';
 import Nav from 'src/components/Nav';
+import TopMenu from 'src/components/TopMenu';
 
 import {
   PageOverview,
@@ -16,9 +17,7 @@ import {
 
 export const Routes: React.FC = () => (
   <Router>
-    <div style={{ height: 72, width: '100vw', backgroundColor: '#070B15' }}>
-      top menu
-    </div>
+    <TopMenu />
     <Nav />
     <Switch>
       <Route exact path="/">

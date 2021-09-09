@@ -1,5 +1,17 @@
 import { createTheme } from '@material-ui/core/styles';
 
+const nymPalette = {
+  primary: {
+    main: '#F4731B',
+  },
+  secondary: {
+    main: '#009FA8',
+  },
+  background: {
+    main: '#121726',
+  },
+};
+
 // A custom theme for this app
 export const theme = createTheme({
   typography: {
@@ -8,14 +20,14 @@ export const theme = createTheme({
     fontSize: 16,
   },
   palette: {
-    // primary: {
-    //   main: '#f12d50',
-    // },
-    // secondary: {
-    //   main: '#f77f95',
-    // },
-    // background: {
-    //   default: '#070b15',
-    // },
+    primary: {
+      main: nymPalette.primary.main,
+    },
+    secondary: {
+      main: nymPalette.secondary.main,
+    },
+  },
+  shape: {
+    borderRadius: 24,
   },
 });

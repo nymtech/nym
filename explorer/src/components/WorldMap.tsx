@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { geoEqualEarth, geoPath } from 'd3-geo';
 import { feature } from 'topojson-client';
 import { Feature, FeatureCollection, Geometry } from 'geojson';
-import './styles.css';
+// import './styles.css';
 
 const uuid = require('react-uuid');
 

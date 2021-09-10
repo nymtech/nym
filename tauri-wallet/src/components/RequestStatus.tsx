@@ -3,10 +3,10 @@ import { CircularProgress, Theme } from '@material-ui/core'
 import { useTheme } from '@material-ui/styles'
 
 export enum EnumRequestStatus {
-  initial,
-  error,
-  loading,
-  success,
+  initial = 'initial',
+  error = 'error',
+  loading = 'loading',
+  success = 'success',
 }
 
 export const RequestStatus = ({

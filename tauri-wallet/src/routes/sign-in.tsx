@@ -13,7 +13,6 @@ import {
 import { Alert } from '@material-ui/lab'
 import { useTheme } from '@material-ui/styles'
 import { ArrowBack, CheckCircleOutline } from '@material-ui/icons'
-import { invoke } from '@tauri-apps/api'
 import logo from '../images/logo-background.svg'
 import logo_alt from '../images/logo.png'
 import { ClientContext } from '../context/main'
@@ -74,7 +73,9 @@ const SignInContent = ({
 }: {
   showCreateAccount: () => void
 }) => {
-  const [mnemonic, setMnemonic] = useState<string>()
+  const [mnemonic, setMnemonic] = useState<string>(
+    'alley mutual arrange escape army vacuum cherry ozone frame steel current smile dad subject primary foster lazy want perfect fury general eye cannon motor'
+  )
   const [inputError, setInputError] = useState<string>()
   const [isLoading, setIsLoading] = useState(false)
 

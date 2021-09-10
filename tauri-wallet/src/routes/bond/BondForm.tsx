@@ -16,8 +16,9 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import { EnumNodeType } from '../../types/global'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { validationSchema } from './validationSchema'
-import { Gateway, MixNode } from '../../types'
+import { Coin, Gateway, MixNode } from '../../types'
 import { invoke } from '@tauri-apps/api'
+import { Alert } from '@material-ui/lab'
 
 type TBondFormFields = {
   withAdvancedOptions: boolean
@@ -74,9 +75,11 @@ const formatData = (data: TBondFormFields) => {
 }
 
 export const BondForm = ({
+  fees,
   onError,
   onSuccess,
 }: {
+  fees: { [key in EnumNodeType]: Coin }
   onError: (message?: string) => void
   onSuccess: (message?: string) => void
 }) => {
@@ -117,15 +120,26 @@ export const BondForm = ({
     <FormControl fullWidth>
       <div style={{ padding: theme.spacing(3, 5) }}>
         <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <NodeTypeSelector
-              nodeType={watchNodeType}
-              setNodeType={(nodeType) => {
-                setValue('nodeType', nodeType)
-                if (nodeType === EnumNodeType.mixnode)
-                  setValue('location', undefined)
-              }}
-            />
+          <Grid container item justifyContent="space-between">
+            <Grid item>
+              <NodeTypeSelector
+                nodeType={watchNodeType}
+                setNodeType={(nodeType) => {
+                  setValue('nodeType', nodeType)
+                  if (nodeType === EnumNodeType.mixnode)
+                    setValue('location', undefined)
+                }}
+              />
+            </Grid>
+            <Grid item>
+              <Alert severity="info">
+                {`A fee of ${
+                  watchNodeType === EnumNodeType.mixnode
+                    ? fees.mixnode.amount
+                    : fees.gateway.amount
+                } PUNK will apply to this transaction`}
+              </Alert>
+            </Grid>
           </Grid>
           <Grid item xs={12}>
             <TextField

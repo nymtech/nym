@@ -43,6 +43,7 @@ export const BondNodeForm = ({
       <Grid container spacing={3}>
         <Grid item xs={12} sm={8}>
           <TextField
+            disabled
             required
             value={manageForm.formData.amount.value}
             onChange={manageForm.handleAmountChange}
@@ -80,6 +81,7 @@ export const BondNodeForm = ({
         )}
         <Grid item xs={12}>
           <TextField
+            disabled
             value={manageForm.formData.identityKey.value}
             onChange={manageForm.handleIdentityKeyChange}
             error={manageForm.formData.identityKey.isValid === false}
@@ -95,6 +97,7 @@ export const BondNodeForm = ({
         </Grid>
         <Grid item xs={12}>
           <TextField
+            disabled
             value={manageForm.formData.sphinxKey.value}
             onChange={manageForm.handleShinxKeyChange}
             error={manageForm.formData.sphinxKey.isValid === false}
@@ -110,6 +113,7 @@ export const BondNodeForm = ({
         </Grid>
         <Grid item xs={12} sm={6}>
           <TextField
+            disabled
             value={manageForm.formData.host.value}
             onChange={manageForm.handleHostChange}
             error={manageForm.formData.host.isValid === false}
@@ -128,6 +132,7 @@ export const BondNodeForm = ({
         <Grid item xs={12} sm={6}>
           {type === NodeType.Gateway && (
             <TextField
+              disabled
               value={manageForm.formData.location.value}
               onChange={manageForm.handleLocationChange}
               error={manageForm.formData.location.isValid === false}
@@ -145,6 +150,7 @@ export const BondNodeForm = ({
 
         <Grid item xs={12} sm={6}>
           <TextField
+            disabled
             value={manageForm.formData.version.value}
             onChange={manageForm.handleVersionChange}
             error={manageForm.formData.version.isValid === false}
@@ -183,6 +189,7 @@ export const BondNodeForm = ({
           <>
             <Grid item xs={12} sm={4}>
               <TextField
+                disabled
                 value={manageForm.formData.mixPort.value}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   manageForm.handlePortChange('mixPort', e.target.value)
@@ -199,6 +206,7 @@ export const BondNodeForm = ({
               <>
                 <Grid item xs={12} sm={4}>
                   <TextField
+                    disabled
                     value={manageForm.formData.verlocPort.value}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       manageForm.handlePortChange('verlocPort', e.target.value)
@@ -214,6 +222,7 @@ export const BondNodeForm = ({
 
                 <Grid item xs={12} sm={4}>
                   <TextField
+                    disabled
                     value={manageForm.formData.httpApiPort.value}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       manageForm.handlePortChange('httpApiPort', e.target.value)
@@ -230,6 +239,7 @@ export const BondNodeForm = ({
             ) : (
               <Grid item xs={12} sm={4}>
                 <TextField
+                  disabled
                   value={manageForm.formData.clientsPort.value}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     manageForm.handlePortChange('clientsPort', e.target.value)

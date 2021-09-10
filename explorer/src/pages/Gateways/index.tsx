@@ -1,5 +1,3 @@
 import React from 'react';
 
-const PageGateways: React.FC = () => <div>Gateways Page</div>;
-
-export default PageGateways;
+export const PageGateways: React.FC = () => <div>Gateways Page</div>;

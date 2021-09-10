@@ -9,7 +9,7 @@ const uuid = require('react-uuid');
 const cx = 400;
 const cy = 150;
 
-const WorldMap: React.FunctionComponent = () => {
+export const WorldMap: React.FC = () => {
   const [geographies, setGeographies] = useState<
     [] | Array<Feature<Geometry | null>>
   >([]);
@@ -109,5 +109,3 @@ const WorldMap: React.FunctionComponent = () => {
     </div>
   );
 };
-
-export default WorldMap;

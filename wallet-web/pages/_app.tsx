@@ -24,7 +24,6 @@ export default function Application(props: AppProps) {
   const { Component, pageProps } = props
 
   const [client, setClient] = useState(null)
-  const [showAlert, setShowAlert] = useState(true)
 
   React.useEffect(() => {
     const jssStyles = document.querySelector('#jss-server-side')
@@ -46,6 +45,11 @@ export default function Application(props: AppProps) {
       <ValidatorClientContext.Provider value={{ client, setClient }}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
+          <AppAlert
+            title="Bonding disabled"
+            message="Mixnode bonding has been temporarily disabled"
+            severity="info"
+          />
           <Component {...pageProps} />
         </ThemeProvider>
       </ValidatorClientContext.Provider>

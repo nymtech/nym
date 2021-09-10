@@ -1,8 +1,9 @@
 import React, { ReactElement } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { List, ListItem, ListItemIcon, Theme } from '@material-ui/core';
-import { Equalizer, Menu, Close, GroupWork, PinDrop } from '@material-ui/icons';
-import { makeStyles, ClassNameMap } from '@material-ui/styles';
+import { List, ListItem, ListItemIcon, Theme, Menu } from '@mui/material';
+import { Equalizer, Close, GroupWork, PinDrop } from '@mui/icons-material';
+// import { makeStyles, ClassNameMap } from '@mui/material/styles';
+import { makeStyles, ClassNameMap } from '@mui/styles';
 
 const useStyles = makeStyles((theme: Theme) => ({
   navBar: {
@@ -20,10 +21,6 @@ const useStyles = makeStyles((theme: Theme) => ({
   navListItem: {
     borderTop: 0.4,
     height: '72px',
-    // borderStyle: 'solid !important',
-    // borderWidth: '0.1px !important',
-    // borderColor: 'rgba(255, 255, 255, 0.2) !important',
-    // borderLeft: 'none !important',
     padding: '24px !important',
   },
   activeListItem: {
@@ -32,8 +29,8 @@ const useStyles = makeStyles((theme: Theme) => ({
   navItem: {
     color: '#fff',
     fontWeight: 600,
-    fontSize: 14,
-    fontFamily: 'open sans, sans-serif',
+    // fontSize: theme.typography.fontSize,
+    fontFamily: theme.typography.fontFamily,
     transition: '0.2s ease-out',
     animation: '$myEffect 1s ease-in',
   },
@@ -98,7 +95,7 @@ export default function Nav(): ReactElement {
               {sidebar ? (
                 <Close className={classes.hamburgerIcon} />
               ) : (
-                <Menu className={classes.hamburgerIcon} />
+                <Menu open className={classes.hamburgerIcon} />
               )}
             </ListItemIcon>
           </ListItem>

@@ -39,16 +39,23 @@ fn find_old_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -
 
         let mut iterated = 0;
 
-        for delegation in iterator {
+        for result_tuple in iterator {
             iterated += 1;
-            if iterated == OLD_DELEGATIONS_CHUNK_SIZE + 1 {
-                // we reached start of next chunk, don't process it, mark it for the next iteration of the loop
-                start = Some(delegation?.0);
-                continue;
+            match result_tuple {
+                Ok((position, delegation)) => {
+                    // We might skip some values due to deserializatio errors
+                    if iterated > OLD_DELEGATIONS_CHUNK_SIZE {
+                        // we reached start of next chunk, don't process it, mark it for the next iteration of the loop
+                        start = Some(position);
+                        continue;
+                    }
+                    total_delegation.amount += delegation.amount;
+                }
+                Err(_e) => {
+                    // Skip errors
+                    continue;
+                }
             }
-
-            let value = delegation?.1.amount;
-            total_delegation.amount += value;
         }
 
         if iterated <= OLD_DELEGATIONS_CHUNK_SIZE {

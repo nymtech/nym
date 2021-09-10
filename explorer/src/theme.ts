@@ -1,4 +1,4 @@
-import { createTheme } from '@material-ui/core/styles';
+import { createTheme } from '@mui/material/styles';
 
 const nymPalette = {
   primary: {
@@ -8,7 +8,10 @@ const nymPalette = {
     main: '#009FA8',
   },
   background: {
-    main: '#121726',
+    main: '#242C3D',
+    darkBlack: '#070B15',
+    lightBlack: '#242C3D',
+    // main: '#121726',
   },
 };
 
@@ -16,8 +19,9 @@ const nymPalette = {
 export const theme = createTheme({
   typography: {
     fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"',
-    fontSize: 16,
+      'open sans, sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"',
+    fontSize: 14,
+    fontWeightBold: 600,
   },
   palette: {
     primary: {

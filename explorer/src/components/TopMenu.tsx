@@ -1,9 +1,9 @@
 import React, { ReactElement } from 'react';
-import { Theme } from '@material-ui/core';
-import { Telegram, Twitter } from '@material-ui/icons';
-import { makeStyles } from '@material-ui/styles';
+// import { Theme } from '@mui/material';
+import { Telegram, Twitter } from '@mui/icons-material';
+import { makeStyles } from '@mui/styles';
 
-const useStyles = makeStyles((theme: Theme) => ({
+const useStyles = makeStyles({
   topMenu: {
     display: 'flex',
     height: 72,
@@ -59,7 +59,7 @@ const useStyles = makeStyles((theme: Theme) => ({
   switch: {
     // backgroundColor: 'yellow',
   },
-}));
+});
 
 const socialsRoutesSchema = [
   {

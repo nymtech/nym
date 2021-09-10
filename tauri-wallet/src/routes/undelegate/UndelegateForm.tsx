@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Button,
@@ -15,6 +15,7 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { EnumNodeType, TFee } from '../../types'
+import { ClientContext } from '../../context/main'
 
 type TFormData = {
   nodeType: EnumNodeType
@@ -46,10 +47,16 @@ export const UndelegateForm = ({
     resolver: yupResolver(validationSchema),
   })
   const watchNodeType = watch('nodeType')
+  const { getBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TFormData) => {
-    await invoke('undelegate_from_mixnode', { identity: data.identity })
-      .then((res: any) => onSuccess(res))
+    await invoke(`undelegate_from_${data.nodeType}`, {
+      identity: data.identity,
+    })
+      .then((res: any) => {
+        onSuccess(res)
+        getBalance.fetchBalance()
+      })
       .catch((e) => onError(e))
   }
 

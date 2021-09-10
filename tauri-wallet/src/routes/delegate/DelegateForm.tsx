@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import {
   Button,
   CircularProgress,
@@ -16,6 +16,8 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { invoke } from '@tauri-apps/api'
 import { Alert } from '@material-ui/lab'
+import { ClientContext } from '../../context/main'
+import { majorToMinor } from '../../requests'
 
 type TDelegateForm = {
   nodeType: EnumNodeType
@@ -52,14 +54,19 @@ export const DelegateForm = ({
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
 
+  const { getBalance } = useContext(ClientContext)
+
   const onSubmit = async (data: TDelegateForm) => {
+    const amount = await majorToMinor(data.amount)
+
     await invoke(`delegate_to_${data.nodeType}`, {
       identity: data.identity,
-      amount: { denom: 'punk', amount: data.amount },
+      amount,
     })
       .then((res: any) => {
         console.log(res)
         onSuccess(res)
+        getBalance.fetchBalance()
       })
       .catch((e) => {
         console.log(e)

@@ -10,6 +10,7 @@ import { SendConfirmation } from './SendConfirmation'
 import { ClientContext } from '../../context/main'
 import { validationSchema } from './validationSchema'
 import { TauriTxResult } from '../../types/rust/tauritxresult'
+import { majorToMinor } from '../../requests'
 
 const defaultValues = {
   amount: '',
@@ -57,19 +58,24 @@ export const SendWizard = () => {
     setActiveStep(0)
   }
 
-  const handleSend = () => {
+  const handleSend = async () => {
     setIsLoading(true)
     setActiveStep((s) => s + 1)
     const formState = methods.getValues()
+    const amount = await majorToMinor(formState.amount)
+
     invoke('send', {
+      amount,
       address: formState.to,
-      amount: { denom: 'punk', amount: formState.amount },
       memo: formState.memo,
     })
       .then((res: any) => {
         const { details } = res as TauriTxResult
         setActiveStep((s) => s + 1)
-        setConfirmedData(details)
+        setConfirmedData({
+          ...details,
+          amount: { denom: 'punk', amount: formState.amount },
+        })
         setIsLoading(false)
         getBalance.fetchBalance()
       })

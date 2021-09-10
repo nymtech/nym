@@ -10,15 +10,14 @@ import {
 } from '../../components/RequestStatus'
 import { Layout } from '../../layouts'
 import { getGasFee } from '../../requests'
-import { Coin, EnumNodeType } from '../../types'
+import { TFee } from '../../types'
 
 export const Bond = () => {
   const [status, setStatus] = useState(EnumRequestStatus.loading)
   const [message, setMessage] = useState<string>()
+  const [fees, setFees] = useState<TFee>()
 
   const theme: Theme = useTheme()
-
-  const [fees, setFees] = useState<{ [key in EnumNodeType]: Coin }>()
 
   useEffect(() => {
     const getFees = async () => {

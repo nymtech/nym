@@ -8,12 +8,13 @@ import {
   TextField,
   Theme,
 } from '@material-ui/core'
+import { Alert } from '@material-ui/lab'
 import { useTheme } from '@material-ui/styles'
 import { invoke } from '@tauri-apps/api'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
-import { EnumNodeType } from '../../types/global'
+import { EnumNodeType, TFee } from '../../types'
 
 type TFormData = {
   nodeType: EnumNodeType
@@ -26,9 +27,11 @@ const defaultValues = {
 }
 
 export const UndelegateForm = ({
+  fees,
   onError,
   onSuccess,
 }: {
+  fees: TFee
   onError: (message?: string) => void
   onSuccess: (message?: string) => void
 }) => {
@@ -52,38 +55,26 @@ export const UndelegateForm = ({
 
   const theme: Theme = useTheme()
 
-  const handleAmountChange = (event: any) => {
-    // don't ask me about that. javascript works in mysterious ways
-    // and this is apparently a good way of checking if string
-    // is purely made of numeric characters
-    // const parsed = +event.target.value
-    // if (isNaN(parsed)) {
-    //   setIsValidAmount(false)
-    // } else {
-    //   try {
-    //     const allocationCheck = { error: undefined, message: '' }
-    //     if (allocationCheck.error) {
-    //       setAllocationWarning(allocationCheck.message)
-    //       setIsValidAmount(false)
-    //     } else {
-    //       setAllocationWarning(allocationCheck.message)
-    //       setIsValidAmount(true)
-    //     }
-    //   } catch {
-    //     setIsValidAmount(false)
-    //   }
-    // }
-  }
-
   return (
     <FormControl fullWidth>
       <div style={{ padding: theme.spacing(3, 5) }}>
         <Grid container spacing={3} direction="column">
-          <Grid item xs={12}>
-            <NodeTypeSelector
-              nodeType={watchNodeType}
-              setNodeType={(nodeType) => setValue('nodeType', nodeType)}
-            />
+          <Grid container item xs={12} justifyContent="space-between">
+            <Grid item>
+              <NodeTypeSelector
+                nodeType={watchNodeType}
+                setNodeType={(nodeType) => setValue('nodeType', nodeType)}
+              />
+            </Grid>
+            <Grid item>
+              <Alert severity="info">
+                {`A fee of ${
+                  watchNodeType === EnumNodeType.mixnode
+                    ? fees.mixnode.amount
+                    : fees.gateway.amount
+                } PUNK will apply to this transaction`}
+              </Alert>
+            </Grid>
           </Grid>
           <Grid item xs={12}>
             <TextField

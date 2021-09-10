@@ -11,10 +11,11 @@ import {
 } from '@material-ui/core'
 import { useForm } from 'react-hook-form'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
-import { EnumNodeType } from '../../types/global'
+import { EnumNodeType, TFee } from '../../types'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { invoke } from '@tauri-apps/api'
+import { Alert } from '@material-ui/lab'
 
 type TDelegateForm = {
   nodeType: EnumNodeType
@@ -29,9 +30,11 @@ const defaultValues: TDelegateForm = {
 }
 
 export const DelegateForm = ({
+  fees,
   onError,
   onSuccess,
 }: {
+  fees: TFee
   onError: (message?: string) => void
   onSuccess: (message?: string) => void
 }) => {
@@ -68,11 +71,22 @@ export const DelegateForm = ({
     <FormControl fullWidth>
       <div style={{ padding: theme.spacing(3, 5) }}>
         <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <NodeTypeSelector
-              nodeType={watchNodeType}
-              setNodeType={(nodeType) => setValue('nodeType', nodeType)}
-            />
+          <Grid container item xs={12} justifyContent="space-between">
+            <Grid item>
+              <NodeTypeSelector
+                nodeType={watchNodeType}
+                setNodeType={(nodeType) => setValue('nodeType', nodeType)}
+              />
+            </Grid>
+            <Grid item>
+              <Alert severity="info">
+                {`A fee of ${
+                  watchNodeType === EnumNodeType.mixnode
+                    ? fees.mixnode.amount
+                    : fees.gateway.amount
+                } PUNK will apply to this transaction`}
+              </Alert>
+            </Grid>
           </Grid>
           <Grid item xs={12}>
             <TextField

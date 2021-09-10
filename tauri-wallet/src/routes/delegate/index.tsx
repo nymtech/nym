@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Button, Theme } from '@material-ui/core'
+import React, { useEffect, useState } from 'react'
+import { Box, Button, CircularProgress, Theme } from '@material-ui/core'
 import { useTheme } from '@material-ui/styles'
 import { DelegateForm } from './DelegateForm'
 import { Layout } from '../../layouts'
@@ -9,12 +9,30 @@ import {
   RequestStatus,
 } from '../../components/RequestStatus'
 import { Alert } from '@material-ui/lab'
+import { TFee } from '../../types'
+import { getGasFee } from '../../requests'
 
 export const Delegate = () => {
   const [status, setStatus] = useState<EnumRequestStatus>(
     EnumRequestStatus.initial
   )
   const [message, setMessage] = useState<string>()
+  const [isLoading, setIsLoading] = useState(true)
+  const [fees, setFees] = useState<TFee>()
+
+  useEffect(() => {
+    const getFees = async () => {
+      const mixnode = await getGasFee('DelegateToMixnode')
+      const gateway = await getGasFee('DelegateToGateway')
+      setFees({
+        mixnode: mixnode,
+        gateway: gateway,
+      })
+      setIsLoading(false)
+    }
+
+    getFees()
+  }, [])
 
   const theme: Theme = useTheme()
   return (
@@ -24,9 +42,21 @@ export const Delegate = () => {
         subheader="Delegate to mixnode or gateway"
         noPadding
       >
+        {isLoading && (
+          <Box
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              padding: theme.spacing(3),
+            }}
+          >
+            <CircularProgress size={48} />
+          </Box>
+        )}
         <>
-          {status === EnumRequestStatus.initial && (
+          {status === EnumRequestStatus.initial && fees && (
             <DelegateForm
+              fees={fees}
               onError={(message?: string) => {
                 setStatus(EnumRequestStatus.error)
                 setMessage(message)

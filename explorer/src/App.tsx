@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { CssBaseline, ThemeProvider } from '@mui/material';
+import { CssBaseline } from '@mui/material';
+import { ThemeProvider } from '@mui/styles';
 
 import { theme } from './theme';
 import { Routes } from './routes';

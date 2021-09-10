@@ -1,59 +1,63 @@
-import React, { ReactElement } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { List, ListItem, ListItemIcon, Theme, Menu } from '@mui/material';
 import { Equalizer, Close, GroupWork, PinDrop } from '@mui/icons-material';
 // import { makeStyles, ClassNameMap } from '@mui/material/styles';
 import { makeStyles, ClassNameMap } from '@mui/styles';
+import { useTheme } from '@emotion/react';
 
-const useStyles = makeStyles((theme: Theme) => ({
-  navBar: {
-    backgroundColor: '#242C3D',
-    marginTop: 60,
-    height: '100vh',
-    width: 80,
-    transition: '0.2s ease-in-out',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  hamburgerIcon: {
-    color: '#5C616D',
-  },
-  navListItem: {
-    borderTop: 0.4,
-    height: '72px',
-    padding: '24px !important',
-  },
-  activeListItem: {
-    backgroundColor: '#111826 !important',
-  },
-  navItem: {
-    color: '#fff',
-    fontWeight: 600,
-    // fontSize: theme.typography.fontSize,
-    fontFamily: theme.typography.fontFamily,
-    transition: '0.2s ease-out',
-    animation: '$myEffect 1s ease-in',
-  },
-  selected: {
-    color: theme.palette.primary.main,
-  },
-  '@keyframes myEffect': {
-    '0%': {
-      opacity: 0,
+const useStyles = makeStyles((theme: Theme) => {
+  console.log('useStyles has a theme? ', theme);
+  return {
+    navBar: {
+      backgroundColor: '#242C3D',
+      marginTop: 60,
+      height: '100vh',
+      width: 80,
+      transition: '0.2s ease-in-out',
+      display: 'flex',
+      flexDirection: 'column',
     },
-    '100%': {
-      opacity: 1,
+    hamburgerIcon: {
+      color: '#5C616D',
     },
-  },
-  '@keyframes myEffectExit': {
-    '0%': {
-      opacity: 1,
+    navListItem: {
+      borderTop: 0.4,
+      height: '72px',
+      padding: '24px !important',
     },
-    '100%': {
-      opacity: 0,
+    activeListItem: {
+      backgroundColor: '#111826 !important',
     },
-  },
-}));
+    navItem: {
+      color: '#fff',
+      fontWeight: 600,
+      // fontSize: theme.typography.fontSize,
+      // fontFamily: theme.typography.fontFamily,
+      transition: '0.2s ease-out',
+      animation: '$myEffect 1s ease-in',
+    },
+    selected: {
+      color: theme.palette.primary.main,
+    },
+    '@keyframes myEffect': {
+      '0%': {
+        opacity: 0,
+      },
+      '100%': {
+        opacity: 1,
+      },
+    },
+    '@keyframes myEffectExit': {
+      '0%': {
+        opacity: 1,
+      },
+      '100%': {
+        opacity: 0,
+      },
+    },
+  };
+});
 
 const routesSchema = [
   {
@@ -72,8 +76,11 @@ const routesSchema = [
     Icon: <PinDrop style={{ color: '#F2F2F2' }} />,
   },
 ];
-export default function Nav(): ReactElement {
+export const Nav: React.FC = (props) => {
+  console.log('Nav props ', props);
   const [sidebar, setSidebar] = React.useState<boolean>(false);
+  // const theme = useTheme();
+  // console.log('theme iiiiissss ', theme);
   const classes: ClassNameMap = useStyles();
   const location = useLocation();
   const showSidebar = () => setSidebar(!sidebar);
@@ -130,4 +137,4 @@ export default function Nav(): ReactElement {
       </div>
     </>
   );
-}
+};

@@ -1,4 +1,4 @@
-import React, { ReactElement } from 'react';
+import React from 'react';
 // import { Theme } from '@mui/material';
 import { Telegram, Twitter } from '@mui/icons-material';
 import { makeStyles } from '@mui/styles';
@@ -91,7 +91,7 @@ const socialsRoutesSchema = [
   },
 ];
 
-export default function TopMenu(): ReactElement {
+export const TopMenu: React.FC = () => {
   const classes = useStyles();
   return (
     <>
@@ -112,4 +112,4 @@ export default function TopMenu(): ReactElement {
       </div>
     </>
   );
-}
+};

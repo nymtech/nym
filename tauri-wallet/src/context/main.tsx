@@ -1,14 +1,13 @@
 import React, { createContext, useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
-import { invoke } from '@tauri-apps/api'
-import { Coin, TClientDetails } from '../types'
+import { Coin, TClientDetails, TSignInWithMnemonic } from '../types'
 import { TUseGetBalance, useGetBalance } from '../hooks/useGetBalance'
 
 type TClientContext = {
   clientDetails?: TClientDetails
   gasPrice?: Coin
   getBalance: TUseGetBalance
-  logIn: (clientDetails: TClientDetails) => void
+  logIn: (clientDetails: TSignInWithMnemonic) => void
   logOut: () => void
 }
 
@@ -30,12 +29,8 @@ export const ClientContextProvider = ({
     !clientDetails ? history.push('/signin') : history.push('/balance')
   }, [clientDetails])
 
-  const logIn = async (clientDetails: TClientDetails) => {
-    await invoke('get_gas_price')
-      .then((res) => setGasPrice(res as Coin))
-      .catch((e) => console.log(e))
+  const logIn = async (clientDetails: TSignInWithMnemonic) =>
     setClientDetails(clientDetails)
-  }
 
   const logOut = () => setClientDetails(undefined)
 

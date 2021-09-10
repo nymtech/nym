@@ -8,16 +8,19 @@ import {
   Link,
   Theme,
   Card,
+  Divider,
 } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
 import { useTheme } from '@material-ui/styles'
-import { ArrowBack } from '@material-ui/icons'
+import { ArrowBack, CheckCircleOutline } from '@material-ui/icons'
 import { invoke } from '@tauri-apps/api'
 import logo from '../images/logo-background.svg'
 import logo_alt from '../images/logo.png'
 import { ClientContext } from '../context/main'
-import { TClientDetails } from '../types/global'
 import { theme } from '../theme'
+import { createAccount, signInWithMnemonic } from '../requests'
+import { TCreateAccount } from '../types'
+import { CopyToClipboard } from '../components'
 
 export const SignIn = () => {
   const theme: Theme = useTheme()
@@ -71,10 +74,8 @@ const SignInContent = ({
 }: {
   showCreateAccount: () => void
 }) => {
-  const [mnemonic, setMnemonic] = useState<string>(
-    'alley mutual arrange escape army vacuum cherry ozone frame steel current smile dad subject primary foster lazy want perfect fury general eye cannon motor'
-  )
-  const [inputError, setInputError] = useState<string | undefined>()
+  const [mnemonic, setMnemonic] = useState<string>()
+  const [inputError, setInputError] = useState<string>()
   const [isLoading, setIsLoading] = useState(false)
 
   const { logIn } = useContext(ClientContext)
@@ -87,15 +88,14 @@ const SignInContent = ({
     setIsLoading(true)
     setInputError(undefined)
 
-    invoke('connect_with_mnemonic', { mnemonic })
-      .then((res) => {
-        setIsLoading(false)
-        logIn(res as TClientDetails)
-      })
-      .catch((e) => {
-        setIsLoading(false)
-        setInputError(e)
-      })
+    try {
+      const res = await signInWithMnemonic(mnemonic || '')
+      setIsLoading(false)
+      logIn(res)
+    } catch (e: any) {
+      setIsLoading(false)
+      setInputError(e)
+    }
   }
 
   return (
@@ -157,49 +157,6 @@ const SignInContent = ({
   )
 }
 
-const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
-  return (
-    <SignInCard>
-      <>
-        <Grid
-          container
-          direction="column"
-          justifyContent="space-between"
-          style={{ height: '100%' }}
-        >
-          <Grid item>
-            <Typography variant="h4">Create wallet</Typography>
-            <Typography color="textSecondary">
-              Create an new wallet to start using the Nym network
-            </Typography>
-          </Grid>
-
-          <Grid item>
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              type="submit"
-              disableElevation
-              style={{ marginBottom: theme.spacing(1) }}
-            >
-              Create
-            </Button>
-            <Button
-              fullWidth
-              variant="text"
-              onClick={showSignIn}
-              startIcon={<ArrowBack />}
-            >
-              Sign in
-            </Button>
-          </Grid>
-        </Grid>
-      </>
-    </SignInCard>
-  )
-}
-
 const SignInCard: React.FC = ({ children }) => {
   const theme: Theme = useTheme()
   return (
@@ -210,22 +167,151 @@ const SignInCard: React.FC = ({ children }) => {
           padding: theme.spacing(6, 10),
           borderRadius: theme.shape.borderRadius,
           position: 'relative',
-          height: 300,
+          minHeight: 350,
         }}
       >
         <img
           src={logo_alt}
           style={{
             position: 'absolute',
-            top: 0,
-            right: '-17.5%',
-            height: 300,
+            width: 425,
             filter: 'grayscale(100%)',
             opacity: 0.1,
+            top: '50%',
+            left: '50%',
+            transform: 'translate(0%, -50%)',
           }}
         />
         {children}
       </Card>
     </>
+  )
+}
+
+const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
+  const [accountDetails, setAccountDetails] = useState<TCreateAccount>()
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error>()
+
+  const handleCreateAccount = async () => {
+    setIsLoading(true)
+    setError(undefined)
+    try {
+      const res = await createAccount()
+      setTimeout(() => {
+        setAccountDetails(res)
+        setIsLoading(false)
+      }, 2500)
+    } catch (e: any) {
+      console.log(e)
+      setError(e)
+    }
+  }
+  return (
+    <SignInCard>
+      <Typography variant="h4">Create wallet</Typography>
+      <Typography color="textSecondary">
+        Create an new wallet to start using the Nym network
+      </Typography>
+      <Grid
+        container
+        direction="column"
+        spacing={3}
+        style={{ marginTop: theme.spacing(3) }}
+      >
+        <Grid item container justifyContent="center">
+          {isLoading && <CircularProgress size={48} />}
+          {!isLoading && accountDetails && (
+            <>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: theme.spacing(4),
+                }}
+              >
+                <CheckCircleOutline
+                  style={{
+                    fontSize: 50,
+                    color: theme.palette.success.main,
+                    marginBottom: theme.spacing(1),
+                  }}
+                />
+                <Typography>Wallet setup complete</Typography>
+              </div>
+              <Alert severity="info" style={{ marginBottom: theme.spacing(2) }}>
+                Please store your <strong>mnemonic</strong> in a safe place.
+                You'll need it to access your wallet
+              </Alert>
+              <Card
+                variant="outlined"
+                style={{
+                  width: '100%',
+                  padding: theme.spacing(2),
+                }}
+              >
+                <Grid container direction="column" spacing={1}>
+                  <Grid item>
+                    <Typography style={{ color: theme.palette.grey[600] }}>
+                      Mnemonic
+                    </Typography>
+                  </Grid>
+                  <Grid item>
+                    <Typography>{accountDetails.mnemonic}</Typography>
+                    <div
+                      style={{ display: 'flex', justifyContent: 'flex-end' }}
+                    >
+                      <CopyToClipboard text={accountDetails.mnemonic} />
+                    </div>
+                  </Grid>
+                  <Grid item>
+                    <Divider light />
+                  </Grid>
+                  <Grid item>
+                    <Typography style={{ color: theme.palette.grey[600] }}>
+                      Address
+                    </Typography>
+                  </Grid>
+                  <Grid item>
+                    <Typography>{accountDetails.client_address}</Typography>
+                  </Grid>
+                </Grid>
+              </Card>
+            </>
+          )}
+        </Grid>
+        {error && (
+          <Grid item style={{ marginTop: theme.spacing(1) }}>
+            <Alert severity="error">{error}</Alert>
+          </Grid>
+        )}
+        <Grid item>
+          {!accountDetails && (
+            <Button
+              onClick={handleCreateAccount}
+              fullWidth
+              variant="contained"
+              color="primary"
+              type="submit"
+              disableElevation
+              style={{ marginBottom: theme.spacing(1) }}
+              disabled={isLoading}
+            >
+              Create
+            </Button>
+          )}
+          <Button
+            fullWidth
+            variant="text"
+            onClick={showSignIn}
+            startIcon={<ArrowBack />}
+          >
+            Sign in
+          </Button>
+        </Grid>
+      </Grid>
+    </SignInCard>
   )
 }

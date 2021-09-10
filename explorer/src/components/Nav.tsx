@@ -1,10 +1,16 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { List, ListItem, ListItemIcon, Theme, Menu } from '@mui/material';
-import { Equalizer, Close, GroupWork, PinDrop } from '@mui/icons-material';
+import { List, ListItem, ListItemIcon, Theme } from '@mui/material';
+import {
+  Equalizer,
+  Close,
+  GroupWork,
+  PinDrop,
+  Menu as MenuIcon,
+} from '@mui/icons-material';
 // import { makeStyles, ClassNameMap } from '@mui/material/styles';
 import { makeStyles, ClassNameMap } from '@mui/styles';
-import { useTheme } from '@emotion/react';
+// import { useTheme } from '@emotion/react';
 
 const useStyles = makeStyles((theme: Theme) => {
   console.log('useStyles has a theme? ', theme);
@@ -102,7 +108,7 @@ export const Nav: React.FC = (props) => {
               {sidebar ? (
                 <Close className={classes.hamburgerIcon} />
               ) : (
-                <Menu open className={classes.hamburgerIcon} />
+                <MenuIcon className={classes.hamburgerIcon} />
               )}
             </ListItemIcon>
           </ListItem>

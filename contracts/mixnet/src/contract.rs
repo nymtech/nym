@@ -206,32 +206,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 
 #[entry_point]
 pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    use crate::storage::{gateways, gateways_read, mixnodes, mixnodes_read};
-    use cosmwasm_std::{Order, StdResult};
-    use mixnet_contract::CURRENT_BLOCK_HEIGHT;
-    use mixnet_contract::{GatewayBond, MixNodeBond};
-    use std::sync::atomic::Ordering;
-
-    CURRENT_BLOCK_HEIGHT.store(env.block.height, Ordering::Relaxed);
-
-    let bonds = mixnodes_read(deps.storage)
-        .range(None, None, Order::Ascending)
-        .map(|res| res.map(|item| item.1))
-        .collect::<StdResult<Vec<MixNodeBond>>>()?;
-
-    for bond in bonds {
-        mixnodes(deps.storage).save(bond.identity().as_bytes(), &bond)?;
-    }
-
-    let bonds = gateways_read(deps.storage)
-        .range(None, None, Order::Ascending)
-        .map(|res| res.map(|item| item.1))
-        .collect::<StdResult<Vec<GatewayBond>>>()?;
-
-    for bond in bonds {
-        gateways(deps.storage).save(bond.identity().as_bytes(), &bond)?;
-    }
-
     Ok(Default::default())
 }
 

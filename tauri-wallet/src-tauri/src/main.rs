@@ -478,7 +478,7 @@ async fn get_fee(
   let fee = client.get_fee(operation);
   let mut coin = Coin {
     amount: "0".to_string(),
-    denom: "upunk".to_string(),
+    denom: "punk".to_string(),
   };
   for f in fee.amount {
     coin = coin + f.into();

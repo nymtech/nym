@@ -6,6 +6,6 @@ export const validationSchema = Yup.object().shape({
   amount: Yup.string()
     .required()
     .test('valid-amount', 'A valid amount is required', (amount) => {
-      return validateAmount(amount || '0', '1')
+      return validateAmount(amount || '0', '0')
     }),
 })

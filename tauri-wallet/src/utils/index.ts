@@ -20,6 +20,9 @@ export const validateAmount = async (
   minimum: string
 ): Promise<boolean> => {
   // tests basic coin value requirements, like no more than 6 decimal places, value lower than total supply, etc
+  if (!Number(amount)) {
+    return false
+  }
 
   try {
     const minorValueStr: Coin = await invoke('major_to_minor', {
@@ -42,10 +45,6 @@ export const validateAmount = async (
 }
 
 export const basicRawCoinValueValidation = (rawAmount: string): boolean => {
-  if (!Number(rawAmount)) {
-    return false
-  }
-  debugger
   const amountFloat = parseFloat(rawAmount)
 
   // it cannot have more than 6 decimal places

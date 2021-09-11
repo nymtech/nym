@@ -5,8 +5,9 @@ import { TUseGetBalance, useGetBalance } from '../hooks/useGetBalance'
 
 type TClientContext = {
   clientDetails?: TClientDetails
-  gasPrice?: Coin
   getBalance: TUseGetBalance
+  showAdmin: boolean
+  handleShowAdmin: () => void
   logIn: (clientDetails: TSignInWithMnemonic) => void
   logOut: () => void
 }
@@ -19,10 +20,9 @@ export const ClientContextProvider = ({
   children: React.ReactNode
 }) => {
   const [clientDetails, setClientDetails] = useState<TClientDetails>()
-  const [gasPrice, setGasPrice] = useState<Coin>()
+  const [showAdmin, setShowAdmin] = useState(false)
 
   const history = useHistory()
-
   const getBalance = useGetBalance()
 
   useEffect(() => {
@@ -34,12 +34,15 @@ export const ClientContextProvider = ({
 
   const logOut = () => setClientDetails(undefined)
 
+  const handleShowAdmin = () => setShowAdmin((show) => !show)
+
   return (
     <ClientContext.Provider
       value={{
         clientDetails,
-        gasPrice,
         getBalance,
+        showAdmin,
+        handleShowAdmin,
         logIn,
         logOut,
       }}

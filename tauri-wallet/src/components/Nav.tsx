@@ -17,6 +17,7 @@ import {
   HowToVote,
   MoneyOff,
   Description,
+  Settings,
 } from '@material-ui/icons'
 import { makeStyles } from '@material-ui/styles'
 import clsx from 'clsx'
@@ -80,7 +81,7 @@ const useStyles = makeStyles((theme: Theme) => ({
 
 export const Nav = () => {
   const classes = useStyles()
-  const { logOut } = useContext(ClientContext)
+  const { handleShowAdmin, logOut } = useContext(ClientContext)
   const location = useLocation()
 
   return (
@@ -113,6 +114,17 @@ export const Nav = () => {
             />
           </ListItem>
         ))}
+        <ListItem button onClick={handleShowAdmin}>
+          <ListItemIcon className={classes.navItem}>
+            <Settings />
+          </ListItemIcon>
+          <ListItemText
+            primary="Admin"
+            primaryTypographyProps={{
+              className: classes.navItem,
+            }}
+          />
+        </ListItem>
         <ListItem button onClick={logOut}>
           <ListItemIcon className={classes.navItem}>
             <ExitToApp />

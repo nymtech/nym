@@ -9,6 +9,7 @@ import { ClientContext, ClientContextProvider } from './context/main'
 import { ApplicationLayout } from './layouts'
 import { SignIn } from './routes/sign-in'
 import { ErrorFallback } from './components'
+import { Admin } from './components/Admin'
 
 const AppWrapper = () => {
   const { clientDetails } = useContext(ClientContext)
@@ -19,7 +20,10 @@ const AppWrapper = () => {
         <SignIn />
       ) : (
         <ApplicationLayout>
-          <Routes />
+          <>
+            <Admin />
+            <Routes />
+          </>
         </ApplicationLayout>
       )}
     </ThemeProvider>

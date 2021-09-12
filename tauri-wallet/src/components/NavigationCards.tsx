@@ -28,7 +28,7 @@ export const BalanceCard = () => {
         noPadding
         Action={
           <Tooltip title="Refresh balance">
-            <IconButton onClick={getBalance.fetchBalance}>
+            <IconButton onClick={getBalance.fetchBalance} size="small">
               <Refresh />
             </IconButton>
           </Tooltip>

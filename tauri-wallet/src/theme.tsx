@@ -35,6 +35,18 @@ export const theme = createTheme({
       text: {
         padding: '12px 24px',
       },
+      outlined: {
+        padding: '12px 24px',
+      },
+      textSizeSmall: {
+        padding: '6px 12px',
+      },
+      outlinedSizeSmall: {
+        padding: '8px 12px',
+      },
+      containedSizeSmall: {
+        padding: '8px 12px',
+      },
     },
 
     MuiStepIcon: {

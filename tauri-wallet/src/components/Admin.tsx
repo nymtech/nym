@@ -1,4 +1,5 @@
 import React, { useContext } from 'react'
+import { useForm } from 'react-hook-form'
 import {
   Backdrop,
   Button,
@@ -10,10 +11,9 @@ import {
   TextField,
   Theme,
 } from '@material-ui/core'
+import { useTheme } from '@material-ui/styles'
 import { ClientContext } from '../context/main'
 import { NymCard } from '.'
-import { useTheme } from '@material-ui/styles'
-import { useForm } from 'react-hook-form'
 
 export const Admin: React.FC = () => {
   const { showAdmin, handleShowAdmin } = useContext(ClientContext)
@@ -23,9 +23,9 @@ export const Admin: React.FC = () => {
   }
 
   return (
-    <Backdrop open={showAdmin} style={{ zIndex: 1 }}>
+    <Backdrop open={showAdmin} style={{ zIndex: 2 }}>
       <Slide in={showAdmin}>
-        <Paper style={{ zIndex: 2 }}>
+        <Paper>
           <NymCard title="Admin" subheader="Contract administration" noPadding>
             <AdminForm onCancel={onCancel} />
           </NymCard>
@@ -159,29 +159,33 @@ const AdminForm: React.FC<{ onCancel: () => void }> = ({ onCancel }) => {
           </Grid>
         </Grid>
       </div>
-      <div
+      <Grid
+        container
+        spacing={1}
+        justifyContent="flex-end"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
           borderTop: `1px solid ${theme.palette.grey[200]}`,
           background: theme.palette.grey[100],
           padding: theme.spacing(2),
         }}
       >
-        <Button onClick={onCancel}>Cancel</Button>
-        <Button
-          onClick={handleSubmit(onSubmit)}
-          disabled={isSubmitting}
-          variant="contained"
-          color="primary"
-          type="submit"
-          disableElevation
-          endIcon={isSubmitting && <CircularProgress size={20} />}
-        >
-          Update Contract
-        </Button>
-      </div>
+        <Grid item>
+          <Button onClick={onCancel}>Cancel</Button>
+        </Grid>
+        <Grid item>
+          <Button
+            onClick={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+            variant="contained"
+            color="primary"
+            type="submit"
+            disableElevation
+            endIcon={isSubmitting && <CircularProgress size={20} />}
+          >
+            Update Contract
+          </Button>
+        </Grid>
+      </Grid>
     </FormControl>
   )
 }

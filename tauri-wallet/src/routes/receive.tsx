@@ -1,5 +1,6 @@
 import React, { useContext } from 'react'
-import { Card, Grid, Typography } from '@material-ui/core'
+import QRCode from 'qrcode.react'
+import { Box, Card, Grid, Typography } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
 import { useMediaQuery } from '@material-ui/core'
 import { CopyToClipboard, NymCard } from '../components'
@@ -31,13 +32,40 @@ export const Receive = () => {
               }}
               variant="outlined"
             >
-              <Typography
-                variant={matches ? 'h5' : 'subtitle1'}
-                style={{ wordBreak: 'break-word' }}
+              <Grid
+                container
+                direction="column"
+                spacing={4}
+                alignItems="center"
               >
-                {clientDetails?.client_address}
-              </Typography>
-              <CopyToClipboard text={clientDetails?.client_address || ''} />
+                <Grid item>
+                  <Typography
+                    variant={matches ? 'h5' : 'subtitle1'}
+                    style={{
+                      wordBreak: 'break-word',
+                      marginRight: theme.spacing(1),
+                    }}
+                    component="span"
+                  >
+                    {clientDetails?.client_address}
+                  </Typography>
+                  <CopyToClipboard text={clientDetails?.client_address || ''} />
+                </Grid>
+                <Grid item>
+                  <Box
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      marginBottom: theme.spacing(2),
+                    }}
+                    component="div"
+                  >
+                    {clientDetails && (
+                      <QRCode value={clientDetails.client_address} />
+                    )}
+                  </Box>
+                </Grid>
+              </Grid>
             </Card>
           </Grid>
         </Grid>

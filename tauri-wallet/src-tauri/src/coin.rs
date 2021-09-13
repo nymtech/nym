@@ -5,6 +5,7 @@ use cosmos_sdk::Coin as CosmosCoin;
 use cosmos_sdk::Decimal;
 use cosmos_sdk::Denom as CosmosDenom;
 use cosmwasm_std::Coin as CosmWasmCoin;
+use cosmwasm_std::Uint128;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fmt;
@@ -34,9 +35,10 @@ impl FromStr for Denom {
   type Err = String;
 
   fn from_str(s: &str) -> Result<Denom, String> {
-    if s.to_lowercase() == DENOM.to_lowercase() {
+    let s = s.to_lowercase();
+    if s == DENOM.to_lowercase() || s == "minor" {
       Ok(Denom::Minor)
-    } else if s.to_lowercase() == DENOM[1..].to_lowercase() {
+    } else if s == DENOM[1..].to_lowercase() || s == "major" {
       Ok(Denom::Major)
     } else {
       Err(format_err!(format!(
@@ -132,13 +134,11 @@ impl TryFrom<Coin> for CosmWasmCoin {
   type Error = String;
 
   fn try_from(coin: Coin) -> Result<CosmWasmCoin, String> {
-    match serde_json::to_value(coin) {
-      Ok(value) => match serde_json::from_value(value) {
-        Ok(coin) => Ok(coin),
-        Err(e) => Err(format_err!(e)),
-      },
-      Err(e) => Err(format_err!(e)),
-    }
+    let coin = coin.to_minor();
+    Ok(CosmWasmCoin::new(
+      Uint128::try_from(coin.amount.as_str()).unwrap().u128(),
+      coin.denom.to_string(),
+    ))
   }
 }
 

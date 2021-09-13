@@ -52,7 +52,7 @@
     "windows": [
       {
         "title": "nym-wallet",
-        "width": 1024,
+        "width": 1268,
         "height": 768,
         "resizable": true,
         "fullscreen": false

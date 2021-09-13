@@ -491,7 +491,9 @@ impl<C> NymdClient<C> {
     {
         let fee = self.get_fee(Operation::DelegateToMixnode);
 
-        let req = ExecuteMsg::DelegateToMixnode { mix_identity: mix_identity.to_string() };
+        let req = ExecuteMsg::DelegateToMixnode {
+            mix_identity: mix_identity.to_string(),
+        };
         self.client
             .execute(
                 self.address(),
@@ -514,7 +516,9 @@ impl<C> NymdClient<C> {
     {
         let fee = self.get_fee(Operation::UndelegateFromMixnode);
 
-        let req = ExecuteMsg::UndelegateFromMixnode { mix_identity: mix_identity.to_string() };
+        let req = ExecuteMsg::UndelegateFromMixnode {
+            mix_identity: mix_identity.to_string(),
+        };
         self.client
             .execute(
                 self.address(),
@@ -582,7 +586,9 @@ impl<C> NymdClient<C> {
     {
         let fee = self.get_fee(Operation::DelegateToGateway);
 
-        let req = ExecuteMsg::DelegateToGateway { gateway_identity: gateway_identity.to_string() };
+        let req = ExecuteMsg::DelegateToGateway {
+            gateway_identity: gateway_identity.to_string(),
+        };
         self.client
             .execute(
                 self.address(),
@@ -605,7 +611,9 @@ impl<C> NymdClient<C> {
     {
         let fee = self.get_fee(Operation::UndelegateFromGateway);
 
-        let req = ExecuteMsg::UndelegateFromGateway { gateway_identity: gateway_identity.to_string() };
+        let req = ExecuteMsg::UndelegateFromGateway {
+            gateway_identity: gateway_identity.to_string(),
+        };
         self.client
             .execute(
                 self.address(),

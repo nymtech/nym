@@ -1,4 +1,6 @@
+import { Denom } from "./denom";
+
 export interface Coin {
   amount: string;
-  denom: string;
+  denom: Denom;
 }

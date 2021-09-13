@@ -507,14 +507,14 @@ impl<C> NymdClient<C> {
     /// Removes stake delegation from a particular mixnode.
     pub async fn remove_mixnode_delegation(
         &self,
-        mix_identity: IdentityKey,
+        mix_identity: &str,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
         let fee = self.get_fee(Operation::UndelegateFromMixnode);
 
-        let req = ExecuteMsg::UndelegateFromMixnode { mix_identity };
+        let req = ExecuteMsg::UndelegateFromMixnode { mix_identity: mix_identity.to_string() };
         self.client
             .execute(
                 self.address(),
@@ -574,15 +574,15 @@ impl<C> NymdClient<C> {
     /// Delegates specified amount of stake to particular gateway.
     pub async fn delegate_to_gateway(
         &self,
-        gateway_identity: IdentityKey,
-        amount: Coin,
+        gateway_identity: &str,
+        amount: &Coin,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
         let fee = self.get_fee(Operation::DelegateToGateway);
 
-        let req = ExecuteMsg::DelegateToGateway { gateway_identity };
+        let req = ExecuteMsg::DelegateToGateway { gateway_identity: gateway_identity.to_string() };
         self.client
             .execute(
                 self.address(),
@@ -590,7 +590,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Delegating to gateway from rust!",
-                vec![cosmwasm_coin_to_cosmos_coin(amount)],
+                vec![cosmwasm_coin_ptr_to_cosmos_coin(amount)],
             )
             .await
     }
@@ -598,14 +598,14 @@ impl<C> NymdClient<C> {
     /// Removes stake delegation from a particular gateway.
     pub async fn remove_gateway_delegation(
         &self,
-        gateway_identity: IdentityKey,
+        gateway_identity: &str,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
         let fee = self.get_fee(Operation::UndelegateFromGateway);
 
-        let req = ExecuteMsg::UndelegateFromGateway { gateway_identity };
+        let req = ExecuteMsg::UndelegateFromGateway { gateway_identity: gateway_identity.to_string() };
         self.client
             .execute(
                 self.address(),

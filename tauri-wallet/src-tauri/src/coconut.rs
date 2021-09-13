@@ -1,12 +1,9 @@
+use crate::state::State;
+use coconut_interface::{self, Credential, Signature, Theta, VerificationKey};
+use credentials::{obtain_aggregate_signature, obtain_aggregate_verification_key};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use coconut_interface::{
-    self, Credential, Signature, Theta, VerificationKey,
-  };
-use crate::state::State;
-use credentials::{obtain_aggregate_signature, obtain_aggregate_verification_key};
 use url::Url;
-
 
 #[tauri::command]
 pub async fn randomise_credential(
@@ -65,61 +62,61 @@ pub async fn verify_credential(
 }
 
 async fn prove_credential(
-    idx: usize,
-    validator_urls: Vec<String>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
-  ) -> Result<Theta, String> {
-    let verification_key = get_aggregated_verification_key(validator_urls, state.clone()).await?;
-    let state = state.read().await;
-  
-    if let Some(signature) = state.signatures.get(idx) {
-      match coconut_interface::prove_credential(
-        state.params()?,
-        &verification_key,
-        signature,
-        &state.private_attributes(),
-      ) {
-        Ok(theta) => Ok(theta),
-        Err(e) => Err(format!("{}", e)),
-      }
-    } else {
-      Err("Got invalid Signature idx".to_string())
+  idx: usize,
+  validator_urls: Vec<String>,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Theta, String> {
+  let verification_key = get_aggregated_verification_key(validator_urls, state.clone()).await?;
+  let state = state.read().await;
+
+  if let Some(signature) = state.signatures.get(idx) {
+    match coconut_interface::prove_credential(
+      state.params()?,
+      &verification_key,
+      signature,
+      &state.private_attributes(),
+    ) {
+      Ok(theta) => Ok(theta),
+      Err(e) => Err(format!("{}", e)),
     }
+  } else {
+    Err("Got invalid Signature idx".to_string())
+  }
+}
+
+async fn get_aggregated_verification_key(
+  validator_urls: Vec<String>,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<VerificationKey, String> {
+  if let Some(verification_key) = &state.read().await.aggregated_verification_key {
+    return Ok(verification_key.clone());
   }
 
-  async fn get_aggregated_verification_key(
-    validator_urls: Vec<String>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
-  ) -> Result<VerificationKey, String> {
-    if let Some(verification_key) = &state.read().await.aggregated_verification_key {
-      return Ok(verification_key.clone());
-    }
-  
-    let parsed_urls = parse_url_validators(&validator_urls)?;
-    let key = obtain_aggregate_verification_key(&parsed_urls)
-      .await
-      .map_err(|err| format!("failed to obtain aggregate verification key - {:?}", err))?;
-  
-    state
-      .write()
-      .await
-      .aggregated_verification_key
-      .replace(key.clone());
-  
-    Ok(key)
-  }
+  let parsed_urls = parse_url_validators(&validator_urls)?;
+  let key = obtain_aggregate_verification_key(&parsed_urls)
+    .await
+    .map_err(|err| format!("failed to obtain aggregate verification key - {:?}", err))?;
 
-  fn parse_url_validators(raw: &[String]) -> Result<Vec<Url>, String> {
-    let mut parsed_urls = Vec::with_capacity(raw.len());
-    for url in raw {
-      let parsed_url: Url = url
-        .parse()
-        .map_err(|err| format!("one of validator urls is malformed - {}", err))?;
-      parsed_urls.push(parsed_url)
-    }
-    Ok(parsed_urls)
+  state
+    .write()
+    .await
+    .aggregated_verification_key
+    .replace(key.clone());
+
+  Ok(key)
+}
+
+fn parse_url_validators(raw: &[String]) -> Result<Vec<Url>, String> {
+  let mut parsed_urls = Vec::with_capacity(raw.len());
+  for url in raw {
+    let parsed_url: Url = url
+      .parse()
+      .map_err(|err| format!("one of validator urls is malformed - {}", err))?;
+    parsed_urls.push(parsed_url)
   }
-  
+  Ok(parsed_urls)
+}
+
 #[tauri::command]
 pub async fn get_credential(
   validator_urls: Vec<String>,

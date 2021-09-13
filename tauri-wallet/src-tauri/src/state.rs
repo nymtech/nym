@@ -1,8 +1,6 @@
 use crate::config::Config;
 use crate::format_err;
-use coconut_interface::{
-  self, Attribute, Parameters, Signature, VerificationKey,
-};
+use coconut_interface::{self, Attribute, Parameters, Signature, VerificationKey};
 use validator_client::nymd::{NymdClient, SigningNymdClient};
 
 #[derive(Default)]
@@ -51,5 +49,4 @@ impl State {
   pub fn n_attributes(&self) -> u32 {
     self.n_attributes
   }
-
 }

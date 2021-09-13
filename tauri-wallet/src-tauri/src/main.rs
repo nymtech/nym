@@ -205,7 +205,7 @@ async fn bond_mixnode(
 
 #[tauri::command]
 async fn delegate_to_mixnode(
-  identity: String,
+  identity: &str,
   amount: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationResult, String> {
@@ -215,10 +215,10 @@ async fn delegate_to_mixnode(
     Err(e) => return Err(format_err!(e)),
   };
   let client = r_state.client()?;
-  match client.delegate_to_mixnode(&identity, &bond).await {
+  match client.delegate_to_mixnode(identity, &bond).await {
     Ok(_result) => Ok(DelegationResult {
       source_address: client.address().to_string(),
-      target_address: identity,
+      target_address: identity.to_string(),
       amount: Some(bond.into()),
     }),
     Err(e) => Err(format_err!(e)),
@@ -227,44 +227,56 @@ async fn delegate_to_mixnode(
 
 #[tauri::command]
 async fn undelegate_from_mixnode(
-  identity: String,
+  identity: &str,
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<(), String> {
+) -> Result<DelegationResult, String> {
   let r_state = state.read().await;
   let client = r_state.client()?;
   match client.remove_mixnode_delegation(identity).await {
-    Ok(_result) => Ok(()),
+    Ok(_result) => Ok(DelegationResult {
+      source_address: client.address().to_string(),
+      target_address: identity.to_string(),
+      amount: None,
+    }),
     Err(e) => Err(format_err!(e)),
   }
 }
 
 #[tauri::command]
 async fn delegate_to_gateway(
-  identity: String,
+  identity: &str,
   amount: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<(), String> {
+) -> Result<DelegationResult, String> {
   let r_state = state.read().await;
   let bond: CosmWasmCoin = match amount.try_into() {
     Ok(b) => b,
     Err(e) => return Err(format_err!(e)),
   };
   let client = r_state.client()?;
-  match client.delegate_to_gateway(identity, bond).await {
-    Ok(_result) => Ok(()),
+  match client.delegate_to_gateway(identity, &bond).await {
+    Ok(_result) => Ok(DelegationResult {
+      source_address: client.address().to_string(),
+      target_address: identity.to_string(),
+      amount: Some(bond.into()),
+    }),
     Err(e) => Err(format_err!(e)),
   }
 }
 
 #[tauri::command]
 async fn undelegate_from_gateway(
-  identity: String,
+  identity: &str,
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<(), String> {
+) -> Result<DelegationResult, String> {
   let r_state = state.read().await;
   let client = r_state.client()?;
   match client.remove_gateway_delegation(identity).await {
-    Ok(_result) => Ok(()),
+    Ok(_result) => Ok(DelegationResult {
+      source_address: client.address().to_string(),
+      target_address: identity.to_string(),
+      amount: None,
+    }),
     Err(e) => Err(format_err!(e)),
   }
 }
@@ -407,5 +419,7 @@ export! {
   Gateway => "../src/types/rust/gateway.ts",
   TauriTxResult => "../src/types/rust/tauritxresult.ts",
   TransactionDetails => "../src/types/rust/transactiondetails.ts",
-  Operation => "../src/types/rust/operation.ts"
+  Operation => "../src/types/rust/operation.ts",
+  Denom => "../src/types/rust/denom.ts",
+  DelegationResult => "../src/types/rust/delegationresult.ts"
 }

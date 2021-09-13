@@ -123,7 +123,7 @@ impl Coin {
   pub fn new(amount: &str, denom: &Denom) -> Coin {
     Coin {
       amount: amount.to_string(),
-      denom: denom.clone()
+      denom: denom.clone(),
     }
   }
 }
@@ -170,7 +170,7 @@ impl From<CosmWasmCoin> for Coin {
   fn from(c: CosmWasmCoin) -> Coin {
     Coin {
       amount: c.amount.to_string(),
-      denom: Denom::from_str(&c.denom.to_string()).unwrap(),
+      denom: Denom::from_str(&c.denom).unwrap(),
     }
   }
 }

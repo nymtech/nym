@@ -1,12 +1,18 @@
 import * as React from 'react';
-import { styled, useTheme, Theme, CSSObject } from '@mui/material/styles';
-import { makeStyles } from '@mui/styles';
+import {
+  styled,
+  CSSObject,
+  Theme,
+  // makeStyles,
+  // useTheme,
+} from '@mui/material/styles';
+import { makeStyles, useTheme } from '@mui/styles';
 import Box from '@mui/material/Box';
 import MuiDrawer from '@mui/material/Drawer';
 import MuiAppBar, { AppBarProps as MuiAppBarProps } from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import List from '@mui/material/List';
-import CssBaseline from '@mui/material/CssBaseline';
+// import CssBaseline from '@mui/material/CssBaseline';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
@@ -18,7 +24,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import InboxIcon from '@mui/icons-material/MoveToInbox';
 import MailIcon from '@mui/icons-material/Mail';
-import { ConstructionOutlined } from '@mui/icons-material';
+// import { ConstructionOutlined } from '@mui/icons-material';
 import { NymLogoSVG } from './NymLogoSVG';
 
 const drawerWidth = 240;
@@ -42,6 +48,16 @@ const closedMixin = (theme: Theme): CSSObject => ({
   [theme.breakpoints.up('sm')]: {
     width: `calc(${theme.spacing(9)} + 1px)`,
   },
+});
+
+// useStyles / classes *has* our custom theme.
+const useStyles: any = makeStyles((theme: any) => {
+  console.log('makeStyles theme is =====>>> ', theme);
+  return {
+    nymAppBar: {
+      backgroundColor: theme.palette.primary.dark,
+    },
+  };
 });
 
 const DrawerHeader = styled('div')(({ theme }) => ({
@@ -92,16 +108,11 @@ const Drawer = styled(MuiDrawer, {
   }),
 }));
 
-const useStyles = makeStyles((theme: Theme) => {
-  console.log('useStyles theme is =====>>> ', theme);
-  return {
-    nymAppBar: {
-      backgroundColor: theme.palette.secondary.dark,
-    },
-  };
-});
 export const Nav: React.FC = () => {
-  const theme = useTheme();
+  // useStyles / classes *has* our custom theme.
+  const theme: any = useTheme();
+  // does NOT have our custom theme
+
   const classes = useStyles();
   const [open, setOpen] = React.useState(false);
   const handleDrawerOpen = () => {
@@ -113,7 +124,7 @@ export const Nav: React.FC = () => {
   };
 
   React.useEffect(() => {
-    console.log('theme ====>>', theme);
+    console.log('useTheme theme ====>>', theme);
   }, [theme]);
 
   return (
@@ -123,7 +134,7 @@ export const Nav: React.FC = () => {
         open={open}
         // sx={{ bgcolor: 'red' }}
         className={classes.nymAppBar}
-        sx={{ bgcolor: theme.palette.primary.dark }}
+        // sx={{ bgcolor: theme.palette.primary.dark }}
       >
         <Toolbar>
           <IconButton

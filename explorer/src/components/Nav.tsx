@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { styled, useTheme, Theme, CSSObject } from '@mui/material/styles';
+import { makeStyles } from '@mui/styles';
 import Box from '@mui/material/Box';
 import MuiDrawer from '@mui/material/Drawer';
 import MuiAppBar, { AppBarProps as MuiAppBarProps } from '@mui/material/AppBar';
@@ -17,6 +18,8 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import InboxIcon from '@mui/icons-material/MoveToInbox';
 import MailIcon from '@mui/icons-material/Mail';
+import { ConstructionOutlined } from '@mui/icons-material';
+import { NymLogoSVG } from './NymLogoSVG';
 
 const drawerWidth = 240;
 
@@ -89,10 +92,18 @@ const Drawer = styled(MuiDrawer, {
   }),
 }));
 
+const useStyles = makeStyles((theme: Theme) => {
+  console.log('useStyles theme is =====>>> ', theme);
+  return {
+    nymAppBar: {
+      backgroundColor: theme.palette.secondary.dark,
+    },
+  };
+});
 export const Nav: React.FC = () => {
   const theme = useTheme();
+  const classes = useStyles();
   const [open, setOpen] = React.useState(false);
-
   const handleDrawerOpen = () => {
     setOpen(true);
   };
@@ -101,10 +112,19 @@ export const Nav: React.FC = () => {
     setOpen(false);
   };
 
+  React.useEffect(() => {
+    console.log('theme ====>>', theme);
+  }, [theme]);
+
   return (
     <Box sx={{ display: 'flex' }}>
-      <CssBaseline />
-      <AppBar position="fixed" open={open} sx={{ bgcolor: '#070B15' }}>
+      <AppBar
+        position="fixed"
+        open={open}
+        // sx={{ bgcolor: 'red' }}
+        className={classes.nymAppBar}
+        sx={{ bgcolor: theme.palette.primary.dark }}
+      >
         <Toolbar>
           <IconButton
             color="inherit"
@@ -118,6 +138,7 @@ export const Nav: React.FC = () => {
           >
             <MenuIcon />
           </IconButton>
+          <NymLogoSVG />
           <Typography variant="h6" noWrap component="div">
             Network Explorer
           </Typography>

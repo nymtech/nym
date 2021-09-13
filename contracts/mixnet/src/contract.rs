@@ -205,7 +205,40 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(mut deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    use crate::storage::{gateways_read, mix_delegations, mix_delegations_read, mixnodes_read};
+    use crate::transactions::delegations;
+    use cosmwasm_std::{Order, StdResult};
+    use mixnet_contract::{GatewayBond, MixNodeBond};
+
+    // Read existing delegations data, drop invalid values, and rewrite delegations data with valid data only
+    fn overwrite_delegations_data(identity: &str, deps: &mut DepsMut) -> Result<(), ContractError> {
+        let delegations_bucket = mix_delegations_read(deps.storage, identity);
+        let delegations = delegations(delegations_bucket)?;
+        for (key, delegation) in delegations {
+            mix_delegations(deps.storage, identity).save(&key, &delegation)?;
+        }
+        Ok(())
+    }
+
+    let mixnet_bonds = mixnodes_read(deps.storage)
+        .range(None, None, Order::Ascending)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<MixNodeBond>>>()?;
+
+    for bond in mixnet_bonds {
+        overwrite_delegations_data(bond.identity(), &mut deps)?;
+    }
+
+    let gateway_bonds = gateways_read(deps.storage)
+        .range(None, None, Order::Ascending)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<GatewayBond>>>()?;
+
+    for bond in gateway_bonds {
+        overwrite_delegations_data(bond.identity(), &mut deps)?;
+    }
+
     Ok(Default::default())
 }
 

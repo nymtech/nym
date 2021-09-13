@@ -25,12 +25,15 @@ pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
 // 3. The node unbonds
 // 4. Some of the addresses that delegated in the past have not removed the delegation yet
 // 5. The node rebonds with the same identity
-fn find_old_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
+pub fn delegations(
+    delegations_bucket: ReadonlyBucket<RawDelegationData>,
+) -> StdResult<Vec<(Vec<u8>, RawDelegationData)>> {
     // I think it's incredibly unlikely to ever read more than that
     // but in case we do, we should guard ourselves against possible
     // out of memory errors (wasm contracts can only allocate at most 2MB
     // of RAM, so we don't want to box the entire iterator)
-    let mut total_delegation = Coin::new(0, DENOM);
+    let mut delegations = Vec::new();
+    // let mut total_delegation = Coin::new(0, DENOM);
     let mut start = None;
     loop {
         let iterator = delegations_bucket
@@ -49,7 +52,7 @@ fn find_old_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -
                         start = Some(position);
                         continue;
                     }
-                    total_delegation.amount += delegation.amount;
+                    delegations.push((position, delegation))
                 }
                 Err(_e) => {
                     // Skip errors
@@ -64,7 +67,17 @@ fn find_old_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -
         }
     }
 
-    Ok(total_delegation)
+    Ok(delegations)
+}
+
+fn total_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
+    match delegations(delegations_bucket) {
+        Ok(delegations) => Ok(Coin::new(
+            delegations.iter().fold(0, |acc, x| acc + x.1.amount.u128()),
+            "upunk",
+        )),
+        Err(e) => Err(e),
+    }
 }
 
 fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
@@ -145,7 +158,7 @@ pub(crate) fn try_add_mixnode(
 
     // this might potentially require more gas if a significant number of delegations was there
     let delegations_bucket = mix_delegations_read(deps.storage, &bond.mix_node.identity_key);
-    let existing_delegation = find_old_delegations(delegations_bucket)?;
+    let existing_delegation = total_delegations(delegations_bucket)?;
     bond.total_delegation = existing_delegation;
 
     let identity = bond.identity();
@@ -277,7 +290,7 @@ pub(crate) fn try_add_gateway(
 
     // this might potentially require more gas if a significant number of delegations was there
     let delegations_bucket = gateway_delegations_read(deps.storage, &bond.gateway.identity_key);
-    let existing_delegation = find_old_delegations(delegations_bucket)?;
+    let existing_delegation = total_delegations(delegations_bucket)?;
     bond.total_delegation = existing_delegation;
 
     let identity = bond.identity();
@@ -3935,7 +3948,7 @@ pub mod tests {
             let node_identity: IdentityKey = "nodeidentity".into();
 
             let read_bucket = mix_delegations_read(&deps.storage, &node_identity);
-            let old_delegations = find_old_delegations(read_bucket).unwrap();
+            let old_delegations = total_delegations(read_bucket).unwrap();
 
             assert_eq!(Coin::new(0, DENOM), old_delegations);
         }
@@ -3952,14 +3965,14 @@ pub mod tests {
                 OLD_DELEGATIONS_CHUNK_SIZE * 3 + 1,
             ];
 
-            for total_delegations in num_delegations {
+            for delegations in num_delegations {
                 let mut deps = helpers::init_contract();
 
                 let node_identity: IdentityKey = "nodeidentity".into();
 
                 // delegate some stake
                 let mut write_bucket = mix_delegations(&mut deps.storage, &node_identity);
-                for i in 1..=total_delegations {
+                for i in 1..=delegations {
                     let delegator = Addr::unchecked(format!("delegator{}", i));
                     let delegation = raw_delegation_fixture(i as u128);
                     write_bucket
@@ -3968,9 +3981,9 @@ pub mod tests {
                 }
 
                 let read_bucket = mix_delegations_read(&deps.storage, &node_identity);
-                let old_delegations = find_old_delegations(read_bucket).unwrap();
+                let old_delegations = total_delegations(read_bucket).unwrap();
 
-                let total_delegation = (1..=total_delegations as u128).into_iter().sum();
+                let total_delegation = (1..=delegations as u128).into_iter().sum();
                 assert_eq!(Coin::new(total_delegation, DENOM), old_delegations);
             }
         }

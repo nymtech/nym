@@ -483,15 +483,15 @@ impl<C> NymdClient<C> {
     /// Delegates specified amount of stake to particular mixnode.
     pub async fn delegate_to_mixnode(
         &self,
-        mix_identity: IdentityKey,
-        amount: Coin,
+        mix_identity: &str,
+        amount: &Coin,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
         let fee = self.get_fee(Operation::DelegateToMixnode);
 
-        let req = ExecuteMsg::DelegateToMixnode { mix_identity };
+        let req = ExecuteMsg::DelegateToMixnode { mix_identity: mix_identity.to_string() };
         self.client
             .execute(
                 self.address(),
@@ -499,7 +499,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Delegating to mixnode from rust!",
-                vec![cosmwasm_coin_to_cosmos_coin(amount)],
+                vec![cosmwasm_coin_ptr_to_cosmos_coin(amount)],
             )
             .await
     }
@@ -642,6 +642,14 @@ impl<C> NymdClient<C> {
 }
 
 fn cosmwasm_coin_to_cosmos_coin(coin: Coin) -> CosmosCoin {
+    CosmosCoin {
+        denom: coin.denom.parse().unwrap(),
+        // this might be a bit iffy, cosmwasm coin stores value as u128, while cosmos does it as u64
+        amount: (coin.amount.u128() as u64).into(),
+    }
+}
+
+fn cosmwasm_coin_ptr_to_cosmos_coin(coin: &Coin) -> CosmosCoin {
     CosmosCoin {
         denom: coin.denom.parse().unwrap(),
         // this might be a bit iffy, cosmwasm coin stores value as u128, while cosmos does it as u64

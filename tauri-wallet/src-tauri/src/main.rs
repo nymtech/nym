@@ -3,32 +3,28 @@
   windows_subsystem = "windows"
 )]
 
-use ::config::defaults::DENOM;
 use bip39::{Language, Mnemonic};
 use cosmos_sdk::Coin as CosmosCoin;
-use cosmos_sdk::Denom as CosmosDenom;
-use cosmos_sdk::{AccountId, Decimal};
+use cosmos_sdk::AccountId;
 use cosmwasm_std::Coin as CosmWasmCoin;
 use error::BackendError;
 use mixnet_contract::{Gateway, MixNode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::fmt;
-use std::ops::Add;
 use std::str::FromStr;
 use std::sync::Arc;
 use tendermint_rpc::endpoint::broadcast::tx_commit::Response;
 use tokio::sync::RwLock;
 use ts_rs::{export, TS};
 use validator_client::nymd::fee_helpers::Operation;
-use validator_client::nymd::GasPrice;
 use validator_client::nymd::{NymdClient, SigningNymdClient};
+use std::convert::TryInto;
 
 mod coconut;
 mod config;
 mod error;
 mod state;
+mod coin;
 
 use crate::coconut::{
   delete_credential, get_credential, list_credentials, randomise_credential, verify_credential,
@@ -36,6 +32,7 @@ use crate::coconut::{
 use crate::state::State;
 
 use crate::config::Config;
+use crate::coin::{Coin, Denom};
 
 #[macro_export]
 macro_rules! format_err {
@@ -45,40 +42,16 @@ macro_rules! format_err {
 }
 
 #[derive(TS, Serialize, Deserialize)]
+struct DelegationResult {
+  source_address: String,
+  target_address: String,
+  amount: Option<Coin>
+}
+
+#[derive(TS, Serialize, Deserialize)]
 struct Balance {
   coin: Coin,
   printable_balance: String,
-}
-
-enum Denom {
-  Major,
-  Minor,
-}
-
-impl fmt::Display for Denom {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match *self {
-      Denom::Major => f.write_str(&DENOM[1..].to_uppercase()),
-      Denom::Minor => f.write_str(DENOM),
-    }
-  }
-}
-
-impl FromStr for Denom {
-  type Err = String;
-
-  fn from_str(s: &str) -> Result<Denom, String> {
-    if s.to_lowercase() == DENOM.to_lowercase() {
-      Ok(Denom::Minor)
-    } else if s.to_lowercase() == DENOM[1..].to_lowercase() {
-      Ok(Denom::Major)
-    } else {
-      Err(format_err!(format!(
-        "{} is not a valid denomination string",
-        s
-      )))
-    }
-  }
 }
 
 #[derive(Deserialize, Serialize, TS)]
@@ -109,124 +82,12 @@ impl TauriTxResult {
   }
 }
 
-// Proxy types to allow TS generation
-#[derive(TS, Serialize, Deserialize, Clone)]
-struct Coin {
-  amount: String,
-  denom: String,
-}
-
-impl From<GasPrice> for Coin {
-  fn from(g: GasPrice) -> Coin {
-    Coin {
-      amount: g.amount.to_string(),
-      denom: g.denom.to_string(),
-    }
-  }
-}
-
-impl fmt::Display for Coin {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.write_str(&format!("{} {}", self.amount, self.denom))
-  }
-}
-
-// Allows adding minor and major denominations, output will have the LHS denom.
-impl Add for Coin {
-  type Output = Self;
-
-  fn add(self, rhs: Self) -> Self {
-    let denom = Denom::from_str(&self.denom).unwrap();
-    let lhs = self.to_minor();
-    let rhs = rhs.to_minor();
-    let lhs_amount = lhs.amount.parse::<u64>().unwrap();
-    let rhs_amount = rhs.amount.parse::<u64>().unwrap();
-    let amount = lhs_amount + rhs_amount;
-    let coin = Coin {
-      amount: amount.to_string(),
-      denom: Denom::Minor.to_string(),
-    };
-    match denom {
-      Denom::Major => coin.to_major(),
-      Denom::Minor => coin,
-    }
-  }
-}
-
-impl Coin {
-  fn to_major(&self) -> Coin {
-    if let Ok(denom) = Denom::from_str(&self.denom) {
-      match denom {
-        Denom::Major => self.clone(),
-        Denom::Minor => Coin {
-          amount: (self.amount.parse::<f64>().unwrap() / 1_000_000.).to_string(),
-          denom: Denom::Major.to_string(),
-        },
-      }
-    } else {
-      unreachable!()
-    }
-  }
-
-  fn to_minor(&self) -> Coin {
-    if let Ok(denom) = Denom::from_str(&self.denom) {
-      match denom {
-        Denom::Minor => self.clone(),
-        Denom::Major => Coin {
-          amount: (self.amount.parse::<f64>().unwrap() * 1_000_000.).to_string(),
-          denom: Denom::Minor.to_string(),
-        },
-      }
-    } else {
-      unreachable!()
-    }
-  }
-}
-
-impl TryFrom<Coin> for CosmWasmCoin {
-  type Error = String;
-
-  fn try_from(coin: Coin) -> Result<CosmWasmCoin, String> {
-    match serde_json::to_value(coin) {
-      Ok(value) => match serde_json::from_value(value) {
-        Ok(coin) => Ok(coin),
-        Err(e) => Err(format_err!(e)),
-      },
-      Err(e) => Err(format_err!(e)),
-    }
-  }
-}
-
-// There is some confusion here over coins and denoms, it feels like we should use types to differentiate between the two
-impl TryFrom<Coin> for CosmosCoin {
-  type Error = String;
-
-  fn try_from(coin: Coin) -> Result<CosmosCoin, String> {
-    let coin = coin.to_minor();
-    match Decimal::from_str(&coin.amount) {
-      Ok(d) => Ok(CosmosCoin {
-        amount: d,
-        denom: CosmosDenom::from_str(&coin.denom).unwrap(),
-      }),
-      Err(e) => Err(format_err!(e)),
-    }
-  }
-}
-
-impl From<CosmosCoin> for Coin {
-  fn from(c: CosmosCoin) -> Coin {
-    Coin {
-      amount: c.amount.to_string(),
-      denom: c.denom.to_string(),
-    }
-  }
-}
-
+// TODO these should be more explicit
 #[tauri::command]
 fn major_to_minor(amount: String) -> Result<Coin, String> {
   let coin = Coin {
     amount,
-    denom: Denom::Major.to_string(),
+    denom: Denom::Major,
   };
   Ok(coin.to_minor())
 }
@@ -235,7 +96,7 @@ fn major_to_minor(amount: String) -> Result<Coin, String> {
 fn minor_to_major(amount: String) -> Result<Coin, String> {
   let coin = Coin {
     amount,
-    denom: Denom::Minor.to_string(),
+    denom: Denom::Minor,
   };
   Ok(coin.to_major())
 }
@@ -285,7 +146,7 @@ async fn get_balance(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<Bala
     Ok(Some(coin)) => {
       let coin = Coin {
         amount: coin.amount.to_string(),
-        denom: coin.denom.to_string(),
+        denom: Denom::from_str(&coin.denom.to_string())?,
       };
       Ok(Balance {
         coin: coin.clone(),
@@ -353,15 +214,19 @@ async fn delegate_to_mixnode(
   identity: String,
   amount: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<(), String> {
+) -> Result<DelegationResult, String> {
   let r_state = state.read().await;
   let bond: CosmWasmCoin = match amount.try_into() {
     Ok(b) => b,
     Err(e) => return Err(format_err!(e)),
   };
   let client = r_state.client()?;
-  match client.delegate_to_mixnode(identity, bond).await {
-    Ok(_result) => Ok(()),
+  match client.delegate_to_mixnode(&identity, &bond).await {
+    Ok(_result) => Ok(DelegationResult {
+      source_address: client.address().to_string(),
+      target_address: identity,
+      amount: Some(bond.into())
+    }),
     Err(e) => Err(format_err!(e)),
   }
 }
@@ -478,7 +343,7 @@ async fn get_fee(
   let fee = client.get_fee(operation);
   let mut coin = Coin {
     amount: "0".to_string(),
-    denom: "upunk".to_string(),
+    denom: Denom::Major,
   };
   for f in fee.amount {
     coin = coin + f.into();

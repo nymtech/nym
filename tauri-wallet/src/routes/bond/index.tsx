@@ -90,7 +90,7 @@ export const Bond = () => {
                   setStatus(EnumRequestStatus.initial)
                 }}
               >
-                Resend?
+                Again?
               </Button>
             </div>
           </>

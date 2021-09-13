@@ -8,7 +8,7 @@ import {
   EnumRequestStatus,
   RequestStatus,
 } from '../../components/RequestStatus'
-import { Alert } from '@material-ui/lab'
+import { Alert, AlertTitle } from '@material-ui/lab'
 import { TFee } from '../../types'
 import { getGasFee } from '../../requests'
 
@@ -76,7 +76,12 @@ export const Delegate = () => {
                     An error occurred with the request: {message}
                   </Alert>
                 }
-                Success={<Alert severity="success">{message}</Alert>}
+                Success={
+                  <Alert severity="success">
+                    <AlertTitle>Delegation complete</AlertTitle>
+                    {message}
+                  </Alert>
+                }
               />
               <div
                 style={{
@@ -93,7 +98,7 @@ export const Delegate = () => {
                     setStatus(EnumRequestStatus.initial)
                   }}
                 >
-                  Resend?
+                  Finish
                 </Button>
               </div>
             </>

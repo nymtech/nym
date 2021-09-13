@@ -26,7 +26,7 @@ export const majorToMinor = async (amount: string): Promise<Coin> =>
 export const getGasFee = async (operation: Operation): Promise<Coin> =>
   await invoke('get_fee', { operation })
 
-export const delegatedToMixnode = async ({
+export const delegate = async ({
   type,
   identity,
   amount,
@@ -36,6 +36,15 @@ export const delegatedToMixnode = async ({
   amount: Coin
 }): Promise<DelegationResult> =>
   await invoke(`delegate_to_${type}`, { identity, amount })
+
+export const undelegate = async ({
+  type,
+  identity,
+}: {
+  type: EnumNodeType
+  identity: string
+}): Promise<DelegationResult> =>
+  await invoke(`undelegate_from_${type}`, { identity })
 
 export const send = async (args: {
   amount: Coin

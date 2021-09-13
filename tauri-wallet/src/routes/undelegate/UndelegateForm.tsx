@@ -10,12 +10,12 @@ import {
 } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
 import { useTheme } from '@material-ui/styles'
-import { invoke } from '@tauri-apps/api'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { EnumNodeType, TFee } from '../../types'
 import { ClientContext } from '../../context/main'
+import { minorToMajor, undelegate } from '../../requests'
 
 type TFormData = {
   nodeType: EnumNodeType
@@ -50,11 +50,12 @@ export const UndelegateForm = ({
   const { getBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TFormData) => {
-    await invoke(`undelegate_from_${data.nodeType}`, {
+    await undelegate({
+      type: data.nodeType,
       identity: data.identity,
     })
-      .then((res: any) => {
-        onSuccess(res)
+      .then(async (res) => {
+        onSuccess(`Successfully undelegated from ${res.source_address}`)
         getBalance.fetchBalance()
       })
       .catch((e) => onError(e))

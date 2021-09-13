@@ -16,7 +16,7 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { Alert } from '@material-ui/lab'
 import { ClientContext } from '../../context/main'
-import { delegatedToMixnode, majorToMinor } from '../../requests'
+import { delegate, majorToMinor } from '../../requests'
 
 type TDelegateForm = {
   nodeType: EnumNodeType
@@ -57,21 +57,15 @@ export const DelegateForm = ({
 
   const onSubmit = async (data: TDelegateForm) => {
     const amount = await majorToMinor(data.amount)
-    console.log({
-      type: data.nodeType,
-      identity: data.identity,
-      amount,
-    })
-    delegatedToMixnode({
+
+    await delegate({
       type: data.nodeType,
       identity: data.identity,
       amount,
     })
       .then((res) => {
-        const successResponse = res as DelegationResult
-        console.log(successResponse)
         onSuccess(
-          `Successfully delated ${data.amount} punk to ${successResponse.source_address}`
+          `Successfully delegated ${data.amount} punk to ${res.source_address}`
         )
         getBalance.fetchBalance()
       })

@@ -104,7 +104,7 @@ export const BondForm = ({
     const formattedData = formatData(data)
     await invoke(`bond_${data.nodeType}`, {
       [data.nodeType]: formattedData,
-      bond: { amount: formattedData?.amount, denom: 'punk' },
+      bond: { amount: formattedData?.amount, denom: 'Major' },
     })
       .then((res: any) => {
         onSuccess(res)

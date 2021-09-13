@@ -5,8 +5,8 @@ use crate::nymd::GasPrice;
 use cosmos_sdk::tx::{Fee, Gas};
 use cosmos_sdk::Coin;
 use cosmwasm_std::Uint128;
+use serde::{Deserialize, Serialize};
 use std::fmt;
-use serde::{Serialize, Deserialize};
 use ts_rs::TS;
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, TS)]

@@ -1,48 +1,75 @@
-import React from 'react'
-import { Card, CardContent, Grid, Typography } from '@material-ui/core'
+import React, { useContext } from 'react'
+import QRCode from 'qrcode.react'
+import { Box, Card, Grid, Typography } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
-import { CopyToClipboard, Layout, NymCard, Page } from '../components'
 import { useMediaQuery } from '@material-ui/core'
+import { CopyToClipboard, NymCard } from '../components'
+import { Layout } from '../layouts'
 import { theme } from '../theme'
+import { ClientContext } from '../context/main'
 
 export const Receive = () => {
+  const { clientDetails } = useContext(ClientContext)
   const matches = useMediaQuery('(min-width:769px)')
-  const address = 'Example address here'
+
   return (
-    <Page>
-      <Layout>
-        <>
-          <NymCard title="Receive Nym">
-            <Grid container direction="column" spacing={1}>
-              <Grid item>
-                <Alert severity="info">
-                  You can receive tokens by providing this address to the sender
-                </Alert>
-              </Grid>
-              <Grid item>
-                <Card
-                  style={{
-                    margin: theme.spacing(1, 0),
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    padding: theme.spacing(3),
-                  }}
-                  variant="outlined"
-                >
+    <Layout>
+      <NymCard title="Receive Nym">
+        <Grid container direction="column" spacing={1}>
+          <Grid item>
+            <Alert severity="info">
+              You can receive tokens by providing this address to the sender
+            </Alert>
+          </Grid>
+          <Grid item>
+            <Card
+              style={{
+                margin: theme.spacing(1, 0),
+                display: 'flex',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                padding: theme.spacing(3),
+              }}
+              variant="outlined"
+            >
+              <Grid
+                container
+                direction="column"
+                spacing={4}
+                alignItems="center"
+              >
+                <Grid item>
                   <Typography
                     variant={matches ? 'h5' : 'subtitle1'}
-                    style={{ wordBreak: 'break-word' }}
+                    style={{
+                      wordBreak: 'break-word',
+                      marginRight: theme.spacing(1),
+                    }}
+                    component="span"
                   >
-                    {address}
+                    {clientDetails?.client_address}
                   </Typography>
-                  <CopyToClipboard text={address} />
-                </Card>
+                  <CopyToClipboard text={clientDetails?.client_address || ''} />
+                </Grid>
+                <Grid item>
+                  <Box
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      marginBottom: theme.spacing(2),
+                    }}
+                    component="div"
+                  >
+                    {clientDetails && (
+                      <QRCode value={clientDetails.client_address} />
+                    )}
+                  </Box>
+                </Grid>
               </Grid>
-            </Grid>
-          </NymCard>
-        </>
-      </Layout>
-    </Page>
+            </Card>
+          </Grid>
+        </Grid>
+      </NymCard>
+    </Layout>
   )
 }

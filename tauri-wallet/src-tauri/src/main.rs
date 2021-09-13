@@ -4,13 +4,14 @@
 )]
 
 use bip39::{Language, Mnemonic};
-use cosmos_sdk::Coin as CosmosCoin;
 use cosmos_sdk::AccountId;
+use cosmos_sdk::Coin as CosmosCoin;
 use cosmwasm_std::Coin as CosmWasmCoin;
 use error::BackendError;
 use mixnet_contract::{Gateway, MixNode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
 use tendermint_rpc::endpoint::broadcast::tx_commit::Response;
@@ -18,21 +19,20 @@ use tokio::sync::RwLock;
 use ts_rs::{export, TS};
 use validator_client::nymd::fee_helpers::Operation;
 use validator_client::nymd::{NymdClient, SigningNymdClient};
-use std::convert::TryInto;
 
 mod coconut;
+mod coin;
 mod config;
 mod error;
 mod state;
-mod coin;
 
 use crate::coconut::{
   delete_credential, get_credential, list_credentials, randomise_credential, verify_credential,
 };
 use crate::state::State;
 
-use crate::config::Config;
 use crate::coin::{Coin, Denom};
+use crate::config::Config;
 
 #[macro_export]
 macro_rules! format_err {
@@ -45,7 +45,7 @@ macro_rules! format_err {
 struct DelegationResult {
   source_address: String,
   target_address: String,
-  amount: Option<Coin>
+  amount: Option<Coin>,
 }
 
 #[derive(TS, Serialize, Deserialize)]
@@ -84,20 +84,14 @@ impl TauriTxResult {
 
 // TODO these should be more explicit
 #[tauri::command]
-fn major_to_minor(amount: String) -> Result<Coin, String> {
-  let coin = Coin {
-    amount,
-    denom: Denom::Major,
-  };
+fn major_to_minor(amount: &str) -> Result<Coin, String> {
+  let coin = Coin::new(amount, &Denom::Major);
   Ok(coin.to_minor())
 }
 
 #[tauri::command]
-fn minor_to_major(amount: String) -> Result<Coin, String> {
-  let coin = Coin {
-    amount,
-    denom: Denom::Minor,
-  };
+fn minor_to_major(amount: &str) -> Result<Coin, String> {
+  let coin = Coin::new(amount, &Denom::Minor);
   Ok(coin.to_major())
 }
 
@@ -144,10 +138,10 @@ async fn get_balance(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<Bala
   let client = r_state.client()?;
   match client.get_balance(client.address()).await {
     Ok(Some(coin)) => {
-      let coin = Coin {
-        amount: coin.amount.to_string(),
-        denom: Denom::from_str(&coin.denom.to_string())?,
-      };
+      let coin = Coin::new(
+        &coin.amount.to_string(),
+        &Denom::from_str(&coin.denom.to_string())?,
+      );
       Ok(Balance {
         coin: coin.clone(),
         printable_balance: coin.to_major().to_string(),
@@ -225,7 +219,7 @@ async fn delegate_to_mixnode(
     Ok(_result) => Ok(DelegationResult {
       source_address: client.address().to_string(),
       target_address: identity,
-      amount: Some(bond.into())
+      amount: Some(bond.into()),
     }),
     Err(e) => Err(format_err!(e)),
   }
@@ -341,10 +335,7 @@ async fn get_fee(
   let r_state = state.read().await;
   let client = r_state.client()?;
   let fee = client.get_fee(operation);
-  let mut coin = Coin {
-    amount: "0".to_string(),
-    denom: Denom::Major,
-  };
+  let mut coin = Coin::new("0", &Denom::Major);
   for f in fee.amount {
     coin = coin + f.into();
   }

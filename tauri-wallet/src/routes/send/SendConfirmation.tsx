@@ -1,27 +1,20 @@
+import React from 'react'
 import { Card, CircularProgress, Theme, Typography } from '@material-ui/core'
 import { CheckCircleOutline } from '@material-ui/icons'
 import { useTheme } from '@material-ui/styles'
-import React, { useEffect, useState } from 'react'
-import { SendReviewField } from './SendReview'
+import { SendError } from './SendError'
+import { TauriTxResult } from '../../types/rust/tauritxresult'
 
 export const SendConfirmation = ({
-  amount,
-  recipient,
-  onFinish,
+  data,
+  error,
+  isLoading,
 }: {
-  amount: string
-  recipient: string
-  onFinish: () => void
+  data?: TauriTxResult['details']
+  error?: string
+  isLoading: boolean
 }) => {
   const theme: Theme = useTheme()
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    setTimeout(() => {
-      setIsLoading(false)
-      onFinish()
-    }, 3000)
-  }, [])
 
   return (
     <div
@@ -33,9 +26,9 @@ export const SendConfirmation = ({
         width: '100%',
       }}
     >
-      {isLoading ? (
-        <CircularProgress size={48} />
-      ) : (
+      {isLoading && <CircularProgress size={48} />}
+      {!isLoading && !!error && <SendError message={error} />}
+      {!isLoading && data && (
         <>
           <div
             style={{
@@ -67,7 +60,7 @@ export const SendConfirmation = ({
                 </Typography>
               </div>
               <div style={{ wordBreak: 'break-all' }}>
-                <Typography>{recipient}</Typography>
+                <Typography>{data.to_address}</Typography>
               </div>
             </div>
             <div style={{ display: 'flex' }}>
@@ -77,7 +70,7 @@ export const SendConfirmation = ({
                 </Typography>
               </div>
               <div>
-                <Typography>{amount + ' punks'}</Typography>
+                <Typography>{data.amount.amount + ' punks'}</Typography>
               </div>
             </div>
           </Card>

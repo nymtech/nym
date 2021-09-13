@@ -1,48 +1,41 @@
-import React, { useState } from "react";
-import {
-  Button,
-  Checkbox,
-  FormControlLabel,
-  Grid,
-  InputAdornment,
-  List,
-  ListItem,
-  TextField,
-  Theme,
-} from "@material-ui/core";
-import { useTheme } from "@material-ui/styles";
-import { DocEntry } from "./DocEntry";
+import React from 'react'
+import { List, ListItem } from '@material-ui/core'
+import { DocEntry } from './DocEntry'
 
 export const ApiList = () => {
-  const [advancedShown, setAdvancedShown] = React.useState(false);
-
-  const theme: Theme = useTheme();
-
   return (
     <List>
       <ListItem>
-        <DocEntry function={{ name: "get_balance", args: [] }} />
+        <DocEntry
+          function={{
+            name: 'connect_with_mnemonic',
+            args: [{ name: 'mnemonic', type: 'str' }],
+          }}
+        />
+      </ListItem>
+      <ListItem>
+        <DocEntry function={{ name: 'get_balance', args: [] }} />
       </ListItem>
       <ListItem>
         <DocEntry
           function={{
-            name: "minor_to_major",
-            args: [{ name: "amount", type: "str" }],
+            name: 'minor_to_major',
+            args: [{ name: 'amount', type: 'str' }],
           }}
         />
       </ListItem>
       <ListItem>
         <DocEntry
           function={{
-            name: "major_to_minor",
-            args: [{ name: "amount", type: "str" }],
+            name: 'major_to_minor',
+            args: [{ name: 'amount', type: 'str' }],
           }}
         />
       </ListItem>
       <ListItem>
         <DocEntry
           function={{
-            name: "owns_mixnode",
+            name: 'owns_mixnode',
             args: [],
           }}
         />
@@ -50,7 +43,7 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "owns_gateway",
+            name: 'owns_gateway',
             args: [],
           }}
         />
@@ -58,10 +51,10 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "bond_mixnode",
+            name: 'bond_mixnode',
             args: [
-              { name: "mixnode", type: "object" },
-              { name: "bond", type: "object" },
+              { name: 'mixnode', type: 'object' },
+              { name: 'bond', type: 'object' },
             ],
           }}
         />
@@ -69,7 +62,7 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "unbond_mixnode",
+            name: 'unbond_mixnode',
             args: [],
           }}
         />
@@ -77,10 +70,10 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "bond_gateway",
+            name: 'bond_gateway',
             args: [
-              { name: "gateway", type: "object" },
-              { name: "bond", type: "object" },
+              { name: 'gateway', type: 'object' },
+              { name: 'bond', type: 'object' },
             ],
           }}
         />
@@ -88,7 +81,7 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "unbond_gateway",
+            name: 'unbond_gateway',
             args: [],
           }}
         />
@@ -96,10 +89,10 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "delegate_to_mixnode",
+            name: 'delegate_to_mixnode',
             args: [
-              { name: "identity", type: "str" },
-              { name: "amount", type: "object" },
+              { name: 'identity', type: 'str' },
+              { name: 'amount', type: 'object' },
             ],
           }}
         />
@@ -107,18 +100,18 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "undelegate_from_mixnode",
-            args: [{ name: "identity", type: "str" }],
+            name: 'undelegate_from_mixnode',
+            args: [{ name: 'identity', type: 'str' }],
           }}
         />
       </ListItem>
       <ListItem>
         <DocEntry
           function={{
-            name: "delegate_to_gateway",
+            name: 'delegate_to_gateway',
             args: [
-              { name: "identity", type: "str" },
-              { name: "amount", type: "object" },
+              { name: 'identity', type: 'str' },
+              { name: 'amount', type: 'object' },
             ],
           }}
         />
@@ -126,19 +119,19 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "undelegate_from_gateway",
-            args: [{ name: "identity", type: "str" }],
+            name: 'undelegate_from_gateway',
+            args: [{ name: 'identity', type: 'str' }],
           }}
         />
       </ListItem>
       <ListItem>
         <DocEntry
           function={{
-            name: "send",
+            name: 'send',
             args: [
-              { name: "address", type: "str" },
-              { name: "amount", type: "object" },
-              { name: "memo", type: "str" },
+              { name: 'address', type: 'str' },
+              { name: 'amount', type: 'object' },
+              { name: 'memo', type: 'str' },
             ],
           }}
         />
@@ -146,15 +139,15 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "get_fee",
-            args: [{name: "operation", type: "str"}],
+            name: 'get_fee',
+            args: [{ name: 'operation', type: 'str' }],
           }}
         />
       </ListItem>
       <ListItem>
         <DocEntry
           function={{
-            name: "create_new_account",
+            name: 'create_new_account',
             args: [],
           }}
         />
@@ -162,11 +155,11 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: "connect_with_mnemonic",
-            args: [{ name: "mnemonic", type: "str" }],
+            name: 'connect_with_mnemonic',
+            args: [{ name: 'mnemonic', type: 'str' }],
           }}
         />
       </ListItem>
     </List>
-  );
-};
+  )
+}

@@ -13,27 +13,36 @@ const copy = (text: string): Promise<{ success: boolean; value: string }> => {
   })
 }
 
+export const handleCopy = async ({
+  text,
+  cb,
+}: {
+  text: string
+  cb: (success: boolean) => void
+}) => {
+  const res = await copy(text)
+  if (res.success) {
+    setTimeout(() => {
+      cb(true)
+    }, 750)
+  } else {
+    console.log(res.value)
+  }
+}
+
 export const CopyToClipboard = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false)
 
-  const handleCopy = async () => {
-    setCopied(false)
-    const res = await copy(text)
-    console.log(res)
-    if (res.success) {
-      setCopied(true)
-    } else {
-      console.log(res.value)
-    }
-  }
+  const updateCopyStatus = (isCopied: boolean) => setCopied(isCopied)
 
   return (
     <Button
       size="small"
-      variant="outlined"
+      variant={copied ? 'text' : 'outlined'}
       aria-label="save"
-      onClick={handleCopy}
-      endIcon={copied && <Check style={{ color: green[500] }} />}
+      onClick={() => handleCopy({ text, cb: updateCopyStatus })}
+      endIcon={copied && <Check />}
+      style={copied ? { background: green[500], color: 'white' } : {}}
     >
       {copied ? 'Copied' : 'Copy'}
     </Button>

@@ -1,11 +1,14 @@
 import React from 'react'
-import { AddressCard, BalanceCard } from './BalanceCard'
-import { Nav } from './Nav'
-import Logo from '../images/logo.png'
-import { theme } from '../theme'
 import { Divider } from '@material-ui/core'
+import { AddressCard, BalanceCard, Nav } from '../components'
+import Logo from '../images/logo-background.svg'
+import { theme } from '../theme'
 
-export const Page = ({ children }: { children: React.ReactElement }) => {
+export const ApplicationLayout = ({
+  children,
+}: {
+  children: React.ReactElement
+}) => {
   return (
     <div
       style={{
@@ -16,6 +19,7 @@ export const Page = ({ children }: { children: React.ReactElement }) => {
         gridTemplateRows: '100%',
         gridColumnGap: '8px',
         gridRowGap: '0px',
+        overflow: 'hidden',
       }}
     >
       <div

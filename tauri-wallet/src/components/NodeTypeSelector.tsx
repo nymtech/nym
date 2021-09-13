@@ -29,12 +29,12 @@ export const NodeTypeSelector = ({
         style={{ display: 'block' }}
       >
         <FormControlLabel
-          value={EnumNodeType.Mixnode}
+          value={EnumNodeType.mixnode}
           control={<Radio />}
           label="Mixnode"
         />
         <FormControlLabel
-          value={EnumNodeType.Gateway}
+          value={EnumNodeType.gateway}
           control={<Radio />}
           label="Gateway"
         />

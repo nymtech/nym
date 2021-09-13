@@ -111,6 +111,21 @@ impl Coin {
       },
     }
   }
+
+  pub fn amount(&self) -> String {
+    self.amount.clone()
+  }
+
+  pub fn denom(&self) -> Denom {
+    self.denom.clone()
+  }
+
+  pub fn new(amount: &str, denom: &Denom) -> Coin {
+    Coin {
+      amount: amount.to_string(),
+      denom: denom.clone()
+    }
+  }
 }
 
 impl TryFrom<Coin> for CosmWasmCoin {

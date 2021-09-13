@@ -1,57 +1,60 @@
-import React, { useContext } from 'react'
-import { Button, Grid } from '@material-ui/core'
-import { Refresh } from '@material-ui/icons'
-import { Layout, NymCard, Page } from '../components'
-import { NoClientError } from '../components/NoClientError'
-import { Confirmation } from '../components/Confirmation'
-import { ClientContext } from '../context/main'
+import React, { useEffect } from 'react'
+import { Button, CircularProgress, Grid } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
+import { Refresh } from '@material-ui/icons'
+import { NymCard } from '../components'
+import { Layout } from '../layouts'
 import { theme } from '../theme'
+import { useGetBalance } from '../hooks/useGetBalance'
 
 export const Balance = () => {
-  const { client } = useContext(ClientContext)
+  const { balance, isLoading, error, fetchBalance } = useGetBalance()
+
+  useEffect(fetchBalance, [])
+
+  const RefreshAction = () => (
+    <Button
+      variant="contained"
+      size="small"
+      color="primary"
+      type="submit"
+      onClick={fetchBalance}
+      disabled={isLoading}
+      disableElevation
+      startIcon={<Refresh />}
+      endIcon={isLoading && <CircularProgress size={20} />}
+      style={{ marginRight: theme.spacing(2) }}
+    >
+      Refresh
+    </Button>
+  )
+
   return (
-    <Page>
-      <Layout>
-        <NymCard title="Check Balance">
-          {client === null ? (
-            <NoClientError />
-          ) : (
-            <Grid container direction="column" spacing={2}>
-              <Grid item>
-                <Confirmation
-                  isLoading={false}
-                  error={null}
-                  progressMessage="Checking balance..."
-                  SuccessMessage={
-                    <Alert
-                      severity="success"
-                      style={{ padding: theme.spacing(2, 3) }}
-                      action={
-                        <Button
-                          variant="contained"
-                          size="small"
-                          color="primary"
-                          type="submit"
-                          onClick={() => {}}
-                          disabled={false}
-                          disableElevation
-                          startIcon={<Refresh />}
-                        >
-                          Refresh
-                        </Button>
-                      }
-                    >
-                      {'The current balance is ' + client.balance}
-                    </Alert>
-                  }
-                  failureMessage="Failed to check the account balance!"
-                />
-              </Grid>
-            </Grid>
-          )}
-        </NymCard>
-      </Layout>
-    </Page>
+    <Layout>
+      <NymCard title="Check Balance">
+        <Grid container direction="column" spacing={2}>
+          <Grid item>
+            {error && (
+              <Alert
+                severity="error"
+                action={<RefreshAction />}
+                style={{ padding: theme.spacing(2) }}
+              >
+                {error}
+              </Alert>
+            )}
+            {!error && (
+              <Alert
+                severity="success"
+                style={{ padding: theme.spacing(2, 3) }}
+                action={<RefreshAction />}
+              >
+                {'The current balance is ' + balance?.printable_balance}
+              </Alert>
+            )}
+          </Grid>
+        </Grid>
+      </NymCard>
+    </Layout>
   )
 }

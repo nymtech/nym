@@ -1,9 +1,26 @@
+import { Coin } from '.'
+
 export enum EnumNodeType {
-  Mixnode = 'Mixnode',
-  Gateway = 'Gateway',
+  mixnode = 'mixnode',
+  gateway = 'gateway',
 }
 
 export type TNodeOwnership = {
   ownsMixnode: boolean
   ownsGateway: boolean
 }
+
+export type TClientDetails = {
+  client_address: string
+  contract_address: string
+}
+
+export type TSignInWithMnemonic = {
+  denom: string
+} & TClientDetails
+
+export type TCreateAccount = {
+  mnemonic: string
+} & TSignInWithMnemonic
+
+export type TFee = { [key in EnumNodeType]: Coin }

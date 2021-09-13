@@ -1,15 +1,14 @@
-import React from 'react'
-import { Layout, NymCard, Page } from '../../components'
+import React, { useState } from 'react'
+import { NymCard } from '../../components'
 import { SendWizard } from './SendWizard'
+import { Layout } from '../../layouts'
 
 export const Send = () => {
   return (
-    <Page>
-      <Layout>
-        <NymCard title="Send tokens" noPadding>
-          <SendWizard />
-        </NymCard>
-      </Layout>
-    </Page>
+    <Layout>
+      <NymCard title="Send PUNK" noPadding>
+        <SendWizard />
+      </NymCard>
+    </Layout>
   )
 }

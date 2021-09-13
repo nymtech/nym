@@ -13,9 +13,10 @@ export const Layout = ({ children }: { children: React.ReactElement }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'auto',
       }}
     >
-      <Grid container justifyContent="center">
+      <Grid container justifyContent="center" style={{ margin: 'auto' }}>
         <Grid item xs={12} md={8} xl={6}>
           {children}
         </Grid>

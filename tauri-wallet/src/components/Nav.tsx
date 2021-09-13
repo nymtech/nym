@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   List,
@@ -16,11 +16,12 @@ import {
   ExitToApp,
   HowToVote,
   MoneyOff,
-  Description
+  Description,
+  Settings,
 } from '@material-ui/icons'
 import { makeStyles } from '@material-ui/styles'
 import clsx from 'clsx'
-import { theme } from '../theme'
+import { ADMIN_ADDRESS, ClientContext } from '../context/main'
 
 let routesSchema = [
   {
@@ -58,21 +59,14 @@ let routesSchema = [
     route: '/undelegate',
     Icon: <Cancel />,
   },
-  {
-    label: 'Log out',
-    route: '/signin',
-    Icon: <ExitToApp />,
-  },
 ]
 
 if (process.env.NODE_ENV) {
-  routesSchema.push(
-    {
-      label: 'Docs',
-      route: '/docs',
-      Icon: <Description />,
-    },
-  )
+  routesSchema.push({
+    label: 'Docs',
+    route: '/docs',
+    Icon: <Description />,
+  })
 }
 
 const useStyles = makeStyles((theme: Theme) => ({
@@ -87,6 +81,7 @@ const useStyles = makeStyles((theme: Theme) => ({
 
 export const Nav = () => {
   const classes = useStyles()
+  const { clientDetails, handleShowAdmin, logOut } = useContext(ClientContext)
   const location = useLocation()
 
   return (
@@ -119,6 +114,31 @@ export const Nav = () => {
             />
           </ListItem>
         ))}
+        {clientDetails?.client_address === ADMIN_ADDRESS && (
+          <ListItem button onClick={handleShowAdmin}>
+            <ListItemIcon className={classes.navItem}>
+              <Settings />
+            </ListItemIcon>
+            <ListItemText
+              primary="Admin"
+              primaryTypographyProps={{
+                className: classes.navItem,
+              }}
+            />
+          </ListItem>
+        )}
+
+        <ListItem button onClick={logOut}>
+          <ListItemIcon className={classes.navItem}>
+            <ExitToApp />
+          </ListItemIcon>
+          <ListItemText
+            primary="Log out"
+            primaryTypographyProps={{
+              className: classes.navItem,
+            }}
+          />
+        </ListItem>
       </List>
     </div>
   )

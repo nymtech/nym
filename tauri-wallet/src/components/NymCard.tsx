@@ -1,19 +1,12 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, useTheme } from '@material-ui/core'
 
-export const NymCard = ({
-  title,
-  subheader,
-  Action,
-  noPadding,
-  children,
-}: {
+export const NymCard: React.FC<{
   title: string
   subheader?: string
   Action?: React.ReactNode
   noPadding?: boolean
-  children: React.ReactElement
-}) => {
+}> = ({ title, subheader, Action, noPadding, children }) => {
   const theme = useTheme()
   return (
     <Card variant="outlined">

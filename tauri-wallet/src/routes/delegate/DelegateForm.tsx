@@ -11,13 +11,12 @@ import {
 } from '@material-ui/core'
 import { useForm } from 'react-hook-form'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
-import { EnumNodeType, TFee } from '../../types'
+import { DelegationResult, EnumNodeType, TFee } from '../../types'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
-import { invoke } from '@tauri-apps/api'
 import { Alert } from '@material-ui/lab'
 import { ClientContext } from '../../context/main'
-import { majorToMinor } from '../../requests'
+import { delegatedToMixnode, majorToMinor } from '../../requests'
 
 type TDelegateForm = {
   nodeType: EnumNodeType
@@ -58,14 +57,22 @@ export const DelegateForm = ({
 
   const onSubmit = async (data: TDelegateForm) => {
     const amount = await majorToMinor(data.amount)
-
-    await invoke(`delegate_to_${data.nodeType}`, {
+    console.log({
+      type: data.nodeType,
       identity: data.identity,
       amount,
     })
-      .then((res: any) => {
-        console.log(res)
-        onSuccess(res)
+    delegatedToMixnode({
+      type: data.nodeType,
+      identity: data.identity,
+      amount,
+    })
+      .then((res) => {
+        const successResponse = res as DelegationResult
+        console.log(successResponse)
+        onSuccess(
+          `Successfully delated ${data.amount} punk to ${successResponse.source_address}`
+        )
         getBalance.fetchBalance()
       })
       .catch((e) => {

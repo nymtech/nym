@@ -1,5 +1,13 @@
 import { invoke } from '@tauri-apps/api'
-import { Coin, Operation, TCreateAccount, TSignInWithMnemonic } from '../types'
+import {
+  Coin,
+  DelegationResult,
+  EnumNodeType,
+  Operation,
+  TauriTxResult,
+  TCreateAccount,
+  TSignInWithMnemonic,
+} from '../types'
 
 export const createAccount = async (): Promise<TCreateAccount> =>
   await invoke('create_new_account')
@@ -17,3 +25,20 @@ export const majorToMinor = async (amount: string): Promise<Coin> =>
 
 export const getGasFee = async (operation: Operation): Promise<Coin> =>
   await invoke('get_fee', { operation })
+
+export const delegatedToMixnode = async ({
+  type,
+  identity,
+  amount,
+}: {
+  type: EnumNodeType
+  identity: string
+  amount: Coin
+}): Promise<DelegationResult> =>
+  await invoke(`delegate_to_${type}`, { identity, amount })
+
+export const send = async (args: {
+  amount: Coin
+  address: string
+  memo: string
+}): Promise<TauriTxResult> => await invoke('send', args)

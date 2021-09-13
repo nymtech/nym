@@ -23,4 +23,4 @@ pretty_env_logger = "0.4.0"
 
 mixnet-contract = { path = "../common/mixnet-contract" }
 network-defaults = { path = "../common/network-defaults" }
-validator-client = { path = "../common/client-libs/validator-client" }
+validator-client = { path = "../common/client-libs/validator-client", features=["nymd-client"] }

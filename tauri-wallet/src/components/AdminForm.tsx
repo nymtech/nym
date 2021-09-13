@@ -23,9 +23,9 @@ export const Admin: React.FC = () => {
   }
 
   return (
-    <Backdrop open={showAdmin} style={{ zIndex: 2 }}>
+    <Backdrop open={showAdmin} style={{ zIndex: 2, overflow: 'auto' }}>
       <Slide in={showAdmin}>
-        <Paper>
+        <Paper style={{ margin: 'auto' }}>
           <NymCard title="Admin" subheader="Contract administration" noPadding>
             <AdminForm onCancel={onCancel} />
           </NymCard>

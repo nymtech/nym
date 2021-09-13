@@ -8,8 +8,7 @@ import { theme } from './theme'
 import { ClientContext, ClientContextProvider } from './context/main'
 import { ApplicationLayout } from './layouts'
 import { SignIn } from './routes/sign-in'
-import { ErrorFallback } from './components'
-import { Admin } from './components/Admin'
+import { Admin, ErrorFallback } from './components'
 
 const AppWrapper = () => {
   const { clientDetails } = useContext(ClientContext)

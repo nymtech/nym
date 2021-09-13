@@ -21,7 +21,7 @@ import {
 } from '@material-ui/icons'
 import { makeStyles } from '@material-ui/styles'
 import clsx from 'clsx'
-import { ClientContext } from '../context/main'
+import { ADMIN_ADDRESS, ClientContext } from '../context/main'
 
 let routesSchema = [
   {
@@ -81,7 +81,7 @@ const useStyles = makeStyles((theme: Theme) => ({
 
 export const Nav = () => {
   const classes = useStyles()
-  const { handleShowAdmin, logOut } = useContext(ClientContext)
+  const { clientDetails, handleShowAdmin, logOut } = useContext(ClientContext)
   const location = useLocation()
 
   return (
@@ -114,17 +114,20 @@ export const Nav = () => {
             />
           </ListItem>
         ))}
-        <ListItem button onClick={handleShowAdmin}>
-          <ListItemIcon className={classes.navItem}>
-            <Settings />
-          </ListItemIcon>
-          <ListItemText
-            primary="Admin"
-            primaryTypographyProps={{
-              className: classes.navItem,
-            }}
-          />
-        </ListItem>
+        {clientDetails?.client_address === ADMIN_ADDRESS && (
+          <ListItem button onClick={handleShowAdmin}>
+            <ListItemIcon className={classes.navItem}>
+              <Settings />
+            </ListItemIcon>
+            <ListItemText
+              primary="Admin"
+              primaryTypographyProps={{
+                className: classes.navItem,
+              }}
+            />
+          </ListItem>
+        )}
+
         <ListItem button onClick={logOut}>
           <ListItemIcon className={classes.navItem}>
             <ExitToApp />

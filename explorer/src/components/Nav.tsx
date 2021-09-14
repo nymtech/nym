@@ -10,9 +10,7 @@ import List from '@mui/material/List';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
-import ListItemButton, {
-  ListItemButtonProps,
-} from '@mui/material/ListItemButton';
+import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 // MUI Icons
@@ -61,16 +59,15 @@ interface AppBarProps extends MuiAppBarProps {
   open?: boolean;
 }
 
-interface AidListItemProps {
+interface NavigationListItemButton {
   isSelected?: boolean;
-  button?: boolean;
   to: string;
   component: React.ReactNode;
 }
 
 const NavigationListItemButton = styled(ListItemButton, {
   shouldForwardProp: (prop) => prop !== 'isSelected',
-})<AidListItemProps>(({ theme, isSelected }) => ({
+})<NavigationListItemButton>(({ theme, isSelected }) => ({
   backgroundColor: isSelected
     ? theme.palette.primary.dark
     : theme.palette.secondary.dark,

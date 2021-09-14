@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { styled, CSSObject, Theme } from '@mui/material/styles';
-import { Link } from 'react-router-dom';
-
+import { Link, useLocation } from 'react-router-dom';
 // MUI surfaces etc
 import Box from '@mui/material/Box';
 import MuiDrawer from '@mui/material/Drawer';
@@ -11,7 +10,9 @@ import List from '@mui/material/List';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
-import ListItem from '@mui/material/ListItem';
+import ListItemButton, {
+  ListItemButtonProps,
+} from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 // MUI Icons
@@ -60,6 +61,21 @@ interface AppBarProps extends MuiAppBarProps {
   open?: boolean;
 }
 
+interface AidListItemProps {
+  isSelected?: boolean;
+  button?: boolean;
+  to: string;
+  component: React.ReactNode;
+}
+
+const AidListItemButton = styled(ListItemButton, {
+  shouldForwardProp: (prop) => prop !== 'isSelected',
+})<AidListItemProps>(({ theme, isSelected }) => ({
+  backgroundColor: isSelected
+    ? theme.palette.primary.dark
+    : theme.palette.secondary.dark,
+}));
+
 const AppBar = styled(MuiAppBar, {
   shouldForwardProp: (prop) => prop !== 'open',
 })<AppBarProps>(({ theme, open }) => ({
@@ -97,6 +113,8 @@ const Drawer = styled(MuiDrawer, {
 
 export const Nav: React.FC = () => {
   const [open, setOpen] = React.useState(false);
+  const { pathname } = useLocation();
+
   const handleDrawerOpen = () => {
     setOpen(true);
   };
@@ -135,24 +153,37 @@ export const Nav: React.FC = () => {
         </DrawerHeader>
         <Divider />
         <List>
-          <ListItem button component={Link} to="/overview">
+          <AidListItemButton
+            isSelected={pathname === '/overview'}
+            component={Link}
+            to="/overview"
+          >
             <ListItemIcon>
               <BarChartIcon />
             </ListItemIcon>
             <ListItemText primary="Overview" />
-          </ListItem>
-          <ListItem button component={Link} to="/network-components">
+          </AidListItemButton>
+
+          <AidListItemButton
+            isSelected={pathname === '/network-components'}
+            component={Link}
+            to="/network-components"
+          >
             <ListItemIcon>
               <CastConnectedIcon />
             </ListItemIcon>
             <ListItemText primary="Network Components" />
-          </ListItem>
-          <ListItem button component={Link} to="/nodemap">
+          </AidListItemButton>
+          <AidListItemButton
+            isSelected={pathname === '/nodemap'}
+            component={Link}
+            to="/nodemap"
+          >
             <ListItemIcon>
               <PinDropOutlinedIcon />
             </ListItemIcon>
-            <ListItemText primary="Nodemap" />
-          </ListItem>
+            <ListItemText primary="Nodemap" sx={{ color: () => 'orange' }} />
+          </AidListItemButton>
         </List>
         <Divider />
       </Drawer>

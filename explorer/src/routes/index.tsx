@@ -1,15 +1,13 @@
-import { Container } from '@mui/material';
 import * as React from 'react';
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import { Nav } from 'src/components/Nav';
-// import { TopMenu } from 'src/components/TopMenu';
-
-import { PageOverview, PageMixnodes, PageMixnodesMap } from 'src/pages';
+import { PageOverview } from 'src/pages/Overview';
+import { PageNetworkComponents } from 'src/pages/NetworkComponents';
+import { PageMixnodesMap } from 'src/pages/MixnodesMap';
 
 export const Routes: React.FC = () => (
   <Router>
-    <Nav />
-    <Container>
+    <Nav>
       <Switch>
         <Route exact path="/">
           <PageOverview />
@@ -18,12 +16,12 @@ export const Routes: React.FC = () => (
           <PageOverview />
         </Route>
         <Route exact path="/network-components">
-          <PageMixnodes />
+          <PageNetworkComponents />
         </Route>
         <Route path="/nodemap">
           <PageMixnodesMap />
         </Route>
       </Switch>
-    </Container>
+    </Nav>
   </Router>
 );

@@ -21,6 +21,7 @@ import ConnectIcon from '@mui/icons-material/CastConnected';
 import PinIcon from '@mui/icons-material/PinDropOutlined';
 import HomeIcon from '@mui/icons-material/Home';
 // non-MUI icons
+import { theme } from 'src/theme';
 import { NymLogoSVG } from '../icons/NymLogoSVG';
 
 const drawerWidth = 240;
@@ -139,7 +140,7 @@ const navOptions = [
   },
 ];
 
-export const Nav: React.FC = () => {
+export const Nav: React.FC = ({ children }) => {
   const [open, setOpen] = React.useState(false);
   const [page, setCurrentPage] = React.useState('/');
   const location = useLocation();
@@ -196,12 +197,21 @@ export const Nav: React.FC = () => {
               <ListItemIcon>
                 <route.icon />
               </ListItemIcon>
-              <ListItemText primary={route.title} />
+              <ListItemText
+                primary={route.title}
+                sx={{
+                  color:
+                    route.url === page
+                      ? theme.palette.primary.contrastText
+                      : theme.palette.primary.light,
+                }}
+              />
             </NavigationListItemButton>
           ))}
         </List>
         <Divider />
       </Drawer>
+      {children}
     </Box>
   );
 };

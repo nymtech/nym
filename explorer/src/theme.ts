@@ -23,7 +23,7 @@ const nymPalette = {
 export const theme = createTheme({
   typography: {
     fontFamily:
-      'monospace, open sans, sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"',
+      'open sans, sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"',
     fontSize: 14,
     fontWeightBold: 600,
   },
@@ -33,8 +33,6 @@ export const theme = createTheme({
       light: nymPalette.primary.light,
       dark: nymPalette.primary.dark,
       contrastText: nymPalette.primary.selectedText,
-      // only way to add an additional colour seems
-      // to be `contrastText`?
     },
     secondary: {
       main: nymPalette.secondary.main,
@@ -57,6 +55,42 @@ export const theme = createTheme({
     },
     easing: {
       easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
+    },
+  },
+  components: {
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          color: nymPalette.primary.light,
+        },
+      },
+    },
+    MuiSvgIcon: {
+      styleOverrides: {
+        root: {
+          color: nymPalette.primary.light,
+        },
+      },
+    },
+    MuiDrawer: {
+      styleOverrides: {
+        root: {
+          color: nymPalette.primary.light,
+          backgroundColor: nymPalette.secondary.dark,
+        },
+        paper: {
+          color: nymPalette.primary.light,
+          backgroundColor: nymPalette.secondary.dark,
+        },
+      },
+    },
+    MuiToolbar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: nymPalette.primary.dark,
+          color: nymPalette.primary.light,
+        },
+      },
     },
   },
 });

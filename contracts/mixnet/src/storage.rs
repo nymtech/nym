@@ -36,6 +36,8 @@ const PREFIX_REVERSE_GATEWAY_DELEGATION: &[u8] = b"dg";
 
 // Contract-level stuff
 
+// TODO Unify bucket and mixnode storage functions
+
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
     singleton(storage, CONFIG_KEY)
 }

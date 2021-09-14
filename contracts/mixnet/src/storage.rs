@@ -316,6 +316,14 @@ pub fn mix_delegations_read<'a>(
     ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
 }
 
+// https://github.com/nymtech/nym/blob/122f5d9f2e5c1ced96e3b9ba0c74ef8b7dbde2c7/contracts/mixnet/src/storage.rs
+pub fn mix_delegations_read_old<'a>(
+    storage: &'a dyn Storage,
+    mix_identity: IdentityKeyRef,
+) -> ReadonlyBucket<'a, Uint128> {
+    ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
+}
+
 pub fn reverse_mix_delegations<'a>(storage: &'a mut dyn Storage, owner: &Addr) -> Bucket<'a, ()> {
     Bucket::multilevel(storage, &[PREFIX_REVERSE_MIX_DELEGATION, owner.as_bytes()])
 }

@@ -4,13 +4,14 @@
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
 use crate::storage::{config, layer_distribution};
+use crate::transactions::old_delegations;
 use crate::{error::ContractError, queries, transactions};
 use config::defaults::NETWORK_MONITOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
 };
-use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateParams};
+use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, RawDelegationData, StateParams};
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -206,7 +207,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 
 #[entry_point]
 pub fn migrate(mut deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    use crate::storage::{gateways_read, mix_delegations, mix_delegations_read, mixnodes_read};
+    use crate::storage::{gateways_read, mix_delegations, mix_delegations_read, mixnodes_read, mix_delegations_read_old};
     use crate::transactions::delegations;
     use cosmwasm_std::{Order, StdResult};
     use mixnet_contract::{GatewayBond, MixNodeBond};
@@ -214,7 +215,13 @@ pub fn migrate(mut deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Respons
     // Read existing delegations data, drop invalid values, and rewrite delegations data with valid data only
     fn overwrite_delegations_data(identity: &str, deps: &mut DepsMut) -> Result<(), ContractError> {
         let delegations_bucket = mix_delegations_read(deps.storage, identity);
-        let delegations = delegations(delegations_bucket)?;
+        let old_delegations_bucket = mix_delegations_read_old(deps.storage, identity);
+        let mut delegations = delegations(delegations_bucket)?;
+        let old_delegations = old_delegations(old_delegations_bucket)?;
+        for delegation in old_delegations {
+            delegations.push((delegation.0, RawDelegationData::new(delegation.1, 1)))
+        }
+        
         for (key, delegation) in delegations {
             mix_delegations(deps.storage, identity).save(&key, &delegation)?;
         }

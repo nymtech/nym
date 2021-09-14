@@ -18,6 +18,44 @@ use mixnet_contract::{
 const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
 
+// Read delegations data stored as legacy Uint128
+// https://github.com/nymtech/nym/blob/122f5d9f2e5c1ced96e3b9ba0c74ef8b7dbde2c7/contracts/mixnet/src/storage.rs
+pub fn old_delegations(
+    delegations_bucket: ReadonlyBucket<Uint128>,
+) -> StdResult<Vec<(Vec<u8>, Uint128)>> {
+    let mut delegations = Vec::new();
+    let mut start = None;
+    loop {
+        let iterator = delegations_bucket
+            .range(start.as_deref(), None, Order::Ascending)
+            .take(OLD_DELEGATIONS_CHUNK_SIZE + 1);
+
+        let mut iterated = 0;
+
+        for result_tuple in iterator {
+            iterated += 1;
+            match result_tuple {
+                Ok((position, delegation)) => {
+                    if iterated > OLD_DELEGATIONS_CHUNK_SIZE {
+                        start = Some(position);
+                        continue;
+                    }
+                    delegations.push((position, delegation))
+                }
+                Err(_e) => {
+                    continue;
+                }
+            }
+        }
+
+        if iterated <= OLD_DELEGATIONS_CHUNK_SIZE {
+            break;
+        }
+    }
+
+    Ok(delegations)
+}
+
 // Looks for the total amount of delegations towards a particular node.
 // This function is used only in very specific circumstances:
 // 1. The mixnode/gateway bonds

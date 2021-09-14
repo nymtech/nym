@@ -20,7 +20,6 @@ use serde::Serialize;
 const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
 
-
 // Looks for the total amount of delegations towards a particular node.
 // This function is used only in very specific circumstances:
 // 1. The mixnode/gateway bonds

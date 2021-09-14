@@ -4,7 +4,6 @@
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
 use crate::storage::{config, layer_distribution};
-use crate::transactions::old_delegations;
 use crate::{error::ContractError, queries, transactions};
 use config::defaults::NETWORK_MONITOR_ADDRESS;
 use cosmwasm_std::{
@@ -216,13 +215,13 @@ pub fn migrate(mut deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Respons
     fn overwrite_delegations_data(identity: &str, deps: &mut DepsMut) -> Result<(), ContractError> {
         let delegations_bucket = mix_delegations_read(deps.storage, identity);
         let old_delegations_bucket = mix_delegations_read_old(deps.storage, identity);
-        let mut delegations = delegations(delegations_bucket)?;
-        let old_delegations = old_delegations(old_delegations_bucket)?;
+        let mut delegations_vec = delegations(delegations_bucket)?;
+        let old_delegations = delegations::<Uint128>(old_delegations_bucket)?;
         for delegation in old_delegations {
-            delegations.push((delegation.0, RawDelegationData::new(delegation.1, 1)))
+            delegations_vec.push((delegation.0, RawDelegationData::new(delegation.1, 1)))
         }
         
-        for (key, delegation) in delegations {
+        for (key, delegation) in delegations_vec {
             mix_delegations(deps.storage, identity).save(&key, &delegation)?;
         }
         Ok(())

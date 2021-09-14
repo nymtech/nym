@@ -357,6 +357,16 @@ pub fn gateway_delegations_read<'a>(
     )
 }
 
+pub fn gateway_delegations_read_old<'a>(
+    storage: &'a dyn Storage,
+    gateway_identity: IdentityKeyRef,
+) -> ReadonlyBucket<'a, Uint128> {
+    ReadonlyBucket::multilevel(
+        storage,
+        &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
+    )
+}
+
 pub fn reverse_gateway_delegations<'a>(
     storage: &'a mut dyn Storage,
     owner: &Addr,

@@ -19,9 +19,9 @@ import ListItemText from '@mui/material/ListItemText';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import BarChartIcon from '@mui/icons-material/BarChart';
-import CastConnectedIcon from '@mui/icons-material/CastConnected';
-import PinDropOutlinedIcon from '@mui/icons-material/PinDropOutlined';
-
+import ConnectIcon from '@mui/icons-material/CastConnected';
+import PinIcon from '@mui/icons-material/PinDropOutlined';
+import HomeIcon from '@mui/icons-material/Home';
 // non-MUI icons
 import { NymLogoSVG } from '../icons/NymLogoSVG';
 
@@ -68,7 +68,7 @@ interface AidListItemProps {
   component: React.ReactNode;
 }
 
-const AidListItemButton = styled(ListItemButton, {
+const NavigationListItemButton = styled(ListItemButton, {
   shouldForwardProp: (prop) => prop !== 'isSelected',
 })<AidListItemProps>(({ theme, isSelected }) => ({
   backgroundColor: isSelected
@@ -111,9 +111,41 @@ const Drawer = styled(MuiDrawer, {
   }),
 }));
 
+type navOptionType = {
+  url: string;
+  title: string;
+  icon: SVGAElement;
+};
+
+type navOptions = navOptionType[];
+
+const navOptions = [
+  {
+    url: '/',
+    title: 'Home',
+    icon: HomeIcon,
+  },
+  {
+    url: '/overview',
+    title: 'Overview',
+    icon: BarChartIcon,
+  },
+  {
+    url: '/network-components',
+    title: 'Network Components',
+    icon: ConnectIcon,
+  },
+  {
+    url: '/nodemap',
+    title: 'Nodemap',
+    icon: PinIcon,
+  },
+];
+
 export const Nav: React.FC = () => {
   const [open, setOpen] = React.useState(false);
-  const { pathname } = useLocation();
+  const [page, setCurrentPage] = React.useState('/');
+  const location = useLocation();
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -122,6 +154,10 @@ export const Nav: React.FC = () => {
   const handleDrawerClose = () => {
     setOpen(false);
   };
+
+  React.useEffect(() => {
+    setCurrentPage(location.pathname);
+  }, [location]);
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -153,37 +189,19 @@ export const Nav: React.FC = () => {
         </DrawerHeader>
         <Divider />
         <List>
-          <AidListItemButton
-            isSelected={pathname === '/overview'}
-            component={Link}
-            to="/overview"
-          >
-            <ListItemIcon>
-              <BarChartIcon />
-            </ListItemIcon>
-            <ListItemText primary="Overview" />
-          </AidListItemButton>
-
-          <AidListItemButton
-            isSelected={pathname === '/network-components'}
-            component={Link}
-            to="/network-components"
-          >
-            <ListItemIcon>
-              <CastConnectedIcon />
-            </ListItemIcon>
-            <ListItemText primary="Network Components" />
-          </AidListItemButton>
-          <AidListItemButton
-            isSelected={pathname === '/nodemap'}
-            component={Link}
-            to="/nodemap"
-          >
-            <ListItemIcon>
-              <PinDropOutlinedIcon />
-            </ListItemIcon>
-            <ListItemText primary="Nodemap" sx={{ color: () => 'orange' }} />
-          </AidListItemButton>
+          {navOptions.map((route) => (
+            <NavigationListItemButton
+              key={route.url}
+              isSelected={route.url === page}
+              component={Link}
+              to={route.url}
+            >
+              <ListItemIcon>
+                <route.icon />
+              </ListItemIcon>
+              <ListItemText primary={route.title} />
+            </NavigationListItemButton>
+          ))}
         </List>
         <Divider />
       </Drawer>

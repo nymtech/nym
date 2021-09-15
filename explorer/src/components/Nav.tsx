@@ -21,7 +21,7 @@ import ConnectIcon from '@mui/icons-material/CastConnected';
 import PinIcon from '@mui/icons-material/PinDropOutlined';
 import HomeIcon from '@mui/icons-material/Home';
 // non-MUI icons
-import { theme } from 'src/theme';
+// import { theme } from 'src/theme';
 import { NymLogoSVG } from '../icons/NymLogoSVG';
 
 const drawerWidth = 240;
@@ -71,7 +71,7 @@ const NavigationListItemButton = styled(ListItemButton, {
 })<NavigationListItemButton>(({ theme, isSelected }) => ({
   backgroundColor: isSelected
     ? theme.palette.primary.dark
-    : theme.palette.secondary.dark,
+    : theme.palette.primary.light,
 }));
 
 const AppBar = styled(MuiAppBar, {
@@ -202,8 +202,8 @@ export const Nav: React.FC = ({ children }) => {
                 sx={{
                   color:
                     route.url === page
-                      ? theme.palette.primary.contrastText
-                      : theme.palette.primary.light,
+                      ? (theme) => theme.palette.primary.contrastText
+                      : (theme) => theme.palette.primary.main,
                 }}
               />
             </NavigationListItemButton>

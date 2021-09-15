@@ -1,21 +1,27 @@
 import { createTheme } from '@mui/material/styles';
 
 const nymPalette = {
+  // DARK THEME
   primary: {
-    main: '#F2F2F2', // white
-    light: 'white', // tbc
-    dark: '#070B15', // Black [top nav bg]
-    selectedText: '#FB6E4E', // orange selected text
+    main: '#F2F2F2', // white, font, text, main text color
+    light: '#242C3D', // side nav, cards etc.
+    dark: '#111826', // main window background
+    darker: '#070B15', // top nav/app bar
+    selectedText: '#fd9d35',
   },
+  // LIGHT THEME
   secondary: {
-    main: '#009FA8',
-    light: '#5C616D', // grey [hamburger grey]
-    dark: '#242C3D', // lighter black [nav bg]
+    main: '#000', // white, font, text, main text color
+    light: '#fff', // side nav, cards etc.
+    dark: '#808080', // main window background
+    darker: '#a9a9a9', // top nav/app bar
+    selectedText: '#fd9d35',
   },
   background: {
     main: '#242C3D',
     darkBlack: '#070B15',
     lightBlack: '#242C3D',
+    selectedText: '#FB6E4E', // orange selected text
   },
 };
 
@@ -65,10 +71,17 @@ export const theme = createTheme({
         },
       },
     },
+    MuiLink: {
+      styleOverrides: {
+        root: {
+          textDecoration: 'none',
+        },
+      },
+    },
     MuiSvgIcon: {
       styleOverrides: {
         root: {
-          color: nymPalette.primary.light,
+          color: nymPalette.primary.main,
         },
       },
     },
@@ -76,19 +89,19 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           color: nymPalette.primary.light,
-          backgroundColor: nymPalette.secondary.dark,
+          backgroundColor: nymPalette.primary.light,
         },
         paper: {
           color: nymPalette.primary.light,
-          backgroundColor: nymPalette.secondary.dark,
+          backgroundColor: nymPalette.primary.light,
         },
       },
     },
     MuiToolbar: {
       styleOverrides: {
         root: {
-          backgroundColor: nymPalette.primary.dark,
-          color: nymPalette.primary.light,
+          backgroundColor: nymPalette.primary.darker,
+          color: nymPalette.primary.main,
         },
       },
     },

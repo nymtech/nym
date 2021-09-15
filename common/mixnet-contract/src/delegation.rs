@@ -45,6 +45,10 @@ impl Delegation {
     pub fn owner(&self) -> Addr {
         self.owner.clone()
     }
+
+    pub fn block_height(&self) -> u64 {
+        self.block_height
+    }
 }
 
 impl Display for Delegation {

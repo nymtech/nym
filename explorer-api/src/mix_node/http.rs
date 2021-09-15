@@ -1,4 +1,5 @@
 use reqwest::Error as ReqwestError;
+use rocket::response::content::Html;
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 use serde::Serialize;
@@ -6,11 +7,12 @@ use serde::Serialize;
 use mixnet_contract::{Addr, Coin, Layer, MixNode};
 
 use crate::mix_node::models::{NodeDescription, NodeStats};
+use crate::mix_node::templates::{PreviewTemplateData, Templates};
 use crate::mix_nodes::{get_mixnode_delegations, Location};
 use crate::state::ExplorerApiStateContext;
 
 pub fn mix_node_make_default_routes() -> Vec<Route> {
-    routes_with_openapi![get_delegations, get_description, get_stats, list]
+    routes_with_openapi![get_delegations, get_description, get_stats, list, preview]
 }
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
@@ -52,6 +54,34 @@ pub(crate) async fn list(
 }
 
 #[openapi(tag = "mix_node")]
+#[get("/<pubkey>/preview")]
+pub(crate) async fn preview(
+    pubkey: &str,
+    templates: &State<Templates>,
+    state: &State<ExplorerApiStateContext>,
+) -> Html<String> {
+    match get_mixnode_description(pubkey, state).await {
+        Some(node_description) => {
+            // use handlebars to render an HTML output for an OpenGraph / Twitter preview - this is
+            // used in social media apps / messenger apps that show previews for links
+            match templates.render_preview(PreviewTemplateData {
+                title: node_description.name,
+                description: node_description.description,
+                url: format!(
+                    "https://testnet-milhon-explorer.nymtech.net/nym/mixnodes/{}",
+                    pubkey
+                ),
+                image_url: String::from("https://media2.giphy.com/media/pwyW4XDmtqjG8/200.gif?cid=dda24d50ae15e44c38783edc824618df68645c6af2592b28&amp;rid=200.gif&amp;ct=g"),
+            }) {
+                Ok(r) => Html(r),
+                Err(_e) => Html(String::from("Oh no, something went wrong!")),
+            }
+        }
+        None => Html(String::from("Sorry, mix node not found")),
+    }
+}
+
+#[openapi(tag = "mix_node")]
 #[get("/<pubkey>/delegations")]
 pub(crate) async fn get_delegations(pubkey: &str) -> Json<Vec<mixnet_contract::Delegation>> {
     Json(get_mixnode_delegations(pubkey).await)
@@ -63,6 +93,13 @@ pub(crate) async fn get_description(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<NodeDescription>> {
+    get_mixnode_description(pubkey, state).await.map(Json)
+}
+
+async fn get_mixnode_description(
+    pubkey: &str,
+    state: &State<ExplorerApiStateContext>,
+) -> Option<NodeDescription> {
     match state
         .inner
         .mix_node_cache
@@ -72,7 +109,7 @@ pub(crate) async fn get_description(
     {
         Some(cache_value) => {
             trace!("Returning cached value for {}", pubkey);
-            Some(Json(cache_value))
+            Some(cache_value)
         }
         None => {
             trace!("No valid cache value for {}", pubkey);
@@ -91,7 +128,7 @@ pub(crate) async fn get_description(
                                 .mix_node_cache
                                 .set_description(pubkey, response.clone())
                                 .await;
-                            Some(Json(response))
+                            Some(response)
                         }
                         Err(e) => {
                             error!(

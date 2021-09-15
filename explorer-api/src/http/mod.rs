@@ -7,6 +7,7 @@ use rocket_okapi::swagger_ui::make_swagger_ui;
 use crate::country_statistics::http::country_statistics_make_default_routes;
 use crate::http::swagger::get_docs;
 use crate::mix_node::http::mix_node_make_default_routes;
+use crate::mix_node::templates::Templates;
 use crate::ping::http::ping_make_default_routes;
 use crate::state::ExplorerApiStateContext;
 
@@ -29,6 +30,8 @@ pub(crate) fn start(state: ExplorerApiStateContext) {
         .to_cors()
         .unwrap();
 
+        let templates = Templates::new();
+
         let config = rocket::config::Config::release_default();
         rocket::build()
             .configure(config)
@@ -38,6 +41,7 @@ pub(crate) fn start(state: ExplorerApiStateContext) {
             .mount("/swagger", make_swagger_ui(&get_docs()))
             .register("/", catchers![not_found])
             .manage(state)
+            .manage(templates)
             .attach(cors)
             .launch()
             .await

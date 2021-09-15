@@ -75,7 +75,6 @@ export const validateVersion = (version: string): boolean => {
     const validVersion = valid(version)
     return validVersion !== null && minorVersion >= 11
   } catch (e) {
-    console.log(e)
     return false
   }
 }

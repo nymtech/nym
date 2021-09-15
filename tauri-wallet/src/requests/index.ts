@@ -3,6 +3,8 @@ import {
   Coin,
   DelegationResult,
   EnumNodeType,
+  Gateway,
+  MixNode,
   Operation,
   TauriTxResult,
   TCreateAccount,
@@ -51,3 +53,21 @@ export const send = async (args: {
   address: string
   memo: string
 }): Promise<TauriTxResult> => await invoke('send', args)
+export const checkMixnodeOwnership = async (): Promise<boolean> =>
+  await invoke('owns_mixnode')
+
+export const checkGatewayOwnership = async (): Promise<boolean> =>
+  await invoke('owns_gateway')
+
+export const bond = async ({
+  type,
+  data,
+  amount,
+}: {
+  type: EnumNodeType
+  data: MixNode | Gateway
+  amount: Coin
+}): Promise<any> => await invoke(`bond_${type}`, { [type]: data, bond: amount })
+
+export const unbond = async (type: EnumNodeType) =>
+  await invoke(`unbond_${type}`)

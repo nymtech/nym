@@ -73,7 +73,9 @@ const SignInContent = ({
 }: {
   showCreateAccount: () => void
 }) => {
-  const [mnemonic, setMnemonic] = useState<string>('')
+  const [mnemonic, setMnemonic] = useState<string>(
+    'alley mutual arrange escape army vacuum cherry ozone frame steel current smile dad subject primary foster lazy want perfect fury general eye cannon motor'
+  )
   const [inputError, setInputError] = useState<string>()
   const [isLoading, setIsLoading] = useState(false)
 

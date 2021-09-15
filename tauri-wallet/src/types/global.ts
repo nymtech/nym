@@ -6,8 +6,8 @@ export enum EnumNodeType {
 }
 
 export type TNodeOwnership = {
-  ownsMixnode: boolean
-  ownsGateway: boolean
+  hasOwnership: boolean
+  nodeType?: EnumNodeType
 }
 
 export type TClientDetails = {

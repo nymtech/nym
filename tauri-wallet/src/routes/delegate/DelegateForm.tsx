@@ -17,6 +17,7 @@ import { validationSchema } from './validationSchema'
 import { Alert } from '@material-ui/lab'
 import { ClientContext } from '../../context/main'
 import { delegate, majorToMinor } from '../../requests'
+import { checkHasEnoughFunds } from '../../utils'
 
 type TDelegateForm = {
   nodeType: EnumNodeType
@@ -45,6 +46,7 @@ export const DelegateForm = ({
     setValue,
     watch,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<TDelegateForm>({
     defaultValues,
@@ -56,6 +58,13 @@ export const DelegateForm = ({
   const { getBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TDelegateForm) => {
+    const hasEnoughFunds = await checkHasEnoughFunds(data.amount)
+    if (!hasEnoughFunds) {
+      return setError('amount', {
+        message: 'Not enough funds in wallet',
+      })
+    }
+
     const amount = await majorToMinor(data.amount)
 
     await delegate({

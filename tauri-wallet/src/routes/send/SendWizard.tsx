@@ -10,6 +10,7 @@ import { ClientContext } from '../../context/main'
 import { validationSchema } from './validationSchema'
 import { TauriTxResult } from '../../types'
 import { majorToMinor, send } from '../../requests'
+import { checkHasEnoughFunds } from '../../utils'
 
 const defaultValues = {
   amount: '',
@@ -58,31 +59,40 @@ export const SendWizard = () => {
   }
 
   const handleSend = async () => {
-    setIsLoading(true)
-    setActiveStep((s) => s + 1)
     const formState = methods.getValues()
-    const amount = await majorToMinor(formState.amount)
 
-    send({
-      amount,
-      address: formState.to,
-      memo: formState.memo,
-    })
-      .then((res: any) => {
-        const { details } = res as TauriTxResult
-        setActiveStep((s) => s + 1)
-        setConfirmedData({
-          ...details,
-          amount: { denom: 'Major', amount: formState.amount },
+    const hasEnoughFunds = await checkHasEnoughFunds(formState.amount)
+    if (!hasEnoughFunds) {
+      methods.setError('amount', {
+        message: 'Not enough funds in wallet',
+      })
+      return handlePreviousStep()
+    } else {
+      setIsLoading(true)
+      setActiveStep((s) => s + 1)
+      const amount = await majorToMinor(formState.amount)
+
+      send({
+        amount,
+        address: formState.to,
+        memo: formState.memo,
+      })
+        .then((res: any) => {
+          const { details } = res as TauriTxResult
+          setActiveStep((s) => s + 1)
+          setConfirmedData({
+            ...details,
+            amount: { denom: 'Major', amount: formState.amount },
+          })
+          setIsLoading(false)
+          getBalance.fetchBalance()
         })
-        setIsLoading(false)
-        getBalance.fetchBalance()
-      })
-      .catch((e) => {
-        setRequestError(e)
-        setIsLoading(false)
-        console.log(e)
-      })
+        .catch((e) => {
+          setRequestError(e)
+          setIsLoading(false)
+          console.log(e)
+        })
+    }
   }
 
   return (

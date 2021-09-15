@@ -20,6 +20,7 @@ import { bond, majorToMinor } from '../../requests'
 import { validationSchema } from './validationSchema'
 import { Coin, Gateway, MixNode } from '../../types'
 import { ClientContext } from '../../context/main'
+import { checkHasEnoughFunds } from '../../utils'
 
 type TBondFormFields = {
   withAdvancedOptions: boolean
@@ -86,6 +87,7 @@ export const BondForm = ({
     register,
     handleSubmit,
     setValue,
+    setError,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<TBondFormFields>({
@@ -102,6 +104,11 @@ export const BondForm = ({
   )
 
   const onSubmit = async (data: TBondFormFields) => {
+    const hasEnoughFunds = await checkHasEnoughFunds(data.amount)
+    if (!hasEnoughFunds) {
+      return setError('amount', { message: 'Not enough funds in wallet' })
+    }
+
     const formattedData = formatData(data)
     const amount = await majorToMinor(data.amount)
 

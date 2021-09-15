@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api'
 import {
+  Balance,
   Coin,
   DelegationResult,
   EnumNodeType,
@@ -71,3 +72,6 @@ export const bond = async ({
 
 export const unbond = async (type: EnumNodeType) =>
   await invoke(`unbond_${type}`)
+
+export const getBalance = async (): Promise<Balance> =>
+  await invoke('get_balance')

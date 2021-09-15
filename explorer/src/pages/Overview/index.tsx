@@ -2,6 +2,7 @@ import React from 'react';
 import { styled } from '@mui/material/styles';
 import { Box, Grid, Typography, Link } from '@mui/material';
 import { SettingsAccessibility as ConnectIcon } from '@mui/icons-material';
+import { WorldMap } from 'src/components/WorldMap';
 import { Title } from '../../components/Title';
 import { IconWithLink } from '../../components/IconWithLink';
 
@@ -45,6 +46,7 @@ export const PageOverview: React.FC = () => (
         <IconWithLink text="5134 Mixnodes →" url="/foo" SVGIcon={ConnectIcon} />
         <IconWithLink text="5134 Mixnodes →" url="/foo" SVGIcon={ConnectIcon} />
         <Title text="Current block height is 647,059" />
+        <WorldMap />
       </Grid>
     </Box>
   </>

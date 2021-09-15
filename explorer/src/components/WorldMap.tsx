@@ -1,21 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { geoEqualEarth, geoPath } from 'd3-geo';
 import { feature } from 'topojson-client';
 import { Feature, FeatureCollection, Geometry } from 'geojson';
-// import './styles.css';
+import { Box, Grid, Typography } from '@mui/material';
 
 const uuid = require('react-uuid');
 
 const cx = 400;
 const cy = 150;
 
-export const WorldMap: React.FC = () => {
-  const [geographies, setGeographies] = useState<
+export type WorldMapProps = {
+  // text: string;
+  // SVGIcon: React.FunctionComponent<any>;
+  // url: string;
+};
+
+export const WorldMap: React.FC<WorldMapProps> = () => {
+  const [geographies, setGeographies] = React.useState<
     [] | Array<Feature<Geometry | null>>
   >([]);
 
-  const [scale, setScale] = useState<number>(200);
-  const [windowResizing, setWindowResizing] = useState<boolean>(false);
+  const [scale, setScale] = React.useState<number>(200);
+  const [windowResizing, setWindowResizing] = React.useState<boolean>(false);
 
   const projection = geoEqualEarth()
     .scale(scale)
@@ -23,9 +29,11 @@ export const WorldMap: React.FC = () => {
     .rotate([0, 0]);
 
   const fetchGeographicData = (): void => {
-    fetch('/data/world-110m.json').then((response) => {
+    fetch(
+      'https://raw.githubusercontent.com/d3/d3.github.com/master/world-110m.v1.json',
+    ).then((response) => {
       if (response.status !== 200) {
-        console.log('Houston, we have a problem');
+        console.log('coordinates for the map have failed to load');
         return;
       }
       response.json().then((worldData) => {
@@ -44,68 +52,91 @@ export const WorldMap: React.FC = () => {
     console.log('render the map...');
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     fetchGeographicData();
     renderMap();
   }, []);
 
-  useEffect(() => {
-    let timeout: any;
-    const handleResize = () => {
-      clearTimeout(timeout);
+  // React.useEffect(() => {
+  //   let timeout: any;
+  //   const handleResize = () => {
+  //     clearTimeout(timeout);
 
-      setWindowResizing(true);
+  //     setWindowResizing(true);
 
-      timeout = setTimeout(() => {
-        setWindowResizing(false);
-      }, 200);
-    };
-    window.addEventListener('resize', handleResize);
+  //     timeout = setTimeout(() => {
+  //       setWindowResizing(false);
+  //     }, 200);
+  //   };
+  //   window.addEventListener('resize', handleResize);
 
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  //   return () => window.removeEventListener('resize', handleResize);
+  // }, []);
 
-  useEffect(() => {
-    if (!windowResizing) {
-      const n = window.innerWidth;
-      if (n < 830) {
-        console.log('tablet/mobile now');
-        setScale(150);
-      }
-      if (n > 829 && n < 1300) {
-        console.log('laptop now');
-        setScale(200);
-      }
-      if (n > 1300) {
-        console.log('Large Desktop now');
-        setScale(240);
-      }
-    }
-  }, [windowResizing]);
+  // React.useEffect(() => {
+  //   if (!windowResizing) {
+  //     const n = window.innerWidth;
+  //     if (n < 830) {
+  //       console.log('tablet/mobile now');
+  //       setScale(150);
+  //     }
+  //     if (n > 829 && n < 1300) {
+  //       console.log('laptop now');
+  //       setScale(200);
+  //     }
+  //     if (n > 1300) {
+  //       console.log('Large Desktop now');
+  //       setScale(240);
+  //     }
+  //   }
+  // }, [windowResizing]);
 
   return (
-    <div data-testid="worldMap__container" className="worldMap__container">
-      <h1>Mixnodes Around the Globe</h1>
-      <svg
-        width={scale * 4}
-        height={scale * 4}
-        viewBox={window.innerWidth < 600 ? '100 0 750 350' : '0 0 800 450'}
-        data-testid="svg"
+    <Grid
+      item
+      xs={12}
+      sx={{
+        justifyContent: 'flex-start',
+        padding: (theme) => theme.spacing(2),
+        backgroundColor: (theme) => theme.palette.primary.dark,
+      }}
+    >
+      <Box
+        sx={{
+          padding: (theme) => theme.spacing(3),
+          backgroundColor: (theme) => theme.palette.primary.light,
+        }}
       >
-        <g>
-          {(geographies as []).map((d, i) => (
-            <path
-              key={`path-${uuid()}`}
-              d={geoPath().projection(projection)(d) as string}
-              fill={`rgba(38,50,56,${
-                (1 / (geographies ? geographies.length : 0)) * i
-              })`}
-              stroke="aliceblue"
-              strokeWidth={0.5}
-            />
-          ))}
-        </g>
-      </svg>
-    </div>
+        <Typography
+          sx={{
+            color: (theme) => theme.palette.primary.main,
+          }}
+        >
+          Distribution of nodes around the world
+        </Typography>
+
+        <svg
+          width={scale * 4}
+          height={scale * 4}
+          viewBox={window.innerWidth < 600 ? '100 0 750 350' : '0 0 800 450'}
+          data-testid="svg"
+          style={{ border: '1px solid red' }}
+        >
+          <g>
+            {(geographies as []).map((d, i) => (
+              <path
+                key={`path-${uuid()}`}
+                d={geoPath().projection(projection)(d) as string}
+                fill={`rgba(246, 195, 180,${
+                  (1 / (geographies ? geographies.length : 0)) * i
+                })`}
+                stroke="grey"
+                strokeWidth={0.5}
+              />
+            ))}
+          </g>
+        </svg>
+      </Box>
+    </Grid>
   );
 };

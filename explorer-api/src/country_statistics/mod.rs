@@ -4,6 +4,7 @@ use reqwest::Error as ReqwestError;
 use crate::country_statistics::country_nodes_distribution::CountryNodesDistribution;
 use crate::mix_nodes::{GeoLocation, Location};
 use crate::state::ExplorerApiStateContext;
+use std::env;
 
 pub mod country_nodes_distribution;
 pub mod http;
@@ -18,18 +19,21 @@ impl CountryStatistics {
     }
 
     pub(crate) fn start(mut self) {
-        info!("Spawning task runner...");
-        tokio::spawn(async move {
-            let mut interval_timer = tokio::time::interval(std::time::Duration::from_secs(60 * 60));
-            loop {
-                // wait for the next interval tick
-                interval_timer.tick().await;
+        if env::var("DEV_MODE").is_err() {
+            info!("Spawning task runner...");
+            tokio::spawn(async move {
+                let mut interval_timer =
+                    tokio::time::interval(std::time::Duration::from_secs(60 * 60));
+                loop {
+                    // wait for the next interval tick
+                    interval_timer.tick().await;
 
-                info!("Running task...");
-                self.calculate_nodes_per_country().await;
-                info!("Done");
-            }
-        });
+                    info!("Running task...");
+                    self.calculate_nodes_per_country().await;
+                    info!("Done");
+                }
+            });
+        }
     }
 
     /// Retrieves the current list of mixnodes from the validators and calculates how many nodes are in each country

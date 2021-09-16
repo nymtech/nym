@@ -16,7 +16,7 @@ use tendermint_rpc::endpoint::broadcast::tx_commit::Response;
 use tokio::sync::RwLock;
 use ts_rs::{export, TS};
 use validator_client::nymd::fee_helpers::Operation;
-use validator_client::nymd::{NymdClient, SigningNymdClient, AccountId, CosmosCoin};
+use validator_client::nymd::{AccountId, CosmosCoin, NymdClient, SigningNymdClient};
 
 mod coin;
 mod config;

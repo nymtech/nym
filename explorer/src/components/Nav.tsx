@@ -19,12 +19,13 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import ConnectIcon from '@mui/icons-material/CastConnected';
 import PinIcon from '@mui/icons-material/PinDropOutlined';
-import HomeIcon from '@mui/icons-material/Home';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 // non-MUI icons
 // import { theme } from 'src/theme';
 import { NymLogoSVG } from '../icons/NymLogoSVG';
 
-const drawerWidth = 240;
+const drawerWidth = 270;
 
 const openedMixin = (theme: Theme): CSSObject => ({
   width: drawerWidth,
@@ -60,15 +61,15 @@ interface AppBarProps extends MuiAppBarProps {
   open?: boolean;
 }
 
-interface NavigationListItemButton {
+interface NavigationListItemButtonProps {
   isSelected?: boolean;
-  to: string;
-  component: React.ReactNode;
+  to?: string;
+  component?: React.ReactNode;
 }
 
 const NavigationListItemButton = styled(ListItemButton, {
   shouldForwardProp: (prop) => prop !== 'isSelected',
-})<NavigationListItemButton>(({ theme, isSelected }) => ({
+})<NavigationListItemButtonProps>(({ theme, isSelected }) => ({
   backgroundColor: isSelected
     ? theme.palette.primary.dark
     : theme.palette.primary.light,
@@ -112,12 +113,13 @@ const Drawer = styled(MuiDrawer, {
 type navOptionType = {
   url: string;
   title: string;
-  icon: SVGAElement;
+  icon: any;
+  nested?: any;
 };
 
-type navOptions = navOptionType[];
+type navOptionsType = navOptionType[];
 
-const navOptions = [
+const navOptions: navOptionsType = [
   // {
   //   url: '/',
   //   title: 'Home',
@@ -132,6 +134,16 @@ const navOptions = [
     url: '/network-components',
     title: 'Network Components',
     icon: ConnectIcon,
+    nested: [
+      {
+        url: '/network-components/mixnodes',
+        title: 'Mixnodes',
+      },
+      {
+        url: '/network-components/gateways',
+        title: 'Gateways',
+      },
+    ],
   },
   {
     url: '/nodemap',
@@ -139,6 +151,75 @@ const navOptions = [
     icon: PinIcon,
   },
 ];
+
+const ExpandableButton = ({
+  // expandable,
+  nested,
+  to,
+  isSelected,
+  title,
+  SVGIcon,
+}: any) => {
+  const [open, toggle] = React.useState(false);
+
+  const handleClick = () => toggle(!open);
+
+  if (!nested)
+    return (
+      <NavigationListItemButton
+        isSelected={isSelected}
+        to={to}
+        component={Link}
+      >
+        <ListItemIcon>
+          <SVGIcon />
+        </ListItemIcon>
+        <ListItemText
+          primary={title}
+          sx={{
+            color: isSelected ? 'orange' : 'white',
+          }}
+        />
+      </NavigationListItemButton>
+    );
+  return (
+    <>
+      <NavigationListItemButton onClick={handleClick}>
+        <ListItemIcon>
+          <SVGIcon />
+        </ListItemIcon>
+        <ListItemText
+          primary={`${title} `}
+          sx={{
+            color: isSelected
+              ? (theme) => theme.palette.primary.contrastText
+              : (theme) => theme.palette.primary.main,
+          }}
+        />
+        {open ? <ExpandLess /> : <ExpandMore />}
+      </NavigationListItemButton>
+      {open &&
+        nested.map((each: any) => (
+          <NavigationListItemButton
+            key={each.url}
+            to={each.url}
+            component={Link}
+            sx={{
+              paddingLeft: (theme) => theme.spacing(9),
+              bgcolor: '#3C4558',
+            }}
+          >
+            <ListItemText
+              primary={each.title}
+              sx={{
+                color: isSelected ? 'orange' : 'white',
+              }}
+            />
+          </NavigationListItemButton>
+        ))}
+    </>
+  );
+};
 
 export const Nav: React.FC = ({ children }) => {
   const [open, setOpen] = React.useState(false);
@@ -188,25 +269,14 @@ export const Nav: React.FC = ({ children }) => {
         <Divider />
         <List>
           {navOptions.map((route) => (
-            <NavigationListItemButton
-              key={route.url}
+            <ExpandableButton
               isSelected={route.url === page}
-              component={Link}
+              key={route.url}
               to={route.url}
-            >
-              <ListItemIcon>
-                <route.icon />
-              </ListItemIcon>
-              <ListItemText
-                primary={route.title}
-                sx={{
-                  color:
-                    route.url === page
-                      ? (theme) => theme.palette.primary.contrastText
-                      : (theme) => theme.palette.primary.main,
-                }}
-              />
-            </NavigationListItemButton>
+              title={route.title}
+              nested={route.nested}
+              SVGIcon={route.icon}
+            />
           ))}
         </List>
         <Divider />

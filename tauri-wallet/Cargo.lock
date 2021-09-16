@@ -283,6 +283,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54757888b09a69be70b5ec303e382a74227392086ba808cb01eeca29233a2397"
 dependencies = [
+ "digest 0.9.0",
  "ff",
  "group",
  "pairing",
@@ -484,13 +485,12 @@ dependencies = [
  "coconut-rs",
  "getset",
  "serde",
- "sha2",
 ]
 
 [[package]]
 name = "coconut-rs"
-version = "0.4.0"
-source = "git+https://github.com/nymtech/coconut.git?branch=0.4.0#183cff805aa73a908b681ac3fcdff7d084c4f42b"
+version = "0.5.0"
+source = "git+https://github.com/nymtech/coconut.git?branch=0.5.0#a1b72d51aa2a67b73b9f58d707030ae6dc70af7f"
 dependencies = [
  "bls12_381",
  "bs58",
@@ -503,8 +503,6 @@ dependencies = [
  "serde",
  "serde_derive",
  "sha2",
- "sha3",
- "subtle",
  "thiserror",
 ]
 
@@ -653,8 +651,9 @@ dependencies = [
 
 [[package]]
 name = "cosmos-sdk-proto"
-version = "0.6.0"
-source = "git+https://github.com/cosmos/cosmos-rust/?rev=ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30#ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7115eae4b8518967b8e737a3ef76025f2d007de7906d88c18f00b8bbfc70f51e"
 dependencies = [
  "prost",
  "prost-types",
@@ -662,9 +661,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "cosmos_sdk"
-version = "0.2.0"
-source = "git+https://github.com/cosmos/cosmos-rust/?rev=ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30#ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30"
+name = "cosmrs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "609eba7eee6d9929927cbdf15f9fe96d250c316c5e1b983c4a47a10f60da5ea7"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto",
@@ -2563,7 +2563,7 @@ dependencies = [
  "bip39",
  "coconut-interface",
  "config",
- "cosmos_sdk",
+ "cosmrs",
  "cosmwasm-std",
  "credentials",
  "dirs",
@@ -4793,7 +4793,7 @@ dependencies = [
  "bip39",
  "coconut-interface",
  "config",
- "cosmos_sdk",
+ "cosmrs",
  "cosmwasm-std",
  "flate2",
  "itertools 0.10.1",

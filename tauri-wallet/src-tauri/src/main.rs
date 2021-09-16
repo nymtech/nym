@@ -4,8 +4,6 @@
 )]
 
 use bip39::{Language, Mnemonic};
-use cosmos_sdk::AccountId;
-use cosmos_sdk::Coin as CosmosCoin;
 use cosmwasm_std::Coin as CosmWasmCoin;
 use error::BackendError;
 use mixnet_contract::{Gateway, MixNode};
@@ -18,17 +16,13 @@ use tendermint_rpc::endpoint::broadcast::tx_commit::Response;
 use tokio::sync::RwLock;
 use ts_rs::{export, TS};
 use validator_client::nymd::fee_helpers::Operation;
-use validator_client::nymd::{NymdClient, SigningNymdClient};
+use validator_client::nymd::{NymdClient, SigningNymdClient, AccountId, CosmosCoin};
 
-mod coconut;
 mod coin;
 mod config;
 mod error;
 mod state;
 
-use crate::coconut::{
-  delete_credential, get_credential, list_credentials, randomise_credential, verify_credential,
-};
 use crate::state::State;
 
 use crate::coin::{Coin, Denom};
@@ -400,11 +394,6 @@ fn main() {
       delegate_to_gateway,
       undelegate_from_gateway,
       send,
-      get_credential,
-      randomise_credential,
-      delete_credential,
-      list_credentials,
-      verify_credential,
       create_new_account,
       get_fee
     ])

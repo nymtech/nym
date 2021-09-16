@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::GasPrice;
-use cosmos_sdk::tx::{Fee, Gas};
-use cosmos_sdk::Coin;
+use cosmrs::tx::{Fee, Gas};
+use cosmrs::Coin;
 use cosmwasm_std::Uint128;
 use serde::{Deserialize, Serialize};
 use std::fmt;

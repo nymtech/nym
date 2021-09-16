@@ -3,11 +3,11 @@
 
 use crate::nymd::error::NymdError;
 use config::defaults;
-use cosmos_sdk::bip32::{DerivationPath, XPrv};
-use cosmos_sdk::crypto::secp256k1::SigningKey;
-use cosmos_sdk::crypto::PublicKey;
-use cosmos_sdk::tx::SignDoc;
-use cosmos_sdk::{tx, AccountId};
+use cosmrs::bip32::{DerivationPath, XPrv};
+use cosmrs::crypto::secp256k1::SigningKey;
+use cosmrs::crypto::PublicKey;
+use cosmrs::tx::SignDoc;
+use cosmrs::{tx, AccountId};
 
 /// Derivation information required to derive a keypair and an address from a mnemonic.
 #[derive(Debug)]
@@ -97,7 +97,7 @@ impl DirectSecp256k1HdWallet {
         sign_doc: SignDoc,
     ) -> Result<tx::Raw, NymdError> {
         // ideally I'd prefer to have the entire error put into the NymdError::SigningFailure
-        // but I'm super hesitant to trying to downcast the eyre::Report to cosmos_sdk::error::Error
+        // but I'm super hesitant to trying to downcast the eyre::Report to cosmrs::error::Error
         sign_doc
             .sign(&signer.private_key)
             .map_err(|_| NymdError::SigningFailure)

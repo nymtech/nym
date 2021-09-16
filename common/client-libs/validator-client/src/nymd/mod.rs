@@ -9,16 +9,17 @@ use crate::nymd::cosmwasm_client::types::{
 use crate::nymd::error::NymdError;
 use crate::nymd::fee_helpers::Operation;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use cosmos_sdk::rpc::endpoint::broadcast;
-use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClientUrl};
-use cosmos_sdk::tx::{Fee, Gas};
-use cosmos_sdk::Coin as CosmosCoin;
-use cosmos_sdk::{AccountId, Denom};
+use cosmrs::rpc::endpoint::broadcast;
+use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
+use cosmrs::tx::{Fee, Gas};
+
 use cosmwasm_std::Coin;
 use mixnet_contract::{
     Addr, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
     LayerDistribution, MixNode, MixOwnershipResponse, PagedGatewayDelegationsResponse,
-    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse, QueryMsg, StateParams,
+    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
+    PagedReverseGatewayDelegationsResponse, PagedReverseMixDelegationsResponse, QueryMsg,
+    StateParams,
 };
 use serde::Serialize;
 use std::collections::HashMap;
@@ -27,7 +28,9 @@ use std::convert::TryInto;
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::gas_price::GasPrice;
-pub use cosmos_sdk::rpc::HttpClient as QueryNymdClient;
+pub use cosmrs::rpc::HttpClient as QueryNymdClient;
+pub use cosmrs::Coin as CosmosCoin;
+pub use cosmrs::{AccountId, Denom};
 pub use signing_client::Client as SigningNymdClient;
 
 pub mod cosmwasm_client;
@@ -268,6 +271,26 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    /// Gets list of all the mixnodes on which a particular address delegated.
+    pub async fn get_reverse_mix_delegations_paged(
+        &self,
+        delegation_owner: Addr,
+        start_after: Option<IdentityKey>,
+        page_limit: Option<u32>,
+    ) -> Result<PagedReverseMixDelegationsResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetReverseMixDelegations {
+            delegation_owner,
+            start_after,
+            limit: page_limit,
+        };
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
     /// Checks value of delegation of given client towards particular mixnode.
     pub async fn get_mix_delegation(
         &self,
@@ -298,6 +321,26 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetGatewayDelegations {
             gateway_identity,
+            start_after,
+            limit: page_limit,
+        };
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    /// Gets list of all the gateways on which a particular address delegated.
+    pub async fn get_reverse_gateway_delegations_paged(
+        &self,
+        delegation_owner: Addr,
+        start_after: Option<IdentityKey>,
+        page_limit: Option<u32>,
+    ) -> Result<PagedReverseGatewayDelegationsResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetReverseGatewayDelegations {
+            delegation_owner,
             start_after,
             limit: page_limit,
         };

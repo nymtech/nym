@@ -79,7 +79,7 @@ async fn register_with_gateway(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
     validator_urls: Vec<Url>,
-) -> SharedKeys {
+) -> Arc<SharedKeys> {
     let timeout = Duration::from_millis(1500);
     let coconut_credential =
         prepare_temporary_credential(&validator_urls, &our_identity.public_key().to_bytes()).await;
@@ -95,7 +95,7 @@ async fn register_with_gateway(
         .await
         .expect("failed to establish connection with the gateway!");
     gateway_client
-        .register()
+        .perform_initial_authentication()
         .await
         .expect("failed to register with the gateway!")
 }

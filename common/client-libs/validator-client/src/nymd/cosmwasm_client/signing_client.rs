@@ -8,13 +8,13 @@ use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use async_trait::async_trait;
-use cosmos_sdk::bank::MsgSend;
-use cosmos_sdk::distribution::MsgWithdrawDelegatorReward;
-use cosmos_sdk::rpc::endpoint::broadcast;
-use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
-use cosmos_sdk::staking::{MsgDelegate, MsgUndelegate};
-use cosmos_sdk::tx::{Fee, Msg, MsgType, SignDoc, SignerInfo};
-use cosmos_sdk::{cosmwasm, rpc, tx, AccountId, Coin};
+use cosmrs::bank::MsgSend;
+use cosmrs::distribution::MsgWithdrawDelegatorReward;
+use cosmrs::rpc::endpoint::broadcast;
+use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
+use cosmrs::staking::{MsgDelegate, MsgUndelegate};
+use cosmrs::tx::{Fee, Msg, MsgType, SignDoc, SignerInfo};
+use cosmrs::{cosmwasm, rpc, tx, AccountId, Coin};
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
@@ -287,7 +287,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let delegate_msg = MsgDelegate {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
-            amount: Some(amount),
+            amount,
         }
         .to_msg()
         .map_err(|_| NymdError::SerializationError("MsgDelegate".to_owned()))?;
@@ -407,7 +407,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let auth_info = signer_info.auth_info(fee);
 
         // ideally I'd prefer to have the entire error put into the NymdError::SigningFailure
-        // but I'm super hesitant to trying to downcast the eyre::Report to cosmos_sdk::error::Error
+        // but I'm super hesitant to trying to downcast the eyre::Report to cosmrs::error::Error
         let sign_doc = SignDoc::new(
             &tx_body,
             &auth_info,

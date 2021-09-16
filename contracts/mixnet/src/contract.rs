@@ -3,14 +3,16 @@
 
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
-use crate::storage::{config, config_read, layer_distribution};
+use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
 use config::defaults::NETWORK_MONITOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
 };
-use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateParams};
+use mixnet_contract::{
+    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, RawDelegationData, StateParams,
+};
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -89,32 +91,36 @@ pub fn instantiate(
 #[entry_point]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::BondMixnode { mix_node } => transactions::try_add_mixnode(deps, info, mix_node),
+        ExecuteMsg::BondMixnode { mix_node } => {
+            transactions::try_add_mixnode(deps, env, info, mix_node)
+        }
         ExecuteMsg::UnbondMixnode {} => transactions::try_remove_mixnode(deps, info),
-        ExecuteMsg::BondGateway { gateway } => transactions::try_add_gateway(deps, info, gateway),
+        ExecuteMsg::BondGateway { gateway } => {
+            transactions::try_add_gateway(deps, env, info, gateway)
+        }
         ExecuteMsg::UnbondGateway {} => transactions::try_remove_gateway(deps, info),
         ExecuteMsg::UpdateStateParams(params) => {
             transactions::try_update_state_params(deps, info, params)
         }
         ExecuteMsg::RewardMixnode { identity, uptime } => {
-            transactions::try_reward_mixnode(deps, info, identity, uptime)
+            transactions::try_reward_mixnode(deps, env, info, identity, uptime)
         }
         ExecuteMsg::RewardGateway { identity, uptime } => {
-            transactions::try_reward_gateway(deps, info, identity, uptime)
+            transactions::try_reward_gateway(deps, env, info, identity, uptime)
         }
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
-            transactions::try_delegate_to_mixnode(deps, info, mix_identity)
+            transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
             transactions::try_remove_delegation_from_mixnode(deps, info, mix_identity)
         }
         ExecuteMsg::DelegateToGateway { gateway_identity } => {
-            transactions::try_delegate_to_gateway(deps, info, gateway_identity)
+            transactions::try_delegate_to_gateway(deps, env, info, gateway_identity)
         }
         ExecuteMsg::UndelegateFromGateway { gateway_identity } => {
             transactions::try_remove_delegation_from_gateway(deps, info, gateway_identity)
@@ -149,6 +155,16 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             start_after,
             limit,
         )?),
+        QueryMsg::GetReverseMixDelegations {
+            delegation_owner,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_reverse_mixnode_delegations_paged(
+            deps,
+            delegation_owner,
+            start_after,
+            limit,
+        )?),
         QueryMsg::GetMixDelegation {
             mix_identity,
             address,
@@ -167,6 +183,16 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             start_after,
             limit,
         )?),
+        QueryMsg::GetReverseGatewayDelegations {
+            delegation_owner,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_reverse_gateway_delegations_paged(
+            deps,
+            delegation_owner,
+            start_after,
+            limit,
+        )?),
         QueryMsg::GetGatewayDelegation {
             gateway_identity,
             address,
@@ -181,9 +207,70 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    let state = config_read(deps.storage).load().unwrap();
-    config(deps.storage).save(&state)?;
+pub fn migrate(mut deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    use crate::storage::{
+        gateway_delegations, gateway_delegations_read, gateway_delegations_read_old, gateways_read,
+        mix_delegations, mix_delegations_read, mix_delegations_read_old, mixnodes_read,
+    };
+    use crate::transactions::delegations;
+    use cosmwasm_std::{Order, StdResult};
+    use mixnet_contract::{GatewayBond, MixNodeBond};
+
+    // Read existing delegations data, drop invalid values, and rewrite delegations data with valid data only
+    fn overwrite_mixnode_delegations_data(
+        identity: &str,
+        deps: &mut DepsMut,
+    ) -> Result<(), ContractError> {
+        let delegations_bucket = mix_delegations_read(deps.storage, identity);
+        let old_delegations_bucket = mix_delegations_read_old(deps.storage, identity);
+        let mut delegations_vec = delegations(delegations_bucket)?;
+        let old_delegations = delegations::<Uint128>(old_delegations_bucket)?;
+        for delegation in old_delegations {
+            delegations_vec.push((delegation.0, RawDelegationData::new(delegation.1, 1)))
+        }
+
+        for (key, delegation) in delegations_vec {
+            mix_delegations(deps.storage, identity).save(&key, &delegation)?;
+        }
+        Ok(())
+    }
+
+    fn overwrite_gateway_delegations_data(
+        identity: &str,
+        deps: &mut DepsMut,
+    ) -> Result<(), ContractError> {
+        let delegations_bucket = gateway_delegations_read(deps.storage, identity);
+        let old_delegations_bucket = gateway_delegations_read_old(deps.storage, identity);
+        let mut delegations_vec = delegations(delegations_bucket)?;
+        let old_delegations = delegations::<Uint128>(old_delegations_bucket)?;
+        for delegation in old_delegations {
+            delegations_vec.push((delegation.0, RawDelegationData::new(delegation.1, 1)))
+        }
+
+        for (key, delegation) in delegations_vec {
+            gateway_delegations(deps.storage, identity).save(&key, &delegation)?;
+        }
+        Ok(())
+    }
+
+    let mixnet_bonds = mixnodes_read(deps.storage)
+        .range(None, None, Order::Ascending)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<MixNodeBond>>>()?;
+
+    for bond in mixnet_bonds {
+        overwrite_mixnode_delegations_data(bond.identity(), &mut deps)?;
+    }
+
+    let gateway_bonds = gateways_read(deps.storage)
+        .range(None, None, Order::Ascending)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<GatewayBond>>>()?;
+
+    for bond in gateway_bonds {
+        overwrite_gateway_delegations_data(bond.identity(), &mut deps)?;
+    }
+
     Ok(Default::default())
 }
 

@@ -821,9 +821,9 @@
     "@babel/helper-validator-option" "^7.14.5"
     "@babel/plugin-transform-typescript" "^7.14.5"
 
-"@babel/runtime@7.12.5", "@babel/runtime@^7.3.1", "@babel/runtime@^7.4.4", "@babel/runtime@^7.5.5", "@babel/runtime@^7.8.3", "@babel/runtime@^7.8.4", "@babel/runtime@^7.8.7":
-  version "7.12.5"
-  resolved "https://registry.npmjs.org/@babel/runtime/-/runtime-7.12.5.tgz"
+"@babel/runtime@7.15.3", "@babel/runtime@^7.3.1", "@babel/runtime@^7.4.4", "@babel/runtime@^7.5.5", "@babel/runtime@^7.8.3", "@babel/runtime@^7.8.4", "@babel/runtime@^7.8.7":
+  version "7.15.3"
+  resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.15.3.tgz#2e1c2880ca118e5b2f9988322bd8a7656a32502b"
   dependencies:
     regenerator-runtime "^0.13.4"
 
@@ -919,12 +919,6 @@
     long "^4.0.0"
     pako "^2.0.2"
     protobufjs "~6.10.2"
-
-"@cosmjs/cosmwasm@^0.25.5":
-  version "0.25.5"
-  resolved "https://registry.npmjs.org/@cosmjs/cosmwasm/-/cosmwasm-0.25.5.tgz"
-  dependencies:
-    "@cosmjs/cosmwasm-launchpad" "^0.25.5"
 
 "@cosmjs/crypto@^0.25.5":
   version "0.25.5"
@@ -1312,17 +1306,17 @@
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/@napi-rs/triples/-/triples-1.0.3.tgz#76d6d0c3f4d16013c61e45dfca5ff1e6c31ae53c"
 
-"@next/env@11.1.0":
-  version "11.1.0"
-  resolved "https://registry.yarnpkg.com/@next/env/-/env-11.1.0.tgz#cae83d8e0a65aa9f2af3368f8269ffd9d911746a"
+"@next/env@11.1.1":
+  version "11.1.1"
+  resolved "https://registry.yarnpkg.com/@next/env/-/env-11.1.1.tgz#d403282accbe8795aa2341f0e02c2e8bfc92bfb0"
 
-"@next/polyfill-module@11.1.0":
-  version "11.1.0"
-  resolved "https://registry.yarnpkg.com/@next/polyfill-module/-/polyfill-module-11.1.0.tgz#ee6b9117a1f9bb137479dfa51d5a9e38e066a62f"
+"@next/polyfill-module@11.1.1":
+  version "11.1.1"
+  resolved "https://registry.yarnpkg.com/@next/polyfill-module/-/polyfill-module-11.1.1.tgz#89d5a70685a52a0fad79f05a1f97a6b15cc727aa"
 
-"@next/react-dev-overlay@11.1.0":
-  version "11.1.0"
-  resolved "https://registry.yarnpkg.com/@next/react-dev-overlay/-/react-dev-overlay-11.1.0.tgz#8d4e8020a4cbdacbca431a0bf40c4d28187083af"
+"@next/react-dev-overlay@11.1.1":
+  version "11.1.1"
+  resolved "https://registry.yarnpkg.com/@next/react-dev-overlay/-/react-dev-overlay-11.1.1.tgz#3cd99202a85412bada8ba9c8e3f4cf7c19294b24"
   dependencies:
     "@babel/code-frame" "7.12.11"
     anser "1.4.9"
@@ -1336,9 +1330,25 @@
     stacktrace-parser "0.1.10"
     strip-ansi "6.0.0"
 
-"@next/react-refresh-utils@11.1.0":
-  version "11.1.0"
-  resolved "https://registry.yarnpkg.com/@next/react-refresh-utils/-/react-refresh-utils-11.1.0.tgz#60c3c7b127a5dab8b0a2889a7dcf8a90d2c4e592"
+"@next/react-refresh-utils@11.1.1":
+  version "11.1.1"
+  resolved "https://registry.yarnpkg.com/@next/react-refresh-utils/-/react-refresh-utils-11.1.1.tgz#8d1a5432a53c9f987503d5ab07d3241230afb33f"
+
+"@next/swc-darwin-arm64@11.1.1":
+  version "11.1.1"
+  resolved "https://registry.yarnpkg.com/@next/swc-darwin-arm64/-/swc-darwin-arm64-11.1.1.tgz#ea9a76bcff00945df29a81bc43b3b22dd0a6cb53"
+
+"@next/swc-darwin-x64@11.1.1":
+  version "11.1.1"
+  resolved "https://registry.yarnpkg.com/@next/swc-darwin-x64/-/swc-darwin-x64-11.1.1.tgz#95838e9116897ae734d02fdbbfa601b6f52adaf3"
+
+"@next/swc-linux-x64-gnu@11.1.1":
+  version "11.1.1"
+  resolved "https://registry.yarnpkg.com/@next/swc-linux-x64-gnu/-/swc-linux-x64-gnu-11.1.1.tgz#42c4973213a880977ebdfad01474217d7d71e8c2"
+
+"@next/swc-win32-x64-msvc@11.1.1":
+  version "11.1.1"
+  resolved "https://registry.yarnpkg.com/@next/swc-win32-x64-msvc/-/swc-win32-x64-msvc-11.1.1.tgz#1ffcbd01a0155fa8558f7aefffea1066e9bebe74"
 
 "@node-rs/helper@1.2.1":
   version "1.2.1"
@@ -1346,17 +1356,15 @@
   dependencies:
     "@napi-rs/triples" "^1.0.3"
 
-"@nymproject/nym-validator-client@0.16.0":
-  version "0.16.0"
-  resolved "https://registry.npmjs.org/@nymproject/nym-validator-client/-/nym-validator-client-0.16.0.tgz"
+"@nymproject/nym-validator-client@0.17.0":
+  version "0.17.0"
+  resolved "https://registry.yarnpkg.com/@nymproject/nym-validator-client/-/nym-validator-client-0.17.0.tgz#b03af24295cbd2f1b94ffd0c38c5a493e994d111"
   dependencies:
-    "@cosmjs/cosmwasm" "^0.25.5"
     "@cosmjs/cosmwasm-stargate" "^0.25.5"
-    "@cosmjs/crypto" "^0.25.5"
-    "@cosmjs/launchpad" "^0.25.5"
     "@cosmjs/math" "^0.25.5"
     "@cosmjs/proto-signing" "^0.25.5"
-    axios "^0.19.2"
+    "@cosmjs/stargate" "^0.25.5"
+    axios "^0.21.1"
 
 "@protobufjs/aspromise@^1.1.1", "@protobufjs/aspromise@^1.1.2":
   version "1.1.2"
@@ -1657,12 +1665,6 @@ available-typed-arrays@^1.0.2:
   resolved "https://registry.npmjs.org/available-typed-arrays/-/available-typed-arrays-1.0.2.tgz"
   dependencies:
     array-filter "^1.0.0"
-
-axios@^0.19.2:
-  version "0.19.2"
-  resolved "https://registry.npmjs.org/axios/-/axios-0.19.2.tgz"
-  dependencies:
-    follow-redirects "1.5.10"
 
 axios@^0.21.1:
   version "0.21.1"
@@ -2221,12 +2223,6 @@ debug@4, debug@^4.1.0, debug@^4.1.1:
   dependencies:
     ms "2.1.2"
 
-debug@=3.1.0:
-  version "3.1.0"
-  resolved "https://registry.npmjs.org/debug/-/debug-3.1.0.tgz"
-  dependencies:
-    ms "2.0.0"
-
 decimal.js@^10.2.1:
   version "10.3.1"
   resolved "https://registry.npmjs.org/decimal.js/-/decimal.js-10.3.1.tgz"
@@ -2493,12 +2489,6 @@ find-up@^4.0.0, find-up@^4.1.0:
   dependencies:
     locate-path "^5.0.0"
     path-exists "^4.0.0"
-
-follow-redirects@1.5.10:
-  version "1.5.10"
-  resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.5.10.tgz"
-  dependencies:
-    debug "=3.1.0"
 
 follow-redirects@^1.10.0:
   version "1.13.3"
@@ -3617,16 +3607,16 @@ natural-compare@^1.4.0:
   version "1.4.0"
   resolved "https://registry.npmjs.org/natural-compare/-/natural-compare-1.4.0.tgz"
 
-next@11.1.0:
-  version "11.1.0"
-  resolved "https://registry.yarnpkg.com/next/-/next-11.1.0.tgz#767d4c4fa0b9b0c768cdbd6c9f03dd86b5d701c0"
+next@11.1.1:
+  version "11.1.1"
+  resolved "https://registry.yarnpkg.com/next/-/next-11.1.1.tgz#ca15c6d6b4b4bf8c3e859f7fc4f9657ce59bcb63"
   dependencies:
-    "@babel/runtime" "7.12.5"
+    "@babel/runtime" "7.15.3"
     "@hapi/accept" "5.0.2"
-    "@next/env" "11.1.0"
-    "@next/polyfill-module" "11.1.0"
-    "@next/react-dev-overlay" "11.1.0"
-    "@next/react-refresh-utils" "11.1.0"
+    "@next/env" "11.1.1"
+    "@next/polyfill-module" "11.1.1"
+    "@next/react-dev-overlay" "11.1.1"
+    "@next/react-refresh-utils" "11.1.1"
     "@node-rs/helper" "1.2.1"
     assert "2.0.0"
     ast-types "0.13.2"
@@ -3668,9 +3658,14 @@ next@11.1.0:
     timers-browserify "2.0.12"
     tty-browserify "0.0.1"
     use-subscription "1.5.1"
-    util "0.12.3"
+    util "0.12.4"
     vm-browserify "1.1.2"
     watchpack "2.1.1"
+  optionalDependencies:
+    "@next/swc-darwin-arm64" "11.1.1"
+    "@next/swc-darwin-x64" "11.1.1"
+    "@next/swc-linux-x64-gnu" "11.1.1"
+    "@next/swc-win32-x64-msvc" "11.1.1"
 
 node-fetch@2.6.1:
   version "2.6.1"
@@ -4637,9 +4632,9 @@ util@0.10.3:
   dependencies:
     inherits "2.0.1"
 
-util@0.12.3, util@^0.12.0:
-  version "0.12.3"
-  resolved "https://registry.npmjs.org/util/-/util-0.12.3.tgz"
+util@0.12.4, util@^0.12.0:
+  version "0.12.4"
+  resolved "https://registry.yarnpkg.com/util/-/util-0.12.4.tgz#66121a31420df8f01ca0c464be15dfa1d1850253"
   dependencies:
     inherits "^2.0.3"
     is-arguments "^1.0.4"

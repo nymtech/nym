@@ -7,14 +7,18 @@ use crate::queries;
 use crate::storage::*;
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    attr, coins, BankMsg, Coin, Decimal, DepsMut, MessageInfo, Order, Response, StdResult, Uint128,
+    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Order, Response, StdResult,
+    Uint128,
 };
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{
-    Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, StateParams,
+    Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
 };
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
 const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
+pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
 
 // Looks for the total amount of delegations towards a particular node.
 // This function is used only in very specific circumstances:
@@ -23,12 +27,15 @@ const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 // 3. The node unbonds
 // 4. Some of the addresses that delegated in the past have not removed the delegation yet
 // 5. The node rebonds with the same identity
-fn find_old_delegations(delegations_bucket: ReadonlyBucket<Uint128>) -> StdResult<Coin> {
+pub fn delegations<T: DeserializeOwned + Serialize>(
+    delegations_bucket: ReadonlyBucket<T>,
+) -> StdResult<Vec<(Vec<u8>, T)>> {
     // I think it's incredibly unlikely to ever read more than that
     // but in case we do, we should guard ourselves against possible
     // out of memory errors (wasm contracts can only allocate at most 2MB
     // of RAM, so we don't want to box the entire iterator)
-    let mut total_delegation = Coin::new(0, DENOM);
+    let mut delegations = Vec::new();
+    // let mut total_delegation = Coin::new(0, DENOM);
     let mut start = None;
     loop {
         let iterator = delegations_bucket
@@ -37,16 +44,23 @@ fn find_old_delegations(delegations_bucket: ReadonlyBucket<Uint128>) -> StdResul
 
         let mut iterated = 0;
 
-        for delegation in iterator {
+        for result_tuple in iterator {
             iterated += 1;
-            if iterated == OLD_DELEGATIONS_CHUNK_SIZE + 1 {
-                // we reached start of next chunk, don't process it, mark it for the next iteration of the loop
-                start = Some(delegation?.0);
-                continue;
+            match result_tuple {
+                Ok((position, delegation)) => {
+                    // We might skip some values due to deserializatio errors
+                    if iterated > OLD_DELEGATIONS_CHUNK_SIZE {
+                        // we reached start of next chunk, don't process it, mark it for the next iteration of the loop
+                        start = Some(position);
+                        continue;
+                    }
+                    delegations.push((position, delegation))
+                }
+                Err(_e) => {
+                    // Skip errors
+                    continue;
+                }
             }
-
-            let value = delegation?.1;
-            total_delegation.amount += value;
         }
 
         if iterated <= OLD_DELEGATIONS_CHUNK_SIZE {
@@ -55,7 +69,17 @@ fn find_old_delegations(delegations_bucket: ReadonlyBucket<Uint128>) -> StdResul
         }
     }
 
-    Ok(total_delegation)
+    Ok(delegations)
+}
+
+fn total_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
+    match delegations(delegations_bucket) {
+        Ok(delegations) => Ok(Coin::new(
+            delegations.iter().fold(0, |acc, x| acc + x.1.amount.u128()),
+            "upunk",
+        )),
+        Err(e) => Err(e),
+    }
 }
 
 fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
@@ -86,6 +110,7 @@ fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
 
 pub(crate) fn try_add_mixnode(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<Response, ContractError> {
@@ -125,11 +150,17 @@ pub(crate) fn try_add_mixnode(
     let layer_distribution = queries::query_layer_distribution(deps.as_ref());
     let layer = layer_distribution.choose_with_fewest();
 
-    let mut bond = MixNodeBond::new(info.funds[0].clone(), info.sender.clone(), layer, mix_node);
+    let mut bond = MixNodeBond::new(
+        info.funds[0].clone(),
+        info.sender.clone(),
+        layer,
+        env.block.height,
+        mix_node,
+    );
 
     // this might potentially require more gas if a significant number of delegations was there
     let delegations_bucket = mix_delegations_read(deps.storage, &bond.mix_node.identity_key);
-    let existing_delegation = find_old_delegations(delegations_bucket)?;
+    let existing_delegation = total_delegations(delegations_bucket)?;
     bond.total_delegation = existing_delegation;
 
     let identity = bond.identity();
@@ -215,6 +246,7 @@ fn validate_gateway_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
 
 pub(crate) fn try_add_gateway(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     gateway: Gateway,
 ) -> Result<Response, ContractError> {
@@ -251,11 +283,16 @@ pub(crate) fn try_add_gateway(
     let minimum_bond = read_state_params(deps.storage).minimum_gateway_bond;
     validate_gateway_bond(&info.funds, minimum_bond)?;
 
-    let mut bond = GatewayBond::new(info.funds[0].clone(), info.sender.clone(), gateway);
+    let mut bond = GatewayBond::new(
+        info.funds[0].clone(),
+        info.sender.clone(),
+        env.block.height,
+        gateway,
+    );
 
     // this might potentially require more gas if a significant number of delegations was there
     let delegations_bucket = gateway_delegations_read(deps.storage, &bond.gateway.identity_key);
-    let existing_delegation = find_old_delegations(delegations_bucket)?;
+    let existing_delegation = total_delegations(delegations_bucket)?;
     bond.total_delegation = existing_delegation;
 
     let identity = bond.identity();
@@ -390,6 +427,7 @@ pub(crate) fn try_update_state_params(
 
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     mix_identity: IdentityKey,
     uptime: u32,
@@ -430,14 +468,22 @@ pub(crate) fn try_reward_mixnode(
     let bond_scaled_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
     let delegation_scaled_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
 
-    let node_reward = current_bond.bond_amount.amount * bond_scaled_reward_rate;
-    let total_delegation_reward =
-        increase_mix_delegated_stakes(deps.storage, &mix_identity, delegation_scaled_reward_rate)?;
+    let mut node_reward = Uint128(0);
+    let total_delegation_reward = increase_mix_delegated_stakes(
+        deps.storage,
+        &mix_identity,
+        delegation_scaled_reward_rate,
+        env.block.height,
+    )?;
 
     // update current bond with the reward given to the node and the delegators
-    current_bond.bond_amount.amount += node_reward;
-    current_bond.total_delegation.amount += total_delegation_reward;
-    mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+    // if it has been bonded for long enough
+    if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height {
+        node_reward = current_bond.bond_amount.amount * bond_scaled_reward_rate;
+        current_bond.bond_amount.amount += node_reward;
+        current_bond.total_delegation.amount += total_delegation_reward;
+        mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+    }
 
     Ok(Response {
         submessages: vec![],
@@ -452,6 +498,7 @@ pub(crate) fn try_reward_mixnode(
 
 pub(crate) fn try_reward_gateway(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     gateway_identity: IdentityKey,
     uptime: u32,
@@ -492,17 +539,22 @@ pub(crate) fn try_reward_gateway(
     let scaled_bond_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
     let scaled_delegation_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
 
-    let node_reward = current_bond.bond_amount.amount * scaled_bond_reward_rate;
+    let mut node_reward = Uint128(0);
     let total_delegation_reward = increase_gateway_delegated_stakes(
         deps.storage,
         &gateway_identity,
         scaled_delegation_reward_rate,
+        env.block.height,
     )?;
 
     // update current bond with the reward given to the node and the delegators
-    current_bond.bond_amount.amount += node_reward;
-    current_bond.total_delegation.amount += total_delegation_reward;
-    gateways(deps.storage).save(gateway_identity.as_bytes(), &current_bond)?;
+    // if it has been bonded for long enough
+    if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height {
+        node_reward = current_bond.bond_amount.amount * scaled_bond_reward_rate;
+        current_bond.bond_amount.amount += node_reward;
+        current_bond.total_delegation.amount += total_delegation_reward;
+        gateways(deps.storage).save(gateway_identity.as_bytes(), &current_bond)?;
+    }
 
     Ok(Response {
         submessages: vec![],
@@ -540,6 +592,7 @@ fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {
 
 pub(crate) fn try_delegate_to_mixnode(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
@@ -565,12 +618,15 @@ pub(crate) fn try_delegate_to_mixnode(
     let sender_bytes = info.sender.as_bytes();
 
     // write the delegation
-    match delegation_bucket.may_load(sender_bytes)? {
-        Some(existing_delegation) => {
-            delegation_bucket.save(sender_bytes, &(existing_delegation + info.funds[0].amount))?
-        }
-        None => delegation_bucket.save(sender_bytes, &info.funds[0].amount)?,
-    }
+    let new_amount = match delegation_bucket.may_load(sender_bytes)? {
+        Some(existing_delegation) => existing_delegation.amount + info.funds[0].amount,
+        None => info.funds[0].amount,
+    };
+    // the block height is reset, if it existed
+    let new_delegation = RawDelegationData::new(new_amount, env.block.height);
+    delegation_bucket.save(sender_bytes, &new_delegation)?;
+
+    reverse_mix_delegations(deps.storage, &info.sender).save(mix_identity.as_bytes(), &())?;
 
     Ok(Response::default())
 }
@@ -584,13 +640,14 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     let sender_bytes = info.sender.as_bytes();
     match delegation_bucket.may_load(sender_bytes)? {
         Some(delegation) => {
-            // remove delegation from the bucket
+            // remove delegation from the buckets
             delegation_bucket.remove(sender_bytes);
+            reverse_mix_delegations(deps.storage, &info.sender).remove(mix_identity.as_bytes());
 
             // send delegated funds back to the delegation owner
             let messages = vec![BankMsg::Send {
                 to_address: info.sender.to_string(),
-                amount: coins(delegation.u128(), DENOM),
+                amount: coins(delegation.amount.u128(), DENOM),
             }
             .into()];
 
@@ -603,7 +660,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
                 existing_bond.total_delegation.amount = existing_bond
                     .total_delegation
                     .amount
-                    .checked_sub(delegation)
+                    .checked_sub(delegation.amount)
                     .unwrap();
                 mixnodes_bucket.save(mix_identity.as_bytes(), &existing_bond)?;
             }
@@ -624,6 +681,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 
 pub(crate) fn try_delegate_to_gateway(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     gateway_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
@@ -649,12 +707,16 @@ pub(crate) fn try_delegate_to_gateway(
     let sender_bytes = info.sender.as_bytes();
 
     // write the delegation
-    match delegation_bucket.may_load(sender_bytes)? {
-        Some(existing_delegation) => {
-            delegation_bucket.save(sender_bytes, &(existing_delegation + info.funds[0].amount))?
-        }
-        None => delegation_bucket.save(sender_bytes, &info.funds[0].amount)?,
-    }
+    let new_amount = match delegation_bucket.may_load(sender_bytes)? {
+        Some(existing_delegation) => existing_delegation.amount + info.funds[0].amount,
+        None => info.funds[0].amount,
+    };
+    // the block height is reset, if it existed
+    let new_delegation = RawDelegationData::new(new_amount, env.block.height);
+    delegation_bucket.save(sender_bytes, &new_delegation)?;
+
+    reverse_gateway_delegations(deps.storage, &info.sender)
+        .save(gateway_identity.as_bytes(), &())?;
 
     Ok(Response::default())
 }
@@ -668,13 +730,15 @@ pub(crate) fn try_remove_delegation_from_gateway(
     let sender_bytes = info.sender.as_bytes();
     match delegation_bucket.may_load(sender_bytes)? {
         Some(delegation) => {
-            // remove delegation from the bucket
+            // remove delegation from the buckets
             delegation_bucket.remove(sender_bytes);
+            reverse_gateway_delegations(deps.storage, &info.sender)
+                .remove(gateway_identity.as_bytes());
 
             // send delegated funds back to the delegation owner
             let messages = vec![BankMsg::Send {
                 to_address: info.sender.to_string(),
-                amount: coins(delegation.u128(), DENOM),
+                amount: coins(delegation.amount.u128(), DENOM),
             }
             .into()];
 
@@ -689,7 +753,7 @@ pub(crate) fn try_remove_delegation_from_gateway(
                 existing_bond.total_delegation.amount = existing_bond
                     .total_delegation
                     .amount
-                    .checked_sub(delegation)
+                    .checked_sub(delegation.amount)
                     .unwrap();
                 gateways_bucket.save(gateway_identity.as_bytes(), &existing_bond)?;
             }
@@ -726,7 +790,7 @@ pub mod tests {
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
         add_gateway, add_mixnode, gateway_fixture, good_gateway_bond, good_mixnode_bond,
-        mix_node_fixture,
+        mix_node_fixture, raw_delegation_fixture,
     };
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
@@ -1069,6 +1133,7 @@ pub mod tests {
         let info = mock_info("fred", &good_mixnode_bond());
         try_add_mixnode(
             deps.as_mut(),
+            mock_env(),
             info,
             MixNode {
                 identity_key: "fredsmixnode".to_string(),
@@ -1468,6 +1533,7 @@ pub mod tests {
         let info = mock_info("fred", &good_gateway_bond());
         try_add_gateway(
             deps.as_mut(),
+            mock_env(),
             info,
             Gateway {
                 identity_key: "fredsgateway".into(),
@@ -1760,6 +1826,7 @@ pub mod tests {
     #[test]
     fn rewarding_mixnode() {
         let mut deps = helpers::init_contract();
+        let mut env = mock_env();
         let current_state = config(deps.as_mut().storage).load().unwrap();
         let network_monitor_address = current_state.network_monitor_address;
 
@@ -1768,12 +1835,13 @@ pub mod tests {
 
         // errors out if executed by somebody else than network monitor
         let info = mock_info("not-the-monitor", &[]);
-        let res = try_reward_mixnode(deps.as_mut(), info, node_identity.clone(), 100);
+        let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100);
         assert_eq!(res, Err(ContractError::Unauthorized));
 
         // returns bond not found attribute if the target owner hasn't bonded any mixnodes
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        let res = try_reward_mixnode(deps.as_mut(), info, node_identity.clone(), 100).unwrap();
+        let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
         assert_eq!(vec![attr("result", "bond not found")], res.attributes);
 
         let initial_bond = 100_000000;
@@ -1783,6 +1851,7 @@ pub mod tests {
             total_delegation: coin(initial_delegation, DENOM),
             owner: node_owner.clone(),
             layer: Layer::One,
+            block_height: env.block.height,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
@@ -1794,8 +1863,13 @@ pub mod tests {
             .unwrap();
 
         mix_delegations(&mut deps.storage, &node_identity)
-            .save(b"delegator", &Uint128(initial_delegation))
+            .save(
+                b"delegator",
+                &RawDelegationData::new(initial_delegation.into(), env.block.height),
+            )
             .unwrap();
+
+        env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
         let bond_reward_rate = read_mixnode_epoch_bond_reward_rate(deps.as_ref().storage);
         let delegation_reward_rate =
@@ -1809,7 +1883,8 @@ pub mod tests {
         let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        let res = try_reward_mixnode(deps.as_mut(), info, node_identity.clone(), 100).unwrap();
+        let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
 
         assert_eq!(
             expected_bond,
@@ -1837,7 +1912,136 @@ pub mod tests {
         let expected_delegation = expected_delegation_reward + expected_delegation;
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        let res = try_reward_mixnode(deps.as_mut(), info, node_identity.clone(), 20).unwrap();
+        let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 20)
+            .unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+        assert_eq!(
+            expected_delegation,
+            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
+            ],
+            res.attributes
+        );
+    }
+
+    #[test]
+    fn rewarding_mixnode_blockstamp_based() {
+        let mut deps = helpers::init_contract();
+        let mut env = mock_env();
+        let current_state = config(deps.as_mut().storage).load().unwrap();
+        let network_monitor_address = current_state.network_monitor_address;
+
+        let node_owner: Addr = Addr::unchecked("node-owner");
+        let node_identity: IdentityKey = "nodeidentity".into();
+
+        let initial_bond = 100_000000;
+        let initial_delegation = 200_000000;
+        let mixnode_bond = MixNodeBond {
+            bond_amount: coin(initial_bond, DENOM),
+            total_delegation: coin(initial_delegation, DENOM),
+            owner: node_owner.clone(),
+            layer: Layer::One,
+            block_height: env.block.height,
+            mix_node: MixNode {
+                identity_key: node_identity.clone(),
+                ..mix_node_fixture()
+            },
+        };
+
+        mixnodes(deps.as_mut().storage)
+            .save(node_identity.as_bytes(), &mixnode_bond)
+            .unwrap();
+
+        // delegation happens later, but not later enough
+        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+
+        mix_delegations(&mut deps.storage, &node_identity)
+            .save(
+                b"delegator",
+                &RawDelegationData::new(initial_delegation.into(), env.block.height),
+            )
+            .unwrap();
+
+        let bond_reward_rate = read_mixnode_epoch_bond_reward_rate(deps.as_ref().storage);
+        let delegation_reward_rate =
+            read_mixnode_epoch_delegation_reward_rate(deps.as_ref().storage);
+        let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 100).unwrap();
+        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 100).unwrap();
+
+        // no reward is due
+        let expected_bond_reward = Uint128(0);
+        let expected_delegation_reward = Uint128(0);
+        let expected_bond = expected_bond_reward + Uint128(initial_bond);
+        let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
+
+        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+        assert_eq!(
+            expected_delegation,
+            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
+            ],
+            res.attributes
+        );
+
+        // reward can happen now, but only for bonded node
+        env.block.height += 1;
+        let expected_bond_reward = expected_bond * scaled_bond_reward;
+        let expected_delegation_reward = Uint128(0);
+        let expected_bond = expected_bond_reward + expected_bond;
+        let expected_delegation = expected_delegation_reward + expected_delegation;
+
+        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+        assert_eq!(
+            expected_delegation,
+            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
+            ],
+            res.attributes
+        );
+
+        // reward happens now, both for node owner and delegators
+        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+        let expected_bond_reward = expected_bond * scaled_bond_reward;
+        let expected_delegation_reward = expected_delegation * scaled_delegation_reward;
+        let expected_bond = expected_bond_reward + expected_bond;
+        let expected_delegation = expected_delegation_reward + expected_delegation;
+
+        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
 
         assert_eq!(
             expected_bond,
@@ -1860,6 +2064,7 @@ pub mod tests {
     #[test]
     fn rewarding_gateway() {
         let mut deps = helpers::init_contract();
+        let mut env = mock_env();
         let current_state = config(deps.as_mut().storage).load().unwrap();
         let network_monitor_address = current_state.network_monitor_address;
 
@@ -1868,12 +2073,13 @@ pub mod tests {
 
         // errors out if executed by somebody else than network monitor
         let info = mock_info("not-the-monitor", &[]);
-        let res = try_reward_gateway(deps.as_mut(), info, node_identity.clone(), 100);
+        let res = try_reward_gateway(deps.as_mut(), env.clone(), info, node_identity.clone(), 100);
         assert_eq!(res, Err(ContractError::Unauthorized));
 
         // returns bond not found attribute if the target owner hasn't bonded any gateways
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        let res = try_reward_gateway(deps.as_mut(), info, node_identity.clone(), 100).unwrap();
+        let res = try_reward_gateway(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
         assert_eq!(vec![attr("result", "bond not found")], res.attributes);
 
         let initial_bond = 100_000000;
@@ -1882,6 +2088,7 @@ pub mod tests {
             bond_amount: coin(initial_bond, DENOM),
             total_delegation: coin(initial_delegation, DENOM),
             owner: node_owner.clone(),
+            block_height: env.block.height,
             gateway: Gateway {
                 identity_key: node_identity.clone(),
                 ..gateway_fixture()
@@ -1893,8 +2100,10 @@ pub mod tests {
             .unwrap();
 
         gateway_delegations(&mut deps.storage, &node_identity)
-            .save(b"delegator", &Uint128(initial_delegation))
+            .save(b"delegator", &raw_delegation_fixture(initial_delegation))
             .unwrap();
+
+        env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
         let bond_reward_rate = read_gateway_epoch_bond_reward_rate(deps.as_ref().storage);
         let delegation_reward_rate =
@@ -1908,7 +2117,8 @@ pub mod tests {
         let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        let res = try_reward_gateway(deps.as_mut(), info, node_identity.clone(), 100).unwrap();
+        let res = try_reward_gateway(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
 
         assert_eq!(
             expected_bond,
@@ -1937,13 +2147,141 @@ pub mod tests {
         let expected_delegation = expected_delegation_reward + expected_delegation;
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        let res = try_reward_gateway(deps.as_mut(), info, node_identity.clone(), 20).unwrap();
+        let res = try_reward_gateway(deps.as_mut(), env.clone(), info, node_identity.clone(), 20)
+            .unwrap();
 
         assert_eq!(
             expected_bond,
             read_gateway_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
         );
 
+        assert_eq!(
+            expected_delegation,
+            read_gateway_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
+            ],
+            res.attributes
+        );
+    }
+
+    #[test]
+    fn rewarding_gateway_blockstamp_based() {
+        let mut deps = helpers::init_contract();
+        let mut env = mock_env();
+        let current_state = config(deps.as_mut().storage).load().unwrap();
+        let network_monitor_address = current_state.network_monitor_address;
+
+        let node_owner: Addr = Addr::unchecked("node-owner");
+        let node_identity: IdentityKey = "nodeidentity".into();
+
+        let initial_bond = 100_000000;
+        let initial_delegation = 200_000000;
+        let gateway_bond = GatewayBond {
+            bond_amount: coin(initial_bond, DENOM),
+            total_delegation: coin(initial_delegation, DENOM),
+            owner: node_owner.clone(),
+            block_height: env.block.height,
+            gateway: Gateway {
+                identity_key: node_identity.clone(),
+                ..gateway_fixture()
+            },
+        };
+
+        gateways(deps.as_mut().storage)
+            .save(node_identity.as_bytes(), &gateway_bond)
+            .unwrap();
+
+        // delegation happens later, but not later enough
+        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+
+        gateway_delegations(&mut deps.storage, &node_identity)
+            .save(
+                b"delegator",
+                &RawDelegationData::new(initial_delegation.into(), env.block.height),
+            )
+            .unwrap();
+
+        let bond_reward_rate = read_gateway_epoch_bond_reward_rate(deps.as_ref().storage);
+        let delegation_reward_rate =
+            read_gateway_epoch_delegation_reward_rate(deps.as_ref().storage);
+        let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 100).unwrap();
+        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 100).unwrap();
+
+        // no reward is due
+        let expected_bond_reward = Uint128(0);
+        let expected_delegation_reward = Uint128(0);
+        let expected_bond = expected_bond_reward + Uint128(initial_bond);
+        let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
+
+        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let res = try_reward_gateway(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_gateway_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+        assert_eq!(
+            expected_delegation,
+            read_gateway_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
+            ],
+            res.attributes
+        );
+
+        // reward can happen now, but only for bonded node
+        env.block.height += 1;
+        let expected_bond_reward = expected_bond * scaled_bond_reward;
+        let expected_delegation_reward = Uint128(0);
+        let expected_bond = expected_bond_reward + expected_bond;
+        let expected_delegation = expected_delegation_reward + expected_delegation;
+
+        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let res = try_reward_gateway(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_gateway_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+        assert_eq!(
+            expected_delegation,
+            read_gateway_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
+            ],
+            res.attributes
+        );
+
+        // reward happens now, both for node owner and delegators
+        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+        let expected_bond_reward = expected_bond * scaled_bond_reward;
+        let expected_delegation_reward = expected_delegation * scaled_delegation_reward;
+        let expected_bond = expected_bond_reward + expected_bond;
+        let expected_delegation = expected_delegation_reward + expected_delegation;
+
+        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let res = try_reward_gateway(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
+            .unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_gateway_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
         assert_eq!(
             expected_delegation,
             read_gateway_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
@@ -2019,6 +2357,7 @@ pub mod tests {
                 }),
                 try_delegate_to_mixnode(
                     deps.as_mut(),
+                    mock_env(),
                     mock_info("sender", &coins(123, DENOM)),
                     "non-existent-mix-identity".into()
                 )
@@ -2030,20 +2369,27 @@ pub mod tests {
             let mut deps = helpers::init_contract();
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             let delegation = coin(123, DENOM);
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &vec![delegation.clone()]),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert_eq!(
-                delegation.amount,
+                RawDelegationData::new(delegation.amount, mock_env().block.height),
                 mix_delegations_read(&deps.storage, &identity)
-                    .load(b"sender")
+                    .load(delegation_owner.as_bytes())
                     .unwrap()
+            );
+            assert!(
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                    .load(identity.as_bytes())
+                    .is_ok()
             );
 
             // node's "total_delegation" is increased
@@ -2062,6 +2408,7 @@ pub mod tests {
 
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
 
@@ -2071,7 +2418,8 @@ pub mod tests {
                 }),
                 try_delegate_to_mixnode(
                     deps.as_mut(),
-                    mock_info("sender", &coins(123, DENOM)),
+                    mock_env(),
+                    mock_info(delegation_owner.as_str(), &coins(123, DENOM)),
                     identity
                 )
             );
@@ -2086,19 +2434,26 @@ pub mod tests {
             try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
             let delegation = coin(123, DENOM);
+            let delegation_owner = Addr::unchecked("sender");
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &vec![delegation.clone()]),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert_eq!(
-                delegation.amount,
+                RawDelegationData::new(delegation.amount, mock_env().block.height),
                 mix_delegations_read(&deps.storage, &identity)
-                    .load(b"sender")
+                    .load(delegation_owner.as_bytes())
                     .unwrap()
+            );
+            assert!(
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                    .load(identity.as_bytes())
+                    .is_ok()
             );
 
             // node's "total_delegation" is increased
@@ -2116,29 +2471,40 @@ pub mod tests {
             let mut deps = helpers::init_contract();
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             let delegation1 = coin(100, DENOM);
             let delegation2 = coin(50, DENOM);
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &vec![delegation1.clone()]),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &vec![delegation1.clone()]),
                 identity.clone(),
             )
             .unwrap();
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &vec![delegation2.clone()]),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &vec![delegation2.clone()]),
                 identity.clone(),
             )
             .unwrap();
 
             assert_eq!(
-                delegation1.amount + delegation2.amount,
+                RawDelegationData::new(
+                    delegation1.amount + delegation2.amount,
+                    mock_env().block.height
+                ),
                 mix_delegations_read(&deps.storage, &identity)
-                    .load(b"sender")
+                    .load(delegation_owner.as_bytes())
                     .unwrap()
+            );
+            assert!(
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                    .load(identity.as_bytes())
+                    .is_ok()
             );
 
             // node's "total_delegation" is sum of both
@@ -2153,15 +2519,117 @@ pub mod tests {
         }
 
         #[test]
+        fn block_height_is_updated_on_new_delegation() {
+            let mut deps = helpers::init_contract();
+            let mixnode_owner = "bob";
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
+            let delegation = coin(100, DENOM);
+
+            let env1 = mock_env();
+            let mut env2 = mock_env();
+            let initial_height = env1.block.height;
+            let updated_height = initial_height + 42;
+            // second env has grown in block height
+            env2.block.height = updated_height;
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                env1,
+                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation.amount, initial_height),
+                mix_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner.as_bytes())
+                    .unwrap()
+            );
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                env2,
+                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation.amount + delegation.amount, updated_height),
+                mix_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner.as_bytes())
+                    .unwrap()
+            );
+        }
+
+        #[test]
+        fn block_height_is_not_updated_on_different_delegator() {
+            let mut deps = helpers::init_contract();
+            let mixnode_owner = "bob";
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner1 = Addr::unchecked("sender1");
+            let delegation_owner2 = Addr::unchecked("sender2");
+            let delegation1 = coin(100, DENOM);
+            let delegation2 = coin(120, DENOM);
+
+            let env1 = mock_env();
+            let mut env2 = mock_env();
+            let initial_height = env1.block.height;
+            let second_height = initial_height + 42;
+            // second env has grown in block height
+            env2.block.height = second_height;
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                env1,
+                mock_info(delegation_owner1.as_str(), &vec![delegation1.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation1.amount, initial_height),
+                mix_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner1.as_bytes())
+                    .unwrap()
+            );
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                env2,
+                mock_info(delegation_owner2.as_str(), &vec![delegation2.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation1.amount, initial_height),
+                mix_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner1.as_bytes())
+                    .unwrap()
+            );
+            assert_eq!(
+                RawDelegationData::new(delegation2.amount, second_height),
+                mix_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner2.as_bytes())
+                    .unwrap()
+            );
+        }
+
+        #[test]
         fn is_disallowed_for_already_delegated_node_if_it_unbonded() {
             let mut deps = helpers::init_contract();
 
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &coins(100, DENOM)),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
             .unwrap();
@@ -2174,7 +2642,8 @@ pub mod tests {
                 }),
                 try_delegate_to_mixnode(
                     deps.as_mut(),
-                    mock_info("sender", &coins(50, DENOM)),
+                    mock_env(),
+                    mock_info(delegation_owner.as_str(), &coins(50, DENOM)),
                     identity
                 )
             );
@@ -2187,35 +2656,46 @@ pub mod tests {
             let mixnode_owner2 = "fred";
             let identity1 = add_mixnode(mixnode_owner1, good_mixnode_bond(), &mut deps);
             let identity2 = add_mixnode(mixnode_owner2, good_mixnode_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &coins(123, DENOM)),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &coins(123, DENOM)),
                 identity1.clone()
             )
             .is_ok());
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &coins(42, DENOM)),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &coins(42, DENOM)),
                 identity2.clone()
             )
             .is_ok());
 
             assert_eq!(
-                123,
+                RawDelegationData::new(123u128.into(), mock_env().block.height),
                 mix_delegations_read(&deps.storage, &identity1)
-                    .load(b"sender")
+                    .load(delegation_owner.as_bytes())
                     .unwrap()
-                    .u128()
+            );
+            assert!(
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                    .load(identity1.as_bytes())
+                    .is_ok()
             );
 
             assert_eq!(
-                42,
+                RawDelegationData::new(42u128.into(), mock_env().block.height),
                 mix_delegations_read(&deps.storage, &identity2)
-                    .load(b"sender")
+                    .load(delegation_owner.as_bytes())
                     .unwrap()
-                    .u128()
+            );
+            assert!(
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                    .load(identity2.as_bytes())
+                    .is_ok()
             );
         }
 
@@ -2230,6 +2710,7 @@ pub mod tests {
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info("sender1", &vec![delegation1.clone()]),
                 identity.clone()
             )
@@ -2237,6 +2718,7 @@ pub mod tests {
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info("sender2", &vec![delegation2.clone()]),
                 identity.clone()
             )
@@ -2259,10 +2741,12 @@ pub mod tests {
 
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &coins(100, DENOM)),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
             .unwrap();
@@ -2270,11 +2754,15 @@ pub mod tests {
             try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
 
             assert_eq!(
-                100,
+                RawDelegationData::new(100u128.into(), mock_env().block.height),
                 mix_delegations_read(&deps.storage, &identity)
-                    .load(b"sender")
+                    .load(delegation_owner.as_bytes())
                     .unwrap()
-                    .u128()
+            );
+            assert!(
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                    .load(identity.as_bytes())
+                    .is_ok()
             );
         }
     }
@@ -2291,15 +2779,16 @@ pub mod tests {
 
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             assert_eq!(
                 Err(ContractError::NoMixnodeDelegationFound {
                     identity: identity.clone(),
-                    address: Addr::unchecked("sender"),
+                    address: delegation_owner.clone(),
                 }),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
-                    mock_info("sender", &[]),
+                    mock_info(delegation_owner.as_str(), &[]),
                     identity,
                 )
             );
@@ -2311,10 +2800,12 @@ pub mod tests {
 
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &coins(100, DENOM)),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
             .unwrap();
@@ -2323,7 +2814,7 @@ pub mod tests {
                 Ok(Response {
                     submessages: vec![],
                     messages: vec![BankMsg::Send {
-                        to_address: "sender".into(),
+                        to_address: delegation_owner.clone().into(),
                         amount: coins(100, DENOM),
                     }
                     .into()],
@@ -2332,15 +2823,21 @@ pub mod tests {
                 }),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
-                    mock_info("sender", &[]),
+                    mock_info(delegation_owner.as_str(), &[]),
                     identity.clone(),
                 )
             );
 
             assert!(mix_delegations_read(&deps.storage, &identity)
-                .may_load(b"sender")
+                .may_load(delegation_owner.as_bytes())
                 .unwrap()
                 .is_none());
+            assert!(
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                    .may_load(identity.as_bytes())
+                    .unwrap()
+                    .is_none()
+            );
 
             // and total delegation is cleared
             assert_eq!(
@@ -2359,10 +2856,12 @@ pub mod tests {
 
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &coins(100, DENOM)),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
             .unwrap();
@@ -2373,7 +2872,7 @@ pub mod tests {
                 Ok(Response {
                     submessages: vec![],
                     messages: vec![BankMsg::Send {
-                        to_address: "sender".into(),
+                        to_address: delegation_owner.clone().into(),
                         amount: coins(100, DENOM),
                     }
                     .into()],
@@ -2382,15 +2881,21 @@ pub mod tests {
                 }),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
-                    mock_info("sender", &[]),
+                    mock_info(delegation_owner.as_str(), &[]),
                     identity.clone(),
                 )
             );
 
             assert!(mix_delegations_read(&deps.storage, &identity)
-                .may_load(b"sender")
+                .may_load(delegation_owner.as_bytes())
                 .unwrap()
                 .is_none());
+            assert!(
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                    .may_load(identity.as_bytes())
+                    .unwrap()
+                    .is_none()
+            );
         }
 
         #[test]
@@ -2398,20 +2903,24 @@ pub mod tests {
             let mut deps = helpers::init_contract();
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation_owner1 = Addr::unchecked("sender1");
+            let delegation_owner2 = Addr::unchecked("sender2");
 
             let delegation1 = coin(123, DENOM);
             let delegation2 = coin(234, DENOM);
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender1", &vec![delegation1.clone()]),
+                mock_env(),
+                mock_info(delegation_owner1.as_str(), &vec![delegation1.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender2", &vec![delegation2.clone()]),
+                mock_env(),
+                mock_info(delegation_owner2.as_str(), &vec![delegation2.clone()]),
                 identity.clone()
             )
             .is_ok());
@@ -2419,7 +2928,7 @@ pub mod tests {
             // sender1 undelegates
             try_remove_delegation_from_mixnode(
                 deps.as_mut(),
-                mock_info("sender1", &[]),
+                mock_info(delegation_owner1.as_str(), &[]),
                 identity.clone(),
             )
             .unwrap();
@@ -2439,6 +2948,7 @@ pub mod tests {
     #[test]
     fn delegators_on_mix_node_reward_rate() {
         let mut deps = helpers::init_contract();
+        let mut env = mock_env();
         let current_state = config(deps.as_mut().storage).load().unwrap();
         let network_monitor_address = current_state.network_monitor_address;
 
@@ -2451,14 +2961,25 @@ pub mod tests {
         let identity = add_mixnode(node_owner, good_mixnode_bond(), &mut deps);
 
         mix_delegations(&mut deps.storage, &identity)
-            .save(b"delegator1", &Uint128(initial_delegation1))
+            .save(
+                b"delegator1",
+                &RawDelegationData::new(initial_delegation1.into(), env.block.height),
+            )
             .unwrap();
         mix_delegations(&mut deps.storage, &identity)
-            .save(b"delegator2", &Uint128(initial_delegation2))
+            .save(
+                b"delegator2",
+                &RawDelegationData::new(initial_delegation2.into(), env.block.height),
+            )
             .unwrap();
         mix_delegations(&mut deps.storage, &identity)
-            .save(b"delegator3", &Uint128(initial_delegation3))
+            .save(
+                b"delegator3",
+                &RawDelegationData::new(initial_delegation3.into(), env.block.height),
+            )
             .unwrap();
+
+        env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
         let bond_reward = read_mixnode_epoch_bond_reward_rate(deps.as_ref().storage);
         let delegation_reward = read_mixnode_epoch_delegation_reward_rate(deps.as_ref().storage);
@@ -2476,7 +2997,8 @@ pub mod tests {
         let expected_delegation3 = expected_delegation3_reward + Uint128(initial_delegation3);
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        let res = try_reward_mixnode(deps.as_mut(), info, identity.clone(), 100).unwrap();
+        let res =
+            try_reward_mixnode(deps.as_mut(), env.clone(), info, identity.clone(), 100).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -2488,6 +3010,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2495,6 +3018,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2502,6 +3026,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2532,7 +3057,8 @@ pub mod tests {
         let expected_delegation3 = expected_delegation3_reward + expected_delegation3;
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        let res = try_reward_mixnode(deps.as_mut(), info, identity.clone(), 20).unwrap();
+        let res =
+            try_reward_mixnode(deps.as_mut(), env.clone(), info, identity.clone(), 20).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -2544,6 +3070,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2551,6 +3078,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2558,6 +3086,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2575,7 +3104,8 @@ pub mod tests {
 
         // if the node was 0% up, nobody will get any rewards
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        let res = try_reward_mixnode(deps.as_mut(), info, identity.clone(), 0).unwrap();
+        let res =
+            try_reward_mixnode(deps.as_mut(), env.clone(), info, identity.clone(), 0).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -2587,6 +3117,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2594,6 +3125,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2601,6 +3133,7 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -2627,6 +3160,7 @@ pub mod tests {
                 }),
                 try_delegate_to_gateway(
                     deps.as_mut(),
+                    mock_env(),
                     mock_info("sender", &coins(123, DENOM)),
                     "non-existent-gateway-identity".into()
                 )
@@ -2638,20 +3172,27 @@ pub mod tests {
             let mut deps = helpers::init_contract();
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             let delegation = coin(123, DENOM);
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &vec![delegation.clone()]),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert_eq!(
-                delegation.amount,
+                RawDelegationData::new(delegation.amount, mock_env().block.height),
                 gateway_delegations_read(&deps.storage, &identity)
-                    .load(b"sender")
+                    .load(delegation_owner.as_bytes())
                     .unwrap()
+            );
+            assert!(
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
+                    .load(identity.as_bytes())
+                    .is_ok()
             );
 
             // node's "total_delegation" is increased
@@ -2670,6 +3211,8 @@ pub mod tests {
 
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
+
             try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[])).unwrap();
 
             assert_eq!(
@@ -2678,7 +3221,8 @@ pub mod tests {
                 }),
                 try_delegate_to_gateway(
                     deps.as_mut(),
-                    mock_info("sender", &coins(123, DENOM)),
+                    mock_env(),
+                    mock_info(delegation_owner.as_str(), &coins(123, DENOM)),
                     identity
                 )
             );
@@ -2693,19 +3237,26 @@ pub mod tests {
             try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[])).unwrap();
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
             let delegation = coin(123, DENOM);
+            let delegation_owner = Addr::unchecked("sender");
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &vec![delegation.clone()]),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert_eq!(
-                delegation.amount,
+                RawDelegationData::new(delegation.amount, mock_env().block.height),
                 gateway_delegations_read(&deps.storage, &identity)
-                    .load(b"sender")
+                    .load(delegation_owner.as_bytes())
                     .unwrap()
+            );
+            assert!(
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
+                    .load(identity.as_bytes())
+                    .is_ok()
             );
 
             // node's "total_delegation" is increased
@@ -2723,29 +3274,40 @@ pub mod tests {
             let mut deps = helpers::init_contract();
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             let delegation1 = coin(100, DENOM);
             let delegation2 = coin(50, DENOM);
 
             try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &vec![delegation1.clone()]),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &vec![delegation1.clone()]),
                 identity.clone(),
             )
             .unwrap();
 
             try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &vec![delegation2.clone()]),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &vec![delegation2.clone()]),
                 identity.clone(),
             )
             .unwrap();
 
             assert_eq!(
-                delegation1.amount + delegation2.amount,
+                RawDelegationData::new(
+                    delegation1.amount + delegation2.amount,
+                    mock_env().block.height
+                ),
                 gateway_delegations_read(&deps.storage, &identity)
-                    .load(b"sender")
+                    .load(delegation_owner.as_bytes())
                     .unwrap()
+            );
+            assert!(
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
+                    .load(identity.as_bytes())
+                    .is_ok()
             );
 
             // node's "total_delegation" is sum of both
@@ -2760,15 +3322,117 @@ pub mod tests {
         }
 
         #[test]
+        fn block_height_is_updated_on_new_delegation() {
+            let mut deps = helpers::init_contract();
+            let gateway_owner = "bob";
+            let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
+            let delegation = coin(100, DENOM);
+
+            let env1 = mock_env();
+            let mut env2 = mock_env();
+            let initial_height = env1.block.height;
+            let updated_height = initial_height + 42;
+            // second env has grown in block height
+            env2.block.height = updated_height;
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                env1,
+                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation.amount, initial_height),
+                gateway_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner.as_bytes())
+                    .unwrap()
+            );
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                env2,
+                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation.amount + delegation.amount, updated_height),
+                gateway_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner.as_bytes())
+                    .unwrap()
+            );
+        }
+
+        #[test]
+        fn block_height_is_not_updated_on_different_delegator() {
+            let mut deps = helpers::init_contract();
+            let gateway_owner = "bob";
+            let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner1 = Addr::unchecked("sender1");
+            let delegation_owner2 = Addr::unchecked("sender2");
+            let delegation1 = coin(100, DENOM);
+            let delegation2 = coin(120, DENOM);
+
+            let env1 = mock_env();
+            let mut env2 = mock_env();
+            let initial_height = env1.block.height;
+            let second_height = initial_height + 42;
+            // second env has grown in block height
+            env2.block.height = second_height;
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                env1,
+                mock_info(delegation_owner1.as_str(), &vec![delegation1.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation1.amount, initial_height),
+                gateway_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner1.as_bytes())
+                    .unwrap()
+            );
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                env2,
+                mock_info(delegation_owner2.as_str(), &vec![delegation2.clone()]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                RawDelegationData::new(delegation1.amount, initial_height),
+                gateway_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner1.as_bytes())
+                    .unwrap()
+            );
+            assert_eq!(
+                RawDelegationData::new(delegation2.amount, second_height),
+                gateway_delegations_read(&deps.storage, &identity)
+                    .load(delegation_owner2.as_bytes())
+                    .unwrap()
+            );
+        }
+
+        #[test]
         fn is_disallowed_for_already_delegated_node_if_it_unbonded() {
             let mut deps = helpers::init_contract();
 
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &coins(100, DENOM)),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
             .unwrap();
@@ -2781,7 +3445,8 @@ pub mod tests {
                 }),
                 try_delegate_to_gateway(
                     deps.as_mut(),
-                    mock_info("sender", &coins(50, DENOM)),
+                    mock_env(),
+                    mock_info(delegation_owner.as_str(), &coins(50, DENOM)),
                     identity.clone()
                 )
             );
@@ -2794,35 +3459,46 @@ pub mod tests {
             let gateway_owner2 = "fred";
             let identity1 = add_gateway(gateway_owner1, good_gateway_bond(), &mut deps);
             let identity2 = add_gateway(gateway_owner2, good_gateway_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &coins(123, DENOM)),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &coins(123, DENOM)),
                 identity1.clone()
             )
             .is_ok());
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &coins(42, DENOM)),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &coins(42, DENOM)),
                 identity2.clone()
             )
             .is_ok());
 
             assert_eq!(
-                123,
+                RawDelegationData::new(123u128.into(), mock_env().block.height),
                 gateway_delegations_read(&deps.storage, &identity1)
-                    .load(b"sender")
+                    .load(delegation_owner.as_bytes())
                     .unwrap()
-                    .u128()
+            );
+            assert!(
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
+                    .load(identity1.as_bytes())
+                    .is_ok()
             );
 
             assert_eq!(
-                42,
+                RawDelegationData::new(42u128.into(), mock_env().block.height),
                 gateway_delegations_read(&deps.storage, &identity2)
-                    .load(b"sender")
+                    .load(delegation_owner.as_bytes())
                     .unwrap()
-                    .u128()
+            );
+            assert!(
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
+                    .load(identity2.as_bytes())
+                    .is_ok()
             );
         }
 
@@ -2837,6 +3513,7 @@ pub mod tests {
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info("sender1", &vec![delegation1.clone()]),
                 identity.clone()
             )
@@ -2844,6 +3521,7 @@ pub mod tests {
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
+                mock_env(),
                 mock_info("sender2", &vec![delegation2.clone()]),
                 identity.clone()
             )
@@ -2866,10 +3544,12 @@ pub mod tests {
 
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &coins(100, DENOM)),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
             .unwrap();
@@ -2877,11 +3557,15 @@ pub mod tests {
             try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[])).unwrap();
 
             assert_eq!(
-                100,
+                RawDelegationData::new(100u128.into(), mock_env().block.height),
                 gateway_delegations_read(&deps.storage, &identity)
-                    .load(b"sender")
+                    .load(delegation_owner.as_bytes())
                     .unwrap()
-                    .u128()
+            );
+            assert!(
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
+                    .load(identity.as_bytes())
+                    .is_ok()
             );
         }
     }
@@ -2898,14 +3582,16 @@ pub mod tests {
 
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
+
             assert_eq!(
                 Err(ContractError::NoGatewayDelegationFound {
                     identity: identity.clone(),
-                    address: Addr::unchecked("sender"),
+                    address: delegation_owner.clone(),
                 }),
                 try_remove_delegation_from_gateway(
                     deps.as_mut(),
-                    mock_info("sender", &[]),
+                    mock_info(delegation_owner.as_str(), &[]),
                     identity,
                 )
             );
@@ -2917,10 +3603,12 @@ pub mod tests {
 
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &coins(100, DENOM)),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
             .unwrap();
@@ -2929,7 +3617,7 @@ pub mod tests {
                 Ok(Response {
                     submessages: vec![],
                     messages: vec![BankMsg::Send {
-                        to_address: "sender".into(),
+                        to_address: delegation_owner.clone().into(),
                         amount: coins(100, DENOM),
                     }
                     .into()],
@@ -2938,15 +3626,21 @@ pub mod tests {
                 }),
                 try_remove_delegation_from_gateway(
                     deps.as_mut(),
-                    mock_info("sender", &[]),
+                    mock_info(delegation_owner.as_str(), &[]),
                     identity.clone(),
                 )
             );
 
             assert!(gateway_delegations_read(&deps.storage, &identity)
-                .may_load(b"sender")
+                .may_load(delegation_owner.as_bytes())
                 .unwrap()
                 .is_none());
+            assert!(
+                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                    .may_load(identity.as_bytes())
+                    .unwrap()
+                    .is_none()
+            );
 
             // and total delegation is cleared
             assert_eq!(
@@ -2965,10 +3659,12 @@ pub mod tests {
 
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner = Addr::unchecked("sender");
 
             try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &coins(100, DENOM)),
+                mock_env(),
+                mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
                 identity.clone(),
             )
             .unwrap();
@@ -2979,7 +3675,7 @@ pub mod tests {
                 Ok(Response {
                     submessages: vec![],
                     messages: vec![BankMsg::Send {
-                        to_address: "sender".into(),
+                        to_address: delegation_owner.clone().into(),
                         amount: coins(100, DENOM),
                     }
                     .into()],
@@ -2988,15 +3684,21 @@ pub mod tests {
                 }),
                 try_remove_delegation_from_gateway(
                     deps.as_mut(),
-                    mock_info("sender", &[]),
+                    mock_info(delegation_owner.as_str(), &[]),
                     identity.clone(),
                 )
             );
 
             assert!(gateway_delegations_read(&deps.storage, &identity)
-                .may_load(b"sender")
+                .may_load(delegation_owner.as_bytes())
                 .unwrap()
                 .is_none());
+            assert!(
+                reverse_gateway_delegations_read(&deps.storage, &delegation_owner)
+                    .may_load(identity.as_bytes())
+                    .unwrap()
+                    .is_none()
+            );
         }
 
         #[test]
@@ -3004,20 +3706,24 @@ pub mod tests {
             let mut deps = helpers::init_contract();
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation_owner1 = Addr::unchecked("sender1");
+            let delegation_owner2 = Addr::unchecked("sender2");
 
             let delegation1 = coin(123, DENOM);
             let delegation2 = coin(234, DENOM);
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender1", &vec![delegation1.clone()]),
+                mock_env(),
+                mock_info(delegation_owner1.as_str(), &vec![delegation1.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender2", &vec![delegation2.clone()]),
+                mock_env(),
+                mock_info(delegation_owner2.as_str(), &vec![delegation2.clone()]),
                 identity.clone()
             )
             .is_ok());
@@ -3025,7 +3731,7 @@ pub mod tests {
             // sender1 undelegates
             try_remove_delegation_from_gateway(
                 deps.as_mut(),
-                mock_info("sender1", &[]),
+                mock_info(delegation_owner1.as_str(), &[]),
                 identity.clone(),
             )
             .unwrap();
@@ -3045,6 +3751,7 @@ pub mod tests {
     #[test]
     fn delegators_on_gateway_reward_rate() {
         let mut deps = helpers::init_contract();
+        let mut env = mock_env();
         let current_state = config(deps.as_mut().storage).load().unwrap();
         let network_monitor_address = current_state.network_monitor_address;
 
@@ -3057,14 +3764,16 @@ pub mod tests {
         let identity = add_gateway(node_owner, good_gateway_bond(), &mut deps);
 
         gateway_delegations(&mut deps.storage, &identity)
-            .save(b"delegator1", &Uint128(initial_delegation1))
+            .save(b"delegator1", &raw_delegation_fixture(initial_delegation1))
             .unwrap();
         gateway_delegations(&mut deps.storage, &identity)
-            .save(b"delegator2", &Uint128(initial_delegation2))
+            .save(b"delegator2", &raw_delegation_fixture(initial_delegation2))
             .unwrap();
         gateway_delegations(&mut deps.storage, &identity)
-            .save(b"delegator3", &Uint128(initial_delegation3))
+            .save(b"delegator3", &raw_delegation_fixture(initial_delegation3))
             .unwrap();
+
+        env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
         let bond_reward = read_gateway_epoch_bond_reward_rate(deps.as_ref().storage);
         let delegation_reward = read_gateway_epoch_delegation_reward_rate(deps.as_ref().storage);
@@ -3082,7 +3791,8 @@ pub mod tests {
         let expected_delegation3 = expected_delegation3_reward + Uint128(initial_delegation3);
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        let res = try_reward_gateway(deps.as_mut(), info, identity.clone(), 100).unwrap();
+        let res =
+            try_reward_gateway(deps.as_mut(), env.clone(), info, identity.clone(), 100).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -3094,6 +3804,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3101,6 +3812,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3108,6 +3820,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3138,7 +3851,8 @@ pub mod tests {
         let expected_delegation3 = expected_delegation3_reward + expected_delegation3;
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        let res = try_reward_gateway(deps.as_mut(), info, identity.clone(), 20).unwrap();
+        let res =
+            try_reward_gateway(deps.as_mut(), env.clone(), info, identity.clone(), 20).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -3150,6 +3864,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3157,6 +3872,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3164,6 +3880,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3181,7 +3898,8 @@ pub mod tests {
 
         // if the node was 0% up, nobody will get any rewards
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        let res = try_reward_gateway(deps.as_mut(), info, identity.clone(), 0).unwrap();
+        let res =
+            try_reward_gateway(deps.as_mut(), env.clone(), info, identity.clone(), 0).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -3193,6 +3911,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3200,6 +3919,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3207,6 +3927,7 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+                .amount
         );
 
         assert_eq!(
@@ -3229,7 +3950,7 @@ pub mod tests {
             let node_identity: IdentityKey = "nodeidentity".into();
 
             let read_bucket = mix_delegations_read(&deps.storage, &node_identity);
-            let old_delegations = find_old_delegations(read_bucket).unwrap();
+            let old_delegations = total_delegations(read_bucket).unwrap();
 
             assert_eq!(Coin::new(0, DENOM), old_delegations);
         }
@@ -3246,25 +3967,25 @@ pub mod tests {
                 OLD_DELEGATIONS_CHUNK_SIZE * 3 + 1,
             ];
 
-            for total_delegations in num_delegations {
+            for delegations in num_delegations {
                 let mut deps = helpers::init_contract();
 
                 let node_identity: IdentityKey = "nodeidentity".into();
 
                 // delegate some stake
                 let mut write_bucket = mix_delegations(&mut deps.storage, &node_identity);
-                for i in 1..=total_delegations {
+                for i in 1..=delegations {
                     let delegator = Addr::unchecked(format!("delegator{}", i));
-                    let delegation = Uint128(i as u128);
+                    let delegation = raw_delegation_fixture(i as u128);
                     write_bucket
                         .save(delegator.as_bytes(), &delegation)
                         .unwrap();
                 }
 
                 let read_bucket = mix_delegations_read(&deps.storage, &node_identity);
-                let old_delegations = find_old_delegations(read_bucket).unwrap();
+                let old_delegations = total_delegations(read_bucket).unwrap();
 
-                let total_delegation = (1..=total_delegations as u128).into_iter().sum();
+                let total_delegation = (1..=delegations as u128).into_iter().sum();
                 assert_eq!(Coin::new(total_delegation, DENOM), old_delegations);
             }
         }
@@ -3276,6 +3997,7 @@ pub mod tests {
         for owner in ["alice", "bob"] {
             try_add_mixnode(
                 deps.as_mut(),
+                mock_env(),
                 mock_info(owner, &good_mixnode_bond()),
                 MixNode {
                     identity_key: owner.to_string(),

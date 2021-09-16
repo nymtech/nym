@@ -118,11 +118,11 @@ type navOptionType = {
 type navOptions = navOptionType[];
 
 const navOptions = [
-  {
-    url: '/',
-    title: 'Home',
-    icon: HomeIcon,
-  },
+  // {
+  //   url: '/',
+  //   title: 'Home',
+  //   icon: HomeIcon,
+  // },
   {
     url: '/overview',
     title: 'Overview',

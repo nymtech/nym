@@ -4,7 +4,6 @@
 use crate::registration::handshake::shared_key::SharedKeys;
 use crate::registration::handshake::state::State;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
-use coconut_interface::VerificationKey;
 use crypto::asymmetric::encryption;
 use futures::future::BoxFuture;
 use futures::task::{Context, Poll};
@@ -23,12 +22,11 @@ impl<'a> GatewayHandshake<'a> {
         ws_stream: &'a mut S,
         identity: &'a crypto::asymmetric::identity::KeyPair,
         received_init_payload: Vec<u8>,
-        verification_key: &'a VerificationKey,
     ) -> Self
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
     {
-        let mut state = State::new(rng, ws_stream, identity, None, None);
+        let mut state = State::new(rng, ws_stream, identity, None);
         GatewayHandshake {
             handshake_future: Box::pin(async move {
                 // If any step along the way failed (that are non-network related),
@@ -50,23 +48,9 @@ impl<'a> GatewayHandshake<'a> {
                     }
                 }
 
-                // init: <- pub_key || g^x || credential
+                // init: <- pub_key || g^x
                 let init_message = check_processing_error(
                     State::<S>::parse_init_message(received_init_payload),
-                    &mut state,
-                )
-                .await?;
-
-                let credential = init_message.credential();
-
-                check_processing_error(
-                    {
-                        if !credential.verify(verification_key).await {
-                            Err(HandshakeError::InvalidCoconutCredential)
-                        } else {
-                            Ok(())
-                        }
-                    },
                     &mut state,
                 )
                 .await?;

@@ -5,7 +5,6 @@ use crate::registration::handshake::error::HandshakeError;
 use crate::registration::handshake::shared_key::{SharedKeySize, SharedKeys};
 use crate::registration::handshake::WsItem;
 use crate::types;
-use coconut_interface::Credential;
 use crypto::{
     asymmetric::{encryption, identity},
     generic_array::typenum::Unsigned,
@@ -24,19 +23,13 @@ use tungstenite::Message as WsMessage;
 pub struct InitMessage {
     local_id_pubkey: [u8; identity::PUBLIC_KEY_LENGTH],
     ephemeral_key: [u8; identity::PUBLIC_KEY_LENGTH],
-    credential: Option<Credential>,
 }
 
 impl InitMessage {
-    fn new(
-        local_id_pubkey: &identity::PublicKey,
-        ephemeral_key: &encryption::PublicKey,
-        credential: Credential,
-    ) -> Self {
+    fn new(local_id_pubkey: &identity::PublicKey, ephemeral_key: &encryption::PublicKey) -> Self {
         InitMessage {
             local_id_pubkey: local_id_pubkey.to_bytes(),
             ephemeral_key: ephemeral_key.to_bytes(),
-            credential: Some(credential),
         }
     }
 
@@ -48,11 +41,6 @@ impl InitMessage {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn ephemeral_key(&self) -> encryption::PublicKey {
         encryption::PublicKey::from_bytes(&self.ephemeral_key).unwrap()
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn credential(&self) -> Credential {
-        self.credential.clone().unwrap()
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -85,7 +73,6 @@ pub(crate) struct State<'a, S> {
     /// The known or received public identity key of the remote.
     /// Ideally it would always be known before the handshake was initiated.
     remote_pubkey: Option<identity::PublicKey>,
-    coconut_credential: Option<Credential>,
 }
 
 impl<'a, S> State<'a, S> {
@@ -94,7 +81,6 @@ impl<'a, S> State<'a, S> {
         ws_stream: &'a mut S,
         identity: &'a identity::KeyPair,
         remote_pubkey: Option<identity::PublicKey>,
-        credential: Option<Credential>,
     ) -> Self {
         let ephemeral_keypair = encryption::KeyPair::new(rng);
         State {
@@ -103,7 +89,6 @@ impl<'a, S> State<'a, S> {
             identity,
             remote_pubkey,
             derived_shared_keys: None,
-            coconut_credential: credential,
         }
     }
 
@@ -119,7 +104,6 @@ impl<'a, S> State<'a, S> {
         InitMessage::new(
             self.identity.public_key(),
             self.ephemeral_keypair.public_key(),
-            self.coconut_credential.clone().unwrap(),
         )
         .to_bytes()
     }

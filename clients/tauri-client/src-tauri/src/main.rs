@@ -4,7 +4,7 @@
 )]
 
 use coconut_interface::{
-  self, Attribute, Credential, Parameters, Signature, Theta, VerificationKey,
+  self, hash_to_scalar, Attribute, Credential, Parameters, Signature, Theta, VerificationKey,
 };
 use credentials::{obtain_aggregate_signature, obtain_aggregate_verification_key};
 use std::sync::Arc;
@@ -15,19 +15,29 @@ struct State {
   signatures: Vec<Signature>,
   n_attributes: u32,
   params: Parameters,
+  public_attributes_bytes: Vec<Vec<u8>>,
   public_attributes: Vec<Attribute>,
   private_attributes: Vec<Attribute>,
   aggregated_verification_key: Option<VerificationKey>,
 }
 
 impl State {
-  fn init(public_attributes: Vec<Attribute>, private_attributes: Vec<Attribute>) -> State {
-    let n_attributes = (public_attributes.len() + private_attributes.len()) as u32;
+  fn init(public_attributes_bytes: Vec<Vec<u8>>, private_attributes_bytes: Vec<Vec<u8>>) -> State {
+    let n_attributes = (public_attributes_bytes.len() + private_attributes_bytes.len()) as u32;
     let params = Parameters::new(n_attributes).unwrap();
+    let public_attributes = public_attributes_bytes
+      .iter()
+      .map(hash_to_scalar)
+      .collect::<Vec<Attribute>>();
+    let private_attributes = private_attributes_bytes
+      .iter()
+      .map(hash_to_scalar)
+      .collect::<Vec<Attribute>>();
     State {
       signatures: Vec::new(),
       n_attributes,
       params,
+      public_attributes_bytes,
       public_attributes,
       private_attributes,
       aggregated_verification_key: None,
@@ -137,14 +147,14 @@ async fn verify_credential(
   let credential = Credential::new(
     state.n_attributes,
     theta,
-    &state.public_attributes,
+    state.public_attributes_bytes.clone(),
     state
       .signatures
       .get(idx)
       .ok_or("Got invalid signature idx")?,
   );
 
-  Ok(credential.verify(&verification_key).await)
+  Ok(credential.verify(&verification_key))
 }
 
 #[tauri::command]
@@ -170,8 +180,8 @@ async fn get_credential(
 }
 
 fn main() {
-  let public_attributes = vec![coconut_interface::hash_to_scalar("public_key")];
-  let private_attributes = vec![coconut_interface::hash_to_scalar("private_key")];
+  let public_attributes = vec![b"public_key".to_vec()];
+  let private_attributes = vec![b"private_key".to_vec()];
   tauri::Builder::default()
     .manage(Arc::new(RwLock::new(State::init(
       public_attributes,

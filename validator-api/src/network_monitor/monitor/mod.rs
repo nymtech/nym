@@ -77,6 +77,18 @@ impl Monitor {
             // TODO: slightly more graceful shutdown here
             process::exit(1);
         }
+
+        // indicate our run has completed successfully and should be used in any future
+        // uptime calculations
+        if let Err(err) = self.node_status_storage.insert_monitor_run().await {
+            error!(
+                "Failed to submit monitor run information to the database - {}",
+                err
+            );
+
+            // TODO: slightly more graceful shutdown here
+            process::exit(1);
+        }
     }
 
     // checking it this way with a TestReport is rather suboptimal but given the fact we're only

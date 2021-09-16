@@ -8,8 +8,11 @@ use rocket::tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::mix_nodes::utils::map_2_letter_to_3_letter_country_code;
-use mixnet_contract::MixNodeBond;
-use network_defaults::default_api_endpoints;
+use mixnet_contract::{Delegation, MixNodeBond};
+use network_defaults::{
+    default_api_endpoints, default_nymd_endpoints, DEFAULT_MIXNET_CONTRACT_ADDRESS,
+};
+use validator_client::nymd::QueryNymdClient;
 
 pub(crate) type LocationCache = HashMap<String, Location>;
 
@@ -161,6 +164,32 @@ pub(crate) async fn retrieve_mixnodes() -> Vec<MixNodeBond> {
     };
     info!("Fetched {} mixnode bonds", bonds.len());
     bonds
+}
+
+pub(crate) async fn get_mixnode_delegations(pubkey: &str) -> Vec<Delegation> {
+    let client = new_nymd_client();
+    let delegates = match client
+        .get_all_nymd_mixnode_delegations(pubkey.to_string())
+        .await
+    {
+        Ok(result) => result,
+        Err(e) => {
+            error!("Could not get delegations for mix node {}: {:?}", pubkey, e);
+            vec![]
+        }
+    };
+    delegates
+}
+
+fn new_nymd_client() -> validator_client::Client<QueryNymdClient> {
+    let mixnet_contract = DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string();
+    let nymd_url = default_nymd_endpoints()[0].clone();
+    let api_url = default_api_endpoints()[0].clone();
+
+    let client_config =
+        validator_client::Config::new(nymd_url, api_url, Some(mixnet_contract.parse().unwrap()));
+
+    validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!")
 }
 
 // TODO: inject constants

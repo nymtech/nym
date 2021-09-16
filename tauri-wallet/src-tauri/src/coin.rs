@@ -1,9 +1,8 @@
 // This should be moved out of the wallet, and used as a primary coin type throughout the codebase
 
 use ::config::defaults::DENOM;
-use cosmos_sdk::Coin as CosmosCoin;
-use cosmos_sdk::Decimal;
-use cosmos_sdk::Denom as CosmosDenom;
+use cosmrs::Decimal;
+use cosmrs::Denom as CosmosDenom;
 use cosmwasm_std::Coin as CosmWasmCoin;
 use cosmwasm_std::Uint128;
 use serde::{Deserialize, Serialize};
@@ -12,7 +11,7 @@ use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 use ts_rs::TS;
-use validator_client::nymd::GasPrice;
+use validator_client::nymd::{GasPrice, CosmosCoin};
 
 use crate::format_err;
 
@@ -214,9 +213,9 @@ impl From<CosmWasmCoin> for Coin {
 #[cfg(test)]
 mod test {
   use crate::{Coin, Denom};
-  use cosmos_sdk::Coin as CosmosCoin;
-  use cosmos_sdk::Decimal;
-  use cosmos_sdk::Denom as CosmosDenom;
+  use cosmrs::Coin as CosmosCoin;
+  use cosmrs::Decimal;
+  use cosmrs::Denom as CosmosDenom;
   use cosmwasm_std::Coin as CosmWasmCoin;
   use serde_json::json;
   use std::convert::{TryFrom, TryInto};

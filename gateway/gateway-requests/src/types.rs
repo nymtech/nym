@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
-use crate::authentication::iv::AuthenticationIV;
+use crate::iv::IV;
 use crate::registration::handshake::SharedKeys;
 use crate::GatewayMacSize;
+use coconut_interface::Credential;
 use crypto::generic_array::typenum::Unsigned;
 use crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use crypto::symmetric::stream_cipher;
@@ -112,19 +113,51 @@ pub enum ClientControlRequest {
     },
     #[serde(alias = "handshakePayload")]
     RegisterHandshakeInitRequest { data: Vec<u8> },
+    BandwidthCredential {
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    },
 }
 
 impl ClientControlRequest {
     pub fn new_authenticate(
         address: DestinationAddressBytes,
         enc_address: EncryptedAddressBytes,
-        iv: AuthenticationIV,
+        iv: IV,
     ) -> Self {
         ClientControlRequest::Authenticate {
             address: address.as_base58_string(),
             enc_address: enc_address.to_base58_string(),
             iv: iv.to_base58_string(),
         }
+    }
+
+    pub fn new_enc_bandwidth_credential(
+        credential: &Credential,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Option<Self> {
+        match bincode::serialize(credential) {
+            Ok(serialized_credential) => {
+                let enc_credential =
+                    shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
+
+                Some(ClientControlRequest::BandwidthCredential {
+                    enc_credential,
+                    iv: iv.to_bytes(),
+                })
+            }
+            _ => None,
+        }
+    }
+
+    pub fn try_from_enc_bandwidth_credential(
+        enc_credential: Vec<u8>,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Result<Credential, GatewayRequestsError> {
+        let credential = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
+        bincode::deserialize(&credential).map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 }
 
@@ -158,6 +191,8 @@ impl TryInto<String> for ClientControlRequest {
 pub enum ServerResponse {
     Authenticate { status: bool },
     Register { status: bool },
+    // Maybe we could return the remaining bandwidth?
+    Bandwidth { status: bool },
     Send { status: bool },
     Error { message: String },
 }
@@ -210,39 +245,14 @@ pub enum BinaryRequest {
 // would work there.
 impl BinaryRequest {
     pub fn try_from_encrypted_tagged_bytes(
-        mut raw_req: Vec<u8>,
+        raw_req: Vec<u8>,
         shared_keys: &SharedKeys,
     ) -> Result<Self, GatewayRequestsError> {
-        let mac_size = GatewayMacSize::to_usize();
-        if raw_req.len() < mac_size {
-            return Err(GatewayRequestsError::TooShortRequest);
-        }
-
-        let mac_tag = &raw_req[..mac_size];
-        let message_bytes = &raw_req[mac_size..];
-
-        if !recompute_keyed_hmac_and_verify_tag::<GatewayIntegrityHmacAlgorithm>(
-            shared_keys.mac_key(),
-            message_bytes,
-            mac_tag,
-        ) {
-            return Err(GatewayRequestsError::InvalidMac);
-        }
-
-        // couldn't have made the first borrow mutable as you can't have an immutable borrow
-        // together with a mutable one
-        let mut message_bytes_mut = &mut raw_req[mac_size..];
-
-        let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
-        stream_cipher::decrypt_in_place::<GatewayEncryptionAlgorithm>(
-            shared_keys.encryption_key(),
-            &zero_iv,
-            &mut message_bytes_mut,
-        );
+        let message_bytes = &shared_keys.decrypt_tagged(&raw_req, None)?;
 
         // right now there's only a single option possible which significantly simplifies the logic
         // if we decided to allow for more 'binary' messages, the API wouldn't need to change.
-        let mix_packet = MixPacket::try_from_bytes(message_bytes_mut)?;
+        let mix_packet = MixPacket::try_from_bytes(message_bytes)?;
         Ok(BinaryRequest::ForwardSphinx(mix_packet))
     }
 

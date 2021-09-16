@@ -64,8 +64,8 @@ export const WorldMap: React.FC<WorldMapProps> = () => {
         >
           {data.length > 0 && (
             <Geographies geography={geoUrl}>
-              {({ geographies }) =>
-                geographies.map((geo) => {
+              {({ geographies }: any) =>
+                geographies.map((geo: any) => {
                   const d = data.find((s) => s.ISO3 === geo.properties.ISO_A3);
                   return (
                     <Geography

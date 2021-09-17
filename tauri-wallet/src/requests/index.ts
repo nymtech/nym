@@ -7,6 +7,7 @@ import {
   Gateway,
   MixNode,
   Operation,
+  TauriStateParams,
   TauriTxResult,
   TCreateAccount,
   TSignInWithMnemonic,
@@ -75,3 +76,10 @@ export const unbond = async (type: EnumNodeType) =>
 
 export const getBalance = async (): Promise<Balance> =>
   await invoke('get_balance')
+
+export const getContractParams = async (): Promise<TauriStateParams> =>
+  await invoke('get_state_params')
+
+export const setContractParams = async (
+  params: TauriStateParams
+): Promise<TauriStateParams> => await invoke('update_state_params', { params })

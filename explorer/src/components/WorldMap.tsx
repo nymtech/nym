@@ -1,5 +1,4 @@
 import React from 'react';
-// import { csv, json } from 'd3-fetch';
 import { scaleLinear } from 'd3-scale';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
@@ -9,18 +8,12 @@ import { countriesData } from '../data/countriesData';
 const geoUrl =
   'https://raw.githubusercontent.com/zcreativelabs/react-simple-maps/master/topojson-maps/world-110m.json';
 
-export type WorldMapProps = {
-  // text: string;
-  // SVGIcon: React.FunctionComponent<any>;
-  // url: string;
-};
-
 const colorScale: any = scaleLinear()
   .domain([0, 1200])
   // @ts-ignore
   .range(['#ffedea', '#ff5233']);
 
-export const WorldMap: React.FC<WorldMapProps> = () => {
+export const WorldMap: React.FC = () => {
   const [tooltipContent, setTooltipContent] = React.useState<string>('');
   const [data, setData] = React.useState<Record<string, unknown>[]>([]);
 
@@ -65,8 +58,6 @@ export const WorldMap: React.FC<WorldMapProps> = () => {
               {({ geographies }: any) =>
                 geographies.map((geo: any) => {
                   const d = data.find((s) => s.ISO3 === geo.properties.ISO_A3);
-                  console.log('geo', geo);
-                  console.log('d', d);
                   return (
                     <Geography
                       key={geo.rsmKey}

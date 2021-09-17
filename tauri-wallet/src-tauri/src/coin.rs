@@ -212,7 +212,7 @@ impl From<CosmWasmCoin> for Coin {
 
 #[cfg(test)]
 mod test {
-  use crate::{Coin, Denom};
+  use crate::coin::{Coin, Denom};
   use cosmrs::Coin as CosmosCoin;
   use cosmrs::Decimal;
   use cosmrs::Denom as CosmosDenom;

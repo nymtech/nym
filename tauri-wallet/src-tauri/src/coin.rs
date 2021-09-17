@@ -11,7 +11,7 @@ use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 use ts_rs::TS;
-use validator_client::nymd::{GasPrice, CosmosCoin};
+use validator_client::nymd::{CosmosCoin, GasPrice};
 
 use crate::format_err;
 
@@ -96,25 +96,25 @@ impl Add for Coin {
 
 // Allows adding minor and major denominations, output will have the LHS denom.
 impl Sub for Coin {
-    type Output = Self;
-  
-    fn sub(self, rhs: Self) -> Self {
-      let denom = self.denom.clone();
-      let lhs = self.to_minor();
-      let rhs = rhs.to_minor();
-      let lhs_amount = lhs.amount.parse::<i64>().unwrap();
-      let rhs_amount = rhs.amount.parse::<i64>().unwrap();
-      let amount = lhs_amount - rhs_amount;
-      let coin = Coin {
-        amount: amount.to_string(),
-        denom: Denom::Minor,
-      };
-      match denom {
-        Denom::Major => coin.to_major(),
-        Denom::Minor => coin,
-      }
+  type Output = Self;
+
+  fn sub(self, rhs: Self) -> Self {
+    let denom = self.denom.clone();
+    let lhs = self.to_minor();
+    let rhs = rhs.to_minor();
+    let lhs_amount = lhs.amount.parse::<i64>().unwrap();
+    let rhs_amount = rhs.amount.parse::<i64>().unwrap();
+    let amount = lhs_amount - rhs_amount;
+    let coin = Coin {
+      amount: amount.to_string(),
+      denom: Denom::Minor,
+    };
+    match denom {
+      Denom::Major => coin.to_major(),
+      Denom::Minor => coin,
     }
   }
+}
 
 impl Coin {
   pub fn major<T: ToString>(amount: T) -> Coin {
@@ -212,7 +212,7 @@ impl From<CosmWasmCoin> for Coin {
 
 #[cfg(test)]
 mod test {
-  use crate::{Coin, Denom};
+  use crate::coin::{Coin, Denom};
   use cosmrs::Coin as CosmosCoin;
   use cosmrs::Decimal;
   use cosmrs::Denom as CosmosDenom;
@@ -273,7 +273,7 @@ mod test {
       "1000000000000000",
       "10000000000000000",
       "100000000000000000",
-      "1000000000000000000"
+      "1000000000000000000",
     ]
   }
 
@@ -333,10 +333,10 @@ mod test {
 
   #[test]
   fn test_add() {
-      assert_eq!(Coin::minor("1") + Coin::minor("1"), Coin::minor("2"));
-      assert_eq!(Coin::major("1") + Coin::major("1"), Coin::major("2"));
-      assert_eq!(Coin::minor("1") + Coin::major("1"), Coin::minor("1000001"));
-      assert_eq!(Coin::major("1") + Coin::minor("1"), Coin::major("1.000001"));
+    assert_eq!(Coin::minor("1") + Coin::minor("1"), Coin::minor("2"));
+    assert_eq!(Coin::major("1") + Coin::major("1"), Coin::major("2"));
+    assert_eq!(Coin::minor("1") + Coin::major("1"), Coin::minor("1000001"));
+    assert_eq!(Coin::major("1") + Coin::minor("1"), Coin::major("1.000001"));
   }
 
   #[test]
@@ -345,5 +345,5 @@ mod test {
     assert_eq!(Coin::major("1") - Coin::major("1"), Coin::major("0"));
     assert_eq!(Coin::minor("1") - Coin::major("1"), Coin::minor("-999999"));
     assert_eq!(Coin::major("1") - Coin::minor("1"), Coin::major("0.999999"));
-}
+  }
 }

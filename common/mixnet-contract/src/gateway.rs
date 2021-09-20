@@ -92,7 +92,7 @@ impl PartialOrd for GatewayBond {
             return Some(bond_cmp);
         }
 
-        // finally look at delegation (I'm not sure we can get here, but better safe than sorry)
+        // then look at delegation (I'm not sure we can get here, but better safe than sorry)
         let delegation_cmp = self
             .total_delegation
             .amount
@@ -101,7 +101,13 @@ impl PartialOrd for GatewayBond {
             return Some(delegation_cmp);
         }
 
-        // then go by the rest of the fields in order. It doesn't really matter at this point
+        // then check block height
+        let height_cmp = self.block_height.partial_cmp(&other.block_height)?;
+        if height_cmp != Ordering::Equal {
+            return Some(height_cmp);
+        }
+
+        // finally go by the rest of the fields in order. It doesn't really matter at this point
         // but we should be deterministic.
         let owner_cmp = self.owner.partial_cmp(&other.owner)?;
         if owner_cmp != Ordering::Equal {
@@ -175,6 +181,7 @@ mod tests {
             bond_amount: _150foos.clone(),
             total_delegation: _50foos.clone(),
             owner: Addr::unchecked("foo1"),
+            block_height: 100,
             gateway: gateway_fixture(),
         };
 
@@ -182,6 +189,7 @@ mod tests {
             bond_amount: _150foos.clone(),
             total_delegation: _50foos.clone(),
             owner: Addr::unchecked("foo2"),
+            block_height: 120,
             gateway: gateway_fixture(),
         };
 
@@ -189,6 +197,7 @@ mod tests {
             bond_amount: _50foos,
             total_delegation: _150foos.clone(),
             owner: Addr::unchecked("foo3"),
+            block_height: 120,
             gateway: gateway_fixture(),
         };
 
@@ -196,6 +205,7 @@ mod tests {
             bond_amount: _150foos.clone(),
             total_delegation: _0foos.clone(),
             owner: Addr::unchecked("foo4"),
+            block_height: 120,
             gateway: gateway_fixture(),
         };
 
@@ -203,15 +213,16 @@ mod tests {
             bond_amount: _0foos,
             total_delegation: _150foos,
             owner: Addr::unchecked("foo5"),
+            block_height: 120,
             gateway: gateway_fixture(),
         };
 
         // summary:
-        // gate1: 150bond + 50delegation, foo1
-        // gate2: 150bond + 50delegation, foo2
-        // gate3: 50bond + 150delegation, foo3
-        // gate4: 150bond + 0delegation, foo4
-        // gate5: 0bond + 150delegation, foo5
+        // gate1: 150bond + 50delegation, foo1, 100
+        // gate2: 150bond + 50delegation, foo2, 120
+        // gate3: 50bond + 150delegation, foo3, 120
+        // gate4: 150bond + 0delegation, foo4, 120
+        // gate5: 0bond + 150delegation, foo5, 120
 
         // highest total bond+delegation is used
         // then bond followed by delegation
@@ -226,7 +237,7 @@ mod tests {
         // same case for gate4 and gate5
         assert!(gate4 > gate5);
 
-        // same bond and delegation, so it's just ordered by owner string representation
+        // same bond and delegation, so it's just ordered by height
         assert!(gate1 < gate2);
     }
 }

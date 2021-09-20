@@ -112,7 +112,7 @@ impl PartialOrd for MixNodeBond {
             return Some(bond_cmp);
         }
 
-        // finally look at delegation (I'm not sure we can get here, but better safe than sorry)
+        // then look at delegation (I'm not sure we can get here, but better safe than sorry)
         let delegation_cmp = self
             .total_delegation
             .amount
@@ -121,7 +121,13 @@ impl PartialOrd for MixNodeBond {
             return Some(delegation_cmp);
         }
 
-        // then go by the rest of the fields in order. It doesn't really matter at this point
+        // then check block height
+        let height_cmp = self.block_height.partial_cmp(&other.block_height)?;
+        if height_cmp != Ordering::Equal {
+            return Some(height_cmp);
+        }
+
+        // finally go by the rest of the fields in order. It doesn't really matter at this point
         // but we should be deterministic.
         let owner_cmp = self.owner.partial_cmp(&other.owner)?;
         if owner_cmp != Ordering::Equal {
@@ -201,6 +207,7 @@ mod tests {
             total_delegation: _50foos.clone(),
             owner: Addr::unchecked("foo1"),
             layer: Layer::One,
+            block_height: 100,
             mix_node: mixnode_fixture(),
         };
 
@@ -209,6 +216,7 @@ mod tests {
             total_delegation: _50foos.clone(),
             owner: Addr::unchecked("foo2"),
             layer: Layer::One,
+            block_height: 120,
             mix_node: mixnode_fixture(),
         };
 
@@ -217,6 +225,7 @@ mod tests {
             total_delegation: _150foos.clone(),
             owner: Addr::unchecked("foo3"),
             layer: Layer::One,
+            block_height: 120,
             mix_node: mixnode_fixture(),
         };
 
@@ -225,6 +234,7 @@ mod tests {
             total_delegation: _0foos.clone(),
             owner: Addr::unchecked("foo4"),
             layer: Layer::One,
+            block_height: 120,
             mix_node: mixnode_fixture(),
         };
 
@@ -233,15 +243,16 @@ mod tests {
             total_delegation: _150foos,
             owner: Addr::unchecked("foo5"),
             layer: Layer::One,
+            block_height: 120,
             mix_node: mixnode_fixture(),
         };
 
         // summary:
-        // mix1: 150bond + 50delegation, foo1
-        // mix2: 150bond + 50delegation, foo2
-        // mix3: 50bond + 150delegation, foo3
-        // mix4: 150bond + 0delegation, foo4
-        // mix5: 0bond + 150delegation, foo5
+        // mix1: 150bond + 50delegation, foo1, 100
+        // mix2: 150bond + 50delegation, foo2, 120
+        // mix3: 50bond + 150delegation, foo3, 120
+        // mix4: 150bond + 0delegation, foo4, 120
+        // mix5: 0bond + 150delegation, foo5, 120
 
         // highest total bond+delegation is used
         // then bond followed by delegation
@@ -256,7 +267,7 @@ mod tests {
         // same case for mix4 and mix5
         assert!(mix4 > mix5);
 
-        // same bond and delegation, so it's just ordered by owner string representation
+        // same bond and delegation, so it's just ordered by height
         assert!(mix1 < mix2);
     }
 }

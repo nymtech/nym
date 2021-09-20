@@ -1,8 +1,21 @@
 import * as React from 'react';
+import { Link } from 'react-router-dom';
+import {
+  GarageTwoTone,
+  TrafficSharp,
+  Menu,
+  ChevronLeft,
+  BarChart,
+  ExpandLess,
+  ExpandMore,
+  Pin,
+  ConnectedTv,
+  WbSunnySharp,
+  Brightness4Sharp,
+} from '@mui/icons-material';
 import { styled, CSSObject, Theme } from '@mui/material/styles';
-import { Link, useLocation } from 'react-router-dom';
-// MUI surfaces etc
 import Box from '@mui/material/Box';
+import ListItem from '@mui/material/ListItem';
 import MuiDrawer from '@mui/material/Drawer';
 import MuiAppBar, { AppBarProps as MuiAppBarProps } from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
@@ -13,19 +26,10 @@ import IconButton from '@mui/material/IconButton';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-// MUI Icons
-import MenuIcon from '@mui/icons-material/Menu';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import BarChartIcon from '@mui/icons-material/BarChart';
-import ConnectIcon from '@mui/icons-material/CastConnected';
-import PinIcon from '@mui/icons-material/PinDropOutlined';
-import ExpandLess from '@mui/icons-material/ExpandLess';
-import ExpandMore from '@mui/icons-material/ExpandMore';
-// non-MUI icons
-// import { theme } from 'src/theme';
-import { NymLogoSVG } from '../icons/NymLogoSVG';
+import { NymLogoSVG } from 'src/icons/NymLogoSVG';
+import { ExplorerContext } from '../context/main';
 
-const drawerWidth = 270;
+const drawerWidth = 300;
 
 const openedMixin = (theme: Theme): CSSObject => ({
   width: drawerWidth,
@@ -42,9 +46,9 @@ const closedMixin = (theme: Theme): CSSObject => ({
     duration: theme.transitions.duration.leavingScreen,
   }),
   overflowX: 'hidden',
-  width: `calc(${theme.spacing(7)} + 1px)`,
+  width: `calc(${theme.spacing(9)} + 1px)`,
   [theme.breakpoints.up('sm')]: {
-    width: `calc(${theme.spacing(9)} + 1px)`,
+    width: `calc(${theme.spacing(7)} + 1px)`,
   },
 });
 
@@ -60,20 +64,6 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 interface AppBarProps extends MuiAppBarProps {
   open?: boolean;
 }
-
-interface NavigationListItemButtonProps {
-  isSelected?: boolean;
-  to?: string;
-  component?: React.ReactNode;
-}
-
-const NavigationListItemButton = styled(ListItemButton, {
-  shouldForwardProp: (prop) => prop !== 'isSelected',
-})<NavigationListItemButtonProps>(({ theme, isSelected }) => ({
-  backgroundColor: isSelected
-    ? theme.palette.primary.dark
-    : theme.palette.primary.light,
-}));
 
 const AppBar = styled(MuiAppBar, {
   shouldForwardProp: (prop) => prop !== 'open',
@@ -113,118 +103,113 @@ const Drawer = styled(MuiDrawer, {
 type navOptionType = {
   url: string;
   title: string;
-  icon: any;
-  nested?: any;
+  Icon: React.ReactNode;
+  // eslint-disable-next-line react/require-default-props
+  nested?: navOptionType[];
 };
 
-type navOptionsType = navOptionType[];
-
-const navOptions: navOptionsType = [
-  // {
-  //   url: '/',
-  //   title: 'Home',
-  //   icon: HomeIcon,
-  // },
+const navOptions: navOptionType[] = [
   {
     url: '/overview',
     title: 'Overview',
-    icon: BarChartIcon,
+    Icon: <BarChart />,
   },
   {
     url: '/network-components',
     title: 'Network Components',
-    icon: ConnectIcon,
+    Icon: <ConnectedTv />,
     nested: [
       {
         url: '/network-components/mixnodes',
         title: 'Mixnodes',
+        Icon: <TrafficSharp />,
       },
       {
         url: '/network-components/gateways',
         title: 'Gateways',
+        Icon: <GarageTwoTone />,
       },
     ],
   },
   {
     url: '/nodemap',
     title: 'Nodemap',
-    icon: PinIcon,
+    Icon: <Pin />,
   },
 ];
 
-const ExpandableButton = ({
-  // expandable,
+const ExpandableButton: React.FC<navOptionType> = ({
   nested,
-  to,
-  isSelected,
   title,
-  SVGIcon,
-}: any) => {
+  Icon,
+  url,
+}) => {
   const [open, toggle] = React.useState(false);
-
   const handleClick = () => toggle(!open);
 
   if (!nested)
     return (
-      <NavigationListItemButton
-        isSelected={isSelected}
-        to={to}
-        component={Link}
-      >
-        <ListItemIcon>
-          <SVGIcon />
-        </ListItemIcon>
-        <ListItemText
-          primary={title}
+      <ListItem disableGutters component={Link} to={url}>
+        <ListItemButton
           sx={{
-            color: isSelected ? 'orange' : 'white',
+            color: (theme) =>
+              theme.palette.mode === 'light' ? '#000' : '#fff',
           }}
-        />
-      </NavigationListItemButton>
+        >
+          <ListItemIcon>{Icon}</ListItemIcon>
+          <ListItemText
+            primary={title}
+            sx={{
+              color: (theme) =>
+                theme.palette.mode === 'light' ? '#000' : '#fff',
+            }}
+          />
+        </ListItemButton>
+      </ListItem>
     );
   return (
     <>
-      <NavigationListItemButton onClick={handleClick}>
-        <ListItemIcon>
-          <SVGIcon />
-        </ListItemIcon>
-        <ListItemText
-          primary={`${title} `}
+      <ListItem disableGutters>
+        <ListItemButton
+          onClick={handleClick}
           sx={{
-            color: isSelected
-              ? (theme) => theme.palette.primary.contrastText
-              : (theme) => theme.palette.primary.main,
+            color: (theme) =>
+              theme.palette.mode === 'light' ? '#000' : '#fff',
           }}
-        />
-        {open ? <ExpandLess /> : <ExpandMore />}
-      </NavigationListItemButton>
+        >
+          <ListItemIcon>{Icon}</ListItemIcon>
+          <ListItemText primary={title} />
+          {open ? <ExpandLess /> : <ExpandMore />}
+        </ListItemButton>
+      </ListItem>
       {open &&
-        nested.map((each: any) => (
-          <NavigationListItemButton
-            key={each.url}
-            to={each.url}
-            component={Link}
-            sx={{
-              paddingLeft: (theme) => theme.spacing(9),
-              bgcolor: '#3C4558',
-            }}
-          >
-            <ListItemText
-              primary={each.title}
+        nested.map((each: navOptionType) => (
+          <ListItem disableGutters component={Link} to={each.url}>
+            <ListItemButton
               sx={{
-                color: isSelected ? 'orange' : 'white',
+                color: (theme) =>
+                  theme.palette.mode === 'light' ? '#000' : '#fff',
               }}
-            />
-          </NavigationListItemButton>
+            >
+              <ListItemIcon>{each.Icon}</ListItemIcon>
+              <ListItemText
+                primary={each.title}
+                sx={{
+                  color: (theme) =>
+                    theme.palette.mode === 'light' ? '#000' : '#fff',
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
         ))}
     </>
   );
 };
 
 export const Nav: React.FC = ({ children }) => {
+  const { toggleMode, mode }: any = React.useContext(ExplorerContext);
+
   const [open, setOpen] = React.useState(false);
-  const [page, setCurrentPage] = React.useState('/');
-  const location = useLocation();
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -234,13 +219,9 @@ export const Nav: React.FC = ({ children }) => {
     setOpen(false);
   };
 
-  React.useEffect(() => {
-    setCurrentPage(location.pathname);
-  }, [location]);
-
   return (
     <Box sx={{ display: 'flex' }}>
-      <AppBar position="fixed" open={open}>
+      <AppBar position="fixed" open={open} color="default">
         <Toolbar>
           <IconButton
             color="inherit"
@@ -248,11 +229,10 @@ export const Nav: React.FC = ({ children }) => {
             onClick={handleDrawerOpen}
             edge="start"
             sx={{
-              marginRight: '36px',
               ...(open && { display: 'none' }),
             }}
           >
-            <MenuIcon />
+            <Menu />
           </IconButton>
           <NymLogoSVG />
           <Typography variant="h6" noWrap component="div">
@@ -263,25 +243,29 @@ export const Nav: React.FC = ({ children }) => {
       <Drawer variant="permanent" open={open}>
         <DrawerHeader>
           <IconButton onClick={handleDrawerClose}>
-            <ChevronLeftIcon />
+            <ChevronLeft />
           </IconButton>
         </DrawerHeader>
         <Divider />
         <List>
           {navOptions.map((route) => (
-            <ExpandableButton
-              isSelected={route.url === page}
-              key={route.url}
-              to={route.url}
-              title={route.title}
-              nested={route.nested}
-              SVGIcon={route.icon}
-            />
+            <ExpandableButton key={route.url} {...route} />
           ))}
         </List>
         <Divider />
+        <ListItem disableGutters>
+          <ListItemButton onClick={toggleMode}>
+            <ListItemIcon>
+              {mode === 'light' ? <Brightness4Sharp /> : <WbSunnySharp />}
+            </ListItemIcon>
+            <ListItemText>Light</ListItemText>
+          </ListItemButton>
+        </ListItem>
       </Drawer>
-      {children}
+      <Box sx={{ width: '100%', p: 4 }}>
+        <DrawerHeader />
+        {children}
+      </Box>
     </Box>
   );
 };

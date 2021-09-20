@@ -14,7 +14,7 @@ use url::Url;
 pub struct Config {
     api_url: Url,
     nymd_url: Url,
-    mixnet_contract_address: Option<cosmos_sdk::AccountId>,
+    mixnet_contract_address: Option<cosmrs::AccountId>,
 
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
@@ -27,7 +27,7 @@ impl Config {
     pub fn new(
         nymd_url: Url,
         api_url: Url,
-        mixnet_contract_address: Option<cosmos_sdk::AccountId>,
+        mixnet_contract_address: Option<cosmrs::AccountId>,
     ) -> Self {
         Config {
             nymd_url,
@@ -63,7 +63,7 @@ impl Config {
 
 #[cfg(feature = "nymd-client")]
 pub struct Client<C> {
-    mixnet_contract_address: Option<cosmos_sdk::AccountId>,
+    mixnet_contract_address: Option<cosmrs::AccountId>,
     mnemonic: Option<bip39::Mnemonic>,
 
     mixnode_page_limit: Option<u32>,
@@ -154,11 +154,11 @@ impl<C> Client<C> {
 
     // use case: somebody initialised client without a contract in order to upload and initialise one
     // and now they want to actually use it without making new client
-    pub fn set_mixnet_contract_address(&mut self, mixnet_contract_address: cosmos_sdk::AccountId) {
+    pub fn set_mixnet_contract_address(&mut self, mixnet_contract_address: cosmrs::AccountId) {
         self.mixnet_contract_address = Some(mixnet_contract_address)
     }
 
-    pub fn get_mixnet_contract_address(&self) -> Option<cosmos_sdk::AccountId> {
+    pub fn get_mixnet_contract_address(&self) -> Option<cosmrs::AccountId> {
         self.mixnet_contract_address.clone()
     }
 
@@ -249,7 +249,7 @@ impl<C> Client<C> {
 
     pub async fn get_all_nymd_reverse_mixnode_delegations(
         &self,
-        delegation_owner: &cosmos_sdk::AccountId,
+        delegation_owner: &cosmrs::AccountId,
     ) -> Result<Vec<mixnet_contract::IdentityKey>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -279,7 +279,7 @@ impl<C> Client<C> {
 
     pub async fn get_all_nymd_mixnode_delegations_of_owner(
         &self,
-        delegation_owner: &cosmos_sdk::AccountId,
+        delegation_owner: &cosmrs::AccountId,
     ) -> Result<Vec<mixnet_contract::Delegation>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -331,7 +331,7 @@ impl<C> Client<C> {
 
     pub async fn get_all_nymd_reverse_gateway_delegations(
         &self,
-        delegation_owner: &cosmos_sdk::AccountId,
+        delegation_owner: &cosmrs::AccountId,
     ) -> Result<Vec<mixnet_contract::IdentityKey>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -361,7 +361,7 @@ impl<C> Client<C> {
 
     pub async fn get_all_nymd_gateway_delegations_of_owner(
         &self,
-        delegation_owner: &cosmos_sdk::AccountId,
+        delegation_owner: &cosmrs::AccountId,
     ) -> Result<Vec<mixnet_contract::Delegation>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,

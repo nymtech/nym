@@ -3,6 +3,7 @@
 
 use crate::queries;
 use crate::state::State;
+use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
@@ -10,7 +11,7 @@ use cosmwasm_storage::{
 };
 use mixnet_contract::{
     Addr, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
-    StateParams,
+    RawDelegationData, StateParams,
 };
 
 // storage prefixes
@@ -34,6 +35,8 @@ const PREFIX_REVERSE_MIX_DELEGATION: &[u8] = b"dm";
 const PREFIX_REVERSE_GATEWAY_DELEGATION: &[u8] = b"dg";
 
 // Contract-level stuff
+
+// TODO Unify bucket and mixnode storage functions
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
     singleton(storage, CONFIG_KEY)
@@ -164,6 +167,7 @@ pub(crate) fn increase_mix_delegated_stakes(
     storage: &mut dyn Storage,
     mix_identity: IdentityKeyRef,
     scaled_reward_rate: Decimal,
+    reward_blockstamp: u64,
 ) -> StdResult<Uint128> {
     let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
 
@@ -193,11 +197,15 @@ pub(crate) fn increase_mix_delegated_stakes(
         );
 
         // and for each of them increase the stake proportionally to the reward
-        for (delegator_address, amount) in delegations_chunk.into_iter() {
-            let reward = amount * scaled_reward_rate;
-            let new_amount = amount + reward;
-            total_rewarded += reward;
-            mix_delegations(storage, mix_identity).save(&delegator_address, &new_amount)?;
+        // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
+        // since they delegated
+        for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
+            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= reward_blockstamp {
+                let reward = delegation.amount * scaled_reward_rate;
+                delegation.amount += reward;
+                total_rewarded += reward;
+                mix_delegations(storage, mix_identity).save(&delegator_address, &delegation)?;
+            }
         }
     }
 
@@ -208,6 +216,7 @@ pub(crate) fn increase_gateway_delegated_stakes(
     storage: &mut dyn Storage,
     gateway_identity: IdentityKeyRef,
     scaled_reward_rate: Decimal,
+    reward_blockstamp: u64,
 ) -> StdResult<Uint128> {
     let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
 
@@ -237,11 +246,16 @@ pub(crate) fn increase_gateway_delegated_stakes(
         );
 
         // and for each of them increase the stake proportionally to the reward
-        for (delegator_address, amount) in delegations_chunk.into_iter() {
-            let reward = amount * scaled_reward_rate;
-            let new_amount = amount + reward;
-            total_rewarded += reward;
-            gateway_delegations(storage, gateway_identity).save(&delegator_address, &new_amount)?;
+        // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
+        // since they delegated
+        for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
+            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= reward_blockstamp {
+                let reward = delegation.amount * scaled_reward_rate;
+                delegation.amount += reward;
+                total_rewarded += reward;
+                gateway_delegations(storage, gateway_identity)
+                    .save(&delegator_address, &delegation)?;
+            }
         }
     }
 
@@ -293,11 +307,19 @@ pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey
 pub fn mix_delegations<'a>(
     storage: &'a mut dyn Storage,
     mix_identity: IdentityKeyRef,
-) -> Bucket<'a, Uint128> {
+) -> Bucket<'a, RawDelegationData> {
     Bucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
 }
 
 pub fn mix_delegations_read<'a>(
+    storage: &'a dyn Storage,
+    mix_identity: IdentityKeyRef,
+) -> ReadonlyBucket<'a, RawDelegationData> {
+    ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
+}
+
+// https://github.com/nymtech/nym/blob/122f5d9f2e5c1ced96e3b9ba0c74ef8b7dbde2c7/contracts/mixnet/src/storage.rs
+pub fn mix_delegations_read_old<'a>(
     storage: &'a dyn Storage,
     mix_identity: IdentityKeyRef,
 ) -> ReadonlyBucket<'a, Uint128> {
@@ -318,7 +340,7 @@ pub fn reverse_mix_delegations_read<'a>(
 pub fn gateway_delegations<'a>(
     storage: &'a mut dyn Storage,
     gateway_identity: IdentityKeyRef,
-) -> Bucket<'a, Uint128> {
+) -> Bucket<'a, RawDelegationData> {
     Bucket::multilevel(
         storage,
         &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
@@ -326,6 +348,16 @@ pub fn gateway_delegations<'a>(
 }
 
 pub fn gateway_delegations_read<'a>(
+    storage: &'a dyn Storage,
+    gateway_identity: IdentityKeyRef,
+) -> ReadonlyBucket<'a, RawDelegationData> {
+    ReadonlyBucket::multilevel(
+        storage,
+        &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
+    )
+}
+
+pub fn gateway_delegations_read_old<'a>(
     storage: &'a dyn Storage,
     gateway_identity: IdentityKeyRef,
 ) -> ReadonlyBucket<'a, Uint128> {
@@ -382,6 +414,7 @@ mod tests {
     use super::*;
     use crate::support::tests::helpers::{
         gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
+        raw_delegation_fixture,
     };
     use config::defaults::DENOM;
     use cosmwasm_std::testing::MockStorage;
@@ -434,6 +467,7 @@ mod tests {
             total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
             layer: Layer::One,
+            block_height: 12_345,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
@@ -467,6 +501,7 @@ mod tests {
             bond_amount: coin(bond_value, DENOM),
             total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
+            block_height: 12_345,
             gateway: Gateway {
                 identity_key: node_identity.clone(),
                 ..gateway_fixture()
@@ -497,9 +532,13 @@ mod tests {
             // 0.001
             let reward = Decimal::from_ratio(1u128, 1000u128);
 
-            let total_increase =
-                increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
-                    .unwrap();
+            let total_increase = increase_mix_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+                42,
+            )
+            .unwrap();
 
             // there was no increase
             assert!(total_increase.is_zero());
@@ -517,23 +556,88 @@ mod tests {
         fn when_there_is_a_single_delegation() {
             let mut deps = mock_dependencies(&[]);
             let node_identity: IdentityKey = "nodeidentity".into();
+            let delegation_blockstamp = 42;
 
             // 0.001
             let reward = Decimal::from_ratio(1u128, 1000u128);
 
             let delegator_address = Addr::unchecked("bob");
             mix_delegations(&mut deps.storage, &node_identity)
-                .save(delegator_address.as_bytes(), &Uint128(1000))
+                .save(
+                    delegator_address.as_bytes(),
+                    &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                )
                 .unwrap();
 
-            let total_increase =
-                increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
-                    .unwrap();
+            let total_increase = increase_mix_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+                delegation_blockstamp + 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING,
+            )
+            .unwrap();
 
             assert_eq!(Uint128(1), total_increase);
 
+            // amount is incremented, block height remains the same
             assert_eq!(
-                Uint128(1001),
+                RawDelegationData::new(1001u128.into(), 42),
+                mix_delegations_read(&mut deps.storage, &node_identity)
+                    .load(delegator_address.as_bytes())
+                    .unwrap()
+            )
+        }
+
+        #[test]
+        fn when_there_is_a_single_delegation_depending_on_blockstamp() {
+            let mut deps = mock_dependencies(&[]);
+            let node_identity: IdentityKey = "nodeidentity".into();
+            let delegation_blockstamp = 42;
+
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            let delegator_address = Addr::unchecked("bob");
+            mix_delegations(&mut deps.storage, &node_identity)
+                .save(
+                    delegator_address.as_bytes(),
+                    &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                )
+                .unwrap();
+
+            let total_increase = increase_mix_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+                delegation_blockstamp + MINIMUM_BLOCK_AGE_FOR_REWARDING - 1,
+            )
+            .unwrap();
+
+            // there was no increase
+            assert!(total_increase.is_zero());
+
+            // amount is not incremented
+            assert_eq!(
+                RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                mix_delegations_read(&mut deps.storage, &node_identity)
+                    .load(delegator_address.as_bytes())
+                    .unwrap()
+            );
+
+            let total_increase = increase_mix_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+                delegation_blockstamp + MINIMUM_BLOCK_AGE_FOR_REWARDING,
+            )
+            .unwrap();
+
+            // there is an increase now, that the lock period has passed
+            assert_eq!(Uint128(1), total_increase);
+
+            // amount is incremented
+            assert_eq!(
+                RawDelegationData::new(1001u128.into(), delegation_blockstamp),
                 mix_delegations_read(&mut deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()
@@ -544,6 +648,7 @@ mod tests {
         fn when_there_are_multiple_delegations() {
             let mut deps = mock_dependencies(&[]);
             let node_identity: IdentityKey = "nodeidentity".into();
+            let delegation_blockstamp = 42;
 
             // 0.001
             let reward = Decimal::from_ratio(1u128, 1000u128);
@@ -551,20 +656,27 @@ mod tests {
             for i in 0..100 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 mix_delegations(&mut deps.storage, &node_identity)
-                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .save(
+                        delegator_address.as_bytes(),
+                        &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                    )
                     .unwrap();
             }
 
-            let total_increase =
-                increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
-                    .unwrap();
+            let total_increase = increase_mix_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+                delegation_blockstamp + 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING,
+            )
+            .unwrap();
 
             assert_eq!(Uint128(100), total_increase);
 
             for i in 0..100 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 assert_eq!(
-                    Uint128(1001),
+                    raw_delegation_fixture(1001),
                     mix_delegations_read(&mut deps.storage, &node_identity)
                         .load(delegator_address.as_bytes())
                         .unwrap()
@@ -576,6 +688,7 @@ mod tests {
         fn when_there_are_more_delegations_than_page_size() {
             let mut deps = mock_dependencies(&[]);
             let node_identity: IdentityKey = "nodeidentity".into();
+            let delegation_blockstamp = 42;
 
             // 0.001
             let reward = Decimal::from_ratio(1u128, 1000u128);
@@ -583,13 +696,20 @@ mod tests {
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 mix_delegations(&mut deps.storage, &node_identity)
-                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .save(
+                        delegator_address.as_bytes(),
+                        &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                    )
                     .unwrap();
             }
 
-            let total_increase =
-                increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
-                    .unwrap();
+            let total_increase = increase_mix_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+                delegation_blockstamp + 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING,
+            )
+            .unwrap();
 
             assert_eq!(
                 Uint128(queries::DELEGATION_PAGE_MAX_LIMIT as u128 * 10),
@@ -599,7 +719,7 @@ mod tests {
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 assert_eq!(
-                    Uint128(1001),
+                    raw_delegation_fixture(1001),
                     mix_delegations_read(&mut deps.storage, &node_identity)
                         .load(delegator_address.as_bytes())
                         .unwrap()
@@ -691,6 +811,7 @@ mod tests {
                 &mut deps.storage,
                 node_identity.as_ref(),
                 reward,
+                42,
             )
             .unwrap();
 
@@ -710,26 +831,88 @@ mod tests {
         fn when_there_is_a_single_delegation() {
             let mut deps = mock_dependencies(&[]);
             let node_identity: IdentityKey = "nodeidentity".into();
+            let delegation_blockstamp = 42;
 
             // 0.001
             let reward = Decimal::from_ratio(1u128, 1000u128);
 
             let delegator_address = Addr::unchecked("bob");
             gateway_delegations(&mut deps.storage, &node_identity)
-                .save(delegator_address.as_bytes(), &Uint128(1000))
+                .save(
+                    delegator_address.as_bytes(),
+                    &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                )
                 .unwrap();
 
             let total_increase = increase_gateway_delegated_stakes(
                 &mut deps.storage,
                 node_identity.as_ref(),
                 reward,
+                delegation_blockstamp + 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING,
             )
             .unwrap();
 
             assert_eq!(Uint128(1), total_increase);
 
+            // amount is incremented, block height remains the same
             assert_eq!(
-                Uint128(1001),
+                RawDelegationData::new(1001u128.into(), 42),
+                gateway_delegations_read(&mut deps.storage, &node_identity)
+                    .load(delegator_address.as_bytes())
+                    .unwrap()
+            )
+        }
+
+        #[test]
+        fn when_there_is_a_single_delegation_depending_on_blockstamp() {
+            let mut deps = mock_dependencies(&[]);
+            let node_identity: IdentityKey = "nodeidentity".into();
+            let delegation_blockstamp = 42;
+
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            let delegator_address = Addr::unchecked("bob");
+            gateway_delegations(&mut deps.storage, &node_identity)
+                .save(
+                    delegator_address.as_bytes(),
+                    &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                )
+                .unwrap();
+
+            let total_increase = increase_gateway_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+                delegation_blockstamp + MINIMUM_BLOCK_AGE_FOR_REWARDING - 1,
+            )
+            .unwrap();
+
+            // there was no increase
+            assert!(total_increase.is_zero());
+
+            // amount is not incremented
+            assert_eq!(
+                RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                gateway_delegations_read(&mut deps.storage, &node_identity)
+                    .load(delegator_address.as_bytes())
+                    .unwrap()
+            );
+
+            let total_increase = increase_gateway_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+                delegation_blockstamp + MINIMUM_BLOCK_AGE_FOR_REWARDING,
+            )
+            .unwrap();
+
+            // there is an increase now, that the lock period has passed
+            assert_eq!(Uint128(1), total_increase);
+
+            // amount is incremented
+            assert_eq!(
+                RawDelegationData::new(1001u128.into(), delegation_blockstamp),
                 gateway_delegations_read(&mut deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()
@@ -740,6 +923,7 @@ mod tests {
         fn when_there_are_multiple_delegations() {
             let mut deps = mock_dependencies(&[]);
             let node_identity: IdentityKey = "nodeidentity".into();
+            let delegation_blockstamp = 42;
 
             // 0.001
             let reward = Decimal::from_ratio(1u128, 1000u128);
@@ -747,7 +931,10 @@ mod tests {
             for i in 0..100 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 gateway_delegations(&mut deps.storage, &node_identity)
-                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .save(
+                        delegator_address.as_bytes(),
+                        &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                    )
                     .unwrap();
             }
 
@@ -755,6 +942,7 @@ mod tests {
                 &mut deps.storage,
                 node_identity.as_ref(),
                 reward,
+                delegation_blockstamp + 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING,
             )
             .unwrap();
 
@@ -763,7 +951,7 @@ mod tests {
             for i in 0..100 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 assert_eq!(
-                    Uint128(1001),
+                    raw_delegation_fixture(1001),
                     gateway_delegations_read(&mut deps.storage, &node_identity)
                         .load(delegator_address.as_bytes())
                         .unwrap()
@@ -775,6 +963,7 @@ mod tests {
         fn when_there_are_more_delegations_than_page_size() {
             let mut deps = mock_dependencies(&[]);
             let node_identity: IdentityKey = "nodeidentity".into();
+            let delegation_blockstamp = 42;
 
             // 0.001
             let reward = Decimal::from_ratio(1u128, 1000u128);
@@ -782,7 +971,10 @@ mod tests {
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 gateway_delegations(&mut deps.storage, &node_identity)
-                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .save(
+                        delegator_address.as_bytes(),
+                        &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                    )
                     .unwrap();
             }
 
@@ -790,6 +982,7 @@ mod tests {
                 &mut deps.storage,
                 node_identity.as_ref(),
                 reward,
+                delegation_blockstamp + 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING,
             )
             .unwrap();
 
@@ -801,7 +994,7 @@ mod tests {
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 assert_eq!(
-                    Uint128(1001),
+                    raw_delegation_fixture(1001),
                     gateway_delegations_read(&mut deps.storage, &node_identity)
                         .load(delegator_address.as_bytes())
                         .unwrap()

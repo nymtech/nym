@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
-use gateway_requests::authentication::iv::AuthenticationIV;
 use gateway_requests::generic_array::typenum::Unsigned;
+use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::{SharedKeySize, SharedKeys};
 use log::*;
 use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
@@ -79,7 +79,7 @@ impl ClientLedger {
         &self,
         client_address: &DestinationAddressBytes,
         encrypted_address: &EncryptedAddressBytes,
-        iv: &AuthenticationIV,
+        iv: &IV,
     ) -> Result<bool, ClientLedgerError> {
         match self.db.get(client_address.as_bytes_ref()) {
             Err(e) => Err(ClientLedgerError::Read(e)),

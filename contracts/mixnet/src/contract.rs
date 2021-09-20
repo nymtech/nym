@@ -3,9 +3,7 @@
 
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
-use crate::storage::{
-    config, layer_distribution, reverse_gateway_delegations, reverse_mix_delegations,
-};
+use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
 use config::defaults::NETWORK_MONITOR_ADDRESS;
 use cosmwasm_std::{
@@ -13,8 +11,7 @@ use cosmwasm_std::{
     Response, Uint128,
 };
 use mixnet_contract::{
-    Delegation, ExecuteMsg, IdentityKey, IdentityKeyRef, InstantiateMsg, MigrateMsg, QueryMsg,
-    StateParams,
+    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, RawDelegationData, StateParams,
 };
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
@@ -94,32 +91,36 @@ pub fn instantiate(
 #[entry_point]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::BondMixnode { mix_node } => transactions::try_add_mixnode(deps, info, mix_node),
+        ExecuteMsg::BondMixnode { mix_node } => {
+            transactions::try_add_mixnode(deps, env, info, mix_node)
+        }
         ExecuteMsg::UnbondMixnode {} => transactions::try_remove_mixnode(deps, info),
-        ExecuteMsg::BondGateway { gateway } => transactions::try_add_gateway(deps, info, gateway),
+        ExecuteMsg::BondGateway { gateway } => {
+            transactions::try_add_gateway(deps, env, info, gateway)
+        }
         ExecuteMsg::UnbondGateway {} => transactions::try_remove_gateway(deps, info),
         ExecuteMsg::UpdateStateParams(params) => {
             transactions::try_update_state_params(deps, info, params)
         }
         ExecuteMsg::RewardMixnode { identity, uptime } => {
-            transactions::try_reward_mixnode(deps, info, identity, uptime)
+            transactions::try_reward_mixnode(deps, env, info, identity, uptime)
         }
         ExecuteMsg::RewardGateway { identity, uptime } => {
-            transactions::try_reward_gateway(deps, info, identity, uptime)
+            transactions::try_reward_gateway(deps, env, info, identity, uptime)
         }
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
-            transactions::try_delegate_to_mixnode(deps, info, mix_identity)
+            transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
             transactions::try_remove_delegation_from_mixnode(deps, info, mix_identity)
         }
         ExecuteMsg::DelegateToGateway { gateway_identity } => {
-            transactions::try_delegate_to_gateway(deps, info, gateway_identity)
+            transactions::try_delegate_to_gateway(deps, env, info, gateway_identity)
         }
         ExecuteMsg::UndelegateFromGateway { gateway_identity } => {
             transactions::try_remove_delegation_from_gateway(deps, info, gateway_identity)
@@ -206,117 +207,68 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    fn get_all_mixnodes_identities(deps: &DepsMut) -> Result<Vec<IdentityKey>, ContractError> {
-        let mut mixnode_bonds = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response =
-                queries::query_mixnodes_paged(deps.as_ref(), start_after, None)?;
-            mixnode_bonds.append(&mut paged_response.nodes);
+pub fn migrate(mut deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    use crate::storage::{
+        gateway_delegations, gateway_delegations_read, gateway_delegations_read_old, gateways_read,
+        mix_delegations, mix_delegations_read, mix_delegations_read_old, mixnodes_read,
+    };
+    use crate::transactions::delegations;
+    use cosmwasm_std::{Order, StdResult};
+    use mixnet_contract::{GatewayBond, MixNodeBond};
 
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res)
-            } else {
-                break;
-            }
+    // Read existing delegations data, drop invalid values, and rewrite delegations data with valid data only
+    fn overwrite_mixnode_delegations_data(
+        identity: &str,
+        deps: &mut DepsMut,
+    ) -> Result<(), ContractError> {
+        let delegations_bucket = mix_delegations_read(deps.storage, identity);
+        let old_delegations_bucket = mix_delegations_read_old(deps.storage, identity);
+        let mut delegations_vec = delegations(delegations_bucket)?;
+        let old_delegations = delegations::<Uint128>(old_delegations_bucket)?;
+        for delegation in old_delegations {
+            delegations_vec.push((delegation.0, RawDelegationData::new(delegation.1, 1)))
         }
-        let mixnodes = mixnode_bonds
-            .into_iter()
-            .map(|bond| bond.mix_node.identity_key)
-            .collect();
 
-        Ok(mixnodes)
+        for (key, delegation) in delegations_vec {
+            mix_delegations(deps.storage, identity).save(&key, &delegation)?;
+        }
+        Ok(())
     }
 
-    fn get_all_gateways_identities(deps: &DepsMut) -> Result<Vec<IdentityKey>, ContractError> {
-        let mut gateway_bonds = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response =
-                queries::query_gateways_paged(deps.as_ref(), start_after, None)?;
-            gateway_bonds.append(&mut paged_response.nodes);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res)
-            } else {
-                break;
-            }
+    fn overwrite_gateway_delegations_data(
+        identity: &str,
+        deps: &mut DepsMut,
+    ) -> Result<(), ContractError> {
+        let delegations_bucket = gateway_delegations_read(deps.storage, identity);
+        let old_delegations_bucket = gateway_delegations_read_old(deps.storage, identity);
+        let mut delegations_vec = delegations(delegations_bucket)?;
+        let old_delegations = delegations::<Uint128>(old_delegations_bucket)?;
+        for delegation in old_delegations {
+            delegations_vec.push((delegation.0, RawDelegationData::new(delegation.1, 1)))
         }
-        let gateways = gateway_bonds
-            .into_iter()
-            .map(|bond| bond.gateway.identity_key)
-            .collect();
 
-        Ok(gateways)
+        for (key, delegation) in delegations_vec {
+            gateway_delegations(deps.storage, identity).save(&key, &delegation)?;
+        }
+        Ok(())
     }
 
-    fn get_all_mixnode_delegations(
-        deps: &DepsMut,
-        mix_identity: IdentityKeyRef,
-    ) -> Result<Vec<Delegation>, ContractError> {
-        let mut delegations = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = queries::query_mixnode_delegations_paged(
-                deps.as_ref(),
-                mix_identity.into(),
-                start_after,
-                None,
-            )?;
-            delegations.append(&mut paged_response.delegations);
+    let mixnet_bonds = mixnodes_read(deps.storage)
+        .range(None, None, Order::Ascending)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<MixNodeBond>>>()?;
 
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res)
-            } else {
-                break;
-            }
-        }
-
-        Ok(delegations)
+    for bond in mixnet_bonds {
+        overwrite_mixnode_delegations_data(bond.identity(), &mut deps)?;
     }
 
-    fn get_all_gateway_delegations(
-        deps: &DepsMut,
-        gateway_identity: IdentityKeyRef,
-    ) -> Result<Vec<Delegation>, ContractError> {
-        let mut delegations = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = queries::query_gateway_delegations_paged(
-                deps.as_ref(),
-                gateway_identity.into(),
-                start_after,
-                None,
-            )?;
-            delegations.append(&mut paged_response.delegations);
+    let gateway_bonds = gateways_read(deps.storage)
+        .range(None, None, Order::Ascending)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<GatewayBond>>>()?;
 
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res)
-            } else {
-                break;
-            }
-        }
-
-        Ok(delegations)
-    }
-
-    let mixnodes_identities = get_all_mixnodes_identities(&deps)?;
-    for mix_identity in mixnodes_identities {
-        let delegations = get_all_mixnode_delegations(&deps, &mix_identity)?;
-        for delegation in delegations {
-            reverse_mix_delegations(deps.storage, &delegation.owner())
-                .save(mix_identity.as_bytes(), &())?;
-        }
-    }
-
-    let gateways_identities = get_all_gateways_identities(&deps)?;
-    for gateway_identity in gateways_identities {
-        let delegations = get_all_gateway_delegations(&deps, &gateway_identity)?;
-        for delegation in delegations {
-            reverse_gateway_delegations(deps.storage, &delegation.owner())
-                .save(gateway_identity.as_bytes(), &())?;
-        }
+    for bond in gateway_bonds {
+        overwrite_gateway_delegations_data(bond.identity(), &mut deps)?;
     }
 
     Ok(Default::default())

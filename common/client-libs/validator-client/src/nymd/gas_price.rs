@@ -3,9 +3,8 @@
 
 use crate::nymd::error::NymdError;
 use config::defaults;
-use cosmos_sdk::tx::Gas;
-use cosmos_sdk::Coin;
-use cosmos_sdk::Denom;
+use cosmrs::tx::Gas;
+use cosmrs::{Coin, Denom};
 use cosmwasm_std::{Decimal, Fraction, Uint128};
 use std::ops::Mul;
 use std::str::FromStr;

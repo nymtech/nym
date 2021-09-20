@@ -2,52 +2,38 @@ import React from 'react';
 import { scaleLinear } from 'd3-scale';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
-import { Box, Grid, Typography } from '@mui/material';
+import { Box } from '@mui/material';
+import { ExplorerContext } from '../context/main';
 import { countriesData } from '../data/countriesData';
+import { ContentCard } from './ContentCard';
 
 const geoUrl =
   'https://raw.githubusercontent.com/zcreativelabs/react-simple-maps/master/topojson-maps/world-110m.json';
 
-const colorScale: any = scaleLinear()
-  .domain([0, 1200])
-  // @ts-ignore
-  .range(['#ffedea', '#ff5233']);
-
 export const WorldMap: React.FC = () => {
   const [tooltipContent, setTooltipContent] = React.useState<string>('');
   const [data, setData] = React.useState<Record<string, unknown>[]>([]);
-
+  const { mode }: any = React.useContext(ExplorerContext);
   React.useEffect(() => {
     setData(countriesData);
   }, []);
 
-  return (
-    <Grid
-      item
-      xs={12}
-      sx={{
-        justifyContent: 'flex-start',
-        padding: (theme) => theme.spacing(2),
-        backgroundColor: (theme) => theme.palette.primary.dark,
-      }}
-    >
-      <Box
-        sx={{
-          padding: (theme) => theme.spacing(3),
-          backgroundColor: (theme) => theme.palette.primary.light,
-        }}
-      >
-        <Typography
-          sx={{
-            color: (theme) => theme.palette.primary.main,
-          }}
-        >
-          Distribution of nodes around the world
-        </Typography>
+  const colorScale: any = scaleLinear()
+    .domain([0, 1200])
+    // @ts-ignore
+    .range(mode === 'dark' ? ['#ffedea', '#ff5233'] : ['orange', 'red']);
 
+  return (
+    <ContentCard title="Distribution of nodes around the world">
+      <Box>
         <ComposableMap
           data-tip=""
-          style={{ backgroundColor: 'rgba(50, 60, 81, 1)', marginTop: 30 }}
+          style={{
+            backgroundColor:
+              mode === 'dark'
+                ? 'rgba(50, 60, 81, 1)'
+                : 'rgba(241, 234, 234, 1)',
+          }}
           projectionConfig={{
             rotate: [-10, 0, 0],
             scale: 187,
@@ -89,6 +75,6 @@ export const WorldMap: React.FC = () => {
         </ComposableMap>
         <ReactTooltip>{tooltipContent}</ReactTooltip>
       </Box>
-    </Grid>
+    </ContentCard>
   );
 };

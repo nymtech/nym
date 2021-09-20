@@ -35,7 +35,7 @@ pub use signing_client::Client as SigningNymdClient;
 
 pub mod cosmwasm_client;
 pub mod error;
-pub(crate) mod fee_helpers;
+pub mod fee_helpers;
 pub mod gas_price;
 pub mod wallet;
 

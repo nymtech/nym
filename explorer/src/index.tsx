@@ -4,11 +4,12 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
 import { App } from './App';
-import { ExplorerContext, ExplorerProvider } from './context/main';
+import { DarkModeContext, DarkModeProvider } from './context/dark-mode';
 import './styles.css';
+import { ApiDataProvider } from './context/api';
 
 const AppWrapper = () => {
-  const { mode }: any = React.useContext(ExplorerContext);
+  const { mode }: any = React.useContext(DarkModeContext);
 
   const theme = createTheme({
     palette: {
@@ -56,8 +57,10 @@ const AppWrapper = () => {
 };
 
 ReactDOM.render(
-  <ExplorerProvider>
-    <AppWrapper />
-  </ExplorerProvider>,
+  <DarkModeProvider>
+    <ApiDataProvider>
+      <AppWrapper />
+    </ApiDataProvider>
+  </DarkModeProvider>,
   document.getElementById('app'),
 );

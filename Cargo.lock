@@ -430,6 +430,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54757888b09a69be70b5ec303e382a74227392086ba808cb01eeca29233a2397"
 dependencies = [
+ "digest 0.9.0",
  "ff",
  "group",
  "pairing",
@@ -698,13 +699,12 @@ dependencies = [
  "coconut-rs",
  "getset",
  "serde",
- "sha2",
 ]
 
 [[package]]
 name = "coconut-rs"
-version = "0.4.0"
-source = "git+https://github.com/nymtech/coconut.git?branch=0.4.0#183cff805aa73a908b681ac3fcdff7d084c4f42b"
+version = "0.5.0"
+source = "git+https://github.com/nymtech/coconut.git?branch=0.5.0#a1b72d51aa2a67b73b9f58d707030ae6dc70af7f"
 dependencies = [
  "bls12_381",
  "bs58",
@@ -717,8 +717,6 @@ dependencies = [
  "serde",
  "serde_derive",
  "sha2",
- "sha3",
- "subtle 2.4.0",
  "thiserror",
 ]
 
@@ -1875,6 +1873,7 @@ dependencies = [
  "bincode",
  "bs58",
  "coconut-interface",
+ "credentials",
  "crypto",
  "futures",
  "log",

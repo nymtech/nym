@@ -9,6 +9,8 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::cmp::Ordering;
 use std::fmt::Display;
 
+use crate::current_block_height;
+
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct MixNode {
     pub host: String,
@@ -38,16 +40,25 @@ pub struct MixNodeBond {
     pub total_delegation: Coin,
     pub owner: Addr,
     pub layer: Layer,
+    #[serde(default = "current_block_height")]
+    pub block_height: u64,
     pub mix_node: MixNode,
 }
 
 impl MixNodeBond {
-    pub fn new(bond_amount: Coin, owner: Addr, layer: Layer, mix_node: MixNode) -> Self {
+    pub fn new(
+        bond_amount: Coin,
+        owner: Addr,
+        layer: Layer,
+        block_height: u64,
+        mix_node: MixNode,
+    ) -> Self {
         MixNodeBond {
             total_delegation: coin(0, &bond_amount.denom),
             bond_amount,
             owner,
             layer,
+            block_height,
             mix_node,
         }
     }

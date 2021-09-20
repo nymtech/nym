@@ -3,10 +3,6 @@
 
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
-use sha2::{
-    digest::{generic_array::typenum::Unsigned, Digest},
-    Sha256,
-};
 
 pub use coconut_rs::*;
 
@@ -16,7 +12,7 @@ pub struct Credential {
     n_params: u32,
     #[getset(get = "pub")]
     theta: Theta,
-    public_attributes: Vec<String>,
+    public_attributes: Vec<Vec<u8>>,
     #[getset(get = "pub")]
     signature: Signature,
 }
@@ -24,35 +20,29 @@ impl Credential {
     pub fn new(
         n_params: u32,
         theta: Theta,
-        public_attributes: &[Attribute],
+        public_attributes: Vec<Vec<u8>>,
         signature: &Signature,
     ) -> Credential {
         Credential {
             n_params,
             theta,
-            public_attributes: public_attributes
-                .iter()
-                .map(|attr| attr.to_bs58())
-                .collect(),
+            public_attributes,
             signature: *signature,
         }
     }
 
-    pub fn public_attributes(&self) -> Vec<Attribute> {
-        self.public_attributes
-            .iter()
-            .map(|x| Attribute::try_from_bs58(x).unwrap())
-            .collect()
+    pub fn public_attributes(&self) -> Vec<Vec<u8>> {
+        self.public_attributes.clone()
     }
 
     pub fn verify(&self, verification_key: &VerificationKey) -> bool {
         let params = Parameters::new(self.n_params).unwrap();
-        coconut_rs::verify_credential(
-            &params,
-            verification_key,
-            &self.theta,
-            &self.public_attributes(),
-        )
+        let public_attributes = self
+            .public_attributes
+            .iter()
+            .map(hash_to_scalar)
+            .collect::<Vec<Attribute>>();
+        coconut_rs::verify_credential(&params, verification_key, &self.theta, &public_attributes)
     }
 }
 
@@ -146,22 +136,4 @@ impl VerificationKeyResponse {
     pub fn new(key: VerificationKey) -> VerificationKeyResponse {
         VerificationKeyResponse { key }
     }
-}
-
-pub fn hash_to_scalar<M>(msg: M) -> Attribute
-where
-    M: AsRef<[u8]>,
-{
-    let mut h = Sha256::new();
-    h.update(msg);
-    let digest = h.finalize();
-
-    let mut bytes = [0u8; 64];
-    let pad_size = 64usize
-        .checked_sub(<Sha256 as Digest>::OutputSize::to_usize())
-        .unwrap_or_default();
-
-    bytes[pad_size..].copy_from_slice(&digest);
-
-    Attribute::from_bytes_wide(&bytes)
 }

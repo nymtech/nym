@@ -27,7 +27,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
-import { ExplorerContext } from '../context/main';
+import { DarkModeContext } from '../context/dark-mode';
 
 const drawerWidth = 300;
 
@@ -207,7 +207,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
 };
 
 export const Nav: React.FC = ({ children }) => {
-  const { toggleMode, mode }: any = React.useContext(ExplorerContext);
+  const { toggleMode, mode }: any = React.useContext(DarkModeContext);
 
   const [open, setOpen] = React.useState(false);
 

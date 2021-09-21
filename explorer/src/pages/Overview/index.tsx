@@ -6,12 +6,15 @@ import {
 } from '@mui/icons-material';
 import { WorldMap } from 'src/components/WorldMap';
 import { useHistory } from 'react-router-dom';
-import { ApiDataContext } from 'src/context/api';
+import { MainContext } from 'src/context/main';
+import { formatNumber } from 'src/utils';
 import { ContentCard } from '../../components/ContentCard';
 
 export const PageOverview: React.FC = () => {
   const history = useHistory();
-  const stats: any = React.useContext(ApiDataContext);
+  const { mixnodes, gateways, validators, block }: any =
+    React.useContext(MainContext);
+
   return (
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>
@@ -22,51 +25,68 @@ export const PageOverview: React.FC = () => {
             </Typography>
           </Grid>
 
-          <Grid item xs={12} md={4} lg={4}>
-            <ContentCard
-              title="Mixnodes"
-              subtitle={JSON.stringify(stats?.mixnodes?.length) || '0'}
-              Icon={<ConnectIcon />}
-              Action={
-                <IconButton>
-                  <ArrowForwardSharp
-                    onClick={() => history.push('/network-components/mixnodes')}
-                  />
-                </IconButton>
-              }
-            />
-          </Grid>
-          <Grid item xs={12} md={4} lg={4}>
-            <ContentCard
-              title="Gateways"
-              subtitle={JSON.stringify(stats?.gateways?.length) || '0'}
-              Icon={<ConnectIcon />}
-              Action={
-                <IconButton>
-                  <ArrowForwardSharp
-                    onClick={() => history.push('/network-components/gateways')}
-                  />
-                </IconButton>
-              }
-            />
-          </Grid>
-          <Grid item xs={12} md={4} lg={4}>
-            <ContentCard
-              title="Validators"
-              subtitle={stats?.validators || '0'}
-              Icon={<ConnectIcon />}
-              Action={
-                <IconButton>
-                  <ArrowForwardSharp
-                    onClick={() => history.push('/network-components/mixnodes')}
-                  />
-                </IconButton>
-              }
-            />
-          </Grid>
+          {mixnodes && (
+            <Grid item xs={12} md={4} lg={4}>
+              <ContentCard
+                title="Mixnodes"
+                subtitle={mixnodes?.data?.length || ''}
+                errorMsg={mixnodes?.error}
+                Icon={<ConnectIcon />}
+                Action={
+                  <IconButton>
+                    <ArrowForwardSharp
+                      onClick={() =>
+                        history.push('/network-components/mixnodes')
+                      }
+                    />
+                  </IconButton>
+                }
+              />
+            </Grid>
+          )}
+          {gateways && (
+            <Grid item xs={12} md={4} lg={4}>
+              <ContentCard
+                title="Gateways"
+                subtitle={gateways?.data?.length || ''}
+                errorMsg={gateways?.error}
+                Icon={<ConnectIcon />}
+                Action={
+                  <IconButton>
+                    <ArrowForwardSharp
+                      onClick={() =>
+                        history.push('/network-components/gateways')
+                      }
+                    />
+                  </IconButton>
+                }
+              />
+            </Grid>
+          )}
+          {validators && (
+            <Grid item xs={12} md={4} lg={4}>
+              <ContentCard
+                title="Validators"
+                subtitle={validators?.data?.length || ''}
+                errorMsg={gateways?.error}
+                Icon={<ConnectIcon />}
+                Action={
+                  <IconButton>
+                    <ArrowForwardSharp
+                      onClick={() =>
+                        history.push('/network-components/validators')
+                      }
+                    />
+                  </IconButton>
+                }
+              />
+            </Grid>
+          )}
 
           <Grid item xs={12}>
-            <ContentCard title="Current block height is 647,059" />
+            <ContentCard
+              title={`Current block height is ${formatNumber(block?.data)}`}
+            />
           </Grid>
 
           <Grid item xs={12}>

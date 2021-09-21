@@ -27,7 +27,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
-import { DarkModeContext } from '../context/dark-mode';
+import { MainContext } from '../context/main';
 
 const drawerWidth = 300;
 
@@ -184,7 +184,12 @@ const ExpandableButton: React.FC<navOptionType> = ({
       </ListItem>
       {open &&
         nested.map((each: navOptionType) => (
-          <ListItem disableGutters component={Link} to={each.url}>
+          <ListItem
+            disableGutters
+            key={each.url}
+            component={Link}
+            to={each.url}
+          >
             <ListItemButton
               sx={{
                 color: (theme) =>
@@ -207,7 +212,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
 };
 
 export const Nav: React.FC = ({ children }) => {
-  const { toggleMode, mode }: any = React.useContext(DarkModeContext);
+  const { toggleMode, mode }: any = React.useContext(MainContext);
 
   const [open, setOpen] = React.useState(false);
 

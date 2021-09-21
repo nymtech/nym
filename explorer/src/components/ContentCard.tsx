@@ -1,4 +1,4 @@
-import { Card, CardHeader, CardContent } from '@mui/material';
+import { Card, CardHeader, CardContent, Typography } from '@mui/material';
 import React from 'react';
 
 export const ContentCard: React.FC<{
@@ -6,7 +6,8 @@ export const ContentCard: React.FC<{
   subtitle?: string;
   Icon?: React.ReactNode;
   Action?: React.ReactNode;
-}> = ({ title, Icon, Action, subtitle, children }) => (
+  errorMsg?: string;
+}> = ({ title, Icon, Action, subtitle, errorMsg, children }) => (
   <Card sx={{ m: 3 }}>
     <CardHeader
       title={title}
@@ -15,5 +16,10 @@ export const ContentCard: React.FC<{
       subheader={subtitle}
     />
     {children && <CardContent>{children}</CardContent>}
+    {errorMsg && (
+      <Typography variant="body2" sx={{ color: 'red' }}>
+        {errorMsg}
+      </Typography>
+    )}
   </Card>
 );

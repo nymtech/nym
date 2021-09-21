@@ -17,7 +17,10 @@ export const ContentCard: React.FC<{
     />
     {children && <CardContent>{children}</CardContent>}
     {errorMsg && (
-      <Typography variant="body2" sx={{ color: 'red' }}>
+      <Typography
+        variant="body2"
+        sx={{ color: 'red', padding: (theme) => theme.spacing(2) }}
+      >
         {errorMsg}
       </Typography>
     )}

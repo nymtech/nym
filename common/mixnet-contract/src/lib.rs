@@ -9,7 +9,7 @@ mod types;
 
 pub use cosmwasm_std::{Addr, Coin};
 pub use delegation::{
-    Delegation, PagedAllMixDelegationsResponse, PagedGatewayDelegationsResponse,
+    Delegation, PagedAllDelegationsResponse, PagedGatewayDelegationsResponse,
     PagedMixDelegationsResponse, PagedReverseGatewayDelegationsResponse,
     PagedReverseMixDelegationsResponse, RawDelegationData,
 };

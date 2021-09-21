@@ -338,6 +338,13 @@ pub fn reverse_mix_delegations_read<'a>(
     ReadonlyBucket::multilevel(storage, &[PREFIX_REVERSE_MIX_DELEGATION, owner.as_bytes()])
 }
 
+pub fn all_gateway_delegations_read<T>(storage: &dyn Storage) -> ReadonlyBucket<T>
+where
+    T: Serialize + DeserializeOwned,
+{
+    bucket_read(storage, PREFIX_GATEWAY_DELEGATION)
+}
+
 pub fn gateway_delegations<'a>(
     storage: &'a mut dyn Storage,
     gateway_identity: IdentityKeyRef,

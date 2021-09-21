@@ -3,8 +3,9 @@
 
 use crate::error::ContractError;
 use crate::storage::all_mix_delegations_read;
-use cosmwasm_std::{Decimal, Deps, Order, StdError, StdResult, Uint128};
-use mixnet_contract::{Addr, IdentityKey, PagedAllMixDelegationsResponse};
+use cosmwasm_std::{Decimal, Order, StdError, StdResult, Uint128};
+use cosmwasm_storage::ReadonlyBucket;
+use mixnet_contract::{Addr, IdentityKey, PagedAllDelegationsResponse};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::ops::Sub;
@@ -103,15 +104,15 @@ fn extract_identity_and_owner(bytes: Vec<u8>) -> StdResult<(Addr, IdentityKey)> 
     Ok((owner, identity))
 }
 
-pub(crate) fn get_all_mixnode_delegations_paged<T>(
-    deps: Deps,
+pub(crate) fn get_all_delegations_paged<T>(
+    bucket: ReadonlyBucket<T>,
     start_after: Option<Vec<u8>>,
     limit: usize,
-) -> StdResult<PagedAllMixDelegationsResponse>
+) -> StdResult<PagedAllDelegationsResponse>
 where
     T: Serialize + DeserializeOwned,
 {
-    let delegations = all_mix_delegations_read::<T>(deps.storage)
+    let delegations = bucket
         .range(start_after.as_deref(), None, Order::Ascending)
         .filter(|res| res.is_ok())
         .take(limit)
@@ -122,14 +123,14 @@ where
         })
         .collect::<StdResult<Vec<(Addr, IdentityKey)>>>()?;
 
-    let start_next_after = all_mix_delegations_read::<T>(deps.storage)
+    let start_next_after = bucket
         .range(start_after.as_deref(), None, Order::Ascending)
         .filter(|res| res.is_ok())
         .take(limit)
         .last()
         .map(|res| res.unwrap().0);
 
-    Ok(PagedAllMixDelegationsResponse::new(
+    Ok(PagedAllDelegationsResponse::new(
         delegations,
         start_next_after,
     ))
@@ -140,7 +141,6 @@ mod tests {
     use super::*;
     use crate::storage::mix_delegations;
     use cosmwasm_std::testing::mock_dependencies;
-    use cosmwasm_std::Pair;
     use mixnet_contract::RawDelegationData;
     use std::str::FromStr;
 
@@ -200,7 +200,7 @@ mod tests {
     }
 
     #[test]
-    fn all_mixnode_delegations() {
+    fn all_delegations() {
         let mut deps = mock_dependencies(&[]);
         let node_identity1: IdentityKey = "foo1".into();
         let delegation_owner1 = Addr::unchecked("bar1");
@@ -212,19 +212,31 @@ mod tests {
             .save(delegation_owner1.as_bytes(), &raw_delegation)
             .unwrap();
 
-        let response =
-            get_all_mixnode_delegations_paged::<RawDelegationData>(deps.as_ref(), None, 10)
-                .unwrap();
+        let bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
+        let response = get_all_delegations_paged::<RawDelegationData>(bucket, None, 10).unwrap();
         assert_eq!(response.delegations.len(), 1);
-        assert_eq!(response.delegations[0], (delegation_owner1, node_identity1));
+        assert_eq!(
+            response.delegations[0],
+            (delegation_owner1.clone(), node_identity1.clone())
+        );
 
         mix_delegations(&mut deps.storage, &node_identity2)
             .save(delegation_owner2.as_bytes(), &raw_delegation)
             .unwrap();
-        let response =
-            get_all_mixnode_delegations_paged::<RawDelegationData>(deps.as_ref(), None, 10)
-                .unwrap();
+
+        let bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
+        let response = get_all_delegations_paged::<RawDelegationData>(bucket, None, 10).unwrap();
         assert_eq!(response.delegations.len(), 2);
-        assert_eq!(response.delegations[1], (delegation_owner2, node_identity2));
+        assert_eq!(
+            response.delegations[1],
+            (delegation_owner2.clone(), node_identity2.clone())
+        );
+
+        mix_delegations(&mut deps.storage, &node_identity1).remove(delegation_owner1.as_bytes());
+
+        let bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
+        let response = get_all_delegations_paged::<RawDelegationData>(bucket, None, 10).unwrap();
+        assert_eq!(response.delegations.len(), 1);
+        assert_eq!(response.delegations[0], (delegation_owner2, node_identity2));
     }
 }

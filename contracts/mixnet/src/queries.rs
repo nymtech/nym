@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
-use crate::helpers::get_all_mixnode_delegations_paged;
+use crate::helpers::get_all_delegations_paged;
 use crate::storage::{
-    gateway_delegations_read, gateways_owners_read, gateways_read, mix_delegations_read,
-    mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params,
-    reverse_gateway_delegations_read, reverse_mix_delegations_read,
+    all_gateway_delegations_read, all_mix_delegations_read, gateway_delegations_read,
+    gateways_owners_read, gateways_read, mix_delegations_read, mixnodes_owners_read, mixnodes_read,
+    read_layer_distribution, read_state_params, reverse_gateway_delegations_read,
+    reverse_mix_delegations_read,
 };
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
 use mixnet_contract::{
     Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
-    MixOwnershipResponse, PagedAllMixDelegationsResponse, PagedGatewayDelegationsResponse,
+    MixOwnershipResponse, PagedAllDelegationsResponse, PagedGatewayDelegationsResponse,
     PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
     PagedReverseGatewayDelegationsResponse, PagedReverseMixDelegationsResponse, RawDelegationData,
     StateParams,
@@ -147,12 +148,13 @@ pub(crate) fn query_all_mixnode_delegations_paged(
     deps: Deps,
     start_after: Option<Vec<u8>>,
     limit: Option<u32>,
-) -> StdResult<PagedAllMixDelegationsResponse> {
+) -> StdResult<PagedAllDelegationsResponse> {
     let limit = limit
         .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
 
-    get_all_mixnode_delegations_paged::<RawDelegationData>(deps, start_after, limit)
+    let bucket = all_mix_delegations_read::<RawDelegationData>(deps.storage);
+    get_all_delegations_paged::<RawDelegationData>(bucket, start_after, limit)
 }
 
 pub(crate) fn query_reverse_mixnode_delegations_paged(
@@ -239,6 +241,19 @@ pub(crate) fn query_gateway_delegations_paged(
         delegations,
         start_next_after,
     ))
+}
+
+pub(crate) fn query_all_gateway_delegations_paged(
+    deps: Deps,
+    start_after: Option<Vec<u8>>,
+    limit: Option<u32>,
+) -> StdResult<PagedAllDelegationsResponse> {
+    let limit = limit
+        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
+        .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
+
+    let bucket = all_gateway_delegations_read::<RawDelegationData>(deps.storage);
+    get_all_delegations_paged::<RawDelegationData>(bucket, start_after, limit)
 }
 
 pub(crate) fn query_reverse_gateway_delegations_paged(

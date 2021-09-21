@@ -4,21 +4,25 @@
 pub(crate) mod error;
 pub(crate) mod inboxes;
 mod ledger;
-mod manager;
 mod models;
 mod shared_keys;
 
 use crate::node::storage::error::StorageError;
-use crate::node::storage::manager::StorageManager;
+use crate::node::storage::inboxes::InboxManager;
+use crate::node::storage::models::{PersistedSharedKeys, StoredMessage};
+use crate::node::storage::shared_keys::SharedKeysManager;
+use gateway_requests::registration::handshake::SharedKeys;
 pub(crate) use ledger::ClientLedger;
 use log::{debug, error};
+use nymsphinx::DestinationAddressBytes;
 use sqlx::ConnectOptions;
 use std::path::Path;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
 pub(crate) struct GatewayStorage {
-    manager: StorageManager,
+    shared_key_manager: SharedKeysManager,
+    inbox_manager: InboxManager,
 }
 
 impl GatewayStorage {
@@ -27,7 +31,11 @@ impl GatewayStorage {
     /// # Arguments
     ///
     /// * `database_path`: path to the database.
-    pub(crate) async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
+    /// * `message_retrieval_limit`: maximum number of stored client messages that can be retrieved at once.
+    pub(crate) async fn init<P: AsRef<Path>>(
+        database_path: P,
+        message_retrieval_limit: i64,
+    ) -> Result<Self, StorageError> {
         debug!(
             "Attempting to connect to database {:?}",
             database_path.as_ref().as_os_str()
@@ -56,8 +64,113 @@ impl GatewayStorage {
             return Err(err.into());
         }
 
+        // the cloning here are cheap as connection pool is stored behind an Arc
         Ok(GatewayStorage {
-            manager: StorageManager { connection_pool },
+            shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
+            inbox_manager: InboxManager::new(connection_pool, message_retrieval_limit),
         })
+    }
+
+    /// Inserts provided derived shared keys into the database.
+    /// If keys previously existed for the provided client, they are overwritten with the new data.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    /// * `shared_keys`: shared encryption (AES128CTR) and mac (hmac-blake3) derived shared keys to store.
+    pub(crate) async fn insert_shared_keys(
+        &self,
+        client_address: DestinationAddressBytes,
+        shared_keys: SharedKeys,
+    ) -> Result<(), StorageError> {
+        let persisted_shared_keys = PersistedSharedKeys {
+            client_address_bs58: client_address.as_base58_string(),
+            derived_aes128_ctr_blake3_hmac_keys_bs58: shared_keys.to_base58_string(),
+        };
+        self.shared_key_manager
+            .insert_shared_keys(persisted_shared_keys)
+            .await?;
+        Ok(())
+    }
+
+    /// Tries to retrieve shared keys stored for the particular client.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    pub(crate) async fn get_shared_keys(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<Option<PersistedSharedKeys>, StorageError> {
+        let keys = self
+            .shared_key_manager
+            .get_shared_keys(&client_address.as_base58_string())
+            .await?;
+        Ok(keys)
+    }
+
+    /// Removes from the database shared keys derived with the particular client.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    pub(crate) async fn remove_shared_keys(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), sqlx::Error> {
+        self.shared_key_manager
+            .remove_shared_keys(&client_address.as_base58_string())
+            .await?;
+        Ok(())
+    }
+
+    /// Inserts new message to the storage for an offline client for future retrieval.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    /// * `message`: raw message to store.
+    pub(crate) async fn store_message(
+        &self,
+        client_address: DestinationAddressBytes,
+        message: Vec<u8>,
+    ) -> Result<(), StorageError> {
+        self.inbox_manager
+            .insert_message(&client_address.as_base58_string(), message)
+            .await?;
+        Ok(())
+    }
+
+    /// Retrieves messages stored for the particular client specified by the provided address.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address_bs58`: base58-encoded address of the client
+    /// * `start_after`: optional starting id of the messages to grab
+    ///
+    /// returns the retrieved messages alongside optional id of the last message retrieved if
+    /// there are more messages to retrieve.
+    pub(crate) async fn retrieve_messages(
+        &self,
+        client_address: DestinationAddressBytes,
+        start_after: Option<i64>,
+    ) -> Result<(Vec<StoredMessage>, Option<i64>), StorageError> {
+        let messages = self
+            .inbox_manager
+            .get_messages(&client_address.as_base58_string(), start_after)
+            .await?;
+        Ok(messages)
+    }
+
+    /// Removes messages with the specified ids
+    ///
+    /// # Arguments
+    ///
+    /// * `ids`: ids of the messages to remove
+    pub(crate) async fn remove_messages(&self, ids: Vec<i64>) -> Result<(), StorageError> {
+        for id in ids {
+            self.inbox_manager.remove_message(id).await?;
+        }
+        Ok(())
     }
 }

@@ -3,7 +3,7 @@ import { scaleLinear } from 'd3-scale';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
 import { Box } from '@mui/material';
-import { DarkModeContext } from '../context/dark-mode';
+import { MainContext } from '../context/main';
 import { countriesData } from '../data/countriesData';
 import { ContentCard } from './ContentCard';
 
@@ -13,7 +13,7 @@ const geoUrl =
 export const WorldMap: React.FC = () => {
   const [tooltipContent, setTooltipContent] = React.useState<string>('');
   const [data, setData] = React.useState<Record<string, unknown>[]>([]);
-  const { mode }: any = React.useContext(DarkModeContext);
+  const { mode }: any = React.useContext(MainContext);
   React.useEffect(() => {
     setData(countriesData);
   }, []);

@@ -15,6 +15,9 @@ const HOURS_IN_YEAR: u128 = 8760;
 
 const DECIMAL_FRACTIONAL: Uint128 = Uint128(1_000_000_000_000_000_000u128);
 
+// cosmwasm bucket internal value
+const NAMESPACE_LENGTH: usize = 2;
+
 fn decimal_to_uint128(value: Decimal) -> Uint128 {
     value * DECIMAL_FRACTIONAL
 }
@@ -72,8 +75,6 @@ pub(crate) fn scale_reward_by_uptime(
 // Extracts the node identity and owner of a delegation from the bytes used as
 // key in the delegation buckets.
 fn extract_identity_and_owner(bytes: Vec<u8>) -> StdResult<(Addr, IdentityKey)> {
-    const NAMESPACE_LENGTH: usize = 2;
-
     if bytes.len() < NAMESPACE_LENGTH {
         return Err(StdError::parse_err(
             "mixnet_contract::types::IdentityKey",
@@ -137,6 +138,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::mix_delegations;
+    use cosmwasm_std::testing::mock_dependencies;
+    use cosmwasm_std::Pair;
+    use mixnet_contract::RawDelegationData;
     use std::str::FromStr;
 
     #[test]
@@ -192,5 +197,34 @@ mod tests {
 
         // anything larger than 100 returns an error
         assert!(scale_reward_by_uptime(epoch_reward, 101).is_err())
+    }
+
+    #[test]
+    fn all_mixnode_delegations() {
+        let mut deps = mock_dependencies(&[]);
+        let node_identity1: IdentityKey = "foo1".into();
+        let delegation_owner1 = Addr::unchecked("bar1");
+        let node_identity2: IdentityKey = "foo2".into();
+        let delegation_owner2 = Addr::unchecked("bar2");
+        let raw_delegation = RawDelegationData::new(1000u128.into(), 42);
+
+        mix_delegations(&mut deps.storage, &node_identity1)
+            .save(delegation_owner1.as_bytes(), &raw_delegation)
+            .unwrap();
+
+        let response =
+            get_all_mixnode_delegations_paged::<RawDelegationData>(deps.as_ref(), None, 10)
+                .unwrap();
+        assert_eq!(response.delegations.len(), 1);
+        assert_eq!(response.delegations[0], (delegation_owner1, node_identity1));
+
+        mix_delegations(&mut deps.storage, &node_identity2)
+            .save(delegation_owner2.as_bytes(), &raw_delegation)
+            .unwrap();
+        let response =
+            get_all_mixnode_delegations_paged::<RawDelegationData>(deps.as_ref(), None, 10)
+                .unwrap();
+        assert_eq!(response.delegations.len(), 2);
+        assert_eq!(response.delegations[1], (delegation_owner2, node_identity2));
     }
 }

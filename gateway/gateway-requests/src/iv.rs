@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crypto::generic_array::{typenum::Unsigned, GenericArray};
-use crypto::symmetric::stream_cipher::{random_iv, NewCipher, IV};
+use crypto::symmetric::stream_cipher::{random_iv, NewCipher, IV as CryptoIV};
 use nymsphinx::params::GatewayEncryptionAlgorithm;
 use rand::{CryptoRng, RngCore};
 
@@ -10,7 +10,7 @@ type NonceSize = <GatewayEncryptionAlgorithm as NewCipher>::NonceSize;
 
 // I think 'IV' looks better than 'Iv', feel free to change that.
 #[allow(clippy::upper_case_acronyms)]
-pub struct AuthenticationIV(IV<GatewayEncryptionAlgorithm>);
+pub struct IV(CryptoIV<GatewayEncryptionAlgorithm>);
 
 #[derive(Debug)]
 // I think 'IV' looks better than 'Iv', feel free to change that.
@@ -21,9 +21,9 @@ pub enum IVConversionError {
     StringOfInvalidLengthError,
 }
 
-impl AuthenticationIV {
+impl IV {
     pub fn new_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        AuthenticationIV(random_iv::<GatewayEncryptionAlgorithm, _>(rng))
+        IV(random_iv::<GatewayEncryptionAlgorithm, _>(rng))
     }
 
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, IVConversionError> {
@@ -31,7 +31,7 @@ impl AuthenticationIV {
             return Err(IVConversionError::BytesOfInvalidLengthError);
         }
 
-        Ok(AuthenticationIV(GenericArray::clone_from_slice(bytes)))
+        Ok(IV(GenericArray::clone_from_slice(bytes)))
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -42,7 +42,7 @@ impl AuthenticationIV {
         self.0.as_ref()
     }
 
-    pub fn inner(&self) -> &IV<GatewayEncryptionAlgorithm> {
+    pub fn inner(&self) -> &CryptoIV<GatewayEncryptionAlgorithm> {
         &self.0
     }
 
@@ -56,8 +56,8 @@ impl AuthenticationIV {
             return Err(IVConversionError::StringOfInvalidLengthError);
         }
 
-        Ok(AuthenticationIV(
-            GenericArray::from_exact_iter(decoded).expect("Invalid vector length!"),
+        Ok(IV(
+            GenericArray::from_exact_iter(decoded).expect("Invalid vector length!")
         ))
     }
 
@@ -66,8 +66,8 @@ impl AuthenticationIV {
     }
 }
 
-impl From<AuthenticationIV> for String {
-    fn from(iv: AuthenticationIV) -> Self {
+impl From<IV> for String {
+    fn from(iv: IV) -> Self {
         iv.to_base58_string()
     }
 }

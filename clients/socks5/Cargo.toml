@@ -20,10 +20,12 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0", features = ["derive"] } # for config serialization/deserialization
 snafu = "0.6"
 tokio = { version = "1.4", features = ["rt-multi-thread", "net", "signal"] }
+url = "2.2"
 
 # internal
 client-core = { path = "../client-core" }
 coconut-interface = { path = "../../common/coconut-interface" }
+credentials = { path = "../../common/credentials" }
 config = { path = "../../common/config" }
 crypto = { path = "../../common/crypto" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }

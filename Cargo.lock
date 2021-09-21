@@ -85,12 +85,14 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "coconut-interface",
- "gateway-client",
+ "credentials",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tokio",
+ "url",
+ "validator-client",
 ]
 
 [[package]]
@@ -415,6 +417,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54757888b09a69be70b5ec303e382a74227392086ba808cb01eeca29233a2397"
 dependencies = [
+ "digest 0.9.0",
  "ff",
  "group",
  "pairing",
@@ -623,6 +626,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "topology",
+ "url",
  "validator-client",
 ]
 
@@ -671,20 +675,14 @@ name = "coconut-interface"
 version = "0.1.0"
 dependencies = [
  "coconut-rs",
- "crypto",
- "digest 0.9.0",
  "getset",
  "serde",
- "sha2",
- "thiserror",
- "url",
- "validator-client",
 ]
 
 [[package]]
 name = "coconut-rs"
-version = "0.4.0"
-source = "git+https://github.com/nymtech/coconut.git?branch=0.4.0#183cff805aa73a908b681ac3fcdff7d084c4f42b"
+version = "0.5.0"
+source = "git+https://github.com/nymtech/coconut.git?branch=0.5.0#a1b72d51aa2a67b73b9f58d707030ae6dc70af7f"
 dependencies = [
  "bls12_381",
  "bs58",
@@ -697,8 +695,6 @@ dependencies = [
  "serde",
  "serde_derive",
  "sha2",
- "sha3",
- "subtle 2.4.1",
  "thiserror",
 ]
 
@@ -750,8 +746,10 @@ version = "0.1.0"
 dependencies = [
  "handlebars",
  "humantime-serde",
+ "network-defaults",
  "serde",
  "toml",
+ "url",
 ]
 
 [[package]]
@@ -775,26 +773,6 @@ name = "const_fn"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f92cfa0fd5690b3cf8c1ef2cabbd9b7ef22fa53cf5e1f92b05103f6d5d1cf6e7"
-
-[[package]]
-name = "const_format"
-version = "0.2.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49aad96768495418a04c9349327f32f2cd7e9bf8ac6b142534466048721c8ff5"
-dependencies = [
- "const_format_proc_macros",
-]
-
-[[package]]
-name = "const_format_proc_macros"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29c36c619c422113552db4eb28cddba8faa757e33f758cc3415bd2885977b591"
-dependencies = [
- "proc-macro2",
- "quote",
- "unicode-xid",
-]
 
 [[package]]
 name = "constant_time_eq"
@@ -903,8 +881,9 @@ dependencies = [
 
 [[package]]
 name = "cosmos-sdk-proto"
-version = "0.6.0"
-source = "git+https://github.com/cosmos/cosmos-rust/#2fb812dd202ade0ab9466126e409e0dade56ae4a"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7115eae4b8518967b8e737a3ef76025f2d007de7906d88c18f00b8bbfc70f51e"
 dependencies = [
  "prost",
  "prost-types",
@@ -912,9 +891,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "cosmos_sdk"
-version = "0.2.0"
-source = "git+https://github.com/cosmos/cosmos-rust/#2fb812dd202ade0ab9466126e409e0dade56ae4a"
+name = "cosmrs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "609eba7eee6d9929927cbdf15f9fe96d250c316c5e1b983c4a47a10f60da5ea7"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto",
@@ -991,6 +971,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81156fece84ab6a9f2afdb109ce3ae577e42b1228441eded99bd77f627953b1a"
 dependencies = [
  "cfg-if 1.0.0",
+]
+
+[[package]]
+name = "credentials"
+version = "0.1.0"
+dependencies = [
+ "coconut-interface",
+ "thiserror",
+ "url",
+ "validator-client",
 ]
 
 [[package]]
@@ -1556,6 +1546,7 @@ dependencies = [
  "isocountry",
  "log",
  "mixnet-contract",
+ "network-defaults",
  "okapi",
  "pretty_env_logger",
  "reqwest",
@@ -1842,6 +1833,7 @@ dependencies = [
  "bincode",
  "bs58",
  "coconut-interface",
+ "credentials",
  "crypto",
  "futures",
  "log",
@@ -2919,6 +2911,7 @@ dependencies = [
  "serde",
  "tokio",
  "tokio-util",
+ "url",
  "validator-client",
  "version-checker",
 ]
@@ -3005,6 +2998,13 @@ name = "ndk-sys"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c44922cb3dbb1c70b5e5f443d63b64363a898564d739ba5198e3a9138442868d"
+
+[[package]]
+name = "network-defaults"
+version = "0.1.0"
+dependencies = [
+ "url",
+]
 
 [[package]]
 name = "new_debug_unreachable"
@@ -3131,6 +3131,7 @@ dependencies = [
  "client-core",
  "coconut-interface",
  "config",
+ "credentials",
  "crypto",
  "dirs",
  "dotenv",
@@ -3160,6 +3161,7 @@ version = "0.11.0"
 dependencies = [
  "coconut-interface",
  "console_error_panic_hook",
+ "credentials",
  "crypto",
  "futures",
  "gateway-client",
@@ -3168,6 +3170,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "topology",
+ "url",
  "validator-client",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -3183,6 +3186,7 @@ dependencies = [
  "clap",
  "coconut-interface",
  "config",
+ "credentials",
  "crypto",
  "dashmap",
  "dirs",
@@ -3203,6 +3207,7 @@ dependencies = [
  "tokio-stream",
  "tokio-tungstenite",
  "tokio-util",
+ "url",
  "validator-client",
  "version-checker",
 ]
@@ -3235,6 +3240,7 @@ dependencies = [
  "tokio-util",
  "toml",
  "topology",
+ "url",
  "validator-client",
  "version-checker",
 ]
@@ -3268,6 +3274,7 @@ dependencies = [
  "client-core",
  "coconut-interface",
  "config",
+ "credentials",
  "crypto",
  "dirs",
  "dotenv",
@@ -3287,6 +3294,7 @@ dependencies = [
  "socks5-requests",
  "tokio",
  "topology",
+ "url",
  "validator-client",
  "version-checker",
 ]
@@ -3298,9 +3306,8 @@ dependencies = [
  "anyhow",
  "clap",
  "coconut-interface",
- "coconut-rs",
  "config",
- "const_format",
+ "credentials",
  "crypto",
  "dirs",
  "dotenv",
@@ -3323,6 +3330,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "topology",
+ "url",
  "validator-client",
  "version-checker",
 ]
@@ -6252,23 +6260,21 @@ dependencies = [
  "async-trait",
  "base64",
  "bip39",
+ "coconut-interface",
  "config",
- "cosmos_sdk",
+ "cosmrs",
  "cosmwasm-std",
  "flate2",
- "fluvio-wasm-timer",
- "getrandom 0.2.3",
  "itertools 0.10.1",
  "log",
  "mixnet-contract",
+ "network-defaults",
  "prost",
- "rand 0.8.4",
  "reqwest",
  "serde",
  "serde_json",
  "sha2",
  "thiserror",
- "tokio",
  "url",
 ]
 

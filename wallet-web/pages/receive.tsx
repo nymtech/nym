@@ -1,14 +1,9 @@
 import { useMediaQuery } from '@material-ui/core'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  Grid,
-  Typography,
-} from '@material-ui/core'
+import { Card, CardContent, Grid, Typography } from '@material-ui/core'
 import React from 'react'
 import { useContext } from 'react'
 import { Layout, NymCard } from '../components'
+import { CopyToClipboard } from '../components/CopyToClipboard'
 import MainNav from '../components/MainNav'
 import NoClientError from '../components/NoClientError'
 import { ValidatorClientContext } from '../contexts/ValidatorClient'
@@ -34,12 +29,22 @@ const Receive = () => {
               <Grid item>
                 <Card>
                   <CardContent>
-                    <Typography
-                      variant={matches ? 'h5' : 'subtitle1'}
-                      style={{ wordBreak: 'break-word' }}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                      }}
                     >
-                      {client?.address}
-                    </Typography>
+                      <Typography
+                        variant={matches ? 'h5' : 'subtitle1'}
+                        style={{ wordBreak: 'break-word' }}
+                      >
+                        {client?.address}
+                      </Typography>
+
+                      <CopyToClipboard text={client?.address} />
+                    </div>
                   </CardContent>
                 </Card>
               </Grid>

@@ -56,12 +56,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         )
-        .arg(
-            Arg::with_name(CONTRACT_ARG_NAME)
-                .long(CONTRACT_ARG_NAME)
-                .help("Address of the validator contract managing the network")
-                .takes_value(true),
-        )
 }
 
 fn show_bonding_info(config: &Config) {

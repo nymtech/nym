@@ -75,6 +75,11 @@ pub enum QueryMsg {
         start_after: Option<Addr>,
         limit: Option<u32>,
     },
+    GetReverseMixDelegations {
+        delegation_owner: Addr,
+        start_after: Option<IdentityKey>,
+        limit: Option<u32>,
+    },
     GetMixDelegation {
         mix_identity: IdentityKey,
         address: Addr,
@@ -82,6 +87,11 @@ pub enum QueryMsg {
     GetGatewayDelegations {
         gateway_identity: IdentityKey,
         start_after: Option<Addr>,
+        limit: Option<u32>,
+    },
+    GetReverseGatewayDelegations {
+        delegation_owner: Addr,
+        start_after: Option<IdentityKey>,
         limit: Option<u32>,
     },
     GetGatewayDelegation {

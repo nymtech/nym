@@ -1,11 +1,12 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::{GatewayMacSize, GatewayRequestsError};
 use crypto::generic_array::{
     typenum::{Sum, Unsigned, U16},
     GenericArray,
 };
-use crypto::hmac::compute_keyed_hmac;
+use crypto::hmac::{compute_keyed_hmac, recompute_keyed_hmac_and_verify_tag};
 use crypto::symmetric::stream_cipher::{self, CipherKey, NewCipher, IV};
 use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
 use pemstore::traits::PemStorableKey;
@@ -100,6 +101,41 @@ impl SharedKeys {
             .into_iter()
             .chain(encrypted_data.into_iter())
             .collect()
+    }
+
+    pub fn decrypt_tagged(
+        &self,
+        enc_data: &[u8],
+        iv: Option<&IV<GatewayEncryptionAlgorithm>>,
+    ) -> Result<Vec<u8>, GatewayRequestsError> {
+        let mac_size = GatewayMacSize::to_usize();
+        if enc_data.len() < mac_size {
+            return Err(GatewayRequestsError::TooShortRequest);
+        }
+
+        let mac_tag = &enc_data[..mac_size];
+        let message_bytes = &enc_data[mac_size..];
+
+        if !recompute_keyed_hmac_and_verify_tag::<GatewayIntegrityHmacAlgorithm>(
+            self.mac_key(),
+            message_bytes,
+            mac_tag,
+        ) {
+            return Err(GatewayRequestsError::InvalidMac);
+        }
+
+        // couldn't have made the first borrow mutable as you can't have an immutable borrow
+        // together with a mutable one
+        let mut message_bytes_mut = &mut enc_data.to_vec()[mac_size..];
+
+        let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
+        let iv = iv.unwrap_or(&zero_iv);
+        stream_cipher::decrypt_in_place::<GatewayEncryptionAlgorithm>(
+            self.encryption_key(),
+            iv,
+            &mut message_bytes_mut,
+        );
+        Ok(message_bytes_mut.to_vec())
     }
 
     pub fn encryption_key(&self) -> &CipherKey<GatewayEncryptionAlgorithm> {

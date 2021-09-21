@@ -61,8 +61,8 @@ impl KeyManager {
     // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
     #[allow(dead_code)]
     /// After shared key with the gateway is derived, puts its ownership to this instance of a [`KeyManager`].
-    pub fn insert_gateway_shared_key(&mut self, gateway_shared_key: SharedKeys) {
-        self.gateway_shared_key = Some(Arc::new(gateway_shared_key))
+    pub fn insert_gateway_shared_key(&mut self, gateway_shared_key: Arc<SharedKeys>) {
+        self.gateway_shared_key = Some(gateway_shared_key)
     }
 
     /// Loads previously stored keys from the disk.

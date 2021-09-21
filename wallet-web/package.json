@@ -15,10 +15,10 @@
     "@material-ui/core": "^4.11.3",
     "@material-ui/icons": "^4.11.2",
     "@material-ui/lab": "^4.0.0-alpha.57",
-    "@nymproject/nym-validator-client": "0.16.0",
+    "@nymproject/nym-validator-client": "0.17.0",
     "@types/react-dom": "^17.0.3",
     "bs58": "^4.0.1",
-    "next": "11.1.0",
+    "next": "11.1.1",
     "react": "17.0.2",
     "react-dom": "17.0.2",
     "semver": "^7.3.5"

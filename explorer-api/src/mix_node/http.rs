@@ -6,11 +6,11 @@ use serde::Serialize;
 use mixnet_contract::{Addr, Coin, Layer, MixNode};
 
 use crate::mix_node::models::{NodeDescription, NodeStats};
-use crate::mix_nodes::Location;
+use crate::mix_nodes::{get_mixnode_delegations, Location};
 use crate::state::ExplorerApiStateContext;
 
 pub fn mix_node_make_default_routes() -> Vec<Route> {
-    routes_with_openapi![get_description, get_stats, list]
+    routes_with_openapi![get_delegations, get_description, get_stats, list]
 }
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
@@ -49,6 +49,12 @@ pub(crate) async fn list(
             })
             .collect::<Vec<PrettyMixNodeBondWithLocation>>(),
     )
+}
+
+#[openapi(tag = "mix_node")]
+#[get("/<pubkey>/delegations")]
+pub(crate) async fn get_delegations(pubkey: &str) -> Json<Vec<mixnet_contract::Delegation>> {
+    Json(get_mixnode_delegations(pubkey).await)
 }
 
 #[openapi(tag = "mix_node")]

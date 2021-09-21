@@ -6,7 +6,7 @@ use crate::node_status_api::models::{
     GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
     NodeStatusApiError, Uptime,
 };
-use crate::node_status_api::ONE_DAY;
+use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::NodeStatus;
 use rocket::fairing::{self, AdHoc};
@@ -67,46 +67,58 @@ impl NodeStatusStorage {
         })
     }
 
-    /// Gets all statuses for particular mixnode (ipv4 and ipv6) that were inserted in last 24h.
-    async fn get_mixnode_daily_statuses(
+    /// Gets all statuses for particular mixnode (ipv4 and ipv6) that were inserted
+    /// since the provided timestamp.
+    ///
+    /// Returns tuple containing vectors of ipv4 statuses and ipv6 statuses.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity key of the mixnode to query.
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    async fn get_mixnode_statuses(
         &self,
         identity: &str,
+        since: UnixTimestamp,
     ) -> Result<(Vec<NodeStatus>, Vec<NodeStatus>), NodeStatusApiError> {
-        let now = OffsetDateTime::now_utc();
-        let day_ago = now - ONE_DAY;
-
         let ipv4_statuses = self
             .manager
-            .get_mixnode_ipv4_statuses_since(identity, day_ago.unix_timestamp())
+            .get_mixnode_ipv4_statuses_since(identity, since)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
 
         let ipv6_statuses = self
             .manager
-            .get_mixnode_ipv6_statuses_since(identity, day_ago.unix_timestamp())
+            .get_mixnode_ipv6_statuses_since(identity, since)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
 
         Ok((ipv4_statuses, ipv6_statuses))
     }
 
-    /// Gets all statuses for particular gateway (ipv4 and ipv6) that were inserted in last 24h.
-    async fn get_gateway_daily_statuses(
+    /// Gets all statuses for particular gateway (ipv4 and ipv6) that were inserted
+    /// since the provided timestamp.
+    ///
+    /// Returns tuple containing vectors of ipv4 statuses and ipv6 statuses.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity key of the gateway to query.
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    async fn get_gateway_statuses(
         &self,
         identity: &str,
+        since: UnixTimestamp,
     ) -> Result<(Vec<NodeStatus>, Vec<NodeStatus>), NodeStatusApiError> {
-        let now = OffsetDateTime::now_utc();
-        let day_ago = now - ONE_DAY;
-
         let ipv4_statuses = self
             .manager
-            .get_gateway_ipv4_statuses_since(identity, day_ago.unix_timestamp())
+            .get_gateway_ipv4_statuses_since(identity, since)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
 
         let ipv6_statuses = self
             .manager
-            .get_gateway_ipv6_statuses_since(identity, day_ago.unix_timestamp())
+            .get_gateway_ipv6_statuses_since(identity, since)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
 
@@ -118,7 +130,11 @@ impl NodeStatusStorage {
         &self,
         identity: &str,
     ) -> Result<MixnodeStatusReport, NodeStatusApiError> {
-        let (ipv4_statuses, ipv6_statuses) = self.get_mixnode_daily_statuses(identity).await?;
+        let now = OffsetDateTime::now_utc();
+        let day_ago = (now - ONE_DAY).unix_timestamp();
+        let hour_ago = (now - ONE_HOUR).unix_timestamp();
+
+        let (ipv4_statuses, ipv6_statuses) = self.get_mixnode_statuses(identity, day_ago).await?;
 
         // if we have no statuses, the node doesn't exist (or monitor is down), but either way, we can't make a report
         if ipv4_statuses.is_empty() {
@@ -126,6 +142,14 @@ impl NodeStatusStorage {
                 identity.to_owned(),
             ));
         }
+
+        // determine the number of runs the mixnode should have been online for
+        let last_hour_runs_count = self
+            .get_monitor_runs_count(hour_ago, now.unix_timestamp())
+            .await?;
+        let last_day_runs_count = self
+            .get_monitor_runs_count(day_ago, now.unix_timestamp())
+            .await?;
 
         // now, technically this is not a critical error, but this should have NEVER happened in the first place
         // so something super weird is going on
@@ -145,10 +169,13 @@ impl NodeStatusStorage {
             .expect("The node doesn't have an owner even though we have status information on it!");
 
         Ok(MixnodeStatusReport::construct_from_last_day_reports(
+            now,
             identity.to_owned(),
             mixnode_owner,
             ipv4_statuses,
             ipv6_statuses,
+            last_hour_runs_count,
+            last_day_runs_count,
         ))
     }
 
@@ -156,7 +183,11 @@ impl NodeStatusStorage {
         &self,
         identity: &str,
     ) -> Result<GatewayStatusReport, NodeStatusApiError> {
-        let (ipv4_statuses, ipv6_statuses) = self.get_gateway_daily_statuses(identity).await?;
+        let now = OffsetDateTime::now_utc();
+        let day_ago = (now - ONE_DAY).unix_timestamp();
+        let hour_ago = (now - ONE_HOUR).unix_timestamp();
+
+        let (ipv4_statuses, ipv6_statuses) = self.get_gateway_statuses(identity, day_ago).await?;
 
         // if we have no statuses, the node doesn't exist (or monitor is down), but either way, we can't make a report
         if ipv4_statuses.is_empty() {
@@ -164,6 +195,14 @@ impl NodeStatusStorage {
                 identity.to_owned(),
             ));
         }
+
+        // determine the number of runs the gateway should have been online for
+        let last_hour_runs_count = self
+            .get_monitor_runs_count(hour_ago, now.unix_timestamp())
+            .await?;
+        let last_day_runs_count = self
+            .get_monitor_runs_count(day_ago, now.unix_timestamp())
+            .await?;
 
         // now, technically this is not a critical error, but this should have NEVER happened in the first place
         // so something super weird is going on
@@ -185,10 +224,13 @@ impl NodeStatusStorage {
             );
 
         Ok(GatewayStatusReport::construct_from_last_day_reports(
+            now,
             identity.to_owned(),
             gateway_owner,
             ipv4_statuses,
             ipv6_statuses,
+            last_hour_runs_count,
+            last_day_runs_count,
         ))
     }
 
@@ -257,18 +299,33 @@ impl NodeStatusStorage {
     pub(crate) async fn get_all_mixnode_reports(
         &self,
     ) -> Result<Vec<MixnodeStatusReport>, NodeStatusApiError> {
+        let now = OffsetDateTime::now_utc();
+        let day_ago = (now - ONE_DAY).unix_timestamp();
+        let hour_ago = (now - ONE_HOUR).unix_timestamp();
+
+        // determine the number of runs the mixnodes should have been online for
+        let last_hour_runs_count = self
+            .get_monitor_runs_count(hour_ago, now.unix_timestamp())
+            .await?;
+        let last_day_runs_count = self
+            .get_monitor_runs_count(day_ago, now.unix_timestamp())
+            .await?;
+
         let reports = self
             .manager
-            .get_all_active_mixnodes_statuses()
+            .get_all_active_mixnodes_statuses(day_ago)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
             .into_iter()
             .map(|statuses| {
                 MixnodeStatusReport::construct_from_last_day_reports(
+                    now,
                     statuses.identity,
                     statuses.owner,
                     statuses.ipv4_statuses,
                     statuses.ipv6_statuses,
+                    last_hour_runs_count,
+                    last_day_runs_count,
                 )
             })
             .collect();
@@ -281,18 +338,33 @@ impl NodeStatusStorage {
     pub(crate) async fn get_all_gateway_reports(
         &self,
     ) -> Result<Vec<GatewayStatusReport>, NodeStatusApiError> {
+        let now = OffsetDateTime::now_utc();
+        let day_ago = (now - ONE_DAY).unix_timestamp();
+        let hour_ago = (now - ONE_HOUR).unix_timestamp();
+
+        // determine the number of runs the gateways should have been online for
+        let last_hour_runs_count = self
+            .get_monitor_runs_count(hour_ago, now.unix_timestamp())
+            .await?;
+        let last_day_runs_count = self
+            .get_monitor_runs_count(day_ago, now.unix_timestamp())
+            .await?;
+
         let reports = self
             .manager
-            .get_all_active_gateways_statuses()
+            .get_all_active_gateways_statuses(day_ago)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
             .into_iter()
             .map(|statuses| {
                 GatewayStatusReport::construct_from_last_day_reports(
+                    now,
                     statuses.identity,
                     statuses.owner,
                     statuses.ipv4_statuses,
                     statuses.ipv6_statuses,
+                    last_hour_runs_count,
+                    last_day_runs_count,
                 )
             })
             .collect();
@@ -321,15 +393,53 @@ impl NodeStatusStorage {
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)
     }
 
+    /// Inserts an entry to the database with the network monitor test run information
+    /// that has occurred at this instant.
+    pub(crate) async fn insert_monitor_run(&self) -> Result<(), NodeStatusApiError> {
+        let now = OffsetDateTime::now_utc().unix_timestamp();
+
+        self.manager
+            .insert_monitor_run(now)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    }
+
+    /// Obtains number of network monitor test runs that have occurred within the specified interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `until`: unix timestamp indicating the upper bound interval of the selection.
+    pub(crate) async fn get_monitor_runs_count(
+        &self,
+        since: UnixTimestamp,
+        until: UnixTimestamp,
+    ) -> Result<usize, NodeStatusApiError> {
+        let run_count = self
+            .manager
+            .get_monitor_runs_count(since, until)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
+
+        if run_count < 0 {
+            // I don't think it's ever possible for SQL to return a negative value from COUNT?
+            return Err(NodeStatusApiError::InternalDatabaseError);
+        }
+        Ok(run_count as usize)
+    }
+
     // Called on timer/reward script
     async fn update_historical_uptimes(
         &self,
         today_iso_8601: &str,
     ) -> Result<(), NodeStatusApiError> {
+        let now = OffsetDateTime::now_utc();
+        let day_ago = (now - ONE_DAY).unix_timestamp();
+
         // get statuses for all active mixnodes...
         let active_mixnodes_statuses = self
             .manager
-            .get_all_active_mixnodes_statuses()
+            .get_all_active_mixnodes_statuses(day_ago)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
 
@@ -368,7 +478,7 @@ impl NodeStatusStorage {
         // get statuses for all active gateways...
         let active_gateways_statuses = self
             .manager
-            .get_all_active_gateways_statuses()
+            .get_all_active_gateways_statuses(day_ago)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
 

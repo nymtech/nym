@@ -19,15 +19,12 @@ version = '{{ client.version }}'
 # Human readable ID of this particular client.
 id = '{{ client.id }}'
 
-# URL to the validator server for obtaining network topology.
-validator_rest_urls = [
-    {{#each client.validator_rest_urls }}
+# Addresses to APIs running on validator from which the client gets the view of the network.
+validator_api_urls = [
+    {{#each client.validator_api_urls }}
         '{{this}}',
     {{/each}}
 ]
-
-# Address of the validator contract managing the network.
-mixnet_contract_address = '{{ client.mixnet_contract_address }}'
 
 # Path to file containing private identity key.
 private_identity_key_file = '{{ client.private_identity_key_file }}'

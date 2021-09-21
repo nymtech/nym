@@ -58,12 +58,6 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
                 .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         )
-        .arg(
-            Arg::with_name(CONTRACT_ARG_NAME)
-                .long(CONTRACT_ARG_NAME)
-                .help("Address of the validator contract managing the network")
-                .takes_value(true),
-        )
 }
 
 fn show_binding_warning(address: String) {
@@ -151,7 +145,7 @@ pub fn execute(matches: &ArgMatches) {
 
     println!(
         "Validator servers: {:?}",
-        config.get_validator_rest_endpoints()
+        config.get_validator_api_endpoints()
     );
     println!(
         "Listening for incoming packets on {}",

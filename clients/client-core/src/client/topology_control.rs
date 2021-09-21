@@ -4,6 +4,8 @@
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time;
@@ -12,6 +14,7 @@ use tokio::runtime::Handle;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::task::JoinHandle;
 use topology::{nym_topology_from_bonds, NymTopology};
+use url::Url;
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
 #[derive(Debug)]
@@ -125,46 +128,53 @@ impl Default for TopologyAccessor {
 }
 
 pub struct TopologyRefresherConfig {
-    available_validators: Vec<String>,
-    mixnet_contract_address: String,
+    validator_api_urls: Vec<Url>,
     refresh_rate: time::Duration,
 }
 
 impl TopologyRefresherConfig {
-    pub fn new(
-        available_validators: Vec<String>,
-        mixnet_contract_address: String,
-        refresh_rate: time::Duration,
-    ) -> Self {
+    pub fn new(validator_api_urls: Vec<Url>, refresh_rate: time::Duration) -> Self {
         TopologyRefresherConfig {
-            available_validators,
-            mixnet_contract_address,
+            validator_api_urls,
             refresh_rate,
         }
     }
 }
 
 pub struct TopologyRefresher {
-    validator_client: validator_client::Client,
+    validator_client: validator_client::ApiClient,
 
+    validator_api_urls: Vec<Url>,
     topology_accessor: TopologyAccessor,
     refresh_rate: Duration,
 
+    currently_used_api: usize,
     was_latest_valid: bool,
 }
 
 impl TopologyRefresher {
-    pub fn new(cfg: TopologyRefresherConfig, topology_accessor: TopologyAccessor) -> Self {
-        let validator_client_config =
-            validator_client::Config::new(cfg.available_validators, cfg.mixnet_contract_address);
-        let validator_client = validator_client::Client::new(validator_client_config);
+    pub fn new(mut cfg: TopologyRefresherConfig, topology_accessor: TopologyAccessor) -> Self {
+        cfg.validator_api_urls.shuffle(&mut thread_rng());
 
         TopologyRefresher {
-            validator_client,
+            validator_client: validator_client::ApiClient::new(cfg.validator_api_urls[0].clone()),
+            validator_api_urls: cfg.validator_api_urls,
             topology_accessor,
             refresh_rate: cfg.refresh_rate,
+            currently_used_api: 0,
             was_latest_valid: true,
         }
+    }
+
+    fn use_next_validator_api(&mut self) {
+        if self.validator_api_urls.len() == 1 {
+            warn!("There's only a single validator API available - it won't be possible to use a different one");
+            return;
+        }
+
+        self.currently_used_api = (self.currently_used_api + 1) % self.validator_api_urls.len();
+        self.validator_client
+            .change_validator_api(self.validator_api_urls[self.currently_used_api].clone())
     }
 
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
@@ -172,7 +182,7 @@ impl TopologyRefresher {
         // only refresh mixnodes on timer and refresh gateways only when
         // we have to send to a new, unknown, gateway
 
-        let mixnodes = match self.validator_client.get_cached_mix_nodes().await {
+        let mixnodes = match self.validator_client.get_cached_mixnodes().await {
             Err(err) => {
                 error!("failed to get network mixnodes - {}", err);
                 return None;
@@ -198,6 +208,10 @@ impl TopologyRefresher {
     pub async fn refresh(&mut self) {
         trace!("Refreshing the topology");
         let new_topology = self.get_current_compatible_topology().await;
+
+        if new_topology.is_none() {
+            self.use_next_validator_api();
+        }
 
         if new_topology.is_none() && self.was_latest_valid {
             // if we failed to grab this topology, but the one before it was alright, let's assume

@@ -2,18 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use coconut_interface::Credential;
+use credentials::bandwidth::prepare_for_spending;
+use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::GatewayClient;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::params::PacketMode;
 use nymsphinx::preparer::MessagePreparer;
 use rand::rngs::OsRng;
 use received_processor::ReceivedMessagesProcessor;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, nym_topology_from_bonds, NymTopology};
+use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use wasm_utils::{console_log, console_warn};
@@ -26,8 +28,7 @@ const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 
 #[wasm_bindgen]
 pub struct NymClient {
-    validator_server: String,
-    mixnet_contract_address: String,
+    validator_server: Url,
 
     // TODO: technically this doesn't need to be an Arc since wasm is run on a single thread
     // however, once we eventually combine this code with the native-client's, it will make things
@@ -52,7 +53,7 @@ pub struct NymClient {
 #[wasm_bindgen]
 impl NymClient {
     #[wasm_bindgen(constructor)]
-    pub fn new(validator_server: String, mixnet_contract_address: String) -> Self {
+    pub fn new(validator_server: String) -> Self {
         let mut rng = OsRng;
         // for time being generate new keys each time...
         let identity = identity::KeyPair::new(&mut rng);
@@ -63,8 +64,9 @@ impl NymClient {
             identity: Arc::new(identity),
             encryption_keys: Arc::new(encryption_keys),
             ack_key: Arc::new(ack_key),
-            validator_server,
-            mixnet_contract_address,
+            validator_server: validator_server
+                .parse()
+                .expect("malformed validator server url provided"),
             message_preparer: None,
             // received_keys: Default::default(),
             topology: None,
@@ -99,6 +101,22 @@ impl NymClient {
         self.self_recipient().to_string()
     }
 
+    async fn prepare_credential(validators: &[Url], identity_bytes: &[u8]) -> Credential {
+        let verification_key = obtain_aggregate_verification_key(validators)
+            .await
+            .expect("could not obtain aggregate verification key of validators");
+
+        let bandwidth_credential =
+            credentials::bandwidth::obtain_signature(identity_bytes, validators)
+                .await
+                .expect("could not obtain bandwidth credential");
+        // the above would presumably be loaded from a file
+
+        // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
+        prepare_for_spending(identity_bytes, &bandwidth_credential, &verification_key)
+            .expect("could not prepare out bandwidth credential for spending")
+    }
+
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
         let validator_server = self.validator_server.clone();
@@ -109,10 +127,9 @@ impl NymClient {
         let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
-        let coconut_credential = Credential::init(vec![validator_server], identity_public_key)
-            .await
-            .expect("Could not initialize coconut credential");
-
+        let coconut_credential =
+            Self::prepare_credential(&vec![validator_server], &identity_public_key.to_bytes())
+                .await;
         let mut gateway_client = GatewayClient::new(
             gateway.clients_address(),
             Arc::clone(&client.identity),
@@ -244,13 +261,9 @@ impl NymClient {
     // }
 
     pub(crate) async fn get_nym_topology(&self) -> NymTopology {
-        let validator_client_config = validator_client::Config::new(
-            vec![self.validator_server.clone()],
-            &self.mixnet_contract_address,
-        );
-        let validator_client = validator_client::Client::new(validator_client_config);
+        let validator_client = validator_client::ApiClient::new(self.validator_server.clone());
 
-        let mixnodes = match validator_client.get_cached_mix_nodes().await {
+        let mixnodes = match validator_client.get_cached_mixnodes().await {
             Err(err) => panic!("{}", err),
             Ok(mixes) => mixes,
         };

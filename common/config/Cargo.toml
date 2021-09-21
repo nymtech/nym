@@ -11,3 +11,6 @@ handlebars = "3.0.1"
 humantime-serde = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.5.6"
+url = "2.2"
+
+network-defaults = { path = "../network-defaults" }

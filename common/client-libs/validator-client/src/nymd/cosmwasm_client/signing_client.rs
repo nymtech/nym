@@ -5,16 +5,16 @@ use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 use crate::nymd::cosmwasm_client::helpers::{compress_wasm_code, CheckResponse};
 use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nymd::cosmwasm_client::types::*;
+use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use crate::ValidatorClientError;
 use async_trait::async_trait;
-use cosmos_sdk::bank::MsgSend;
-use cosmos_sdk::distribution::MsgWithdrawDelegatorReward;
-use cosmos_sdk::rpc::endpoint::broadcast;
-use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
-use cosmos_sdk::staking::{MsgDelegate, MsgUndelegate};
-use cosmos_sdk::tx::{Fee, Msg, MsgType, SignDoc, SignerInfo};
-use cosmos_sdk::{cosmwasm, rpc, tx, AccountId, Coin};
+use cosmrs::bank::MsgSend;
+use cosmrs::distribution::MsgWithdrawDelegatorReward;
+use cosmrs::rpc::endpoint::broadcast;
+use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
+use cosmrs::staking::{MsgDelegate, MsgUndelegate};
+use cosmrs::tx::{Fee, Msg, MsgType, SignDoc, SignerInfo};
+use cosmrs::{cosmwasm, rpc, tx, AccountId, Coin};
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
@@ -31,7 +31,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
         mut meta: Option<UploadMeta>,
-    ) -> Result<UploadResult, ValidatorClientError> {
+    ) -> Result<UploadResult, NymdError> {
         let compressed = compress_wasm_code(&wasm_code)?;
         let compressed_size = compressed.len();
         let compressed_checksum = Sha256::digest(&compressed).to_vec();
@@ -52,7 +52,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             instantiate_permission: Default::default(),
         }
         .to_msg()
-        .map_err(|_| ValidatorClientError::SerializationError("MsgStoreCode".to_owned()))?;
+        .map_err(|_| NymdError::SerializationError("MsgStoreCode".to_owned()))?;
 
         let tx_res = self
             .sign_and_broadcast_commit(sender_address, vec![upload_msg], fee, memo)
@@ -96,7 +96,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
         mut options: Option<InstantiateOptions>,
-    ) -> Result<InstantiateResult, ValidatorClientError>
+    ) -> Result<InstantiateResult, NymdError>
     where
         M: ?Sized + Serialize + Sync,
     {
@@ -114,9 +114,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             funds: options.map(|options| options.funds).unwrap_or_default(),
         }
         .to_msg()
-        .map_err(|_| {
-            ValidatorClientError::SerializationError("MsgInstantiateContract".to_owned())
-        })?;
+        .map_err(|_| NymdError::SerializationError("MsgInstantiateContract".to_owned()))?;
 
         let tx_res = self
             .sign_and_broadcast_commit(sender_address, vec![init_msg], fee, memo)
@@ -149,14 +147,14 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         new_admin: &AccountId,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<ChangeAdminResult, ValidatorClientError> {
+    ) -> Result<ChangeAdminResult, NymdError> {
         let change_admin_msg = cosmwasm::MsgUpdateAdmin {
             sender: sender_address.clone(),
             new_admin: new_admin.clone(),
             contract: contract_address.clone(),
         }
         .to_msg()
-        .map_err(|_| ValidatorClientError::SerializationError("MsgUpdateAdmin".to_owned()))?;
+        .map_err(|_| NymdError::SerializationError("MsgUpdateAdmin".to_owned()))?;
 
         let tx_res = self
             .sign_and_broadcast_commit(sender_address, vec![change_admin_msg], fee, memo)
@@ -175,13 +173,13 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         contract_address: &AccountId,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<ChangeAdminResult, ValidatorClientError> {
+    ) -> Result<ChangeAdminResult, NymdError> {
         let change_admin_msg = cosmwasm::MsgClearAdmin {
             sender: sender_address.clone(),
             contract: contract_address.clone(),
         }
         .to_msg()
-        .map_err(|_| ValidatorClientError::SerializationError("MsgClearAdmin".to_owned()))?;
+        .map_err(|_| NymdError::SerializationError("MsgClearAdmin".to_owned()))?;
 
         let tx_res = self
             .sign_and_broadcast_commit(sender_address, vec![change_admin_msg], fee, memo)
@@ -202,7 +200,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         fee: Fee,
         msg: &M,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<MigrateResult, ValidatorClientError>
+    ) -> Result<MigrateResult, NymdError>
     where
         M: ?Sized + Serialize + Sync,
     {
@@ -213,7 +211,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             migrate_msg: serde_json::to_vec(msg)?,
         }
         .to_msg()
-        .map_err(|_| ValidatorClientError::SerializationError("MsgMigrateContract".to_owned()))?;
+        .map_err(|_| NymdError::SerializationError("MsgMigrateContract".to_owned()))?;
 
         let tx_res = self
             .sign_and_broadcast_commit(sender_address, vec![migrate_msg], fee, memo)
@@ -234,7 +232,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
         funds: Vec<Coin>,
-    ) -> Result<ExecuteResult, ValidatorClientError>
+    ) -> Result<ExecuteResult, NymdError>
     where
         M: ?Sized + Serialize + Sync,
     {
@@ -245,7 +243,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             funds,
         }
         .to_msg()
-        .map_err(|_| ValidatorClientError::SerializationError("MsgExecuteContract".to_owned()))?;
+        .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))?;
 
         let tx_res = self
             .sign_and_broadcast_commit(sender_address, vec![execute_msg], fee, memo)
@@ -265,14 +263,14 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         amount: Vec<Coin>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
+    ) -> Result<broadcast::tx_commit::Response, NymdError> {
         let send_msg = MsgSend {
             from_address: sender_address.clone(),
             to_address: recipient_address.clone(),
             amount,
         }
         .to_msg()
-        .map_err(|_| ValidatorClientError::SerializationError("MsgSend".to_owned()))?;
+        .map_err(|_| NymdError::SerializationError("MsgSend".to_owned()))?;
 
         self.sign_and_broadcast_commit(sender_address, vec![send_msg], fee, memo)
             .await
@@ -285,14 +283,14 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         amount: Coin,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
+    ) -> Result<broadcast::tx_commit::Response, NymdError> {
         let delegate_msg = MsgDelegate {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
-            amount: Some(amount),
+            amount,
         }
         .to_msg()
-        .map_err(|_| ValidatorClientError::SerializationError("MsgDelegate".to_owned()))?;
+        .map_err(|_| NymdError::SerializationError("MsgDelegate".to_owned()))?;
 
         self.sign_and_broadcast_commit(delegator_address, vec![delegate_msg], fee, memo)
             .await
@@ -305,14 +303,14 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         amount: Coin,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
+    ) -> Result<broadcast::tx_commit::Response, NymdError> {
         let undelegate_msg = MsgUndelegate {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
             amount: Some(amount),
         }
         .to_msg()
-        .map_err(|_| ValidatorClientError::SerializationError("MsgUndelegate".to_owned()))?;
+        .map_err(|_| NymdError::SerializationError("MsgUndelegate".to_owned()))?;
 
         self.sign_and_broadcast_commit(delegator_address, vec![undelegate_msg], fee, memo)
             .await
@@ -324,15 +322,13 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         validator_address: &AccountId,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
+    ) -> Result<broadcast::tx_commit::Response, NymdError> {
         let withdraw_msg = MsgWithdrawDelegatorReward {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
         }
         .to_msg()
-        .map_err(|_| {
-            ValidatorClientError::SerializationError("MsgWithdrawDelegatorReward".to_owned())
-        })?;
+        .map_err(|_| NymdError::SerializationError("MsgWithdrawDelegatorReward".to_owned()))?;
 
         self.sign_and_broadcast_commit(delegator_address, vec![withdraw_msg], fee, memo)
             .await
@@ -345,11 +341,11 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         messages: Vec<Msg>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<broadcast::tx_async::Response, ValidatorClientError> {
+    ) -> Result<broadcast::tx_async::Response, NymdError> {
         let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
-            .map_err(|_| ValidatorClientError::SerializationError("Tx".to_owned()))?;
+            .map_err(|_| NymdError::SerializationError("Tx".to_owned()))?;
 
         CosmWasmClient::broadcast_tx_async(self, tx_bytes.into()).await
     }
@@ -361,11 +357,11 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         messages: Vec<Msg>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<broadcast::tx_sync::Response, ValidatorClientError> {
+    ) -> Result<broadcast::tx_sync::Response, NymdError> {
         let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
-            .map_err(|_| ValidatorClientError::SerializationError("Tx".to_owned()))?;
+            .map_err(|_| NymdError::SerializationError("Tx".to_owned()))?;
 
         CosmWasmClient::broadcast_tx_sync(self, tx_bytes.into()).await
     }
@@ -377,11 +373,11 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         messages: Vec<Msg>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
+    ) -> Result<broadcast::tx_commit::Response, NymdError> {
         let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
-            .map_err(|_| ValidatorClientError::SerializationError("Tx".to_owned()))?;
+            .map_err(|_| NymdError::SerializationError("Tx".to_owned()))?;
 
         CosmWasmClient::broadcast_tx_commit(self, tx_bytes.into()).await
     }
@@ -393,12 +389,12 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
         signer_data: SignerData,
-    ) -> Result<tx::Raw, ValidatorClientError> {
+    ) -> Result<tx::Raw, NymdError> {
         let signer_accounts = self.signer().try_derive_accounts()?;
         let account_from_signer = signer_accounts
             .iter()
             .find(|account| &account.address == signer_address)
-            .ok_or_else(|| ValidatorClientError::SigningAccountNotFound(signer_address.clone()))?;
+            .ok_or_else(|| NymdError::SigningAccountNotFound(signer_address.clone()))?;
 
         // TODO: WTF HOW IS TIMEOUT_HEIGHT SUPPOSED TO GET DETERMINED?
         // IT DOESNT EXIST IN COSMJS!!
@@ -410,15 +406,15 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             SignerInfo::single_direct(Some(account_from_signer.public_key), signer_data.sequence);
         let auth_info = signer_info.auth_info(fee);
 
-        // ideally I'd prefer to have the entire error put into the ValidatorClientError::SigningFailure
-        // but I'm super hesitant to trying to downcast the eyre::Report to cosmos_sdk::error::Error
+        // ideally I'd prefer to have the entire error put into the NymdError::SigningFailure
+        // but I'm super hesitant to trying to downcast the eyre::Report to cosmrs::error::Error
         let sign_doc = SignDoc::new(
             &tx_body,
             &auth_info,
             &signer_data.chain_id,
             signer_data.account_number,
         )
-        .map_err(|_| ValidatorClientError::SigningFailure)?;
+        .map_err(|_| NymdError::SigningFailure)?;
 
         self.signer()
             .sign_direct_with_account(account_from_signer, sign_doc)
@@ -430,7 +426,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         messages: Vec<Msg>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<tx::Raw, ValidatorClientError> {
+    ) -> Result<tx::Raw, NymdError> {
         // TODO: Future optimisation: rather than grabbing current account_number and sequence
         // on every sign request -> just keep them cached on the struct and increment as required
         let sequence_response = self.get_sequence(signer_address).await?;
@@ -455,7 +451,7 @@ impl Client {
     pub fn connect_with_signer<U>(
         endpoint: U,
         signer: DirectSecp256k1HdWallet,
-    ) -> Result<Self, ValidatorClientError>
+    ) -> Result<Self, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {

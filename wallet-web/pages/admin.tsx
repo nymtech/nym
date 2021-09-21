@@ -77,11 +77,12 @@ export default function Admin() {
     const updateStateParams = async (event) => {
         event.preventDefault()
         let newState: StateParams = {
-            // need to convert those to native coin (i.e. hal -> uhal)
             minimum_mixnode_bond: printableBalanceToNative(event.target.mix_bond.value),
             minimum_gateway_bond: printableBalanceToNative(event.target.gateway_bond.value),
-            mixnode_bond_reward_rate: event.target.mix_reward.value,
-            gateway_bond_reward_rate: event.target.gateway_reward.value,
+            mixnode_bond_reward_rate: event.target.mix_bond_reward.value,
+            gateway_bond_reward_rate: event.target.gateway_bond_reward.value,
+            mixnode_delegation_reward_rate: event.target.mix_delegation_reward.value,
+            gateway_delegation_reward_rate: event.target.gateway_delegation_reward.value,
             epoch_length: parseInt(event.target.epoch_length.value),
             mixnode_active_set_size: parseInt(event.target.active_set.value),
         };

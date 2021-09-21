@@ -126,7 +126,7 @@ fn version_check(cfg: &Config) -> bool {
     }
 }
 
-pub fn execute(matches: &ArgMatches) {
+pub async fn execute(matches: ArgMatches<'static>) {
     let id = matches.value_of(ID_ARG_NAME).unwrap();
 
     println!("Starting gateway {}...", id);
@@ -139,7 +139,7 @@ pub fn execute(matches: &ArgMatches) {
         }
     };
 
-    config = override_config(config, matches);
+    config = override_config(config, &matches);
 
     if !version_check(&config) {
         error!("failed the local version check");
@@ -178,5 +178,8 @@ pub fn execute(matches: &ArgMatches) {
         config.get_clients_ledger_path()
     );
 
-    Gateway::new(config, sphinx_keypair, identity).run();
+    Gateway::new(config, sphinx_keypair, identity)
+        .await
+        .run()
+        .await;
 }

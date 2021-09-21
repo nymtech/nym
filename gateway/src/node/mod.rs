@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::node::client_handling::clients_handler::{ClientsHandler, ClientsHandlerRequestSender};
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
-use crate::node::storage::{inboxes, ClientLedger};
+use crate::node::storage::GatewayStorage;
 use coconut_interface::VerificationKey;
 use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
@@ -14,9 +14,9 @@ use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::process;
 use std::sync::Arc;
-use tokio::runtime::Runtime;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -28,31 +28,27 @@ pub struct Gateway {
     identity: Arc<identity::KeyPair>,
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     encryption_keys: Arc<encryption::KeyPair>,
-    registered_clients_ledger: ClientLedger,
-    client_inbox_storage: inboxes::ClientStorage,
+    storage: GatewayStorage,
 }
 
 impl Gateway {
-    pub fn new(
+    pub async fn new(
         config: Config,
         encryption_keys: encryption::KeyPair,
         identity: identity::KeyPair,
     ) -> Self {
-        let registered_clients_ledger = match ClientLedger::load(config.get_clients_ledger_path()) {
-            Err(e) => panic!("Failed to load the ledger - {:?}", e),
-            Ok(ledger) => ledger,
+        let storage_path: PathBuf = "test/path/to/make/it/compile".into();
+        let retrieval_limit = 42;
+        let storage = match GatewayStorage::init(storage_path, retrieval_limit).await {
+            Err(err) => panic!("failed to initialise gateway storage - {}", err),
+            Ok(storage) => storage,
         };
-        let client_inbox_storage = inboxes::ClientStorage::new(
-            config.get_message_retrieval_limit() as usize,
-            config.get_stored_messages_filename_length(),
-            config.get_clients_inboxes_dir(),
-        );
+
         Gateway {
             config,
             identity: Arc::new(identity),
             encryption_keys: Arc::new(encryption_keys),
-            client_inbox_storage,
-            registered_clients_ledger,
+            storage,
         }
     }
 
@@ -69,7 +65,7 @@ impl Gateway {
         let connection_handler = ConnectionHandler::new(
             packet_processor,
             clients_handler_sender,
-            self.client_inbox_storage.clone(),
+            todo!(),
             ack_sender,
         );
 
@@ -118,11 +114,7 @@ impl Gateway {
 
     fn start_clients_handler(&self) -> ClientsHandlerRequestSender {
         info!("Starting clients handler");
-        let (_, clients_handler_sender) = ClientsHandler::new(
-            self.registered_clients_ledger.clone(),
-            self.client_inbox_storage.clone(),
-        )
-        .start();
+        let (_, clients_handler_sender) = ClientsHandler::new(self.storage.clone()).start();
         clients_handler_sender
     }
 
@@ -162,38 +154,41 @@ impl Gateway {
             .map(|node| node.gateway().identity_key.clone())
     }
 
-    // Rather than starting all futures with explicit `&Handle` argument, let's see how it works
-    // out if we make it implicit using `tokio::spawn` inside Runtime context.
-    // Basically more or less equivalent of using #[tokio::main] attribute.
-    pub fn run(&mut self) {
+    pub async fn run(&mut self) {
         info!("Starting nym gateway!");
 
-        let runtime = Runtime::new().unwrap();
-
-        runtime.block_on(async {
-            if let Some(duplicate_node_key) = self.check_if_same_ip_gateway_exists().await {
-                if duplicate_node_key == self.identity.public_key().to_base58_string() {
-                    warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host as us registered.")
-                } else {
-                    error!(
-                        "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
-                        duplicate_node_key
-                    );
-                    return;
-                }
+        if let Some(duplicate_node_key) = self.check_if_same_ip_gateway_exists().await {
+            if duplicate_node_key == self.identity.public_key().to_base58_string() {
+                warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host as us registered.")
+            } else {
+                error!(
+                    "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
+                    duplicate_node_key
+                );
+                return;
             }
+        }
 
-            let validators_verification_key = obtain_aggregate_verification_key(&self.config.get_validator_api_endpoints()).await.expect("failed to contact validators to obtain their verification keys");
+        let validators_verification_key =
+            obtain_aggregate_verification_key(&self.config.get_validator_api_endpoints())
+                .await
+                .expect("failed to contact validators to obtain their verification keys");
 
-            let mix_forwarding_channel = self.start_packet_forwarder();
-            let clients_handler_sender = self.start_clients_handler();
+        let mix_forwarding_channel = self.start_packet_forwarder();
+        let clients_handler_sender = self.start_clients_handler();
 
-            self.start_mix_socket_listener(clients_handler_sender.clone(), mix_forwarding_channel.clone());
-            self.start_client_websocket_listener(mix_forwarding_channel, clients_handler_sender, validators_verification_key);
+        self.start_mix_socket_listener(
+            clients_handler_sender.clone(),
+            mix_forwarding_channel.clone(),
+        );
+        self.start_client_websocket_listener(
+            mix_forwarding_channel,
+            clients_handler_sender,
+            validators_verification_key,
+        );
 
-            info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
+        info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 
-            self.wait_for_interrupt().await
-        });
+        self.wait_for_interrupt().await
     }
 }

@@ -115,7 +115,7 @@ fn show_bonding_info(config: &Config) {
     );
 }
 
-pub fn execute(matches: &ArgMatches) {
+pub async fn execute(matches: ArgMatches<'static>) {
     let id = matches.value_of(ID_ARG_NAME).unwrap();
     println!("Initialising gateway {}...", id);
 
@@ -128,7 +128,7 @@ pub fn execute(matches: &ArgMatches) {
 
     let mut config = Config::new(id);
 
-    config = override_config(config, matches);
+    config = override_config(config, &matches);
 
     // if gateway was already initialised, don't generate new keys
     if !already_init {

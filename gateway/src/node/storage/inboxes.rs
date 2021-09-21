@@ -38,7 +38,7 @@ impl InboxManager {
         }
     }
 
-    /// Inserts new message to the storage for an offline client for later retrieval.
+    /// Inserts new message to the storage for an offline client for future retrieval.
     ///
     /// # Arguments
     ///
@@ -46,7 +46,7 @@ impl InboxManager {
     /// * `content`: raw content of the message to store.
     pub(crate) async fn insert_message(
         &self,
-        client_address_bs58: String,
+        client_address_bs58: &str,
         content: Vec<u8>,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
@@ -69,7 +69,8 @@ impl InboxManager {
     /// * `client_address_bs58`: base58-encoded address of the client
     /// * `start_after`: optional starting id of the messages to grab
     ///
-    /// returns the retrieved messages alongside optional id of the last message retrieved.
+    /// returns the retrieved messages alongside optional id of the last message retrieved if
+    /// there are more messages to retrieve.
     pub(crate) async fn get_messages(
         &self,
         client_address_bs58: &str,

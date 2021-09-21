@@ -3203,6 +3203,8 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "sled",
+ "sqlx",
+ "thiserror",
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",

@@ -13,6 +13,8 @@ use mixnet_contract::{
     Addr, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
     RawDelegationData, StateParams,
 };
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
 // storage prefixes
 // all of them must be unique and presumably not be a prefix of a different one
@@ -304,6 +306,13 @@ pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey
 }
 
 // delegation related
+pub fn all_mix_delegations_read<T>(storage: &dyn Storage) -> ReadonlyBucket<T>
+where
+    T: Serialize + DeserializeOwned,
+{
+    bucket_read(storage, PREFIX_MIX_DELEGATION)
+}
+
 pub fn mix_delegations<'a>(
     storage: &'a mut dyn Storage,
     mix_identity: IdentityKeyRef,

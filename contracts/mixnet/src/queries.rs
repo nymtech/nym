@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
+use crate::helpers::get_all_mixnode_delegations_paged;
 use crate::storage::{
     gateway_delegations_read, gateways_owners_read, gateways_read, mix_delegations_read,
     mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params,
     reverse_gateway_delegations_read, reverse_mix_delegations_read,
 };
 use config::defaults::DENOM;
-use cosmwasm_std::Deps;
-use cosmwasm_std::Order;
-use cosmwasm_std::StdResult;
-use cosmwasm_std::{coin, Addr};
+use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
 use mixnet_contract::{
     Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
-    MixOwnershipResponse, PagedGatewayDelegationsResponse, PagedGatewayResponse,
-    PagedMixDelegationsResponse, PagedMixnodeResponse, PagedReverseGatewayDelegationsResponse,
-    PagedReverseMixDelegationsResponse, StateParams,
+    MixOwnershipResponse, PagedAllMixDelegationsResponse, PagedGatewayDelegationsResponse,
+    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
+    PagedReverseGatewayDelegationsResponse, PagedReverseMixDelegationsResponse, RawDelegationData,
+    StateParams,
 };
 
 const BOND_PAGE_MAX_LIMIT: u32 = 100;
@@ -142,6 +141,18 @@ pub(crate) fn query_mixnode_delegations_paged(
         delegations,
         start_next_after,
     ))
+}
+
+pub(crate) fn query_all_mixnode_delegations_paged(
+    deps: Deps,
+    start_after: Option<Vec<u8>>,
+    limit: Option<u32>,
+) -> StdResult<PagedAllMixDelegationsResponse> {
+    let limit = limit
+        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
+        .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
+
+    get_all_mixnode_delegations_paged::<RawDelegationData>(deps, start_after, limit)
 }
 
 pub(crate) fn query_reverse_mixnode_delegations_paged(

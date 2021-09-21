@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
-use cosmwasm_std::{Decimal, Uint128};
+use crate::storage::all_mix_delegations_read;
+use cosmwasm_std::{Decimal, Deps, Order, StdError, StdResult, Uint128};
+use mixnet_contract::{Addr, IdentityKey, PagedAllMixDelegationsResponse};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::ops::Sub;
 
 // for time being completely ignore concept of a leap year and assume each year is exactly 365 days
@@ -63,6 +67,71 @@ pub(crate) fn scale_reward_by_uptime(
     let uptime_ratio_u128 = decimal_to_uint128(uptime_ratio);
     let scaled = reward * uptime_ratio_u128;
     Ok(uint128_to_decimal(scaled))
+}
+
+// Extracts the node identity and owner of a delegation from the bytes used as
+// key in the delegation buckets.
+fn extract_identity_and_owner(bytes: Vec<u8>) -> StdResult<(Addr, IdentityKey)> {
+    const NAMESPACE_LENGTH: usize = 2;
+
+    if bytes.len() < NAMESPACE_LENGTH {
+        return Err(StdError::parse_err(
+            "mixnet_contract::types::IdentityKey",
+            "Invalid type",
+        ));
+    }
+    let identity_size = u16::from_be_bytes([bytes[0], bytes[1]]) as usize;
+    let identity_bytes: Vec<u8> = bytes
+        .iter()
+        .skip(NAMESPACE_LENGTH)
+        .take(identity_size)
+        .copied()
+        .collect();
+    let identity = IdentityKey::from_utf8(identity_bytes)
+        .map_err(|_| StdError::parse_err("mixnet_contract::types::IdentityKey", "Invalid type"))?;
+    let owner_bytes: Vec<u8> = bytes
+        .iter()
+        .skip(NAMESPACE_LENGTH + identity_size)
+        .copied()
+        .collect();
+    let owner = Addr::unchecked(
+        String::from_utf8(owner_bytes)
+            .map_err(|_| StdError::parse_err("cosmwasm_std::addresses::Addr", "Invalid type"))?,
+    );
+
+    Ok((owner, identity))
+}
+
+pub(crate) fn get_all_mixnode_delegations_paged<T>(
+    deps: Deps,
+    start_after: Option<Vec<u8>>,
+    limit: usize,
+) -> StdResult<PagedAllMixDelegationsResponse>
+where
+    T: Serialize + DeserializeOwned,
+{
+    let delegations = all_mix_delegations_read::<T>(deps.storage)
+        .range(start_after.as_deref(), None, Order::Ascending)
+        .filter(|res| res.is_ok())
+        .take(limit)
+        .map(|res| {
+            res.map(|entry| {
+                extract_identity_and_owner(entry.0).expect("Invalid node identity or address used as key in bucket. The storage is corrupted!")
+            })
+        })
+        .collect::<StdResult<Vec<(Addr, IdentityKey)>>>()?;
+
+    let start_next_after = all_mix_delegations_read::<T>(deps.storage)
+        .range(start_after.as_deref(), None, Order::Ascending)
+        .filter(|res| res.is_ok())
+        .take(limit)
+        .last()
+        .map(|res| res.unwrap().0);
+
+    Ok(PagedAllMixDelegationsResponse::new(
+        delegations,
+        start_next_after,
+    ))
 }
 
 #[cfg(test)]

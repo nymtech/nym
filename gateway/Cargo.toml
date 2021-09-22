@@ -20,7 +20,6 @@ log = "0.4"
 pretty_env_logger = "0.4"
 rand = "0.7"
 serde = { version = "1.0.104", features = ["derive"] }
-sled = "0.34"
 thiserror = "1"
 tokio = { version = "1.4", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
 tokio-util = { version = "0.6", features = [ "codec" ] }

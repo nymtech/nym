@@ -11,20 +11,18 @@ export const Title = ({ text }: TitleProps) => (
     xs={12}
     sx={{
       justifyContent: 'flex-start',
-      padding: (theme) => theme.spacing(2),
-      backgroundColor: (theme) => theme.palette.primary.dark,
+      padding: 2,
+      bgcolor: 'primary.dark',
     }}
   >
     <Box
       sx={{
-        padding: (theme) => theme.spacing(3),
-        backgroundColor: (theme) => theme.palette.primary.light,
+        padding: 3,
+        bgcolor: 'primary.light',
       }}
     >
       <Typography
-        sx={{
-          color: (theme) => theme.palette.primary.main,
-        }}
+        sx={{ color: 'primary.main' }}
       >
         {text}
       </Typography>

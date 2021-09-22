@@ -154,7 +154,7 @@ pub(crate) fn query_all_mixnode_delegations_paged(
         .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
 
     let bucket = all_mix_delegations_read::<RawDelegationData>(deps.storage);
-    get_all_delegations_paged::<RawDelegationData>(bucket, start_after, limit)
+    get_all_delegations_paged::<RawDelegationData>(&bucket, start_after, limit)
 }
 
 pub(crate) fn query_reverse_mixnode_delegations_paged(
@@ -253,7 +253,7 @@ pub(crate) fn query_all_gateway_delegations_paged(
         .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
 
     let bucket = all_gateway_delegations_read::<RawDelegationData>(deps.storage);
-    get_all_delegations_paged::<RawDelegationData>(bucket, start_after, limit)
+    get_all_delegations_paged::<RawDelegationData>(&bucket, start_after, limit)
 }
 
 pub(crate) fn query_reverse_gateway_delegations_paged(

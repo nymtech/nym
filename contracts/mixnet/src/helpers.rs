@@ -105,7 +105,7 @@ fn extract_identity_and_owner(bytes: Vec<u8>) -> StdResult<(Addr, IdentityKey)> 
 }
 
 pub(crate) fn get_all_delegations_paged<T>(
-    bucket: ReadonlyBucket<T>,
+    bucket: &ReadonlyBucket<T>,
     start_after: Option<Vec<u8>>,
     limit: usize,
 ) -> StdResult<PagedAllDelegationsResponse>
@@ -213,7 +213,7 @@ mod tests {
             .unwrap();
 
         let bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
-        let response = get_all_delegations_paged::<RawDelegationData>(bucket, None, 10).unwrap();
+        let response = get_all_delegations_paged::<RawDelegationData>(&bucket, None, 10).unwrap();
         assert_eq!(response.delegations.len(), 1);
         assert_eq!(
             response.delegations[0],
@@ -225,7 +225,7 @@ mod tests {
             .unwrap();
 
         let bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
-        let response = get_all_delegations_paged::<RawDelegationData>(bucket, None, 10).unwrap();
+        let response = get_all_delegations_paged::<RawDelegationData>(&bucket, None, 10).unwrap();
         assert_eq!(response.delegations.len(), 2);
         assert_eq!(
             response.delegations[1],
@@ -235,7 +235,7 @@ mod tests {
         mix_delegations(&mut deps.storage, &node_identity1).remove(delegation_owner1.as_bytes());
 
         let bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
-        let response = get_all_delegations_paged::<RawDelegationData>(bucket, None, 10).unwrap();
+        let response = get_all_delegations_paged::<RawDelegationData>(&bucket, None, 10).unwrap();
         assert_eq!(response.delegations.len(), 1);
         assert_eq!(response.delegations[0], (delegation_owner2, node_identity2));
     }

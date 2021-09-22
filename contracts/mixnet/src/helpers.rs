@@ -8,6 +8,7 @@ use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{Addr, IdentityKey, PagedAllDelegationsResponse};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::convert::identity;
 use std::ops::Sub;
 
 // for time being completely ignore concept of a leap year and assume each year is exactly 365 days
@@ -106,9 +107,9 @@ fn extract_identity_and_owner(bytes: Vec<u8>) -> StdResult<(Addr, IdentityKey)> 
 
 pub(crate) fn get_all_delegations_paged<T>(
     bucket: &ReadonlyBucket<T>,
-    start_after: Option<Vec<u8>>,
+    start_after: &mut Option<Vec<u8>>,
     limit: usize,
-) -> StdResult<PagedAllDelegationsResponse>
+) -> StdResult<Vec<(Addr, IdentityKey, T)>>
 where
     T: Serialize + DeserializeOwned,
 {
@@ -118,22 +119,20 @@ where
         .take(limit)
         .map(|res| {
             res.map(|entry| {
-                extract_identity_and_owner(entry.0).expect("Invalid node identity or address used as key in bucket. The storage is corrupted!")
+                let (owner, identity) = extract_identity_and_owner(entry.0).expect("Invalid node identity or address used as key in bucket. The storage is corrupted!");
+                (owner, identity, entry.1)
             })
         })
-        .collect::<StdResult<Vec<(Addr, IdentityKey)>>>()?;
+        .collect::<StdResult<Vec<(Addr, IdentityKey, T)>>>()?;
 
-    let start_next_after = bucket
+    *start_after = bucket
         .range(start_after.as_deref(), None, Order::Ascending)
         .filter(|res| res.is_ok())
         .take(limit)
         .last()
         .map(|res| res.unwrap().0);
 
-    Ok(PagedAllDelegationsResponse::new(
-        delegations,
-        start_next_after,
-    ))
+    Ok(delegations)
 }
 
 #[cfg(test)]
@@ -207,17 +206,23 @@ mod tests {
         let node_identity2: IdentityKey = "foo2".into();
         let delegation_owner2 = Addr::unchecked("bar2");
         let raw_delegation = RawDelegationData::new(1000u128.into(), 42);
+        let mut start_after = None;
 
         mix_delegations(&mut deps.storage, &node_identity1)
             .save(delegation_owner1.as_bytes(), &raw_delegation)
             .unwrap();
 
         let bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
-        let response = get_all_delegations_paged::<RawDelegationData>(&bucket, None, 10).unwrap();
-        assert_eq!(response.delegations.len(), 1);
+        let response =
+            get_all_delegations_paged::<RawDelegationData>(&bucket, &mut start_after, 10).unwrap();
+        assert_eq!(response.len(), 1);
         assert_eq!(
-            response.delegations[0],
-            (delegation_owner1.clone(), node_identity1.clone())
+            response[0],
+            (
+                delegation_owner1.clone(),
+                node_identity1.clone(),
+                raw_delegation.clone()
+            )
         );
 
         mix_delegations(&mut deps.storage, &node_identity2)
@@ -225,18 +230,27 @@ mod tests {
             .unwrap();
 
         let bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
-        let response = get_all_delegations_paged::<RawDelegationData>(&bucket, None, 10).unwrap();
-        assert_eq!(response.delegations.len(), 2);
+        let response =
+            get_all_delegations_paged::<RawDelegationData>(&bucket, &mut start_after, 10).unwrap();
+        assert_eq!(response.len(), 2);
         assert_eq!(
-            response.delegations[1],
-            (delegation_owner2.clone(), node_identity2.clone())
+            response[1],
+            (
+                delegation_owner2.clone(),
+                node_identity2.clone(),
+                raw_delegation.clone()
+            )
         );
 
         mix_delegations(&mut deps.storage, &node_identity1).remove(delegation_owner1.as_bytes());
 
         let bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
-        let response = get_all_delegations_paged::<RawDelegationData>(&bucket, None, 10).unwrap();
-        assert_eq!(response.delegations.len(), 1);
-        assert_eq!(response.delegations[0], (delegation_owner2, node_identity2));
+        let response =
+            get_all_delegations_paged::<RawDelegationData>(&bucket, &mut start_after, 10).unwrap();
+        assert_eq!(response.len(), 1);
+        assert_eq!(
+            response[0],
+            (delegation_owner2, node_identity2, raw_delegation.clone()),
+        );
     }
 }

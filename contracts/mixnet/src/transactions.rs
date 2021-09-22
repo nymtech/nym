@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
-use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
+use crate::helpers::{
+    calculate_epoch_reward_rate, get_all_delegations_paged, scale_reward_by_uptime,
+};
 use crate::queries;
 use crate::storage::*;
 use config::defaults::DENOM;
@@ -12,7 +14,8 @@ use cosmwasm_std::{
 };
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{
-    Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
+    Addr, Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData,
+    StateParams,
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -29,44 +32,27 @@ pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
 // 5. The node rebonds with the same identity
 pub fn delegations<T: DeserializeOwned + Serialize>(
     delegations_bucket: ReadonlyBucket<T>,
-) -> StdResult<Vec<(Vec<u8>, T)>> {
+) -> StdResult<Vec<(Addr, IdentityKey, T)>> {
     // I think it's incredibly unlikely to ever read more than that
     // but in case we do, we should guard ourselves against possible
     // out of memory errors (wasm contracts can only allocate at most 2MB
     // of RAM, so we don't want to box the entire iterator)
     let mut delegations = Vec::new();
-    // let mut total_delegation = Coin::new(0, DENOM);
-    let mut start = None;
+    let mut start_after = None;
     loop {
-        let iterator = delegations_bucket
-            .range(start.as_deref(), None, Order::Ascending)
-            .take(OLD_DELEGATIONS_CHUNK_SIZE + 1);
-
-        let mut iterated = 0;
-
-        for result_tuple in iterator {
-            iterated += 1;
-            match result_tuple {
-                Ok((position, delegation)) => {
-                    // We might skip some values due to deserializatio errors
-                    if iterated > OLD_DELEGATIONS_CHUNK_SIZE {
-                        // we reached start of next chunk, don't process it, mark it for the next iteration of the loop
-                        start = Some(position);
-                        continue;
-                    }
-                    delegations.push((position, delegation))
-                }
-                Err(_e) => {
-                    // Skip errors
-                    continue;
-                }
-            }
-        }
-
-        if iterated <= OLD_DELEGATIONS_CHUNK_SIZE {
-            // that was the final chunk
+        start_after = start_after.map(|mut v: Vec<u8>| {
+            v.push(0);
+            v
+        });
+        let mut delegations_paged = get_all_delegations_paged(
+            &delegations_bucket,
+            &mut start_after,
+            OLD_DELEGATIONS_CHUNK_SIZE,
+        )?;
+        if delegations_paged.is_empty() {
             break;
         }
+        delegations.append(&mut delegations_paged);
     }
 
     Ok(delegations)
@@ -75,7 +61,7 @@ pub fn delegations<T: DeserializeOwned + Serialize>(
 fn total_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
     match delegations(delegations_bucket) {
         Ok(delegations) => Ok(Coin::new(
-            delegations.iter().fold(0, |acc, x| acc + x.1.amount.u128()),
+            delegations.iter().fold(0, |acc, x| acc + x.2.amount.u128()),
             "upunk",
         )),
         Err(e) => Err(e),

@@ -19,8 +19,8 @@ export const MainContextProvider: React.FC = ({ children }: any) => {
     try {
       const res = await Api.fetchMixnodes();
       setMixnodes({ data: res, error: null });
-    } catch (error) {
-      setMixnodes({ data: null, error });
+    } catch (error: any) {
+      setMixnodes({ data: null, error: error.message });
     }
   };
 
@@ -28,8 +28,8 @@ export const MainContextProvider: React.FC = ({ children }: any) => {
     try {
       const res = await Api.fetchGateways();
       setGateways({ data: res, error: null });
-    } catch (error) {
-      setGateways({ data: null, error });
+    } catch (error:any) {
+      setGateways({ data: null, error: error.message });
     }
   };
 
@@ -37,16 +37,16 @@ export const MainContextProvider: React.FC = ({ children }: any) => {
     try {
       const res = await Api.fetchValidators();
       setValidators({ data: res, error: null });
-    } catch (error) {
-      setValidators({ data: null, error });
+    } catch (error:any) {
+      setValidators({ data: null, error: error.message });
     }
   };
   const fetchBlock = async () => {
     try {
       const res = await Api.fetchBlock();
       setBlock({ data: res, error: null });
-    } catch (error) {
-      setBlock({ data: null, error });
+    } catch (error:any) {
+      setBlock({ data: null, error: error.message });
     }
   };
 
@@ -55,6 +55,8 @@ export const MainContextProvider: React.FC = ({ children }: any) => {
     fetchGateways();
     fetchValidators();
     fetchBlock();
+
+
   }, []);
 
   return (

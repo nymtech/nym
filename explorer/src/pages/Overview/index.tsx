@@ -15,6 +15,7 @@ export const PageOverview: React.FC = () => {
   const { mixnodes, gateways, validators, block }: any =
     React.useContext(MainContext);
 
+    console.log("overview validators ", validators)
   return (
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>
@@ -67,7 +68,7 @@ export const PageOverview: React.FC = () => {
             <Grid item xs={12} md={4} lg={4}>
               <ContentCard
                 title="Validators"
-                subtitle={validators?.data?.length || ''}
+                subtitle={validators?.data?.count || ''}
                 errorMsg={gateways?.error}
                 Icon={<ConnectIcon />}
                 Action={

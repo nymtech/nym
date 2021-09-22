@@ -9,6 +9,7 @@ CREATE TABLE shared_keys
     derived_aes128_ctr_blake3_hmac_keys_bs58 TEXT NOT NULL
 );
 
+-- currently a dead table
 CREATE TABLE storage_quota
 (
     client_address_bs58 TEXT    NOT NULL PRIMARY KEY UNIQUE,
@@ -23,10 +24,10 @@ CREATE TABLE message_store
     content             BLOB    NOT NULL
 );
 
-CREATE TABLE bandwidth
+CREATE TABLE available_bandwidth
 (
-    client_address_bs58 TEXT NOT NULL PRIMARY KEY UNIQUE,
-    available           INTEGER
+    client_address_bs58 TEXT    NOT NULL PRIMARY KEY UNIQUE,
+    available           INTEGER NOT NULL
 );
 
 CREATE INDEX `message_store_index` ON `message_store` (`client_address_bs58`, `content`);

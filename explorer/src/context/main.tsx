@@ -1,7 +1,6 @@
 import { PaletteMode } from '@mui/material';
 import * as React from 'react';
 import { GatewayResponse, MixNodeResponse, ValidatorsResponse } from 'src/typeDefs/node-status-api-client';
-// import { MixNodeResponse, GatewayResponse } from 'src/typeDefs/node-status-api-client';
 import { Api } from '../api';
 
 type NodeApiResponse = {
@@ -67,10 +66,12 @@ export const MainContextProvider: React.FC = ({ children }: any) => {
   };
 
   React.useEffect(() => {
-    fetchMixnodes();
-    fetchGateways();
-    fetchValidators();
-    fetchBlock();
+    Promise.all([
+      fetchMixnodes(),
+      fetchGateways(),
+      fetchValidators(),
+      fetchBlock(),
+    ])
   }, []);
 
   return (

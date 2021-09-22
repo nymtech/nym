@@ -10,7 +10,9 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
 };
-use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateParams};
+use mixnet_contract::{
+    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, RawDelegationData, StateParams,
+};
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -205,7 +207,29 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    use crate::storage::{
+        all_gateway_delegations_read, all_mix_delegations_read, gateway_delegations,
+        mix_delegations, reverse_gateway_delegations, reverse_mix_delegations,
+    };
+    use crate::transactions::delegations;
+
+    let mix_bucket = all_mix_delegations_read::<Uint128>(deps.storage);
+    let all_delegations = delegations(mix_bucket)?;
+    for (owner, identity, amount) in all_delegations {
+        let raw_delegation = RawDelegationData::new(amount, env.block.height);
+        mix_delegations(deps.storage, &identity).save(owner.as_bytes(), &raw_delegation)?;
+        reverse_mix_delegations(deps.storage, &owner).save(identity.as_bytes(), &())?;
+    }
+
+    let gateway_bucket = all_gateway_delegations_read::<Uint128>(deps.storage);
+    let all_delegations = delegations(gateway_bucket)?;
+    for (owner, identity, amount) in all_delegations {
+        let raw_delegation = RawDelegationData::new(amount, env.block.height);
+        gateway_delegations(deps.storage, &identity).save(owner.as_bytes(), &raw_delegation)?;
+        reverse_gateway_delegations(deps.storage, &owner).save(identity.as_bytes(), &())?;
+    }
+
     Ok(Default::default())
 }
 

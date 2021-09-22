@@ -12,7 +12,7 @@ pub(crate) struct StoredMessage {
     pub(crate) content: Vec<u8>,
 }
 
-// pub(crate) struct PersistedBandwidth {
-//     client_address_bs58: String,
-//     available: i64,
-// }
+pub(crate) struct PersistedBandwidth {
+    pub(crate) client_address_bs58: String,
+    pub(crate) available: i64,
+}

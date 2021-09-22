@@ -1,11 +1,6 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) mod error;
-pub(crate) mod inboxes;
-mod models;
-mod shared_keys;
-
 use crate::node::storage::error::StorageError;
 use crate::node::storage::inboxes::InboxManager;
 use crate::node::storage::models::{PersistedSharedKeys, StoredMessage};
@@ -15,6 +10,12 @@ use log::{debug, error};
 use nymsphinx::DestinationAddressBytes;
 use sqlx::ConnectOptions;
 use std::path::Path;
+
+mod bandwidth;
+pub(crate) mod error;
+mod inboxes;
+mod models;
+mod shared_keys;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]

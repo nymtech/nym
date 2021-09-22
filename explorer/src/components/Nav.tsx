@@ -172,10 +172,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
       <ListItem disableGutters>
         <ListItemButton
           onClick={handleClick}
-          sx={{
-            color: (theme) =>
-              theme.palette.mode === 'light' ? '#000' : '#fff',
-          }}
+          sx={{ color: "text.primary" }}
         >
           <ListItemIcon>{Icon}</ListItemIcon>
           <ListItemText primary={title} />
@@ -190,12 +187,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
             component={Link}
             to={each.url}
           >
-            <ListItemButton
-              sx={{
-                color: (theme) =>
-                  theme.palette.mode === 'light' ? '#000' : '#fff',
-              }}
-            >
+            <ListItemButton sx={{ color: "text.primary" }}>
               <ListItemIcon>{each.Icon}</ListItemIcon>
               <ListItemText
                 primary={each.title}

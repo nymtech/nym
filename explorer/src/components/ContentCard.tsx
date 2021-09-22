@@ -19,7 +19,7 @@ export const ContentCard: React.FC<{
     {errorMsg && (
       <Typography
         variant="body2"
-        sx={{ color: 'red', padding: (theme) => theme.spacing(2) }}
+        sx={{ color: 'danger', padding: 2 }}
       >
         {errorMsg}
       </Typography>

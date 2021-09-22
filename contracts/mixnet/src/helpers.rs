@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
-use crate::storage::all_mix_delegations_read;
 use cosmwasm_std::{Decimal, Order, StdError, StdResult, Uint128};
 use cosmwasm_storage::ReadonlyBucket;
-use mixnet_contract::{Addr, IdentityKey, PagedAllDelegationsResponse};
+use mixnet_contract::{Addr, IdentityKey};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::convert::identity;
 use std::ops::Sub;
 
 // for time being completely ignore concept of a leap year and assume each year is exactly 365 days
@@ -138,6 +136,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::all_mix_delegations_read;
     use crate::storage::mix_delegations;
     use cosmwasm_std::testing::mock_dependencies;
     use mixnet_contract::RawDelegationData;

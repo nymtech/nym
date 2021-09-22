@@ -9,8 +9,7 @@ use crate::queries;
 use crate::storage::*;
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Order, Response, StdResult,
-    Uint128,
+    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{

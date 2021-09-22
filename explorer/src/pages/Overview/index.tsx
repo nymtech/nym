@@ -19,7 +19,7 @@ export const PageOverview: React.FC = () => {
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Grid container spacing={0}>
           <Grid item xs={12}>
-            <Typography sx={{ marginLeft: (theme) => theme.spacing(3) }}>
+            <Typography sx={{ marginLeft: 3 }}>
               Overview
             </Typography>
           </Grid>

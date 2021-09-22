@@ -3,9 +3,10 @@ import {
   MIXNODES_API,
   VALIDATORS_API,
   BLOCK_API,
+  COUNTRY_DATA_API,
 } from './constants';
 
-import { MixNodeResponse, GatewayResponse, ValidatorsResponse } from '../typeDefs/node-status-api-client'
+import { MixNodeResponse, GatewayResponse, ValidatorsResponse, CountryDataResponse } from '../typeDefs/node-status-api-client'
 
 export class Api {
 
@@ -53,4 +54,22 @@ export class Api {
       return error;
     }
   };
+
+  static fetchCountryData = async (): Promise<CountryDataResponse> => {
+    try {
+      let arr: CountryDataResponse = [];
+      const res = await fetch(COUNTRY_DATA_API);
+      const json = await res.json();
+      Object.keys(json)
+        .forEach(ISO3 => { 
+          arr.push({ ISO3, nodes: json[ISO3]}) 
+        });
+
+      return arr;
+    } catch (error: any) {
+      console.log('error ', error);
+      return error;
+    }
+  };
+
 }

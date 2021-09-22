@@ -1,5 +1,4 @@
 // import { Requester } from './requester';
-
 export interface ClientConfig {
 //   requester?: Requester;
   url: string;
@@ -118,3 +117,9 @@ export interface ValidatorsResponse {
     validators: Validator[]
 }
 
+export type CountryData = {
+  ISO3: string
+  nodes: number
+}
+
+export type CountryDataResponse = CountryData[];

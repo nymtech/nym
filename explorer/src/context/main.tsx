@@ -1,10 +1,10 @@
 import { PaletteMode } from '@mui/material';
 import * as React from 'react';
-import { GatewayResponse, MixNodeResponse, ValidatorsResponse } from 'src/typeDefs/node-status-api-client';
+import { CountryDataResponse, GatewayResponse, MixNodeResponse, ValidatorsResponse } from 'src/typeDefs/node-status-api-client';
 import { Api } from '../api';
 
 type NodeApiResponse = {
-  data: MixNodeResponse | GatewayResponse | ValidatorsResponse | number | null
+  data: MixNodeResponse | GatewayResponse | ValidatorsResponse | CountryDataResponse | number | null
   error: string | null
 }
 interface State {
@@ -14,6 +14,7 @@ interface State {
   gateways: NodeApiResponse | null
   validators: NodeApiResponse | null
   block: NodeApiResponse | null
+  countryData: NodeApiResponse | null
 };
 
 export const MainContext = React.createContext({} as State);
@@ -27,6 +28,7 @@ export const MainContextProvider: React.FC = ({ children }: any) => {
   const [gateways, setGateways] = React.useState<NodeApiResponse | null>(null);
   const [validators, setValidators] = React.useState<NodeApiResponse | null>(null);
   const [block, setBlock] = React.useState<NodeApiResponse | null>(null);
+  const [countryData, setCountryData] = React.useState<NodeApiResponse | null>(null);
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
@@ -64,6 +66,14 @@ export const MainContextProvider: React.FC = ({ children }: any) => {
       setBlock({ data: null, error: error.message });
     }
   };
+  const fetchCountryData = async () => {
+    try {
+      const res = await Api.fetchCountryData();
+      setCountryData({ data: res, error: null });
+    } catch (error: any) {
+      setCountryData({ data: null, error: error.message });
+    }
+  }
 
   React.useEffect(() => {
     Promise.all([
@@ -71,12 +81,13 @@ export const MainContextProvider: React.FC = ({ children }: any) => {
       fetchGateways(),
       fetchValidators(),
       fetchBlock(),
+      fetchCountryData(),
     ])
   }, []);
 
   return (
     <MainContext.Provider
-      value={{ mode, toggleMode, mixnodes, gateways, validators, block }}
+      value={{ mode, toggleMode, mixnodes, gateways, validators, block, countryData }}
     >
       {children}
     </MainContext.Provider>

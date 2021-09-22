@@ -19,7 +19,7 @@ interface State {
 
 export const MainContext = React.createContext({} as State);
 
-export const MainContextProvider: React.FC = ({ children }: any) => {
+export const MainContextProvider: React.FC = ({ children }) => {
   // light/dark mode
   const [mode, setMode] = React.useState<PaletteMode>('light');
 

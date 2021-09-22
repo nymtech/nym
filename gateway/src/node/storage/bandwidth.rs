@@ -54,16 +54,16 @@ impl BandwidthManager {
         .await
     }
 
-    /// Increases available bandwidth of the particular client by the specified value.
+    /// Increases available bandwidth of the particular client by the specified amount.
     ///
     /// # Arguments
     ///
     /// * `client_address_bs58`: base58-encoded address of the client.
-    /// * `value`: amount of available bandwidth to be added to the client.
+    /// * `amount`: amount of available bandwidth to be added to the client.
     pub(crate) async fn increase_available_bandwidth(
         &self,
         client_address_bs58: &str,
-        value: i64,
+        amount: i64,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
@@ -71,7 +71,7 @@ impl BandwidthManager {
                 SET available = available + ?
                 WHERE client_address_bs58 = ?
             "#,
-            value,
+            amount,
             client_address_bs58
         )
         .execute(&self.connection_pool)
@@ -79,16 +79,16 @@ impl BandwidthManager {
         Ok(())
     }
 
-    /// Decreases available bandwidth of the particular client by the specified value.
+    /// Decreases available bandwidth of the particular client by the specified amount.
     ///
     /// # Arguments
     ///
     /// * `client_address_bs58`: base58-encoded address of the client.
-    /// * `value`: amount of available bandwidth to be removed from the client.
+    /// * `amount`: amount of available bandwidth to be removed from the client.
     pub(crate) async fn decrease_available_bandwidth(
         &self,
         client_address_bs58: &str,
-        value: i64,
+        amount: i64,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
@@ -96,7 +96,7 @@ impl BandwidthManager {
                 SET available = available - ?
                 WHERE client_address_bs58 = ?
             "#,
-            value,
+            amount,
             client_address_bs58
         )
         .execute(&self.connection_pool)

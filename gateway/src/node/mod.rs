@@ -95,7 +95,11 @@ impl Gateway {
             Arc::clone(&self.identity),
             verification_key,
         )
-        .start(clients_handler_sender, forwarding_channel);
+        .start(
+            clients_handler_sender,
+            forwarding_channel,
+            self.storage.clone(),
+        );
     }
 
     fn start_packet_forwarder(&self) -> MixForwardingSender {

@@ -4,6 +4,7 @@
 use crate::node::client_handling::bandwidth::empty_bandwidth_database;
 use crate::node::client_handling::clients_handler::ClientsHandlerRequestSender;
 use crate::node::client_handling::websocket::connection_handler::Handle;
+use crate::node::storage::GatewayStorage;
 use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use log::*;
@@ -33,10 +34,14 @@ impl Listener {
         }
     }
 
+    // TODO: change the signature to pub(crate) async fn run(&self, handler: Handler)
+
     pub(crate) async fn run(
         &mut self,
         clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: MixForwardingSender,
+        // the storage should be injected in a different way
+        storage: GatewayStorage,
     ) {
         info!("Starting websocket listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
@@ -46,8 +51,6 @@ impl Listener {
                 process::exit(1);
             }
         };
-
-        let bandwidths = empty_bandwidth_database();
 
         loop {
             match tcp_listener.accept().await {
@@ -62,7 +65,7 @@ impl Listener {
                         outbound_mix_sender.clone(),
                         Arc::clone(&self.local_identity),
                         self.aggregated_verification_key.clone(),
-                        Arc::clone(&bandwidths),
+                        storage.clone(),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }
@@ -75,7 +78,12 @@ impl Listener {
         mut self,
         clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: MixForwardingSender,
+        // the storage should be injected in a different way
+        storage: GatewayStorage,
     ) -> JoinHandle<()> {
-        tokio::spawn(async move { self.run(clients_handler_sender, outbound_mix_sender).await })
+        tokio::spawn(async move {
+            self.run(clients_handler_sender, outbound_mix_sender, storage)
+                .await
+        })
     }
 }

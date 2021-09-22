@@ -184,6 +184,34 @@ impl ClientsHandler {
             return;
         }
 
+        // see if we have bandwidth entry for the client already, if not, create one with zero value
+        match self.storage.get_available_bandwidth(address).await {
+            Err(err) => {
+                error!(
+                    "We failed to look up client's available bandwidth... - {}",
+                    err
+                );
+                self.send_error_response("Internal gateway storage error", res_channel);
+                return;
+            }
+
+            Ok(None) => {
+                if let Err(err) = self.storage.create_bandwidth_entry(address).await {
+                    error!(
+                        "We failed to create bandwidth entry for {} ... - {}",
+                        address.as_base58_string(),
+                        err
+                    );
+                    self.send_error_response("Internal gateway storage error", res_channel);
+                    return;
+                }
+            }
+
+            // no need to do anything, seems the entry for the client already existed,
+            // perhaps they decided to derive new shared keys or something?
+            Ok(Some(_)) => (),
+        }
+
         self.push_stored_messages_to_client_and_save_channel(address, comm_channel)
             .await;
 

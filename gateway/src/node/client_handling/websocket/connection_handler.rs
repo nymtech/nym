@@ -8,6 +8,7 @@ use crate::node::client_handling::clients_handler::{
 use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
+use crate::node::storage::GatewayStorage;
 use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use futures::{
@@ -24,7 +25,9 @@ use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use nymsphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
+use sqlx::Error;
 use std::convert::TryFrom;
+use std::future::Future;
 use std::mem;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -61,7 +64,9 @@ pub(crate) struct Handle<R, S> {
     local_identity: Arc<identity::KeyPair>,
 
     aggregated_verification_key: VerificationKey,
-    bandwidths: BandwidthDatabase,
+    // bandwidths: BandwidthDatabase,
+    // perhaps cache?
+    storage: GatewayStorage,
 }
 
 impl<R, S> Handle<R, S>
@@ -77,7 +82,7 @@ where
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
         aggregated_verification_key: VerificationKey,
-        bandwidths: BandwidthDatabase,
+        storage: GatewayStorage,
     ) -> Self {
         Handle {
             rng,
@@ -88,7 +93,7 @@ where
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,
             aggregated_verification_key,
-            bandwidths,
+            storage,
         }
     }
 
@@ -198,6 +203,9 @@ where
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
         trace!("Handling binary message (presumably sphinx packet)");
 
+        // if no available bandwidth, exit straightaway so we wouldn't need to waste CPU trying to unwrap
+        // the received packet
+
         // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(
             bin_msg,
@@ -209,15 +217,47 @@ where
             Ok(request) => match request {
                 // currently only a single type exists
                 BinaryRequest::ForwardSphinx(mix_packet) => {
-                    let consumed_bandwidth = mem::size_of_val(&mix_packet) as u64;
-                    if let Err(e) = Bandwidth::consume_bandwidth(
-                        &self.bandwidths,
-                        &self.remote_address.unwrap(),
-                        consumed_bandwidth,
-                    )
-                    .await
+                    // unwrap here is fine as we can't handle binary messages without prior
+                    // authentication/registration which sets the value)
+                    let client_address = self.remote_address.unwrap();
+
+                    // for now let's just use actual size of the sphinx packet. there's a tiny bit of overhead
+                    // we're not including (but it's literally like 2 bytes) when the packet is framed
+                    let consumed_bandwidth = mix_packet.sphinx_packet().len() as i64;
+
+                    let available_bandwidth =
+                        match self.storage.get_available_bandwidth(client_address).await {
+                            Err(err) => {
+                                error!(
+                                    "We failed perform bandwidth lookup of {}! - {}",
+                                    client_address.as_base58_string(),
+                                    err
+                                );
+                                return ServerResponse::new_error("Internal gateway storage error")
+                                    .into();
+                            }
+                            Ok(None) => {
+                                return ServerResponse::new_error("No bandwidth available").into()
+                            }
+                            Ok(Some(available_bandwidth)) => available_bandwidth,
+                        };
+
+                    if available_bandwidth < consumed_bandwidth {
+                        return ServerResponse::new_error("Insufficient bandwidth available")
+                            .into();
+                    }
+
+                    if let Err(err) = self
+                        .storage
+                        .consume_bandwidth(client_address, consumed_bandwidth)
+                        .await
                     {
-                        ServerResponse::new_error(format!("{:?}", e))
+                        error!(
+                            "We failed to consume the bandwidth of {}! - {}",
+                            client_address.as_base58_string(),
+                            err
+                        );
+                        ServerResponse::new_error("Internal gateway storage error")
                     } else {
                         self.outbound_mix_sender.unbounded_send(mix_packet).unwrap();
                         ServerResponse::Send { status: true }
@@ -325,6 +365,7 @@ where
             }
         };
 
+        // TODO: this will go away in few commits
         let (res_sender, res_receiver) = oneshot::channel();
         let clients_handler_request = ClientsHandlerRequest::Register(
             remote_address,
@@ -381,29 +422,42 @@ where
                 return ServerResponse::new_error(e.to_string());
             }
         };
-        if credential.verify(&self.aggregated_verification_key) {
-            match Bandwidth::try_from(credential) {
-                Ok(bandwidth) => {
-                    if let Err(e) = Bandwidth::increase_bandwidth(
-                        &self.bandwidths,
-                        &self.remote_address.unwrap(),
-                        bandwidth.value(),
-                    )
+
+        if !credential.verify(&self.aggregated_verification_key) {
+            return ServerResponse::Bandwidth { status: false };
+        }
+
+        match Bandwidth::try_from(credential) {
+            Ok(bandwidth) => {
+                let mut bandwidth_value = bandwidth.value();
+                if bandwidth_value > i64::MAX as u64 {
+                    // note that this would have represented more than 1 exabyte,
+                    // which is like 125,000 worth of hard drives so I don't think we have
+                    // to worry about it for now...
+                    warn!("Somehow we received bandwidth value higher than 9223372036854775807. Going to cap it at that amount.");
+                    bandwidth_value = i64::MAX as u64;
+                }
+
+                // the unwrap in remote address is fine as we have already ensured the address has been set
+                if let Err(err) = self
+                    .storage
+                    .increase_bandwidth(self.remote_address.unwrap(), bandwidth_value as i64)
                     .await
-                    {
-                        return ServerResponse::Error {
-                            message: format!("{:?}", e),
-                        };
-                    }
+                {
+                    error!(
+                        "We failed to increase the bandwidth of {}! - {}",
+                        self.remote_address.unwrap().as_base58_string(),
+                        err
+                    );
+                    ServerResponse::new_error("Internal gateway storage error")
+                } else {
                     ServerResponse::Bandwidth { status: true }
                 }
-                Err(e) => ServerResponse::Error {
-                    message: format!("{:?}", e),
-                },
             }
-        } else {
-            ServerResponse::Bandwidth { status: false }
-        }
+            Err(e) => ServerResponse::Error {
+                message: format!("{:?}", e),
+            },
+        }.into()
     }
 
     // currently the bandwidth credential request is the only one we can receive after

@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::storage::bandwidth::BandwidthManager;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::inboxes::InboxManager;
 use crate::node::storage::models::{PersistedSharedKeys, StoredMessage};
@@ -22,6 +23,7 @@ mod shared_keys;
 pub(crate) struct GatewayStorage {
     shared_key_manager: SharedKeysManager,
     inbox_manager: InboxManager,
+    bandwidth_manager: BandwidthManager,
 }
 
 impl GatewayStorage {
@@ -66,7 +68,8 @@ impl GatewayStorage {
         // the cloning here are cheap as connection pool is stored behind an Arc
         Ok(GatewayStorage {
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
-            inbox_manager: InboxManager::new(connection_pool, message_retrieval_limit),
+            inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
+            bandwidth_manager: BandwidthManager::new(connection_pool),
         })
     }
 
@@ -144,7 +147,7 @@ impl GatewayStorage {
     ///
     /// # Arguments
     ///
-    /// * `client_address_bs58`: base58-encoded address of the client
+    /// * `client_address`: address of the client
     /// * `start_after`: optional starting id of the messages to grab
     ///
     /// returns the retrieved messages alongside optional id of the last message retrieved if
@@ -170,6 +173,70 @@ impl GatewayStorage {
         for id in ids {
             self.inbox_manager.remove_message(id).await?;
         }
+        Ok(())
+    }
+
+    /// Creates a new bandwidth entry for the particular client.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    pub(crate) async fn create_bandwidth_entry(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), sqlx::Error> {
+        self.bandwidth_manager
+            .insert_new_client(&client_address.as_base58_string())
+            .await?;
+        Ok(())
+    }
+
+    /// Tries to retrieve available bandwidth for the particular client.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    pub(crate) async fn get_available_bandwidth(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<Option<i64>, sqlx::Error> {
+        self.bandwidth_manager
+            .get_available_bandwidth(&client_address.as_base58_string())
+            .await
+            .map(|bandwidth_option| bandwidth_option.map(|bandwidth| bandwidth.available))
+    }
+
+    /// Increases available bandwidth of the particular client by the specified amount.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    /// * `amount`: amount of available bandwidth to be added to the client.
+    pub(crate) async fn increase_bandwidth(
+        &self,
+        client_address: DestinationAddressBytes,
+        amount: i64,
+    ) -> Result<(), sqlx::Error> {
+        self.bandwidth_manager
+            .increase_available_bandwidth(&client_address.as_base58_string(), amount)
+            .await?;
+        Ok(())
+    }
+
+    /// Decreases available bandwidth of the particular client by the specified amount.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    /// * `amount`: amount of available bandwidth to be removed from the client.
+    pub(crate) async fn consume_bandwidth(
+        &self,
+        client_address: DestinationAddressBytes,
+        amount: i64,
+    ) -> Result<(), sqlx::Error> {
+        self.bandwidth_manager
+            .decrease_available_bandwidth(&client_address.as_base58_string(), amount)
+            .await?;
         Ok(())
     }
 }

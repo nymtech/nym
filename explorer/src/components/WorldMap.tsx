@@ -2,27 +2,16 @@ import React from 'react';
 import { scaleLinear } from 'd3-scale';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
-import { Box, Palette } from '@mui/material';
+import { Box } from '@mui/material';
 import { MainContext } from '../context/main';
-import { countriesData } from '../data/countriesData';
 import { ContentCard } from './ContentCard';
 
 const geoUrl =
   'https://raw.githubusercontent.com/zcreativelabs/react-simple-maps/master/topojson-maps/world-110m.json';
 
-interface CountryData {
-  ISO3: string
-  nodes: number
-}
-
 export const WorldMap: React.FC = () => {
   const [tooltipContent, setTooltipContent] = React.useState<string | null>(null);
-  const [data, setData] = React.useState<CountryData[]>([]);
-  const { mode } = React.useContext(MainContext);
-
-  React.useEffect(() => {
-    setData(countriesData);
-  }, []);
+  const { mode, countryData } = React.useContext(MainContext);
 
   const colorScale: any = scaleLinear()
     .domain([0, 1200])
@@ -45,11 +34,12 @@ export const WorldMap: React.FC = () => {
             scale: 187,
           }}
         >
-          {data.length > 0 && (
+          {countryData && countryData.data && (
             <Geographies geography={geoUrl}>
               {({ geographies }: any) =>
                 geographies.map((geo: any) => {
-                  const d = data.find((s) => s.ISO3 === geo.properties.ISO_A3);
+                  // @ts-ignore
+                  const d = countryData && countryData.data && countryData.data.find((s) => s.ISO3 === geo.properties.ISO_A3);
                   return (
                     <Geography
                       key={geo.rsmKey}

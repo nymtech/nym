@@ -3,7 +3,6 @@
 
 pub(crate) mod error;
 pub(crate) mod inboxes;
-mod ledger;
 mod models;
 mod shared_keys;
 
@@ -12,7 +11,6 @@ use crate::node::storage::inboxes::InboxManager;
 use crate::node::storage::models::{PersistedSharedKeys, StoredMessage};
 use crate::node::storage::shared_keys::SharedKeysManager;
 use gateway_requests::registration::handshake::SharedKeys;
-pub(crate) use ledger::ClientLedger;
 use log::{debug, error};
 use nymsphinx::DestinationAddressBytes;
 use sqlx::ConnectOptions;

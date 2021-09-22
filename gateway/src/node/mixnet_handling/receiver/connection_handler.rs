@@ -6,7 +6,8 @@ use crate::node::client_handling::clients_handler::{
 };
 use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
-use crate::node::storage::inboxes::{ClientStorage, StoreData};
+use crate::node::storage::error::StorageError;
+use crate::node::storage::GatewayStorage;
 use dashmap::DashMap;
 use futures::channel::oneshot;
 use futures::StreamExt;
@@ -30,7 +31,7 @@ pub(crate) struct ConnectionHandler {
     // we could use our friend DelayQueue. Alternatively we could periodically check for if the
     // channels are closed.
     available_socket_senders_cache: DashMap<DestinationAddressBytes, MixMessageSender>,
-    client_store: ClientStorage,
+    storage: GatewayStorage,
     clients_handler_sender: ClientsHandlerRequestSender,
     ack_sender: MixForwardingSender,
 }
@@ -39,14 +40,13 @@ impl ConnectionHandler {
     pub(crate) fn new(
         packet_processor: PacketProcessor,
         clients_handler_sender: ClientsHandlerRequestSender,
-        client_store: ClientStorage,
-
+        storage: GatewayStorage,
         ack_sender: MixForwardingSender,
     ) -> Self {
         ConnectionHandler {
             packet_processor,
             available_socket_senders_cache: DashMap::new(),
-            client_store,
+            storage,
             clients_handler_sender,
             ack_sender,
         }
@@ -66,7 +66,7 @@ impl ConnectionHandler {
         ConnectionHandler {
             packet_processor: self.packet_processor.clone(),
             available_socket_senders_cache: senders_cache,
-            client_store: self.client_store.clone(),
+            storage: self.storage.clone(),
             clients_handler_sender: self.clients_handler_sender.clone(),
             ack_sender: self.ack_sender.clone(),
         }
@@ -151,14 +151,13 @@ impl ConnectionHandler {
         &self,
         client_address: DestinationAddressBytes,
         message: Vec<u8>,
-    ) -> io::Result<()> {
+    ) -> Result<(), StorageError> {
         debug!(
             "Storing received message for {} on the disk...",
             client_address
         );
 
-        let store_data = StoreData::new(client_address, message);
-        self.client_store.store_processed_data(store_data).await
+        self.storage.store_message(client_address, message).await
     }
 
     fn forward_ack(&self, forward_ack: Option<MixPacket>, client_address: DestinationAddressBytes) {

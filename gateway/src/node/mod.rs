@@ -65,7 +65,7 @@ impl Gateway {
         let connection_handler = ConnectionHandler::new(
             packet_processor,
             clients_handler_sender,
-            todo!(),
+            self.storage.clone(),
             ack_sender,
         );
 

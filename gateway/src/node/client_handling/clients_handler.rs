@@ -1,12 +1,9 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::GatewayStorage;
-use crate::node::{
-    client_handling::websocket::message_receiver::MixMessageSender,
-    storage::{inboxes::ClientStorage, ClientLedger},
-};
 use futures::{
     channel::{mpsc, oneshot},
     StreamExt,

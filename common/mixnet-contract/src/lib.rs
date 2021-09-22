@@ -11,7 +11,7 @@ pub use cosmwasm_std::{Addr, Coin};
 pub use delegation::{
     Delegation, PagedAllDelegationsResponse, PagedGatewayDelegationsResponse,
     PagedMixDelegationsResponse, PagedReverseGatewayDelegationsResponse,
-    PagedReverseMixDelegationsResponse, RawDelegationData,
+    PagedReverseMixDelegationsResponse, RawDelegationData, UnpackedDelegation,
 };
 pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayResponse};
 pub use mixnode::{Layer, MixNode, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse};

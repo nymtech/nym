@@ -4,7 +4,7 @@
 use crate::error::ContractError;
 use cosmwasm_std::{Decimal, Order, StdError, StdResult, Uint128};
 use cosmwasm_storage::ReadonlyBucket;
-use mixnet_contract::{Addr, IdentityKey};
+use mixnet_contract::{Addr, IdentityKey, UnpackedDelegation};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::ops::Sub;
@@ -107,7 +107,7 @@ pub(crate) fn get_all_delegations_paged<T>(
     bucket: &ReadonlyBucket<T>,
     start_after: &mut Option<Vec<u8>>,
     limit: usize,
-) -> StdResult<Vec<(Addr, IdentityKey, T)>>
+) -> StdResult<Vec<UnpackedDelegation<T>>>
 where
     T: Serialize + DeserializeOwned,
 {
@@ -121,7 +121,7 @@ where
                 (owner, identity, entry.1)
             })
         })
-        .collect::<StdResult<Vec<(Addr, IdentityKey, T)>>>()?;
+        .collect::<StdResult<Vec<UnpackedDelegation<T>>>>()?;
 
     *start_after = bucket
         .range(start_after.as_deref(), None, Order::Ascending)

@@ -13,8 +13,8 @@ use cosmwasm_std::{
 };
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{
-    Addr, Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData,
-    StateParams,
+    Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
+    UnpackedDelegation,
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -31,7 +31,7 @@ pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
 // 5. The node rebonds with the same identity
 pub fn delegations<T: DeserializeOwned + Serialize>(
     delegations_bucket: ReadonlyBucket<T>,
-) -> StdResult<Vec<(Addr, IdentityKey, T)>> {
+) -> StdResult<Vec<UnpackedDelegation<T>>> {
     // I think it's incredibly unlikely to ever read more than that
     // but in case we do, we should guard ourselves against possible
     // out of memory errors (wasm contracts can only allocate at most 2MB

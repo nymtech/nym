@@ -48,10 +48,10 @@ pub fn delegations<T: DeserializeOwned + Serialize>(
             &mut start_after,
             OLD_DELEGATIONS_CHUNK_SIZE,
         )?;
-        if delegations_paged.is_empty() {
+        delegations.append(&mut delegations_paged);
+        if start_after.is_none() {
             break;
         }
-        delegations.append(&mut delegations_paged);
     }
 
     Ok(delegations)

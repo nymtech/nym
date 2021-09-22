@@ -1,17 +1,33 @@
+import { PaletteMode } from '@mui/material';
 import * as React from 'react';
+import { GatewayResponse, MixNodeResponse, ValidatorsResponse } from 'src/typeDefs/node-status-api-client';
+// import { MixNodeResponse, GatewayResponse } from 'src/typeDefs/node-status-api-client';
 import { Api } from '../api';
 
-export const MainContext = React.createContext({});
+type NodeApiResponse = {
+  data: MixNodeResponse | GatewayResponse | ValidatorsResponse | number | null
+  error: string | null
+}
+interface State {
+  mode: PaletteMode
+  toggleMode: () => void
+  mixnodes: NodeApiResponse | null
+  gateways: NodeApiResponse | null
+  validators: NodeApiResponse | null
+  block: NodeApiResponse | null
+};
+
+export const MainContext = React.createContext({} as State);
 
 export const MainContextProvider: React.FC = ({ children }: any) => {
   // light/dark mode
-  const [mode, setMode] = React.useState('light');
+  const [mode, setMode] = React.useState<PaletteMode>('light');
 
   // various APIs for cards on Overview
-  const [mixnodes, setMixnodes] = React.useState<any>();
-  const [gateways, setGateways] = React.useState<any>();
-  const [validators, setValidators] = React.useState<any>();
-  const [block, setBlock] = React.useState<any>();
+  const [mixnodes, setMixnodes] = React.useState<NodeApiResponse | null>(null);
+  const [gateways, setGateways] = React.useState<NodeApiResponse | null>(null);
+  const [validators, setValidators] = React.useState<NodeApiResponse | null>(null);
+  const [block, setBlock] = React.useState<NodeApiResponse | null>(null);
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
@@ -55,8 +71,6 @@ export const MainContextProvider: React.FC = ({ children }: any) => {
     fetchGateways();
     fetchValidators();
     fetchBlock();
-
-
   }, []);
 
   return (

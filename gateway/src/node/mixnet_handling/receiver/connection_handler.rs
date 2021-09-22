@@ -200,7 +200,7 @@ impl ConnectionHandler {
         self.forward_ack(forward_ack, client_address);
     }
 
-    async fn handle_received_packet(self: Arc<Self>, framed_sphinx_packet: FramedSphinxPacket) {
+    async fn handle_received_packet(&self, framed_sphinx_packet: FramedSphinxPacket) {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in
         // packet processor for vpn packets,
@@ -221,21 +221,17 @@ impl ConnectionHandler {
 
     pub(crate) async fn handle_connection(self, conn: TcpStream, remote: SocketAddr) {
         debug!("Starting connection handler for {:?}", remote);
-        let this = Arc::new(self);
         let mut framed_conn = Framed::new(conn, SphinxCodec);
         while let Some(framed_sphinx_packet) = framed_conn.next().await {
             match framed_sphinx_packet {
                 Ok(framed_sphinx_packet) => {
                     // TODO: benchmark spawning tokio task with full processing vs just processing it
-                    // synchronously (without delaying inside of course,
-                    // delay could be moved to a per-connection DelayQueue. The delay queue future
-                    // could automatically just forward packet that is done being delayed)
-                    // under higher load in single and multi-threaded situation.
-                    //
-                    // My gut feeling is saying that we might get some nice performance boost
-                    // if we introduced the change
-                    let this = Arc::clone(&this);
-                    tokio::spawn(this.handle_received_packet(framed_sphinx_packet));
+                    // synchronously under higher load in single and multi-threaded situation.
+
+                    // in theory we could process multiple sphinx packet from the same connection in parallel,
+                    // but we already handle multiple concurrent connections so if anything, making
+                    // that change would only slow things down
+                    self.handle_received_packet(framed_sphinx_packet).await;
                 }
                 Err(err) => {
                     error!(

@@ -2,7 +2,7 @@ import React from 'react';
 import { scaleLinear } from 'd3-scale';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
-import { Box } from '@mui/material';
+import { Box, Palette } from '@mui/material';
 import { MainContext } from '../context/main';
 import { countriesData } from '../data/countriesData';
 import { ContentCard } from './ContentCard';
@@ -10,10 +10,16 @@ import { ContentCard } from './ContentCard';
 const geoUrl =
   'https://raw.githubusercontent.com/zcreativelabs/react-simple-maps/master/topojson-maps/world-110m.json';
 
+interface CountryData {
+  ISO3: string
+  nodes: number
+}
+
 export const WorldMap: React.FC = () => {
-  const [tooltipContent, setTooltipContent] = React.useState<string>('');
-  const [data, setData] = React.useState<Record<string, unknown>[]>([]);
-  const { mode }: any = React.useContext(MainContext);
+  const [tooltipContent, setTooltipContent] = React.useState<string | null>(null);
+  const [data, setData] = React.useState<CountryData[]>([]);
+  const { mode } = React.useContext(MainContext);
+
   React.useEffect(() => {
     setData(countriesData);
   }, []);

@@ -14,8 +14,6 @@ export const PageOverview: React.FC = () => {
   const history = useHistory();
   const { mixnodes, gateways, validators, block }: any =
     React.useContext(MainContext);
-
-    console.log("overview validators ", validators)
   return (
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>

@@ -767,6 +767,7 @@ pub mod tests {
         INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
     };
     use crate::helpers::calculate_epoch_reward_rate;
+    use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
     use crate::storage::{
         gateway_delegations, gateway_delegations_read, layer_distribution_read,
         mix_delegations_read, read_gateway_bond, read_gateway_epoch_bond_reward_rate,
@@ -782,6 +783,7 @@ pub mod tests {
     use mixnet_contract::{
         ExecuteMsg, LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
     };
+    use queries::tests::{store_n_gateway_delegations, store_n_mix_delegations};
 
     #[test]
     fn validating_mixnode_bond() {
@@ -3921,6 +3923,36 @@ pub mod tests {
                 attr("total delegation increase", Uint128(0)),
             ],
             res.attributes
+        );
+    }
+
+    #[test]
+    fn multiple_page_delegations() {
+        let mut deps = helpers::init_contract();
+        let node_identity: IdentityKey = "foo".into();
+
+        store_n_mix_delegations(
+            DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+            &mut deps.storage,
+            &node_identity,
+        );
+        let mix_bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
+        let mix_delegations = delegations(mix_bucket).unwrap();
+        assert_eq!(
+            DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+            mix_delegations.len() as u32
+        );
+
+        store_n_gateway_delegations(
+            DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+            &mut deps.storage,
+            &node_identity,
+        );
+        let gateway_bucket = all_gateway_delegations_read::<RawDelegationData>(&deps.storage);
+        let gateway_delegations = delegations(gateway_bucket).unwrap();
+        assert_eq!(
+            DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+            gateway_delegations.len() as u32
         );
     }
 

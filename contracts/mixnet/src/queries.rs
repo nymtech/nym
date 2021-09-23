@@ -24,7 +24,7 @@ const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 // currently the maximum limit before running into memory issue is somewhere between 1150 and 1200
 pub(crate) const DELEGATION_PAGE_MAX_LIMIT: u32 = 750;
-const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 500;
+pub(crate) const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 500;
 
 pub fn query_mixnodes_paged(
     deps: Deps,
@@ -317,7 +317,7 @@ pub(crate) fn query_gateway_delegation(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::state::State;
     use crate::storage::{config, gateway_delegations, gateways, mix_delegations, mixnodes};
@@ -691,25 +691,25 @@ mod tests {
         assert_eq!(dummy_state.params, query_state_params(deps.as_ref()))
     }
 
+    pub fn store_n_mix_delegations(n: u32, storage: &mut dyn Storage, node_identity: &IdentityKey) {
+        for i in 0..n {
+            let address = format!("address{}", i);
+            mix_delegations(storage, node_identity)
+                .save(address.as_bytes(), &raw_delegation_fixture(42))
+                .unwrap();
+        }
+    }
+
     #[cfg(test)]
     mod querying_for_mixnode_delegations_paged {
         use super::*;
-
-        fn store_n_delegations(n: u32, storage: &mut dyn Storage, node_identity: &IdentityKey) {
-            for i in 0..n {
-                let address = format!("address{}", i);
-                mix_delegations(storage, node_identity)
-                    .save(address.as_bytes(), &raw_delegation_fixture(42))
-                    .unwrap();
-            }
-        }
 
         #[test]
         fn retrieval_obeys_limits() {
             let mut deps = helpers::init_contract();
             let limit = 2;
             let node_identity: IdentityKey = "foo".into();
-            store_n_delegations(100, &mut deps.storage, &node_identity);
+            store_n_mix_delegations(100, &mut deps.storage, &node_identity);
 
             let page1 = query_mixnode_delegations_paged(
                 deps.as_ref(),
@@ -725,7 +725,7 @@ mod tests {
         fn retrieval_has_default_limit() {
             let mut deps = helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
-            store_n_delegations(
+            store_n_mix_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,
@@ -744,7 +744,7 @@ mod tests {
         fn retrieval_has_max_limit() {
             let mut deps = helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
-            store_n_delegations(
+            store_n_mix_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,
@@ -851,21 +851,12 @@ mod tests {
         use super::*;
         use crate::helpers::identity_and_owner_to_bytes;
 
-        fn store_n_delegations(n: u32, storage: &mut dyn Storage, node_identity: &IdentityKey) {
-            for i in 0..n {
-                let address = format!("address{}", i);
-                mix_delegations(storage, node_identity)
-                    .save(address.as_bytes(), &raw_delegation_fixture(42))
-                    .unwrap();
-            }
-        }
-
         #[test]
         fn retrieval_obeys_limits() {
             let mut deps = helpers::init_contract();
             let limit = 2;
             let node_identity: IdentityKey = "foo".into();
-            store_n_delegations(100, &mut deps.storage, &node_identity);
+            store_n_mix_delegations(100, &mut deps.storage, &node_identity);
 
             let page1 =
                 query_all_mixnode_delegations_paged(deps.as_ref(), None, Option::from(limit))
@@ -877,7 +868,7 @@ mod tests {
         fn retrieval_has_default_limit() {
             let mut deps = helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
-            store_n_delegations(
+            store_n_mix_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,
@@ -895,7 +886,7 @@ mod tests {
         fn retrieval_has_max_limit() {
             let mut deps = helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
-            store_n_delegations(
+            store_n_mix_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,
@@ -1214,26 +1205,30 @@ mod tests {
         }
     }
 
+    pub fn store_n_gateway_delegations(
+        n: u32,
+        storage: &mut dyn Storage,
+        node_identity: &IdentityKey,
+    ) {
+        for i in 0..n {
+            let address = format!("address{}", i);
+            gateway_delegations(storage, node_identity)
+                .save(address.as_bytes(), &raw_delegation_fixture(42))
+                .unwrap();
+        }
+    }
+
     #[cfg(test)]
     mod querying_for_gateway_delegations_paged {
         use super::*;
         use crate::storage::gateway_delegations;
-
-        fn store_n_delegations(n: u32, storage: &mut dyn Storage, node_identity: &IdentityKey) {
-            for i in 0..n {
-                let address = format!("address{}", i);
-                gateway_delegations(storage, node_identity)
-                    .save(address.as_bytes(), &raw_delegation_fixture(42))
-                    .unwrap();
-            }
-        }
 
         #[test]
         fn retrieval_obeys_limits() {
             let mut deps = helpers::init_contract();
             let limit = 2;
             let node_identity: IdentityKey = "foo".into();
-            store_n_delegations(100, &mut deps.storage, &node_identity);
+            store_n_gateway_delegations(100, &mut deps.storage, &node_identity);
 
             let page1 = query_gateway_delegations_paged(
                 deps.as_ref(),
@@ -1249,7 +1244,7 @@ mod tests {
         fn retrieval_has_default_limit() {
             let mut deps = helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
-            store_n_delegations(
+            store_n_gateway_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,
@@ -1268,7 +1263,7 @@ mod tests {
         fn retrieval_has_max_limit() {
             let mut deps = helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
-            store_n_delegations(
+            store_n_gateway_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,
@@ -1451,21 +1446,12 @@ mod tests {
         use crate::helpers::identity_and_owner_to_bytes;
         use crate::storage::gateway_delegations;
 
-        fn store_n_delegations(n: u32, storage: &mut dyn Storage, node_identity: &IdentityKey) {
-            for i in 0..n {
-                let address = format!("address{}", i);
-                gateway_delegations(storage, node_identity)
-                    .save(address.as_bytes(), &raw_delegation_fixture(42))
-                    .unwrap();
-            }
-        }
-
         #[test]
         fn retrieval_obeys_limits() {
             let mut deps = helpers::init_contract();
             let limit = 2;
             let node_identity: IdentityKey = "foo".into();
-            store_n_delegations(100, &mut deps.storage, &node_identity);
+            store_n_gateway_delegations(100, &mut deps.storage, &node_identity);
 
             let page1 =
                 query_all_gateway_delegations_paged(deps.as_ref(), None, Option::from(limit))
@@ -1477,7 +1463,7 @@ mod tests {
         fn retrieval_has_default_limit() {
             let mut deps = helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
-            store_n_delegations(
+            store_n_gateway_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,
@@ -1495,7 +1481,7 @@ mod tests {
         fn retrieval_has_max_limit() {
             let mut deps = helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
-            store_n_delegations(
+            store_n_gateway_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,

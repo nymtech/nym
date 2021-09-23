@@ -54,6 +54,8 @@ pub(crate) struct MixnodeToReward {
 
     /// Total number of individual addresses that have delegated to this particular node
     pub(crate) total_delegations: usize,
+    /// Node absolute uptime over total active set uptime
+    pub(crate) performance: Option<f64>
 }
 
 #[derive(Debug, Clone)]
@@ -285,6 +287,7 @@ impl Rewarder {
                         uptime: self
                             .calculate_absolute_uptime(mix.last_day_ipv4, mix.last_day_ipv6),
                         total_delegations,
+                        performance: None
                     })
             })
             .filter(|node| node.uptime.u8() > 0)

@@ -79,6 +79,10 @@ impl MixNodeBond {
     pub fn mix_node(&self) -> &MixNode {
         &self.mix_node
     }
+
+    pub fn total_delegation(&self) -> Coin {
+        self.total_delegation.clone()
+    }
 }
 
 impl PartialOrd for MixNodeBond {

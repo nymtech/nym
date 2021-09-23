@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api'
 import bs58 from 'bs58'
 import { minor, valid } from 'semver'
+import { getBalance, majorToMinor } from '../requests'
 import { Coin } from '../types'
 
 export const validateKey = (key: string): boolean => {
@@ -75,7 +76,6 @@ export const validateVersion = (version: string): boolean => {
     const validVersion = valid(version)
     return validVersion !== null && minorVersion >= 11
   } catch (e) {
-    console.log(e)
     return false
   }
 }
@@ -90,3 +90,9 @@ export const validateRawPort = (rawPort: number): boolean =>
 
 export const truncate = (text: string, trim: number) =>
   text.substring(0, trim) + '...'
+
+export const checkHasEnoughFunds = async (allocationValue: string) => {
+  const minorValue = await majorToMinor(allocationValue)
+  const walletValue = await getBalance()
+  return !(+walletValue.coin.amount - +minorValue.amount < 0)
+}

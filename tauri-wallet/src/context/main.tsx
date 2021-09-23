@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
-import { Coin, TClientDetails, TSignInWithMnemonic } from '../types'
+import { TClientDetails, TSignInWithMnemonic } from '../types'
 import { TUseGetBalance, useGetBalance } from '../hooks/useGetBalance'
 
 export const ADMIN_ADDRESS = 'punk1h3w4nj7kny5dfyjw2le4vm74z03v9vd4dstpu0'

@@ -1,7 +1,8 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Backdrop,
+  Box,
   Button,
   CircularProgress,
   FormControl,
@@ -14,20 +15,45 @@ import {
 import { useTheme } from '@material-ui/styles'
 import { ClientContext } from '../context/main'
 import { NymCard } from '.'
+import { getContractParams, setContractParams } from '../requests'
+import { TauriStateParams } from '../types'
 
 export const Admin: React.FC = () => {
   const { showAdmin, handleShowAdmin } = useContext(ClientContext)
+  const [isLoading, setIsLoading] = useState(false)
+  const [params, setParams] = useState<TauriStateParams>()
 
   const onCancel = () => {
+    setParams(undefined)
+    setIsLoading(false)
     handleShowAdmin()
   }
+
+  useEffect(() => {
+    const requestContractParams = async () => {
+      if (showAdmin) {
+        setIsLoading(true)
+        const params = await getContractParams()
+        setParams(params)
+        setIsLoading(false)
+      }
+    }
+    requestContractParams()
+  }, [showAdmin])
 
   return (
     <Backdrop open={showAdmin} style={{ zIndex: 2, overflow: 'auto' }}>
       <Slide in={showAdmin}>
         <Paper style={{ margin: 'auto' }}>
           <NymCard title="Admin" subheader="Contract administration" noPadding>
-            <AdminForm onCancel={onCancel} />
+            {isLoading && (
+              <Box style={{ display: 'flex', justifyContent: 'center' }}>
+                <CircularProgress size={48} />
+              </Box>
+            )}
+            {!isLoading && params && (
+              <AdminForm onCancel={onCancel} params={params} />
+            )}
           </NymCard>
         </Paper>
       </Slide>
@@ -35,14 +61,18 @@ export const Admin: React.FC = () => {
   )
 }
 
-const AdminForm: React.FC<{ onCancel: () => void }> = ({ onCancel }) => {
+const AdminForm: React.FC<{
+  params: TauriStateParams
+  onCancel: () => void
+}> = ({ params, onCancel }) => {
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm()
+  } = useForm({ defaultValues: { ...params } })
 
-  const onSubmit = (data: any) => {
+  const onSubmit = async (data: TauriStateParams) => {
+    await setContractParams(data)
     console.log(data)
     onCancel()
   }
@@ -51,110 +81,112 @@ const AdminForm: React.FC<{ onCancel: () => void }> = ({ onCancel }) => {
 
   return (
     <FormControl fullWidth>
-      <div style={{ padding: theme.spacing(3, 5), maxWidth: 700 }}>
+      <div
+        style={{ padding: theme.spacing(3, 5), maxWidth: 700, minWidth: 400 }}
+      >
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <TextField
-              {...register('minimumMixnodeBond')}
+              {...register('minimum_mixnode_bond')}
               required
               variant="outlined"
-              id="minimumMixnodeBond"
-              name="minimumMixnodeBond"
+              id="minimum_mixnode_bond"
+              name="minimum_mixnode_bond"
               label="Minumum mixnode bond"
               fullWidth
-              error={!!errors.minimumMixnodeBond}
-              helperText={errors?.minimumMixnodeBond?.message}
+              error={!!errors.minimum_mixnode_bond}
+              helperText={errors?.minimum_mixnode_bond?.message}
             />
           </Grid>
           <Grid item xs={12}>
             <TextField
-              {...register('minimumGatewayBond')}
+              {...register('minimum_gateway_bond')}
               required
               variant="outlined"
-              id="minimumGatewayBond"
-              name="minimumGatewayBond"
+              id="minimum_gateway_bond"
+              name="minimum_gateway_bond"
               label="Minumum gateway bond"
               fullWidth
-              error={!!errors.minimumGatewayBond}
-              helperText={errors?.minimumGatewayBond?.message}
+              error={!!errors.minimum_gateway_bond}
+              helperText={errors?.minimum_gateway_bond?.message}
             />
           </Grid>
           <Grid item xs={12}>
             <TextField
-              {...register('mixnodeBondRewardRate')}
+              {...register('mixnode_bond_reward_rate')}
               required
               variant="outlined"
-              id="mixnodeBondRewardRate"
-              name="mixnodeBondRewardRate"
+              id="mixnode_bond_reward_rate"
+              name="mixnode_bond_reward_rate"
               label="Mixnode bond reward rate"
               fullWidth
-              error={!!errors.mixnodeBondRewardRate}
-              helperText={errors?.mixnodeBondRewardRate?.message}
+              error={!!errors.mixnode_bond_reward_rate}
+              helperText={errors?.mixnode_bond_reward_rate?.message}
             />
           </Grid>
           <Grid item xs={12}>
             <TextField
-              {...register('gatewayBondRewardRate')}
+              {...register('gateway_bond_reward_rate')}
               required
               variant="outlined"
-              id="gatewayBondRewardRate"
-              name="gatewayBondRewardRate"
+              id="gateway_bond_reward_rate"
+              name="gateway_bond_reward_rate"
               label="Gateway bond reward rate"
               fullWidth
-              error={!!errors.gatewayBondRewardRate}
-              helperText={errors?.gatewayBondRewardRate?.message}
+              error={!!errors.gateway_bond_reward_rate}
+              helperText={errors?.gateway_bond_reward_rate?.message}
             />
           </Grid>
           <Grid item xs={12}>
             <TextField
-              {...register('mixnodeDelegationRewardRate')}
+              {...register('mixnode_delegation_reward_rate')}
               required
               variant="outlined"
-              id="mixnodeDelegationRewardRate"
-              name="mixnodeDelegationRewardRate"
+              id="mixnode_delegation_reward_rate"
+              name="mixnode_delegation_reward_rate"
               label="Mixnode Delegation Reward Rate"
               fullWidth
-              error={!!errors.mixnodeDelegationRewardRate}
-              helperText={errors?.mixnodeDelegationRewardRate?.message}
+              error={!!errors.mixnode_delegation_reward_rate}
+              helperText={errors?.mixnode_delegation_reward_rate?.message}
             />
           </Grid>
           <Grid item xs={12}>
             <TextField
-              {...register('gatewayDelegationRewardRate')}
+              {...register('gateway_delegation_reward_rate')}
               required
               variant="outlined"
-              id="gatewayDelegationRewardRate"
-              name="gatewayDelegationRewardRate"
+              id="gateway_delegation_reward_rate"
+              name="gateway_delegation_reward_rate"
               label="Gateway Delegation Reward Rate"
               fullWidth
-              error={!!errors.gatewayDelegationRewardRate}
-              helperText={errors?.gatewayDelegationRewardRate?.message}
+              error={!!errors.gateway_delegation_reward_rate}
+              helperText={errors?.gateway_delegation_reward_rate?.message}
             />
           </Grid>
           <Grid item xs={12}>
             <TextField
-              {...register('epochLength')}
+              {...register('epoch_length')}
               required
               variant="outlined"
               id="epochLength"
               name="epochLength"
               label="Epoch length (hours)"
               fullWidth
-              error={!!errors.epochLength}
-              helperText={errors?.epochLength?.message}
+              error={!!errors.epoch_length}
+              helperText={errors?.epoch_length?.message}
             />
           </Grid>
           <Grid item xs={12}>
             <TextField
-              {...register('mixNodeActiveSetSize')}
+              {...register('mixnode_active_set_size', { valueAsNumber: true })}
               required
               variant="outlined"
-              id="mixNodeActiveSetSize"
-              name="mixNodeActiveSetSize"
+              id="mixnode_active_set_size"
+              name="mixnode_active_set_size"
               label="Mixnode Active Set Size "
               fullWidth
-              error={!!errors.epochLength}
-              helperText={errors?.epochLength?.message}
+              error={!!errors.mixnode_active_set_size}
+              helperText={errors?.mixnode_active_set_size?.message}
             />
           </Grid>
         </Grid>

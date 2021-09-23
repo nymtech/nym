@@ -14,10 +14,10 @@ import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { EnumNodeType, TFee } from '../../types'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
-import { invoke } from '@tauri-apps/api'
 import { Alert } from '@material-ui/lab'
 import { ClientContext } from '../../context/main'
-import { majorToMinor } from '../../requests'
+import { delegate, majorToMinor } from '../../requests'
+import { checkHasEnoughFunds } from '../../utils'
 
 type TDelegateForm = {
   nodeType: EnumNodeType
@@ -46,6 +46,7 @@ export const DelegateForm = ({
     setValue,
     watch,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<TDelegateForm>({
     defaultValues,
@@ -57,15 +58,24 @@ export const DelegateForm = ({
   const { getBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TDelegateForm) => {
+    const hasEnoughFunds = await checkHasEnoughFunds(data.amount)
+    if (!hasEnoughFunds) {
+      return setError('amount', {
+        message: 'Not enough funds in wallet',
+      })
+    }
+
     const amount = await majorToMinor(data.amount)
 
-    await invoke(`delegate_to_${data.nodeType}`, {
+    await delegate({
+      type: data.nodeType,
       identity: data.identity,
       amount,
     })
-      .then((res: any) => {
-        console.log(res)
-        onSuccess(res)
+      .then((res) => {
+        onSuccess(
+          `Successfully delegated ${data.amount} punk to ${res.source_address}`
+        )
         getBalance.fetchBalance()
       })
       .catch((e) => {
@@ -83,6 +93,7 @@ export const DelegateForm = ({
               <NodeTypeSelector
                 nodeType={watchNodeType}
                 setNodeType={(nodeType) => setValue('nodeType', nodeType)}
+                disabled={isSubmitting}
               />
             </Grid>
             <Grid item>

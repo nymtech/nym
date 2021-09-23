@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import {
   Button,
   Checkbox,
@@ -11,14 +11,16 @@ import {
   Theme,
 } from '@material-ui/core'
 import { useTheme } from '@material-ui/styles'
-import { useForm } from 'react-hook-form'
+import { Alert } from '@material-ui/lab'
 import { yupResolver } from '@hookform/resolvers/yup'
+import { useForm } from 'react-hook-form'
 import { EnumNodeType } from '../../types/global'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
+import { bond, majorToMinor } from '../../requests'
 import { validationSchema } from './validationSchema'
 import { Coin, Gateway, MixNode } from '../../types'
-import { invoke } from '@tauri-apps/api'
-import { Alert } from '@material-ui/lab'
+import { ClientContext } from '../../context/main'
+import { checkHasEnoughFunds } from '../../utils'
 
 type TBondFormFields = {
   withAdvancedOptions: boolean
@@ -57,29 +59,27 @@ const formatData = (data: TBondFormFields) => {
     host: data.host,
     version: data.version,
     mix_port: data.mixPort,
-    amount: data.amount,
-    nodeType: data.nodeType,
   }
 
   if (data.nodeType === EnumNodeType.mixnode) {
     payload.verloc_port = data.verlocPort
     payload.http_api_port = data.httpApiPort
-    return payload as MixNode & { amount: number; nodeType: EnumNodeType }
-  }
-
-  if (data.nodeType == EnumNodeType.gateway) {
+    return payload as MixNode
+  } else {
     payload.clients_port = data.clientsPort
     payload.location = data.location
-    return payload as Gateway & { amount: number; nodeType: EnumNodeType }
+    return payload as Gateway
   }
 }
 
 export const BondForm = ({
+  disabled,
   fees,
   onError,
   onSuccess,
 }: {
-  fees: { [key in EnumNodeType]: Coin }
+  disabled: boolean
+  fees?: { [key in EnumNodeType]: Coin }
   onError: (message?: string) => void
   onSuccess: (message?: string) => void
 }) => {
@@ -87,12 +87,15 @@ export const BondForm = ({
     register,
     handleSubmit,
     setValue,
+    setError,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<TBondFormFields>({
     resolver: yupResolver(validationSchema),
     defaultValues,
   })
+
+  const { getBalance } = useContext(ClientContext)
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
   const watchAdvancedOptions = watch(
@@ -101,13 +104,18 @@ export const BondForm = ({
   )
 
   const onSubmit = async (data: TBondFormFields) => {
+    const hasEnoughFunds = await checkHasEnoughFunds(data.amount)
+    if (!hasEnoughFunds) {
+      return setError('amount', { message: 'Not enough funds in wallet' })
+    }
+
     const formattedData = formatData(data)
-    await invoke(`bond_${data.nodeType}`, {
-      [data.nodeType]: formattedData,
-      bond: { amount: formattedData?.amount, denom: 'punk' },
-    })
-      .then((res: any) => {
-        onSuccess(res)
+    const amount = await majorToMinor(data.amount)
+
+    await bond({ type: data.nodeType, data: formattedData, amount })
+      .then(() => {
+        getBalance.fetchBalance()
+        onSuccess(`Successfully bonded to ${data.identityKey}`)
       })
       .catch((e) => {
         onError(e)
@@ -129,17 +137,20 @@ export const BondForm = ({
                   if (nodeType === EnumNodeType.mixnode)
                     setValue('location', undefined)
                 }}
+                disabled={disabled}
               />
             </Grid>
-            <Grid item>
-              <Alert severity="info">
-                {`A fee of ${
-                  watchNodeType === EnumNodeType.mixnode
-                    ? fees.mixnode.amount
-                    : fees.gateway.amount
-                } PUNK will apply to this transaction`}
-              </Alert>
-            </Grid>
+            {fees && (
+              <Grid item>
+                <Alert severity="info">
+                  {`A fee of ${
+                    watchNodeType === EnumNodeType.mixnode
+                      ? fees.mixnode.amount
+                      : fees.gateway.amount
+                  } PUNK will apply to this transaction`}
+                </Alert>
+              </Grid>
+            )}
           </Grid>
           <Grid item xs={12}>
             <TextField
@@ -152,6 +163,7 @@ export const BondForm = ({
               fullWidth
               error={!!errors.identityKey}
               helperText={errors.identityKey?.message}
+              disabled={disabled}
             />
           </Grid>
           <Grid item xs={12}>
@@ -165,6 +177,7 @@ export const BondForm = ({
               error={!!errors.sphinxKey}
               helperText={errors.sphinxKey?.message}
               fullWidth
+              disabled={disabled}
             />
           </Grid>
           <Grid item xs={12} sm={9}>
@@ -183,6 +196,7 @@ export const BondForm = ({
                   <InputAdornment position="end">punks</InputAdornment>
                 ),
               }}
+              disabled={disabled}
             />
           </Grid>
 
@@ -197,6 +211,7 @@ export const BondForm = ({
               fullWidth
               error={!!errors.host}
               helperText={errors.host?.message}
+              disabled={disabled}
             />
           </Grid>
 
@@ -213,6 +228,7 @@ export const BondForm = ({
                 fullWidth
                 error={!!errors.location}
                 helperText={errors.location?.message}
+                disabled={disabled}
               />
             )}
           </Grid>
@@ -228,6 +244,7 @@ export const BondForm = ({
               fullWidth
               error={!!errors.version}
               helperText={errors.version?.message}
+              disabled={disabled}
             />
           </Grid>
 
@@ -275,6 +292,7 @@ export const BondForm = ({
                   helperText={
                     errors.mixPort?.message && 'A valid port value is required'
                   }
+                  disabled={disabled}
                 />
               </Grid>
               {watchNodeType === EnumNodeType.mixnode ? (
@@ -292,6 +310,7 @@ export const BondForm = ({
                         errors.verlocPort?.message &&
                         'A valid port value is required'
                       }
+                      disabled={disabled}
                     />
                   </Grid>
 
@@ -308,6 +327,7 @@ export const BondForm = ({
                         errors.httpApiPort?.message &&
                         'A valid port value is required'
                       }
+                      disabled={disabled}
                     />
                   </Grid>
                 </>
@@ -325,6 +345,7 @@ export const BondForm = ({
                       errors.clientsPort?.message &&
                       'A valid port value is required'
                     }
+                    disabled={disabled}
                   />
                 </Grid>
               )}
@@ -343,7 +364,7 @@ export const BondForm = ({
         }}
       >
         <Button
-          disabled={isSubmitting}
+          disabled={isSubmitting || disabled}
           variant="contained"
           color="primary"
           type="submit"

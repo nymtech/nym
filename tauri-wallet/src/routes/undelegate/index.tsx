@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Alert } from '@material-ui/lab'
+import { Alert, AlertTitle } from '@material-ui/lab'
 import { useTheme } from '@material-ui/styles'
 import { NymCard } from '../../components'
 import { UndelegateForm } from './UndelegateForm'
@@ -76,7 +76,13 @@ export const Undelegate = () => {
                   An error occurred with the request: {message}
                 </Alert>
               }
-              Success={<Alert severity="success">{message}</Alert>}
+              Success={
+                <Alert severity="success">
+                  {' '}
+                  <AlertTitle>Undelegation complete</AlertTitle>
+                  {message}
+                </Alert>
+              }
             />
           )}
         </>

@@ -9,9 +9,11 @@ import React from 'react'
 import { EnumNodeType } from '../types/global'
 
 export const NodeTypeSelector = ({
+  disabled,
   nodeType,
   setNodeType,
 }: {
+  disabled: boolean
   nodeType: EnumNodeType
   setNodeType: (nodeType: EnumNodeType) => void
 }) => {
@@ -32,11 +34,13 @@ export const NodeTypeSelector = ({
           value={EnumNodeType.mixnode}
           control={<Radio />}
           label="Mixnode"
+          disabled={disabled}
         />
         <FormControlLabel
           value={EnumNodeType.gateway}
           control={<Radio />}
           label="Gateway"
+          disabled={disabled}
         />
       </RadioGroup>
     </FormControl>

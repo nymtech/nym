@@ -54,6 +54,7 @@ pub(crate) struct AuthenticatedHandler<R, S> {
     mix_receiver: MixMessageReceiver,
 }
 
+// explicitly remove handle from the global store upon being dropped
 impl<R, S> Drop for AuthenticatedHandler<R, S> {
     fn drop(&mut self) {
         self.inner
@@ -67,6 +68,15 @@ where
     // TODO: those trait bounds here don't really make sense....
     R: Rng + CryptoRng,
 {
+    /// Upgrades `FreshHandler` into the Authenticated variant implying the client is now authenticated
+    /// and thus allowed to perform more actions with the gateway, such as redeeming bandwidth or
+    /// sending sphinx packets.
+    ///
+    /// # Arguments
+    ///
+    /// * `fresh`: fresh, unauthenticated, connection handler.
+    /// * `client`: details (i.e. address and shared keys) of the registered client
+    /// * `mix_receiver`: channel used for receiving messages from the mixnet destined for this client.
     pub(crate) fn upgrade(
         fresh: FreshHandler<R, S>,
         client: ClientDetails,
@@ -79,12 +89,14 @@ where
         }
     }
 
-    fn disconnect(&self) {
+    /// Explicitly removes handle from the global store.
+    fn disconnect(self) {
         self.inner
             .active_clients_store
             .disconnect(self.client.address)
     }
 
+    /// Checks the amount of bandwidth available for the connected client.
     async fn get_available_bandwidth(&self) -> Result<i64, RequestHandlingError> {
         let bandwidth = self
             .inner
@@ -95,6 +107,11 @@ where
         Ok(bandwidth)
     }
 
+    /// Increases the amount of available bandwidth of the connected client by the specified value.
+    ///
+    /// # Arguments
+    ///
+    /// * `amount`: amount to increase the available bandwidth by.
     async fn increase_bandwidth(&self, amount: i64) -> Result<(), RequestHandlingError> {
         self.inner
             .storage
@@ -103,6 +120,11 @@ where
         Ok(())
     }
 
+    /// Decreases the amount of available bandwidth of the connected client by the specified value.
+    ///
+    /// # Arguments
+    ///
+    /// * `amount`: amount to decrease the available bandwidth by.
     async fn consume_bandwidth(&self, amount: i64) -> Result<(), RequestHandlingError> {
         self.inner
             .storage
@@ -111,6 +133,11 @@ where
         Ok(())
     }
 
+    /// Forwards the received mix packet from the client into the mix network.
+    ///
+    /// # Arguments
+    ///
+    /// * `mix_packet`: packet received from the client that should get forwarded into the network.
     fn forward_packet(&self, mix_packet: MixPacket) {
         if let Err(err) = self.inner.outbound_mix_sender.unbounded_send(mix_packet) {
             error!("We failed to forward requested mix packet - {}. Presumably our mix forwarder has crashed. We cannot continue.", err);
@@ -118,6 +145,13 @@ where
         }
     }
 
+    /// Tries to handle the received bandwidth request by checking correctness of the received data
+    /// and if successful, increases client's bandwidth by an appropriate amount.
+    ///
+    /// # Arguments
+    ///
+    /// * `enc_credential`: raw encrypted bandwidth credential to verify.
+    /// * `iv`: fresh iv used for the credential.
     async fn handle_bandwidth(
         &mut self,
         enc_credential: Vec<u8>,
@@ -150,7 +184,14 @@ where
         Ok(ServerResponse::Bandwidth { available_total })
     }
 
-    // this function decrypts the request and checks the MAC
+    /// Tries to handle request to forward sphinx packet into the network. The request can only succeed
+    /// if the client has enough available bandwidth.
+    ///
+    /// Upon forwarding, client's bandwidth is decreased by the size of the forwarded packet.
+    ///
+    /// # Arguments
+    ///
+    /// * `mix_packet`: packet received from the client that should get forwarded into the network.
     async fn handle_forward_sphinx(
         &self,
         mix_packet: MixPacket,
@@ -175,6 +216,11 @@ where
         })
     }
 
+    /// Attempts to handle a binary data frame websocket message.
+    ///
+    /// # Arguments
+    ///
+    /// * `bin_msg`: raw message to handle.
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
         // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(bin_msg, &self.client.shared_keys) {
@@ -191,8 +237,13 @@ where
         }
     }
 
-    // currently the bandwidth credential request is the only one we can receive after
-    // authentication
+    /// Attempts to handle a text data frame websocket message.
+    ///
+    /// Currently the bandwidth credential request is the only one we can receive after authentication.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_request`: raw message to handle.
     async fn handle_text(&mut self, raw_request: String) -> Message {
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
@@ -208,6 +259,11 @@ where
         }
     }
 
+    /// Attempts to handle websocket message received from the connected client.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_request`: raw received websocket message.
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
         // them and let's test that claim. If that's not the case, just copy code from
@@ -222,7 +278,7 @@ where
     /// Simultaneously listens for incoming client requests, which realistically should only be
     /// binary requests to forward sphinx packets or increase bandwidth
     /// and for sphinx packets received from the mix network that should be sent back to the client.
-    pub(crate) async fn listen_for_requests(&mut self)
+    pub(crate) async fn listen_for_requests(mut self)
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {

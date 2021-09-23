@@ -77,7 +77,7 @@ where
 
     trace!("Managed to perform websocket handshake!");
 
-    if let Some(mut auth_handle) = handle.perform_initial_authentication().await {
+    if let Some(auth_handle) = handle.perform_initial_authentication().await {
         auth_handle.listen_for_requests().await
     } else {
         warn!("Authentication has failed")

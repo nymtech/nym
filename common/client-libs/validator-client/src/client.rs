@@ -7,7 +7,6 @@ use crate::nymd::{
 };
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-use cosmrs::tx::Raw;
 use mixnet_contract::{GatewayBond, MixNodeBond, RawDelegationData};
 use url::Url;
 

@@ -548,11 +548,17 @@ where
                                 return None;
                             }
 
-                            return auth_result.client_details.map(|client_details| {
+                            return if let Some(client_details) = auth_result.client_details {
                                 self.active_clients_store
                                     .insert(client_details.address, mix_sender);
-                                AuthenticatedHandler::upgrade(self, client_details, mix_receiver)
-                            });
+                                Some(AuthenticatedHandler::upgrade(
+                                    self,
+                                    client_details,
+                                    mix_receiver,
+                                ))
+                            } else {
+                                None
+                            };
                         }
                     }
                 }

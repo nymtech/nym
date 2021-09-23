@@ -14,7 +14,6 @@ use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
-use std::path::PathBuf;
 use std::process;
 use std::sync::Arc;
 
@@ -32,17 +31,21 @@ pub struct Gateway {
 }
 
 impl Gateway {
+    async fn initialise_storage(config: &Config) -> PersistentStorage {
+        let path = config.get_persistent_store_path();
+        let retrieval_limit = config.get_message_retrieval_limit();
+        match PersistentStorage::init(path, retrieval_limit).await {
+            Err(err) => panic!("failed to initialise gateway storage - {}", err),
+            Ok(storage) => storage,
+        }
+    }
+
     pub async fn new(
         config: Config,
         encryption_keys: encryption::KeyPair,
         identity: identity::KeyPair,
     ) -> Self {
-        let storage_path: PathBuf = "test/path/to/make/it/compile".into();
-        let retrieval_limit = 42;
-        let storage = match PersistentStorage::init(storage_path, retrieval_limit).await {
-            Err(err) => panic!("failed to initialise gateway storage - {}", err),
-            Ok(storage) => storage,
-        };
+        let storage = Self::initialise_storage(&config).await;
 
         Gateway {
             config,

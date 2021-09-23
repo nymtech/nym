@@ -47,15 +47,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name(INBOXES_ARG_NAME)
-                .long(INBOXES_ARG_NAME)
-                .help("Directory with inboxes where all packets for the clients are stored")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(CLIENTS_LEDGER_ARG_NAME)
-                .long(CLIENTS_LEDGER_ARG_NAME)
-                .help("Ledger file containing registered clients")
+            Arg::with_name(DATASTORE_PATH)
+                .long(DATASTORE_PATH)
+                .help("Path to sqlite database containing all gateway persistent data")
                 .takes_value(true)
         )
         .arg(
@@ -168,15 +162,7 @@ pub async fn execute(matches: ArgMatches<'static>) {
         config.get_announce_address()
     );
 
-    println!(
-        "Inboxes directory is: {:?}",
-        config.get_clients_inboxes_dir()
-    );
-
-    println!(
-        "Clients ledger is stored at: {:?}",
-        config.get_clients_ledger_path()
-    );
+    println!("Data store is at: {:?}", config.get_persistent_store_path());
 
     Gateway::new(config, sphinx_keypair, identity)
         .await

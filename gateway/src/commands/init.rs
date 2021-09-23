@@ -44,15 +44,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name(INBOXES_ARG_NAME)
-                .long(INBOXES_ARG_NAME)
-                .help("Directory with inboxes where all packets for the clients are stored")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(CLIENTS_LEDGER_ARG_NAME)
-                .long(CLIENTS_LEDGER_ARG_NAME)
-                .help("Ledger file containing registered clients")
+            Arg::with_name(DATASTORE_PATH)
+                .long(DATASTORE_PATH)
+                .help("Path to sqlite database containing all gateway persistent data")
                 .takes_value(true)
         )
         .arg(

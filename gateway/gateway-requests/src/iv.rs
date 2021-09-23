@@ -5,6 +5,7 @@ use crypto::generic_array::{typenum::Unsigned, GenericArray};
 use crypto::symmetric::stream_cipher::{random_iv, NewCipher, IV as CryptoIV};
 use nymsphinx::params::GatewayEncryptionAlgorithm;
 use rand::{CryptoRng, RngCore};
+use thiserror::Error;
 
 type NonceSize = <GatewayEncryptionAlgorithm as NewCipher>::NonceSize;
 
@@ -12,12 +13,17 @@ type NonceSize = <GatewayEncryptionAlgorithm as NewCipher>::NonceSize;
 #[allow(clippy::upper_case_acronyms)]
 pub struct IV(CryptoIV<GatewayEncryptionAlgorithm>);
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 // I think 'IV' looks better than 'Iv', feel free to change that.
 #[allow(clippy::upper_case_acronyms)]
 pub enum IVConversionError {
-    DecodeError(bs58::decode::Error),
+    #[error("Failed to decode the iv - {0}")]
+    DecodeError(#[from] bs58::decode::Error),
+
+    #[error("The decoded bytes iv has invalid length")]
     BytesOfInvalidLengthError,
+
+    #[error("The decoded string iv has invalid length")]
     StringOfInvalidLengthError,
 }
 
@@ -47,10 +53,7 @@ impl IV {
     }
 
     pub fn try_from_base58_string<S: Into<String>>(val: S) -> Result<Self, IVConversionError> {
-        let decoded = match bs58::decode(val.into()).into_vec() {
-            Ok(decoded) => decoded,
-            Err(err) => return Err(IVConversionError::DecodeError(err)),
-        };
+        let decoded = bs58::decode(val.into()).into_vec()?;
 
         if decoded.len() != NonceSize::to_usize() {
             return Err(IVConversionError::StringOfInvalidLengthError);

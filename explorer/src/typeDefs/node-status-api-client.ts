@@ -1,6 +1,6 @@
 // import { Requester } from './requester';
 export interface ClientConfig {
-//   requester?: Requester;
+  //   requester?: Requester;
   url: string;
   version: string;
 }
@@ -42,6 +42,13 @@ export interface MixNodeResponseItem {
   total_delegation: Amount;
   owner: string;
   layer: Layer;
+  location: {
+    country_name: string
+    lat: number
+    lng: number
+    three_letter_iso_country_code: string
+    two_letter_iso_country_code: string
+  }
   mix_node: MixNode;
 }
 
@@ -103,18 +110,18 @@ export interface MixNodeDescriptionResponse {
 export type MixNodeStatsResponse = StatsResponse;
 
 export interface Validator {
-    address: string
-    proposer_priority: string
-    pub_key: {
-        type: string
-        value: string
-    }
+  address: string
+  proposer_priority: string
+  pub_key: {
+    type: string
+    value: string
+  }
 }
 export interface ValidatorsResponse {
-    block_height: number
-    count: string
-    total: string
-    validators: Validator[]
+  block_height: number
+  count: string
+  total: string
+  validators: Validator[]
 }
 
 export type CountryData = {

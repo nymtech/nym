@@ -10,10 +10,7 @@ use crate::node::storage::error::StorageError;
 use crate::node::storage::PersistentStorage;
 use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
-use futures::{
-    channel::{mpsc, oneshot},
-    SinkExt, StreamExt,
-};
+use futures::{channel::mpsc, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
 };

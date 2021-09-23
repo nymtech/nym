@@ -58,6 +58,9 @@ impl SharedKeysManager {
     /// # Arguments
     ///
     /// * `client_address_bs58`: base58-encoded address of the client
+    // currently there is no code flow that causes removal (not overwriting)
+    // of the stored keys. However, retain the function for consistency and completion sake
+    #[allow(dead_code)]
     pub(crate) async fn remove_shared_keys(
         &self,
         client_address_bs58: &str,

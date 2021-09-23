@@ -60,13 +60,6 @@ impl InitialAuthResult {
             server_response,
         }
     }
-
-    // fn new_error<S: Into<String>>(msg: S) -> Self {
-    //     InitialAuthResult {
-    //         client_details: None,
-    //         server_response: ServerResponse::new_error(msg),
-    //     }
-    // }
 }
 
 pub(crate) async fn handle_connection<R, S>(mut handle: FreshHandler<R, S>)

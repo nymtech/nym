@@ -88,10 +88,7 @@ where
     }
 
     // Note that it encrypts each message and slaps a MAC on it
-    async fn send_websocket_unwrapped_sphinx_packets(
-        &mut self,
-        packets: Vec<Vec<u8>>,
-    ) -> Result<(), WsError>
+    async fn push_packets_to_client(&mut self, packets: Vec<Vec<u8>>) -> Result<(), WsError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
@@ -248,8 +245,8 @@ where
     }
 
     /// Simultaneously listens for incoming client requests, which realistically should only be
-    /// binary requests to forward sphinx packets, and for sphinx packets received from the mix
-    /// network that should be sent back to the client.
+    /// binary requests to forward sphinx packets or increase bandwidth
+    /// and for sphinx packets received from the mix network that should be sent back to the client.
     pub(crate) async fn listen_for_requests(&mut self)
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -284,7 +281,7 @@ where
                 },
                 mix_messages = self.mix_receiver.next() => {
                     let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
-                    if let Err(e) = self.send_websocket_unwrapped_sphinx_packets(mix_messages).await {
+                    if let Err(e) = self.push_packets_to_client(mix_messages).await {
                         warn!("failed to send the unwrapped sphinx packets back to the client - {:?}, assuming the connection is dead", e);
                         break;
                     }

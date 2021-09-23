@@ -6,8 +6,6 @@ use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::PersistentStorage;
-use dashmap::DashMap;
-use futures::channel::oneshot;
 use futures::StreamExt;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
@@ -16,6 +14,7 @@ use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::framing::codec::SphinxCodec;
 use nymsphinx::framing::packet::FramedSphinxPacket;
 use nymsphinx::DestinationAddressBytes;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
@@ -23,13 +22,34 @@ use tokio_util::codec::Framed;
 pub(crate) struct ConnectionHandler {
     packet_processor: PacketProcessor,
 
-    // TODO: method for cache invalidation so that we wouldn't keep all stale channel references
-    // we could use our friend DelayQueue. Alternatively we could periodically check for if the
-    // channels are closed.
-    available_socket_senders_cache: DashMap<DestinationAddressBytes, MixMessageSender>,
+    // TODO: investigate performance trade-offs for whether this cache even makes sense
+    // at this point.
+    // keep the following in mind: each action on ActiveClientsStore requires going through RwLock
+    // and each `get` internally copies the channel, however, is it really that expensive?
+    clients_store_cache: HashMap<DestinationAddressBytes, MixMessageSender>,
     active_clients_store: ActiveClientsStore,
     storage: PersistentStorage,
     ack_sender: MixForwardingSender,
+}
+
+impl Clone for ConnectionHandler {
+    fn clone(&self) -> Self {
+        // remove stale entries from the cache while cloning
+        let mut clients_store_cache = HashMap::with_capacity(self.clients_store_cache.capacity());
+        for (k, v) in self.clients_store_cache.iter() {
+            if !v.is_closed() {
+                clients_store_cache.insert(*k, v.clone());
+            }
+        }
+
+        ConnectionHandler {
+            packet_processor: self.packet_processor.clone(),
+            clients_store_cache,
+            active_clients_store: self.active_clients_store.clone(),
+            storage: self.storage.clone(),
+            ack_sender: self.ack_sender.clone(),
+        }
+    }
 }
 
 impl ConnectionHandler {
@@ -41,40 +61,39 @@ impl ConnectionHandler {
     ) -> Self {
         ConnectionHandler {
             packet_processor,
-            available_socket_senders_cache: DashMap::new(),
+            clients_store_cache: HashMap::new(),
             storage,
             active_clients_store,
             ack_sender,
         }
     }
 
-    pub(crate) fn clone_without_cache(&self) -> Self {
-        // TODO: should this be even cloned?
-        let senders_cache = DashMap::with_capacity(self.available_socket_senders_cache.capacity());
-        for element_guard in self.available_socket_senders_cache.iter() {
-            let (k, v) = element_guard.pair();
-            // TODO: this will be made redundant once there's some cache invalidator mechanism here
-            if !v.is_closed() {
-                senders_cache.insert(*k, v.clone());
+    fn update_clients_store_cache_entry(&mut self, client_address: DestinationAddressBytes) {
+        if let Some(client_sender) = self.active_clients_store.get(client_address) {
+            self.clients_store_cache
+                .insert(client_address, client_sender);
+        }
+    }
+
+    fn check_cache(&mut self, client_address: DestinationAddressBytes) {
+        match self.clients_store_cache.get(&client_address) {
+            None => self.update_clients_store_cache_entry(client_address),
+            Some(entry) => {
+                if entry.is_closed() {
+                    self.update_clients_store_cache_entry(client_address)
+                }
             }
         }
-
-        todo!()
-        // ConnectionHandler {
-        //     packet_processor: self.packet_processor.clone(),
-        //     available_socket_senders_cache: senders_cache,
-        //     storage: self.storage.clone(),
-        //     clients_handler_sender: self.clients_handler_sender.clone(),
-        //     ack_sender: self.ack_sender.clone(),
-        // }
     }
 
     fn try_push_message_to_client(
-        &self,
-        sender_channel: Option<MixMessageSender>,
+        &mut self,
+        client_address: DestinationAddressBytes,
         message: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
-        match sender_channel {
+        self.check_cache(client_address);
+
+        match self.clients_store_cache.get(&client_address) {
             None => Err(message),
             Some(sender_channel) => {
                 sender_channel
@@ -84,55 +103,6 @@ impl ConnectionHandler {
                     .map_err(|try_send_err| try_send_err.into_inner().pop().unwrap())
             }
         }
-    }
-
-    fn remove_stale_client_sender(&self, client_address: &DestinationAddressBytes) {
-        if self
-            .available_socket_senders_cache
-            .remove(client_address)
-            .is_none()
-        {
-            warn!(
-                "Tried to remove stale entry for non-existent client sender: {}",
-                client_address
-            )
-        }
-    }
-
-    async fn try_to_obtain_client_ws_message_sender(
-        &self,
-        client_address: DestinationAddressBytes,
-    ) -> Option<MixMessageSender> {
-        let mut should_remove_stale = false;
-        if let Some(sender_ref) = self.available_socket_senders_cache.get(&client_address) {
-            let sender = sender_ref.value();
-            if !sender.is_closed() {
-                return Some(sender.clone());
-            } else {
-                should_remove_stale = true;
-            }
-        }
-
-        // we want to do it outside the immutable borrow into the map
-        if should_remove_stale {
-            self.remove_stale_client_sender(&client_address)
-        }
-
-        // if we got here it means that either we have no sender channel for this client or it's closed
-        // so we must refresh it from the source,
-        let client_sender = self.active_clients_store.get(client_address)?;
-
-        // finally update the cache
-        if self
-            .available_socket_senders_cache
-            .insert(client_address, client_sender.clone())
-            .is_some()
-        {
-            // this warning is harmless, but I want to see if it's realistically for it to even occur
-            warn!("Other thread already updated cache for client sender!")
-        }
-
-        Some(client_sender)
     }
 
     pub(crate) async fn store_processed_packet_payload(
@@ -160,18 +130,14 @@ impl ConnectionHandler {
         }
     }
 
-    async fn handle_processed_packet(&self, processed_final_hop: ProcessedFinalHop) {
+    async fn handle_processed_packet(&mut self, processed_final_hop: ProcessedFinalHop) {
         let client_address = processed_final_hop.destination;
         let message = processed_final_hop.message;
         let forward_ack = processed_final_hop.forward_ack;
 
-        let client_sender = self
-            .try_to_obtain_client_ws_message_sender(client_address)
-            .await;
-
         // we failed to push message directly to the client - it's probably offline.
         // we should store it on the disk instead.
-        match self.try_push_message_to_client(client_sender, message) {
+        match self.try_push_message_to_client(client_address, message) {
             Err(unsent_plaintext) => match self
                 .store_processed_packet_payload(client_address, unsent_plaintext)
                 .await
@@ -188,7 +154,7 @@ impl ConnectionHandler {
         self.forward_ack(forward_ack, client_address);
     }
 
-    async fn handle_received_packet(&self, framed_sphinx_packet: FramedSphinxPacket) {
+    async fn handle_received_packet(&mut self, framed_sphinx_packet: FramedSphinxPacket) {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in
         // packet processor for vpn packets,
@@ -207,7 +173,7 @@ impl ConnectionHandler {
         self.handle_processed_packet(processed_final_hop).await
     }
 
-    pub(crate) async fn handle_connection(self, conn: TcpStream, remote: SocketAddr) {
+    pub(crate) async fn handle_connection(mut self, conn: TcpStream, remote: SocketAddr) {
         debug!("Starting connection handler for {:?}", remote);
         let mut framed_conn = Framed::new(conn, SphinxCodec);
         while let Some(framed_sphinx_packet) = framed_conn.next().await {

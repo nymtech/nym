@@ -410,12 +410,13 @@ pub(crate) fn read_gateway_delegation(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::helpers::{get_all_delegations_paged, identity_and_owner_to_bytes};
     use crate::support::tests::helpers::{
         gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
         raw_delegation_fixture,
     };
     use config::defaults::DENOM;
-    use cosmwasm_std::testing::MockStorage;
+    use cosmwasm_std::testing::{mock_dependencies, MockStorage};
     use cosmwasm_std::{coin, Addr, Uint128};
     use mixnet_contract::{Gateway, MixNode};
 
@@ -483,6 +484,7 @@ mod tests {
     }
 
     #[test]
+    #[test]
     fn reading_gateway_bond() {
         let mut storage = MockStorage::new();
         let node_owner: Addr = Addr::unchecked("node-owner");
@@ -513,6 +515,96 @@ mod tests {
         assert_eq!(
             Uint128(bond_value),
             read_gateway_bond(&storage, node_identity.as_bytes()).unwrap()
+        );
+    }
+
+    #[test]
+    fn all_mixnode_delegations_read_retrieval() {
+        let mut deps = mock_dependencies(&[]);
+        let node_identity1: IdentityKey = "foo1".into();
+        let delegation_owner1 = Addr::unchecked("bar1");
+        let node_identity2: IdentityKey = "foo2".into();
+        let delegation_owner2 = Addr::unchecked("bar2");
+        let raw_delegation1 = RawDelegationData::new(1u128.into(), 1000);
+        let raw_delegation2 = RawDelegationData::new(2u128.into(), 2000);
+
+        mix_delegations(&mut deps.storage, &node_identity1)
+            .save(delegation_owner1.as_bytes(), &raw_delegation1)
+            .unwrap();
+        mix_delegations(&mut deps.storage, &node_identity2)
+            .save(delegation_owner2.as_bytes(), &raw_delegation2)
+            .unwrap();
+
+        let res1 = all_mix_delegations_read::<RawDelegationData>(&deps.storage)
+            .load(&*identity_and_owner_to_bytes(
+                &node_identity1,
+                &delegation_owner1,
+            ))
+            .unwrap();
+        let res2 = all_mix_delegations_read::<RawDelegationData>(&deps.storage)
+            .load(&*identity_and_owner_to_bytes(
+                &node_identity2,
+                &delegation_owner2,
+            ))
+            .unwrap();
+        assert_eq!(raw_delegation1, res1);
+        assert_eq!(raw_delegation2, res2);
+    }
+
+    #[test]
+    fn all_gateway_delegations_read_retrieval() {
+        let mut deps = mock_dependencies(&[]);
+        let node_identity1: IdentityKey = "foo1".into();
+        let delegation_owner1 = Addr::unchecked("bar1");
+        let node_identity2: IdentityKey = "foo2".into();
+        let delegation_owner2 = Addr::unchecked("bar2");
+        let raw_delegation = RawDelegationData::new(1000u128.into(), 42);
+        let mut start_after = None;
+
+        gateway_delegations(&mut deps.storage, &node_identity1)
+            .save(delegation_owner1.as_bytes(), &raw_delegation)
+            .unwrap();
+
+        let bucket = all_gateway_delegations_read::<RawDelegationData>(&deps.storage);
+        let response =
+            get_all_delegations_paged::<RawDelegationData>(&bucket, &mut start_after, 10).unwrap();
+        assert_eq!(response.len(), 1);
+        assert_eq!(
+            response[0],
+            (
+                delegation_owner1.clone(),
+                node_identity1.clone(),
+                raw_delegation.clone()
+            )
+        );
+
+        gateway_delegations(&mut deps.storage, &node_identity2)
+            .save(delegation_owner2.as_bytes(), &raw_delegation)
+            .unwrap();
+
+        let bucket = all_gateway_delegations_read::<RawDelegationData>(&deps.storage);
+        let response =
+            get_all_delegations_paged::<RawDelegationData>(&bucket, &mut start_after, 10).unwrap();
+        assert_eq!(response.len(), 2);
+        assert_eq!(
+            response[1],
+            (
+                delegation_owner2.clone(),
+                node_identity2.clone(),
+                raw_delegation.clone()
+            )
+        );
+
+        gateway_delegations(&mut deps.storage, &node_identity1)
+            .remove(delegation_owner1.as_bytes());
+
+        let bucket = all_gateway_delegations_read::<RawDelegationData>(&deps.storage);
+        let response =
+            get_all_delegations_paged::<RawDelegationData>(&bucket, &mut start_after, 10).unwrap();
+        assert_eq!(response.len(), 1);
+        assert_eq!(
+            response[0],
+            (delegation_owner2, node_identity2, raw_delegation.clone()),
         );
     }
 

@@ -103,6 +103,16 @@ fn extract_identity_and_owner(bytes: Vec<u8>) -> StdResult<(Addr, IdentityKey)> 
     Ok((owner, identity))
 }
 
+// currently not used outside tests
+#[cfg(test)]
+pub(crate) fn identity_and_owner_to_bytes(identity: &IdentityKey, owner: &Addr) -> Vec<u8> {
+    let mut bytes = u16::to_be_bytes(identity.len() as u16).to_vec();
+    bytes.append(&mut identity.as_bytes().to_vec());
+    bytes.append(&mut owner.as_bytes().to_vec());
+
+    bytes
+}
+
 pub(crate) fn get_all_delegations_paged<T>(
     bucket: &ReadonlyBucket<T>,
     start_after: &mut Option<Vec<u8>>,

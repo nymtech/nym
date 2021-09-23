@@ -1,9 +1,8 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::bandwidth::empty_bandwidth_database;
 use crate::node::client_handling::clients_handler::ClientsHandlerRequestSender;
-use crate::node::client_handling::websocket::connection_handler::Handle;
+use crate::node::client_handling::websocket::connection_handler::FreshHandler;
 use crate::node::storage::GatewayStorage;
 use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
@@ -40,7 +39,6 @@ impl Listener {
         &mut self,
         clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: MixForwardingSender,
-        // the storage should be injected in a different way
         storage: GatewayStorage,
     ) {
         info!("Starting websocket listener at {}", self.address);
@@ -58,7 +56,7 @@ impl Listener {
                     trace!("received a socket connection from {}", remote_addr);
                     // TODO: I think we *REALLY* need a mechanism for having a maximum number of connected
                     // clients or spawned tokio tasks -> perhaps a worker system?
-                    let mut handle = Handle::new(
+                    let handle = FreshHandler::new(
                         OsRng,
                         socket,
                         clients_handler_sender.clone(),
@@ -78,7 +76,6 @@ impl Listener {
         mut self,
         clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: MixForwardingSender,
-        // the storage should be injected in a different way
         storage: GatewayStorage,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {

@@ -11,17 +11,17 @@ export type TUseGetBalance = {
 
 export const useGetBalance = (): TUseGetBalance => {
   const [balance, setBalance] = useState<Balance>()
-  const [error, setErorr] = useState<string>()
+  const [error, setError] = useState<string>()
   const [isLoading, setIsLoading] = useState(false)
 
   const fetchBalance = () => {
     setIsLoading(true)
-    setErorr(undefined)
+    setError(undefined)
     invoke('get_balance')
       .then((balance) => {
         setBalance(balance as Balance)
       })
-      .catch((e) => setErorr(e))
+      .catch((e) => setError(e))
     setTimeout(() => {
       setIsLoading(false)
     }, 1000)

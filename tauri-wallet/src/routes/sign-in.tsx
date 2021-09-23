@@ -73,7 +73,7 @@ const SignInContent = ({
 }: {
   showCreateAccount: () => void
 }) => {
-  const [mnemonic, setMnemonic] = useState<string>('menmonic phrase')
+  const [mnemonic, setMnemonic] = useState<string>('')
   const [inputError, setInputError] = useState<string>()
   const [isLoading, setIsLoading] = useState(false)
 

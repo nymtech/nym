@@ -32,11 +32,9 @@ use std::sync::Arc;
 pub(crate) struct ActiveClientsStore(Arc<DashMap<DestinationAddressBytes, MixMessageSender>>);
 
 impl ActiveClientsStore {
-    // pub(crate) fn disconnect(&self, client: DestinationAddressBytes) {
-    //     if let Some((_, handle)) = self.0.remove(&client) {
-    //         handle.invalidate()
-    //     }
-    // }
+    pub(crate) fn new() -> Self {
+        ActiveClientsStore(Arc::new(DashMap::new()))
+    }
 
     pub(crate) fn get(&self, client: DestinationAddressBytes) -> Option<MixMessageSender> {
         let entry = self.0.get(&client)?;
@@ -52,6 +50,10 @@ impl ActiveClientsStore {
             self.0.remove(&client);
             None
         }
+    }
+
+    pub(crate) fn disconnect(&self, client: DestinationAddressBytes) {
+        self.0.remove(&client);
     }
 
     pub(crate) fn insert(&self, client: DestinationAddressBytes, handle: MixMessageSender) {

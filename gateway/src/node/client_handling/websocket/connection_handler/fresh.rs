@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
-use crate::node::client_handling::clients_handler::{
-    ClientsHandlerRequest, ClientsHandlerRequestSender, ClientsHandlerResponse,
-};
 use crate::node::client_handling::websocket::connection_handler::{
     AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
 };
 use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::node::storage::error::StorageError;
-use crate::node::storage::GatewayStorage;
+use crate::node::storage::PersistentStorage;
 use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use futures::{
@@ -68,12 +65,11 @@ impl InitialAuthenticationError {
 pub(crate) struct FreshHandler<R, S> {
     rng: R,
     local_identity: Arc<identity::KeyPair>,
-    active_clients: ActiveClientsStore,
+    pub(crate) active_clients_store: ActiveClientsStore,
     pub(crate) aggregated_verification_key: VerificationKey,
-    pub(crate) clients_handler_sender: ClientsHandlerRequestSender,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
-    pub(crate) storage: GatewayStorage,
+    pub(crate) storage: PersistentStorage,
 }
 
 impl<R, S> FreshHandler<R, S>
@@ -85,22 +81,21 @@ where
     pub(crate) fn new(
         rng: R,
         conn: S,
-        clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
         aggregated_verification_key: VerificationKey,
-        storage: GatewayStorage,
+        storage: PersistentStorage,
+        active_clients_store: ActiveClientsStore,
     ) -> Self {
-        todo!()
-        // FreshHandler {
-        //     rng,
-        //     clients_handler_sender,
-        //     outbound_mix_sender,
-        //     socket_connection: SocketStream::RawTcp(conn),
-        //     local_identity,
-        //     aggregated_verification_key,
-        //     storage,
-        // }
+        FreshHandler {
+            rng,
+            active_clients_store,
+            outbound_mix_sender,
+            socket_connection: SocketStream::RawTcp(conn),
+            local_identity,
+            aggregated_verification_key,
+            storage,
+        }
     }
 
     pub(crate) async fn perform_websocket_handshake(&mut self) -> Result<(), WsError>
@@ -283,11 +278,13 @@ where
         if let Some(shared_keys) = shared_keys {
             self.push_stored_messages_to_client(client_address, &sender_channel)
                 .await?;
-            self.active_clients.insert(client_address, sender_channel);
+            self.active_clients_store
+                .insert(client_address, sender_channel);
 
             Ok(Some(shared_keys))
+        } else {
+            Ok(None)
         }
-        Ok(None)
     }
 
     async fn handle_authenticate(
@@ -302,7 +299,7 @@ where
         let encrypted_address = EncryptedAddressBytes::try_from_base58_string(enc_address)?;
         let iv = IV::try_from_base58_string(iv)?;
 
-        if self.active_clients.get(address).is_some() {
+        if self.active_clients_store.get(address).is_some() {
             return Err(InitialAuthenticationError::DuplicateConnection);
         }
 
@@ -346,7 +343,8 @@ where
         self.push_stored_messages_to_client(client.address, &sender_channel)
             .await?;
 
-        self.active_clients.insert(client.address, sender_channel);
+        self.active_clients_store
+            .insert(client.address, sender_channel);
         Ok(true)
     }
 
@@ -361,7 +359,7 @@ where
         let remote_identity = Self::extract_remote_identity_from_register_init(&init_data)?;
         let remote_address = remote_identity.derive_destination_address();
 
-        if self.active_clients.get(remote_address).is_some() {
+        if self.active_clients_store.get(remote_address).is_some() {
             return Err(InitialAuthenticationError::DuplicateConnection);
         }
 

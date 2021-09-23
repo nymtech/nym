@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::client_handling::bandwidth::Bandwidth;
-use crate::node::client_handling::clients_handler::ClientsHandlerRequest;
 use crate::node::client_handling::websocket::connection_handler::{
     ClientDetails, FreshHandler, SocketStream,
 };
@@ -21,6 +20,14 @@ pub(crate) struct AuthenticatedHandler<R, S> {
     inner: FreshHandler<R, S>,
     client: ClientDetails,
     mix_receiver: MixMessageReceiver,
+}
+
+impl<R, S> Drop for AuthenticatedHandler<R, S> {
+    fn drop(&mut self) {
+        self.inner
+            .active_clients_store
+            .disconnect(self.client.address)
+    }
 }
 
 impl<R, S> AuthenticatedHandler<R, S>
@@ -42,9 +49,8 @@ where
 
     fn disconnect(&self) {
         self.inner
-            .clients_handler_sender
-            .unbounded_send(ClientsHandlerRequest::Disconnect(self.client.address))
-            .unwrap();
+            .active_clients_store
+            .disconnect(self.client.address)
     }
 
     // Note that it encrypts each message and slaps a MAC on it

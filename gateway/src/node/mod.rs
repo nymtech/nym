@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::node::client_handling::clients_handler::{ClientsHandler, ClientsHandlerRequestSender};
+use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
-use crate::node::storage::GatewayStorage;
+use crate::node::storage::PersistentStorage;
 use coconut_interface::VerificationKey;
 use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
@@ -28,7 +28,7 @@ pub struct Gateway {
     identity: Arc<identity::KeyPair>,
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     encryption_keys: Arc<encryption::KeyPair>,
-    storage: GatewayStorage,
+    storage: PersistentStorage,
 }
 
 impl Gateway {
@@ -39,7 +39,7 @@ impl Gateway {
     ) -> Self {
         let storage_path: PathBuf = "test/path/to/make/it/compile".into();
         let retrieval_limit = 42;
-        let storage = match GatewayStorage::init(storage_path, retrieval_limit).await {
+        let storage = match PersistentStorage::init(storage_path, retrieval_limit).await {
             Err(err) => panic!("failed to initialise gateway storage - {}", err),
             Ok(storage) => storage,
         };
@@ -54,8 +54,8 @@ impl Gateway {
 
     fn start_mix_socket_listener(
         &self,
-        clients_handler_sender: ClientsHandlerRequestSender,
         ack_sender: MixForwardingSender,
+        active_clients_store: ActiveClientsStore,
     ) {
         info!("Starting mix socket listener...");
 
@@ -64,9 +64,9 @@ impl Gateway {
 
         let connection_handler = ConnectionHandler::new(
             packet_processor,
-            clients_handler_sender,
             self.storage.clone(),
             ack_sender,
+            active_clients_store,
         );
 
         let listening_address = SocketAddr::new(
@@ -80,8 +80,8 @@ impl Gateway {
     fn start_client_websocket_listener(
         &self,
         forwarding_channel: MixForwardingSender,
-        clients_handler_sender: ClientsHandlerRequestSender,
         verification_key: VerificationKey,
+        active_clients_store: ActiveClientsStore,
     ) {
         info!("Starting client [web]socket listener...");
 
@@ -96,9 +96,9 @@ impl Gateway {
             verification_key,
         )
         .start(
-            clients_handler_sender,
             forwarding_channel,
             self.storage.clone(),
+            active_clients_store,
         );
     }
 
@@ -114,12 +114,6 @@ impl Gateway {
 
         tokio::spawn(async move { packet_forwarder.run().await });
         packet_sender
-    }
-
-    fn start_clients_handler(&self) -> ClientsHandlerRequestSender {
-        info!("Starting clients handler");
-        let (_, clients_handler_sender) = ClientsHandler::new(self.storage.clone()).start();
-        clients_handler_sender
     }
 
     async fn wait_for_interrupt(&self) {
@@ -179,16 +173,16 @@ impl Gateway {
                 .expect("failed to contact validators to obtain their verification keys");
 
         let mix_forwarding_channel = self.start_packet_forwarder();
-        let clients_handler_sender = self.start_clients_handler();
 
+        let active_clients_store = ActiveClientsStore::new();
         self.start_mix_socket_listener(
-            clients_handler_sender.clone(),
             mix_forwarding_channel.clone(),
+            active_clients_store.clone(),
         );
         self.start_client_websocket_listener(
             mix_forwarding_channel,
-            clients_handler_sender,
             validators_verification_key,
+            active_clients_store,
         );
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");

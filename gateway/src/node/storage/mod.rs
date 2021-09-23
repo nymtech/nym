@@ -20,14 +20,14 @@ mod shared_keys;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
-pub(crate) struct GatewayStorage {
+pub(crate) struct PersistentStorage {
     shared_key_manager: SharedKeysManager,
     inbox_manager: InboxManager,
     bandwidth_manager: BandwidthManager,
 }
 
-impl GatewayStorage {
-    /// Initialises `GatewayStorage` using the provided path.
+impl PersistentStorage {
+    /// Initialises `PersistentStorage` using the provided path.
     ///
     /// # Arguments
     ///
@@ -66,7 +66,7 @@ impl GatewayStorage {
         }
 
         // the cloning here are cheap as connection pool is stored behind an Arc
-        Ok(GatewayStorage {
+        Ok(PersistentStorage {
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
             inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
             bandwidth_manager: BandwidthManager::new(connection_pool),

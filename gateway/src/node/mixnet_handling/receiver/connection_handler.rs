@@ -1,13 +1,11 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::clients_handler::{
-    ClientsHandlerRequest, ClientsHandlerRequestSender, ClientsHandlerResponse,
-};
+use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
-use crate::node::storage::GatewayStorage;
+use crate::node::storage::PersistentStorage;
 use dashmap::DashMap;
 use futures::channel::oneshot;
 use futures::StreamExt;
@@ -29,23 +27,23 @@ pub(crate) struct ConnectionHandler {
     // we could use our friend DelayQueue. Alternatively we could periodically check for if the
     // channels are closed.
     available_socket_senders_cache: DashMap<DestinationAddressBytes, MixMessageSender>,
-    storage: GatewayStorage,
-    clients_handler_sender: ClientsHandlerRequestSender,
+    active_clients_store: ActiveClientsStore,
+    storage: PersistentStorage,
     ack_sender: MixForwardingSender,
 }
 
 impl ConnectionHandler {
     pub(crate) fn new(
         packet_processor: PacketProcessor,
-        clients_handler_sender: ClientsHandlerRequestSender,
-        storage: GatewayStorage,
+        storage: PersistentStorage,
         ack_sender: MixForwardingSender,
+        active_clients_store: ActiveClientsStore,
     ) -> Self {
         ConnectionHandler {
             packet_processor,
             available_socket_senders_cache: DashMap::new(),
             storage,
-            clients_handler_sender,
+            active_clients_store,
             ack_sender,
         }
     }
@@ -61,13 +59,14 @@ impl ConnectionHandler {
             }
         }
 
-        ConnectionHandler {
-            packet_processor: self.packet_processor.clone(),
-            available_socket_senders_cache: senders_cache,
-            storage: self.storage.clone(),
-            clients_handler_sender: self.clients_handler_sender.clone(),
-            ack_sender: self.ack_sender.clone(),
-        }
+        todo!()
+        // ConnectionHandler {
+        //     packet_processor: self.packet_processor.clone(),
+        //     available_socket_senders_cache: senders_cache,
+        //     storage: self.storage.clone(),
+        //     clients_handler_sender: self.clients_handler_sender.clone(),
+        //     ack_sender: self.ack_sender.clone(),
+        // }
     }
 
     fn try_push_message_to_client(
@@ -120,17 +119,8 @@ impl ConnectionHandler {
         }
 
         // if we got here it means that either we have no sender channel for this client or it's closed
-        // so we must refresh it from the source, i.e. ClientsHandler
-        let (res_sender, res_receiver) = oneshot::channel();
-        let clients_handler_request = ClientsHandlerRequest::IsOnline(client_address, res_sender);
-        self.clients_handler_sender
-            .unbounded_send(clients_handler_request)
-            .unwrap(); // the receiver MUST BE alive
-
-        let client_sender = match res_receiver.await.unwrap() {
-            ClientsHandlerResponse::IsOnline(client_sender) => client_sender,
-            _ => panic!("received response to wrong query!"), // again, this should NEVER happen
-        }?;
+        // so we must refresh it from the source,
+        let client_sender = self.active_clients_store.get(client_address)?;
 
         // finally update the cache
         if self

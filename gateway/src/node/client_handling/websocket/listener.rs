@@ -1,9 +1,9 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::clients_handler::ClientsHandlerRequestSender;
+use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
-use crate::node::storage::GatewayStorage;
+use crate::node::storage::PersistentStorage;
 use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use log::*;
@@ -37,9 +37,9 @@ impl Listener {
 
     pub(crate) async fn run(
         &mut self,
-        clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: MixForwardingSender,
-        storage: GatewayStorage,
+        storage: PersistentStorage,
+        active_clients_store: ActiveClientsStore,
     ) {
         info!("Starting websocket listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
@@ -59,11 +59,11 @@ impl Listener {
                     let handle = FreshHandler::new(
                         OsRng,
                         socket,
-                        clients_handler_sender.clone(),
                         outbound_mix_sender.clone(),
                         Arc::clone(&self.local_identity),
                         self.aggregated_verification_key.clone(),
                         storage.clone(),
+                        active_clients_store.clone(),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }
@@ -74,12 +74,12 @@ impl Listener {
 
     pub(crate) fn start(
         mut self,
-        clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: MixForwardingSender,
-        storage: GatewayStorage,
+        storage: PersistentStorage,
+        active_clients_store: ActiveClientsStore,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            self.run(clients_handler_sender, outbound_mix_sender, storage)
+            self.run(outbound_mix_sender, storage, active_clients_store)
                 .await
         })
     }

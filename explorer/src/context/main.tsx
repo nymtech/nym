@@ -21,7 +21,7 @@ export const MainContext = React.createContext({} as State);
 
 export const MainContextProvider: React.FC = ({ children }) => {
   // light/dark mode
-  const [mode, setMode] = React.useState<PaletteMode>('light');
+  const [mode, setMode] = React.useState<PaletteMode>('dark');
 
   // various APIs for cards on Overview
   const [mixnodes, setMixnodes] = React.useState<NodeApiResponse | null>(null);
@@ -45,7 +45,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
     try {
       const res = await Api.fetchGateways();
       setGateways({ data: res, error: null });
-    } catch (error:any) {
+    } catch (error: any) {
       setGateways({ data: null, error: error.message });
     }
   };
@@ -54,7 +54,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
     try {
       const res = await Api.fetchValidators();
       setValidators({ data: res, error: null });
-    } catch (error:any) {
+    } catch (error: any) {
       setValidators({ data: null, error: error.message });
     }
   };
@@ -62,7 +62,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
     try {
       const res = await Api.fetchBlock();
       setBlock({ data: res, error: null });
-    } catch (error:any) {
+    } catch (error: any) {
       setBlock({ data: null, error: error.message });
     }
   };

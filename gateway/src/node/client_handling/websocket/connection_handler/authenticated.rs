@@ -6,15 +6,49 @@ use crate::node::client_handling::websocket::connection_handler::{
     ClientDetails, FreshHandler, SocketStream,
 };
 use crate::node::client_handling::websocket::message_receiver::MixMessageReceiver;
+use crate::node::storage::error::StorageError;
 use futures::{SinkExt, StreamExt};
-use gateway_requests::iv::IV;
+use gateway_requests::iv::{IVConversionError, IV};
 use gateway_requests::types::{BinaryRequest, ServerResponse};
-use gateway_requests::{BinaryResponse, ClientControlRequest};
+use gateway_requests::{BinaryResponse, ClientControlRequest, GatewayRequestsError};
 use log::*;
+use nymsphinx::forwarding::packet::MixPacket;
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
+use std::process;
+use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
+
+#[derive(Debug, Error)]
+enum RequestHandlingError {
+    #[error("Internal gateway storage error")]
+    StorageError(#[from] StorageError),
+
+    #[error("Provided bandwidth IV is malformed - {0}")]
+    MalformedIV(#[from] IVConversionError),
+
+    #[error("Provided binary request was malformed - {0}")]
+    InvalidBinaryRequest(#[from] GatewayRequestsError),
+
+    #[error("Provided binary request was malformed - {0}")]
+    InvalidTextRequest(<ClientControlRequest as TryFrom<String>>::Error),
+
+    #[error("Provided bandwidth credential did not verify correctly")]
+    InvalidBandwidthCredential,
+
+    #[error("Provided bandwidth credential did not have expected structure - {0}")]
+    BandwidthCredentialError(#[from] credentials::error::Error),
+
+    #[error("The received request is not valid in the current context")]
+    IllegalRequest,
+}
+
+impl RequestHandlingError {
+    fn into_error_message(self) -> Message {
+        ServerResponse::new_error(self.to_string()).into()
+    }
+}
 
 pub(crate) struct AuthenticatedHandler<R, S> {
     inner: FreshHandler<R, S>,
@@ -79,140 +113,126 @@ where
         }
     }
 
-    async fn handle_bandwidth(&mut self, enc_credential: Vec<u8>, iv: Vec<u8>) -> ServerResponse {
-        let iv = match IV::try_from_bytes(&iv) {
-            Ok(iv) => iv,
-            Err(e) => {
-                trace!("failed to parse received IV {:?}", e);
-                return ServerResponse::new_error("malformed iv");
-            }
-        };
-        let credential = match ClientControlRequest::try_from_enc_bandwidth_credential(
-            enc_credential,
-            &self.client.shared_keys,
-            iv,
-        ) {
-            Ok(c) => c,
-            Err(e) => {
-                return ServerResponse::new_error(e.to_string());
-            }
-        };
+    async fn get_available_bandwidth(&self) -> Result<i64, RequestHandlingError> {
+        let bandwidth = self
+            .inner
+            .storage
+            .get_available_bandwidth(self.client.address)
+            .await?
+            .unwrap_or_default();
+        Ok(bandwidth)
+    }
 
-        if !credential.verify(&self.inner.aggregated_verification_key) {
-            return ServerResponse::Bandwidth { status: false };
-        }
+    async fn increase_bandwidth(&self, amount: i64) -> Result<(), RequestHandlingError> {
+        self.inner
+            .storage
+            .increase_bandwidth(self.client.address, amount)
+            .await?;
+        Ok(())
+    }
 
-        match Bandwidth::try_from(credential) {
-            Ok(bandwidth) => {
-                let mut bandwidth_value = bandwidth.value();
-                if bandwidth_value > i64::MAX as u64 {
-                    // note that this would have represented more than 1 exabyte,
-                    // which is like 125,000 worth of hard drives so I don't think we have
-                    // to worry about it for now...
-                    warn!("Somehow we received bandwidth value higher than 9223372036854775807. Going to cap it at that amount.");
-                    bandwidth_value = i64::MAX as u64;
-                }
+    async fn consume_bandwidth(&self, amount: i64) -> Result<(), RequestHandlingError> {
+        self.inner
+            .storage
+            .consume_bandwidth(self.client.address, amount)
+            .await?;
+        Ok(())
+    }
 
-                // the unwrap in remote address is fine as we have already ensured the address has been set
-                if let Err(err) = self
-                    .inner
-                    .storage
-                    .increase_bandwidth(self.client.address, bandwidth_value as i64)
-                    .await
-                {
-                    error!(
-                        "We failed to increase the bandwidth of {}! - {}",
-                        self.client.address.as_base58_string(),
-                        err
-                    );
-                    ServerResponse::new_error("Internal gateway storage error")
-                } else {
-                    ServerResponse::Bandwidth { status: true }
-                }
-            }
-            Err(e) => ServerResponse::new_error(format!("{:?}", e)),
+    fn forward_packet(&self, mix_packet: MixPacket) {
+        if let Err(err) = self.inner.outbound_mix_sender.unbounded_send(mix_packet) {
+            error!("We failed to forward requested mix packet - {}. Presumably our mix forwarder has crashed. We cannot continue.", err);
+            process::exit(1);
         }
     }
 
+    async fn handle_bandwidth(
+        &mut self,
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        let iv = IV::try_from_bytes(&iv)?;
+        let credential = ClientControlRequest::try_from_enc_bandwidth_credential(
+            enc_credential,
+            &self.client.shared_keys,
+            iv,
+        )?;
+
+        if !credential.verify(&self.inner.aggregated_verification_key) {
+            return Err(RequestHandlingError::InvalidBandwidthCredential);
+        }
+
+        let bandwidth = Bandwidth::try_from(credential)?;
+        let mut bandwidth_value = bandwidth.value();
+        if bandwidth_value > i64::MAX as u64 {
+            // note that this would have represented more than 1 exabyte,
+            // which is like 125,000 worth of hard drives so I don't think we have
+            // to worry about it for now...
+            warn!("Somehow we received bandwidth value higher than 9223372036854775807. Going to cap it at that amount.");
+            bandwidth_value = i64::MAX as u64;
+        }
+
+        self.increase_bandwidth(bandwidth_value as i64).await?;
+        let available_total = self.get_available_bandwidth().await?;
+
+        Ok(ServerResponse::Bandwidth { available_total })
+    }
+
+    // this function decrypts the request and checks the MAC
+    async fn handle_forward_sphinx(
+        &self,
+        mix_packet: MixPacket,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        // for now let's just use actual size of the sphinx packet. there's a tiny bit of overhead
+        // we're not including (but it's literally like 2 bytes) when the packet is framed
+        let consumed_bandwidth = mix_packet.sphinx_packet().len() as i64;
+
+        let available_bandwidth = self.get_available_bandwidth().await?;
+
+        if available_bandwidth < consumed_bandwidth {
+            return Ok(ServerResponse::new_error(
+                "Insufficient bandwidth available",
+            ));
+        }
+
+        self.consume_bandwidth(consumed_bandwidth).await?;
+        self.forward_packet(mix_packet);
+
+        Ok(ServerResponse::Send {
+            remaining_bandwidth: available_bandwidth - consumed_bandwidth,
+        })
+    }
+
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
-        trace!("Handling binary message (presumably sphinx packet)");
-
-        // if no available bandwidth, exit straightaway so we wouldn't need to waste CPU trying to unwrap
-        // the received packet
-
         // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(bin_msg, &self.client.shared_keys) {
-            Err(e) => ServerResponse::new_error(e.to_string()),
+            Err(e) => RequestHandlingError::InvalidBinaryRequest(e).into_error_message(),
             Ok(request) => match request {
                 // currently only a single type exists
                 BinaryRequest::ForwardSphinx(mix_packet) => {
-                    // for now let's just use actual size of the sphinx packet. there's a tiny bit of overhead
-                    // we're not including (but it's literally like 2 bytes) when the packet is framed
-                    let consumed_bandwidth = mix_packet.sphinx_packet().len() as i64;
-
-                    let available_bandwidth = match self
-                        .inner
-                        .storage
-                        .get_available_bandwidth(self.client.address)
-                        .await
-                    {
-                        Err(err) => {
-                            error!(
-                                "We failed perform bandwidth lookup of {}! - {}",
-                                self.client.address.as_base58_string(),
-                                err
-                            );
-                            return ServerResponse::new_error("Internal gateway storage error")
-                                .into();
-                        }
-                        Ok(None) => {
-                            return ServerResponse::new_error("No bandwidth available").into()
-                        }
-                        Ok(Some(available_bandwidth)) => available_bandwidth,
-                    };
-
-                    if available_bandwidth < consumed_bandwidth {
-                        return ServerResponse::new_error("Insufficient bandwidth available")
-                            .into();
-                    }
-
-                    if let Err(err) = self
-                        .inner
-                        .storage
-                        .consume_bandwidth(self.client.address, consumed_bandwidth)
-                        .await
-                    {
-                        error!(
-                            "We failed to consume the bandwidth of {}! - {}",
-                            self.client.address.as_base58_string(),
-                            err
-                        );
-                        ServerResponse::new_error("Internal gateway storage error")
-                    } else {
-                        self.inner
-                            .outbound_mix_sender
-                            .unbounded_send(mix_packet)
-                            .unwrap();
-                        ServerResponse::Send { status: true }
+                    match self.handle_forward_sphinx(mix_packet).await {
+                        Ok(response) => response.into(),
+                        Err(err) => err.into_error_message(),
                     }
                 }
             },
         }
-        .into()
     }
 
     // currently the bandwidth credential request is the only one we can receive after
     // authentication
     async fn handle_text(&mut self, raw_request: String) -> Message {
-        if let Ok(request) = ClientControlRequest::try_from(raw_request) {
-            match request {
+        match ClientControlRequest::try_from(raw_request) {
+            Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
+            Ok(request) => match request {
                 ClientControlRequest::BandwidthCredential { enc_credential, iv } => {
-                    self.handle_bandwidth(enc_credential, iv).await.into()
+                    match self.handle_bandwidth(enc_credential, iv).await {
+                        Ok(response) => response.into(),
+                        Err(err) => err.into_error_message(),
+                    }
                 }
-                _ => ServerResponse::new_error("invalid request").into(),
-            }
-        } else {
-            ServerResponse::new_error("malformed request").into()
+                _ => RequestHandlingError::IllegalRequest.into_error_message(),
+            },
         }
     }
 

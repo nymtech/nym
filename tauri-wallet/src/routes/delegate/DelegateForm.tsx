@@ -11,7 +11,7 @@ import {
 } from '@material-ui/core'
 import { useForm } from 'react-hook-form'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
-import { DelegationResult, EnumNodeType, TFee } from '../../types'
+import { EnumNodeType, TFee } from '../../types'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { Alert } from '@material-ui/lab'
@@ -93,6 +93,7 @@ export const DelegateForm = ({
               <NodeTypeSelector
                 nodeType={watchNodeType}
                 setNodeType={(nodeType) => setValue('nodeType', nodeType)}
+                disabled={isSubmitting}
               />
             </Grid>
             <Grid item>

@@ -21,7 +21,7 @@ export const useGetBalance = (): TUseGetBalance => {
       .then((balance) => {
         setBalance(balance as Balance)
       })
-      .catch((e) => setError(e))
+      .catch(setError)
     setTimeout(() => {
       setIsLoading(false)
     }, 1000)

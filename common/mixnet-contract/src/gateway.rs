@@ -54,6 +54,10 @@ impl GatewayBond {
     pub fn gateway(&self) -> &Gateway {
         &self.gateway
     }
+
+    pub fn total_delegation(&self) -> Coin {
+        self.total_delegation.clone()
+    }
 }
 
 impl PartialOrd for GatewayBond {

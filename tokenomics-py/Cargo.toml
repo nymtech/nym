@@ -1,0 +1,20 @@
+[package]
+name = "tokenomics-py"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "tokenomics_py"
+crate-type = ["cdylib"]
+
+[dependencies]
+mixnet-contract = {path = "../common/mixnet-contract"}
+cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-updatedk256" }
+
+[dependencies.pyo3]
+version = "0.14.5"
+features = ["extension-module"]
+
+

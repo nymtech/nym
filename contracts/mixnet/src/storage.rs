@@ -1,9 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::queries;
 use crate::state::State;
 use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+use crate::{error::ContractError, queries};
 use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
@@ -24,6 +24,9 @@ use serde::Serialize;
 // singletons
 const CONFIG_KEY: &[u8] = b"config";
 const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
+// Keeps total amount of stake towards mixnodes and gateways. Removing a bond removes all its delegations from the total, the reverse is true for adding a bond.
+const TOTAL_MIX_STAKE_KEY: &[u8] = b"total_mn";
+const TOTAL_GATEWAY_STAKE_KEY: &[u8] = b"total_gt";
 
 // buckets
 const PREFIX_MIXNODES: &[u8] = b"mn";
@@ -44,6 +47,72 @@ pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
 
 pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
     singleton_read(storage, CONFIG_KEY)
+}
+
+fn total_mix_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
+    singleton_read(storage, TOTAL_MIX_STAKE_KEY)
+}
+
+pub fn mut_total_mix_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
+    singleton(storage, TOTAL_MIX_STAKE_KEY)
+}
+
+fn total_gateway_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
+    singleton_read(storage, TOTAL_GATEWAY_STAKE_KEY)
+}
+
+pub fn mut_total_gateway_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
+    singleton(storage, TOTAL_GATEWAY_STAKE_KEY)
+}
+
+pub fn total_mix_stake_value(storage: &dyn Storage) -> Uint128 {
+    match total_mix_stake(storage).load() {
+        Ok(value) => value,
+        Err(_e) => Uint128(0),
+    }
+}
+
+pub fn total_gateway_stake_value(storage: &dyn Storage) -> Uint128 {
+    match total_gateway_stake(storage).load() {
+        Ok(value) => value,
+        Err(_e) => Uint128(0),
+    }
+}
+
+pub fn incr_total_mix_stake(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<Uint128, ContractError> {
+    let stake = total_mix_stake_value(storage).checked_add(amount)?;
+    mut_total_mix_stake(storage).save(&stake)?;
+    Ok(stake)
+}
+
+pub fn decr_total_mix_stake(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<Uint128, ContractError> {
+    let stake = total_mix_stake_value(storage).checked_sub(amount)?;
+    mut_total_mix_stake(storage).save(&stake)?;
+    Ok(stake)
+}
+
+pub fn incr_total_gateway_stake(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<Uint128, ContractError> {
+    let stake = total_gateway_stake_value(storage).checked_add(amount)?;
+    mut_total_gateway_stake(storage).save(&stake)?;
+    Ok(stake)
+}
+
+pub fn decr_total_gateway_stake(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<Uint128, ContractError> {
+    let stake = total_gateway_stake_value(storage).checked_sub(amount)?;
+    mut_total_gateway_stake(storage).save(&stake)?;
+    Ok(stake)
 }
 
 pub(crate) fn read_state_params(storage: &dyn Storage) -> StateParams {

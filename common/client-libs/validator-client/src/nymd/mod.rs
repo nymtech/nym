@@ -12,6 +12,7 @@ use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
 use cosmwasm_std::Coin;
+use cosmwasm_std::{Coin, Uint128};
 use mixnet_contract::{
     Addr, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
     LayerDistribution, MixNode, MixOwnershipResponse, PagedAllDelegationsResponse,
@@ -206,6 +207,26 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::LayerDistribution {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_total_mix_stake(&self) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetTotalMixStake {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_total_gateway_stake(&self) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetTotalGatewayStake {};
         self.client
             .query_contract_smart(self.contract_address()?, &request)
             .await

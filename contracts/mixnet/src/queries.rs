@@ -9,7 +9,7 @@ use crate::storage::{
     reverse_mix_delegations_read,
 };
 use config::defaults::DENOM;
-use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
+use cosmwasm_std::{coin, Addr, Deps, Order, StdResult, Uint128};
 use mixnet_contract::{
     Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
     MixOwnershipResponse, PagedAllDelegationsResponse, PagedGatewayResponse,
@@ -89,6 +89,14 @@ pub(crate) fn query_state_params(deps: Deps) -> StateParams {
 
 pub(crate) fn query_layer_distribution(deps: Deps) -> LayerDistribution {
     read_layer_distribution(deps.storage)
+}
+
+pub(crate) fn query_total_mix_stake(deps: Deps) -> Uint128 {
+    total_mix_stake_value(deps.storage)
+}
+
+pub(crate) fn query_total_gt_stake(deps: Deps) -> Uint128 {
+    total_gateway_stake_value(deps.storage)
 }
 
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm

@@ -93,6 +93,20 @@ impl<C> Client<C> {
         Ok(time)
     }
 
+    pub(crate) async fn get_total_mix_stake(&self) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.0.read().await.get_total_mix_stake().await?)
+    }
+
+    pub(crate) async fn get_total_gateway_stake(&self) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.0.read().await.get_total_gateway_stake().await?)
+    }
+
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,

@@ -77,4 +77,6 @@ pub enum ContractError {
         identity: IdentityKey,
         address: Addr,
     },
+    #[error("Overflow error!")]
+    Overflow(#[from] cosmwasm_std::OverflowError),
 }

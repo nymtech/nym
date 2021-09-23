@@ -48,6 +48,8 @@ pub(crate) struct MixnodeToReward {
 
     /// Total number of individual addresses that have delegated to this particular node
     pub(crate) total_delegations: usize,
+    /// Node absolute uptime over total active set uptime
+    pub(crate) performance: Option<f64>
 }
 
 pub(crate) struct FailedMixnodeRewardChunkDetails {
@@ -199,6 +201,7 @@ impl Rewarder {
                         identity: mix.identity.clone(),
                         uptime: mix.last_day,
                         total_delegations,
+                        performance: None
                     })
             })
             .filter(|node| node.uptime.u8() > 0)

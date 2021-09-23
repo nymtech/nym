@@ -155,9 +155,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 
     Ok(query_res?)
 }
-
 #[entry_point]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    todo!("Calculate initial total mix and gateway stake after initial deployment");
+
+    #[allow(unreachable_code)]
     Ok(Default::default())
 }
 

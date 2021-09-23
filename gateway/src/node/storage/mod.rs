@@ -119,7 +119,7 @@ impl GatewayStorage {
     pub(crate) async fn remove_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), StorageError> {
         self.shared_key_manager
             .remove_shared_keys(&client_address.as_base58_string())
             .await?;
@@ -184,7 +184,7 @@ impl GatewayStorage {
     pub(crate) async fn create_bandwidth_entry(
         &self,
         client_address: DestinationAddressBytes,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), StorageError> {
         self.bandwidth_manager
             .insert_new_client(&client_address.as_base58_string())
             .await?;
@@ -199,11 +199,13 @@ impl GatewayStorage {
     pub(crate) async fn get_available_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
-    ) -> Result<Option<i64>, sqlx::Error> {
-        self.bandwidth_manager
+    ) -> Result<Option<i64>, StorageError> {
+        let res = self
+            .bandwidth_manager
             .get_available_bandwidth(&client_address.as_base58_string())
             .await
-            .map(|bandwidth_option| bandwidth_option.map(|bandwidth| bandwidth.available))
+            .map(|bandwidth_option| bandwidth_option.map(|bandwidth| bandwidth.available))?;
+        Ok(res)
     }
 
     /// Increases available bandwidth of the particular client by the specified amount.
@@ -216,7 +218,7 @@ impl GatewayStorage {
         &self,
         client_address: DestinationAddressBytes,
         amount: i64,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), StorageError> {
         self.bandwidth_manager
             .increase_available_bandwidth(&client_address.as_base58_string(), amount)
             .await?;
@@ -233,7 +235,7 @@ impl GatewayStorage {
         &self,
         client_address: DestinationAddressBytes,
         amount: i64,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), StorageError> {
         self.bandwidth_manager
             .decrease_available_bandwidth(&client_address.as_base58_string(), amount)
             .await?;

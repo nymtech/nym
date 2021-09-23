@@ -74,7 +74,7 @@ export const DelegateForm = ({
     })
       .then((res) => {
         onSuccess(
-          `Successfully delegated ${data.amount} punk to ${res.source_address}`
+          `Successfully delegated ${data.amount} punk to ${res.target_address}`
         )
         getBalance.fetchBalance()
       })

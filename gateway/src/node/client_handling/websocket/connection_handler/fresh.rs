@@ -5,7 +5,6 @@ use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::connection_handler::{
     AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
 };
-use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::PersistentStorage;
 use coconut_interface::VerificationKey;
@@ -18,6 +17,7 @@ use gateway_requests::iv::{IVConversionError, IV};
 use gateway_requests::registration::handshake::error::HandshakeError;
 use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys};
 use gateway_requests::types::{ClientControlRequest, ServerResponse};
+use gateway_requests::BinaryResponse;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use nymsphinx::DestinationAddressBytes;
@@ -51,9 +51,13 @@ enum InitialAuthenticationError {
 
     #[error("Only 'Register' or 'Authenticate' requests are allowed")]
     InvalidRequest,
+
+    #[error("Experienced connection error - {0}")]
+    ConnectionError(#[from] WsError),
 }
 
 impl InitialAuthenticationError {
+    /// Converts this Error into an appropriate websocket Message.
     fn into_error_message(self) -> Message {
         ServerResponse::new_error(self.to_string()).into()
     }
@@ -95,6 +99,8 @@ where
         }
     }
 
+    /// Attempts to perform websocket handshake with the remote and upgrades the raw TCP socket
+    /// to the framed WebSocket.
     pub(crate) async fn perform_websocket_handshake(&mut self) -> Result<(), WsError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -112,6 +118,12 @@ where
         Ok(())
     }
 
+    /// Using received `init_msg` tries to continue the registration handshake with the connected
+    /// client to establish shared keys.
+    ///
+    /// # Arguments
+    ///
+    /// * `init_msg`: a client handshake init message which should contain its identity public key as well as an ephemeral key.
     async fn perform_registration_handshake(
         &mut self,
         init_msg: Vec<u8>,
@@ -134,6 +146,7 @@ where
         }
     }
 
+    /// Attempts to read websocket message from the associated socket.
     pub(crate) async fn read_websocket_message(&mut self) -> Option<Result<Message, WsError>>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -144,6 +157,11 @@ where
         }
     }
 
+    /// Attempts to write a single websocket message on the available socket.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg`: WebSocket message to write back to the client.
     pub(crate) async fn send_websocket_message(&mut self, msg: Message) -> Result<(), WsError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -157,6 +175,46 @@ where
         }
     }
 
+    /// Sends unwrapped sphinx packets (payloads) back to the client. Note that each message is encrypted and tagged with
+    /// the previously derived shared keys.
+    ///
+    /// # Arguments
+    ///
+    /// * `shared_keys`: keys derived between the client and gateway.
+    /// * `packets`: unwrapped packets that are to be pushed back to the client.
+    pub(crate) async fn push_packets_to_client(
+        &mut self,
+        shared_keys: SharedKeys,
+        packets: Vec<Vec<u8>>,
+    ) -> Result<(), WsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
+        // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
+        // be more explicit in the naming?
+        let messages: Vec<Result<Message, WsError>> = packets
+            .into_iter()
+            .map(|received_message| {
+                Ok(BinaryResponse::new_pushed_mix_message(received_message)
+                    .into_ws_message(&shared_keys))
+            })
+            .collect();
+        let mut send_stream = futures::stream::iter(messages);
+        match self.socket_connection {
+            SocketStream::UpgradedWebSocket(ref mut ws_stream) => {
+                ws_stream.send_all(&mut send_stream).await
+            }
+            _ => panic!("impossible state - websocket handshake was somehow reverted"),
+        }
+    }
+
+    /// Attempts to extract clients identity key from the received registration handshake init message.
+    ///
+    /// # Arguments
+    ///
+    /// * `init_data`: received init message that should contain, among other things, client's public key.
+    // Note: this is out of the scope of this PR, but in the future, this should be removed in favour
+    // of doing full parse of the init_data elsewhere
     fn extract_remote_identity_from_register_init(
         init_data: &[u8],
     ) -> Result<identity::PublicKey, InitialAuthenticationError> {
@@ -171,17 +229,24 @@ where
         }
     }
 
+    /// Attempts to retrieve all messages currently stored in the persistent database to the client,
+    /// which was offline at the time of their receipt.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client that is going to receive the messages.
+    /// * `shared_keys`: shared keys derived between the client and the gateway used to encrypt and tag the messages.
     async fn push_stored_messages_to_client(
-        &self,
+        &mut self,
         client_address: DestinationAddressBytes,
-        comm_channel: &MixMessageSender,
-    ) -> Result<(), InitialAuthenticationError> {
-        // TODO: SECURITY (kinda):
-        // We should stagger reading the messages in a different way, i.e. we read some of them,
-        // send them all the way back to the client and then read next batch. Otherwise we risk
-        // being vulnerable to trivial attacks causing gateway crashes.
+        shared_keys: SharedKeys,
+    ) -> Result<(), InitialAuthenticationError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
         let mut start_next_after = None;
         loop {
+            // retrieve some messages
             let (messages, new_start_next_after) = self
                 .storage
                 .retrieve_messages(client_address, start_next_after)
@@ -192,14 +257,15 @@ where
                 .map(|msg| (msg.content, msg.id))
                 .unzip();
 
-            if comm_channel.unbounded_send(messages).is_err() {
-                error!("Somehow we failed to stored messages to a fresh client channel - there seem to be a weird bug present!");
+            // push them to the client
+            if let Err(err) = self.push_packets_to_client(shared_keys, messages).await {
+                warn!(
+                    "We failed to send stored messages to fresh client - {}",
+                    err
+                );
+                return Err(InitialAuthenticationError::ConnectionError(err));
             } else {
-                // after sending the messages, remove them from the storage
-                // TODO: this kinda relates to the previously mentioned idea of different staggering method
-                // because technically we don't know if the client received those messages. We only pushed
-                // them upon the channel that will eventually be read and then sent to the socket
-                // so technically we can lose packets here
+                // if it was successful - remove them from the store
                 self.storage.remove_messages(ids).await?;
             }
 
@@ -256,13 +322,26 @@ where
         }
     }
 
+    /// Using the received challenge data, i.e. client's address as well the ciphertext of it plus
+    /// a fresh IV, attempts to authenticate the client by checking whether the ciphertext matches
+    /// the expected value if encrypted with the shared key.
+    ///
+    /// Finally, upon completion, all previously stored messages are pushed back to the client.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client wishing to authenticate.
+    /// * `encrypted_address`: ciphertext of the address of the client wishing to authenticate.
+    /// * `iv`: fresh IV received with the request.
     async fn authenticate_client(
-        &self,
+        &mut self,
         client_address: DestinationAddressBytes,
         encrypted_address: EncryptedAddressBytes,
         iv: IV,
-        sender_channel: MixMessageSender,
-    ) -> Result<Option<SharedKeys>, InitialAuthenticationError> {
+    ) -> Result<Option<SharedKeys>, InitialAuthenticationError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
         debug!(
             "Processing authenticate client request for: {}",
             client_address.as_base58_string()
@@ -273,24 +352,30 @@ where
             .await?;
 
         if let Some(shared_keys) = shared_keys {
-            self.push_stored_messages_to_client(client_address, &sender_channel)
+            self.push_stored_messages_to_client(client_address, shared_keys)
                 .await?;
-            self.active_clients_store
-                .insert(client_address, sender_channel);
-
             Ok(Some(shared_keys))
         } else {
             Ok(None)
         }
     }
 
+    /// Tries to handle the received authentication request by checking correctness of the received data.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client wishing to authenticate.
+    /// * `encrypted_address`: ciphertext of the address of the client wishing to authenticate.
+    /// * `iv`: fresh IV received with the request.
     async fn handle_authenticate(
         &mut self,
         address: String,
         enc_address: String,
         iv: String,
-        mix_sender: MixMessageSender,
-    ) -> Result<InitialAuthResult, InitialAuthenticationError> {
+    ) -> Result<InitialAuthResult, InitialAuthenticationError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
         let address = DestinationAddressBytes::try_from_base58_string(address)
             .map_err(|err| InitialAuthenticationError::MalformedClientAddress(err.to_string()))?;
         let encrypted_address = EncryptedAddressBytes::try_from_base58_string(enc_address)?;
@@ -301,7 +386,7 @@ where
         }
 
         let shared_keys = self
-            .authenticate_client(address, encrypted_address, iv, mix_sender)
+            .authenticate_client(address, encrypted_address, iv)
             .await?;
         let status = shared_keys.is_some();
         let client_details =
@@ -313,11 +398,21 @@ where
         ))
     }
 
+    /// Attempts to finalize registration of the client by storing the derived shared keys in the
+    /// persistent store as well as creating entry for its bandwidth allocation.
+    ///
+    /// Finally, upon completion, all previously stored messages are pushed back to the client.
+    ///
+    /// # Arguments
+    ///
+    /// * `client`: details (i.e. address and shared keys) of the registered client
     async fn register_client(
-        &self,
+        &mut self,
         client: ClientDetails,
-        sender_channel: MixMessageSender,
-    ) -> Result<bool, InitialAuthenticationError> {
+    ) -> Result<bool, InitialAuthenticationError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
         debug!(
             "Processing register client request for: {}",
             client.address.as_base58_string()
@@ -337,18 +432,21 @@ where
             self.storage.create_bandwidth_entry(client.address).await?;
         }
 
-        self.push_stored_messages_to_client(client.address, &sender_channel)
+        self.push_stored_messages_to_client(client.address, client.shared_keys)
             .await?;
 
-        self.active_clients_store
-            .insert(client.address, sender_channel);
         Ok(true)
     }
 
+    /// Tries to handle the received register request by checking attempting to complete registration
+    /// handshake using the received data.
+    ///
+    /// # Arguments
+    ///
+    /// * `init_data`: init payload of the registration handshake.
     async fn handle_register(
         &mut self,
         init_data: Vec<u8>,
-        mix_sender: MixMessageSender,
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
@@ -363,7 +461,7 @@ where
         let shared_keys = self.perform_registration_handshake(init_data).await?;
         let client_details = ClientDetails::new(remote_address, shared_keys);
 
-        let status = self.register_client(client_details, mix_sender).await?;
+        let status = self.register_client(client_details).await?;
 
         Ok(InitialAuthResult::new(
             Some(client_details),
@@ -373,9 +471,12 @@ where
 
     /// Handles data that resembles request to either start registration handshake or perform
     /// authentication.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_request`: raw text request received from the websocket.
     async fn handle_initial_authentication_request(
         &mut self,
-        mix_sender: MixMessageSender,
         raw_request: String,
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
@@ -387,12 +488,9 @@ where
                     address,
                     enc_address,
                     iv,
-                } => {
-                    self.handle_authenticate(address, enc_address, iv, mix_sender)
-                        .await
-                }
+                } => self.handle_authenticate(address, enc_address, iv).await,
                 ClientControlRequest::RegisterHandshakeInitRequest { data } => {
-                    self.handle_register(data, mix_sender).await
+                    self.handle_register(data).await
                 }
                 // won't accept anything else (like bandwidth) without prior authentication
                 _ => Err(InitialAuthenticationError::InvalidRequest),
@@ -432,10 +530,7 @@ where
                 Message::Close(_) => break,
                 Message::Text(text_msg) => {
                     let (mix_sender, mix_receiver) = mpsc::unbounded();
-                    match self
-                        .handle_initial_authentication_request(mix_sender, text_msg)
-                        .await
-                    {
+                    match self.handle_initial_authentication_request(text_msg).await {
                         Err(err) => {
                             if let Err(err) =
                                 self.send_websocket_message(err.into_error_message()).await
@@ -454,6 +549,8 @@ where
                             }
 
                             return auth_result.client_details.map(|client_details| {
+                                self.active_clients_store
+                                    .insert(client_details.address, mix_sender);
                                 AuthenticatedHandler::upgrade(self, client_details, mix_receiver)
                             });
                         }

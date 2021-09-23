@@ -10,10 +10,17 @@ use std::sync::Arc;
 pub(crate) struct ActiveClientsStore(Arc<DashMap<DestinationAddressBytes, MixMessageSender>>);
 
 impl ActiveClientsStore {
+    /// Creates new instance of `ActiveClientsStore` to store in-memory handles to all currently connected clients.
     pub(crate) fn new() -> Self {
         ActiveClientsStore(Arc::new(DashMap::new()))
     }
 
+    /// Tries to obtain sending channel to specified client. Note that if stale entry existed, it is
+    /// removed and a `None` is returned instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `client`: address of the client for which to obtain the handle.
     pub(crate) fn get(&self, client: DestinationAddressBytes) -> Option<MixMessageSender> {
         let entry = self.0.get(&client)?;
         let handle = entry.value();
@@ -30,10 +37,21 @@ impl ActiveClientsStore {
         }
     }
 
+    /// Indicates particular client has disconnected from the gateway and its handle should get removed.
+    ///
+    /// # Arguments
+    ///
+    /// * `client`: address of the client for which to remove the handle.
     pub(crate) fn disconnect(&self, client: DestinationAddressBytes) {
         self.0.remove(&client);
     }
 
+    /// Insert new client handle into the store.
+    ///
+    /// # Arguments
+    ///
+    /// * `client`: address of the client for which to insert the handle.
+    /// * `handle`: the sender channel for all mix packets to be pushed back onto the websocket
     pub(crate) fn insert(&self, client: DestinationAddressBytes, handle: MixMessageSender) {
         self.0.insert(client, handle);
     }

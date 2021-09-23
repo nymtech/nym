@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::client_handling::bandwidth::Bandwidth;
-use crate::node::client_handling::websocket::connection_handler::{
-    ClientDetails, FreshHandler, SocketStream,
-};
+use crate::node::client_handling::websocket::connection_handler::{ClientDetails, FreshHandler};
 use crate::node::client_handling::websocket::message_receiver::MixMessageReceiver;
 use crate::node::storage::error::StorageError;
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
 use gateway_requests::iv::{IVConversionError, IV};
 use gateway_requests::types::{BinaryRequest, ServerResponse};
-use gateway_requests::{BinaryResponse, ClientControlRequest, GatewayRequestsError};
+use gateway_requests::{ClientControlRequest, GatewayRequestsError};
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
 use rand::{CryptoRng, Rng};
@@ -18,7 +16,7 @@ use std::convert::TryFrom;
 use std::process;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
+use tokio_tungstenite::tungstenite::protocol::Message;
 
 #[derive(Debug, Error)]
 enum RequestHandlingError {
@@ -85,29 +83,6 @@ where
         self.inner
             .active_clients_store
             .disconnect(self.client.address)
-    }
-
-    // Note that it encrypts each message and slaps a MAC on it
-    async fn push_packets_to_client(&mut self, packets: Vec<Vec<u8>>) -> Result<(), WsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin,
-    {
-        // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
-        // be more explicit in the naming?
-        let messages: Vec<Result<Message, WsError>> = packets
-            .into_iter()
-            .map(|received_message| {
-                Ok(BinaryResponse::new_pushed_mix_message(received_message)
-                    .into_ws_message(&self.client.shared_keys))
-            })
-            .collect();
-        let mut send_stream = futures::stream::iter(messages);
-        match self.inner.socket_connection {
-            SocketStream::UpgradedWebSocket(ref mut ws_stream) => {
-                ws_stream.send_all(&mut send_stream).await
-            }
-            _ => panic!("impossible state - websocket handshake was somehow reverted"),
-        }
     }
 
     async fn get_available_bandwidth(&self) -> Result<i64, RequestHandlingError> {
@@ -281,7 +256,7 @@ where
                 },
                 mix_messages = self.mix_receiver.next() => {
                     let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
-                    if let Err(e) = self.push_packets_to_client(mix_messages).await {
+                    if let Err(e) = self.inner.push_packets_to_client(self.client.shared_keys, mix_messages).await {
                         warn!("failed to send the unwrapped sphinx packets back to the client - {:?}, assuming the connection is dead", e);
                         break;
                     }

@@ -18,9 +18,7 @@ use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::framing::codec::SphinxCodec;
 use nymsphinx::framing::packet::FramedSphinxPacket;
 use nymsphinx::DestinationAddressBytes;
-use std::io;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 

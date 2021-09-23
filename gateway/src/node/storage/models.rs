@@ -8,11 +8,13 @@ pub(crate) struct PersistedSharedKeys {
 
 pub(crate) struct StoredMessage {
     pub(crate) id: i64,
+    #[allow(dead_code)]
     pub(crate) client_address_bs58: String,
     pub(crate) content: Vec<u8>,
 }
 
 pub(crate) struct PersistedBandwidth {
+    #[allow(dead_code)]
     pub(crate) client_address_bs58: String,
     pub(crate) available: i64,
 }

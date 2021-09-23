@@ -33,9 +33,19 @@ impl<S> SocketStream<S> {
     }
 }
 
+#[derive(Copy, Clone)]
 pub(crate) struct ClientDetails {
     pub(crate) address: DestinationAddressBytes,
     pub(crate) shared_keys: SharedKeys,
+}
+
+impl ClientDetails {
+    pub(crate) fn new(address: DestinationAddressBytes, shared_keys: SharedKeys) -> Self {
+        ClientDetails {
+            address,
+            shared_keys,
+        }
+    }
 }
 
 pub(crate) struct InitialAuthResult {
@@ -51,12 +61,12 @@ impl InitialAuthResult {
         }
     }
 
-    fn new_error<S: Into<String>>(msg: S) -> Self {
-        InitialAuthResult {
-            client_details: None,
-            server_response: ServerResponse::new_error(msg),
-        }
-    }
+    // fn new_error<S: Into<String>>(msg: S) -> Self {
+    //     InitialAuthResult {
+    //         client_details: None,
+    //         server_response: ServerResponse::new_error(msg),
+    //     }
+    // }
 }
 
 pub(crate) async fn handle_connection<R, S>(mut handle: FreshHandler<R, S>)

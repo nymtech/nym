@@ -105,6 +105,8 @@ fn extract_identity_and_owner(bytes: Vec<u8>) -> StdResult<(Addr, IdentityKey)> 
 
 // currently not used outside tests
 #[cfg(test)]
+// Converts the node identity and owner of a delegation into the bytes used as
+// key in the delegation buckets.
 pub(crate) fn identity_and_owner_to_bytes(identity: &IdentityKey, owner: &Addr) -> Vec<u8> {
     let mut bytes = u16::to_be_bytes(identity.len() as u16).to_vec();
     bytes.append(&mut identity.as_bytes().to_vec());
@@ -207,6 +209,28 @@ mod tests {
 
         // anything larger than 100 returns an error
         assert!(scale_reward_by_uptime(epoch_reward, 101).is_err())
+    }
+
+    #[test]
+    fn identity_and_owner_deserialization() {
+        assert!(extract_identity_and_owner(vec![]).is_err());
+        assert!(extract_identity_and_owner(vec![0]).is_err());
+        let (owner, identity) = extract_identity_and_owner(vec![
+            0, 7, 109, 105, 120, 110, 111, 100, 101, 97, 108, 105, 99, 101,
+        ])
+        .unwrap();
+        assert_eq!(owner, "alice");
+        assert_eq!(identity, "mixnode");
+    }
+
+    #[test]
+    fn identity_and_owner_serialization() {
+        let identity: IdentityKey = "gateway".into();
+        let owner = Addr::unchecked("bob");
+        assert_eq!(
+            vec![0, 7, 103, 97, 116, 101, 119, 97, 121, 98, 111, 98],
+            identity_and_owner_to_bytes(&identity, &owner)
+        );
     }
 
     #[test]

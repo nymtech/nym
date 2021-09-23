@@ -7,7 +7,9 @@ use crate::nymd::{
 };
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-use mixnet_contract::{GatewayBond, MixNodeBond, RawDelegationData};
+#[cfg(feature = "nymd-client")]
+use mixnet_contract::RawDelegationData;
+use mixnet_contract::{GatewayBond, MixNodeBond};
 use url::Url;
 
 #[cfg(feature = "nymd-client")]

@@ -17,7 +17,7 @@ export const PageOverview: React.FC = () => {
   return (
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>
-        <Grid container spacing={0}>
+        <Grid container spacing={2}>
           <Grid item xs={12}>
             <Typography sx={{ marginLeft: 3 }}>
               Overview

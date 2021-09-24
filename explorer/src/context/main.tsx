@@ -1,13 +1,7 @@
 import { PaletteMode } from '@mui/material';
 import * as React from 'react';
-import { CountryDataResponse, GatewayResponse, MixNodeResponse, ValidatorsResponse, BlockResponse } from 'src/typeDefs/explorer-api';
+import { CountryDataResponse, GatewayResponse, MixNodeResponse, ValidatorsResponse, BlockResponse, ApiState } from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
-
-interface ApiState<RESPONSE> {
-  isLoading: boolean;
-  data?: RESPONSE;
-  error?: Error;
-}
 interface State {
   mode: PaletteMode
   toggleMode?: () => void
@@ -44,6 +38,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
       });
     }
   };
+
   const fetchGateways = async () => {
     try {
       const data = await Api.fetchGateways();

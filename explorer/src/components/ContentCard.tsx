@@ -8,7 +8,7 @@ export const ContentCard: React.FC<{
   Action?: React.ReactNode;
   errorMsg?: string;
 }> = ({ title, Icon, Action, subtitle, errorMsg, children }) => (
-  <Card sx={{ m: 3 }}>
+  <Card>
     <CardHeader
       title={title}
       avatar={Icon}

@@ -1,78 +1,52 @@
 import * as React from 'react';
 import { Box, Grid, IconButton, Typography } from '@mui/material';
-import { MixnodesTable } from '../../components/Table';
+import { MixnodesTable } from '../../components/MixnodesTable';
 import { MainContext } from 'src/context/main';
-import { TableHeadingsType } from "../../typeDefs/tables";
-import { MixNodeResponseItem } from 'src/typeDefs/node-status-api-client';
-import { useLocation, useParams } from 'react-router-dom';
-
-const tableHeadings: TableHeadingsType = [
-    {
-        id: 'owner',
-        numeric: false,
-        disablePadding: true,
-        label: 'Owner',
-    },
-    {
-        id: 'id_key',
-        numeric: true,
-        disablePadding: false,
-        label: 'Identity Key',
-    },
-    {
-        id: 'bond',
-        numeric: true,
-        disablePadding: false,
-        label: 'Bond)',
-    },
-    {
-        id: 'ip_port',
-        numeric: true,
-        disablePadding: false,
-        label: 'IP:Port',
-    },
-    {
-        id: 'location',
-        numeric: true,
-        disablePadding: false,
-        label: 'Location',
-    },
-    {
-        id: 'layer',
-        numeric: true,
-        disablePadding: false,
-        label: 'Layer',
-    },
-]
+import { MixNodeResponseItem, ApiState } from 'src/typeDefs/explorer-api';
+import { useParams } from 'react-router-dom';
+import { MixNodeResponse } from 'src/typeDefs/explorer-api';
+import { ContentCard } from 'src/components/ContentCard';
 
 export const PageMixnodeInfo: React.FC = () => {
     const { mixnodes } = React.useContext(MainContext);
-    let location = useLocation();
     let { id }: any = useParams();
 
-    const [nodeInfo, setNodeInfo] = React.useState<MixNodeResponseItem | null>(null);
+    const [selectedNodeInfo, setSelectedNodeInfo] = React.useState<ApiState<MixNodeResponse>>();
 
     React.useEffect(() => {
-        // @ts-ignore
-        const thisNode: MixNodeResponseItem = mixnodes && mixnodes?.data?.filter((eachMixnode: MixNodeResponseItem) => {
+        const data: MixNodeResponse = mixnodes && mixnodes?.data?.filter((eachMixnode: MixNodeResponseItem) => {
             return eachMixnode.mix_node.identity_key === id
-        })[0];
-        setNodeInfo(thisNode)
+        }) || [];
+        setSelectedNodeInfo({ data, isLoading: false })
     }, [mixnodes])
+
     return (
         <>
             <Box component='main' sx={{ flexGrow: 1 }}>
-                <Grid container spacing={0}>
+                <Grid container spacing={2}>
                     <Grid item xs={12}>
-                        <Typography sx={{ marginLeft: 3 }}>
-                            Mixnode Info
+                        <Typography>
+                            Mixnode Detail
                         </Typography>
+                    </Grid>
+                    <Grid item xs={12}>
+                        <MixnodesTable mixnodes={selectedNodeInfo} />
                     </Grid>
 
                     <Grid item xs={12}>
-                        {/* add in the same headings as before
-                        add in the one row of data for this mixnode */}
-                        <MixnodesTable />
+                        <ContentCard title='Bond Breakdown'>
+                            <p>i am the bond breakdown section with lots of stuff</p>
+                        </ContentCard>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <ContentCard title='Mixnode Stats'>
+                            <p>I am the mixnode stats</p>
+                        </ContentCard>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <ContentCard title='uptine story'>
+                            <p>I am the uptime story</p>
+                        </ContentCard>
                     </Grid>
                 </Grid>
             </Box>

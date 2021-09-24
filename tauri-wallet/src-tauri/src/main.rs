@@ -57,7 +57,9 @@ fn main() {
       create_new_account,
       get_fee,
       get_state_params,
-      update_state_params
+      update_state_params,
+      get_reverse_mix_delegations_paged,
+      get_reverse_gateway_delegations_paged,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

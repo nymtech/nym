@@ -469,8 +469,8 @@ pub(crate) fn try_reward_mixnode(
 
     let bond_reward_rate = read_mixnode_epoch_bond_reward_rate(deps.storage);
     let delegation_reward_rate = read_mixnode_epoch_delegation_reward_rate(deps.storage);
-    let scaled_bond_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
-    let scaled_delegation_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
+    let bond_scaled_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
+    let delegation_scaled_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
 
     let mut node_reward = Uint128(0);
     let total_delegation_reward = increase_mix_delegated_stakes(

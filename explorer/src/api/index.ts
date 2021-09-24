@@ -6,7 +6,7 @@ import {
   COUNTRY_DATA_API,
 } from './constants';
 
-import { MixNodeResponse, GatewayResponse, ValidatorsResponse, CountryDataResponse } from '../typeDefs/node-status-api-client'
+import { MixNodeResponse, GatewayResponse, ValidatorsResponse, CountryDataResponse } from '../typeDefs/explorer-api'
 
 export class Api {
 

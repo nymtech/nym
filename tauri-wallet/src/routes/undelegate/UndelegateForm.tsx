@@ -65,7 +65,7 @@ export const UndelegateForm = ({
       identity: data.identity,
     })
       .then(async (res) => {
-        onSuccess(`Successfully undelegated from ${res.source_address}`)
+        onSuccess(`Successfully undelegated from ${res.target_address}`)
         getBalance.fetchBalance()
       })
       .catch((e) => onError(e))

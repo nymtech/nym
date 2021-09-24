@@ -168,18 +168,31 @@ impl PacketPreparer {
     }
 
     pub(crate) async fn wait_for_validator_cache_initial_values(&self) {
-        let initialisation_backoff = Duration::from_secs(10);
+        // wait for the cache to get initialised
+        self.validator_cache.wait_for_initial_values().await;
+
+        // now wait for our "good" topology to be online
+        info!("Waiting for 'good' topology to be online");
+        let initialisation_backoff = Duration::from_secs(30);
         loop {
-            if self.validator_cache.initialised() {
+            let gateways = self.validator_cache.gateways().await;
+            let mixnodes = self.validator_cache.mixnodes().await;
+            if self
+                .tested_network
+                .is_online(&mixnodes.into_inner(), &gateways.into_inner())
+            {
                 break;
             } else {
-                debug!("Validator cache hasn't been initialised yet - waiting for {:?} before trying again", initialisation_backoff);
+                info!(
+                    "Our 'good' topology is still not offline. Going to check again in {:?}",
+                    initialisation_backoff
+                );
                 tokio::time::sleep(initialisation_backoff).await;
             }
         }
     }
 
-    async fn get_network_nodes(&mut self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
+    async fn get_network_nodes(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
         info!(target: "Monitor", "Obtaining network topology...");
 
         let mixnodes = self.validator_cache.mixnodes().await.into_inner();

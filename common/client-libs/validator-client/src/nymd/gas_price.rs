@@ -3,8 +3,10 @@
 
 use crate::nymd::error::NymdError;
 use config::defaults;
-use cosmrs::Denom;
-use cosmwasm_std::Decimal;
+use cosmrs::tx::Gas;
+use cosmrs::{Coin, Denom};
+use cosmwasm_std::{Decimal, Fraction, Uint128};
+use std::ops::Mul;
 use std::str::FromStr;
 
 /// A gas price, i.e. the price of a single unit of gas. This is typically a fraction of
@@ -16,6 +18,36 @@ pub struct GasPrice {
     pub amount: Decimal,
 
     pub denom: Denom,
+}
+
+impl<'a> Mul<Gas> for &'a GasPrice {
+    type Output = Coin;
+
+    fn mul(self, gas_limit: Gas) -> Self::Output {
+        let limit_uint128 = Uint128::from(gas_limit.value());
+        let mut amount = self.amount * limit_uint128;
+
+        let gas_price_numerator = self.amount.numerator();
+        let gas_price_denominator = self.amount.denominator();
+
+        // gas price is a fraction of the smallest fee token unit, so we must ensure that
+        // for any multiplication, we have rounded up
+        //
+        // I don't really like the this solution as it has a theoretical chance of
+        // overflowing (internally cosmwasm uses U256 to avoid that)
+        // however, realistically that is impossible to happen as the resultant value
+        // would have to be way higher than our token limit of 10^15 (1 billion of tokens * 1 million for denomination)
+        // and max value of u128 is approximately 10^38
+        if limit_uint128.u128() * gas_price_numerator > amount.u128() * gas_price_denominator {
+            amount += Uint128::new(1);
+        }
+
+        assert!(amount.u128() <= u64::MAX as u128);
+        Coin {
+            denom: self.denom.clone(),
+            amount: (amount.u128() as u64).into(),
+        }
+    }
 }
 
 impl FromStr for GasPrice {
@@ -77,5 +109,16 @@ mod tests {
         assert!(".25upunk".parse::<GasPrice>().is_err());
         assert!("0.025 upunk".parse::<GasPrice>().is_err());
         assert!("0.025UPUNK".parse::<GasPrice>().is_err());
+    }
+
+    #[test]
+    fn gas_limit_multiplication() {
+        // real world example that caused an issue when the result was rounded down
+        let gas_price: GasPrice = "0.025upunk".parse().unwrap();
+        let gas_limit: Gas = 157500u64.into();
+
+        let fee = &gas_price * gas_limit;
+        // the failing behaviour was result value of 3937
+        assert_eq!(fee.amount, 3938u64.into());
     }
 }

@@ -3,7 +3,7 @@
 
 use crate::AckKey;
 use crypto::generic_array::typenum::Unsigned;
-use crypto::symmetric::stream_cipher::{self, encrypt, iv_from_slice, random_iv, NewStreamCipher};
+use crypto::symmetric::stream_cipher::{self, encrypt, iv_from_slice, random_iv, NewCipher};
 use nymsphinx_params::{
     packet_sizes::PacketSize, AckEncryptionAlgorithm, SerializedFragmentIdentifier, FRAG_ID_LEN,
 };
@@ -33,7 +33,7 @@ pub fn recover_identifier(
         return None;
     }
 
-    let iv_size = <AckEncryptionAlgorithm as NewStreamCipher>::NonceSize::to_usize();
+    let iv_size = <AckEncryptionAlgorithm as NewCipher>::NonceSize::to_usize();
     let iv = iv_from_slice::<AckEncryptionAlgorithm>(&iv_id_ciphertext[..iv_size]);
 
     let id = stream_cipher::decrypt::<AckEncryptionAlgorithm>(

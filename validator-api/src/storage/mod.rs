@@ -4,22 +4,25 @@
 use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::models::{
     GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
-    NodeStatusApiError, Uptime,
+    NodeStatusApiError,
 };
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
-use crate::storage::models::NodeStatus;
+use crate::storage::models::{
+    EpochRewarding, FailedGatewayRewardChunk, FailedMixnodeRewardChunk, NodeStatus,
+    PossiblyUnrewardedGateway, PossiblyUnrewardedMixnode, RewardingReport,
+};
 use rocket::fairing::{self, AdHoc};
 use rocket::{Build, Rocket};
-use sqlx::types::time::OffsetDateTime;
 use sqlx::ConnectOptions;
 use std::path::PathBuf;
+use time::OffsetDateTime;
 
 pub(crate) mod manager;
 pub(crate) mod models;
 
 // A type alias to be more explicit about type of timestamp used.
-type UnixTimestamp = i64;
+pub(crate) type UnixTimestamp = i64;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
@@ -294,32 +297,38 @@ impl NodeStatusStorage {
         ))
     }
 
-    // NOTE: this method will go away once we move payments into the validator-api
-    // it just helps us to get rid of having to query for reports of each node individually
-    pub(crate) async fn get_all_mixnode_reports(
+    /// Obtain status reports of mixnodes that were active in the specified time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `end`: unix timestamp indicating the upper bound interval of the selection.
+    // NOTE: even though the arguments would suggest this function is generic in regards to
+    // epoch length, the constructed reports still assume the epochs are 24h in length.
+    pub(crate) async fn get_all_active_mixnode_reports_in_interval(
         &self,
+        start: UnixTimestamp,
+        end: UnixTimestamp,
     ) -> Result<Vec<MixnodeStatusReport>, NodeStatusApiError> {
-        let now = OffsetDateTime::now_utc();
-        let day_ago = (now - ONE_DAY).unix_timestamp();
-        let hour_ago = (now - ONE_HOUR).unix_timestamp();
+        if (end - start) as u64 != ONE_DAY.as_secs() {
+            warn!("Our current epoch length breaks the 24h length assumption")
+        }
+
+        let hour_ago = end - ONE_HOUR.as_secs() as i64;
 
         // determine the number of runs the mixnodes should have been online for
-        let last_hour_runs_count = self
-            .get_monitor_runs_count(hour_ago, now.unix_timestamp())
-            .await?;
-        let last_day_runs_count = self
-            .get_monitor_runs_count(day_ago, now.unix_timestamp())
-            .await?;
+        let last_hour_runs_count = self.get_monitor_runs_count(hour_ago, end).await?;
+        let last_day_runs_count = self.get_monitor_runs_count(start, end).await?;
 
         let reports = self
             .manager
-            .get_all_active_mixnodes_statuses(day_ago)
+            .get_all_active_mixnodes_statuses_in_interval(start, end)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
             .into_iter()
             .map(|statuses| {
                 MixnodeStatusReport::construct_from_last_day_reports(
-                    now,
+                    OffsetDateTime::from_unix_timestamp(end).unwrap(),
                     statuses.identity,
                     statuses.owner,
                     statuses.ipv4_statuses,
@@ -333,32 +342,38 @@ impl NodeStatusStorage {
         Ok(reports)
     }
 
-    // NOTE: this method will go away once we move payments into the validator-api
-    // it just helps us to get rid of having to query for reports of each node individually
-    pub(crate) async fn get_all_gateway_reports(
+    /// Obtain status reports of gateways that were active in the specified time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `end`: unix timestamp indicating the upper bound interval of the selection.
+    // NOTE: even though the arguments would suggest this function is generic in regards to
+    // epoch length, the constructed reports still assume the epochs are 24h in length.
+    pub(crate) async fn get_all_active_gateway_reports_in_interval(
         &self,
+        start: UnixTimestamp,
+        end: UnixTimestamp,
     ) -> Result<Vec<GatewayStatusReport>, NodeStatusApiError> {
-        let now = OffsetDateTime::now_utc();
-        let day_ago = (now - ONE_DAY).unix_timestamp();
-        let hour_ago = (now - ONE_HOUR).unix_timestamp();
+        if (end - start) as u64 != ONE_DAY.as_secs() {
+            warn!("Our current epoch length breaks the 24h length assumption")
+        }
 
-        // determine the number of runs the gateways should have been online for
-        let last_hour_runs_count = self
-            .get_monitor_runs_count(hour_ago, now.unix_timestamp())
-            .await?;
-        let last_day_runs_count = self
-            .get_monitor_runs_count(day_ago, now.unix_timestamp())
-            .await?;
+        let hour_ago = end - ONE_HOUR.as_secs() as i64;
+
+        // determine the number of runs the mixnodes should have been online for
+        let last_hour_runs_count = self.get_monitor_runs_count(hour_ago, end).await?;
+        let last_day_runs_count = self.get_monitor_runs_count(start, end).await?;
 
         let reports = self
             .manager
-            .get_all_active_gateways_statuses(day_ago)
+            .get_all_active_gateways_statuses_in_interval(start, end)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
             .into_iter()
             .map(|statuses| {
                 GatewayStatusReport::construct_from_last_day_reports(
-                    now,
+                    OffsetDateTime::from_unix_timestamp(end).unwrap(),
                     statuses.identity,
                     statuses.owner,
                     statuses.ipv4_statuses,
@@ -428,87 +443,79 @@ impl NodeStatusStorage {
         Ok(run_count as usize)
     }
 
-    // Called on timer/reward script
-    async fn update_historical_uptimes(
+    /// Given lists of reports of all active mixnodes and gateways, inserts the data into the
+    /// historical uptime tables.
+    ///
+    /// This method is called at every reward cycle. Note that currently to work as expected, it
+    /// assumes a 24h epoch period. If this assumption is broken, this method should be called
+    /// on an independent timer.
+    ///
+    /// # Arguments
+    ///
+    /// * `today_iso_8601`: today's date expressed in ISO 8601, i.e. YYYY-MM-DD
+    /// * `mixnode_reports`: slice of reports for all active mixnodes
+    /// * `gateway_reports`: slice of reports for all active gateways
+    pub(crate) async fn update_historical_uptimes(
         &self,
         today_iso_8601: &str,
+        mixnode_reports: &[MixnodeStatusReport],
+        gateway_reports: &[GatewayStatusReport],
     ) -> Result<(), NodeStatusApiError> {
-        let now = OffsetDateTime::now_utc();
-        let day_ago = (now - ONE_DAY).unix_timestamp();
+        for report in mixnode_reports {
+            // if this ever fails, we have a super weird error because we just constructed report for that node
+            // and we never delete node data!
+            let node_id = match self
+                .manager
+                .get_mixnode_id(&report.identity)
+                .await
+                .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
+            {
+                Some(node_id) => node_id,
+                None => {
+                    error!(
+                        "Somehow we failed to grab id of mixnode {} from the database!",
+                        &report.identity
+                    );
+                    continue;
+                }
+            };
 
-        // get statuses for all active mixnodes...
-        let active_mixnodes_statuses = self
-            .manager
-            .get_all_active_mixnodes_statuses(day_ago)
-            .await
-            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
-
-        for statuses in active_mixnodes_statuses.into_iter() {
-            let ipv4_day_up = statuses
-                .ipv4_statuses
-                .iter()
-                .filter(|status| status.up)
-                .count();
-            let ipv6_day_up = statuses
-                .ipv6_statuses
-                .iter()
-                .filter(|status| status.up)
-                .count();
-
-            // calculate their uptimes for the last 24h
-            let ipv4_uptime = Uptime::from_ratio(ipv4_day_up, statuses.ipv4_statuses.len())
-                .unwrap()
-                .u8();
-            let ipv6_uptime = Uptime::from_ratio(ipv6_day_up, statuses.ipv6_statuses.len())
-                .unwrap()
-                .u8();
-
-            // and insert into the database
             self.manager
                 .insert_mixnode_historical_uptime(
-                    statuses.node_id,
+                    node_id,
                     today_iso_8601,
-                    ipv4_uptime,
-                    ipv6_uptime,
+                    report.last_day_ipv4.u8(),
+                    report.last_day_ipv4.u8(),
                 )
                 .await
                 .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
         }
 
-        // get statuses for all active gateways...
-        let active_gateways_statuses = self
-            .manager
-            .get_all_active_gateways_statuses(day_ago)
-            .await
-            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
+        for report in gateway_reports {
+            // if this ever fails, we have a super weird error because we just constructed report for that node
+            // and we never delete node data!
+            let node_id = match self
+                .manager
+                .get_gateway_id(&report.identity)
+                .await
+                .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
+            {
+                Some(node_id) => node_id,
+                None => {
+                    error!(
+                        "Somehow we failed to grab id of gateway {} from the database!",
+                        &report.identity
+                    );
+                    continue;
+                }
+            };
 
-        for statuses in active_gateways_statuses.into_iter() {
-            let ipv4_day_up = statuses
-                .ipv4_statuses
-                .iter()
-                .filter(|status| status.up)
-                .count();
-            let ipv6_day_up = statuses
-                .ipv6_statuses
-                .iter()
-                .filter(|status| status.up)
-                .count();
-
-            // calculate their uptimes for the last 24h
-            let ipv4_uptime = Uptime::from_ratio(ipv4_day_up, statuses.ipv4_statuses.len())
-                .unwrap()
-                .u8();
-            let ipv6_uptime = Uptime::from_ratio(ipv6_day_up, statuses.ipv6_statuses.len())
-                .unwrap()
-                .u8();
-
-            // and insert into the database
             self.manager
                 .insert_gateway_historical_uptime(
-                    statuses.node_id,
+                    node_id,
                     today_iso_8601,
-                    ipv4_uptime,
-                    ipv6_uptime,
+                    report.last_day_ipv4.u8(),
+                    report.last_day_ipv4.u8(),
                 )
                 .await
                 .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
@@ -517,7 +524,7 @@ impl NodeStatusStorage {
         Ok(())
     }
 
-    async fn check_if_historical_uptimes_exist_for_date(
+    pub(crate) async fn check_if_historical_uptimes_exist_for_date(
         &self,
         date_iso_8601: &str,
     ) -> Result<bool, NodeStatusApiError> {
@@ -527,45 +534,163 @@ impl NodeStatusStorage {
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)
     }
 
-    // Called on timer/reward script
-    async fn purge_old_statuses(&self) -> Result<(), NodeStatusApiError> {
-        let now = OffsetDateTime::now_utc();
-        let two_days_ago = (now - 2 * ONE_DAY).unix_timestamp();
-
+    /// Removes all ipv4 and ipv6 statuses for all mixnodes and gateways that are older than the
+    /// provided timestamp. This method is called at every reward cycle.
+    ///
+    /// # Arguments
+    ///
+    /// * `until`: timestamp specifying the purge cutoff.
+    pub(crate) async fn purge_old_statuses(
+        &self,
+        until: UnixTimestamp,
+    ) -> Result<(), NodeStatusApiError> {
         self.manager
-            .purge_old_mixnode_ipv4_statuses(two_days_ago)
+            .purge_old_mixnode_ipv4_statuses(until)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
         self.manager
-            .purge_old_mixnode_ipv6_statuses(two_days_ago)
+            .purge_old_mixnode_ipv6_statuses(until)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
         self.manager
-            .purge_old_gateway_ipv4_statuses(two_days_ago)
+            .purge_old_gateway_ipv4_statuses(until)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
         self.manager
-            .purge_old_gateway_ipv6_statuses(two_days_ago)
+            .purge_old_gateway_ipv6_statuses(until)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)
     }
 
-    pub(crate) async fn daily_chores(&self) -> Result<bool, NodeStatusApiError> {
-        let today_iso_8601 = OffsetDateTime::now_utc().date().to_string();
+    ////////////////////////////////////////////////////////////////////////
+    // TODO: Should all of the below really return a "NodeStatusApi" Errors?
+    ////////////////////////////////////////////////////////////////////////
 
-        // if we have already performed the update for today's date, don't do anything
-        if self
-            .check_if_historical_uptimes_exist_for_date(&today_iso_8601)
-            .await?
-        {
-            Ok(false)
-        } else {
-            info!(
-                "Updating historical daily uptimes of all nodes and purging old status reports..."
-            );
-            self.update_historical_uptimes(&today_iso_8601).await?;
-            self.purge_old_statuses().await?;
-            Ok(true)
-        }
+    /// Inserts information about starting new epoch rewarding into the database.
+    /// Returns id of the newly created entry.
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
+    pub(crate) async fn insert_started_epoch_rewarding(
+        &self,
+        epoch_timestamp: UnixTimestamp,
+    ) -> Result<i64, NodeStatusApiError> {
+        self.manager
+            .insert_new_epoch_rewarding(epoch_timestamp)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    }
+
+    // /// Tries to obtain the most recent epoch rewarding entry currently stored.
+    // ///
+    // /// Returns None if no data exists.
+    // pub(crate) async fn get_most_recent_epoch_rewarding_entry(
+    //     &self,
+    // ) -> Result<Option<EpochRewarding>, NodeStatusApiError> {
+    //     self.manager
+    //         .get_most_recent_epoch_rewarding_entry()
+    //         .await
+    //         .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    // }
+
+    /// Tries to obtain the epoch rewarding entry that has the provided timestamp.
+    ///
+    /// Returns None if no data exists.
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
+    pub(super) async fn get_epoch_rewarding_entry(
+        &self,
+        epoch_timestamp: UnixTimestamp,
+    ) -> Result<Option<EpochRewarding>, NodeStatusApiError> {
+        self.manager
+            .get_epoch_rewarding_entry(epoch_timestamp)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    }
+
+    /// Sets the `finished` field on the epoch rewarding to true and inserts the rewarding report into
+    /// the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `report`: report to insert into the database
+    pub(crate) async fn finish_rewarding_epoch_and_insert_report(
+        &self,
+        report: RewardingReport,
+    ) -> Result<(), NodeStatusApiError> {
+        self.manager
+            .update_finished_epoch_rewarding(report.epoch_rewarding_id)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
+
+        self.manager
+            .insert_rewarding_report(report)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    }
+
+    /// Inserts new failed mixnode reward chunk information into the database.
+    /// Returns id of the newly created entry.
+    ///
+    /// # Arguments
+    ///
+    /// * `failed_chunk`: chunk information to insert.
+    pub(crate) async fn insert_failed_mixnode_reward_chunk(
+        &self,
+        failed_chunk: FailedMixnodeRewardChunk,
+    ) -> Result<i64, NodeStatusApiError> {
+        self.manager
+            .insert_failed_mixnode_reward_chunk(failed_chunk)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    }
+
+    /// Inserts new failed gateway reward chunk information into the database.
+    /// Returns id of the newly created entry.
+    ///
+    /// # Arguments
+    ///
+    /// * `failed_chunk`: chunk information to insert.
+    pub(crate) async fn insert_failed_gateway_reward_chunk(
+        &self,
+        failed_chunk: FailedGatewayRewardChunk,
+    ) -> Result<i64, NodeStatusApiError> {
+        self.manager
+            .insert_failed_gateway_reward_chunk(failed_chunk)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    }
+
+    /// Inserts information into the database about a mixnode that might have been unfairly unrewarded this epoch.
+    ///
+    /// # Arguments
+    ///
+    /// * `mixnode`: mixnode information to insert.
+    pub(crate) async fn insert_possibly_unrewarded_mixnode(
+        &self,
+        mixnode: PossiblyUnrewardedMixnode,
+    ) -> Result<(), NodeStatusApiError> {
+        self.manager
+            .insert_possibly_unrewarded_mixnode(mixnode)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    }
+
+    /// Inserts information into the database about a gateway that might have been unfairly unrewarded this epoch.
+    ///
+    /// # Arguments
+    ///
+    /// * `gateway`: mixnode information to insert.
+    pub(crate) async fn insert_possibly_unrewarded_gateway(
+        &self,
+        gateway: PossiblyUnrewardedGateway,
+    ) -> Result<(), NodeStatusApiError> {
+        self.manager
+            .insert_possibly_unrewarded_gateway(gateway)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)
     }
 }

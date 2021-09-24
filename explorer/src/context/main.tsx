@@ -1,6 +1,6 @@
 import { PaletteMode } from '@mui/material';
 import * as React from 'react';
-import { CountryDataResponse, GatewayResponse, MixNodeResponse, ValidatorsResponse } from 'src/typeDefs/node-status-api-client';
+import { CountryDataResponse, GatewayResponse, MixNodeResponse, ValidatorsResponse } from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
 
 type NodeApiResponse = {

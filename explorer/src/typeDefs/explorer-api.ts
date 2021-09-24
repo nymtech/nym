@@ -134,3 +134,9 @@ export type BlockType = {
   
 }
 export type BlockResponse = BlockType;
+
+export interface ApiState<RESPONSE> {
+  isLoading: boolean;
+  data?: RESPONSE;
+  error?: Error;
+}

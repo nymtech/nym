@@ -8,23 +8,59 @@ import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import { TableHeadingsType, TableHeading } from 'src/typeDefs/tables';
 import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
-import { Link } from '@mui/material';
+import { Link } from 'react-router-dom';
 
 type TableProps = {
-    headings: TableHeadingsType
     mixnodes: any;
 }
 
-export function MixnodesTable({ headings, mixnodes }: TableProps) {
-    console.log("headings 1", headings)
-    console.log("mixnodes 2", mixnodes)
+const tableHeadings: TableHeadingsType = [
+    {
+        id: 'owner',
+        numeric: false,
+        disablePadding: true,
+        label: 'Owner',
+    },
+    {
+        id: 'id_key',
+        numeric: true,
+        disablePadding: false,
+        label: 'Identity Key',
+    },
+    {
+        id: 'bond',
+        numeric: true,
+        disablePadding: false,
+        label: 'Bond)',
+    },
+    {
+        id: 'ip_port',
+        numeric: true,
+        disablePadding: false,
+        label: 'IP:Port',
+    },
+    {
+        id: 'location',
+        numeric: true,
+        disablePadding: false,
+        label: 'Location',
+    },
+    {
+        id: 'layer',
+        numeric: true,
+        disablePadding: false,
+        label: 'Layer',
+    },
+]
+
+export function MixnodesTable({ mixnodes }: TableProps) {
     if (mixnodes && mixnodes.data) {
         return (
             <TableContainer component={Paper}>
                 <Table sx={{ minWidth: 650 }} aria-label="simple table">
                     <TableHead>
                         <TableRow>
-                            {headings.map((eachHeading: TableHeading, i: number) => (
+                            {tableHeadings.map((eachHeading: TableHeading, i: number) => (
                                 <TableCell sx={{ fontWeight: "bold" }} key={eachHeading.id} align='left'>{eachHeading.label}</TableCell>
                             ))}
                         </TableRow>
@@ -39,7 +75,7 @@ export function MixnodesTable({ headings, mixnodes }: TableProps) {
                                     {row.owner}
                                 </TableCell>
                                 <TableCell sx={{ maxWidth: 250, wordBreak: 'break-all' }} align="left">
-                                    <Link href={`/network-components/mixnodes/${row.mix_node.identity_key}`} color='inherit'>
+                                    <Link to={`/network-components/mixnodes/${row.mix_node.identity_key}`} style={{ textDecoration: 'none', color: 'white' }}>
                                         {row.mix_node.identity_key}
                                     </Link>
                                 </TableCell>

@@ -42,13 +42,6 @@ const AppWrapper = () => {
           },
         },
       },
-      MuiLink: {
-        styleOverrides: {
-          root: {
-            textDecoration: 'none',
-          }
-        }
-      }
     },
   });
 

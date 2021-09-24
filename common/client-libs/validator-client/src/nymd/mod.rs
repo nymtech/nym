@@ -28,10 +28,10 @@ pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::gas_price::GasPrice;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
-pub use cosmrs::Coin as CosmosCoin;
-pub use cosmrs::{AccountId, Denom};
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{Fee, Gas};
+pub use cosmrs::Coin as CosmosCoin;
+pub use cosmrs::{AccountId, Denom};
 pub use signing_client::Client as SigningNymdClient;
 
 pub mod cosmwasm_client;

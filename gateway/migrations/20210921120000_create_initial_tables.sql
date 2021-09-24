@@ -9,14 +9,6 @@ CREATE TABLE shared_keys
     derived_aes128_ctr_blake3_hmac_keys_bs58 TEXT NOT NULL
 );
 
--- currently a dead table
-CREATE TABLE storage_quota
-(
-    client_address_bs58 TEXT    NOT NULL PRIMARY KEY UNIQUE,
-    used                INTEGER NOT NULL,
-    allowed             INTEGER NOT NULL
-);
-
 CREATE TABLE message_store
 (
     id                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,

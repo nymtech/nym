@@ -5,7 +5,7 @@ pub use crypto::generic_array::typenum::Unsigned;
 use crypto::{
     crypto_hash,
     generic_array::GenericArray,
-    symmetric::stream_cipher::{generate_key, Key, NewStreamCipher},
+    symmetric::stream_cipher::{generate_key, CipherKey, NewCipher},
     Digest,
 };
 use nymsphinx_params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorithm};
@@ -15,10 +15,10 @@ use std::fmt::{self, Display, Formatter};
 pub type EncryptionKeyDigest =
     GenericArray<u8, <ReplySurbKeyDigestAlgorithm as Digest>::OutputSize>;
 
-pub type SurbEncryptionKeySize = <ReplySurbEncryptionAlgorithm as NewStreamCipher>::KeySize;
+pub type SurbEncryptionKeySize = <ReplySurbEncryptionAlgorithm as NewCipher>::KeySize;
 
 #[derive(Clone, Debug)]
-pub struct SurbEncryptionKey(Key<ReplySurbEncryptionAlgorithm>);
+pub struct SurbEncryptionKey(CipherKey<ReplySurbEncryptionAlgorithm>);
 
 #[derive(Debug)]
 pub enum SurbEncryptionKeyError {
@@ -64,7 +64,7 @@ impl SurbEncryptionKey {
         self.0.as_ref()
     }
 
-    pub fn inner(&self) -> &Key<ReplySurbEncryptionAlgorithm> {
+    pub fn inner(&self) -> &CipherKey<ReplySurbEncryptionAlgorithm> {
         &self.0
     }
 }

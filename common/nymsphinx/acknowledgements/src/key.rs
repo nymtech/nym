@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crypto::generic_array::{typenum::Unsigned, GenericArray};
-use crypto::symmetric::stream_cipher::{generate_key, Key, NewStreamCipher};
+use crypto::symmetric::stream_cipher::{generate_key, CipherKey, NewCipher};
 use nymsphinx_params::AckEncryptionAlgorithm;
 use pemstore::traits::PemStorableKey;
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 
-pub struct AckKey(Key<AckEncryptionAlgorithm>);
+pub struct AckKey(CipherKey<AckEncryptionAlgorithm>);
 
 #[derive(Debug)]
 pub enum AckKeyConversionError {
@@ -33,7 +33,7 @@ impl AckKey {
     }
 
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, AckKeyConversionError> {
-        if bytes.len() != <AckEncryptionAlgorithm as NewStreamCipher>::KeySize::to_usize() {
+        if bytes.len() != <AckEncryptionAlgorithm as NewCipher>::KeySize::to_usize() {
             return Err(AckKeyConversionError::BytesOfInvalidLengthError);
         }
 
@@ -48,7 +48,7 @@ impl AckKey {
         self.0.as_ref()
     }
 
-    pub fn inner(&self) -> &Key<AckEncryptionAlgorithm> {
+    pub fn inner(&self) -> &CipherKey<AckEncryptionAlgorithm> {
         &self.0
     }
 }

@@ -3,11 +3,6 @@ import * as React from 'react';
 import { CountryDataResponse, GatewayResponse, MixNodeResponse, ValidatorsResponse, BlockResponse } from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
 
-// type NodeApiResponse = {
-//   data: MixNodeResponse | GatewayResponse | ValidatorsResponse | CountryDataResponse | number | null
-//   error: string | null
-// }
-
 interface ApiState<RESPONSE> {
   isLoading: boolean;
   data?: RESPONSE;
@@ -43,45 +38,57 @@ export const MainContextProvider: React.FC = ({ children }) => {
       const data = await Api.fetchMixnodes();
       setMixnodes({ data, isLoading: false })
     } catch (error) {
-
-      let errorMessage = '';
-
-      if (error instanceof Error) {
-        errorMessage = error.message
-      }
-      setMixnodes({ error: errorMessage, isLoading: false });
+      setMixnodes({
+        error: error instanceof Error ? error : new Error("Mixnode api fail"),
+        isLoading: false
+      });
     }
   };
   const fetchGateways = async () => {
     try {
-      const res = await Api.fetchGateways();
-      setGateways({ data: res, error: null });
+      const data = await Api.fetchGateways();
+      setGateways({ data, isLoading: false })
     } catch (error) {
-      setGateways({ data: null, error: error instanceof Error ? error.message : '' });
+      setGateways({
+        error: error instanceof Error ? error : new Error("Gateways api fail"),
+        isLoading: false
+      });
     }
   };
+
   const fetchValidators = async () => {
     try {
-      const res = await Api.fetchValidators();
-      setValidators({ data: res, error: null });
+      const data = await Api.fetchValidators();
+      setValidators({ data, isLoading: false });
     } catch (error) {
-      setValidators({ data: null, error: error instanceof Error ? error.message : '' });
+      setValidators({
+        error: error instanceof Error ? error : new Error("Validators api fail"),
+        isLoading: false
+      });
     }
   };
+
   const fetchBlock = async () => {
     try {
-      const res = await Api.fetchBlock();
-      setBlock({ data: res, error: null });
+      const data = await Api.fetchBlock();
+      setBlock({ data, isLoading: false });
     } catch (error) {
-      setBlock({ data: null, error: error instanceof Error ? error.message : '' });
+      setBlock({ 
+        error: error instanceof Error ? error : new Error("Block api fail"),
+        isLoading: false
+      });
     }
   };
+
   const fetchCountryData = async () => {
     try {
       const res = await Api.fetchCountryData();
-      setCountryData({ data: res, error: null });
+      setCountryData({ data: res, isLoading: false });
     } catch (error) {
-      setCountryData({ data: null, error: error instanceof Error ? error.message : '' });
+      setCountryData({ 
+        error: error instanceof Error ? error : new Error("Block api fail"),
+        isLoading: false
+      });
     }
   }
 

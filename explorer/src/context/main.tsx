@@ -21,7 +21,7 @@ export const MainContext = React.createContext({} as State);
 
 export const MainContextProvider: React.FC = ({ children }) => {
   // light/dark mode
-  const [mode, setMode] = React.useState<PaletteMode>('light');
+  const [mode, setMode] = React.useState<PaletteMode>('dark');
 
   // various APIs for cards on Overview
   const [mixnodes, setMixnodes] = React.useState<NodeApiResponse | null>(null);
@@ -36,8 +36,8 @@ export const MainContextProvider: React.FC = ({ children }) => {
     try {
       const res = await Api.fetchMixnodes();
       setMixnodes({ data: res, error: null });
-    } catch (error: any) {
-      setMixnodes({ data: null, error: error.message });
+    } catch (error) {
+      setMixnodes({ data: null, error: error instanceof Error ? error.message : '' });
     }
   };
 
@@ -45,8 +45,8 @@ export const MainContextProvider: React.FC = ({ children }) => {
     try {
       const res = await Api.fetchGateways();
       setGateways({ data: res, error: null });
-    } catch (error:any) {
-      setGateways({ data: null, error: error.message });
+    } catch (error) {
+      setGateways({ data: null, error: error instanceof Error ? error.message : '' });
     }
   };
 
@@ -54,24 +54,24 @@ export const MainContextProvider: React.FC = ({ children }) => {
     try {
       const res = await Api.fetchValidators();
       setValidators({ data: res, error: null });
-    } catch (error:any) {
-      setValidators({ data: null, error: error.message });
+    } catch (error) {
+      setValidators({ data: null, error: error instanceof Error ? error.message : '' });
     }
   };
   const fetchBlock = async () => {
     try {
       const res = await Api.fetchBlock();
       setBlock({ data: res, error: null });
-    } catch (error:any) {
-      setBlock({ data: null, error: error.message });
+    } catch (error) {
+      setBlock({ data: null, error: error instanceof Error ? error.message : '' });
     }
   };
   const fetchCountryData = async () => {
     try {
       const res = await Api.fetchCountryData();
       setCountryData({ data: res, error: null });
-    } catch (error: any) {
-      setCountryData({ data: null, error: error.message });
+    } catch (error) {
+      setCountryData({ data: null, error: error instanceof Error ? error.message : '' });
     }
   }
 

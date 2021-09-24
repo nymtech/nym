@@ -26,9 +26,6 @@ pub(crate) fn stage(database_path: PathBuf) -> AdHoc {
                     routes::gateway_report,
                     routes::mixnode_uptime_history,
                     routes::gateway_uptime_history,
-                    routes::mixnodes_full_report,
-                    routes::gateways_full_report,
-                    routes::rewarding_chores,
                 ],
             )
     })

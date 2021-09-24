@@ -3,8 +3,9 @@ import { Box, Grid, IconButton, Typography } from '@mui/material';
 import { MixnodesTable } from '../../components/Table';
 import { MainContext } from 'src/context/main';
 import { TableHeadingsType } from "../../typeDefs/tables";
-import { MixNodeResponseItem } from 'src/typeDefs/node-status-api-client';
-import { useLocation, useParams } from 'react-router-dom';
+import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
+import { useParams } from 'react-router-dom';
+import { MixNodeResponse } from 'src/typeDefs/explorer-api';
 
 const tableHeadings: TableHeadingsType = [
     {
@@ -45,19 +46,24 @@ const tableHeadings: TableHeadingsType = [
     },
 ]
 
+type SelectedNodeType = {
+    isLoading: boolean,
+    data?: MixNodeResponse,
+    error?: Error
+}
+
 export const PageMixnodeInfo: React.FC = () => {
     const { mixnodes } = React.useContext(MainContext);
-    let location = useLocation();
     let { id }: any = useParams();
 
-    const [nodeInfo, setNodeInfo] = React.useState<MixNodeResponseItem | null>(null);
+    const [selectedNodeInfo, setSelectedNodeInfo] = React.useState<SelectedNodeType>();
 
     React.useEffect(() => {
         // @ts-ignore
-        const thisNode: MixNodeResponseItem = mixnodes && mixnodes?.data?.filter((eachMixnode: MixNodeResponseItem) => {
+        const data: MixNodeResponse = mixnodes && mixnodes?.data?.filter((eachMixnode: MixNodeResponseItem) => {
             return eachMixnode.mix_node.identity_key === id
-        })[0];
-        setNodeInfo(thisNode)
+        });
+        setSelectedNodeInfo({ data, isLoading: false })
     }, [mixnodes])
     return (
         <>
@@ -67,12 +73,7 @@ export const PageMixnodeInfo: React.FC = () => {
                         <Typography sx={{ marginLeft: 3 }}>
                             Mixnode Info
                         </Typography>
-                    </Grid>
-
-                    <Grid item xs={12}>
-                        {/* add in the same headings as before
-                        add in the one row of data for this mixnode */}
-                        <MixnodesTable />
+                        <MixnodesTable headings={tableHeadings} mixnodes={selectedNodeInfo} />
                     </Grid>
                 </Grid>
             </Box>

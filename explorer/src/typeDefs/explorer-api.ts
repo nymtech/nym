@@ -10,7 +10,6 @@ export enum Layer {
   Two = 'Two',
   Three = 'Three',
 }
-
 export interface MixNode {
   host: string;
   location: string;
@@ -130,3 +129,8 @@ export type CountryData = {
 }
 
 export type CountryDataResponse = CountryData[];
+
+export type BlockType = {
+  
+}
+export type BlockResponse = BlockType;

@@ -7,7 +7,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import { TableHeadingsType, TableHeading } from 'src/typeDefs/tables';
-import { MixNodeResponseItem } from 'src/typeDefs/node-status-api-client';
+import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
 import { Link } from '@mui/material';
 
 type TableProps = {
@@ -16,6 +16,8 @@ type TableProps = {
 }
 
 export function MixnodesTable({ headings, mixnodes }: TableProps) {
+    console.log("headings 1", headings)
+    console.log("mixnodes 2", mixnodes)
     if (mixnodes && mixnodes.data) {
         return (
             <TableContainer component={Paper}>

@@ -28,25 +28,26 @@ rocket = { version = "0.5.0-rc.1", features = ["json"] }
 serde = "1.0"
 serde_json = "1.0"
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros", "signal", "time"] }
-rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", rev = "dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
+rocket_cors = { git="https://github.com/lawliet89/rocket_cors", rev="dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
 url = "2.2"
-
+thiserror = "1"
+time = { version = "0.3", features = ["serde-human-readable", "parsing"]}
 
 anyhow = "1"
 getset = "0.1.1"
 
-rocket_sync_db_pools = { version = "0.1.0-rc.1", default-features = false }
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
+rocket_sync_db_pools = {version = "0.1.0-rc.1", default-features = false}
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
 
 ## internal
 config = { path = "../common/config" }
-crypto = { path = "../common/crypto" }
-gateway-client = { path = "../common/client-libs/gateway-client" }
-mixnet-contract = { path = "../common/mixnet-contract" }
-nymsphinx = { path = "../common/nymsphinx" }
-topology = { path = "../common/topology" }
-validator-client = { path = "../common/client-libs/validator-client", features = ["nymd-client"] }
-version-checker = { path = "../common/version-checker" }
+crypto = { path="../common/crypto" }
+gateway-client = { path="../common/client-libs/gateway-client" }
+mixnet-contract = { path="../common/mixnet-contract" }
+nymsphinx = { path="../common/nymsphinx" }
+topology = { path="../common/topology" }
+validator-client = { path="../common/client-libs/validator-client", features = ["nymd-client"] }
+version-checker = { path="../common/version-checker" }
 coconut-interface = { path = "../common/coconut-interface" }
 credentials = { path = "../common/credentials" }
 

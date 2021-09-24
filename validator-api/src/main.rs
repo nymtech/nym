@@ -9,21 +9,27 @@ use crate::config::Config;
 use crate::network_monitor::tested_network::good_topology::parse_topology_file;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::nymd_client::Client;
+use crate::rewarding::epoch::Epoch;
+use crate::rewarding::Rewarder;
 use crate::storage::NodeStatusStorage;
 use ::config::{defaults::DEFAULT_VALIDATOR_API_PORT, NymConfig};
 use anyhow::Result;
 use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
 use coconut::InternalSignRequest;
-use log::info;
+use log::{info, warn};
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use std::process;
 use std::sync::Arc;
+use std::time::Duration;
+use time::format_description::well_known::Rfc3339;
+use time::OffsetDateTime;
 use tokio::sync::Notify;
 use url::Url;
+use validator_client::nymd::SigningNymdClient;
 
 pub(crate) mod cache;
 mod coconut;
@@ -31,9 +37,11 @@ pub(crate) mod config;
 mod network_monitor;
 mod node_status_api;
 pub(crate) mod nymd_client;
+mod rewarding;
 pub(crate) mod storage;
 
 const MONITORING_ENABLED: &str = "enable-monitor";
+const REWARDING_ENABLED: &str = "enable-rewarding";
 const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
 const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
 const API_VALIDATORS_ARG: &str = "api-validators";
@@ -43,6 +51,10 @@ const MNEMONIC_ARG: &str = "mnemonic";
 const WRITE_CONFIG_ARG: &str = "save-config";
 const KEYPAIR_ARG: &str = "keypair";
 const NYMD_VALIDATOR_ARG: &str = "nymd-validator";
+
+const EPOCH_LENGTH_ARG: &str = "epoch-length";
+const FIRST_REWARDING_EPOCH_ARG: &str = "first-epoch";
+const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 
 pub(crate) const PENALISE_OUTDATED: bool = false;
 
@@ -58,23 +70,33 @@ fn parse_validators(raw: &str) -> Vec<Url> {
 }
 
 fn parse_args<'a>() -> ArgMatches<'a> {
-    App::new("Nym Network Monitor")
+    App::new("Nym Validator API")
         .author("Nymtech")
         .arg(
             Arg::with_name(MONITORING_ENABLED)
                 .help("specifies whether a network monitoring is enabled on this API")
                 .long(MONITORING_ENABLED)
+                .short("m")
+        )
+        .arg(
+            Arg::with_name(REWARDING_ENABLED)
+                .help("specifies whether a network rewarding is enabled on this API")
+                .long(REWARDING_ENABLED)
+                .short("r")
+                .requires(MONITORING_ENABLED)
         )
         .arg(
             Arg::with_name(V4_TOPOLOGY_ARG)
                 .help("location of .json file containing IPv4 'good' network topology")
                 .long(V4_TOPOLOGY_ARG)
+                .requires(MONITORING_ENABLED)
         )
         .arg(
             Arg::with_name(V6_TOPOLOGY_ARG)
                 .help("location of .json file containing IPv6 'good' network topology")
                 .long(V6_TOPOLOGY_ARG)
                 .takes_value(true)
+                .requires(MONITORING_ENABLED)
         )
         .arg(
             Arg::with_name(NYMD_VALIDATOR_ARG)
@@ -96,22 +118,49 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         .arg(Arg::with_name(MNEMONIC_ARG)
                  .long(MNEMONIC_ARG)
                  .help("Mnemonic of the network monitor used for rewarding operators")
-                 .takes_value(true),
+                 .takes_value(true)
+                 .requires(REWARDING_ENABLED),
         )
         .arg(
             Arg::with_name(DETAILED_REPORT_ARG)
                 .help("specifies whether a detailed report should be printed after each run")
                 .long(DETAILED_REPORT_ARG)
+                .requires(MONITORING_ENABLED)
         )
         .arg(
             Arg::with_name(WRITE_CONFIG_ARG)
                 .help("specifies whether a config file based on provided arguments should be saved to a file")
                 .long(WRITE_CONFIG_ARG)
+                .short("w")
         )
-        .arg(Arg::with_name(KEYPAIR_ARG)
-            .help("Path to the secret key file")
-            .takes_value(true)
-            .long(KEYPAIR_ARG))
+        .arg(
+            Arg::with_name(KEYPAIR_ARG)
+                .help("Path to the secret key file")
+                .takes_value(true)
+                .long(KEYPAIR_ARG)
+        )
+        .arg(
+            Arg::with_name(FIRST_REWARDING_EPOCH_ARG)
+                .help("Datetime specifying beginning of the first rewarding epoch of this length. It must be a valid rfc3339 datetime.")
+                .takes_value(true)
+                .long(FIRST_REWARDING_EPOCH_ARG)
+                .requires(REWARDING_ENABLED)
+        )
+        .arg(
+            Arg::with_name(EPOCH_LENGTH_ARG)
+                .help("Length of the current rewarding epoch in hours")
+                .takes_value(true)
+                .long(EPOCH_LENGTH_ARG)
+                .requires(REWARDING_ENABLED)
+        )
+        .arg(
+            Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
+                .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given epoch.")
+                .takes_value(true)
+                .long(REWARDING_MONITOR_THRESHOLD_ARG)
+                .requires(REWARDING_ENABLED)
+        )
+
         .get_matches()
 }
 
@@ -148,7 +197,11 @@ fn setup_logging() {
 
 fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if matches.is_present(MONITORING_ENABLED) {
-        config = config.enabled_network_monitor(true)
+        config = config.with_network_monitor_enabled(true)
+    }
+
+    if matches.is_present(REWARDING_ENABLED) {
+        config = config.with_rewarding_enabled(true)
     }
 
     if let Some(v4_topology_path) = matches.value_of(V4_TOPOLOGY_ARG) {
@@ -182,8 +235,34 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_mnemonic(mnemonic)
     }
 
+    if let Some(rewarding_epoch_datetime) = matches.value_of(FIRST_REWARDING_EPOCH_ARG) {
+        let first_epoch = OffsetDateTime::parse(rewarding_epoch_datetime, &Rfc3339)
+            .expect("Provided first epoch is not a valid rfc3339 datetime!");
+        config = config.with_first_rewarding_epoch(first_epoch)
+    }
+
+    if let Some(epoch_length) = matches
+        .value_of(EPOCH_LENGTH_ARG)
+        .map(|len| len.parse::<u64>())
+    {
+        let epoch_length = epoch_length.expect("Provided epoch length is not a number!");
+        config = config.with_epoch_length(Duration::from_secs(epoch_length * 60 * 60));
+    }
+
+    if let Some(monitor_threshold) = matches
+        .value_of(REWARDING_MONITOR_THRESHOLD_ARG)
+        .map(|t| t.parse::<u8>())
+    {
+        let monitor_threshold =
+            monitor_threshold.expect("Provided monitor threshold is not a number!");
+        if monitor_threshold > 100 {
+            panic!("Provided monitor threshold is greater than 100!");
+        }
+        config = config.with_minimum_epoch_monitor_threshold(monitor_threshold)
+    }
+
     if matches.is_present(DETAILED_REPORT_ARG) {
-        config = config.detailed_network_monitor_report(true)
+        config = config.with_detailed_network_monitor_report(true)
     }
     if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
         let keypair_bs58 = std::fs::read_to_string(keypair_path)
@@ -254,6 +333,45 @@ fn setup_network_monitor<'a>(
     ))
 }
 
+fn expected_monitor_test_runs(config: &Config) -> usize {
+    let epoch_length = config.get_epoch_length();
+    let test_delay = config.get_network_monitor_run_interval();
+
+    // this is just a rough estimate. In real world there will be slightly fewer test runs
+    // as they are not instantaneous and hence do not happen exactly every test_delay
+    (epoch_length.as_secs() / test_delay.as_secs()) as usize
+}
+
+fn setup_rewarder(
+    config: &Config,
+    rocket: &Rocket<Ignite>,
+    nymd_client: &Client<SigningNymdClient>,
+) -> Option<Rewarder> {
+    if config.get_rewarding_enabled() && config.get_network_monitor_enabled() {
+        // get instances of managed states
+        let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
+        let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
+
+        let first_epoch = Epoch::new(
+            config.get_first_rewarding_epoch(),
+            config.get_epoch_length(),
+        );
+        Some(Rewarder::new(
+            nymd_client.clone(),
+            validator_cache,
+            node_status_storage,
+            first_epoch,
+            expected_monitor_test_runs(config),
+            config.get_minimum_epoch_monitor_threshold(),
+        ))
+    } else if config.get_rewarding_enabled() {
+        warn!("Cannot enable rewarding with the network monitor being disabled");
+        None
+    } else {
+        None
+    }
+}
+
 async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Rocket<Ignite>> {
     // let's build our rocket!
     let rocket_config = rocket::config::Config {
@@ -290,12 +408,13 @@ async fn main() -> Result<()> {
     let config = match Config::load_from_file(None) {
         Ok(cfg) => cfg,
         Err(_) => {
+            let config_path = Config::default_config_file_path(None)
+                .into_os_string()
+                .into_string()
+                .unwrap();
             warn!(
-                "Configuration file could not be found at {}. Using the default values.",
-                Config::default_config_file_path(None)
-                    .into_os_string()
-                    .into_string()
-                    .unwrap()
+                "Could not load the configuration file from {}. Either the file did not exist or was malformed. Using the default values instead",
+                config_path
             );
             Config::new()
         }
@@ -303,6 +422,10 @@ async fn main() -> Result<()> {
 
     let matches = parse_args();
     let config = override_config(config, &matches);
+    // if we just wanted to write data to the config, exit
+    if matches.is_present(WRITE_CONFIG_ARG) {
+        return Ok(());
+    }
     let liftoff_notify = Arc::new(Notify::new());
 
     // let's build our rocket!
@@ -316,13 +439,20 @@ async fn main() -> Result<()> {
     if config.get_network_monitor_enabled() {
         let nymd_client = Client::new_signing(&config);
         let validator_cache_refresher = ValidatorCacheRefresher::new(
-            nymd_client,
+            nymd_client.clone(),
             config.get_caching_interval(),
-            validator_cache,
+            validator_cache.clone(),
         );
 
         // spawn our cacher
         tokio::spawn(async move { validator_cache_refresher.run().await });
+
+        if let Some(rewarder) = setup_rewarder(&config, &rocket, &nymd_client) {
+            info!("Periodic rewarding is starting...");
+            tokio::spawn(async move { rewarder.run().await });
+        } else {
+            info!("Periodic rewarding is disabled.");
+        }
     } else {
         let nymd_client = Client::new_query(&config);
         let validator_cache_refresher = ValidatorCacheRefresher::new(

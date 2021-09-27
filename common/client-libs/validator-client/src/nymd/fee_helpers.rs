@@ -4,8 +4,11 @@
 use crate::nymd::GasPrice;
 use cosmrs::tx::{Fee, Gas};
 use cosmrs::Coin;
+use serde::{Deserialize, Serialize};
+use std::fmt;
+use ts_rs::TS;
 
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, TS)]
 pub enum Operation {
     Upload,
     Init,
@@ -30,9 +33,30 @@ pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
     gas_price * gas_limit
 }
 
+impl fmt::Display for Operation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Operation::Upload => f.write_str("Upload"),
+            Operation::Init => f.write_str("Init"),
+            Operation::Migrate => f.write_str("Migrate"),
+            Operation::ChangeAdmin => f.write_str("ChangeAdmin"),
+            Operation::Send => f.write_str("Send"),
+            Operation::BondMixnode => f.write_str("BondMixnode"),
+            Operation::UnbondMixnode => f.write_str("UnbondMixnode"),
+            Operation::DelegateToMixnode => f.write_str("DelegateToMixnode"),
+            Operation::UndelegateFromMixnode => f.write_str("UndelegateFromMixnode"),
+            Operation::BondGateway => f.write_str("BondGateway"),
+            Operation::UnbondGateway => f.write_str("UnbondGateway"),
+            Operation::DelegateToGateway => f.write_str("DelegateToGateway"),
+            Operation::UndelegateFromGateway => f.write_str("UndelegateFromGateway"),
+            Operation::UpdateStateParams => f.write_str("UpdateStateParams"),
+        }
+    }
+}
+
 impl Operation {
     // TODO: some value tweaking
-    pub(crate) fn default_gas_limit(&self) -> Gas {
+    pub fn default_gas_limit(&self) -> Gas {
         match self {
             Operation::Upload => 2_500_000u64.into(),
             Operation::Init => 500_000u64.into(),

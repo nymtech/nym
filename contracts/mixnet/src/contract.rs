@@ -11,9 +11,7 @@ use cosmwasm_std::{
     Response, Uint128,
 };
 use cosmwasm_storage::singleton_read;
-use mixnet_contract::{
-    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, RawDelegationData, StateParams,
-};
+use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateParams};
 use serde::{Deserialize, Serialize};
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
@@ -211,70 +209,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(mut deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    use crate::storage::{
-        gateway_delegations, gateway_delegations_read, gateway_delegations_read_old, gateways_read,
-        mix_delegations, mix_delegations_read, mix_delegations_read_old, mixnodes_read,
-    };
-    use crate::transactions::delegations;
-    use cosmwasm_std::{Order, StdResult};
-    use mixnet_contract::{GatewayBond, MixNodeBond};
-
-    // Read existing delegations data, drop invalid values, and rewrite delegations data with valid data only
-    fn overwrite_mixnode_delegations_data(
-        identity: &str,
-        deps: &mut DepsMut,
-    ) -> Result<(), ContractError> {
-        let delegations_bucket = mix_delegations_read(deps.storage, identity);
-        let old_delegations_bucket = mix_delegations_read_old(deps.storage, identity);
-        let mut delegations_vec = delegations(delegations_bucket)?;
-        let old_delegations = delegations::<Uint128>(old_delegations_bucket)?;
-        for delegation in old_delegations {
-            delegations_vec.push((delegation.0, RawDelegationData::new(delegation.1, 1)))
-        }
-
-        for (key, delegation) in delegations_vec {
-            mix_delegations(deps.storage, identity).save(&key, &delegation)?;
-        }
-        Ok(())
-    }
-
-    fn overwrite_gateway_delegations_data(
-        identity: &str,
-        deps: &mut DepsMut,
-    ) -> Result<(), ContractError> {
-        let delegations_bucket = gateway_delegations_read(deps.storage, identity);
-        let old_delegations_bucket = gateway_delegations_read_old(deps.storage, identity);
-        let mut delegations_vec = delegations(delegations_bucket)?;
-        let old_delegations = delegations::<Uint128>(old_delegations_bucket)?;
-        for delegation in old_delegations {
-            delegations_vec.push((delegation.0, RawDelegationData::new(delegation.1, 1)))
-        }
-
-        for (key, delegation) in delegations_vec {
-            gateway_delegations(deps.storage, identity).save(&key, &delegation)?;
-        }
-        Ok(())
-    }
-
-    let mixnet_bonds = mixnodes_read(deps.storage)
-        .range(None, None, Order::Ascending)
-        .map(|res| res.map(|item| item.1))
-        .collect::<StdResult<Vec<MixNodeBond>>>()?;
-
-    for bond in mixnet_bonds {
-        overwrite_mixnode_delegations_data(bond.identity(), &mut deps)?;
-    }
-
-    let gateway_bonds = gateways_read(deps.storage)
-        .range(None, None, Order::Ascending)
-        .map(|res| res.map(|item| item.1))
-        .collect::<StdResult<Vec<GatewayBond>>>()?;
-
-    for bond in gateway_bonds {
-        overwrite_gateway_delegations_data(bond.identity(), &mut deps)?;
-    }
-
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     #[derive(Serialize, Deserialize)]
     struct OldStateParams {
         epoch_length: u32,

@@ -5,7 +5,6 @@ import CssBaseline from '@material-ui/core/CssBaseline'
 import { theme } from '../lib/theme'
 import type { AppProps } from 'next/app'
 import { ValidatorClientContext } from '../contexts/ValidatorClient'
-import { AppAlert } from '../components/AppAlert'
 // TODO: should it perhaps be pulled from some config or also user provided?
 export const BONDING_CONTRACT_ADDRESS: string =
   'punk10pyejy66429refv3g35g2t7am0was7yalwrzen'
@@ -24,7 +23,6 @@ export default function Application(props: AppProps) {
   const { Component, pageProps } = props
 
   const [client, setClient] = useState(null)
-  const [showAlert, setShowAlert] = useState(true)
 
   React.useEffect(() => {
     const jssStyles = document.querySelector('#jss-server-side')

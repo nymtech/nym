@@ -36,6 +36,8 @@ const PREFIX_REVERSE_GATEWAY_DELEGATION: &[u8] = b"dg";
 
 // Contract-level stuff
 
+// TODO Unify bucket and mixnode storage functions
+
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
     singleton(storage, CONFIG_KEY)
 }
@@ -316,6 +318,14 @@ pub fn mix_delegations_read<'a>(
     ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
 }
 
+// https://github.com/nymtech/nym/blob/122f5d9f2e5c1ced96e3b9ba0c74ef8b7dbde2c7/contracts/mixnet/src/storage.rs
+pub fn mix_delegations_read_old<'a>(
+    storage: &'a dyn Storage,
+    mix_identity: IdentityKeyRef,
+) -> ReadonlyBucket<'a, Uint128> {
+    ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
+}
+
 pub fn reverse_mix_delegations<'a>(storage: &'a mut dyn Storage, owner: &Addr) -> Bucket<'a, ()> {
     Bucket::multilevel(storage, &[PREFIX_REVERSE_MIX_DELEGATION, owner.as_bytes()])
 }
@@ -341,6 +351,16 @@ pub fn gateway_delegations_read<'a>(
     storage: &'a dyn Storage,
     gateway_identity: IdentityKeyRef,
 ) -> ReadonlyBucket<'a, RawDelegationData> {
+    ReadonlyBucket::multilevel(
+        storage,
+        &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
+    )
+}
+
+pub fn gateway_delegations_read_old<'a>(
+    storage: &'a dyn Storage,
+    gateway_identity: IdentityKeyRef,
+) -> ReadonlyBucket<'a, Uint128> {
     ReadonlyBucket::multilevel(
         storage,
         &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],

@@ -24,6 +24,7 @@ crypto = { path = "../../common/crypto" }
 pemstore = { path = "../../common/pemstore" }
 
 coconut-interface = { path = "../../common/coconut-interface" }
+credentials = { path = "../../common/credentials"}
 
 [dependencies.tungstenite]
 version = "0.13.0"

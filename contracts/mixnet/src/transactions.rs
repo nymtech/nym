@@ -14,6 +14,8 @@ use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{
     Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
 };
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
 const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
@@ -25,12 +27,15 @@ pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
 // 3. The node unbonds
 // 4. Some of the addresses that delegated in the past have not removed the delegation yet
 // 5. The node rebonds with the same identity
-fn find_old_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
+pub fn delegations<T: DeserializeOwned + Serialize>(
+    delegations_bucket: ReadonlyBucket<T>,
+) -> StdResult<Vec<(Vec<u8>, T)>> {
     // I think it's incredibly unlikely to ever read more than that
     // but in case we do, we should guard ourselves against possible
     // out of memory errors (wasm contracts can only allocate at most 2MB
     // of RAM, so we don't want to box the entire iterator)
-    let mut total_delegation = Coin::new(0, DENOM);
+    let mut delegations = Vec::new();
+    // let mut total_delegation = Coin::new(0, DENOM);
     let mut start = None;
     loop {
         let iterator = delegations_bucket
@@ -39,16 +44,23 @@ fn find_old_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -
 
         let mut iterated = 0;
 
-        for delegation in iterator {
+        for result_tuple in iterator {
             iterated += 1;
-            if iterated == OLD_DELEGATIONS_CHUNK_SIZE + 1 {
-                // we reached start of next chunk, don't process it, mark it for the next iteration of the loop
-                start = Some(delegation?.0);
-                continue;
+            match result_tuple {
+                Ok((position, delegation)) => {
+                    // We might skip some values due to deserializatio errors
+                    if iterated > OLD_DELEGATIONS_CHUNK_SIZE {
+                        // we reached start of next chunk, don't process it, mark it for the next iteration of the loop
+                        start = Some(position);
+                        continue;
+                    }
+                    delegations.push((position, delegation))
+                }
+                Err(_e) => {
+                    // Skip errors
+                    continue;
+                }
             }
-
-            let value = delegation?.1.amount;
-            total_delegation.amount += value;
         }
 
         if iterated <= OLD_DELEGATIONS_CHUNK_SIZE {
@@ -57,7 +69,17 @@ fn find_old_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -
         }
     }
 
-    Ok(total_delegation)
+    Ok(delegations)
+}
+
+fn total_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
+    match delegations(delegations_bucket) {
+        Ok(delegations) => Ok(Coin::new(
+            delegations.iter().fold(0, |acc, x| acc + x.1.amount.u128()),
+            "upunk",
+        )),
+        Err(e) => Err(e),
+    }
 }
 
 fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
@@ -138,7 +160,7 @@ pub(crate) fn try_add_mixnode(
 
     // this might potentially require more gas if a significant number of delegations was there
     let delegations_bucket = mix_delegations_read(deps.storage, &bond.mix_node.identity_key);
-    let existing_delegation = find_old_delegations(delegations_bucket)?;
+    let existing_delegation = total_delegations(delegations_bucket)?;
     bond.total_delegation = existing_delegation;
 
     let identity = bond.identity();
@@ -270,7 +292,7 @@ pub(crate) fn try_add_gateway(
 
     // this might potentially require more gas if a significant number of delegations was there
     let delegations_bucket = gateway_delegations_read(deps.storage, &bond.gateway.identity_key);
-    let existing_delegation = find_old_delegations(delegations_bucket)?;
+    let existing_delegation = total_delegations(delegations_bucket)?;
     bond.total_delegation = existing_delegation;
 
     let identity = bond.identity();
@@ -403,6 +425,10 @@ pub(crate) fn try_update_state_params(
     Ok(Response::default())
 }
 
+// Note: if any changes are made to this function or anything it is calling down the stack,
+// for example delegation reward distribution, the gas limits must be retested and both
+// validator-api/src/rewarding/mod.rs::{MIXNODE_REWARD_OP_BASE_GAS_LIMIT, PER_MIXNODE_DELEGATION_GAS_INCREASE}
+// must be updated appropriately.
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut,
     env: Env,
@@ -474,6 +500,10 @@ pub(crate) fn try_reward_mixnode(
     })
 }
 
+// Note: if any changes are made to this function or anything it is calling down the stack,
+// for example delegation reward distribution, the gas limits must be retested and both
+// validator-api/src/rewarding/mod.rs::{GATEWAY_REWARD_OP_BASE_GAS_LIMIT, PER_GATEWAY_DELEGATION_GAS_INCREASE}
+// must be updated appropriately.
 pub(crate) fn try_reward_gateway(
     deps: DepsMut,
     env: Env,
@@ -502,7 +532,7 @@ pub(crate) fn try_reward_gateway(
     }
 
     // check if the bond even exists
-    let mut current_bond = match gateways(deps.storage).load(gateway_identity.as_bytes()) {
+    let mut current_bond = match gateways_read(deps.storage).load(gateway_identity.as_bytes()) {
         Ok(bond) => bond,
         Err(_) => {
             return Ok(Response {
@@ -3928,7 +3958,7 @@ pub mod tests {
             let node_identity: IdentityKey = "nodeidentity".into();
 
             let read_bucket = mix_delegations_read(&deps.storage, &node_identity);
-            let old_delegations = find_old_delegations(read_bucket).unwrap();
+            let old_delegations = total_delegations(read_bucket).unwrap();
 
             assert_eq!(Coin::new(0, DENOM), old_delegations);
         }
@@ -3945,14 +3975,14 @@ pub mod tests {
                 OLD_DELEGATIONS_CHUNK_SIZE * 3 + 1,
             ];
 
-            for total_delegations in num_delegations {
+            for delegations in num_delegations {
                 let mut deps = helpers::init_contract();
 
                 let node_identity: IdentityKey = "nodeidentity".into();
 
                 // delegate some stake
                 let mut write_bucket = mix_delegations(&mut deps.storage, &node_identity);
-                for i in 1..=total_delegations {
+                for i in 1..=delegations {
                     let delegator = Addr::unchecked(format!("delegator{}", i));
                     let delegation = raw_delegation_fixture(i as u128);
                     write_bucket
@@ -3961,9 +3991,9 @@ pub mod tests {
                 }
 
                 let read_bucket = mix_delegations_read(&deps.storage, &node_identity);
-                let old_delegations = find_old_delegations(read_bucket).unwrap();
+                let old_delegations = total_delegations(read_bucket).unwrap();
 
-                let total_delegation = (1..=total_delegations as u128).into_iter().sum();
+                let total_delegation = (1..=delegations as u128).into_iter().sum();
                 assert_eq!(Coin::new(total_delegation, DENOM), old_delegations);
             }
         }

@@ -14,3 +14,4 @@ cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-up
 serde = { version = "1.0", features = ["derive"] }
 serde_repr = "0.1"
 schemars = "0.8"
+ts-rs = "3.0"

@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::client_handling::bandwidth::{Bandwidth, BandwidthDatabase};
 use crate::node::client_handling::clients_handler::{
     ClientsHandlerRequest, ClientsHandlerRequestSender, ClientsHandlerResponse,
 };
@@ -24,6 +25,7 @@ use mixnet_client::forwarder::MixForwardingSender;
 use nymsphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
+use std::mem;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::{
@@ -53,14 +55,13 @@ pub(crate) struct Handle<R, S> {
     rng: R,
     remote_address: Option<DestinationAddressBytes>,
     shared_key: Option<SharedKeys>,
-    // TODO: This should be replaced by an actual bandwidth value, with 0 meaning no bandwidth
-    has_bandwidth: bool,
     clients_handler_sender: ClientsHandlerRequestSender,
     outbound_mix_sender: MixForwardingSender,
     socket_connection: SocketStream<S>,
     local_identity: Arc<identity::KeyPair>,
 
     aggregated_verification_key: VerificationKey,
+    bandwidths: BandwidthDatabase,
 }
 
 impl<R, S> Handle<R, S>
@@ -76,17 +77,18 @@ where
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
         aggregated_verification_key: VerificationKey,
+        bandwidths: BandwidthDatabase,
     ) -> Self {
         Handle {
             rng,
             remote_address: None,
             shared_key: None,
-            has_bandwidth: false,
             clients_handler_sender,
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,
             aggregated_verification_key,
+            bandwidths,
         }
     }
 
@@ -194,9 +196,6 @@ where
     }
 
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
-        if !self.has_bandwidth {
-            return ServerResponse::new_error("Not enough bandwidth").into();
-        }
         trace!("Handling binary message (presumably sphinx packet)");
 
         // this function decrypts the request and checks the MAC
@@ -210,8 +209,19 @@ where
             Ok(request) => match request {
                 // currently only a single type exists
                 BinaryRequest::ForwardSphinx(mix_packet) => {
-                    self.outbound_mix_sender.unbounded_send(mix_packet).unwrap();
-                    ServerResponse::Send { status: true }
+                    let consumed_bandwidth = mem::size_of_val(&mix_packet) as u64;
+                    if let Err(e) = Bandwidth::consume_bandwidth(
+                        &self.bandwidths,
+                        &self.remote_address.unwrap(),
+                        consumed_bandwidth,
+                    )
+                    .await
+                    {
+                        ServerResponse::new_error(format!("{:?}", e))
+                    } else {
+                        self.outbound_mix_sender.unbounded_send(mix_packet).unwrap();
+                        ServerResponse::Send { status: true }
+                    }
                 }
             },
         }
@@ -351,6 +361,9 @@ where
         if self.shared_key.is_none() {
             return ServerResponse::new_error("No shared key has been exchanged with the gateway");
         }
+        if self.remote_address.is_none() {
+            return ServerResponse::new_error("No remote address has been set");
+        }
         let iv = match IV::try_from_bytes(&iv) {
             Ok(iv) => iv,
             Err(e) => {
@@ -368,9 +381,29 @@ where
                 return ServerResponse::new_error(e.to_string());
             }
         };
-        let status = credential.verify(&self.aggregated_verification_key);
-        self.has_bandwidth = status;
-        ServerResponse::Bandwidth { status }
+        if credential.verify(&self.aggregated_verification_key) {
+            match Bandwidth::try_from(credential) {
+                Ok(bandwidth) => {
+                    if let Err(e) = Bandwidth::increase_bandwidth(
+                        &self.bandwidths,
+                        &self.remote_address.unwrap(),
+                        bandwidth.value(),
+                    )
+                    .await
+                    {
+                        return ServerResponse::Error {
+                            message: format!("{:?}", e),
+                        };
+                    }
+                    ServerResponse::Bandwidth { status: true }
+                }
+                Err(e) => ServerResponse::Error {
+                    message: format!("{:?}", e),
+                },
+            }
+        } else {
+            ServerResponse::Bandwidth { status: false }
+        }
     }
 
     // currently the bandwidth credential request is the only one we can receive after

@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
-use crate::helpers::{
-    calculate_epoch_reward_rate, get_all_delegations_paged, scale_reward_by_uptime,
-};
+use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime, Delegations};
 use crate::queries;
 use crate::storage::*;
 use config::defaults::DENOM;
@@ -14,60 +12,17 @@ use cosmwasm_std::{
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{
     Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
-    UnpackedDelegation,
 };
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 
-const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
+pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
 
-// Looks for the total amount of delegations towards a particular node.
-// This function is used only in very specific circumstances:
-// 1. The mixnode/gateway bonds
-// 2. Some addresses start to delegate to the node
-// 3. The node unbonds
-// 4. Some of the addresses that delegated in the past have not removed the delegation yet
-// 5. The node rebonds with the same identity
-pub fn delegations<T: DeserializeOwned + Serialize>(
-    delegations_bucket: ReadonlyBucket<T>,
-) -> StdResult<Vec<UnpackedDelegation<T>>> {
-    // I think it's incredibly unlikely to ever read more than that
-    // but in case we do, we should guard ourselves against possible
-    // out of memory errors (wasm contracts can only allocate at most 2MB
-    // of RAM, so we don't want to box the entire iterator)
-    let mut delegations = Vec::new();
-    let mut start_after = None;
-    loop {
-        start_after = start_after.map(|mut v: Vec<u8>| {
-            v.push(0);
-            v
-        });
-        let mut delegations_paged = get_all_delegations_paged(
-            &delegations_bucket,
-            start_after,
-            OLD_DELEGATIONS_CHUNK_SIZE,
-        )?;
-        delegations.append(&mut delegations_paged.delegations);
-        start_after = delegations_paged.start_next_after;
-        if start_after.is_none() {
-            break;
-        }
-    }
-
-    Ok(delegations)
-}
-
 fn total_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
-    match delegations(delegations_bucket) {
-        Ok(delegations) => Ok(Coin::new(
-            delegations
-                .iter()
-                .fold(0, |acc, x| acc + x.delegation_data.amount.u128()),
-            "upunk",
-        )),
-        Err(e) => Err(e),
-    }
+    Ok(Coin::new(
+        Delegations::new(delegations_bucket)
+            .fold(0, |acc, x| acc + x.delegation_data.amount.u128()),
+        "upunk",
+    ))
 }
 
 fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
@@ -785,6 +740,7 @@ pub mod tests {
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
     use mixnet_contract::{
         ExecuteMsg, LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
+        UnpackedDelegation,
     };
     use queries::tests::{store_n_gateway_delegations, store_n_mix_delegations};
 
@@ -3940,7 +3896,8 @@ pub mod tests {
             &node_identity,
         );
         let mix_bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
-        let mix_delegations = delegations(mix_bucket).unwrap();
+        let mix_delegations =
+            Delegations::new(mix_bucket).collect::<Vec<UnpackedDelegation<RawDelegationData>>>();
         assert_eq!(
             DELEGATION_PAGE_DEFAULT_LIMIT * 10,
             mix_delegations.len() as u32
@@ -3952,7 +3909,8 @@ pub mod tests {
             &node_identity,
         );
         let gateway_bucket = all_gateway_delegations_read::<RawDelegationData>(&deps.storage);
-        let gateway_delegations = delegations(gateway_bucket).unwrap();
+        let gateway_delegations = Delegations::new(gateway_bucket)
+            .collect::<Vec<UnpackedDelegation<RawDelegationData>>>();
         assert_eq!(
             DELEGATION_PAGE_DEFAULT_LIMIT * 10,
             gateway_delegations.len() as u32

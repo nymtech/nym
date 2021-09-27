@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
+use crate::transactions::OLD_DELEGATIONS_CHUNK_SIZE;
 use cosmwasm_std::{Decimal, Order, StdError, StdResult, Uint128};
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{Addr, IdentityKey, PagedAllDelegationsResponse, UnpackedDelegation};
@@ -117,7 +118,7 @@ pub(crate) fn identity_and_owner_to_bytes(identity: &IdentityKey, owner: &Addr) 
 
 pub(crate) fn get_all_delegations_paged<T>(
     bucket: &ReadonlyBucket<T>,
-    start_after: Option<Vec<u8>>,
+    start_after: &Option<Vec<u8>>,
     limit: usize,
 ) -> StdResult<PagedAllDelegationsResponse<T>>
 where
@@ -146,6 +147,58 @@ where
         delegations,
         start_next_after,
     ))
+}
+
+pub struct Delegations<'a, T: Clone + Serialize + DeserializeOwned> {
+    delegations_bucket: ReadonlyBucket<'a, T>,
+    curr_delegations: Vec<UnpackedDelegation<T>>,
+    curr_index: usize,
+    start_after: Option<Vec<u8>>,
+    last_page: bool,
+}
+
+impl<'a, T: Clone + Serialize + DeserializeOwned> Delegations<'a, T> {
+    pub fn new(delegations_bucket: ReadonlyBucket<'a, T>) -> Self {
+        Delegations {
+            delegations_bucket,
+            curr_delegations: vec![],
+            curr_index: OLD_DELEGATIONS_CHUNK_SIZE,
+            start_after: None,
+            last_page: false,
+        }
+    }
+}
+
+impl<'a, T: Clone + Serialize + DeserializeOwned> Iterator for Delegations<'a, T> {
+    type Item = UnpackedDelegation<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.curr_index == OLD_DELEGATIONS_CHUNK_SIZE && !self.last_page {
+            self.start_after = self.start_after.clone().map(|mut v: Vec<u8>| {
+                v.push(0);
+                v
+            });
+            let delegations_paged = get_all_delegations_paged(
+                &self.delegations_bucket,
+                &self.start_after,
+                OLD_DELEGATIONS_CHUNK_SIZE,
+            )
+            .ok()?;
+            self.curr_delegations = delegations_paged.delegations;
+            self.curr_index = 0;
+            self.start_after = delegations_paged.start_next_after;
+            if self.start_after.is_none() {
+                self.last_page = true;
+            }
+        }
+        if self.curr_index < self.curr_delegations.len() {
+            let ret = self.curr_delegations[self.curr_index].clone();
+            self.curr_index += 1;
+            Some(ret)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
@@ -252,7 +305,7 @@ mod tests {
 
         let bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
         let response =
-            get_all_delegations_paged::<RawDelegationData>(&bucket, start_after, 10).unwrap();
+            get_all_delegations_paged::<RawDelegationData>(&bucket, &start_after, 10).unwrap();
         start_after = response.start_next_after;
         let delegations = response.delegations;
         assert_eq!(delegations.len(), 1);
@@ -271,7 +324,7 @@ mod tests {
 
         let bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
         let response =
-            get_all_delegations_paged::<RawDelegationData>(&bucket, start_after, 10).unwrap();
+            get_all_delegations_paged::<RawDelegationData>(&bucket, &start_after, 10).unwrap();
         start_after = response.start_next_after;
         let delegations = response.delegations;
         assert_eq!(delegations.len(), 2);
@@ -288,7 +341,7 @@ mod tests {
 
         let bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
         let response =
-            get_all_delegations_paged::<RawDelegationData>(&bucket, start_after, 10).unwrap();
+            get_all_delegations_paged::<RawDelegationData>(&bucket, &start_after, 10).unwrap();
         let delegations = response.delegations;
         assert_eq!(delegations.len(), 1);
         assert_eq!(
@@ -313,7 +366,7 @@ mod tests {
 
         let bucket = all_gateway_delegations_read::<RawDelegationData>(&deps.storage);
         let response =
-            get_all_delegations_paged::<RawDelegationData>(&bucket, start_after, 10).unwrap();
+            get_all_delegations_paged::<RawDelegationData>(&bucket, &start_after, 10).unwrap();
         start_after = response.start_next_after;
         let delegations = response.delegations;
         assert_eq!(delegations.len(), 1);
@@ -332,7 +385,7 @@ mod tests {
 
         let bucket = all_gateway_delegations_read::<RawDelegationData>(&deps.storage);
         let response =
-            get_all_delegations_paged::<RawDelegationData>(&bucket, start_after, 10).unwrap();
+            get_all_delegations_paged::<RawDelegationData>(&bucket, &start_after, 10).unwrap();
         start_after = response.start_next_after;
         let delegations = response.delegations;
         assert_eq!(delegations.len(), 2);
@@ -350,7 +403,7 @@ mod tests {
 
         let bucket = all_gateway_delegations_read::<RawDelegationData>(&deps.storage);
         let response =
-            get_all_delegations_paged::<RawDelegationData>(&bucket, start_after, 10).unwrap();
+            get_all_delegations_paged::<RawDelegationData>(&bucket, &start_after, 10).unwrap();
         let delegations = response.delegations;
         assert_eq!(delegations.len(), 1);
         assert_eq!(

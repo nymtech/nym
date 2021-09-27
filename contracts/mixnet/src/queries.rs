@@ -159,7 +159,7 @@ pub(crate) fn query_all_mixnode_delegations_paged(
         v
     });
     Ok(get_all_delegations_paged::<RawDelegationData>(
-        &bucket, start, limit,
+        &bucket, &start, limit,
     )?)
 }
 
@@ -264,7 +264,7 @@ pub(crate) fn query_all_gateway_delegations_paged(
         v
     });
     Ok(get_all_delegations_paged::<RawDelegationData>(
-        &bucket, start, limit,
+        &bucket, &start, limit,
     )?)
 }
 

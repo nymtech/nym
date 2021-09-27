@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::helpers::calculate_epoch_reward_rate;
+use crate::helpers::{calculate_epoch_reward_rate, Delegations};
 use crate::state::State;
 use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
@@ -12,6 +12,7 @@ use cosmwasm_std::{
 };
 use mixnet_contract::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, RawDelegationData, StateParams,
+    UnpackedDelegation,
 };
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
@@ -218,11 +219,10 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
         all_gateway_delegations_read, all_mix_delegations_read, gateway_delegations,
         mix_delegations, reverse_gateway_delegations, reverse_mix_delegations,
     };
-    use crate::transactions::delegations;
 
     let mix_bucket = all_mix_delegations_read::<Uint128>(deps.storage);
-    let all_delegations = delegations(mix_bucket)?;
-    for delegation in all_delegations {
+    let delegations = Delegations::new(mix_bucket).collect::<Vec<UnpackedDelegation<Uint128>>>();
+    for delegation in delegations {
         let owner = delegation.owner;
         let node_identity = delegation.node_identity;
         let amount = delegation.delegation_data;
@@ -232,8 +232,9 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
     }
 
     let gateway_bucket = all_gateway_delegations_read::<Uint128>(deps.storage);
-    let all_delegations = delegations(gateway_bucket)?;
-    for delegation in all_delegations {
+    let delegations =
+        Delegations::new(gateway_bucket).collect::<Vec<UnpackedDelegation<Uint128>>>();
+    for delegation in delegations {
         let owner = delegation.owner;
         let node_identity = delegation.node_identity;
         let amount = delegation.delegation_data;

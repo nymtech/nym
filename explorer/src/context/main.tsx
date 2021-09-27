@@ -1,7 +1,8 @@
 import { PaletteMode } from '@mui/material';
 import * as React from 'react';
-import { CountryDataResponse, GatewayResponse, MixNodeResponse, ValidatorsResponse, BlockResponse, ApiState } from 'src/typeDefs/explorer-api';
+import { CountryDataResponse, GatewayResponse, MixNodeResponse, ValidatorsResponse, BlockResponse, ApiState, MixNodeResponseItem, MixNode } from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
+
 interface State {
   mode: PaletteMode
   toggleMode?: () => void
@@ -10,6 +11,7 @@ interface State {
   validators?: ApiState<ValidatorsResponse>
   block?: ApiState<BlockResponse>
   countryData?: ApiState<CountryDataResponse>
+  globalError?: string | undefined
 };
 
 export const MainContext = React.createContext<State>({ mode: "dark" });
@@ -18,13 +20,17 @@ export const MainContextProvider: React.FC = ({ children }) => {
   // light/dark mode
   const [mode, setMode] = React.useState<PaletteMode>('dark');
 
+  // global / banner error messaging
+  const [globalError,  setGlobalError] = React.useState<string>();
+
   // various APIs for cards on Overview
   const [mixnodes, setMixnodes] = React.useState<ApiState<MixNodeResponse>>();
   const [gateways, setGateways] = React.useState<ApiState<GatewayResponse>>();
   const [validators, setValidators] = React.useState<ApiState<ValidatorsResponse>>();
   const [block, setBlock] = React.useState<ApiState<BlockResponse>>();
   const [countryData, setCountryData] = React.useState<ApiState<CountryDataResponse>>();
-
+  
+  const [mixnodeDetailInfo, setMixnodeDetailInfo] = React.useState<MixNodeResponseItem>()
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
   const fetchMixnodes = async () => {
@@ -99,7 +105,16 @@ export const MainContextProvider: React.FC = ({ children }) => {
 
   return (
     <MainContext.Provider
-      value={{ mode, toggleMode, mixnodes, gateways, validators, block, countryData }}
+      value={{
+        mode,
+        toggleMode,
+        mixnodes,
+        gateways,
+        validators,
+        block,
+        countryData,
+        globalError
+      }}
     >
       {children}
     </MainContext.Provider>

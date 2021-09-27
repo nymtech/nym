@@ -57,11 +57,11 @@ export function MixnodesTable({ mixnodes }: TableProps) {
     if (mixnodes && mixnodes.data) {
         return (
             <TableContainer component={Paper}>
-                <Table sx={{ minWidth: 650 }} aria-label="simple table">
+                <Table sx={{ minWidth: 650 }} aria-label='mixnodes table'>
                     <TableHead>
                         <TableRow>
                             {tableHeadings.map((eachHeading: TableHeading, i: number) => (
-                                <TableCell sx={{ fontWeight: "bold" }} key={eachHeading.id} align='left'>{eachHeading.label}</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }} key={eachHeading.id} align='left'>{eachHeading.label}</TableCell>
                             ))}
                         </TableRow>
                     </TableHead>
@@ -71,18 +71,18 @@ export function MixnodesTable({ mixnodes }: TableProps) {
                                 key={row.owner}
                                 sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                             >
-                                <TableCell component="th" scope="row" sx={{ maxWidth: 250, wordBreak: 'break-all' }}>
+                                <TableCell component='th' scope='row' sx={{ maxWidth: 250, wordBreak: 'break-all' }}>
                                     {row.owner}
                                 </TableCell>
-                                <TableCell sx={{ maxWidth: 250, wordBreak: 'break-all' }} align="left">
+                                <TableCell sx={{ maxWidth: 250, wordBreak: 'break-all' }} align='left'>
                                     <Link to={`/network-components/mixnodes/${row.mix_node.identity_key}`} style={{ textDecoration: 'none', color: 'white' }}>
                                         {row.mix_node.identity_key}
                                     </Link>
                                 </TableCell>
-                                <TableCell align="left">{`${row.bond_amount.amount}${row.bond_amount.denom.toUpperCase()}`}</TableCell>
-                                <TableCell sx={{ maxWidth: 170 }} align="left">{row.mix_node.host}</TableCell>
-                                <TableCell align="left">{row?.location?.country_name || "Unknown"}</TableCell>
-                                <TableCell align="right">{row.layer}</TableCell>
+                                <TableCell align='left'>{`${row.bond_amount.amount}${row.bond_amount.denom.toUpperCase()}`}</TableCell>
+                                <TableCell sx={{ maxWidth: 170 }} align='left'>{row.mix_node.host}</TableCell>
+                                <TableCell align='left'>{row?.location?.country_name || 'Unknown'}</TableCell>
+                                <TableCell align='right'>{row.layer}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

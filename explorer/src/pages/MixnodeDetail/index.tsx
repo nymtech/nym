@@ -1,24 +1,13 @@
 import * as React from 'react';
-import { Box, Grid, IconButton, Typography } from '@mui/material';
-import { MixnodesTable } from '../../components/MixnodesTable';
-import { MainContext } from 'src/context/main';
-import { MixNodeResponseItem, ApiState } from 'src/typeDefs/explorer-api';
+import { Box, Grid, Typography } from '@mui/material';
+// import { MixnodesTable } from '../../components/MixnodesTable';
+// import { MainContext } from 'src/context/main';
 import { useParams } from 'react-router-dom';
-import { MixNodeResponse } from 'src/typeDefs/explorer-api';
 import { ContentCard } from 'src/components/ContentCard';
 
-export const PageMixnodeInfo: React.FC = () => {
-    const { mixnodes } = React.useContext(MainContext);
+export const PageMixnodeDetail: React.FC = () => {
+    // const { getMixnodeDetailInfo, mixnodeDetailInfo } = React.useContext(MainContext);
     let { id }: any = useParams();
-
-    const [selectedNodeInfo, setSelectedNodeInfo] = React.useState<ApiState<MixNodeResponse>>();
-
-    React.useEffect(() => {
-        const data: MixNodeResponse = mixnodes && mixnodes?.data?.filter((eachMixnode: MixNodeResponseItem) => {
-            return eachMixnode.mix_node.identity_key === id
-        }) || [];
-        setSelectedNodeInfo({ data, isLoading: false })
-    }, [mixnodes])
 
     return (
         <>
@@ -26,11 +15,11 @@ export const PageMixnodeInfo: React.FC = () => {
                 <Grid container spacing={2}>
                     <Grid item xs={12}>
                         <Typography>
-                            Mixnode Detail
+                            Mixnode Detail Page
                         </Typography>
                     </Grid>
                     <Grid item xs={12}>
-                        <MixnodesTable mixnodes={selectedNodeInfo} />
+                        {/* <MixnodesTable mixnodes={[mixnodeDetailInfo]} /> */}
                     </Grid>
 
                     <Grid item xs={12}>

@@ -8,10 +8,11 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::cmp::Ordering;
 use std::fmt::Display;
+use ts_rs::TS;
 
 use crate::current_block_height;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema, TS)]
 pub struct MixNode {
     pub host: String,
     pub mix_port: u16,

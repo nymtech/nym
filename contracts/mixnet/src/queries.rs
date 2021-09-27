@@ -158,9 +158,7 @@ pub(crate) fn query_all_mixnode_delegations_paged(
         v.push(0);
         v
     });
-    Ok(get_all_delegations_paged::<RawDelegationData>(
-        &bucket, &start, limit,
-    )?)
+    get_all_delegations_paged::<RawDelegationData>(&bucket, &start, limit)
 }
 
 pub(crate) fn query_reverse_mixnode_delegations_paged(
@@ -263,9 +261,7 @@ pub(crate) fn query_all_gateway_delegations_paged(
         v.push(0);
         v
     });
-    Ok(get_all_delegations_paged::<RawDelegationData>(
-        &bucket, &start, limit,
-    )?)
+    get_all_delegations_paged::<RawDelegationData>(&bucket, &start, limit)
 }
 
 pub(crate) fn query_reverse_gateway_delegations_paged(

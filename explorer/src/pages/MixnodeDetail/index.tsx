@@ -9,13 +9,18 @@ export const PageMixnodeDetail: React.FC = () => {
     const { fetchMixnodeById, mixnodeDetailInfo } = React.useContext(MainContext);
     let { id }: any = useParams();
 
-
     React.useEffect(() => {
-        if(id) {
+        // if ID is in URL, there's no selected mixnode at all (null)
+        // or the mixnode that's in there is diff to ID, then fetch/filter down to the new
+        // one.
+        if(id && !mixnodeDetailInfo || mixnodeDetailInfo?.mix_node.identity_key !== id) {
+            console.log("fetching a new mixnodeDetailInfo", id);
             fetchMixnodeById(id)
         }
         console.log("mixnodeDetailInfo is back ", mixnodeDetailInfo);
-    }, [id, fetchMixnodeById]) 
+    }, [id, fetchMixnodeById]);
+
+
     return (
         <>
             <Box component='main' sx={{ flexGrow: 1 }}>
@@ -30,6 +35,7 @@ export const PageMixnodeDetail: React.FC = () => {
                             <MixnodesTable
                                 mixnodes={{
                                     data: [ mixnodeDetailInfo ],
+                                    isLoading: false
                                 }}
                             />
                         )}

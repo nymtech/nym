@@ -7,7 +7,22 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
-pub type UnpackedDelegation<T> = (Addr, IdentityKey, T);
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct UnpackedDelegation<T> {
+    pub owner: Addr,
+    pub node_identity: IdentityKey,
+    pub delegation_data: T,
+}
+
+impl<T> UnpackedDelegation<T> {
+    pub fn new(owner: Addr, node_identity: IdentityKey, delegation_data: T) -> Self {
+        UnpackedDelegation {
+            owner,
+            node_identity,
+            delegation_data,
+        }
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct RawDelegationData {

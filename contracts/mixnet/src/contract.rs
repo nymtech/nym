@@ -222,18 +222,25 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
 
     let mix_bucket = all_mix_delegations_read::<Uint128>(deps.storage);
     let all_delegations = delegations(mix_bucket)?;
-    for (owner, identity, amount) in all_delegations {
+    for delegation in all_delegations {
+        let owner = delegation.owner;
+        let node_identity = delegation.node_identity;
+        let amount = delegation.delegation_data;
         let raw_delegation = RawDelegationData::new(amount, env.block.height);
-        mix_delegations(deps.storage, &identity).save(owner.as_bytes(), &raw_delegation)?;
-        reverse_mix_delegations(deps.storage, &owner).save(identity.as_bytes(), &())?;
+        mix_delegations(deps.storage, &node_identity).save(owner.as_bytes(), &raw_delegation)?;
+        reverse_mix_delegations(deps.storage, &owner).save(node_identity.as_bytes(), &())?;
     }
 
     let gateway_bucket = all_gateway_delegations_read::<Uint128>(deps.storage);
     let all_delegations = delegations(gateway_bucket)?;
-    for (owner, identity, amount) in all_delegations {
+    for delegation in all_delegations {
+        let owner = delegation.owner;
+        let node_identity = delegation.node_identity;
+        let amount = delegation.delegation_data;
         let raw_delegation = RawDelegationData::new(amount, env.block.height);
-        gateway_delegations(deps.storage, &identity).save(owner.as_bytes(), &raw_delegation)?;
-        reverse_gateway_delegations(deps.storage, &owner).save(identity.as_bytes(), &())?;
+        gateway_delegations(deps.storage, &node_identity)
+            .save(owner.as_bytes(), &raw_delegation)?;
+        reverse_gateway_delegations(deps.storage, &owner).save(node_identity.as_bytes(), &())?;
     }
 
     Ok(Default::default())

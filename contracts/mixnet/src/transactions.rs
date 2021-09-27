@@ -60,7 +60,9 @@ pub fn delegations<T: DeserializeOwned + Serialize>(
 fn total_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
     match delegations(delegations_bucket) {
         Ok(delegations) => Ok(Coin::new(
-            delegations.iter().fold(0, |acc, x| acc + x.2.amount.u128()),
+            delegations
+                .iter()
+                .fold(0, |acc, x| acc + x.delegation_data.amount.u128()),
             "upunk",
         )),
         Err(e) => Err(e),

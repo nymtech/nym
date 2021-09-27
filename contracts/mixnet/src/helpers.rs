@@ -130,7 +130,7 @@ where
         .map(|res| {
             res.map(|entry| {
                 let (owner, identity) = extract_identity_and_owner(entry.0).expect("Invalid node identity or address used as key in bucket. The storage is corrupted!");
-                (owner, identity, entry.1)
+                UnpackedDelegation::new(owner, identity, entry.1)
             })
         })
         .collect::<StdResult<Vec<UnpackedDelegation<T>>>>()?;
@@ -253,7 +253,7 @@ mod tests {
         assert_eq!(response.len(), 1);
         assert_eq!(
             response[0],
-            (
+            UnpackedDelegation::new(
                 delegation_owner1.clone(),
                 node_identity1.clone(),
                 raw_delegation.clone()
@@ -270,7 +270,7 @@ mod tests {
         assert_eq!(response.len(), 2);
         assert_eq!(
             response[1],
-            (
+            UnpackedDelegation::new(
                 delegation_owner2.clone(),
                 node_identity2.clone(),
                 raw_delegation.clone()
@@ -285,7 +285,7 @@ mod tests {
         assert_eq!(response.len(), 1);
         assert_eq!(
             response[0],
-            (delegation_owner2, node_identity2, raw_delegation.clone()),
+            UnpackedDelegation::new(delegation_owner2, node_identity2, raw_delegation.clone()),
         );
     }
 
@@ -309,7 +309,7 @@ mod tests {
         assert_eq!(response.len(), 1);
         assert_eq!(
             response[0],
-            (
+            UnpackedDelegation::new(
                 delegation_owner1.clone(),
                 node_identity1.clone(),
                 raw_delegation.clone()
@@ -326,7 +326,7 @@ mod tests {
         assert_eq!(response.len(), 2);
         assert_eq!(
             response[1],
-            (
+            UnpackedDelegation::new(
                 delegation_owner2.clone(),
                 node_identity2.clone(),
                 raw_delegation.clone()
@@ -342,7 +342,7 @@ mod tests {
         assert_eq!(response.len(), 1);
         assert_eq!(
             response[0],
-            (delegation_owner2, node_identity2, raw_delegation.clone()),
+            UnpackedDelegation::new(delegation_owner2, node_identity2, raw_delegation.clone()),
         );
     }
 }

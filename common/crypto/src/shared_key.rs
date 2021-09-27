@@ -3,7 +3,7 @@
 
 use crate::asymmetric::encryption;
 use crate::hkdf;
-use cipher::stream::{Key, NewStreamCipher, SyncStreamCipher};
+use cipher::{CipherKey, NewCipher, StreamCipher};
 use digest::{BlockInput, FixedOutput, Reset, Update};
 use generic_array::{typenum::Unsigned, ArrayLength};
 use rand::{CryptoRng, RngCore};
@@ -13,9 +13,9 @@ use rand::{CryptoRng, RngCore};
 pub fn new_ephemeral_shared_key<C, D, R>(
     rng: &mut R,
     remote_key: &encryption::PublicKey,
-) -> (encryption::KeyPair, Key<C>)
+) -> (encryption::KeyPair, CipherKey<C>)
 where
-    C: SyncStreamCipher + NewStreamCipher,
+    C: StreamCipher + NewCipher,
     D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
     D::BlockSize: ArrayLength<u8>,
     D::OutputSize: ArrayLength<u8>,
@@ -31,7 +31,7 @@ where
         .expect("somehow too long okm was provided");
 
     let derived_shared_key =
-        Key::<C>::from_exact_iter(okm).expect("okm was expanded to incorrect length!");
+        CipherKey::<C>::from_exact_iter(okm).expect("okm was expanded to incorrect length!");
 
     (ephemeral_keypair, derived_shared_key)
 }
@@ -40,9 +40,9 @@ where
 pub fn recompute_shared_key<C, D>(
     remote_key: &encryption::PublicKey,
     local_key: &encryption::PrivateKey,
-) -> Key<C>
+) -> CipherKey<C>
 where
-    C: SyncStreamCipher + NewStreamCipher,
+    C: StreamCipher + NewCipher,
     D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
     D::BlockSize: ArrayLength<u8>,
     D::OutputSize: ArrayLength<u8>,
@@ -53,5 +53,5 @@ where
     let okm = hkdf::extract_then_expand::<D>(None, &dh_result, None, C::KeySize::to_usize())
         .expect("somehow too long okm was provided");
 
-    Key::<C>::from_exact_iter(okm).expect("okm was expanded to incorrect length!")
+    CipherKey::<C>::from_exact_iter(okm).expect("okm was expanded to incorrect length!")
 }

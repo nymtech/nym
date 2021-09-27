@@ -138,6 +138,18 @@ impl ValidatorCache {
     pub fn initialised(&self) -> bool {
         self.inner.initialised.load(Ordering::Relaxed)
     }
+
+    pub(crate) async fn wait_for_initial_values(&self) {
+        let initialisation_backoff = Duration::from_secs(5);
+        loop {
+            if self.initialised() {
+                break;
+            } else {
+                debug!("Validator cache hasn't been initialised yet - waiting for {:?} before trying again", initialisation_backoff);
+                tokio::time::sleep(initialisation_backoff).await;
+            }
+        }
+    }
 }
 
 impl ValidatorCacheInner {

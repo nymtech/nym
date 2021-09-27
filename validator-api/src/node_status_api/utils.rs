@@ -5,15 +5,13 @@ use crate::node_status_api::models::Uptime;
 use crate::node_status_api::{FIFTEEN_MINUTES, ONE_HOUR};
 use crate::storage::models::NodeStatus;
 use log::warn;
-use sqlx::types::time::OffsetDateTime;
 use std::cmp::min;
+use time::OffsetDateTime;
 
 // A temporary helper struct used to produce reports for active nodes.
 pub(crate) struct ActiveNodeDayStatuses {
     pub(crate) identity: String,
     pub(crate) owner: String,
-    pub(crate) node_id: i64,
-
     pub(crate) ipv4_statuses: Vec<NodeStatus>,
     pub(crate) ipv6_statuses: Vec<NodeStatus>,
 }

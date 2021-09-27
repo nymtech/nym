@@ -1,6 +1,8 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
+use time::OffsetDateTime;
 use url::Url;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -88,3 +90,7 @@ pub const DEFAULT_SOCKS5_LISTENING_PORT: u16 = 1080;
 pub const DEFAULT_VALIDATOR_API_PORT: u16 = 8080;
 
 pub const VALIDATOR_API_VERSION: &str = "v1";
+
+// REWARDING
+pub const DEFAULT_FIRST_EPOCH_START: OffsetDateTime = time::macros::datetime!(2021-08-23 12:00 UTC);
+pub const DEFAULT_EPOCH_LENGTH: Duration = Duration::from_secs(24 * 60 * 60); // 24h

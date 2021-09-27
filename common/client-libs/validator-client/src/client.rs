@@ -158,6 +158,10 @@ impl<C> Client<C> {
         self.mixnet_contract_address = Some(mixnet_contract_address)
     }
 
+    pub fn get_mixnet_contract_address(&self) -> Option<cosmrs::AccountId> {
+        self.mixnet_contract_address.clone()
+    }
+
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
         Ok(self.validator_api.get_mixnodes().await?)
     }

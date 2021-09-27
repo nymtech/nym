@@ -81,6 +81,8 @@ pub(crate) struct PacketSender {
     // behaviour is unlikely.
     active_gateway_clients: HashMap<[u8; PUBLIC_KEY_LENGTH], GatewayClient>,
 
+    // I guess that will be required later on if credentials are got per gateway
+    // aggregated_verification_key: Arc<VerificationKey>,
     fresh_gateway_client_data: Arc<FreshGatewayClientData>,
     gateway_connection_timeout: Duration,
     max_concurrent_clients: usize,

@@ -11,7 +11,6 @@ use crate::nymd::fee_helpers::Operation;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
-use cosmrs::tx::{Fee, Gas};
 
 use cosmwasm_std::Coin;
 use mixnet_contract::{
@@ -29,6 +28,8 @@ pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::gas_price::GasPrice;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
+pub use cosmrs::tendermint::Time as TendermintTime;
+pub use cosmrs::tx::{Fee, Gas};
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{AccountId, Denom};
 pub use signing_client::Client as SigningNymdClient;
@@ -157,6 +158,17 @@ impl<C> NymdClient<C> {
     pub fn get_fee(&self, operation: Operation) -> Fee {
         let gas_limit = self.custom_gas_limits.get(&operation).cloned();
         operation.determine_fee(&self.gas_price, gas_limit)
+    }
+
+    pub fn calculate_custom_fee(&self, gas_limit: impl Into<Gas>) -> Fee {
+        Operation::determine_custom_fee(&self.gas_price, gas_limit.into())
+    }
+
+    pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.client.get_block(None).await?.block.header.time)
     }
 
     pub async fn get_balance(&self, address: &AccountId) -> Result<Option<CosmosCoin>, NymdError>
@@ -397,6 +409,23 @@ impl<C> NymdClient<C> {
     {
         self.client
             .execute(self.address(), contract_address, msg, fee, memo, funds)
+            .await
+    }
+
+    pub async fn execute_multiple<I, M>(
+        &self,
+        contract_address: &AccountId,
+        msgs: I,
+        fee: Fee,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+        I: IntoIterator<Item = (M, Vec<CosmosCoin>)> + Send,
+        M: Serialize,
+    {
+        self.client
+            .execute_multiple(self.address(), contract_address, msgs, fee, memo)
             .await
     }
 

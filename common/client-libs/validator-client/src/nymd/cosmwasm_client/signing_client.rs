@@ -15,6 +15,7 @@ use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, Simple
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
 use cosmrs::tx::{Fee, Msg, MsgType, SignDoc, SignerInfo};
 use cosmrs::{cosmwasm, rpc, tx, AccountId, Coin};
+use log::debug;
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
@@ -249,6 +250,48 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .sign_and_broadcast_commit(sender_address, vec![execute_msg], fee, memo)
             .await?
             .check_response()?;
+
+        Ok(ExecuteResult {
+            logs: parse_raw_logs(tx_res.deliver_tx.log)?,
+            transaction_hash: tx_res.hash,
+        })
+    }
+
+    async fn execute_multiple<I, M>(
+        &self,
+        sender_address: &AccountId,
+        contract_address: &AccountId,
+        msgs: I,
+        fee: Fee,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        I: IntoIterator<Item = (M, Vec<Coin>)> + Send,
+        M: Serialize,
+    {
+        let messages = msgs
+            .into_iter()
+            .map(|(msg, funds)| {
+                cosmwasm::MsgExecuteContract {
+                    sender: sender_address.clone(),
+                    contract: contract_address.clone(),
+                    msg: serde_json::to_vec(&msg)?,
+                    funds,
+                }
+                .to_msg()
+                .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))
+            })
+            .collect::<Result<_, _>>()?;
+
+        let tx_res = self
+            .sign_and_broadcast_commit(sender_address, messages, fee, memo)
+            .await?
+            .check_response()?;
+
+        debug!(
+            "gas wanted: {:?}, gas used: {:?}",
+            tx_res.deliver_tx.gas_wanted, tx_res.deliver_tx.gas_used
+        );
 
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.deliver_tx.log)?,

@@ -40,6 +40,7 @@ pub mod fee_helpers;
 pub mod gas_price;
 pub mod wallet;
 
+#[derive(Debug)]
 pub struct NymdClient<C> {
     client: C,
     contract_address: Option<AccountId>,
@@ -125,6 +126,14 @@ impl<C> NymdClient<C> {
         self.custom_gas_limits.insert(operation, limit);
     }
 
+    pub fn get_gas_price(&self) -> GasPrice {
+        self.gas_price.clone()
+    }
+
+    pub fn get_custom_gas_limits(&self) -> HashMap<Operation, Gas> {
+        self.custom_gas_limits.clone()
+    }
+
     pub fn contract_address(&self) -> Result<&AccountId, NymdError> {
         self.contract_address
             .as_ref()
@@ -146,7 +155,7 @@ impl<C> NymdClient<C> {
         &self.client_address.as_ref().unwrap()[0]
     }
 
-    fn get_fee(&self, operation: Operation) -> Fee {
+    pub fn get_fee(&self, operation: Operation) -> Fee {
         let gas_limit = self.custom_gas_limits.get(&operation).cloned();
         operation.determine_fee(&self.gas_price, gas_limit)
     }
@@ -546,15 +555,17 @@ impl<C> NymdClient<C> {
     /// Delegates specified amount of stake to particular mixnode.
     pub async fn delegate_to_mixnode(
         &self,
-        mix_identity: IdentityKey,
-        amount: Coin,
+        mix_identity: &str,
+        amount: &Coin,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
         let fee = self.get_fee(Operation::DelegateToMixnode);
 
-        let req = ExecuteMsg::DelegateToMixnode { mix_identity };
+        let req = ExecuteMsg::DelegateToMixnode {
+            mix_identity: mix_identity.to_string(),
+        };
         self.client
             .execute(
                 self.address(),
@@ -562,7 +573,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Delegating to mixnode from rust!",
-                vec![cosmwasm_coin_to_cosmos_coin(amount)],
+                vec![cosmwasm_coin_ptr_to_cosmos_coin(amount)],
             )
             .await
     }
@@ -570,14 +581,16 @@ impl<C> NymdClient<C> {
     /// Removes stake delegation from a particular mixnode.
     pub async fn remove_mixnode_delegation(
         &self,
-        mix_identity: IdentityKey,
+        mix_identity: &str,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
         let fee = self.get_fee(Operation::UndelegateFromMixnode);
 
-        let req = ExecuteMsg::UndelegateFromMixnode { mix_identity };
+        let req = ExecuteMsg::UndelegateFromMixnode {
+            mix_identity: mix_identity.to_string(),
+        };
         self.client
             .execute(
                 self.address(),
@@ -637,15 +650,17 @@ impl<C> NymdClient<C> {
     /// Delegates specified amount of stake to particular gateway.
     pub async fn delegate_to_gateway(
         &self,
-        gateway_identity: IdentityKey,
-        amount: Coin,
+        gateway_identity: &str,
+        amount: &Coin,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
         let fee = self.get_fee(Operation::DelegateToGateway);
 
-        let req = ExecuteMsg::DelegateToGateway { gateway_identity };
+        let req = ExecuteMsg::DelegateToGateway {
+            gateway_identity: gateway_identity.to_string(),
+        };
         self.client
             .execute(
                 self.address(),
@@ -653,7 +668,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Delegating to gateway from rust!",
-                vec![cosmwasm_coin_to_cosmos_coin(amount)],
+                vec![cosmwasm_coin_ptr_to_cosmos_coin(amount)],
             )
             .await
     }
@@ -661,14 +676,16 @@ impl<C> NymdClient<C> {
     /// Removes stake delegation from a particular gateway.
     pub async fn remove_gateway_delegation(
         &self,
-        gateway_identity: IdentityKey,
+        gateway_identity: &str,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
         let fee = self.get_fee(Operation::UndelegateFromGateway);
 
-        let req = ExecuteMsg::UndelegateFromGateway { gateway_identity };
+        let req = ExecuteMsg::UndelegateFromGateway {
+            gateway_identity: gateway_identity.to_string(),
+        };
         self.client
             .execute(
                 self.address(),
@@ -705,6 +722,14 @@ impl<C> NymdClient<C> {
 }
 
 fn cosmwasm_coin_to_cosmos_coin(coin: Coin) -> CosmosCoin {
+    CosmosCoin {
+        denom: coin.denom.parse().unwrap(),
+        // this might be a bit iffy, cosmwasm coin stores value as u128, while cosmos does it as u64
+        amount: (coin.amount.u128() as u64).into(),
+    }
+}
+
+fn cosmwasm_coin_ptr_to_cosmos_coin(coin: &Coin) -> CosmosCoin {
     CosmosCoin {
         denom: coin.denom.parse().unwrap(),
         // this might be a bit iffy, cosmwasm coin stores value as u128, while cosmos does it as u64

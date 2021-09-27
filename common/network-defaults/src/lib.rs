@@ -1,21 +1,26 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use time::OffsetDateTime;
 use url::Url;
 
-pub struct ValidatorDetails<'a> {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
-    pub nymd_url: &'a str,
+    pub nymd_url: String,
     // Right now api_url is optional as we are not running the api reliably on all validators
     // however, later on it should be a mandatory field
-    pub api_url: Option<&'a str>,
+    pub api_url: Option<String>,
 }
 
-impl<'a> ValidatorDetails<'a> {
-    pub const fn new(nymd_url: &'a str, api_url: Option<&'a str>) -> Self {
-        ValidatorDetails { nymd_url, api_url }
+impl ValidatorDetails {
+    pub fn new(nymd_url: &str, api_url: Option<&str>) -> Self {
+        let api_url = api_url.map(|api_url_str| api_url_str.to_string());
+        ValidatorDetails {
+            nymd_url: nymd_url.to_string(),
+            api_url,
+        }
     }
 
     pub fn nymd_url(&self) -> Url {
@@ -26,27 +31,30 @@ impl<'a> ValidatorDetails<'a> {
 
     pub fn api_url(&self) -> Option<Url> {
         self.api_url
+            .as_ref()
             .map(|url| url.parse().expect("the provided api url is invalid!"))
     }
 }
 
-pub const DEFAULT_VALIDATORS: &[ValidatorDetails] = &[
-    ValidatorDetails::new(
-        "https://testnet-milhon-validator1.nymtech.net",
-        Some("https://testnet-milhon-validator1.nymtech.net/api"),
-    ),
-    ValidatorDetails::new("https://testnet-milhon-validator2.nymtech.net", None),
-];
+pub fn default_validators() -> Vec<ValidatorDetails> {
+    vec![
+        ValidatorDetails::new(
+            "https://testnet-milhon-validator1.nymtech.net",
+            Some("https://testnet-milhon-validator1.nymtech.net/api"),
+        ),
+        ValidatorDetails::new("https://testnet-milhon-validator2.nymtech.net", None),
+    ]
+}
 
 pub fn default_nymd_endpoints() -> Vec<Url> {
-    DEFAULT_VALIDATORS
+    default_validators()
         .iter()
         .map(|validator| validator.nymd_url())
         .collect()
 }
 
 pub fn default_api_endpoints() -> Vec<Url> {
-    DEFAULT_VALIDATORS
+    default_validators()
         .iter()
         .filter_map(|validator| validator.api_url())
         .collect()

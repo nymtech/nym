@@ -163,16 +163,13 @@ impl PagedReverseGatewayDelegationsResponse {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct PagedAllDelegationsResponse {
-    pub delegations: Vec<UnpackedDelegation<RawDelegationData>>,
+pub struct PagedAllDelegationsResponse<T> {
+    pub delegations: Vec<UnpackedDelegation<T>>,
     pub start_next_after: Option<Vec<u8>>,
 }
 
-impl PagedAllDelegationsResponse {
-    pub fn new(
-        delegations: Vec<UnpackedDelegation<RawDelegationData>>,
-        start_next_after: Option<Vec<u8>>,
-    ) -> Self {
+impl<T> PagedAllDelegationsResponse<T> {
+    pub fn new(delegations: Vec<UnpackedDelegation<T>>, start_next_after: Option<Vec<u8>>) -> Self {
         PagedAllDelegationsResponse {
             delegations,
             start_next_after,

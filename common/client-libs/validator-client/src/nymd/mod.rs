@@ -19,7 +19,7 @@ use mixnet_contract::{
     LayerDistribution, MixNode, MixOwnershipResponse, PagedAllDelegationsResponse,
     PagedGatewayDelegationsResponse, PagedGatewayResponse, PagedMixDelegationsResponse,
     PagedMixnodeResponse, PagedReverseGatewayDelegationsResponse,
-    PagedReverseMixDelegationsResponse, QueryMsg, StateParams,
+    PagedReverseMixDelegationsResponse, QueryMsg, RawDelegationData, StateParams,
 };
 use serde::Serialize;
 use std::collections::HashMap;
@@ -268,7 +268,7 @@ impl<C> NymdClient<C> {
         // I really hate mixing cosmwasm and cosmos-sdk types here...
         start_after: Option<Vec<u8>>,
         page_limit: Option<u32>,
-    ) -> Result<PagedAllDelegationsResponse, NymdError>
+    ) -> Result<PagedAllDelegationsResponse<RawDelegationData>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -344,7 +344,7 @@ impl<C> NymdClient<C> {
         &self,
         start_after: Option<Vec<u8>>,
         page_limit: Option<u32>,
-    ) -> Result<PagedAllDelegationsResponse, NymdError>
+    ) -> Result<PagedAllDelegationsResponse<RawDelegationData>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {

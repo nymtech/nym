@@ -45,10 +45,11 @@ pub fn delegations<T: DeserializeOwned + Serialize>(
         });
         let mut delegations_paged = get_all_delegations_paged(
             &delegations_bucket,
-            &mut start_after,
+            start_after,
             OLD_DELEGATIONS_CHUNK_SIZE,
         )?;
-        delegations.append(&mut delegations_paged);
+        delegations.append(&mut delegations_paged.delegations);
+        start_after = delegations_paged.start_next_after;
         if start_after.is_none() {
             break;
         }

@@ -1,14 +1,22 @@
 import React, { useContext, useEffect, useState } from 'react'
 import {
+  Card,
   CardContent,
+  CardHeader,
   CircularProgress,
   IconButton,
+  Theme,
   Tooltip,
   Typography,
   useTheme,
 } from '@material-ui/core'
 import { ClientContext } from '../context/main'
-import { CheckCircleOutline, FileCopy, Refresh } from '@material-ui/icons'
+import {
+  CheckCircleOutline,
+  FileCopy,
+  PowerSettingsNew,
+  Refresh,
+} from '@material-ui/icons'
 import { NymCard } from './NymCard'
 import { Alert } from '@material-ui/lab'
 import { handleCopy } from './CopyToClipboard'
@@ -113,6 +121,30 @@ export const AddressCard = () => {
           </Typography>
         </CardContent>
       </NymCard>
+    </div>
+  )
+}
+
+export const SockS5 = () => {
+  const theme: Theme = useTheme()
+  const { ss5IsActive, toggleSs5 } = useContext(ClientContext)
+  return (
+    <div style={{ margin: theme.spacing(3) }}>
+      <NymCard
+        title="Socks5"
+        subheader={ss5IsActive ? ' Active' : 'Inactive'}
+        Action={
+          <IconButton onClick={toggleSs5}>
+            <PowerSettingsNew
+              style={{
+                color: ss5IsActive
+                  ? theme.palette.success.main
+                  : theme.palette.error.main,
+              }}
+            />
+          </IconButton>
+        }
+      />
     </div>
   )
 }

@@ -16,8 +16,8 @@ export const Layout = ({ children }: { children: React.ReactElement }) => {
         overflow: 'auto',
       }}
     >
-      <Grid container justifyContent="center" style={{ margin: 'auto' }}>
-        <Grid item xs={12} md={8} xl={6}>
+      <Grid container justifyContent="center" style={{ margin: '0 auto' }}>
+        <Grid item xs={12} md={8}>
           {children}
         </Grid>
       </Grid>

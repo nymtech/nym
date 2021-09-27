@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { NymCard } from '../../components'
-import { UnbondForm } from './UnbondForm'
 import { Layout } from '../../layouts'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { Alert } from '@material-ui/lab'

@@ -10,6 +10,7 @@ import { SignIn } from './sign-in'
 import { Unbond } from './unbond'
 import { Undelegate } from './undelegate'
 import { InternalDocs } from './internal-docs'
+import { Socks5 } from './SOCKS5'
 
 export const Routes = () => (
   <Switch>
@@ -36,6 +37,9 @@ export const Routes = () => (
     </Route>
     <Route path="/undelegate">
       <Undelegate />
+    </Route>
+    <Route path="/socks5">
+      <Socks5 />
     </Route>
     <Route path="/docs">
       <InternalDocs />

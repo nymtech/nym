@@ -6,6 +6,7 @@ import {
   ListItemIcon,
   ListItemText,
   Theme,
+  Typography,
 } from '@material-ui/core'
 import {
   AccountBalanceWalletRounded,
@@ -18,60 +19,70 @@ import {
   MoneyOff,
   Description,
   Settings,
+  VpnLockSharp,
 } from '@material-ui/icons'
-import { makeStyles } from '@material-ui/styles'
+import { makeStyles, useTheme } from '@material-ui/styles'
 import clsx from 'clsx'
 import { ADMIN_ADDRESS, ClientContext } from '../context/main'
 
-let routesSchema = [
-  {
-    label: 'Balance',
-    route: '/balance',
-    Icon: <AccountBalanceWalletRounded />,
-  },
-  {
-    label: 'Send',
-    route: '/send',
-    Icon: <ArrowForward />,
-  },
-  {
-    label: 'Receive',
-    route: '/receive',
-    Icon: <ArrowBack />,
-  },
-  {
-    label: 'Bond',
-    route: '/bond',
-    Icon: <AttachMoney />,
-  },
-  {
-    label: 'Unbond',
-    route: '/unbond',
-    Icon: <MoneyOff />,
-  },
-  {
-    label: 'Delegate',
-    route: '/delegate',
-    Icon: <HowToVote />,
-  },
-  {
-    label: 'Undelegate',
-    route: '/undelegate',
-    Icon: <Cancel />,
-  },
-]
+const RoutesSchema = () => {
+  const routes = [
+    {
+      label: 'Balance',
+      route: '/balance',
+      Icon: <AccountBalanceWalletRounded />,
+    },
+    {
+      label: 'Send',
+      route: '/send',
+      Icon: <ArrowForward />,
+    },
+    {
+      label: 'Receive',
+      route: '/receive',
+      Icon: <ArrowBack />,
+    },
+    {
+      label: 'Bond',
+      route: '/bond',
+      Icon: <AttachMoney />,
+    },
+    {
+      label: 'Unbond',
+      route: '/unbond',
+      Icon: <MoneyOff />,
+    },
+    {
+      label: 'Delegate',
+      route: '/delegate',
+      Icon: <HowToVote />,
+    },
+    {
+      label: 'Undelegate',
+      route: '/undelegate',
+      Icon: <Cancel />,
+    },
+    {
+      label: 'Socks5',
+      route: '/socks5',
+      Icon: <VpnLockSharp />,
+    },
+  ]
 
-if (process.env.NODE_ENV) {
-  routesSchema.push({
-    label: 'Docs',
-    route: '/docs',
-    Icon: <Description />,
-  })
+  if (process.env.NODE_ENV) {
+    routes.push({
+      label: 'Docs',
+      route: '/docs',
+      Icon: <Description />,
+    })
+  }
+
+  return routes
 }
 
 const useStyles = makeStyles((theme: Theme) => ({
   navItem: {
-    color: '#fff',
+    color: theme.palette.common.white,
     fontSize: 24,
   },
   selected: {
@@ -93,7 +104,7 @@ export const Nav = () => {
       }}
     >
       <List>
-        {routesSchema.map((r, i) => (
+        {RoutesSchema().map((r, i) => (
           <ListItem button component={Link} to={r.route} key={i}>
             <ListItemIcon
               className={clsx([

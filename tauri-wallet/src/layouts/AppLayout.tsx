@@ -1,6 +1,6 @@
 import React from 'react'
 import { Divider } from '@material-ui/core'
-import { AddressCard, BalanceCard, Nav } from '../components'
+import { AddressCard, BalanceCard, Nav, SockS5 } from '../components'
 import Logo from '../images/logo-background.svg'
 import { theme } from '../theme'
 
@@ -49,6 +49,7 @@ export const ApplicationLayout = ({
         <div style={{ marginTop: theme.spacing(10) }}>
           <BalanceCard />
           <AddressCard />
+          <SockS5 />
         </div>
 
         <div style={{ marginTop: theme.spacing(7) }}>

@@ -9,6 +9,8 @@ type TClientContext = {
   clientDetails?: TClientDetails
   getBalance: TUseGetBalance
   showAdmin: boolean
+  ss5IsActive: boolean
+  toggleSs5: () => void
   handleShowAdmin: () => void
   logIn: (clientDetails: TSignInWithMnemonic) => void
   logOut: () => void
@@ -23,6 +25,7 @@ export const ClientContextProvider = ({
 }) => {
   const [clientDetails, setClientDetails] = useState<TClientDetails>()
   const [showAdmin, setShowAdmin] = useState(false)
+  const [ss5IsActive, setss5IsActive] = useState(false)
 
   const history = useHistory()
   const getBalance = useGetBalance()
@@ -38,12 +41,16 @@ export const ClientContextProvider = ({
 
   const handleShowAdmin = () => setShowAdmin((show) => !show)
 
+  const toggleSs5 = () => setss5IsActive((active) => !active)
+
   return (
     <ClientContext.Provider
       value={{
         clientDetails,
         getBalance,
         showAdmin,
+        ss5IsActive,
+        toggleSs5,
         handleShowAdmin,
         logIn,
         logOut,

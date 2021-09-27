@@ -8,11 +8,37 @@ import {
 
 import { MixNodeResponse, GatewayResponse, ValidatorsResponse, CountryDataResponse } from '../typeDefs/explorer-api'
 
+function getFromCache(key: string) {
+  const ts = Number(localStorage.getItem('ts'));
+  const hasExpired = Date.now() - ts > 100000;
+  const curr = localStorage.getItem(key);
+  if (curr && !hasExpired) {
+    return JSON.parse(curr);
+  } else {
+    return undefined;
+  }
+}
+
+function storeInCache(key: string, data: any) {
+  localStorage.setItem(key, data);
+}
+
+function clearCache(key: string) {
+  return localStorage.removeItem(key);
+}
 export class Api {
 
   static fetchMixnodes = async (): Promise<MixNodeResponse> => {
-    const res = await fetch(MIXNODES_API);
-    return await res.json();
+    let cachedMixnodes = getFromCache('mixnodes');
+    if (cachedMixnodes) {
+      return cachedMixnodes;
+    } else {
+      const res = await fetch(MIXNODES_API);
+      const json = await res.json();
+      storeInCache('mixnodes', JSON.stringify(json))
+      storeInCache('ts', Date.now())
+      return json;
+    }
   };
 
   static fetchGateways = async (): Promise<GatewayResponse> => {

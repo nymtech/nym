@@ -1,7 +1,7 @@
-import { GatewayBond } from "../types";
+import {GatewayBond, PagedGatewayResponse} from "../types";
 import {INetClient} from "../net-client"
 import {IQueryClient} from "../query-client";
-import {PagedGatewayResponse, VALIDATOR_API_GATEWAYS, VALIDATOR_API_PORT} from "../index";
+import {VALIDATOR_API_GATEWAYS, VALIDATOR_API_PORT} from "../index";
 import axios from "axios";
 
 

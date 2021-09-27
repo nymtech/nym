@@ -102,13 +102,9 @@ pub async fn get_reverse_mix_delegations_paged(
 ) -> Result<PagedReverseMixDelegationsResponse, String> {
   let r_state = state.read().await;
   let client = r_state.client()?;
-  match client
+  client
     .get_reverse_mix_delegations_paged(Addr::unchecked(client.address().as_ref()), None, None)
-    .await
-  {
-    Ok(r) => Ok(r),
-    Err(e) => Err(format_err!(e)),
-  }
+    .await.map_err(|err| format_err!(err))
 }
 
 #[tauri::command]
@@ -117,11 +113,7 @@ pub async fn get_reverse_gateway_delegations_paged(
 ) -> Result<PagedReverseGatewayDelegationsResponse, String> {
   let r_state = state.read().await;
   let client = r_state.client()?;
-  match client
+  client
     .get_reverse_gateway_delegations_paged(Addr::unchecked(client.address().as_ref()), None, None)
-    .await
-  {
-    Ok(r) => Ok(r),
-    Err(e) => Err(format_err!(e)),
-  }
+    .await.map_err(|err| format_err!(err))
 }

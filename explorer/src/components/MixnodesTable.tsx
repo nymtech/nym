@@ -7,11 +7,11 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import { TableHeadingsType, TableHeading } from 'src/typeDefs/tables';
-import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
+import { MixNodeResponseItem, MixNodeResponse } from 'src/typeDefs/explorer-api';
 import { Link } from 'react-router-dom';
 
 type TableProps = {
-    mixnodes: any;
+    mixnodes: MixNodeResponse
 }
 
 const tableHeadings: TableHeadingsType = [
@@ -54,40 +54,45 @@ const tableHeadings: TableHeadingsType = [
 ]
 
 export function MixnodesTable({ mixnodes }: TableProps) {
-    if (mixnodes && mixnodes.data) {
+
+    console.log("mixnodes table ===> ", mixnodes);
+
+    if (mixnodes && mixnodes.data && mixnodes.data.length) {
+
         return (
-            <TableContainer component={Paper}>
-                <Table sx={{ minWidth: 650 }} aria-label='mixnodes table'>
-                    <TableHead>
-                        <TableRow>
-                            {tableHeadings.map((eachHeading: TableHeading, i: number) => (
-                                <TableCell sx={{ fontWeight: 'bold' }} key={eachHeading.id} align='left'>{eachHeading.label}</TableCell>
-                            ))}
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {mixnodes?.data.map((row: MixNodeResponseItem) => (
-                            <TableRow
-                                key={row.owner}
-                                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                            >
-                                <TableCell component='th' scope='row' sx={{ maxWidth: 250, wordBreak: 'break-all' }}>
-                                    {row.owner}
-                                </TableCell>
-                                <TableCell sx={{ maxWidth: 250, wordBreak: 'break-all' }} align='left'>
-                                    <Link to={`/network-components/mixnodes/${row.mix_node.identity_key}`} style={{ textDecoration: 'none', color: 'white' }}>
-                                        {row.mix_node.identity_key}
-                                    </Link>
-                                </TableCell>
-                                <TableCell align='left'>{`${row.bond_amount.amount}${row.bond_amount.denom.toUpperCase()}`}</TableCell>
-                                <TableCell sx={{ maxWidth: 170 }} align='left'>{row.mix_node.host}</TableCell>
-                                <TableCell align='left'>{row?.location?.country_name || 'Unknown'}</TableCell>
-                                <TableCell align='right'>{row.layer}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+            <div>blah</div>
+            // <TableContainer component={Paper}>
+            //     <Table sx={{ minWidth: 650 }} aria-label='mixnodes table'>
+            //         <TableHead>
+            //             <TableRow>
+            //                 {tableHeadings.map((eachHeading: TableHeading, i: number) => (
+            //                     <TableCell sx={{ fontWeight: 'bold' }} key={eachHeading.id} align='left'>{eachHeading.label}</TableCell>
+            //                 ))}
+            //             </TableRow>
+            //         </TableHead>
+            //         <TableBody>
+            //             {mixnodes.data.map((row: MixNodeResponseItem, i: number) => (
+            //                 <TableRow
+            //                     key={i}
+            //                     sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+            //                 >
+            //                     <TableCell component='th' scope='row' sx={{ maxWidth: 250, wordBreak: 'break-all' }}>
+            //                         {row.owner || "Unknown..."}
+            //                     </TableCell>
+            //                     <TableCell sx={{ maxWidth: 250, wordBreak: 'break-all' }} align='left'>
+            //                         <Link to={`/network-components/mixnodes/${row.mix_node.identity_key}`} style={{ textDecoration: 'none', color: 'white' }}>
+            //                             {row.mix_node.identity_key}
+            //                         </Link>
+            //                     </TableCell>
+            //                     <TableCell align='left'>{`${row.bond_amount.amount}${row.bond_amount.denom.toUpperCase()}`}</TableCell>
+            //                     <TableCell sx={{ maxWidth: 170 }} align='left'>{row.mix_node.host}</TableCell>
+            //                     <TableCell align='left'>{row?.location?.country_name || 'Unknown'}</TableCell>
+            //                     <TableCell align='right'>{row.layer}</TableCell>
+            //                 </TableRow>
+            //             ))}
+            //         </TableBody>
+            //     </Table>
+            // </TableContainer>
         );
     } else {
         return <h1>Loading...</h1>

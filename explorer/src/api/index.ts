@@ -6,11 +6,11 @@ import {
   COUNTRY_DATA_API,
 } from './constants';
 
-import { MixNodeResponse, GatewayResponse, ValidatorsResponse, CountryDataResponse } from '../typeDefs/explorer-api'
+import { MixNodeResponse, GatewayResponse, ValidatorsResponse, CountryDataResponse, MixNodeResponseItem } from '../typeDefs/explorer-api'
 
 function getFromCache(key: string) {
   const ts = Number(localStorage.getItem('ts'));
-  const hasExpired = Date.now() - ts > 100000;
+  const hasExpired = Date.now() - ts > 200000;
   const curr = localStorage.getItem(key);
   if (curr && !hasExpired) {
     return JSON.parse(curr);
@@ -40,6 +40,12 @@ export class Api {
       return json;
     }
   };
+
+  static fetchMixnodeByID = async (id: string): Promise<MixNodeResponseItem | undefined> => {
+    const allMixnodes: MixNodeResponse = await Api.fetchMixnodes();
+    const matchedByID = allMixnodes.filter(eachRecord => eachRecord.mix_node.identity_key === id);
+    return matchedByID.length && matchedByID[0] || undefined;
+  }
 
   static fetchGateways = async (): Promise<GatewayResponse> => {
     const res = await fetch(GATEWAYS_API);

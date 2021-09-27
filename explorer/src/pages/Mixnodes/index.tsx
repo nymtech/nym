@@ -15,7 +15,9 @@ export const PageMixnodes: React.FC = () => {
                         </Typography>
                     </Grid>
                     <Grid item xs={11}>
-                        <MixnodesTable mixnodes={mixnodes} />
+                        {mixnodes !== undefined && (
+                            <MixnodesTable mixnodes={mixnodes} />
+                        )}
                     </Grid>
                 </Grid>
             </Box>

@@ -1,5 +1,6 @@
 import { PaletteMode } from '@mui/material';
 import * as React from 'react';
+import { MIXNODE_API_ERROR } from 'src/api/constants';
 import { CountryDataResponse, GatewayResponse, MixNodeResponse, ValidatorsResponse, BlockResponse, ApiState, MixNodeResponseItem, MixNode } from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
 
@@ -12,9 +13,11 @@ interface State {
   block?: ApiState<BlockResponse>
   countryData?: ApiState<CountryDataResponse>
   globalError?: string | undefined
+  mixnodeDetailInfo?: MixNodeResponseItem
+  fetchMixnodeById: (arg: string) => void
 };
 
-export const MainContext = React.createContext<State>({ mode: "dark" });
+export const MainContext = React.createContext<State>({ mode: "dark", fetchMixnodeById: () => null });
 
 export const MainContextProvider: React.FC = ({ children }) => {
   // light/dark mode
@@ -29,10 +32,36 @@ export const MainContextProvider: React.FC = ({ children }) => {
   const [validators, setValidators] = React.useState<ApiState<ValidatorsResponse>>();
   const [block, setBlock] = React.useState<ApiState<BlockResponse>>();
   const [countryData, setCountryData] = React.useState<ApiState<CountryDataResponse>>();
-  
-  const [mixnodeDetailInfo, setMixnodeDetailInfo] = React.useState<MixNodeResponseItem>()
+  const [mixnodeDetailInfo, setMixnodeDetailInfo] = React.useState<MixNodeResponseItem>();
+
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
+  const fetchMixnodeById = async (id: string) => {
+    // 1. if mixnode data already exists filter down to this ID
+    if (mixnodes && mixnodes.data) {
+      let matchedToID = mixnodes.data.filter((eachMixnode: MixNodeResponseItem) => {
+        return eachMixnode.mix_node.identity_key === id
+      });
+      // b) SUCCESS | if there *IS* a matched ID in mixnodes
+      if (matchedToID.length > 0) {
+        setMixnodeDetailInfo(matchedToID[0]);
+      }
+      // b) FAIL | if there is no matching ID in mixnodes
+      if (!matchedToID) {
+        setGlobalError(MIXNODE_API_ERROR)
+      }
+    } else {
+    // 2. if mixnode data DOESNT already exist, fetch this specific ID's information.
+      try {
+        const data = await Api.fetchMixnodeByID(id)
+        // a) fetches from cache^, then API, then filters down then dumps in `mixnodes` context.
+        setMixnodeDetailInfo(data);
+        // NOTE: Only returning mixnodes api info at the moment. Other `ping` api required also.
+      } catch (error) {
+        setGlobalError(MIXNODE_API_ERROR)
+      } 
+    }
+  }
   const fetchMixnodes = async () => {
     try {
       const data = await Api.fetchMixnodes();
@@ -113,7 +142,9 @@ export const MainContextProvider: React.FC = ({ children }) => {
         validators,
         block,
         countryData,
-        globalError
+        globalError,
+        mixnodeDetailInfo,
+        fetchMixnodeById,
       }}
     >
       {children}

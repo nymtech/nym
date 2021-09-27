@@ -39,6 +39,7 @@ const AppWrapper = () => {
         styleOverrides: {
           title: {
             fontSize: '16px',
+            fontWeight: 'bold'
           },
         },
       },

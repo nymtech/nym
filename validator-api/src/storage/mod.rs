@@ -443,7 +443,7 @@ impl NodeStatusStorage {
         Ok(run_count as usize)
     }
 
-    /// Given lists of reports of all active mixnodes and gateways, inserts the data into the
+    /// Given lists of reports of all monitor-active mixnodes and gateways, inserts the data into the
     /// historical uptime tables.
     ///
     /// This method is called at every reward cycle. Note that currently to work as expected, it
@@ -453,8 +453,8 @@ impl NodeStatusStorage {
     /// # Arguments
     ///
     /// * `today_iso_8601`: today's date expressed in ISO 8601, i.e. YYYY-MM-DD
-    /// * `mixnode_reports`: slice of reports for all active mixnodes
-    /// * `gateway_reports`: slice of reports for all active gateways
+    /// * `mixnode_reports`: slice of reports for all monitor-active mixnodes
+    /// * `gateway_reports`: slice of reports for all monitor-active gateways
     pub(crate) async fn update_historical_uptimes(
         &self,
         today_iso_8601: &str,

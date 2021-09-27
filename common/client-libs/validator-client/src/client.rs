@@ -424,6 +424,14 @@ impl ApiClient {
         self.validator_api.change_url(new_endpoint);
     }
 
+    pub async fn get_cached_active_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
+        Ok(self.validator_api.get_active_mixnodes().await?)
+    }
+
+    pub async fn get_cached_active_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+        Ok(self.validator_api.get_active_gateways().await?)
+    }
+
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
         Ok(self.validator_api.get_mixnodes().await?)
     }

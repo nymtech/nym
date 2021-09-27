@@ -57,7 +57,6 @@ type TableProps = {
     }
 }
 export function MixnodesTable({ mixnodes }: TableProps) {
-    console.log("mixnodes are ", Date.now(), mixnodes);
     if (mixnodes && mixnodes.data && mixnodes.data.length) {
         return (
             <TableContainer component={Paper}>

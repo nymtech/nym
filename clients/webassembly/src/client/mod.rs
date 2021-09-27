@@ -263,12 +263,12 @@ impl NymClient {
     pub(crate) async fn get_nym_topology(&self) -> NymTopology {
         let validator_client = validator_client::ApiClient::new(self.validator_server.clone());
 
-        let mixnodes = match validator_client.get_cached_mixnodes().await {
+        let mixnodes = match validator_client.get_cached_active_mixnodes().await {
             Err(err) => panic!("{}", err),
             Ok(mixes) => mixes,
         };
 
-        let gateways = match validator_client.get_cached_gateways().await {
+        let gateways = match validator_client.get_cached_active_gateways().await {
             Err(err) => panic!("{}", err),
             Ok(gateways) => gateways,
         };

@@ -4,6 +4,7 @@ import { MixnodesTable } from '../../components/MixnodesTable';
 import { MainContext } from 'src/context/main';
 import { useParams } from 'react-router-dom';
 import { ContentCard } from 'src/components/ContentCard';
+import { BondBreakdownTable } from 'src/components/BondBreakdown';
 
 export const PageMixnodeDetail: React.FC = () => {
     const { fetchMixnodeById, mixnodeDetailInfo } = React.useContext(MainContext);
@@ -43,7 +44,7 @@ export const PageMixnodeDetail: React.FC = () => {
 
                     <Grid item xs={12}>
                         <ContentCard title='Bond Breakdown'>
-                            <p>i am the bond breakdown section with lots of stuff</p>
+                            <BondBreakdownTable />
                         </ContentCard>
                     </Grid>
                     <Grid item xs={12} md={6}>

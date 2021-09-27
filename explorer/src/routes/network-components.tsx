@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Switch, Route } from 'react-router-dom';
-import { PageMixnodeInfo } from 'src/pages/MixnodeInfo';
+import { PageMixnodeDetail } from 'src/pages/MixnodeDetail';
 import { PageMixnodes } from '../pages/Mixnodes';
 
 export const NetworkComponentsRoutes: React.FC = () => (
@@ -9,7 +9,7 @@ export const NetworkComponentsRoutes: React.FC = () => (
       <PageMixnodes />
     </Route>
     <Route path="/network-components/mixnodes/:id">
-      <PageMixnodeInfo />
+      <PageMixnodeDetail />
     </Route>
     <Route path="/network-components/gateways">
       <h1>Gateways</h1>

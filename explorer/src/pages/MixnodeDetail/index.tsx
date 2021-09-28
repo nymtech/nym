@@ -6,6 +6,7 @@ import { useParams } from 'react-router-dom';
 import { ContentCard } from 'src/components/ContentCard';
 import { BondBreakdownTable } from 'src/components/BondBreakdown';
 import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
+import { UptimeChart } from 'src/components/UptimeChart';
 
 export const PageMixnodeDetail: React.FC = () => {
     const { fetchMixnodeById, mixnodeDetailInfo } = React.useContext(MainContext);
@@ -22,6 +23,7 @@ export const PageMixnodeDetail: React.FC = () => {
     return (
         <>
             <Box component='main' sx={{ flexGrow: 1 }}>
+                
                 <Grid container spacing={2}>
                     <Grid item xs={12}>
                         <Typography>
@@ -29,17 +31,18 @@ export const PageMixnodeDetail: React.FC = () => {
                         </Typography>
                     </Grid>
                     <Grid item xs={12}>
-                        {mixnodeDetailInfo && (
+                        { mixnodeDetailInfo && (
                             <MixnodesTable mixnodes={mixnodeDetailInfo} />
                         )}
                     </Grid>
-
-                    <Grid item xs={12}>
+                    <Grid item xs={12} xl={9}>
                         <ContentCard title='Bond Breakdown'>
                             <BondBreakdownTable />
                         </ContentCard>
-                    </Grid>
-                    <Grid item xs={12} md={4}>
+                    </Grid>                   
+                </Grid>
+                <Grid container spacing={2} sx={{ marginTop: 1 }}>
+                    <Grid item xs={12} md={4} xl={3}>
                         <ContentCard title='Mixnode Stats'>
                             
                             <TwoColSmallTable
@@ -55,18 +58,18 @@ export const PageMixnodeDetail: React.FC = () => {
                             />
                         </ContentCard>
                     </Grid>
-
-
-                    <Grid item xs={12} md={8}>
-                        <ContentCard title='uptine story'>
-                            <p>I am the uptime story</p>
-                        </ContentCard>
+                    <Grid item xs={12} md={8} xl={9}>
+                            <ContentCard title='Uptime story'>
+                                <UptimeChart
+                                    xLabel='months'
+                                    yLabel='nodes'
+                                />
+                            </ContentCard>
                     </Grid>
-
-
+                </Grid>
+                <Grid container spacing={2} sx={{ marginTop: 1 }}>
                     <Grid item xs={12} md={4}>
                         <ContentCard title='Mixnode Status'>
-
                             <TwoColSmallTable
                                     icons
                                     keys={['Identity Key', 'Identity Key', 'Identity Key']}

@@ -7,7 +7,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import { TableHeadingsType, TableHeading } from 'src/typeDefs/tables';
-import { MixNodeResponseItem, MixNodeResponse, ApiState } from 'src/typeDefs/explorer-api';
+import { MixNodeResponse, ApiState, MixNodeResponseItem } from 'src/typeDefs/explorer-api';
 import { Link } from 'react-router-dom';
 
 const tableHeadings: TableHeadingsType = [
@@ -50,12 +50,9 @@ const tableHeadings: TableHeadingsType = [
 ]
 
 type TableProps = {
-    mixnodes: {
-        data?: MixNodeResponse
-        isLoading?: boolean
-        error?: Error
-    }
+    mixnodes: ApiState<MixNodeResponse>
 }
+
 export function MixnodesTable({ mixnodes }: TableProps) {
     if (mixnodes && mixnodes.data && mixnodes.data.length) {
         return (
@@ -69,9 +66,9 @@ export function MixnodesTable({ mixnodes }: TableProps) {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {mixnodes.data.map((row: MixNodeResponseItem, i: number) => (
+                        {mixnodes.data.map((row: MixNodeResponseItem) => (
                             <TableRow
-                                key={i}
+                                key={row.mix_node.identity_key}
                                 sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                             >
                                 <TableCell component='th' scope='row' sx={{ maxWidth: 250, wordBreak: 'break-all' }}>

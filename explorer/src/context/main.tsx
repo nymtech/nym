@@ -13,7 +13,7 @@ interface State {
   block?: ApiState<BlockResponse>
   countryData?: ApiState<CountryDataResponse>
   globalError?: string | undefined
-  mixnodeDetailInfo?: MixNodeResponseItem
+  mixnodeDetailInfo?: ApiState<MixNodeResponse>
   fetchMixnodeById: (arg: string) => void
 };
 
@@ -32,19 +32,19 @@ export const MainContextProvider: React.FC = ({ children }) => {
   const [validators, setValidators] = React.useState<ApiState<ValidatorsResponse>>();
   const [block, setBlock] = React.useState<ApiState<BlockResponse>>();
   const [countryData, setCountryData] = React.useState<ApiState<CountryDataResponse>>();
-  const [mixnodeDetailInfo, setMixnodeDetailInfo] = React.useState<MixNodeResponseItem>();
+  const [mixnodeDetailInfo, setMixnodeDetailInfo] = React.useState<ApiState<MixNodeResponse>>();
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
   const fetchMixnodeById = async (id: string) => {
     // 1. if mixnode data already exists filter down to this ID
     if (mixnodes && mixnodes.data) {
-      let matchedToID = mixnodes.data.filter((eachMixnode: MixNodeResponseItem) => {
+      const [matchedToID] = mixnodes.data.filter((eachMixnode: MixNodeResponseItem) => {
         return eachMixnode.mix_node.identity_key === id
       });
       // b) SUCCESS | if there *IS* a matched ID in mixnodes
-      if (matchedToID.length > 0) {
-        setMixnodeDetailInfo(matchedToID[0]);
+      if (matchedToID) {
+        setMixnodeDetailInfo({ data: [matchedToID], isLoading: false });
       }
       // b) FAIL | if there is no matching ID in mixnodes
       if (!matchedToID) {
@@ -55,7 +55,9 @@ export const MainContextProvider: React.FC = ({ children }) => {
       try {
         const data = await Api.fetchMixnodeByID(id)
         // a) fetches from cache^, then API, then filters down then dumps in `mixnodes` context.
-        setMixnodeDetailInfo(data);
+        if (data) {
+          setMixnodeDetailInfo({ data: [data], isLoading: false });
+        }
         // NOTE: Only returning mixnodes api info at the moment. Other `ping` api required also.
       } catch (error) {
         setGlobalError(MIXNODE_API_ERROR)

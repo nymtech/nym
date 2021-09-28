@@ -37,6 +37,7 @@ pub struct StateParams {
     pub mixnode_delegation_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
     pub gateway_delegation_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
     pub mixnode_active_set_size: u32,
+    pub gateway_active_set_size: u32,
 }
 
 impl Display for StateParams {
@@ -67,8 +68,13 @@ impl Display for StateParams {
         )?;
         write!(
             f,
-            "mixnode active set size: {} ]",
+            "mixnode active set size: {}",
             self.mixnode_active_set_size
+        )?;
+        write!(
+            f,
+            "gateway active set size: {} ]",
+            self.gateway_active_set_size
         )
     }
 }

@@ -1356,9 +1356,10 @@
   dependencies:
     "@napi-rs/triples" "^1.0.3"
 
-"@nymproject/nym-validator-client@0.17.0":
-  version "0.17.0"
-  resolved "https://registry.yarnpkg.com/@nymproject/nym-validator-client/-/nym-validator-client-0.17.0.tgz#b03af24295cbd2f1b94ffd0c38c5a493e994d111"
+"@nymproject/nym-validator-client@0.18.0":
+  version "0.18.0"
+  resolved "https://registry.yarnpkg.com/@nymproject/nym-validator-client/-/nym-validator-client-0.18.0.tgz#4dd72bafdf6c72b603242f32c0bb9a1f9e475b98"
+  integrity sha512-FO1T15S2BJVuMoPA2yOaH40aD3hKJPKJVyX5ix7eJEbBWIdsYNoVeVc/soHhaAU1FIy2uU0G/FZQkaUYJGGb7Q==
   dependencies:
     "@cosmjs/cosmwasm-stargate" "^0.25.5"
     "@cosmjs/math" "^0.25.5"

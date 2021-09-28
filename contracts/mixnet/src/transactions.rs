@@ -1658,6 +1658,7 @@ pub mod tests {
                 INITIAL_GATEWAY_DELEGATION_REWARD_RATE,
             ),
             mixnode_active_set_size: 42, // change something
+            gateway_active_set_size: 5,
         };
 
         // cannot be updated from non-owner account

@@ -10,9 +10,9 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
 };
-use mixnet_contract::{
-    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, RawDelegationData, StateParams,
-};
+use cosmwasm_storage::singleton_read;
+use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateParams};
+use serde::{Deserialize, Serialize};
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -29,6 +29,7 @@ pub const INITIAL_MIXNODE_DELEGATION_REWARD_RATE: u64 = 110;
 pub const INITIAL_GATEWAY_DELEGATION_REWARD_RATE: u64 = 110;
 
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
+pub const INITIAL_GATEWAY_ACTIVE_SET_SIZE: u32 = 20;
 
 fn default_initial_state(owner: Addr) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
@@ -48,6 +49,7 @@ fn default_initial_state(owner: Addr) -> State {
             mixnode_delegation_reward_rate,
             gateway_delegation_reward_rate,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+            gateway_active_set_size: INITIAL_GATEWAY_ACTIVE_SET_SIZE,
         },
         mixnode_epoch_bond_reward: calculate_epoch_reward_rate(
             INITIAL_DEFAULT_EPOCH_LENGTH,
@@ -207,69 +209,54 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(mut deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    use crate::storage::{
-        gateway_delegations, gateway_delegations_read, gateway_delegations_read_old, gateways_read,
-        mix_delegations, mix_delegations_read, mix_delegations_read_old, mixnodes_read,
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    #[derive(Serialize, Deserialize)]
+    struct OldStateParams {
+        epoch_length: u32,
+        minimum_mixnode_bond: Uint128,
+        minimum_gateway_bond: Uint128,
+        mixnode_bond_reward_rate: Decimal,
+        gateway_bond_reward_rate: Decimal,
+        mixnode_delegation_reward_rate: Decimal,
+        gateway_delegation_reward_rate: Decimal,
+        mixnode_active_set_size: u32,
+    }
+
+    // adding gateways active set
+    #[derive(Serialize, Deserialize)]
+    struct OldState {
+        owner: Addr,
+        network_monitor_address: Addr,
+        params: OldStateParams,
+        mixnode_epoch_bond_reward: Decimal,
+        gateway_epoch_bond_reward: Decimal,
+        mixnode_epoch_delegation_reward: Decimal,
+        gateway_epoch_delegation_reward: Decimal,
+    }
+
+    let old_state: OldState = singleton_read(deps.storage, b"config").load()?;
+
+    let new_state = State {
+        owner: old_state.owner,
+        network_monitor_address: old_state.network_monitor_address,
+        params: StateParams {
+            epoch_length: old_state.params.epoch_length,
+            minimum_mixnode_bond: old_state.params.minimum_mixnode_bond,
+            minimum_gateway_bond: old_state.params.minimum_gateway_bond,
+            mixnode_bond_reward_rate: old_state.params.mixnode_bond_reward_rate,
+            gateway_bond_reward_rate: old_state.params.gateway_bond_reward_rate,
+            mixnode_delegation_reward_rate: old_state.params.mixnode_delegation_reward_rate,
+            gateway_delegation_reward_rate: old_state.params.gateway_delegation_reward_rate,
+            mixnode_active_set_size: old_state.params.mixnode_active_set_size,
+            gateway_active_set_size: INITIAL_GATEWAY_ACTIVE_SET_SIZE,
+        },
+        mixnode_epoch_bond_reward: old_state.mixnode_epoch_bond_reward,
+        gateway_epoch_bond_reward: old_state.gateway_epoch_bond_reward,
+        mixnode_epoch_delegation_reward: old_state.mixnode_epoch_delegation_reward,
+        gateway_epoch_delegation_reward: old_state.gateway_epoch_delegation_reward,
     };
-    use crate::transactions::delegations;
-    use cosmwasm_std::{Order, StdResult};
-    use mixnet_contract::{GatewayBond, MixNodeBond};
 
-    // Read existing delegations data, drop invalid values, and rewrite delegations data with valid data only
-    fn overwrite_mixnode_delegations_data(
-        identity: &str,
-        deps: &mut DepsMut,
-    ) -> Result<(), ContractError> {
-        let delegations_bucket = mix_delegations_read(deps.storage, identity);
-        let old_delegations_bucket = mix_delegations_read_old(deps.storage, identity);
-        let mut delegations_vec = delegations(delegations_bucket)?;
-        let old_delegations = delegations::<Uint128>(old_delegations_bucket)?;
-        for delegation in old_delegations {
-            delegations_vec.push((delegation.0, RawDelegationData::new(delegation.1, 1)))
-        }
-
-        for (key, delegation) in delegations_vec {
-            mix_delegations(deps.storage, identity).save(&key, &delegation)?;
-        }
-        Ok(())
-    }
-
-    fn overwrite_gateway_delegations_data(
-        identity: &str,
-        deps: &mut DepsMut,
-    ) -> Result<(), ContractError> {
-        let delegations_bucket = gateway_delegations_read(deps.storage, identity);
-        let old_delegations_bucket = gateway_delegations_read_old(deps.storage, identity);
-        let mut delegations_vec = delegations(delegations_bucket)?;
-        let old_delegations = delegations::<Uint128>(old_delegations_bucket)?;
-        for delegation in old_delegations {
-            delegations_vec.push((delegation.0, RawDelegationData::new(delegation.1, 1)))
-        }
-
-        for (key, delegation) in delegations_vec {
-            gateway_delegations(deps.storage, identity).save(&key, &delegation)?;
-        }
-        Ok(())
-    }
-
-    let mixnet_bonds = mixnodes_read(deps.storage)
-        .range(None, None, Order::Ascending)
-        .map(|res| res.map(|item| item.1))
-        .collect::<StdResult<Vec<MixNodeBond>>>()?;
-
-    for bond in mixnet_bonds {
-        overwrite_mixnode_delegations_data(bond.identity(), &mut deps)?;
-    }
-
-    let gateway_bonds = gateways_read(deps.storage)
-        .range(None, None, Order::Ascending)
-        .map(|res| res.map(|item| item.1))
-        .collect::<StdResult<Vec<GatewayBond>>>()?;
-
-    for bond in gateway_bonds {
-        overwrite_gateway_delegations_data(bond.identity(), &mut deps)?;
-    }
+    config(deps.storage).save(&new_state)?;
 
     Ok(Default::default())
 }

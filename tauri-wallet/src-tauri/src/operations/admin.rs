@@ -20,6 +20,7 @@ pub struct TauriStateParams {
   mixnode_delegation_reward_rate: String,
   gateway_delegation_reward_rate: String,
   mixnode_active_set_size: u32,
+  gateway_active_set_size: u32,
 }
 
 impl From<StateParams> for TauriStateParams {
@@ -33,6 +34,7 @@ impl From<StateParams> for TauriStateParams {
       mixnode_delegation_reward_rate: p.mixnode_delegation_reward_rate.to_string(),
       gateway_delegation_reward_rate: p.gateway_delegation_reward_rate.to_string(),
       mixnode_active_set_size: p.mixnode_active_set_size,
+      gateway_active_set_size: p.gateway_active_set_size,
     }
   }
 }
@@ -50,6 +52,7 @@ impl TryFrom<TauriStateParams> for StateParams {
       mixnode_delegation_reward_rate: Decimal::from_str(p.mixnode_delegation_reward_rate.as_str())?,
       gateway_delegation_reward_rate: Decimal::from_str(p.gateway_delegation_reward_rate.as_str())?,
       mixnode_active_set_size: p.mixnode_active_set_size,
+      gateway_active_set_size: p.gateway_active_set_size,
     })
   }
 }

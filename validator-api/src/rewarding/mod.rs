@@ -170,7 +170,7 @@ impl Rewarder {
 
     /// Queries the smart contract in order to obtain the current list of bonded mixnodes and then
     /// for each mixnode determines how many delegators it has.
-    async fn produce_mixnode_delegators_map(
+    async fn produce_active_mixnode_delegators_map(
         &self,
     ) -> Result<HashMap<IdentityKey, usize>, RewardingError> {
         // Technically we could optimise it by creating a concurrent stream and executing multiple
@@ -189,8 +189,13 @@ impl Rewarder {
         // instantaneous.
         let mut map = HashMap::new();
 
-        let bonded_mixnodes = self.validator_cache.mixnodes().await.into_inner();
-        for mix in bonded_mixnodes.into_iter() {
+        let active_bonded_mixnodes = self
+            .validator_cache
+            .active_mixnodes()
+            .await
+            .ok_or(RewardingError::NoMixnodesToReward)?
+            .into_inner();
+        for mix in active_bonded_mixnodes.into_iter() {
             let delegator_count = self
                 .get_mixnode_delegators_count(mix.mix_node.identity_key.clone())
                 .await?;
@@ -202,14 +207,19 @@ impl Rewarder {
 
     /// Queries the smart contract in order to obtain the current list of bonded gateways and then
     /// for each gateway determines how many delegators it has.
-    async fn produce_gateway_delegators_map(
+    async fn produce_active_gateway_delegators_map(
         &self,
     ) -> Result<HashMap<IdentityKey, usize>, RewardingError> {
         // look at comments in `produce_mixnode_delegators_map` for some optimisation elaboration
         let mut map = HashMap::new();
 
-        let bonded_gateways = self.validator_cache.gateways().await.into_inner();
-        for gateway in bonded_gateways.into_iter() {
+        let active_bonded_gateways = self
+            .validator_cache
+            .active_gateways()
+            .await
+            .ok_or(RewardingError::NoGatewaysToReward)?
+            .into_inner();
+        for gateway in active_bonded_gateways.into_iter() {
             let delegator_count = self
                 .get_gateway_delegators_count(gateway.gateway.identity_key.clone())
                 .await?;
@@ -237,8 +247,8 @@ impl Rewarder {
     /// Given the list of mixnodes that were tested in the last epoch, tries to determine the
     /// subset that are eligible for any rewards.
     ///
-    /// As of right now, it is a rather straightforward process. It is only checked whether the node
-    /// is currently bonded and has uptime > 0.
+    /// As of right now, it is a rather straightforward process. It is checked whether the node
+    /// is currently bonded, has uptime > 0 and is part of the "active" set.
     /// Unlike the typescript rewards script, it currently does not look at the verloc data nor
     /// whether the non-mixing ports are open.
     ///
@@ -259,10 +269,10 @@ impl Rewarder {
         // and the lack of port data / verloc data will eventually be balanced out anyway
         // by people hesitating to delegate to nodes without them and thus those nodes disappearing
         // from the active set (once introduced)
-        let mixnode_delegators = self.produce_mixnode_delegators_map().await?;
+        let mixnode_delegators = self.produce_active_mixnode_delegators_map().await?;
 
         // 1. go through all active mixnodes
-        // 2. filter out nodes that are currently not bonded (as `mixnode_delegators` was obtained by
+        // 2. filter out nodes that are currently not in the active set (as `mixnode_delegators` was obtained by
         //    querying the validator)
         // 3. determine uptime and attach delegators count
         let eligible_nodes = active_mixnodes
@@ -286,8 +296,8 @@ impl Rewarder {
     /// Given the list of gateways that were tested in the last epoch, tries to determine the
     /// subset that are eligible for any rewards.
     ///
-    /// As of right now, it is a rather straightforward process. It is only checked whether the node
-    /// is currently bonded and has uptime > 0.
+    /// As of right now, it is a rather straightforward process. It is checked whether the node
+    /// is currently bonded, has uptime > 0 and is part of the "active" set.
     /// Unlike the typescript rewards script, it currently does not look at the non-mixing ports are open.
     ///
     /// The method also obtains the number of delegators towards the node in order to more accurately
@@ -301,7 +311,7 @@ impl Rewarder {
         &self,
         active_gateways: &[GatewayStatusReport],
     ) -> Result<Vec<GatewayToReward>, RewardingError> {
-        let gateway_delegators = self.produce_gateway_delegators_map().await?;
+        let gateway_delegators = self.produce_active_gateway_delegators_map().await?;
 
         let eligible_nodes = active_gateways
             .iter()
@@ -329,7 +339,7 @@ impl Rewarder {
     /// # Arguments
     ///
     /// * `epoch`: the specified epoch.
-    async fn get_active_nodes(
+    async fn get_active_monitor_nodes(
         &self,
         epoch: Epoch,
     ) -> Result<(Vec<MixnodeStatusReport>, Vec<GatewayStatusReport>), RewardingError> {
@@ -450,25 +460,29 @@ impl Rewarder {
     ///
     /// * `epoch_rewarding_id`: id of the current epoch rewarding.
     ///
-    /// * `active_mixnodes`: list of the nodes that were tested at least once by the network monitor
-    ///                      in the last epoch.
+    /// * `active_monitor_mixnodes`: list of the nodes that were tested at least once by the network monitor
+    ///                              in the last epoch.
     ///
-    /// * `active_gateways`: list of the nodes that were tested at least once by the network monitor
-    ///                      in the last epoch.
+    /// * `active_monitor_gateways`: list of the nodes that were tested at least once by the network monitor
+    ///                              in the last epoch.
     async fn distribute_rewards(
         &self,
         epoch_rewarding_id: i64,
-        active_mixnodes: &[MixnodeStatusReport],
-        active_gateways: &[GatewayStatusReport],
+        active_monitor_mixnodes: &[MixnodeStatusReport],
+        active_monitor_gateways: &[GatewayStatusReport],
     ) -> Result<(RewardingReport, Option<FailureData>), RewardingError> {
         let mut failure_data = FailureData::default();
 
-        let eligible_mixnodes = self.determine_eligible_mixnodes(active_mixnodes).await?;
+        let eligible_mixnodes = self
+            .determine_eligible_mixnodes(active_monitor_mixnodes)
+            .await?;
         if eligible_mixnodes.is_empty() {
             return Err(RewardingError::NoMixnodesToReward);
         }
 
-        let eligible_gateways = self.determine_eligible_gateways(active_gateways).await?;
+        let eligible_gateways = self
+            .determine_eligible_gateways(active_monitor_gateways)
+            .await?;
         if eligible_gateways.is_empty() {
             return Err(RewardingError::NoGatewaysToReward);
         }
@@ -718,7 +732,8 @@ impl Rewarder {
         );
 
         // get nodes that were active during the epoch
-        let (active_mixnodes, active_gateways) = self.get_active_nodes(epoch).await?;
+        let (active_monitor_mixnodes, active_monitor_gateways) =
+            self.get_active_monitor_nodes(epoch).await?;
 
         // insert information about beginning the procedure (so that if we crash during it,
         // we wouldn't attempt to possibly double reward operators)
@@ -728,7 +743,11 @@ impl Rewarder {
             .await?;
 
         let (report, failure_data) = self
-            .distribute_rewards(epoch_rewarding_id, &active_mixnodes, &active_gateways)
+            .distribute_rewards(
+                epoch_rewarding_id,
+                &active_monitor_mixnodes,
+                &active_monitor_gateways,
+            )
             .await?;
 
         self.storage
@@ -764,7 +783,11 @@ impl Rewarder {
                 "Updating historical daily uptimes of all nodes and purging old status reports..."
             );
             self.storage
-                .update_historical_uptimes(&epoch_iso_8601, &active_mixnodes, &active_gateways)
+                .update_historical_uptimes(
+                    &epoch_iso_8601,
+                    &active_monitor_mixnodes,
+                    &active_monitor_gateways,
+                )
                 .await?;
             self.storage.purge_old_statuses(two_days_ago).await?;
         }

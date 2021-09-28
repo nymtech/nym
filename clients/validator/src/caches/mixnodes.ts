@@ -1,13 +1,13 @@
-import { MixNodeBond } from "../types";
+import {MixNodeBond, PagedMixnodeResponse} from "../types";
 import { INetClient } from "../net-client"
 import {IQueryClient} from "../query-client";
-import {PagedMixnodeResponse, VALIDATOR_API_MIXNODES, VALIDATOR_API_PORT} from "../index";
+import {VALIDATOR_API_MIXNODES, VALIDATOR_API_PORT} from "../index";
 import axios from "axios";
 
 export { MixnodesCache };
 
 /**
- * There are serious limits in smart contract systems, but we need to keep track of 
+ * There are serious limits in smart contract systems, but we need to keep track of
  * potentially thousands of nodes. MixnodeCache instances repeatedly make requests for
  *  paged data about what mixnodes exist, and keep them locally in memory so that they're
  *  available for querying.

@@ -4,6 +4,7 @@ import { MixnodesTable } from '../../components/MixnodesTable';
 import { MainContext } from 'src/context/main';
 import { useParams } from 'react-router-dom';
 import { ContentCard } from 'src/components/ContentCard';
+import { WorldMap } from 'src/components/WorldMap';
 import { BondBreakdownTable } from 'src/components/BondBreakdown';
 import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
 import { UptimeChart } from 'src/components/UptimeChart';
@@ -36,7 +37,7 @@ export const PageMixnodeDetail: React.FC = () => {
                             Mixnode Detail
                         </Typography>
                     </Grid>
-                    <Grid item xs={12}>
+                    <Grid item xs={12} xl={9}>
                         { mixnodeDetailInfo && (
                             <MixnodesTable mixnodes={mixnodeDetailInfo} />
                         )}
@@ -47,8 +48,17 @@ export const PageMixnodeDetail: React.FC = () => {
                         </ContentCard>
                     </Grid>                   
                 </Grid>
-                <Grid container spacing={2} sx={{ marginTop: 1 }}>
-                    <Grid item xs={12} md={4} xl={3}>
+                <Grid 
+                    container
+                    spacing={2}
+                    sx={{ marginTop: 1 }}
+                    >
+                    <Grid
+                        item
+                        xs={12}
+                        md={4}
+                        xl={3}
+                    >
                         <ContentCard title='Mixnode Stats'>
                             
                             <TwoColSmallTable
@@ -61,10 +71,16 @@ export const PageMixnodeDetail: React.FC = () => {
                                 title='Since startup'
                                 keys={['Received', 'Sent', 'Explicitly dropped']}
                                 values={[1789, 1789, 1789]}
+                                marginBottom
                             />
                         </ContentCard>
                     </Grid>
-                    <Grid item xs={12} md={8} xl={9}>
+                    <Grid
+                        item
+                        xs={12}
+                        md={8}
+                        xl={6}
+                    >
                             <ContentCard title='Uptime story'>
                                 <UptimeChart
                                     xLabel='months'
@@ -74,7 +90,7 @@ export const PageMixnodeDetail: React.FC = () => {
                     </Grid>
                 </Grid>
                 <Grid container spacing={2} sx={{ marginTop: 1 }}>
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} md={4} xl={3}>
                         <ContentCard title='Mixnode Status'>
                             <TwoColSmallTable
                                     icons
@@ -82,6 +98,9 @@ export const PageMixnodeDetail: React.FC = () => {
                                     values={[1789, 1789, 1789]}
                                 />
                         </ContentCard>
+                    </Grid>
+                    <Grid item xs={12} md={8} xl={6}>    
+                        <WorldMap title='Location'/>
                     </Grid>
                 </Grid>
             </Box>

@@ -89,7 +89,7 @@ export const PageOverview: React.FC = () => {
           </Grid>
 
           <Grid item xs={12}>
-            <WorldMap />
+            <WorldMap title="Distribution of nodes around the world"/>
           </Grid>
         </Grid>
       </Box>

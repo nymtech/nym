@@ -5,9 +5,6 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
-// import { TableHeadingsType, TableHeading } from 'src/typeDefs/tables';
-// import { MixNodeResponseItem, MixNodeResponse, ApiState } from 'src/typeDefs/explorer-api';
-// import { Link } from 'react-router-dom';
 import CheckCircleSharpIcon from '@mui/icons-material/CheckCircleSharp';
 import { Typography } from '@mui/material';
 
@@ -30,19 +27,19 @@ export function TwoColSmallTable({ title, icons, keys, values }: TableProps) {
                     <Table aria-label='two col small table'>
                         <TableBody>
                             <TableRow>
-                                { icons && <TableCell sx={{ paddingLeft: 0 }}><CheckCircleSharpIcon /></TableCell>}
-                                <TableCell sx={{ paddingLeft: 0 }}>Received</TableCell>
-                                <TableCell sx={{ paddingLeft: 0 }}>1789</TableCell>
+                                { icons && <TableCell ><CheckCircleSharpIcon /></TableCell>}
+                                <TableCell >Received</TableCell>
+                                <TableCell >1789</TableCell>
                             </TableRow>
                             <TableRow>
-                                { icons && <TableCell sx={{ paddingLeft: 0 }}><CheckCircleSharpIcon /></TableCell>}
-                                <TableCell sx={{ paddingLeft: 0 }}>Sent</TableCell>
-                                <TableCell sx={{ paddingLeft: 0 }}>1789</TableCell>
+                                { icons && <TableCell ><CheckCircleSharpIcon /></TableCell>}
+                                <TableCell >Sent</TableCell>
+                                <TableCell >1789</TableCell>
                             </TableRow>
                             <TableRow>
-                                { icons && <TableCell sx={{ paddingLeft: 0 }}><CheckCircleSharpIcon /></TableCell>}
-                                <TableCell sx={{ paddingLeft: 0 }}>Explicitly dropped</TableCell>
-                                <TableCell sx={{ paddingLeft: 0 }}>1789</TableCell>
+                                { icons && <TableCell ><CheckCircleSharpIcon /></TableCell>}
+                                <TableCell >Explicitly dropped</TableCell>
+                                <TableCell >1789</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>

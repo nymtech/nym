@@ -10,45 +10,6 @@ import { TableHeadingsType, TableHeading } from 'src/typeDefs/tables';
 import { MixNodeResponseItem, MixNodeResponse, ApiState } from 'src/typeDefs/explorer-api';
 import { Link } from 'react-router-dom';
 
-const tableHeadings: TableHeadingsType = [
-    {
-        id: 'owner',
-        numeric: false,
-        disablePadding: true,
-        label: 'Owner',
-    },
-    {
-        id: 'id_key',
-        numeric: true,
-        disablePadding: false,
-        label: 'Identity Key',
-    },
-    {
-        id: 'bond',
-        numeric: true,
-        disablePadding: false,
-        label: 'Bond)',
-    },
-    {
-        id: 'ip_port',
-        numeric: true,
-        disablePadding: false,
-        label: 'IP:Port',
-    },
-    {
-        id: 'location',
-        numeric: true,
-        disablePadding: false,
-        label: 'Location',
-    },
-    {
-        id: 'layer',
-        numeric: true,
-        disablePadding: false,
-        label: 'Layer',
-    },
-]
-
 export function BondBreakdownTable() {
     
         return (
@@ -60,11 +21,11 @@ export function BondBreakdownTable() {
                             <TableCell align='left'>98676.24867PUNK</TableCell>
                         </TableRow>
                         <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }} align='left'>Pledge total</TableCell>
+                            <TableCell align='left'>Pledge total</TableCell>
                             <TableCell align='left'>98676.24867PUNK</TableCell>
                         </TableRow>
                         <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }} align='left'>Delegation total</TableCell>
+                            <TableCell align='left'>Delegation total</TableCell>
                             <TableCell align='left'>98676.24867PUNK</TableCell>
                         </TableRow>
                     </TableBody>

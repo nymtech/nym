@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
-use coconut_interface::Credential;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -63,15 +62,6 @@ struct FreshGatewayClientData {
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     gateway_response_timeout: Duration,
-
-    // I guess in the future this struct will require aggregated verification key and....
-    // ... something for obtaining actual credential
-
-    // TODO:
-    // SECURITY:
-    // since currently we have no double spending protection, just to get things running
-    // we're re-using the same credential for all gateways all the time. THIS IS VERY BAD!!
-    bandwidth_credential: Credential,
 }
 
 pub(crate) struct PacketSender {
@@ -93,7 +83,6 @@ impl PacketSender {
     pub(crate) fn new(
         gateways_status_updater: GatewayClientUpdateSender,
         local_identity: Arc<identity::KeyPair>,
-        bandwidth_credential: Credential,
         gateway_response_timeout: Duration,
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
@@ -105,7 +94,6 @@ impl PacketSender {
                 gateways_status_updater,
                 local_identity,
                 gateway_response_timeout,
-                bandwidth_credential,
             }),
             gateway_connection_timeout,
             max_concurrent_clients,
@@ -137,7 +125,6 @@ impl PacketSender {
                 message_sender,
                 ack_sender,
                 fresh_gateway_client_data.gateway_response_timeout,
-                fresh_gateway_client_data.bandwidth_credential.clone(),
             ),
             (message_receiver, ack_receiver),
         )

@@ -3281,9 +3281,7 @@ version = "0.11.0"
 dependencies = [
  "clap",
  "client-core",
- "coconut-interface",
  "config",
- "credentials",
  "crypto",
  "dirs",
  "dotenv",
@@ -3336,9 +3334,7 @@ name = "nym-gateway"
 version = "0.11.0"
 dependencies = [
  "clap",
- "coconut-interface",
  "config",
- "credentials",
  "crypto",
  "dashmap",
  "dirs",
@@ -3424,9 +3420,7 @@ version = "0.11.0"
 dependencies = [
  "clap",
  "client-core",
- "coconut-interface",
  "config",
- "credentials",
  "crypto",
  "dirs",
  "dotenv",
@@ -3457,9 +3451,7 @@ version = "0.11.0"
 dependencies = [
  "anyhow",
  "clap",
- "coconut-interface",
  "config",
- "credentials",
  "crypto",
  "dirs",
  "dotenv",

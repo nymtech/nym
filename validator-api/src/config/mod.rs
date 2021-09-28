@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use coconut_interface::{Base58, KeyPair};
 use config::defaults::{
     default_api_endpoints, DEFAULT_EPOCH_LENGTH, DEFAULT_FIRST_EPOCH_START,
     DEFAULT_MIXNET_CONTRACT_ADDRESS,
@@ -80,9 +79,6 @@ pub struct Base {
 
     /// Address of the validator contract managing the network
     mixnet_contract_address: String,
-
-    // Avoid breaking derives for now
-    keypair_bs58: String,
 }
 
 impl Default for Base {
@@ -92,7 +88,6 @@ impl Default for Base {
                 .parse()
                 .expect("default local validator is malformed!"),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
-            keypair_bs58: String::default(),
         }
     }
 }
@@ -254,10 +249,6 @@ impl Config {
         Config::default()
     }
 
-    pub fn keypair(&self) -> KeyPair {
-        KeyPair::try_from_bs58(self.base.keypair_bs58.clone()).unwrap()
-    }
-
     pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {
         self.network_monitor.enabled = enabled;
         self
@@ -295,11 +286,6 @@ impl Config {
 
     pub fn with_mnemonic<S: Into<String>>(mut self, mnemonic: S) -> Self {
         self.rewarding.mnemonic = mnemonic.into();
-        self
-    }
-
-    pub fn with_keypair<S: Into<String>>(mut self, keypair_bs58: S) -> Self {
-        self.base.keypair_bs58 = keypair_bs58.into();
         self
     }
 
@@ -391,6 +377,7 @@ impl Config {
         self.node_status_api.database_path.clone()
     }
 
+    #[allow(dead_code)]
     pub fn get_all_validator_api_endpoints(&self) -> Vec<Url> {
         self.network_monitor.all_validator_apis.clone()
     }

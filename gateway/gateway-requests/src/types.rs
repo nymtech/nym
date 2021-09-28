@@ -5,7 +5,6 @@ use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
 use crate::registration::handshake::SharedKeys;
 use crate::GatewayMacSize;
-use coconut_interface::Credential;
 use crypto::generic_array::typenum::Unsigned;
 use crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use crypto::symmetric::stream_cipher;
@@ -113,10 +112,6 @@ pub enum ClientControlRequest {
     },
     #[serde(alias = "handshakePayload")]
     RegisterHandshakeInitRequest { data: Vec<u8> },
-    BandwidthCredential {
-        enc_credential: Vec<u8>,
-        iv: Vec<u8>,
-    },
 }
 
 impl ClientControlRequest {
@@ -130,34 +125,6 @@ impl ClientControlRequest {
             enc_address: enc_address.to_base58_string(),
             iv: iv.to_base58_string(),
         }
-    }
-
-    pub fn new_enc_bandwidth_credential(
-        credential: &Credential,
-        shared_key: &SharedKeys,
-        iv: IV,
-    ) -> Option<Self> {
-        match bincode::serialize(credential) {
-            Ok(serialized_credential) => {
-                let enc_credential =
-                    shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
-
-                Some(ClientControlRequest::BandwidthCredential {
-                    enc_credential,
-                    iv: iv.to_bytes(),
-                })
-            }
-            _ => None,
-        }
-    }
-
-    pub fn try_from_enc_bandwidth_credential(
-        enc_credential: Vec<u8>,
-        shared_key: &SharedKeys,
-        iv: IV,
-    ) -> Result<Credential, GatewayRequestsError> {
-        let credential = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
-        bincode::deserialize(&credential).map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 }
 

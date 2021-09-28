@@ -16,7 +16,6 @@ use ::config::{defaults::DEFAULT_VALIDATOR_API_PORT, NymConfig};
 use anyhow::Result;
 use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
-use coconut::InternalSignRequest;
 use log::{info, warn};
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
@@ -32,7 +31,6 @@ use url::Url;
 use validator_client::nymd::SigningNymdClient;
 
 pub(crate) mod cache;
-mod coconut;
 pub(crate) mod config;
 mod network_monitor;
 mod node_status_api;
@@ -49,7 +47,6 @@ const DETAILED_REPORT_ARG: &str = "detailed-report";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const MNEMONIC_ARG: &str = "mnemonic";
 const WRITE_CONFIG_ARG: &str = "save-config";
-const KEYPAIR_ARG: &str = "keypair";
 const NYMD_VALIDATOR_ARG: &str = "nymd-validator";
 
 const EPOCH_LENGTH_ARG: &str = "epoch-length";
@@ -132,12 +129,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("specifies whether a config file based on provided arguments should be saved to a file")
                 .long(WRITE_CONFIG_ARG)
                 .short("w")
-        )
-        .arg(
-            Arg::with_name(KEYPAIR_ARG)
-                .help("Path to the secret key file")
-                .takes_value(true)
-                .long(KEYPAIR_ARG)
         )
         .arg(
             Arg::with_name(FIRST_REWARDING_EPOCH_ARG)
@@ -264,13 +255,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if matches.is_present(DETAILED_REPORT_ARG) {
         config = config.with_detailed_network_monitor_report(true)
     }
-    if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
-        let keypair_bs58 = std::fs::read_to_string(keypair_path)
-            .unwrap()
-            .trim()
-            .to_string();
-        config = config.with_keypair(keypair_bs58)
-    }
 
     if matches.is_present(WRITE_CONFIG_ARG) {
         info!("Saving the configuration to a file");
@@ -382,8 +366,7 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
     let rocket = rocket::custom(rocket_config)
         .attach(setup_cors()?)
         .attach(setup_liftoff_notify(liftoff_notify))
-        .attach(ValidatorCache::stage())
-        .attach(InternalSignRequest::stage(config.keypair()));
+        .attach(ValidatorCache::stage());
 
     // see if we should start up network monitor and if so, attach the node status api
     if config.get_network_monitor_enabled() {

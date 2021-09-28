@@ -1,10 +1,8 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::bandwidth::empty_bandwidth_database;
 use crate::node::client_handling::clients_handler::ClientsHandlerRequestSender;
 use crate::node::client_handling::websocket::connection_handler::Handle;
-use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
@@ -17,19 +15,13 @@ use tokio::task::JoinHandle;
 pub(crate) struct Listener {
     address: SocketAddr,
     local_identity: Arc<identity::KeyPair>,
-    aggregated_verification_key: VerificationKey,
 }
 
 impl Listener {
-    pub(crate) fn new(
-        address: SocketAddr,
-        local_identity: Arc<identity::KeyPair>,
-        aggregated_verification_key: VerificationKey,
-    ) -> Self {
+    pub(crate) fn new(address: SocketAddr, local_identity: Arc<identity::KeyPair>) -> Self {
         Listener {
             address,
             local_identity,
-            aggregated_verification_key,
         }
     }
 
@@ -47,8 +39,6 @@ impl Listener {
             }
         };
 
-        let bandwidths = empty_bandwidth_database();
-
         loop {
             match tcp_listener.accept().await {
                 Ok((socket, remote_addr)) => {
@@ -61,8 +51,6 @@ impl Listener {
                         clients_handler_sender.clone(),
                         outbound_mix_sender.clone(),
                         Arc::clone(&self.local_identity),
-                        self.aggregated_verification_key.clone(),
-                        Arc::clone(&bandwidths),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }

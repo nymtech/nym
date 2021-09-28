@@ -8,7 +8,6 @@ pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
-use coconut_interface::Credential;
 use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
@@ -36,8 +35,6 @@ const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
 pub struct GatewayClient {
     authenticated: bool,
-    // TODO: This should be replaced by an actual bandwidth value, with 0 meaning no bandwidth
-    has_bandwidth: bool,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
@@ -54,7 +51,6 @@ pub struct GatewayClient {
     reconnection_attempts: usize,
     /// Delay between each subsequent reconnection attempt.
     reconnection_backoff: Duration,
-    coconut_credential: Credential,
 }
 
 impl GatewayClient {
@@ -68,11 +64,9 @@ impl GatewayClient {
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
-        coconut_credential: Credential,
     ) -> Self {
         GatewayClient {
             authenticated: false,
-            has_bandwidth: false,
             gateway_address,
             gateway_identity,
             local_identity,
@@ -83,7 +77,6 @@ impl GatewayClient {
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
-            coconut_credential,
         }
     }
 
@@ -104,7 +97,6 @@ impl GatewayClient {
         gateway_address: String,
         gateway_identity: identity::PublicKey,
         local_identity: Arc<identity::KeyPair>,
-        coconut_credential: Credential,
         response_timeout_duration: Duration,
     ) -> Self {
         use futures::channel::mpsc;
@@ -117,7 +109,6 @@ impl GatewayClient {
 
         GatewayClient {
             authenticated: false,
-            has_bandwidth: false,
             gateway_address,
             gateway_identity,
             local_identity,
@@ -128,7 +119,6 @@ impl GatewayClient {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
-            coconut_credential,
         }
     }
 
@@ -456,41 +446,12 @@ impl GatewayClient {
         }
     }
 
-    pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError> {
-        if !self.authenticated {
-            return Err(GatewayClientError::NotAuthenticated);
-        }
-        if self.shared_key.is_none() {
-            return Err(GatewayClientError::NoSharedKeyAvailable);
-        }
-
-        let mut rng = OsRng;
-        let iv = IV::new_random(&mut rng);
-
-        let msg = ClientControlRequest::new_enc_bandwidth_credential(
-            &self.coconut_credential,
-            self.shared_key.as_ref().unwrap(),
-            iv,
-        )
-        .ok_or(GatewayClientError::SerializeCredential)?
-        .into();
-        self.has_bandwidth = match self.send_websocket_message(msg).await? {
-            ServerResponse::Bandwidth { status } => Ok(status),
-            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            _ => Err(GatewayClientError::UnexpectedResponse),
-        }?;
-        Ok(())
-    }
-
     pub async fn batch_send_mix_packets(
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), GatewayClientError> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
-        }
-        if !self.has_bandwidth {
-            return Err(GatewayClientError::NotEnoughBandwidth);
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -550,9 +511,6 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if !self.has_bandwidth {
-            return Err(GatewayClientError::NotEnoughBandwidth);
-        }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
@@ -598,9 +556,6 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if !self.has_bandwidth {
-            return Err(GatewayClientError::NotEnoughBandwidth);
-        }
         if self.connection.is_partially_delegated() {
             return Ok(());
         }
@@ -633,7 +588,6 @@ impl GatewayClient {
             self.establish_connection().await?;
         }
         let shared_key = self.perform_initial_authentication().await?;
-        self.claim_bandwidth().await?;
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

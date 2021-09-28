@@ -6,8 +6,6 @@ use crate::node::client_handling::clients_handler::{ClientsHandler, ClientsHandl
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::storage::{inboxes, ClientLedger};
-use coconut_interface::VerificationKey;
-use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
@@ -85,7 +83,6 @@ impl Gateway {
         &self,
         forwarding_channel: MixForwardingSender,
         clients_handler_sender: ClientsHandlerRequestSender,
-        verification_key: VerificationKey,
     ) {
         info!("Starting client [web]socket listener...");
 
@@ -94,12 +91,8 @@ impl Gateway {
             self.config.get_clients_port(),
         );
 
-        websocket::Listener::new(
-            listening_address,
-            Arc::clone(&self.identity),
-            verification_key,
-        )
-        .start(clients_handler_sender, forwarding_channel);
+        websocket::Listener::new(listening_address, Arc::clone(&self.identity))
+            .start(clients_handler_sender, forwarding_channel);
     }
 
     fn start_packet_forwarder(&self) -> MixForwardingSender {
@@ -183,13 +176,11 @@ impl Gateway {
                 }
             }
 
-            let validators_verification_key = obtain_aggregate_verification_key(&self.config.get_validator_api_endpoints()).await.expect("failed to contact validators to obtain their verification keys");
-
             let mix_forwarding_channel = self.start_packet_forwarder();
             let clients_handler_sender = self.start_clients_handler();
 
             self.start_mix_socket_listener(clients_handler_sender.clone(), mix_forwarding_channel.clone());
-            self.start_client_websocket_listener(mix_forwarding_channel, clients_handler_sender, validators_verification_key);
+            self.start_client_websocket_listener(mix_forwarding_channel, clients_handler_sender);
 
             info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

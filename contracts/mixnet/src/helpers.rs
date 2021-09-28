@@ -204,13 +204,49 @@ impl<'a, T: Clone + Serialize + DeserializeOwned> Iterator for Delegations<'a, T
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::queries::tests::store_n_mix_delegations;
     use crate::storage::{
         all_gateway_delegations_read, all_mix_delegations_read, gateway_delegations,
         mix_delegations,
     };
+    use crate::support::tests::helpers;
     use cosmwasm_std::testing::mock_dependencies;
     use mixnet_contract::RawDelegationData;
     use std::str::FromStr;
+
+    #[test]
+    fn delegations_iterator() {
+        let mut deps = helpers::init_contract();
+        let node_identity: IdentityKey = "foo".into();
+
+        store_n_mix_delegations(
+            2 * OLD_DELEGATIONS_CHUNK_SIZE as u32,
+            &mut deps.storage,
+            &node_identity,
+        );
+        let mix_bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
+        let mut delegations = Delegations::new(mix_bucket);
+        assert!(delegations.curr_delegations.is_empty());
+        assert_eq!(delegations.curr_index, OLD_DELEGATIONS_CHUNK_SIZE);
+        delegations.next().unwrap();
+        assert_eq!(
+            delegations.curr_delegations.len(),
+            OLD_DELEGATIONS_CHUNK_SIZE
+        );
+        assert_eq!(delegations.curr_index, 1);
+        for _ in 0..OLD_DELEGATIONS_CHUNK_SIZE {
+            delegations.next().unwrap();
+        }
+        assert_eq!(
+            delegations.curr_delegations.len(),
+            OLD_DELEGATIONS_CHUNK_SIZE
+        );
+        assert_eq!(delegations.curr_index, 1);
+        for _ in 0..OLD_DELEGATIONS_CHUNK_SIZE - 1 {
+            delegations.next().unwrap();
+        }
+        assert!(delegations.next().is_none());
+    }
 
     #[test]
     fn calculating_epoch_reward_rate() {

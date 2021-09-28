@@ -71,7 +71,7 @@ export const PageMixnodeDetail: React.FC = () => {
                             />
                             
                             <TwoColSmallTable
-                                title='Since startup'
+                                title='Since last update'
                                 keys={['Received', 'Sent', 'Explicitly dropped']}
                                 values={[1789, 1789, 1789]}
                                 marginBottom

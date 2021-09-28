@@ -27,21 +27,15 @@ export function TwoColSmallTable({ title, icons, keys, values, marginBottom }: T
                 <TableContainer component={Paper} sx={ marginBottom ? { marginBottom: 4, marginTop: 2 } : { marginTop: 2 }}>
                     <Table aria-label='two col small table'>
                         <TableBody>
-                            <TableRow>
-                                { icons && <TableCell ><CheckCircleSharpIcon /></TableCell>}
-                                <TableCell >Received</TableCell>
-                                <TableCell >1789</TableCell>
-                            </TableRow>
-                            <TableRow>
-                                { icons && <TableCell ><CheckCircleSharpIcon /></TableCell>}
-                                <TableCell >Sent</TableCell>
-                                <TableCell >1789</TableCell>
-                            </TableRow>
-                            <TableRow>
-                                { icons && <TableCell ><CheckCircleSharpIcon /></TableCell>}
-                                <TableCell >Explicitly dropped</TableCell>
-                                <TableCell >1789</TableCell>
-                            </TableRow>
+                            {keys.map((each: string, i: number) => {
+                                return (
+                                    <TableRow>
+                                        { icons && <TableCell ><CheckCircleSharpIcon /></TableCell>}
+                                        <TableCell>{each}</TableCell>
+                                        <TableCell>{values[i]}</TableCell>
+                                    </TableRow>
+                                )
+                            })}
                         </TableBody>
                     </Table>
                 </TableContainer>

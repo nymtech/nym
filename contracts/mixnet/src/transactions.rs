@@ -368,6 +368,10 @@ pub(crate) fn try_update_state_params(
     Ok(Response::default())
 }
 
+// Note: if any changes are made to this function or anything it is calling down the stack,
+// for example delegation reward distribution, the gas limits must be retested and both
+// validator-api/src/rewarding/mod.rs::{MIXNODE_REWARD_OP_BASE_GAS_LIMIT, PER_MIXNODE_DELEGATION_GAS_INCREASE}
+// must be updated appropriately.
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut,
     env: Env,
@@ -439,6 +443,10 @@ pub(crate) fn try_reward_mixnode(
     })
 }
 
+// Note: if any changes are made to this function or anything it is calling down the stack,
+// for example delegation reward distribution, the gas limits must be retested and both
+// validator-api/src/rewarding/mod.rs::{GATEWAY_REWARD_OP_BASE_GAS_LIMIT, PER_GATEWAY_DELEGATION_GAS_INCREASE}
+// must be updated appropriately.
 pub(crate) fn try_reward_gateway(
     deps: DepsMut,
     env: Env,
@@ -467,7 +475,7 @@ pub(crate) fn try_reward_gateway(
     }
 
     // check if the bond even exists
-    let mut current_bond = match gateways(deps.storage).load(gateway_identity.as_bytes()) {
+    let mut current_bond = match gateways_read(deps.storage).load(gateway_identity.as_bytes()) {
         Ok(bond) => bond,
         Err(_) => {
             return Ok(Response {
@@ -1596,6 +1604,7 @@ pub mod tests {
                 INITIAL_GATEWAY_DELEGATION_REWARD_RATE,
             ),
             mixnode_active_set_size: 42, // change something
+            gateway_active_set_size: 5,
         };
 
         // cannot be updated from non-owner account

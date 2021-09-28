@@ -7,7 +7,7 @@ import {
     PagedGatewayResponse, PagedMixDelegationsResponse,
     PagedMixnodeResponse,
     StateParams
-} from "./index";
+} from "./types";
 
 export interface IQueryClient {
     getBalance(address: string, stakeDenom: string): Promise<Coin | null>;

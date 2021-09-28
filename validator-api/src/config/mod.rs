@@ -3,11 +3,15 @@
 
 use crate::config::template::config_template;
 use coconut_interface::{Base58, KeyPair};
-use config::defaults::{default_api_endpoints, DEFAULT_MIXNET_CONTRACT_ADDRESS};
+use config::defaults::{
+    default_api_endpoints, DEFAULT_EPOCH_LENGTH, DEFAULT_FIRST_EPOCH_START,
+    DEFAULT_MIXNET_CONTRACT_ADDRESS,
+};
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use time::OffsetDateTime;
 use url::Url;
 
 mod template;
@@ -23,6 +27,7 @@ const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
 
 const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(60);
+const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -38,6 +43,9 @@ pub struct Config {
 
     #[serde(default)]
     topology_cacher: TopologyCacher,
+
+    #[serde(default)]
+    rewarding: Rewarding,
 }
 
 impl NymConfig for Config {
@@ -66,15 +74,12 @@ impl NymConfig for Config {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, default)]
 pub struct Base {
     local_validator: Url,
 
     /// Address of the validator contract managing the network
     mixnet_contract_address: String,
-
-    /// Mnemonic (currently of the network monitor) used for rewarding
-    mnemonic: String,
 
     // Avoid breaking derives for now
     keypair_bs58: String,
@@ -87,14 +92,13 @@ impl Default for Base {
                 .parse()
                 .expect("default local validator is malformed!"),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
-            mnemonic: String::default(),
             keypair_bs58: String::default(),
         }
     }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, default)]
 pub struct NetworkMonitor {
     /// Specifies whether network monitoring service is enabled in this process.
     enabled: bool,
@@ -175,7 +179,7 @@ impl Default for NetworkMonitor {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, default)]
 pub struct NodeStatusAPI {
     /// Path to the database file containing uptime statuses for all mixnodes and gateways.
     database_path: PathBuf,
@@ -196,7 +200,7 @@ impl Default for NodeStatusAPI {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, default)]
 pub struct TopologyCacher {
     #[serde(with = "humantime_serde")]
     caching_interval: Duration,
@@ -210,6 +214,41 @@ impl Default for TopologyCacher {
     }
 }
 
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct Rewarding {
+    /// Specifies whether rewarding service is enabled in this process.
+    enabled: bool,
+
+    /// Mnemonic (currently of the network monitor) used for rewarding
+    mnemonic: String,
+
+    /// Datetime of the first rewarding epoch of the current length used for referencing
+    /// starting time of any subsequent epoch.
+    first_rewarding_epoch: OffsetDateTime,
+
+    /// Current length of the epoch. If modified `first_rewarding_epoch` should also get changed.
+    #[serde(with = "humantime_serde")]
+    epoch_length: Duration,
+
+    /// Specifies the minimum percentage of monitor test run data present in order to
+    /// distribute rewards for given epoch.
+    /// Note, only values in range 0-100 are valid
+    minimum_epoch_monitor_threshold: u8,
+}
+
+impl Default for Rewarding {
+    fn default() -> Self {
+        Rewarding {
+            enabled: false,
+            mnemonic: String::default(),
+            first_rewarding_epoch: DEFAULT_FIRST_EPOCH_START,
+            epoch_length: DEFAULT_EPOCH_LENGTH,
+            minimum_epoch_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
+        }
+    }
+}
+
 impl Config {
     pub fn new() -> Self {
         Config::default()
@@ -219,12 +258,17 @@ impl Config {
         KeyPair::try_from_bs58(self.base.keypair_bs58.clone()).unwrap()
     }
 
-    pub fn enabled_network_monitor(mut self, enabled: bool) -> Self {
+    pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {
         self.network_monitor.enabled = enabled;
         self
     }
 
-    pub fn detailed_network_monitor_report(mut self, detailed: bool) -> Self {
+    pub fn with_rewarding_enabled(mut self, enabled: bool) -> Self {
+        self.rewarding.enabled = enabled;
+        self
+    }
+
+    pub fn with_detailed_network_monitor_report(mut self, detailed: bool) -> Self {
         self.network_monitor.print_detailed_report = detailed;
         self
     }
@@ -250,7 +294,7 @@ impl Config {
     }
 
     pub fn with_mnemonic<S: Into<String>>(mut self, mnemonic: S) -> Self {
-        self.base.mnemonic = mnemonic.into();
+        self.rewarding.mnemonic = mnemonic.into();
         self
     }
 
@@ -264,8 +308,27 @@ impl Config {
         self
     }
 
+    pub fn with_first_rewarding_epoch(mut self, first_epoch: OffsetDateTime) -> Self {
+        self.rewarding.first_rewarding_epoch = first_epoch;
+        self
+    }
+
+    pub fn with_epoch_length(mut self, epoch_length: Duration) -> Self {
+        self.rewarding.epoch_length = epoch_length;
+        self
+    }
+
+    pub fn with_minimum_epoch_monitor_threshold(mut self, threshold: u8) -> Self {
+        self.rewarding.minimum_epoch_monitor_threshold = threshold;
+        self
+    }
+
     pub fn get_network_monitor_enabled(&self) -> bool {
         self.network_monitor.enabled
+    }
+
+    pub fn get_rewarding_enabled(&self) -> bool {
+        self.rewarding.enabled
     }
 
     pub fn get_detailed_report(&self) -> bool {
@@ -289,7 +352,7 @@ impl Config {
     }
 
     pub fn get_mnemonic(&self) -> String {
-        self.base.mnemonic.clone()
+        self.rewarding.mnemonic.clone()
     }
 
     pub fn get_network_monitor_run_interval(&self) -> Duration {
@@ -330,5 +393,17 @@ impl Config {
 
     pub fn get_all_validator_api_endpoints(&self) -> Vec<Url> {
         self.network_monitor.all_validator_apis.clone()
+    }
+
+    pub fn get_first_rewarding_epoch(&self) -> OffsetDateTime {
+        self.rewarding.first_rewarding_epoch
+    }
+
+    pub fn get_epoch_length(&self) -> Duration {
+        self.rewarding.epoch_length
+    }
+
+    pub fn get_minimum_epoch_monitor_threshold(&self) -> u8 {
+        self.rewarding.minimum_epoch_monitor_threshold
     }
 }

@@ -236,6 +236,7 @@ impl NymClient {
         let topology_refresher_config = TopologyRefresherConfig::new(
             self.config.get_base().get_validator_api_endpoints(),
             self.config.get_base().get_topology_refresh_rate(),
+            env!("CARGO_PKG_VERSION").to_string(),
         );
         let mut topology_refresher =
             TopologyRefresher::new(topology_refresher_config, topology_accessor);

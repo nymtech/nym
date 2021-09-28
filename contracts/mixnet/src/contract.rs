@@ -10,10 +10,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
 };
-use mixnet_contract::{
-    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, RawDelegationData, StateParams,
-    UnpackedDelegation,
-};
+use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateParams};
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -30,6 +27,7 @@ pub const INITIAL_MIXNODE_DELEGATION_REWARD_RATE: u64 = 110;
 pub const INITIAL_GATEWAY_DELEGATION_REWARD_RATE: u64 = 110;
 
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
+pub const INITIAL_GATEWAY_ACTIVE_SET_SIZE: u32 = 20;
 
 fn default_initial_state(owner: Addr) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
@@ -49,6 +47,7 @@ fn default_initial_state(owner: Addr) -> State {
             mixnode_delegation_reward_rate,
             gateway_delegation_reward_rate,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+            gateway_active_set_size: INITIAL_GATEWAY_ACTIVE_SET_SIZE,
         },
         mixnode_epoch_bond_reward: calculate_epoch_reward_rate(
             INITIAL_DEFAULT_EPOCH_LENGTH,
@@ -219,6 +218,7 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
         all_gateway_delegations_read, all_mix_delegations_read, gateway_delegations,
         mix_delegations, reverse_gateway_delegations, reverse_mix_delegations,
     };
+    use mixnet_contract::{RawDelegationData, UnpackedDelegation};
 
     let mix_bucket = all_mix_delegations_read::<Uint128>(deps.storage);
     let delegations = Delegations::new(mix_bucket).collect::<Vec<UnpackedDelegation<Uint128>>>();

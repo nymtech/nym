@@ -84,7 +84,8 @@ export default function Admin() {
             mixnode_delegation_reward_rate: event.target.mix_delegation_reward.value,
             gateway_delegation_reward_rate: event.target.gateway_delegation_reward.value,
             epoch_length: parseInt(event.target.epoch_length.value),
-            mixnode_active_set_size: parseInt(event.target.active_set.value),
+            mixnode_active_set_size: parseInt(event.target.mixnode_active_set.value),
+            gateway_active_set_size: parseInt(event.target.gateway_active_set.value),
         };
         setUpdatingState(true)
         await client.updateStateParams(newState)

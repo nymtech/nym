@@ -10,6 +10,7 @@ use cosmrs::tx::SignDoc;
 use cosmrs::{tx, AccountId};
 
 /// Derivation information required to derive a keypair and an address from a mnemonic.
+#[derive(Debug)]
 struct Secp256k1Derivation {
     hd_path: DerivationPath,
     prefix: String,
@@ -23,8 +24,23 @@ pub struct AccountData {
     pub(crate) private_key: SigningKey,
 }
 
+impl AccountData {
+    pub fn address(&self) -> &AccountId {
+        &self.address
+    }
+
+    pub fn public_key(&self) -> PublicKey {
+        self.public_key
+    }
+
+    pub fn private_key(&self) -> &SigningKey {
+        &self.private_key
+    }
+}
+
 type Secp256k1Keypair = (SigningKey, PublicKey);
 
+#[derive(Debug)]
 pub struct DirectSecp256k1HdWallet {
     /// Base secret
     secret: bip39::Mnemonic,

@@ -27,7 +27,7 @@ const tableHeadings: TableHeadingsType = [
         id: 'bond',
         numeric: true,
         disablePadding: false,
-        label: 'Bond)',
+        label: 'Bond',
     },
     {
         id: 'ip_port',

@@ -7,8 +7,10 @@ import { ContentCard } from 'src/components/ContentCard';
 import { BondBreakdownTable } from 'src/components/BondBreakdown';
 import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
 import { UptimeChart } from 'src/components/UptimeChart';
+import { scrollToRef } from 'src/utils';
 
 export const PageMixnodeDetail: React.FC = () => {
+    const ref = React.useRef();
     const { fetchMixnodeById, mixnodeDetailInfo } = React.useContext(MainContext);
     let { id }: any = useParams();
 
@@ -20,9 +22,13 @@ export const PageMixnodeDetail: React.FC = () => {
         }
     }, [id, fetchMixnodeById]);
 
+    React.useEffect(() => {
+        scrollToRef(ref);
+    }, [ref])
+
     return (
         <>
-            <Box component='main' sx={{ flexGrow: 1 }}>
+            <Box component='main' sx={{ flexGrow: 1 }} ref={ref}>
                 
                 <Grid container spacing={2}>
                     <Grid item xs={12}>

@@ -10,12 +10,32 @@ import Paper from '@mui/material/Paper';
 import { TableHeadingsType, TableHeading } from 'src/typeDefs/tables';
 import { MixNodeResponseItem, MixNodeResponse, ApiState } from 'src/typeDefs/explorer-api';
 import { Link } from 'react-router-dom';
+import { MainContext } from 'src/context/main';
 
 export function BondBreakdownTable() {
-    
+        const { mixnodeDetailInfo } = React.useContext(MainContext);
+        const [ bonds, setBonds ] = React.useState({
+            delegations: 0,
+            pledges: 0,
+            bondsTotal: 0,
+            denom: 'PUNK',
+        })
         const theme = useTheme();
         const matches = useMediaQuery(theme.breakpoints.down("sm"));
         
+        React.useEffect(() => {
+            if(mixnodeDetailInfo && mixnodeDetailInfo.data?.length) {
+                const delegations = Number(mixnodeDetailInfo?.data[0]?.total_delegation.amount);
+                const pledges = Number(mixnodeDetailInfo?.data[0]?.bond_amount.amount);
+                const bondsTotal = delegations + pledges;
+                setBonds({
+                    delegations,
+                    pledges,
+                    bondsTotal,
+                    denom: mixnodeDetailInfo?.data[0]?.total_delegation.denom.toUpperCase()
+                });
+            }
+        }, [mixnodeDetailInfo])
         return (
             <>
             <TableContainer component={Paper}>
@@ -31,29 +51,35 @@ export function BondBreakdownTable() {
                             >
                                 Bond total
                             </TableCell>
-                            <TableCell align='left'>98676.24867PUNK</TableCell>
+                            <TableCell align='left'>
+                                {bonds.bondsTotal}{bonds.denom}
+                            </TableCell>
                         </TableRow>
                         <TableRow>
-                        <TableCell
-                                sx={{
-                                    width: matches ? '90px' : 'auto',
-                                }}
-                                align='left'
-                            >
-                            Pledge total
-                        </TableCell>
-                        <TableCell align='left'>98676.24867PUNK</TableCell>
+                            <TableCell
+                                    sx={{
+                                        width: matches ? '90px' : 'auto',
+                                    }}
+                                    align='left'
+                                >
+                                Pledge total
+                            </TableCell>
+                            <TableCell align='left'>
+                                {bonds.pledges}{bonds.denom}
+                            </TableCell>
                         </TableRow>
                         <TableRow>
-                        <TableCell
-                                sx={{
-                                    width: matches ? '90px' : 'auto',
-                                }}
-                                align='left'
-                            >
-                                Delegation total
-                        </TableCell>
-                        <TableCell align='left'>98676.24867PUNK</TableCell>
+                            <TableCell
+                                    sx={{
+                                        width: matches ? '90px' : 'auto',
+                                    }}
+                                    align='left'
+                                >
+                                    Delegation total
+                            </TableCell>
+                            <TableCell align='left'>
+                              {bonds.delegations}{bonds.denom}
+                            </TableCell>
                         </TableRow>
                     </TableBody>
                 </Table>

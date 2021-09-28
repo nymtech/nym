@@ -1,111 +1,76 @@
-import React, { useEffect, useState } from 'react';
-import { geoEqualEarth, geoPath } from 'd3-geo';
-import { feature } from 'topojson-client';
-import { Feature, FeatureCollection, Geometry } from 'geojson';
-// import './styles.css';
+import React from 'react';
+import { scaleLinear } from 'd3-scale';
+import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
+import ReactTooltip from 'react-tooltip';
+import { Box } from '@mui/material';
+import { MainContext } from '../context/main';
+import { ContentCard } from './ContentCard';
 
-const uuid = require('react-uuid');
-
-const cx = 400;
-const cy = 150;
+const geoUrl =
+  'https://raw.githubusercontent.com/zcreativelabs/react-simple-maps/master/topojson-maps/world-110m.json';
 
 export const WorldMap: React.FC = () => {
-  const [geographies, setGeographies] = useState<
-    [] | Array<Feature<Geometry | null>>
-  >([]);
+  const [tooltipContent, setTooltipContent] = React.useState<string | null>(null);
+  const { mode, countryData } = React.useContext(MainContext);
 
-  const [scale, setScale] = useState<number>(200);
-  const [windowResizing, setWindowResizing] = useState<boolean>(false);
-
-  const projection = geoEqualEarth()
-    .scale(scale)
-    .translate([cx, cy])
-    .rotate([0, 0]);
-
-  const fetchGeographicData = (): void => {
-    fetch('/data/world-110m.json').then((response) => {
-      if (response.status !== 200) {
-        console.log('Houston, we have a problem');
-        return;
-      }
-      response.json().then((worldData) => {
-        const mapFeatures: Array<Feature<Geometry | null>> = (
-          feature(
-            worldData,
-            worldData.objects.countries,
-          ) as unknown as FeatureCollection
-        ).features;
-        setGeographies(mapFeatures);
-      });
-    });
-  };
-
-  const renderMap = () => {
-    console.log('render the map...');
-  };
-
-  useEffect(() => {
-    fetchGeographicData();
-    renderMap();
-  }, []);
-
-  useEffect(() => {
-    let timeout: any;
-    const handleResize = () => {
-      clearTimeout(timeout);
-
-      setWindowResizing(true);
-
-      timeout = setTimeout(() => {
-        setWindowResizing(false);
-      }, 200);
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    if (!windowResizing) {
-      const n = window.innerWidth;
-      if (n < 830) {
-        console.log('tablet/mobile now');
-        setScale(150);
-      }
-      if (n > 829 && n < 1300) {
-        console.log('laptop now');
-        setScale(200);
-      }
-      if (n > 1300) {
-        console.log('Large Desktop now');
-        setScale(240);
-      }
-    }
-  }, [windowResizing]);
+  const colorScale: any = scaleLinear()
+    .domain([0, 1200])
+    // @ts-ignore
+    .range(mode === 'dark' ? ['#ffedea', '#ff5233'] : ['orange', 'red']);
 
   return (
-    <div data-testid="worldMap__container" className="worldMap__container">
-      <h1>Mixnodes Around the Globe</h1>
-      <svg
-        width={scale * 4}
-        height={scale * 4}
-        viewBox={window.innerWidth < 600 ? '100 0 750 350' : '0 0 800 450'}
-        data-testid="svg"
-      >
-        <g>
-          {(geographies as []).map((d, i) => (
-            <path
-              key={`path-${uuid()}`}
-              d={geoPath().projection(projection)(d) as string}
-              fill={`rgba(38,50,56,${
-                (1 / (geographies ? geographies.length : 0)) * i
-              })`}
-              stroke="aliceblue"
-              strokeWidth={0.5}
-            />
-          ))}
-        </g>
-      </svg>
-    </div>
+    <ContentCard title="Distribution of nodes around the world">
+      <Box>
+        <ComposableMap
+          data-tip=""
+          style={{
+            backgroundColor:
+              mode === 'dark'
+                ? 'rgba(50, 60, 81, 1)'
+                : 'rgba(241, 234, 234, 1)',
+          }}
+          projectionConfig={{
+            rotate: [-10, 0, 0],
+            scale: 187,
+          }}
+        >
+          {countryData && countryData.data && (
+            <Geographies geography={geoUrl}>
+              {({ geographies }: any) =>
+                geographies.map((geo: any) => {
+                  // @ts-ignore
+                  const d = countryData && countryData.data && countryData.data.find((s) => s.ISO3 === geo.properties.ISO_A3);
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      // @ts-ignore
+                      fill={d ? colorScale(d.nodes) : '#F5F4F6'}
+                      onMouseEnter={() => {
+                        const { NAME_LONG } = geo.properties;
+                        setTooltipContent(
+                          // @ts-ignore
+                          `${NAME_LONG} | ${d?.nodes || 0}`,
+                        );
+                      }}
+                      onMouseLeave={() => {
+                        setTooltipContent('');
+                      }}
+                      style={{
+                        hover: {
+                          fill: 'black',
+                          outline: 'white',
+                        },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+          )}
+        </ComposableMap>
+        <ReactTooltip>{tooltipContent}</ReactTooltip>
+      </Box>
+    </ContentCard>
   );
 };

@@ -49,13 +49,6 @@ const tableHeadings: TableHeadingsType = [
     },
 ]
 
-type TableProps = {
-    mixnodes: {
-        data?: MixNodeResponse
-        isLoading?: boolean
-        error?: Error
-    }
-}
 export function BondBreakdownTable() {
     
         return (

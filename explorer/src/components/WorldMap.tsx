@@ -2,14 +2,19 @@ import React from 'react';
 import { scaleLinear } from 'd3-scale';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
-import { Box } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { MainContext } from '../context/main';
 import { ContentCard } from './ContentCard';
 
 const geoUrl =
   'https://raw.githubusercontent.com/zcreativelabs/react-simple-maps/master/topojson-maps/world-110m.json';
 
-export const WorldMap: React.FC = () => {
+type MapProps = {
+ title?: string 
+}
+
+export const WorldMap: React.FC<MapProps> = ({ title }) => {
+
   const [tooltipContent, setTooltipContent] = React.useState<string | null>(null);
   const { mode, countryData } = React.useContext(MainContext);
 
@@ -19,7 +24,7 @@ export const WorldMap: React.FC = () => {
     .range(mode === 'dark' ? ['#ffedea', '#ff5233'] : ['orange', 'red']);
 
   return (
-    <ContentCard title="Distribution of nodes around the world">
+    <ContentCard title={title}>
       <Box>
         <ComposableMap
           data-tip=""
@@ -31,7 +36,8 @@ export const WorldMap: React.FC = () => {
           }}
           projectionConfig={{
             rotate: [-10, 0, 0],
-            scale: 187,
+            scale: 180,
+            // scale: size === 'lg' ? 187 : 100,
           }}
         >
           {countryData && countryData.data && (

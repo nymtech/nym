@@ -13,9 +13,10 @@ interface TableProps {
     icons?: boolean
     keys: string[]
     values: number[]
+    marginBottom?: boolean
 }
 
-export function TwoColSmallTable({ title, icons, keys, values }: TableProps) {
+export function TwoColSmallTable({ title, icons, keys, values, marginBottom }: TableProps) {
         return (
             <>
                 {title && (
@@ -23,7 +24,7 @@ export function TwoColSmallTable({ title, icons, keys, values }: TableProps) {
                         {title}
                     </Typography>
                 )}
-                <TableContainer component={Paper} sx={{ marginBottom: 4, marginTop: 2 }}>
+                <TableContainer component={Paper} sx={ marginBottom ? { marginBottom: 4, marginTop: 2 } : { marginTop: 2 }}>
                     <Table aria-label='two col small table'>
                         <TableBody>
                             <TableRow>

@@ -29,7 +29,10 @@ export const PageMixnodeDetail: React.FC = () => {
 
     return (
         <>
-            <Box component='main' sx={{ flexGrow: 1 }} ref={ref}>
+            <Box 
+                component='main'
+                ref={ref}
+            >
                 
                 <Grid container spacing={2}>
                     <Grid item xs={12}>

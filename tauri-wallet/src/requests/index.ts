@@ -10,6 +10,7 @@ import {
   TauriStateParams,
   TauriTxResult,
   TCreateAccount,
+  TDelegation,
   TSignInWithMnemonic,
 } from '../types'
 
@@ -83,3 +84,9 @@ export const getContractParams = async (): Promise<TauriStateParams> =>
 export const setContractParams = async (
   params: TauriStateParams
 ): Promise<TauriStateParams> => await invoke('update_state_params', { params })
+
+export const getReverseMixDelegations = async (): Promise<TDelegation> =>
+  await invoke('get_reverse_mix_delegations_paged')
+
+export const getReverseGatewayDelegations = async (): Promise<TDelegation> =>
+  await invoke('get_reverse_gateway_delegations_paged')

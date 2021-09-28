@@ -72,10 +72,10 @@ if (process.env.NODE_ENV) {
 const useStyles = makeStyles((theme: Theme) => ({
   navItem: {
     color: '#fff',
-    fontSize: 24,
+    fontSize: 20,
   },
   selected: {
-    color: theme.palette.primary.main,
+    color: theme.palette.primary.light,
   },
 }))
 

@@ -21,7 +21,7 @@ fn total_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> S
     Ok(Coin::new(
         Delegations::new(delegations_bucket)
             .fold(0, |acc, x| acc + x.delegation_data.amount.u128()),
-        "upunk",
+        DENOM,
     ))
 }
 

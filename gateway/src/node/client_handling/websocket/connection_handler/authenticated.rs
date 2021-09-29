@@ -38,6 +38,9 @@ enum RequestHandlingError {
     #[error("Provided bandwidth credential did not have expected structure - {0}")]
     BandwidthCredentialError(#[from] credentials::error::Error),
 
+    #[error("Provided bandwidth credential asks for more bandwidth than it is supported to add at once (credential value: {0}, supported: {}). Try to split it before attempting again", i64::MAX)]
+    UnsupportedBandwidthValue(u64),
+
     #[error("The received request is not valid in the current context")]
     IllegalRequest,
 }
@@ -169,13 +172,16 @@ where
         }
 
         let bandwidth = Bandwidth::try_from(credential)?;
-        let mut bandwidth_value = bandwidth.value();
+        let bandwidth_value = bandwidth.value();
+
         if bandwidth_value > i64::MAX as u64 {
             // note that this would have represented more than 1 exabyte,
             // which is like 125,000 worth of hard drives so I don't think we have
             // to worry about it for now...
-            warn!("Somehow we received bandwidth value higher than 9223372036854775807. Going to cap it at that amount.");
-            bandwidth_value = i64::MAX as u64;
+            warn!("Somehow we received bandwidth value higher than 9223372036854775807. We don't really want to deal with this now");
+            return Err(RequestHandlingError::UnsupportedBandwidthValue(
+                bandwidth_value,
+            ));
         }
 
         self.increase_bandwidth(bandwidth_value as i64).await?;

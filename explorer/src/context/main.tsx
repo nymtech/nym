@@ -61,7 +61,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
         // NOTE: Only returning mixnodes api info at the moment. Other `ping` api required also.
       } catch (error) {
         setGlobalError(MIXNODE_API_ERROR)
-      } 
+      }
     }
   }
   const fetchMixnodes = async () => {

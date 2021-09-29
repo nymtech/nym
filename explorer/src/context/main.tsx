@@ -11,6 +11,7 @@ import {
   MixNodeResponseItem,
   MixNode,
   DelegationsResponse,
+  StatsResponse,
 } from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
 
@@ -27,9 +28,16 @@ interface State {
   fetchMixnodeById: (arg: string) => void
   fetchDelegationsById: (arg: string) => void
   delegations?: ApiState<DelegationsResponse>
-};
+  stats?: ApiState<StatsResponse>
+  fetchStatsById: (arg: string) => void
+}
 
-export const MainContext = React.createContext<State>({ mode: "dark", fetchMixnodeById: () => null, fetchDelegationsById: () => null });
+export const MainContext = React.createContext<State>({ 
+  mode: "dark",
+  fetchMixnodeById: () => null,
+  fetchDelegationsById: () => null,
+  fetchStatsById: () => null,
+});
 
 export const MainContextProvider: React.FC = ({ children }) => {
   // light/dark mode
@@ -38,7 +46,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
   // global / banner error messaging
   const [globalError,  setGlobalError] = React.useState<string>();
 
-  // various APIs for cards on Overview
+  // various APIs for Overview page
   const [mixnodes, setMixnodes] = React.useState<ApiState<MixNodeResponse>>();
   const [gateways, setGateways] = React.useState<ApiState<GatewayResponse>>();
   const [validators, setValidators] = React.useState<ApiState<ValidatorsResponse>>();
@@ -46,8 +54,9 @@ export const MainContextProvider: React.FC = ({ children }) => {
   const [countryData, setCountryData] = React.useState<ApiState<CountryDataResponse>>();
   const [mixnodeDetailInfo, setMixnodeDetailInfo] = React.useState<ApiState<MixNodeResponse>>();
 
-  // various APIs for cards on Detail page
+  // various APIs for Detail page
   const [delegations, setDelegations] = React.useState<ApiState<DelegationsResponse>>();
+  const [stats, setStats] = React.useState<ApiState<StatsResponse>>();
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
@@ -58,6 +67,18 @@ export const MainContextProvider: React.FC = ({ children }) => {
       setDelegations({ data, isLoading: false })
     } catch (error) {
       setDelegations({
+        error: error instanceof Error ? error : new Error("Delegations api fail"),
+        isLoading: false
+      });
+    }
+  }
+
+  const fetchStatsById = async (id: string) => {
+    try {
+      const data = await Api.fetchStatsById(id);
+      setStats({ data, isLoading: false })
+    } catch (error) {
+      setStats({
         error: error instanceof Error ? error : new Error("Delegations api fail"),
         isLoading: false
       });
@@ -177,6 +198,8 @@ export const MainContextProvider: React.FC = ({ children }) => {
         fetchMixnodeById,
         fetchDelegationsById,
         delegations,
+        stats,
+        fetchStatsById,
       }}
     >
       {children}

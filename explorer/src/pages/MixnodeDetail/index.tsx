@@ -16,6 +16,8 @@ export const PageMixnodeDetail: React.FC = () => {
         fetchMixnodeById,
         mixnodeDetailInfo,
         fetchDelegationsById,
+        fetchStatsById,
+        stats
     } = React.useContext(MainContext);
     let { id }: any = useParams();
 
@@ -28,6 +30,7 @@ export const PageMixnodeDetail: React.FC = () => {
             fetchMixnodeById(id)
             // 2. delegations for Bond breakdown table: owner, amount, block_height
             fetchDelegationsById(id)
+            fetchStatsById(id)
         }
     }, [id, mixnodeDetailInfo]);
 
@@ -41,7 +44,6 @@ export const PageMixnodeDetail: React.FC = () => {
                 component='main'
                 ref={ref}
             >
-                
                 <Grid container spacing={2}>
                     <Grid item xs={12}>
                         <Typography>
@@ -70,21 +72,36 @@ export const PageMixnodeDetail: React.FC = () => {
                         md={4}
                         xl={3}
                     >
-                        <ContentCard title='Mixnode Stats'>
-                            
-                            <TwoColSmallTable
-                                title='Since startup'
-                                keys={['Received', 'Sent', 'Explicitly dropped']}
-                                values={[1789, 1789, 1789]}
-                            />
-                            
-                            <TwoColSmallTable
-                                title='Since last update'
-                                keys={['Received', 'Sent', 'Explicitly dropped']}
-                                values={[1789, 1789, 1789]}
-                                marginBottom
-                            />
-                        </ContentCard>
+
+                        { stats && stats.data && (
+                            <ContentCard title='Mixnode Stats'>
+                                
+                                <TwoColSmallTable
+                                    title='Since startup'
+                                    keys={['Received', 'Sent', 'Explicitly dropped']}
+                                    values={
+                                        [ 
+                                            stats?.data?.packets_received_since_startup,
+                                            stats?.data?.packets_sent_since_startup,
+                                            stats?.data?.packets_explicitly_dropped_since_startup
+                                        ]
+                                    }
+                                />
+                                
+                                <TwoColSmallTable
+                                    title='Since last update'
+                                    keys={['Received', 'Sent', 'Explicitly dropped']}
+                                    values={
+                                        [ 
+                                            stats?.data?.packets_received_since_last_update,
+                                            stats?.data?.packets_sent_since_last_update,
+                                            stats?.data?.packets_explicitly_dropped_since_last_update
+                                        ]
+                                    }
+                                    marginBottom
+                                />
+                            </ContentCard>
+                        )}
                     </Grid>
                     <Grid
                         item

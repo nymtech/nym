@@ -5,9 +5,18 @@ import {
   BLOCK_API,
   COUNTRY_DATA_API,
   DELEGATIONS_API,
+  MIXNODE_STATS_API,
 } from './constants';
 
-import { MixNodeResponse, GatewayResponse, ValidatorsResponse, CountryDataResponse, MixNodeResponseItem, DelegationsResponse } from '../typeDefs/explorer-api'
+import { 
+  MixNodeResponse,
+  GatewayResponse,
+  ValidatorsResponse,
+  CountryDataResponse,
+  MixNodeResponseItem,
+  DelegationsResponse,
+  StatsResponse,
+} from '../typeDefs/explorer-api'
 
 function getFromCache(key: string) {
   const ts = Number(localStorage.getItem('ts'));
@@ -79,6 +88,10 @@ export class Api {
 
   static fetchDelegationsById = async (id: string): Promise<DelegationsResponse> => {
     const res = await fetch(`${DELEGATIONS_API}/${id}/delegations`);
+    return await res.json();
+  }
+  static fetchStatsById = async (id: string): Promise<StatsResponse> => {
+    const res = await fetch(`${MIXNODE_STATS_API}/${id}/stats`);
     return await res.json();
   }
 }

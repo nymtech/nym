@@ -29,7 +29,7 @@ export function TwoColSmallTable({ title, icons, keys, values, marginBottom }: T
                         <TableBody>
                             {keys.map((each: string, i: number) => {
                                 return (
-                                    <TableRow>
+                                    <TableRow key={i}>
                                         { icons && <TableCell ><CheckCircleSharpIcon /></TableCell>}
                                         <TableCell>{each}</TableCell>
                                         <TableCell>{values[i]}</TableCell>

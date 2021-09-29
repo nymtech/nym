@@ -66,7 +66,7 @@ export function MixnodesTable({ mixnodes }: TableProps) {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {mixnodes.data.map((row: MixNodeResponseItem) => (
+                        {mixnodes.data.slice(0,6).map((row: MixNodeResponseItem) => (
                             <TableRow
                                 key={row.mix_node.identity_key}
                                 sx={{ '&:last-child td, &:last-child th': { border: 0 } }}

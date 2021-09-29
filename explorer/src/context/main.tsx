@@ -1,7 +1,17 @@
 import { PaletteMode } from '@mui/material';
 import * as React from 'react';
 import { MIXNODE_API_ERROR } from 'src/api/constants';
-import { CountryDataResponse, GatewayResponse, MixNodeResponse, ValidatorsResponse, BlockResponse, ApiState, MixNodeResponseItem, MixNode } from 'src/typeDefs/explorer-api';
+import { 
+  CountryDataResponse,
+  GatewayResponse,
+  MixNodeResponse,
+  ValidatorsResponse,
+  BlockResponse,
+  ApiState,
+  MixNodeResponseItem,
+  MixNode,
+  DelegationsResponse,
+} from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
 
 interface State {
@@ -15,9 +25,11 @@ interface State {
   globalError?: string | undefined
   mixnodeDetailInfo?: ApiState<MixNodeResponse>
   fetchMixnodeById: (arg: string) => void
+  fetchDelegationsById: (arg: string) => void
+  delegations?: ApiState<DelegationsResponse>
 };
 
-export const MainContext = React.createContext<State>({ mode: "dark", fetchMixnodeById: () => null });
+export const MainContext = React.createContext<State>({ mode: "dark", fetchMixnodeById: () => null, fetchDelegationsById: () => null });
 
 export const MainContextProvider: React.FC = ({ children }) => {
   // light/dark mode
@@ -34,7 +46,23 @@ export const MainContextProvider: React.FC = ({ children }) => {
   const [countryData, setCountryData] = React.useState<ApiState<CountryDataResponse>>();
   const [mixnodeDetailInfo, setMixnodeDetailInfo] = React.useState<ApiState<MixNodeResponse>>();
 
+  // various APIs for cards on Detail page
+  const [delegations, setDelegations] = React.useState<ApiState<DelegationsResponse>>();
+
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
+
+  // actions passed down to Overview and Detail pages
+  const fetchDelegationsById = async (id: string) => {
+    try {
+      const data = await Api.fetchDelegationsById(id);
+      setDelegations({ data, isLoading: false })
+    } catch (error) {
+      setDelegations({
+        error: error instanceof Error ? error : new Error("Delegations api fail"),
+        isLoading: false
+      });
+    }
+  }
 
   const fetchMixnodeById = async (id: string) => {
     // 1. if mixnode data already exists filter down to this ID
@@ -147,6 +175,8 @@ export const MainContextProvider: React.FC = ({ children }) => {
         globalError,
         mixnodeDetailInfo,
         fetchMixnodeById,
+        fetchDelegationsById,
+        delegations,
       }}
     >
       {children}

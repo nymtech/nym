@@ -44,3 +44,21 @@ Please see https://github.com/nymtech/nym for license details for all Nym softwa
 
 If you would like to contribute to the Network Explorer send us a PR or
 [raise an issue on GitHub](https://github.com/nymtech/nym/issues) and tag them with `network-explorer`.
+
+
+## dev notes re components/architecture
+
+All API data requests defined in src/api.ts
+
+State Mgt defined in src/context/main.tsx using React Context.
+
+Most* data is requested at top level on load (src/context/main.tsx)
+
+    *Exceptions:
+    - BondBreakdown.tsx - requests delegations information for breakdown of del's [ this was in case BondBreakdown table is used elsewhere / re-useability ]
+    - 
+
+Pages
+    Overview
+    Mixnodes Table
+    Mixnode Detail

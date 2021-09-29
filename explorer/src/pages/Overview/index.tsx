@@ -67,7 +67,7 @@ export const PageOverview: React.FC = () => {
               <ContentCard
                 title="Validators"
                 subtitle={validators?.data?.count || ''}
-                errorMsg={gateways?.error}
+                errorMsg={validators?.error}
                 Icon={<ConnectIcon />}
                 Action={
                   <IconButton>

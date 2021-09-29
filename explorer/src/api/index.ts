@@ -4,9 +4,10 @@ import {
   VALIDATORS_API,
   BLOCK_API,
   COUNTRY_DATA_API,
+  DELEGATIONS_API,
 } from './constants';
 
-import { MixNodeResponse, GatewayResponse, ValidatorsResponse, CountryDataResponse, MixNodeResponseItem } from '../typeDefs/explorer-api'
+import { MixNodeResponse, GatewayResponse, ValidatorsResponse, CountryDataResponse, MixNodeResponseItem, DelegationsResponse } from '../typeDefs/explorer-api'
 
 function getFromCache(key: string) {
   const ts = Number(localStorage.getItem('ts'));
@@ -75,4 +76,9 @@ export class Api {
         });
       return arr;
   };
+
+  static fetchDelegationsById = async (id: string): Promise<DelegationsResponse> => {
+    const res = await fetch(`${DELEGATIONS_API}/${id}/delegations`);
+    return await res.json();
+  }
 }

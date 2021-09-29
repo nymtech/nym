@@ -12,16 +12,24 @@ import { scrollToRef } from 'src/utils';
 
 export const PageMixnodeDetail: React.FC = () => {
     const ref = React.useRef();
-    const { fetchMixnodeById, mixnodeDetailInfo } = React.useContext(MainContext);
+    const { 
+        fetchMixnodeById,
+        mixnodeDetailInfo,
+        fetchDelegationsById,
+    } = React.useContext(MainContext);
     let { id }: any = useParams();
 
     React.useEffect(() => {
         const hasNoDetail = id && !mixnodeDetailInfo;
         const hasIncorrectDetail = id && mixnodeDetailInfo?.data && mixnodeDetailInfo?.data[0].mix_node.identity_key !== id;
+        // 1. if we have no specific ID/mixnode selected
+        // OR the detail on page is different to what is in state, fetch mixnodeDetailInfo & delegates info
         if (hasNoDetail || hasIncorrectDetail) {
             fetchMixnodeById(id)
+            // 2. delegations for Bond breakdown table: owner, amount, block_height
+            fetchDelegationsById(id)
         }
-    }, [id, fetchMixnodeById]);
+    }, [id, mixnodeDetailInfo]);
 
     React.useEffect(() => {
         scrollToRef(ref);

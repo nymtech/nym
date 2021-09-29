@@ -128,6 +128,14 @@ export type CountryData = {
   nodes: number
 }
 
+export type Delegation = {
+  owner: string,
+  amount: Amount,
+  block_height: number
+}
+
+export type DelegationsResponse = Delegation[];
+
 export type CountryDataResponse = CountryData[];
 
 export type BlockType = {
@@ -140,3 +148,4 @@ export interface ApiState<RESPONSE> {
   data?: RESPONSE;
   error?: Error;
 }
+

@@ -2,18 +2,17 @@ import * as React from 'react';
 import Table from '@mui/material/Table';
 import { useMediaQuery, useTheme } from '@mui/material';
 import TableBody from '@mui/material/TableBody';
+import { useParams } from 'react-router-dom';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
-import { TableHeadingsType, TableHeading } from 'src/typeDefs/tables';
-import { MixNodeResponseItem, MixNodeResponse, ApiState } from 'src/typeDefs/explorer-api';
-import { Link } from 'react-router-dom';
 import { MainContext } from 'src/context/main';
 
 export function BondBreakdownTable() {
-        const { mixnodeDetailInfo } = React.useContext(MainContext);
+        const { id }: any = useParams();
+        const { mixnodeDetailInfo, delegations } = React.useContext(MainContext);
         const [ bonds, setBonds ] = React.useState({
             delegations: 0,
             pledges: 0,
@@ -24,18 +23,21 @@ export function BondBreakdownTable() {
         const matches = useMediaQuery(theme.breakpoints.down("sm"));
         
         React.useEffect(() => {
+            // bonds: total, pledges, delegations
             if(mixnodeDetailInfo && mixnodeDetailInfo.data?.length) {
-                const delegations = Number(mixnodeDetailInfo?.data[0]?.total_delegation.amount);
-                const pledges = Number(mixnodeDetailInfo?.data[0]?.bond_amount.amount);
+                const thisMixnode = mixnodeDetailInfo?.data[0];
+                const delegations = Number(thisMixnode.total_delegation.amount);
+                const pledges = Number(thisMixnode.bond_amount.amount);
                 const bondsTotal = delegations + pledges;
                 setBonds({
                     delegations,
                     pledges,
                     bondsTotal,
-                    denom: mixnodeDetailInfo?.data[0]?.total_delegation.denom.toUpperCase()
+                    denom: thisMixnode.total_delegation.denom.toUpperCase()
                 });
             }
-        }, [mixnodeDetailInfo])
+        }, [mixnodeDetailInfo]);
+
         return (
             <>
             <TableContainer component={Paper}>
@@ -83,32 +85,29 @@ export function BondBreakdownTable() {
                         </TableRow>
                     </TableBody>
                 </Table>
-                <Table sx={{ minWidth: 650 }} aria-label='delegation totals'>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }} align='left'>Owner</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }} align='left'>Stake</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }} align='left'>Share from bond</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        <TableRow>
-                            <TableCell sx={ matches ? { width: 190 } : null } align='left'>PUNK286492649876204989035802</TableCell>
-                            <TableCell align='left'>3246</TableCell>
-                            <TableCell align='left'>400%</TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell align='left'>PUNK286492649876204989035802</TableCell>
-                            <TableCell align='left'>3246</TableCell>
-                            <TableCell align='left'>400%</TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell align='left'>PUNK286492649876204989035802</TableCell>
-                            <TableCell align='left'>3246</TableCell>
-                            <TableCell align='left'>400%</TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
+
+                { delegations?.data !== undefined && delegations?.data[0] && (
+                    <Table sx={{ minWidth: 650 }} aria-label='delegation totals'>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{ fontWeight: 'bold' }} align='left'>Owner</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }} align='left'>Stake</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }} align='left'>Share from bond</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {delegations.data.map(({ owner, amount: { amount, denom }, block_height }) => {
+                                return (
+                                    <TableRow key={owner}>
+                                        <TableCell sx={ matches ? { width: 190 } : null } align='left'>{owner}</TableCell>
+                                        <TableCell align='left'>{amount}{denom.toUpperCase()}</TableCell>
+                                        <TableCell align='left'>400%</TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                        </TableBody>
+                    </Table>
+                )}
             </TableContainer>
             </>
         );

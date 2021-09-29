@@ -32,7 +32,7 @@ export function TwoColSmallTable({ title, icons, keys, values, marginBottom }: T
                                     <TableRow key={i}>
                                         { icons && <TableCell ><CheckCircleSharpIcon /></TableCell>}
                                         <TableCell>{each}</TableCell>
-                                        <TableCell>{values[i]}</TableCell>
+                                        <TableCell align='right'>{values[i]}</TableCell>
                                     </TableRow>
                                 )
                             })}

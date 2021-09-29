@@ -148,4 +148,3 @@ export interface ApiState<RESPONSE> {
   data?: RESPONSE;
   error?: Error;
 }
-

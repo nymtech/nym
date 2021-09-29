@@ -12,6 +12,7 @@ import {
   MixNode,
   DelegationsResponse,
   StatsResponse,
+  StatusResponse,
 } from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
 
@@ -29,7 +30,9 @@ interface State {
   fetchDelegationsById: (arg: string) => void
   delegations?: ApiState<DelegationsResponse>
   stats?: ApiState<StatsResponse>
-  fetchStatsById: (arg: string) => void
+  fetchStatsById: (arg: string) => void,
+  status?: ApiState<StatusResponse>,
+  fetchStatusById: (arg: string) => void,
 }
 
 export const MainContext = React.createContext<State>({ 
@@ -37,6 +40,7 @@ export const MainContext = React.createContext<State>({
   fetchMixnodeById: () => null,
   fetchDelegationsById: () => null,
   fetchStatsById: () => null,
+  fetchStatusById: () => null,
 });
 
 export const MainContextProvider: React.FC = ({ children }) => {
@@ -56,6 +60,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
 
   // various APIs for Detail page
   const [delegations, setDelegations] = React.useState<ApiState<DelegationsResponse>>();
+  const [status, setStatus] = React.useState<ApiState<StatusResponse>>();
   const [stats, setStats] = React.useState<ApiState<StatsResponse>>();
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
@@ -73,13 +78,25 @@ export const MainContextProvider: React.FC = ({ children }) => {
     }
   }
 
+  const fetchStatusById = async (id: string) => {
+    try {
+      const data = await Api.fetchStatusById(id);
+      setStatus({ data, isLoading: false })
+    } catch (error) {
+      setStatus({
+        error: error instanceof Error ? error : new Error("Status api fail"),
+        isLoading: false
+      });
+    }
+  }
+
   const fetchStatsById = async (id: string) => {
     try {
       const data = await Api.fetchStatsById(id);
       setStats({ data, isLoading: false })
     } catch (error) {
       setStats({
-        error: error instanceof Error ? error : new Error("Delegations api fail"),
+        error: error instanceof Error ? error : new Error("Stats api fail"),
         isLoading: false
       });
     }
@@ -167,7 +184,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
       setCountryData({ data: res, isLoading: false });
     } catch (error) {
       setCountryData({ 
-        error: error instanceof Error ? error : new Error("Block api fail"),
+        error: error instanceof Error ? error : new Error("Country Data api fail"),
         isLoading: false
       });
     }
@@ -200,6 +217,8 @@ export const MainContextProvider: React.FC = ({ children }) => {
         delegations,
         stats,
         fetchStatsById,
+        status,
+        fetchStatusById,
       }}
     >
       {children}

@@ -6,6 +6,7 @@ import {
   COUNTRY_DATA_API,
   DELEGATIONS_API,
   MIXNODE_STATS_API,
+  MIXNODE_PING,
 } from './constants';
 
 import { 
@@ -16,6 +17,7 @@ import {
   MixNodeResponseItem,
   DelegationsResponse,
   StatsResponse,
+  StatusResponse,
 } from '../typeDefs/explorer-api'
 
 function getFromCache(key: string) {
@@ -92,6 +94,10 @@ export class Api {
   }
   static fetchStatsById = async (id: string): Promise<StatsResponse> => {
     const res = await fetch(`${MIXNODE_STATS_API}/${id}/stats`);
+    return await res.json();
+  }
+  static fetchStatusById = async (id: string): Promise<StatusResponse> => {
+    const res = await fetch(`${MIXNODE_PING}/${id}`);
     return await res.json();
   }
 }

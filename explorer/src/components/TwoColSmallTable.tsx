@@ -6,11 +6,12 @@ import TableContainer from '@mui/material/TableContainer';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import CheckCircleSharpIcon from '@mui/icons-material/CheckCircleSharp';
+import ErrorIcon from '@mui/icons-material/Error';
 import { Typography } from '@mui/material';
 
 interface TableProps {
     title?: string
-    icons?: boolean
+    icons?: boolean[]
     keys: string[]
     values: number[]
     marginBottom?: boolean
@@ -30,7 +31,11 @@ export function TwoColSmallTable({ title, icons, keys, values, marginBottom }: T
                             {keys.map((each: string, i: number) => {
                                 return (
                                     <TableRow key={i}>
-                                        { icons && <TableCell ><CheckCircleSharpIcon /></TableCell>}
+                                        { icons && (
+                                            <TableCell>
+                                                { icons[i] ? <CheckCircleSharpIcon /> : <ErrorIcon /> } 
+                                            </TableCell>
+                                            )}
                                         <TableCell>{each}</TableCell>
                                         <TableCell align='right'>{values[i]}</TableCell>
                                     </TableRow>

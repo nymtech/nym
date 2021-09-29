@@ -148,3 +148,12 @@ export interface ApiState<RESPONSE> {
   data?: RESPONSE;
   error?: Error;
 }
+
+export type StatusResponse = {
+  pending: boolean,
+  ports: {
+    1789: boolean,
+    1790: boolean,
+    8000: boolean
+  }
+}

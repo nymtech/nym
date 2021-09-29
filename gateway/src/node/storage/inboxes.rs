@@ -7,7 +7,7 @@ use crate::node::storage::models::StoredMessage;
 pub(crate) struct InboxManager {
     connection_pool: sqlx::SqlitePool,
     /// Maximum number of messages that can be obtained from the database per operation.
-    /// It is used to prevent memory overflows in the case of client receiving a lot of data while
+    /// It is used to prevent out of memory errors in the case of client receiving a lot of data while
     /// offline and then loading it all at once when he comes back online.
     retrieval_limit: i64,
 }

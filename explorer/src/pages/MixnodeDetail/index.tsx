@@ -17,7 +17,9 @@ export const PageMixnodeDetail: React.FC = () => {
         mixnodeDetailInfo,
         fetchDelegationsById,
         fetchStatsById,
-        stats
+        fetchStatusById,
+        stats,
+        status,
     } = React.useContext(MainContext);
     let { id }: any = useParams();
 
@@ -28,9 +30,9 @@ export const PageMixnodeDetail: React.FC = () => {
         // OR the detail on page is different to what is in state, fetch mixnodeDetailInfo & delegates info
         if (hasNoDetail || hasIncorrectDetail) {
             fetchMixnodeById(id)
-            // 2. delegations for Bond breakdown table: owner, amount, block_height
             fetchDelegationsById(id)
             fetchStatsById(id)
+            fetchStatusById(id)
         }
     }, [id, mixnodeDetailInfo]);
 
@@ -119,13 +121,15 @@ export const PageMixnodeDetail: React.FC = () => {
                 </Grid>
                 <Grid container spacing={2} sx={{ marginTop: 1 }}>
                     <Grid item xs={12} md={4} xl={3}>
-                        <ContentCard title='Mixnode Status'>
-                            <TwoColSmallTable
-                                    icons
-                                    keys={['Identity Key', 'Identity Key', 'Identity Key']}
-                                    values={[1789, 1789, 1789]}
-                                />
-                        </ContentCard>
+                        {status && status.data && (
+                            <ContentCard title='Mixnode Status'>
+                                <TwoColSmallTable
+                                        keys={['Mix port', 'Verloc port', 'HTTP port']}
+                                        values={Object.keys(status.data.ports).map(each => Number(each))}
+                                        icons={Object.values(status.data.ports)}
+                                    />
+                            </ContentCard>
+                        )}
                     </Grid>
                     <Grid item xs={12} md={8} xl={6}>    
                         <WorldMap title='Location'/>

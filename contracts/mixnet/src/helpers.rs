@@ -136,12 +136,16 @@ where
         })
         .collect::<StdResult<Vec<UnpackedDelegation<T>>>>()?;
 
-    let start_next_after = bucket
+    let start_next_after = if let Some(Ok(last)) = bucket
         .range(start_after.as_deref(), None, Order::Ascending)
         .filter(|res| res.is_ok())
         .take(limit)
         .last()
-        .map(|res| res.unwrap().0);
+    {
+        Some(last.0)
+    } else {
+        None
+    };
 
     Ok(PagedAllDelegationsResponse::new(
         delegations,

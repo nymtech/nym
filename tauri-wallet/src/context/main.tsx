@@ -10,6 +10,9 @@ type TClientContext = {
   getBalance: TUseGetBalance
   showAdmin: boolean
   ss5IsActive: boolean
+  bandwidthLimit: number
+  bandwidthUsed: number
+  handleSetBandwidthLimit: (bandwidth: number) => void
   toggleSs5: () => void
   handleShowAdmin: () => void
   logIn: (clientDetails: TSignInWithMnemonic) => void
@@ -26,6 +29,8 @@ export const ClientContextProvider = ({
   const [clientDetails, setClientDetails] = useState<TClientDetails>()
   const [showAdmin, setShowAdmin] = useState(false)
   const [ss5IsActive, setss5IsActive] = useState(false)
+  const [bandwidthLimit, setBandwidthLimit] = useState(0)
+  const [bandwidthUsed, setBandwidthUsed] = useState(0)
 
   const history = useHistory()
   const getBalance = useGetBalance()
@@ -33,6 +38,24 @@ export const ClientContextProvider = ({
   useEffect(() => {
     !clientDetails ? history.push('/signin') : history.push('/balance')
   }, [clientDetails])
+
+  const handleSetBandwidthLimit = (bandwidth: number) =>
+    setBandwidthLimit(bandwidth)
+
+  useEffect(() => {
+    let timer
+
+    if (ss5IsActive && bandwidthUsed < bandwidthLimit) {
+      timer = setTimeout(() => {
+        setBandwidthUsed((used) => used + 50)
+      }, 1000)
+    } else if (ss5IsActive && bandwidthUsed === bandwidthLimit) {
+      setBandwidthLimit(0)
+      setBandwidthUsed(0)
+      setss5IsActive(false)
+      clearTimeout(timer)
+    }
+  }, [ss5IsActive, bandwidthUsed, bandwidthLimit, handleSetBandwidthLimit])
 
   const logIn = async (clientDetails: TSignInWithMnemonic) =>
     setClientDetails(clientDetails)
@@ -50,7 +73,10 @@ export const ClientContextProvider = ({
         getBalance,
         showAdmin,
         ss5IsActive,
+        bandwidthLimit,
+        bandwidthUsed,
         toggleSs5,
+        handleSetBandwidthLimit,
         handleShowAdmin,
         logIn,
         logOut,

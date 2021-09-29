@@ -1,8 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react'
 import {
-  Card,
+  Box,
   CardContent,
-  CardHeader,
   CircularProgress,
   IconButton,
   Theme,
@@ -12,6 +11,7 @@ import {
 } from '@material-ui/core'
 import { ClientContext } from '../context/main'
 import {
+  ArrowForwardSharp,
   CheckCircleOutline,
   FileCopy,
   PowerSettingsNew,
@@ -21,6 +21,7 @@ import { NymCard } from './NymCard'
 import { Alert } from '@material-ui/lab'
 import { handleCopy } from './CopyToClipboard'
 import { truncate } from '../utils'
+import { useHistory } from 'react-router'
 
 export const BalanceCard = () => {
   const { getBalance } = useContext(ClientContext)
@@ -127,13 +128,16 @@ export const AddressCard = () => {
 
 export const SockS5 = () => {
   const theme: Theme = useTheme()
-  const { ss5IsActive, toggleSs5 } = useContext(ClientContext)
+  const history = useHistory()
+  const { ss5IsActive, bandwidthLimit, toggleSs5 } = useContext(ClientContext)
+
+  if (bandwidthLimit === 0) return null
+
   return (
     <div style={{ margin: theme.spacing(3) }}>
       <NymCard
         title="Socks5"
-        subheader={ss5IsActive ? ' Active' : 'Inactive'}
-        Action={
+        Icon={
           <IconButton onClick={toggleSs5}>
             <PowerSettingsNew
               style={{
@@ -143,6 +147,13 @@ export const SockS5 = () => {
               }}
             />
           </IconButton>
+        }
+        Action={
+          <Box style={{ marginTop: theme.spacing(1) }}>
+            <IconButton onClick={() => history.push('/socks5')}>
+              <ArrowForwardSharp />
+            </IconButton>
+          </Box>
         }
       />
     </div>

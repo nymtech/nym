@@ -11,11 +11,11 @@ import {
   Typography,
 } from '@material-ui/core'
 import {
-  AccessTime,
   Cancel,
   CheckCircle,
   PowerSettingsNew,
   PowerSettingsNewSharp,
+  SecuritySharp,
 } from '@material-ui/icons'
 import { useTheme } from '@material-ui/styles'
 
@@ -37,7 +37,7 @@ const InactiveChip = () => {
   const theme: Theme = useTheme()
   return (
     <Chip
-      label="Insecure"
+      label="Offline"
       style={{
         color: theme.palette.common.white,
         backgroundColor: theme.palette.error.main,
@@ -49,13 +49,14 @@ const InactiveChip = () => {
 
 export const TopCard: React.FC<{
   isActive: boolean
+  plan: string
   toggleIsActive: () => void
-}> = ({ isActive, toggleIsActive }) => {
+}> = ({ isActive, plan, toggleIsActive }) => {
   const theme: Theme = useTheme()
   return (
     <Card style={{ padding: theme.spacing(1.5) }} variant="outlined">
       <CardHeader
-        title={<Typography variant="h5">Package ID: SDF34F34F</Typography>}
+        title={<Typography variant="h5">Package: {plan}</Typography>}
         avatar={isActive ? <ActiveChip /> : <InactiveChip />}
         action={
           <IconButton
@@ -96,7 +97,7 @@ export const MainCard: React.FC<{
             <Button
               color="primary"
               variant="contained"
-              endIcon={<AccessTime />}
+              endIcon={<SecuritySharp />}
               style={{
                 color: theme.palette.common.white,
                 marginRight: theme.spacing(1.5),
@@ -104,7 +105,7 @@ export const MainCard: React.FC<{
               size="large"
               disableElevation
             >
-              Buy more time
+              Puchase bandwidth
             </Button>
             <Button
               variant="outlined"
@@ -114,7 +115,7 @@ export const MainCard: React.FC<{
               disableElevation
               onClick={toggleIsActive}
             >
-              {isActive ? 'Deactivate' : 'Activate'}
+              {isActive ? 'Disabled' : 'Enable'}
             </Button>
           </Box>
         </CardContent>

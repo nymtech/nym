@@ -63,7 +63,7 @@ const RoutesSchema = () => {
       Icon: <Cancel />,
     },
     {
-      label: 'Socks5',
+      label: 'SOCKS5',
       route: '/socks5',
       Icon: <VpnLockSharp />,
     },

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import {
   Box,
   Card,
@@ -9,10 +9,11 @@ import {
   Theme,
   Typography,
 } from '@material-ui/core'
-import { ToggleData } from './toggle'
+import { ToggleData } from './Toggle'
 import { ArrowDownwardOutlined, ArrowUpwardOutlined } from '@material-ui/icons'
 import { makeStyles } from '@material-ui/styles'
 import clsx from 'clsx'
+import { ClientContext } from '../../context/main'
 
 const useStyles = makeStyles((theme: Theme) => ({
   card: {
@@ -104,6 +105,7 @@ export const DownloadCard: React.FC<{ isActive?: boolean }> = ({
 
 export const LimitCard: React.FC<{ isActive: boolean }> = ({ isActive }) => {
   const classes = useStyles()
+  const { bandwidthLimit, bandwidthUsed } = useContext(ClientContext)
   return (
     <Card className={classes.card} variant="outlined">
       <CardHeader title="Usage" action={<ToggleData />} />
@@ -123,7 +125,7 @@ export const LimitCard: React.FC<{ isActive: boolean }> = ({ isActive }) => {
             <Box>
               <CircularProgress
                 variant="determinate"
-                value={!isActive ? 0 : 75}
+                value={!isActive ? 0 : (bandwidthUsed / bandwidthLimit) * 100}
                 size={120}
                 style={{
                   top: 0,
@@ -152,7 +154,7 @@ export const LimitCard: React.FC<{ isActive: boolean }> = ({ isActive }) => {
                 <Typography variant="h3">-</Typography>
               ) : (
                 <>
-                  <Typography variant="h5">400</Typography>
+                  <Typography variant="h5">{bandwidthLimit}</Typography>
                   <Typography variant="caption" color="textSecondary">
                     mb
                   </Typography>

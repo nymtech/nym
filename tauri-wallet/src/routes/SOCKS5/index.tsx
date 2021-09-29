@@ -1,36 +1,51 @@
-import { Grid } from '@material-ui/core'
-import React, { useContext } from 'react'
-import { NymCard } from '../../components'
-import { ClientContext } from '../../context/main'
+import React, { useContext, useState } from 'react'
+import { Box } from '@material-ui/core'
+import { SecuritySharp } from '@material-ui/icons'
+import { Dashboard } from './Dashboard'
 import { Layout } from '../../layouts'
-import { MainCard, TopCard } from './Cards'
-import { DownloadCard, LimitCard, UploadCard } from './DataCards'
+import { Setup } from './Setup'
+import { theme } from '../../theme'
+import { Loading } from '../../components/Loading'
+import { ClientContext } from '../../context/main'
 
 export const Socks5 = () => {
-  const { ss5IsActive, toggleSs5 } = useContext(ClientContext)
+  const [isLoading, setIsLoading] = useState(false)
+  const [plan, setPlan] = useState<string>()
+
+  const { handleSetBandwidthLimit } = useContext(ClientContext)
 
   return (
     <Layout>
-      <NymCard title="SOCKS5" style={{ width: '100%' }}>
-        <Grid container spacing={6}>
-          <Grid item xs={12}>
-            <TopCard isActive={ss5IsActive} toggleIsActive={toggleSs5} />
-          </Grid>
-          <Grid item xs={12}>
-            <MainCard isActive={ss5IsActive} toggleIsActive={toggleSs5} />
-          </Grid>
+      <>
+        {isLoading && (
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            padding={theme.spacing(1)}
+          >
+            <Loading
+              size="x-large"
+              Icon={<SecuritySharp color="primary" style={{ fontSize: 24 }} />}
+            />
+          </Box>
+        )}
 
-          <Grid item xs={4}>
-            <UploadCard isActive={ss5IsActive} />
-          </Grid>
-          <Grid item xs={4}>
-            <DownloadCard isActive={ss5IsActive} />
-          </Grid>
-          <Grid item xs={4}>
-            <LimitCard isActive={ss5IsActive} />
-          </Grid>
-        </Grid>
-      </NymCard>
+        {!isLoading && !!plan && <Dashboard plan={plan} />}
+
+        {!isLoading && !plan && (
+          <Setup
+            handleSelectPlan={(plan: string) => {
+              setIsLoading(true)
+              setTimeout(() => {
+                setIsLoading(false)
+                setPlan(plan)
+                handleSetBandwidthLimit(500)
+              }, 2000)
+            }}
+          />
+        )}
+      </>
     </Layout>
   )
 }

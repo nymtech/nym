@@ -18,36 +18,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: rlespinasse/github-slug-action@v3.x
-    - name: Output
-      run: |
-        echo "Partial variables"
-        echo "   repository owner    : ${{ env.GITHUB_REPOSITORY_OWNER_PART }}"
-        echo "   repository name     : ${{ env.GITHUB_REPOSITORY_NAME_PART }}"
-        echo "Slug variables"
-        echo "   repository          : ${{ env.GITHUB_REPOSITORY_SLUG }}"
-        echo "   repository owner    : ${{ env.GITHUB_REPOSITORY_OWNER_PART_SLUG }}"
-        echo "   repository name     : ${{ env.GITHUB_REPOSITORY_NAME_PART_SLUG }}"
-        echo "   ref name            : ${{ env.GITHUB_REF_NAME }}"
-        echo "   ref                 : ${{ env.GITHUB_REF_SLUG }}"
-        echo "   head ref            : ${{ env.GITHUB_HEAD_REF_SLUG }}"
-        echo "   base ref            : ${{ env.GITHUB_BASE_REF_SLUG }}"
-        echo "   event ref           : ${{ env.GITHUB_EVENT_REF_SLUG }}"
-        echo "Slug URL variables"
-        echo "   repository          : ${{ env.GITHUB_REPOSITORY_SLUG_URL }}"
-        echo "   repository owner    : ${{ env.GITHUB_REPOSITORY_OWNER_PART_SLUG_URL }}"
-        echo "   repository name     : ${{ env.GITHUB_REPOSITORY_NAME_PART_SLUG_URL }}"
-        echo "   ref                 : ${{ env.GITHUB_REF_SLUG_URL }}"
-        echo "   head ref            : ${{ env.GITHUB_HEAD_REF_SLUG_URL }}"
-        echo "   base ref            : ${{ env.GITHUB_BASE_REF_SLUG_URL }}"
-        echo "   event ref           : ${{ env.GITHUB_EVENT_REF_SLUG_URL }}"
-        echo "Short SHA variables"
-        echo "   sha                 : ${{ env.GITHUB_SHA_SHORT }}"
-        echo "   pull request sha    : ${{ env.GITHUB_EVENT_PULL_REQUEST_HEAD_SHA_SHORT }}"
     - uses: actions/setup-node@v2
       with:
         node-version: '14'
     - run: npm install
-    - run: npm run test
+#    - run: npm run test
     - run: npm run build
     - name: Deploy branch to CI www
       uses: easingthemes/ssh-deploy@main

@@ -12,7 +12,7 @@ import { scrollToRef } from 'src/utils';
 
 export const PageMixnodeDetail: React.FC = () => {
     const ref = React.useRef();
-    const { 
+    const {
         fetchMixnodeById,
         mixnodeDetailInfo,
         fetchStatsById,
@@ -46,7 +46,7 @@ export const PageMixnodeDetail: React.FC = () => {
     console.log("stats are ", stats);
     return (
         <>
-            <Box 
+            <Box
                 component='main'
                 ref={ref}
             >
@@ -57,7 +57,7 @@ export const PageMixnodeDetail: React.FC = () => {
                         </Typography>
                     </Grid>
                     <Grid item xs={12} xl={9}>
-                        { mixnodeDetailInfo && (
+                        {mixnodeDetailInfo && (
                             <MixnodesTable mixnodes={mixnodeDetailInfo} />
                         )}
                     </Grid>
@@ -65,52 +65,52 @@ export const PageMixnodeDetail: React.FC = () => {
                         <ContentCard title='Bond Breakdown'>
                             <BondBreakdownTable />
                         </ContentCard>
-                    </Grid>                   
+                    </Grid>
                 </Grid>
-                <Grid 
+                <Grid
                     container
                     spacing={2}
                     sx={{ marginTop: 1 }}
-                    >
+                >
                     <Grid
                         item
                         xs={12}
                         md={4}
                         xl={3}
                     >
-                        
-                            <ContentCard title='Mixnode Stats'>
-                                { stats?.data && (
-                                    <>
-                                        <TwoColSmallTable
-                                            title='Since startup'
-                                            keys={['Received', 'Sent', 'Explicitly dropped']}
-                                            values={
-                                                [ 
-                                                    stats?.data?.packets_received_since_startup,
-                                                    stats?.data?.packets_sent_since_startup,
-                                                    stats?.data?.packets_explicitly_dropped_since_startup
-                                                ]
-                                            }
-                                        />
-                                        <TwoColSmallTable
-                                            title='Since last update'
-                                            keys={['Received', 'Sent', 'Explicitly dropped']}
-                                            values={
-                                                [ 
-                                                    stats?.data?.packets_received_since_last_update,
-                                                    stats?.data?.packets_sent_since_last_update,
-                                                    stats?.data?.packets_explicitly_dropped_since_last_update
-                                                ]
-                                            }
-                                            marginBottom
-                                        />
-                                    </>
-                                )}
-                                
-                                { stats?.error && <Typography>{stats.error?.message}</Typography> }
-                                { !stats && <Typography>No stats information</Typography> }
-                            </ContentCard>
+
+                        <ContentCard title='Mixnode Stats'>
+                            {stats?.data && (
+                                <>
+                                    <TwoColSmallTable
+                                        title='Since startup'
+                                        keys={['Received', 'Sent', 'Explicitly dropped']}
+                                        values={
+                                            [
+                                                stats?.data?.packets_received_since_startup,
+                                                stats?.data?.packets_sent_since_startup,
+                                                stats?.data?.packets_explicitly_dropped_since_startup
+                                            ]
+                                        }
+                                    />
+                                    <TwoColSmallTable
+                                        title='Since last update'
+                                        keys={['Received', 'Sent', 'Explicitly dropped']}
+                                        values={
+                                            [
+                                                stats?.data?.packets_received_since_last_update,
+                                                stats?.data?.packets_sent_since_last_update,
+                                                stats?.data?.packets_explicitly_dropped_since_last_update
+                                            ]
+                                        }
+                                        marginBottom
+                                    />
+                                </>
+                            )}
+
+                            {stats?.error && <Typography>{stats.error?.message}</Typography>}
+                            {!stats && <Typography>No stats information</Typography>}
+                        </ContentCard>
                     </Grid>
                     <Grid
                         item
@@ -134,15 +134,22 @@ export const PageMixnodeDetail: React.FC = () => {
                         {status && status.data?.ports && (
                             <ContentCard title='Mixnode Status'>
                                 <TwoColSmallTable
-                                        keys={['Mix port', 'Verloc port', 'HTTP port']}
-                                        values={Object.keys(status.data.ports).map(each => Number(each))}
-                                        icons={Object.values(status.data.ports)}
-                                    />
+                                    keys={['Mix port', 'Verloc port', 'HTTP port']}
+                                    values={Object.keys(status.data.ports).map(each => Number(each))}
+                                    icons={Object.values(status.data.ports)}
+                                />
                             </ContentCard>
                         )}
                     </Grid>
-                    <Grid item xs={12} md={8} xl={6}>    
-                        <WorldMap title='Location'/>
+                    <Grid item xs={12} md={8} xl={6}>
+                        {mixnodeDetailInfo && mixnodeDetailInfo.data && mixnodeDetailInfo?.data[0]?.location && (
+                            <WorldMap
+                                title='Location'
+                                userLocation={
+                                    [mixnodeDetailInfo?.data[0]?.location?.lng, mixnodeDetailInfo?.data[0]?.location?.lat]
+                                }
+                            />
+                        )}
                     </Grid>
                 </Grid>
             </Box>

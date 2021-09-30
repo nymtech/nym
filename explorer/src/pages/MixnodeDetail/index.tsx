@@ -80,35 +80,41 @@ export const PageMixnodeDetail: React.FC = () => {
                     >
 
                         <ContentCard title='Mixnode Stats'>
-                            {stats?.data && (
+                            {stats && (
                                 <>
+                                    {stats.error && (
+                                        <Typography sx={{ marginTop: 2, color: 'primary.main', fontSize: 9 }} variant='body1'>
+                                            {stats.error.message}
+                                        </Typography>
+                                    )}
+
                                     <TwoColSmallTable
+                                        error={stats?.error?.message}
                                         title='Since startup'
                                         keys={['Received', 'Sent', 'Explicitly dropped']}
                                         values={
                                             [
-                                                stats?.data?.packets_received_since_startup,
-                                                stats?.data?.packets_sent_since_startup,
-                                                stats?.data?.packets_explicitly_dropped_since_startup
+                                                stats?.data?.packets_received_since_startup || 0,
+                                                stats?.data?.packets_sent_since_startup || 0,
+                                                stats?.data?.packets_explicitly_dropped_since_startup || 0,
                                             ]
                                         }
                                     />
                                     <TwoColSmallTable
+                                        error={stats?.error?.message}
                                         title='Since last update'
                                         keys={['Received', 'Sent', 'Explicitly dropped']}
                                         values={
                                             [
-                                                stats?.data?.packets_received_since_last_update,
-                                                stats?.data?.packets_sent_since_last_update,
-                                                stats?.data?.packets_explicitly_dropped_since_last_update
+                                                stats?.data?.packets_received_since_last_update || 0,
+                                                stats?.data?.packets_sent_since_last_update || 0,
+                                                stats?.data?.packets_explicitly_dropped_since_last_update || 0,
                                             ]
                                         }
                                         marginBottom
                                     />
                                 </>
                             )}
-
-                            {stats?.error && <Typography>{stats.error?.message}</Typography>}
                             {!stats && <Typography>No stats information</Typography>}
                         </ContentCard>
                     </Grid>

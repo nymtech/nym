@@ -4,6 +4,7 @@ import { Typography } from '@mui/material';
 import { Chart } from 'react-google-charts';
 import { MainContext } from '../context/main';
 import { ApiState, UptimeStoryResponse } from 'src/typeDefs/explorer-api';
+import { format } from 'date-fns';
 interface ChartProps {
     title?: string
     xLabel: string
@@ -26,7 +27,11 @@ export function UptimeChart({ title, xLabel, yLabel, uptimeStory }: ChartProps) 
                 ["Date", "UptimeV4", "UptimeV6"],
             ];
             uptimeStory.data.history.map((eachDate) => {
-                const formattedDateUptimeRecord: FormattedDateRecord = [eachDate.date, eachDate.ipv4_uptime, eachDate.ipv6_uptime]
+                const formattedDateUptimeRecord: FormattedDateRecord = [
+                    format(new Date(eachDate.date), "MMM dd"),
+                    eachDate.ipv4_uptime,
+                    eachDate.ipv6_uptime
+                ]
                 allFormattedChartData.push(formattedDateUptimeRecord);
             });
             setFormattedChartData(allFormattedChartData)

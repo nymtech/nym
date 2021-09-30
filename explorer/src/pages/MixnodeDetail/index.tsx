@@ -83,7 +83,7 @@ export const PageMixnodeDetail: React.FC = () => {
                             {stats && (
                                 <>
                                     {stats.error && (
-                                        <Typography sx={{ marginTop: 2, color: 'primary.main', fontSize: 9 }} variant='body1'>
+                                        <Typography sx={{ marginTop: 2, color: 'primary.main', fontSize: 10 }} variant='body1'>
                                             {stats.error.message}
                                         </Typography>
                                     )}
@@ -137,12 +137,18 @@ export const PageMixnodeDetail: React.FC = () => {
                 </Grid>
                 <Grid container spacing={2} sx={{ marginTop: 1 }}>
                     <Grid item xs={12} md={4} xl={3}>
-                        {status && status.data?.ports && (
+                        {status && (
                             <ContentCard title='Mixnode Status'>
+                                {status.error && (
+                                    <Typography sx={{ marginTop: 2, color: 'primary.main', fontSize: 10 }} variant='body1'>
+                                        {status.error.message}
+                                    </Typography>
+                                )}
                                 <TwoColSmallTable
+                                    error={status?.error?.message}
                                     keys={['Mix port', 'Verloc port', 'HTTP port']}
-                                    values={Object.keys(status.data.ports).map(each => Number(each))}
-                                    icons={Object.values(status.data.ports)}
+                                    values={status?.data?.ports && Object.keys(status?.data?.ports).map(each => Number(each)) || [0, 0, 0]}
+                                    icons={status?.data?.ports && Object.values(status.data.ports)}
                                 />
                             </ContentCard>
                         )}

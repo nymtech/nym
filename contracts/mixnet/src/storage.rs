@@ -24,8 +24,9 @@ use serde::Serialize;
 // singletons
 const CONFIG_KEY: &[u8] = b"config";
 const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
-// Keeps total amount of stake towards mixnodes. Removing a mixnode bond removes all its delegations from the total, the reverse is true for adding a mixnode bond.ß
-const TOTAL_STAKE_KEY: &[u8] = b"total_mix";
+// Keeps total amount of stake towards mixnodes and gateways. Removing a bond removes all its delegations from the total, the reverse is true for adding a bond.
+const TOTAL_MN_STAKE_KEY: &[u8] = b"total_mn";
+const TOTAL_GT_STAKE_KEY: &[u8] = b"total_gt";
 
 // buckets
 const PREFIX_MIXNODES: &[u8] = b"mn";
@@ -51,11 +52,19 @@ pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
 }
 
 pub fn total_mix_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
-    singleton_read(storage, TOTAL_STAKE_KEY)
+    singleton_read(storage, TOTAL_MN_STAKE_KEY)
 }
 
 pub fn mut_total_mix_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
-    singleton(storage, TOTAL_STAKE_KEY)
+    singleton(storage, TOTAL_MN_STAKE_KEY)
+}
+
+pub fn total_gateway_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
+    singleton_read(storage, TOTAL_GT_STAKE_KEY)
+}
+
+pub fn mut_total_gateway_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
+    singleton(storage, TOTAL_GT_STAKE_KEY)
 }
 
 pub fn incr_total_mix_stake(
@@ -73,6 +82,24 @@ pub fn decr_total_mix_stake(
 ) -> Result<(), ContractError> {
     let stake = total_mix_stake(storage).load()?.checked_sub(amount)?;
     mut_total_mix_stake(storage).save(&stake)?;
+    Ok(())
+}
+
+pub fn incr_total_gt_stake(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<(), ContractError> {
+    let stake = total_gateway_stake(storage).load()?.checked_add(amount)?;
+    mut_total_gateway_stake(storage).save(&stake)?;
+    Ok(())
+}
+
+pub fn decr_total_gt_stake(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<(), ContractError> {
+    let stake = total_gateway_stake(storage).load()?.checked_sub(amount)?;
+    mut_total_gateway_stake(storage).save(&stake)?;
     Ok(())
 }
 

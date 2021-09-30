@@ -248,6 +248,9 @@ pub(crate) fn try_add_gateway(
     gateways_owners(deps.storage).save(sender_bytes, identity)?;
     increment_layer_count(deps.storage, Layer::Gateway)?;
 
+    incr_total_gt_stake(bond.bond_amount().amount, deps.storage)?;
+    incr_total_gt_stake(bond.total_delegation().amount, deps.storage)?;
+
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
         submessages: Vec::new(),
@@ -285,6 +288,9 @@ pub(crate) fn try_remove_gateway(
     gateways_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
     decrement_layer_count(deps.storage, Layer::Gateway)?;
+
+    decr_total_gt_stake(gateway_bond.bond_amount().amount, deps.storage)?;
+    decr_total_gt_stake(gateway_bond.total_delegation().amount, deps.storage)?;
 
     // log our actions
     let attributes = vec![

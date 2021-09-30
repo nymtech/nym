@@ -208,13 +208,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             address,
         )?),
         QueryMsg::GetTotalMixStake {} => to_binary(&queries::query_total_mix_stake(deps)),
+        QueryMsg::GetTotalGtStake {} => to_binary(&queries::query_total_gt_stake(deps)),
     };
 
     Ok(query_res?)
 }
 #[entry_point]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    todo!("Calculate initial total mix stake");
+    todo!("Calculate initial total mix and gateway stake after initial deployment");
 
     #[allow(unreachable_code)]
     Ok(Default::default())

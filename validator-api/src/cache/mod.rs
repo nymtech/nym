@@ -39,6 +39,7 @@ struct ValidatorCacheInner {
     current_gateway_active_set_size: AtomicUsize,
 
     total_mix_stake: RwLock<Cache<u128>>,
+    total_gt_stake: RwLock<Cache<u128>>,
 }
 
 #[derive(Default, Serialize, Clone)]
@@ -78,10 +79,11 @@ impl<C> ValidatorCacheRefresher<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        let (mixnodes, gateways, total_mix_stake) = tokio::try_join!(
+        let (mixnodes, gateways, total_mix_stake, total_gt_state) = tokio::try_join!(
             self.nymd_client.get_mixnodes(),
             self.nymd_client.get_gateways(),
-            self.nymd_client.get_total_mix_stake()
+            self.nymd_client.get_total_mix_stake(),
+            self.nymd_client.get_total_gt_stake()
         )?;
 
         let state_params = self.nymd_client.get_state_params().await?;
@@ -94,7 +96,13 @@ impl<C> ValidatorCacheRefresher<C> {
         );
 
         self.cache
-            .update_cache(mixnodes, gateways, total_mix_stake, state_params)
+            .update_cache(
+                mixnodes,
+                gateways,
+                total_mix_stake,
+                total_gt_state,
+                state_params,
+            )
             .await;
 
         Ok(())
@@ -182,6 +190,7 @@ impl ValidatorCache {
         mut mixnodes: Vec<MixNodeBond>,
         mut gateways: Vec<GatewayBond>,
         total_mix_stake: u128,
+        total_gt_stake: u128,
         state: StateParams,
     ) {
         // if our data is valid, it means the active sets are available,
@@ -228,6 +237,7 @@ impl ValidatorCache {
             .write()
             .await
             .set(total_mix_stake);
+        self.inner.total_gt_stake.write().await.set(total_gt_stake);
     }
 
     pub async fn mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
@@ -314,6 +324,7 @@ impl ValidatorCacheInner {
             current_mixnode_active_set_size: Default::default(),
             current_gateway_active_set_size: Default::default(),
             total_mix_stake: Default::default(),
+            total_gt_stake: Default::default(),
         }
     }
 }

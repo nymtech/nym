@@ -7,7 +7,24 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct UnpackedDelegation<T> {
+    pub owner: Addr,
+    pub node_identity: IdentityKey,
+    pub delegation_data: T,
+}
+
+impl<T> UnpackedDelegation<T> {
+    pub fn new(owner: Addr, node_identity: IdentityKey, delegation_data: T) -> Self {
+        UnpackedDelegation {
+            owner,
+            node_identity,
+            delegation_data,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct RawDelegationData {
     pub amount: Uint128,
     pub block_height: u64,
@@ -140,6 +157,21 @@ impl PagedReverseGatewayDelegationsResponse {
         PagedReverseGatewayDelegationsResponse {
             delegation_owner,
             delegated_nodes,
+            start_next_after,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct PagedAllDelegationsResponse<T> {
+    pub delegations: Vec<UnpackedDelegation<T>>,
+    pub start_next_after: Option<Vec<u8>>,
+}
+
+impl<T> PagedAllDelegationsResponse<T> {
+    pub fn new(delegations: Vec<UnpackedDelegation<T>>, start_next_after: Option<Vec<u8>>) -> Self {
+        PagedAllDelegationsResponse {
+            delegations,
             start_next_after,
         }
     }

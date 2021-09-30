@@ -2,84 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
-use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
+use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime, Delegations};
 use crate::queries;
 use crate::storage::*;
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Order, Response, StdResult,
-    Uint128,
+    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{
     Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
 };
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 
-const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
+pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
 
-// Looks for the total amount of delegations towards a particular node.
-// This function is used only in very specific circumstances:
-// 1. The mixnode/gateway bonds
-// 2. Some addresses start to delegate to the node
-// 3. The node unbonds
-// 4. Some of the addresses that delegated in the past have not removed the delegation yet
-// 5. The node rebonds with the same identity
-pub fn delegations<T: DeserializeOwned + Serialize>(
-    delegations_bucket: ReadonlyBucket<T>,
-) -> StdResult<Vec<(Vec<u8>, T)>> {
-    // I think it's incredibly unlikely to ever read more than that
-    // but in case we do, we should guard ourselves against possible
-    // out of memory errors (wasm contracts can only allocate at most 2MB
-    // of RAM, so we don't want to box the entire iterator)
-    let mut delegations = Vec::new();
-    // let mut total_delegation = Coin::new(0, DENOM);
-    let mut start = None;
-    loop {
-        let iterator = delegations_bucket
-            .range(start.as_deref(), None, Order::Ascending)
-            .take(OLD_DELEGATIONS_CHUNK_SIZE + 1);
-
-        let mut iterated = 0;
-
-        for result_tuple in iterator {
-            iterated += 1;
-            match result_tuple {
-                Ok((position, delegation)) => {
-                    // We might skip some values due to deserializatio errors
-                    if iterated > OLD_DELEGATIONS_CHUNK_SIZE {
-                        // we reached start of next chunk, don't process it, mark it for the next iteration of the loop
-                        start = Some(position);
-                        continue;
-                    }
-                    delegations.push((position, delegation))
-                }
-                Err(_e) => {
-                    // Skip errors
-                    continue;
-                }
-            }
-        }
-
-        if iterated <= OLD_DELEGATIONS_CHUNK_SIZE {
-            // that was the final chunk
-            break;
-        }
-    }
-
-    Ok(delegations)
-}
-
 fn total_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
-    match delegations(delegations_bucket) {
-        Ok(delegations) => Ok(Coin::new(
-            delegations.iter().fold(0, |acc, x| acc + x.1.amount.u128()),
-            "upunk",
-        )),
-        Err(e) => Err(e),
-    }
+    Ok(Coin::new(
+        Delegations::new(delegations_bucket)
+            .fold(0, |acc, x| acc + x.delegation_data.amount.u128()),
+        DENOM,
+    ))
 }
 
 fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
@@ -790,6 +733,7 @@ pub mod tests {
         INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
     };
     use crate::helpers::calculate_epoch_reward_rate;
+    use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
     use crate::storage::{
         gateway_delegations, gateway_delegations_read, layer_distribution_read,
         mix_delegations_read, read_gateway_bond, read_gateway_epoch_bond_reward_rate,
@@ -804,7 +748,9 @@ pub mod tests {
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
     use mixnet_contract::{
         ExecuteMsg, LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
+        UnpackedDelegation,
     };
+    use queries::tests::{store_n_gateway_delegations, store_n_mix_delegations};
 
     #[test]
     fn validating_mixnode_bond() {
@@ -3945,6 +3891,38 @@ pub mod tests {
                 attr("total delegation increase", Uint128(0)),
             ],
             res.attributes
+        );
+    }
+
+    #[test]
+    fn multiple_page_delegations() {
+        let mut deps = helpers::init_contract();
+        let node_identity: IdentityKey = "foo".into();
+
+        store_n_mix_delegations(
+            DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+            &mut deps.storage,
+            &node_identity,
+        );
+        let mix_bucket = all_mix_delegations_read::<RawDelegationData>(&deps.storage);
+        let mix_delegations =
+            Delegations::new(mix_bucket).collect::<Vec<UnpackedDelegation<RawDelegationData>>>();
+        assert_eq!(
+            DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+            mix_delegations.len() as u32
+        );
+
+        store_n_gateway_delegations(
+            DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+            &mut deps.storage,
+            &node_identity,
+        );
+        let gateway_bucket = all_gateway_delegations_read::<RawDelegationData>(&deps.storage);
+        let gateway_delegations = Delegations::new(gateway_bucket)
+            .collect::<Vec<UnpackedDelegation<RawDelegationData>>>();
+        assert_eq!(
+            DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+            gateway_delegations.len() as u32
         );
     }
 

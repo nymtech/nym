@@ -123,7 +123,7 @@ impl<C> Client<C> {
         self.0
             .read()
             .await
-            .get_all_nymd_mixnode_delegations(identity)
+            .get_all_nymd_single_mixnode_delegations(identity)
             .await
     }
 
@@ -137,7 +137,7 @@ impl<C> Client<C> {
         self.0
             .read()
             .await
-            .get_all_nymd_gateway_delegations(identity)
+            .get_all_nymd_single_gateway_delegations(identity)
             .await
     }
 

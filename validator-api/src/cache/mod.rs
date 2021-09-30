@@ -38,7 +38,7 @@ struct ValidatorCacheInner {
     current_mixnode_active_set_size: AtomicUsize,
     current_gateway_active_set_size: AtomicUsize,
 
-    total_mix_stake: RwLock<Cache<u128>>
+    total_mix_stake: RwLock<Cache<u128>>,
 }
 
 #[derive(Default, Serialize, Clone)]
@@ -223,7 +223,11 @@ impl ValidatorCache {
 
         self.inner.mixnodes.write().await.set(mixnodes);
         self.inner.gateways.write().await.set(gateways);
-        self.inner.total_mix_stake.write().await.set(total_mix_stake);
+        self.inner
+            .total_mix_stake
+            .write()
+            .await
+            .set(total_mix_stake);
     }
 
     pub async fn mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
@@ -309,7 +313,7 @@ impl ValidatorCacheInner {
             active_gateways_available: AtomicBool::new(false),
             current_mixnode_active_set_size: Default::default(),
             current_gateway_active_set_size: Default::default(),
-            total_mix_stake: Default::default()
+            total_mix_stake: Default::default(),
         }
     }
 }

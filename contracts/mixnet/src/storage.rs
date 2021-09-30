@@ -58,12 +58,20 @@ pub fn mut_total_mix_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
 }
 
 pub fn incr_total_mix_stake(amount: Uint128, storage: &mut dyn Storage) {
-    let stake = total_mix_stake(storage).load().unwrap().checked_add(amount).unwrap();
+    let stake = total_mix_stake(storage)
+        .load()
+        .unwrap()
+        .checked_add(amount)
+        .unwrap();
     mut_total_mix_stake(storage).save(&stake).unwrap();
 }
 
 pub fn decr_total_mix_stake(amount: Uint128, storage: &mut dyn Storage) {
-    let stake = total_mix_stake(storage).load().unwrap().checked_sub(amount).unwrap();
+    let stake = total_mix_stake(storage)
+        .load()
+        .unwrap()
+        .checked_sub(amount)
+        .unwrap();
     mut_total_mix_stake(storage).save(&stake).unwrap();
 }
 

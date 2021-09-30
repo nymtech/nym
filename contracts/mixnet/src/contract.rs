@@ -207,8 +207,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             gateway_identity,
             address,
         )?),
-        QueryMsg::GetTotalMixStake {} => to_binary(&queries::query_total_mix_stake(deps))
-    }; 
+        QueryMsg::GetTotalMixStake {} => to_binary(&queries::query_total_mix_stake(deps)),
+    };
 
     Ok(query_res?)
 }

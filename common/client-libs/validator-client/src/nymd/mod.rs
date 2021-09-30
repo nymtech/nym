@@ -199,10 +199,13 @@ impl<C> NymdClient<C> {
     }
 
     pub async fn get_total_mix_stake(&self) -> Result<Uint128, NymdError>
-    where C: CosmWasmClient + Sync 
+    where
+        C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::GetTotalMixStake {};
-        self.client.query_contract_smart(self.contract_address()?, &request).await
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
     }
 
     /// Checks whether there is a bonded mixnode associated with the provided client's address

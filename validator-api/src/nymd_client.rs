@@ -92,9 +92,9 @@ impl<C> Client<C> {
         Ok(time)
     }
 
-    pub(crate) async fn get_total_mix_stake(&self) -> Result<u128, ValidatorClientError> 
+    pub(crate) async fn get_total_mix_stake(&self) -> Result<u128, ValidatorClientError>
     where
-        C: CosmWasmClient + Sync   
+        C: CosmWasmClient + Sync,
     {
         Ok(self.0.read().await.get_total_mix_stake().await?)
     }

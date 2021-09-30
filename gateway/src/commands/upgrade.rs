@@ -148,7 +148,7 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
     }
 }
 
-pub fn execute(matches: &ArgMatches) {
+pub async fn execute(matches: ArgMatches<'static>) {
     let package_version = parse_package_version();
 
     let id = matches.value_of(ID_ARG_NAME).unwrap();
@@ -163,5 +163,5 @@ pub fn execute(matches: &ArgMatches) {
         process::exit(1);
     }
 
-    do_upgrade(existing_config, matches, package_version)
+    do_upgrade(existing_config, &matches, package_version)
 }

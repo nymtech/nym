@@ -89,6 +89,8 @@ impl fmt::Display for GatewayRequestsError {
     }
 }
 
+impl std::error::Error for GatewayRequestsError {}
+
 impl From<NymNodeRoutingAddressError> for GatewayRequestsError {
     fn from(_: NymNodeRoutingAddressError) -> Self {
         GatewayRequestsError::IncorrectlyEncodedAddress
@@ -191,9 +193,8 @@ impl TryInto<String> for ClientControlRequest {
 pub enum ServerResponse {
     Authenticate { status: bool },
     Register { status: bool },
-    // Maybe we could return the remaining bandwidth?
-    Bandwidth { status: bool },
-    Send { status: bool },
+    Bandwidth { available_total: i64 },
+    Send { remaining_bandwidth: i64 },
     Error { message: String },
 }
 

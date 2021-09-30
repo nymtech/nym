@@ -20,12 +20,13 @@ log = "0.4"
 pretty_env_logger = "0.4"
 rand = "0.7"
 serde = { version = "1.0.104", features = ["derive"] }
-sled = "0.34"
+thiserror = "1"
 tokio = { version = "1.4", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
 tokio-util = { version = "0.6", features = [ "codec" ] }
 tokio-stream = { version = "0.1", features = [ "fs" ] }
 tokio-tungstenite = "0.14"
 url = { version = "2.2", features = [ "serde" ] }
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 
 # internal
 coconut-interface = { path = "../common/coconut-interface" }
@@ -39,3 +40,7 @@ nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 validator-client = { path = "../common/client-libs/validator-client" }
 version-checker = { path = "../common/version-checker" }
+
+[build-dependencies]
+tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }

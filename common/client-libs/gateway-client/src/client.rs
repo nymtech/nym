@@ -36,8 +36,7 @@ const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
 pub struct GatewayClient {
     authenticated: bool,
-    // TODO: This should be replaced by an actual bandwidth value, with 0 meaning no bandwidth
-    has_bandwidth: bool,
+    bandwidth_remaining: i64,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
@@ -72,7 +71,7 @@ impl GatewayClient {
     ) -> Self {
         GatewayClient {
             authenticated: false,
-            has_bandwidth: false,
+            bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
             local_identity,
@@ -117,7 +116,7 @@ impl GatewayClient {
 
         GatewayClient {
             authenticated: false,
-            has_bandwidth: false,
+            bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
             local_identity,
@@ -474,12 +473,19 @@ impl GatewayClient {
         )
         .ok_or(GatewayClientError::SerializeCredential)?
         .into();
-        self.has_bandwidth = match self.send_websocket_message(msg).await? {
-            ServerResponse::Bandwidth { status } => Ok(status),
+        self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
+            ServerResponse::Bandwidth { available_total } => Ok(available_total),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             _ => Err(GatewayClientError::UnexpectedResponse),
         }?;
         Ok(())
+    }
+
+    fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {
+        packets
+            .iter()
+            .map(|packet| packet.sphinx_packet().len())
+            .sum::<usize>() as i64
     }
 
     pub async fn batch_send_mix_packets(
@@ -489,7 +495,7 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if !self.has_bandwidth {
+        if self.estimate_required_bandwidth(&packets) < self.bandwidth_remaining {
             return Err(GatewayClientError::NotEnoughBandwidth);
         }
         if !self.connection.is_established() {
@@ -550,7 +556,7 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if !self.has_bandwidth {
+        if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
             return Err(GatewayClientError::NotEnoughBandwidth);
         }
         if !self.connection.is_established() {
@@ -598,7 +604,7 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if !self.has_bandwidth {
+        if self.bandwidth_remaining <= 0 {
             return Err(GatewayClientError::NotEnoughBandwidth);
         }
         if self.connection.is_partially_delegated() {

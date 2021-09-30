@@ -7,6 +7,7 @@ import {
   DELEGATIONS_API,
   MIXNODE_STATS_API,
   MIXNODE_PING,
+  UPTIME_STORY_API,
 } from './constants';
 
 import { 
@@ -18,6 +19,7 @@ import {
   DelegationsResponse,
   StatsResponse,
   StatusResponse,
+  UptimeStoryResponse,
 } from '../typeDefs/explorer-api'
 
 function getFromCache(key: string) {
@@ -38,6 +40,7 @@ function storeInCache(key: string, data: any) {
 function clearCache(key: string) {
   return localStorage.removeItem(key);
 }
+
 export class Api {
 
   static fetchMixnodes = async (): Promise<MixNodeResponse> => {
@@ -98,6 +101,10 @@ export class Api {
   }
   static fetchStatusById = async (id: string): Promise<StatusResponse> => {
     const res = await fetch(`${MIXNODE_PING}/${id}`);
+    return await res.json();
+  }
+  static fetchUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> => {
+    const res = await fetch(`${UPTIME_STORY_API}/${id}/history`);
     return await res.json();
   }
 }

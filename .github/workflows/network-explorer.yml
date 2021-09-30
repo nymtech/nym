@@ -16,9 +16,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v2
     - name: Install rsync
       run: sudo apt-get install rsync
-    - uses: actions/checkout@v2
     - uses: rlespinasse/github-slug-action@v3.x
     - uses: actions/setup-node@v2
       with:

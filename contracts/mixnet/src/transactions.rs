@@ -111,6 +111,8 @@ pub(crate) fn try_add_mixnode(
     mixnodes(deps.storage).save(identity.as_bytes(), &bond)?;
     mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
     increment_layer_count(deps.storage, bond.layer)?;
+    incr_total_mix_stake(bond.bond_amount().amount, deps.storage);
+    incr_total_mix_stake(bond.total_delegation().amount, deps.storage);
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
@@ -149,6 +151,9 @@ pub(crate) fn try_remove_mixnode(
     mixnodes_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
     decrement_layer_count(deps.storage, mixnode_bond.layer)?;
+
+    decr_total_mix_stake(mixnode_bond.bond_amount().amount, deps.storage);
+    decr_total_mix_stake(mixnode_bond.total_delegation().amount, deps.storage);
 
     // log our actions
     let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
@@ -561,8 +566,10 @@ pub(crate) fn try_delegate_to_mixnode(
         }
     };
 
+    let amount = info.funds[0].amount;
+
     // update total_delegation of this node
-    current_bond.total_delegation.amount += info.funds[0].amount;
+    current_bond.total_delegation.amount += amount;
     mixnodes_bucket.save(mix_identity.as_bytes(), &current_bond)?;
 
     let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
@@ -570,14 +577,16 @@ pub(crate) fn try_delegate_to_mixnode(
 
     // write the delegation
     let new_amount = match delegation_bucket.may_load(sender_bytes)? {
-        Some(existing_delegation) => existing_delegation.amount + info.funds[0].amount,
-        None => info.funds[0].amount,
+        Some(existing_delegation) => existing_delegation.amount + amount,
+        None => amount,
     };
     // the block height is reset, if it existed
     let new_delegation = RawDelegationData::new(new_amount, env.block.height);
     delegation_bucket.save(sender_bytes, &new_delegation)?;
 
     reverse_mix_delegations(deps.storage, &info.sender).save(mix_identity.as_bytes(), &())?;
+
+    incr_total_mix_stake(amount, deps.storage);
 
     Ok(Response::default())
 }
@@ -615,6 +624,8 @@ pub(crate) fn try_remove_delegation_from_mixnode(
                     .unwrap();
                 mixnodes_bucket.save(mix_identity.as_bytes(), &existing_bond)?;
             }
+
+            decr_total_mix_stake(delegation.amount, deps.storage);
 
             Ok(Response {
                 submessages: Vec::new(),

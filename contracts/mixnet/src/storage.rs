@@ -24,6 +24,7 @@ use serde::Serialize;
 // singletons
 const CONFIG_KEY: &[u8] = b"config";
 const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
+const TOTAL_STAKE_KEY: &[u8] = b"total_mix";
 
 // buckets
 const PREFIX_MIXNODES: &[u8] = b"mn";
@@ -46,6 +47,24 @@ pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
 
 pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
     singleton_read(storage, CONFIG_KEY)
+}
+
+pub fn total_mix_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
+    singleton_read(storage, TOTAL_STAKE_KEY)
+}
+
+pub fn mut_total_mix_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
+    singleton(storage, TOTAL_STAKE_KEY)
+}
+
+pub fn incr_total_mix_stake(amount: Uint128, storage: &mut dyn Storage) {
+    let stake = total_mix_stake(storage).load().unwrap().checked_add(amount).unwrap();
+    mut_total_mix_stake(storage).save(&stake).unwrap();
+}
+
+pub fn decr_total_mix_stake(amount: Uint128, storage: &mut dyn Storage) {
+    let stake = total_mix_stake(storage).load().unwrap().checked_sub(amount).unwrap();
+    mut_total_mix_stake(storage).save(&stake).unwrap();
 }
 
 pub(crate) fn read_state_params(storage: &dyn Storage) -> StateParams {

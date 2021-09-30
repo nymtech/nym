@@ -206,7 +206,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             deps,
             gateway_identity,
             address,
-        )?),
+        )?)
     };
 
     Ok(query_res?)

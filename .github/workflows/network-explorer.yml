@@ -31,7 +31,7 @@ jobs:
       env:
         SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
         ARGS: "-rltgoDzvO --delete"
-        SOURCE: "dist/"
+        SOURCE: "explorer/dist/"
         REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
         REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
         TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/${{ env.GITHUB_REF_SLUG}}

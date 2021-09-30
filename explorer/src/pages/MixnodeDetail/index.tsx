@@ -9,6 +9,7 @@ import { BondBreakdownTable } from 'src/components/BondBreakdown';
 import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
 import { UptimeChart } from 'src/components/UptimeChart';
 import { scrollToRef } from 'src/utils';
+import { ComponentError } from 'src/components/ComponentError';
 
 export const PageMixnodeDetail: React.FC = () => {
     const ref = React.useRef();
@@ -82,12 +83,7 @@ export const PageMixnodeDetail: React.FC = () => {
                         <ContentCard title='Mixnode Stats'>
                             {stats && (
                                 <>
-                                    {stats.error && (
-                                        <Typography sx={{ marginTop: 2, color: 'primary.main', fontSize: 10 }} variant='body1'>
-                                            {stats.error.message}
-                                        </Typography>
-                                    )}
-
+                                    {stats.error && <ComponentError text={stats.error.message} />}
                                     <TwoColSmallTable
                                         error={stats?.error?.message}
                                         title='Since startup'
@@ -139,11 +135,7 @@ export const PageMixnodeDetail: React.FC = () => {
                     <Grid item xs={12} md={4} xl={3}>
                         {status && (
                             <ContentCard title='Mixnode Status'>
-                                {status.error && (
-                                    <Typography sx={{ marginTop: 2, color: 'primary.main', fontSize: 10 }} variant='body1'>
-                                        {status.error.message}
-                                    </Typography>
-                                )}
+                                {status.error && <ComponentError text={status.error.message} />}
                                 <TwoColSmallTable
                                     error={status?.error?.message}
                                     keys={['Mix port', 'Verloc port', 'HTTP port']}

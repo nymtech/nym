@@ -9,6 +9,8 @@ import Paper from '@mui/material/Paper';
 import { TableHeadingsType, TableHeading } from 'src/typeDefs/tables';
 import { MixNodeResponse, ApiState, MixNodeResponseItem } from 'src/typeDefs/explorer-api';
 import { Link } from 'react-router-dom';
+import { ComponentError } from './ComponentError';
+import { Error } from '@mui/icons-material';
 
 const tableHeadings: TableHeadingsType = [
     {
@@ -54,42 +56,64 @@ type TableProps = {
 }
 
 export function MixnodesTable({ mixnodes }: TableProps) {
-    if (mixnodes && mixnodes.data && mixnodes.data.length) {
+    if (mixnodes) {
         return (
-            <TableContainer component={Paper}>
-                <Table sx={{ minWidth: 650 }} aria-label='mixnodes table'>
-                    <TableHead>
-                        <TableRow>
-                            {tableHeadings.map((eachHeading: TableHeading, i: number) => (
-                                <TableCell sx={{ fontWeight: 'bold' }} key={eachHeading.id} align='left'>{eachHeading.label}</TableCell>
-                            ))}
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {mixnodes.data.slice(0,6).map((row: MixNodeResponseItem) => (
-                            <TableRow
-                                key={row.mix_node.identity_key}
-                                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                            >
-                                <TableCell component='th' scope='row' sx={{ maxWidth: 250, wordBreak: 'break-all' }}>
-                                    {row.owner}
-                                </TableCell>
-                                <TableCell sx={{ maxWidth: 250, wordBreak: 'break-all' }} align='left'>
-                                    <Link to={`/network-components/mixnodes/${row.mix_node.identity_key}`} style={{ textDecoration: 'none', color: 'white' }}>
-                                        {row.mix_node.identity_key}
-                                    </Link>
-                                </TableCell>
-                                <TableCell align='left'>{`${row.bond_amount.amount}${row.bond_amount.denom.toUpperCase()}`}</TableCell>
-                                <TableCell sx={{ maxWidth: 170 }} align='left'>{row.mix_node.host}</TableCell>
-                                <TableCell align='left'>{row?.location?.country_name || 'Unknown'}</TableCell>
-                                <TableCell align='right'>{row.layer}</TableCell>
+            <>
+                {!mixnodes.error && <ComponentError text='There was an error retrieving this mixnode information' />}
+                <TableContainer component={Paper}>
+                    <Table sx={{ minWidth: 650 }} aria-label='mixnodes table'>
+                        <TableHead>
+                            <TableRow>
+                                {tableHeadings.map((eachHeading: TableHeading, i: number) => (
+                                    <TableCell sx={{ fontWeight: 'bold' }} key={eachHeading.id} align='left'>{eachHeading.label}</TableCell>
+                                ))}
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                        </TableHead>
+                        <TableBody>
+                            {mixnodes.data && mixnodes.data.length && mixnodes.data.slice(0, 6).map((row: MixNodeResponseItem) => (
+                                <TableRow
+                                    key={row.mix_node.identity_key}
+                                    sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                                >
+                                    <TableCell component='th' scope='row' sx={{ maxWidth: 250, wordBreak: 'break-all' }}>
+                                        {row.owner}
+                                    </TableCell>
+                                    <TableCell sx={{ maxWidth: 250, wordBreak: 'break-all' }} align='left'>
+                                        <Link to={`/network-components/mixnodes/${row.mix_node.identity_key}`} style={{ textDecoration: 'none', color: 'white' }}>
+                                            {row.mix_node.identity_key}
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell align='left'>{`${row.bond_amount.amount}${row.bond_amount.denom.toUpperCase()}`}</TableCell>
+                                    <TableCell sx={{ maxWidth: 170 }} align='left'>{row.mix_node.host}</TableCell>
+                                    <TableCell align='left'>{row?.location?.country_name || 'Unknown'}</TableCell>
+                                    <TableCell align='right'>{row.layer}</TableCell>
+                                </TableRow>
+                            ))}
+                            {mixnodes.error && mixnodes.error.message && (
+                                <TableRow
+                                    sx={{ opacity: 0.4, '&:last-child td, &:last-child th': { border: 0 } }}
+                                >
+                                    <TableCell component='th' scope='row' sx={{ maxWidth: 250, wordBreak: 'break-all' }}>
+                                        <Error />
+                                    </TableCell>
+                                    <TableCell sx={{ maxWidth: 250, wordBreak: 'break-all' }} align='left'>
+                                        <Error />
+                                    </TableCell>
+                                    <TableCell align='left'>
+                                        <Error />
+                                    </TableCell>
+                                    <TableCell sx={{ maxWidth: 170 }} align='left'>unknown</TableCell>
+                                    <TableCell align='left'>Unknown</TableCell>
+                                    <TableCell align='right'>unknown</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </>
         );
-    } else {
+    }
+    else {
         return <h1>Loading...</h1>
     }
 }

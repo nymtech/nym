@@ -12,7 +12,7 @@ import { ContentCard } from '../../components/ContentCard';
 
 export const PageOverview: React.FC = () => {
   const history = useHistory();
-  const { mixnodes, gateways, validators, block }: any =
+  const { mixnodes, gateways, validators, block, countryData }: any =
     React.useContext(MainContext);
   return (
     <>
@@ -89,7 +89,10 @@ export const PageOverview: React.FC = () => {
           </Grid>
 
           <Grid item xs={12}>
-            <WorldMap title="Distribution of nodes around the world"/>
+            <WorldMap
+              title="Distribution of nodes around the world"
+              countryData={countryData}
+            />
           </Grid>
         </Grid>
       </Box>

@@ -62,16 +62,9 @@ validator_api_urls = [
 # It is expected to use default value and hence .toml file should not redefine this field.
 nym_root_directory = '{{ gateway.nym_root_directory }}'
 
-#### Clients endpoint config options #####
-
-[clients_endpoint]
-
-# Path to the directory with clients inboxes containing messages stored for them.
-inboxes_directory = '{{ clients_endpoint.inboxes_directory }}'
-
-# Full path to a file containing mapping of client addresses to their access tokens.
-ledger_path = '{{ clients_endpoint.ledger_path }}'
-
+# Path to sqlite database containing all persistent data: messages for offline clients,
+# derived shared keys and available client bandwidths.
+persistent_storage = '{{ gateway.persistent_storage }}'
 
 ##### logging configuration options #####
 

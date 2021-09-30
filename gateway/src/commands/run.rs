@@ -47,15 +47,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name(INBOXES_ARG_NAME)
-                .long(INBOXES_ARG_NAME)
-                .help("Directory with inboxes where all packets for the clients are stored")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(CLIENTS_LEDGER_ARG_NAME)
-                .long(CLIENTS_LEDGER_ARG_NAME)
-                .help("Ledger file containing registered clients")
+            Arg::with_name(DATASTORE_PATH)
+                .long(DATASTORE_PATH)
+                .help("Path to sqlite database containing all gateway persistent data")
                 .takes_value(true)
         )
         .arg(
@@ -126,7 +120,7 @@ fn version_check(cfg: &Config) -> bool {
     }
 }
 
-pub fn execute(matches: &ArgMatches) {
+pub async fn execute(matches: ArgMatches<'static>) {
     let id = matches.value_of(ID_ARG_NAME).unwrap();
 
     println!("Starting gateway {}...", id);
@@ -139,7 +133,7 @@ pub fn execute(matches: &ArgMatches) {
         }
     };
 
-    config = override_config(config, matches);
+    config = override_config(config, &matches);
 
     if !version_check(&config) {
         error!("failed the local version check");
@@ -168,15 +162,10 @@ pub fn execute(matches: &ArgMatches) {
         config.get_announce_address()
     );
 
-    println!(
-        "Inboxes directory is: {:?}",
-        config.get_clients_inboxes_dir()
-    );
+    println!("Data store is at: {:?}", config.get_persistent_store_path());
 
-    println!(
-        "Clients ledger is stored at: {:?}",
-        config.get_clients_ledger_path()
-    );
-
-    Gateway::new(config, sphinx_keypair, identity).run();
+    Gateway::new(config, sphinx_keypair, identity)
+        .await
+        .run()
+        .await;
 }

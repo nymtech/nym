@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
-use crate::helpers::get_all_delegations_paged;
-use crate::storage::{
-    all_gateway_delegations_read, all_mix_delegations_read, gateway_delegations_read,
-    gateways_owners_read, gateways_read, mix_delegations_read, mixnodes_owners_read, mixnodes_read,
-    read_layer_distribution, read_state_params, reverse_gateway_delegations_read,
-    reverse_mix_delegations_read,
-};
+use crate::storage::{gateway_delegations_read, gateways_owners_read, gateways_read, mix_delegations_read, mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params, reverse_gateway_delegations_read, reverse_mix_delegations_read, total_mix_stake, all_gateway_delegations_read, all_mix_delegations_read};
 use config::defaults::DENOM;
-use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
+use cosmwasm_std::Deps;
+use cosmwasm_std::Order;
+use cosmwasm_std::StdResult;
+use cosmwasm_std::{coin, Addr, Uint128};
 use mixnet_contract::{
     Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
     MixOwnershipResponse, PagedAllDelegationsResponse, PagedGatewayDelegationsResponse,
@@ -18,6 +15,7 @@ use mixnet_contract::{
     PagedReverseGatewayDelegationsResponse, PagedReverseMixDelegationsResponse, RawDelegationData,
     StateParams,
 };
+use crate::helpers::get_all_delegations_paged;
 
 const BOND_PAGE_MAX_LIMIT: u32 = 100;
 const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
@@ -91,6 +89,10 @@ pub(crate) fn query_state_params(deps: Deps) -> StateParams {
 
 pub(crate) fn query_layer_distribution(deps: Deps) -> LayerDistribution {
     read_layer_distribution(deps.storage)
+}
+
+pub(crate) fn query_total_mix_stake(deps: Deps) -> Uint128 {
+    total_mix_stake(deps.storage).load().unwrap()
 }
 
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm

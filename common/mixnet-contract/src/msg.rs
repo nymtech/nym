@@ -107,6 +107,7 @@ pub enum QueryMsg {
         address: Addr,
     },
     LayerDistribution {},
+    GetTotalMixStake {}
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

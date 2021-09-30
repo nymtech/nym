@@ -206,12 +206,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             deps,
             gateway_identity,
             address,
-        )?)
-    };
+        )?),
+        QueryMsg::GetTotalMixStake {} => to_binary(&queries::query_total_mix_stake(deps))
+    }; 
 
     Ok(query_res?)
 }
 
+// TODO: Calculate initial total stake when deploying this change
 #[entry_point]
 pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     use crate::storage::{

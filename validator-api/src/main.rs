@@ -86,14 +86,13 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             Arg::with_name(V4_TOPOLOGY_ARG)
                 .help("location of .json file containing IPv4 'good' network topology")
                 .long(V4_TOPOLOGY_ARG)
-                .requires(MONITORING_ENABLED)
+                .takes_value(true)
         )
         .arg(
             Arg::with_name(V6_TOPOLOGY_ARG)
                 .help("location of .json file containing IPv6 'good' network topology")
                 .long(V6_TOPOLOGY_ARG)
                 .takes_value(true)
-                .requires(MONITORING_ENABLED)
         )
         .arg(
             Arg::with_name(NYMD_VALIDATOR_ARG)
@@ -116,13 +115,11 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                  .long(MNEMONIC_ARG)
                  .help("Mnemonic of the network monitor used for rewarding operators")
                  .takes_value(true)
-                 .requires(REWARDING_ENABLED),
         )
         .arg(
             Arg::with_name(DETAILED_REPORT_ARG)
                 .help("specifies whether a detailed report should be printed after each run")
                 .long(DETAILED_REPORT_ARG)
-                .requires(MONITORING_ENABLED)
         )
         .arg(
             Arg::with_name(WRITE_CONFIG_ARG)
@@ -135,21 +132,18 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("Datetime specifying beginning of the first rewarding epoch of this length. It must be a valid rfc3339 datetime.")
                 .takes_value(true)
                 .long(FIRST_REWARDING_EPOCH_ARG)
-                .requires(REWARDING_ENABLED)
         )
         .arg(
             Arg::with_name(EPOCH_LENGTH_ARG)
                 .help("Length of the current rewarding epoch in hours")
                 .takes_value(true)
                 .long(EPOCH_LENGTH_ARG)
-                .requires(REWARDING_ENABLED)
         )
         .arg(
             Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
                 .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given epoch.")
                 .takes_value(true)
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
-                .requires(REWARDING_ENABLED)
         )
 
         .get_matches()

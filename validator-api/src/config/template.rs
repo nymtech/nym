@@ -16,9 +16,6 @@ local_validator = '{{ base.local_validator }}'
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ base.mixnet_contract_address }}'
 
-# Mnemonic (currently of the network monitor) used for rewarding
-mnemonic = '{{ base.mnemonic }}'
-
 ##### network monitor config options #####
 
 [network_monitor]

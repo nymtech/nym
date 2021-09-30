@@ -157,3 +157,15 @@ export type StatusResponse = {
     8000: boolean
   }
 }
+
+export type UptimeTime = {
+  date: string,
+  ipv4_uptime: number,
+  ipv6_uptime: number, 
+}
+
+export type UptimeStoryResponse = {
+  history: UptimeTime[],
+  identity: string,
+  owner: string,
+}

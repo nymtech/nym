@@ -9,10 +9,10 @@ import {
   BlockResponse,
   ApiState,
   MixNodeResponseItem,
-  MixNode,
   DelegationsResponse,
   StatsResponse,
   StatusResponse,
+  UptimeStoryResponse,
 } from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
 
@@ -33,6 +33,8 @@ interface State {
   fetchStatsById: (arg: string) => void,
   status?: ApiState<StatusResponse>,
   fetchStatusById: (arg: string) => void,
+  fetchUptimeStoryById: (arg: string) => void,
+  uptimeStory?: ApiState<UptimeStoryResponse>
 }
 
 export const MainContext = React.createContext<State>({ 
@@ -41,6 +43,7 @@ export const MainContext = React.createContext<State>({
   fetchDelegationsById: () => null,
   fetchStatsById: () => null,
   fetchStatusById: () => null,
+  fetchUptimeStoryById: () => null,
 });
 
 export const MainContextProvider: React.FC = ({ children }) => {
@@ -62,10 +65,23 @@ export const MainContextProvider: React.FC = ({ children }) => {
   const [delegations, setDelegations] = React.useState<ApiState<DelegationsResponse>>();
   const [status, setStatus] = React.useState<ApiState<StatusResponse>>();
   const [stats, setStats] = React.useState<ApiState<StatsResponse>>();
+  const [uptimeStory, setUptimeStory] = React.useState<ApiState<UptimeStoryResponse>>();
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
   // actions passed down to Overview and Detail pages
+  const fetchUptimeStoryById = async (id: string) => {
+    try {
+      const data = await Api.fetchUptimeStoryById(id);
+      setUptimeStory({ data, isLoading: false })
+    } catch (error) {
+      setUptimeStory({
+        error: error instanceof Error ? error : new Error("Uptime Story api fail"),
+        isLoading: false
+      });
+    }
+  }
+
   const fetchDelegationsById = async (id: string) => {
     try {
       const data = await Api.fetchDelegationsById(id);
@@ -219,6 +235,8 @@ export const MainContextProvider: React.FC = ({ children }) => {
         fetchStatsById,
         status,
         fetchStatusById,
+        uptimeStory,
+        fetchUptimeStoryById,
       }}
     >
       {children}

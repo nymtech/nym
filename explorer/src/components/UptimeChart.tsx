@@ -3,72 +3,88 @@ import Paper from '@mui/material/Paper';
 import { Typography } from '@mui/material';
 import { Chart } from 'react-google-charts';
 import { MainContext } from '../context/main';
+import { ApiState, UptimeStoryResponse } from 'src/typeDefs/explorer-api';
 interface ChartProps {
     title?: string
     xLabel: string
     yLabel: string
+    uptimeStory: ApiState<UptimeStoryResponse>
 }
 
-export function UptimeChart({ title, xLabel, yLabel }: ChartProps) {
-    const { mode }: any = React.useContext(MainContext);
-        return (
-            <>
-                {title && (
-                    <Typography>
-                        {title}
-                    </Typography>
-                )}
-                
-                <Chart
-                    style={{ minHeight: 480, border: '1px solid red' }}
-                    chartType="LineChart"
-                    loader={<div>Loading...</div>}
-                    data={
-                        [
-                            [
-                                { type: 'number', label: 'x' },
-                                { type: 'number', label: 'values' },
-                                { id: 'i0', type: 'number', role: 'interval' },
-                                { id: 'i1', type: 'number', role: 'interval' },
-                                { id: 'i2', type: 'number', role: 'interval' },
-                                { id: 'i2', type: 'number', role: 'interval' },
-                                { id: 'i2', type: 'number', role: 'interval' },
-                                { id: 'i2', type: 'number', role: 'interval' },
-                            ],
-                                [1, 100, 90, 110, 85, 96, 104, 120],
-                                [2, 120, 95, 130, 90, 113, 124, 140],
-                                [3, 130, 105, 140, 100, 117, 133, 139],
-                                [4, 90, 85, 95, 85, 88, 92, 95],
-                                [5, 70, 74, 63, 67, 69, 70, 72],
-                                [6, 30, 39, 22, 21, 28, 34, 40],
-                                [7, 80, 77, 83, 70, 77, 85, 90],
-                                [8, 100, 90, 110, 85, 95, 102, 110],
-                        ]
-                    }
-                    options={{
-                        backgroundColor: mode === 'dark' ? 'rgb(50, 60, 81)' : 'rgb(241, 234, 234)',
-                        color: 'white',
-                        colors: ['#FB7A21'],
-                        intervals: { style: 'sticks' },
-                        legend: 'none',
-                        hAxis: {
-                            title: xLabel,
-                            titleTextStyle: {
-                                color: mode === 'dark' ? 'white' : 'black',
-                            },
-                            gridlines: {
-                                count: -1,
-                            }
+type FormattedDateRecord = [string, number, number];
+type FormattedChartHeadings = [string, string, string];
+type FormattedChartData = [FormattedChartHeadings | FormattedDateRecord];
 
+export function UptimeChart({ title, xLabel, yLabel, uptimeStory }: ChartProps) {
+
+    const [formattedChartData, setFormattedChartData] = React.useState<FormattedChartData>()
+    const { mode }: any = React.useContext(MainContext);
+
+    React.useEffect(() => {
+        if (uptimeStory.data?.history) {
+            let allFormattedChartData: FormattedChartData = [
+                ["Date", "UptimeV4", "UptimeV6"],
+            ];
+            uptimeStory.data.history.map((eachDate) => {
+                const formattedDateUptimeRecord: FormattedDateRecord = [eachDate.date, eachDate.ipv4_uptime, eachDate.ipv6_uptime]
+                allFormattedChartData.push(formattedDateUptimeRecord);
+            });
+            setFormattedChartData(allFormattedChartData)
+        }
+    }, [])
+
+    return (
+        <>
+            {title && (
+                <Typography>
+                    {title}
+                </Typography>
+            )}
+
+            <Chart
+                style={{ minHeight: 480 }}
+                chartType="LineChart"
+                loader={<div>Loading...</div>}
+                data={formattedChartData}
+                options={{
+                    backgroundColor: mode === 'dark' ? 'rgb(50, 60, 81)' : 'rgb(241, 234, 234)',
+                    color: 'white',
+                    colors: ['#FB7A21', "#CC808A"],
+                    legend: {
+                        textStyle: { color: 'white' }
+                    },
+
+                    intervals: { style: 'sticks' },
+                    hAxis: { // horizontal / date
+                        title: xLabel,
+                        titleTextStyle: {
+                            color: mode === 'dark' ? 'white' : 'black',
                         },
-                        vAxis: {
-                            title: yLabel,
-                            titleTextStyle: {
-                                color: mode === 'dark' ? 'white' : 'black',
-                            }
+                        textStyle: {
+                            color: mode === 'dark' ? 'white' : 'black',
+                            // fontSize: 11
+                        },
+                        gridlines: {
+                            count: -1,
                         }
-                    }}
-                />
-            </>
-        );
+
+                    },
+                    vAxis: { // % uptime vertical
+                        viewWindow: {
+                            min: 0,
+                            max: 100,
+                        },
+                        title: yLabel,
+                        titleTextStyle: {
+                            color: mode === 'dark' ? 'white' : 'black',
+                        },
+                        textStyle: {
+                            color: mode === 'dark' ? 'white' : 'black',
+                            fontSize: 11,
+                        },
+                    }
+                }}
+            />
+        </>
+    );
 }

@@ -92,6 +92,9 @@ pub(crate) fn query_layer_distribution(deps: Deps) -> LayerDistribution {
 }
 
 pub(crate) fn query_total_mix_stake(deps: Deps) -> Uint128 {
+    // note: In any other case, I wouldn't have attempted to unwrap this result, but in here
+    // if we fail to load the stored state we would already be in the undefined behaviour land,
+    // so we better just blow up immediately.
     total_mix_stake(deps.storage).load().unwrap()
 }
 

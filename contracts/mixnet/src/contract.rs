@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::helpers::{calculate_epoch_reward_rate, Delegations};
+use crate::helpers::{calculate_epoch_reward_rate};
 use crate::state::State;
 use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
@@ -212,40 +212,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 
     Ok(query_res?)
 }
-
-// TODO: Calculate initial total stake when deploying this change
 #[entry_point]
-pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    use crate::storage::{
-        all_gateway_delegations_read, all_mix_delegations_read, gateway_delegations,
-        mix_delegations, reverse_gateway_delegations, reverse_mix_delegations,
-    };
-    use mixnet_contract::{RawDelegationData, UnpackedDelegation};
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    todo!("Calculate initial total mix stake");
 
-    let mix_bucket = all_mix_delegations_read::<Uint128>(deps.storage);
-    let delegations = Delegations::new(mix_bucket).collect::<Vec<UnpackedDelegation<Uint128>>>();
-    for delegation in delegations {
-        let owner = delegation.owner;
-        let node_identity = delegation.node_identity;
-        let amount = delegation.delegation_data;
-        let raw_delegation = RawDelegationData::new(amount, env.block.height);
-        mix_delegations(deps.storage, &node_identity).save(owner.as_bytes(), &raw_delegation)?;
-        reverse_mix_delegations(deps.storage, &owner).save(node_identity.as_bytes(), &())?;
-    }
-
-    let gateway_bucket = all_gateway_delegations_read::<Uint128>(deps.storage);
-    let delegations =
-        Delegations::new(gateway_bucket).collect::<Vec<UnpackedDelegation<Uint128>>>();
-    for delegation in delegations {
-        let owner = delegation.owner;
-        let node_identity = delegation.node_identity;
-        let amount = delegation.delegation_data;
-        let raw_delegation = RawDelegationData::new(amount, env.block.height);
-        gateway_delegations(deps.storage, &node_identity)
-            .save(owner.as_bytes(), &raw_delegation)?;
-        reverse_gateway_delegations(deps.storage, &owner).save(node_identity.as_bytes(), &())?;
-    }
-
+    #[allow(unreachable_code)]
     Ok(Default::default())
 }
 

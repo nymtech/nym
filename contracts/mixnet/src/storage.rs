@@ -1,9 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::queries;
 use crate::state::State;
 use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+use crate::{error::ContractError, queries};
 use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
@@ -24,6 +24,7 @@ use serde::Serialize;
 // singletons
 const CONFIG_KEY: &[u8] = b"config";
 const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
+// Keeps total amount of stake towards mixnodes. Removing a mixnode bond removes all its delegations from the total, the reverse is true for adding a mixnode bond.ß
 const TOTAL_STAKE_KEY: &[u8] = b"total_mix";
 
 // buckets
@@ -57,22 +58,22 @@ pub fn mut_total_mix_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
     singleton(storage, TOTAL_STAKE_KEY)
 }
 
-pub fn incr_total_mix_stake(amount: Uint128, storage: &mut dyn Storage) {
-    let stake = total_mix_stake(storage)
-        .load()
-        .unwrap()
-        .checked_add(amount)
-        .unwrap();
-    mut_total_mix_stake(storage).save(&stake).unwrap();
+pub fn incr_total_mix_stake(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<(), ContractError> {
+    let stake = total_mix_stake(storage).load()?.checked_add(amount)?;
+    mut_total_mix_stake(storage).save(&stake)?;
+    Ok(())
 }
 
-pub fn decr_total_mix_stake(amount: Uint128, storage: &mut dyn Storage) {
-    let stake = total_mix_stake(storage)
-        .load()
-        .unwrap()
-        .checked_sub(amount)
-        .unwrap();
-    mut_total_mix_stake(storage).save(&stake).unwrap();
+pub fn decr_total_mix_stake(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<(), ContractError> {
+    let stake = total_mix_stake(storage).load()?.checked_sub(amount)?;
+    mut_total_mix_stake(storage).save(&stake)?;
+    Ok(())
 }
 
 pub(crate) fn read_state_params(storage: &dyn Storage) -> StateParams {

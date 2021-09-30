@@ -27,7 +27,7 @@ jobs:
         echo "   repository          : ${{ env.GITHUB_REPOSITORY_SLUG }}"
         echo "   repository owner    : ${{ env.GITHUB_REPOSITORY_OWNER_PART_SLUG }}"
         echo "   repository name     : ${{ env.GITHUB_REPOSITORY_NAME_PART_SLUG }}"
-        echo "   ref name            : ${{ eng.GITHUB_REF_NAME }}"
+        echo "   ref name            : ${{ env.GITHUB_REF_NAME }}"
         echo "   ref                 : ${{ env.GITHUB_REF_SLUG }}"
         echo "   head ref            : ${{ env.GITHUB_HEAD_REF_SLUG }}"
         echo "   base ref            : ${{ env.GITHUB_BASE_REF_SLUG }}"

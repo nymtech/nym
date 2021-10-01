@@ -1,7 +1,7 @@
 import { PaletteMode } from '@mui/material';
 import * as React from 'react';
 import { MIXNODE_API_ERROR } from 'src/api/constants';
-import { 
+import {
   CountryDataResponse,
   GatewayResponse,
   MixNodeResponse,
@@ -37,13 +37,15 @@ interface State {
   uptimeStory?: ApiState<UptimeStoryResponse>
 }
 
-export const MainContext = React.createContext<State>({ 
+export const MainContext = React.createContext<State>({
   mode: "dark",
   fetchMixnodeById: () => null,
   fetchDelegationsById: () => null,
   fetchStatsById: () => null,
   fetchStatusById: () => null,
   fetchUptimeStoryById: () => null,
+  status: { data: undefined, isLoading: false, error: undefined },
+  stats: { data: undefined, isLoading: false, error: undefined },
 });
 
 export const MainContextProvider: React.FC = ({ children }) => {
@@ -51,7 +53,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
   const [mode, setMode] = React.useState<PaletteMode>('dark');
 
   // global / banner error messaging
-  const [globalError,  setGlobalError] = React.useState<string>();
+  const [globalError, setGlobalError] = React.useState<string>();
 
   // various APIs for Overview page
   const [mixnodes, setMixnodes] = React.useState<ApiState<MixNodeResponse>>();
@@ -95,6 +97,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
   }
 
   const fetchStatusById = async (id: string) => {
+    setStatus({ data: status?.data, isLoading: true, error: status?.error });
     try {
       const data = await Api.fetchStatusById(id);
       setStatus({ data, isLoading: false })
@@ -107,6 +110,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
   }
 
   const fetchStatsById = async (id: string) => {
+    setStats({ data: stats?.data, isLoading: true, error: stats?.error });
     try {
       const data = await Api.fetchStatsById(id);
       setStats({ data, isLoading: false })
@@ -133,7 +137,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
         setGlobalError(MIXNODE_API_ERROR)
       }
     } else {
-    // 2. if mixnode data DOESNT already exist, fetch this specific ID's information.
+      // 2. if mixnode data DOESNT already exist, fetch this specific ID's information.
       try {
         const data = await Api.fetchMixnodeByID(id)
         // a) fetches from cache^, then API, then filters down then dumps in `mixnodes` context.
@@ -187,7 +191,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
       const data = await Api.fetchBlock();
       setBlock({ data, isLoading: false });
     } catch (error) {
-      setBlock({ 
+      setBlock({
         error: error instanceof Error ? error : new Error("Block api fail"),
         isLoading: false
       });
@@ -199,7 +203,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
       const res = await Api.fetchCountryData();
       setCountryData({ data: res, isLoading: false });
     } catch (error) {
-      setCountryData({ 
+      setCountryData({
         error: error instanceof Error ? error : new Error("Country Data api fail"),
         isLoading: false
       });

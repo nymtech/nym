@@ -47,9 +47,6 @@ export function UptimeChart({ title, xLabel, yLabel, uptimeStory, loading }: Cha
         }
     }, [uptimeStory])
 
-    console.log('uptimeStory =======> ', uptimeStory)
-    console.log('formattedChartData =======> ', formattedChartData)
-
     return (
         <>
             {title && (

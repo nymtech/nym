@@ -14,11 +14,10 @@ type MapProps = {
   title?: string,
   userLocation?: [number, number],
   countryData?: ApiState<CountryDataResponse>,
+  loading: boolean
 }
 
-export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation }) => {
-
-
+export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation, loading }) => {
 
   const [hasNoContent, setHasNoContent] = React.useState<boolean>(false);
   const [tooltipContent, setTooltipContent] = React.useState<string | null>(null);
@@ -36,7 +35,7 @@ export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation 
     }
   }, [countryData, userLocation])
   return (
-    <ContentCard title={title}>
+    <>
       <Box>
         <ComposableMap
           data-tip=""
@@ -45,11 +44,12 @@ export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation 
               mode === 'dark'
                 ? 'rgba(50, 60, 81, 1)'
                 : 'rgba(241, 234, 234, 1)',
+            '-webkit-filter': hasNoContent ? 'blur(5px)' : null,
+            filter: hasNoContent ? 'blur(5px)' : null,
           }}
           projectionConfig={{
             rotate: [-10, 0, 0],
             scale: 180,
-            // scale: size === 'lg' ? 187 : 100,
           }}
         >
           <ZoomableGroup>
@@ -111,6 +111,6 @@ export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation 
         </ComposableMap>
         <ReactTooltip>{tooltipContent}</ReactTooltip>
       </Box>
-    </ContentCard>
+    </>
   );
 };

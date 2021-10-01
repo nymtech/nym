@@ -150,13 +150,19 @@ export const PageMixnodeDetail: React.FC = () => {
                         )}
                     </Grid>
                     <Grid item xs={12} md={8} xl={6}>
-                        {mixnodeDetailInfo && mixnodeDetailInfo.data && mixnodeDetailInfo?.data[0]?.location && (
-                            <WorldMap
-                                title='Location'
-                                userLocation={
-                                    [mixnodeDetailInfo?.data[0]?.location?.lng, mixnodeDetailInfo?.data[0]?.location?.lat]
-                                }
-                            />
+                        {mixnodeDetailInfo && (
+                            <ContentCard title='Location'>
+                                {mixnodeDetailInfo?.error && <ComponentError text='There was a problem retrieving this mixnode location' />}
+                                {mixnodeDetailInfo.data && mixnodeDetailInfo?.data[0]?.location && (
+                                    <WorldMap
+                                        loading={mixnodeDetailInfo.isLoading}
+                                        title='Location'
+                                        userLocation={
+                                            [mixnodeDetailInfo?.data[0]?.location?.lng, mixnodeDetailInfo?.data[0]?.location?.lat]
+                                        }
+                                    />
+                                )}
+                            </ContentCard>
                         )}
                     </Grid>
                 </Grid>

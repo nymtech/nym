@@ -35,14 +35,12 @@ export function UptimeChart({ title, xLabel, yLabel, uptimeStory, loading }: Cha
                 ]
                 allFormattedChartData.push(formattedDateUptimeRecord);
             });
-            console.log("A) setting allFormattedChartData to this ===>", allFormattedChartData);
             setFormattedChartData(allFormattedChartData)
         } else {
             const emptyData: any = [
                 ["Date", "UptimeV4", "UptimeV6"],
                 ['Jul 27', 10, 10]
             ];
-            console.log("B) setting allFormattedChartData to this ===>", emptyData);
             setFormattedChartData(emptyData)
         }
     }, [uptimeStory])

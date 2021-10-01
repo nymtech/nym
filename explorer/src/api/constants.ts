@@ -1,5 +1,5 @@
 export const MIXNODES_API =
-  'https://estnet-milhon-explorer.nymtech.net/api/mix-node';
+  'https://testnet-milhon-explorer.nymtech.net/api/mix-node';
 export const MIXNODE_PING =
   'https://testnet-milhon-explorer.nymtech.net/api/ping';
 export const GATEWAYS_API =

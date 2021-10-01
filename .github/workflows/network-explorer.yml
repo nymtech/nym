@@ -24,9 +24,13 @@ jobs:
       with:
         node-version: '14'
     - run: npm install
-#    - run: npm run test
+      continue-on-error: true
+    - run: npm run test
+      continue-on-error: true
     - run: npm run build
+      continue-on-error: true
     - name: Deploy branch to CI www
+      continue-on-error: true
       uses: easingthemes/ssh-deploy@main
       env:
         SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
@@ -36,3 +40,41 @@ jobs:
         REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
         TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/${{ env.GITHUB_REF_SLUG}}
         EXCLUDE: "/dist/, /node_modules/"
+    - name: Create success message
+      if: ${{ success() }}
+      run: |
+        echo 'KEYBASE_MESSAGE<<EOF' >> $GITHUB_ENV
+        🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+        > :rocket: Network Explorer  ➡️➡️➡️➡️➡️ **View output:** http://wip-network-explorer-react-test-ci.ci.nymte.ch/
+        > ✅ **SUCCESS**
+        > `${{ github.sha }}` `${{ github.ref }}` https://${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref }}
+        > `build job` https://${{ github.server_url }}/${{ github.repository  }}/actions/runs/${{  github.run_id  }}
+
+        Commit message:
+        ```
+        ${{ github.event.head_commit.message }}
+        ```
+        echo 'EOF' >> $GITHUB_ENV
+    - name: Create failure message
+      if: ${{ failure() }}
+      run: |
+        echo 'KEYBASE_MESSAGE<<EOF' >> $GITHUB_ENV
+        🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥
+        > :rocket: Network Explorer
+        > 🔴 **FAILURE** :cry:
+        > `${{ github.sha }}` `${{ github.ref }}` https://${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref }}
+        > `build job` https://${{ github.server_url }}/${{ github.repository  }}/actions/runs/${{  github.run_id  }}
+
+        Commit message:
+        ```
+        ${{ github.event.head_commit.message }}
+        ```
+        echo 'EOF' >> $GITHUB_ENV
+    - name: Keybase Notification
+      uses: docker://keybaseio/client:stable
+      env:
+        KEYBASE_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
+        KEYBASE_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
+        KEYBASE_SERVICE: "1"
+      with:
+        args: keybase chat send --channel "#dev-product-ci" ${{ secrets.KEYBASE_NYMBOT_TEAM }} "$KEYBASE_MESSAGE"

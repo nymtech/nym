@@ -51,7 +51,7 @@ pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
     singleton_read(storage, CONFIG_KEY)
 }
 
-pub fn total_mix_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
+fn total_mix_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
     singleton_read(storage, TOTAL_MN_STAKE_KEY)
 }
 
@@ -59,7 +59,7 @@ pub fn mut_total_mix_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
     singleton(storage, TOTAL_MN_STAKE_KEY)
 }
 
-pub fn total_gateway_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
+fn total_gateway_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
     singleton_read(storage, TOTAL_GT_STAKE_KEY)
 }
 
@@ -67,40 +67,54 @@ pub fn mut_total_gateway_stake(storage: &mut dyn Storage) -> Singleton<Uint128> 
     singleton(storage, TOTAL_GT_STAKE_KEY)
 }
 
+pub fn total_mix_stake_value(storage: &dyn Storage) -> Uint128 {
+    match total_mix_stake(storage).load() {
+        Ok(value) => value,
+        Err(_e) => Uint128(0),
+    }
+}
+
+pub fn total_gateway_stake_value(storage: &dyn Storage) -> Uint128 {
+    match total_gateway_stake(storage).load() {
+        Ok(value) => value,
+        Err(_e) => Uint128(0),
+    }
+}
+
 pub fn incr_total_mix_stake(
     amount: Uint128,
     storage: &mut dyn Storage,
-) -> Result<(), ContractError> {
-    let stake = total_mix_stake(storage).load()?.checked_add(amount)?;
+) -> Result<Uint128, ContractError> {
+    let stake = total_mix_stake_value(storage).checked_add(amount)?;
     mut_total_mix_stake(storage).save(&stake)?;
-    Ok(())
+    Ok(stake)
 }
 
 pub fn decr_total_mix_stake(
     amount: Uint128,
     storage: &mut dyn Storage,
-) -> Result<(), ContractError> {
-    let stake = total_mix_stake(storage).load()?.checked_sub(amount)?;
+) -> Result<Uint128, ContractError> {
+    let stake = total_mix_stake_value(storage).checked_sub(amount)?;
     mut_total_mix_stake(storage).save(&stake)?;
-    Ok(())
+    Ok(stake)
 }
 
 pub fn incr_total_gt_stake(
     amount: Uint128,
     storage: &mut dyn Storage,
-) -> Result<(), ContractError> {
-    let stake = total_gateway_stake(storage).load()?.checked_add(amount)?;
+) -> Result<Uint128, ContractError> {
+    let stake = total_gateway_stake_value(storage).checked_add(amount)?;
     mut_total_gateway_stake(storage).save(&stake)?;
-    Ok(())
+    Ok(stake)
 }
 
 pub fn decr_total_gt_stake(
     amount: Uint128,
     storage: &mut dyn Storage,
-) -> Result<(), ContractError> {
-    let stake = total_gateway_stake(storage).load()?.checked_sub(amount)?;
+) -> Result<Uint128, ContractError> {
+    let stake = total_gateway_stake_value(storage).checked_sub(amount)?;
     mut_total_gateway_stake(storage).save(&stake)?;
-    Ok(())
+    Ok(stake)
 }
 
 pub(crate) fn read_state_params(storage: &dyn Storage) -> StateParams {

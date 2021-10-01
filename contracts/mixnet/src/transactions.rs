@@ -629,9 +629,9 @@ pub(crate) fn try_remove_delegation_from_mixnode(
                     .checked_sub(delegation.amount)
                     .unwrap();
                 mixnodes_bucket.save(mix_identity.as_bytes(), &existing_bond)?;
+                // We should only decr total if a node is bonded, node unbonding remove all delegations from the total
+                decr_total_mix_stake(delegation.amount, deps.storage)?;
             }
-
-            decr_total_mix_stake(delegation.amount, deps.storage)?;
 
             Ok(Response {
                 submessages: Vec::new(),
@@ -686,6 +686,8 @@ pub(crate) fn try_delegate_to_gateway(
     reverse_gateway_delegations(deps.storage, &info.sender)
         .save(gateway_identity.as_bytes(), &())?;
 
+    incr_total_gt_stake(info.funds[0].amount, deps.storage)?;
+
     Ok(Response::default())
 }
 
@@ -724,6 +726,8 @@ pub(crate) fn try_remove_delegation_from_gateway(
                     .checked_sub(delegation.amount)
                     .unwrap();
                 gateways_bucket.save(gateway_identity.as_bytes(), &existing_bond)?;
+
+                decr_total_gt_stake(delegation.amount, deps.storage)?;
             }
 
             Ok(Response {
@@ -3511,7 +3515,7 @@ pub mod tests {
         }
 
         #[test]
-        fn delegation_is_not_removed_if_node_unbonded() {
+        fn delegation_is_not_removed_if_gateway_unbonded() {
             let mut deps = helpers::init_contract();
 
             let gateway_owner = "bob";
@@ -4017,5 +4021,123 @@ pub mod tests {
         assert_eq!(alice_node.layer, Layer::One);
         assert_eq!(bob_node.mix_node.identity_key, "bob");
         assert_eq!(bob_node.layer, Layer::Two);
+    }
+
+    #[test]
+    fn mix_stake_accounting() {
+        let mut deps = helpers::init_contract();
+        let mut test_bond = INITIAL_MIXNODE_BOND;
+        try_add_mixnode(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("alice", &good_mixnode_bond()),
+            MixNode {
+                identity_key: "alice".to_string(),
+                ..helpers::mix_node_fixture()
+            },
+        )
+        .unwrap();
+
+        assert_eq!(total_mix_stake_value(&deps.storage), test_bond);
+
+        let delegation = coin(100, DENOM);
+        try_delegate_to_mixnode(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("bob", &vec![delegation.clone()]),
+            "alice".to_string(),
+        )
+        .unwrap();
+
+        test_bond += Uint128(100);
+        assert_eq!(total_mix_stake_value(&deps.storage), test_bond);
+
+        try_remove_mixnode(deps.as_mut(), mock_info("alice", &[])).unwrap();
+
+        test_bond = Uint128(0);
+        assert_eq!(total_mix_stake_value(&deps.storage), test_bond);
+
+        try_add_mixnode(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("alice", &good_mixnode_bond()),
+            MixNode {
+                identity_key: "alice".to_string(),
+                ..helpers::mix_node_fixture()
+            },
+        )
+        .unwrap();
+
+        test_bond = Uint128(100) + INITIAL_MIXNODE_BOND;
+        assert_eq!(total_mix_stake_value(&deps.storage), test_bond);
+
+        try_remove_delegation_from_mixnode(
+            deps.as_mut(),
+            mock_info("bob", &[]),
+            "alice".to_string(),
+        )
+        .unwrap();
+
+        test_bond = test_bond.checked_sub(Uint128(100)).unwrap();
+        assert_eq!(total_mix_stake_value(&deps.storage), test_bond);
+    }
+
+    #[test]
+    fn gateway_stake_accounting() {
+        let mut deps = helpers::init_contract();
+        let mut test_bond = INITIAL_GATEWAY_BOND;
+        try_add_gateway(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("alice", &good_gateway_bond()),
+            Gateway {
+                identity_key: "alice".to_string(),
+                ..helpers::gateway_fixture()
+            },
+        )
+        .unwrap();
+
+        assert_eq!(total_gateway_stake_value(&deps.storage), test_bond);
+
+        let delegation = coin(100, DENOM);
+        try_delegate_to_gateway(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("bob", &vec![delegation.clone()]),
+            "alice".to_string(),
+        )
+        .unwrap();
+
+        test_bond += Uint128(100);
+        assert_eq!(total_gateway_stake_value(&deps.storage), test_bond);
+
+        try_remove_gateway(deps.as_mut(), mock_info("alice", &[])).unwrap();
+
+        test_bond = Uint128(0);
+        assert_eq!(total_gateway_stake_value(&deps.storage), test_bond);
+
+        try_add_gateway(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("alice", &good_gateway_bond()),
+            Gateway {
+                identity_key: "alice".to_string(),
+                ..helpers::gateway_fixture()
+            },
+        )
+        .unwrap();
+
+        test_bond = Uint128(100) + INITIAL_GATEWAY_BOND;
+        assert_eq!(total_gateway_stake_value(&deps.storage), test_bond);
+
+        try_remove_delegation_from_gateway(
+            deps.as_mut(),
+            mock_info("bob", &[]),
+            "alice".to_string(),
+        )
+        .unwrap();
+
+        test_bond = test_bond.checked_sub(Uint128(100)).unwrap();
+        assert_eq!(total_gateway_stake_value(&deps.storage), test_bond);
     }
 }

@@ -15,6 +15,8 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      HANDLEBARS_JSON_DATA: "{ \"github\": ${{ toJSON(github) }}, \"env\": ${{ toJSON(env) }}, \"secrets\": { \"NYM_CI_WWW_BASE\": ${{ secrets.NYM_CI_WWW_BASE }} } }"
     steps:
     - uses: actions/checkout@v2
     - name: Install rsync
@@ -38,38 +40,18 @@ jobs:
         SOURCE: "explorer/dist/"
         REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
         REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/${{ env.GITHUB_REF_SLUG}}
+        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/${{ env.GITHUB_REF_SLUG }}
         EXCLUDE: "/dist/, /node_modules/"
+    - name: Setup message creation
+      run: npm install -g hbs-cli
+    - name: Output message JSON
+      run: echo $HANDLEBARS_JSON_DATA
     - name: Create success message
       if: ${{ success() }}
-      run: |
-        echo 'KEYBASE_MESSAGE<<EOF' >> $GITHUB_ENV
-        🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-        > :rocket: Network Explorer  ➡️➡️➡️➡️➡️ **View output:** http://wip-network-explorer-react-test-ci.ci.nymte.ch/
-        > ✅ **SUCCESS**
-        > `${{ github.sha }}` `${{ github.ref }}` https://${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref }}
-        > `build job` https://${{ github.server_url }}/${{ github.repository  }}/actions/runs/${{  github.run_id  }}
-
-        Commit message:
-        ```
-        ${{ github.event.head_commit.message }}
-        ```
-        echo 'EOF' >> $GITHUB_ENV
+      run: echo $HANDLEBARS_JSON_DATA | hbs --stdin --stdout .github/workflows/support-files/messages/success > message.txt
     - name: Create failure message
       if: ${{ failure() }}
-      run: |
-        echo 'KEYBASE_MESSAGE<<EOF' >> $GITHUB_ENV
-        🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥
-        > :rocket: Network Explorer
-        > 🔴 **FAILURE** :cry:
-        > `${{ github.sha }}` `${{ github.ref }}` https://${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref }}
-        > `build job` https://${{ github.server_url }}/${{ github.repository  }}/actions/runs/${{  github.run_id  }}
-
-        Commit message:
-        ```
-        ${{ github.event.head_commit.message }}
-        ```
-        echo 'EOF' >> $GITHUB_ENV
+      run: echo $HANDLEBARS_JSON_DATA | hbs --stdin --stdout .github/workflows/support-files/messages/failure > message.txt
     - name: Keybase Notification
       uses: docker://keybaseio/client:stable
       env:
@@ -77,4 +59,4 @@ jobs:
         KEYBASE_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
         KEYBASE_SERVICE: "1"
       with:
-        args: keybase chat send --channel "#dev-product-ci" ${{ secrets.KEYBASE_NYMBOT_TEAM }} "$KEYBASE_MESSAGE"
+        args: keybase chat send --channel "#dev-product-ci" ${{ secrets.KEYBASE_NYMBOT_TEAM }} "$(cat message.txt)"

@@ -1,0 +1,10 @@
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+> :rocket: Network Explorer  ➡️➡️➡️➡️➡️ **View output:** https://{{ env.GITHUB_REF_SLUG }}.{{ secrets.NYM_CI_WWW_BASE }}/
+> ✅ **SUCCESS**
+> `{{ github.sha }}` `{{ github.ref }}` https://{{ github.server_url }}/{{ github.repository }}/tree/{{ github.ref }}
+> `build job` https://{{ github.server_url }}/{{ github.repository  }}/actions/runs/{{  github.run_id  }}
+
+Commit message:
+```
+{{ github.event.head_commit.message }}
+```

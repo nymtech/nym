@@ -1,0 +1,9 @@
+🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥
+> :rocket: Network Explorer
+> 🔴 **FAILURE** :cry:
+> `{{ github.sha }}` `{{ github.ref }}` https://{{ github.server_url }}/{{ github.repository }}/tree/{{ github.ref }}
+> `build job` https://{{ github.server_url }}/{{ github.repository  }}/actions/runs/{{  github.run_id  }}
+
+Commit message:
+```
+{{ github.event.head_commit.message }}

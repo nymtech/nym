@@ -6,6 +6,8 @@ import TableContainer from '@mui/material/TableContainer';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import CheckCircleSharpIcon from '@mui/icons-material/CheckCircleSharp';
+import { CircularProgress } from '@mui/material';
+
 import ErrorIcon from '@mui/icons-material/Error';
 import { Typography } from '@mui/material';
 
@@ -16,9 +18,10 @@ interface TableProps {
     values: number[]
     marginBottom?: boolean
     error?: string
+    loading: boolean
 }
 
-export function TwoColSmallTable({ title, icons, keys, values, marginBottom, error }: TableProps) {
+export function TwoColSmallTable({ loading, title, icons, keys, values, marginBottom, error }: TableProps) {
     return (
         <>
             {title && (
@@ -26,6 +29,7 @@ export function TwoColSmallTable({ title, icons, keys, values, marginBottom, err
                     {title}
                 </Typography>
             )}
+
             <TableContainer component={Paper} sx={marginBottom ? { marginBottom: 4, marginTop: 2 } : { marginTop: 2 }}>
                 <Table aria-label='two col small table'>
                     <TableBody>
@@ -38,7 +42,9 @@ export function TwoColSmallTable({ title, icons, keys, values, marginBottom, err
                                         </TableCell>
                                     )}
                                     <TableCell sx={error ? { opacity: 0.4 } : null}>{each}</TableCell>
-                                    {!error && <TableCell align='right'>{values[i]}</TableCell>}
+                                    <TableCell sx={error ? { opacity: 0.4 } : null} align='right'>{values[i]}</TableCell>
+                                    {error && <TableCell align='right' sx={{ opacity: 0.4 }}>{values[i]}</TableCell>}
+                                    {!error && loading && <TableCell align='right'><CircularProgress /></TableCell>}
                                     {error && !icons && (
                                         <TableCell sx={{ opacity: 0.2 }} align='right'>
                                             <ErrorIcon />

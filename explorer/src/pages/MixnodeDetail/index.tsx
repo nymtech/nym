@@ -44,7 +44,6 @@ export const PageMixnodeDetail: React.FC = () => {
         scrollToRef(ref);
     }, [ref])
 
-    console.log("stats are ", stats);
     return (
         <>
             <Box
@@ -85,6 +84,7 @@ export const PageMixnodeDetail: React.FC = () => {
                                 <>
                                     {stats.error && <ComponentError text={stats.error.message} />}
                                     <TwoColSmallTable
+                                        loading={stats.isLoading}
                                         error={stats?.error?.message}
                                         title='Since startup'
                                         keys={['Received', 'Sent', 'Explicitly dropped']}
@@ -97,6 +97,7 @@ export const PageMixnodeDetail: React.FC = () => {
                                         }
                                     />
                                     <TwoColSmallTable
+                                        loading={stats.isLoading}
                                         error={stats?.error?.message}
                                         title='Since last update'
                                         keys={['Received', 'Sent', 'Explicitly dropped']}
@@ -135,12 +136,13 @@ export const PageMixnodeDetail: React.FC = () => {
                     <Grid item xs={12} md={4} xl={3}>
                         {status && (
                             <ContentCard title='Mixnode Status'>
-                                {status.error && <ComponentError text={status.error.message} />}
+                                {status.error && <ComponentError text='There was a problem retrieving port information' />}
                                 <TwoColSmallTable
+                                    loading={status.isLoading}
                                     error={status?.error?.message}
                                     keys={['Mix port', 'Verloc port', 'HTTP port']}
-                                    values={status?.data?.ports && Object.keys(status?.data?.ports).map(each => Number(each)) || [0, 0, 0]}
-                                    icons={status?.data?.ports && Object.values(status.data.ports)}
+                                    values={[1789, 1790, 8000].map(each => each)}
+                                    icons={status?.data?.ports && Object.values(status.data.ports) || [false, false, false]}
                                 />
                             </ContentCard>
                         )}

@@ -59,7 +59,7 @@ export function MixnodesTable({ mixnodes }: TableProps) {
     if (mixnodes) {
         return (
             <>
-                {!mixnodes.error && <ComponentError text='There was an error retrieving this mixnode information' />}
+                {mixnodes.error && <ComponentError text='There was an error retrieving this mixnode information' />}
                 <TableContainer component={Paper}>
                     <Table sx={{ minWidth: 650 }} aria-label='mixnodes table'>
                         <TableHead>

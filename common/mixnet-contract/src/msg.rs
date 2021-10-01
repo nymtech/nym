@@ -108,7 +108,7 @@ pub enum QueryMsg {
     },
     LayerDistribution {},
     GetTotalMixStake {},
-    GetTotalGtStake {},
+    GetTotalGatewayStake {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

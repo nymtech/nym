@@ -39,7 +39,7 @@ struct ValidatorCacheInner {
     current_gateway_active_set_size: AtomicUsize,
 
     total_mix_stake: RwLock<Cache<u128>>,
-    total_gt_stake: RwLock<Cache<u128>>,
+    total_gateway_stake: RwLock<Cache<u128>>,
 }
 
 #[derive(Default, Serialize, Clone)]
@@ -83,7 +83,7 @@ impl<C> ValidatorCacheRefresher<C> {
             self.nymd_client.get_mixnodes(),
             self.nymd_client.get_gateways(),
             self.nymd_client.get_total_mix_stake(),
-            self.nymd_client.get_total_gt_stake()
+            self.nymd_client.get_total_gateway_stake()
         )?;
 
         let state_params = self.nymd_client.get_state_params().await?;
@@ -237,7 +237,11 @@ impl ValidatorCache {
             .write()
             .await
             .set(total_mix_stake);
-        self.inner.total_gt_stake.write().await.set(total_gt_stake);
+        self.inner
+            .total_gateway_stake
+            .write()
+            .await
+            .set(total_gt_stake);
     }
 
     pub async fn mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
@@ -324,7 +328,7 @@ impl ValidatorCacheInner {
             current_mixnode_active_set_size: Default::default(),
             current_gateway_active_set_size: Default::default(),
             total_mix_stake: Default::default(),
-            total_gt_stake: Default::default(),
+            total_gateway_stake: Default::default(),
         }
     }
 }

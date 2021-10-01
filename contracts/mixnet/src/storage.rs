@@ -25,8 +25,8 @@ use serde::Serialize;
 const CONFIG_KEY: &[u8] = b"config";
 const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
 // Keeps total amount of stake towards mixnodes and gateways. Removing a bond removes all its delegations from the total, the reverse is true for adding a bond.
-const TOTAL_MN_STAKE_KEY: &[u8] = b"total_mn";
-const TOTAL_GT_STAKE_KEY: &[u8] = b"total_gt";
+const TOTAL_MIX_STAKE_KEY: &[u8] = b"total_mn";
+const TOTAL_GATEWAY_STAKE_KEY: &[u8] = b"total_gt";
 
 // buckets
 const PREFIX_MIXNODES: &[u8] = b"mn";
@@ -52,19 +52,19 @@ pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
 }
 
 fn total_mix_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
-    singleton_read(storage, TOTAL_MN_STAKE_KEY)
+    singleton_read(storage, TOTAL_MIX_STAKE_KEY)
 }
 
 pub fn mut_total_mix_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
-    singleton(storage, TOTAL_MN_STAKE_KEY)
+    singleton(storage, TOTAL_MIX_STAKE_KEY)
 }
 
 fn total_gateway_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
-    singleton_read(storage, TOTAL_GT_STAKE_KEY)
+    singleton_read(storage, TOTAL_GATEWAY_STAKE_KEY)
 }
 
 pub fn mut_total_gateway_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
-    singleton(storage, TOTAL_GT_STAKE_KEY)
+    singleton(storage, TOTAL_GATEWAY_STAKE_KEY)
 }
 
 pub fn total_mix_stake_value(storage: &dyn Storage) -> Uint128 {
@@ -99,7 +99,7 @@ pub fn decr_total_mix_stake(
     Ok(stake)
 }
 
-pub fn incr_total_gt_stake(
+pub fn incr_total_gateway_stake(
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<Uint128, ContractError> {
@@ -108,7 +108,7 @@ pub fn incr_total_gt_stake(
     Ok(stake)
 }
 
-pub fn decr_total_gt_stake(
+pub fn decr_total_gateway_stake(
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<Uint128, ContractError> {

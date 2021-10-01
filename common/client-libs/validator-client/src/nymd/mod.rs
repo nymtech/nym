@@ -208,11 +208,11 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn get_total_gt_stake(&self) -> Result<Uint128, NymdError>
+    pub async fn get_total_gateway_stake(&self) -> Result<Uint128, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetTotalGtStake {};
+        let request = QueryMsg::GetTotalGatewayStake {};
         self.client
             .query_contract_smart(self.contract_address()?, &request)
             .await

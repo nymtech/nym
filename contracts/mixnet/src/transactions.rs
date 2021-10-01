@@ -248,8 +248,8 @@ pub(crate) fn try_add_gateway(
     gateways_owners(deps.storage).save(sender_bytes, identity)?;
     increment_layer_count(deps.storage, Layer::Gateway)?;
 
-    incr_total_gt_stake(bond.bond_amount().amount, deps.storage)?;
-    incr_total_gt_stake(bond.total_delegation().amount, deps.storage)?;
+    incr_total_gateway_stake(bond.bond_amount().amount, deps.storage)?;
+    incr_total_gateway_stake(bond.total_delegation().amount, deps.storage)?;
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
@@ -289,8 +289,8 @@ pub(crate) fn try_remove_gateway(
     // decrement layer count
     decrement_layer_count(deps.storage, Layer::Gateway)?;
 
-    decr_total_gt_stake(gateway_bond.bond_amount().amount, deps.storage)?;
-    decr_total_gt_stake(gateway_bond.total_delegation().amount, deps.storage)?;
+    decr_total_gateway_stake(gateway_bond.bond_amount().amount, deps.storage)?;
+    decr_total_gateway_stake(gateway_bond.total_delegation().amount, deps.storage)?;
 
     // log our actions
     let attributes = vec![
@@ -686,7 +686,7 @@ pub(crate) fn try_delegate_to_gateway(
     reverse_gateway_delegations(deps.storage, &info.sender)
         .save(gateway_identity.as_bytes(), &())?;
 
-    incr_total_gt_stake(info.funds[0].amount, deps.storage)?;
+    incr_total_gateway_stake(info.funds[0].amount, deps.storage)?;
 
     Ok(Response::default())
 }
@@ -727,7 +727,7 @@ pub(crate) fn try_remove_delegation_from_gateway(
                     .unwrap();
                 gateways_bucket.save(gateway_identity.as_bytes(), &existing_bond)?;
 
-                decr_total_gt_stake(delegation.amount, deps.storage)?;
+                decr_total_gateway_stake(delegation.amount, deps.storage)?;
             }
 
             Ok(Response {

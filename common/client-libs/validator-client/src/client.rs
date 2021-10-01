@@ -189,11 +189,11 @@ impl<C> Client<C> {
         Ok(self.nymd.get_total_mix_stake().await?.u128())
     }
 
-    pub async fn get_total_gt_stake(&self) -> Result<u128, ValidatorClientError>
+    pub async fn get_total_gateway_stake(&self) -> Result<u128, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.nymd.get_total_gt_stake().await?.u128())
+        Ok(self.nymd.get_total_gateway_stake().await?.u128())
     }
 
     // basically handles paging for us

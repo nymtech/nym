@@ -1,4 +1,6 @@
-import { DataGrid } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
+import Button from '@mui/material/Button';
+import { Link } from 'react-router-dom';
 import { Box } from '@mui/system';
 import { useContext } from 'react';
 import { MainContext } from 'src/context/main';
@@ -9,6 +11,13 @@ const columns = [
     field: 'identity_key',
     headerName: 'Identity Key',
     width: 500,
+    renderCell: (params: GridRenderCellParams) => {
+      return (
+        <Link to={`/network-components/mixnodes/${params.value}`} style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+          {params.value}
+        </Link>
+      )
+    }
   },
   {
     field: 'bond',

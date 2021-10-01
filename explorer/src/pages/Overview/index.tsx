@@ -90,6 +90,7 @@ export const PageOverview: React.FC = () => {
 
           <Grid item xs={12}>
             <WorldMap
+              loading={false}
               title="Distribution of nodes around the world"
               countryData={countryData}
             />

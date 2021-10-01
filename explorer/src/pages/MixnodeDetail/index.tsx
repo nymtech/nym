@@ -82,7 +82,7 @@ export const PageMixnodeDetail: React.FC = () => {
                         <ContentCard title='Mixnode Stats'>
                             {stats && (
                                 <>
-                                    {stats.error && <ComponentError text={stats.error.message} />}
+                                    {stats.error && <ComponentError text='There was a problem retrieving this nodes stats.' />}
                                     <TwoColSmallTable
                                         loading={stats.isLoading}
                                         error={stats?.error?.message}
@@ -121,9 +121,11 @@ export const PageMixnodeDetail: React.FC = () => {
                         md={8}
                         xl={6}
                     >
-                        {uptimeStory && uptimeStory.data && (
+                        {uptimeStory && (
                             <ContentCard title='Uptime story'>
+                                {uptimeStory.error && <ComponentError text='There was a problem retrieving uptime history.' />}
                                 <UptimeChart
+                                    loading={uptimeStory.isLoading}
                                     xLabel='date'
                                     yLabel='uptime'
                                     uptimeStory={uptimeStory}

@@ -152,6 +152,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
     }
   }
   const fetchMixnodes = async () => {
+    setMixnodes((d) => ({ ...d, isLoading: true }));
     try {
       const data = await Api.fetchMixnodes();
       setMixnodes({ data, isLoading: false })

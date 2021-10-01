@@ -1,11 +1,8 @@
 import React from 'react';
 import { Box, Grid, Typography } from '@mui/material';
-import { MixnodesTable } from '../../components/MixnodesTable';
-import { MainContext } from 'src/context/main';
 import { MixnodesDataGrid } from 'src/components/Mixnodes-DataGrid';
 
 export const PageMixnodes: React.FC = () => {
-  const { mixnodes } = React.useContext(MainContext);
   return (
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>
@@ -14,7 +11,7 @@ export const PageMixnodes: React.FC = () => {
             <Typography sx={{ marginLeft: 3 }}>Mixnodes</Typography>
           </Grid>
           <Grid item xs={11}>
-            {mixnodes !== undefined && <MixnodesDataGrid />}
+            <MixnodesDataGrid />
           </Grid>
         </Grid>
       </Box>

@@ -35,12 +35,13 @@ const columns = [
 
 export const MixnodesDataGrid = () => {
   const { mixnodes } = useContext(MainContext);
-  if (mixnodes?.data)
-    return (
-      <Box sx={{ height: 1080, width: '100%' }}>
-        <DataGrid
-          columns={columns}
-          rows={mixnodes.data.map((m) => ({
+  return (
+    <Box sx={{ height: 1080, width: '100%' }}>
+      <DataGrid
+        loading={mixnodes?.isLoading}
+        columns={columns}
+        rows={
+          mixnodes?.data?.map((m) => ({
             id: m.owner,
             owner: m.owner,
             location: m.location?.country_name || '',
@@ -48,12 +49,13 @@ export const MixnodesDataGrid = () => {
             bond: m.bond_amount.amount || '',
             host: m.mix_node.host || '',
             layer: m.layer || '',
-          }))}
-          pageSize={50}
-          rowsPerPageOptions={[5]}
-          disableSelectionOnClick
-        />
-      </Box>
-    );
+          })) || []
+        }
+        pageSize={50}
+        rowsPerPageOptions={[5]}
+        disableSelectionOnClick
+      />
+    </Box>
+  );
   return null;
 };

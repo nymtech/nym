@@ -73,6 +73,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
 
   // actions passed down to Overview and Detail pages
   const fetchUptimeStoryById = async (id: string) => {
+    setUptimeStory({ data: uptimeStory?.data, isLoading: true, error: uptimeStory?.error });
     try {
       const data = await Api.fetchUptimeStoryById(id);
       setUptimeStory({ data, isLoading: false })

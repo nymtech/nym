@@ -4,7 +4,6 @@ import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 're
 import ReactTooltip from 'react-tooltip';
 import { Box, Typography } from '@mui/material';
 import { MainContext } from '../context/main';
-import { ContentCard } from './ContentCard';
 import { CountryDataResponse, ApiState } from 'src/typeDefs/explorer-api';
 
 const geoUrl =
@@ -19,7 +18,7 @@ type MapProps = {
 
 export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation, loading }) => {
 
-  const [hasNoContent, setHasNoContent] = React.useState<boolean>(false);
+  const [hasNoContent, setHasNoContent] = React.useState<boolean>(true);
   const [tooltipContent, setTooltipContent] = React.useState<string | null>(null);
   const { mode } = React.useContext(MainContext);
 
@@ -30,8 +29,8 @@ export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation,
 
 
   React.useEffect(() => {
-    if (!countryData && !userLocation) {
-      setHasNoContent(true);
+    if (userLocation || countryData) {
+      setHasNoContent(false);
     }
   }, [countryData, userLocation])
   return (

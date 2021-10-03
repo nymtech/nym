@@ -14,7 +14,7 @@ interface ChartProps {
 }
 
 type FormattedDateRecord = [string, number, number];
-type FormattedChartHeadings = [string, string, string];
+type FormattedChartHeadings = string[];
 type FormattedChartData = [FormattedChartHeadings | FormattedDateRecord];
 
 export function UptimeChart({ title, xLabel, yLabel, uptimeStory, loading }: ChartProps) {

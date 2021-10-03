@@ -4,13 +4,11 @@ import {
   VALIDATORS_API,
   BLOCK_API,
   COUNTRY_DATA_API,
-  DELEGATIONS_API,
-  MIXNODE_STATS_API,
   MIXNODE_PING,
   UPTIME_STORY_API,
 } from './constants';
 
-import { 
+import {
   MixNodeResponse,
   GatewayResponse,
   ValidatorsResponse,
@@ -72,7 +70,7 @@ export class Api {
     const json = await res.json();
     return json.result;
   };
-  
+
   static fetchBlock = async (): Promise<number> => {
     const res = await fetch(BLOCK_API);
     const json = await res.json();
@@ -81,22 +79,22 @@ export class Api {
   };
 
   static fetchCountryData = async (): Promise<CountryDataResponse> => {
-      let arr: CountryDataResponse = [];
-      const res = await fetch(COUNTRY_DATA_API);
-      const json = await res.json();
-      Object.keys(json)
-        .forEach(ISO3 => { 
-          arr.push({ ISO3, nodes: json[ISO3]}) 
-        });
-      return arr;
+    let arr: CountryDataResponse = [];
+    const res = await fetch(COUNTRY_DATA_API);
+    const json = await res.json();
+    Object.keys(json)
+      .forEach(ISO3 => {
+        arr.push({ ISO3, nodes: json[ISO3] })
+      });
+    return arr;
   };
 
   static fetchDelegationsById = async (id: string): Promise<DelegationsResponse> => {
-    const res = await fetch(`${DELEGATIONS_API}/${id}/delegations`);
+    const res = await fetch(`${MIXNODES_API}/${id}/delegations`);
     return await res.json();
   }
   static fetchStatsById = async (id: string): Promise<StatsResponse> => {
-    const res = await fetch(`${MIXNODE_STATS_API}/${id}/stats`);
+    const res = await fetch(`${MIXNODES_API}/${id}/stats`);
     return await res.json();
   }
   static fetchStatusById = async (id: string): Promise<StatusResponse> => {

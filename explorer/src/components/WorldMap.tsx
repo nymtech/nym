@@ -43,7 +43,7 @@ export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation,
               mode === 'dark'
                 ? 'rgba(50, 60, 81, 1)'
                 : 'rgba(241, 234, 234, 1)',
-            '-webkit-filter': hasNoContent ? 'blur(5px)' : null,
+            WebkitFilter: hasNoContent ? 'blur(5px)' : null,
             filter: hasNoContent ? 'blur(5px)' : null,
           }}
           projectionConfig={{

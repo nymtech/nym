@@ -59,4 +59,4 @@ jobs:
         KEYBASE_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
         KEYBASE_SERVICE: "1"
       with:
-        args: keybase chat send --channel "#dev-product-ci" ${{ secrets.KEYBASE_NYMBOT_TEAM }} "$(cat message.txt)"
+        args: cat message.txt | keybase chat send --channel "#dev-product-ci" ${{ secrets.KEYBASE_NYMBOT_TEAM }}

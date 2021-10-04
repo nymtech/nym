@@ -93,6 +93,6 @@ pub enum ContractError {
     #[error("Overflow error!")]
     Overflow(#[from] cosmwasm_std::OverflowError),
 
-    #[error("Could not convert ration to f64: {0} / {1}")]
-    InvalidRatio(u128, u128)
+    #[error("Invalid ratio")]
+    Ratio(#[from] mixnet_contract::error::MixnetContractError),
 }

@@ -639,9 +639,11 @@ name = "mixnet-contract"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "num",
  "schemars",
  "serde",
  "serde_repr",
+ "thiserror",
  "ts-rs",
 ]
 

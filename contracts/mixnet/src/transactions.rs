@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract::{
-    ALPHA, DEFAULT_COST_PER_EPOCH, DEFAULT_PROFIT_MARGIN, INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+    ALPHA, DEFAULT_PROFIT_MARGIN, INITIAL_MIXNODE_ACTIVE_SET_SIZE,
 };
 use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime, Delegations};
@@ -459,9 +459,6 @@ pub(crate) fn try_reward_mixnode(
     })
 }
 
-fn price_for_uptime(uptime: u32) -> f64 {
-    uptime as f64 / 100. * DEFAULT_COST_PER_EPOCH as f64
-}
 
 pub(crate) fn try_reward_mixnode_v2(
     deps: DepsMut,
@@ -495,34 +492,10 @@ pub(crate) fn try_reward_mixnode_v2(
         }
     };
 
-    let bond_to_total_stake_ratio = if let Some(float) = Ratio::new(
-        current_bond.bond_amount().amount.u128(),
-        total_mix_stake.u128(),
-    )
-    .to_f64()
-    {
-        float
-    } else {
-        return Err(ContractError::InvalidRatio(
-            current_bond.bond_amount().amount.u128(),
-            total_mix_stake.u128(),
-        ));
-    };
+    let bond_to_total_stake_ratio = current_bond.bond_to_total_stake_f64(total_mix_stake)?;
     let lambda = bond_to_total_stake_ratio.min(one_over_k);
 
-    let stake_to_total_stake_ratio = if let Some(float) = Ratio::new(
-        current_bond.bond_amount().amount.u128() + current_bond.total_delegation().amount.u128(),
-        total_mix_stake.u128(),
-    )
-    .to_f64()
-    {
-        float
-    } else {
-        return Err(ContractError::InvalidRatio(
-            current_bond.bond_amount().amount.u128(),
-            total_mix_stake.u128(),
-        ));
-    };
+    let stake_to_total_stake_ratio = current_bond.stake_to_total_stake_f64(total_mix_stake)?;
     let sigma = stake_to_total_stake_ratio.min(one_over_k);
 
     let node_reward =
@@ -535,22 +508,16 @@ pub(crate) fn try_reward_mixnode_v2(
         * (node_reward - price_for_uptime(uptime)))
     .max(0.);
     let operator_base_reward = node_reward.min(price_for_uptime(uptime));
-    let total_operator_reward = operator_base_reward + operator_profit;
+    let total_operator_reward = (operator_base_reward + operator_profit) as u128;
 
-    // TODO:
-    // Default profit margins and costs in order to determine owner and delegator shares.
-
-    let bond_reward_rate = read_mixnode_epoch_bond_reward_rate(deps.storage);
-    let delegation_reward_rate = read_mixnode_epoch_delegation_reward_rate(deps.storage);
-    let bond_scaled_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
-    let delegation_scaled_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
-
-    let mut node_reward = Uint128(0);
-    let total_delegation_reward = increase_mix_delegated_stakes(
+    let total_delegation_reward = increase_mix_delegated_stakes_v2(
         deps.storage,
         &mix_identity,
-        delegation_scaled_reward_rate,
-        env.block.height,
+        sigma,
+        node_reward,
+        uptime,
+        DEFAULT_PROFIT_MARGIN,
+        env.block.height
     )?;
 
     // update current bond with the reward given to the node and the delegators

@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract::INITIAL_INFLATION_POOL;
+use crate::contract::{DEFAULT_COST_PER_EPOCH, INITIAL_INFLATION_POOL};
 use crate::state::State;
 use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 use crate::{error::ContractError, queries};
@@ -134,19 +134,13 @@ pub fn decr_total_gateway_stake(
     Ok(stake)
 }
 
-pub fn incr_inflation_pool(
-    amount: u64,
-    storage: &mut dyn Storage,
-) -> Result<u64, ContractError> {
+pub fn incr_inflation_pool(amount: u64, storage: &mut dyn Storage) -> Result<u64, ContractError> {
     let stake = inflation_pool_value(storage) + amount;
     mut_inflation_pool(storage).save(&stake)?;
     Ok(stake)
 }
 
-pub fn decr_inflation_pool(
-    amount: u64,
-    storage: &mut dyn Storage,
-) -> Result<u64, ContractError> {
+pub fn decr_inflation_pool(amount: u64, storage: &mut dyn Storage) -> Result<u64, ContractError> {
     // TODO: This could got to < 0
     let stake = inflation_pool_value(storage) - amount;
     mut_inflation_pool(storage).save(&stake)?;
@@ -309,6 +303,66 @@ pub(crate) fn increase_mix_delegated_stakes(
         for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
             if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= reward_blockstamp {
                 let reward = delegation.amount * scaled_reward_rate;
+                delegation.amount += reward;
+                total_rewarded += reward;
+                mix_delegations(storage, mix_identity).save(&delegator_address, &delegation)?;
+            }
+        }
+    }
+
+    Ok(total_rewarded)
+}
+
+pub(crate) fn price_for_uptime(uptime: u32) -> f64 {
+    uptime as f64 / 100. * DEFAULT_COST_PER_EPOCH as f64
+}
+
+pub(crate) fn increase_mix_delegated_stakes_v2(
+    storage: &mut dyn Storage,
+    mix_identity: IdentityKeyRef,
+    sigma: f64,
+    node_reward: f64,
+    uptime: u32,
+    profit_margin: f64,
+    reward_blockstamp: u64,
+) -> StdResult<Uint128> {
+    let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
+
+    let mut total_rewarded = Uint128::zero();
+    let mut chunk_start: Option<Vec<_>> = None;
+    loop {
+        // get `chunk_size` of delegations
+        let delegations_chunk = mix_delegations_read(storage, mix_identity)
+            .range(chunk_start.as_deref(), None, Order::Ascending)
+            .take(chunk_size)
+            .collect::<StdResult<Vec<_>>>()?;
+
+        if delegations_chunk.is_empty() {
+            break;
+        }
+
+        // append 0 byte to the last value to start with whatever is the next succeeding key
+        chunk_start = Some(
+            delegations_chunk
+                .last()
+                .unwrap()
+                .0
+                .iter()
+                .cloned()
+                .chain(std::iter::once(0u8))
+                .collect(),
+        );
+
+        // and for each of them increase the stake proportionally to the reward
+        // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
+        // since they delegated
+        for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
+            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= reward_blockstamp {
+                let reward = ((1. - profit_margin)
+                // Need to convert this to ratio multiplication
+                    * (delegation.amount / sigma)
+                    * (node_reward * price_for_uptime(uptime)))
+                .max(0.);
                 delegation.amount += reward;
                 total_rewarded += reward;
                 mix_delegations(storage, mix_identity).save(&delegator_address, &delegation)?;

@@ -18,6 +18,7 @@
     "@types/react-dom": "^17.0.9",
     "bs58": "^4.0.1",
     "clsx": "^1.1.1",
+    "notistack": "^1.0.10",
     "qrcode.react": "^1.0.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",

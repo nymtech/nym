@@ -1,7 +1,10 @@
 import React, { createContext, useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
+import { useSnackbar } from 'notistack'
 import { TClientDetails, TSignInWithMnemonic } from '../types'
 import { TUseGetBalance, useGetBalance } from '../hooks/useGetBalance'
+import { Button } from '@material-ui/core'
+import { theme } from '../theme'
 
 export const ADMIN_ADDRESS = 'punk1h3w4nj7kny5dfyjw2le4vm74z03v9vd4dstpu0'
 
@@ -34,6 +37,7 @@ export const ClientContextProvider = ({
 
   const history = useHistory()
   const getBalance = useGetBalance()
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar()
 
   useEffect(() => {
     !clientDetails ? history.push('/signin') : history.push('/balance')
@@ -53,6 +57,24 @@ export const ClientContextProvider = ({
       setBandwidthLimit(0)
       setBandwidthUsed(0)
       setss5IsActive(false)
+      enqueueSnackbar(
+        "You're out of bandwidth. You'll need to purchase more to continue using Socks5",
+        {
+          variant: 'error',
+          anchorOrigin: { horizontal: 'center', vertical: 'bottom' },
+          persist: true,
+          action: (key) => (
+            <Button
+              style={{
+                color: theme.palette.common.white,
+              }}
+              onClick={() => closeSnackbar(key)}
+            >
+              Dismiss
+            </Button>
+          ),
+        }
+      )
       clearTimeout(timer)
     }
   }, [ss5IsActive, bandwidthUsed, bandwidthLimit, handleSetBandwidthLimit])

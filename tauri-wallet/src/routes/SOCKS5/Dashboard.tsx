@@ -4,15 +4,20 @@ import { useTheme } from '@material-ui/styles'
 import { NymCard } from '../../components'
 import { ClientContext } from '../../context/main'
 import { MainCard, TopCard } from './Cards'
-import { DownloadCard, LimitCard, UploadCard } from './DataCards'
+import { InboundCard, LimitCard, OutboundCard } from './DataCards'
 import { Info } from './Info'
 
 type TDashboardProps = {
   plan: string
+  buyBandwidth: () => void
 }
 
-export const Dashboard: React.FC<TDashboardProps> = ({ plan }) => {
-  const { ss5IsActive, toggleSs5 } = useContext(ClientContext)
+export const Dashboard: React.FC<TDashboardProps> = ({
+  plan,
+  buyBandwidth,
+}) => {
+  const { ss5IsActive, toggleSs5, bandwidthLimit, bandwidthUsed } =
+    useContext(ClientContext)
   const theme: Theme = useTheme()
   return (
     <NymCard
@@ -27,17 +32,23 @@ export const Dashboard: React.FC<TDashboardProps> = ({ plan }) => {
               isActive={ss5IsActive}
               toggleIsActive={toggleSs5}
               plan={plan}
+              disabled={bandwidthLimit === bandwidthUsed}
             />
           </Grid>
           <Grid item xs={12}>
-            <MainCard isActive={ss5IsActive} toggleIsActive={toggleSs5} />
+            <MainCard
+              isActive={ss5IsActive}
+              toggleIsActive={toggleSs5}
+              disabled={bandwidthLimit === bandwidthUsed}
+              buyBandwidth={buyBandwidth}
+            />
           </Grid>
 
           <Grid item xs={4}>
-            <UploadCard isActive={ss5IsActive} />
+            <OutboundCard isActive={ss5IsActive} />
           </Grid>
           <Grid item xs={4}>
-            <DownloadCard isActive={ss5IsActive} />
+            <InboundCard isActive={ss5IsActive} />
           </Grid>
           <Grid item xs={4}>
             <LimitCard isActive={ss5IsActive} />

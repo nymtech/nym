@@ -31,7 +31,9 @@ const useStyles = makeStyles((theme: Theme) => ({
   },
 }))
 
-export const UploadCard: React.FC<{ isActive?: boolean }> = ({ isActive }) => {
+export const OutboundCard: React.FC<{ isActive?: boolean }> = ({
+  isActive,
+}) => {
   const classes = useStyles()
   return (
     <Card className={classes.card} variant="outlined">
@@ -66,10 +68,9 @@ export const UploadCard: React.FC<{ isActive?: boolean }> = ({ isActive }) => {
   )
 }
 
-export const DownloadCard: React.FC<{ isActive?: boolean }> = ({
-  isActive,
-}) => {
+export const InboundCard: React.FC<{ isActive?: boolean }> = ({ isActive }) => {
   const classes = useStyles()
+  const { bandwidthUsed } = useContext(ClientContext)
   return (
     <Card className={classes.card} variant="outlined">
       <CardHeader title="Inbound" action={<ToggleData />} />
@@ -89,7 +90,7 @@ export const DownloadCard: React.FC<{ isActive?: boolean }> = ({
             ) : (
               <>
                 <Typography variant="h3">
-                  102
+                  {bandwidthUsed}
                   <Typography component="span" color="textSecondary">
                     mb
                   </Typography>

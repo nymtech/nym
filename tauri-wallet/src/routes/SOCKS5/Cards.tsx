@@ -49,9 +49,10 @@ const InactiveChip = () => {
 
 export const TopCard: React.FC<{
   isActive: boolean
+  disabled: boolean
   plan: string
   toggleIsActive: () => void
-}> = ({ isActive, plan, toggleIsActive }) => {
+}> = ({ isActive, disabled, plan, toggleIsActive }) => {
   const theme: Theme = useTheme()
   return (
     <Card style={{ padding: theme.spacing(1.5) }} variant="outlined">
@@ -61,11 +62,16 @@ export const TopCard: React.FC<{
         action={
           <IconButton
             onClick={toggleIsActive}
-            style={{
-              color: isActive
-                ? theme.palette.success.main
-                : theme.palette.error.main,
-            }}
+            disabled={disabled}
+            style={
+              !disabled
+                ? {
+                    color: isActive
+                      ? theme.palette.success.main
+                      : theme.palette.error.main,
+                  }
+                : {}
+            }
           >
             <PowerSettingsNew />
           </IconButton>
@@ -77,8 +83,10 @@ export const TopCard: React.FC<{
 
 export const MainCard: React.FC<{
   isActive: boolean
+  disabled?: boolean
+  buyBandwidth: () => void
   toggleIsActive: () => void
-}> = ({ isActive, toggleIsActive }) => {
+}> = ({ isActive, disabled, buyBandwidth, toggleIsActive }) => {
   const theme: Theme = useTheme()
 
   return (
@@ -104,6 +112,7 @@ export const MainCard: React.FC<{
               }}
               size="large"
               disableElevation
+              onClick={buyBandwidth}
             >
               Puchase bandwidth
             </Button>
@@ -114,6 +123,7 @@ export const MainCard: React.FC<{
               size="large"
               disableElevation
               onClick={toggleIsActive}
+              disabled={disabled}
             >
               {isActive ? 'Disabled' : 'Enable'}
             </Button>

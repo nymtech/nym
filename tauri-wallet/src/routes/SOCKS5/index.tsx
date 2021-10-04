@@ -31,7 +31,9 @@ export const Socks5 = () => {
           </Box>
         )}
 
-        {!isLoading && !!plan && <Dashboard plan={plan} />}
+        {!isLoading && !!plan && (
+          <Dashboard plan={plan} buyBandwidth={() => setPlan(undefined)} />
+        )}
 
         {!isLoading && !plan && (
           <Setup

@@ -9,12 +9,12 @@ import { ClientContext, ClientContextProvider } from './context/main'
 import { ApplicationLayout } from './layouts'
 import { SignIn } from './routes/sign-in'
 import { Admin, ErrorFallback } from './components'
+import { SnackbarProvider } from 'notistack'
 
-const AppWrapper = () => {
+const Pages = () => {
   const { clientDetails } = useContext(ClientContext)
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <>
       {!clientDetails ? (
         <SignIn />
       ) : (
@@ -25,18 +25,23 @@ const AppWrapper = () => {
           </>
         </ApplicationLayout>
       )}
-    </ThemeProvider>
+    </>
   )
 }
 
 const App = () => {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <Router>
-        <ClientContextProvider>
-          <AppWrapper />
-        </ClientContextProvider>
-      </Router>
+      <ThemeProvider theme={theme}>
+        <SnackbarProvider maxSnack={3}>
+          <CssBaseline />
+          <Router>
+            <ClientContextProvider>
+              <Pages />
+            </ClientContextProvider>
+          </Router>
+        </SnackbarProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   )
 }

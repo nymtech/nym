@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::contract::INITIAL_INFLATION_POOL;
 use crate::state::State;
 use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 use crate::{error::ContractError, queries};
@@ -27,6 +28,7 @@ const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
 // Keeps total amount of stake towards mixnodes and gateways. Removing a bond removes all its delegations from the total, the reverse is true for adding a bond.
 const TOTAL_MIX_STAKE_KEY: &[u8] = b"total_mn";
 const TOTAL_GATEWAY_STAKE_KEY: &[u8] = b"total_gt";
+const INFLATION_POOL_PREFIX: &[u8] = b"pool";
 
 // buckets
 const PREFIX_MIXNODES: &[u8] = b"mn";
@@ -59,6 +61,14 @@ pub fn mut_total_mix_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
     singleton(storage, TOTAL_MIX_STAKE_KEY)
 }
 
+fn inflation_pool(storage: &dyn Storage) -> ReadonlySingleton<u32> {
+    singleton_read(storage, INFLATION_POOL_PREFIX)
+}
+
+pub fn mut_inflation_pool(storage: &mut dyn Storage) -> Singleton<u32> {
+    singleton(storage, INFLATION_POOL_PREFIX)
+}
+
 fn total_gateway_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
     singleton_read(storage, TOTAL_GATEWAY_STAKE_KEY)
 }
@@ -78,6 +88,13 @@ pub fn total_gateway_stake_value(storage: &dyn Storage) -> Uint128 {
     match total_gateway_stake(storage).load() {
         Ok(value) => value,
         Err(_e) => Uint128(0),
+    }
+}
+
+pub fn inflation_pool_value(storage: &dyn Storage) -> u32 {
+    match inflation_pool(storage).load() {
+        Ok(value) => value,
+        Err(_e) => INITIAL_INFLATION_POOL,
     }
 }
 
@@ -114,6 +131,25 @@ pub fn decr_total_gateway_stake(
 ) -> Result<Uint128, ContractError> {
     let stake = total_gateway_stake_value(storage).checked_sub(amount)?;
     mut_total_gateway_stake(storage).save(&stake)?;
+    Ok(stake)
+}
+
+pub fn incr_inflation_pool(
+    amount: u32,
+    storage: &mut dyn Storage,
+) -> Result<u32, ContractError> {
+    let stake = inflation_pool_value(storage) + amount;
+    mut_inflation_pool(storage).save(&stake)?;
+    Ok(stake)
+}
+
+pub fn decr_inflation_pool(
+    amount: u32,
+    storage: &mut dyn Storage,
+) -> Result<u32, ContractError> {
+    // TODO: This could got to < 0
+    let stake = inflation_pool_value(storage) - amount;
+    mut_inflation_pool(storage).save(&stake)?;
     Ok(stake)
 }
 

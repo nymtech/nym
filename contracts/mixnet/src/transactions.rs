@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::contract::{ALPHA, INITIAL_MIXNODE_ACTIVE_SET_SIZE};
 use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime, Delegations};
 use crate::queries;
@@ -13,6 +14,8 @@ use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{
     Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
 };
+use num::rational::Ratio;
+use num::ToPrimitive;
 
 pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
@@ -420,6 +423,107 @@ pub(crate) fn try_reward_mixnode(
             });
         }
     };
+
+    let bond_reward_rate = read_mixnode_epoch_bond_reward_rate(deps.storage);
+    let delegation_reward_rate = read_mixnode_epoch_delegation_reward_rate(deps.storage);
+    let bond_scaled_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
+    let delegation_scaled_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
+
+    let mut node_reward = Uint128(0);
+    let total_delegation_reward = increase_mix_delegated_stakes(
+        deps.storage,
+        &mix_identity,
+        delegation_scaled_reward_rate,
+        env.block.height,
+    )?;
+
+    // update current bond with the reward given to the node and the delegators
+    // if it has been bonded for long enough
+    if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height {
+        node_reward = current_bond.bond_amount.amount * bond_scaled_reward_rate;
+        current_bond.bond_amount.amount += node_reward;
+        current_bond.total_delegation.amount += total_delegation_reward;
+        mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+    }
+
+    Ok(Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes: vec![
+            attr("bond increase", node_reward),
+            attr("total delegation increase", total_delegation_reward),
+        ],
+        data: None,
+    })
+}
+
+pub(crate) fn try_reward_mixnode_v2(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    mix_identity: IdentityKey,
+    uptime: u32,
+    performance: f64,
+) -> Result<Response, ContractError> {
+    let state = config_read(deps.storage).load().unwrap();
+    let total_mix_stake = total_mix_stake_value(deps.storage);
+    let one_over_k = 1. / INITIAL_MIXNODE_ACTIVE_SET_SIZE as f64;
+    // Assuming uniform work distribution across the network this is one_over_k * k
+    let omega_k = 1.;
+    let income_global_mix = inflation_pool_value(deps.storage) as f64;
+
+    // check if this is executed by the monitor, if not reject the transaction
+    if info.sender != state.network_monitor_address {
+        return Err(ContractError::Unauthorized);
+    }
+
+    // check if the bond even exists
+    let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
+        Ok(bond) => bond,
+        Err(_) => {
+            return Ok(Response {
+                attributes: vec![attr("result", "bond not found")],
+                ..Default::default()
+            });
+        }
+    };
+
+    let bond_to_total_stake_ratio = if let Some(float) = Ratio::new(
+        current_bond.bond_amount().amount.u128(),
+        total_mix_stake.u128(),
+    )
+    .to_f64()
+    {
+        float
+    } else {
+        return Err(ContractError::InvalidRatio(
+            current_bond.bond_amount().amount.u128(),
+            total_mix_stake.u128(),
+        ));
+    };
+    let lambda = bond_to_total_stake_ratio.min(one_over_k);
+
+    let stake_to_total_stake_ratio = if let Some(float) = Ratio::new(
+        current_bond.bond_amount().amount.u128() + current_bond.total_delegation().amount.u128(),
+        total_mix_stake.u128(),
+    )
+    .to_f64()
+    {
+        float
+    } else {
+        return Err(ContractError::InvalidRatio(
+            current_bond.bond_amount().amount.u128(),
+            total_mix_stake.u128(),
+        ));
+    };
+    let sigma = stake_to_total_stake_ratio.min(one_over_k);
+
+    let node_reward =
+        performance * income_global_mix * (sigma * omega_k * ALPHA * lambda) / (1. + ALPHA);
+
+    
+    // TODO:
+    // Default profit margins and costs in order to determine owner and delegator shares.
 
     let bond_reward_rate = read_mixnode_epoch_bond_reward_rate(deps.storage);
     let delegation_reward_rate = read_mixnode_epoch_delegation_reward_rate(deps.storage);

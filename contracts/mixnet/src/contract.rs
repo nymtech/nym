@@ -29,6 +29,11 @@ pub const INITIAL_GATEWAY_DELEGATION_REWARD_RATE: u64 = 110;
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 pub const INITIAL_GATEWAY_ACTIVE_SET_SIZE: u32 = 20;
 
+// This is totally made up
+pub const INITIAL_INFLATION_POOL: u32 = 1_000_000_000;
+// Sybil attack resistance parameter
+pub const ALPHA: f64 = 0.3;
+
 fn default_initial_state(owner: Addr) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
     let gateway_bond_reward_rate = Decimal::percent(INITIAL_GATEWAY_BOND_REWARD_RATE);
@@ -109,6 +114,9 @@ pub fn execute(
         }
         ExecuteMsg::RewardMixnode { identity, uptime } => {
             transactions::try_reward_mixnode(deps, env, info, identity, uptime)
+        }
+        ExecuteMsg::RewardMixnodeV2 { identity, uptime, performance } => {
+            transactions::try_reward_mixnode_v2(deps, env, info, identity, uptime, performance)
         }
         ExecuteMsg::RewardGateway { identity, uptime } => {
             transactions::try_reward_gateway(deps, env, info, identity, uptime)

@@ -352,12 +352,7 @@ fn setup_rewarder(
 
 async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Rocket<Ignite>> {
     // let's build our rocket!
-    let rocket_config = rocket::config::Config {
-        // TODO: probably the port should be configurable?
-        port: DEFAULT_VALIDATOR_API_PORT,
-        ..Default::default()
-    };
-    let rocket = rocket::custom(rocket_config)
+    let rocket = rocket::build()
         .attach(setup_cors()?)
         .attach(setup_liftoff_notify(liftoff_notify))
         .attach(ValidatorCache::stage());

@@ -29,10 +29,13 @@ pub const INITIAL_GATEWAY_DELEGATION_REWARD_RATE: u64 = 110;
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 pub const INITIAL_GATEWAY_ACTIVE_SET_SIZE: u32 = 20;
 
-// This is totally made up
-pub const INITIAL_INFLATION_POOL: u32 = 1_000_000_000;
+// This is totally made up, lets set the pool to billion nyms, so million billion micro nyms
+pub const INITIAL_INFLATION_POOL: u64 = 1_000_000_000_000_000;
 // Sybil attack resistance parameter
 pub const ALPHA: f64 = 0.3;
+// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
+pub const DEFAULT_PROFIT_MARGIN: f64 = 0.1; // Assume operators want a 10 % profit
+pub const DEFAULT_COST_PER_EPOCH: u32 = 40_000_000;
 
 fn default_initial_state(owner: Addr) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);

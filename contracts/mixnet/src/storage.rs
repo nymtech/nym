@@ -61,11 +61,11 @@ pub fn mut_total_mix_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
     singleton(storage, TOTAL_MIX_STAKE_KEY)
 }
 
-fn inflation_pool(storage: &dyn Storage) -> ReadonlySingleton<u32> {
+fn inflation_pool(storage: &dyn Storage) -> ReadonlySingleton<u64> {
     singleton_read(storage, INFLATION_POOL_PREFIX)
 }
 
-pub fn mut_inflation_pool(storage: &mut dyn Storage) -> Singleton<u32> {
+pub fn mut_inflation_pool(storage: &mut dyn Storage) -> Singleton<u64> {
     singleton(storage, INFLATION_POOL_PREFIX)
 }
 
@@ -91,7 +91,7 @@ pub fn total_gateway_stake_value(storage: &dyn Storage) -> Uint128 {
     }
 }
 
-pub fn inflation_pool_value(storage: &dyn Storage) -> u32 {
+pub fn inflation_pool_value(storage: &dyn Storage) -> u64 {
     match inflation_pool(storage).load() {
         Ok(value) => value,
         Err(_e) => INITIAL_INFLATION_POOL,
@@ -135,18 +135,18 @@ pub fn decr_total_gateway_stake(
 }
 
 pub fn incr_inflation_pool(
-    amount: u32,
+    amount: u64,
     storage: &mut dyn Storage,
-) -> Result<u32, ContractError> {
+) -> Result<u64, ContractError> {
     let stake = inflation_pool_value(storage) + amount;
     mut_inflation_pool(storage).save(&stake)?;
     Ok(stake)
 }
 
 pub fn decr_inflation_pool(
-    amount: u32,
+    amount: u64,
     storage: &mut dyn Storage,
-) -> Result<u32, ContractError> {
+) -> Result<u64, ContractError> {
     // TODO: This could got to < 0
     let stake = inflation_pool_value(storage) - amount;
     mut_inflation_pool(storage).save(&stake)?;

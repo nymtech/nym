@@ -1,7 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract::{ALPHA, INITIAL_MIXNODE_ACTIVE_SET_SIZE};
+use crate::contract::{
+    ALPHA, DEFAULT_COST_PER_EPOCH, DEFAULT_PROFIT_MARGIN, INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+};
 use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime, Delegations};
 use crate::queries;
@@ -457,6 +459,10 @@ pub(crate) fn try_reward_mixnode(
     })
 }
 
+fn price_for_uptime(uptime: u32) -> f64 {
+    uptime as f64 / 100. * DEFAULT_COST_PER_EPOCH as f64
+}
+
 pub(crate) fn try_reward_mixnode_v2(
     deps: DepsMut,
     env: Env,
@@ -520,9 +526,17 @@ pub(crate) fn try_reward_mixnode_v2(
     let sigma = stake_to_total_stake_ratio.min(one_over_k);
 
     let node_reward =
-        performance * income_global_mix * (sigma * omega_k + ALPHA * lambda * (sigma * k)) / (1. + ALPHA);
+        performance * income_global_mix * (sigma * omega_k + ALPHA * lambda * (sigma * k))
+            / (1. + ALPHA);
 
-    
+    // Omitting the price per packet function now, it follows that base operator reward is the node_reward
+    let operator_profit = ((DEFAULT_PROFIT_MARGIN
+        + (1. - DEFAULT_PROFIT_MARGIN) * (lambda / sigma))
+        * (node_reward - price_for_uptime(uptime)))
+    .max(0.);
+    let operator_base_reward = node_reward.min(price_for_uptime(uptime));
+    let total_operator_reward = operator_base_reward + operator_profit;
+
     // TODO:
     // Default profit margins and costs in order to determine owner and delegator shares.
 

@@ -1,18 +1,45 @@
 import * as React from 'react';
 import { Box, Grid, Typography } from '@mui/material';
-import { MixnodesTable } from '../../components/MixnodesTable';
 import { MainContext } from 'src/context/main';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { ContentCard } from 'src/components/ContentCard';
 import { WorldMap } from 'src/components/WorldMap';
 import { BondBreakdownTable } from 'src/components/BondBreakdown';
 import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
 import { UptimeChart } from 'src/components/UptimeChart';
-import { scrollToRef } from 'src/utils';
+import { mixnodeToGridRow, scrollToRef } from 'src/utils';
 import { ComponentError } from 'src/components/ComponentError';
+import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
+
+const columns = [
+    { field: 'owner', headerName: 'Owner', width: 380, },
+    { field: 'identity_key', headerName: 'Identity Key', width: 420 },
+    {
+        field: 'bond',
+        headerName: 'Bond',
+        width: 130,
+    },
+    {
+        field: 'host',
+        headerName: 'IP:Port',
+        width: 130,
+    },
+    {
+        field: 'location',
+        headerName: 'Location',
+        width: 120,
+    },
+    {
+        field: 'layer',
+        headerName: 'Layer',
+        width: 100,
+        type: 'number',
+    },
+];
 
 export const PageMixnodeDetail: React.FC = () => {
     const ref = React.useRef();
+    const [gridRows, setGridRows] = React.useState();
     const {
         fetchMixnodeById,
         mixnodeDetailInfo,
@@ -37,8 +64,14 @@ export const PageMixnodeDetail: React.FC = () => {
             fetchStatsById(id)
             fetchStatusById(id)
             fetchUptimeStoryById(id)
+        } else {
+            if (mixnodeDetailInfo?.data !== undefined) {
+                setGridRows(mixnodeToGridRow(mixnodeDetailInfo?.data));
+            }
         }
     }, [id, mixnodeDetailInfo]);
+
+
 
     React.useEffect(() => {
         scrollToRef(ref);
@@ -58,7 +91,12 @@ export const PageMixnodeDetail: React.FC = () => {
                     </Grid>
                     <Grid item xs={12} xl={9}>
                         {mixnodeDetailInfo && (
-                            <MixnodesTable mixnodes={mixnodeDetailInfo} />
+                            <UniversalDataGrid
+                                columnsData={columns}
+                                rows={gridRows}
+                                loading={mixnodeDetailInfo.isLoading}
+                                height={180}
+                            />
                         )}
                     </Grid>
                     <Grid item xs={12} xl={9}>

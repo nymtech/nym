@@ -467,7 +467,8 @@ pub(crate) fn try_reward_mixnode_v2(
 ) -> Result<Response, ContractError> {
     let state = config_read(deps.storage).load().unwrap();
     let total_mix_stake = total_mix_stake_value(deps.storage);
-    let one_over_k = 1. / INITIAL_MIXNODE_ACTIVE_SET_SIZE as f64;
+    let k = INITIAL_MIXNODE_ACTIVE_SET_SIZE as f64;
+    let one_over_k = 1. / k;
     // Assuming uniform work distribution across the network this is one_over_k * k
     let omega_k = 1.;
     let income_global_mix = inflation_pool_value(deps.storage) as f64;
@@ -519,7 +520,7 @@ pub(crate) fn try_reward_mixnode_v2(
     let sigma = stake_to_total_stake_ratio.min(one_over_k);
 
     let node_reward =
-        performance * income_global_mix * (sigma * omega_k * ALPHA * lambda) / (1. + ALPHA);
+        performance * income_global_mix * (sigma * omega_k + ALPHA * lambda * (sigma * k)) / (1. + ALPHA);
 
     
     // TODO:

@@ -42,19 +42,15 @@ jobs:
         EXCLUDE: "/dist/, /node_modules/"
     - name: Setup message creation
       run: npm install -g hbs-cli
-    - name: Output message JSON
-      env:
-        HANDLEBARS_JSON_DATA: "{ \"github\": ${{ toJSON(github) }}, \"env\": ${{ toJSON(env) }}, \"secrets\": { \"NYM_CI_WWW_BASE\": ${{ secrets.NYM_CI_WWW_BASE }} } }"
-      run: echo $HANDLEBARS_JSON_DATA
     - name: Create success message
       if: ${{ success() }}
       env:
-        HANDLEBARS_JSON_DATA: "{ \"github\": ${{ toJSON(github) }}, \"env\": ${{ toJSON(env) }}, \"secrets\": { \"NYM_CI_WWW_BASE\": ${{ secrets.NYM_CI_WWW_BASE }} } }"
+        HANDLEBARS_JSON_DATA: "{ \"github\": ${{ toJSON(github) }}, \"env\": ${{ toJSON(env) }}, \"secrets\": { \"NYM_CI_WWW_BASE\": \"${{ secrets.NYM_CI_WWW_BASE }}\" } }"
       run: echo $HANDLEBARS_JSON_DATA | hbs --stdin --stdout .github/workflows/support-files/messages/success > message.txt
     - name: Create failure message
       if: ${{ failure() }}
       env:
-        HANDLEBARS_JSON_DATA: "{ \"github\": ${{ toJSON(github) }}, \"env\": ${{ toJSON(env) }}, \"secrets\": { \"NYM_CI_WWW_BASE\": ${{ secrets.NYM_CI_WWW_BASE }} } }"
+        HANDLEBARS_JSON_DATA: "{ \"github\": ${{ toJSON(github) }}, \"env\": ${{ toJSON(env) }}, \"secrets\": { \"NYM_CI_WWW_BASE\": \"${{ secrets.NYM_CI_WWW_BASE }}\" } }"
       run: echo $HANDLEBARS_JSON_DATA | hbs --stdin --stdout .github/workflows/support-files/messages/failure > message.txt
     - name: Keybase Notification
       uses: docker://keybaseio/client:stable

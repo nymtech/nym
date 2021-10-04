@@ -26,6 +26,13 @@ pub const INITIAL_MIXNODE_DELEGATION_REWARD_RATE: u64 = 110;
 
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
+// This is totally made up, lets set the pool to billion nyms, so million billion micro nyms
+pub const INITIAL_INFLATION_POOL: u128 = 1_000_000_000_000_000;
+// Sybil attack resistance parameter
+pub const ALPHA: f64 = 0.3;
+// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
+pub const DEFAULT_COST_PER_EPOCH: u32 = 40_000_000;
+
 fn default_initial_state(owner: Addr) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
     let mixnode_delegation_reward_rate = Decimal::percent(INITIAL_MIXNODE_DELEGATION_REWARD_RATE);
@@ -94,6 +101,12 @@ pub fn execute(
         ExecuteMsg::RewardMixnode { identity, uptime } => {
             transactions::try_reward_mixnode(deps, env, info, identity, uptime)
         }
+        ExecuteMsg::RewardMixnodeV2 {
+            identity,
+            uptime,
+            performance,
+        } => transactions::try_reward_mixnode_v2(deps, env, info, identity, uptime, performance),
+        }
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }
@@ -157,7 +170,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 #[entry_point]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    todo!("Calculate initial total mix and gateway stake after initial deployment");
+    todo!("Calculate initial total mix and gateway stake after initial deployment. Update mixnode model with profit sharing");
 
     #[allow(unreachable_code)]
     Ok(Default::default())

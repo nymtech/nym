@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::contract::{ALPHA, INITIAL_MIXNODE_ACTIVE_SET_SIZE};
 use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime, Delegations};
 use crate::queries;
@@ -99,6 +100,7 @@ pub(crate) fn try_add_mixnode(
         layer,
         env.block.height,
         mix_node,
+        None,
     );
 
     // this might potentially require more gas if a significant number of delegations was there
@@ -427,6 +429,85 @@ pub(crate) fn try_reward_mixnode(
     })
 }
 
+pub(crate) fn try_reward_mixnode_v2(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    mix_identity: IdentityKey,
+    uptime: u32,
+    performance: f64,
+) -> Result<Response, ContractError> {
+    let state = config_read(deps.storage).load().unwrap();
+    let total_mix_stake = total_mix_stake_value(deps.storage);
+    let k = INITIAL_MIXNODE_ACTIVE_SET_SIZE as f64;
+    let one_over_k = 1. / k;
+    // Assuming uniform work distribution across the network this is one_over_k * k
+    let omega_k = 1.;
+    let income_global_mix = inflation_pool_value(deps.storage) as f64;
+
+    // check if this is executed by the monitor, if not reject the transaction
+    if info.sender != state.network_monitor_address {
+        return Err(ContractError::Unauthorized);
+    }
+
+    // check if the bond even exists
+    let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
+        Ok(bond) => bond,
+        Err(_) => {
+            return Ok(Response {
+                attributes: vec![attr("result", "bond not found")],
+                ..Default::default()
+            });
+        }
+    };
+
+    let bond_to_total_stake_ratio = current_bond.bond_to_total_stake_f64(total_mix_stake)?;
+    let lambda = bond_to_total_stake_ratio.min(one_over_k);
+
+    let stake_to_total_stake_ratio = current_bond.stake_to_total_stake_f64(total_mix_stake)?;
+    let sigma = stake_to_total_stake_ratio.min(one_over_k);
+
+    let node_reward =
+        performance * income_global_mix * (sigma * omega_k + ALPHA * lambda * (sigma * k))
+            / (1. + ALPHA);
+
+    // Omitting the price per packet function now, it follows that base operator reward is the node_reward
+    let operator_profit = ((current_bond.profit_margin()
+        + (1. - current_bond.profit_margin()) * (lambda / sigma))
+        * (node_reward - price_for_uptime(uptime)))
+    .max(0.);
+    let operator_base_reward = node_reward.min(price_for_uptime(uptime));
+    let total_operator_reward = Uint128((operator_base_reward + operator_profit) as u128);
+
+    let total_delegation_reward = increase_mix_delegated_stakes_v2(
+        deps.storage,
+        &current_bond,
+        node_reward,
+        uptime,
+        env.block.height,
+    )?;
+
+    // update current bond with the reward given to the node and the delegators
+    // if it has been bonded for long enough
+    if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height {
+        current_bond.bond_amount.amount += total_operator_reward;
+        current_bond.total_delegation.amount += total_delegation_reward;
+        mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+    }
+
+    decr_inflation_pool(total_operator_reward.u128(), deps.storage)?;
+    decr_inflation_pool(total_delegation_reward.u128(), deps.storage)?;
+
+    Ok(Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes: vec![
+            attr("bond increase", node_reward),
+            attr("total delegation increase", total_delegation_reward),
+        ],
+        data: None,
+    })
+}
 fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {
     // check if anything was put as delegation
     if delegation.is_empty() {
@@ -1523,6 +1604,7 @@ pub mod tests {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
             },
+            profit_margin: None,
         };
 
         mixnodes(deps.as_mut().storage)
@@ -1622,6 +1704,7 @@ pub mod tests {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
             },
+            profit_margin: None,
         };
 
         mixnodes(deps.as_mut().storage)

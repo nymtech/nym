@@ -58,3 +58,7 @@ coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+
+[features]
+default = ["tokenomics"]
+tokenomics = []

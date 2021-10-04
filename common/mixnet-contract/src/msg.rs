@@ -36,6 +36,13 @@ pub enum ExecuteMsg {
         // percentage value in range 0-100
         uptime: u32,
     },
+
+    RewardMixnodeV2 {
+        identity: IdentityKey,
+        // percentage value in range 0-100
+        uptime: u32,
+        performance: f64,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

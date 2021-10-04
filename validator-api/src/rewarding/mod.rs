@@ -49,7 +49,18 @@ pub(crate) struct MixnodeToReward {
     /// Total number of individual addresses that have delegated to this particular node
     pub(crate) total_delegations: usize,
     /// Node absolute uptime over total active set uptime
-    pub(crate) performance: Option<f64>
+    performance: Option<f64>,
+}
+
+impl MixnodeToReward {
+    /// Somewhat clumsy way of feature gatting tokenomics payments. In a tokenomics scenario this will never be None at reward time. We levarage that to Into a different ExecuteMsg variant
+    fn performance(&self) -> Option<f64> {
+        if cfg!(featrure = "tokenomics") {
+            self.performance
+        } else {
+            None
+        }
+    }
 }
 
 pub(crate) struct FailedMixnodeRewardChunkDetails {
@@ -64,9 +75,17 @@ pub(crate) struct FailureData {
 
 impl<'a> From<&'a MixnodeToReward> for ExecuteMsg {
     fn from(node: &MixnodeToReward) -> Self {
-        ExecuteMsg::RewardMixnode {
-            identity: node.identity.clone(),
-            uptime: node.uptime.u8() as u32,
+        if let Some(perf) = node.performance() {
+            ExecuteMsg::RewardMixnodeV2 {
+                identity: node.identity.clone(),
+                uptime: node.uptime.u8() as u32,
+                performance: perf,
+            }
+        } else {
+            ExecuteMsg::RewardMixnode {
+                identity: node.identity.clone(),
+                uptime: node.uptime.u8() as u32,
+            }
         }
     }
 }
@@ -192,7 +211,7 @@ impl Rewarder {
         // 2. filter out nodes that are currently not in the active set (as `mixnode_delegators` was obtained by
         //    querying the validator)
         // 3. determine uptime and attach delegators count
-        let eligible_nodes = active_mixnodes
+        let mut eligible_nodes: Vec<MixnodeToReward> = active_mixnodes
             .iter()
             .filter_map(|mix| {
                 mixnode_delegators
@@ -201,11 +220,21 @@ impl Rewarder {
                         identity: mix.identity.clone(),
                         uptime: mix.last_day,
                         total_delegations,
-                        performance: None
+                        performance: None,
                     })
             })
             .filter(|node| node.uptime.u8() > 0)
             .collect();
+
+        let total_epoch_uptime = eligible_nodes
+            .iter()
+            .fold(0, |acc, mix| acc + mix.uptime.u8()) as f64;
+
+        if cfg!(feature = "tokenomics") {
+            for mix in eligible_nodes.iter_mut() {
+                mix.performance = Some(mix.uptime.u8() as f64 / total_epoch_uptime);
+            }
+        }
 
         Ok(eligible_nodes)
     }

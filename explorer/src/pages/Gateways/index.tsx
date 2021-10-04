@@ -1,6 +1,6 @@
 import React from 'react';
 import { Typography } from '@mui/material';
-import { MixnodesDataGrid } from 'src/components/Mixnodes-DataGrid';
+import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
 
 export const PageGateways: React.FC = () => {
     return (
@@ -8,7 +8,7 @@ export const PageGateways: React.FC = () => {
             <Typography sx={{ marginBottom: 1 }} variant="h5">
                 Gateways
             </Typography>
-            <MixnodesDataGrid />
+            {/* <UniversalDataGrid loading={false} columns /> */}
         </>
     );
 };

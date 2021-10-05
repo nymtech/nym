@@ -12,12 +12,12 @@ import { ContentCard } from '../../components/ContentCard';
 
 export const PageOverview: React.FC = () => {
   const history = useHistory();
-  const { mixnodes, gateways, validators, block }: any =
+  const { mixnodes, gateways, validators, block, countryData }: any =
     React.useContext(MainContext);
   return (
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>
-        <Grid container spacing={0}>
+        <Grid container spacing={2}>
           <Grid item xs={12}>
             <Typography sx={{ marginLeft: 3 }}>
               Overview
@@ -67,7 +67,7 @@ export const PageOverview: React.FC = () => {
               <ContentCard
                 title="Validators"
                 subtitle={validators?.data?.count || ''}
-                errorMsg={gateways?.error}
+                errorMsg={validators?.error}
                 Icon={<ConnectIcon />}
                 Action={
                   <IconButton>
@@ -89,7 +89,11 @@ export const PageOverview: React.FC = () => {
           </Grid>
 
           <Grid item xs={12}>
-            <WorldMap />
+            <WorldMap
+              loading={false}
+              title="Distribution of nodes around the world"
+              countryData={countryData}
+            />
           </Grid>
         </Grid>
       </Box>

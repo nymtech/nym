@@ -2,13 +2,13 @@ import { Card, CardHeader, CardContent, Typography } from '@mui/material';
 import React from 'react';
 
 export const ContentCard: React.FC<{
-  title: string;
+  title?: string;
   subtitle?: string;
   Icon?: React.ReactNode;
   Action?: React.ReactNode;
   errorMsg?: string;
 }> = ({ title, Icon, Action, subtitle, errorMsg, children }) => (
-  <Card sx={{ m: 3 }}>
+  <Card>
     <CardHeader
       title={title}
       avatar={Icon}

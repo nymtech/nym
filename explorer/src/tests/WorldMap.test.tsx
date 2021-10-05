@@ -4,10 +4,10 @@ import { WorldMap } from '../components/WorldMap';
 
 describe('WorldMap', () => {
   beforeEach(() => {
-    render(<WorldMap />);
+    render(<WorldMap loading={false} />);
   });
   it('should render without exploding', () => {
-    const { container } = render(<WorldMap />);
+    const { container } = render(<WorldMap loading={false} />);
     expect(container.firstChild).toBeInTheDocument();
   });
   it('should render the expected container/child element', () => {

@@ -1,6 +1,6 @@
 // import { Requester } from './requester';
 export interface ClientConfig {
-//   requester?: Requester;
+  //   requester?: Requester;
   url: string;
   version: string;
 }
@@ -41,6 +41,13 @@ export interface MixNodeResponseItem {
   total_delegation: Amount;
   owner: string;
   layer: Layer;
+  location: {
+    country_name: string
+    lat: number
+    lng: number
+    three_letter_iso_country_code: string
+    two_letter_iso_country_code: string
+  }
   mix_node: MixNode;
 }
 
@@ -102,18 +109,18 @@ export interface MixNodeDescriptionResponse {
 export type MixNodeStatsResponse = StatsResponse;
 
 export interface Validator {
-    address: string
-    proposer_priority: string
-    pub_key: {
-        type: string
-        value: string
-    }
+  address: string
+  proposer_priority: string
+  pub_key: {
+    type: string
+    value: string
+  }
 }
 export interface ValidatorsResponse {
-    block_height: number
-    count: string
-    total: string
-    validators: Validator[]
+  block_height: number
+  count: string
+  total: string
+  validators: Validator[]
 }
 
 export type CountryData = {
@@ -121,9 +128,44 @@ export type CountryData = {
   nodes: number
 }
 
+export type Delegation = {
+  owner: string,
+  amount: Amount,
+  block_height: number
+}
+
+export type DelegationsResponse = Delegation[];
+
 export type CountryDataResponse = CountryData[];
 
 export type BlockType = {
   
 }
 export type BlockResponse = BlockType;
+
+export interface ApiState<RESPONSE> {
+  isLoading: boolean;
+  data?: RESPONSE;
+  error?: Error;
+}
+
+export type StatusResponse = {
+  pending: boolean,
+  ports: {
+    1789: boolean,
+    1790: boolean,
+    8000: boolean
+  }
+}
+
+export type UptimeTime = {
+  date: string,
+  ipv4_uptime: number,
+  ipv6_uptime: number, 
+}
+
+export type UptimeStoryResponse = {
+  history: UptimeTime[],
+  identity: string,
+  owner: string,
+}

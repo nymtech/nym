@@ -10,7 +10,8 @@ async function main() {
   if(!(process.env.NYM_PROJECT_NAME || data.env.NYM_PROJECT_NAME)) {
     throw new Error('Please set env var NYM_PROJECT_NAME with the project name for displaying in notification messages');
   }
-  if(!(process.env.KEYBASE_NYM_CHANNEL || data.env.KEYBASE_NYM_CHANNEL)) {
+  const keybaseChannel = process.env.KEYBASE_NYM_CHANNEL || data.env.KEYBASE_NYM_CHANNEL;
+  if(!keybaseChannel) {
     throw new Error('Please set env var KEYBASE_NYM_CHANNEL with the channel name for the notification message');
   }
 
@@ -46,7 +47,7 @@ async function main() {
     const channel = {
       name: 'nymtech_bot',
       membersType: 'team',
-      topicName: 'testing',
+      topicName: keybaseChannel,
       topic_type: 'CHAT',
     };
     const message = {

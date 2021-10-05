@@ -10,6 +10,9 @@ async function main() {
   if(!(process.env.NYM_PROJECT_NAME || data.env.NYM_PROJECT_NAME)) {
     throw new Error('Please set env var NYM_PROJECT_NAME with the project name for displaying in notification messages');
   }
+  if(!(process.env.KEYBASE_NYM_CHANNEL || data.env.KEYBASE_NYM_CHANNEL)) {
+    throw new Error('Please set env var KEYBASE_NYM_CHANNEL with the channel name for the notification message');
+  }
 
   // extract the git branch name
   const GIT_BRANCH_NAME = (process.env.GITHUB_REF || data.env.GITHUB_REF).split('/').slice(2).join('/');

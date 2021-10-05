@@ -12,7 +12,7 @@ use crate::nymd_client::Client;
 use crate::rewarding::epoch::Epoch;
 use crate::rewarding::Rewarder;
 use crate::storage::NodeStatusStorage;
-use ::config::{defaults::DEFAULT_VALIDATOR_API_PORT, NymConfig};
+use ::config::NymConfig;
 use anyhow::Result;
 use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};

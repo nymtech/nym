@@ -61,7 +61,7 @@ pub(crate) struct MixnodeToReward {
 impl MixnodeToReward {
     /// Somewhat clumsy way of feature gatting tokenomics payments. In a tokenomics scenario this will never be None at reward time. We levarage that to Into a different ExecuteMsg variant
     fn performance(&self) -> Option<f64> {
-        if cfg!(featrure = "tokenomics"){
+        if cfg!(featrure = "tokenomics") {
             self.performance
         } else {
             None
@@ -100,7 +100,7 @@ impl<'a> From<&'a MixnodeToReward> for ExecuteMsg {
             ExecuteMsg::RewardMixnodeV2 {
                 identity: node.identity.clone(),
                 uptime: node.uptime.u8() as u32,
-                performance: perf
+                performance: perf,
             }
         } else {
             ExecuteMsg::RewardMixnode {
@@ -108,7 +108,6 @@ impl<'a> From<&'a MixnodeToReward> for ExecuteMsg {
                 uptime: node.uptime.u8() as u32,
             }
         }
-        
     }
 }
 
@@ -321,7 +320,6 @@ impl Rewarder {
             for mix in eligible_nodes.iter_mut() {
                 mix.performance = Some(mix.uptime.u8() as f64 / total_epoch_uptime);
             }
-    
         }
 
         Ok(eligible_nodes)

@@ -15,6 +15,8 @@ use ts_rs::TS;
 
 use crate::current_block_height;
 
+const DEFAULT_PROFIT_MARGIN: f64 = 0.1;
+
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema, TS)]
 pub struct MixNode {
     pub host: String,
@@ -47,6 +49,7 @@ pub struct MixNodeBond {
     #[serde(default = "current_block_height")]
     pub block_height: u64,
     pub mix_node: MixNode,
+    pub profit_margin: Option<f64>,
 }
 
 impl MixNodeBond {
@@ -56,6 +59,7 @@ impl MixNodeBond {
         layer: Layer,
         block_height: u64,
         mix_node: MixNode,
+        profit_margin: Option<f64>,
     ) -> Self {
         MixNodeBond {
             total_delegation: coin(0, &bond_amount.denom),
@@ -64,6 +68,15 @@ impl MixNodeBond {
             layer,
             block_height,
             mix_node,
+            profit_margin,
+        }
+    }
+
+    pub fn profit_margin(&self) -> f64 {
+        if let Some(margin) = self.profit_margin {
+            margin
+        } else {
+            DEFAULT_PROFIT_MARGIN
         }
     }
 
@@ -88,18 +101,21 @@ impl MixNodeBond {
     }
 
     pub fn bond_to_total_stake_ratio(&self, total_stake: Uint128) -> Ratio<u128> {
-        Ratio::new(
-            self.bond_amount().amount.u128(),
-            total_stake.u128(),
-        )
+        Ratio::new(self.bond_amount().amount.u128(), total_stake.u128())
     }
 
-    pub fn bond_to_total_stake_f64(&self, total_stake: Uint128) -> Result<f64, MixnetContractError> {
+    pub fn bond_to_total_stake_f64(
+        &self,
+        total_stake: Uint128,
+    ) -> Result<f64, MixnetContractError> {
         let ratio = self.bond_to_total_stake_ratio(total_stake);
         if let Some(f) = ratio.to_f64() {
             Ok(f)
         } else {
-            Err(MixnetContractError::InvalidRatio(*ratio.numer(), *ratio.denom()))
+            Err(MixnetContractError::InvalidRatio(
+                *ratio.numer(),
+                *ratio.denom(),
+            ))
         }
     }
 
@@ -110,12 +126,18 @@ impl MixNodeBond {
         )
     }
 
-    pub fn stake_to_total_stake_f64(&self, total_stake: Uint128) -> Result<f64, MixnetContractError> {
+    pub fn stake_to_total_stake_f64(
+        &self,
+        total_stake: Uint128,
+    ) -> Result<f64, MixnetContractError> {
         let ratio = self.stake_to_total_stake_ratio(total_stake);
         if let Some(f) = ratio.to_f64() {
             Ok(f)
         } else {
-            Err(MixnetContractError::InvalidRatio(*ratio.numer(), *ratio.denom()))
+            Err(MixnetContractError::InvalidRatio(
+                *ratio.numer(),
+                *ratio.denom(),
+            ))
         }
     }
 }
@@ -249,6 +271,7 @@ mod tests {
             layer: Layer::One,
             block_height: 100,
             mix_node: mixnode_fixture(),
+            profit_margin: None,
         };
 
         let mix2 = MixNodeBond {
@@ -258,6 +281,7 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
+            profit_margin: None,
         };
 
         let mix3 = MixNodeBond {
@@ -267,6 +291,7 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
+            profit_margin: None,
         };
 
         let mix4 = MixNodeBond {
@@ -276,6 +301,7 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
+            profit_margin: None,
         };
 
         let mix5 = MixNodeBond {
@@ -285,6 +311,7 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
+            profit_margin: None,
         };
 
         // summary:

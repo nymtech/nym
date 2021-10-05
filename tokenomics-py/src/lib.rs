@@ -38,7 +38,6 @@ fn compute_mix_rewards(mix: &MixNodeBond) {
     let work_share = one_over_k;
     let omega_k = work_share * k;
     // TODO: Use Coin struct from the Tauri wallet, this must be in the Minor denom it will be much easier then
-    
 }
 
 // TODO:

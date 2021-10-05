@@ -1,9 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract::{
-    ALPHA, DEFAULT_PROFIT_MARGIN, INITIAL_MIXNODE_ACTIVE_SET_SIZE,
-};
+use crate::contract::{ALPHA, INITIAL_MIXNODE_ACTIVE_SET_SIZE};
 use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime, Delegations};
 use crate::queries;
@@ -16,8 +14,6 @@ use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{
     Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
 };
-use num::rational::Ratio;
-use num::ToPrimitive;
 
 pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
@@ -104,6 +100,7 @@ pub(crate) fn try_add_mixnode(
         layer,
         env.block.height,
         mix_node,
+        None,
     );
 
     // this might potentially require more gas if a significant number of delegations was there
@@ -459,7 +456,6 @@ pub(crate) fn try_reward_mixnode(
     })
 }
 
-
 pub(crate) fn try_reward_mixnode_v2(
     deps: DepsMut,
     env: Env,
@@ -503,31 +499,31 @@ pub(crate) fn try_reward_mixnode_v2(
             / (1. + ALPHA);
 
     // Omitting the price per packet function now, it follows that base operator reward is the node_reward
-    let operator_profit = ((DEFAULT_PROFIT_MARGIN
-        + (1. - DEFAULT_PROFIT_MARGIN) * (lambda / sigma))
+    let operator_profit = ((current_bond.profit_margin()
+        + (1. - current_bond.profit_margin()) * (lambda / sigma))
         * (node_reward - price_for_uptime(uptime)))
     .max(0.);
     let operator_base_reward = node_reward.min(price_for_uptime(uptime));
-    let total_operator_reward = (operator_base_reward + operator_profit) as u128;
+    let total_operator_reward = Uint128((operator_base_reward + operator_profit) as u128);
 
     let total_delegation_reward = increase_mix_delegated_stakes_v2(
         deps.storage,
-        &mix_identity,
-        sigma,
+        &current_bond,
         node_reward,
         uptime,
-        DEFAULT_PROFIT_MARGIN,
-        env.block.height
+        env.block.height,
     )?;
 
     // update current bond with the reward given to the node and the delegators
     // if it has been bonded for long enough
     if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height {
-        node_reward = current_bond.bond_amount.amount * bond_scaled_reward_rate;
-        current_bond.bond_amount.amount += node_reward;
+        current_bond.bond_amount.amount += total_operator_reward;
         current_bond.total_delegation.amount += total_delegation_reward;
         mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
     }
+
+    decr_inflation_pool(total_operator_reward.u128(), deps.storage)?;
+    decr_inflation_pool(total_delegation_reward.u128(), deps.storage)?;
 
     Ok(Response {
         submessages: vec![],
@@ -1918,6 +1914,7 @@ pub mod tests {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
             },
+            profit_margin: None,
         };
 
         mixnodes(deps.as_mut().storage)
@@ -2017,6 +2014,7 @@ pub mod tests {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
             },
+            profit_margin: None,
         };
 
         mixnodes(deps.as_mut().storage)

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 mod delegation;
+pub mod error;
 mod gateway;
 mod mixnode;
 mod msg;
 mod types;
-pub mod error;
 
 pub use cosmwasm_std::{Addr, Coin};
 pub use delegation::{

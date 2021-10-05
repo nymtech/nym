@@ -1,9 +1,11 @@
 🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥
-> :rocket: Network Explorer
+> :rocket: {{ env.NYM_PROJECT_NAME }}
 > 🔴 **FAILURE** :cry:
-> `{{ github.sha }}` `{{ github.ref }}` https://{{ github.server_url }}/{{ github.repository }}/tree/{{ github.ref }}
-> `build job` https://{{ github.server_url }}/{{ github.repository  }}/actions/runs/{{  github.run_id  }}
+> `branch` {{ env.GITHUB_SERVER_URL }}/{{ env.GITHUB_REPOSITORY }}/tree/{{ env.GIT_BRANCH_NAME }}
+> `commit` {{ env.GITHUB_SERVER_URL }}/{{ env.GITHUB_REPOSITORY }}/commit/{{ env.GITHUB_SHA }}
+> `build ` {{ env.GITHUB_SERVER_URL }}/{{ env.GITHUB_REPOSITORY }}/actions/runs/{{ env.GITHUB_RUN_ID }}
 
 Commit message:
 ```
-{{ github.event.head_commit.message }}
+{{ env.GIT_COMMIT_MESSAGE }}
+```

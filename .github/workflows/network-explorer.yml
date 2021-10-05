@@ -40,23 +40,19 @@ jobs:
         REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
         TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/${{ env.GITHUB_REF_SLUG }}
         EXCLUDE: "/dist/, /node_modules/"
-    - name: Setup message creation
-      run: npm install -g hbs-cli
-    - name: Setup message data
-      run: |
-        echo "{ \"github\": ${{ toJSON(github) }}, \"env\": ${{ toJSON(env) }}, \"secrets\": { \"NYM_CI_WWW_BASE\": \"${{ secrets.NYM_CI_WWW_BASE }}\" } }" > message_data.json
-    - name: Create success message
-      if: ${{ success() }}
-      run: hbs --data message_data.json --stdout .github/workflows/support-files/messages/success > message.txt
-    - name: Create failure message
-      if: ${{ failure() }}
-      run: hbs --data message_data.json --stdout .github/workflows/support-files/messages/failure > message.txt
-    - name: Keybase Notification
-      uses: docker://keybaseio/client:stable
+    - name: Keybase - Node Install
+      run: npm install
+      working-directory: .github/workflows/support-files/messages
+    - name: Keybase - Send Notification
       env:
-        KEYBASE_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
-        KEYBASE_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
-        KEYBASE_SERVICE: "1"
+        NYM_PROJECT_NAME: "Network Explorer"
+        NYM_CI_WWW_BASE: "${{ secrets.NYM_CI_WWW_BASE }}"
+        GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
+        GIT_BRANCH: "${GITHUB_REF##*/}"
+        KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
+        KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
+        KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
+        IS_SUCCESS: "${{ job.status == 'success' }}"
+      uses: docker://keybaseio/client:stable-node
       with:
-        args: |
-          cat message.txt | keybase chat send --channel "#dev-product-ci" ${{ secrets.KEYBASE_NYMBOT_TEAM }}
+        args: .github/workflows/support-files/messages/entry_point_notifications.sh

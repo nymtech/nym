@@ -90,7 +90,15 @@ impl CountryStatistics {
 }
 
 async fn locate(ip: &str) -> Result<GeoLocation, ReqwestError> {
-    let response = reqwest::get(format!("{}{}", crate::GEO_IP_SERVICE, ip)).await?;
+    let api_key = ::std::env::var("GEO_IP_SERVICE_API_KEY")
+        .expect("Env var GEO_IP_SERVICE_API_KEY is not set");
+    let response = reqwest::get(format!(
+        "{}{}?apikey={}",
+        crate::GEO_IP_SERVICE,
+        ip,
+        api_key
+    ))
+    .await?;
     let location = response.json::<GeoLocation>().await?;
     Ok(location)
 }

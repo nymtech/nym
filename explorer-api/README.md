@@ -15,3 +15,7 @@ TODO:
 * serve it all over http
 * dependency injection
 * tests
+
+## Running
+
+- Supply the environment variable `GEO_IP_SERVICE_API_KEY` with a key from https://freegeoip.app/

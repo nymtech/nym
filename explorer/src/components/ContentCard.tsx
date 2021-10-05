@@ -1,9 +1,10 @@
+import { ReactJSXElement } from '@emotion/react/types/jsx-namespace';
 import { Card, CardHeader, CardContent, Typography } from '@mui/material';
 import React, { ReactEventHandler } from 'react';
 
 
 type ContentCardProps = {
-  title?: string,
+  title?: string | ReactJSXElement,
   subtitle?: string,
   Icon?: React.ReactNode,
   Action?: React.ReactNode,

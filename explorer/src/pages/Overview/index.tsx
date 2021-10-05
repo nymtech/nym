@@ -9,6 +9,7 @@ import { useHistory } from 'react-router-dom';
 import { MainContext } from 'src/context/main';
 import { formatNumber } from 'src/utils';
 import { ContentCard } from '../../components/ContentCard';
+import { BIG_DIPPER } from 'src/api/constants';
 
 export const PageOverview: React.FC = () => {
   const history = useHistory();
@@ -84,9 +85,16 @@ export const PageOverview: React.FC = () => {
 
           <Grid item xs={12}>
             <ContentCard
-              title={`Current block height is ${formatNumber(block?.data)}`}
-              onClick={() =>
-                window.open('https://testnet-milhon-blocks.nymtech.net/blocks')
+              title={
+                <a
+                  href={`${BIG_DIPPER}/blocks`}
+                  target="_blank" style={{
+                    textDecoration: 'none',
+                    color: 'white',
+                  }}
+                >
+                  Current block height is ${formatNumber(block?.data)}
+                </a>
               }
             />
           </Grid>

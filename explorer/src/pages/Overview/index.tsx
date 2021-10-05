@@ -93,7 +93,7 @@ export const PageOverview: React.FC = () => {
                     color: 'white',
                   }}
                 >
-                  Current block height is ${formatNumber(block?.data)}
+                  Current block height is {formatNumber(block?.data)}
                 </a>
               }
             />

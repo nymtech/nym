@@ -85,6 +85,9 @@ export const PageOverview: React.FC = () => {
           <Grid item xs={12}>
             <ContentCard
               title={`Current block height is ${formatNumber(block?.data)}`}
+              onClick={() =>
+                window.open('https://testnet-milhon-blocks.nymtech.net/blocks')
+              }
             />
           </Grid>
 

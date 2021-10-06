@@ -1,3 +1,4 @@
+pub(crate) mod tasks;
 mod utils;
 
 use std::collections::HashMap;

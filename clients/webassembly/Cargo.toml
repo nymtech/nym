@@ -14,6 +14,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["console_error_panic_hook"]
 offline-test = []
+coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
 
 [dependencies]
 futures = "0.3"
@@ -25,8 +26,8 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 url = "2.2"
 
 # internal
-coconut-interface = { path = "../../common/coconut-interface" }
-credentials = { path = "../../common/credentials" }
+coconut-interface = { path = "../../common/coconut-interface", optional = true }
+credentials = { path = "../../common/credentials", optional = true }
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }

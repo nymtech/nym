@@ -466,7 +466,7 @@ impl GatewayClient {
         let mut rng = OsRng;
         let iv = IV::new_random(&mut rng);
 
-        let msg = ClientControlRequest::new_enc_bandwidth_credential(
+        let msg = ClientControlRequest::new_enc_coconut_bandwidth_credential(
             &self.coconut_credential,
             self.shared_key.as_ref().unwrap(),
             iv,

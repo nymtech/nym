@@ -6,8 +6,6 @@ use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::storage::PersistentStorage;
-use coconut_interface::VerificationKey;
-use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
@@ -16,6 +14,11 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
+
+#[cfg(feature = "coconut")]
+use coconut_interface::VerificationKey;
+#[cfg(feature = "coconut")]
+use credentials::obtain_aggregate_verification_key;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -83,8 +86,8 @@ impl Gateway {
     fn start_client_websocket_listener(
         &self,
         forwarding_channel: MixForwardingSender,
-        verification_key: VerificationKey,
         active_clients_store: ActiveClientsStore,
+        #[cfg(feature = "coconut")] verification_key: VerificationKey,
     ) {
         info!("Starting client [web]socket listener...");
 
@@ -96,6 +99,7 @@ impl Gateway {
         websocket::Listener::new(
             listening_address,
             Arc::clone(&self.identity),
+            #[cfg(feature = "coconut")]
             verification_key,
         )
         .start(
@@ -170,6 +174,7 @@ impl Gateway {
             }
         }
 
+        #[cfg(feature = "coconut")]
         let validators_verification_key =
             obtain_aggregate_verification_key(&self.config.get_validator_api_endpoints())
                 .await
@@ -182,10 +187,12 @@ impl Gateway {
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
         );
+
         self.start_client_websocket_listener(
             mix_forwarding_channel,
-            validators_verification_key,
             active_clients_store,
+            #[cfg(feature = "coconut")]
+            validators_verification_key,
         );
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");

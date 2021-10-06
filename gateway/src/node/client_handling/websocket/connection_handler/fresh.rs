@@ -7,7 +7,6 @@ use crate::node::client_handling::websocket::connection_handler::{
 };
 use crate::node::storage::error::StorageError;
 use crate::node::storage::PersistentStorage;
-use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::{
@@ -27,6 +26,9 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
+
+#[cfg(feature = "coconut")]
+use coconut_interface::VerificationKey;
 
 #[derive(Debug, Error)]
 enum InitialAuthenticationError {
@@ -67,10 +69,12 @@ pub(crate) struct FreshHandler<R, S> {
     rng: R,
     local_identity: Arc<identity::KeyPair>,
     pub(crate) active_clients_store: ActiveClientsStore,
-    pub(crate) aggregated_verification_key: VerificationKey,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: PersistentStorage,
+
+    #[cfg(feature = "coconut")]
+    pub(crate) aggregated_verification_key: VerificationKey,
 }
 
 impl<R, S> FreshHandler<R, S>
@@ -84,9 +88,9 @@ where
         conn: S,
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
-        aggregated_verification_key: VerificationKey,
         storage: PersistentStorage,
         active_clients_store: ActiveClientsStore,
+        #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
     ) -> Self {
         FreshHandler {
             rng,
@@ -94,8 +98,9 @@ where
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,
-            aggregated_verification_key,
             storage,
+            #[cfg(feature = "coconut")]
+            aggregated_verification_key,
         }
     }
 
@@ -492,6 +497,11 @@ where
                 ClientControlRequest::RegisterHandshakeInitRequest { data } => {
                     self.handle_register(data).await
                 }
+
+                // note: this is not technically a "coconut" thing, but currently we have no non-coconut
+                // bandwidth handling and hence clippy complains about dead and unreachable code
+                // so whenever we introduce another form of bandwidth claim, this feature flag should get removed
+                #[cfg(feature = "coconut")]
                 // won't accept anything else (like bandwidth) without prior authentication
                 _ => Err(InitialAuthenticationError::InvalidRequest),
             }

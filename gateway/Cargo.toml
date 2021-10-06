@@ -42,7 +42,7 @@ validator-client = { path = "../common/client-libs/validator-client" }
 version-checker = { path = "../common/version-checker" }
 
 [features]
-coconut = ["coconut-interface", "credentials"]
+coconut = ["coconut-interface", "credentials", "gateway-requests/coconut"]
 
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }

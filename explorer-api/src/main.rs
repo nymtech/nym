@@ -36,7 +36,12 @@ impl ExplorerApi {
         info!("Explorer API starting up...");
 
         // spawn concurrent tasks
-        country_statistics::CountryStatistics::new(self.state.clone()).start();
+        mix_nodes::tasks::MixNodesTasks::new(self.state.clone()).start();
+        country_statistics::distribution::CountryStatisticsDistributionTask::new(
+            self.state.clone(),
+        )
+        .start();
+        country_statistics::geolocate::GeoLocateTask::new(self.state.clone()).start();
         http::start(self.state.clone());
 
         // wait for user to press ctrl+C

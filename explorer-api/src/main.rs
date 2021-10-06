@@ -12,7 +12,7 @@ mod mix_nodes;
 mod ping;
 mod state;
 
-const GEO_IP_SERVICE: &str = "https://freegeoip.app/json/";
+const GEO_IP_SERVICE: &str = "https://api.freegeoip.app/json";
 
 #[tokio::main]
 async fn main() {

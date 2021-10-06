@@ -27,12 +27,7 @@ pub struct ExplorerApiState {
 
 impl ExplorerApiState {
     pub(crate) async fn get_mix_node(&self, pubkey: &str) -> Option<MixNodeBond> {
-        self.mix_nodes
-            .get()
-            .await
-            .value
-            .get(pubkey)
-            .map(|cache_item| cache_item.bond.clone())
+        self.mix_nodes.get().await.value.get(pubkey).cloned()
     }
 }
 

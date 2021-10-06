@@ -20,6 +20,7 @@ okapi = { version = "0.6.0-alpha-1", features = ["derive_json_schema"] }
 rocket_okapi = "0.7.0-alpha-1"
 log = "0.4.0"
 pretty_env_logger = "0.4.0"
+thiserror = "1.0.29"
 
 mixnet-contract = { path = "../common/mixnet-contract" }
 network-defaults = { path = "../common/network-defaults" }

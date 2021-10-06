@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use coconut_interface::{Base58, KeyPair};
 use config::defaults::{
     default_api_endpoints, DEFAULT_EPOCH_LENGTH, DEFAULT_FIRST_EPOCH_START,
     DEFAULT_MIXNET_CONTRACT_ADDRESS,
@@ -13,6 +12,9 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use time::OffsetDateTime;
 use url::Url;
+
+#[cfg(feature = "coconut")]
+use coconut_interface::{Base58, KeyPair};
 
 mod template;
 
@@ -30,7 +32,6 @@ const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(default)]
     base: Base,
@@ -74,7 +75,7 @@ impl NymConfig for Config {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(default)]
 pub struct Base {
     local_validator: Url,
 
@@ -82,6 +83,7 @@ pub struct Base {
     mixnet_contract_address: String,
 
     // Avoid breaking derives for now
+    #[cfg(feature = "coconut")]
     keypair_bs58: String,
 }
 
@@ -92,13 +94,14 @@ impl Default for Base {
                 .parse()
                 .expect("default local validator is malformed!"),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
+            #[cfg(feature = "coconut")]
             keypair_bs58: String::default(),
         }
     }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(default)]
 pub struct NetworkMonitor {
     /// Specifies whether network monitoring service is enabled in this process.
     enabled: bool,
@@ -179,7 +182,7 @@ impl Default for NetworkMonitor {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(default)]
 pub struct NodeStatusAPI {
     /// Path to the database file containing uptime statuses for all mixnodes and gateways.
     database_path: PathBuf,
@@ -200,7 +203,7 @@ impl Default for NodeStatusAPI {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(default)]
 pub struct TopologyCacher {
     #[serde(with = "humantime_serde")]
     caching_interval: Duration,
@@ -215,7 +218,7 @@ impl Default for TopologyCacher {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(default)]
 pub struct Rewarding {
     /// Specifies whether rewarding service is enabled in this process.
     enabled: bool,
@@ -254,6 +257,7 @@ impl Config {
         Config::default()
     }
 
+    #[cfg(feature = "coconut")]
     pub fn keypair(&self) -> KeyPair {
         KeyPair::try_from_bs58(self.base.keypair_bs58.clone()).unwrap()
     }
@@ -298,6 +302,7 @@ impl Config {
         self
     }
 
+    #[cfg(feature = "coconut")]
     pub fn with_keypair<S: Into<String>>(mut self, keypair_bs58: S) -> Self {
         self.base.keypair_bs58 = keypair_bs58.into();
         self
@@ -391,6 +396,8 @@ impl Config {
         self.node_status_api.database_path.clone()
     }
 
+    // fix dead code warnings as this method is only ever used with coconut feature
+    #[cfg(feature = "coconut")]
     pub fn get_all_validator_api_endpoints(&self) -> Vec<Url> {
         self.network_monitor.all_validator_apis.clone()
     }

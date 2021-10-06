@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
-use coconut_interface::Credential;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -21,6 +20,9 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 use tokio::time::Instant;
+
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
@@ -71,7 +73,8 @@ struct FreshGatewayClientData {
     // SECURITY:
     // since currently we have no double spending protection, just to get things running
     // we're re-using the same credential for all gateways all the time. THIS IS VERY BAD!!
-    bandwidth_credential: Credential,
+    #[cfg(feature = "coconut")]
+    coconut_bandwidth_credential: Credential,
 }
 
 pub(crate) struct PacketSender {
@@ -93,11 +96,11 @@ impl PacketSender {
     pub(crate) fn new(
         gateways_status_updater: GatewayClientUpdateSender,
         local_identity: Arc<identity::KeyPair>,
-        bandwidth_credential: Credential,
         gateway_response_timeout: Duration,
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
         max_sending_rate: usize,
+        #[cfg(feature = "coconut")] coconut_bandwidth_credential: Credential,
     ) -> Self {
         PacketSender {
             active_gateway_clients: HashMap::new(),
@@ -105,7 +108,8 @@ impl PacketSender {
                 gateways_status_updater,
                 local_identity,
                 gateway_response_timeout,
-                bandwidth_credential,
+                #[cfg(feature = "coconut")]
+                coconut_bandwidth_credential,
             }),
             gateway_connection_timeout,
             max_concurrent_clients,
@@ -137,7 +141,6 @@ impl PacketSender {
                 message_sender,
                 ack_sender,
                 fresh_gateway_client_data.gateway_response_timeout,
-                fresh_gateway_client_data.bandwidth_credential.clone(),
             ),
             (message_receiver, ack_receiver),
         )
@@ -230,7 +233,14 @@ impl PacketSender {
             // (an actual bug we experienced)
             match tokio::time::timeout(
                 gateway_connection_timeout,
-                new_client.authenticate_and_start(),
+                new_client.authenticate_and_start(
+                    #[cfg(feature = "coconut")]
+                    Some(
+                        fresh_gateway_client_data
+                            .coconut_bandwidth_credential
+                            .clone(),
+                    ),
+                ),
             )
             .await
             {

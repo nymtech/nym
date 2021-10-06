@@ -15,7 +15,7 @@ use network_defaults::{
 };
 use validator_client::nymd::QueryNymdClient;
 
-pub(crate) type LocationCache = HashMap<String, Location>;
+pub(crate) type LocationCache = HashMap<String, LocationCacheItem>;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct GeoLocation {
@@ -30,6 +30,12 @@ pub(crate) struct GeoLocation {
     pub(crate) latitude: f32,
     pub(crate) longitude: f32,
     pub(crate) metro_code: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct LocationCacheItem {
+    pub(crate) location: Option<Location>,
+    pub(crate) valid_until: SystemTime,
 }
 
 #[derive(Clone, Debug, JsonSchema, Serialize, Deserialize)]
@@ -54,12 +60,19 @@ impl Location {
     }
 }
 
+impl LocationCacheItem {
+    pub(crate) fn new_from_location(location: Option<Location>) -> Self {
+        LocationCacheItem {
+            location,
+            valid_until: SystemTime::now() + Duration::from_secs(60 * 60 * 24), // valid for 1 day
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct MixNodesResult {
     pub(crate) valid_until: SystemTime,
-    pub(crate) value: HashMap<String, MixNodeBondWithLocation>,
+    pub(crate) value: HashMap<String, MixNodeBond>,
     location_cache: LocationCache,
 }
 

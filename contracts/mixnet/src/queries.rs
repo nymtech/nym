@@ -91,6 +91,10 @@ pub(crate) fn query_layer_distribution(deps: Deps) -> LayerDistribution {
     read_layer_distribution(deps.storage)
 }
 
+pub (crate) fn query_inflation_pool(deps: Deps) -> Uint128 {
+    inflation_pool_value(deps.storage)
+}
+
 pub(crate) fn query_total_mix_stake(deps: Deps) -> Uint128 {
     total_mix_stake_value(deps.storage)
 }

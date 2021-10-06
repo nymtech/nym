@@ -3009,6 +3009,7 @@ dependencies = [
 name = "mixnet-contract"
 version = "0.1.0"
 dependencies = [
+ "config",
  "cosmwasm-std",
  "num",
  "schemars",

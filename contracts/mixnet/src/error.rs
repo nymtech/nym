@@ -81,5 +81,5 @@ pub enum ContractError {
     Overflow(#[from] cosmwasm_std::OverflowError),
 
     #[error("Invalid ratio")]
-    Ratio(#[from] mixnet_contract::error::MixnetContractError),
+    Ratio(#[from] mixnet_contract::error::MixnetContractError)
 }

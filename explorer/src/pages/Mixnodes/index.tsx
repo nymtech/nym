@@ -1,5 +1,6 @@
 import React from 'react';
 import { GridRenderCellParams } from '@mui/x-data-grid';
+import { useMediaQuery, useTheme } from '@mui/material';
 import { Box } from '@mui/system';
 import { Link } from 'react-router-dom';
 import { Typography, TextField, MenuItem } from '@mui/material';
@@ -51,6 +52,8 @@ export const PageMixnodes: React.FC = () => {
   const [rows, setRows] = React.useState();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [pageSize, setPageSize] = React.useState(50);
+  const theme = useTheme();
+  const matches = useMediaQuery(theme.breakpoints.down("sm"));
 
   const resetGrid = async () => {
     // @ts-ignore
@@ -116,6 +119,7 @@ export const PageMixnodes: React.FC = () => {
           width: '100%',
           marginBottom: 2,
           display: 'flex',
+          flexDirection: matches ? 'column' : 'row',
           justifyContent: 'space-between'
         }}>
         <Select
@@ -123,7 +127,10 @@ export const PageMixnodes: React.FC = () => {
           id="demo-simple-select"
           value={JSON.stringify(pageSize)}
           onChange={handlePageSize}
-          sx={{ width: 200 }}
+          sx={{
+            width: 200,
+            marginBottom: matches ? 2 : 0,
+          }}
         >
           <MenuItem value={10}>10</MenuItem>
           <MenuItem value={30}>30</MenuItem>
@@ -135,7 +142,6 @@ export const PageMixnodes: React.FC = () => {
           placeholder="search"
           onChange={onChange}
         />
-
       </Box>
       <UniversalDataGrid
         loading={mixnodes?.isLoading}

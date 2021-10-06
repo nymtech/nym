@@ -2,7 +2,7 @@
 // master APIs
 export const MASTER_URL = 'https://testnet-milhon-explorer.nymtech.net';
 export const MASTER_VALIDATOR_URL = 'https://testnet-milhon-validator1.nymtech.net';
-export const BIG_DIPPER = 'https://testnet-milhon-blocks.nymtech.net';
+export const MAP_TOPOJSON = 'https://raw.githubusercontent.com/zcreativelabs/react-simple-maps/master/topojson-maps/world-110m.json';
 
 // specific API routes
 export const MIXNODE_PING = `${MASTER_URL}/api/ping`;

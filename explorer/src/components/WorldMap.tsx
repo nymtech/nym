@@ -2,12 +2,10 @@ import React from 'react';
 import { scaleLinear } from 'd3-scale';
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { MainContext } from '../context/main';
 import { CountryDataResponse, ApiState } from 'src/typeDefs/explorer-api';
-
-const geoUrl =
-  'https://raw.githubusercontent.com/zcreativelabs/react-simple-maps/master/topojson-maps/world-110m.json';
+import { MAP_TOPOJSON } from 'src/api/constants';
 
 type MapProps = {
   title?: string,
@@ -18,21 +16,25 @@ type MapProps = {
 
 export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation, loading }) => {
 
+  const [colorScale, setColorScale] = React.useState();
   const [hasNoContent, setHasNoContent] = React.useState<boolean>(true);
   const [tooltipContent, setTooltipContent] = React.useState<string | null>(null);
   const { mode } = React.useContext(MainContext);
-
-  const colorScale: any = scaleLinear()
-    .domain([0, 1200])
-    // @ts-ignore
-    .range(mode === 'dark' ? ['#ffedea', '#ff5233'] : ['orange', 'red']);
-
 
   React.useEffect(() => {
     if (userLocation || countryData) {
       setHasNoContent(false);
     }
+    if (countryData?.data) {
+      const heighestNumberOfNodes: number = countryData.data.reduce((a, b) => a.nodes > b.nodes ? a : b).nodes;
+      const cs: any = scaleLinear()
+        .domain([0, heighestNumberOfNodes])
+        // @ts-ignore
+        .range(mode === 'dark' ? ['#FFD278', '#F20041'] : ['orange', 'red']);
+      setColorScale(() => cs);
+    }
   }, [countryData, userLocation])
+
   return (
     <>
       <Box>
@@ -53,9 +55,9 @@ export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation,
         >
           <ZoomableGroup>
 
-            <Geographies geography={geoUrl}>
+            <Geographies geography={MAP_TOPOJSON}>
               {({ geographies }: any) =>
-                geographies.map((geo: any) => {
+                (colorScale || userLocation) && geographies.map((geo: any) => {
                   // @ts-ignore
                   const d = countryData && countryData.data && countryData.data.find((s) => s.ISO3 === geo.properties.ISO_A3)
                   return (
@@ -63,7 +65,9 @@ export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation,
                       key={geo.rsmKey}
                       geography={geo}
                       // @ts-ignore
-                      fill={d ? colorScale(d.nodes) : '#F5F4F6'}
+                      fill={d ? colorScale(d.nodes) : '#FFFFFF'}
+                      stroke="#EAEAEC"
+                      strokeWidth={1}
                       onMouseEnter={() => {
                         const { NAME_LONG } = geo.properties;
                         if (!userLocation) {
@@ -105,7 +109,6 @@ export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation,
                 </g>
               </Marker>
             )}
-
           </ZoomableGroup>
         </ComposableMap>
         <ReactTooltip>{tooltipContent}</ReactTooltip>

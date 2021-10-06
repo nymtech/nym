@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::u128;
+
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
 use crate::storage::{config, layer_distribution};
@@ -31,8 +33,6 @@ pub const INITIAL_GATEWAY_ACTIVE_SET_SIZE: u32 = 20;
 
 // This is totally made up, lets set the pool to billion nyms, so million billion micro nyms
 pub const INITIAL_INFLATION_POOL: u128 = 1_000_000_000_000_000;
-// Sybil attack resistance parameter
-pub const ALPHA: f64 = 0.3;
 // We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
 pub const DEFAULT_COST_PER_EPOCH: u32 = 40_000_000;
 
@@ -119,9 +119,8 @@ pub fn execute(
         }
         ExecuteMsg::RewardMixnodeV2 {
             identity,
-            uptime,
-            performance,
-        } => transactions::try_reward_mixnode_v2(deps, env, info, identity, uptime, performance),
+            params
+        } => transactions::try_reward_mixnode_v2(deps, env, info, identity, params),
         ExecuteMsg::RewardGateway { identity, uptime } => {
             transactions::try_reward_gateway(deps, env, info, identity, uptime)
         }
@@ -221,6 +220,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         )?),
         QueryMsg::GetTotalMixStake {} => to_binary(&queries::query_total_mix_stake(deps)),
         QueryMsg::GetTotalGatewayStake {} => to_binary(&queries::query_total_gt_stake(deps)),
+        QueryMsg::GetInflationPool {} => to_binary(&queries::query_inflation_pool(deps))
     };
 
     Ok(query_res?)

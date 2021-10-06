@@ -13,6 +13,7 @@ use crate::storage::models::{
 };
 use crate::storage::NodeStatusStorage;
 use log::{error, info};
+use mixnet_contract::mixnode::NodeRewardParams;
 use mixnet_contract::{ExecuteMsg, IdentityKey};
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
@@ -55,14 +56,14 @@ pub(crate) struct MixnodeToReward {
     /// Total number of individual addresses that have delegated to this particular node
     pub(crate) total_delegations: usize,
     /// Node absolute uptime over total active set uptime
-    performance: Option<f64>,
+    params: Option<NodeRewardParams>,
 }
 
 impl MixnodeToReward {
     /// Somewhat clumsy way of feature gatting tokenomics payments. In a tokenomics scenario this will never be None at reward time. We levarage that to Into a different ExecuteMsg variant
-    fn performance(&self) -> Option<f64> {
+    fn params(&self) -> Option<NodeRewardParams> {
         if cfg!(featrure = "tokenomics") {
-            self.performance
+            self.params
         } else {
             None
         }
@@ -96,11 +97,10 @@ pub(crate) struct FailureData {
 
 impl<'a> From<&'a MixnodeToReward> for ExecuteMsg {
     fn from(node: &MixnodeToReward) -> Self {
-        if let Some(perf) = node.performance() {
+        if let Some(params) = node.params() {
             ExecuteMsg::RewardMixnodeV2 {
                 identity: node.identity.clone(),
-                uptime: node.uptime.u8() as u32,
-                performance: perf,
+                params,
             }
         } else {
             ExecuteMsg::RewardMixnode {
@@ -291,7 +291,13 @@ impl Rewarder {
         // by people hesitating to delegate to nodes without them and thus those nodes disappearing
         // from the active set (once introduced)
         let mixnode_delegators = self.produce_active_mixnode_delegators_map().await?;
-
+        let total_mix_stake = self.nymd_client.get_total_mix_stake().await?;
+        let inflation_pool = self.nymd_client.get_inflation_pool().await?;
+        let k = self
+            .nymd_client
+            .get_state_params()
+            .await?
+            .mixnode_active_set_size;
         // 1. go through all active mixnodes
         // 2. filter out nodes that are currently not in the active set (as `mixnode_delegators` was obtained by
         //    querying the validator)
@@ -306,7 +312,7 @@ impl Rewarder {
                         uptime: self
                             .calculate_absolute_uptime(mix.last_day_ipv4, mix.last_day_ipv6),
                         total_delegations,
-                        performance: None,
+                        params: None,
                     })
             })
             .filter(|node| node.uptime.u8() > 0)
@@ -318,7 +324,14 @@ impl Rewarder {
 
         if cfg!(feature = "tokenomics") {
             for mix in eligible_nodes.iter_mut() {
-                mix.performance = Some(mix.uptime.u8() as f64 / total_epoch_uptime);
+                mix.params = Some(NodeRewardParams::new(
+                    inflation_pool as f64,
+                    k as f64,
+                    mix.uptime.u8() as f64 / total_epoch_uptime,
+                    None,
+                    total_mix_stake,
+                    mix.uptime.u8() as f64,
+                ))
             }
         }
 

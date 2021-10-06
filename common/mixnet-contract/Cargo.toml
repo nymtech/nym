@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 # this branch is identical to 0.14.1 with addition of updated k256 dependency required to help poor cargo choose correct version
-cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-updatedk256" }
+cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch = "0.14.1-updatedk256" }
 #cosmwasm-std = { version = "0.14.1" }
 
 serde = { version = "1.0", features = ["derive"] }
@@ -17,3 +17,4 @@ schemars = "0.8"
 ts-rs = "3.0"
 num = "0.4.0"
 thiserror = "1.0"
+config = { path = "../config" }

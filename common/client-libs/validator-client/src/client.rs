@@ -196,6 +196,13 @@ impl<C> Client<C> {
         Ok(self.nymd.get_total_gateway_stake().await?.u128())
     }
 
+    pub async fn get_inflation_pool(&self) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_inflation_pool().await?.u128())
+    }
+
     // basically handles paging for us
     pub async fn get_all_nymd_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where

@@ -108,6 +108,13 @@ impl<C> Client<C> {
         Ok(self.0.read().await.get_total_gateway_stake().await?)
     }
 
+    pub(crate) async fn get_inflation_pool(&self) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.0.read().await.get_inflation_pool().await?)
+    }
+
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,

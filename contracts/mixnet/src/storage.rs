@@ -1,9 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use crate::contract::{
-    DEFAULT_COST_PER_EPOCH, INITIAL_INFLATION_POOL, INITIAL_MIXNODE_ACTIVE_SET_SIZE,
-};
+use crate::contract::INITIAL_INFLATION_POOL;
 use crate::state::State;
 use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 use crate::{error::ContractError, queries};
@@ -16,8 +13,7 @@ use mixnet_contract::{
     Addr, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
     RawDelegationData, StateParams,
 };
-use num::rational::Ratio;
-use num::ToPrimitive;
+use mixnet_contract::mixnode::NodeRewardParams;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -65,11 +61,11 @@ pub fn mut_total_mix_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
     singleton(storage, TOTAL_MIX_STAKE_KEY)
 }
 
-fn inflation_pool(storage: &dyn Storage) -> ReadonlySingleton<u128> {
+fn inflation_pool(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
     singleton_read(storage, INFLATION_POOL_PREFIX)
 }
 
-pub fn mut_inflation_pool(storage: &mut dyn Storage) -> Singleton<u128> {
+pub fn mut_inflation_pool(storage: &mut dyn Storage) -> Singleton<Uint128> {
     singleton(storage, INFLATION_POOL_PREFIX)
 }
 
@@ -95,10 +91,10 @@ pub fn total_gateway_stake_value(storage: &dyn Storage) -> Uint128 {
     }
 }
 
-pub fn inflation_pool_value(storage: &dyn Storage) -> u128 {
+pub fn inflation_pool_value(storage: &dyn Storage) -> Uint128 {
     match inflation_pool(storage).load() {
         Ok(value) => value,
-        Err(_e) => INITIAL_INFLATION_POOL,
+        Err(_e) => Uint128(INITIAL_INFLATION_POOL),
     }
 }
 
@@ -139,15 +135,21 @@ pub fn decr_total_gateway_stake(
 }
 
 #[allow(dead_code)]
-pub fn incr_inflation_pool(amount: u128, storage: &mut dyn Storage) -> Result<u128, ContractError> {
-    let stake = inflation_pool_value(storage) + amount;
+pub fn incr_inflation_pool(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<Uint128, ContractError> {
+    let stake = inflation_pool_value(storage).saturating_add(amount);
     mut_inflation_pool(storage).save(&stake)?;
     Ok(stake)
 }
 
-pub fn decr_inflation_pool(amount: u128, storage: &mut dyn Storage) -> Result<u128, ContractError> {
+pub fn decr_inflation_pool(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<Uint128, ContractError> {
     // TODO: This could got to < 0
-    let stake = inflation_pool_value(storage) - amount;
+    let stake = inflation_pool_value(storage).checked_sub(amount)?;
     mut_inflation_pool(storage).save(&stake)?;
     Ok(stake)
 }
@@ -318,20 +320,12 @@ pub(crate) fn increase_mix_delegated_stakes(
     Ok(total_rewarded)
 }
 
-pub(crate) fn price_for_uptime(uptime: u32) -> f64 {
-    uptime as f64 / 100. * DEFAULT_COST_PER_EPOCH as f64
-}
-
 pub(crate) fn increase_mix_delegated_stakes_v2(
     storage: &mut dyn Storage,
     bond: &MixNodeBond,
-    node_reward: f64,
-    uptime: u32,
-    reward_blockstamp: u64,
+    params:&NodeRewardParams
 ) -> Result<Uint128, ContractError> {
     let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
-    let total_mix_stake = total_gateway_stake_value(storage);
-    let one_over_k = 1. / INITIAL_MIXNODE_ACTIVE_SET_SIZE as f64;
 
     let mut total_rewarded = Uint128::zero();
     let mut chunk_start: Option<Vec<_>> = None;
@@ -357,37 +351,13 @@ pub(crate) fn increase_mix_delegated_stakes_v2(
                 .chain(std::iter::once(0u8))
                 .collect(),
         );
-        let sigma_ratio = if bond.stake_to_total_stake_f64(total_mix_stake)? < one_over_k {
-            bond.stake_to_total_stake_ratio(total_mix_stake)
-        } else {
-            Ratio::new(1, INITIAL_MIXNODE_ACTIVE_SET_SIZE as u128)
-        };
 
         // and for each of them increase the stake proportionally to the reward
         // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
         // since they delegated
         for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
-            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= reward_blockstamp {
-                // Getting amount / over sigma by reciprocal fraction multiplication'
-                // Delegation rewards almost certanly need to be scaled by total_stake
-                let delegation_over_sigma_ratio = Ratio::new(
-                    delegation.amount.u128() * sigma_ratio.denom(),
-                    total_mix_stake.u128() * sigma_ratio.numer(),
-                );
-                // If we can't resolve the ration we move on, and the delegation does not get rewarded
-                let delegation_over_sigma_f64 =
-                    if let Some(f) = delegation_over_sigma_ratio.to_f64() {
-                        f
-                    } else {
-                        continue;
-                    };
-                let reward = Uint128(
-                    ((1. - bond.profit_margin())
-                // Need to convert this to ratio multiplication
-                    * delegation_over_sigma_f64
-                    * (node_reward * price_for_uptime(uptime)))
-                    .max(0.) as u128,
-                );
+            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= params.reward_blockstamp()? {
+                let reward = bond.reward_delegation(delegation.amount, params)?;
                 delegation.amount += reward;
                 total_rewarded += reward;
                 mix_delegations(storage, bond.identity()).save(&delegator_address, &delegation)?;

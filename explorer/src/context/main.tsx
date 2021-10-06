@@ -20,6 +20,8 @@ interface State {
   mode: PaletteMode
   toggleMode?: () => void
   mixnodes?: ApiState<MixNodeResponse>
+  fetchMixnodes?: () => void
+  filterMixnodes?: (arg: MixNodeResponse) => void
   gateways?: ApiState<GatewayResponse>
   validators?: ApiState<ValidatorsResponse>
   block?: ApiState<BlockResponse>
@@ -30,10 +32,10 @@ interface State {
   fetchDelegationsById: (arg: string) => void
   delegations?: ApiState<DelegationsResponse>
   stats?: ApiState<StatsResponse>
-  fetchStatsById: (arg: string) => void,
-  status?: ApiState<StatusResponse>,
-  fetchStatusById: (arg: string) => void,
-  fetchUptimeStoryById: (arg: string) => void,
+  fetchStatsById: (arg: string) => void
+  status?: ApiState<StatusResponse>
+  fetchStatusById: (arg: string) => void
+  fetchUptimeStoryById: (arg: string) => void
   uptimeStory?: ApiState<UptimeStoryResponse>
 }
 
@@ -44,6 +46,8 @@ export const MainContext = React.createContext<State>({
   fetchStatsById: () => null,
   fetchStatusById: () => null,
   fetchUptimeStoryById: () => null,
+  filterMixnodes: () => null,
+  fetchMixnodes: () => null,
   status: { data: undefined, isLoading: false, error: undefined },
   stats: { data: undefined, isLoading: false, error: undefined },
 });
@@ -163,7 +167,10 @@ export const MainContextProvider: React.FC = ({ children }) => {
       });
     }
   };
-
+  const filterMixnodes = (arr: MixNodeResponse) => {
+    console.log('filter mixnodes context level', arr)
+    setMixnodes({ data: arr, isLoading: false })
+  }
   const fetchGateways = async () => {
     try {
       const data = await Api.fetchGateways();
@@ -228,6 +235,8 @@ export const MainContextProvider: React.FC = ({ children }) => {
         mode,
         toggleMode,
         mixnodes,
+        filterMixnodes,
+        fetchMixnodes,
         gateways,
         validators,
         block,

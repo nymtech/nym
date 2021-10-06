@@ -23,9 +23,6 @@ use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use coconut_interface::Credential;
-use credentials::bandwidth::prepare_for_spending;
-use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{
@@ -36,6 +33,11 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use tokio::runtime::Runtime;
+
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
+#[cfg(feature = "coconut")]
+use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
 
 pub(crate) mod config;
 
@@ -154,7 +156,8 @@ impl NymClient {
         .start(self.runtime.handle())
     }
 
-    async fn prepare_credential(&self) -> Credential {
+    #[cfg(feature = "coconut")]
+    async fn prepare_coconut_credential(&self) -> Credential {
         let verification_key = obtain_aggregate_verification_key(
             &self.config.get_base().get_validator_api_endpoints(),
         )
@@ -196,7 +199,8 @@ impl NymClient {
             .expect("provided gateway id is invalid!");
 
         self.runtime.block_on(async {
-            let coconut_credential = self.prepare_credential().await;
+            #[cfg(feature = "coconut")]
+            let coconut_credential = self.prepare_coconut_credential().await;
 
             let mut gateway_client = GatewayClient::new(
                 gateway_address,
@@ -206,11 +210,13 @@ impl NymClient {
                 mixnet_message_sender,
                 ack_sender,
                 self.config.get_base().get_gateway_response_timeout(),
-                coconut_credential,
             );
 
             gateway_client
-                .authenticate_and_start()
+                .authenticate_and_start(
+                    #[cfg(feature = "coconut")]
+                    Some(coconut_credential),
+                )
                 .await
                 .expect("could not authenticate and start up the gateway connection");
 

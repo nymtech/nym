@@ -1,14 +1,27 @@
+import { ReactJSXElement } from '@emotion/react/types/jsx-namespace';
 import { Card, CardHeader, CardContent, Typography } from '@mui/material';
-import React from 'react';
+import React, { ReactEventHandler } from 'react';
 
-export const ContentCard: React.FC<{
-  title?: string;
-  subtitle?: string;
-  Icon?: React.ReactNode;
-  Action?: React.ReactNode;
-  errorMsg?: string;
-}> = ({ title, Icon, Action, subtitle, errorMsg, children }) => (
-  <Card>
+
+type ContentCardProps = {
+  title?: string | ReactJSXElement,
+  subtitle?: string,
+  Icon?: React.ReactNode,
+  Action?: React.ReactNode,
+  errorMsg?: string,
+  onClick?: ReactEventHandler,
+}
+
+export const ContentCard: React.FC<ContentCardProps> = ({
+  title,
+  Icon,
+  Action,
+  subtitle,
+  errorMsg,
+  children,
+  onClick,
+}) => (
+  <Card onClick={onClick}>
     <CardHeader
       title={title}
       avatar={Icon}

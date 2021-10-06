@@ -2,6 +2,7 @@
 // master APIs
 export const MASTER_URL = 'https://testnet-milhon-explorer.nymtech.net';
 export const MASTER_VALIDATOR_URL = 'https://testnet-milhon-validator1.nymtech.net';
+export const BIG_DIPPER = 'https://testnet-milhon-blocks.nymtech.net';
 
 // specific API routes
 export const MIXNODE_PING = `${MASTER_URL}/api/ping`;

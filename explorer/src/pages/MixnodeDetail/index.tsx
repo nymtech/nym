@@ -96,6 +96,7 @@ export const PageMixnodeDetail: React.FC = () => {
                                 rows={gridRows}
                                 loading={mixnodeDetailInfo.isLoading}
                                 height={180}
+                                pageSize='5'
                             />
                         )}
                     </Grid>

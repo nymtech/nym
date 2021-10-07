@@ -1,11 +1,11 @@
 import React from 'react';
-import { scaleLinear } from 'd3-scale';
+import { scaleLinear, ScaleLinear } from 'd3-scale';
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
 import { Box } from '@mui/material';
 import { MainContext } from '../context/main';
 import { CountryDataResponse, ApiState } from 'src/typeDefs/explorer-api';
-import { MAP_TOPOJSON } from 'src/api/constants';
+import MAP_TOPOJSON from '../assets/world-110m.json';
 
 type MapProps = {
   title?: string,
@@ -14,9 +14,11 @@ type MapProps = {
   loading: boolean
 }
 
+// type Range = ScaleContinuousNumeric<number, number>
+
 export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation, loading }) => {
 
-  const [colorScale, setColorScale] = React.useState();
+  const [colorScale, setColorScale] = React.useState<() => ScaleLinear<string, string>>();
   const [hasNoContent, setHasNoContent] = React.useState<boolean>(true);
   const [tooltipContent, setTooltipContent] = React.useState<string | null>(null);
   const { mode } = React.useContext(MainContext);
@@ -26,10 +28,9 @@ export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation,
       setHasNoContent(false);
     }
     if (countryData?.data) {
-      const heighestNumberOfNodes: number = countryData.data.reduce((a, b) => a.nodes > b.nodes ? a : b).nodes;
-      const cs: any = scaleLinear()
+      const heighestNumberOfNodes = Math.max(...countryData.data.map(country => country.nodes));
+      const cs = scaleLinear<string, string>()
         .domain([0, heighestNumberOfNodes])
-        // @ts-ignore
         .range(mode === 'dark' ? ['#FFD278', '#F20041'] : ['orange', 'red']);
       setColorScale(() => cs);
     }

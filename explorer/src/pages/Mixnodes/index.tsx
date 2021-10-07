@@ -1,5 +1,5 @@
 import React from 'react';
-import { GridRenderCellParams, GridRowData } from '@mui/x-data-grid';
+import { GridRenderCellParams } from '@mui/x-data-grid';
 import { Link } from 'react-router-dom';
 import { Typography } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
@@ -48,50 +48,29 @@ const columns = [
 ];
 
 export const PageMixnodes: React.FC = () => {
-  const { mixnodes, filterMixnodes, fetchMixnodes } = useContext(MainContext);
-  const [rows, setRows] = React.useState<GridRowData[]>();
-  const [searchTerm, setSearchTerm] = React.useState<string>('');
+  const { mixnodes } = useContext(MainContext);
+  const [filteredMixnodes, setFilteredMixnodes] = React.useState<MixNodeResponse | undefined>()
   const [pageSize, setPageSize] = React.useState<string>("50");
-
-  const resetGrid = async () => {
-    if (mixnodes?.data) {
-      const formattedRows = mixnodeToGridRow(mixnodes?.data);
-      setRows(formattedRows);
-    }
-  }
-  const filterBySearch = () => {
-    if (mixnodes?.data && searchTerm !== '') {
-      let results: MixNodeResponse = [];
-      mixnodes?.data.forEach((mn, i) => {
-        if (mn.location && mn.location.country_name) {
-          const cn = mn.location.country_name.toLowerCase();
-          const idKey = mn.mix_node.identity_key.toLowerCase();
-          const ownr = mn.owner.toLowerCase();
-          if (
-            idKey.includes(searchTerm) ||
-            cn.includes(searchTerm) ||
-            ownr.includes(searchTerm)
-          ) {
-
-            results.push(mn);
-          }
-        }
-      });
-      filterMixnodes(results)
-    }
-  }
-
-  const resetAndRefetchData = () => {
-    resetGrid();
-    fetchMixnodes()
-  }
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     const st = event.target.value;
-    if (mixnodes?.data && st === '') {
-      resetAndRefetchData();
-    } else if (mixnodes?.data && st !== '') {
-      setSearchTerm(st.toLowerCase());
+    if (st === '' && mixnodes?.data) {
+      const formatted = mixnodeToGridRow(mixnodes?.data)
+      setFilteredMixnodes(formatted)
+    } else {
+      const filtered = mixnodes?.data && mixnodes?.data.filter((m) => {
+        if (
+          m.location?.country_name.toLowerCase().includes(st) ||
+          m.mix_node.identity_key.toLocaleLowerCase().includes(st) ||
+          m.owner.toLowerCase().includes(st)
+        ) {
+          return m;
+        }
+      })
+      if (filtered) {
+        const formatted = mixnodeToGridRow(filtered)
+        setFilteredMixnodes(formatted)
+      }
     }
   }
 
@@ -100,15 +79,11 @@ export const PageMixnodes: React.FC = () => {
   };
 
   React.useEffect(() => {
-    resetGrid();
-  }, [mixnodes]);
-
-  React.useEffect(() => {
-    filterBySearch();
-    if (searchTerm === '') {
-      resetAndRefetchData();
+    if (mixnodes?.data) {
+      const formatted = mixnodeToGridRow(mixnodes?.data)
+      setFilteredMixnodes(formatted)
     }
-  }, [searchTerm]);
+  }, [mixnodes]);
 
   return (
     <>
@@ -123,7 +98,7 @@ export const PageMixnodes: React.FC = () => {
       <UniversalDataGrid
         loading={mixnodes?.isLoading}
         columnsData={columns}
-        rows={rows}
+        rows={filteredMixnodes}
         height={1080}
         pageSize={pageSize}
       />

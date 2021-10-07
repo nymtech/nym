@@ -21,7 +21,6 @@ interface State {
   toggleMode?: () => void
   mixnodes?: ApiState<MixNodeResponse>
   fetchMixnodes: () => void
-  filterMixnodes: (arg: MixNodeResponse) => void
   gateways?: ApiState<GatewayResponse>
   validators?: ApiState<ValidatorsResponse>
   block?: ApiState<BlockResponse>
@@ -46,7 +45,6 @@ export const MainContext = React.createContext<State>({
   fetchStatsById: () => null,
   fetchStatusById: () => null,
   fetchUptimeStoryById: () => null,
-  filterMixnodes: () => null,
   fetchMixnodes: () => null,
   status: { data: undefined, isLoading: false, error: undefined },
   stats: { data: undefined, isLoading: false, error: undefined },
@@ -167,9 +165,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
       });
     }
   };
-  const filterMixnodes = (arr: MixNodeResponse) => {
-    setMixnodes({ data: arr, isLoading: false })
-  }
   const fetchGateways = async () => {
     try {
       const data = await Api.fetchGateways();
@@ -234,7 +229,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
         mode,
         toggleMode,
         mixnodes,
-        filterMixnodes,
         fetchMixnodes,
         gateways,
         validators,

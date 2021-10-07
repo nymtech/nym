@@ -8,6 +8,7 @@ import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
 import { MainContext } from 'src/context/main';
 import { mixnodeToGridRow } from 'src/utils';
 import { TableToolbar } from 'src/components/TableToolbar';
+import { MixNodeResponse } from 'src/typeDefs/explorer-api';
 
 const columns = [
   { field: 'owner', headerName: 'Owner', width: 380, },
@@ -53,7 +54,6 @@ export const PageMixnodes: React.FC = () => {
   const [pageSize, setPageSize] = React.useState<string>("50");
 
   const resetGrid = async () => {
-    // @ts-ignore
     if (mixnodes?.data) {
       const formattedRows = mixnodeToGridRow(mixnodes?.data);
       setRows(formattedRows);
@@ -61,7 +61,7 @@ export const PageMixnodes: React.FC = () => {
   }
   const filterBySearch = () => {
     if (mixnodes?.data && searchTerm !== '') {
-      let results: any = [];
+      let results: MixNodeResponse = [];
       mixnodes?.data.forEach((mn, i) => {
         if (mn.location && mn.location.country_name) {
           const cn = mn.location.country_name.toLowerCase();
@@ -77,17 +77,19 @@ export const PageMixnodes: React.FC = () => {
           }
         }
       });
-      // @ts-ignore
       filterMixnodes(results)
     }
+  }
+
+  const resetAndRefetchData = () => {
+    resetGrid();
+    fetchMixnodes()
   }
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     const st = event.target.value;
     if (mixnodes?.data && st === '') {
-      resetGrid();
-      // @ts-ignore
-      fetchMixnodes()
+      resetAndRefetchData();
     } else if (mixnodes?.data && st !== '') {
       setSearchTerm(st.toLowerCase());
     }
@@ -103,6 +105,9 @@ export const PageMixnodes: React.FC = () => {
 
   React.useEffect(() => {
     filterBySearch();
+    if (searchTerm === '') {
+      resetAndRefetchData();
+    }
   }, [searchTerm]);
 
   return (

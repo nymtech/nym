@@ -20,8 +20,8 @@ interface State {
   mode: PaletteMode
   toggleMode?: () => void
   mixnodes?: ApiState<MixNodeResponse>
-  fetchMixnodes?: () => void
-  filterMixnodes?: (arg: MixNodeResponse) => void
+  fetchMixnodes: () => void
+  filterMixnodes: (arg: MixNodeResponse) => void
   gateways?: ApiState<GatewayResponse>
   validators?: ApiState<ValidatorsResponse>
   block?: ApiState<BlockResponse>
@@ -168,7 +168,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
     }
   };
   const filterMixnodes = (arr: MixNodeResponse) => {
-    console.log('filter mixnodes context level', arr)
     setMixnodes({ data: arr, isLoading: false })
   }
   const fetchGateways = async () => {

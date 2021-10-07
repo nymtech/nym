@@ -1,14 +1,13 @@
 import React from 'react';
-import { GridRenderCellParams } from '@mui/x-data-grid';
-import { useMediaQuery, useTheme } from '@mui/material';
-import { Box } from '@mui/system';
+import { GridRenderCellParams, GridRowData } from '@mui/x-data-grid';
 import { Link } from 'react-router-dom';
-import { Typography, TextField, MenuItem } from '@mui/material';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
+import { Typography } from '@mui/material';
+import { SelectChangeEvent } from '@mui/material/Select';
 import { useContext } from 'react';
 import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
 import { MainContext } from 'src/context/main';
 import { mixnodeToGridRow } from 'src/utils';
+import { TableToolbar } from 'src/components/TableToolbar';
 
 const columns = [
   { field: 'owner', headerName: 'Owner', width: 380, },
@@ -49,11 +48,9 @@ const columns = [
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes, filterMixnodes, fetchMixnodes } = useContext(MainContext);
-  const [rows, setRows] = React.useState();
-  const [searchTerm, setSearchTerm] = React.useState('');
-  const [pageSize, setPageSize] = React.useState(50);
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.down("sm"));
+  const [rows, setRows] = React.useState<GridRowData[]>();
+  const [searchTerm, setSearchTerm] = React.useState<string>('');
+  const [pageSize, setPageSize] = React.useState<string>("50");
 
   const resetGrid = async () => {
     // @ts-ignore
@@ -85,7 +82,7 @@ export const PageMixnodes: React.FC = () => {
     }
   }
 
-  const onChange = (event: any) => {
+  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     const st = event.target.value;
     if (mixnodes?.data && st === '') {
       resetGrid();
@@ -96,9 +93,8 @@ export const PageMixnodes: React.FC = () => {
     }
   }
 
-  const handlePageSize = (event: SelectChangeEvent) => {
-    const num = Number(event.target.value);
-    setPageSize(num);
+  const handlePageSize = (event: SelectChangeEvent<string>) => {
+    setPageSize(event.target.value);
   };
 
   React.useEffect(() => {
@@ -114,35 +110,11 @@ export const PageMixnodes: React.FC = () => {
       <Typography sx={{ marginBottom: 1 }} variant="h5">
         Mixnodes
       </Typography>
-      <Box
-        sx={{
-          width: '100%',
-          marginBottom: 2,
-          display: 'flex',
-          flexDirection: matches ? 'column' : 'row',
-          justifyContent: 'space-between'
-        }}>
-        <Select
-          labelId="demo-simple-select-label"
-          id="demo-simple-select"
-          value={JSON.stringify(pageSize)}
-          onChange={handlePageSize}
-          sx={{
-            width: 200,
-            marginBottom: matches ? 2 : 0,
-          }}
-        >
-          <MenuItem value={10}>10</MenuItem>
-          <MenuItem value={30}>30</MenuItem>
-          <MenuItem value={50}>50</MenuItem>
-          <MenuItem value={100}>100</MenuItem>
-        </Select>
-        <TextField
-          sx={{ width: 350 }}
-          placeholder="search"
-          onChange={onChange}
-        />
-      </Box>
+      <TableToolbar
+        onChangeSearch={handleSearch}
+        onChangePageSize={handlePageSize}
+        pageSize={pageSize}
+      />
       <UniversalDataGrid
         loading={mixnodes?.isLoading}
         columnsData={columns}

@@ -7,7 +7,7 @@ type DataGridProps = {
   loading?: boolean,
   rows?: GridRowData[],
   columnsData?: GridColumns,
-  pageSize?: number
+  pageSize?: string
 }
 
 export const UniversalDataGrid = ({
@@ -25,7 +25,7 @@ export const UniversalDataGrid = ({
           loading={loading}
           columns={columnsData}
           rows={rows}
-          pageSize={pageSize}
+          pageSize={Number(pageSize)}
           rowsPerPageOptions={[5]}
           disableSelectionOnClick
         />

@@ -5,8 +5,7 @@ import ReactTooltip from 'react-tooltip';
 import { Box } from '@mui/material';
 import { MainContext } from '../context/main';
 import { CountryDataResponse, ApiState } from 'src/typeDefs/explorer-api';
-import { MAP_TOPOJSON } from 'src/api/constants';
-import { Domain } from 'domain';
+import MAP_TOPOJSON from '../assets/world-110m.json';
 
 type MapProps = {
   title?: string,

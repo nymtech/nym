@@ -66,7 +66,7 @@ impl GeoLocateTask {
                         .set_location(&cache_item.mix_node.identity_key, Some(location))
                         .await;
 
-                    // one node has been located, so break out of the loop
+                    // one node has been located, so return out of the loop
                     return;
                 }
                 Err(e) => match e {
@@ -75,7 +75,7 @@ impl GeoLocateTask {
                         cache_item.mix_node.host, e
                     ),
                     LocateError::NotFound(e) => {
-                            error!(
+                            warn!(
                             "❌ Location for {} not found. Response body: {}",
                             cache_item.mix_node.host, e
                         );
@@ -85,7 +85,7 @@ impl GeoLocateTask {
                             .set_location(&cache_item.mix_node.identity_key, None)
                             .await;
                     },
-                    LocateError::RateLimited(e) => error!(
+                    LocateError::RateLimited(e) => warn!(
                         "❌ Oh no, we've been rate limited! Location for {} failed. Response body: {}",
                         cache_item.mix_node.host, e
                     ),

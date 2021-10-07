@@ -29,14 +29,20 @@ impl CountryStatisticsDistributionTask {
     async fn calculate_nodes_per_country(&mut self) {
         let cache = self.state.inner.mix_nodes.get_location_cache().await;
 
-        let locations: Vec<&Location> = cache.values().flat_map(|i| i.location.as_ref()).collect();
+        let three_letter_iso_country_codes: Vec<String> = cache
+            .values()
+            .flat_map(|i| {
+                i.location
+                    .as_ref()
+                    .map(|j| j.three_letter_iso_country_code.clone())
+            })
+            .collect();
 
         let mut distribution = CountryNodesDistribution::new();
 
         info!("Calculating country distribution from located mixnodes...");
-
-        for location in locations {
-            *(distribution.entry(location.three_letter_iso_country_code.clone())).or_insert(0) += 1;
+        for three_letter_iso_country_code in three_letter_iso_country_codes {
+            *(distribution.entry(three_letter_iso_country_code)).or_insert(0) += 1;
         }
 
         // replace the shared distribution to be the new distribution

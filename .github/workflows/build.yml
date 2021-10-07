@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.rust == 'nightly' || matrix.rust == 'beta' }}
+    continue-on-error: ${{ matrix.rust == 'nightly' || matrix.rust == 'beta' || matrix.os = 'windows-latest }}
     strategy:
       matrix:
         rust: [stable, beta, nightly]

@@ -5,8 +5,8 @@ import { Box } from '@mui/system';
 type DataGridProps = {
   height: number,
   loading?: boolean,
-  rows?: GridRowData[],
-  columnsData?: GridColumns,
+  rows: GridRowData[],
+  columnsData: GridColumns,
   pageSize?: string
 }
 

@@ -10,6 +10,7 @@ import { UptimeChart } from 'src/components/UptimeChart';
 import { mixnodeToGridRow, scrollToRef } from 'src/utils';
 import { ComponentError } from 'src/components/ComponentError';
 import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
+import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
 
 const columns = [
     { field: 'owner', headerName: 'Owner', width: 380, },
@@ -39,7 +40,7 @@ const columns = [
 
 export const PageMixnodeDetail: React.FC = () => {
     const ref = React.useRef();
-    const [gridRows, setGridRows] = React.useState();
+    const [row, setRow] = React.useState<MixNodeResponseItem[]>([]);
     const {
         fetchMixnodeById,
         mixnodeDetailInfo,
@@ -56,8 +57,6 @@ export const PageMixnodeDetail: React.FC = () => {
     React.useEffect(() => {
         const hasNoDetail = id && !mixnodeDetailInfo;
         const hasIncorrectDetail = id && mixnodeDetailInfo?.data && mixnodeDetailInfo?.data[0].mix_node.identity_key !== id;
-        // 1. if we have no specific ID/mixnode selected
-        // OR the detail on page is different to what is in state, fetch mixnodeDetailInfo & delegates info
         if (hasNoDetail || hasIncorrectDetail) {
             fetchMixnodeById(id)
             fetchDelegationsById(id)
@@ -66,7 +65,7 @@ export const PageMixnodeDetail: React.FC = () => {
             fetchUptimeStoryById(id)
         } else {
             if (mixnodeDetailInfo?.data !== undefined) {
-                setGridRows(mixnodeToGridRow(mixnodeDetailInfo?.data));
+                setRow(mixnodeDetailInfo?.data);
             }
         }
     }, [id, mixnodeDetailInfo]);
@@ -93,7 +92,7 @@ export const PageMixnodeDetail: React.FC = () => {
                         {mixnodeDetailInfo && (
                             <UniversalDataGrid
                                 columnsData={columns}
-                                rows={gridRows}
+                                rows={mixnodeToGridRow(row)}
                                 loading={mixnodeDetailInfo.isLoading}
                                 height={180}
                                 pageSize='5'

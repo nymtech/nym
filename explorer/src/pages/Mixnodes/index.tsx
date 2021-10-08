@@ -49,16 +49,16 @@ const columns = [
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes } = useContext(MainContext);
-  const [filteredMixnodes, setFilteredMixnodes] = React.useState<MixNodeResponse | undefined>()
+  const [filteredMixnodes, setFilteredMixnodes] = React.useState<MixNodeResponse>([])
   const [pageSize, setPageSize] = React.useState<string>("50");
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     const st = event.target.value;
     if (st === '' && mixnodes?.data) {
-      const formatted = mixnodeToGridRow(mixnodes?.data)
-      setFilteredMixnodes(formatted)
+      // const formatted = mixnodeToGridRow(mixnodes?.data)
+      setFilteredMixnodes(mixnodes?.data)
     } else {
-      const filtered = mixnodes?.data && mixnodes?.data.filter((m) => {
+      const filtered = mixnodes?.data?.filter((m) => {
         if (
           m.location?.country_name.toLowerCase().includes(st) ||
           m.mix_node.identity_key.toLocaleLowerCase().includes(st) ||
@@ -68,8 +68,7 @@ export const PageMixnodes: React.FC = () => {
         }
       })
       if (filtered) {
-        const formatted = mixnodeToGridRow(filtered)
-        setFilteredMixnodes(formatted)
+        setFilteredMixnodes(filtered)
       }
     }
   }
@@ -80,8 +79,8 @@ export const PageMixnodes: React.FC = () => {
 
   React.useEffect(() => {
     if (mixnodes?.data) {
-      const formatted = mixnodeToGridRow(mixnodes?.data)
-      setFilteredMixnodes(formatted)
+      // const formatted = mixnodeToGridRow(mixnodes?.data)
+      setFilteredMixnodes(mixnodes?.data)
     }
   }, [mixnodes]);
 
@@ -98,7 +97,7 @@ export const PageMixnodes: React.FC = () => {
       <UniversalDataGrid
         loading={mixnodes?.isLoading}
         columnsData={columns}
-        rows={filteredMixnodes}
+        rows={mixnodeToGridRow(filteredMixnodes)}
         height={1080}
         pageSize={pageSize}
       />

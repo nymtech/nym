@@ -6,12 +6,13 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 
 
 type TableToolBarProps = {
-    onChangeSearch: (event: React.ChangeEvent<HTMLInputElement>) => void
+    onChangeSearch: (arg: string) => void
     onChangePageSize: (event: SelectChangeEvent<string>) => void
     pageSize: string
+    searchTerm: string
 }
 
-export const TableToolbar = ({ onChangeSearch, onChangePageSize, pageSize }: TableToolBarProps) => {
+export const TableToolbar = ({ searchTerm, onChangeSearch, onChangePageSize, pageSize }: TableToolBarProps) => {
     const theme = useTheme();
     const matches = useMediaQuery(theme.breakpoints.down("sm"));
     return (
@@ -41,8 +42,9 @@ export const TableToolbar = ({ onChangeSearch, onChangePageSize, pageSize }: Tab
                 </Select>
                 <TextField
                     sx={{ width: 350 }}
+                    value={searchTerm}
                     placeholder="search"
-                    onChange={onChangeSearch}
+                    onChange={(event) => onChangeSearch(event.target.value)}
                 />
             </Box>
         </>

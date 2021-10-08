@@ -119,12 +119,6 @@ export const PageMixnodes: React.FC = () => {
     setPageSize(event.target.value);
   };
 
-  React.useEffect(() => {
-    if (mixnodes?.data) {
-      setFilteredMixnodes(mixnodes?.data)
-    }
-  }, [mixnodes]);
-
   return (
     <>
       <Typography sx={{ marginBottom: 1 }} variant="h5">

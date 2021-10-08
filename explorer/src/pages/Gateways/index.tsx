@@ -72,12 +72,6 @@ export const PageGateways: React.FC = () => {
         setPageSize(event.target.value);
     };
 
-    React.useEffect(() => {
-        if (gateways?.data) {
-            setFilteredGateways(gateways?.data)
-        }
-    }, [gateways]);
-
     return (
         <>
             <Typography sx={{ marginBottom: 1 }} variant="h5">

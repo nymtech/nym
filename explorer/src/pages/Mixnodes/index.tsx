@@ -55,7 +55,6 @@ export const PageMixnodes: React.FC = () => {
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     const st = event.target.value;
     if (st === '' && mixnodes?.data) {
-      // const formatted = mixnodeToGridRow(mixnodes?.data)
       setFilteredMixnodes(mixnodes?.data)
     } else {
       const filtered = mixnodes?.data?.filter((m) => {
@@ -79,7 +78,6 @@ export const PageMixnodes: React.FC = () => {
 
   React.useEffect(() => {
     if (mixnodes?.data) {
-      // const formatted = mixnodeToGridRow(mixnodes?.data)
       setFilteredMixnodes(mixnodes?.data)
     }
   }, [mixnodes]);

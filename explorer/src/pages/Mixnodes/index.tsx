@@ -53,9 +53,8 @@ export const PageMixnodes: React.FC = () => {
   const [pageSize, setPageSize] = React.useState<string>("50");
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const st = event.target.value;
+    const st = event.target.value.toLowerCase();
     if (st === '' && mixnodes?.data) {
-      // const formatted = mixnodeToGridRow(mixnodes?.data)
       setFilteredMixnodes(mixnodes?.data)
     } else {
       const filtered = mixnodes?.data?.filter((m) => {
@@ -79,7 +78,6 @@ export const PageMixnodes: React.FC = () => {
 
   React.useEffect(() => {
     if (mixnodes?.data) {
-      // const formatted = mixnodeToGridRow(mixnodes?.data)
       setFilteredMixnodes(mixnodes?.data)
     }
   }, [mixnodes]);

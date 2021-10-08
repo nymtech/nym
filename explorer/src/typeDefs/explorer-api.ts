@@ -78,6 +78,7 @@ export interface StatsResponse {
 export type MixNodeHistoryResponse = StatsResponse;
 
 export interface GatewayResponseItem {
+  block_height: number
   bond_amount: Amount;
   total_delegation: Amount;
   owner: string;
@@ -139,7 +140,6 @@ export type DelegationsResponse = Delegation[];
 export type CountryDataResponse = CountryData[];
 
 export type BlockType = {
-  
 }
 export type BlockResponse = BlockType;
 
@@ -161,7 +161,7 @@ export type StatusResponse = {
 export type UptimeTime = {
   date: string,
   ipv4_uptime: number,
-  ipv6_uptime: number, 
+  ipv6_uptime: number,
 }
 
 export type UptimeStoryResponse = {

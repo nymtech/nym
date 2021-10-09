@@ -28,17 +28,16 @@ export const PageOverview: React.FC = () => {
           {mixnodes && (
             <Grid item xs={12} md={4} lg={4}>
               <ContentCard
+                onClick={() =>
+                  history.push('/network-components/mixnodes')
+                }
                 title="Mixnodes"
                 subtitle={mixnodes?.data?.length || ''}
                 errorMsg={mixnodes?.error}
                 Icon={<ConnectIcon />}
                 Action={
                   <IconButton>
-                    <ArrowForwardSharp
-                      onClick={() =>
-                        history.push('/network-components/mixnodes')
-                      }
-                    />
+                    <ArrowForwardSharp />
                   </IconButton>
                 }
               />
@@ -47,17 +46,16 @@ export const PageOverview: React.FC = () => {
           {gateways && (
             <Grid item xs={12} md={4} lg={4}>
               <ContentCard
+                onClick={() =>
+                  history.push('/network-components/gateways')
+                }
                 title="Gateways"
                 subtitle={gateways?.data?.length || ''}
                 errorMsg={gateways?.error}
                 Icon={<ConnectIcon />}
                 Action={
                   <IconButton>
-                    <ArrowForwardSharp
-                      onClick={() =>
-                        history.push('/network-components/gateways')
-                      }
-                    />
+                    <ArrowForwardSharp />
                   </IconButton>
                 }
               />
@@ -66,17 +64,14 @@ export const PageOverview: React.FC = () => {
           {validators && (
             <Grid item xs={12} md={4} lg={4}>
               <ContentCard
-                title="Validators"
+                onClick={() => window.open(`${BIG_DIPPER}/validators`)}
+                title='Validators'
                 subtitle={validators?.data?.count || ''}
                 errorMsg={validators?.error}
                 Icon={<ConnectIcon />}
                 Action={
                   <IconButton>
-                    <ArrowForwardSharp
-                      onClick={() =>
-                        history.push('/network-components/validators')
-                      }
-                    />
+                    <ArrowForwardSharp />
                   </IconButton>
                 }
               />

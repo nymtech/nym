@@ -28,6 +28,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
 import { MainContext } from '../context/main';
+import { BIG_DIPPER } from 'src/api/constants';
 
 const drawerWidth = 300;
 
@@ -106,6 +107,7 @@ type navOptionType = {
   Icon: React.ReactNode;
   // eslint-disable-next-line react/require-default-props
   nested?: navOptionType[];
+  isExternal?: boolean
 };
 
 const navOptions: navOptionType[] = [
@@ -129,6 +131,12 @@ const navOptions: navOptionType[] = [
         title: 'Gateways',
         Icon: <GarageTwoTone />,
       },
+      {
+        url: `${BIG_DIPPER}/validators`,
+        title: 'Validators',
+        isExternal: true,
+        Icon: <GarageTwoTone />,
+      },
     ],
   },
   {
@@ -143,11 +151,12 @@ const ExpandableButton: React.FC<navOptionType> = ({
   title,
   Icon,
   url,
+  isExternal,
 }) => {
   const [open, toggle] = React.useState(false);
   const handleClick = () => toggle(!open);
 
-  if (!nested)
+  if (!nested && !isExternal) {
     return (
       <ListItem disableGutters component={Link} to={url}>
         <ListItemButton
@@ -167,6 +176,28 @@ const ExpandableButton: React.FC<navOptionType> = ({
         </ListItemButton>
       </ListItem>
     );
+  }
+  if (!nested && isExternal) {
+    return (
+      <ListItem disableGutters component='a' href={url} target='_blank'>
+        <ListItemButton
+          sx={{
+            color: (theme) =>
+              theme.palette.mode === 'light' ? '#000' : '#fff',
+          }}
+        >
+          <ListItemIcon>{Icon}</ListItemIcon>
+          <ListItemText
+            primary={title}
+            sx={{
+              color: (theme) =>
+                theme.palette.mode === 'light' ? '#000' : '#fff',
+            }}
+          />
+        </ListItemButton>
+      </ListItem>
+    );
+  }
   return (
     <>
       <ListItem disableGutters>
@@ -180,24 +211,8 @@ const ExpandableButton: React.FC<navOptionType> = ({
         </ListItemButton>
       </ListItem>
       {open &&
-        nested.map((each: navOptionType) => (
-          <ListItem
-            disableGutters
-            key={each.url}
-            component={Link}
-            to={each.url}
-          >
-            <ListItemButton sx={{ color: "text.primary" }}>
-              <ListItemIcon>{each.Icon}</ListItemIcon>
-              <ListItemText
-                primary={each.title}
-                sx={{
-                  color: (theme) =>
-                    theme.palette.mode === 'light' ? '#000' : '#fff',
-                }}
-              />
-            </ListItemButton>
-          </ListItem>
+        nested?.map((each: navOptionType) => (
+          <ExpandableButton key={each.title} {...each} />
         ))}
     </>
   );
@@ -246,7 +261,7 @@ export const Nav: React.FC = ({ children }) => {
         <Divider />
         <List>
           {navOptions.map((route) => (
-            <ExpandableButton key={route.url} {...route} />
+            <ExpandableButton key={route.url} {...route} isExternal={route.isExternal} />
           ))}
         </List>
         <Divider />

@@ -128,18 +128,14 @@ const navOptions: navOptionType[] = [
       {
         url: '/network-components/mixnodes',
         title: 'Mixnodes',
-        // Icon: <img height={25} width={25} src={OverviewSVG} />,
       },
       {
         url: '/network-components/gateways',
         title: 'Gateways',
-        // Icon: <img height={25} width={25} src={OverviewSVG} />,
       },
       {
-        url: `${BIG_DIPPER}/validators`,
+        url: `/network-components/validators`,
         title: 'Validators',
-        isExternal: true,
-        // Icon: <img height={25} width={25} src={OverviewSVG} />,
       },
     ],
   },

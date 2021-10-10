@@ -27,6 +27,10 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
+import { SVGWrapper } from 'src/icons/SVGWrapper';
+import NetworkSVG from '../assets/network.svg';
+import OverviewSVG from '../assets/overview.svg';
+import NodemapSVG from '../assets/nodemap.svg';
 import { MainContext } from '../context/main';
 import { BIG_DIPPER } from 'src/api/constants';
 
@@ -104,7 +108,7 @@ const Drawer = styled(MuiDrawer, {
 type navOptionType = {
   url: string;
   title: string;
-  Icon: React.ReactNode;
+  Icon?: React.ReactNode;
   // eslint-disable-next-line react/require-default-props
   nested?: navOptionType[];
   isExternal?: boolean
@@ -114,35 +118,35 @@ const navOptions: navOptionType[] = [
   {
     url: '/overview',
     title: 'Overview',
-    Icon: <BarChart />,
+    Icon: <img height={25} width={25} src={OverviewSVG} />,
   },
   {
     url: '/network-components',
     title: 'Network Components',
-    Icon: <ConnectedTv />,
+    Icon: <img height={25} width={25} src={NetworkSVG} />,
     nested: [
       {
         url: '/network-components/mixnodes',
         title: 'Mixnodes',
-        Icon: <TrafficSharp />,
+        // Icon: <img height={25} width={25} src={OverviewSVG} />,
       },
       {
         url: '/network-components/gateways',
         title: 'Gateways',
-        Icon: <GarageTwoTone />,
+        // Icon: <img height={25} width={25} src={OverviewSVG} />,
       },
       {
         url: `${BIG_DIPPER}/validators`,
         title: 'Validators',
         isExternal: true,
-        Icon: <GarageTwoTone />,
+        // Icon: <img height={25} width={25} src={OverviewSVG} />,
       },
     ],
   },
   {
     url: '/nodemap',
     title: 'Nodemap',
-    Icon: <Pin />,
+    Icon: <img height={25} width={25} src={NodemapSVG} />,
   },
 ];
 
@@ -165,7 +169,9 @@ const ExpandableButton: React.FC<navOptionType> = ({
               theme.palette.mode === 'light' ? '#000' : '#fff',
           }}
         >
-          <ListItemIcon>{Icon}</ListItemIcon>
+          <ListItemIcon>
+            {Icon}
+          </ListItemIcon>
           <ListItemText
             primary={title}
             sx={{
@@ -186,7 +192,9 @@ const ExpandableButton: React.FC<navOptionType> = ({
               theme.palette.mode === 'light' ? '#000' : '#fff',
           }}
         >
-          <ListItemIcon>{Icon}</ListItemIcon>
+          <ListItemIcon>
+            {Icon}
+          </ListItemIcon>
           <ListItemText
             primary={title}
             sx={{
@@ -205,7 +213,9 @@ const ExpandableButton: React.FC<navOptionType> = ({
           onClick={handleClick}
           sx={{ color: "text.primary" }}
         >
-          <ListItemIcon>{Icon}</ListItemIcon>
+          <ListItemIcon>
+            {Icon}
+          </ListItemIcon>
           <ListItemText primary={title} />
           {open ? <ExpandLess /> : <ExpandMore />}
         </ListItemButton>

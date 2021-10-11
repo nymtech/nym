@@ -102,7 +102,7 @@ impl Monitor {
                     owner: v4_mix.owner.clone(),
                     node_type: NodeType::Mixnode,
                 };
-                if !report.fully_working_mixes.contains(node) {
+                if !report.working_mixes.contains(node) {
                     warn!("Mixnode {} has not passed the ipv4 check", node.identity);
                     good_nodes_status = false;
                 }
@@ -115,7 +115,7 @@ impl Monitor {
                 owner: v4_gateway.owner.clone(),
                 node_type: NodeType::Gateway,
             };
-            if !report.fully_working_gateways.contains(node) {
+            if !report.working_gateways.contains(node) {
                 warn!("Gateway {} has not passed the ipv4 check", node.identity);
                 good_nodes_status = false;
             }
@@ -128,7 +128,7 @@ impl Monitor {
                     owner: v6_mix.owner.clone(),
                     node_type: NodeType::Mixnode,
                 };
-                if !report.fully_working_mixes.contains(node) {
+                if !report.working_mixes.contains(node) {
                     warn!("Mixnode {} has not passed the ipv6 check", node.identity);
                     good_nodes_status = false;
                 }
@@ -141,7 +141,7 @@ impl Monitor {
                 owner: v6_gateway.owner.clone(),
                 node_type: NodeType::Gateway,
             };
-            if !report.fully_working_gateways.contains(node) {
+            if !report.working_gateways.contains(node) {
                 warn!("Gateway {} has not passed the ipv6 check", node.identity);
                 good_nodes_status = false;
             }

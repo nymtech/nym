@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network_monitor::test_packet::IpVersion;
 use mixnet_contract::{GatewayBond, MixNodeBond};
 use topology::{gateway, mix, NymTopology};
 
@@ -38,25 +37,15 @@ impl TestedNetwork {
         &self.system_version
     }
 
-    pub(crate) fn substitute_mix(&self, node: mix::Node, ip_version: IpVersion) -> NymTopology {
-        let mut good_topology = match ip_version {
-            IpVersion::V4 => self.good_v4_topology.clone(),
-            IpVersion::V6 => self.good_v6_topology.clone(),
-        };
+    pub(crate) fn substitute_mix(&self, node: mix::Node) -> NymTopology {
+        let mut good_topology = self.good_v4_topology.clone();
 
         good_topology.set_mixes_in_layer(node.layer as u8, vec![node]);
         good_topology
     }
 
-    pub(crate) fn substitute_gateway(
-        &self,
-        gateway: gateway::Node,
-        ip_version: IpVersion,
-    ) -> NymTopology {
-        let mut good_topology = match ip_version {
-            IpVersion::V4 => self.good_v4_topology.clone(),
-            IpVersion::V6 => self.good_v6_topology.clone(),
-        };
+    pub(crate) fn substitute_gateway(&self, gateway: gateway::Node) -> NymTopology {
+        let mut good_topology = self.good_v4_topology.clone();
 
         good_topology.set_gateways(vec![gateway]);
         good_topology

@@ -57,8 +57,8 @@ impl Display for InvalidNode {
 }
 
 enum PreparedNode {
-    TestedGateway(gateway::Node, [TestPacket; 2]),
-    TestedMix(mix::Node, [TestPacket; 2]),
+    TestedGateway(gateway::Node, TestPacket),
+    TestedMix(mix::Node, TestPacket),
     Invalid(InvalidNode),
 }
 
@@ -239,19 +239,13 @@ impl PacketPreparer {
         }
         match TryInto::<mix::Node>::try_into(mixnode_bond) {
             Ok(mix) => {
-                let v4_packet = TestPacket::new_v4(
+                let packet = TestPacket::new(
                     mix.identity_key,
                     mix.owner.clone(),
                     nonce,
                     NodeType::Mixnode,
                 );
-                let v6_packet = TestPacket::new_v6(
-                    mix.identity_key,
-                    mix.owner.clone(),
-                    nonce,
-                    NodeType::Mixnode,
-                );
-                PreparedNode::TestedMix(mix, [v4_packet, v6_packet])
+                PreparedNode::TestedMix(mix, packet)
             }
             Err(err) => {
                 warn!(
@@ -278,19 +272,13 @@ impl PacketPreparer {
         }
         match TryInto::<gateway::Node>::try_into(gateway_bond) {
             Ok(gateway) => {
-                let v4_packet = TestPacket::new_v4(
+                let packet = TestPacket::new(
                     gateway.identity_key,
                     gateway.owner.clone(),
                     nonce,
                     NodeType::Gateway,
                 );
-                let v6_packet = TestPacket::new_v6(
-                    gateway.identity_key,
-                    gateway.owner.clone(),
-                    nonce,
-                    NodeType::Gateway,
-                );
-                PreparedNode::TestedGateway(gateway, [v4_packet, v6_packet])
+                PreparedNode::TestedGateway(gateway, packet)
             }
             Err(err) => {
                 warn!(
@@ -361,23 +349,35 @@ impl PacketPreparer {
 
         for mix in mixes.into_iter() {
             match mix {
-                PreparedNode::TestedMix(node, test_packets) => {
-                    for test_packet in test_packets.iter() {
-                        let topology_to_test = self
-                            .tested_network
-                            .substitute_mix(node.clone(), test_packet.ip_version());
-                        let mix_message = test_packet.to_bytes();
-                        let mut mix_packet = self
-                            .chunker
-                            .prepare_packets_from(
-                                mix_message,
-                                &topology_to_test,
-                                self.test_mixnode_sender,
-                            )
-                            .await;
-                        debug_assert_eq!(mix_packet.len(), 1);
-                        packets.push(mix_packet.pop().unwrap());
-                    }
+                PreparedNode::TestedMix(node, test_packet) => {
+                    let topology_to_test = self.tested_network.substitute_mix(node);
+                    let mix_message = test_packet.to_bytes();
+                    let mut mix_packet = self
+                        .chunker
+                        .prepare_packets_from(
+                            mix_message,
+                            &topology_to_test,
+                            self.test_mixnode_sender,
+                        )
+                        .await;
+                    debug_assert_eq!(mix_packet.len(), 1);
+                    packets.push(mix_packet.pop().unwrap());
+
+                    // not removing this code as we will need it again in few more commits
+                    // for test_packet in test_packets.iter() {
+                    //     let topology_to_test = self.tested_network.substitute_mix(node.clone());
+                    //     let mix_message = test_packet.to_bytes();
+                    //     let mut mix_packet = self
+                    //         .chunker
+                    //         .prepare_packets_from(
+                    //             mix_message,
+                    //             &topology_to_test,
+                    //             self.test_mixnode_sender,
+                    //         )
+                    //         .await;
+                    //     debug_assert_eq!(mix_packet.len(), 1);
+                    //     packets.push(mix_packet.pop().unwrap());
+                    // }
                 }
                 PreparedNode::Invalid(node) => invalid.push(node),
                 // `prepare_mixnodes` should NEVER return prepared gateways
@@ -399,27 +399,43 @@ impl PacketPreparer {
         // unfortunately this can't be done more cleanly with iterators as we require an async call
         for gateway in gateways.into_iter() {
             match gateway {
-                PreparedNode::TestedGateway(node, test_packets) => {
-                    let mut gateway_packets = Vec::with_capacity(2);
-                    for test_packet in test_packets.iter() {
-                        let packet_sender = self.create_packet_sender(&node);
-                        let topology_to_test = self
-                            .tested_network
-                            .substitute_gateway(node.clone(), test_packet.ip_version());
-                        let mix_message = test_packet.to_bytes();
-                        let mut mix_packet = self
-                            .chunker
-                            .prepare_packets_from(mix_message, &topology_to_test, packet_sender)
-                            .await;
-                        debug_assert_eq!(mix_packet.len(), 1);
+                PreparedNode::TestedGateway(node, test_packet) => {
+                    let mut gateway_packets = Vec::with_capacity(1);
+                    let packet_sender = self.create_packet_sender(&node);
+                    let topology_to_test = self.tested_network.substitute_gateway(node.clone());
+                    let mix_message = test_packet.to_bytes();
+                    let mut mix_packet = self
+                        .chunker
+                        .prepare_packets_from(mix_message, &topology_to_test, packet_sender)
+                        .await;
+                    debug_assert_eq!(mix_packet.len(), 1);
 
-                        gateway_packets.push(mix_packet.pop().unwrap());
-                    }
+                    gateway_packets.push(mix_packet.pop().unwrap());
+
                     packets.push(GatewayPackets::new(
                         node.clients_address(),
                         node.identity_key,
                         gateway_packets,
                     ))
+
+                    // not removing this code as we will need it again in few more commits
+                    // for test_packet in test_packets.iter() {
+                    //     let packet_sender = self.create_packet_sender(&node);
+                    //     let topology_to_test = self.tested_network.substitute_gateway(node.clone());
+                    //     let mix_message = test_packet.to_bytes();
+                    //     let mut mix_packet = self
+                    //         .chunker
+                    //         .prepare_packets_from(mix_message, &topology_to_test, packet_sender)
+                    //         .await;
+                    //     debug_assert_eq!(mix_packet.len(), 1);
+                    //
+                    //     gateway_packets.push(mix_packet.pop().unwrap());
+                    // }
+                    // packets.push(GatewayPackets::new(
+                    //     node.clients_address(),
+                    //     node.identity_key,
+                    //     gateway_packets,
+                    // ))
                 }
                 PreparedNode::Invalid(node) => invalid.push(node),
                 // `prepare_gateways` should NEVER return prepared mixnodes

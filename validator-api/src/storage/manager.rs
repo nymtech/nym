@@ -366,50 +366,53 @@ impl StorageManager {
         timestamp: UnixTimestamp,
         mixnode_results: Vec<NodeResult>,
     ) -> Result<(), sqlx::Error> {
-        // insert it all in a transaction to make sure all nodes are updated at the same time
-        // (plus it's a nice guard against new nodes)
-        let mut tx = self.connection_pool.begin().await?;
-        for mixnode_result in mixnode_results {
-            let mixnode_id = sqlx::query!(
-                r#"
-                    INSERT OR IGNORE INTO mixnode_details(identity, owner) VALUES (?, ?);
-                    SELECT id FROM mixnode_details WHERE identity = ?;
-                "#,
-                mixnode_result.identity,
-                mixnode_result.owner,
-                mixnode_result.identity,
-            )
-            .fetch_one(&mut tx)
-            .await?
-            .id;
+        todo!("the mixnode status structure is changing")
 
-            // insert ipv4 status
-            sqlx::query!(
-                r#"
-                    INSERT INTO mixnode_ipv4_status (mixnode_details_id, up, timestamp) VALUES (?, ?, ?);
-                "#,
-                mixnode_id,
-                mixnode_result.working_ipv4,
-                timestamp
-            )
-                .execute(&mut tx)
-                .await?;
-
-            // insert ipv6 status
-            sqlx::query!(
-                r#"
-                    INSERT INTO mixnode_ipv6_status (mixnode_details_id, up, timestamp) VALUES (?, ?, ?);
-                "#,
-                mixnode_id,
-                mixnode_result.working_ipv6,
-                timestamp
-            )
-                .execute(&mut tx)
-                .await?;
-        }
-
-        // finally commit the transaction
-        tx.commit().await
+        //
+        // // insert it all in a transaction to make sure all nodes are updated at the same time
+        // // (plus it's a nice guard against new nodes)
+        // let mut tx = self.connection_pool.begin().await?;
+        // for mixnode_result in mixnode_results {
+        //     let mixnode_id = sqlx::query!(
+        //         r#"
+        //             INSERT OR IGNORE INTO mixnode_details(identity, owner) VALUES (?, ?);
+        //             SELECT id FROM mixnode_details WHERE identity = ?;
+        //         "#,
+        //         mixnode_result.identity,
+        //         mixnode_result.owner,
+        //         mixnode_result.identity,
+        //     )
+        //     .fetch_one(&mut tx)
+        //     .await?
+        //     .id;
+        //
+        //     // insert ipv4 status
+        //     sqlx::query!(
+        //         r#"
+        //             INSERT INTO mixnode_ipv4_status (mixnode_details_id, up, timestamp) VALUES (?, ?, ?);
+        //         "#,
+        //         mixnode_id,
+        //         mixnode_result.working_ipv4,
+        //         timestamp
+        //     )
+        //         .execute(&mut tx)
+        //         .await?;
+        //
+        //     // insert ipv6 status
+        //     sqlx::query!(
+        //         r#"
+        //             INSERT INTO mixnode_ipv6_status (mixnode_details_id, up, timestamp) VALUES (?, ?, ?);
+        //         "#,
+        //         mixnode_id,
+        //         mixnode_result.working_ipv6,
+        //         timestamp
+        //     )
+        //         .execute(&mut tx)
+        //         .await?;
+        // }
+        //
+        // // finally commit the transaction
+        // tx.commit().await
     }
 
     /// Tries to submit gateway [`NodeResult`] from the network monitor to the database.
@@ -418,54 +421,57 @@ impl StorageManager {
         timestamp: UnixTimestamp,
         gateway_results: Vec<NodeResult>,
     ) -> Result<(), sqlx::Error> {
-        // insert it all in a transaction to make sure all nodes are updated at the same time
-        // (plus it's a nice guard against new nodes)
-        let mut tx = self.connection_pool.begin().await?;
+        todo!("the gateway status structure is changing")
 
-        for gateway_result in gateway_results {
-            // if gateway info doesn't exist, insert it and get its id
-
-            // same ID "problem" as described for mixnode insertion
-            let gateway_id = sqlx::query!(
-                r#"
-                    INSERT OR IGNORE INTO gateway_details(identity, owner) VALUES (?, ?);
-                    SELECT id FROM gateway_details WHERE identity = ?;
-                "#,
-                gateway_result.identity,
-                gateway_result.owner,
-                gateway_result.identity,
-            )
-            .fetch_one(&mut tx)
-            .await?
-            .id;
-
-            // insert ipv4 status
-            sqlx::query!(
-                r#"
-                    INSERT INTO gateway_ipv4_status (gateway_details_id, up, timestamp) VALUES (?, ?, ?);
-                "#,
-                gateway_id,
-                gateway_result.working_ipv4,
-                timestamp
-            )
-                .execute(&mut tx)
-                .await?;
-
-            // insert ipv6 status
-            sqlx::query!(
-                r#"
-                    INSERT INTO gateway_ipv6_status (gateway_details_id, up, timestamp) VALUES (?, ?, ?);
-                "#,
-                gateway_id,
-                gateway_result.working_ipv6,
-                timestamp
-            )
-                .execute(&mut tx)
-                .await?;
-        }
-
-        // finally commit the transaction
-        tx.commit().await
+        //
+        // // insert it all in a transaction to make sure all nodes are updated at the same time
+        // // (plus it's a nice guard against new nodes)
+        // let mut tx = self.connection_pool.begin().await?;
+        //
+        // for gateway_result in gateway_results {
+        //     // if gateway info doesn't exist, insert it and get its id
+        //
+        //     // same ID "problem" as described for mixnode insertion
+        //     let gateway_id = sqlx::query!(
+        //         r#"
+        //             INSERT OR IGNORE INTO gateway_details(identity, owner) VALUES (?, ?);
+        //             SELECT id FROM gateway_details WHERE identity = ?;
+        //         "#,
+        //         gateway_result.identity,
+        //         gateway_result.owner,
+        //         gateway_result.identity,
+        //     )
+        //     .fetch_one(&mut tx)
+        //     .await?
+        //     .id;
+        //
+        //     // insert ipv4 status
+        //     sqlx::query!(
+        //         r#"
+        //             INSERT INTO gateway_ipv4_status (gateway_details_id, up, timestamp) VALUES (?, ?, ?);
+        //         "#,
+        //         gateway_id,
+        //         gateway_result.working_ipv4,
+        //         timestamp
+        //     )
+        //         .execute(&mut tx)
+        //         .await?;
+        //
+        //     // insert ipv6 status
+        //     sqlx::query!(
+        //         r#"
+        //             INSERT INTO gateway_ipv6_status (gateway_details_id, up, timestamp) VALUES (?, ?, ?);
+        //         "#,
+        //         gateway_id,
+        //         gateway_result.working_ipv6,
+        //         timestamp
+        //     )
+        //         .execute(&mut tx)
+        //         .await?;
+        // }
+        //
+        // // finally commit the transaction
+        // tx.commit().await
     }
 
     /// Checks whether there are already any historical uptimes with this particular date.

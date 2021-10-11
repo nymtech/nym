@@ -10,14 +10,13 @@ use std::collections::HashMap;
 pub(crate) struct NodeResult {
     pub(crate) identity: String,
     pub(crate) owner: String,
-    pub(crate) working_ipv4: bool,
-    pub(crate) working_ipv6: bool,
+    pub(crate) working: bool,
 }
 
 #[derive(Default)]
 struct NodeStatus {
-    ip_v4_compatible: bool,
-    ip_v6_compatible: bool,
+    // TODO: will probably be changed to some kind of %
+    working: bool,
 }
 
 impl NodeStatus {
@@ -25,8 +24,7 @@ impl NodeStatus {
         NodeResult {
             identity,
             owner,
-            working_ipv4: self.ip_v4_compatible,
-            working_ipv6: self.ip_v6_compatible,
+            working: self.working,
         }
     }
 }
@@ -37,22 +35,13 @@ pub(crate) struct TestReport {
     pub(crate) total_received: usize,
     pub(crate) malformed: Vec<InvalidNode>,
 
-    // below are only populated if we're going to be printing the report
-    pub(crate) only_ipv4_compatible_mixes: Vec<TestedNode>,
-    // can't speak v6, but can speak v4
-    pub(crate) only_ipv6_compatible_mixes: Vec<TestedNode>,
-    // can't speak v4, but can speak v6
-    pub(crate) completely_unroutable_mixes: Vec<TestedNode>,
-    // can't speak either v4 or v6
-    pub(crate) fully_working_mixes: Vec<TestedNode>,
+    // again, this will be changed to some % measure when tested multiple times.
+    // But tiny steps for now...
+    pub(crate) working_mixes: Vec<TestedNode>,
+    pub(crate) broken_mixes: Vec<TestedNode>,
 
-    pub(crate) only_ipv4_compatible_gateways: Vec<TestedNode>,
-    // can't speak v6, but can speak v4
-    pub(crate) only_ipv6_compatible_gateways: Vec<TestedNode>,
-    // can't speak v4, but can speak v6
-    pub(crate) completely_unroutable_gateways: Vec<TestedNode>,
-    // can't speak either v4 or v6
-    pub(crate) fully_working_gateways: Vec<TestedNode>,
+    pub(crate) working_gateways: Vec<TestedNode>,
+    pub(crate) broken_gateways: Vec<TestedNode>,
 }
 
 impl TestReport {
@@ -61,70 +50,32 @@ impl TestReport {
         info!("Received total of {} packets", self.total_received);
         info!("{} nodes are invalid", self.malformed.len());
 
-        info!(
-            "{} mixnodes speak ONLY IPv4 (NO IPv6 connectivity)",
-            self.only_ipv4_compatible_mixes.len()
-        );
-        info!(
-            "{} mixnodes speak ONLY IPv6 (NO IPv4 connectivity)",
-            self.only_ipv6_compatible_mixes.len()
-        );
-        info!(
-            "{} mixnodes are totally unroutable!",
-            self.completely_unroutable_mixes.len()
-        );
-        info!("{} mixnodes work fine!", self.fully_working_mixes.len());
+        info!("{} mixnodes work fine!", self.working_mixes.len());
+        info!("{} mixnodes are broken!", self.broken_mixes.len());
 
-        info!(
-            "{} gateways speak ONLY IPv4 (NO IPv6 connectivity)",
-            self.only_ipv4_compatible_gateways.len()
-        );
-        info!(
-            "{} gateways speak ONLY IPv6 (NO IPv4 connectivity)",
-            self.only_ipv6_compatible_gateways.len()
-        );
-        info!(
-            "{} gateways are totally unroutable!",
-            self.completely_unroutable_gateways.len()
-        );
-        info!("{} gateways work fine!", self.fully_working_gateways.len());
+        info!("{} gateways work fine!", self.working_gateways.len());
+        info!("{} gateways are broken!", self.broken_gateways.len());
 
         if detailed {
             info!("full summary:");
             for malformed in self.malformed.iter() {
-                info!("{}", malformed)
+                info!("Malformed: {}", malformed)
             }
 
-            for v4_node in self.only_ipv4_compatible_mixes.iter() {
-                info!("{}", v4_node)
+            for working in self.working_mixes.iter() {
+                info!("Working: {}", working)
             }
 
-            for v6_node in self.only_ipv6_compatible_mixes.iter() {
-                info!("{}", v6_node)
+            for broken in self.broken_mixes.iter() {
+                info!("Broken: {}", broken)
             }
 
-            for unroutable in self.completely_unroutable_mixes.iter() {
-                info!("{}", unroutable)
+            for working in self.working_gateways.iter() {
+                info!("Working: {}", working)
             }
 
-            for working in self.fully_working_mixes.iter() {
-                info!("{}", working)
-            }
-
-            for v4_node in self.only_ipv4_compatible_gateways.iter() {
-                info!("{}", v4_node)
-            }
-
-            for v6_node in self.only_ipv6_compatible_gateways.iter() {
-                info!("{}", v6_node)
-            }
-
-            for unroutable in self.completely_unroutable_gateways.iter() {
-                info!("{}", unroutable)
-            }
-
-            for working in self.fully_working_gateways.iter() {
-                info!("{}", working)
+            for broken in self.broken_gateways.iter() {
+                info!("Broken: {}", broken)
             }
         }
     }
@@ -133,23 +84,15 @@ impl TestReport {
         for (node, result) in summary.iter() {
             let owned_node = node.clone();
             if node.is_gateway() {
-                if result.ip_v4_compatible && result.ip_v6_compatible {
-                    self.fully_working_gateways.push(owned_node)
-                } else if result.ip_v4_compatible {
-                    self.only_ipv4_compatible_gateways.push(owned_node)
-                } else if result.ip_v6_compatible {
-                    self.only_ipv6_compatible_gateways.push(owned_node)
+                if result.working {
+                    self.working_gateways.push(owned_node)
                 } else {
-                    self.completely_unroutable_gateways.push(owned_node)
+                    self.broken_gateways.push(owned_node)
                 }
-            } else if result.ip_v4_compatible && result.ip_v6_compatible {
-                self.fully_working_mixes.push(owned_node)
-            } else if result.ip_v4_compatible {
-                self.only_ipv4_compatible_mixes.push(owned_node)
-            } else if result.ip_v6_compatible {
-                self.only_ipv6_compatible_mixes.push(owned_node)
+            } else if result.working {
+                self.working_mixes.push(owned_node)
             } else {
-                self.completely_unroutable_mixes.push(owned_node)
+                self.broken_mixes.push(owned_node)
             }
         }
     }
@@ -193,13 +136,8 @@ impl SummaryProducer {
 
         // update based on data we actually got
         for received_status in received_packets.into_iter() {
-            let is_received_v4 = received_status.ip_version().is_v4();
             let entry = summary.entry(received_status.into()).or_default();
-            if is_received_v4 {
-                entry.ip_v4_compatible = true
-            } else {
-                entry.ip_v6_compatible = true
-            }
+            entry.working = true;
         }
 
         // insert entries we didn't get but were expecting

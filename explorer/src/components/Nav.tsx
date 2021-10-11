@@ -111,7 +111,6 @@ type navOptionType = {
   Icon?: React.ReactNode;
   // eslint-disable-next-line react/require-default-props
   nested?: navOptionType[];
-  isExternal?: boolean
 };
 
 const navOptions: navOptionType[] = [
@@ -151,37 +150,13 @@ const ExpandableButton: React.FC<navOptionType> = ({
   title,
   Icon,
   url,
-  isExternal,
 }) => {
   const [open, toggle] = React.useState(false);
   const handleClick = () => toggle(!open);
 
-  if (!nested && !isExternal) {
+  if (!nested) {
     return (
       <ListItem disableGutters component={Link} to={url}>
-        <ListItemButton
-          sx={{
-            color: (theme) =>
-              theme.palette.mode === 'light' ? '#000' : '#fff',
-          }}
-        >
-          <ListItemIcon>
-            {Icon}
-          </ListItemIcon>
-          <ListItemText
-            primary={title}
-            sx={{
-              color: (theme) =>
-                theme.palette.mode === 'light' ? '#000' : '#fff',
-            }}
-          />
-        </ListItemButton>
-      </ListItem>
-    );
-  }
-  if (!nested && isExternal) {
-    return (
-      <ListItem disableGutters component='a' href={url} target='_blank'>
         <ListItemButton
           sx={{
             color: (theme) =>
@@ -267,7 +242,7 @@ export const Nav: React.FC = ({ children }) => {
         <Divider />
         <List>
           {navOptions.map((route) => (
-            <ExpandableButton key={route.url} {...route} isExternal={route.isExternal} />
+            <ExpandableButton key={route.url} {...route} />
           ))}
         </List>
         <Divider />

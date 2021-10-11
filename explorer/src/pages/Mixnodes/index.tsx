@@ -39,6 +39,12 @@ export const PageMixnodes: React.FC = () => {
     }
   }, [searchTerm, mixnodes?.data])
 
+  const linkStyles = {
+    color: 'inherit',
+    textDecoration: 'none',
+    marginLeft: 16
+  }
+
   const columns = [
     {
       field: 'owner',
@@ -46,7 +52,11 @@ export const PageMixnodes: React.FC = () => {
       width: 380,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <a href={`https://testnet-milhon-blocks.nymtech.net/account/${params.value}`} target='_blank' style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+          <a
+            href={`https://testnet-milhon-blocks.nymtech.net/account/${params.value}`}
+            target='_blank'
+            style={linkStyles}
+          >
             {params.value}
           </a>
         )
@@ -58,7 +68,10 @@ export const PageMixnodes: React.FC = () => {
       width: 420,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <Link to={`/network-components/mixnodes/${params.value}`} style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+          <Link
+            to={`/network-components/mixnodes/${params.value}`}
+            style={linkStyles}
+            >
             {params.value}
           </Link>
         )
@@ -70,7 +83,10 @@ export const PageMixnodes: React.FC = () => {
       width: 130,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <Link to={`/network-components/mixnodes/${params.row.identity_key}`} style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+          <Link
+            to={`/network-components/mixnodes/${params.row.identity_key}`}
+            style={linkStyles}
+          >
             {params.value}
           </Link>
         )
@@ -82,7 +98,10 @@ export const PageMixnodes: React.FC = () => {
       width: 130,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <Link to={`/network-components/mixnodes/${params.row.identity_key}`} style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+          <Link
+            to={`/network-components/mixnodes/${params.row.identity_key}`}
+            style={linkStyles}
+            >
             {params.value}
           </Link>
         )
@@ -94,7 +113,10 @@ export const PageMixnodes: React.FC = () => {
       width: 120,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <div onClick={() => handleSearch(params.value as string)} style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+          <div
+            onClick={() => handleSearch(params.value as string)}
+            style={linkStyles}
+          >
             {params.value}
           </div>
         )
@@ -107,7 +129,10 @@ export const PageMixnodes: React.FC = () => {
       type: 'number',
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <Link to={`/network-components/mixnodes/${params.row.identity_key}`} style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+          <Link
+            to={`/network-components/mixnodes/${params.row.identity_key}`}
+            style={linkStyles}
+          >
             {params.value}
           </Link>
         )

@@ -60,7 +60,7 @@ export const PageGateways: React.FC = () => {
             width: 120,
             renderCell: (params: GridRenderCellParams) => {
                 return (
-                    <div onClick={() => handleSearch(params.value as string)} style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+                    <div onClick={() => handleSearch(params.value as string)} style={{ textDecoration: 'none', color: 'inherit', marginLeft: 16 }}>
                         {params.value}
                     </div>
                 )

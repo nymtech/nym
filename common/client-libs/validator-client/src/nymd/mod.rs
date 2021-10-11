@@ -4,7 +4,7 @@
 use crate::nymd::cosmwasm_client::signing_client;
 use crate::nymd::cosmwasm_client::types::{
     ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
-    MigrateResult, UploadMeta, UploadResult,
+    MigrateResult, SequenceResponse, UploadMeta, UploadResult,
 };
 use crate::nymd::error::NymdError;
 use crate::nymd::fee_helpers::Operation;
@@ -28,6 +28,7 @@ pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::gas_price::GasPrice;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
+use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{Fee, Gas};
 pub use cosmrs::Coin as CosmosCoin;
@@ -155,9 +156,23 @@ impl<C> NymdClient<C> {
         &self.client_address.as_ref().unwrap()[0]
     }
 
+    pub async fn account_sequence(&self) -> Result<SequenceResponse, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.client.get_sequence(self.address()).await
+    }
+
     pub fn get_fee(&self, operation: Operation) -> Fee {
         let gas_limit = self.custom_gas_limits.get(&operation).cloned();
         operation.determine_fee(&self.gas_price, gas_limit)
+    }
+
+    pub async fn get_current_block_height(&self) -> Result<Height, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client.get_height().await
     }
 
     pub fn calculate_custom_fee(&self, gas_limit: impl Into<Gas>) -> Fee {

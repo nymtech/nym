@@ -12,13 +12,13 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::cmp::Ordering;
 use std::fmt::Display;
-use ts_rs::TS;
 
 use crate::current_block_height;
 
 const DEFAULT_PROFIT_MARGIN: f64 = 0.1;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema, TS)]
+#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct MixNode {
     pub host: String,
     pub mix_port: u16,

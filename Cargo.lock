@@ -1400,7 +1400,7 @@ checksum = "ecf692a2ee5c5f699ed0e95f21686cf6367f3a591e5d8e7bd3041bbf184651f9"
 dependencies = [
  "bumpalo",
  "fnv",
- "num-bigint 0.2.6",
+ "num-bigint",
  "swc_atoms",
  "swc_common",
  "swc_ecmascript",
@@ -3011,7 +3011,6 @@ version = "0.1.0"
 dependencies = [
  "config",
  "cosmwasm-std",
- "num",
  "schemars",
  "serde",
  "serde_repr",
@@ -3180,20 +3179,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43db66d1170d347f9a065114077f7dccb00c1b9478c89384490a3425279a4606"
-dependencies = [
- "num-bigint 0.4.2",
- "num-complex",
- "num-integer",
- "num-iter",
- "num-rational",
- "num-traits",
-]
-
-[[package]]
 name = "num-bigint"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3203,26 +3188,6 @@ dependencies = [
  "num-integer",
  "num-traits",
  "serde",
-]
-
-[[package]]
-name = "num-bigint"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74e768dff5fb39a41b3bcd30bb25cf989706c90d028d1ad71971987aa309d535"
-dependencies = [
- "autocfg 1.0.1",
- "num-integer",
- "num-traits",
-]
-
-[[package]]
-name = "num-complex"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26873667bbbb7c5182d4a37c1add32cdf09f841af72da53318fdb81543c15085"
-dependencies = [
- "num-traits",
 ]
 
 [[package]]
@@ -3253,18 +3218,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2021c8337a54d21aca0d59a92577a029af9431cb59b909b03252b9c164fad59"
 dependencies = [
  "autocfg 1.0.1",
- "num-integer",
- "num-traits",
-]
-
-[[package]]
-name = "num-rational"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d41702bd167c2df5520b384281bc111a4b5efcf7fbc4c9c222c815b07e0a6a6a"
-dependencies = [
- "autocfg 1.0.1",
- "num-bigint 0.4.2",
  "num-integer",
  "num-traits",
 ]
@@ -5819,7 +5772,7 @@ dependencies = [
  "from_variant",
  "fxhash",
  "log",
- "num-bigint 0.2.6",
+ "num-bigint",
  "once_cell",
  "owning_ref",
  "scoped-tls",
@@ -5837,7 +5790,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "83eb6a73820660a5af3c24ae1d436e84e4d4c13822021140011361e678df247b"
 dependencies = [
  "is-macro",
- "num-bigint 0.2.6",
+ "num-bigint",
  "serde",
  "string_enum",
  "swc_atoms",
@@ -5854,7 +5807,7 @@ dependencies = [
  "enum_kind",
  "fxhash",
  "log",
- "num-bigint 0.2.6",
+ "num-bigint",
  "serde",
  "smallvec 1.6.1",
  "swc_atoms",
@@ -5870,7 +5823,7 @@ version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd3d60b9dc97ae4f181d4d60f43142d8ac9669953db410bcedefb29a14627e19"
 dependencies = [
- "num-bigint 0.2.6",
+ "num-bigint",
  "swc_atoms",
  "swc_common",
  "swc_ecma_ast",

@@ -234,17 +234,17 @@ impl Rewarder {
 
         let total_epoch_uptime = eligible_nodes
             .iter()
-            .fold(0, |acc, mix| acc + mix.uptime.u8()) as f64;
+            .fold(0, |acc, mix| acc + mix.uptime.u8()) as u128;
 
         if cfg!(feature = "tokenomics") {
             for mix in eligible_nodes.iter_mut() {
                 mix.params = Some(NodeRewardParams::new(
-                    inflation_pool as f64,
-                    k as f64,
-                    mix.uptime.u8() as f64 / total_epoch_uptime,
+                    inflation_pool,
+                    k.into(),
+                    total_epoch_uptime,
                     None,
                     total_mix_stake,
-                    mix.uptime.u8() as f64,
+                    mix.uptime.u8(),
                 ))
             }
         }

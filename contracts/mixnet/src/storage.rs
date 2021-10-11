@@ -16,6 +16,7 @@ use mixnet_contract::{
 use mixnet_contract::mixnode::NodeRewardParams;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use crate::helpers::decimal_to_uint128;
 
 // storage prefixes
 // all of them must be unique and presumably not be a prefix of a different one
@@ -339,7 +340,7 @@ pub(crate) fn increase_mix_delegated_stakes_v2(
         // since they delegated
         for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
             if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= params.reward_blockstamp()? {
-                let reward = bond.reward_delegation(delegation.amount, params)?;
+                let reward = decimal_to_uint128(bond.reward_delegation(delegation.amount, params)?);
                 delegation.amount += reward;
                 total_rewarded += reward;
                 mix_delegations(storage, bond.identity()).save(&delegator_address, &delegation)?;
@@ -498,7 +499,7 @@ mod tests {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
             },
-            profit_margin: None,
+            profit_margin_percent: None,
         };
 
         mixnodes(&mut storage)

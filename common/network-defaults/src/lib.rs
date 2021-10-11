@@ -96,5 +96,5 @@ pub const DEFAULT_FIRST_EPOCH_START: OffsetDateTime = time::macros::datetime!(20
 pub const DEFAULT_EPOCH_LENGTH: Duration = Duration::from_secs(24 * 60 * 60); // 24h
 /// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
 pub const DEFAULT_OPERATOR_EPOCH_COST: u64 = 1333333; // 40$ a month at 1 Nym == 1$
-                                                      // Sybil attack resistance parameter
-pub const ALPHA: f64 = 0.3;
+                                                      
+pub const ALPHA: u8 = 30; // Sybil attack resistance parameter expressed as percent

@@ -26,6 +26,7 @@ import { NymLogoSVG } from 'src/icons/NymLogoSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
 import { MainContext } from '../context/main';
+import { BIG_DIPPER } from 'src/api/constants';
 
 const drawerWidth = 300;
 
@@ -126,7 +127,7 @@ const navOptions: navOptionType[] = [
         title: 'Gateways',
       },
       {
-        url: `/network-components/validators`,
+        url: `${BIG_DIPPER}/validators`,
         title: 'Validators',
       },
     ],
@@ -147,10 +148,21 @@ const ExpandableButton: React.FC<navOptionType> = ({
   const [open, toggle] = React.useState(false);
   const { mode } = React.useContext(MainContext);
   const handleClick = () => toggle(!open);
+  
+  const [ isExternal, setIsExternal ] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    setIsExternal(url.includes("http"));
+  }, [url])
 
   if (!nested) {
     return (
-      <ListItem disableGutters component={Link} to={url}>
+      <ListItem
+        disableGutters
+        component={Link}
+        to={ isExternal ? { pathname: url } : url }
+        target={ isExternal ? '_blank' : ''}
+      >
         <ListItemButton
           sx={{
             color: (theme) =>

@@ -1,15 +1,10 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  GarageTwoTone,
-  TrafficSharp,
   Menu,
   ChevronLeft,
-  BarChart,
   ExpandLess,
   ExpandMore,
-  Pin,
-  ConnectedTv,
   WbSunnySharp,
   Brightness4Sharp,
 } from '@mui/icons-material';
@@ -26,13 +21,11 @@ import IconButton from '@mui/material/IconButton';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import { OverviewSVG } from '../icons/OverviewSVG';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
-import { SVGWrapper } from 'src/icons/SVGWrapper';
-import NetworkSVG from '../assets/network.svg';
-import OverviewSVG from '../assets/overview.svg';
-import NodemapSVG from '../assets/nodemap.svg';
+import { NetworkComponentsSVG } from '../icons/NetworksSVG';
+import { NodemapSVG } from '../icons/NodemapSVG';
 import { MainContext } from '../context/main';
-import { BIG_DIPPER } from 'src/api/constants';
 
 const drawerWidth = 300;
 
@@ -108,7 +101,7 @@ const Drawer = styled(MuiDrawer, {
 type navOptionType = {
   url: string;
   title: string;
-  Icon?: React.ReactNode;
+  renderIcon?: (mode: string) => React.ReactNode;
   // eslint-disable-next-line react/require-default-props
   nested?: navOptionType[];
 };
@@ -117,12 +110,12 @@ const navOptions: navOptionType[] = [
   {
     url: '/overview',
     title: 'Overview',
-    Icon: <img height={25} width={25} src={OverviewSVG} />,
+    renderIcon: (mode) => <OverviewSVG mode={mode} />
   },
   {
     url: '/network-components',
     title: 'Network Components',
-    Icon: <img height={25} width={25} src={NetworkSVG} />,
+    renderIcon: (mode) => <NetworkComponentsSVG mode={mode} />,
     nested: [
       {
         url: '/network-components/mixnodes',
@@ -141,17 +134,18 @@ const navOptions: navOptionType[] = [
   {
     url: '/nodemap',
     title: 'Nodemap',
-    Icon: <img height={25} width={25} src={NodemapSVG} />,
+    renderIcon: (mode) => <NodemapSVG mode={mode} />,
   },
 ];
 
 const ExpandableButton: React.FC<navOptionType> = ({
   nested,
   title,
-  Icon,
+  renderIcon,
   url,
 }) => {
   const [open, toggle] = React.useState(false);
+  const { mode } = React.useContext(MainContext);
   const handleClick = () => toggle(!open);
 
   if (!nested) {
@@ -164,7 +158,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
           }}
         >
           <ListItemIcon>
-            {Icon}
+            {renderIcon && renderIcon(mode)}
           </ListItemIcon>
           <ListItemText
             primary={title}
@@ -185,7 +179,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
           sx={{ color: "text.primary" }}
         >
           <ListItemIcon>
-            {Icon}
+            {renderIcon && renderIcon(mode)}
           </ListItemIcon>
           <ListItemText primary={title} />
           {open ? <ExpandLess /> : <ExpandMore />}

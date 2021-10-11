@@ -8,7 +8,6 @@ pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
-use coconut_interface::Credential;
 use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
@@ -30,6 +29,9 @@ use tokio_tungstenite::connect_async;
 use fluvio_wasm_timer as wasm_timer;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
+
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
 
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
@@ -53,7 +55,6 @@ pub struct GatewayClient {
     reconnection_attempts: usize,
     /// Delay between each subsequent reconnection attempt.
     reconnection_backoff: Duration,
-    coconut_credential: Credential,
 }
 
 impl GatewayClient {
@@ -67,7 +68,6 @@ impl GatewayClient {
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
-        coconut_credential: Credential,
     ) -> Self {
         GatewayClient {
             authenticated: false,
@@ -82,7 +82,6 @@ impl GatewayClient {
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
-            coconut_credential,
         }
     }
 
@@ -103,7 +102,6 @@ impl GatewayClient {
         gateway_address: String,
         gateway_identity: identity::PublicKey,
         local_identity: Arc<identity::KeyPair>,
-        coconut_credential: Credential,
         response_timeout_duration: Duration,
     ) -> Self {
         use futures::channel::mpsc;
@@ -127,7 +125,6 @@ impl GatewayClient {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
-            coconut_credential,
         }
     }
 
@@ -199,7 +196,14 @@ impl GatewayClient {
 
         for i in 1..self.reconnection_attempts {
             info!("attempt {}...", i);
-            if self.authenticate_and_start().await.is_ok() {
+            if self
+                .authenticate_and_start(
+                    #[cfg(feature = "coconut")]
+                    None,
+                )
+                .await
+                .is_ok()
+            {
                 info!("managed to reconnect!");
                 return Ok(());
             }
@@ -218,7 +222,13 @@ impl GatewayClient {
 
         // final attempt (done separately to be able to return a proper error)
         info!("attempt {}", self.reconnection_attempts);
-        match self.authenticate_and_start().await {
+        match self
+            .authenticate_and_start(
+                #[cfg(feature = "coconut")]
+                None,
+            )
+            .await
+        {
             Ok(_) => {
                 info!("managed to reconnect!");
                 Ok(())
@@ -455,7 +465,11 @@ impl GatewayClient {
         }
     }
 
-    pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError> {
+    #[cfg(feature = "coconut")]
+    pub async fn claim_coconut_bandwidth(
+        &mut self,
+        coconut_credential: Credential,
+    ) -> Result<(), GatewayClientError> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
@@ -466,8 +480,8 @@ impl GatewayClient {
         let mut rng = OsRng;
         let iv = IV::new_random(&mut rng);
 
-        let msg = ClientControlRequest::new_enc_bandwidth_credential(
-            &self.coconut_credential,
+        let msg = ClientControlRequest::new_enc_coconut_bandwidth_credential(
+            &coconut_credential,
             self.shared_key.as_ref().unwrap(),
             iv,
         )
@@ -527,15 +541,10 @@ impl GatewayClient {
         }
     }
 
-    pub async fn send_ping_message(&mut self) -> Result<(), GatewayClientError> {
-        if !self.connection.is_established() {
-            return Err(GatewayClientError::ConnectionNotEstablished);
-        }
-
-        // as per RFC6455 section 5.5.2, `Ping frame MAY include "Application data".`
-        // so we don't need to include any here.
-        let msg = Message::Ping(Vec::new());
-
+    async fn send_with_reconnection_on_failure(
+        &mut self,
+        msg: Message,
+    ) -> Result<(), GatewayClientError> {
         if let Err(err) = self.send_websocket_message_without_response(msg).await {
             if err.is_closed_connection() && self.should_reconnect_on_failure {
                 info!("Going to attempt a reconnection");
@@ -546,6 +555,17 @@ impl GatewayClient {
         } else {
             Ok(())
         }
+    }
+
+    pub async fn send_ping_message(&mut self) -> Result<(), GatewayClientError> {
+        if !self.connection.is_established() {
+            return Err(GatewayClientError::ConnectionNotEstablished);
+        }
+
+        // as per RFC6455 section 5.5.2, `Ping frame MAY include "Application data".`
+        // so we don't need to include any here.
+        let msg = Message::Ping(Vec::new());
+        self.send_with_reconnection_on_failure(msg).await
     }
 
     // TODO: possibly make responses optional
@@ -569,17 +589,7 @@ impl GatewayClient {
                 .as_ref()
                 .expect("no shared key present even though we're authenticated!"),
         );
-
-        if let Err(err) = self.send_websocket_message_without_response(msg).await {
-            if err.is_closed_connection() && self.should_reconnect_on_failure {
-                info!("Going to attempt a reconnection");
-                self.attempt_reconnection().await
-            } else {
-                Err(err)
-            }
-        } else {
-            Ok(())
-        }
+        self.send_with_reconnection_on_failure(msg).await
     }
 
     async fn recover_socket_connection(&mut self) -> Result<(), GatewayClientError> {
@@ -634,12 +644,21 @@ impl GatewayClient {
         Ok(())
     }
 
-    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError> {
+    pub async fn authenticate_and_start(
+        &mut self,
+        #[cfg(feature = "coconut")] coconut_credential: Option<Credential>,
+    ) -> Result<Arc<SharedKeys>, GatewayClientError> {
         if !self.connection.is_established() {
             self.establish_connection().await?;
         }
         let shared_key = self.perform_initial_authentication().await?;
-        self.claim_bandwidth().await?;
+
+        #[cfg(feature = "coconut")]
+        {
+            if let Some(coconut_credential) = coconut_credential {
+                self.claim_coconut_bandwidth(coconut_credential).await?;
+            }
+        }
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

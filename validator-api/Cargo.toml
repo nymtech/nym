@@ -48,9 +48,11 @@ nymsphinx = { path="../common/nymsphinx" }
 topology = { path="../common/topology" }
 validator-client = { path="../common/client-libs/validator-client", features = ["nymd-client"] }
 version-checker = { path="../common/version-checker" }
-coconut-interface = { path = "../common/coconut-interface" }
-credentials = { path = "../common/credentials" }
+coconut-interface = { path = "../common/coconut-interface", optional = true }
+credentials = { path = "../common/credentials", optional = true }
 
+[features]
+coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
 
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }

@@ -15,15 +15,17 @@ use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
 use crate::network_monitor::tested_network::TestedNetwork;
 use crate::storage::NodeStatusStorage;
-use coconut_interface::Credential;
-use credentials::bandwidth::prepare_for_spending;
-use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use log::info;
 use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
 use topology::NymTopology;
+
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
+#[cfg(feature = "coconut")]
+use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
@@ -90,6 +92,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             *encryption_keypair.public_key(),
         );
 
+        #[cfg(feature = "coconut")]
         let bandwidth_credential =
             TEMPORARY_obtain_bandwidth_credential(self.config, identity_keypair.public_key()).await;
 
@@ -97,8 +100,9 @@ impl<'a> NetworkMonitorBuilder<'a> {
             self.config,
             gateway_status_update_sender,
             Arc::clone(&identity_keypair),
-            bandwidth_credential,
             self.config.get_gateway_sending_rate(),
+            #[cfg(feature = "coconut")]
+            bandwidth_credential,
         );
 
         let received_processor = new_received_processor(
@@ -163,6 +167,7 @@ fn new_packet_preparer(
 
 // SECURITY:
 // this implies we are re-using the same credential for all gateways all the time (which unfortunately is true!)
+#[cfg(feature = "coconut")]
 #[allow(non_snake_case)]
 async fn TEMPORARY_obtain_bandwidth_credential(
     config: &Config,
@@ -192,17 +197,18 @@ fn new_packet_sender(
     config: &Config,
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
-    bandwidth_credential: Credential,
     max_sending_rate: usize,
+    #[cfg(feature = "coconut")] bandwidth_credential: Credential,
 ) -> PacketSender {
     PacketSender::new(
         gateways_status_updater,
         local_identity,
-        bandwidth_credential,
         config.get_gateway_response_timeout(),
         config.get_gateway_connection_timeout(),
         config.get_max_concurrent_gateway_clients(),
         max_sending_rate,
+        #[cfg(feature = "coconut")]
+        bandwidth_credential,
     )
 }
 

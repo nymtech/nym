@@ -211,6 +211,10 @@ impl PersistentStorage {
         Ok(res)
     }
 
+    // note: this is not technically a "coconut" thing, but currently we have no non-coconut
+    // bandwidth handling and hence clippy complains about dead and unreachable code
+    // so whenever we introduce another form of bandwidth claim, this feature flag should get removed
+    #[cfg(feature = "coconut")]
     /// Increases available bandwidth of the particular client by the specified amount.
     ///
     /// # Arguments

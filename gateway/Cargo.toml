@@ -29,8 +29,8 @@ url = { version = "2.2", features = [ "serde" ] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 
 # internal
-coconut-interface = { path = "../common/coconut-interface" }
-credentials = { path = "../common/credentials" }
+coconut-interface = { path = "../common/coconut-interface" , optional = true}
+credentials = { path = "../common/credentials" , optional = true}
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
 gateway-requests = { path = "gateway-requests" }
@@ -40,6 +40,9 @@ nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 validator-client = { path = "../common/client-libs/validator-client" }
 version-checker = { path = "../common/version-checker" }
+
+[features]
+coconut = ["coconut-interface", "credentials", "gateway-requests/coconut"]
 
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }

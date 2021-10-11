@@ -1,9 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_interface::Credential;
-use credentials::bandwidth::prepare_for_spending;
-use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::GatewayClient;
@@ -19,6 +16,11 @@ use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use wasm_utils::{console_log, console_warn};
+
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
+#[cfg(feature = "coconut")]
+use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
 
 pub(crate) mod received_processor;
 
@@ -101,7 +103,8 @@ impl NymClient {
         self.self_recipient().to_string()
     }
 
-    async fn prepare_credential(validators: &[Url], identity_bytes: &[u8]) -> Credential {
+    #[cfg(feature = "coconut")]
+    async fn prepare_coconut_credential(validators: &[Url], identity_bytes: &[u8]) -> Credential {
         let verification_key = obtain_aggregate_verification_key(validators)
             .await
             .expect("could not obtain aggregate verification key of validators");
@@ -119,17 +122,23 @@ impl NymClient {
 
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
-        let validator_server = self.validator_server.clone();
-        let identity_public_key = self.identity.public_key().clone();
+        #[cfg(feature = "coconut")]
+        let coconut_credential = {
+            let validator_server = self.validator_server.clone();
+            let identity_public_key = self.identity.public_key().clone();
+            Self::prepare_coconut_credential(
+                &vec![validator_server],
+                &identity_public_key.to_bytes(),
+            )
+            .await
+        };
+
         let mut client = self.get_and_update_topology().await;
         let gateway = client.choose_gateway();
 
         let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
-        let coconut_credential =
-            Self::prepare_credential(&vec![validator_server], &identity_public_key.to_bytes())
-                .await;
         let mut gateway_client = GatewayClient::new(
             gateway.clients_address(),
             Arc::clone(&client.identity),
@@ -138,11 +147,13 @@ impl NymClient {
             mixnet_messages_sender,
             ack_sender,
             DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
-            coconut_credential,
         );
 
         gateway_client
-            .authenticate_and_start()
+            .authenticate_and_start(
+                #[cfg(feature = "coconut")]
+                Some(coconut_credential),
+            )
             .await
             .expect("could not authenticate and start up the gateway connection");
 

@@ -1,19 +1,9 @@
 import * as React from 'react';
+import { MainContext } from 'src/context/main';
 
-type NodemapSVGProps = {
-    mode: string
-}
-
-export const NodemapSVG = ({ mode }: NodemapSVGProps) => {
-    const [ color, setColor ] = React.useState<string>('#000000');
-
-    React.useEffect(() => {
-        if (mode === 'dark') {
-            setColor('#FFFFFF');
-        } else {
-            setColor('#000000');
-        }
-    }, [mode])
+export const NodemapSVG: React.FC = () => {
+    const { mode } = React.useContext(MainContext)
+    const color = mode === "dark" ? '#FFFFFF' : '#000000';
     return (
         <>
             <svg width="25" height="25" viewBox="0 0 19 24" fill="none" xmlns="http://www.w3.org/2000/svg">

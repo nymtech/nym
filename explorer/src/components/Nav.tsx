@@ -111,12 +111,12 @@ const navOptions: navOptionType[] = [
   {
     url: '/overview',
     title: 'Overview',
-    renderIcon: (mode) => <OverviewSVG mode={mode} />
+    renderIcon: (mode) => <OverviewSVG />
   },
   {
     url: '/network-components',
     title: 'Network Components',
-    renderIcon: (mode) => <NetworkComponentsSVG mode={mode} />,
+    renderIcon: (mode) => <NetworkComponentsSVG />,
     nested: [
       {
         url: '/network-components/mixnodes',
@@ -135,7 +135,7 @@ const navOptions: navOptionType[] = [
   {
     url: '/nodemap',
     title: 'Nodemap',
-    renderIcon: (mode) => <NodemapSVG mode={mode} />,
+    renderIcon: (mode) => <NodemapSVG />,
   },
 ];
 
@@ -148,7 +148,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
   const [open, toggle] = React.useState(false);
   const { mode } = React.useContext(MainContext);
   const handleClick = () => toggle(!open);
-  
+
   const [ isExternal, setIsExternal ] = React.useState<boolean>(false);
 
   React.useEffect(() => {

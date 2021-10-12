@@ -1,6 +1,7 @@
 import React from 'react';
 import { GridRenderCellParams } from '@mui/x-data-grid';
-import { Link } from 'react-router-dom';
+import { Link as RRDLink } from 'react-router-dom';
+import { Link as MuiLink } from '@mui/material';
 import { Typography } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useContext } from 'react';
@@ -9,6 +10,7 @@ import { MainContext } from 'src/context/main';
 import { mixnodeToGridRow } from 'src/utils';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { MixNodeResponse } from 'src/typeDefs/explorer-api';
+import { BIG_DIPPER } from 'src/api/constants';
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes } = useContext(MainContext);
@@ -39,6 +41,12 @@ export const PageMixnodes: React.FC = () => {
     }
   }, [searchTerm, mixnodes?.data])
 
+  const linkStyles = {
+    color: 'inherit',
+    textDecoration: 'none',
+    marginLeft: 2,
+  }
+
   const columns = [
     {
       field: 'owner',
@@ -46,9 +54,13 @@ export const PageMixnodes: React.FC = () => {
       width: 380,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <a href={`https://testnet-milhon-blocks.nymtech.net/account/${params.value}`} target='_blank' style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+          <MuiLink
+            href={`${BIG_DIPPER}/account/${params.value}`}
+            target='_blank'
+            sx={linkStyles}
+          >
             {params.value}
-          </a>
+          </MuiLink>
         )
       }
     },
@@ -58,9 +70,9 @@ export const PageMixnodes: React.FC = () => {
       width: 420,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <Link to={`/network-components/mixnodes/${params.value}`} style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.value}`}>
             {params.value}
-          </Link>
+          </MuiLink>
         )
       }
     },
@@ -70,9 +82,9 @@ export const PageMixnodes: React.FC = () => {
       width: 130,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <Link to={`/network-components/mixnodes/${params.row.identity_key}`} style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
-            {params.value}
-          </Link>
+          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
+           {params.value}
+          </MuiLink>
         )
       }
     },
@@ -82,9 +94,9 @@ export const PageMixnodes: React.FC = () => {
       width: 130,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <Link to={`/network-components/mixnodes/${params.row.identity_key}`} style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
             {params.value}
-          </Link>
+          </MuiLink>
         )
       }
     },
@@ -94,7 +106,10 @@ export const PageMixnodes: React.FC = () => {
       width: 120,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <div onClick={() => handleSearch(params.value as string)} style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+          <div
+            onClick={() => handleSearch(params.value as string)}
+            style={linkStyles}
+          >
             {params.value}
           </div>
         )
@@ -107,9 +122,9 @@ export const PageMixnodes: React.FC = () => {
       type: 'number',
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <Link to={`/network-components/mixnodes/${params.row.identity_key}`} style={{ textDecoration: 'none', color: 'white', marginLeft: 16 }}>
+          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
             {params.value}
-          </Link>
+          </MuiLink>
         )
       }
     },

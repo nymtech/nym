@@ -1,15 +1,10 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  GarageTwoTone,
-  TrafficSharp,
   Menu,
   ChevronLeft,
-  BarChart,
   ExpandLess,
   ExpandMore,
-  Pin,
-  ConnectedTv,
   WbSunnySharp,
   Brightness4Sharp,
 } from '@mui/icons-material';
@@ -26,8 +21,12 @@ import IconButton from '@mui/material/IconButton';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import { OverviewSVG } from '../icons/OverviewSVG';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
+import { NetworkComponentsSVG } from '../icons/NetworksSVG';
+import { NodemapSVG } from '../icons/NodemapSVG';
 import { MainContext } from '../context/main';
+import { BIG_DIPPER } from 'src/api/constants';
 
 const drawerWidth = 300;
 
@@ -103,7 +102,7 @@ const Drawer = styled(MuiDrawer, {
 type navOptionType = {
   url: string;
   title: string;
-  Icon: React.ReactNode;
+  Icon?: React.ReactNode;
   // eslint-disable-next-line react/require-default-props
   nested?: navOptionType[];
 };
@@ -112,29 +111,31 @@ const navOptions: navOptionType[] = [
   {
     url: '/overview',
     title: 'Overview',
-    Icon: <BarChart />,
+    Icon: <OverviewSVG />
   },
   {
     url: '/network-components',
     title: 'Network Components',
-    Icon: <ConnectedTv />,
+    Icon: <NetworkComponentsSVG />,
     nested: [
       {
         url: '/network-components/mixnodes',
         title: 'Mixnodes',
-        Icon: <TrafficSharp />,
       },
       {
         url: '/network-components/gateways',
         title: 'Gateways',
-        Icon: <GarageTwoTone />,
+      },
+      {
+        url: `${BIG_DIPPER}/validators`,
+        title: 'Validators',
       },
     ],
   },
   {
     url: '/nodemap',
     title: 'Nodemap',
-    Icon: <Pin />,
+    Icon: <NodemapSVG />,
   },
 ];
 
@@ -147,16 +148,29 @@ const ExpandableButton: React.FC<navOptionType> = ({
   const [open, toggle] = React.useState(false);
   const handleClick = () => toggle(!open);
 
-  if (!nested)
+  const [ isExternal, setIsExternal ] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    setIsExternal(url.includes("http"));
+  }, [url])
+
+  if (!nested) {
     return (
-      <ListItem disableGutters component={Link} to={url}>
+      <ListItem
+        disableGutters
+        component={Link}
+        to={ isExternal ? { pathname: url } : url }
+        target={ isExternal ? '_blank' : ''}
+      >
         <ListItemButton
           sx={{
             color: (theme) =>
               theme.palette.mode === 'light' ? '#000' : '#fff',
           }}
         >
-          <ListItemIcon>{Icon}</ListItemIcon>
+          <ListItemIcon>
+            {Icon}
+          </ListItemIcon>
           <ListItemText
             primary={title}
             sx={{
@@ -167,6 +181,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
         </ListItemButton>
       </ListItem>
     );
+  }
   return (
     <>
       <ListItem disableGutters>
@@ -174,30 +189,16 @@ const ExpandableButton: React.FC<navOptionType> = ({
           onClick={handleClick}
           sx={{ color: "text.primary" }}
         >
-          <ListItemIcon>{Icon}</ListItemIcon>
+          <ListItemIcon>
+            {Icon}
+          </ListItemIcon>
           <ListItemText primary={title} />
           {open ? <ExpandLess /> : <ExpandMore />}
         </ListItemButton>
       </ListItem>
       {open &&
-        nested.map((each: navOptionType) => (
-          <ListItem
-            disableGutters
-            key={each.url}
-            component={Link}
-            to={each.url}
-          >
-            <ListItemButton sx={{ color: "text.primary" }}>
-              <ListItemIcon>{each.Icon}</ListItemIcon>
-              <ListItemText
-                primary={each.title}
-                sx={{
-                  color: (theme) =>
-                    theme.palette.mode === 'light' ? '#000' : '#fff',
-                }}
-              />
-            </ListItemButton>
-          </ListItem>
+        nested?.map((each: navOptionType) => (
+          <ExpandableButton key={each.title} {...each} />
         ))}
     </>
   );

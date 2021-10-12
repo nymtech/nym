@@ -1,4 +1,4 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   List,
@@ -61,14 +61,6 @@ let routesSchema = [
   },
 ]
 
-if (process.env.NODE_ENV) {
-  routesSchema.push({
-    label: 'Docs',
-    route: '/docs',
-    Icon: <Description />,
-  })
-}
-
 const useStyles = makeStyles((theme: Theme) => ({
   navItem: {
     color: '#fff',
@@ -83,6 +75,16 @@ export const Nav = () => {
   const classes = useStyles()
   const { clientDetails, handleShowAdmin, logOut } = useContext(ClientContext)
   const location = useLocation()
+
+  useEffect(() => {
+    if (clientDetails?.client_address === ADMIN_ADDRESS) {
+      routesSchema.push({
+        label: 'Docs',
+        route: '/docs',
+        Icon: <Description />,
+      })
+    }
+  }, [])
 
   return (
     <div

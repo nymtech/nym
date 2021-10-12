@@ -18,6 +18,7 @@ use validator_client::nymd::QueryNymdClient;
 
 pub(crate) type LocationCache = HashMap<String, LocationCacheItem>;
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub(crate) struct GeoLocation {
     pub(crate) ip: String,

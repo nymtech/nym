@@ -102,7 +102,7 @@ const Drawer = styled(MuiDrawer, {
 type navOptionType = {
   url: string;
   title: string;
-  renderIcon?: (mode: string) => React.ReactNode;
+  Icon?: React.ReactNode;
   // eslint-disable-next-line react/require-default-props
   nested?: navOptionType[];
 };
@@ -111,12 +111,12 @@ const navOptions: navOptionType[] = [
   {
     url: '/overview',
     title: 'Overview',
-    renderIcon: (mode) => <OverviewSVG />
+    Icon: <OverviewSVG />
   },
   {
     url: '/network-components',
     title: 'Network Components',
-    renderIcon: (mode) => <NetworkComponentsSVG />,
+    Icon: <NetworkComponentsSVG />,
     nested: [
       {
         url: '/network-components/mixnodes',
@@ -135,18 +135,17 @@ const navOptions: navOptionType[] = [
   {
     url: '/nodemap',
     title: 'Nodemap',
-    renderIcon: (mode) => <NodemapSVG />,
+    Icon: <NodemapSVG />,
   },
 ];
 
 const ExpandableButton: React.FC<navOptionType> = ({
   nested,
   title,
-  renderIcon,
+  Icon,
   url,
 }) => {
   const [open, toggle] = React.useState(false);
-  const { mode } = React.useContext(MainContext);
   const handleClick = () => toggle(!open);
 
   const [ isExternal, setIsExternal ] = React.useState<boolean>(false);
@@ -170,7 +169,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
           }}
         >
           <ListItemIcon>
-            {renderIcon && renderIcon(mode)}
+            {Icon}
           </ListItemIcon>
           <ListItemText
             primary={title}
@@ -191,7 +190,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
           sx={{ color: "text.primary" }}
         >
           <ListItemIcon>
-            {renderIcon && renderIcon(mode)}
+            {Icon}
           </ListItemIcon>
           <ListItemText primary={title} />
           {open ? <ExpandLess /> : <ExpandMore />}

@@ -10,6 +10,7 @@ import { MainContext } from 'src/context/main';
 import { mixnodeToGridRow } from 'src/utils';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { MixNodeResponse } from 'src/typeDefs/explorer-api';
+import { BIG_DIPPER } from 'src/api/constants';
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes } = useContext(MainContext);
@@ -54,10 +55,9 @@ export const PageMixnodes: React.FC = () => {
       renderCell: (params: GridRenderCellParams) => {
         return (
           <MuiLink
-            href={`https://testnet-milhon-blocks.nymtech.net/account/${params.value}`}
+            href={`${BIG_DIPPER}/account/${params.value}`}
             target='_blank'
             sx={linkStyles}
-            
           >
             {params.value}
           </MuiLink>

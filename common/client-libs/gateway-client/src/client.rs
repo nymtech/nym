@@ -147,7 +147,7 @@ impl GatewayClient {
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
             SocketState::Available(mut socket) => {
-                socket.close(None).await;
+                (*socket).close(None).await;
                 Ok(())
             }
             SocketState::PartiallyDelegated(_) => {
@@ -183,7 +183,7 @@ impl GatewayClient {
             Err(e) => return Err(GatewayClientError::NetworkErrorWasm(e)),
         };
 
-        self.connection = SocketState::Available(ws_stream);
+        self.connection = SocketState::Available(Box::new(ws_stream));
         Ok(())
     }
 

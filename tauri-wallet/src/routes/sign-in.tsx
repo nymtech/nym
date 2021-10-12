@@ -202,7 +202,6 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
         setIsLoading(false)
       }, 2500)
     } catch (e: any) {
-      console.log(e)
       setError(e)
     }
   }

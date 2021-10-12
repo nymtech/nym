@@ -1,8 +1,8 @@
-import { Denom } from "./denom";
+import { Denom } from './denom'
 
 export interface Account {
-  contract_address: string;
-  client_address: string;
-  denom: Denom;
-  mnemonmic: string | null;
+  contract_address: string
+  client_address: string
+  denom: Denom
+  mnemomic: string | null
 }

@@ -3,8 +3,10 @@
 
 use crate::error::MixnetContractError;
 use crate::{IdentityKey, SphinxKey};
-use config::defaults::{ALPHA, DEFAULT_OPERATOR_EPOCH_COST};
+use config::defaults::DEFAULT_OPERATOR_EPOCH_COST;
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Fraction, Uint128};
+use num::rational::Ratio;
+use num::ToPrimitive;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -47,13 +49,13 @@ pub enum Layer {
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct NodeRewardParams {
-    income_global_mix: Uint128,
-    k: Uint128,
+    income_global_mix: u128,
+    k: u128,
     one_over_k: Decimal,
     total_epoch_uptime: u128,
     reward_blockstamp: Option<u64>,
-    total_mix_stake: Uint128,
-    uptime: Decimal,
+    total_mix_stake: u128,
+    uptime: u128,
 }
 
 impl NodeRewardParams {
@@ -63,61 +65,40 @@ impl NodeRewardParams {
         total_epoch_uptime: u128,
         reward_blockstamp: Option<u64>,
         total_mix_stake: u128,
-        uptime: u8,
+        uptime: u128,
     ) -> NodeRewardParams {
-        let k = Uint128(k);
         NodeRewardParams {
-            income_global_mix: Uint128(income_global_mix),
+            income_global_mix,
             k,
-            one_over_k: Decimal::one() / k,
+            one_over_k: ratio_to_decimal(Ratio::new(1, k)),
             total_epoch_uptime,
             reward_blockstamp,
-            total_mix_stake: Uint128(total_mix_stake),
-            uptime: Decimal::percent(uptime.into()),
+            total_mix_stake,
+            uptime,
         }
     }
 
-    pub fn performance(&self) -> Decimal {
-        Decimal::from_ratio(decimal_to_uint128(self.uptime), self.total_epoch_uptime)
+    pub fn performance(&self) -> Ratio<u128> {
+        Ratio::new(self.uptime, self.total_epoch_uptime)
     }
 
-    pub fn operator_cost(&self) -> Uint128 {
-        self.uptime * Uint128(DEFAULT_OPERATOR_EPOCH_COST.into())
-    }
-
-    pub fn operator_cost_decimal(&self) -> Decimal {
-        uint128_to_decimal(self.operator_cost())
+    pub fn operator_cost(&self) -> Ratio<u128> {
+        Ratio::new(self.uptime, (100 * DEFAULT_OPERATOR_EPOCH_COST) as u128)
     }
 
     pub fn set_reward_blockstamp(&mut self, blockstamp: u64) {
         self.reward_blockstamp = Some(blockstamp);
     }
 
-    pub fn alpha_decimal(&self) -> Decimal {
-        Decimal::percent(ALPHA.into())
-    }
-
-    pub fn alpha(&self) -> Uint128 {
-        decimal_to_uint128(self.alpha_decimal())
-    }
-
-    pub fn income_global_mix(&self) -> Uint128 {
+    pub fn income_global_mix(&self) -> u128 {
         self.income_global_mix
     }
 
-    pub fn income_global_mix_decimal(&self) -> Decimal {
-        Decimal::from_ratio(self.income_global_mix, 1u128)
-    }
-
-    pub fn k(&self) -> Uint128 {
+    pub fn k(&self) -> u128 {
         self.k
     }
 
-    pub fn k_decimal(&self) -> Decimal {
-        uint128_to_decimal(self.k)    
-    }
-
-    pub fn total_mix_stake(&self) -> Uint128 {
+    pub fn total_mix_stake(&self) -> u128 {
         self.total_mix_stake
     }
 
@@ -126,29 +107,37 @@ impl NodeRewardParams {
             .ok_or(MixnetContractError::BlockstampNotSet)
     }
 
-    pub fn one_over_k(&self) -> Decimal {
-        self.one_over_k
+    pub fn uptime(&self) -> u128 {
+        self.uptime
+    }
+
+    pub fn one_over_k(&self) -> Ratio<u128> {
+        decimal_to_ratio(self.one_over_k)
+    }
+
+    pub fn alpha(&self) -> Ratio<u128> {
+        default_alpha()
     }
 }
 
 #[derive(Debug)]
 pub struct NodeRewardResult {
-    reward: Decimal,
-    lambda: Decimal,
-    sigma: Decimal,
+    reward: Ratio<u128>,
+    lambda: Ratio<u128>,
+    sigma: Ratio<u128>,
 }
 
 impl NodeRewardResult {
     pub fn reward(&self) -> Decimal {
-        self.reward
+        ratio_to_decimal(self.reward)
     }
 
     pub fn lambda(&self) -> Decimal {
-        self.lambda
+        ratio_to_decimal(self.lambda)
     }
 
     pub fn sigma(&self) -> Decimal {
-        self.sigma
+        ratio_to_decimal(self.sigma)
     }
 }
 
@@ -183,16 +172,16 @@ impl MixNodeBond {
         }
     }
 
-    pub fn profit_margin_decimal(&self) -> Decimal {
-        if let Some(margin) = self.profit_margin_percent {
-            Decimal::percent(margin.into())
+    pub fn profit_margin(&self) -> Ratio<u128> {
+        if let Some(profit_margin) = self.profit_margin_percent {
+            Ratio::new(profit_margin as u128, 100)
         } else {
-            Decimal::percent(DEFAULT_PROFIT_MARGIN.into())
+            default_profit_margin()
         }
     }
 
-    pub fn profit_margin(&self) -> Uint128 {
-        decimal_to_uint128(self.profit_margin_decimal())
+    pub fn profit_margin_decimal(&self) -> Decimal {
+        ratio_to_decimal(self.profit_margin())
     }
 
     pub fn identity(&self) -> &String {
@@ -215,81 +204,71 @@ impl MixNodeBond {
         self.total_delegation.clone()
     }
 
-    pub fn bond_to_total_stake(&self, total_stake: Uint128) -> Decimal {
-        Decimal::from_ratio(self.bond_amount().amount, total_stake)
+    pub fn bond_to_total_stake(&self, total_stake: u128) -> Ratio<u128> {
+        Ratio::new(self.bond_amount().amount.u128(), total_stake)
     }
 
-    pub fn stake_to_total_stake(&self, total_stake: Uint128) -> Decimal {
-        Decimal::from_ratio(
-            self.bond_amount().amount + self.total_delegation().amount,
+    pub fn stake_to_total_stake(&self, total_stake: u128) -> Ratio<u128> {
+        Ratio::new(
+            self.bond_amount().amount.u128() + self.total_delegation().amount.u128(),
             total_stake,
         )
     }
 
-    pub fn lambda(&self, params: &NodeRewardParams) -> Decimal {
+    pub fn lambda(&self, params: &NodeRewardParams) -> Ratio<u128> {
         let bond_to_total_stake_ratio = self.bond_to_total_stake(params.total_mix_stake);
-        bond_to_total_stake_ratio.min(params.one_over_k)
+        bond_to_total_stake_ratio.min(params.one_over_k())
     }
 
-    pub fn sigma(&self, params: &NodeRewardParams) -> Decimal {
+    pub fn sigma(&self, params: &NodeRewardParams) -> Ratio<u128> {
         let stake_to_total_stake_ratio = self.stake_to_total_stake(params.total_mix_stake);
-        stake_to_total_stake_ratio.min(params.one_over_k)
+        stake_to_total_stake_ratio.min(params.one_over_k())
     }
 
-    pub fn reward(
-        &self,
-        params: &NodeRewardParams,
-    ) -> Result<NodeRewardResult, MixnetContractError> {
+    pub fn reward(&self, params: &NodeRewardParams) -> NodeRewardResult {
         // Assuming uniform work distribution across the network this is one_over_k * k
-        let omega_k = Decimal::one();
+        let omega_k = 1u128;
         let lambda = self.lambda(params);
         let sigma = self.sigma(params);
-        println!("{}", params.performance());
-        println!("{}", params.income_global_mix_decimal());
-        let income_fraction = mul_fraction(params.performance(), params.income_global_mix_decimal());
-        let sigma_x_omega = mul_fraction(sigma, omega_k);
-        let sigma_x_k = mul_fraction(sigma, params.k_decimal());
-        let params_x_alpha = mul_fraction(params.alpha_decimal(), lambda);
-        let after_plus_parens = mul_fraction(sigma_x_k,params_x_alpha);
-        let plus_in_parens = sigma_x_omega + after_plus_parens;
-        let numer = mul_fraction(income_fraction, plus_in_parens);
-        let denom = Decimal::one() + params.alpha_decimal();
-        let reward = Decimal::from_ratio(
-            numer.numerator() * denom.denominator(),
-            numer.denominator() * denom.numerator(),
-        );
 
-        Ok(NodeRewardResult {
+        let reward = (params.performance()
+            * params.income_global_mix()
+            * (sigma * omega_k + params.alpha() * lambda * (sigma * params.k)))
+            / (Ratio::new(1u128, 1u128) + params.alpha());
+
+        NodeRewardResult {
             reward,
-            lambda: lambda,
-            sigma: sigma,
-        })
+            lambda,
+            sigma,
+        }
     }
 
-    pub fn node_profit(&self, params: &NodeRewardParams) -> Result<Decimal, MixnetContractError> {
-        Ok(self.reward(params)?.reward() - params.operator_cost_decimal())
+    pub fn node_profit(&self, params: &NodeRewardParams) -> Ratio<u128> {
+        self.reward(params).reward - params.operator_cost()
     }
 
-    pub fn operator_profit(
-        &self,
-        params: &NodeRewardParams,
-    ) -> Result<Decimal, MixnetContractError> {
-        let reward_result = self.reward(params)?;
-        let profit = reward_result.reward() - params.operator_cost_decimal();
-        let lambda_over_sigma =
-            decimal_to_uint128(reward_result.lambda() / decimal_to_uint128(reward_result.sigma()));
-        let one_minus_margin = Decimal::one() - self.profit_margin_decimal();
-        let one_minus_times_lambda_over_sigma = one_minus_margin * lambda_over_sigma;
-        let left_side = self.profit_margin() + one_minus_times_lambda_over_sigma;
-        let operator_reward = uint128_to_decimal(left_side * profit);
-        Ok(operator_reward.max(Decimal::zero()))
+    pub fn operator_reward(&self, params: &NodeRewardParams) -> Result<u128, MixnetContractError> {
+        let reward = self.reward(params);
+        let profit = reward.reward - params.operator_cost();
+        let operator_base_reward = reward.reward.min(params.operator_cost());
+
+        let operator_reward = (self.profit_margin()
+            + (Ratio::new(1u128, 1u128) - self.profit_margin()) * (reward.lambda / reward.sigma))
+            * profit;
+
+        (operator_reward + operator_base_reward)
+            .max(Ratio::new(0, 1))
+            .to_u128()
+            .ok_or(MixnetContractError::RatioToU128(
+                operator_reward + operator_base_reward,
+            ))
     }
 
-    pub fn sigma_ratio(&self, params: &NodeRewardParams) -> Decimal {
-        if self.stake_to_total_stake(params.total_mix_stake) < params.one_over_k {
+    pub fn sigma_ratio(&self, params: &NodeRewardParams) -> Ratio<u128> {
+        if self.stake_to_total_stake(params.total_mix_stake) < params.one_over_k() {
             self.stake_to_total_stake(params.total_mix_stake)
         } else {
-            params.one_over_k
+            params.one_over_k()
         }
     }
 
@@ -297,20 +276,17 @@ impl MixNodeBond {
         &self,
         delegation_amount: Uint128,
         params: &NodeRewardParams,
-    ) -> Result<Decimal, MixnetContractError> {
-        let scaled_delegation_amount =
-            Decimal::from_ratio(delegation_amount, params.total_mix_stake);
+    ) -> Result<u128, MixnetContractError> {
+        let scaled_delegation_amount = Ratio::new(delegation_amount.u128(), params.total_mix_stake);
 
-        let delegation_over_sigma =
-            scaled_delegation_amount / decimal_to_uint128(self.sigma(params));
+        let delegator_reward = (Ratio::new(1, 1) - self.profit_margin())
+            * (scaled_delegation_amount / self.sigma(params))
+            * self.node_profit(params);
 
-        let one_minus_profit = Decimal::one() - self.profit_margin_decimal();
-        let times_delegation_over_sigma =
-            one_minus_profit * decimal_to_uint128(delegation_over_sigma);
-        let delegation_reward =
-            uint128_to_decimal(times_delegation_over_sigma * self.node_profit(params)?);
-
-        Ok(delegation_reward.max(Decimal::zero()))
+        delegator_reward
+            .max(Ratio::new(0, 1))
+            .to_u128()
+            .ok_or(MixnetContractError::RatioToU128(delegator_reward))
     }
 }
 

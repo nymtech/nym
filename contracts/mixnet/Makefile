@@ -6,3 +6,4 @@ upload: wasm
 
 clean:
 	cargo clean
+

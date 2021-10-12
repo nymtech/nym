@@ -9,14 +9,13 @@ use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
+use mixnet_contract::mixnode::NodeRewardParams;
 use mixnet_contract::{
     Addr, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
     RawDelegationData, StateParams,
 };
-use mixnet_contract::mixnode::NodeRewardParams;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use crate::helpers::decimal_to_uint128;
 
 // storage prefixes
 // all of them must be unique and presumably not be a prefix of a different one
@@ -306,7 +305,7 @@ pub(crate) fn increase_mix_delegated_stakes(
 pub(crate) fn increase_mix_delegated_stakes_v2(
     storage: &mut dyn Storage,
     bond: &MixNodeBond,
-    params:&NodeRewardParams
+    params: &NodeRewardParams,
 ) -> Result<Uint128, ContractError> {
     let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
 
@@ -339,8 +338,10 @@ pub(crate) fn increase_mix_delegated_stakes_v2(
         // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
         // since they delegated
         for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
-            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= params.reward_blockstamp()? {
-                let reward = decimal_to_uint128(bond.reward_delegation(delegation.amount, params)?);
+            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING
+                <= params.reward_blockstamp()?
+            {
+                let reward = Uint128(bond.reward_delegation(delegation.amount, params)?);
                 delegation.amount += reward;
                 total_rewarded += reward;
                 mix_delegations(storage, bond.identity()).save(&delegator_address, &delegation)?;

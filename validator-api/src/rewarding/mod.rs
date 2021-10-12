@@ -244,7 +244,7 @@ impl Rewarder {
                     total_epoch_uptime,
                     None,
                     total_mix_stake,
-                    mix.uptime.u8(),
+                    mix.uptime.u8().into(),
                 ))
             }
         }

@@ -91,7 +91,7 @@ pub(crate) fn query_layer_distribution(deps: Deps) -> LayerDistribution {
     read_layer_distribution(deps.storage)
 }
 
-pub (crate) fn query_inflation_pool(deps: Deps) -> Uint128 {
+pub(crate) fn query_inflation_pool(deps: Deps) -> Uint128 {
     inflation_pool_value(deps.storage)
 }
 

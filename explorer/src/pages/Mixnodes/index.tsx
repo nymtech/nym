@@ -1,6 +1,7 @@
 import React from 'react';
 import { GridRenderCellParams } from '@mui/x-data-grid';
-import { Link } from 'react-router-dom';
+import { Link as RRDLink } from 'react-router-dom';
+import { Link as MuiLink } from '@mui/material';
 import { Typography } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useContext } from 'react';
@@ -42,7 +43,7 @@ export const PageMixnodes: React.FC = () => {
   const linkStyles = {
     color: 'inherit',
     textDecoration: 'none',
-    marginLeft: 16
+    marginLeft: 2,
   }
 
   const columns = [
@@ -52,13 +53,14 @@ export const PageMixnodes: React.FC = () => {
       width: 380,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <a
+          <MuiLink
             href={`https://testnet-milhon-blocks.nymtech.net/account/${params.value}`}
             target='_blank'
-            style={linkStyles}
+            sx={linkStyles}
+            
           >
             {params.value}
-          </a>
+          </MuiLink>
         )
       }
     },
@@ -68,12 +70,9 @@ export const PageMixnodes: React.FC = () => {
       width: 420,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <Link
-            to={`/network-components/mixnodes/${params.value}`}
-            style={linkStyles}
-            >
+          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.value}`}>
             {params.value}
-          </Link>
+          </MuiLink>
         )
       }
     },
@@ -83,12 +82,9 @@ export const PageMixnodes: React.FC = () => {
       width: 130,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <Link
-            to={`/network-components/mixnodes/${params.row.identity_key}`}
-            style={linkStyles}
-          >
-            {params.value}
-          </Link>
+          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
+           {params.value}
+          </MuiLink>
         )
       }
     },
@@ -98,12 +94,9 @@ export const PageMixnodes: React.FC = () => {
       width: 130,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <Link
-            to={`/network-components/mixnodes/${params.row.identity_key}`}
-            style={linkStyles}
-            >
+          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
             {params.value}
-          </Link>
+          </MuiLink>
         )
       }
     },
@@ -129,12 +122,9 @@ export const PageMixnodes: React.FC = () => {
       type: 'number',
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <Link
-            to={`/network-components/mixnodes/${params.row.identity_key}`}
-            style={linkStyles}
-          >
+          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
             {params.value}
-          </Link>
+          </MuiLink>
         )
       }
     },

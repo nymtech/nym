@@ -1,21 +1,24 @@
 Network Explorer API
 ====================
 
-An API that can: 
+An API that provides data for the [Network Explorer](../explorer).
 
-* calculate how many nodes are in which country, by checking the IPs of all nodes against an external service
-* serve "hello world" via HTTP
+Features:
 
-
-TODO:
-
-* record the number of mixnodes on a given date and write to a file for later retrieval
-* store the nodes per country state in a variable
-* grab mixnode description info via reqwest and serve it (avoid mixed-content errors)
-* serve it all over http
-* dependency injection
-* tests
-
+  - geolocates mixnodes using https://freegeoip.app/
+  - calculates how many nodes are in each country
+  - proxies mixnode API requests to add HTTPS
+  
 ## Running
 
-- Supply the environment variable `GEO_IP_SERVICE_API_KEY` with a key from https://freegeoip.app/
+Supply the environment variable `GEO_IP_SERVICE_API_KEY` with a key from https://freegeoip.app/.
+
+Run as a service and reverse proxy with `nginx` to add `https` with Lets Encrypt.
+
+# TODO / Known Issues
+
+## TODO
+
+* record the number of mixnodes on a given date and write to a file for later retrieval
+* dependency injection
+* tests

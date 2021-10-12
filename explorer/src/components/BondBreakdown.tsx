@@ -89,18 +89,18 @@ export function BondBreakdownTable() {
                     <Table sx={{ minWidth: 650 }} aria-label='delegation totals'>
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 'bold' }} align='left'>Owner</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }} align='left'>Delegators</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold' }} align='left'>Stake</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }} align='left'>Share from bond</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }} align='left'>% of Bond</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {delegations.data.map(({ owner, amount: { amount, denom }, block_height }) => {
+                            {delegations.data.map(({ owner, amount: { amount, denom } }) => {
                                 return (
                                     <TableRow key={owner}>
                                         <TableCell sx={matches ? { width: 190 } : null} align='left'>{owner}</TableCell>
                                         <TableCell align='left'>{amount}{denom.toUpperCase()}</TableCell>
-                                        <TableCell align='left'>400%</TableCell>
+                                        <TableCell align='left'>{(amount * 100 / bonds.bondsTotal).toFixed(2)}%</TableCell>
                                     </TableRow>
                                 )
                             })}

@@ -117,10 +117,9 @@ pub fn execute(
         ExecuteMsg::RewardMixnode { identity, uptime } => {
             transactions::try_reward_mixnode(deps, env, info, identity, uptime)
         }
-        ExecuteMsg::RewardMixnodeV2 {
-            identity,
-            params
-        } => transactions::try_reward_mixnode_v2(deps, env, info, identity, params),
+        ExecuteMsg::RewardMixnodeV2 { identity, params } => {
+            transactions::try_reward_mixnode_v2(deps, env, info, identity, params)
+        }
         ExecuteMsg::RewardGateway { identity, uptime } => {
             transactions::try_reward_gateway(deps, env, info, identity, uptime)
         }
@@ -220,7 +219,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         )?),
         QueryMsg::GetTotalMixStake {} => to_binary(&queries::query_total_mix_stake(deps)),
         QueryMsg::GetTotalGatewayStake {} => to_binary(&queries::query_total_gt_stake(deps)),
-        QueryMsg::GetInflationPool {} => to_binary(&queries::query_inflation_pool(deps))
+        QueryMsg::GetInflationPool {} => to_binary(&queries::query_inflation_pool(deps)),
     };
 
     Ok(query_res?)

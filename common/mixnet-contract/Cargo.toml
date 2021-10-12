@@ -17,6 +17,7 @@ schemars = "0.8"
 ts-rs = { version = "3.0", optional = true }
 thiserror = "1.0"
 config = { path = "../config" }
+num = "0.4.0"
 
 [features]
 default = ["ts-rs"]

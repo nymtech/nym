@@ -2,22 +2,20 @@ import * as React from 'react';
 import Table from '@mui/material/Table';
 import { useMediaQuery, useTheme } from '@mui/material';
 import TableBody from '@mui/material/TableBody';
-import { useParams } from 'react-router-dom';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import { MainContext } from 'src/context/main';
+import { formatCoin } from 'src/utils/formatCoin';
 
 export function BondBreakdownTable() {
-    const { id }: any = useParams();
     const { mixnodeDetailInfo, delegations } = React.useContext(MainContext);
     const [bonds, setBonds] = React.useState({
-        delegations: 0,
-        pledges: 0,
-        bondsTotal: 0,
-        denom: 'PUNK',
+        delegations: '0',
+        pledges: '0',
+        bondsTotal: '0',
     })
     const theme = useTheme();
     const matches = useMediaQuery(theme.breakpoints.down("sm"));
@@ -25,17 +23,34 @@ export function BondBreakdownTable() {
     React.useEffect(() => {
         if (mixnodeDetailInfo && mixnodeDetailInfo.data?.length) {
             const thisMixnode = mixnodeDetailInfo?.data[0];
+            
+            // delegations
+            const decimalisedDelegations = formatCoin(thisMixnode.total_delegation);
+            
+            // pledges
+            const decimalisedPledges = formatCoin(thisMixnode.bond_amount);
+            
+            // bonds total (del + pledges)
+            const pledges =  Number(thisMixnode.bond_amount.amount);
             const delegations = Number(thisMixnode.total_delegation.amount);
-            const pledges = Number(thisMixnode.bond_amount.amount);
-            const bondsTotal = delegations + pledges;
+            const bondsTotal = formatCoin({ amount: delegations + pledges, denom: 'upunk' });
+
             setBonds({
-                delegations,
-                pledges,
-                bondsTotal,
-                denom: thisMixnode.total_delegation.denom.toUpperCase()
+                delegations: decimalisedDelegations,
+                pledges: decimalisedPledges,
+                bondsTotal: bondsTotal,
             });
         }
     }, [mixnodeDetailInfo]);
+
+    const calcBondPercentage = (num: number) => {
+        if (mixnodeDetailInfo?.data && mixnodeDetailInfo?.data[0]) {
+            const rawDeligationAmount = Number(mixnodeDetailInfo?.data[0].total_delegation.amount);
+            const rawPledgeAmount = Number(mixnodeDetailInfo?.data[0].bond_amount.amount);
+            const rawTotalBondsAmount = rawDeligationAmount + rawPledgeAmount;
+            return (num * 100 / rawTotalBondsAmount).toFixed(2)
+        }
+    }
 
     return (
         <>
@@ -53,7 +68,7 @@ export function BondBreakdownTable() {
                                 Bond total
                             </TableCell>
                             <TableCell align='left'>
-                                {bonds.bondsTotal}{bonds.denom}
+                                {bonds.bondsTotal}
                             </TableCell>
                         </TableRow>
                         <TableRow>
@@ -66,7 +81,7 @@ export function BondBreakdownTable() {
                                 Pledge total
                             </TableCell>
                             <TableCell align='left'>
-                                {bonds.pledges}{bonds.denom}
+                                {bonds.pledges}
                             </TableCell>
                         </TableRow>
                         <TableRow>
@@ -79,13 +94,13 @@ export function BondBreakdownTable() {
                                 Delegation total
                             </TableCell>
                             <TableCell align='left'>
-                                {bonds.delegations}{bonds.denom}
+                                {bonds.delegations}
                             </TableCell>
                         </TableRow>
                     </TableBody>
                 </Table>
 
-                {delegations?.data !== undefined && delegations?.data[0] && (
+                { delegations?.data !== undefined && delegations?.data[0] && (
                     <Table sx={{ minWidth: 650 }} aria-label='delegation totals'>
                         <TableHead>
                             <TableRow>
@@ -99,8 +114,8 @@ export function BondBreakdownTable() {
                                 return (
                                     <TableRow key={owner}>
                                         <TableCell sx={matches ? { width: 190 } : null} align='left'>{owner}</TableCell>
-                                        <TableCell align='left'>{amount}{denom.toUpperCase()}</TableCell>
-                                        <TableCell align='left'>{(amount * 100 / bonds.bondsTotal).toFixed(2)}%</TableCell>
+                                        <TableCell align='left'>{formatCoin({ amount, denom })}</TableCell>
+                                        <TableCell align='left'>{calcBondPercentage(amount)}%</TableCell>
                                     </TableRow>
                                 )
                             })}

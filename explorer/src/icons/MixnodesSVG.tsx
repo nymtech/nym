@@ -3,7 +3,7 @@ import { MainContext } from 'src/context/main';
 
 export const MixnodesSVG: React.FC = () => {
     const { mode } = React.useContext(MainContext)
-    const color = mode === "dark" ? 'white' : 'grey';
+    const color = mode === "dark" ? '#FFFFFF' : '#000000';
 
     return (
         <>

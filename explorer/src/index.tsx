@@ -7,12 +7,35 @@ import { App } from './App';
 import { MainContext, MainContextProvider } from './context/main';
 import './styles.css';
 
+const palette = {
+  primary: {
+    main: '#F2F2F2', // white text in nav etc
+    dark: '#070B15', // background black in nav appbar
+    light: '#FFFFFF' // white bg cards
+  },
+  secondary: {
+    main: '#666666', // grey text
+    dark: '#242C3D', // drawer slide out
+    light: '#F2F2F2' // grey bg
+  },
+  brandOrange: '#FB6E4E',
+}
 const AppWrapper = () => {
   const { mode }: any = React.useContext(MainContext);
 
   const theme = createTheme({
     palette: {
       mode,
+      ...palette,
+      ...(mode === 'light' ? {
+        background: {
+          default: palette.secondary.light
+        }} : {
+          background: {
+            default: '#111826',
+          }
+        }
+      ),
     },
     typography: {
       fontFamily:
@@ -43,6 +66,23 @@ const AppWrapper = () => {
           },
         },
       },
+      MuiDrawer: {
+        styleOverrides: {
+          paper: {
+            background: palette.secondary.dark,
+          }
+        }
+      },
+      MuiListItem: {
+        styleOverrides: {
+          root: {
+            background: palette.secondary.dark,
+            // '&:hover': {
+            //   backgroundColor: 'transparent',
+            // }
+          }
+        }
+      }
     },
   });
 

@@ -50,6 +50,8 @@ export const MainContext = React.createContext<State>({
   fetchMixnodes: () => null,
   status: { data: undefined, isLoading: false, error: undefined },
   stats: { data: undefined, isLoading: false, error: undefined },
+  mixnodeDetailInfo: { data: undefined, isLoading: false, error: undefined },
+  delegations: { data: undefined, isLoading: false, error: undefined },
 });
 
 export const MainContextProvider: React.FC = ({ children }) => {
@@ -90,6 +92,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
   }
 
   const fetchDelegationsById = async (id: string) => {
+    setDelegations({ data: delegations?.data, isLoading: true })
     try {
       const data = await Api.fetchDelegationsById(id);
       setDelegations({ data, isLoading: false })
@@ -128,11 +131,16 @@ export const MainContextProvider: React.FC = ({ children }) => {
   }
 
   const fetchMixnodeById = async (id: string) => {
+
+    setMixnodeDetailInfo({ data: mixnodeDetailInfo?.data, isLoading: true });
+
     // 1. if mixnode data already exists filter down to this ID
     if (mixnodes && mixnodes.data) {
+
       const [matchedToID] = mixnodes.data.filter((eachMixnode: MixNodeResponseItem) => {
         return eachMixnode.mix_node.identity_key === id
       });
+
       // b) SUCCESS | if there *IS* a matched ID in mixnodes
       if (matchedToID) {
         setMixnodeDetailInfo({ data: [matchedToID], isLoading: false });
@@ -140,6 +148,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
       // b) FAIL | if there is no matching ID in mixnodes
       if (!matchedToID) {
         setGlobalError(MIXNODE_API_ERROR)
+        setMixnodeDetailInfo({ isLoading: false, error: new Error(MIXNODE_API_ERROR) });
       }
     } else {
       // 2. if mixnode data DOESNT already exist, fetch this specific ID's information.
@@ -148,10 +157,13 @@ export const MainContextProvider: React.FC = ({ children }) => {
         // a) fetches from cache^, then API, then filters down then dumps in `mixnodes` context.
         if (data) {
           setMixnodeDetailInfo({ data: [data], isLoading: false });
+        } else {
+          throw Error('api failed to retrieve mixnode via id')
         }
         // NOTE: Only returning mixnodes api info at the moment. Other `ping` api required also.
       } catch (error) {
         setGlobalError(MIXNODE_API_ERROR)
+        setMixnodeDetailInfo({ isLoading: false, error: new Error(MIXNODE_API_ERROR) });
       }
     }
   }

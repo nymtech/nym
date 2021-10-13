@@ -95,11 +95,12 @@ export const PageOverview: React.FC = () => {
           </Grid>
 
           <Grid item xs={12}>
-            <WorldMap
-              loading={false}
-              title="Distribution of nodes around the world"
-              countryData={countryData}
-            />
+            <ContentCard title="Distribution of nodes around the world">
+              <WorldMap
+                loading={false}
+                countryData={countryData}
+              />
+            </ContentCard>
           </Grid>
         </Grid>
       </Box>

@@ -1,6 +1,7 @@
 import { ReactJSXElement } from '@emotion/react/types/jsx-namespace';
 import { Card, CardHeader, CardContent, Typography } from '@mui/material';
 import React, { ReactEventHandler } from 'react';
+import { MainContext } from 'src/context/main';
 
 
 type ContentCardProps = {
@@ -20,22 +21,31 @@ export const ContentCard: React.FC<ContentCardProps> = ({
   errorMsg,
   children,
   onClick,
-}) => (
-  <Card onClick={onClick}>
-    <CardHeader
-      title={title}
-      avatar={Icon}
-      action={Action}
-      subheader={subtitle}
-    />
-    {children && <CardContent>{children}</CardContent>}
-    {errorMsg && (
-      <Typography
-        variant="body2"
-        sx={{ color: 'danger', padding: 2 }}
-      >
-        {errorMsg}
-      </Typography>
-    )}
-  </Card>
-);
+}) => {
+  const { mode } = React.useContext(MainContext)
+  return (
+    <Card
+      onClick={onClick}
+      sx={{
+        background: (theme) => mode === 'dark' ? theme.palette.secondary.dark : theme.palette.primary.light
+      }}
+    >
+      <CardHeader
+        sx={{ color: theme => mode === 'dark' ? theme.palette.primary.main : "secondary.main" }}
+        title={title}
+        avatar={Icon}
+        action={Action}
+        subheader={subtitle}
+      />
+      {children && <CardContent>{children}</CardContent>}
+      {errorMsg && (
+        <Typography
+          variant="body2"
+          sx={{ color: 'danger', padding: 2 }}
+        >
+          {errorMsg}
+        </Typography>
+      )}
+    </Card>
+  );
+}

@@ -1,10 +1,9 @@
 import * as React from 'react';
-import { MainContext } from 'src/context/main';
+import { useTheme } from '@mui/material';
 
 export const OverviewSVG: React.FC = () => {
-    const { mode } = React.useContext(MainContext)
-    const color = mode === "dark" ? '#FFFFFF' : '#000000';
-
+    const theme = useTheme();
+    const color = theme.palette.primary.main
     return (
         <>
             <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

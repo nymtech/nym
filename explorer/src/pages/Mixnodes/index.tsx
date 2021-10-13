@@ -11,6 +11,7 @@ import { mixnodeToGridRow } from 'src/utils';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { MixNodeResponse } from 'src/typeDefs/explorer-api';
 import { BIG_DIPPER } from 'src/api/constants';
+import { ContentCard } from 'src/components/ContentCard';
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes } = useContext(MainContext);
@@ -136,22 +137,25 @@ export const PageMixnodes: React.FC = () => {
 
   return (
     <>
-      <Typography sx={{ marginBottom: 1 }} variant="h5">
+      <Typography sx={{ marginBottom: 3 }} variant="h5">
         Mixnodes
       </Typography>
-      <TableToolbar
-        onChangeSearch={handleSearch}
-        onChangePageSize={handlePageSize}
-        pageSize={pageSize}
-        searchTerm={searchTerm}
-      />
-      <UniversalDataGrid
-        loading={mixnodes?.isLoading}
-        columnsData={columns}
-        rows={mixnodeToGridRow(filteredMixnodes)}
-        height={1080}
-        pageSize={pageSize}
-      />
+
+      <ContentCard>
+        <TableToolbar
+          onChangeSearch={handleSearch}
+          onChangePageSize={handlePageSize}
+          pageSize={pageSize}
+          searchTerm={searchTerm}
+        />
+        <UniversalDataGrid
+          loading={mixnodes?.isLoading}
+          columnsData={columns}
+          rows={mixnodeToGridRow(filteredMixnodes)}
+          height={1080}
+          pageSize={pageSize}
+        />
+      </ContentCard>
     </>
   );
 };

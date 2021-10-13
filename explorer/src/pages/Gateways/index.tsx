@@ -7,6 +7,7 @@ import { MainContext } from 'src/context/main';
 import { gatewayToGridRow } from 'src/utils';
 import { GatewayResponse } from 'src/typeDefs/explorer-api';
 import { TableToolbar } from 'src/components/TableToolbar';
+import { ContentCard } from 'src/components/ContentCard';
 
 export const PageGateways: React.FC = () => {
     const { gateways } = React.useContext(MainContext);
@@ -74,22 +75,25 @@ export const PageGateways: React.FC = () => {
 
     return (
         <>
-            <Typography sx={{ marginBottom: 1 }} variant="h5">
+            <Typography sx={{ marginBottom: 3 }} variant="h5">
                 Gateways
             </Typography>
-            <TableToolbar
-                onChangeSearch={handleSearch}
-                onChangePageSize={handlePageSize}
-                pageSize={pageSize}
-                searchTerm={searchTerm}
-            />
-            <UniversalDataGrid
-                loading={gateways?.isLoading}
-                columnsData={columns}
-                rows={gatewayToGridRow(filteredGateways)}
-                height={600}
-                pageSize={pageSize}
-            />
+
+            <ContentCard>
+                <TableToolbar
+                    onChangeSearch={handleSearch}
+                    onChangePageSize={handlePageSize}
+                    pageSize={pageSize}
+                    searchTerm={searchTerm}
+                />
+                <UniversalDataGrid
+                    loading={gateways?.isLoading}
+                    columnsData={columns}
+                    rows={gatewayToGridRow(filteredGateways)}
+                    height={600}
+                    pageSize={pageSize}
+                />
+            </ContentCard>
         </>
     );
 };

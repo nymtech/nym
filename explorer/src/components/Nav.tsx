@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useParams, useHistory } from 'react-router-dom';
 import {
   Menu,
   ChevronLeft,
@@ -100,11 +100,13 @@ const Drawer = styled(MuiDrawer, {
 }));
 
 type navOptionType = {
-  url: string;
-  title: string;
-  Icon?: React.ReactNode;
+  url: string,
+  title: string,
+  Icon?: React.ReactNode,
   // eslint-disable-next-line react/require-default-props
-  nested?: navOptionType[];
+  nested?: navOptionType[],
+  isExpandedChild?: boolean,
+  currentPage?: string,
 };
 
 const navOptions: navOptionType[] = [
@@ -144,15 +146,32 @@ const ExpandableButton: React.FC<navOptionType> = ({
   title,
   Icon,
   url,
+  isExpandedChild,
+  currentPage,
 }) => {
   const [open, toggle] = React.useState(false);
   const handleClick = () => toggle(!open);
 
   const [ isExternal, setIsExternal ] = React.useState<boolean>(false);
+  const [ isMatched, setIsMatched ] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     setIsExternal(url.includes("http"));
   }, [url])
+
+  const mainNav = '#242C3D';
+  const selectedNotNested = '#111826';
+  const otherNested = '#3C4558';
+
+  React.useEffect(() => {
+    const str = title.toLowerCase();
+
+    if(currentPage && currentPage?.includes(str)) {
+      setIsMatched(true);
+    } else {
+      setIsMatched(false);
+    }
+  }, [currentPage])
 
   if (!nested) {
     return (
@@ -161,21 +180,23 @@ const ExpandableButton: React.FC<navOptionType> = ({
         component={Link}
         to={ isExternal ? { pathname: url } : url }
         target={ isExternal ? '_blank' : ''}
+        sx={{
+          background: isExpandedChild ? otherNested : 'inherit',
+        }}
       >
-        <ListItemButton
-          sx={{
-            color: (theme) =>
-              theme.palette.mode === 'light' ? '#000' : '#fff',
-          }}
-        >
+        <ListItemButton>
           <ListItemIcon>
             {Icon}
           </ListItemIcon>
           <ListItemText
             primary={title}
             sx={{
-              color: (theme) =>
-                theme.palette.mode === 'light' ? '#000' : '#fff',
+              color: (theme) => theme.palette.primary.main,
+            }}
+            primaryTypographyProps={{
+              style: {
+                fontWeight: isMatched ? 800 : 300
+              }
             }}
           />
         </ListItemButton>
@@ -184,21 +205,32 @@ const ExpandableButton: React.FC<navOptionType> = ({
   }
   return (
     <>
-      <ListItem disableGutters>
+      <ListItem
+        disableGutters
+        sx={{
+          background: open ? selectedNotNested : 'inherit',
+          borderRight: open ? '3px solid #FB6E4E' : 'none',
+        }}
+      >
         <ListItemButton
           onClick={handleClick}
-          sx={{ color: "text.primary" }}
         >
           <ListItemIcon>
             {Icon}
           </ListItemIcon>
-          <ListItemText primary={title} />
-          {open ? <ExpandLess /> : <ExpandMore />}
+          <ListItemText
+            primary={title}
+            sx={{
+              color: (theme) => theme.palette.primary.main,
+              fontWeight: isMatched ? 'bold' : 300
+            }}
+          />
+          {open ? <ExpandLess color="primary" /> : <ExpandMore color="primary" />}
         </ListItemButton>
       </ListItem>
       {open &&
         nested?.map((each: navOptionType) => (
-          <ExpandableButton key={each.title} {...each} />
+          <ExpandableButton key={each.title} {...each} isExpandedChild currentPage={currentPage} />
         ))}
     </>
   );
@@ -206,8 +238,9 @@ const ExpandableButton: React.FC<navOptionType> = ({
 
 export const Nav: React.FC = ({ children }) => {
   const { toggleMode, mode }: any = React.useContext(MainContext);
-
-  const [open, setOpen] = React.useState(false);
+  const [ currentPage, setCurrentPage ] = React.useState<string>('');
+  const [open, setOpen] = React.useState(true);
+  const location = useLocation()
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -217,37 +250,65 @@ export const Nav: React.FC = ({ children }) => {
     setOpen(false);
   };
 
+  React.useEffect(() => {
+    setCurrentPage(location.pathname)
+    console.log('location', location.pathname);
+  }, [location])
+
   return (
     <Box sx={{ display: 'flex' }}>
-      <AppBar position="fixed" open={open} color="default">
-        <Toolbar>
+      <AppBar
+        position="fixed"
+        open={open}
+        sx={{ 
+          background: theme => theme.palette.primary.dark,
+        }}>
+        <Toolbar disableGutters sx={{ paddingLeft: 2 }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
             onClick={handleDrawerOpen}
             edge="start"
             sx={{
-              ...(open && { display: 'none' }),
+                ...(open && { 
+                  display: 'none',
+                  margin: 0,
+                  padding: 2
+                }
+              ),
             }}
           >
-            <Menu />
+            <NymLogoSVG />
           </IconButton>
-          <NymLogoSVG />
-          <Typography variant="h6" noWrap component="div">
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{
+              marginLeft: 3,
+              color: theme => theme.palette.primary.main,
+            }}
+            >
             Network Explorer
           </Typography>
         </Toolbar>
       </AppBar>
-      <Drawer variant="permanent" open={open}>
-        <DrawerHeader>
+      <Drawer
+        variant="permanent"
+        open={open}
+        sx={{ 
+          background: theme => theme.palette.secondary.dark
+        }}
+      >
+        <DrawerHeader sx={{ background: theme => theme.palette.primary.dark }}>
           <IconButton onClick={handleDrawerClose}>
-            <ChevronLeft />
+            <ChevronLeft color="primary" />
           </IconButton>
         </DrawerHeader>
         <Divider />
         <List>
           {navOptions.map((route) => (
-            <ExpandableButton key={route.url} {...route} />
+            <ExpandableButton key={route.url} {...route} currentPage={currentPage} />
           ))}
         </List>
         <Divider />
@@ -256,7 +317,7 @@ export const Nav: React.FC = ({ children }) => {
             <ListItemIcon>
               {mode === 'light' ? <Brightness4Sharp /> : <WbSunnySharp />}
             </ListItemIcon>
-            <ListItemText>Light</ListItemText>
+            <ListItemText sx={{ color: (theme) => theme.palette.primary.main }}>{mode === 'light' ? 'Dark mode' : 'Light mode'}</ListItemText>
           </ListItemButton>
         </ListItem>
       </Drawer>

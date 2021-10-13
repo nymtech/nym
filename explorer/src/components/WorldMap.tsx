@@ -31,27 +31,29 @@ export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation,
       const heighestNumberOfNodes = Math.max(...countryData.data.map(country => country.nodes));
       const cs = scaleLinear<string, string>()
         .domain([0, heighestNumberOfNodes])
-        .range(mode === 'dark' ? ['#FFD278', '#F20041'] : ['orange', 'red']);
+        .range(mode === 'dark' ? ['#FFD278', '#F20041'] : ['#EFEFEF', '#F09379']);
       setColorScale(() => cs);
     }
   }, [countryData, userLocation])
 
   return (
     <>
-      <Box>
         <ComposableMap
           data-tip=""
           style={{
             backgroundColor:
               mode === 'dark'
                 ? 'rgba(50, 60, 81, 1)'
-                : 'rgba(241, 234, 234, 1)',
+                : '#F4F8FA',
             WebkitFilter: hasNoContent ? 'blur(5px)' : null,
             filter: hasNoContent ? 'blur(5px)' : null,
+            width: "100%", height: "auto",
           }}
+          width={800}
+          height={350}
           projectionConfig={{
-            rotate: [-10, 0, 0],
-            scale: 180,
+            // rotate: [-10, 0, 0],
+            scale: 120,
           }}
         >
           <ZoomableGroup>
@@ -67,7 +69,7 @@ export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation,
                       geography={geo}
                       // @ts-ignore
                       fill={d ? colorScale(d.nodes) : '#FFFFFF'}
-                      stroke="#EAEAEC"
+                      stroke="rgba(0, 0, 0, 0.3)"
                       strokeWidth={1}
                       onMouseEnter={() => {
                         const { NAME_LONG } = geo.properties;
@@ -113,7 +115,6 @@ export const WorldMap: React.FC<MapProps> = ({ title, countryData, userLocation,
           </ZoomableGroup>
         </ComposableMap>
         <ReactTooltip>{tooltipContent}</ReactTooltip>
-      </Box>
     </>
   );
 };

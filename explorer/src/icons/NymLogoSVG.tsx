@@ -9,7 +9,7 @@ export const NymLogoSVG: React.FC = (props) => {
       viewBox="0 0 5389.9 5389.9"
       width="40px"
       height="40px"
-      style={{ margin: theme.spacing(2) }}
+      // style={{ margin: theme.spacing(2) }}
       {...props}
     >
       <circle cx={2695} cy={2695} r={2585} fill="#121726" />

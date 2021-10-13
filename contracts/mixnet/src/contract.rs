@@ -12,7 +12,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
 };
-use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateParams};
+use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, MixNode, QueryMsg, StateParams};
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -225,10 +225,62 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
     Ok(query_res?)
 }
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    todo!("Calculate initial total mix and gateway stake after initial deployment. Update mixnode model with profit sharing");
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    use crate::storage::{
+        gateways_read, incr_total_gateway_stake, incr_total_mix_stake, mixnodes, PREFIX_MIXNODES,
+    };
+    use cosmwasm_std::{Coin, Order, StdResult};
+    use cosmwasm_storage::bucket_read;
+    use mixnet_contract::{GatewayBond, Layer, MixNodeBond};
+    use serde::{Deserialize, Serialize};
 
-    #[allow(unreachable_code)]
+    #[derive(Serialize, Deserialize)]
+    struct OldMixNodeBond {
+        pub bond_amount: Coin,
+        pub total_delegation: Coin,
+        pub owner: Addr,
+        pub layer: Layer,
+        pub block_height: u64,
+        pub mix_node: MixNode,
+    }
+
+    impl From<OldMixNodeBond> for MixNodeBond {
+        fn from(o: OldMixNodeBond) -> MixNodeBond {
+            MixNodeBond {
+                bond_amount: o.bond_amount,
+                total_delegation: o.total_delegation,
+                owner: o.owner,
+                layer: o.layer,
+                block_height: o.block_height,
+                mix_node: o.mix_node,
+                profit_margin_percent: 10,
+            }
+        }
+    }
+
+    let mixnode_bonds = bucket_read(deps.storage, PREFIX_MIXNODES)
+        .range(None, None, Order::Ascending)
+        .take_while(Result::is_ok)
+        .map(Result::unwrap)
+        .map(|(key, bond): (Vec<u8>, OldMixNodeBond)| (key, bond.into()))
+        .collect::<Vec<(Vec<u8>, MixNodeBond)>>();
+
+    for (key, bond) in mixnode_bonds {
+        incr_total_mix_stake(bond.bond_amount().amount, deps.storage)?;
+        incr_total_mix_stake(bond.total_delegation().amount, deps.storage)?;
+        mixnodes(deps.storage).save(&key, &bond)?;
+    }
+
+    let gateway_bonds = gateways_read(deps.storage)
+        .range(None, None, Order::Ascending)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<GatewayBond>>>()?;
+
+    for bond in gateway_bonds {
+        incr_total_gateway_stake(bond.bond_amount().amount, deps.storage)?;
+        incr_total_gateway_stake(bond.total_delegation().amount, deps.storage)?;
+    }
+
     Ok(Default::default())
 }
 

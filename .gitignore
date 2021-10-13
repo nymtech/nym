@@ -29,3 +29,4 @@ validator-api/v4.json
 validator-api/v6.json
 **/node_modules
 validator-api/keypair
+contracts/mixnet/code_id

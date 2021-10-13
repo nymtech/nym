@@ -1586,7 +1586,7 @@ pub mod tests {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
             },
-            profit_margin_percent: None,
+            profit_margin_percent: 10,
         };
 
         mixnodes(deps.as_mut().storage)
@@ -1686,7 +1686,7 @@ pub mod tests {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
             },
-            profit_margin_percent: None,
+            profit_margin_percent: 10,
         };
 
         mixnodes(deps.as_mut().storage)
@@ -3001,9 +3001,13 @@ pub mod tests {
 
         let mix1_operator_profit = mix_1.operator_reward(&params).unwrap();
 
-        let mix1_delegator1_reward = mix_1.reward_delegation(Uint128(10_000000), &params).unwrap();
+        let mix1_delegator1_reward = mix_1
+            .reward_delegation(Uint128(10_000000), &params)
+            .unwrap();
 
-        let mix1_delegator2_reward = mix_1.reward_delegation(Uint128(20_000000), &params).unwrap();
+        let mix1_delegator2_reward = mix_1
+            .reward_delegation(Uint128(20_000000), &params)
+            .unwrap();
 
         assert_eq!(mix1_operator_profit, 827951952);
         assert_eq!(mix1_delegator1_reward, 73777896);

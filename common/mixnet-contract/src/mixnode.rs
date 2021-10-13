@@ -149,7 +149,7 @@ pub struct MixNodeBond {
     pub layer: Layer,
     pub block_height: u64,
     pub mix_node: MixNode,
-    pub profit_margin_percent: Option<u8>,
+    pub profit_margin_percent: u8,
 }
 
 impl MixNodeBond {
@@ -168,20 +168,16 @@ impl MixNodeBond {
             layer,
             block_height,
             mix_node,
-            profit_margin_percent,
+            profit_margin_percent: profit_margin_percent.unwrap_or(DEFAULT_PROFIT_MARGIN),
         }
     }
 
-    pub fn profit_margin(&self) -> Ratio<u128> {
-        if let Some(profit_margin) = self.profit_margin_percent {
-            Ratio::new(profit_margin as u128, 100)
-        } else {
-            default_profit_margin()
-        }
+    pub fn profit_margin_ratio(&self) -> Ratio<u128> {
+        Ratio::new(self.profit_margin_percent as u128, 100)
     }
 
     pub fn profit_margin_decimal(&self) -> Decimal {
-        ratio_to_decimal(self.profit_margin())
+        ratio_to_decimal(self.profit_margin_ratio())
     }
 
     pub fn identity(&self) -> &String {
@@ -216,11 +212,13 @@ impl MixNodeBond {
     }
 
     pub fn lambda(&self, params: &NodeRewardParams) -> Ratio<u128> {
+        // Ratio of a bond to the total stake available in the mixnet
         let bond_to_total_stake_ratio = self.bond_to_total_stake(params.total_mix_stake);
         bond_to_total_stake_ratio.min(params.one_over_k())
     }
 
     pub fn sigma(&self, params: &NodeRewardParams) -> Ratio<u128> {
+        // Ratio of a bond + delegation to the total stake available in the mixnet
         let stake_to_total_stake_ratio = self.stake_to_total_stake(params.total_mix_stake);
         stake_to_total_stake_ratio.min(params.one_over_k())
     }
@@ -252,8 +250,9 @@ impl MixNodeBond {
         let profit = reward.reward - params.operator_cost();
         let operator_base_reward = reward.reward.min(params.operator_cost());
 
-        let operator_reward = (self.profit_margin()
-            + (Ratio::new(1u128, 1u128) - self.profit_margin()) * (reward.lambda / reward.sigma))
+        let operator_reward = (self.profit_margin_ratio()
+            + (Ratio::new(1u128, 1u128) - self.profit_margin_ratio())
+                * (reward.lambda / reward.sigma))
             * profit;
 
         (operator_reward + operator_base_reward)
@@ -279,7 +278,7 @@ impl MixNodeBond {
     ) -> Result<u128, MixnetContractError> {
         let scaled_delegation_amount = Ratio::new(delegation_amount.u128(), params.total_mix_stake);
 
-        let delegator_reward = (Ratio::new(1, 1) - self.profit_margin())
+        let delegator_reward = (Ratio::new(1, 1) - self.profit_margin_ratio())
             * (scaled_delegation_amount / self.sigma(params))
             * self.node_profit(params);
 
@@ -419,7 +418,7 @@ mod tests {
             layer: Layer::One,
             block_height: 100,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: None,
+            profit_margin_percent: 10,
         };
 
         let mix2 = MixNodeBond {
@@ -429,7 +428,7 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: None,
+            profit_margin_percent: 10,
         };
 
         let mix3 = MixNodeBond {
@@ -439,7 +438,7 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: None,
+            profit_margin_percent: 10,
         };
 
         let mix4 = MixNodeBond {
@@ -449,7 +448,7 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: None,
+            profit_margin_percent: 10,
         };
 
         let mix5 = MixNodeBond {
@@ -459,7 +458,7 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: None,
+            profit_margin_percent: 10,
         };
 
         // summary:

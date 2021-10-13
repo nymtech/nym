@@ -38,6 +38,7 @@ const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
 pub struct GatewayClient {
     authenticated: bool,
+    #[cfg(feature = "coconut")]
     bandwidth_remaining: i64,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
@@ -71,8 +72,11 @@ impl GatewayClient {
     ) -> Self {
         GatewayClient {
             authenticated: false,
+
+            #[cfg(feature = "coconut")]
             bandwidth_remaining: 0,
             gateway_address,
+
             gateway_identity,
             local_identity,
             shared_key,
@@ -114,7 +118,10 @@ impl GatewayClient {
 
         GatewayClient {
             authenticated: false,
+
+            #[cfg(feature = "coconut")]
             bandwidth_remaining: 0,
+
             gateway_address,
             gateway_identity,
             local_identity,
@@ -495,6 +502,7 @@ impl GatewayClient {
         Ok(())
     }
 
+    #[cfg(feature = "coconut")]
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {
         packets
             .iter()
@@ -509,6 +517,7 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
+        #[cfg(feature = "coconut")]
         if self.estimate_required_bandwidth(&packets) < self.bandwidth_remaining {
             return Err(GatewayClientError::NotEnoughBandwidth);
         }
@@ -576,6 +585,7 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
+        #[cfg(feature = "coconut")]
         if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
             return Err(GatewayClientError::NotEnoughBandwidth);
         }
@@ -614,6 +624,7 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
+        #[cfg(feature = "coconut")]
         if self.bandwidth_remaining <= 0 {
             return Err(GatewayClientError::NotEnoughBandwidth);
         }

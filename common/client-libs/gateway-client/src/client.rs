@@ -614,9 +614,6 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if self.bandwidth_remaining <= 0 {
-            return Err(GatewayClientError::NotEnoughBandwidth);
-        }
         if self.connection.is_partially_delegated() {
             return Ok(());
         }

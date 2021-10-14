@@ -11,7 +11,7 @@ import Paper from '@mui/material/Paper';
 import { MainContext } from 'src/context/main';
 
 export function BondBreakdownTable() {
-    const { mixnodeDetailInfo, delegations } = React.useContext(MainContext);
+    const { mixnodeDetailInfo, delegations, mode } = React.useContext(MainContext);
     const [ allContentLoaded, setAllContentLoaded ] = React.useState<boolean>(false);
     const [ showError, setShowError ] = React.useState<boolean>(false);
 
@@ -51,7 +51,7 @@ export function BondBreakdownTable() {
     React.useEffect(() => {
         const hasError = mixnodeDetailInfo?.error || delegations?.error ? true : false;
         const hasAllMixnodeInfo = mixnodeDetailInfo?.data !== undefined && mixnodeDetailInfo?.data[0].mix_node ? true : false;
-        const hasAllDelegationsInfo = delegations?.data !== undefined && delegations?.data.length ? true : false;
+        const hasAllDelegationsInfo = delegations?.data !== undefined ? true : false;
         const hasAllData = !hasError && hasAllMixnodeInfo && hasAllDelegationsInfo ? true : false;
         setShowError(hasError);
         setAllContentLoaded(hasAllData);
@@ -77,7 +77,7 @@ export function BondBreakdownTable() {
     if (!showError && allContentLoaded) {
         return (
             <>
-                <TableContainer component={Paper}>
+                <TableContainer component={Paper} sx={{ background: theme => mode === 'dark' ? theme.palette.secondary.dark : theme.palette.primary.light }}>
                     <Table sx={{ minWidth: 650 }} aria-label='bond breakdown totals'>
                         <TableBody>
                             <TableRow sx={matches ? { minWidth: '70vw' } : null}>

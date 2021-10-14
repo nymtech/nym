@@ -24,6 +24,20 @@ pub struct AccountData {
     pub(crate) private_key: SigningKey,
 }
 
+impl AccountData {
+    pub fn address(&self) -> &AccountId {
+        &self.address
+    }
+
+    pub fn public_key(&self) -> PublicKey {
+        self.public_key
+    }
+
+    pub fn private_key(&self) -> &SigningKey {
+        &self.private_key
+    }
+}
+
 type Secp256k1Keypair = (SigningKey, PublicKey);
 
 #[derive(Debug)]

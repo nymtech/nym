@@ -8,7 +8,7 @@ use rocket::tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::mix_nodes::utils::map_2_letter_to_3_letter_country_code;
-use mixnet_contract::{Delegation, MixNodeBond};
+use mixnet_contract::{Delegation, MixNodeBond, RawDelegationData, UnpackedDelegation};
 use network_defaults::{
     default_api_endpoints, default_nymd_endpoints, DEFAULT_MIXNET_CONTRACT_ADDRESS,
 };
@@ -166,15 +166,27 @@ pub(crate) async fn retrieve_mixnodes() -> Vec<MixNodeBond> {
     bonds
 }
 
-pub(crate) async fn get_mixnode_delegations(pubkey: &str) -> Vec<Delegation> {
+pub(crate) async fn get_single_mixnode_delegations(pubkey: &str) -> Vec<Delegation> {
     let client = new_nymd_client();
     let delegates = match client
-        .get_all_nymd_mixnode_delegations(pubkey.to_string())
+        .get_all_nymd_single_mixnode_delegations(pubkey.to_string())
         .await
     {
         Ok(result) => result,
         Err(e) => {
             error!("Could not get delegations for mix node {}: {:?}", pubkey, e);
+            vec![]
+        }
+    };
+    delegates
+}
+
+pub(crate) async fn get_mixnode_delegations() -> Vec<UnpackedDelegation<RawDelegationData>> {
+    let client = new_nymd_client();
+    let delegates = match client.get_all_nymd_mixnode_delegations().await {
+        Ok(result) => result,
+        Err(e) => {
+            error!("Could not get all mix delegations: {:?}", e);
             vec![]
         }
     };

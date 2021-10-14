@@ -102,10 +102,20 @@ export default function AdminForm(props: AdminFormProps) {
                 <Grid item xs={12}>
                     <TextField
                         required
-                        id="active_set"
-                        name="active_set"
+                        id="mixnode_active_set"
+                        name="mixnode_active_set"
                         label="Mixnode Active Set Size"
                         defaultValue={props.currentParams.mixnode_active_set_size}
+                        fullWidth
+                    />
+                </Grid>
+                <Grid item xs={12}>
+                    <TextField
+                        required
+                        id="gateway_active_set"
+                        name="gateway_active_set"
+                        label="Gateway Active Set Size"
+                        defaultValue={props.currentParams.gateway_active_set_size}
                         fullWidth
                     />
                 </Grid>

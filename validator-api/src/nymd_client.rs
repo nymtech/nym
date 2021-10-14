@@ -10,6 +10,7 @@ use crate::rewarding::{
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract::{Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 use validator_client::nymd::{
     CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient, TendermintTime,

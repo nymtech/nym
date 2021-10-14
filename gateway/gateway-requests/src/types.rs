@@ -5,7 +5,6 @@ use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
 use crate::registration::handshake::SharedKeys;
 use crate::GatewayMacSize;
-use coconut_interface::Credential;
 use crypto::generic_array::typenum::Unsigned;
 use crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use crypto::symmetric::stream_cipher;
@@ -20,6 +19,9 @@ use std::{
     fmt::{self, Error, Formatter},
 };
 use tungstenite::protocol::Message;
+
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -89,6 +91,8 @@ impl fmt::Display for GatewayRequestsError {
     }
 }
 
+impl std::error::Error for GatewayRequestsError {}
+
 impl From<NymNodeRoutingAddressError> for GatewayRequestsError {
     fn from(_: NymNodeRoutingAddressError) -> Self {
         GatewayRequestsError::IncorrectlyEncodedAddress
@@ -113,7 +117,8 @@ pub enum ClientControlRequest {
     },
     #[serde(alias = "handshakePayload")]
     RegisterHandshakeInitRequest { data: Vec<u8> },
-    BandwidthCredential {
+    #[cfg(feature = "coconut")]
+    CoconutBandwidthCredential {
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     },
@@ -132,7 +137,8 @@ impl ClientControlRequest {
         }
     }
 
-    pub fn new_enc_bandwidth_credential(
+    #[cfg(feature = "coconut")]
+    pub fn new_enc_coconut_bandwidth_credential(
         credential: &Credential,
         shared_key: &SharedKeys,
         iv: IV,
@@ -142,7 +148,7 @@ impl ClientControlRequest {
                 let enc_credential =
                     shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
 
-                Some(ClientControlRequest::BandwidthCredential {
+                Some(ClientControlRequest::CoconutBandwidthCredential {
                     enc_credential,
                     iv: iv.to_bytes(),
                 })
@@ -151,7 +157,8 @@ impl ClientControlRequest {
         }
     }
 
-    pub fn try_from_enc_bandwidth_credential(
+    #[cfg(feature = "coconut")]
+    pub fn try_from_enc_coconut_bandwidth_credential(
         enc_credential: Vec<u8>,
         shared_key: &SharedKeys,
         iv: IV,
@@ -191,9 +198,8 @@ impl TryInto<String> for ClientControlRequest {
 pub enum ServerResponse {
     Authenticate { status: bool },
     Register { status: bool },
-    // Maybe we could return the remaining bandwidth?
-    Bandwidth { status: bool },
-    Send { status: bool },
+    Bandwidth { available_total: i64 },
+    Send { remaining_bandwidth: i64 },
     Error { message: String },
 }
 

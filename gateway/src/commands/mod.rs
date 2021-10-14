@@ -15,8 +15,7 @@ pub(crate) const MIX_PORT_ARG_NAME: &str = "mix-port";
 pub(crate) const CLIENTS_PORT_ARG_NAME: &str = "clients-port";
 pub(crate) const VALIDATORS_ARG_NAME: &str = "validators";
 pub(crate) const ANNOUNCE_HOST_ARG_NAME: &str = "announce-host";
-pub(crate) const INBOXES_ARG_NAME: &str = "inboxes";
-pub(crate) const CLIENTS_LEDGER_ARG_NAME: &str = "clients-ledger";
+pub(crate) const DATASTORE_PATH: &str = "datastore";
 
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
@@ -69,12 +68,8 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_custom_validator_apis(parse_validators(raw_validators));
     }
 
-    if let Some(inboxes_dir) = matches.value_of(INBOXES_ARG_NAME) {
-        config = config.with_custom_clients_inboxes(inboxes_dir);
-    }
-
-    if let Some(clients_ledger) = matches.value_of(CLIENTS_LEDGER_ARG_NAME) {
-        config = config.with_custom_clients_ledger(clients_ledger);
+    if let Some(datastore_path) = matches.value_of(DATASTORE_PATH) {
+        config = config.with_custom_persistent_store(datastore_path);
     }
 
     config

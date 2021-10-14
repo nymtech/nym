@@ -5,8 +5,13 @@
 use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
+#[cfg(feature = "nymd-client")]
+use mixnet_contract::StateParams;
+
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
+#[cfg(feature = "nymd-client")]
+use mixnet_contract::RawDelegationData;
 use mixnet_contract::{GatewayBond, MixNodeBond};
 use url::Url;
 
@@ -170,6 +175,13 @@ impl<C> Client<C> {
         Ok(self.validator_api.get_gateways().await?)
     }
 
+    pub async fn get_state_params(&self) -> Result<StateParams, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_state_params().await?)
+    }
+
     // basically handles paging for us
     pub async fn get_all_nymd_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where
@@ -217,7 +229,7 @@ impl<C> Client<C> {
         Ok(gateways)
     }
 
-    pub async fn get_all_nymd_mixnode_delegations(
+    pub async fn get_all_nymd_single_mixnode_delegations(
         &self,
         identity: mixnet_contract::IdentityKey,
     ) -> Result<Vec<mixnet_contract::Delegation>, ValidatorClientError>
@@ -231,6 +243,34 @@ impl<C> Client<C> {
                 .nymd
                 .get_mix_delegations_paged(
                     identity.clone(),
+                    start_after.take(),
+                    self.mixnode_delegations_page_limit,
+                )
+                .await?;
+            delegations.append(&mut paged_response.delegations);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(delegations)
+    }
+
+    pub async fn get_all_nymd_mixnode_delegations(
+        &self,
+    ) -> Result<Vec<mixnet_contract::UnpackedDelegation<RawDelegationData>>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let mut delegations = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_all_mix_delegations_paged(
                     start_after.take(),
                     self.mixnode_delegations_page_limit,
                 )
@@ -299,7 +339,7 @@ impl<C> Client<C> {
         Ok(delegations)
     }
 
-    pub async fn get_all_nymd_gateway_delegations(
+    pub async fn get_all_nymd_single_gateway_delegations(
         &self,
         identity: mixnet_contract::IdentityKey,
     ) -> Result<Vec<mixnet_contract::Delegation>, ValidatorClientError>
@@ -313,6 +353,34 @@ impl<C> Client<C> {
                 .nymd
                 .get_gateway_delegations(
                     identity.clone(),
+                    start_after.take(),
+                    self.gateway_delegations_page_limit,
+                )
+                .await?;
+            delegations.append(&mut paged_response.delegations);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(delegations)
+    }
+
+    pub async fn get_all_nymd_gateway_delegations(
+        &self,
+    ) -> Result<Vec<mixnet_contract::UnpackedDelegation<RawDelegationData>>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let mut delegations = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_all_gateway_delegations(
                     start_after.take(),
                     self.gateway_delegations_page_limit,
                 )
@@ -412,6 +480,18 @@ impl ApiClient {
 
     pub fn change_validator_api(&mut self, new_endpoint: Url) {
         self.validator_api.change_url(new_endpoint);
+    }
+
+    pub async fn get_cached_active_mixnodes(
+        &self,
+    ) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
+        Ok(self.validator_api.get_active_mixnodes().await?)
+    }
+
+    pub async fn get_cached_active_gateways(
+        &self,
+    ) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+        Ok(self.validator_api.get_active_gateways().await?)
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {

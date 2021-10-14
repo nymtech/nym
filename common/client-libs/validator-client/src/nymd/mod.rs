@@ -4,21 +4,20 @@
 use crate::nymd::cosmwasm_client::signing_client;
 use crate::nymd::cosmwasm_client::types::{
     ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
-    MigrateResult, UploadMeta, UploadResult,
+    MigrateResult, SequenceResponse, UploadMeta, UploadResult,
 };
 use crate::nymd::error::NymdError;
 use crate::nymd::fee_helpers::Operation;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
-
 use cosmwasm_std::Coin;
 use mixnet_contract::{
     Addr, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
-    LayerDistribution, MixNode, MixOwnershipResponse, PagedGatewayDelegationsResponse,
-    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
-    PagedReverseGatewayDelegationsResponse, PagedReverseMixDelegationsResponse, QueryMsg,
-    StateParams,
+    LayerDistribution, MixNode, MixOwnershipResponse, PagedAllDelegationsResponse,
+    PagedGatewayDelegationsResponse, PagedGatewayResponse, PagedMixDelegationsResponse,
+    PagedMixnodeResponse, PagedReverseGatewayDelegationsResponse,
+    PagedReverseMixDelegationsResponse, QueryMsg, RawDelegationData, StateParams,
 };
 use serde::Serialize;
 use std::collections::HashMap;
@@ -28,6 +27,7 @@ pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::gas_price::GasPrice;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
+pub use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{Fee, Gas};
 pub use cosmrs::Coin as CosmosCoin;
@@ -155,6 +155,13 @@ impl<C> NymdClient<C> {
         &self.client_address.as_ref().unwrap()[0]
     }
 
+    pub async fn account_sequence(&self) -> Result<SequenceResponse, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.client.get_sequence(self.address()).await
+    }
+
     pub fn get_fee(&self, operation: Operation) -> Fee {
         let gas_limit = self.custom_gas_limits.get(&operation).cloned();
         operation.determine_fee(&self.gas_price, gas_limit)
@@ -169,6 +176,13 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.client.get_block(None).await?.block.header.time)
+    }
+
+    pub async fn get_current_block_height(&self) -> Result<Height, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client.get_height().await
     }
 
     pub async fn get_balance(&self, address: &AccountId) -> Result<Option<CosmosCoin>, NymdError>
@@ -283,6 +297,25 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    /// Gets list of all mixnode delegations on particular page.
+    pub async fn get_all_mix_delegations_paged(
+        &self,
+        // I really hate mixing cosmwasm and cosmos-sdk types here...
+        start_after: Option<Vec<u8>>,
+        page_limit: Option<u32>,
+    ) -> Result<PagedAllDelegationsResponse<RawDelegationData>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetAllMixDelegations {
+            start_after,
+            limit: page_limit,
+        };
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
     /// Gets list of all the mixnodes on which a particular address delegated.
     pub async fn get_reverse_mix_delegations_paged(
         &self,
@@ -321,7 +354,7 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    /// Gets list of all delegations towards particular mixnode on particular page.
+    /// Gets list of all delegations towards particular gateway on particular page.
     pub async fn get_gateway_delegations(
         &self,
         gateway_identity: IdentityKey,
@@ -333,6 +366,24 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetGatewayDelegations {
             gateway_identity,
+            start_after,
+            limit: page_limit,
+        };
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    /// Gets list of all gateway delegations on particular page.
+    pub async fn get_all_gateway_delegations(
+        &self,
+        start_after: Option<Vec<u8>>,
+        page_limit: Option<u32>,
+    ) -> Result<PagedAllDelegationsResponse<RawDelegationData>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetAllGatewayDelegations {
             start_after,
             limit: page_limit,
         };

@@ -6,7 +6,7 @@ import {
     PagedGatewayResponse, PagedMixDelegationsResponse,
     PagedMixnodeResponse,
     StateParams
-} from "./index";
+} from "./types";
 import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
 import { Coin, StdFee } from "@cosmjs/stargate";
 import { BroadcastTxResponse } from "@cosmjs/stargate"

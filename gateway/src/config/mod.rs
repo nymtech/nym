@@ -25,7 +25,7 @@ const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500
 const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
-const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: u16 = 5;
+const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
 
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
@@ -46,8 +46,6 @@ fn default_clients_port() -> u16 {
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct Config {
     gateway: Gateway,
-
-    clients_endpoint: ClientsEndpoint,
 
     #[serde(default)]
     logging: Logging,
@@ -115,17 +113,9 @@ impl Config {
             self.gateway.public_identity_key_file =
                 self::Gateway::default_public_identity_key_file(&id);
         }
-        if self
-            .clients_endpoint
-            .inboxes_directory
-            .as_os_str()
-            .is_empty()
-        {
-            self.clients_endpoint.inboxes_directory =
-                self::ClientsEndpoint::default_inboxes_directory(&id);
-        }
-        if self.clients_endpoint.ledger_path.as_os_str().is_empty() {
-            self.clients_endpoint.ledger_path = self::ClientsEndpoint::default_ledger_path(&id);
+
+        if self.gateway.persistent_storage.as_os_str().is_empty() {
+            self.gateway.persistent_storage = self::Gateway::default_database_path(&id)
         }
 
         self.gateway.id = id;
@@ -170,13 +160,8 @@ impl Config {
         self
     }
 
-    pub fn with_custom_clients_inboxes<S: Into<String>>(mut self, inboxes_dir: S) -> Self {
-        self.clients_endpoint.inboxes_directory = PathBuf::from(inboxes_dir.into());
-        self
-    }
-
-    pub fn with_custom_clients_ledger<S: Into<String>>(mut self, ledger_path: S) -> Self {
-        self.clients_endpoint.ledger_path = PathBuf::from(ledger_path.into());
+    pub fn with_custom_persistent_store<S: Into<String>>(mut self, store_dir: S) -> Self {
+        self.gateway.persistent_storage = PathBuf::from(store_dir.into());
         self
     }
 
@@ -226,12 +211,8 @@ impl Config {
         self.gateway.clients_port
     }
 
-    pub fn get_clients_inboxes_dir(&self) -> PathBuf {
-        self.clients_endpoint.inboxes_directory.clone()
-    }
-
-    pub fn get_clients_ledger_path(&self) -> PathBuf {
-        self.clients_endpoint.ledger_path.clone()
+    pub fn get_persistent_store_path(&self) -> PathBuf {
+        self.gateway.persistent_storage.clone()
     }
 
     pub fn get_packet_forwarding_initial_backoff(&self) -> Duration {
@@ -250,12 +231,8 @@ impl Config {
         self.debug.maximum_connection_buffer_size
     }
 
-    pub fn get_message_retrieval_limit(&self) -> u16 {
+    pub fn get_message_retrieval_limit(&self) -> i64 {
         self.debug.message_retrieval_limit
-    }
-
-    pub fn get_stored_messages_filename_length(&self) -> u16 {
-        self.debug.stored_messages_filename_length
     }
 
     pub fn get_version(&self) -> &str {
@@ -310,6 +287,10 @@ pub struct Gateway {
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
+
+    /// Path to sqlite database containing all persistent data: messages for offline clients,
+    /// derived shared keys and available client bandwidths.
+    persistent_storage: PathBuf,
 }
 
 impl Gateway {
@@ -328,6 +309,10 @@ impl Gateway {
     fn default_public_identity_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(Some(id)).join("public_identity.pem")
     }
+
+    fn default_database_path(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("db.sqlite")
+    }
 }
 
 impl Default for Gateway {
@@ -345,35 +330,7 @@ impl Default for Gateway {
             public_sphinx_key_file: Default::default(),
             validator_api_urls: default_api_endpoints(),
             nym_root_directory: Config::default_root_directory(),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct ClientsEndpoint {
-    /// Path to the directory with clients inboxes containing messages stored for them.
-    inboxes_directory: PathBuf,
-
-    /// Full path to a file containing mapping of
-    /// client addresses to their access tokens.
-    ledger_path: PathBuf,
-}
-
-impl ClientsEndpoint {
-    fn default_inboxes_directory(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("inboxes")
-    }
-
-    fn default_ledger_path(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("client_ledger.sled")
-    }
-}
-
-impl Default for ClientsEndpoint {
-    fn default() -> Self {
-        ClientsEndpoint {
-            inboxes_directory: Default::default(),
-            ledger_path: Default::default(),
+            persistent_storage: Default::default(),
         }
     }
 }
@@ -415,10 +372,8 @@ pub struct Debug {
     /// Length of filenames for new client messages.
     stored_messages_filename_length: u16,
 
-    /// Number of messages client gets on each request
-    /// if there are no real messages, dummy ones are created to always return  
-    /// `message_retrieval_limit` total messages
-    message_retrieval_limit: u16,
+    /// Number of messages from offline client that can be pulled at once from the storage.
+    message_retrieval_limit: i64,
 }
 
 impl Default for Debug {

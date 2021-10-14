@@ -13,6 +13,8 @@ use mixnet_contract::{
     Addr, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
     RawDelegationData, StateParams,
 };
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
 // storage prefixes
 // all of them must be unique and presumably not be a prefix of a different one
@@ -304,6 +306,13 @@ pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey
 }
 
 // delegation related
+pub fn all_mix_delegations_read<T>(storage: &dyn Storage) -> ReadonlyBucket<T>
+where
+    T: Serialize + DeserializeOwned,
+{
+    bucket_read(storage, PREFIX_MIX_DELEGATION)
+}
+
 pub fn mix_delegations<'a>(
     storage: &'a mut dyn Storage,
     mix_identity: IdentityKeyRef,
@@ -318,14 +327,6 @@ pub fn mix_delegations_read<'a>(
     ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
 }
 
-// https://github.com/nymtech/nym/blob/122f5d9f2e5c1ced96e3b9ba0c74ef8b7dbde2c7/contracts/mixnet/src/storage.rs
-pub fn mix_delegations_read_old<'a>(
-    storage: &'a dyn Storage,
-    mix_identity: IdentityKeyRef,
-) -> ReadonlyBucket<'a, Uint128> {
-    ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
-}
-
 pub fn reverse_mix_delegations<'a>(storage: &'a mut dyn Storage, owner: &Addr) -> Bucket<'a, ()> {
     Bucket::multilevel(storage, &[PREFIX_REVERSE_MIX_DELEGATION, owner.as_bytes()])
 }
@@ -335,6 +336,13 @@ pub fn reverse_mix_delegations_read<'a>(
     owner: &Addr,
 ) -> ReadonlyBucket<'a, ()> {
     ReadonlyBucket::multilevel(storage, &[PREFIX_REVERSE_MIX_DELEGATION, owner.as_bytes()])
+}
+
+pub fn all_gateway_delegations_read<T>(storage: &dyn Storage) -> ReadonlyBucket<T>
+where
+    T: Serialize + DeserializeOwned,
+{
+    bucket_read(storage, PREFIX_GATEWAY_DELEGATION)
 }
 
 pub fn gateway_delegations<'a>(
@@ -351,16 +359,6 @@ pub fn gateway_delegations_read<'a>(
     storage: &'a dyn Storage,
     gateway_identity: IdentityKeyRef,
 ) -> ReadonlyBucket<'a, RawDelegationData> {
-    ReadonlyBucket::multilevel(
-        storage,
-        &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
-    )
-}
-
-pub fn gateway_delegations_read_old<'a>(
-    storage: &'a dyn Storage,
-    gateway_identity: IdentityKeyRef,
-) -> ReadonlyBucket<'a, Uint128> {
     ReadonlyBucket::multilevel(
         storage,
         &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
@@ -412,12 +410,13 @@ pub(crate) fn read_gateway_delegation(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::helpers::identity_and_owner_to_bytes;
     use crate::support::tests::helpers::{
         gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
         raw_delegation_fixture,
     };
     use config::defaults::DENOM;
-    use cosmwasm_std::testing::MockStorage;
+    use cosmwasm_std::testing::{mock_dependencies, MockStorage};
     use cosmwasm_std::{coin, Addr, Uint128};
     use mixnet_contract::{Gateway, MixNode};
 
@@ -485,6 +484,7 @@ mod tests {
     }
 
     #[test]
+    #[test]
     fn reading_gateway_bond() {
         let mut storage = MockStorage::new();
         let node_owner: Addr = Addr::unchecked("node-owner");
@@ -516,6 +516,72 @@ mod tests {
             Uint128(bond_value),
             read_gateway_bond(&storage, node_identity.as_bytes()).unwrap()
         );
+    }
+
+    #[test]
+    fn all_mixnode_delegations_read_retrieval() {
+        let mut deps = mock_dependencies(&[]);
+        let node_identity1: IdentityKey = "foo1".into();
+        let delegation_owner1 = Addr::unchecked("bar1");
+        let node_identity2: IdentityKey = "foo2".into();
+        let delegation_owner2 = Addr::unchecked("bar2");
+        let raw_delegation1 = RawDelegationData::new(1u128.into(), 1000);
+        let raw_delegation2 = RawDelegationData::new(2u128.into(), 2000);
+
+        mix_delegations(&mut deps.storage, &node_identity1)
+            .save(delegation_owner1.as_bytes(), &raw_delegation1)
+            .unwrap();
+        mix_delegations(&mut deps.storage, &node_identity2)
+            .save(delegation_owner2.as_bytes(), &raw_delegation2)
+            .unwrap();
+
+        let res1 = all_mix_delegations_read::<RawDelegationData>(&deps.storage)
+            .load(&*identity_and_owner_to_bytes(
+                &node_identity1,
+                &delegation_owner1,
+            ))
+            .unwrap();
+        let res2 = all_mix_delegations_read::<RawDelegationData>(&deps.storage)
+            .load(&*identity_and_owner_to_bytes(
+                &node_identity2,
+                &delegation_owner2,
+            ))
+            .unwrap();
+        assert_eq!(raw_delegation1, res1);
+        assert_eq!(raw_delegation2, res2);
+    }
+
+    #[test]
+    fn all_gateway_delegations_read_retrieval() {
+        let mut deps = mock_dependencies(&[]);
+        let node_identity1: IdentityKey = "foo1".into();
+        let delegation_owner1 = Addr::unchecked("bar1");
+        let node_identity2: IdentityKey = "foo2".into();
+        let delegation_owner2 = Addr::unchecked("bar2");
+        let raw_delegation1 = RawDelegationData::new(1u128.into(), 1000);
+        let raw_delegation2 = RawDelegationData::new(2u128.into(), 2000);
+
+        gateway_delegations(&mut deps.storage, &node_identity1)
+            .save(delegation_owner1.as_bytes(), &raw_delegation1)
+            .unwrap();
+        gateway_delegations(&mut deps.storage, &node_identity2)
+            .save(delegation_owner2.as_bytes(), &raw_delegation2)
+            .unwrap();
+
+        let res1 = all_gateway_delegations_read::<RawDelegationData>(&deps.storage)
+            .load(&*identity_and_owner_to_bytes(
+                &node_identity1,
+                &delegation_owner1,
+            ))
+            .unwrap();
+        let res2 = all_gateway_delegations_read::<RawDelegationData>(&deps.storage)
+            .load(&*identity_and_owner_to_bytes(
+                &node_identity2,
+                &delegation_owner2,
+            ))
+            .unwrap();
+        assert_eq!(raw_delegation1, res1);
+        assert_eq!(raw_delegation2, res2);
     }
 
     #[cfg(test)]

@@ -14,6 +14,9 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use url::Url;
 
+#[cfg(feature = "coconut")]
+use coconut_interface::{Base58, KeyPair};
+
 mod template;
 
 const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
@@ -30,7 +33,6 @@ const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(default)]
     base: Base,
@@ -82,6 +84,7 @@ pub struct Base {
     mixnet_contract_address: String,
 
     // Avoid breaking derives for now
+    #[cfg(feature = "coconut")]
     keypair_bs58: String,
 }
 
@@ -254,6 +257,7 @@ impl Config {
         Config::default()
     }
 
+    #[cfg(feature = "coconut")]
     pub fn keypair(&self) -> KeyPair {
         KeyPair::try_from_bs58(self.base.keypair_bs58.clone()).unwrap()
     }
@@ -298,6 +302,7 @@ impl Config {
         self
     }
 
+    #[cfg(feature = "coconut")]
     pub fn with_keypair<S: Into<String>>(mut self, keypair_bs58: S) -> Self {
         self.base.keypair_bs58 = keypair_bs58.into();
         self
@@ -391,6 +396,8 @@ impl Config {
         self.node_status_api.database_path.clone()
     }
 
+    // fix dead code warnings as this method is only ever used with coconut feature
+    #[cfg(feature = "coconut")]
     pub fn get_all_validator_api_endpoints(&self) -> Vec<Url> {
         self.network_monitor.all_validator_apis.clone()
     }

@@ -40,7 +40,7 @@ impl MixTrafficController {
     async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {
         debug_assert!(!mix_packets.is_empty());
 
-        let success = if mix_packets.len() == 1 {
+        let result = if mix_packets.len() == 1 {
             let mix_packet = mix_packets.pop().unwrap();
             self.gateway_client.send_mix_packet(mix_packet).await
         } else {
@@ -49,7 +49,7 @@ impl MixTrafficController {
                 .await
         };
 
-        match success {
+        match result {
             Err(e) => {
                 error!("Failed to send sphinx packet(s) to the gateway! - {:?}", e);
                 self.consecutive_gateway_failure_count += 1;

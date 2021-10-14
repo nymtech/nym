@@ -6,6 +6,7 @@ use crate::registration::handshake::shared_key::SharedKeys;
 use crypto::symmetric::stream_cipher;
 use nymsphinx::params::GatewayEncryptionAlgorithm;
 use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
+use thiserror::Error;
 
 pub const ENCRYPTED_ADDRESS_SIZE: usize = DESTINATION_ADDRESS_LENGTH;
 
@@ -16,9 +17,11 @@ pub const ENCRYPTED_ADDRESS_SIZE: usize = DESTINATION_ADDRESS_LENGTH;
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct EncryptedAddressBytes([u8; ENCRYPTED_ADDRESS_SIZE]);
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum EncryptedAddressConversionError {
-    DecodeError(bs58::decode::Error),
+    #[error("Failed to decode the encrypted address - {0}")]
+    DecodeError(#[from] bs58::decode::Error),
+    #[error("The decoded address has invalid length")]
     StringOfInvalidLengthError,
 }
 
@@ -54,10 +57,7 @@ impl EncryptedAddressBytes {
     pub fn try_from_base58_string<S: Into<String>>(
         val: S,
     ) -> Result<Self, EncryptedAddressConversionError> {
-        let decoded = match bs58::decode(val.into()).into_vec() {
-            Ok(decoded) => decoded,
-            Err(err) => return Err(EncryptedAddressConversionError::DecodeError(err)),
-        };
+        let decoded = bs58::decode(val.into()).into_vec()?;
 
         if decoded.len() != ENCRYPTED_ADDRESS_SIZE {
             return Err(EncryptedAddressConversionError::StringOfInvalidLengthError);

@@ -252,7 +252,6 @@ export const Nav: React.FC = ({ children }) => {
 
   React.useEffect(() => {
     setCurrentPage(location.pathname)
-    console.log('location', location.pathname);
   }, [location])
 
   return (

@@ -18,9 +18,8 @@ const columns = [
     {
         field: 'owner',
         renderHeader: () => <CustomColumnHeading headingTitle='Owner' />,
-        width: 180,
+        width: 360,
         renderCell: (params: GridRenderCellParams) => {
-            console.log('params are ', params);
             return (
                 <div>
                     <Typography>{params.value}</Typography>

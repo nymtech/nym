@@ -30,8 +30,7 @@ use fluvio_wasm_timer as wasm_timer;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 
-#[cfg(feature = "coconut")]
-use coconut_interface::Credential;
+use crate::bandwidth::BandwidthController;
 
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
@@ -46,6 +45,7 @@ pub struct GatewayClient {
     connection: SocketState,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
+    bandwidth_controller: Option<BandwidthController>,
 
     // reconnection related variables
     /// Specifies whether client should try to reconnect to gateway on connection failure.
@@ -68,6 +68,7 @@ impl GatewayClient {
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
+        bandwidth_controller: Option<BandwidthController>,
     ) -> Self {
         GatewayClient {
             authenticated: false,
@@ -79,6 +80,7 @@ impl GatewayClient {
             connection: SocketState::NotConnected,
             packet_router: PacketRouter::new(ack_sender, mixnet_message_sender),
             response_timeout_duration,
+            bandwidth_controller,
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
@@ -122,6 +124,7 @@ impl GatewayClient {
             connection: SocketState::NotConnected,
             packet_router,
             response_timeout_duration,
+            bandwidth_controller: None,
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
@@ -196,14 +199,7 @@ impl GatewayClient {
 
         for i in 1..self.reconnection_attempts {
             info!("attempt {}...", i);
-            if self
-                .authenticate_and_start(
-                    #[cfg(feature = "coconut")]
-                    None,
-                )
-                .await
-                .is_ok()
-            {
+            if self.authenticate_and_start().await.is_ok() {
                 info!("managed to reconnect!");
                 return Ok(());
             }
@@ -222,13 +218,7 @@ impl GatewayClient {
 
         // final attempt (done separately to be able to return a proper error)
         info!("attempt {}", self.reconnection_attempts);
-        match self
-            .authenticate_and_start(
-                #[cfg(feature = "coconut")]
-                None,
-            )
-            .await
-        {
+        match self.authenticate_and_start().await {
             Ok(_) => {
                 info!("managed to reconnect!");
                 Ok(())
@@ -466,16 +456,23 @@ impl GatewayClient {
     }
 
     #[cfg(feature = "coconut")]
-    pub async fn claim_coconut_bandwidth(
-        &mut self,
-        coconut_credential: Credential,
-    ) -> Result<(), GatewayClientError> {
+    async fn claim_coconut_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
         if self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
         }
+        if self.bandwidth_controller.is_none() {
+            return Err(GatewayClientError::NoBandwidthControllerAvailable);
+        }
+
+        let coconut_credential = self
+            .bandwidth_controller
+            .as_ref()
+            .unwrap()
+            .prepare_coconut_credential()
+            .await;
 
         let mut rng = OsRng;
         let iv = IV::new_random(&mut rng);
@@ -495,6 +492,13 @@ impl GatewayClient {
         Ok(())
     }
 
+    pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError> {
+        #[cfg(feature = "coconut")]
+        return self.claim_coconut_bandwidth().await;
+        #[cfg(not(feature = "coconut"))]
+        Ok(())
+    }
+
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {
         packets
             .iter()
@@ -510,7 +514,12 @@ impl GatewayClient {
             return Err(GatewayClientError::NotAuthenticated);
         }
         if self.estimate_required_bandwidth(&packets) < self.bandwidth_remaining {
-            return Err(GatewayClientError::NotEnoughBandwidth);
+            // Try to claim more bandwidth first, and return an error only if that is still not
+            // enough (the current granularity for bandwidth
+            self.claim_bandwidth().await?;
+            if self.estimate_required_bandwidth(&packets) < self.bandwidth_remaining {
+                return Err(GatewayClientError::NotEnoughBandwidth);
+            }
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -577,7 +586,12 @@ impl GatewayClient {
             return Err(GatewayClientError::NotAuthenticated);
         }
         if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
-            return Err(GatewayClientError::NotEnoughBandwidth);
+            // Try to claim more bandwidth first, and return an error only if that is still not
+            // enough (the current granularity for bandwidth
+            self.claim_bandwidth().await?;
+            if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
+                return Err(GatewayClientError::NotEnoughBandwidth);
+            }
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -641,21 +655,11 @@ impl GatewayClient {
         Ok(())
     }
 
-    pub async fn authenticate_and_start(
-        &mut self,
-        #[cfg(feature = "coconut")] coconut_credential: Option<Credential>,
-    ) -> Result<Arc<SharedKeys>, GatewayClientError> {
+    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError> {
         if !self.connection.is_established() {
             self.establish_connection().await?;
         }
         let shared_key = self.perform_initial_authentication().await?;
-
-        #[cfg(feature = "coconut")]
-        {
-            if let Some(coconut_credential) = coconut_credential {
-                self.claim_coconut_bandwidth(coconut_credential).await?;
-            }
-        }
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

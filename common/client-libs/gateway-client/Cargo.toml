@@ -11,9 +11,11 @@ edition = "2018"
 # the entire crate
 futures = "0.3"
 log = "0.4"
+url = "2.2"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 
 # internal
+credentials = { path = "../../credentials", optional = true }
 crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
 nymsphinx = { path = "../../nymsphinx" }
@@ -59,4 +61,4 @@ features = ["js"]
 #url = "2.1"
 
 [features]
-coconut = ["gateway-requests/coconut", "coconut-interface"]
+coconut = ["gateway-requests/coconut", "coconut-interface", "credentials"]

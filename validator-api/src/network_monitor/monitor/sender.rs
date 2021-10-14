@@ -21,8 +21,7 @@ use std::task::Poll;
 use std::time::Duration;
 use tokio::time::Instant;
 
-#[cfg(feature = "coconut")]
-use coconut_interface::Credential;
+use gateway_client::bandwidth::BandwidthController;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
@@ -73,8 +72,7 @@ struct FreshGatewayClientData {
     // SECURITY:
     // since currently we have no double spending protection, just to get things running
     // we're re-using the same credential for all gateways all the time. THIS IS VERY BAD!!
-    #[cfg(feature = "coconut")]
-    coconut_bandwidth_credential: Credential,
+    bandwidth_controller: BandwidthController,
 }
 
 pub(crate) struct PacketSender {
@@ -100,7 +98,7 @@ impl PacketSender {
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
         max_sending_rate: usize,
-        #[cfg(feature = "coconut")] coconut_bandwidth_credential: Credential,
+        bandwidth_controller: BandwidthController,
     ) -> Self {
         PacketSender {
             active_gateway_clients: HashMap::new(),
@@ -108,8 +106,7 @@ impl PacketSender {
                 gateways_status_updater,
                 local_identity,
                 gateway_response_timeout,
-                #[cfg(feature = "coconut")]
-                coconut_bandwidth_credential,
+                bandwidth_controller,
             }),
             gateway_connection_timeout,
             max_concurrent_clients,
@@ -141,6 +138,7 @@ impl PacketSender {
                 message_sender,
                 ack_sender,
                 fresh_gateway_client_data.gateway_response_timeout,
+                Some(fresh_gateway_client_data.bandwidth_controller.clone()),
             ),
             (message_receiver, ack_receiver),
         )
@@ -233,14 +231,7 @@ impl PacketSender {
             // (an actual bug we experienced)
             match tokio::time::timeout(
                 gateway_connection_timeout,
-                new_client.authenticate_and_start(
-                    #[cfg(feature = "coconut")]
-                    Some(
-                        fresh_gateway_client_data
-                            .coconut_bandwidth_credential
-                            .clone(),
-                    ),
-                ),
+                new_client.authenticate_and_start(),
             )
             .await
             {

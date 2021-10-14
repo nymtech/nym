@@ -19,6 +19,7 @@ pub enum GatewayClientError {
     NetworkErrorWasm(JsValue),
 
     NoSharedKeyAvailable,
+    NoBandwidthControllerAvailable,
     ConnectionAbruptlyClosed,
     MalformedResponse,
     SerializeCredential,
@@ -72,6 +73,9 @@ impl fmt::Display for GatewayClientError {
             }
             GatewayClientError::NoSharedKeyAvailable => {
                 write!(f, "no shared key was provided or obtained")
+            }
+            GatewayClientError::NoBandwidthControllerAvailable => {
+                write!(f, "no bandwidth controller provided")
             }
             GatewayClientError::NotAuthenticated => write!(f, "client is not authenticated"),
 

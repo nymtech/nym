@@ -8,6 +8,7 @@ pub use packet_router::{
 };
 use tungstenite::{protocol::Message, Error as WsError};
 
+pub mod bandwidth;
 pub mod client;
 pub mod error;
 pub mod packet_router;

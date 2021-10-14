@@ -118,7 +118,7 @@ const navOptions: navOptionType[] = [
   {
     url: '/network-components',
     title: 'Network Components',
-    Icon: <NetworkComponentsSVG />,
+    Icon: < NetworkComponentsSVG />,
     nested: [
       {
         url: '/network-components/mixnodes',
@@ -152,8 +152,8 @@ const ExpandableButton: React.FC<navOptionType> = ({
   const [open, toggle] = React.useState(false);
   const handleClick = () => toggle(!open);
 
-  const [ isExternal, setIsExternal ] = React.useState<boolean>(false);
-  const [ isMatched, setIsMatched ] = React.useState<boolean>(false);
+  const [isExternal, setIsExternal] = React.useState<boolean>(false);
+  const [isMatched, setIsMatched] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     setIsExternal(url.includes("http"));
@@ -166,7 +166,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
   React.useEffect(() => {
     const str = title.toLowerCase();
 
-    if(currentPage && currentPage?.includes(str)) {
+    if (currentPage && currentPage?.includes(str)) {
       setIsMatched(true);
     } else {
       setIsMatched(false);
@@ -178,8 +178,8 @@ const ExpandableButton: React.FC<navOptionType> = ({
       <ListItem
         disableGutters
         component={Link}
-        to={ isExternal ? { pathname: url } : url }
-        target={ isExternal ? '_blank' : ''}
+        to={isExternal ? { pathname: url } : url}
+        target={isExternal ? '_blank' : ''}
         sx={{
           background: isExpandedChild ? otherNested : 'inherit',
         }}
@@ -225,7 +225,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
               fontWeight: isMatched ? 'bold' : 300
             }}
           />
-          {open ? <ExpandLess color="primary" /> : <ExpandMore color="primary" />}
+          {open ? <ExpandLess color='primary' /> : <ExpandMore color='primary' />}
         </ListItemButton>
       </ListItem>
       {open &&
@@ -238,7 +238,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
 
 export const Nav: React.FC = ({ children }) => {
   const { toggleMode, mode }: any = React.useContext(MainContext);
-  const [ currentPage, setCurrentPage ] = React.useState<string>('');
+  const [currentPage, setCurrentPage] = React.useState<string>('');
   const [open, setOpen] = React.useState(true);
   const location = useLocation()
 
@@ -260,7 +260,7 @@ export const Nav: React.FC = ({ children }) => {
       <AppBar
         position="fixed"
         open={open}
-        sx={{ 
+        sx={{
           background: theme => theme.palette.primary.dark,
         }}>
         <Toolbar disableGutters sx={{ paddingLeft: 2 }}>
@@ -270,11 +270,11 @@ export const Nav: React.FC = ({ children }) => {
             onClick={handleDrawerOpen}
             edge="start"
             sx={{
-                ...(open && { 
-                  display: 'none',
-                  margin: 0,
-                  padding: 2
-                }
+              ...(open && {
+                display: 'none',
+                margin: 0,
+                padding: 2
+              }
               ),
             }}
           >
@@ -288,7 +288,7 @@ export const Nav: React.FC = ({ children }) => {
               marginLeft: 3,
               color: theme => theme.palette.primary.main,
             }}
-            >
+          >
             Network Explorer
           </Typography>
         </Toolbar>
@@ -296,7 +296,7 @@ export const Nav: React.FC = ({ children }) => {
       <Drawer
         variant="permanent"
         open={open}
-        sx={{ 
+        sx={{
           background: theme => theme.palette.secondary.dark
         }}
       >

@@ -1,1 +1,13 @@
 /* last resort for styles that cannot be handled by Material UI and Emotion JS */
+
+/* TODO - this override should take place in either
+the theme declaration in index.tsx or the style prop
+in <DataGrid /> */
+
+.MuiDataGrid-sortIcon {
+    display: none !important;
+}
+
+.MuiDataGrid-columnHeader:focus {
+    outline: none !important;
+}

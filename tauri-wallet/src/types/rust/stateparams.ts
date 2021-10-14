@@ -7,5 +7,4 @@ export interface TauriStateParams {
   mixnode_delegation_reward_rate: string;
   gateway_delegation_reward_rate: string;
   mixnode_active_set_size: number;
-  gateway_active_set_size: number;
 }

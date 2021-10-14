@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Box, Button, CircularProgress, Theme } from '@material-ui/core'
 import { useTheme } from '@material-ui/styles'
+import { Alert, AlertTitle } from '@material-ui/lab'
 import { DelegateForm } from './DelegateForm'
 import { Layout } from '../../layouts'
 import { NymCard } from '../../components'
@@ -8,7 +9,6 @@ import {
   EnumRequestStatus,
   RequestStatus,
 } from '../../components/RequestStatus'
-import { Alert, AlertTitle } from '@material-ui/lab'
 import { TFee } from '../../types'
 import { getGasFee } from '../../requests'
 
@@ -73,7 +73,8 @@ export const Delegate = () => {
                 status={status}
                 Error={
                   <Alert severity="error">
-                    An error occurred with the request: {message}
+                    An error occurred with the request:
+                    <Box style={{ wordBreak: 'break-word' }}>{message}</Box>
                   </Alert>
                 }
                 Success={

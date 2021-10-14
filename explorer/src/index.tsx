@@ -30,16 +30,23 @@ const AppWrapper = () => {
       ...(mode === 'light' ? {
         background: {
           default: palette.secondary.light
-        }} : {
-          background: {
-            default: '#111826',
-          }
         }
+      } : {
+        background: {
+          default: '#111826',
+        }
+      }
       ),
     },
     typography: {
-      fontFamily:
-        'open sans, sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"',
+      fontFamily: [
+        'Open Sans',
+        'cursive',
+        'sans-serif',
+        'BlinkMacSystemFont',
+        'Roboto',
+        "Oxygen", "Ubuntu", "Helvetica Neue"
+      ].join(','),
       fontSize: 14,
       fontWeightBold: 600,
     },
@@ -77,12 +84,9 @@ const AppWrapper = () => {
         styleOverrides: {
           root: {
             background: palette.secondary.dark,
-            // '&:hover': {
-            //   backgroundColor: 'transparent',
-            // }
           }
         }
-      }
+      },
     },
   });
 

@@ -1,7 +1,8 @@
 import * as React from 'react';
+import { GridRenderCellParams, GridColumnHeaderParams } from '@mui/x-data-grid';
 import { Box, Grid, Typography } from '@mui/material';
 import { MainContext } from 'src/context/main';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { ContentCard } from 'src/components/ContentCard';
 import { WorldMap } from 'src/components/WorldMap';
 import { BondBreakdownTable } from 'src/components/BondBreakdown';
@@ -11,28 +12,46 @@ import { mixnodeToGridRow, scrollToRef } from 'src/utils';
 import { ComponentError } from 'src/components/ComponentError';
 import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
 import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
+import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 
 const columns = [
-    { field: 'owner', headerName: 'Owner', width: 380, },
-    { field: 'identity_key', headerName: 'Identity Key', width: 420 },
+    {
+        field: 'owner',
+        renderHeader: () => <CustomColumnHeading headingTitle='Owner' />,
+        width: 180,
+        renderCell: (params: GridRenderCellParams) => {
+            console.log('params are ', params);
+            return (
+                <div>
+                    <Typography>{params.value}</Typography>
+                </div>
+            )
+        }
+
+    },
+    {
+        field: 'identity_key',
+        renderHeader: () => <CustomColumnHeading headingTitle='Identity Key' />,
+        width: 380
+    },
     {
         field: 'bond',
-        headerName: 'Bond',
-        width: 130,
+        renderHeader: () => <CustomColumnHeading headingTitle='Bond' />,
+        width: 120,
     },
     {
         field: 'host',
-        headerName: 'IP:Port',
+        renderHeader: () => <CustomColumnHeading headingTitle='IP:Port' />,
         width: 130,
     },
     {
         field: 'location',
-        headerName: 'Location',
+        renderHeader: () => <CustomColumnHeading headingTitle='Location' />,
         width: 120,
     },
     {
         field: 'layer',
-        headerName: 'Layer',
+        renderHeader: () => <CustomColumnHeading headingTitle='Layer' />,
         width: 100,
         type: 'number',
     },
@@ -42,6 +61,7 @@ export const PageMixnodeDetail: React.FC = () => {
     const ref = React.useRef();
     const [row, setRow] = React.useState<MixNodeResponseItem[]>([]);
     const {
+        mode,
         fetchMixnodeById,
         mixnodeDetailInfo,
         fetchStatsById,
@@ -84,19 +104,22 @@ export const PageMixnodeDetail: React.FC = () => {
             >
                 <Grid container spacing={2}>
                     <Grid item xs={12}>
-                        <Typography>
-                            Mixnode Detail
+                        <Typography sx={{ fontWeight: 'bold', color: theme => mode === 'dark' ? theme.palette.primary.main : theme.palette.secondary.main }}>
+                            Mix node Detail
                         </Typography>
                     </Grid>
                     <Grid item xs={12} xl={9}>
                         {mixnodeDetailInfo && (
-                            <UniversalDataGrid
-                                columnsData={columns}
-                                rows={mixnodeToGridRow(row)}
-                                loading={mixnodeDetailInfo.isLoading}
-                                height={180}
-                                pageSize='5'
-                            />
+                            <ContentCard>
+                                <UniversalDataGrid
+                                    columnsData={columns}
+                                    rows={mixnodeToGridRow(row)}
+                                    loading={mixnodeDetailInfo.isLoading}
+                                    height={180}
+                                    pageSize='1'
+                                    pagination={false}
+                                />
+                            </ContentCard>
                         )}
                     </Grid>
                     <Grid item xs={12} xl={9}>

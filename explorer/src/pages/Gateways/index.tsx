@@ -1,6 +1,6 @@
 import React from 'react';
 import { Typography } from '@mui/material';
-import { GridRenderCellParams } from '@mui/x-data-grid';
+import { GridRenderCellParams, GridColumnHeaderParams } from '@mui/x-data-grid';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
 import { MainContext } from 'src/context/main';
@@ -8,6 +8,7 @@ import { gatewayToGridRow } from 'src/utils';
 import { GatewayResponse } from 'src/typeDefs/explorer-api';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { ContentCard } from 'src/components/ContentCard';
+import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 
 export const PageGateways: React.FC = () => {
     const { gateways } = React.useContext(MainContext);
@@ -39,25 +40,29 @@ export const PageGateways: React.FC = () => {
     }, [searchTerm, gateways?.data])
 
     const columns = [
-        { field: 'owner', headerName: 'Owner', width: 380, },
+        {
+            field: 'owner',
+            renderHeader: (params: GridColumnHeaderParams) => <CustomColumnHeading headingTitle='Owner' />,
+            width: 380
+        },
         {
             field: 'identity_key',
-            headerName: 'Identity Key',
+            renderHeader: (params: GridColumnHeaderParams) => <CustomColumnHeading headingTitle='Identity Key' />,
             width: 420,
         },
         {
             field: 'bond',
-            headerName: 'Bond',
+            renderHeader: () => <CustomColumnHeading headingTitle='Bond' />,
             width: 130,
         },
         {
             field: 'host',
-            headerName: 'IP:Port',
+            renderHeader: () => <CustomColumnHeading headingTitle='IP:Port' />,
             width: 170,
         },
         {
             field: 'location',
-            headerName: 'Location',
+            renderHeader: () => <CustomColumnHeading headingTitle='Location' />,
             width: 120,
             renderCell: (params: GridRenderCellParams) => {
                 return (
@@ -92,6 +97,7 @@ export const PageGateways: React.FC = () => {
                     rows={gatewayToGridRow(filteredGateways)}
                     height={600}
                     pageSize={pageSize}
+                    pagination
                 />
             </ContentCard>
         </>

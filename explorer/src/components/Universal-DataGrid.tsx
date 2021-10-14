@@ -7,7 +7,8 @@ type DataGridProps = {
   loading?: boolean,
   rows: GridRowData[],
   columnsData: GridColumns,
-  pageSize?: string
+  pageSize?: string,
+  pagination?: boolean,
 }
 
 export const UniversalDataGrid = ({
@@ -16,6 +17,7 @@ export const UniversalDataGrid = ({
   rows,
   columnsData,
   pageSize,
+  pagination,
 }: DataGridProps) => {
 
   if (columnsData && rows) {
@@ -27,7 +29,8 @@ export const UniversalDataGrid = ({
           rows={rows}
           pageSize={Number(pageSize)}
           rowsPerPageOptions={[5]}
-          disableSelectionOnClick
+          hideFooterPagination={!pagination}
+          disableColumnMenu
         />
       </Box>
     );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { GridRenderCellParams } from '@mui/x-data-grid';
+import { GridRenderCellParams, GridColumnHeaderParams } from '@mui/x-data-grid';
 import { Link as RRDLink } from 'react-router-dom';
 import { Link as MuiLink } from '@mui/material';
 import { Typography } from '@mui/material';
@@ -12,6 +12,7 @@ import { TableToolbar } from 'src/components/TableToolbar';
 import { MixNodeResponse } from 'src/typeDefs/explorer-api';
 import { BIG_DIPPER } from 'src/api/constants';
 import { ContentCard } from 'src/components/ContentCard';
+import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes } = useContext(MainContext);
@@ -46,13 +47,15 @@ export const PageMixnodes: React.FC = () => {
     color: 'inherit',
     textDecoration: 'none',
     marginLeft: 2,
+    fontWeight: 400,
+    fontSize: 12,
   }
 
   const columns = [
     {
       field: 'owner',
-      headerName: 'Owner',
-      width: 380,
+      renderHeader: (params: GridColumnHeaderParams) => <CustomColumnHeading headingTitle='Owner' />,
+      width: 360,
       renderCell: (params: GridRenderCellParams) => {
         return (
           <MuiLink
@@ -67,8 +70,8 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'identity_key',
-      headerName: 'Identity Key',
-      width: 420,
+      renderHeader: () => <CustomColumnHeading headingTitle='Identity Key' />,
+      width: 410,
       renderCell: (params: GridRenderCellParams) => {
         return (
           <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.value}`}>
@@ -79,19 +82,19 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'bond',
-      headerName: 'Bond',
-      width: 130,
+      renderHeader: () => <CustomColumnHeading headingTitle='Bond' />,
+      width: 120,
       renderCell: (params: GridRenderCellParams) => {
         return (
           <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
-           {params.value}
+            {params.value}
           </MuiLink>
         )
       }
     },
     {
       field: 'host',
-      headerName: 'IP:Port',
+      renderHeader: () => <CustomColumnHeading headingTitle='IP:Port' />,
       width: 130,
       renderCell: (params: GridRenderCellParams) => {
         return (
@@ -103,7 +106,7 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'location',
-      headerName: 'Location',
+      renderHeader: () => <CustomColumnHeading headingTitle='Location' />,
       width: 120,
       renderCell: (params: GridRenderCellParams) => {
         return (
@@ -118,7 +121,7 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'layer',
-      headerName: 'Layer',
+      renderHeader: () => <CustomColumnHeading headingTitle='Layer' />,
       width: 100,
       type: 'number',
       renderCell: (params: GridRenderCellParams) => {
@@ -154,6 +157,7 @@ export const PageMixnodes: React.FC = () => {
           rows={mixnodeToGridRow(filteredMixnodes)}
           height={1080}
           pageSize={pageSize}
+          pagination
         />
       </ContentCard>
     </>

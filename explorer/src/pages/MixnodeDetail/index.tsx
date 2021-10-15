@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { GridRenderCellParams, GridColumnHeaderParams } from '@mui/x-data-grid';
+import { GridRenderCellParams } from '@mui/x-data-grid';
 import { Box, Grid, Typography } from '@mui/material';
 import { MainContext } from 'src/context/main';
 import { useParams } from 'react-router-dom';
@@ -26,7 +26,6 @@ const columns = [
                 </div>
             )
         }
-
     },
     {
         field: 'identity_key',

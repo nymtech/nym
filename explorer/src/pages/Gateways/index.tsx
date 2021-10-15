@@ -39,26 +39,38 @@ export const PageGateways: React.FC = () => {
         }
     }, [searchTerm, gateways?.data])
 
+    const linkStyles = {
+        color: 'inherit',
+        textDecoration: 'none',
+        marginLeft: 2,
+        fontWeight: 400,
+        fontSize: 12,
+    }
+
     const columns = [
         {
             field: 'owner',
             renderHeader: (params: GridColumnHeaderParams) => <CustomColumnHeading headingTitle='Owner' />,
-            width: 380
+            width: 360,
+            renderCell: (params: GridRenderCellParams) => <Typography sx={linkStyles}>{params.value}</Typography>
         },
         {
             field: 'identity_key',
             renderHeader: (params: GridColumnHeaderParams) => <CustomColumnHeading headingTitle='Identity Key' />,
             width: 420,
+            renderCell: (params: GridRenderCellParams) => <Typography sx={linkStyles}>{params.value}</Typography>
         },
         {
             field: 'bond',
             renderHeader: () => <CustomColumnHeading headingTitle='Bond' />,
-            width: 130,
+            width: 120,
+            renderCell: (params: GridRenderCellParams) => <Typography sx={linkStyles}>{params.value}</Typography>
         },
         {
             field: 'host',
             renderHeader: () => <CustomColumnHeading headingTitle='IP:Port' />,
-            width: 170,
+            width: 130,
+            renderCell: (params: GridRenderCellParams) => <Typography sx={linkStyles}>{params.value}</Typography>
         },
         {
             field: 'location',
@@ -66,7 +78,7 @@ export const PageGateways: React.FC = () => {
             width: 120,
             renderCell: (params: GridRenderCellParams) => {
                 return (
-                    <div onClick={() => handleSearch(params.value as string)} style={{ textDecoration: 'none', color: 'inherit', marginLeft: 16 }}>
+                    <div onClick={() => handleSearch(params.value as string)} style={linkStyles}>
                         {params.value}
                     </div>
                 )

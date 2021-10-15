@@ -71,7 +71,7 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'identity_key',
       renderHeader: () => <CustomColumnHeading headingTitle='Identity Key' />,
-      width: 410,
+      width: 420,
       renderCell: (params: GridRenderCellParams) => {
         return (
           <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.value}`}>

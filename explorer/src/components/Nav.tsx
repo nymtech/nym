@@ -182,6 +182,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
         target={isExternal ? '_blank' : ''}
         sx={{
           background: isExpandedChild ? otherNested : 'inherit',
+          borderRight: isMatched ? '3px solid #FB6E4E' : 'none',
         }}
       >
         <ListItemButton>
@@ -208,8 +209,8 @@ const ExpandableButton: React.FC<navOptionType> = ({
       <ListItem
         disableGutters
         sx={{
-          background: open ? selectedNotNested : 'inherit',
-          borderRight: open ? '3px solid #FB6E4E' : 'none',
+          background: (open || isMatched) ? selectedNotNested : 'inherit',
+          borderRight: (open || isMatched) ? '3px solid #FB6E4E' : 'none',
         }}
       >
         <ListItemButton

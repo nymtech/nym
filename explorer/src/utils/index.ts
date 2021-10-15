@@ -1,5 +1,4 @@
-import { GatewayResponse, GatewayResponseItem, MixNodeResponse, MixNodeResponseItem } from "src/typeDefs/explorer-api";
-
+import { GatewayResponse, MixNodeResponse } from "src/typeDefs/explorer-api";
 
 export function formatNumber(num: number) {
   return new Intl.NumberFormat().format(num);

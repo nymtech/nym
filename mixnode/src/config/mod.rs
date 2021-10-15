@@ -391,15 +391,9 @@ impl Default for MixNode {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Logging {}
-
-impl Default for Logging {
-    fn default() -> Self {
-        Logging {}
-    }
-}
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]

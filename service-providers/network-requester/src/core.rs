@@ -210,16 +210,12 @@ impl ServiceProvider {
         };
 
         match deserialized_request {
-            Request::Connect {
-                conn_id,
-                remote_addr,
-                return_address,
-            } => self.handle_proxy_connect(
+            Request::Connect(req) => self.handle_proxy_connect(
                 controller_sender,
                 mix_input_sender,
-                conn_id,
-                remote_addr,
-                return_address,
+                req.conn_id,
+                req.remote_addr,
+                req.return_address,
             ),
             Request::Send(conn_id, data, closed) => {
                 self.handle_proxy_send(controller_sender, conn_id, data, closed)

@@ -27,6 +27,7 @@ import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
 import { MainContext } from '../context/main';
 import { BIG_DIPPER } from 'src/api/constants';
+import { Routes } from 'src/routes';
 
 const drawerWidth = 300;
 
@@ -100,60 +101,89 @@ const Drawer = styled(MuiDrawer, {
 }));
 
 type navOptionType = {
+  id: number,
   url: string,
   title: string,
   Icon?: React.ReactNode,
-  // eslint-disable-next-line react/require-default-props
   nested?: navOptionType[],
   isExpandedChild?: boolean,
-  currentPage?: string,
+  isActive: boolean
 };
 
-const navOptions: navOptionType[] = [
+const originalNavOptions: navOptionType[] = [
   {
+    id: 0,
     url: '/overview',
     title: 'Overview',
-    Icon: <OverviewSVG />
+    Icon: <OverviewSVG />,
+    isActive: false,
   },
   {
+    id: 1,
     url: '/network-components',
     title: 'Network Components',
     Icon: < NetworkComponentsSVG />,
+    isActive: false,
     nested: [
       {
+        id: 3,
         url: '/network-components/mixnodes',
         title: 'Mixnodes',
+        isActive: false,
       },
       {
+        id: 4,
         url: '/network-components/gateways',
         title: 'Gateways',
+        isActive: false,
       },
       {
+        id: 5,
         url: `${BIG_DIPPER}/validators`,
         title: 'Validators',
+        isActive: false,
       },
     ],
   },
   {
+    id: 2,
     url: '/nodemap',
     title: 'Nodemap',
     Icon: <NodemapSVG />,
+    isActive: false,
   },
 ];
 
-const ExpandableButton: React.FC<navOptionType> = ({
+type ExpandableButtonType = {
+  id: number,
+  url: string,
+  title: string,
+  Icon?: React.ReactNode,
+  nested?: navOptionType[],
+  isExpandedChild?: boolean,
+  isActive: boolean,
+  resetAllRoutes: () => void,
+  openDrawer: () => void,
+}
+const ExpandableButton: React.FC<ExpandableButtonType> = ({
   nested,
   title,
   Icon,
   url,
   isExpandedChild,
-  currentPage,
-}) => {
+  isActive,
+  resetAllRoutes,
+  openDrawer,
+}: ExpandableButtonType) => {
   const [open, toggle] = React.useState(false);
-  const handleClick = () => toggle(!open);
-
+  const handleClick = () => {
+    openDrawer();
+    if (resetAllRoutes) {
+      resetAllRoutes();
+    }
+    toggle(!open);
+  }
   const [isExternal, setIsExternal] = React.useState<boolean>(false);
-  const [isMatched, setIsMatched] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     setIsExternal(url.includes("http"));
@@ -163,16 +193,6 @@ const ExpandableButton: React.FC<navOptionType> = ({
   const selectedNotNested = '#111826';
   const otherNested = '#3C4558';
 
-  React.useEffect(() => {
-    const str = title.toLowerCase();
-
-    if (currentPage && currentPage?.includes(str)) {
-      setIsMatched(true);
-    } else {
-      setIsMatched(false);
-    }
-  }, [currentPage])
-
   if (!nested) {
     return (
       <ListItem
@@ -181,11 +201,11 @@ const ExpandableButton: React.FC<navOptionType> = ({
         to={isExternal ? { pathname: url } : url}
         target={isExternal ? '_blank' : ''}
         sx={{
-          background: isExpandedChild ? otherNested : 'inherit',
-          borderRight: isMatched ? '3px solid #FB6E4E' : 'none',
+          background: isExpandedChild ? otherNested : isActive ? 'black' : mainNav,
+          borderRight: isActive && !open ? '3px solid #FB6E4E' : 'none',
         }}
       >
-        <ListItemButton>
+        <ListItemButton onClick={openDrawer}>
           <ListItemIcon>
             {Icon}
           </ListItemIcon>
@@ -196,7 +216,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
             }}
             primaryTypographyProps={{
               style: {
-                fontWeight: isMatched ? 800 : 300
+                fontWeight: isActive ? 800 : 300
               }
             }}
           />
@@ -209,8 +229,8 @@ const ExpandableButton: React.FC<navOptionType> = ({
       <ListItem
         disableGutters
         sx={{
-          background: (open || isMatched) ? selectedNotNested : 'inherit',
-          borderRight: (open || isMatched) ? '3px solid #FB6E4E' : 'none',
+          background: open ? selectedNotNested : isExpandedChild ? 'red' : mainNav,
+          borderRight: open ? '3px solid #FB6E4E' : 'none',
         }}
       >
         <ListItemButton
@@ -223,7 +243,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
             primary={title}
             sx={{
               color: (theme) => theme.palette.primary.main,
-              fontWeight: isMatched ? 'bold' : 300
+              fontWeight: open ? 'bold' : 400
             }}
           />
           {open ? <ExpandLess color='primary' /> : <ExpandMore color='primary' />}
@@ -231,7 +251,13 @@ const ExpandableButton: React.FC<navOptionType> = ({
       </ListItem>
       {open &&
         nested?.map((each: navOptionType) => (
-          <ExpandableButton key={each.title} {...each} isExpandedChild currentPage={currentPage} />
+          <ExpandableButton
+            key={each.title}
+            isExpandedChild
+            resetAllRoutes={resetAllRoutes}
+            openDrawer={openDrawer}
+            {...each}
+          />
         ))}
     </>
   );
@@ -239,7 +265,7 @@ const ExpandableButton: React.FC<navOptionType> = ({
 
 export const Nav: React.FC = ({ children }) => {
   const { toggleMode, mode }: any = React.useContext(MainContext);
-  const [currentPage, setCurrentPage] = React.useState<string>('');
+  const [routeStatuses, updateRouteStatuses] = React.useState<navOptionType[]>(originalNavOptions);
   const [open, setOpen] = React.useState(true);
   const location = useLocation()
 
@@ -251,14 +277,30 @@ export const Nav: React.FC = ({ children }) => {
     setOpen(false);
   };
 
+  const updateRoutes = () => {
+    const currentLocation = location.pathname
+    let matchedRoute = {
+      ...routeStatuses.filter(each => currentLocation.includes(each.url))[0],
+      isActive: true,
+    };
+    let allOtherRoutes = originalNavOptions.filter((each) => !currentLocation.includes(each.url))
+    allOtherRoutes.push(matchedRoute)
+    allOtherRoutes.sort((a, b) => a.id > b.id ? 1 : -1)
+    updateRouteStatuses(allOtherRoutes)
+  }
+
+  const resetAllRoutes = () => {
+    updateRouteStatuses(originalNavOptions);
+  }
+
   React.useEffect(() => {
-    setCurrentPage(location.pathname)
+    updateRoutes();
   }, [location])
 
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar
-        position="fixed"
+        position='fixed'
         open={open}
         sx={{
           background: theme => theme.palette.primary.dark,
@@ -307,8 +349,13 @@ export const Nav: React.FC = ({ children }) => {
         </DrawerHeader>
         <Divider />
         <List>
-          {navOptions.map((route) => (
-            <ExpandableButton key={route.url} {...route} currentPage={currentPage} />
+          {routeStatuses.map((props, i) => (
+            <ExpandableButton
+              key={i}
+              resetAllRoutes={resetAllRoutes}
+              openDrawer={handleDrawerOpen}
+              {...props}
+            />
           ))}
         </List>
         <Divider />

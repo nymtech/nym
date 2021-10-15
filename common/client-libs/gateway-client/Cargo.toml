@@ -10,9 +10,12 @@ edition = "2018"
 # TODO: (for this and other crates), similarly to 'tokio', import only required "futures" modules rather than
 # the entire crate
 futures = "0.3"
+json = "0.12.4"
 log = "0.4"
 url = "2.2"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+secp256k1 = "0.20.3"
+web3 = "0.17.0"
 
 # internal
 credentials = { path = "../../credentials", optional = true }
@@ -20,6 +23,7 @@ crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
 nymsphinx = { path = "../../nymsphinx" }
 coconut-interface = { path = "../../coconut-interface", optional = true }
+network-defaults = { path = "../../network-defaults" }
 
 [dependencies.tungstenite]
 version = "0.13"

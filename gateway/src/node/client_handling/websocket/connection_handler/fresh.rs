@@ -497,11 +497,6 @@ where
                 ClientControlRequest::RegisterHandshakeInitRequest { data } => {
                     self.handle_register(data).await
                 }
-
-                // note: this is not technically a "coconut" thing, but currently we have no non-coconut
-                // bandwidth handling and hence clippy complains about dead and unreachable code
-                // so whenever we introduce another form of bandwidth claim, this feature flag should get removed
-                #[cfg(feature = "coconut")]
                 // won't accept anything else (like bandwidth) without prior authentication
                 _ => Err(InitialAuthenticationError::InvalidRequest),
             }

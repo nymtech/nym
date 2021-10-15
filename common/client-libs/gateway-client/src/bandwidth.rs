@@ -2,25 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(feature = "coconut")]
-use coconut_interface::Credential;
-#[cfg(feature = "coconut")]
 use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
-#[cfg(feature = "coconut")]
 use crypto::asymmetric::identity::PublicKey;
-#[cfg(feature = "coconut")]
-use url::Url;
+#[cfg(not(feature = "coconut"))]
+use crypto::asymmetric::identity::Signature;
+#[cfg(not(feature = "coconut"))]
+use network_defaults::{
+    eth_contract::ETH_JSON_ABI, BANDWIDTH_VALUE, ETH_CONTRACT_ADDRESS, ETH_RPC_URL,
+};
+#[cfg(not(feature = "coconut"))]
+use web3::{
+    contract::{Contract, Options},
+    transports::Http,
+    types::{Address, Bytes, U256},
+};
 
 #[derive(Clone)]
 pub struct BandwidthController {
     #[cfg(feature = "coconut")]
-    validator_endpoints: Vec<Url>,
+    validator_endpoints: Vec<url::Url>,
     #[cfg(feature = "coconut")]
     identity: PublicKey,
+    #[cfg(not(feature = "coconut"))]
+    contract: Contract<Http>,
 }
 
 impl BandwidthController {
     #[cfg(feature = "coconut")]
-    pub fn new(validator_endpoints: Vec<Url>, identity: PublicKey) -> Self {
+    pub fn new(validator_endpoints: Vec<url::Url>, identity: PublicKey) -> Self {
         BandwidthController {
             validator_endpoints,
             identity,
@@ -29,11 +38,25 @@ impl BandwidthController {
 
     #[cfg(not(feature = "coconut"))]
     pub fn new() -> Self {
-        BandwidthController {}
+        // Fail early, on invalid url
+        let transport = Http::new(ETH_RPC_URL).expect("Invalid Ethereum URL");
+        let web3 = web3::Web3::new(transport);
+        // Fail early, on invalid abi
+        let contract = Contract::from_json(
+            web3.eth(),
+            Address::from(ETH_CONTRACT_ADDRESS),
+            json::parse(ETH_JSON_ABI)
+                .expect("Invalid json abi")
+                .dump()
+                .as_bytes(),
+        )
+        .expect("Invalid json abi");
+
+        BandwidthController { contract }
     }
 
     #[cfg(feature = "coconut")]
-    pub async fn prepare_coconut_credential(&self) -> Credential {
+    pub async fn prepare_coconut_credential(&self) -> coconut_interface::Credential {
         let verification_key = obtain_aggregate_verification_key(&self.validator_endpoints)
             .await
             .expect("could not obtain aggregate verification key of validators");
@@ -53,5 +76,40 @@ impl BandwidthController {
             &verification_key,
         )
         .expect("could not prepare out bandwidth credential for spending")
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub async fn buy_token_credential(
+        &self,
+        verification_key: PublicKey,
+        signed_verification_key: Signature,
+    ) {
+        let key = secp256k1::key::ONE_KEY;
+        self.contract
+            .signed_call_with_confirmations(
+                "burnTokenForAccessCode",
+                (
+                    U256::from(BANDWIDTH_VALUE),
+                    U256::from(&verification_key.to_bytes()),
+                    Bytes(signed_verification_key.to_bytes().to_vec()),
+                ),
+                Options::default(),
+                1,
+                &key,
+            )
+            .await
+            .unwrap();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(not(feature = "coconut"))]
+    #[test]
+    fn parse_contract() {
+        // test no panic occurs
+        BandwidthController::new();
     }
 }

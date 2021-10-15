@@ -117,8 +117,7 @@ pub enum ClientControlRequest {
     },
     #[serde(alias = "handshakePayload")]
     RegisterHandshakeInitRequest { data: Vec<u8> },
-    #[cfg(feature = "coconut")]
-    CoconutBandwidthCredential {
+    BandwidthCredential {
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     },
@@ -148,7 +147,7 @@ impl ClientControlRequest {
                 let enc_credential =
                     shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
 
-                Some(ClientControlRequest::CoconutBandwidthCredential {
+                Some(ClientControlRequest::BandwidthCredential {
                     enc_credential,
                     iv: iv.to_bytes(),
                 })

@@ -274,7 +274,7 @@ where
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
             Ok(request) => match request {
                 #[cfg(feature = "coconut")]
-                ClientControlRequest::CoconutBandwidthCredential { enc_credential, iv } => {
+                ClientControlRequest::BandwidthCredential { enc_credential, iv } => {
                     match self.handle_coconut_bandwidth(enc_credential, iv).await {
                         Ok(response) => response.into(),
                         Err(err) => err.into_error_message(),

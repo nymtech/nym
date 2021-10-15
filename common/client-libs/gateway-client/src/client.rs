@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::bandwidth::BandwidthController;
 use crate::cleanup_socket_message;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
@@ -29,8 +30,6 @@ use tokio_tungstenite::connect_async;
 use fluvio_wasm_timer as wasm_timer;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
-
-use crate::bandwidth::BandwidthController;
 
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
@@ -457,16 +456,6 @@ impl GatewayClient {
 
     #[cfg(feature = "coconut")]
     async fn claim_coconut_bandwidth(&mut self) -> Result<(), GatewayClientError> {
-        if !self.authenticated {
-            return Err(GatewayClientError::NotAuthenticated);
-        }
-        if self.shared_key.is_none() {
-            return Err(GatewayClientError::NoSharedKeyAvailable);
-        }
-        if self.bandwidth_controller.is_none() {
-            return Err(GatewayClientError::NoBandwidthControllerAvailable);
-        }
-
         let coconut_credential = self
             .bandwidth_controller
             .as_ref()
@@ -492,11 +481,51 @@ impl GatewayClient {
         Ok(())
     }
 
+    #[cfg(not(feature = "coconut"))]
+    async fn claim_token_bandwidth(&mut self) -> Result<(), GatewayClientError> {
+        let mut rng = OsRng;
+
+        let kp = identity::KeyPair::new(&mut rng);
+        let iv = IV::new_random(&mut rng);
+
+        let verification_key = *kp.public_key();
+        let signed_verification_key = kp.private_key().sign(&verification_key.to_bytes());
+        self.bandwidth_controller
+            .as_ref()
+            .unwrap()
+            .buy_token_credential(verification_key, signed_verification_key)
+            .await;
+
+        let mut message = verification_key.to_bytes().to_vec();
+
+        message.append(&mut self.gateway_identity.to_bytes().to_vec());
+        let signature = kp.private_key().sign(&message);
+        message.append(&mut signature.to_bytes().to_vec());
+
+        let enc_credential = self
+            .shared_key
+            .as_ref()
+            .unwrap()
+            .encrypt_and_tag(&message, Some(iv.inner()));
+
+        Ok(())
+    }
+
     pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError> {
+        if !self.authenticated {
+            return Err(GatewayClientError::NotAuthenticated);
+        }
+        if self.shared_key.is_none() {
+            return Err(GatewayClientError::NoSharedKeyAvailable);
+        }
+        if self.bandwidth_controller.is_none() {
+            return Err(GatewayClientError::NoBandwidthControllerAvailable);
+        }
+
         #[cfg(feature = "coconut")]
         return self.claim_coconut_bandwidth().await;
         #[cfg(not(feature = "coconut"))]
-        Ok(())
+        return self.claim_token_bandwidth().await;
     }
 
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {

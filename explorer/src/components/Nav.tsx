@@ -1,7 +1,6 @@
 import * as React from 'react';
-import { Link, useLocation, useParams, useHistory } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
-  Menu,
   ChevronLeft,
   ExpandLess,
   ExpandMore,
@@ -16,7 +15,6 @@ import MuiAppBar, { AppBarProps as MuiAppBarProps } from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import List from '@mui/material/List';
 import Typography from '@mui/material/Typography';
-import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -59,7 +57,6 @@ const DrawerHeader = styled('div')(({ theme }) => ({
   // necessary for content to be below app bar
   ...theme.mixins.toolbar,
 }));
-
 interface AppBarProps extends MuiAppBarProps {
   open?: boolean;
 }
@@ -161,7 +158,6 @@ type ExpandableButtonType = {
   nested?: navOptionType[],
   isExpandedChild?: boolean,
   isActive: boolean,
-  resetAllRoutes: () => void,
   openDrawer: () => void,
   drawIsOpen: boolean,
 }
@@ -171,25 +167,33 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   Icon,
   url,
   isExpandedChild,
-  isActive,
-  resetAllRoutes,
   openDrawer,
   drawIsOpen,
 }: ExpandableButtonType) => {
+
   const [open, toggle] = React.useState(false);
+  const [isExternal, setIsExternal] = React.useState<boolean>(false);
+  const location = useLocation();
+  const mainNav = '#242C3D';
+  const selectedNotNested = '#111826';
+  const otherNested = '#3C4558';
+  const brandOrange = '#FB6E4E';
+  const fadedDivider = 'rgba(255, 255, 255, 0.1)';
+  const handleClickNoNestedItems = () => {
+    openDrawer();
+  }
 
   const handleClick = () => {
     openDrawer();
-    if (resetAllRoutes) {
-      resetAllRoutes();
+    if (nested) {
+      toggle(!open);
     }
-    toggle(!open);
   }
 
-  const [isExternal, setIsExternal] = React.useState<boolean>(false);
-
   React.useEffect(() => {
-    setIsExternal(url.includes("http"));
+    if (url) {
+      setIsExternal(url.includes("http"));
+    }
   }, [url])
 
   React.useEffect(() => {
@@ -197,10 +201,6 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
       toggle(false);
     }
   }, [drawIsOpen])
-
-  const mainNav = '#242C3D';
-  const selectedNotNested = '#111826';
-  const otherNested = '#3C4558';
 
   if (!nested) {
     return (
@@ -211,12 +211,12 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
         target={isExternal ? '_blank' : ''}
         disablePadding
         sx={{
-          background: isExpandedChild ? otherNested : isActive ? selectedNotNested : mainNav,
-          borderRight: isActive && !open ? '3px solid #FB6E4E' : 'none',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          background: isExpandedChild ? otherNested : location.pathname.includes(url) ? selectedNotNested : mainNav,
+          borderRight: location.pathname.includes(url) ? `3px solid ${brandOrange}` : 'none',
+          borderBottom: `1px solid ${fadedDivider}`,
         }}
       >
-        <ListItemButton onClick={openDrawer} sx={{ pt: 2, pb: 2 }}>
+        <ListItemButton onClick={handleClickNoNestedItems} sx={{ pt: 2, pb: 2 }}>
           <ListItemIcon>
             {Icon}
           </ListItemIcon>
@@ -227,7 +227,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             }}
             primaryTypographyProps={{
               style: {
-                fontWeight: isActive ? 800 : 300
+                fontWeight: location.pathname.includes(url) ? 800 : 300
               }
             }}
           />
@@ -241,9 +241,9 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
         disablePadding
         disableGutters
         sx={{
-          background: open ? selectedNotNested : isExpandedChild ? 'red' : mainNav,
-          borderRight: open ? '3px solid #FB6E4E' : 'none',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          background: open ? selectedNotNested : isExpandedChild ? otherNested : mainNav,
+          borderRight: open ? `3px solid ${brandOrange}` : 'none',
+          borderBottom: `1px solid ${fadedDivider}`,
         }}
       >
         <ListItemButton
@@ -257,7 +257,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             primary={title}
             sx={{
               color: (theme) => theme.palette.primary.main,
-              fontWeight: open ? 'bold' : 400
+              fontWeight: location.pathname.includes(url) ? 800 : 300
             }}
           />
           {open ? <ExpandLess color='primary' /> : <ExpandMore color='primary' />}
@@ -268,7 +268,6 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
           <ExpandableButton
             key={each.title}
             isExpandedChild
-            resetAllRoutes={resetAllRoutes}
             openDrawer={openDrawer}
             drawIsOpen={drawIsOpen}
             {...each}
@@ -279,10 +278,8 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
 };
 
 export const Nav: React.FC = ({ children }) => {
-  const { toggleMode, mode }: any = React.useContext(MainContext);
-  const [routeStatuses, updateRouteStatuses] = React.useState<navOptionType[]>(originalNavOptions);
+  const { toggleMode, mode } = React.useContext(MainContext);
   const [open, setOpen] = React.useState(true);
-  const location = useLocation()
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -291,26 +288,6 @@ export const Nav: React.FC = ({ children }) => {
   const handleDrawerClose = () => {
     setOpen(false);
   };
-
-  const updateRoutes = () => {
-    const currentLocation = location.pathname
-    let matchedRoute = {
-      ...routeStatuses.filter(each => currentLocation.includes(each.url))[0],
-      isActive: true,
-    };
-    let allOtherRoutes = originalNavOptions.filter((each) => !currentLocation.includes(each.url))
-    allOtherRoutes.push(matchedRoute)
-    allOtherRoutes.sort((a, b) => a.id > b.id ? 1 : -1)
-    updateRouteStatuses(allOtherRoutes)
-  }
-
-  const resetAllRoutes = () => {
-    updateRouteStatuses(originalNavOptions);
-  }
-
-  React.useEffect(() => {
-    updateRoutes();
-  }, [location])
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -364,10 +341,9 @@ export const Nav: React.FC = ({ children }) => {
         </DrawerHeader>
 
         <List sx={{ pt: 0, pb: 0 }}>
-          {routeStatuses.map((props, i) => (
+          {originalNavOptions.map((props, i) => (
             <ExpandableButton
               key={i}
-              resetAllRoutes={resetAllRoutes}
               openDrawer={handleDrawerOpen}
               drawIsOpen={open}
               {...props}

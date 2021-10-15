@@ -27,7 +27,6 @@ import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
 import { MainContext } from '../context/main';
 import { BIG_DIPPER } from 'src/api/constants';
-import { Routes } from 'src/routes';
 
 const drawerWidth = 300;
 
@@ -164,6 +163,7 @@ type ExpandableButtonType = {
   isActive: boolean,
   resetAllRoutes: () => void,
   openDrawer: () => void,
+  drawIsOpen: boolean,
 }
 const ExpandableButton: React.FC<ExpandableButtonType> = ({
   nested,
@@ -174,8 +174,10 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   isActive,
   resetAllRoutes,
   openDrawer,
+  drawIsOpen,
 }: ExpandableButtonType) => {
   const [open, toggle] = React.useState(false);
+
   const handleClick = () => {
     openDrawer();
     if (resetAllRoutes) {
@@ -183,11 +185,18 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
     }
     toggle(!open);
   }
+
   const [isExternal, setIsExternal] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     setIsExternal(url.includes("http"));
   }, [url])
+
+  React.useEffect(() => {
+    if (!drawIsOpen && open) {
+      toggle(false);
+    }
+  }, [drawIsOpen])
 
   const mainNav = '#242C3D';
   const selectedNotNested = '#111826';
@@ -200,12 +209,14 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
         component={Link}
         to={isExternal ? { pathname: url } : url}
         target={isExternal ? '_blank' : ''}
+        disablePadding
         sx={{
-          background: isExpandedChild ? otherNested : isActive ? 'black' : mainNav,
+          background: isExpandedChild ? otherNested : isActive ? selectedNotNested : mainNav,
           borderRight: isActive && !open ? '3px solid #FB6E4E' : 'none',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
         }}
       >
-        <ListItemButton onClick={openDrawer}>
+        <ListItemButton onClick={openDrawer} sx={{ pt: 2, pb: 2 }}>
           <ListItemIcon>
             {Icon}
           </ListItemIcon>
@@ -227,14 +238,17 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   return (
     <>
       <ListItem
+        disablePadding
         disableGutters
         sx={{
           background: open ? selectedNotNested : isExpandedChild ? 'red' : mainNav,
           borderRight: open ? '3px solid #FB6E4E' : 'none',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
         }}
       >
         <ListItemButton
           onClick={handleClick}
+          sx={{ pt: 2, pb: 2 }}
         >
           <ListItemIcon>
             {Icon}
@@ -256,6 +270,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             isExpandedChild
             resetAllRoutes={resetAllRoutes}
             openDrawer={openDrawer}
+            drawIsOpen={drawIsOpen}
             {...each}
           />
         ))}
@@ -347,20 +362,20 @@ export const Nav: React.FC = ({ children }) => {
             <ChevronLeft color="primary" />
           </IconButton>
         </DrawerHeader>
-        <Divider />
-        <List>
+
+        <List sx={{ pt: 0, pb: 0 }}>
           {routeStatuses.map((props, i) => (
             <ExpandableButton
               key={i}
               resetAllRoutes={resetAllRoutes}
               openDrawer={handleDrawerOpen}
+              drawIsOpen={open}
               {...props}
             />
           ))}
         </List>
-        <Divider />
-        <ListItem disableGutters>
-          <ListItemButton onClick={toggleMode}>
+        <ListItem disableGutters disablePadding>
+          <ListItemButton onClick={toggleMode} sx={{ pt: 2, pb: 2 }}>
             <ListItemIcon>
               {mode === 'light' ? <Brightness4Sharp /> : <WbSunnySharp />}
             </ListItemIcon>

@@ -41,7 +41,6 @@ const AppWrapper = () => {
     typography: {
       fontFamily: [
         'Open Sans',
-        'cursive',
         'sans-serif',
         'BlinkMacSystemFont',
         'Roboto',

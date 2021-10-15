@@ -22,17 +22,16 @@ export const UniversalDataGrid = ({
 
   if (columnsData && rows) {
     return (
-      <Box sx={{ height, width: '100%' }}>
-        <DataGrid
-          loading={loading}
-          columns={columnsData}
-          rows={rows}
-          pageSize={Number(pageSize)}
-          rowsPerPageOptions={[5]}
-          hideFooterPagination={!pagination}
-          disableColumnMenu
-        />
-      </Box>
+      <DataGrid
+        loading={loading}
+        columns={columnsData}
+        rows={rows}
+        pageSize={Number(pageSize)}
+        rowsPerPageOptions={[5]}
+        hideFooterPagination={!pagination}
+        disableColumnMenu
+        autoHeight
+      />
     );
   }
   return null;

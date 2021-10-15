@@ -5,8 +5,11 @@
   "license": "MIT",
   "scripts": {
     "webpack:dev": "yarn webpack serve",
+    "webpack:build": "yarn webpack",
     "tauri:dev": "yarn tauri dev",
-    "dev": "yarn run webpack:dev & yarn run tauri:dev "
+    "tauri:build": "yarn tauri build",
+    "dev": "yarn run webpack:dev & yarn run tauri:dev",
+    "build": "yarn run webpack:build & yarn run tauri:build"
   },
   "dependencies": {
     "@babel/preset-typescript": "^7.15.0",

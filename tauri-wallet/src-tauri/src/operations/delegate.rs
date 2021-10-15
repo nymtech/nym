@@ -2,6 +2,9 @@ use crate::coin::Coin;
 use crate::format_err;
 use crate::state::State;
 use cosmwasm_std::Coin as CosmWasmCoin;
+use mixnet_contract::{
+  Addr, PagedReverseGatewayDelegationsResponse, PagedReverseMixDelegationsResponse,
+};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::sync::Arc;
@@ -91,4 +94,26 @@ pub async fn undelegate_from_gateway(
     }),
     Err(e) => Err(format_err!(e)),
   }
+}
+
+#[tauri::command]
+pub async fn get_reverse_mix_delegations_paged(
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<PagedReverseMixDelegationsResponse, String> {
+  let r_state = state.read().await;
+  let client = r_state.client()?;
+  client
+    .get_reverse_mix_delegations_paged(Addr::unchecked(client.address().as_ref()), None, None)
+    .await.map_err(|err| format_err!(err))
+}
+
+#[tauri::command]
+pub async fn get_reverse_gateway_delegations_paged(
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<PagedReverseGatewayDelegationsResponse, String> {
+  let r_state = state.read().await;
+  let client = r_state.client()?;
+  client
+    .get_reverse_gateway_delegations_paged(Addr::unchecked(client.address().as_ref()), None, None)
+    .await.map_err(|err| format_err!(err))
 }

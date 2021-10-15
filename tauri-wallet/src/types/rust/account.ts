@@ -4,5 +4,5 @@ export interface Account {
   contract_address: string;
   client_address: string;
   denom: Denom;
-  mnemonmic: string | null;
+  mnemonic: string | null;
 }

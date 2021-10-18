@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(not(feature = "coconut"))]
+use crate::error::GatewayClientError;
 #[cfg(feature = "coconut")]
 use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
 use crypto::asymmetric::identity::PublicKey;
@@ -83,7 +85,7 @@ impl BandwidthController {
         &self,
         verification_key: PublicKey,
         signed_verification_key: Signature,
-    ) {
+    ) -> Result<(), GatewayClientError> {
         let key = secp256k1::key::ONE_KEY;
         self.contract
             .signed_call_with_confirmations(
@@ -99,6 +101,8 @@ impl BandwidthController {
             )
             .await
             .unwrap();
+
+        Ok(())
     }
 }
 

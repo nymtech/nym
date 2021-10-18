@@ -6,7 +6,7 @@ extern crate rocket;
 
 use crate::cache::ValidatorCacheRefresher;
 use crate::config::Config;
-use crate::network_monitor::tested_network::good_topology::parse_topology_file;
+// use crate::network_monitor::tested_network::good_topology::parse_topology_file;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::nymd_client::Client;
 use crate::rewarding::epoch::Epoch;
@@ -61,8 +61,6 @@ const KEYPAIR_ARG: &str = "keypair";
 const EPOCH_LENGTH_ARG: &str = "epoch-length";
 const FIRST_REWARDING_EPOCH_ARG: &str = "first-epoch";
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
-
-pub(crate) const PENALISE_OUTDATED: bool = false;
 
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
@@ -320,6 +318,7 @@ fn setup_liftoff_notify(notify: Arc<Notify>) -> AdHoc {
 
 fn setup_network_monitor<'a>(
     config: &'a Config,
+    system_version: &str,
     rocket: &Rocket<Ignite>,
 ) -> Option<NetworkMonitorBuilder<'a>> {
     if !config.get_network_monitor_enabled() {
@@ -330,14 +329,9 @@ fn setup_network_monitor<'a>(
     let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
-    let v4_topology = parse_topology_file(config.get_v4_good_topology_file());
-    let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
-    network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
-
     Some(NetworkMonitorBuilder::new(
         config,
-        v4_topology,
-        v6_topology,
+        system_version,
         node_status_storage,
         validator_cache,
     ))
@@ -408,6 +402,7 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
 #[tokio::main]
 async fn main() -> Result<()> {
     setup_logging();
+    let system_version = env!("CARGO_PKG_VERSION");
 
     println!("Starting validator api...");
 
@@ -437,7 +432,7 @@ async fn main() -> Result<()> {
 
     // let's build our rocket!
     let rocket = setup_rocket(&config, Arc::clone(&liftoff_notify)).await?;
-    let monitor_builder = setup_network_monitor(&config, &rocket);
+    let monitor_builder = setup_network_monitor(&config, system_version, &rocket);
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 

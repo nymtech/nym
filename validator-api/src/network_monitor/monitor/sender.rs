@@ -29,13 +29,13 @@ const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 pub(crate) struct GatewayPackets {
     /// Network address of the target gateway if wanted to be accessed by the client.
     /// It is a websocket address.
-    clients_address: String,
+    pub(crate) clients_address: String,
 
     /// Public key of the target gateway.
-    pub_key: identity::PublicKey,
+    pub(crate) pub_key: identity::PublicKey,
 
     /// All the packets that are going to get sent to the gateway.
-    packets: Vec<MixPacket>,
+    pub(crate) packets: Vec<MixPacket>,
 }
 
 impl GatewayPackets {
@@ -51,8 +51,27 @@ impl GatewayPackets {
         }
     }
 
+    pub(crate) fn empty(clients_address: String, pub_key: identity::PublicKey) -> Self {
+        GatewayPackets {
+            clients_address,
+            pub_key,
+            packets: Vec::new(),
+        }
+    }
+
+    pub(super) fn set_packets(&mut self, packets: Vec<MixPacket>) {
+        self.packets = packets;
+    }
+
     pub(super) fn push_packets(&mut self, mut packets: Vec<MixPacket>) {
-        self.packets.append(&mut packets)
+        if self.packets.is_empty() {
+            self.packets = packets
+        } else if self.packets.len() > packets.len() {
+            self.packets.append(&mut packets)
+        } else {
+            packets.append(&mut self.packets);
+            self.packets = packets;
+        }
     }
 
     pub(super) fn gateway_address(&self) -> identity::PublicKey {
@@ -117,7 +136,7 @@ impl PacketSender {
         }
     }
 
-    async fn new_gateway_client(
+    fn new_gateway_client(
         address: String,
         identity: identity::PublicKey,
         fresh_gateway_client_data: &FreshGatewayClientData,
@@ -225,8 +244,7 @@ impl PacketSender {
                 packets.clients_address,
                 packets.pub_key,
                 &fresh_gateway_client_data,
-            )
-            .await;
+            );
 
             // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
             // gets stuck in their TCP queue and just hangs on our end but does not terminate
@@ -266,34 +284,63 @@ impl PacketSender {
             (new_client, Some((message_receiver, ack_receiver)))
         };
 
-        if let Err(err) =
-            Self::attempt_to_send_packets(&mut client, packets.packets, max_sending_rate).await
+        let estimated_time =
+            Duration::from_secs_f64(packets.packets.len() as f64 / max_sending_rate as f64);
+        // give some leeway
+        let timeout = Duration::from_secs(estimated_time.as_secs() * 3);
+
+        match tokio::time::timeout(
+            timeout,
+            Self::attempt_to_send_packets(&mut client, packets.packets, max_sending_rate),
+        )
+        .await
         {
-            warn!(
-                "failed to send packets to {} - {:?}",
-                packets.pub_key.to_base58_string(),
-                err
-            );
-            // if this was a fresh client, there's no need to do anything as it was never
-            // registered to get read
-            if was_present {
-                fresh_gateway_client_data
-                    .gateways_status_updater
-                    .unbounded_send(GatewayClientUpdate::Failure(packets.pub_key))
-                    .expect("packet receiver seems to have died!");
+            Err(_timeout) => {
+                warn!(
+                    "failed to send packets to {} - we timed out",
+                    packets.pub_key.to_base58_string(),
+                );
+                // if this was a fresh client, there's no need to do anything as it was never
+                // registered to get read
+                if was_present {
+                    fresh_gateway_client_data
+                        .gateways_status_updater
+                        .unbounded_send(GatewayClientUpdate::Failure(packets.pub_key))
+                        .expect("packet receiver seems to have died!");
+                }
+                return None;
             }
-            return None;
-        } else if !was_present {
-            // this is a fresh and working client
-            fresh_gateway_client_data
-                .gateways_status_updater
-                .unbounded_send(GatewayClientUpdate::New(
-                    packets.pub_key,
-                    gateway_channels
-                        .expect("we created a new client, yet the channels are a None!"),
-                ))
-                .expect("packet receiver seems to have died!")
+            Ok(Err(err)) => {
+                warn!(
+                    "failed to send packets to {} - {:?}",
+                    packets.pub_key.to_base58_string(),
+                    err
+                );
+                // if this was a fresh client, there's no need to do anything as it was never
+                // registered to get read
+                if was_present {
+                    fresh_gateway_client_data
+                        .gateways_status_updater
+                        .unbounded_send(GatewayClientUpdate::Failure(packets.pub_key))
+                        .expect("packet receiver seems to have died!");
+                }
+                return None;
+            }
+            Ok(Ok(_)) => {
+                if !was_present {
+                    // this is a fresh and working client
+                    fresh_gateway_client_data
+                        .gateways_status_updater
+                        .unbounded_send(GatewayClientUpdate::New(
+                            packets.pub_key,
+                            gateway_channels
+                                .expect("we created a new client, yet the channels are a None!"),
+                        ))
+                        .expect("packet receiver seems to have died!")
+                }
+            }
         }
+
         Some(client)
     }
 

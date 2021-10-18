@@ -26,12 +26,6 @@ jobs:
           libappindicator3-dev
           webkit2gtk-driver
           xvfb
-     
-      - name: Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: clippy, rustfmt
 
       - name: Node v16
         uses: actions/setup-node@v1

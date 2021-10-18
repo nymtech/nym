@@ -5,7 +5,7 @@ import { Link as MuiLink } from '@mui/material';
 import { Typography } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useContext } from 'react';
-import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
+import { cellStyles, UniversalDataGrid } from 'src/components/Universal-DataGrid';
 import { MainContext } from 'src/context/main';
 import { mixnodeToGridRow } from 'src/utils';
 import { TableToolbar } from 'src/components/TableToolbar';
@@ -43,14 +43,6 @@ export const PageMixnodes: React.FC = () => {
     }
   }, [searchTerm, mixnodes?.data])
 
-  const linkStyles = {
-    color: 'inherit',
-    textDecoration: 'none',
-    marginLeft: 2,
-    fontWeight: 400,
-    fontSize: 12,
-  }
-
   const columns = [
     {
       field: 'owner',
@@ -61,7 +53,7 @@ export const PageMixnodes: React.FC = () => {
           <MuiLink
             href={`${BIG_DIPPER}/account/${params.value}`}
             target='_blank'
-            sx={linkStyles}
+            sx={cellStyles}
           >
             {params.value}
           </MuiLink>
@@ -74,7 +66,7 @@ export const PageMixnodes: React.FC = () => {
       width: 420,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.value}`}>
+          <MuiLink sx={cellStyles} component={RRDLink} to={`/network-components/mixnodes/${params.value}`}>
             {params.value}
           </MuiLink>
         )
@@ -86,7 +78,7 @@ export const PageMixnodes: React.FC = () => {
       width: 120,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
+          <MuiLink sx={cellStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
             {params.value}
           </MuiLink>
         )
@@ -98,7 +90,7 @@ export const PageMixnodes: React.FC = () => {
       width: 130,
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
+          <MuiLink sx={cellStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
             {params.value}
           </MuiLink>
         )
@@ -112,7 +104,7 @@ export const PageMixnodes: React.FC = () => {
         return (
           <div
             onClick={() => handleSearch(params.value as string)}
-            style={linkStyles}
+            style={cellStyles}
           >
             {params.value}
           </div>
@@ -126,7 +118,7 @@ export const PageMixnodes: React.FC = () => {
       type: 'number',
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
+          <MuiLink sx={cellStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
             {params.value}
           </MuiLink>
         )

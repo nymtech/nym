@@ -10,7 +10,7 @@ import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
 import { UptimeChart } from 'src/components/UptimeChart';
 import { mixnodeToGridRow, scrollToRef } from 'src/utils';
 import { ComponentError } from 'src/components/ComponentError';
-import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
+import { cellStyles, UniversalDataGrid } from 'src/components/Universal-DataGrid';
 import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 
@@ -18,11 +18,11 @@ const columns = [
     {
         field: 'owner',
         renderHeader: () => <CustomColumnHeading headingTitle='Owner' />,
-        width: 360,
+        width: 200,
         renderCell: (params: GridRenderCellParams) => {
             return (
                 <div>
-                    <Typography>{params.value}</Typography>
+                    <Typography sx={cellStyles}>{params.value}</Typography>
                 </div>
             )
         }
@@ -30,28 +30,63 @@ const columns = [
     {
         field: 'identity_key',
         renderHeader: () => <CustomColumnHeading headingTitle='Identity Key' />,
-        width: 380
+        width: 380,
+        renderCell: (params: GridRenderCellParams) => {
+            return (
+                <div>
+                    <Typography sx={cellStyles}>{params.value}</Typography>
+                </div>
+            )
+        }
     },
     {
         field: 'bond',
         renderHeader: () => <CustomColumnHeading headingTitle='Bond' />,
         width: 120,
+        renderCell: (params: GridRenderCellParams) => {
+            return (
+                <div>
+                    <Typography sx={cellStyles}>{params.value}</Typography>
+                </div>
+            )
+        }
     },
     {
         field: 'host',
         renderHeader: () => <CustomColumnHeading headingTitle='IP:Port' />,
         width: 130,
+        renderCell: (params: GridRenderCellParams) => {
+            return (
+                <div>
+                    <Typography sx={cellStyles}>{params.value}</Typography>
+                </div>
+            )
+        }
     },
     {
         field: 'location',
         renderHeader: () => <CustomColumnHeading headingTitle='Location' />,
         width: 120,
+        renderCell: (params: GridRenderCellParams) => {
+            return (
+                <div>
+                    <Typography sx={cellStyles}>{params.value}</Typography>
+                </div>
+            )
+        }
     },
     {
         field: 'layer',
         renderHeader: () => <CustomColumnHeading headingTitle='Layer' />,
         width: 100,
         type: 'number',
+        renderCell: (params: GridRenderCellParams) => {
+            return (
+                <div>
+                    <Typography sx={cellStyles}>{params.value}</Typography>
+                </div>
+            )
+        }
     },
 ];
 

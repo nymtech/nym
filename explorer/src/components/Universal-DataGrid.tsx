@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { DataGrid, GridColumns, GridRowData } from '@mui/x-data-grid';
-import { Box } from '@mui/system';
 
 type DataGridProps = {
   height: number,
@@ -11,8 +10,15 @@ type DataGridProps = {
   pagination?: boolean,
 }
 
+export const cellStyles = {
+  color: 'inherit',
+  textDecoration: 'none',
+  marginLeft: 2,
+  fontWeight: 400,
+  fontSize: 12,
+}
+
 export const UniversalDataGrid = ({
-  height,
   loading,
   rows,
   columnsData,

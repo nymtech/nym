@@ -1,15 +1,12 @@
 import * as React from 'react';
-import { useTheme } from '@mui/material/styles';
 
 export const NymLogoSVG: React.FC = (props) => {
-  const theme = useTheme();
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 5389.9 5389.9"
       width="40px"
       height="40px"
-      // style={{ margin: theme.spacing(2) }}
       {...props}
     >
       <circle cx={2695} cy={2695} r={2585} fill="#121726" />

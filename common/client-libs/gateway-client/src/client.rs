@@ -18,6 +18,8 @@ use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
+#[cfg(not(feature = "coconut"))]
+use network_defaults::BANDWIDTH_VALUE;
 use nymsphinx::forwarding::packet::MixPacket;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
@@ -502,7 +504,12 @@ impl GatewayClient {
 
         message.append(&mut self.gateway_identity.to_bytes().to_vec());
         let signature = kp.private_key().sign(&message);
-        let credential = TokenCredential::new(verification_key, self.gateway_identity, signature);
+        let credential = TokenCredential::new(
+            verification_key,
+            self.gateway_identity,
+            BANDWIDTH_VALUE,
+            signature,
+        );
 
         let msg = ClientControlRequest::new_enc_token_bandwidth_credential(
             &credential,

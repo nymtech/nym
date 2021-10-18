@@ -180,6 +180,17 @@ impl ClientControlRequest {
             iv: iv.to_bytes(),
         }
     }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn try_from_enc_token_bandwidth_credential(
+        enc_credential: Vec<u8>,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Result<TokenCredential, GatewayRequestsError> {
+        let credential = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
+        TokenCredential::from_bytes(&credential)
+            .map_err(|_| GatewayRequestsError::MalformedEncryption)
+    }
 }
 
 impl From<ClientControlRequest> for Message {

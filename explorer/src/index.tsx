@@ -7,7 +7,7 @@ import { App } from './App';
 import { MainContext, MainContextProvider } from './context/main';
 import './styles.css';
 
-const palette = {
+export const palette = {
   primary: {
     main: '#F2F2F2', // white text in nav etc
     dark: '#070B15', // background black in nav appbar
@@ -18,7 +18,11 @@ const palette = {
     dark: '#242C3D', // drawer slide out
     light: '#F2F2F2' // grey bg
   },
+  // nav colors
   brandOrange: '#FB6E4E',
+  divider: 'rgba(255, 255, 255, 0.1)',
+  selectedNotNested: '#111826',
+  nested: '#3C4558',
 }
 const AppWrapper = () => {
   const { mode }: any = React.useContext(MainContext);

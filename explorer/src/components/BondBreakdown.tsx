@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { printableCoin } from '@nymproject/nym-validator-client';
+import { Alert, CircularProgress } from '@mui/material';
 import Table from '@mui/material/Table';
 import { useMediaQuery, useTheme } from '@mui/material';
 import TableBody from '@mui/material/TableBody';
@@ -12,8 +13,8 @@ import { MainContext } from 'src/context/main';
 
 export function BondBreakdownTable() {
     const { mixnodeDetailInfo, delegations, mode } = React.useContext(MainContext);
-    const [ allContentLoaded, setAllContentLoaded ] = React.useState<boolean>(false);
-    const [ showError, setShowError ] = React.useState<boolean>(false);
+    const [allContentLoaded, setAllContentLoaded] = React.useState<boolean>(false);
+    const [showError, setShowError] = React.useState<boolean>(false);
 
     const [bonds, setBonds] = React.useState({
         delegations: '0',
@@ -27,7 +28,7 @@ export function BondBreakdownTable() {
     React.useEffect(() => {
         if (mixnodeDetailInfo && mixnodeDetailInfo.data?.length) {
             const thisMixnode = mixnodeDetailInfo?.data[0];
-            
+
             // delegations            
             const decimalisedDelegations = printableCoin({ amount: thisMixnode.total_delegation.amount.toString(), denom: thisMixnode.total_delegation.denom });
 
@@ -56,7 +57,7 @@ export function BondBreakdownTable() {
         setShowError(hasError);
         setAllContentLoaded(hasAllData);
     }, [mixnodeDetailInfo, delegations]);
-    
+
     const calcBondPercentage = (num: number) => {
         if (mixnodeDetailInfo?.data !== undefined && mixnodeDetailInfo?.data[0]) {
             const rawDeligationAmount = Number(mixnodeDetailInfo.data[0].total_delegation.amount);
@@ -67,11 +68,11 @@ export function BondBreakdownTable() {
     }
 
     if (mixnodeDetailInfo?.isLoading) {
-        return <p>Loading...</p>
+        return <CircularProgress />
     }
 
     if (showError) {
-        return <p>We are unable to retrieve a Mixnode with that ID. Please try later or Contact Us.</p>
+        return <Alert severity="warning">We are unable to retrieve a Mixnode with that ID. Please try later or Contact Us.</Alert>
     }
 
     if (!showError && allContentLoaded) {
@@ -122,8 +123,8 @@ export function BondBreakdownTable() {
                             </TableRow>
                         </TableBody>
                     </Table>
-    
-                    { delegations?.data !== undefined && delegations?.data[0] && (
+
+                    {delegations?.data !== undefined && delegations?.data[0] && (
                         <Table sx={{ minWidth: 650 }} aria-label='delegation totals'>
                             <TableHead>
                                 <TableRow>

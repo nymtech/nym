@@ -25,6 +25,7 @@ import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
 import { MainContext } from '../context/main';
 import { BIG_DIPPER } from 'src/api/constants';
+import { palette } from '../index';
 
 const drawerWidth = 300;
 
@@ -167,15 +168,6 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   const [isExternal, setIsExternal] = React.useState<boolean>(false);
   const location = useLocation();
 
-  // colors for nav
-  // TO-DO move to theme if possible (eg divider and orange/brand may
-  // be harder; look into how to add own set of branded colours to palette.
-  const mainNav = '#242C3D';
-  const selectedNotNested = '#111826';
-  const otherNested = '#3C4558';
-  const brandOrange = '#FB6E4E';
-  const fadedDivider = 'rgba(255, 255, 255, 0.1)';
-
   const handleClickNoNestedItems = () => {
     openDrawer();
   }
@@ -208,9 +200,9 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
         target={isExternal ? '_blank' : ''}
         disablePadding
         sx={{
-          background: isExpandedChild ? otherNested : location.pathname.includes(url) ? selectedNotNested : mainNav,
-          borderRight: location.pathname.includes(url) ? `3px solid ${brandOrange}` : 'none',
-          borderBottom: `1px solid ${fadedDivider}`,
+          background: theme => isExpandedChild ? palette.nested : location.pathname.includes(url) ? palette.selectedNotNested : theme.palette.secondary.dark,
+          borderRight: location.pathname.includes(url) ? `3px solid ${palette.brandOrange}` : 'none',
+          borderBottom: `1px solid ${palette.divider}`,
         }}
       >
         <ListItemButton onClick={handleClickNoNestedItems} sx={{ pt: 2, pb: 2 }}>
@@ -238,9 +230,9 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
         disablePadding
         disableGutters
         sx={{
-          background: open ? selectedNotNested : isExpandedChild ? otherNested : mainNav,
-          borderRight: open ? `3px solid ${brandOrange}` : 'none',
-          borderBottom: `1px solid ${fadedDivider}`,
+          background: theme => open ? palette.selectedNotNested : isExpandedChild ? palette.nested : theme.palette.secondary.dark,
+          borderRight: open ? `3px solid ${palette.brandOrange}` : 'none',
+          borderBottom: `1px solid ${palette.divider}`,
         }}
       >
         <ListItemButton

@@ -7,7 +7,3 @@ in <DataGrid /> */
 .MuiDataGrid-sortIcon {
     display: none !important;
 }
-
-.MuiDataGrid-columnHeader:focus {
-    outline: none !important;
-}

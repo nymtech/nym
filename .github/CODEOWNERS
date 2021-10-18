@@ -1,3 +1,40 @@
-# Global owners. If you want to set more specific (per-directory, per-language) owners, see the write-up at
-# https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/creating-a-repository-on-github/about-code-owners
-* @durch @futurechimp @jstuczyn @neacsu
+# Lines starting with '#' are comments.
+# Each line is a file pattern followed by one or more owners.
+
+# More details are here: https://help.github.com/articles/about-codeowners/
+
+# The '*' pattern is global owners.
+
+# Order is important. The last matching pattern has the most precedence.
+# The folders are ordered as follows:
+
+# In each subsection folders are ordered first by depth, then alphabetically.
+# This should make it easy to add new rules without breaking existing ones.
+
+# Something weird not covered by anything else
+* @futurechimp @mmsinclair
+
+# Rust rules:
+*.rs @durch @futurechimp @jstuczyn @neacsu
+Cargo.* @durch @futurechimp @jstuczyn @neacsu
+
+# JS rules:
+*.js @mmsinclair @fmtabbara @Aid19801
+*.ts @mmsinclair @fmtabbara @Aid19801
+*.tsx @mmsinclair @fmtabbara @Aid19801
+*.jsx @mmsinclair @fmtabbara @Aid19801
+
+# Something looking like possible documentation rules:
+*.md @mfahampshire
+
+# our docker scripts
+/docker/ @neacsu
+
+# if there are any changes in the core crypto, I feel like Ania should take a look:
+/common/crypto/ @aniampio
+/common/nymsphinx/ @aniampio
+
+# Explorer and wallet should probably get looked by the product team
+/explorer/ @nymtech/product 
+/tauri-wallet/ @nymtech/product 
+/wallet-web/ @nymtech/product

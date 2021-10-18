@@ -103,7 +103,6 @@ type navOptionType = {
   Icon?: React.ReactNode,
   nested?: navOptionType[],
   isExpandedChild?: boolean,
-  isActive: boolean
 };
 
 const originalNavOptions: navOptionType[] = [
@@ -112,32 +111,27 @@ const originalNavOptions: navOptionType[] = [
     url: '/overview',
     title: 'Overview',
     Icon: <OverviewSVG />,
-    isActive: false,
   },
   {
     id: 1,
     url: '/network-components',
     title: 'Network Components',
     Icon: < NetworkComponentsSVG />,
-    isActive: false,
     nested: [
       {
         id: 3,
         url: '/network-components/mixnodes',
         title: 'Mixnodes',
-        isActive: false,
       },
       {
         id: 4,
         url: '/network-components/gateways',
         title: 'Gateways',
-        isActive: false,
       },
       {
         id: 5,
         url: `${BIG_DIPPER}/validators`,
         title: 'Validators',
-        isActive: false,
       },
     ],
   },
@@ -146,7 +140,6 @@ const originalNavOptions: navOptionType[] = [
     url: '/nodemap',
     title: 'Nodemap',
     Icon: <NodemapSVG />,
-    isActive: false,
   },
 ];
 
@@ -157,7 +150,6 @@ type ExpandableButtonType = {
   Icon?: React.ReactNode,
   nested?: navOptionType[],
   isExpandedChild?: boolean,
-  isActive: boolean,
   openDrawer: () => void,
   drawIsOpen: boolean,
 }

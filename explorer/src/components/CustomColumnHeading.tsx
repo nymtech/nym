@@ -18,7 +18,6 @@ export const CustomColumnHeading = ({ headingTitle }: HeadingProps) => {
             alignItems='center'
             display='flex'
             onClick={handleClick}
-        // sx={{ height: '100%' }}
         >
             <Typography
                 sx={{

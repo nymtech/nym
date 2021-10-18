@@ -166,11 +166,16 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   const [open, toggle] = React.useState(false);
   const [isExternal, setIsExternal] = React.useState<boolean>(false);
   const location = useLocation();
+
+  // colors for nav
+  // TO-DO move to theme if possible (eg divider and orange/brand may
+  // be harder; look into how to add own set of branded colours to palette.
   const mainNav = '#242C3D';
   const selectedNotNested = '#111826';
   const otherNested = '#3C4558';
   const brandOrange = '#FB6E4E';
   const fadedDivider = 'rgba(255, 255, 255, 0.1)';
+
   const handleClickNoNestedItems = () => {
     openDrawer();
   }

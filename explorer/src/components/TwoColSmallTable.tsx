@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useMediaQuery, useTheme } from '@mui/material';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -10,6 +11,7 @@ import { CircularProgress } from '@mui/material';
 
 import ErrorIcon from '@mui/icons-material/Error';
 import { Typography } from '@mui/material';
+import { MainContext } from 'src/context/main';
 
 interface TableProps {
     title?: string
@@ -22,6 +24,8 @@ interface TableProps {
 }
 
 export function TwoColSmallTable({ loading, title, icons, keys, values, marginBottom, error }: TableProps) {
+    const theme = useTheme();
+    const { mode } = React.useContext(MainContext);
     return (
         <>
             {title && (
@@ -35,7 +39,7 @@ export function TwoColSmallTable({ loading, title, icons, keys, values, marginBo
                     <TableBody>
                         {keys.map((each: string, i: number) => {
                             return (
-                                <TableRow key={i}>
+                                <TableRow key={i} sx={{ background: mode === 'dark' ? theme.palette.secondary.dark : theme.palette.primary.light }}>
                                     {icons && (
                                         <TableCell>
                                             {icons[i] ? <CheckCircleSharpIcon /> : <ErrorIcon />}

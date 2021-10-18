@@ -7,6 +7,8 @@ use thiserror::Error;
 use tungstenite::Error as WsError;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
+#[cfg(not(feature = "coconut"))]
+use web3::Error as Web3Error;
 
 #[derive(Debug, Error)]
 pub enum GatewayClientError {
@@ -23,6 +25,10 @@ pub enum GatewayClientError {
     #[cfg(target_arch = "wasm32")]
     #[error("There was a network error")]
     NetworkErrorWasm(JsValue),
+
+    #[cfg(not(feature = "coconut"))]
+    #[error("Could not burn ERC20 token in Ethereum smart contract - {0}")]
+    BurnTokenError(#[from] Web3Error),
 
     #[error("No shared key was provided or obtained")]
     NoSharedKeyAvailable,

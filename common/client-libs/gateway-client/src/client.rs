@@ -494,7 +494,7 @@ impl GatewayClient {
             .as_ref()
             .unwrap()
             .buy_token_credential(verification_key, signed_verification_key)
-            .await;
+            .await?;
 
         let mut message = verification_key.to_bytes().to_vec();
 

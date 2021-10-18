@@ -16,7 +16,7 @@ use network_defaults::{
 use web3::{
     contract::{Contract, Options},
     transports::Http,
-    types::{Address, Bytes, U256},
+    types::{Address, Bytes, U256, U64},
 };
 
 #[derive(Clone)]
@@ -87,22 +87,30 @@ impl BandwidthController {
         signed_verification_key: Signature,
     ) -> Result<(), GatewayClientError> {
         let key = secp256k1::key::ONE_KEY;
-        self.contract
-            .signed_call_with_confirmations(
-                "burnTokenForAccessCode",
-                (
-                    U256::from(BANDWIDTH_VALUE),
-                    U256::from(&verification_key.to_bytes()),
-                    Bytes(signed_verification_key.to_bytes().to_vec()),
-                ),
-                Options::default(),
-                1,
-                &key,
-            )
-            .await
-            .unwrap();
-
-        Ok(())
+        // 0 means a transaction failure, 1 means success
+        if Some(U64::from(0))
+            == self
+                .contract
+                .signed_call_with_confirmations(
+                    "burnTokenForAccessCode",
+                    (
+                        U256::from(BANDWIDTH_VALUE),
+                        U256::from(&verification_key.to_bytes()),
+                        Bytes(signed_verification_key.to_bytes().to_vec()),
+                    ),
+                    Options::default(),
+                    1,
+                    &key,
+                )
+                .await?
+                .status
+        {
+            Err(GatewayClientError::BurnTokenError(
+                web3::Error::InvalidResponse(String::from("Transaction status is 0 (failure)")),
+            ))
+        } else {
+            Ok(())
+        }
     }
 }
 

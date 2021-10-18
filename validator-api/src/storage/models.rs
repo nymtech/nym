@@ -6,7 +6,7 @@ use crate::storage::UnixTimestamp;
 // Internally used struct to catch results from the database to calculate uptimes for given mixnode/gateway
 pub(crate) struct NodeStatus {
     pub(crate) timestamp: UnixTimestamp,
-    pub(crate) up: bool,
+    pub(crate) reliability: u8,
 }
 
 // Internally used struct to catch results from the database to find active mixnodes/gateways

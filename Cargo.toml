@@ -28,6 +28,7 @@ members = [
     "common/mixnode-common",
     "common/network-defaults",
     "common/nonexhaustive-delayqueue",
+    "common/nymcoconut",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",

@@ -1,0 +1,43 @@
+[package]
+name = "nymcoconut"
+version = "0.5.0"
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>", "Ania Piotrowska <ania@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bls12_381 = { version = "0.5", default-features = false, features = ["pairings", "alloc", "experimental"] }
+itertools = "0.10"
+digest = "0.9"
+rand = "0.8"
+thiserror = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
+bs58 = "0.4.0"
+sha2 = "0.9"
+
+[dependencies.ff]
+version = "0.10"
+default-features = false
+
+[dependencies.group]
+version = "0.10"
+default-features = false
+
+[dev-dependencies]
+criterion = { version="0.3", features=["html_reports"] }
+doc-comment = "0.3"
+
+[dev-dependencies.bincode]
+version = "1"
+
+#[[bench]]
+#name = "benchmarks"
+#harness = false
+
+[features]
+default = []
+
+[target.'cfg(target_env = "wasm32-unknown-unknown")'.dependencies]
+getrandom = { version="0.2", features=["js"] }

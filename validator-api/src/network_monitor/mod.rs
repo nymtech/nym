@@ -176,7 +176,7 @@ async fn TEMPORARY_obtain_bandwidth_credential(
         .expect("could not obtain aggregate verification key of ALL validators");
 
     let bandwidth_credential =
-        credentials::bandwidth::obtain_signature(&identity.to_bytes(), &validators)
+        credentials::bandwidth::obtain_signature(&identity.to_bytes(), &validators, &verification_key)
             .await
             .expect("failed to obtain bandwidth credential!");
 

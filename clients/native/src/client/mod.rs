@@ -176,6 +176,7 @@ impl NymClient {
         let bandwidth_credential = credentials::bandwidth::obtain_signature(
             &self.key_manager.identity_keypair().public_key().to_bytes(),
             &self.config.get_base().get_validator_api_endpoints(),
+            &verification_key,
         )
         .await
         .expect("could not obtain bandwidth credential");

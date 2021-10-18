@@ -9,7 +9,7 @@
 use url::Url;
 
 use crate::error::Error;
-use crate::utils::{obtain_aggregate_signature, prepare_credential_for_spending};
+use crate::utils::{obtain_aggregate_signature, prepare_credential_for_spending, ValidatorInfo};
 use coconut_interface::{hash_to_scalar, Credential, Parameters, Signature, VerificationKey};
 
 const BANDWIDTH_VALUE: u64 = 10 * 1024 * 1024 * 1024; // 10 GB
@@ -19,13 +19,13 @@ pub const PRIVATE_ATTRIBUTES: u32 = 1;
 pub const TOTAL_ATTRIBUTES: u32 = PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES;
 
 // TODO: this definitely has to be moved somewhere else. It's just a temporary solution
-pub async fn obtain_signature(raw_identity: &[u8], validators: &[Url]) -> Result<Signature, Error> {
+pub async fn obtain_signature(raw_identity: &[u8], validators: &[Url], verification_key: &VerificationKey) -> Result<Signature, Error> {
     let public_attributes = vec![hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes())];
     let private_attributes = vec![hash_to_scalar(raw_identity)];
 
     let params = Parameters::new(TOTAL_ATTRIBUTES)?;
 
-    obtain_aggregate_signature(&params, &public_attributes, &private_attributes, validators).await
+    obtain_aggregate_signature(&params, &public_attributes, &private_attributes, validators, verification_key).await
 }
 
 pub fn prepare_for_spending(

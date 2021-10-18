@@ -8,6 +8,7 @@ use coconut_interface::{
     SignatureShare, VerificationKey,
 };
 use url::Url;
+use std::borrow::Borrow;
 
 /// Contacts all provided validators and then aggregate their verification keys.
 ///
@@ -63,17 +64,18 @@ async fn obtain_partial_credential(
     public_attributes: &[Attribute],
     private_attributes: &[Attribute],
     client: &validator_client::ApiClient,
+    validator_vk : &VerificationKey,
 ) -> Result<Signature, Error> {
     let elgamal_keypair = coconut_interface::elgamal_keygen(params);
     let blind_sign_request = prepare_blind_sign(
         params,
-        elgamal_keypair.public_key(),
+        &elgamal_keypair,
         private_attributes,
         public_attributes,
     )?;
 
     let blind_sign_request_body = BlindSignRequestBody::new(
-        blind_sign_request,
+        &blind_sign_request,
         elgamal_keypair.public_key(),
         public_attributes,
         (public_attributes.len() + private_attributes.len()) as u32,
@@ -83,7 +85,12 @@ async fn obtain_partial_credential(
         .blind_sign(&blind_sign_request_body)
         .await?
         .blinded_signature;
-    Ok(blinded_signature.unblind(elgamal_keypair.private_key()))
+    Ok(blinded_signature.unblind(&params, elgamal_keypair.private_key(), validator_vk , &private_attributes, &public_attributes, &blind_sign_request.commitment_hash).unwrap())
+}
+
+pub struct ValidatorInfo {
+    url : Url,
+    verification_key : VerificationKey,
 }
 
 pub async fn obtain_aggregate_signature(
@@ -91,6 +98,7 @@ pub async fn obtain_aggregate_signature(
     public_attributes: &[Attribute],
     private_attributes: &[Attribute],
     validators: &[Url],
+    verification_key: &VerificationKey,
 ) -> Result<Signature, Error> {
     if validators.is_empty() {
         return Err(Error::NoValidatorsAvailable);
@@ -99,20 +107,27 @@ pub async fn obtain_aggregate_signature(
     let mut shares = Vec::with_capacity(validators.len());
 
     let mut client = validator_client::ApiClient::new(validators[0].clone());
+    let validator_partial_vk = client.get_coconut_verification_key().await?;
+
     let first =
-        obtain_partial_credential(params, public_attributes, private_attributes, &client).await?;
+        obtain_partial_credential(params, public_attributes, private_attributes, &client, &validator_partial_vk.key).await?;
     shares.push(SignatureShare::new(first, 0));
 
     for (id, validator_url) in validators.iter().enumerate().skip(1) {
         client.change_validator_api(validator_url.clone());
+        let validator_partial_vk = client.get_coconut_verification_key().await?;
         let signature =
-            obtain_partial_credential(params, public_attributes, private_attributes, &client)
+            obtain_partial_credential(params, public_attributes, private_attributes, &client, &validator_partial_vk.key)
                 .await?;
         let share = SignatureShare::new(signature, id as u64);
         shares.push(share)
     }
 
-    Ok(aggregate_signature_shares(&shares)?)
+    let mut attributes = Vec::with_capacity(private_attributes.len() + public_attributes.len());
+    attributes.extend_from_slice(&private_attributes);
+    attributes.extend_from_slice(&public_attributes);
+
+    Ok(aggregate_signature_shares(&params, verification_key, &attributes, &shares)?)
 }
 
 // TODO: better type flow

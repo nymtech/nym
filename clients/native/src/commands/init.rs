@@ -67,7 +67,7 @@ async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -
         .await
         .expect("could not obtain aggregate verification key of validators");
 
-    let bandwidth_credential = credentials::bandwidth::obtain_signature(raw_identity, validators)
+    let bandwidth_credential = credentials::bandwidth::obtain_signature(raw_identity, validators, &verification_key)
         .await
         .expect("could not obtain bandwidth credential");
 

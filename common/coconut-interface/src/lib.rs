@@ -4,7 +4,7 @@
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
 
-pub use coconut_rs::*;
+pub use nymcoconut::*;
 
 #[derive(Serialize, Deserialize, Getters, CopyGetters, Clone)]
 pub struct Credential {
@@ -42,7 +42,7 @@ impl Credential {
             .iter()
             .map(hash_to_scalar)
             .collect::<Vec<Attribute>>();
-        coconut_rs::verify_credential(&params, verification_key, &self.theta, &public_attributes)
+        nymcoconut::verify_credential(&params, verification_key, &self.theta, &public_attributes)
     }
 }
 
@@ -84,7 +84,7 @@ pub struct BlindSignRequestBody {
     #[getset(get = "pub")]
     blind_sign_request: BlindSignRequest,
     #[getset(get = "pub")]
-    public_key: coconut_rs::PublicKey,
+    public_key: nymcoconut::PublicKey,
     public_attributes: Vec<String>,
     #[getset(get = "pub")]
     total_params: u32,
@@ -92,13 +92,13 @@ pub struct BlindSignRequestBody {
 
 impl BlindSignRequestBody {
     pub fn new(
-        blind_sign_request: BlindSignRequest,
-        public_key: &coconut_rs::PublicKey,
+        blind_sign_request: &BlindSignRequest,
+        public_key: &nymcoconut::PublicKey,
         public_attributes: &[Attribute],
         total_params: u32,
     ) -> BlindSignRequestBody {
         BlindSignRequestBody {
-            blind_sign_request,
+            blind_sign_request: blind_sign_request.clone(),
             public_key: public_key.clone(),
             public_attributes: public_attributes
                 .iter()

@@ -6,9 +6,9 @@ use crate::commands::override_config;
 use clap::{App, Arg, ArgMatches};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use coconut_interface::Credential;
+use coconut_interface::{Credential, hash_to_scalar};
 use config::NymConfig;
-use credentials::bandwidth::prepare_for_spending;
+use credentials::bandwidth::{prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE};
 use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
@@ -67,7 +67,15 @@ async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -
         .await
         .expect("could not obtain aggregate verification key of validators");
 
-    let bandwidth_credential = credentials::bandwidth::obtain_signature(raw_identity, validators, &verification_key)
+    let bandwidth_credential_attributes = BandwidthVoucherAttributes{
+        serial_number : hash_to_scalar(raw_identity),
+        binding_number : hash_to_scalar(raw_identity),
+        voucher_value : hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
+        voucher_info : hash_to_scalar("BANDWIDTH_VOUCHER".as_bytes()),
+
+    };
+
+    let bandwidth_credential = credentials::bandwidth::obtain_signature(&bandwidth_credential_attributes, validators, &verification_key)
         .await
         .expect("could not obtain bandwidth credential");
 

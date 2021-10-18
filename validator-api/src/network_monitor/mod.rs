@@ -15,8 +15,8 @@ use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
 use crate::network_monitor::tested_network::TestedNetwork;
 use crate::storage::NodeStatusStorage;
-use coconut_interface::Credential;
-use credentials::bandwidth::prepare_for_spending;
+use coconut_interface::{Credential, hash_to_scalar};
+use credentials::bandwidth::{prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE};
 use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
@@ -175,8 +175,16 @@ async fn TEMPORARY_obtain_bandwidth_credential(
         .await
         .expect("could not obtain aggregate verification key of ALL validators");
 
+    let bandwidth_credential_attributes = BandwidthVoucherAttributes{
+        serial_number : hash_to_scalar(identity.to_bytes()),
+        binding_number : hash_to_scalar(identity.to_bytes()),
+        voucher_value : hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
+        voucher_info : hash_to_scalar("BANDWIDTH_VOUCHER".as_bytes()),
+
+    };
+
     let bandwidth_credential =
-        credentials::bandwidth::obtain_signature(&identity.to_bytes(), &validators, &verification_key)
+        credentials::bandwidth::obtain_signature(&bandwidth_credential_attributes, &validators, &verification_key)
             .await
             .expect("failed to obtain bandwidth credential!");
 

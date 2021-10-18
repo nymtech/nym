@@ -50,6 +50,9 @@ pub use traits::Base58;
 pub use utils::hash_to_scalar;
 
 pub type Attribute = Scalar;
+pub type PrivateAttribute = Attribute;
+pub type PublicAttribute = Attribute;
+
 
 impl Bytable for Attribute {
     fn to_byte_vec(&self) -> Vec<u8> {

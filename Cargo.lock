@@ -998,6 +998,7 @@ name = "credentials"
 version = "0.1.0"
 dependencies = [
  "coconut-interface",
+ "crypto",
  "network-defaults",
  "thiserror",
  "url",

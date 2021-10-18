@@ -17,7 +17,7 @@ url = "2.2"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 
 # internal
-credentials = { path = "../../credentials", optional = true }
+credentials = { path = "../../credentials" }
 crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
 nymsphinx = { path = "../../nymsphinx" }
@@ -70,4 +70,4 @@ features = ["js"]
 #url = "2.1"
 
 [features]
-coconut = ["gateway-requests/coconut", "coconut-interface", "credentials"]
+coconut = ["gateway-requests/coconut", "coconut-interface"]

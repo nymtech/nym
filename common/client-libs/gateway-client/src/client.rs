@@ -9,6 +9,8 @@ pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
+#[cfg(not(feature = "coconut"))]
+use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
@@ -500,13 +502,19 @@ impl GatewayClient {
 
         message.append(&mut self.gateway_identity.to_bytes().to_vec());
         let signature = kp.private_key().sign(&message);
-        message.append(&mut signature.to_bytes().to_vec());
+        let credential = TokenCredential::new(verification_key, self.gateway_identity, signature);
 
-        let enc_credential = self
-            .shared_key
-            .as_ref()
-            .unwrap()
-            .encrypt_and_tag(&message, Some(iv.inner()));
+        let msg = ClientControlRequest::new_enc_token_bandwidth_credential(
+            &credential,
+            self.shared_key.as_ref().unwrap(),
+            iv,
+        )
+        .into();
+        self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
+            ServerResponse::Bandwidth { available_total } => Ok(available_total),
+            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+            _ => Err(GatewayClientError::UnexpectedResponse),
+        }?;
 
         Ok(())
     }

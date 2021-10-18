@@ -4,7 +4,10 @@
 #[cfg(not(feature = "coconut"))]
 use crate::error::GatewayClientError;
 #[cfg(feature = "coconut")]
-use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
+use credentials::coconut::{
+    bandwidth::{obtain_signature, prepare_for_spending},
+    utils::obtain_aggregate_verification_key,
+};
 use crypto::asymmetric::identity::PublicKey;
 #[cfg(not(feature = "coconut"))]
 use crypto::asymmetric::identity::Signature;
@@ -63,12 +66,10 @@ impl BandwidthController {
             .await
             .expect("could not obtain aggregate verification key of validators");
 
-        let bandwidth_credential = credentials::bandwidth::obtain_signature(
-            &self.identity.to_bytes(),
-            &self.validator_endpoints,
-        )
-        .await
-        .expect("could not obtain bandwidth credential");
+        let bandwidth_credential =
+            obtain_signature(&self.identity.to_bytes(), &self.validator_endpoints)
+                .await
+                .expect("could not obtain bandwidth credential");
         // the above would presumably be loaded from a file
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)

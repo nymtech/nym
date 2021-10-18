@@ -12,6 +12,7 @@ edition = "2018"
 futures = "0.3"
 json = "0.12.4"
 log = "0.4"
+thiserror = "1.0"
 url = "2.2"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 secp256k1 = "0.20.3"

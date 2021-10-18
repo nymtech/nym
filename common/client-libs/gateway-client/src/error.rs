@@ -2,40 +2,63 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use gateway_requests::registration::handshake::error::HandshakeError;
-use std::fmt::{self, Error, Formatter};
 use std::io;
+use thiserror::Error;
 use tungstenite::Error as WsError;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum GatewayClientError {
+    #[error("Connection to the gateway is not established")]
     ConnectionNotEstablished,
+
+    #[error("Gateway returned an error response - {0}")]
     GatewayError(String),
-    NetworkError(WsError),
+
+    #[error("There was a network error - {0}")]
+    NetworkError(#[from] WsError),
 
     // TODO: see if `JsValue` is a reasonable type for this
     #[cfg(target_arch = "wasm32")]
-    NetworkErrorWasm(JsValue),
+    #[error("There was a network error - {0}")]
+    NetworkErrorWasm(#[from] JsValue),
 
+    #[error("No shared key was provided or obtained")]
     NoSharedKeyAvailable,
-    NoBandwidthControllerAvailable,
-    ConnectionAbruptlyClosed,
-    MalformedResponse,
-    SerializeCredential,
-    NotAuthenticated,
-    NotEnoughBandwidth,
-    UnexpectedResponse,
-    ConnectionInInvalidState,
-    RegistrationFailure(HandshakeError),
-    AuthenticationFailure,
-    Timeout,
-}
 
-impl From<WsError> for GatewayClientError {
-    fn from(err: WsError) -> Self {
-        GatewayClientError::NetworkError(err)
-    }
+    #[error("No bandwidth controller provided")]
+    NoBandwidthControllerAvailable,
+
+    #[error("Connection was abruptly closed")]
+    ConnectionAbruptlyClosed,
+
+    #[error("Received response was malformed")]
+    MalformedResponse,
+
+    #[error("Credential could not be serialized")]
+    SerializeCredential,
+
+    #[error("Client is not authenticated")]
+    NotAuthenticated,
+
+    #[error("Client does not have enough bandwidth")]
+    NotEnoughBandwidth,
+
+    #[error("Received an unexpected response")]
+    UnexpectedResponse,
+
+    #[error("Connection is in an invalid state - please send a bug report")]
+    ConnectionInInvalidState,
+
+    #[error("Failed to finish registration handshake - {0}")]
+    RegistrationFailure(HandshakeError),
+
+    #[error("Authentication failure")]
+    AuthenticationFailure,
+
+    #[error("Timed out")]
+    Timeout,
 }
 
 impl GatewayClientError {
@@ -52,66 +75,6 @@ impl GatewayClientError {
                 _ => false,
             },
             _ => false,
-        }
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-impl From<JsValue> for GatewayClientError {
-    fn from(err: JsValue) -> Self {
-        GatewayClientError::NetworkErrorWasm(err)
-    }
-}
-
-// better human readable representation of the error, mostly so that GatewayClientError
-// would implement std::error::Error
-impl fmt::Display for GatewayClientError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        match self {
-            GatewayClientError::ConnectionNotEstablished => {
-                write!(f, "connection to the gateway is not established")
-            }
-            GatewayClientError::NoSharedKeyAvailable => {
-                write!(f, "no shared key was provided or obtained")
-            }
-            GatewayClientError::NoBandwidthControllerAvailable => {
-                write!(f, "no bandwidth controller provided")
-            }
-            GatewayClientError::NotAuthenticated => write!(f, "client is not authenticated"),
-
-            GatewayClientError::NetworkError(err) => {
-                write!(f, "there was a network error - {}", err)
-            }
-            #[cfg(target_arch = "wasm32")]
-            GatewayClientError::NetworkErrorWasm(err) => {
-                write!(f, "there was a network error - {:?}", err)
-            }
-
-            GatewayClientError::ConnectionAbruptlyClosed => {
-                write!(f, "connection was abruptly closed")
-            }
-            GatewayClientError::Timeout => write!(f, "timed out"),
-            GatewayClientError::MalformedResponse => write!(f, "received response was malformed"),
-            GatewayClientError::ConnectionInInvalidState => write!(
-                f,
-                "connection is in an invalid state - please send a bug report"
-            ),
-            GatewayClientError::RegistrationFailure(handshake_err) => write!(
-                f,
-                "failed to finish registration handshake - {}",
-                handshake_err
-            ),
-            GatewayClientError::AuthenticationFailure => write!(f, "authentication failure"),
-            GatewayClientError::GatewayError(err) => {
-                write!(f, "gateway returned an error response - {}", err)
-            }
-            GatewayClientError::UnexpectedResponse => write!(f, "received an unexpected response"),
-            GatewayClientError::NotEnoughBandwidth => {
-                write!(f, "client does not have enough bandwidth")
-            }
-            GatewayClientError::SerializeCredential => {
-                write!(f, "credential could not be serialized")
-            }
         }
     }
 }

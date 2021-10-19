@@ -16,7 +16,7 @@ use log::{error, info};
 use mixnet_contract::{ExecuteMsg, IdentityKey};
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryInto;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::sleep;

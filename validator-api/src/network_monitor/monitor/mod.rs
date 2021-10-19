@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::ReceivedProcessor;
 use crate::network_monitor::monitor::sender::PacketSender;
-use crate::network_monitor::monitor::summary_producer::{NodeResult, SummaryProducer, TestSummary};
+use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestSummary};
 use crate::network_monitor::test_packet::TestPacket;
 use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NodeStatusStorage;
@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 use std::process;
 use tokio::time::{sleep, Duration, Instant};
 
+pub(crate) mod gateways_pinger;
 pub(crate) mod preparer;
 pub(crate) mod processor;
 pub(crate) mod receiver;
@@ -34,9 +35,6 @@ pub(super) struct Monitor {
     /// Number of test packets sent via each "random" route to verify whether they work correctly.
     route_test_packets: usize,
 
-    /// Number of test packets sent to each node
-    per_node_test_packets: usize,
-
     /// Number of test routes that need to be constructed (and working) in order for
     /// a monitor test run to be valid.
     test_routes: usize,
@@ -50,11 +48,6 @@ impl Monitor {
         received_processor: ReceivedProcessor,
         summary_producer: SummaryProducer,
         node_status_storage: NodeStatusStorage,
-
-        // TODO: to be obtained from the config
-        route_test_packets: usize,
-        per_node_test_packets: usize,
-        test_routes: usize,
     ) -> Self {
         Monitor {
             test_nonce: 1,
@@ -66,11 +59,8 @@ impl Monitor {
             run_interval: config.get_network_monitor_run_interval(),
             gateway_ping_interval: config.get_gateway_ping_interval(),
             packet_delivery_timeout: config.get_packet_delivery_timeout(),
-
-            // TEMP
-            route_test_packets,
-            per_node_test_packets,
-            test_routes,
+            route_test_packets: config.get_route_test_packets(),
+            test_routes: config.get_test_routes(),
         }
     }
 
@@ -111,16 +101,14 @@ impl Monitor {
         received
     }
 
-    async fn test_chosen_routes(&mut self, routes: &[TestRoute]) -> HashMap<u64, bool> {
+    async fn test_chosen_test_routes(&mut self, routes: &[TestRoute]) -> HashMap<u64, bool> {
         // notes:
         /*
            - gateway authentication failure should only 'blacklist' gateways, not mixnodes
 
         */
 
-        println!("testing {} routes", routes.len());
-        println!("{} packets per", self.route_test_packets);
-        println!("{:#?}", routes);
+        debug!("Testing the following test routes: {:#?}", routes);
 
         let mut packets = Vec::with_capacity(routes.len());
         for route in routes {
@@ -138,20 +126,21 @@ impl Monitor {
         sleep(self.packet_delivery_timeout).await;
 
         let received = self.received_processor.return_received().await;
-
-        println!("received back {} packets", received.len());
-
         let mut results = self.analyse_received_test_route_packets(&received);
 
+        // create entry for routes that might have not forwarded a single packet
         for route in routes {
             results.entry(route.id()).or_insert(0);
         }
 
         for entry in results.iter() {
             if *entry.1 == self.route_test_packets {
-                println!("✔️ {}", entry.0)
+                debug!("✔️ {} succeeded", entry.0)
             } else {
-                println!("❌️ {} ({}/{})", entry.0, entry.1, self.route_test_packets)
+                debug!(
+                    "❌️ {} failed ({}/{} received)",
+                    entry.0, entry.1, self.route_test_packets
+                )
             }
         }
 
@@ -168,8 +157,9 @@ impl Monitor {
         blacklist.insert(route.gateway_identity().to_base58_string());
     }
 
-    // entire pipeline should  go here
     async fn prepare_test_routes(&mut self) -> Option<Vec<TestRoute>> {
+        debug!(target: "Monitor", "Generating test routes...");
+
         // keep track of nodes that should not be used for route construction
         let mut blacklist = HashSet::new();
         let mut verified_routes = Vec::new();
@@ -190,7 +180,7 @@ impl Monitor {
                 .packet_preparer
                 .prepare_test_routes(remaining * 2, &mut blacklist)
                 .await?;
-            let results = self.test_chosen_routes(&candidates).await;
+            let results = self.test_chosen_test_routes(&candidates).await;
             for candidate in candidates {
                 // ideally we would blacklist all nodes regardless of the result so we would not use them anymore
                 // however, currently we have huge imbalance of gateways to mixnodes so we might accidentally
@@ -215,11 +205,7 @@ impl Monitor {
     }
 
     async fn test_network_against(&mut self, routes: &[TestRoute]) {
-        let start = tokio::time::Instant::now();
-
-        self.ping_all_gateways().await;
-
-        info!("Generating mix packets for all the nodes...");
+        debug!("Generating mix packets for all the nodes...");
         let prepared_packets = self
             .packet_preparer
             .prepare_test_packets(self.test_nonce, routes)
@@ -235,23 +221,19 @@ impl Monitor {
             .set_new_test_nonce(self.test_nonce)
             .await;
 
-        info!("Sending packets to all gateways...");
+        debug!("Sending packets to all gateways...");
         self.packet_sender
             .send_packets(prepared_packets.packets)
             .await;
 
-        info!(
+        debug!(
             target: "Monitor",
             "Sending is over, waiting for {:?} before checking what we received",
             self.packet_delivery_timeout
         );
 
-        self.ping_all_gateways().await;
-
         // give the packets some time to traverse the network
         sleep(self.packet_delivery_timeout).await;
-
-        self.ping_all_gateways().await;
 
         let received = self.received_processor.return_received().await;
         let total_received = received.len();
@@ -267,74 +249,22 @@ impl Monitor {
 
         let report = summary.create_report(total_sent, total_received);
         info!("{}", report);
-        info!(
-            "Test run took {:?}",
-            tokio::time::Instant::now().duration_since(start)
-        );
 
         self.submit_new_node_statuses(summary).await;
-
-        self.test_nonce += 1;
     }
 
     async fn test_run(&mut self) {
         info!(target: "Monitor", "Starting test run no. {}", self.test_nonce);
-
-        debug!(target: "Monitor", "Generating test routes...");
+        let start = Instant::now();
 
         if let Some(test_routes) = self.prepare_test_routes().await {
-            info!(target: "Monitor", "Determined reliable routes to test all other nodes against.");
+            debug!(target: "Monitor", "Determined reliable routes to test all other nodes against.");
             self.test_network_against(&test_routes).await;
         } else {
             error!("We failed to construct sufficient number of test routes to test the network against")
         }
 
-        panic!("network monitor has started");
-
-        debug!(target: "Monitor", "Preparing mix packets to all nodes...");
-
-        //
-        // let prepared_packets = self
-        //     .packet_preparer
-        //     .prepare_test_packets(self.test_nonce)
-        //     .await;
-        //
-        // self.received_processor
-        //     .set_new_test_nonce(self.test_nonce)
-        //     .await;
-        //
-        // info!(target: "Monitor", "Starting to send all the packets...");
-        // self.packet_sender
-        //     .send_packets(prepared_packets.packets)
-        //     .await;
-        //
-        // info!(
-        //     target: "Monitor",
-        //     "Sending is over, waiting for {:?} before checking what we received",
-        //     self.packet_delivery_timeout
-        // );
-        //
-        // // give the packets some time to traverse the network
-        // sleep(self.packet_delivery_timeout).await;
-        //
-        // let received = self.received_processor.return_received().await;
-        //
-        // let test_summary = self.summary_producer.produce_summary(
-        //     prepared_packets.tested_nodes,
-        //     received,
-        //     prepared_packets.invalid_nodes,
-        // );
-        //
-        // // our "good" nodes MUST be working correctly otherwise we cannot trust the results
-        // if self.check_good_nodes_status(&test_summary.test_report) {
-        //     self.submit_new_node_statuses(
-        //         test_summary.mixnode_results,
-        //         test_summary.gateway_results,
-        //     )
-        //     .await;
-        // } else {
-        //     error!("our own 'good' nodes did not pass the check - we are not going to submit results to the node status API");
-        // }
+        debug!("Test run took {:?}", Instant::now().duration_since(start));
 
         self.test_nonce += 1;
     }
@@ -344,8 +274,6 @@ impl Monitor {
     }
 
     pub(crate) async fn run(&mut self) {
-        // TODO on Monday: when sending packets to gateways create tokio timeout to wait at most 2-3x the expected amount
-
         self.received_processor.start_receiving();
 
         // wait for validator cache to be ready
@@ -353,39 +281,39 @@ impl Monitor {
             .wait_for_validator_cache_initial_values(self.test_routes)
             .await;
 
-        self.test_run().await;
-
-        panic!("aaaaa");
-
-        todo!("put ping all gateways in separate task to always work");
-
-        // start from 0 to run test immediately on startup
-        let test_delay = sleep(Duration::from_secs(0));
-        tokio::pin!(test_delay);
-
-        let ping_delay = sleep(self.gateway_ping_interval);
-        tokio::pin!(ping_delay);
-
+        let mut run_interval = tokio::time::interval(self.run_interval);
         loop {
-            tokio::select! {
-                _ = &mut test_delay => {
-                    self.test_run().await;
-                    info!(target: "Monitor", "Next test run will happen in {:?}", self.run_interval);
-
-                    let now = Instant::now();
-                    test_delay.as_mut().reset(now + self.run_interval);
-                    // since we just sent packets through gateways, there's no need to ping them
-                    ping_delay.as_mut().reset(now + self.gateway_ping_interval);
-
-                }
-                _ = &mut ping_delay => {
-                    info!(target: "Monitor", "Pinging all active gateways");
-                    self.ping_all_gateways().await;
-
-                    let now = Instant::now();
-                    ping_delay.as_mut().reset(now + self.gateway_ping_interval);
-                }
-            }
+            run_interval.tick().await;
+            self.test_run().await;
         }
+
+        // // start from 0 to run test immediately on startup
+        // let test_delay = sleep(Duration::from_secs(0));
+        // tokio::pin!(test_delay);
+        //
+        // let ping_delay = sleep(self.gateway_ping_interval);
+        // tokio::pin!(ping_delay);
+        //
+        // loop {
+        //     tokio::select! {
+        //         _ = &mut test_delay => {
+        //             self.test_run().await;
+        //             info!(target: "Monitor", "Next test run will happen in {:?}", self.run_interval);
+        //
+        //             let now = Instant::now();
+        //             test_delay.as_mut().reset(now + self.run_interval);
+        //             // since we just sent packets through gateways, there's no need to ping them
+        //             ping_delay.as_mut().reset(now + self.gateway_ping_interval);
+        //
+        //         }
+        //         _ = &mut ping_delay => {
+        //             info!(target: "Monitor", "Pinging all active gateways");
+        //             self.ping_all_gateways().await;
+        //
+        //             let now = Instant::now();
+        //             ping_delay.as_mut().reset(now + self.gateway_ping_interval);
+        //         }
+        //     }
+        // }
     }
 }

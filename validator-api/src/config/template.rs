@@ -67,6 +67,17 @@ gateway_connection_timeout = '{{ network_monitor.gateway_connection_timeout }}'
 # packets before declaring nodes unreachable.
 packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
     
+# Number of test routes that need to be constructed (and working) in order for
+# a monitor test run to be valid.
+test_routes = {{ network_monitor.test_routes }}
+
+# Number of test packets sent via each pseudorandom route to verify whether they work correctly,
+# before using them for testing the rest of the network.
+route_test_packets = {{ network_monitor.route_test_packets }}
+
+# Number of test packets sent to each node during regular monitor test run.
+per_node_test_packets = {{ network_monitor.per_node_test_packets }}
+    
 [node_status_api]
 
 # Path to the database file containing uptime statuses for all mixnodes and gateways.

@@ -84,7 +84,7 @@ CREATE INDEX `mixnode_status_index` ON `mixnode_status` (`mixnode_details_id`, `
 CREATE INDEX `gateway_status_index` ON `gateway_status` (`gateway_details_id`, `timestamp` desc);
 
 CREATE TABLE testing_route (
-    gateway_id INTEGER NOT NULL NOT NULL,
+    gateway_id INTEGER NOT NULL,
     layer1_mix_id INTEGER NOT NULL,
     layer2_mix_id INTEGER NOT NULL,
     layer3_mix_id INTEGER NOT NULL,

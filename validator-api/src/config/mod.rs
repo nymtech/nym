@@ -28,6 +28,10 @@ const DEFAULT_GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
 
+const DEFAULT_TEST_ROUTES: usize = 3;
+const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
+const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
+
 const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 
@@ -150,6 +154,17 @@ pub struct NetworkMonitor {
     /// packets before declaring nodes unreachable.
     #[serde(with = "humantime_serde")]
     packet_delivery_timeout: Duration,
+
+    /// Number of test routes that need to be constructed (and working) in order for
+    /// a monitor test run to be valid.
+    test_routes: usize,
+
+    /// Number of test packets sent via each pseudorandom route to verify whether they work correctly,
+    /// before using them for testing the rest of the network.
+    route_test_packets: usize,
+
+    /// Number of test packets sent to each node during regular monitor test run.
+    per_node_test_packets: usize,
 }
 
 impl NetworkMonitor {
@@ -177,6 +192,9 @@ impl Default for NetworkMonitor {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             gateway_connection_timeout: DEFAULT_GATEWAY_CONNECTION_TIMEOUT,
             packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
+            test_routes: DEFAULT_TEST_ROUTES,
+            route_test_packets: DEFAULT_ROUTE_TEST_PACKETS,
+            per_node_test_packets: DEFAULT_PER_NODE_TEST_PACKETS,
         }
     }
 }
@@ -386,6 +404,18 @@ impl Config {
 
     pub fn get_gateway_connection_timeout(&self) -> Duration {
         self.network_monitor.gateway_connection_timeout
+    }
+
+    pub fn get_test_routes(&self) -> usize {
+        self.network_monitor.test_routes
+    }
+
+    pub fn get_route_test_packets(&self) -> usize {
+        self.network_monitor.route_test_packets
+    }
+
+    pub fn get_per_node_test_packets(&self) -> usize {
+        self.network_monitor.per_node_test_packets
     }
 
     pub fn get_caching_interval(&self) -> Duration {

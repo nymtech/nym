@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network_monitor::monitor::summary_producer::{NodeResult, RouteResult};
+use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{
     GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
@@ -11,7 +11,7 @@ use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
     EpochRewarding, FailedGatewayRewardChunk, FailedMixnodeRewardChunk, NodeStatus,
-    PossiblyUnrewardedGateway, PossiblyUnrewardedMixnode, RewardingReport,
+    PossiblyUnrewardedGateway, PossiblyUnrewardedMixnode, RewardingReport, TestingRoute,
 };
 use rocket::fairing::{self, AdHoc};
 use rocket::{Build, Rocket};
@@ -352,6 +352,59 @@ impl NodeStatusStorage {
         Ok(reports)
     }
 
+    ///
+    ///
+    /// # Arguments
+    ///
+    /// * `test_route`:
+    async fn insert_test_route(
+        &self,
+        monitor_run_id: i64,
+        test_route: TestRoute,
+    ) -> Result<(), NodeStatusApiError> {
+        // we MUST have those entries in the database, otherwise the route wouldn't have been chosen
+        // in the first place
+        let layer1_mix_id = self
+            .manager
+            .get_mixnode_id(&test_route.layer_one_mix().identity_key.to_base58_string())
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
+            .ok_or(NodeStatusApiError::InternalDatabaseError)?;
+
+        let layer2_mix_id = self
+            .manager
+            .get_mixnode_id(&test_route.layer_two_mix().identity_key.to_base58_string())
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
+            .ok_or(NodeStatusApiError::InternalDatabaseError)?;
+
+        let layer3_mix_id = self
+            .manager
+            .get_mixnode_id(&test_route.layer_three_mix().identity_key.to_base58_string())
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
+            .ok_or(NodeStatusApiError::InternalDatabaseError)?;
+
+        let gateway_id = self
+            .manager
+            .get_gateway_id(&test_route.gateway().identity_key.to_base58_string())
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
+            .ok_or(NodeStatusApiError::InternalDatabaseError)?;
+
+        self.manager
+            .submit_testing_route_used(TestingRoute {
+                gateway_id,
+                layer1_mix_id,
+                layer2_mix_id,
+                layer3_mix_id,
+                monitor_run_id,
+            })
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
+        Ok(())
+    }
+
     /// Inserts an entry to the database with the network monitor test run information
     /// that has occurred at this instant alongside the results of all the measurements performed.
     ///
@@ -360,14 +413,6 @@ impl NodeStatusStorage {
     /// * `mixnode_results`:
     /// * `gateway_results`:
     /// * `route_results`:
-    ///
-    /// returns: Result<(), NodeStatusApiError>
-    ///
-    /// # Examples
-    ///
-    /// ```
-    ///
-    /// ```
     pub(crate) async fn insert_monitor_run_results(
         &self,
         mixnode_results: Vec<NodeResult>,
@@ -394,10 +439,11 @@ impl NodeStatusStorage {
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
 
-        self.manager
-            .submit_test_route_used(now, monitor_run_id, test_routes)
-            .await
-            .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+        for test_route in test_routes {
+            self.insert_test_route(monitor_run_id, test_route).await?;
+        }
+
+        Ok(())
     }
 
     /// Obtains number of network monitor test runs that have occurred within the specified interval.

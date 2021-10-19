@@ -48,6 +48,18 @@ impl TestRoute {
         &self.nodes.gateways()[0]
     }
 
+    pub(crate) fn layer_one_mix(&self) -> &mix::Node {
+        &self.nodes.mixes().get(&1).unwrap()[0]
+    }
+
+    pub(crate) fn layer_two_mix(&self) -> &mix::Node {
+        &self.nodes.mixes().get(&2).unwrap()[0]
+    }
+
+    pub(crate) fn layer_three_mix(&self) -> &mix::Node {
+        &self.nodes.mixes().get(&3).unwrap()[0]
+    }
+
     pub(crate) fn gateway_clients_address(&self) -> String {
         self.gateway().clients_address()
     }

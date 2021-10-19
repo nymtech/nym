@@ -16,6 +16,14 @@ pub(crate) struct ActiveNode {
     pub(crate) owner: String,
 }
 
+pub(crate) struct TestingRoute {
+    pub(crate) gateway_id: i64,
+    pub(crate) layer1_mix_id: i64,
+    pub(crate) layer2_mix_id: i64,
+    pub(crate) layer3_mix_id: i64,
+    pub(crate) monitor_run_id: i64,
+}
+
 pub(crate) struct EpochRewarding {
     #[allow(dead_code)]
     pub(crate) id: i64,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::monitor::preparer::{InvalidNode, TestedNode};
-use crate::network_monitor::test_packet::{NodeType, TestPacket};
+use crate::network_monitor::test_packet::TestPacket;
 use crate::network_monitor::test_route::TestRoute;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -340,7 +340,7 @@ impl SummaryProducer {
             .into_iter()
             .filter_map(|(id, received)| {
                 let reliability =
-                    (received as f32 / per_node_expected as f32 * 100.0).round() as u8;
+                    (received as f32 / per_route_expected as f32 * 100.0).round() as u8;
 
                 // this might be suboptimal as we're going through the entire slice every time
                 // but realistically this slice will never have more than ~ 10 elements AT MOST

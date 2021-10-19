@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::monitor::summary_producer::NodeResult;
-use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
 use crate::node_status_api::utils::ActiveNodeStatuses;
 use crate::storage::models::{
     ActiveNode, EpochRewarding, FailedGatewayRewardChunk, FailedMixnodeRewardChunk, NodeStatus,
-    PossiblyUnrewardedGateway, PossiblyUnrewardedMixnode, RewardingReport,
+    PossiblyUnrewardedGateway, PossiblyUnrewardedMixnode, RewardingReport, TestingRoute,
 };
 use crate::storage::UnixTimestamp;
 use std::convert::TryFrom;
@@ -19,7 +18,11 @@ pub(crate) struct StorageManager {
 
 // all SQL goes here
 impl StorageManager {
-    /// Tries to obtain row id of given mixnode given its identity
+    /// Tries to obtain row id of given mixnode given its identity.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the mixnode.
     pub(super) async fn get_mixnode_id(&self, identity: &str) -> Result<Option<i64>, sqlx::Error> {
         let id = sqlx::query!(
             "SELECT id FROM mixnode_details WHERE identity = ?",
@@ -33,6 +36,10 @@ impl StorageManager {
     }
 
     /// Tries to obtain row id of given gateway given its identity
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the gateway.
     pub(super) async fn get_gateway_id(&self, identity: &str) -> Result<Option<i64>, sqlx::Error> {
         let id = sqlx::query!(
             "SELECT id FROM gateway_details WHERE identity = ?",
@@ -372,16 +379,26 @@ impl StorageManager {
     ///
     /// # Arguments
     ///
-    /// * `timestamp`: unix timestamp indicating when the measurements took place.
-    /// * `monitor_run_id`: id of the associated network monitor test run.
-    /// * `test_routes`: test routes used for this particular network monitor run.
-    pub(super) async fn submit_test_route_used(
+    /// * `testing_route`: test route used for this particular network monitor run.
+    pub(super) async fn submit_testing_route_used(
         &self,
-        timestamp: UnixTimestamp,
-        monitor_run_id: i64,
-        test_routes: Vec<TestRoute>,
+        testing_route: TestingRoute,
     ) -> Result<(), sqlx::Error> {
-        todo!()
+        sqlx::query!(
+            r#"
+                INSERT INTO testing_route 
+                (gateway_id, layer1_mix_id, layer2_mix_id, layer3_mix_id, monitor_run_id) 
+                VALUES (?, ?, ?, ?, ?);
+            "#,
+            testing_route.gateway_id,
+            testing_route.layer1_mix_id,
+            testing_route.layer2_mix_id,
+            testing_route.layer3_mix_id,
+            testing_route.monitor_run_id,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
     }
 
     /// Checks whether there are already any historical uptimes with this particular date.

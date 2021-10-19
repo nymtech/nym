@@ -16,10 +16,7 @@ use crate::network_monitor::monitor::Monitor;
 use crate::storage::NodeStatusStorage;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
-use log::info;
-use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
-use topology::NymTopology;
 
 #[cfg(feature = "coconut")]
 use coconut_interface::Credential;
@@ -57,10 +54,6 @@ impl<'a> NetworkMonitorBuilder<'a> {
     }
 
     pub(crate) async fn build(self) -> NetworkMonitorRunnables {
-        const TEST_ROUTES: usize = 3;
-        const PER_NODE_TEST_PACKETS: usize = 5;
-        const ROUTE_TEST_PACKETS: usize = 1000;
-
         // TODO: those keys change constant throughout the whole execution of the monitor.
         // and on top of that, they are used with ALL the gateways -> presumably this should change
         // in the future
@@ -76,7 +69,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let packet_preparer = new_packet_preparer(
             &self.system_version,
             self.validator_cache,
-            PER_NODE_TEST_PACKETS,
+            self.config.get_per_node_test_packets(),
             *identity_keypair.public_key(),
             *encryption_keypair.public_key(),
         );
@@ -98,7 +91,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             received_processor_receiver_channel,
             Arc::clone(&encryption_keypair),
         );
-        let summary_producer = new_summary_producer(PER_NODE_TEST_PACKETS);
+        let summary_producer = new_summary_producer(self.config.get_per_node_test_packets());
         let packet_receiver = new_packet_receiver(
             gateway_status_update_receiver,
             received_processor_sender_channel,
@@ -111,9 +104,6 @@ impl<'a> NetworkMonitorBuilder<'a> {
             received_processor,
             summary_producer,
             self.node_status_storage,
-            ROUTE_TEST_PACKETS,
-            PER_NODE_TEST_PACKETS,
-            TEST_ROUTES,
         );
 
         NetworkMonitorRunnables {

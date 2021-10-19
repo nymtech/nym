@@ -1,6 +1,7 @@
 import React from 'react';
 import { Grid, Typography } from '@mui/material';
-import { GridRenderCellParams, GridColumnHeaderParams, GridColDef } from '@mui/x-data-grid';
+import { GridRenderCellParams, GridColDef } from '@mui/x-data-grid';
+import { printableCoin } from '@nymproject/nym-validator-client';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { cellStyles, UniversalDataGrid } from 'src/components/Universal-DataGrid';
 import { MainContext } from 'src/context/main';
@@ -62,7 +63,14 @@ export const PageGateways: React.FC = () => {
             width: 120,
             headerAlign: 'left',
             headerClassName: 'MuiDataGrid-header-override',
-            renderCell: (params: GridRenderCellParams) => <Typography sx={cellStyles}>{params.value}</Typography>
+            renderCell: (params: GridRenderCellParams) => {
+                const bondAsPunk = printableCoin({ amount: params.value as string, denom: 'upunk' })
+                return (
+                    <Typography sx={cellStyles}>
+                        {bondAsPunk}
+                    </Typography>
+                )
+            }
         },
         {
             field: 'host',

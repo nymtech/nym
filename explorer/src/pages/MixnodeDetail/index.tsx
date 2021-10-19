@@ -13,6 +13,7 @@ import { ComponentError } from 'src/components/ComponentError';
 import { cellStyles, UniversalDataGrid } from 'src/components/Universal-DataGrid';
 import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
+import { printableCoin } from '@nymproject/nym-validator-client';
 
 const columns: GridColDef[] = [
     {
@@ -50,9 +51,10 @@ const columns: GridColDef[] = [
         headerAlign: 'left',
         headerClassName: 'MuiDataGrid-header-override',
         renderCell: (params: GridRenderCellParams) => {
+            const bondAsPunk = printableCoin({ amount: params.value as string, denom: 'upunk' })
             return (
                 <div>
-                    <Typography sx={cellStyles}>{params.value}</Typography>
+                    <Typography sx={cellStyles}>{bondAsPunk}</Typography>
                 </div>
             )
         }

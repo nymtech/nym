@@ -290,6 +290,16 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_keypair(keypair_bs58)
     }
 
+    #[cfg(not(feature = "coconut"))]
+    if let Some(eth_private_key) = matches.value_of("eth_private_key") {
+        config = config.with_eth_private_key(String::from(eth_private_key));
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    if let Some(eth_endpoint) = matches.value_of("eth_endpoint") {
+        config = config.with_eth_endpoint(String::from(eth_endpoint));
+    }
+
     if matches.is_present(WRITE_CONFIG_ARG) {
         info!("Saving the configuration to a file");
         if let Err(err) = config.save_to_file(None) {

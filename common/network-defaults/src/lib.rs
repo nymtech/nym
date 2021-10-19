@@ -71,7 +71,6 @@ pub const TOKEN_BANDWIDTH_VALUE: u64 = 1024 * 1024 * 1024;
 pub const BANDWIDTH_VALUE: u64 = 10 * TOKEN_BANDWIDTH_VALUE; // 10 GB
 
 // Ethereum constants used for token bridge
-pub const ETH_RPC_URL: &str = "https://rinkeby.infura.io/v3/45a64f6c6fae495f82898092de839e4e";
 pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("9fEE3e28c17dbB87310A51F13C4fbf4331A6f102");
 

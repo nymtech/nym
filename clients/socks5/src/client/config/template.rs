@@ -42,6 +42,12 @@ public_encryption_key_file = '{{ client.public_encryption_key_file }}'
 # sent but not received back.
 reply_encryption_key_store_path = '{{ client.reply_encryption_key_store_path }}'
 
+# Ethereum private key.
+eth_private_key = '{{ client.eth_private_key }}'
+
+# Addess to an Ethereum full node.
+eth_endpoint = '{{ client.eth_endpoint }}'
+
 ##### additional client config options #####
 
 # ID of the gateway from which the client should be fetching messages.

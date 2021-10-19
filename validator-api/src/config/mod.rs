@@ -150,6 +150,14 @@ pub struct NetworkMonitor {
     /// packets before declaring nodes unreachable.
     #[serde(with = "humantime_serde")]
     packet_delivery_timeout: Duration,
+
+    /// Ethereum private key.
+    #[cfg(not(feature = "coconut"))]
+    eth_private_key: String,
+
+    /// Addess to an Ethereum full node.
+    #[cfg(not(feature = "coconut"))]
+    eth_endpoint: String,
 }
 
 impl NetworkMonitor {
@@ -177,6 +185,10 @@ impl Default for NetworkMonitor {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             gateway_connection_timeout: DEFAULT_GATEWAY_CONNECTION_TIMEOUT,
             packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
+            #[cfg(not(feature = "coconut"))]
+            eth_private_key: "".to_string(),
+            #[cfg(not(feature = "coconut"))]
+            eth_endpoint: "".to_string(),
         }
     }
 }
@@ -328,8 +340,30 @@ impl Config {
         self
     }
 
+    #[cfg(not(feature = "coconut"))]
+    pub fn with_eth_private_key(mut self, eth_private_key: String) -> Self {
+        self.network_monitor.eth_private_key = eth_private_key;
+        self
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn with_eth_endpoint(mut self, eth_endpoint: String) -> Self {
+        self.network_monitor.eth_endpoint = eth_endpoint;
+        self
+    }
+
     pub fn get_network_monitor_enabled(&self) -> bool {
         self.network_monitor.enabled
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_network_monitor_eth_private_key(&self) -> String {
+        self.network_monitor.eth_private_key.clone()
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_network_monitor_eth_endpoint(&self) -> String {
+        self.network_monitor.eth_endpoint.clone()
     }
 
     pub fn get_rewarding_enabled(&self) -> bool {

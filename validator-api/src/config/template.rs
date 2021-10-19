@@ -66,6 +66,12 @@ gateway_connection_timeout = '{{ network_monitor.gateway_connection_timeout }}'
 # Specifies the duration the monitor is going to wait after sending all measurement
 # packets before declaring nodes unreachable.
 packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
+
+# Ethereum private key.
+eth_private_key = '{{ network_monitor.eth_private_key }}'
+
+# Addess to an Ethereum full node.
+eth_endpoint = '{{ network_monitor.eth_endpoint }}'
     
 [node_status_api]
 

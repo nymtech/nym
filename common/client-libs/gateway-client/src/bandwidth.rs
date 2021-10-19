@@ -13,9 +13,12 @@ use crypto::asymmetric::identity::PublicKey;
 use crypto::asymmetric::identity::Signature;
 #[cfg(not(feature = "coconut"))]
 use network_defaults::{
-    eth_contract::ETH_JSON_ABI, BANDWIDTH_VALUE, ETH_CONTRACT_ADDRESS, ETH_RPC_URL,
-    TOKEN_BANDWIDTH_VALUE,
+    eth_contract::ETH_JSON_ABI, BANDWIDTH_VALUE, ETH_CONTRACT_ADDRESS, TOKEN_BANDWIDTH_VALUE,
 };
+#[cfg(not(feature = "coconut"))]
+use secp256k1::SecretKey;
+#[cfg(not(feature = "coconut"))]
+use std::str::FromStr;
 #[cfg(not(feature = "coconut"))]
 use web3::{
     contract::{Contract, Options},
@@ -31,6 +34,8 @@ pub struct BandwidthController {
     identity: PublicKey,
     #[cfg(not(feature = "coconut"))]
     contract: Contract<Http>,
+    #[cfg(not(feature = "coconut"))]
+    eth_private_key: SecretKey,
 }
 
 impl BandwidthController {
@@ -43,9 +48,9 @@ impl BandwidthController {
     }
 
     #[cfg(not(feature = "coconut"))]
-    pub fn new() -> Self {
+    pub fn new(eth_endpoint: String, eth_private_key: String) -> Self {
         // Fail early, on invalid url
-        let transport = Http::new(ETH_RPC_URL).expect("Invalid Ethereum URL");
+        let transport = Http::new(&eth_endpoint).expect("Invalid Ethereum URL");
         let web3 = web3::Web3::new(transport);
         // Fail early, on invalid abi
         let contract = Contract::from_json(
@@ -57,8 +62,13 @@ impl BandwidthController {
                 .as_bytes(),
         )
         .expect("Invalid json abi");
+        let eth_private_key =
+            secp256k1::SecretKey::from_str(&eth_private_key).expect("Invalid Ethereum private key");
 
-        BandwidthController { contract }
+        BandwidthController {
+            contract,
+            eth_private_key,
+        }
     }
 
     #[cfg(feature = "coconut")]
@@ -88,7 +98,6 @@ impl BandwidthController {
         verification_key: PublicKey,
         signed_verification_key: Signature,
     ) -> Result<(), GatewayClientError> {
-        let key = secp256k1::key::ONE_KEY;
         let tokens_to_burn = BANDWIDTH_VALUE / TOKEN_BANDWIDTH_VALUE;
         // 0 means a transaction failure, 1 means success
         if Some(U64::from(0))
@@ -103,7 +112,7 @@ impl BandwidthController {
                     ),
                     Options::default(),
                     1,
-                    &key,
+                    &self.eth_private_key,
                 )
                 .await?
                 .status

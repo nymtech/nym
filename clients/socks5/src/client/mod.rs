@@ -177,7 +177,10 @@ impl NymClient {
                 *self.key_manager.identity_keypair().public_key(),
             );
             #[cfg(not(feature = "coconut"))]
-            let bandwidth_controller = BandwidthController::new();
+            let bandwidth_controller = BandwidthController::new(
+                self.config.get_base().get_eth_endpoint(),
+                self.config.get_base().get_eth_private_key(),
+            );
 
             let mut gateway_client = GatewayClient::new(
                 gateway_address,

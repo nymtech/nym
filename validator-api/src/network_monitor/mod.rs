@@ -95,7 +95,10 @@ impl<'a> NetworkMonitorBuilder<'a> {
             *identity_keypair.public_key(),
         );
         #[cfg(not(feature = "coconut"))]
-        let bandwidth_controller = BandwidthController::new();
+        let bandwidth_controller = BandwidthController::new(
+            self.config.get_network_monitor_eth_endpoint(),
+            self.config.get_network_monitor_eth_private_key(),
+        );
 
         let packet_sender = new_packet_sender(
             self.config,

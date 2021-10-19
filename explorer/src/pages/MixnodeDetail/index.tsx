@@ -11,6 +11,14 @@ import { mixnodeToGridRow, scrollToRef } from 'src/utils';
 import { ComponentError } from 'src/components/ComponentError';
 import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
 import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
+import { printableCoin } from '@nymproject/nym-validator-client';
+import { GridRenderCellParams } from '@mui/x-data-grid';
+
+const linkStyles = {
+    color: 'inherit',
+    textDecoration: 'none',
+    marginLeft: 2,
+}
 
 const columns = [
     { field: 'owner', headerName: 'Owner', width: 380, },
@@ -18,7 +26,15 @@ const columns = [
     {
         field: 'bond',
         headerName: 'Bond',
-        width: 130,
+        width: 180,
+        renderCell: (params: GridRenderCellParams) => {
+            const bondAsPunk = printableCoin({ amount: params.value as string, denom: 'upunk' })
+            return (
+                <Typography sx={linkStyles}>
+                    {bondAsPunk}
+                </Typography>
+            )
+        }
     },
     {
         field: 'host',

@@ -14,9 +14,9 @@ import { MixnodesSVG } from 'src/icons/MixnodesSVG';
 
 export const PageOverview: React.FC = () => {
   const history = useHistory();
-  const { mixnodes, gateways, validators, block, countryData , mode }: any =
+  const { mixnodes, gateways, validators, block, countryData, mode }: any =
     React.useContext(MainContext);
-    const theme = useTheme()
+  const theme = useTheme()
   return (
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>

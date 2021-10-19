@@ -50,10 +50,10 @@ export function BondBreakdownTable() {
     }, [mixnodeDetailInfo]);
 
     React.useEffect(() => {
-        const hasError = mixnodeDetailInfo?.error || delegations?.error ? true : false;
-        const hasAllMixnodeInfo = mixnodeDetailInfo?.data !== undefined && mixnodeDetailInfo?.data[0].mix_node ? true : false;
-        const hasAllDelegationsInfo = delegations?.data !== undefined ? true : false;
-        const hasAllData = !hasError && hasAllMixnodeInfo && hasAllDelegationsInfo ? true : false;
+        const hasError = Boolean(mixnodeDetailInfo?.error || delegations?.error);
+        const hasAllMixnodeInfo = Boolean(mixnodeDetailInfo?.data !== undefined && mixnodeDetailInfo?.data[0].mix_node);
+        const hasAllDelegationsInfo = Boolean(delegations?.data !== undefined && delegations?.data.length);
+        const hasAllData = Boolean(!hasError && hasAllMixnodeInfo && hasAllDelegationsInfo);
         setShowError(hasError);
         setAllContentLoaded(hasAllData);
     }, [mixnodeDetailInfo, delegations]);

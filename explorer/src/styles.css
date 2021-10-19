@@ -7,3 +7,11 @@ in <DataGrid /> */
 .MuiDataGrid-sortIcon {
     display: none !important;
 }
+
+/* TODO - this should be disabled somehow in MUI DataGrid
+but documentation doesnt offer an obvious way to do it. Possibly only
+included in Data Grid Pro package */
+.MuiDataGrid-header-override {
+    height: 55px;
+    min-height: 55px;
+}

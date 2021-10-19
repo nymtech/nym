@@ -1,7 +1,7 @@
 import React from 'react';
-import { GridRenderCellParams, GridColumnHeaderParams } from '@mui/x-data-grid';
+import { GridRenderCellParams, GridColumnHeaderParams, GridColDef } from '@mui/x-data-grid';
 import { Link as RRDLink } from 'react-router-dom';
-import { Link as MuiLink } from '@mui/material';
+import { Grid, Link as MuiLink } from '@mui/material';
 import { Typography } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useContext } from 'react';
@@ -43,11 +43,13 @@ export const PageMixnodes: React.FC = () => {
     }
   }, [searchTerm, mixnodes?.data])
 
-  const columns = [
+  const columns: GridColDef[] = [
     {
       field: 'owner',
-      renderHeader: (params: GridColumnHeaderParams) => <CustomColumnHeading headingTitle='Owner' />,
-      width: 360,
+      renderHeader: () => <CustomColumnHeading headingTitle='Owner' />,
+      width: 200,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => {
         return (
           <MuiLink
@@ -63,7 +65,9 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'identity_key',
       renderHeader: () => <CustomColumnHeading headingTitle='Identity Key' />,
-      width: 420,
+      width: 200,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => {
         return (
           <MuiLink sx={cellStyles} component={RRDLink} to={`/network-components/mixnodes/${params.value}`}>
@@ -74,6 +78,8 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'bond',
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
       renderHeader: () => <CustomColumnHeading headingTitle='Bond' />,
       width: 120,
       renderCell: (params: GridRenderCellParams) => {
@@ -88,6 +94,8 @@ export const PageMixnodes: React.FC = () => {
       field: 'host',
       renderHeader: () => <CustomColumnHeading headingTitle='IP:Port' />,
       width: 130,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => {
         return (
           <MuiLink sx={cellStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
@@ -100,6 +108,8 @@ export const PageMixnodes: React.FC = () => {
       field: 'location',
       renderHeader: () => <CustomColumnHeading headingTitle='Location' />,
       width: 120,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => {
         return (
           <div
@@ -113,12 +123,14 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'layer',
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
       renderHeader: () => <CustomColumnHeading headingTitle='Layer' />,
       width: 100,
       type: 'number',
       renderCell: (params: GridRenderCellParams) => {
         return (
-          <MuiLink sx={cellStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
+          <MuiLink sx={{ ...cellStyles, textAlign: 'left' }} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
             {params.value}
           </MuiLink>
         )
@@ -136,22 +148,26 @@ export const PageMixnodes: React.FC = () => {
         Mixnodes
       </Typography>
 
-      <ContentCard>
-        <TableToolbar
-          onChangeSearch={handleSearch}
-          onChangePageSize={handlePageSize}
-          pageSize={pageSize}
-          searchTerm={searchTerm}
-        />
-        <UniversalDataGrid
-          loading={mixnodes?.isLoading}
-          columnsData={columns}
-          rows={mixnodeToGridRow(filteredMixnodes)}
-          height={1080}
-          pageSize={pageSize}
-          pagination
-        />
-      </ContentCard>
+      <Grid container>
+        <Grid item xs={12} md={12} lg={12} xl={8}>
+          <ContentCard>
+            <TableToolbar
+              onChangeSearch={handleSearch}
+              onChangePageSize={handlePageSize}
+              pageSize={pageSize}
+              searchTerm={searchTerm}
+            />
+            <UniversalDataGrid
+              loading={mixnodes?.isLoading}
+              columnsData={columns}
+              rows={mixnodeToGridRow(filteredMixnodes)}
+              pageSize={pageSize}
+              pagination
+            />
+          </ContentCard>
+
+        </Grid>
+      </Grid>
     </>
   );
 };

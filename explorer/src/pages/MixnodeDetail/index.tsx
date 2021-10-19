@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { GridRenderCellParams } from '@mui/x-data-grid';
+import { GridRenderCellParams, GridColDef } from '@mui/x-data-grid';
 import { Box, Grid, Typography } from '@mui/material';
 import { MainContext } from 'src/context/main';
 import { useParams } from 'react-router-dom';
@@ -14,11 +14,13 @@ import { cellStyles, UniversalDataGrid } from 'src/components/Universal-DataGrid
 import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 
-const columns = [
+const columns: GridColDef[] = [
     {
         field: 'owner',
         renderHeader: () => <CustomColumnHeading headingTitle='Owner' />,
         width: 200,
+        headerAlign: 'left',
+        headerClassName: 'MuiDataGrid-header-override',
         renderCell: (params: GridRenderCellParams) => {
             return (
                 <div>
@@ -30,7 +32,9 @@ const columns = [
     {
         field: 'identity_key',
         renderHeader: () => <CustomColumnHeading headingTitle='Identity Key' />,
-        width: 380,
+        width: 200,
+        headerAlign: 'left',
+        headerClassName: 'MuiDataGrid-header-override',
         renderCell: (params: GridRenderCellParams) => {
             return (
                 <div>
@@ -43,6 +47,8 @@ const columns = [
         field: 'bond',
         renderHeader: () => <CustomColumnHeading headingTitle='Bond' />,
         width: 120,
+        headerAlign: 'left',
+        headerClassName: 'MuiDataGrid-header-override',
         renderCell: (params: GridRenderCellParams) => {
             return (
                 <div>
@@ -55,6 +61,8 @@ const columns = [
         field: 'host',
         renderHeader: () => <CustomColumnHeading headingTitle='IP:Port' />,
         width: 130,
+        headerAlign: 'left',
+        headerClassName: 'MuiDataGrid-header-override',
         renderCell: (params: GridRenderCellParams) => {
             return (
                 <div>
@@ -67,6 +75,8 @@ const columns = [
         field: 'location',
         renderHeader: () => <CustomColumnHeading headingTitle='Location' />,
         width: 120,
+        headerAlign: 'left',
+        headerClassName: 'MuiDataGrid-header-override',
         renderCell: (params: GridRenderCellParams) => {
             return (
                 <div>
@@ -79,6 +89,8 @@ const columns = [
         field: 'layer',
         renderHeader: () => <CustomColumnHeading headingTitle='Layer' />,
         width: 100,
+        headerAlign: 'left',
+        headerClassName: 'MuiDataGrid-header-override',
         type: 'number',
         renderCell: (params: GridRenderCellParams) => {
             return (
@@ -143,16 +155,22 @@ export const PageMixnodeDetail: React.FC = () => {
                     </Grid>
                     <Grid item xs={12} xl={9}>
                         {mixnodeDetailInfo && (
-                            <ContentCard>
-                                <UniversalDataGrid
-                                    columnsData={columns}
-                                    rows={mixnodeToGridRow(row)}
-                                    loading={mixnodeDetailInfo.isLoading}
-                                    height={180}
-                                    pageSize='1'
-                                    pagination={false}
-                                />
-                            </ContentCard>
+                            <>
+                                <Grid container>
+                                    <Grid item xs={12} md={9} lg={12} xl={12}>
+                                        <ContentCard>
+                                            <UniversalDataGrid
+                                                columnsData={columns}
+                                                rows={mixnodeToGridRow(row)}
+                                                loading={mixnodeDetailInfo.isLoading}
+                                                pageSize='1'
+                                                pagination={false}
+                                                hideFooter
+                                            />
+                                        </ContentCard>
+                                    </Grid>
+                                </Grid>
+                            </>
                         )}
                     </Grid>
                     <Grid item xs={12} xl={9}>
@@ -160,7 +178,7 @@ export const PageMixnodeDetail: React.FC = () => {
                             <BondBreakdownTable />
                         </ContentCard>
                     </Grid>
-                </Grid>
+                </Grid >
                 <Grid
                     container
                     spacing={2}
@@ -260,7 +278,7 @@ export const PageMixnodeDetail: React.FC = () => {
                         )}
                     </Grid>
                 </Grid>
-            </Box>
+            </Box >
         </>
     )
 }

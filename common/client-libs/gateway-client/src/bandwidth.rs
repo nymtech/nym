@@ -14,6 +14,7 @@ use crypto::asymmetric::identity::Signature;
 #[cfg(not(feature = "coconut"))]
 use network_defaults::{
     eth_contract::ETH_JSON_ABI, BANDWIDTH_VALUE, ETH_CONTRACT_ADDRESS, ETH_RPC_URL,
+    TOKEN_BANDWIDTH_VALUE,
 };
 #[cfg(not(feature = "coconut"))]
 use web3::{
@@ -88,6 +89,7 @@ impl BandwidthController {
         signed_verification_key: Signature,
     ) -> Result<(), GatewayClientError> {
         let key = secp256k1::key::ONE_KEY;
+        let tokens_to_burn = BANDWIDTH_VALUE / TOKEN_BANDWIDTH_VALUE;
         // 0 means a transaction failure, 1 means success
         if Some(U64::from(0))
             == self
@@ -95,7 +97,7 @@ impl BandwidthController {
                 .signed_call_with_confirmations(
                     "burnTokenForAccessCode",
                     (
-                        U256::from(BANDWIDTH_VALUE),
+                        U256::from(tokens_to_burn),
                         U256::from(&verification_key.to_bytes()),
                         Bytes(signed_verification_key.to_bytes().to_vec()),
                     ),

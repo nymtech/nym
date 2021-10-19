@@ -65,7 +65,10 @@ pub fn default_api_endpoints() -> Vec<Url> {
 pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
 pub const NETWORK_MONITOR_ADDRESS: &str = "punk1v9qauwdq5terag6uvfsdytcs2d0sdmfdy7hgk3";
 
-pub const BANDWIDTH_VALUE: u64 = 10 * 1024 * 1024 * 1024; // 10 GB
+/// How much bandwidth (in bytes) one token can buy
+pub const TOKEN_BANDWIDTH_VALUE: u64 = 1024 * 1024 * 1024;
+/// Default bandwidth (in bytes) that we try to buy
+pub const BANDWIDTH_VALUE: u64 = 10 * TOKEN_BANDWIDTH_VALUE; // 10 GB
 
 // Ethereum constants used for token bridge
 pub const ETH_RPC_URL: &str = "https://rinkeby.infura.io/v3/45a64f6c6fae495f82898092de839e4e";

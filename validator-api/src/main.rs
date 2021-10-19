@@ -58,6 +58,9 @@ const API_VALIDATORS_ARG: &str = "api-validators";
 #[cfg(feature = "coconut")]
 const KEYPAIR_ARG: &str = "keypair";
 
+#[cfg(feature = "coconut")]
+const COCONUT_ONLY_FLAG: &str = "coconut-only";
+
 const EPOCH_LENGTH_ARG: &str = "epoch-length";
 const FIRST_REWARDING_EPOCH_ARG: &str = "first-epoch";
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
@@ -162,11 +165,15 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         );
 
     #[cfg(feature = "coconut")]
-    let base_app = base_app.arg(
+        let base_app = base_app.arg(
         Arg::with_name(KEYPAIR_ARG)
             .help("Path to the secret key file")
             .takes_value(true)
             .long(KEYPAIR_ARG),
+    ).arg(
+        Arg::with_name(COCONUT_ONLY_FLAG)
+            .help("Flag to indicate whether validator api should only be used for credential issuance with no blockchain connection")
+            .long(COCONUT_ONLY_FLAG),
     );
 
     base_app.get_matches()
@@ -263,9 +270,10 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     {
         let monitor_threshold =
             monitor_threshold.expect("Provided monitor threshold is not a number!");
-        if monitor_threshold > 100 {
-            panic!("Provided monitor threshold is greater than 100!");
-        }
+        assert!(
+            !(monitor_threshold > 100),
+            "Provided monitor threshold is greater than 100!"
+        );
         config = config.with_minimum_epoch_monitor_threshold(monitor_threshold)
     }
 
@@ -428,11 +436,24 @@ async fn main() -> Result<()> {
     };
 
     let matches = parse_args();
+
     let config = override_config(config, &matches);
     // if we just wanted to write data to the config, exit
     if matches.is_present(WRITE_CONFIG_ARG) {
         return Ok(());
     }
+
+    #[cfg(feature = "coconut")]
+    if matches.is_present(COCONUT_ONLY_FLAG) {
+        // this simplifies everything - we just want to run coconut things
+        return rocket::build()
+            .attach(setup_cors()?)
+            .attach(InternalSignRequest::stage(config.keypair()))
+            .launch()
+            .await
+            .map_err(|err| err.into());
+    }
+
     let liftoff_notify = Arc::new(Notify::new());
 
     // let's build our rocket!

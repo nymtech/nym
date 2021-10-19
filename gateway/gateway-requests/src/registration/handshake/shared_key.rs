@@ -126,14 +126,14 @@ impl SharedKeys {
 
         // couldn't have made the first borrow mutable as you can't have an immutable borrow
         // together with a mutable one
-        let mut message_bytes_mut = &mut enc_data.to_vec()[mac_size..];
+        let message_bytes_mut = &mut enc_data.to_vec()[mac_size..];
 
         let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
         let iv = iv.unwrap_or(&zero_iv);
         stream_cipher::decrypt_in_place::<GatewayEncryptionAlgorithm>(
             self.encryption_key(),
             iv,
-            &mut message_bytes_mut,
+            message_bytes_mut,
         );
         Ok(message_bytes_mut.to_vec())
     }

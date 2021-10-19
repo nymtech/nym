@@ -4,9 +4,6 @@ on:
   push:
     paths:
       - 'explorer/**'
-  pull_request:
-    paths:
-      - 'explorer/**'
 
 defaults:
   run:
@@ -52,7 +49,7 @@ jobs:
         KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
         KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
         KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
-        KEYBASE_NYM_CHANNEL: "dev-product-ci"
+        KEYBASE_NYM_CHANNEL: "ci-network-explorer"
         IS_SUCCESS: "${{ job.status == 'success' }}"
       uses: docker://keybaseio/client:stable-node
       with:

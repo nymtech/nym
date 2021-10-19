@@ -702,4 +702,30 @@ impl NodeStatusStorage {
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)
     }
+
+    ///
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the mixnode.
+    pub(crate) async fn get_core_mixnode_status_count(
+        &self,
+        identity: &str,
+        since: Option<UnixTimestamp>,
+    ) -> Result<i64, NodeStatusApiError> {
+        todo!()
+    }
+
+    ///
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the gateway.
+    pub(crate) async fn get_core_gateway_status_count(
+        &self,
+        identity: &str,
+        since: Option<UnixTimestamp>,
+    ) -> Result<i64, NodeStatusApiError> {
+        todo!()
+    }
 }

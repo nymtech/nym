@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node_status_api::models::{
-    ErrorResponse, GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport,
+    CoreNodeStatus, ErrorResponse, GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport,
     MixnodeUptimeHistory,
 };
 use crate::storage::NodeStatusStorage;
@@ -56,4 +56,38 @@ pub(crate) async fn gateway_uptime_history(
         .await
         .map(Json)
         .map_err(|err| ErrorResponse::new(err, Status::NotFound))
+}
+
+#[get("/mixnode/<pubkey>/core_status_count?<since>")]
+pub(crate) async fn mixnode_core_status_count(
+    storage: &State<NodeStatusStorage>,
+    pubkey: &str,
+    since: Option<i64>,
+) -> Json<CoreNodeStatus> {
+    let count = storage
+        .get_core_mixnode_status_count(pubkey, since)
+        .await
+        .unwrap_or_default();
+
+    Json(CoreNodeStatus {
+        identity: pubkey.to_string(),
+        count,
+    })
+}
+
+#[get("/gateway/<pubkey>/core_status_count?<since>")]
+pub(crate) async fn gateway_core_status_count(
+    storage: &State<NodeStatusStorage>,
+    pubkey: &str,
+    since: Option<i64>,
+) -> Json<CoreNodeStatus> {
+    let count = storage
+        .get_core_gateway_status_count(pubkey, since)
+        .await
+        .unwrap_or_default();
+
+    Json(CoreNodeStatus {
+        identity: pubkey.to_string(),
+        count,
+    })
 }

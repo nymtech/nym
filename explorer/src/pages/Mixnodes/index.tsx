@@ -163,7 +163,7 @@ export const PageMixnodes: React.FC = () => {
       </Typography>
 
       <Grid container>
-        <Grid item xs={12} md={12} lg={12} xl={8}>
+        <Grid item xs={12} md={12} lg={9} xl={9}>
           <ContentCard>
             <TableToolbar
               onChangeSearch={handleSearch}

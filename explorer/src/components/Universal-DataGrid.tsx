@@ -47,7 +47,6 @@ export const UniversalDataGrid = ({
         autoHeight
         hideFooter={hideFooter}
         style={{
-          maxWidth: 980,
           width: '100%',
         }}
       />

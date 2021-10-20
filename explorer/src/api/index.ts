@@ -63,7 +63,7 @@ export class Api {
 
   static fetchGateways = async (): Promise<GatewayResponse> => {
     const res = await fetch(GATEWAYS_API);
-    return await res.json();
+    return res.json();
   };
 
   static fetchValidators = async (): Promise<ValidatorsResponse> => {
@@ -91,25 +91,17 @@ export class Api {
 
   static fetchDelegationsById = async (
     id: string,
-  ): Promise<DelegationsResponse> => {
-    const res = await fetch(`${MIXNODES_API}/${id}/delegations`);
-    return await res.json();
-  };
+  ): Promise<DelegationsResponse> =>
+    (await fetch(`${MIXNODES_API}/${id}/delegations`)).json();
 
-  static fetchStatsById = async (id: string): Promise<StatsResponse> => {
-    const res = await fetch(`${MIXNODES_API}/${id}/stats`);
-    return await res.json();
-  };
+  static fetchStatsById = async (id: string): Promise<StatsResponse> =>
+    (await fetch(`${MIXNODES_API}/${id}/stats`)).json();
 
-  static fetchStatusById = async (id: string): Promise<StatusResponse> => {
-    const res = await fetch(`${MIXNODE_PING}/${id}`);
-    return await res.json();
-  };
+  static fetchStatusById = async (id: string): Promise<StatusResponse> =>
+    (await fetch(`${MIXNODE_PING}/${id}`)).json();
 
   static fetchUptimeStoryById = async (
     id: string,
-  ): Promise<UptimeStoryResponse> => {
-    const res = await fetch(`${UPTIME_STORY_API}/${id}/history`);
-    return await res.json();
-  };
+  ): Promise<UptimeStoryResponse> =>
+    (await fetch(`${UPTIME_STORY_API}/${id}/history`)).json();
 }

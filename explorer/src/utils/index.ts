@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import { GatewayResponse, MixNodeResponse } from 'src/typeDefs/explorer-api';
 
 export function formatNumber(num: number) {

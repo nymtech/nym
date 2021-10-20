@@ -1,6 +1,6 @@
-// import { Requester } from './requester';
+/* eslint-disable camelcase */
+
 export interface ClientConfig {
-  //   requester?: Requester;
   url: string;
   version: string;
 }
@@ -10,6 +10,7 @@ export enum Layer {
   Two = 'Two',
   Three = 'Three',
 }
+
 export interface MixNode {
   host: string;
   location: string;

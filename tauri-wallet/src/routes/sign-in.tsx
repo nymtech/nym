@@ -202,7 +202,6 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
         setIsLoading(false)
       }, 2500)
     } catch (e: any) {
-      console.log(e)
       setError(e)
     }
   }
@@ -210,7 +209,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
     <SignInCard>
       <Typography variant="h4">Create wallet</Typography>
       <Typography color="textSecondary">
-        Create an new wallet to start using the Nym network
+        Create a new wallet to start using the Nym network
       </Typography>
       <Grid
         container

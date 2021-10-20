@@ -193,7 +193,7 @@ impl PartiallyDelegated {
 // by notifying the future owning it to finish the execution and awaiting the result
 // which should be almost immediate (or an invalid state which should never, ever happen)
 pub(crate) enum SocketState {
-    Available(WsConn),
+    Available(Box<WsConn>),
     PartiallyDelegated(PartiallyDelegated),
     NotConnected,
     Invalid,

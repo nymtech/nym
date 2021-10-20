@@ -38,6 +38,7 @@ const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
 pub struct GatewayClient {
     authenticated: bool,
+    #[cfg(feature = "coconut")]
     bandwidth_remaining: i64,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
@@ -71,8 +72,11 @@ impl GatewayClient {
     ) -> Self {
         GatewayClient {
             authenticated: false,
+
+            #[cfg(feature = "coconut")]
             bandwidth_remaining: 0,
             gateway_address,
+
             gateway_identity,
             local_identity,
             shared_key,
@@ -114,7 +118,10 @@ impl GatewayClient {
 
         GatewayClient {
             authenticated: false,
+
+            #[cfg(feature = "coconut")]
             bandwidth_remaining: 0,
+
             gateway_address,
             gateway_identity,
             local_identity,
@@ -135,7 +142,7 @@ impl GatewayClient {
     #[cfg(not(target_arch = "wasm32"))]
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
-            SocketState::Available(mut socket) => Ok(socket.close(None).await?),
+            SocketState::Available(mut socket) => Ok((*socket).close(None).await?),
             SocketState::PartiallyDelegated(_) => {
                 unreachable!("this branch should have never been reached!")
             }
@@ -147,7 +154,7 @@ impl GatewayClient {
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
             SocketState::Available(mut socket) => {
-                socket.close(None).await;
+                (*socket).close(None).await;
                 Ok(())
             }
             SocketState::PartiallyDelegated(_) => {
@@ -172,7 +179,7 @@ impl GatewayClient {
             Err(e) => return Err(GatewayClientError::NetworkError(e)),
         };
 
-        self.connection = SocketState::Available(ws_stream);
+        self.connection = SocketState::Available(Box::new(ws_stream));
         Ok(())
     }
 
@@ -183,7 +190,7 @@ impl GatewayClient {
             Err(e) => return Err(GatewayClientError::NetworkErrorWasm(e)),
         };
 
-        self.connection = SocketState::Available(ws_stream);
+        self.connection = SocketState::Available(Box::new(ws_stream));
         Ok(())
     }
 
@@ -495,6 +502,7 @@ impl GatewayClient {
         Ok(())
     }
 
+    #[cfg(feature = "coconut")]
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {
         packets
             .iter()
@@ -509,6 +517,7 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
+        #[cfg(feature = "coconut")]
         if self.estimate_required_bandwidth(&packets) < self.bandwidth_remaining {
             return Err(GatewayClientError::NotEnoughBandwidth);
         }
@@ -576,6 +585,7 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
+        #[cfg(feature = "coconut")]
         if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
             return Err(GatewayClientError::NotEnoughBandwidth);
         }
@@ -605,7 +615,7 @@ impl GatewayClient {
             _ => unreachable!(),
         };
 
-        self.connection = SocketState::Available(conn);
+        self.connection = SocketState::Available(Box::new(conn));
         Ok(())
     }
 
@@ -614,6 +624,7 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
+        #[cfg(feature = "coconut")]
         if self.bandwidth_remaining <= 0 {
             return Err(GatewayClientError::NotEnoughBandwidth);
         }
@@ -628,7 +639,7 @@ impl GatewayClient {
             match std::mem::replace(&mut self.connection, SocketState::Invalid) {
                 SocketState::Available(conn) => {
                     PartiallyDelegated::split_and_listen_for_mixnet_messages(
-                        conn,
+                        *conn,
                         self.packet_router.clone(),
                         Arc::clone(
                             self.shared_key

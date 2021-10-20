@@ -27,6 +27,7 @@ tokio-stream = { version = "0.1", features = [ "fs" ] }
 tokio-tungstenite = "0.14"
 url = { version = "2.2", features = [ "serde" ] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+web3 = "0.17.0"
 
 # internal
 coconut-interface = { path = "../common/coconut-interface" , optional = true}
@@ -34,6 +35,7 @@ credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
 gateway-requests = { path = "gateway-requests" }
+gateway-client = { path = "../common/client-libs/gateway-client" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
 nymsphinx = { path = "../common/nymsphinx" }

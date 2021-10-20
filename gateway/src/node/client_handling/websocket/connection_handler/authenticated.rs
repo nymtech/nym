@@ -214,7 +214,9 @@ where
             iv,
         )?;
 
-        if !credential.verify(&self.inner.eth_endpoint) {
+        if !credential.verify_signature()
+            || !super::eth_events::verify_eth_events(&self.inner.contract)
+        {
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
 

@@ -3510,6 +3510,7 @@ dependencies = [
  "dirs",
  "dotenv",
  "futures",
+ "gateway-client",
  "gateway-requests",
  "humantime-serde",
  "log",
@@ -3529,6 +3530,7 @@ dependencies = [
  "url",
  "validator-client",
  "version-checker",
+ "web3",
 ]
 
 [[package]]

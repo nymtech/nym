@@ -16,6 +16,9 @@ use tokio::task::JoinHandle;
 #[cfg(feature = "coconut")]
 use coconut_interface::VerificationKey;
 
+#[cfg(not(feature = "coconut"))]
+use web3::{contract::Contract, transports::Http};
+
 pub(crate) struct Listener {
     address: SocketAddr,
     local_identity: Arc<identity::KeyPair>,
@@ -24,7 +27,7 @@ pub(crate) struct Listener {
     aggregated_verification_key: VerificationKey,
 
     #[cfg(not(feature = "coconut"))]
-    eth_endpoint: String,
+    contract: Contract<Http>,
 }
 
 impl Listener {
@@ -32,7 +35,7 @@ impl Listener {
         address: SocketAddr,
         local_identity: Arc<identity::KeyPair>,
         #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
-        #[cfg(not(feature = "coconut"))] eth_endpoint: String,
+        #[cfg(not(feature = "coconut"))] contract: Contract<Http>,
     ) -> Self {
         Listener {
             address,
@@ -40,7 +43,7 @@ impl Listener {
             #[cfg(feature = "coconut")]
             aggregated_verification_key,
             #[cfg(not(feature = "coconut"))]
-            eth_endpoint,
+            contract,
         }
     }
 
@@ -77,7 +80,7 @@ impl Listener {
                         #[cfg(feature = "coconut")]
                         self.aggregated_verification_key.clone(),
                         #[cfg(not(feature = "coconut"))]
-                        self.eth_endpoint.clone(),
+                        self.contract.clone(),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }

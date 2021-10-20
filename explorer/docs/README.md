@@ -44,3 +44,10 @@ To fix all linting errors automatically run:
 ```
 npm run lint:fix
 ```
+
+## GitHub Actions
+
+Two GitHub Actions run for the Network Explorer:
+
+- [.github/workflows/network-explorer.yml](../.github/workflows/network-explorer.yml)
+- [.github/workflows/network-explorer-lint.yml](../.github/workflows/network-explorer-lint.yml)

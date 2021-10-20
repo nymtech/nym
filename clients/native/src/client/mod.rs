@@ -194,6 +194,7 @@ impl NymClient {
         prepare_for_spending(
             &self.key_manager.identity_keypair().public_key().to_bytes(),
             &bandwidth_credential,
+            &bandwidth_credential_attributes,
             &verification_key,
         )
         .expect("could not prepare out bandwidth credential for spending")

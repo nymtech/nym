@@ -191,6 +191,7 @@ async fn TEMPORARY_obtain_bandwidth_credential(
     prepare_for_spending(
         &identity.to_bytes(),
         &bandwidth_credential,
+        &bandwidth_credential_attributes,
         &verification_key,
     )
     .expect("failed to prepare bandwidth credential for spending!")

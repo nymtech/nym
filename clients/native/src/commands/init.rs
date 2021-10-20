@@ -79,7 +79,7 @@ async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -
         .await
         .expect("could not obtain bandwidth credential");
 
-    prepare_for_spending(raw_identity, &bandwidth_credential, &verification_key)
+    prepare_for_spending(raw_identity, &bandwidth_credential, &bandwidth_credential_attributes, &verification_key)
         .expect("could not prepare out bandwidth credential for spending")
 }
 

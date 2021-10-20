@@ -134,18 +134,16 @@ pub async fn obtain_aggregate_signature(
 pub fn prepare_credential_for_spending(
     params: &Parameters,
     public_attributes: Vec<Vec<u8>>,
-    private_attributes: Vec<Vec<u8>>,
+    serial_number: Attribute,
+    binding_number: Attribute,
     signature: &Signature,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
-    let private_attributes = private_attributes
-        .iter()
-        .map(hash_to_scalar)
-        .collect::<Vec<Attribute>>();
-    let theta = prove_credential(params, verification_key, signature, &private_attributes)?;
+
+    let theta = prove_credential(params, verification_key, signature, serial_number, binding_number)?;
 
     Ok(Credential::new(
-        (public_attributes.len() + private_attributes.len()) as u32,
+        (public_attributes.len() + 2) as u32,
         theta,
         public_attributes,
         signature,

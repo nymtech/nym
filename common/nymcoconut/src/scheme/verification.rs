@@ -35,6 +35,8 @@ use crate::utils::{try_deserialize_g1_projective, try_deserialize_g2_projective}
 pub struct Theta {
     // blinded_message (kappa)
     pub blinded_message: G2Projective,
+    // blinded serial number (zeta)
+    pub blinded_serial_number : G2Projective,
     // sigma
     pub credential: Signature,
     // pi_v
@@ -45,7 +47,7 @@ impl TryFrom<&[u8]> for Theta {
     type Error = CoconutError;
 
     fn try_from(bytes: &[u8]) -> Result<Theta> {
-        if bytes.len() < 192 {
+        if bytes.len() < 288 {
             return Err(
                 CoconutError::Deserialization(
                     format!("Tried to deserialize theta with insufficient number of bytes, expected >= 240, got {}", bytes.len()),
@@ -58,12 +60,18 @@ impl TryFrom<&[u8]> for Theta {
             CoconutError::Deserialization("failed to deserialize kappa".to_string()),
         )?;
 
-        let credential = Signature::try_from(&bytes[96..192])?;
+        let blinded_serial_number_bytes = bytes[96..192].try_into().unwrap();
+        let blinded_serial_number = try_deserialize_g2_projective(
+            &blinded_serial_number_bytes,
+            CoconutError::Deserialization("failed to deserialize zeta".to_string()),
+        )?;
+        let credential = Signature::try_from(&bytes[192..288])?;
 
-        let pi_v = ProofKappaNu::from_bytes(&bytes[192..])?;
+        let pi_v = ProofKappaNu::from_bytes(&bytes[288..])?;
 
         Ok(Theta {
             blinded_message,
+            blinded_serial_number,
             credential,
             pi_v,
         })
@@ -76,6 +84,7 @@ impl Theta {
             params,
             verification_key,
             &self.blinded_message,
+            &self.blinded_serial_number,
         )
     }
 
@@ -85,11 +94,13 @@ impl Theta {
     // kappa || nu || credential || pi_v
     pub fn to_bytes(&self) -> Vec<u8> {
         let blinded_message_bytes = self.blinded_message.to_affine().to_compressed();
+        let blinded_serial_number_bytes = self.blinded_serial_number.to_affine().to_compressed();
         let credential_bytes = self.credential.to_bytes();
         let proof_bytes = self.pi_v.to_bytes();
 
-        let mut bytes = Vec::with_capacity(192 + proof_bytes.len());
+        let mut bytes = Vec::with_capacity(288 + proof_bytes.len());
         bytes.extend_from_slice(&blinded_message_bytes);
+        bytes.extend_from_slice(&blinded_serial_number_bytes);
         bytes.extend_from_slice(&credential_bytes);
         bytes.extend_from_slice(&proof_bytes);
 
@@ -128,24 +139,23 @@ pub fn compute_kappa(
         .sum::<G2Projective>()
 }
 
+pub fn compute_zeta(params: &Parameters, serial_number: Attribute) -> G2Projective {
+    params.gen2() * serial_number
+}
+
 pub fn prove_credential(
     params: &Parameters,
     verification_key: &VerificationKey,
     signature: &Signature,
-    private_attributes: &[Attribute],
+    serial_number: Attribute,
+    binding_number: Attribute,
 ) -> Result<Theta> {
-    if private_attributes.is_empty() {
-        return Err(CoconutError::Verification(
-            "Tried to prove a credential with an empty set of private attributes".to_string(),
-        ));
-    }
 
-    if private_attributes.len() > verification_key.beta.len() {
+    if verification_key.beta.len() < 2{
         return Err(
             CoconutError::Verification(
-                format!("Tried to prove a credential for higher than supported by the provided verification key number of attributes (max: {}, requested: {})",
-                        verification_key.beta.len(),
-                        private_attributes.len()
+                format!("Tried to prove a credential for higher than supported by the provided verification key number of attributes (max: {}, requested: 2)",
+                        verification_key.beta.len()
                 )));
     }
 
@@ -154,24 +164,30 @@ pub fn prove_credential(
 
     // blinded_message : kappa in the paper.
     // Value kappa is needed since we want to show a signature sigma'.
-    // In order to verify sigma' we need both the varification key vk and the message m.
+    // In order to verify sigma' we need both the verification key vk and the message m.
     // However, we do not want to reveal m to whomever we are showing the signature.
     // Thus, we need kappa which allows us to verify sigma'. In particular,
     // kappa is computed on m as input, but thanks to the use or random value r,
     // it does not reveal any information about m.
-    let blinded_message = compute_kappa(params, verification_key, private_attributes, sign_blinding_factor);
+    let private_attributes = vec![serial_number, binding_number];
+    let blinded_message = compute_kappa(params, verification_key, &private_attributes, sign_blinding_factor);
 
+    // zeta is a commitment to the serial number (i.e., a public value associated with the serial number)
+    let blinded_serial_number = compute_zeta(params, serial_number);
 
     let pi_v = ProofKappaNu::construct(
         params,
         verification_key,
-        private_attributes,
+        &serial_number,
+        &binding_number,
         &sign_blinding_factor,
         &blinded_message,
+        &blinded_serial_number,
     );
 
     Ok(Theta {
         blinded_message,
+        blinded_serial_number,
         credential: signature_prime,
         pi_v,
     })
@@ -262,40 +278,42 @@ mod tests {
 
     #[test]
     fn theta_bytes_roundtrip() {
-        let mut params = setup(1).unwrap();
+        let mut params = setup(2).unwrap();
 
         let keypair = keygen(&mut params);
         let r = params.random_scalar();
         let s = params.random_scalar();
 
         let signature = Signature(params.gen1() * r, params.gen1() * s);
-        let private_attributes = params.n_random_scalars(1);
+        let serial_number = params.random_scalar();
+        let binding_number = params.random_scalar();
 
         let theta = prove_credential(
             &mut params,
             &keypair.verification_key(),
             &signature,
-            &private_attributes,
+            serial_number,
+            binding_number,
         )
             .unwrap();
 
         let bytes = theta.to_bytes();
         assert_eq!(Theta::try_from(bytes.as_slice()).unwrap(), theta);
 
-        let mut params = setup(4).unwrap();
-
-        let keypair = keygen(&mut params);
-        let private_attributes = params.n_random_scalars(2);
-
-        let theta = prove_credential(
-            &mut params,
-            &keypair.verification_key(),
-            &signature,
-            &private_attributes,
-        )
-            .unwrap();
-
-        let bytes = theta.to_bytes();
-        assert_eq!(Theta::try_from(bytes.as_slice()).unwrap(), theta);
+        // let mut params = setup(4).unwrap();
+        //
+        // let keypair = keygen(&mut params);
+        // let private_attributes = params.n_random_scalars(2);
+        //
+        // let theta = prove_credential(
+        //     &mut params,
+        //     &keypair.verification_key(),
+        //     &signature,
+        //     &private_attributes,
+        // )
+        //     .unwrap();
+        //
+        // let bytes = theta.to_bytes();
+        // assert_eq!(Theta::try_from(bytes.as_slice()).unwrap(), theta);
     }
 }

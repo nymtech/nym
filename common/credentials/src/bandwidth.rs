@@ -32,14 +32,14 @@ pub struct BandwidthVoucherAttributes {
 
 impl BandwidthVoucherAttributes {
 
-    fn get_public_attributes(&self) -> Vec<PublicAttribute> {
+    pub fn get_public_attributes(&self) -> Vec<PublicAttribute> {
         let mut pub_attributes = Vec::with_capacity(PUBLIC_ATTRIBUTES as usize);
         pub_attributes.push(self.voucher_value);
         pub_attributes.push(self.voucher_info);
         pub_attributes
     }
 
-    fn get_private_attributes(&self) -> Vec<PrivateAttribute> {
+    pub fn get_private_attributes(&self) -> Vec<PrivateAttribute> {
         let mut priv_attributes = Vec::with_capacity(PRIVATE_ATTRIBUTES as usize);
         priv_attributes.push(self.serial_number);
         priv_attributes.push(self.binding_number);
@@ -62,17 +62,18 @@ pub async fn obtain_signature(attributes: &BandwidthVoucherAttributes, validator
 pub fn prepare_for_spending(
     raw_identity: &[u8],
     signature: &Signature,
+    attributes: &BandwidthVoucherAttributes,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
     let public_attributes = vec![BANDWIDTH_VALUE.to_be_bytes().to_vec()];
-    let private_attributes = vec![raw_identity.to_vec()];
 
     let params = Parameters::new(TOTAL_ATTRIBUTES)?;
 
     prepare_credential_for_spending(
         &params,
         public_attributes,
-        private_attributes,
+        attributes.serial_number,
+        attributes.binding_number,
         signature,
         verification_key,
     )

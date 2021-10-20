@@ -58,7 +58,7 @@ pub(crate) async fn gateway_uptime_history(
         .map_err(|err| ErrorResponse::new(err, Status::NotFound))
 }
 
-#[get("/mixnode/<pubkey>/core_status_count?<since>")]
+#[get("/mixnode/<pubkey>/core-status-count?<since>")]
 pub(crate) async fn mixnode_core_status_count(
     storage: &State<NodeStatusStorage>,
     pubkey: &str,
@@ -75,7 +75,7 @@ pub(crate) async fn mixnode_core_status_count(
     })
 }
 
-#[get("/gateway/<pubkey>/core_status_count?<since>")]
+#[get("/gateway/<pubkey>/core-status-count?<since>")]
 pub(crate) async fn gateway_core_status_count(
     storage: &State<NodeStatusStorage>,
     pubkey: &str,

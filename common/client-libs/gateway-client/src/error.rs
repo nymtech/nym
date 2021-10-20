@@ -30,6 +30,13 @@ pub enum GatewayClientError {
     #[error("Could not burn ERC20 token in Ethereum smart contract - {0}")]
     BurnTokenError(#[from] Web3Error),
 
+    #[cfg(not(feature = "coconut"))]
+    #[error("Invalid Ethereum private key")]
+    InvalidEthereumPrivateKey,
+
+    #[error("Invalid URL - {0}")]
+    InvalidURL(String),
+
     #[error("No shared key was provided or obtained")]
     NoSharedKeyAvailable,
 

@@ -98,7 +98,8 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let bandwidth_controller = BandwidthController::new(
             self.config.get_network_monitor_eth_endpoint(),
             self.config.get_network_monitor_eth_private_key(),
-        );
+        )
+        .expect("Could not create bandwidth controller");
 
         let packet_sender = new_packet_sender(
             self.config,

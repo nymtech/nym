@@ -180,7 +180,8 @@ impl NymClient {
             let bandwidth_controller = BandwidthController::new(
                 self.config.get_base().get_eth_endpoint(),
                 self.config.get_base().get_eth_private_key(),
-            );
+            )
+            .expect("Could not create bandwidth controller");
 
             let mut gateway_client = GatewayClient::new(
                 gateway_address,

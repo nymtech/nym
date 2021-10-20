@@ -62,19 +62,20 @@ impl BandwidthController {
     }
 
     #[cfg(not(feature = "coconut"))]
-    pub fn new(eth_endpoint: String, eth_private_key: String) -> Self {
+    pub fn new(eth_endpoint: String, eth_private_key: String) -> Result<Self, GatewayClientError> {
         // Fail early, on invalid url
-        let transport = Http::new(&eth_endpoint).expect("Invalid Ethereum URL");
+        let transport =
+            Http::new(&eth_endpoint).map_err(|_| GatewayClientError::InvalidURL(eth_endpoint))?;
         let web3 = web3::Web3::new(transport);
         // Fail early, on invalid abi
         let contract = eth_contract(web3);
-        let eth_private_key =
-            secp256k1::SecretKey::from_str(&eth_private_key).expect("Invalid Ethereum private key");
+        let eth_private_key = secp256k1::SecretKey::from_str(&eth_private_key)
+            .map_err(|_| GatewayClientError::InvalidEthereumPrivateKey)?;
 
-        BandwidthController {
+        Ok(BandwidthController {
             contract,
             eth_private_key,
-        }
+        })
     }
 
     #[cfg(feature = "coconut")]

@@ -35,7 +35,7 @@ private_sphinx_key_file = '{{ gateway.private_sphinx_key_file }}'
 public_sphinx_key_file = '{{ gateway.public_sphinx_key_file }}'
 
 # Addess to an Ethereum full node.
-eth_endpoint = '{{ client.eth_endpoint }}'
+eth_endpoint = '{{ gateway.eth_endpoint }}'
 
 ##### additional gateway config options #####
 

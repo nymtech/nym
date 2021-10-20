@@ -90,52 +90,6 @@ impl<'a> From<&'a gateway::Node> for TestedNode {
     }
 }
 
-impl TestedNode {
-    pub(crate) fn new_mix(identity: String, owner: String) -> Self {
-        TestedNode {
-            identity,
-            owner,
-            node_type: NodeType::Mixnode,
-        }
-    }
-
-    pub(crate) fn new_gateway(identity: String, owner: String) -> Self {
-        TestedNode {
-            identity,
-            owner,
-            node_type: NodeType::Gateway,
-        }
-    }
-
-    pub(crate) fn from_raw_mix<S1, S2>(identity: S1, owner: S2) -> Self
-    where
-        S1: Into<String>,
-        S2: Into<String>,
-    {
-        TestedNode {
-            identity: identity.into(),
-            owner: owner.into(),
-            node_type: NodeType::Mixnode,
-        }
-    }
-
-    pub(crate) fn from_raw_gateway<S1, S2>(identity: S1, owner: S2) -> Self
-    where
-        S1: Into<String>,
-        S2: Into<String>,
-    {
-        TestedNode {
-            identity: identity.into(),
-            owner: owner.into(),
-            node_type: NodeType::Gateway,
-        }
-    }
-
-    pub(crate) fn is_gateway(&self) -> bool {
-        self.node_type == NodeType::Gateway
-    }
-}
-
 impl Display for TestedNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{} (owned by {})", self.identity, self.owner)

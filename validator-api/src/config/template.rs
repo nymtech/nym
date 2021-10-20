@@ -38,12 +38,6 @@ all_validator_apis = [
 # Specifies whether a detailed report should be printed after each run
 print_detailed_report = {{ network_monitor.print_detailed_report }}
 
-# Location of .json file containing IPv4 'good' network topology
-good_v4_topology_file = '{{ network_monitor.good_v4_topology_file }}'
-
-# Location of .json file containing IPv6 'good' network topology
-good_v6_topology_file = '{{ network_monitor.good_v6_topology_file }}'
-
 # Specifies the interval at which the network monitor sends the test packets.
 run_interval = '{{ network_monitor.run_interval }}'
 

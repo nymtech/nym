@@ -46,8 +46,6 @@ mod coconut;
 
 const MONITORING_ENABLED: &str = "enable-monitor";
 const REWARDING_ENABLED: &str = "enable-rewarding";
-const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
-const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const MNEMONIC_ARG: &str = "mnemonic";
@@ -87,19 +85,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("specifies whether a network rewarding is enabled on this API")
                 .long(REWARDING_ENABLED)
                 .short("r")
-                .requires(MONITORING_ENABLED)
-        )
-        .arg(
-            Arg::with_name(V4_TOPOLOGY_ARG)
-                .help("location of .json file containing IPv4 'good' network topology")
-                .long(V4_TOPOLOGY_ARG)
-                .requires(MONITORING_ENABLED)
-        )
-        .arg(
-            Arg::with_name(V6_TOPOLOGY_ARG)
-                .help("location of .json file containing IPv6 'good' network topology")
-                .long(V6_TOPOLOGY_ARG)
-                .takes_value(true)
                 .requires(MONITORING_ENABLED)
         )
         .arg(
@@ -208,14 +193,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
 
     if matches.is_present(REWARDING_ENABLED) {
         config = config.with_rewarding_enabled(true)
-    }
-
-    if let Some(v4_topology_path) = matches.value_of(V4_TOPOLOGY_ARG) {
-        config = config.with_v4_good_topology(v4_topology_path)
-    }
-
-    if let Some(v6_topology_path) = matches.value_of(V6_TOPOLOGY_ARG) {
-        config = config.with_v6_good_topology(v6_topology_path)
     }
 
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {

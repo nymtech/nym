@@ -38,7 +38,6 @@ impl TryFrom<u8> for NodeType {
 #[derive(Debug)]
 pub(crate) enum TestPacketError {
     IncompletePacket,
-    InvalidIpVersion,
     InvalidNodeType,
     InvalidNodeKey,
     InvalidOwner(Utf8Error),

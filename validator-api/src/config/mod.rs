@@ -8,7 +8,7 @@ use config::defaults::{
 };
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
 use url::Url;
@@ -118,14 +118,6 @@ pub struct NetworkMonitor {
     /// Specifies whether a detailed report should be printed after each run
     print_detailed_report: bool,
 
-    // I guess in the future this will be deprecated/removed in favour
-    // of choosing 'good' network based on current nodes with best behaviour
-    /// Location of .json file containing IPv4 'good' network topology
-    good_v4_topology_file: PathBuf,
-
-    /// Location of .json file containing IPv6 'good' network topology
-    good_v6_topology_file: PathBuf,
-
     /// Specifies the interval at which the network monitor sends the test packets.
     #[serde(with = "humantime_serde")]
     run_interval: Duration,
@@ -167,24 +159,12 @@ pub struct NetworkMonitor {
     per_node_test_packets: usize,
 }
 
-impl NetworkMonitor {
-    fn default_good_v4_topology_file() -> PathBuf {
-        Config::default_data_directory(None).join("v4-topology.json")
-    }
-
-    fn default_good_v6_topology_file() -> PathBuf {
-        Config::default_data_directory(None).join("v6-topology.json")
-    }
-}
-
 impl Default for NetworkMonitor {
     fn default() -> Self {
         NetworkMonitor {
             enabled: false,
             all_validator_apis: default_api_endpoints(),
             print_detailed_report: false,
-            good_v4_topology_file: Self::default_good_v4_topology_file(),
-            good_v6_topology_file: Self::default_good_v6_topology_file(),
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,
             gateway_sending_rate: DEFAULT_GATEWAY_SENDING_RATE,
@@ -295,16 +275,6 @@ impl Config {
         self
     }
 
-    pub fn with_v4_good_topology<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.network_monitor.good_v4_topology_file = path.as_ref().to_owned();
-        self
-    }
-
-    pub fn with_v6_good_topology<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.network_monitor.good_v6_topology_file = path.as_ref().to_owned();
-        self
-    }
-
     pub fn with_custom_nymd_validator(mut self, validator: Url) -> Self {
         self.base.local_validator = validator;
         self
@@ -356,14 +326,6 @@ impl Config {
 
     pub fn get_detailed_report(&self) -> bool {
         self.network_monitor.print_detailed_report
-    }
-
-    pub fn get_v4_good_topology_file(&self) -> PathBuf {
-        self.network_monitor.good_v4_topology_file.clone()
-    }
-
-    pub fn get_v6_good_topology_file(&self) -> PathBuf {
-        self.network_monitor.good_v6_topology_file.clone()
     }
 
     pub fn get_nymd_validator_url(&self) -> Url {

@@ -15,14 +15,14 @@ use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
 #[cfg(not(feature = "coconut"))]
-use web3::{contract::Contract, transports::Http, Web3};
+use web3::{transports::Http, Web3};
 
+#[cfg(not(feature = "coconut"))]
+use crate::node::client_handling::websocket::connection_handler::eth_events::EthEvents;
 #[cfg(feature = "coconut")]
 use coconut_interface::VerificationKey;
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
-#[cfg(not(feature = "coconut"))]
-use gateway_client::bandwidth::eth_contract;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -92,7 +92,7 @@ impl Gateway {
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         #[cfg(feature = "coconut")] verification_key: VerificationKey,
-        #[cfg(not(feature = "coconut"))] contract: Contract<Http>,
+        #[cfg(not(feature = "coconut"))] eth_events: EthEvents,
     ) {
         info!("Starting client [web]socket listener...");
 
@@ -107,7 +107,7 @@ impl Gateway {
             #[cfg(feature = "coconut")]
             verification_key,
             #[cfg(not(feature = "coconut"))]
-            contract,
+            eth_events,
         )
         .start(
             forwarding_channel,
@@ -188,7 +188,7 @@ impl Gateway {
                 .expect("failed to contact validators to obtain their verification keys");
 
         #[cfg(not(feature = "coconut"))]
-        let contract = eth_contract(Web3::new(
+        let eth_events = EthEvents::new(Web3::new(
             Http::new(&self.config.get_eth_endpoint()).expect("Invalid Ethereum endpoint"),
         ));
 
@@ -206,7 +206,7 @@ impl Gateway {
             #[cfg(feature = "coconut")]
             validators_verification_key,
             #[cfg(not(feature = "coconut"))]
-            contract,
+            eth_events,
         );
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");

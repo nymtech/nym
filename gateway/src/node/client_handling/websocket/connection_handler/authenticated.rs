@@ -215,7 +215,11 @@ where
         )?;
 
         if !credential.verify_signature()
-            || !super::eth_events::verify_eth_events(&self.inner.contract)
+            || !self
+                .inner
+                .eth_events
+                .verify_eth_events(credential.verification_key())
+                .await
         {
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }

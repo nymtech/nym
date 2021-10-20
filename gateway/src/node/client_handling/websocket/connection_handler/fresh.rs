@@ -31,7 +31,7 @@ use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use coconut_interface::VerificationKey;
 
 #[cfg(not(feature = "coconut"))]
-use web3::{contract::Contract, transports::Http};
+use crate::node::client_handling::websocket::connection_handler::eth_events::EthEvents;
 
 #[derive(Debug, Error)]
 enum InitialAuthenticationError {
@@ -80,7 +80,7 @@ pub(crate) struct FreshHandler<R, S> {
     pub(crate) aggregated_verification_key: VerificationKey,
 
     #[cfg(not(feature = "coconut"))]
-    pub(crate) contract: Contract<Http>,
+    pub(crate) eth_events: EthEvents,
 }
 
 impl<R, S> FreshHandler<R, S>
@@ -97,7 +97,7 @@ where
         storage: PersistentStorage,
         active_clients_store: ActiveClientsStore,
         #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
-        #[cfg(not(feature = "coconut"))] contract: Contract<Http>,
+        #[cfg(not(feature = "coconut"))] eth_events: EthEvents,
     ) -> Self {
         FreshHandler {
             rng,
@@ -109,7 +109,7 @@ where
             #[cfg(feature = "coconut")]
             aggregated_verification_key,
             #[cfg(not(feature = "coconut"))]
-            contract,
+            eth_events,
         }
     }
 

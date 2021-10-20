@@ -30,6 +30,10 @@ impl TokenCredential {
         }
     }
 
+    pub fn verification_key(&self) -> PublicKey {
+        self.verification_key
+    }
+
     pub fn bandwidth(&self) -> u64 {
         self.bandwidth
     }

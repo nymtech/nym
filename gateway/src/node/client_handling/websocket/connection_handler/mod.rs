@@ -14,7 +14,7 @@ pub(crate) use self::fresh::FreshHandler;
 
 mod authenticated;
 #[cfg(not(feature = "coconut"))]
-mod eth_events;
+pub(crate) mod eth_events;
 mod fresh;
 
 //// TODO: note for my future self to consider the following idea:

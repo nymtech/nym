@@ -1,15 +1,15 @@
 import React from 'react';
 import { Box, Grid, IconButton, Typography } from '@mui/material';
-import {
-  SettingsAccessibility as ConnectIcon,
-  ArrowForwardSharp,
-} from '@mui/icons-material';
+import { ArrowForwardSharp } from '@mui/icons-material';
 import { WorldMap } from 'src/components/WorldMap';
 import { useHistory } from 'react-router-dom';
 import { MainContext } from 'src/context/main';
 import { formatNumber } from 'src/utils';
 import { ContentCard } from '../../components/ContentCard';
 import { BIG_DIPPER } from 'src/api/constants';
+import { ValidatorsSVG } from 'src/icons/ValidatorsSVG';
+import { GatewaysSVG } from 'src/icons/GatewaysSVG';
+import { MixnodesSVG } from 'src/icons/MixnodesSVG';
 
 export const PageOverview: React.FC = () => {
   const history = useHistory();
@@ -34,7 +34,7 @@ export const PageOverview: React.FC = () => {
                 title="Mixnodes"
                 subtitle={mixnodes?.data?.length || ''}
                 errorMsg={mixnodes?.error}
-                Icon={<ConnectIcon />}
+                Icon={<MixnodesSVG />}
                 Action={
                   <IconButton>
                     <ArrowForwardSharp />
@@ -52,7 +52,7 @@ export const PageOverview: React.FC = () => {
                 title="Gateways"
                 subtitle={gateways?.data?.length || ''}
                 errorMsg={gateways?.error}
-                Icon={<ConnectIcon />}
+                Icon={<GatewaysSVG />}
                 Action={
                   <IconButton>
                     <ArrowForwardSharp />
@@ -68,7 +68,7 @@ export const PageOverview: React.FC = () => {
                 title='Validators'
                 subtitle={validators?.data?.count || ''}
                 errorMsg={validators?.error}
-                Icon={<ConnectIcon />}
+                Icon={<ValidatorsSVG />}
                 Action={
                   <IconButton>
                     <ArrowForwardSharp />

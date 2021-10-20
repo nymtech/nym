@@ -1,10 +1,10 @@
 import React from 'react';
+import { printableCoin } from '@nymproject/nym-validator-client';
 import { GridRenderCellParams } from '@mui/x-data-grid';
 import { Link as RRDLink } from 'react-router-dom';
 import { Link as MuiLink } from '@mui/material';
 import { Typography } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
-import { useContext } from 'react';
 import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
 import { MainContext } from 'src/context/main';
 import { mixnodeToGridRow } from 'src/utils';
@@ -13,7 +13,7 @@ import { MixNodeResponse } from 'src/typeDefs/explorer-api';
 import { BIG_DIPPER } from 'src/api/constants';
 
 export const PageMixnodes: React.FC = () => {
-  const { mixnodes } = useContext(MainContext);
+  const { mixnodes } = React.useContext(MainContext);
   const [filteredMixnodes, setFilteredMixnodes] = React.useState<MixNodeResponse>([])
   const [pageSize, setPageSize] = React.useState<string>("50");
   const [searchTerm, setSearchTerm] = React.useState<string>('');
@@ -79,11 +79,12 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'bond',
       headerName: 'Bond',
-      width: 130,
+      width: 180,
       renderCell: (params: GridRenderCellParams) => {
+        const bondAsPunk = printableCoin({ amount: params.value as string, denom: 'upunk' })
         return (
           <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
-           {params.value}
+            {bondAsPunk}
           </MuiLink>
         )
       }

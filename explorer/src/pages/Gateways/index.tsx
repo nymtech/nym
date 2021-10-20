@@ -1,6 +1,9 @@
 import React from 'react';
+import { printableCoin } from '@nymproject/nym-validator-client';
 import { Typography } from '@mui/material';
 import { GridRenderCellParams } from '@mui/x-data-grid';
+import { Link as RRDLink } from 'react-router-dom';
+import { Link as MuiLink } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
 import { MainContext } from 'src/context/main';
@@ -37,6 +40,12 @@ export const PageGateways: React.FC = () => {
         }
     }, [searchTerm, gateways?.data])
 
+    const linkStyles = {
+        color: 'inherit',
+        textDecoration: 'none',
+        marginLeft: 2,
+    }
+
     const columns = [
         { field: 'owner', headerName: 'Owner', width: 380, },
         {
@@ -47,7 +56,15 @@ export const PageGateways: React.FC = () => {
         {
             field: 'bond',
             headerName: 'Bond',
-            width: 130,
+            width: 180,
+            renderCell: (params: GridRenderCellParams) => {
+                const bondAsPunk = printableCoin({ amount: params.value as string, denom: 'upunk' })
+                return (
+                    <Typography sx={linkStyles}>
+                        {bondAsPunk}
+                    </Typography>
+                )
+            }
         },
         {
             field: 'host',

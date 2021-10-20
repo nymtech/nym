@@ -1,7 +1,6 @@
 import * as React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
-  Menu,
   ChevronLeft,
   ExpandLess,
   ExpandMore,
@@ -16,7 +15,6 @@ import MuiAppBar, { AppBarProps as MuiAppBarProps } from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import List from '@mui/material/List';
 import Typography from '@mui/material/Typography';
-import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -27,6 +25,7 @@ import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
 import { MainContext } from '../context/main';
 import { BIG_DIPPER } from 'src/api/constants';
+import { palette } from '../index';
 
 const drawerWidth = 300;
 
@@ -59,7 +58,6 @@ const DrawerHeader = styled('div')(({ theme }) => ({
   // necessary for content to be below app bar
   ...theme.mixins.toolbar,
 }));
-
 interface AppBarProps extends MuiAppBarProps {
   open?: boolean;
 }
@@ -100,82 +98,126 @@ const Drawer = styled(MuiDrawer, {
 }));
 
 type navOptionType = {
-  url: string;
-  title: string;
-  Icon?: React.ReactNode;
-  // eslint-disable-next-line react/require-default-props
-  nested?: navOptionType[];
+  id: number,
+  url: string,
+  title: string,
+  Icon?: React.ReactNode,
+  nested?: navOptionType[],
+  isExpandedChild?: boolean,
 };
 
-const navOptions: navOptionType[] = [
+const originalNavOptions: navOptionType[] = [
   {
+    id: 0,
     url: '/overview',
     title: 'Overview',
-    Icon: <OverviewSVG />
+    Icon: <OverviewSVG />,
   },
   {
+    id: 1,
     url: '/network-components',
     title: 'Network Components',
-    Icon: <NetworkComponentsSVG />,
+    Icon: < NetworkComponentsSVG />,
     nested: [
       {
+        id: 3,
         url: '/network-components/mixnodes',
         title: 'Mixnodes',
       },
       {
+        id: 4,
         url: '/network-components/gateways',
         title: 'Gateways',
       },
       {
+        id: 5,
         url: `${BIG_DIPPER}/validators`,
         title: 'Validators',
       },
     ],
   },
   {
+    id: 2,
     url: '/nodemap',
     title: 'Nodemap',
     Icon: <NodemapSVG />,
   },
 ];
 
-const ExpandableButton: React.FC<navOptionType> = ({
+type ExpandableButtonType = {
+  id: number,
+  url: string,
+  title: string,
+  Icon?: React.ReactNode,
+  nested?: navOptionType[],
+  isExpandedChild?: boolean,
+  openDrawer: () => void,
+  drawIsOpen: boolean,
+}
+const ExpandableButton: React.FC<ExpandableButtonType> = ({
   nested,
   title,
   Icon,
   url,
-}) => {
-  const [open, toggle] = React.useState(false);
-  const handleClick = () => toggle(!open);
+  isExpandedChild,
+  openDrawer,
+  drawIsOpen,
+}: ExpandableButtonType) => {
 
-  const [ isExternal, setIsExternal ] = React.useState<boolean>(false);
+  const [open, toggle] = React.useState(false);
+  const [isExternal, setIsExternal] = React.useState<boolean>(false);
+  const location = useLocation();
+
+  const handleClickNoNestedItems = () => {
+    openDrawer();
+  }
+
+  const handleClick = () => {
+    openDrawer();
+    if (nested) {
+      toggle(!open);
+    }
+  }
 
   React.useEffect(() => {
-    setIsExternal(url.includes("http"));
+    if (url) {
+      setIsExternal(url.includes("http"));
+    }
   }, [url])
+
+  React.useEffect(() => {
+    if (!drawIsOpen && open) {
+      toggle(false);
+    }
+  }, [drawIsOpen])
 
   if (!nested) {
     return (
       <ListItem
         disableGutters
         component={Link}
-        to={ isExternal ? { pathname: url } : url }
-        target={ isExternal ? '_blank' : ''}
+        to={isExternal ? { pathname: url } : url}
+        target={isExternal ? '_blank' : ''}
+        disablePadding
+        sx={{
+          background: theme => isExpandedChild ? palette.nested : location.pathname.includes(url) ? palette.selectedNotNested : theme.palette.secondary.dark,
+          borderRight: location.pathname.includes(url) ? `3px solid ${palette.brandOrange}` : 'none',
+          borderBottom: `1px solid ${palette.divider}`,
+        }}
       >
-        <ListItemButton
-          sx={{
-            color: (theme) =>
-              theme.palette.mode === 'light' ? '#000' : '#fff',
-          }}
-        >
+        <ListItemButton onClick={handleClickNoNestedItems} sx={{ pt: 2, pb: 2 }}>
           <ListItemIcon>
             {Icon}
           </ListItemIcon>
           <ListItemText
             primary={title}
             sx={{
-              color: (theme) =>
-                theme.palette.mode === 'light' ? '#000' : '#fff',
+              color: (theme) => theme.palette.primary.main,
+            }}
+            primaryTypographyProps={{
+              style: {
+                fontWeight: location.pathname.includes(url) ? 800 : 300
+              }
             }}
           />
         </ListItemButton>
@@ -184,30 +226,49 @@ const ExpandableButton: React.FC<navOptionType> = ({
   }
   return (
     <>
-      <ListItem disableGutters>
+      <ListItem
+        disablePadding
+        disableGutters
+        sx={{
+          background: theme => open ? palette.selectedNotNested : isExpandedChild ? palette.nested : theme.palette.secondary.dark,
+          borderRight: open ? `3px solid ${palette.brandOrange}` : 'none',
+          borderBottom: `1px solid ${palette.divider}`,
+        }}
+      >
         <ListItemButton
           onClick={handleClick}
-          sx={{ color: "text.primary" }}
+          sx={{ pt: 2, pb: 2 }}
         >
           <ListItemIcon>
             {Icon}
           </ListItemIcon>
-          <ListItemText primary={title} />
-          {open ? <ExpandLess /> : <ExpandMore />}
+          <ListItemText
+            primary={title}
+            sx={{
+              color: (theme) => theme.palette.primary.main,
+              fontWeight: location.pathname.includes(url) ? 800 : 300
+            }}
+          />
+          {open ? <ExpandLess color='primary' /> : <ExpandMore color='primary' />}
         </ListItemButton>
       </ListItem>
       {open &&
         nested?.map((each: navOptionType) => (
-          <ExpandableButton key={each.title} {...each} />
+          <ExpandableButton
+            key={each.title}
+            isExpandedChild
+            openDrawer={openDrawer}
+            drawIsOpen={drawIsOpen}
+            {...each}
+          />
         ))}
     </>
   );
 };
 
 export const Nav: React.FC = ({ children }) => {
-  const { toggleMode, mode }: any = React.useContext(MainContext);
-
-  const [open, setOpen] = React.useState(false);
+  const { toggleMode, mode } = React.useContext(MainContext);
+  const [open, setOpen] = React.useState(true);
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -219,44 +280,71 @@ export const Nav: React.FC = ({ children }) => {
 
   return (
     <Box sx={{ display: 'flex' }}>
-      <AppBar position="fixed" open={open} color="default">
-        <Toolbar>
+      <AppBar
+        position='fixed'
+        open={open}
+        sx={{
+          background: theme => theme.palette.primary.dark,
+        }}>
+        <Toolbar disableGutters sx={{ paddingLeft: 2 }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
             onClick={handleDrawerOpen}
             edge="start"
             sx={{
-              ...(open && { display: 'none' }),
+              ...(open && {
+                display: 'none',
+                margin: 0,
+                padding: 2
+              }
+              ),
             }}
           >
-            <Menu />
+            <NymLogoSVG />
           </IconButton>
-          <NymLogoSVG />
-          <Typography variant="h6" noWrap component="div">
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{
+              marginLeft: 3,
+              color: theme => theme.palette.primary.main,
+            }}
+          >
             Network Explorer
           </Typography>
         </Toolbar>
       </AppBar>
-      <Drawer variant="permanent" open={open}>
-        <DrawerHeader>
+      <Drawer
+        variant="permanent"
+        open={open}
+        sx={{
+          background: theme => theme.palette.secondary.dark
+        }}
+      >
+        <DrawerHeader sx={{ background: theme => theme.palette.primary.dark }}>
           <IconButton onClick={handleDrawerClose}>
-            <ChevronLeft />
+            <ChevronLeft color="primary" />
           </IconButton>
         </DrawerHeader>
-        <Divider />
-        <List>
-          {navOptions.map((route) => (
-            <ExpandableButton key={route.url} {...route} />
+
+        <List sx={{ pt: 0, pb: 0 }}>
+          {originalNavOptions.map((props, i) => (
+            <ExpandableButton
+              key={i}
+              openDrawer={handleDrawerOpen}
+              drawIsOpen={open}
+              {...props}
+            />
           ))}
         </List>
-        <Divider />
-        <ListItem disableGutters>
-          <ListItemButton onClick={toggleMode}>
+        <ListItem disableGutters disablePadding>
+          <ListItemButton onClick={toggleMode} sx={{ pt: 2, pb: 2 }}>
             <ListItemIcon>
               {mode === 'light' ? <Brightness4Sharp /> : <WbSunnySharp />}
             </ListItemIcon>
-            <ListItemText>Light</ListItemText>
+            <ListItemText sx={{ color: (theme) => theme.palette.primary.main }}>{mode === 'light' ? 'Dark mode' : 'Light mode'}</ListItemText>
           </ListItemButton>
         </ListItem>
       </Drawer>

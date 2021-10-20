@@ -1,7 +1,12 @@
 import * as React from 'react';
 import { printableCoin } from '@nymproject/nym-validator-client';
+import {
+  Alert,
+  CircularProgress,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
 import Table from '@mui/material/Table';
-import { useMediaQuery, useTheme } from '@mui/material';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
@@ -11,7 +16,8 @@ import Paper from '@mui/material/Paper';
 import { MainContext } from 'src/context/main';
 
 export function BondBreakdownTable() {
-  const { mixnodeDetailInfo, delegations } = React.useContext(MainContext);
+  const { mixnodeDetailInfo, delegations, mode } =
+    React.useContext(MainContext);
   const [allContentLoaded, setAllContentLoaded] =
     React.useState<boolean>(false);
   const [showError, setShowError] = React.useState<boolean>(false);
@@ -60,16 +66,13 @@ export function BondBreakdownTable() {
 
   React.useEffect(() => {
     const hasError = Boolean(mixnodeDetailInfo?.error || delegations?.error);
-
     const hasAllMixnodeInfo = Boolean(
       mixnodeDetailInfo?.data !== undefined &&
         mixnodeDetailInfo?.data[0].mix_node,
     );
-
     const hasAllDelegationsInfo = Boolean(
       delegations?.data !== undefined && delegations?.data,
     );
-
     const hasAllData = Boolean(
       !hasError && hasAllMixnodeInfo && hasAllDelegationsInfo,
     );
@@ -92,22 +95,30 @@ export function BondBreakdownTable() {
   };
 
   if (mixnodeDetailInfo?.isLoading) {
-    return <p>Loading...</p>;
+    return <CircularProgress />;
   }
 
   if (showError) {
     return (
-      <p>
+      <Alert severity="warning">
         We are unable to retrieve a Mixnode with that ID. Please try later or
         Contact Us.
-      </p>
+      </Alert>
     );
   }
 
   if (!showError && allContentLoaded) {
     return (
       <>
-        <TableContainer component={Paper}>
+        <TableContainer
+          component={Paper}
+          sx={{
+            background:
+              mode === 'dark'
+                ? theme.palette.secondary.dark
+                : theme.palette.primary.light,
+          }}
+        >
           <Table sx={{ minWidth: 650 }} aria-label="bond breakdown totals">
             <TableBody>
               <TableRow sx={matches ? { minWidth: '70vw' } : null}>

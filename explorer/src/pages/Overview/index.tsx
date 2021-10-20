@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '@mui/material';
 import { Box, Grid, IconButton, Typography } from '@mui/material';
 import { ArrowForwardSharp } from '@mui/icons-material';
 import { WorldMap } from 'src/components/WorldMap';
@@ -13,8 +14,9 @@ import { MixnodesSVG } from 'src/icons/MixnodesSVG';
 
 export const PageOverview: React.FC = () => {
   const history = useHistory();
-  const { mixnodes, gateways, validators, block, countryData }: any =
+  const { mixnodes, gateways, validators, block, countryData, mode }: any =
     React.useContext(MainContext);
+  const theme = useTheme()
   return (
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>
@@ -85,7 +87,7 @@ export const PageOverview: React.FC = () => {
                   href={`${BIG_DIPPER}/blocks`}
                   target="_blank" style={{
                     textDecoration: 'none',
-                    color: 'white',
+                    color: mode === 'dark' ? theme.palette.primary.main : theme.palette.secondary.main,
                   }}
                 >
                   Current block height is {formatNumber(block?.data)}
@@ -95,11 +97,12 @@ export const PageOverview: React.FC = () => {
           </Grid>
 
           <Grid item xs={12}>
-            <WorldMap
-              loading={false}
-              title="Distribution of nodes around the world"
-              countryData={countryData}
-            />
+            <ContentCard title="Distribution of nodes around the world">
+              <WorldMap
+                loading={false}
+                countryData={countryData}
+              />
+            </ContentCard>
           </Grid>
         </Grid>
       </Box>

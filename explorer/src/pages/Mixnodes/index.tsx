@@ -1,30 +1,35 @@
-import React from 'react';
+import * as React from 'react';
+import { GridRenderCellParams, GridColDef } from '@mui/x-data-grid';
 import { printableCoin } from '@nymproject/nym-validator-client';
-import { GridRenderCellParams } from '@mui/x-data-grid';
 import { Link as RRDLink } from 'react-router-dom';
-import { Link as MuiLink } from '@mui/material';
-import { Typography } from '@mui/material';
+import { Grid, Link as MuiLink, Typography } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
-import { UniversalDataGrid } from 'src/components/Universal-DataGrid';
+import {
+  cellStyles,
+  UniversalDataGrid,
+} from 'src/components/Universal-DataGrid';
 import { MainContext } from 'src/context/main';
 import { mixnodeToGridRow } from 'src/utils';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { MixNodeResponse } from 'src/typeDefs/explorer-api';
 import { BIG_DIPPER } from 'src/api/constants';
+import { ContentCard } from 'src/components/ContentCard';
+import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes } = React.useContext(MainContext);
-  const [filteredMixnodes, setFilteredMixnodes] = React.useState<MixNodeResponse>([])
-  const [pageSize, setPageSize] = React.useState<string>("50");
+  const [filteredMixnodes, setFilteredMixnodes] =
+    React.useState<MixNodeResponse>([]);
+  const [pageSize, setPageSize] = React.useState<string>('50');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
 
   const handleSearch = (str: string) => {
-    setSearchTerm(str.toLowerCase())
-  }
+    setSearchTerm(str.toLowerCase());
+  };
 
   React.useEffect(() => {
     if (searchTerm === '' && mixnodes?.data) {
-      setFilteredMixnodes(mixnodes?.data)
+      setFilteredMixnodes(mixnodes?.data);
     } else {
       const filtered = mixnodes?.data?.filter((m) => {
         if (
@@ -34,100 +39,116 @@ export const PageMixnodes: React.FC = () => {
         ) {
           return m;
         }
-      })
+      });
       if (filtered) {
-        setFilteredMixnodes(filtered)
+        setFilteredMixnodes(filtered);
       }
     }
-  }, [searchTerm, mixnodes?.data])
+  }, [searchTerm, mixnodes?.data]);
 
-  const linkStyles = {
-    color: 'inherit',
-    textDecoration: 'none',
-    marginLeft: 2,
-  }
-
-  const columns = [
+  const columns: GridColDef[] = [
     {
       field: 'owner',
-      headerName: 'Owner',
-      width: 380,
-      renderCell: (params: GridRenderCellParams) => {
-        return (
-          <MuiLink
-            href={`${BIG_DIPPER}/account/${params.value}`}
-            target='_blank'
-            sx={linkStyles}
-          >
-            {params.value}
-          </MuiLink>
-        )
-      }
+      renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
+      width: 200,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          href={`${BIG_DIPPER}/account/${params.value}`}
+          target="_blank"
+          sx={cellStyles}
+        >
+          {params.value}
+        </MuiLink>
+      ),
     },
     {
       field: 'identity_key',
-      headerName: 'Identity Key',
-      width: 420,
-      renderCell: (params: GridRenderCellParams) => {
-        return (
-          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.value}`}>
-            {params.value}
-          </MuiLink>
-        )
-      }
+      renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
+      width: 200,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={cellStyles}
+          component={RRDLink}
+          to={`/network-components/mixnodes/${params.value}`}
+        >
+          {params.value}
+        </MuiLink>
+      ),
     },
     {
       field: 'bond',
       headerName: 'Bond',
-      width: 180,
+      headerAlign: 'left',
+      width: 120,
+      headerClassName: 'MuiDataGrid-header-override',
+      renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
       renderCell: (params: GridRenderCellParams) => {
-        const bondAsPunk = printableCoin({ amount: params.value as string, denom: 'upunk' })
+        const bondAsPunk = printableCoin({
+          amount: params.value as string,
+          denom: 'upunk',
+        });
         return (
-          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
+          <MuiLink
+            sx={cellStyles}
+            component={RRDLink}
+            to={`/network-components/mixnodes/${params.row.identity_key}`}
+          >
             {bondAsPunk}
           </MuiLink>
-        )
-      }
+        );
+      },
     },
     {
       field: 'host',
-      headerName: 'IP:Port',
+      renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
       width: 130,
-      renderCell: (params: GridRenderCellParams) => {
-        return (
-          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
-            {params.value}
-          </MuiLink>
-        )
-      }
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={cellStyles}
+          component={RRDLink}
+          to={`/network-components/mixnodes/${params.row.identity_key}`}
+        >
+          {params.value}
+        </MuiLink>
+      ),
     },
     {
       field: 'location',
-      headerName: 'Location',
+      renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
       width: 120,
-      renderCell: (params: GridRenderCellParams) => {
-        return (
-          <div
-            onClick={() => handleSearch(params.value as string)}
-            style={linkStyles}
-          >
-            {params.value}
-          </div>
-        )
-      }
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <div
+          onClick={() => handleSearch(params.value as string)}
+          style={cellStyles}
+        >
+          {params.value}
+        </div>
+      ),
     },
     {
       field: 'layer',
-      headerName: 'Layer',
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderHeader: () => <CustomColumnHeading headingTitle="Layer" />,
       width: 100,
       type: 'number',
-      renderCell: (params: GridRenderCellParams) => {
-        return (
-          <MuiLink sx={linkStyles} component={RRDLink} to={`/network-components/mixnodes/${params.row.identity_key}`}>
-            {params.value}
-          </MuiLink>
-        )
-      }
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{ ...cellStyles, textAlign: 'left' }}
+          component={RRDLink}
+          to={`/network-components/mixnodes/${params.row.identity_key}`}
+        >
+          {params.value}
+        </MuiLink>
+      ),
     },
   ];
 
@@ -137,22 +158,29 @@ export const PageMixnodes: React.FC = () => {
 
   return (
     <>
-      <Typography sx={{ marginBottom: 1 }} variant="h5">
+      <Typography sx={{ marginBottom: 3 }} variant="h5">
         Mixnodes
       </Typography>
-      <TableToolbar
-        onChangeSearch={handleSearch}
-        onChangePageSize={handlePageSize}
-        pageSize={pageSize}
-        searchTerm={searchTerm}
-      />
-      <UniversalDataGrid
-        loading={mixnodes?.isLoading}
-        columnsData={columns}
-        rows={mixnodeToGridRow(filteredMixnodes)}
-        height={1080}
-        pageSize={pageSize}
-      />
+
+      <Grid container>
+        <Grid item xs={12} md={12} lg={12} xl={8}>
+          <ContentCard>
+            <TableToolbar
+              onChangeSearch={handleSearch}
+              onChangePageSize={handlePageSize}
+              pageSize={pageSize}
+              searchTerm={searchTerm}
+            />
+            <UniversalDataGrid
+              loading={mixnodes?.isLoading}
+              columnsData={columns}
+              rows={mixnodeToGridRow(filteredMixnodes)}
+              pageSize={pageSize}
+              pagination
+            />
+          </ContentCard>
+        </Grid>
+      </Grid>
     </>
   );
 };

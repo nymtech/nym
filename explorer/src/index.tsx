@@ -7,16 +7,49 @@ import { App } from './App';
 import { MainContext, MainContextProvider } from './context/main';
 import './styles.css';
 
+export const palette = {
+  primary: {
+    main: '#F2F2F2', // white text in nav etc
+    dark: '#070B15', // background black in nav appbar
+    light: '#FFFFFF' // white bg cards
+  },
+  secondary: {
+    main: '#666666', // grey text
+    dark: '#242C3D', // drawer slide out
+    light: '#F2F2F2' // grey bg
+  },
+  // nav colors
+  brandOrange: '#FB6E4E',
+  divider: 'rgba(255, 255, 255, 0.1)',
+  selectedNotNested: '#111826',
+  nested: '#3C4558',
+}
 const AppWrapper = () => {
   const { mode }: any = React.useContext(MainContext);
 
   const theme = createTheme({
     palette: {
       mode,
+      ...palette,
+      ...(mode === 'light' ? {
+        background: {
+          default: palette.secondary.light
+        }
+      } : {
+        background: {
+          default: '#111826',
+        }
+      }
+      ),
     },
     typography: {
-      fontFamily:
-        'open sans, sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"',
+      fontFamily: [
+        'Open Sans',
+        'sans-serif',
+        'BlinkMacSystemFont',
+        'Roboto',
+        "Oxygen", "Ubuntu", "Helvetica Neue"
+      ].join(','),
       fontSize: 14,
       fontWeightBold: 600,
     },
@@ -42,6 +75,20 @@ const AppWrapper = () => {
             fontWeight: 'bold'
           },
         },
+      },
+      MuiDrawer: {
+        styleOverrides: {
+          paper: {
+            background: palette.secondary.dark,
+          }
+        }
+      },
+      MuiListItem: {
+        styleOverrides: {
+          root: {
+            background: palette.secondary.dark,
+          }
+        }
       },
     },
   });

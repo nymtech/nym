@@ -4,7 +4,6 @@
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
 use crate::node::storage::PersistentStorage;
-use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
@@ -14,9 +13,14 @@ use std::process;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
 
+#[cfg(feature = "coconut")]
+use coconut_interface::VerificationKey;
+
 pub(crate) struct Listener {
     address: SocketAddr,
     local_identity: Arc<identity::KeyPair>,
+
+    #[cfg(feature = "coconut")]
     aggregated_verification_key: VerificationKey,
 }
 
@@ -24,11 +28,12 @@ impl Listener {
     pub(crate) fn new(
         address: SocketAddr,
         local_identity: Arc<identity::KeyPair>,
-        aggregated_verification_key: VerificationKey,
+        #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
     ) -> Self {
         Listener {
             address,
             local_identity,
+            #[cfg(feature = "coconut")]
             aggregated_verification_key,
         }
     }
@@ -61,9 +66,10 @@ impl Listener {
                         socket,
                         outbound_mix_sender.clone(),
                         Arc::clone(&self.local_identity),
-                        self.aggregated_verification_key.clone(),
                         storage.clone(),
                         active_clients_store.clone(),
+                        #[cfg(feature = "coconut")]
+                        self.aggregated_verification_key.clone(),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }

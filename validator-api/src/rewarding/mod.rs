@@ -384,11 +384,17 @@ impl Rewarder {
 
         for (i, mix_chunk) in eligible_mixnodes.chunks(MAX_TO_REWARD_AT_ONCE).enumerate() {
             if let Err(err) = self.nymd_client.reward_mixnodes(mix_chunk).await {
-                error!("failed to reward mixnodes... - {}", err);
-                failed_chunks.push(FailedMixnodeRewardChunkDetails {
-                    possibly_unrewarded: mix_chunk.to_vec(),
-                    error_message: err.to_string(),
-                })
+                // this is a super weird edge case that we didn't catch change to sequence and
+                // resent rewards unnecessarily, but the mempool saved us from executing it again
+                // however, still we want to wait until we're sure we're into the next block
+                if !err.is_tendermint_duplicate() {
+                    error!("failed to reward mixnodes... - {}", err);
+                    failed_chunks.push(FailedMixnodeRewardChunkDetails {
+                        possibly_unrewarded: mix_chunk.to_vec(),
+                        error_message: err.to_string(),
+                    });
+                }
+                sleep(Duration::from_secs(11)).await;
             }
             let rewarded = i * MAX_TO_REWARD_AT_ONCE + mix_chunk.len();
             let percentage = rewarded as f32 * 100.0 / eligible_mixnodes.len() as f32;
@@ -429,11 +435,17 @@ impl Rewarder {
 
         for (i, gateway_chunk) in eligible_gateways.chunks(MAX_TO_REWARD_AT_ONCE).enumerate() {
             if let Err(err) = self.nymd_client.reward_gateways(gateway_chunk).await {
-                error!("failed to reward gateways... - {}", err);
-                failed_chunks.push(FailedGatewayRewardChunkDetails {
-                    possibly_unrewarded: gateway_chunk.to_vec(),
-                    error_message: err.to_string(),
-                })
+                // this is a super weird edge case that we didn't catch change to sequence and
+                // resent rewards unnecessarily, but the mempool saved us from executing it again
+                // however, still we want to wait until we're sure we're into the next block
+                if !err.is_tendermint_duplicate() {
+                    error!("failed to reward gateways... - {}", err);
+                    failed_chunks.push(FailedGatewayRewardChunkDetails {
+                        possibly_unrewarded: gateway_chunk.to_vec(),
+                        error_message: err.to_string(),
+                    });
+                }
+                sleep(Duration::from_secs(11)).await;
             }
 
             let rewarded = i * MAX_TO_REWARD_AT_ONCE + gateway_chunk.len();

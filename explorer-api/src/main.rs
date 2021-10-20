@@ -12,7 +12,7 @@ mod mix_nodes;
 mod ping;
 mod state;
 
-const GEO_IP_SERVICE: &str = "https://freegeoip.app/json/";
+const GEO_IP_SERVICE: &str = "https://api.freegeoip.app/json";
 
 #[tokio::main]
 async fn main() {
@@ -36,7 +36,12 @@ impl ExplorerApi {
         info!("Explorer API starting up...");
 
         // spawn concurrent tasks
-        country_statistics::CountryStatistics::new(self.state.clone()).start();
+        mix_nodes::tasks::MixNodesTasks::new(self.state.clone()).start();
+        country_statistics::distribution::CountryStatisticsDistributionTask::new(
+            self.state.clone(),
+        )
+        .start();
+        country_statistics::geolocate::GeoLocateTask::new(self.state.clone()).start();
         http::start(self.state.clone());
 
         // wait for user to press ctrl+C

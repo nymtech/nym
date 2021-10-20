@@ -12,11 +12,10 @@ use crate::nymd_client::Client;
 use crate::rewarding::epoch::Epoch;
 use crate::rewarding::Rewarder;
 use crate::storage::NodeStatusStorage;
-use ::config::{defaults::DEFAULT_VALIDATOR_API_PORT, NymConfig};
+use ::config::NymConfig;
 use anyhow::Result;
 use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
-use coconut::InternalSignRequest;
 use log::{info, warn};
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
@@ -31,8 +30,10 @@ use tokio::sync::Notify;
 use url::Url;
 use validator_client::nymd::SigningNymdClient;
 
+#[cfg(feature = "coconut")]
+use coconut::InternalSignRequest;
+
 pub(crate) mod cache;
-mod coconut;
 pub(crate) mod config;
 mod network_monitor;
 mod node_status_api;
@@ -40,17 +41,25 @@ pub(crate) mod nymd_client;
 mod rewarding;
 pub(crate) mod storage;
 
+#[cfg(feature = "coconut")]
+mod coconut;
+
 const MONITORING_ENABLED: &str = "enable-monitor";
 const REWARDING_ENABLED: &str = "enable-rewarding";
 const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
 const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
-const API_VALIDATORS_ARG: &str = "api-validators";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const MNEMONIC_ARG: &str = "mnemonic";
 const WRITE_CONFIG_ARG: &str = "save-config";
-const KEYPAIR_ARG: &str = "keypair";
 const NYMD_VALIDATOR_ARG: &str = "nymd-validator";
+const API_VALIDATORS_ARG: &str = "api-validators";
+
+#[cfg(feature = "coconut")]
+const KEYPAIR_ARG: &str = "keypair";
+
+#[cfg(feature = "coconut")]
+const COCONUT_ONLY_FLAG: &str = "coconut-only";
 
 const EPOCH_LENGTH_ARG: &str = "epoch-length";
 const FIRST_REWARDING_EPOCH_ARG: &str = "first-epoch";
@@ -70,7 +79,7 @@ fn parse_validators(raw: &str) -> Vec<Url> {
 }
 
 fn parse_args<'a>() -> ArgMatches<'a> {
-    App::new("Nym Validator API")
+    let base_app = App::new("Nym Validator API")
         .author("Nymtech")
         .arg(
             Arg::with_name(MONITORING_ENABLED)
@@ -104,12 +113,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .long(NYMD_VALIDATOR_ARG)
                 .takes_value(true)
         )
-        .arg(
-            Arg::with_name(API_VALIDATORS_ARG)
-                .help("specifies list of all validators on the network issuing coconut credentials. Ensure they are properly ordered")
-                .long(API_VALIDATORS_ARG)
-                .takes_value(true)
-        )
         .arg(Arg::with_name(MIXNET_CONTRACT_ARG)
                  .long(MIXNET_CONTRACT_ARG)
                  .help("Address of the validator contract managing the network")
@@ -134,10 +137,10 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .short("w")
         )
         .arg(
-            Arg::with_name(KEYPAIR_ARG)
-                .help("Path to the secret key file")
+            Arg::with_name(API_VALIDATORS_ARG)
+                .help("specifies list of all validators on the network issuing coconut credentials. Ensure they are properly ordered")
+                .long(API_VALIDATORS_ARG)
                 .takes_value(true)
-                .long(KEYPAIR_ARG)
         )
         .arg(
             Arg::with_name(FIRST_REWARDING_EPOCH_ARG)
@@ -159,9 +162,21 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
                 .requires(REWARDING_ENABLED)
-        )
+        );
 
-        .get_matches()
+    #[cfg(feature = "coconut")]
+        let base_app = base_app.arg(
+        Arg::with_name(KEYPAIR_ARG)
+            .help("Path to the secret key file")
+            .takes_value(true)
+            .long(KEYPAIR_ARG),
+    ).arg(
+        Arg::with_name(COCONUT_ONLY_FLAG)
+            .help("Flag to indicate whether validator api should only be used for credential issuance with no blockchain connection")
+            .long(COCONUT_ONLY_FLAG),
+    );
+
+    base_app.get_matches()
 }
 
 async fn wait_for_interrupt() {
@@ -255,15 +270,18 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     {
         let monitor_threshold =
             monitor_threshold.expect("Provided monitor threshold is not a number!");
-        if monitor_threshold > 100 {
-            panic!("Provided monitor threshold is greater than 100!");
-        }
+        assert!(
+            !(monitor_threshold > 100),
+            "Provided monitor threshold is greater than 100!"
+        );
         config = config.with_minimum_epoch_monitor_threshold(monitor_threshold)
     }
 
     if matches.is_present(DETAILED_REPORT_ARG) {
         config = config.with_detailed_network_monitor_report(true)
     }
+
+    #[cfg(feature = "coconut")]
     if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
         let keypair_bs58 = std::fs::read_to_string(keypair_path)
             .unwrap()
@@ -374,16 +392,13 @@ fn setup_rewarder(
 
 async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Rocket<Ignite>> {
     // let's build our rocket!
-    let rocket_config = rocket::config::Config {
-        // TODO: probably the port should be configurable?
-        port: DEFAULT_VALIDATOR_API_PORT,
-        ..Default::default()
-    };
-    let rocket = rocket::custom(rocket_config)
+    let rocket = rocket::build()
         .attach(setup_cors()?)
         .attach(setup_liftoff_notify(liftoff_notify))
-        .attach(ValidatorCache::stage())
-        .attach(InternalSignRequest::stage(config.keypair()));
+        .attach(ValidatorCache::stage());
+
+    #[cfg(feature = "coconut")]
+    let rocket = rocket.attach(InternalSignRequest::stage(config.keypair()));
 
     // see if we should start up network monitor and if so, attach the node status api
     if config.get_network_monitor_enabled() {
@@ -421,11 +436,24 @@ async fn main() -> Result<()> {
     };
 
     let matches = parse_args();
+
     let config = override_config(config, &matches);
     // if we just wanted to write data to the config, exit
     if matches.is_present(WRITE_CONFIG_ARG) {
         return Ok(());
     }
+
+    #[cfg(feature = "coconut")]
+    if matches.is_present(COCONUT_ONLY_FLAG) {
+        // this simplifies everything - we just want to run coconut things
+        return rocket::build()
+            .attach(setup_cors()?)
+            .attach(InternalSignRequest::stage(config.keypair()))
+            .launch()
+            .await
+            .map_err(|err| err.into());
+    }
+
     let liftoff_notify = Arc::new(Notify::new());
 
     // let's build our rocket!

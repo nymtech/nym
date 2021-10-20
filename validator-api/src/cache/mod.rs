@@ -170,7 +170,7 @@ impl ValidatorCache {
             }
         }
 
-        false
+        true
     }
 
     async fn update_cache(

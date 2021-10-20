@@ -6,12 +6,14 @@ use crate::commands::override_config;
 use clap::{App, Arg, ArgMatches};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+
 use coconut_interface::{hash_to_scalar, Credential, Parameters};
 use config::NymConfig;
 use credentials::bandwidth::{
     prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES,
 };
 use credentials::obtain_aggregate_verification_key;
+
 use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
@@ -98,16 +100,12 @@ async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -
 async fn register_with_gateway(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
-    validator_urls: Vec<Url>,
 ) -> Arc<SharedKeys> {
     let timeout = Duration::from_millis(1500);
-    let coconut_credential =
-        prepare_temporary_credential(&validator_urls, &our_identity.public_key().to_bytes()).await;
     let mut gateway_client = GatewayClient::new_init(
         gateway.clients_address(),
         gateway.identity_key,
         our_identity.clone(),
-        coconut_credential,
         timeout,
     );
     gateway_client
@@ -231,13 +229,8 @@ pub fn execute(matches: &ArgMatches) {
             config
                 .get_base_mut()
                 .with_gateway_id(gate_details.identity_key.to_base58_string());
-            let validator_urls = config.get_base().get_validator_api_endpoints();
-            let shared_keys = register_with_gateway(
-                &gate_details,
-                key_manager.identity_keypair(),
-                validator_urls,
-            )
-            .await;
+            let shared_keys =
+                register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
             (shared_keys, gate_details.clients_address())
         };
 

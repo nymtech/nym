@@ -10,7 +10,9 @@ use crate::rewarding::{
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract::{Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond, StateParams};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
+use tokio::time::sleep;
 use validator_client::nymd::{
     CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient, TendermintTime,
 };
@@ -193,16 +195,46 @@ impl<C> Client<C> {
             .get_mixnet_contract_address()
             .ok_or(RewardingError::UnspecifiedContractAddress)?;
 
-        // technically we don't require a write lock here, however, we really don't want to be executing
-        // multiple blocks concurrently as one of them WILL fail due to incorrect sequence number
-        self.0
-            .write()
-            .await
-            .nymd
-            .execute_multiple(&contract, msgs, fee, memo)
-            .await?;
+        // grab the write lock here so we're sure nothing else is executing anything on the contract
+        // in the meantime
+        // however, we're not 100% guarded against everything
+        // for example somebody might have taken the mnemonic used by the validator
+        // and sent a transaction manually using the same account. The sequence number
+        // would have gotten incremented, yet the rewarding transaction might have actually not
+        // been included in the block. sadly we can't do much about that.
+        let client_guard = self.0.write().await;
+        let pre_sequence = client_guard.nymd.account_sequence().await?;
 
-        Ok(())
+        let res = client_guard
+            .nymd
+            .execute_multiple(&contract, msgs.clone(), fee.clone(), memo.clone())
+            .await;
+
+        match res {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                if err.is_tendermint_timeout() {
+                    // wait until we're sure we're into the next block (remember we're holding the lock)
+                    sleep(Duration::from_secs(11)).await;
+                    let curr_sequence = client_guard.nymd.account_sequence().await?;
+                    if curr_sequence.sequence > pre_sequence.sequence {
+                        // unless somebody was messing around doing stuff manually in that tiny time interval
+                        // we're good. It was a false negative.
+                        Ok(())
+                    } else {
+                        // the sequence number has not increased, meaning the transaction was not executed
+                        // so attempt to send it again
+                        client_guard
+                            .nymd
+                            .execute_multiple(&contract, msgs, fee, memo)
+                            .await?;
+                        Ok(())
+                    }
+                } else {
+                    Err(err.into())
+                }
+            }
+        }
     }
 
     pub(crate) async fn reward_gateways(
@@ -231,15 +263,45 @@ impl<C> Client<C> {
             .get_mixnet_contract_address()
             .ok_or(RewardingError::UnspecifiedContractAddress)?;
 
-        // technically we don't require a write lock here, however, we really don't want to be executing
-        // multiple blocks concurrently as one of them WILL fail due to incorrect sequence number
-        self.0
-            .write()
-            .await
-            .nymd
-            .execute_multiple(&contract, msgs, fee, memo)
-            .await?;
+        // grab the write lock here so we're sure nothing else is executing anything on the contract
+        // in the meantime
+        // however, we're not 100% guarded against everything
+        // for example somebody might have taken the mnemonic used by the validator
+        // and sent a transaction manually using the same account. The sequence number
+        // would have gotten incremented, yet the rewarding transaction might have actually not
+        // been included in the block. sadly we can't do much about that.
+        let client_guard = self.0.write().await;
+        let pre_sequence = client_guard.nymd.account_sequence().await?;
 
-        Ok(())
+        let res = client_guard
+            .nymd
+            .execute_multiple(&contract, msgs.clone(), fee.clone(), memo.clone())
+            .await;
+
+        match res {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                if err.is_tendermint_timeout() {
+                    // wait until we're sure we're into the next block (remember we're holding the lock)
+                    sleep(Duration::from_secs(11)).await;
+                    let curr_sequence = client_guard.nymd.account_sequence().await?;
+                    if curr_sequence.sequence > pre_sequence.sequence {
+                        // unless somebody was messing around doing stuff manually in that tiny time interval
+                        // we're good. It was a false negative.
+                        Ok(())
+                    } else {
+                        // the sequence number has not increased, meaning the transaction was not executed
+                        // so attempt to send it again
+                        client_guard
+                            .nymd
+                            .execute_multiple(&contract, msgs, fee, memo)
+                            .await?;
+                        Ok(())
+                    }
+                } else {
+                    Err(err.into())
+                }
+            }
+        }
     }
 }

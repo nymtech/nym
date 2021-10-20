@@ -17,7 +17,7 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
 nymsphinx = { path = "../../nymsphinx" }
-coconut-interface = { path = "../../coconut-interface" }
+coconut-interface = { path = "../../coconut-interface", optional = true }
 
 [dependencies.tungstenite]
 version = "0.13"
@@ -57,3 +57,6 @@ features = ["js"]
 [dev-dependencies]
 # for tests
 #url = "2.1"
+
+[features]
+coconut = ["gateway-requests/coconut", "coconut-interface"]

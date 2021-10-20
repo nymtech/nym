@@ -1,12 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::bandwidth::Bandwidth;
 use crate::node::client_handling::websocket::connection_handler::{ClientDetails, FreshHandler};
 use crate::node::client_handling::websocket::message_receiver::MixMessageReceiver;
 use crate::node::storage::error::StorageError;
 use futures::StreamExt;
-use gateway_requests::iv::{IVConversionError, IV};
+use gateway_requests::iv::IVConversionError;
 use gateway_requests::types::{BinaryRequest, ServerResponse};
 use gateway_requests::{ClientControlRequest, GatewayRequestsError};
 use log::*;
@@ -17,6 +16,11 @@ use std::process;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::protocol::Message;
+
+#[cfg(feature = "coconut")]
+use crate::node::client_handling::bandwidth::Bandwidth;
+#[cfg(feature = "coconut")]
+use gateway_requests::iv::IV;
 
 #[derive(Debug, Error)]
 enum RequestHandlingError {
@@ -32,17 +36,20 @@ enum RequestHandlingError {
     #[error("Provided binary request was malformed - {0}")]
     InvalidTextRequest(<ClientControlRequest as TryFrom<String>>::Error),
 
-    #[error("Provided bandwidth credential did not verify correctly")]
-    InvalidBandwidthCredential,
+    #[error("The received request is not valid in the current context")]
+    IllegalRequest,
 
-    #[error("Provided bandwidth credential did not have expected structure - {0}")]
-    BandwidthCredentialError(#[from] credentials::error::Error),
-
+    #[cfg(feature = "coconut")]
     #[error("Provided bandwidth credential asks for more bandwidth than it is supported to add at once (credential value: {0}, supported: {}). Try to split it before attempting again", i64::MAX)]
     UnsupportedBandwidthValue(u64),
 
-    #[error("The received request is not valid in the current context")]
-    IllegalRequest,
+    #[cfg(feature = "coconut")]
+    #[error("Provided bandwidth credential did not verify correctly")]
+    InvalidCoconutBandwidthCredential,
+
+    #[cfg(feature = "coconut")]
+    #[error("Provided coconut bandwidth credential did not have expected structure - {0}")]
+    CoconutBandwidthCredentialError(#[from] credentials::error::Error),
 }
 
 impl RequestHandlingError {
@@ -110,6 +117,10 @@ where
         Ok(bandwidth)
     }
 
+    // note: this is not technically a "coconut" thing, but currently we have no non-coconut
+    // bandwidth handling and hence clippy complains about dead and unreachable code
+    // so whenever we introduce another form of bandwidth claim, this feature flag should get removed
+    #[cfg(feature = "coconut")]
     /// Increases the amount of available bandwidth of the connected client by the specified value.
     ///
     /// # Arguments
@@ -148,6 +159,7 @@ where
         }
     }
 
+    #[cfg(feature = "coconut")]
     /// Tries to handle the received bandwidth request by checking correctness of the received data
     /// and if successful, increases client's bandwidth by an appropriate amount.
     ///
@@ -155,20 +167,20 @@ where
     ///
     /// * `enc_credential`: raw encrypted bandwidth credential to verify.
     /// * `iv`: fresh iv used for the credential.
-    async fn handle_bandwidth(
+    async fn handle_coconut_bandwidth(
         &mut self,
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     ) -> Result<ServerResponse, RequestHandlingError> {
         let iv = IV::try_from_bytes(&iv)?;
-        let credential = ClientControlRequest::try_from_enc_bandwidth_credential(
+        let credential = ClientControlRequest::try_from_enc_coconut_bandwidth_credential(
             enc_credential,
             &self.client.shared_keys,
             iv,
         )?;
 
         if !credential.verify(&self.inner.aggregated_verification_key) {
-            return Err(RequestHandlingError::InvalidBandwidthCredential);
+            return Err(RequestHandlingError::InvalidCoconutBandwidthCredential);
         }
 
         let bandwidth = Bandwidth::try_from(credential)?;
@@ -202,9 +214,16 @@ where
         &self,
         mix_packet: MixPacket,
     ) -> Result<ServerResponse, RequestHandlingError> {
+        // currently we have no way for increasing bandwidth hence we shouldn't be performing
+        // any meaningful metering. Once we have another way of claiming bandwidth, this
+        // feature lock should go away
+        #[cfg(feature = "coconut")]
         // for now let's just use actual size of the sphinx packet. there's a tiny bit of overhead
         // we're not including (but it's literally like 2 bytes) when the packet is framed
         let consumed_bandwidth = mix_packet.sphinx_packet().len() as i64;
+
+        #[cfg(not(feature = "coconut"))]
+        let consumed_bandwidth = 0;
 
         let available_bandwidth = self.get_available_bandwidth().await?;
 
@@ -254,8 +273,9 @@ where
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
             Ok(request) => match request {
-                ClientControlRequest::BandwidthCredential { enc_credential, iv } => {
-                    match self.handle_bandwidth(enc_credential, iv).await {
+                #[cfg(feature = "coconut")]
+                ClientControlRequest::CoconutBandwidthCredential { enc_credential, iv } => {
+                    match self.handle_coconut_bandwidth(enc_credential, iv).await {
                         Ok(response) => response.into(),
                         Err(err) => err.into_error_message(),
                     }

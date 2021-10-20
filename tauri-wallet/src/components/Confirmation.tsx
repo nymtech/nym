@@ -33,7 +33,7 @@ export const Confirmation = ({
       {error === null ? (
         SuccessMessage
       ) : (
-        <Alert severity="error">
+        <Alert severity="error" data-testid="errorMessage">
           <AlertTitle>{error.name}</AlertTitle>
           <strong>{failureMessage}</strong> - {error.message}
         </Alert>

@@ -31,12 +31,13 @@ export const Balance = () => {
 
   return (
     <Layout>
-      <NymCard title="Check Balance">
+      <NymCard title="Check Balance" data-testid="checkBalance">
         <Grid container direction="column" spacing={2}>
           <Grid item>
             {error && (
               <Alert
                 severity="error"
+                data-testid="errorRefresh"
                 action={<RefreshAction />}
                 style={{ padding: theme.spacing(2) }}
               >
@@ -46,6 +47,7 @@ export const Balance = () => {
             {!error && (
               <Alert
                 severity="success"
+                data-testid="refreshSuccess"
                 style={{ padding: theme.spacing(2, 3) }}
                 action={<RefreshAction />}
               >

@@ -84,7 +84,7 @@ export const UndelegateForm = ({
               />
             </Grid>
             <Grid item>
-              <Alert severity="info">
+              <Alert severity="info" data-testid="feeAmount">
                 {`A fee of ${
                   watchNodeType === EnumNodeType.mixnode
                     ? fees.mixnode.amount
@@ -140,6 +140,7 @@ export const UndelegateForm = ({
           variant="contained"
           color="primary"
           type="submit"
+          data-testid="submitButton"
           disableElevation
           disabled={isSubmitting}
           endIcon={isSubmitting && <CircularProgress size={20} />}

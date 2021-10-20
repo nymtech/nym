@@ -44,19 +44,19 @@ export const SendReview = () => {
       ) : (
         <Grid container spacing={2}>
           <Grid item xs={12}>
-            <SendReviewField title="From" subtitle={values.from} />
+            <SendReviewField title="From" subtitle={values.from} data-testid="fromAddress" />
           </Grid>
           <Grid item xs={12}>
             <Divider light />
           </Grid>
           <Grid item xs={12}>
-            <SendReviewField title="To" subtitle={values.to} />
+            <SendReviewField title="To" subtitle={values.to} data-testid="toAddress"/>
           </Grid>
           <Grid item xs={12}>
             <Divider light />
           </Grid>
           <Grid item xs={12}>
-            <SendReviewField title="Amount" subtitle={values.amount} />
+            <SendReviewField title="Amount" subtitle={values.amount} data-testid="transferAmount"/>
           </Grid>
           <Grid item xs={12}>
             <Divider light />
@@ -65,6 +65,7 @@ export const SendReview = () => {
             <SendReviewField
               title="Transfer fee"
               subtitle={transferFee + ' PUNK'}
+              data-testid="transferFee"
             />
           </Grid>
         </Grid>

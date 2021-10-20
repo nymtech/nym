@@ -148,6 +148,7 @@ export const SendWizard = () => {
               disableElevation
               style={{ marginRight: theme.spacing(1) }}
               onClick={handlePreviousStep}
+              data-testid="backButton"
             >
               Back
             </Button>
@@ -156,6 +157,7 @@ export const SendWizard = () => {
             variant={activeStep > 0 ? 'contained' : 'text'}
             color={activeStep > 0 ? 'primary' : 'default'}
             disableElevation
+            data-testid="button"
             onClick={
               activeStep === 0
                 ? handleNextStep

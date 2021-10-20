@@ -23,6 +23,11 @@ export const palette = {
   divider: 'rgba(255, 255, 255, 0.1)',
   selectedNotNested: '#111826',
   nested: '#3C4558',
+  // map
+  mapHigh: '#F09379',
+  mapLow: '#EFEFEF',
+  mapBgDark: '#323C51',
+  mapBgLight: '#F4F8FA',
 };
 const AppWrapper = () => {
   const { mode }: any = React.useContext(MainContext);

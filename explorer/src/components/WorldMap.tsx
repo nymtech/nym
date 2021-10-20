@@ -11,6 +11,7 @@ import ReactTooltip from 'react-tooltip';
 import { CountryDataResponse, ApiState } from 'src/typeDefs/explorer-api';
 import { MainContext } from '../context/main';
 import MAP_TOPOJSON from '../assets/world-110m.json';
+import { palette } from '../index';
 
 type MapProps = {
   title?: string;
@@ -42,9 +43,7 @@ export const WorldMap: React.FC<MapProps> = ({
       );
       const cs = scaleLinear<string, string>()
         .domain([0, heighestNumberOfNodes])
-        .range(
-          mode === 'dark' ? ['#FFD278', '#F20041'] : ['#EFEFEF', '#F09379'],
-        );
+        .range([palette.mapLow, palette.mapHigh]);
       setColorScale(() => cs);
     }
   }, [countryData, userLocation]);
@@ -54,7 +53,8 @@ export const WorldMap: React.FC<MapProps> = ({
       <ComposableMap
         data-tip=""
         style={{
-          backgroundColor: mode === 'dark' ? 'rgba(50, 60, 81, 1)' : '#F4F8FA',
+          backgroundColor:
+            mode === 'dark' ? palette.mapBgDark : palette.mapBgLight,
           WebkitFilter: hasNoContent ? 'blur(5px)' : null,
           filter: hasNoContent ? 'blur(5px)' : null,
           width: '100%',

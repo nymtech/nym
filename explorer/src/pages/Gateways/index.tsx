@@ -118,7 +118,7 @@ export const PageGateways: React.FC = () => {
         </Typography>
 
         <Grid container>
-          <Grid item xs={12} md={12} lg={12} xl={8}>
+          <Grid item xs={12} md={12} lg={8} xl={8}>
             <ContentCard>
               <TableToolbar
                 onChangeSearch={handleSearch}

@@ -156,7 +156,7 @@ export const PageMixnodeDetail: React.FC = () => {
             {mixnodeDetailInfo && (
               <>
                 <Grid container>
-                  <Grid item xs={12} md={9} lg={12} xl={12}>
+                  <Grid item xs={12} md={12} lg={12} xl={12}>
                     <ContentCard>
                       <UniversalDataGrid
                         columnsData={columns}

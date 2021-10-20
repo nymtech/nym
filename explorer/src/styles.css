@@ -8,6 +8,10 @@ in <DataGrid /> */
     display: none !important;
 }
 
+.MuiDataGrid-columnSeparator {
+    visibility: hidden;
+}
+
 /* TODO - this should be disabled somehow in MUI DataGrid
 but documentation doesnt offer an obvious way to do it. Possibly only
 included in Data Grid Pro package */

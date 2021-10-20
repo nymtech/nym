@@ -482,28 +482,9 @@ dependencies = [
 name = "coconut-interface"
 version = "0.1.0"
 dependencies = [
- "coconut-rs",
  "getset",
+ "nymcoconut",
  "serde",
-]
-
-[[package]]
-name = "coconut-rs"
-version = "0.5.0"
-source = "git+https://github.com/nymtech/coconut.git?branch=0.5.0#a1b72d51aa2a67b73b9f58d707030ae6dc70af7f"
-dependencies = [
- "bls12_381",
- "bs58",
- "digest 0.9.0",
- "ff",
- "getrandom 0.2.3",
- "group",
- "itertools 0.10.1",
- "rand 0.8.4",
- "serde",
- "serde_derive",
- "sha2",
- "thiserror",
 ]
 
 [[package]]
@@ -2580,6 +2561,24 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
+]
+
+[[package]]
+name = "nymcoconut"
+version = "0.5.0"
+dependencies = [
+ "bls12_381",
+ "bs58",
+ "digest 0.9.0",
+ "ff",
+ "getrandom 0.2.3",
+ "group",
+ "itertools 0.10.1",
+ "rand 0.8.4",
+ "serde",
+ "serde_derive",
+ "sha2",
+ "thiserror",
 ]
 
 [[package]]

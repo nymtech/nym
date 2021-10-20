@@ -24,7 +24,21 @@ use web3::{
     contract::{Contract, Options},
     transports::Http,
     types::{Address, Bytes, U256, U64},
+    Web3,
 };
+
+#[cfg(not(feature = "coconut"))]
+pub fn eth_contract(web3: Web3<Http>) -> Contract<Http> {
+    Contract::from_json(
+        web3.eth(),
+        Address::from(ETH_CONTRACT_ADDRESS),
+        json::parse(ETH_JSON_ABI)
+            .expect("Invalid json abi")
+            .dump()
+            .as_bytes(),
+    )
+    .expect("Invalid json abi")
+}
 
 #[derive(Clone)]
 pub struct BandwidthController {
@@ -53,15 +67,7 @@ impl BandwidthController {
         let transport = Http::new(&eth_endpoint).expect("Invalid Ethereum URL");
         let web3 = web3::Web3::new(transport);
         // Fail early, on invalid abi
-        let contract = Contract::from_json(
-            web3.eth(),
-            Address::from(ETH_CONTRACT_ADDRESS),
-            json::parse(ETH_JSON_ABI)
-                .expect("Invalid json abi")
-                .dump()
-                .as_bytes(),
-        )
-        .expect("Invalid json abi");
+        let contract = eth_contract(web3);
         let eth_private_key =
             secp256k1::SecretKey::from_str(&eth_private_key).expect("Invalid Ethereum private key");
 
@@ -133,10 +139,10 @@ mod tests {
     #[cfg(not(feature = "coconut"))]
     #[test]
     fn parse_contract() {
-        let eth_endpoint =
-            String::from("https://rinkeby.infura.io/v3/00000000000000000000000000000000");
-        let eth_private_key = secp256k1::key::ONE_KEY.to_string();
+        let transport =
+            Http::new("https://rinkeby.infura.io/v3/00000000000000000000000000000000").unwrap();
+        let web3 = web3::Web3::new(transport);
         // test no panic occurs
-        BandwidthController::new(eth_endpoint, eth_private_key);
+        eth_contract(web3);
     }
 }

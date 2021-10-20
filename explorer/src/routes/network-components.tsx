@@ -28,6 +28,6 @@ export const NetworkComponentsRoutes: React.FC = () => (
       <Route path="/network-components/gateways/:id">
         <h1> Specific Gateways ID</h1>
       </Route>
-    </Switch >
+    </Switch>
   </>
 );

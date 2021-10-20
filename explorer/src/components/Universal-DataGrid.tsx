@@ -1,18 +1,14 @@
 import * as React from 'react';
-import {
-  DataGrid,
-  GridColumns,
-  GridRowData,
-} from '@mui/x-data-grid';
+import { DataGrid, GridColumns, GridRowData } from '@mui/x-data-grid';
 
 type DataGridProps = {
-  loading?: boolean,
-  rows: GridRowData[],
-  columnsData: GridColumns,
-  pageSize?: string,
-  pagination?: boolean,
-  hideFooter?: boolean,
-}
+  loading?: boolean;
+  rows: GridRowData[];
+  columnsData: GridColumns;
+  pageSize?: string;
+  pagination?: boolean;
+  hideFooter?: boolean;
+};
 
 export const cellStyles = {
   width: 'auto',
@@ -25,7 +21,7 @@ export const cellStyles = {
   lineHeight: 2,
   'word-break': 'break-word',
   'white-space': 'break-spaces',
-}
+};
 
 export const UniversalDataGrid = ({
   loading,
@@ -35,7 +31,6 @@ export const UniversalDataGrid = ({
   pagination,
   hideFooter,
 }: DataGridProps) => {
-
   if (columnsData && rows) {
     return (
       <DataGrid
@@ -53,7 +48,7 @@ export const UniversalDataGrid = ({
         hideFooter={hideFooter}
         style={{
           maxWidth: 980,
-          width: '100%'
+          width: '100%',
         }}
       />
     );

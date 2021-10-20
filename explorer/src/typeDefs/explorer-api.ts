@@ -42,12 +42,12 @@ export interface MixNodeResponseItem {
   owner: string;
   layer: Layer;
   location: {
-    country_name: string
-    lat: number
-    lng: number
-    three_letter_iso_country_code: string
-    two_letter_iso_country_code: string
-  }
+    country_name: string;
+    lat: number;
+    lng: number;
+    three_letter_iso_country_code: string;
+    two_letter_iso_country_code: string;
+  };
   mix_node: MixNode;
 }
 
@@ -78,7 +78,7 @@ export interface StatsResponse {
 export type MixNodeHistoryResponse = StatsResponse;
 
 export interface GatewayResponseItem {
-  block_height: number
+  block_height: number;
   bond_amount: Amount;
   total_delegation: Amount;
   owner: string;
@@ -110,37 +110,36 @@ export interface MixNodeDescriptionResponse {
 export type MixNodeStatsResponse = StatsResponse;
 
 export interface Validator {
-  address: string
-  proposer_priority: string
+  address: string;
+  proposer_priority: string;
   pub_key: {
-    type: string
-    value: string
-  }
+    type: string;
+    value: string;
+  };
 }
 export interface ValidatorsResponse {
-  block_height: number
-  count: string
-  total: string
-  validators: Validator[]
+  block_height: number;
+  count: string;
+  total: string;
+  validators: Validator[];
 }
 
 export type CountryData = {
-  ISO3: string
-  nodes: number
-}
+  ISO3: string;
+  nodes: number;
+};
 
 export type Delegation = {
-  owner: string,
-  amount: Amount,
-  block_height: number
-}
+  owner: string;
+  amount: Amount;
+  block_height: number;
+};
 
 export type DelegationsResponse = Delegation[];
 
 export type CountryDataResponse = CountryData[];
 
-export type BlockType = {
-}
+export type BlockType = {};
 export type BlockResponse = BlockType;
 
 export interface ApiState<RESPONSE> {
@@ -150,22 +149,22 @@ export interface ApiState<RESPONSE> {
 }
 
 export type StatusResponse = {
-  pending: boolean,
+  pending: boolean;
   ports: {
-    1789: boolean,
-    1790: boolean,
-    8000: boolean
-  }
-}
+    1789: boolean;
+    1790: boolean;
+    8000: boolean;
+  };
+};
 
 export type UptimeTime = {
-  date: string,
-  ipv4_uptime: number,
-  ipv6_uptime: number,
-}
+  date: string;
+  ipv4_uptime: number;
+  ipv6_uptime: number;
+};
 
 export type UptimeStoryResponse = {
-  history: UptimeTime[],
-  identity: string,
-  owner: string,
-}
+  history: UptimeTime[];
+  identity: string;
+  owner: string;
+};

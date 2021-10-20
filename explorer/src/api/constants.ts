@@ -1,7 +1,7 @@
-
 // master APIs
 export const MASTER_URL = 'https://testnet-milhon-explorer.nymtech.net';
-export const MASTER_VALIDATOR_URL = 'https://testnet-milhon-validator1.nymtech.net';
+export const MASTER_VALIDATOR_URL =
+  'https://testnet-milhon-validator1.nymtech.net';
 export const BIG_DIPPER = 'https://testnet-milhon-blocks.nymtech.net';
 
 // specific API routes
@@ -14,4 +14,5 @@ export const COUNTRY_DATA_API = `${MASTER_URL}/api/countries`;
 export const UPTIME_STORY_API = `${MASTER_VALIDATOR_URL}/api/v1/status/mixnode`; // add ID then '/history' to this.
 
 // errors
-export const MIXNODE_API_ERROR = 'We\'re having trouble finding that record, please try again or Contact Us.'
+export const MIXNODE_API_ERROR =
+  "We're having trouble finding that record, please try again or Contact Us.";

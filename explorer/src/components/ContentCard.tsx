@@ -3,15 +3,14 @@ import { Card, CardHeader, CardContent, Typography } from '@mui/material';
 import React, { ReactEventHandler } from 'react';
 import { MainContext } from 'src/context/main';
 
-
 type ContentCardProps = {
-  title?: string | ReactJSXElement,
-  subtitle?: string,
-  Icon?: React.ReactNode,
-  Action?: React.ReactNode,
-  errorMsg?: string,
-  onClick?: ReactEventHandler,
-}
+  title?: string | ReactJSXElement;
+  subtitle?: string;
+  Icon?: React.ReactNode;
+  Action?: React.ReactNode;
+  errorMsg?: string;
+  onClick?: ReactEventHandler;
+};
 
 export const ContentCard: React.FC<ContentCardProps> = ({
   title,
@@ -22,16 +21,22 @@ export const ContentCard: React.FC<ContentCardProps> = ({
   children,
   onClick,
 }) => {
-  const { mode } = React.useContext(MainContext)
+  const { mode } = React.useContext(MainContext);
   return (
     <Card
       onClick={onClick}
       sx={{
-        background: (theme) => mode === 'dark' ? theme.palette.secondary.dark : theme.palette.primary.light
+        background: (theme) =>
+          mode === 'dark'
+            ? theme.palette.secondary.dark
+            : theme.palette.primary.light,
       }}
     >
       <CardHeader
-        sx={{ color: theme => mode === 'dark' ? theme.palette.primary.main : "secondary.main" }}
+        sx={{
+          color: (theme) =>
+            mode === 'dark' ? theme.palette.primary.main : 'secondary.main',
+        }}
         title={title}
         avatar={Icon}
         action={Action}
@@ -39,13 +44,10 @@ export const ContentCard: React.FC<ContentCardProps> = ({
       />
       {children && <CardContent>{children}</CardContent>}
       {errorMsg && (
-        <Typography
-          variant="body2"
-          sx={{ color: 'danger', padding: 2 }}
-        >
+        <Typography variant="body2" sx={{ color: 'danger', padding: 2 }}>
           {errorMsg}
         </Typography>
       )}
     </Card>
   );
-}
+};

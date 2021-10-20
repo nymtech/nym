@@ -3,5 +3,5 @@ describe('testing jest config', () => {
     const foo = () => 42;
 
     expect(foo()).toBe(42);
-  })
-})
+  });
+});

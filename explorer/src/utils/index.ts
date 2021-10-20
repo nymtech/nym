@@ -1,4 +1,4 @@
-import { GatewayResponse, MixNodeResponse } from "src/typeDefs/explorer-api";
+import { GatewayResponse, MixNodeResponse } from 'src/typeDefs/explorer-api';
 
 export function formatNumber(num: number) {
   return new Intl.NumberFormat().format(num);
@@ -9,48 +9,50 @@ export function scrollToRef(ref: any) {
 }
 
 export type MixnodeRowType = {
-  id: string
-  owner: string
-  location: string
-  identity_key: string
-  bond: number
-  host: string
-  layer: string
-}
+  id: string;
+  owner: string;
+  location: string;
+  identity_key: string;
+  bond: number;
+  host: string;
+  layer: string;
+};
 export type GatewayRowType = {
-  id: string
-  owner: string
-  identity_key: string
-  bond: number
-  host: string
-  location: string
+  id: string;
+  owner: string;
+  identity_key: string;
+  bond: number;
+  host: string;
+  location: string;
+};
+
+export function mixnodeToGridRow(
+  arrayOfMixnodes: MixNodeResponse,
+): MixnodeRowType[] {
+  return !arrayOfMixnodes
+    ? []
+    : arrayOfMixnodes.map((mn) => ({
+        id: mn.owner,
+        owner: mn.owner,
+        location: mn?.location?.country_name || '',
+        identity_key: mn.mix_node.identity_key || '',
+        bond: mn.bond_amount.amount || 0,
+        host: mn.mix_node.host || '',
+        layer: mn.layer || '',
+      }));
 }
 
-export function mixnodeToGridRow(arrayOfMixnodes: MixNodeResponse): MixnodeRowType[] {
-  return !arrayOfMixnodes ? [] : (
-    arrayOfMixnodes.map(mn => ({
-      id: mn.owner,
-      owner: mn.owner,
-      location: mn?.location?.country_name || '',
-      identity_key: mn.mix_node.identity_key || '',
-      bond: mn.bond_amount.amount || 0,
-      host: mn.mix_node.host || '',
-      layer: mn.layer || '',
-    })
-    )
-  )
-}
-
-export function gatewayToGridRow(arrayOfGateways: GatewayResponse): GatewayRowType[] {
-  return !arrayOfGateways ? [] : (
-    arrayOfGateways.map(gw => ({
-      id: gw.owner,
-      owner: gw.owner,
-      identity_key: gw.gateway.identity_key || '',
-      location: gw?.gateway?.location || '',
-      bond: gw.bond_amount.amount || 0,
-      host: gw.gateway.host || ''
-    })
-    )
-  )
+export function gatewayToGridRow(
+  arrayOfGateways: GatewayResponse,
+): GatewayRowType[] {
+  return !arrayOfGateways
+    ? []
+    : arrayOfGateways.map((gw) => ({
+        id: gw.owner,
+        owner: gw.owner,
+        identity_key: gw.gateway.identity_key || '',
+        location: gw?.gateway?.location || '',
+        bond: gw.bond_amount.amount || 0,
+        host: gw.gateway.host || '',
+      }));
 }

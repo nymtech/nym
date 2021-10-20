@@ -21,11 +21,7 @@ export const Title = ({ text }: TitleProps) => (
         bgcolor: 'primary.light',
       }}
     >
-      <Typography
-        sx={{ color: 'primary.main' }}
-      >
-        {text}
-      </Typography>
+      <Typography sx={{ color: 'primary.main' }}>{text}</Typography>
     </Box>
   </Grid>
 );

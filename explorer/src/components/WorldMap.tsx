@@ -1,23 +1,35 @@
 import React from 'react';
 import { scaleLinear, ScaleLinear } from 'd3-scale';
-import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps';
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  ZoomableGroup,
+  Marker,
+} from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
-import { MainContext } from '../context/main';
 import { CountryDataResponse, ApiState } from 'src/typeDefs/explorer-api';
+import { MainContext } from '../context/main';
 import MAP_TOPOJSON from '../assets/world-110m.json';
 
 type MapProps = {
-  title?: string,
-  userLocation?: [number, number],
-  countryData?: ApiState<CountryDataResponse>,
-  loading: boolean
-}
+  title?: string;
+  userLocation?: [number, number];
+  countryData?: ApiState<CountryDataResponse>;
+  loading: boolean;
+};
 
-export const WorldMap: React.FC<MapProps> = ({ countryData, userLocation, loading }) => {
-
-  const [colorScale, setColorScale] = React.useState<() => ScaleLinear<string, string>>();
+export const WorldMap: React.FC<MapProps> = ({
+  countryData,
+  userLocation,
+  loading,
+}) => {
+  const [colorScale, setColorScale] =
+    React.useState<() => ScaleLinear<string, string>>();
   const [hasNoContent, setHasNoContent] = React.useState<boolean>(true);
-  const [tooltipContent, setTooltipContent] = React.useState<string | null>(null);
+  const [tooltipContent, setTooltipContent] = React.useState<string | null>(
+    null,
+  );
   const { mode } = React.useContext(MainContext);
 
   React.useEffect(() => {
@@ -25,26 +37,28 @@ export const WorldMap: React.FC<MapProps> = ({ countryData, userLocation, loadin
       setHasNoContent(false);
     }
     if (countryData?.data) {
-      const heighestNumberOfNodes = Math.max(...countryData.data.map(country => country.nodes));
+      const heighestNumberOfNodes = Math.max(
+        ...countryData.data.map((country) => country.nodes),
+      );
       const cs = scaleLinear<string, string>()
         .domain([0, heighestNumberOfNodes])
-        .range(mode === 'dark' ? ['#FFD278', '#F20041'] : ['#EFEFEF', '#F09379']);
+        .range(
+          mode === 'dark' ? ['#FFD278', '#F20041'] : ['#EFEFEF', '#F09379'],
+        );
       setColorScale(() => cs);
     }
-  }, [countryData, userLocation])
+  }, [countryData, userLocation]);
 
   return (
     <>
       <ComposableMap
         data-tip=""
         style={{
-          backgroundColor:
-            mode === 'dark'
-              ? 'rgba(50, 60, 81, 1)'
-              : '#F4F8FA',
+          backgroundColor: mode === 'dark' ? 'rgba(50, 60, 81, 1)' : '#F4F8FA',
           WebkitFilter: hasNoContent ? 'blur(5px)' : null,
           filter: hasNoContent ? 'blur(5px)' : null,
-          width: "100%", height: "auto",
+          width: '100%',
+          height: 'auto',
         }}
         width={800}
         height={350}
@@ -53,12 +67,17 @@ export const WorldMap: React.FC<MapProps> = ({ countryData, userLocation, loadin
         }}
       >
         <ZoomableGroup>
-
           <Geographies geography={MAP_TOPOJSON}>
             {({ geographies }: any) =>
-              (colorScale || userLocation) && geographies.map((geo: any) => {
+              (colorScale || userLocation) &&
+              geographies.map((geo: any) => {
                 // @ts-ignore
-                const d = countryData && countryData.data && countryData.data.find((s) => s.ISO3 === geo.properties.ISO_A3)
+                const d =
+                  countryData &&
+                  countryData.data &&
+                  countryData.data.find(
+                    (s) => s.ISO3 === geo.properties.ISO_A3,
+                  );
                 return (
                   <Geography
                     key={geo.rsmKey}
@@ -80,7 +99,8 @@ export const WorldMap: React.FC<MapProps> = ({ countryData, userLocation, loadin
                       setTooltipContent('');
                     }}
                     style={
-                      !userLocation && countryData && {
+                      !userLocation &&
+                      countryData && {
                         hover: {
                           fill: 'black',
                           outline: 'white',
@@ -92,7 +112,6 @@ export const WorldMap: React.FC<MapProps> = ({ countryData, userLocation, loadin
               })
             }
           </Geographies>
-
 
           {userLocation && (
             <Marker coordinates={userLocation}>

@@ -19,12 +19,12 @@ import IconButton from '@mui/material/IconButton';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import { OverviewSVG } from '../icons/OverviewSVG';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
+import { BIG_DIPPER } from 'src/api/constants';
+import { OverviewSVG } from '../icons/OverviewSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
 import { MainContext } from '../context/main';
-import { BIG_DIPPER } from 'src/api/constants';
 import { palette } from '../index';
 
 const drawerWidth = 300;
@@ -98,12 +98,12 @@ const Drawer = styled(MuiDrawer, {
 }));
 
 type navOptionType = {
-  id: number,
-  url: string,
-  title: string,
-  Icon?: React.ReactNode,
-  nested?: navOptionType[],
-  isExpandedChild?: boolean,
+  id: number;
+  url: string;
+  title: string;
+  Icon?: React.ReactNode;
+  nested?: navOptionType[];
+  isExpandedChild?: boolean;
 };
 
 const originalNavOptions: navOptionType[] = [
@@ -117,7 +117,7 @@ const originalNavOptions: navOptionType[] = [
     id: 1,
     url: '/network-components',
     title: 'Network Components',
-    Icon: < NetworkComponentsSVG />,
+    Icon: <NetworkComponentsSVG />,
     nested: [
       {
         id: 3,
@@ -145,15 +145,15 @@ const originalNavOptions: navOptionType[] = [
 ];
 
 type ExpandableButtonType = {
-  id: number,
-  url: string,
-  title: string,
-  Icon?: React.ReactNode,
-  nested?: navOptionType[],
-  isExpandedChild?: boolean,
-  openDrawer: () => void,
-  drawIsOpen: boolean,
-}
+  id: number;
+  url: string;
+  title: string;
+  Icon?: React.ReactNode;
+  nested?: navOptionType[];
+  isExpandedChild?: boolean;
+  openDrawer: () => void;
+  drawIsOpen: boolean;
+};
 const ExpandableButton: React.FC<ExpandableButtonType> = ({
   nested,
   title,
@@ -163,33 +163,32 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   openDrawer,
   drawIsOpen,
 }: ExpandableButtonType) => {
-
   const [open, toggle] = React.useState(false);
   const [isExternal, setIsExternal] = React.useState<boolean>(false);
   const location = useLocation();
 
   const handleClickNoNestedItems = () => {
     openDrawer();
-  }
+  };
 
   const handleClick = () => {
     openDrawer();
     if (nested) {
       toggle(!open);
     }
-  }
+  };
 
   React.useEffect(() => {
     if (url) {
-      setIsExternal(url.includes("http"));
+      setIsExternal(url.includes('http'));
     }
-  }, [url])
+  }, [url]);
 
   React.useEffect(() => {
     if (!drawIsOpen && open) {
       toggle(false);
     }
-  }, [drawIsOpen])
+  }, [drawIsOpen]);
 
   if (!nested) {
     return (
@@ -200,15 +199,23 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
         target={isExternal ? '_blank' : ''}
         disablePadding
         sx={{
-          background: theme => isExpandedChild ? palette.nested : location.pathname.includes(url) ? palette.selectedNotNested : theme.palette.secondary.dark,
-          borderRight: location.pathname.includes(url) ? `3px solid ${palette.brandOrange}` : 'none',
+          background: (theme) =>
+            isExpandedChild
+              ? palette.nested
+              : location.pathname.includes(url)
+              ? palette.selectedNotNested
+              : theme.palette.secondary.dark,
+          borderRight: location.pathname.includes(url)
+            ? `3px solid ${palette.brandOrange}`
+            : 'none',
           borderBottom: `1px solid ${palette.divider}`,
         }}
       >
-        <ListItemButton onClick={handleClickNoNestedItems} sx={{ pt: 2, pb: 2 }}>
-          <ListItemIcon>
-            {Icon}
-          </ListItemIcon>
+        <ListItemButton
+          onClick={handleClickNoNestedItems}
+          sx={{ pt: 2, pb: 2 }}
+        >
+          <ListItemIcon>{Icon}</ListItemIcon>
           <ListItemText
             primary={title}
             sx={{
@@ -216,8 +223,8 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             }}
             primaryTypographyProps={{
               style: {
-                fontWeight: location.pathname.includes(url) ? 800 : 300
-              }
+                fontWeight: location.pathname.includes(url) ? 800 : 300,
+              },
             }}
           />
         </ListItemButton>
@@ -230,26 +237,30 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
         disablePadding
         disableGutters
         sx={{
-          background: theme => open ? palette.selectedNotNested : isExpandedChild ? palette.nested : theme.palette.secondary.dark,
+          background: (theme) =>
+            open
+              ? palette.selectedNotNested
+              : isExpandedChild
+              ? palette.nested
+              : theme.palette.secondary.dark,
           borderRight: open ? `3px solid ${palette.brandOrange}` : 'none',
           borderBottom: `1px solid ${palette.divider}`,
         }}
       >
-        <ListItemButton
-          onClick={handleClick}
-          sx={{ pt: 2, pb: 2 }}
-        >
-          <ListItemIcon>
-            {Icon}
-          </ListItemIcon>
+        <ListItemButton onClick={handleClick} sx={{ pt: 2, pb: 2 }}>
+          <ListItemIcon>{Icon}</ListItemIcon>
           <ListItemText
             primary={title}
             sx={{
               color: (theme) => theme.palette.primary.main,
-              fontWeight: location.pathname.includes(url) ? 800 : 300
+              fontWeight: location.pathname.includes(url) ? 800 : 300,
             }}
           />
-          {open ? <ExpandLess color='primary' /> : <ExpandMore color='primary' />}
+          {open ? (
+            <ExpandLess color="primary" />
+          ) : (
+            <ExpandMore color="primary" />
+          )}
         </ListItemButton>
       </ListItem>
       {open &&
@@ -281,11 +292,12 @@ export const Nav: React.FC = ({ children }) => {
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar
-        position='fixed'
+        position="fixed"
         open={open}
         sx={{
-          background: theme => theme.palette.primary.dark,
-        }}>
+          background: (theme) => theme.palette.primary.dark,
+        }}
+      >
         <Toolbar disableGutters sx={{ paddingLeft: 2 }}>
           <IconButton
             color="inherit"
@@ -296,9 +308,8 @@ export const Nav: React.FC = ({ children }) => {
               ...(open && {
                 display: 'none',
                 margin: 0,
-                padding: 2
-              }
-              ),
+                padding: 2,
+              }),
             }}
           >
             <NymLogoSVG />
@@ -309,7 +320,7 @@ export const Nav: React.FC = ({ children }) => {
             component="div"
             sx={{
               marginLeft: 3,
-              color: theme => theme.palette.primary.main,
+              color: (theme) => theme.palette.primary.main,
             }}
           >
             Network Explorer
@@ -320,10 +331,12 @@ export const Nav: React.FC = ({ children }) => {
         variant="permanent"
         open={open}
         sx={{
-          background: theme => theme.palette.secondary.dark
+          background: (theme) => theme.palette.secondary.dark,
         }}
       >
-        <DrawerHeader sx={{ background: theme => theme.palette.primary.dark }}>
+        <DrawerHeader
+          sx={{ background: (theme) => theme.palette.primary.dark }}
+        >
           <IconButton onClick={handleDrawerClose}>
             <ChevronLeft color="primary" />
           </IconButton>
@@ -344,7 +357,9 @@ export const Nav: React.FC = ({ children }) => {
             <ListItemIcon>
               {mode === 'light' ? <Brightness4Sharp /> : <WbSunnySharp />}
             </ListItemIcon>
-            <ListItemText sx={{ color: (theme) => theme.palette.primary.main }}>{mode === 'light' ? 'Dark mode' : 'Light mode'}</ListItemText>
+            <ListItemText sx={{ color: (theme) => theme.palette.primary.main }}>
+              {mode === 'light' ? 'Dark mode' : 'Light mode'}
+            </ListItemText>
           </ListItemButton>
         </ListItem>
       </Drawer>

@@ -11,19 +11,19 @@ export const palette = {
   primary: {
     main: '#F2F2F2', // white text in nav etc
     dark: '#070B15', // background black in nav appbar
-    light: '#FFFFFF' // white bg cards
+    light: '#FFFFFF', // white bg cards
   },
   secondary: {
     main: '#666666', // grey text
     dark: '#242C3D', // drawer slide out
-    light: '#F2F2F2' // grey bg
+    light: '#F2F2F2', // grey bg
   },
   // nav colors
   brandOrange: '#FB6E4E',
   divider: 'rgba(255, 255, 255, 0.1)',
   selectedNotNested: '#111826',
   nested: '#3C4558',
-}
+};
 const AppWrapper = () => {
   const { mode }: any = React.useContext(MainContext);
 
@@ -31,16 +31,17 @@ const AppWrapper = () => {
     palette: {
       mode,
       ...palette,
-      ...(mode === 'light' ? {
-        background: {
-          default: palette.secondary.light
-        }
-      } : {
-        background: {
-          default: '#111826',
-        }
-      }
-      ),
+      ...(mode === 'light'
+        ? {
+            background: {
+              default: palette.secondary.light,
+            },
+          }
+        : {
+            background: {
+              default: '#111826',
+            },
+          }),
     },
     typography: {
       fontFamily: [
@@ -48,7 +49,9 @@ const AppWrapper = () => {
         'sans-serif',
         'BlinkMacSystemFont',
         'Roboto',
-        "Oxygen", "Ubuntu", "Helvetica Neue"
+        'Oxygen',
+        'Ubuntu',
+        'Helvetica Neue',
       ].join(','),
       fontSize: 14,
       fontWeightBold: 600,
@@ -72,7 +75,7 @@ const AppWrapper = () => {
         styleOverrides: {
           title: {
             fontSize: '16px',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
           },
         },
       },
@@ -80,15 +83,15 @@ const AppWrapper = () => {
         styleOverrides: {
           paper: {
             background: palette.secondary.dark,
-          }
-        }
+          },
+        },
       },
       MuiListItem: {
         styleOverrides: {
           root: {
             background: palette.secondary.dark,
-          }
-        }
+          },
+        },
       },
     },
   });

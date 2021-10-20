@@ -26,3 +26,21 @@ npm run start
 ```
 
 A development server with hot reloading will be running on http://localhost:3000.
+
+## Linting
+
+`eslint` and `prettier` are configured.
+
+You can lint the code by running:
+
+```
+npm run lint
+```
+
+> **Note:** this will only show linting errors and will not fix them
+ 
+To fix all linting errors automatically run:
+
+```
+npm run lint:fix
+```

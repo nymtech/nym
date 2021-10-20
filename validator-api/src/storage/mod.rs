@@ -352,11 +352,12 @@ impl NodeStatusStorage {
         Ok(reports)
     }
 
-    ///
+    /// Saves information about test route used during the network monitor run to the database.
     ///
     /// # Arguments
     ///
-    /// * `test_route`:
+    /// * `monitor_run_id` id (as saved in the database) of the associated network monitor test run.
+    /// * `test_route`: one of the test routes used during network testing.
     async fn insert_test_route(
         &self,
         monitor_run_id: i64,
@@ -403,6 +404,70 @@ impl NodeStatusStorage {
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
         Ok(())
+    }
+
+    /// Retrieves number of times particular mixnode was used as a core node during network monitor
+    /// test runs since the specified unix timestamp. If no value is provided, last 30 days of data
+    /// are used instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the mixnode.
+    /// * `since`: optional unix timestamp indicating the lower bound interval of the selection.
+    pub(crate) async fn get_core_mixnode_status_count(
+        &self,
+        identity: &str,
+        since: Option<UnixTimestamp>,
+    ) -> Result<i32, NodeStatusApiError> {
+        let node_id = self
+            .manager
+            .get_mixnode_id(identity)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
+
+        if let Some(node_id) = node_id {
+            let since = since
+                .unwrap_or_else(|| (OffsetDateTime::now_utc() - (30 * ONE_DAY)).unix_timestamp());
+
+            self.manager
+                .get_mixnode_testing_route_presence_count_since(node_id, since)
+                .await
+                .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+        } else {
+            Ok(0)
+        }
+    }
+
+    /// Retrieves number of times particular gateway was used as a core node during network monitor
+    /// test runs since the specified unix timestamp. If no value is provided, last 30 days of data
+    /// are used instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the gateway.
+    /// * `since`: optional unix timestamp indicating the lower bound interval of the selection.
+    pub(crate) async fn get_core_gateway_status_count(
+        &self,
+        identity: &str,
+        since: Option<UnixTimestamp>,
+    ) -> Result<i32, NodeStatusApiError> {
+        let node_id = self
+            .manager
+            .get_gateway_id(identity)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
+
+        if let Some(node_id) = node_id {
+            let since = since
+                .unwrap_or_else(|| (OffsetDateTime::now_utc() - (30 * ONE_DAY)).unix_timestamp());
+
+            self.manager
+                .get_gateway_testing_route_presence_count_since(node_id, since)
+                .await
+                .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+        } else {
+            Ok(0)
+        }
     }
 
     /// Inserts an entry to the database with the network monitor test run information
@@ -701,31 +766,5 @@ impl NodeStatusStorage {
             .insert_possibly_unrewarded_gateway(gateway)
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)
-    }
-
-    ///
-    ///
-    /// # Arguments
-    ///
-    /// * `identity`: identity (base58-encoded public key) of the mixnode.
-    pub(crate) async fn get_core_mixnode_status_count(
-        &self,
-        identity: &str,
-        since: Option<UnixTimestamp>,
-    ) -> Result<i64, NodeStatusApiError> {
-        todo!()
-    }
-
-    ///
-    ///
-    /// # Arguments
-    ///
-    /// * `identity`: identity (base58-encoded public key) of the gateway.
-    pub(crate) async fn get_core_gateway_status_count(
-        &self,
-        identity: &str,
-        since: Option<UnixTimestamp>,
-    ) -> Result<i64, NodeStatusApiError> {
-        todo!()
     }
 }

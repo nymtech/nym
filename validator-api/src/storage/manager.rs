@@ -401,6 +401,83 @@ impl StorageManager {
         Ok(())
     }
 
+    /// Get the number of times mixnode with the particular id is present in any `testing_route`
+    /// since the provided unix timestamp.
+    ///
+    /// # Arguments
+    ///
+    /// * `mixnode_id`: id (as saved in the database) of the mixnode.
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    pub(super) async fn get_mixnode_testing_route_presence_count_since(
+        &self,
+        mixnode_id: i64,
+        since: UnixTimestamp,
+    ) -> Result<i32, sqlx::Error> {
+        let count = sqlx::query!(
+            r#"
+                SELECT COUNT(*) as count FROM
+                (
+                    SELECT monitor_run_id 
+                    FROM testing_route 
+                    WHERE testing_route.layer1_mix_id = ? OR testing_route.layer2_mix_id = ? OR testing_route.layer3_mix_id = ?
+                ) testing_route
+                JOIN 
+                (
+                    SELECT id 
+                    FROM monitor_run 
+                    WHERE monitor_run.timestamp > ?
+                ) monitor_run
+                ON monitor_run.id = testing_route.monitor_run_id;
+            "#,
+            mixnode_id,
+            mixnode_id,
+            mixnode_id,
+            since,
+        ).fetch_one(&self.connection_pool)
+            .await?
+            .count;
+
+        Ok(count)
+    }
+
+    /// Get the number of times gateway with the particular id is present in any `testing_route`
+    /// since the provided unix timestamp.
+    ///
+    /// # Arguments
+    ///
+    /// * `gateway_id`: id (as saved in the database) of the gateway.
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    pub(super) async fn get_gateway_testing_route_presence_count_since(
+        &self,
+        gateway_id: i64,
+        since: UnixTimestamp,
+    ) -> Result<i32, sqlx::Error> {
+        let count = sqlx::query!(
+            r#"
+                SELECT COUNT(*) as count FROM
+                (
+                    SELECT monitor_run_id 
+                    FROM testing_route 
+                    WHERE testing_route.gateway_id = ?
+                ) testing_route
+                JOIN 
+                (
+                    SELECT id 
+                    FROM monitor_run 
+                    WHERE monitor_run.timestamp > ?
+                ) monitor_run
+                ON monitor_run.id = testing_route.monitor_run_id;
+            "#,
+            gateway_id,
+            since,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?
+        .count;
+
+        Ok(count)
+    }
+
     /// Checks whether there are already any historical uptimes with this particular date.
     pub(super) async fn check_for_historical_uptime_existence(
         &self,

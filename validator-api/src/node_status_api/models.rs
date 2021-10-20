@@ -273,5 +273,5 @@ impl Display for NodeStatusApiError {
 #[derive(Serialize)]
 pub struct CoreNodeStatus {
     pub(crate) identity: String,
-    pub(crate) count: i64,
+    pub(crate) count: i32,
 }

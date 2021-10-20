@@ -53,7 +53,6 @@ pub type Attribute = Scalar;
 pub type PrivateAttribute = Attribute;
 pub type PublicAttribute = Attribute;
 
-
 impl Bytable for Attribute {
     fn to_byte_vec(&self) -> Vec<u8> {
         self.to_bytes().to_vec()

@@ -1,7 +1,7 @@
 use crate::{
-    aggregate_signature_shares, aggregate_verification_keys, blind_sign, CoconutError,
-    elgamal_keygen, prepare_blind_sign, prove_credential, setup, Signature, SignatureShare,
-    ttp_keygen, VerificationKey, verify_credential,
+    aggregate_signature_shares, aggregate_verification_keys, blind_sign, elgamal_keygen,
+    prepare_blind_sign, prove_credential, setup, ttp_keygen, verify_credential, CoconutError,
+    Signature, SignatureShare, VerificationKey,
 };
 
 #[test]
@@ -51,7 +51,18 @@ fn main() -> Result<(), CoconutError> {
     let unblinded_signatures: Vec<Signature> = blinded_signatures
         .into_iter()
         .zip(verification_keys.iter())
-        .map(|(signature, verification_key)| signature.unblind(&params, &elgamal_keypair.private_key(), &verification_key, &private_attributes, &public_attributes, blind_sign_request.commitment_hash).unwrap())
+        .map(|(signature, verification_key)| {
+            signature
+                .unblind(
+                    &params,
+                    &elgamal_keypair.private_key(),
+                    &verification_key,
+                    &private_attributes,
+                    &public_attributes,
+                    blind_sign_request.commitment_hash,
+                )
+                .unwrap()
+        })
         .collect();
 
     // Aggregate signatures
@@ -67,7 +78,8 @@ fn main() -> Result<(), CoconutError> {
     attributes.extend_from_slice(&public_attributes);
 
     // Randomize credentials and generate any cryptographic material to verify them
-    let signature = aggregate_signature_shares(&params, &verification_key, &attributes, &signature_shares)?;
+    let signature =
+        aggregate_signature_shares(&params, &verification_key, &attributes, &signature_shares)?;
 
     // Generate cryptographic material to verify them
 

@@ -10,7 +10,10 @@ use url::Url;
 
 use crate::error::Error;
 use crate::utils::{obtain_aggregate_signature, prepare_credential_for_spending, ValidatorInfo};
-use coconut_interface::{hash_to_scalar, Credential, Parameters, Signature, VerificationKey, Attribute, PrivateAttribute, PublicAttribute};
+use coconut_interface::{
+    hash_to_scalar, Attribute, Credential, Parameters, PrivateAttribute, PublicAttribute,
+    Signature, VerificationKey,
+};
 
 pub const BANDWIDTH_VALUE: u64 = 10 * 1024 * 1024 * 1024; // 10 GB
 
@@ -22,16 +25,14 @@ pub const SERIAL_NUMBER_LEN: usize = 47;
 pub const BINDING_NUMBER_LEN: usize = 47;
 pub const VOUCHER_INFO_LEN: usize = 47;
 
-
 pub struct BandwidthVoucherAttributes {
-    pub serial_number : PrivateAttribute,
-    pub binding_number : PrivateAttribute,
-    pub voucher_value : PublicAttribute,
-    pub voucher_info : PublicAttribute,
+    pub serial_number: PrivateAttribute,
+    pub binding_number: PrivateAttribute,
+    pub voucher_value: PublicAttribute,
+    pub voucher_info: PublicAttribute,
 }
 
 impl BandwidthVoucherAttributes {
-
     pub fn get_public_attributes(&self) -> Vec<PublicAttribute> {
         let mut pub_attributes = Vec::with_capacity(PUBLIC_ATTRIBUTES as usize);
         pub_attributes.push(self.voucher_value);
@@ -48,12 +49,23 @@ impl BandwidthVoucherAttributes {
 }
 
 // TODO: this definitely has to be moved somewhere else. It's just a temporary solution
-pub async fn obtain_signature(params: &Parameters, attributes: &BandwidthVoucherAttributes, validators: &[Url], verification_key: &VerificationKey) -> Result<Signature, Error> {
-
+pub async fn obtain_signature(
+    params: &Parameters,
+    attributes: &BandwidthVoucherAttributes,
+    validators: &[Url],
+    verification_key: &VerificationKey,
+) -> Result<Signature, Error> {
     let public_attributes = attributes.get_public_attributes();
     let private_attributes = attributes.get_private_attributes();
 
-    obtain_aggregate_signature(&params, &public_attributes, &private_attributes, validators, verification_key).await
+    obtain_aggregate_signature(
+        &params,
+        &public_attributes,
+        &private_attributes,
+        validators,
+        verification_key,
+    )
+    .await
 }
 
 pub fn prepare_for_spending(

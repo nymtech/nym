@@ -112,7 +112,7 @@ impl PrivateKey {
                     .to_string(),
             ),
         )
-            .map(PrivateKey)
+        .map(PrivateKey)
     }
 }
 
@@ -183,7 +183,7 @@ impl TryFrom<&[u8]> for PublicKey {
                 "Failed to deserialize compressed ElGamal public key".to_string(),
             ),
         )
-            .map(PublicKey)
+        .map(PublicKey)
     }
 }
 
@@ -326,7 +326,7 @@ mod tests {
             ciphertext.0.to_affine().to_compressed(),
             ciphertext.1.to_affine().to_compressed(),
         ]
-            .concat();
+        .concat();
         assert_eq!(expected_bytes, bytes);
         assert_eq!(ciphertext, Ciphertext::try_from(&bytes[..]).unwrap())
     }

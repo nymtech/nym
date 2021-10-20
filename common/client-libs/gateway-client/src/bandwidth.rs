@@ -133,7 +133,10 @@ mod tests {
     #[cfg(not(feature = "coconut"))]
     #[test]
     fn parse_contract() {
+        let eth_endpoint =
+            String::from("https://rinkeby.infura.io/v3/00000000000000000000000000000000");
+        let eth_private_key = secp256k1::key::ONE_KEY.to_string();
         // test no panic occurs
-        BandwidthController::new();
+        BandwidthController::new(eth_endpoint, eth_private_key);
     }
 }

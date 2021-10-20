@@ -75,6 +75,9 @@ pub(crate) struct FreshHandler<R, S> {
 
     #[cfg(feature = "coconut")]
     pub(crate) aggregated_verification_key: VerificationKey,
+
+    #[cfg(not(feature = "coconut"))]
+    pub(crate) eth_endpoint: String,
 }
 
 impl<R, S> FreshHandler<R, S>
@@ -91,6 +94,7 @@ where
         storage: PersistentStorage,
         active_clients_store: ActiveClientsStore,
         #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
+        #[cfg(not(feature = "coconut"))] eth_endpoint: String,
     ) -> Self {
         FreshHandler {
             rng,
@@ -101,6 +105,8 @@ where
             storage,
             #[cfg(feature = "coconut")]
             aggregated_verification_key,
+            #[cfg(not(feature = "coconut"))]
+            eth_endpoint,
         }
     }
 

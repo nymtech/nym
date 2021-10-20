@@ -22,6 +22,9 @@ pub(crate) struct Listener {
 
     #[cfg(feature = "coconut")]
     aggregated_verification_key: VerificationKey,
+
+    #[cfg(not(feature = "coconut"))]
+    eth_endpoint: String,
 }
 
 impl Listener {
@@ -29,12 +32,15 @@ impl Listener {
         address: SocketAddr,
         local_identity: Arc<identity::KeyPair>,
         #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
+        #[cfg(not(feature = "coconut"))] eth_endpoint: String,
     ) -> Self {
         Listener {
             address,
             local_identity,
             #[cfg(feature = "coconut")]
             aggregated_verification_key,
+            #[cfg(not(feature = "coconut"))]
+            eth_endpoint,
         }
     }
 
@@ -70,6 +76,8 @@ impl Listener {
                         active_clients_store.clone(),
                         #[cfg(feature = "coconut")]
                         self.aggregated_verification_key.clone(),
+                        #[cfg(not(feature = "coconut"))]
+                        self.eth_endpoint.clone(),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }

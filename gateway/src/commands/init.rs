@@ -9,7 +9,7 @@ use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
-    App::new("init")
+    let app = App::new("init")
         .about("Initialise the gateway")
         .arg(
             Arg::with_name(ID_ARG_NAME)
@@ -54,7 +54,17 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .long(VALIDATORS_ARG_NAME)
                 .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
-        )
+        );
+
+    #[cfg(not(feature = "coconut"))]
+    let app = app
+        .arg(Arg::with_name("eth_endpoint")
+            .long("eth_endpoint")
+            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
+            .takes_value(true)
+            .required(true));
+
+    app
 }
 
 fn show_bonding_info(config: &Config) {

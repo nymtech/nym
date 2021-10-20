@@ -72,5 +72,10 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_custom_persistent_store(datastore_path);
     }
 
+    #[cfg(not(feature = "coconut"))]
+    if let Some(eth_endpoint) = matches.value_of("eth_endpoint") {
+        config = config.with_eth_endpoint(String::from(eth_endpoint));
+    }
+
     config
 }

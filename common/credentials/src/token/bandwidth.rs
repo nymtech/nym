@@ -34,7 +34,7 @@ impl TokenCredential {
         self.bandwidth
     }
 
-    pub fn verify(&self) -> bool {
+    pub fn verify(&self, _eth_endpoint: &str) -> bool {
         let mut message = Vec::new();
         message.append(&mut self.verification_key.to_bytes().to_vec());
         message.append(&mut self.gateway_identity.to_bytes().to_vec());

@@ -214,7 +214,7 @@ where
             iv,
         )?;
 
-        if !credential.verify() {
+        if !credential.verify(&self.inner.eth_endpoint) {
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
 

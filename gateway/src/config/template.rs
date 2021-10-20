@@ -34,6 +34,9 @@ private_sphinx_key_file = '{{ gateway.private_sphinx_key_file }}'
 # Path to file containing public sphinx key.
 public_sphinx_key_file = '{{ gateway.public_sphinx_key_file }}'
 
+# Addess to an Ethereum full node.
+eth_endpoint = '{{ client.eth_endpoint }}'
+
 ##### additional gateway config options #####
 
 # Optional address announced to the directory server for the clients to connect to.

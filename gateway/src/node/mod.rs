@@ -101,6 +101,8 @@ impl Gateway {
             Arc::clone(&self.identity),
             #[cfg(feature = "coconut")]
             verification_key,
+            #[cfg(not(feature = "coconut"))]
+            self.config.get_eth_endpoint(),
         )
         .start(
             forwarding_channel,

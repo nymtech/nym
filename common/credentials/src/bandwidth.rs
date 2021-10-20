@@ -48,11 +48,8 @@ impl BandwidthVoucherAttributes {
 }
 
 // TODO: this definitely has to be moved somewhere else. It's just a temporary solution
-pub async fn obtain_signature(attributes: &BandwidthVoucherAttributes, validators: &[Url], verification_key: &VerificationKey) -> Result<Signature, Error> {
-    // let public_attributes = vec![hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes())];
-    // let private_attributes = vec![hash_to_scalar(raw_identity)];
+pub async fn obtain_signature(params: &Parameters, attributes: &BandwidthVoucherAttributes, validators: &[Url], verification_key: &VerificationKey) -> Result<Signature, Error> {
 
-    let params = Parameters::new(TOTAL_ATTRIBUTES)?;
     let public_attributes = attributes.get_public_attributes();
     let private_attributes = attributes.get_private_attributes();
 

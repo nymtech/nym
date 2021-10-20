@@ -69,7 +69,7 @@ impl Parameters {
         &self.hs
     }
 
-    pub(crate) fn random_scalar(&self) -> Scalar {
+    pub fn random_scalar(&self) -> Scalar {
         // lazily-initialized thread-local random number generator, seeded by the system
         let mut rng = thread_rng();
         Scalar::random(&mut rng)

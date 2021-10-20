@@ -6,9 +6,9 @@ use crate::commands::override_config;
 use clap::{App, Arg, ArgMatches};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use coconut_interface::{Credential, hash_to_scalar};
+use coconut_interface::{Credential, hash_to_scalar, Parameters};
 use config::NymConfig;
-use credentials::bandwidth::{prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE};
+use credentials::bandwidth::{prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES};
 use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
@@ -67,15 +67,15 @@ async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -
         .await
         .expect("could not obtain aggregate verification key of validators");
 
+    let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
     let bandwidth_credential_attributes = BandwidthVoucherAttributes{
-        serial_number : hash_to_scalar(raw_identity),
-        binding_number : hash_to_scalar(raw_identity),
+        serial_number : params.random_scalar(),
+        binding_number : params.random_scalar(),
         voucher_value : hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
-        voucher_info : hash_to_scalar("BANDWIDTH_VOUCHER".as_bytes()),
-
+        voucher_info : hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
     };
 
-    let bandwidth_credential = credentials::bandwidth::obtain_signature(&bandwidth_credential_attributes, validators, &verification_key)
+    let bandwidth_credential = credentials::bandwidth::obtain_signature(&params, &bandwidth_credential_attributes, validators, &verification_key)
         .await
         .expect("could not obtain bandwidth credential");
 

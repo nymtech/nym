@@ -42,16 +42,16 @@ module.exports = {
       'react/jsx-runtime': require.resolve('react/jsx-runtime'),
     },
     fallback: {
-      "fs": false,
-      "tls": false,
-      "path": false,
-      "http": false,
-      "https": false,
-      "stream": false,
-      "crypto": false,
-      "net": false,
-      "zlib": false,
-    }
+      fs: false,
+      tls: false,
+      path: false,
+      http: false,
+      https: false,
+      stream: false,
+      crypto: false,
+      net: false,
+      zlib: false,
+    },
   },
   plugins: [
     new webpack.ProvidePlugin({

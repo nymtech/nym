@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// This should be modified whenever an updated Ethereum contract is uploaded
 pub const ETH_JSON_ABI: &str = r#"
 [
   {

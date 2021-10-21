@@ -1,16 +1,18 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 use crypto::asymmetric::identity::PublicKey;
 use gateway_client::bandwidth::eth_contract;
 use web3::contract::tokens::Detokenize;
 use web3::contract::{Contract, Error};
 use web3::ethabi::{Bytes, Token, Uint};
 use web3::transports::Http;
+use web3::types::{BlockNumber, FilterBuilder, H256};
 use web3::Web3;
 
 #[derive(Clone)]
-pub struct EthEvents {
+pub(crate) struct EthEvents {
     // This is needed because web3's Contract doesn't sufficiently expose it's eth interface
     web3: Web3<Http>,
     contract: Contract<Http>,
@@ -24,8 +26,31 @@ impl EthEvents {
         }
     }
 
-    pub async fn verify_eth_events(&self, _public_key: PublicKey) -> bool {
-        true
+    pub(crate) async fn verify_eth_events(
+        &self,
+        public_key: PublicKey,
+    ) -> Result<bool, RequestHandlingError> {
+        let filter = FilterBuilder::default()
+            .address(vec![self.contract.address()])
+            .topics(
+                Some(vec![self
+                    .contract
+                    .abi()
+                    .event("Burned")
+                    // It's safe to unwrap here, as we are guarded by a unit test
+                    .unwrap()
+                    .signature()]),
+                Some(vec![H256::from(public_key.to_bytes())]),
+                None,
+                None,
+            )
+            .from_block(BlockNumber::Earliest)
+            .to_block(BlockNumber::Latest)
+            .build();
+        let logs = self.web3.eth().logs(filter).await?;
+        println!("Logs: {:?}", logs);
+
+        Ok(true)
     }
 }
 

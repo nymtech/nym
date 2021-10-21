@@ -136,6 +136,7 @@ impl BandwidthController {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use network_defaults::ETH_EVENT_NAME;
 
     #[cfg(not(feature = "coconut"))]
     #[test]
@@ -145,5 +146,15 @@ mod tests {
         let web3 = web3::Web3::new(transport);
         // test no panic occurs
         eth_contract(web3);
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    #[test]
+    fn check_event_name_constant_against_abi() {
+        let transport =
+            Http::new("https://rinkeby.infura.io/v3/00000000000000000000000000000000").unwrap();
+        let web3 = web3::Web3::new(transport);
+        let contract = eth_contract(web3);
+        assert!(contract.abi().event(ETH_EVENT_NAME).is_ok());
     }
 }

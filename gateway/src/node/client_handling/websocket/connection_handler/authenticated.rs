@@ -21,7 +21,7 @@ use crate::node::client_handling::bandwidth::Bandwidth;
 use gateway_requests::iv::IV;
 
 #[derive(Debug, Error)]
-enum RequestHandlingError {
+pub(crate) enum RequestHandlingError {
     #[error("Internal gateway storage error")]
     StorageError(#[from] StorageError),
 
@@ -42,6 +42,10 @@ enum RequestHandlingError {
 
     #[error("Provided bandwidth credential did not verify correctly")]
     InvalidBandwidthCredential,
+
+    #[cfg(not(feature = "coconut"))]
+    #[error("Ethereum network error")]
+    EthereumNetworkError(#[from] web3::Error),
 
     #[cfg(feature = "coconut")]
     #[error("Provided coconut bandwidth credential did not have expected structure - {0}")]
@@ -219,7 +223,7 @@ where
                 .inner
                 .eth_events
                 .verify_eth_events(credential.verification_key())
-                .await
+                .await?
         {
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }

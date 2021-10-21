@@ -44,8 +44,16 @@ pub(crate) enum RequestHandlingError {
     InvalidBandwidthCredential,
 
     #[cfg(not(feature = "coconut"))]
-    #[error("Ethereum network error")]
-    EthereumNetworkError(#[from] web3::Error),
+    #[error("Ethereum web3 error")]
+    Web3Error(#[from] web3::Error),
+
+    #[cfg(not(feature = "coconut"))]
+    #[error("Ethereum ABI error")]
+    EthAbiError(#[from] web3::ethabi::Error),
+
+    #[cfg(not(feature = "coconut"))]
+    #[error("Ethereum contract error")]
+    EthContractError(#[from] web3::contract::Error),
 
     #[cfg(feature = "coconut")]
     #[error("Provided coconut bandwidth credential did not have expected structure - {0}")]
@@ -218,15 +226,16 @@ where
             iv,
         )?;
 
-        if !credential.verify_signature()
-            || !self
-                .inner
-                .eth_events
-                .verify_eth_events(credential.verification_key())
-                .await?
-        {
+        if !credential.verify_signature() {
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
+        let burned = self
+            .inner
+            .eth_events
+            .verify_eth_events(credential.verification_key())
+            .await?;
+        // TODO: Check for double spending of burned tokens
+        println!("Burned tokens event: {:?}", burned);
 
         let bandwidth = Bandwidth::from(credential);
         let bandwidth_value = bandwidth.value();

@@ -1,15 +1,17 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
-use crypto::asymmetric::identity::PublicKey;
-use gateway_client::bandwidth::eth_contract;
 use web3::contract::tokens::Detokenize;
 use web3::contract::{Contract, Error};
-use web3::ethabi::{Bytes, Token, Uint};
+use web3::ethabi::Token;
 use web3::transports::Http;
 use web3::types::{BlockNumber, FilterBuilder, H256};
 use web3::Web3;
+
+use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
+use crypto::asymmetric::identity::{PublicKey, Signature};
+use gateway_client::bandwidth::eth_contract;
+use network_defaults::ETH_EVENT_NAME;
 
 #[derive(Clone)]
 pub(crate) struct EthEvents {
@@ -29,17 +31,14 @@ impl EthEvents {
     pub(crate) async fn verify_eth_events(
         &self,
         public_key: PublicKey,
-    ) -> Result<bool, RequestHandlingError> {
+    ) -> Result<Burned, RequestHandlingError> {
+        // It's safe to unwrap here, as we are guarded by a unit test that checks the event
+        // name constant against the contract abi
+        let event = self.contract.abi().event(ETH_EVENT_NAME).unwrap();
         let filter = FilterBuilder::default()
             .address(vec![self.contract.address()])
             .topics(
-                Some(vec![self
-                    .contract
-                    .abi()
-                    .event("Burned")
-                    // It's safe to unwrap here, as we are guarded by a unit test
-                    .unwrap()
-                    .signature()]),
+                Some(vec![event.signature()]),
                 Some(vec![H256::from(public_key.to_bytes())]),
                 None,
                 None,
@@ -47,21 +46,44 @@ impl EthEvents {
             .from_block(BlockNumber::Earliest)
             .to_block(BlockNumber::Latest)
             .build();
-        let logs = self.web3.eth().logs(filter).await?;
-        println!("Logs: {:?}", logs);
+        // Get only the first event that checks out. If the client burns more tokens with the
+        // same verification key, those token would be lost
+        for l in self.web3.eth().logs(filter).await? {
+            let log = event.parse_log(web3::ethabi::RawLog {
+                topics: l.topics,
+                data: l.data.0,
+            })?;
+            let burned_event =
+                Burned::from_tokens(log.params.into_iter().map(|x| x.value).collect::<Vec<_>>())?;
+            if burned_event.verify(public_key) {
+                return Ok(burned_event);
+            }
+        }
 
-        Ok(true)
+        Err(RequestHandlingError::InvalidBandwidthCredential)
     }
 }
 
 #[derive(Debug)]
 pub struct Burned {
     /// The bandwidth bought by the client
-    pub bandwidth: Uint,
+    pub bandwidth: u64,
     /// Client public verification key
-    pub verification_key: Uint,
+    pub verification_key: PublicKey,
     /// Signed verification key
-    pub signed_verification_key: Bytes,
+    pub signed_verification_key: Signature,
+}
+
+impl Burned {
+    pub fn verify(&self, verification_key: PublicKey) -> bool {
+        self.verification_key == verification_key
+            && verification_key
+                .verify(
+                    &self.verification_key.to_bytes(),
+                    &self.signed_verification_key,
+                )
+                .is_ok()
+    }
 }
 
 impl Detokenize for Burned {
@@ -75,16 +97,38 @@ impl Detokenize for Burned {
                 tokens
             )));
         }
-        let bandwidth =
-            tokens.get(0).unwrap().clone().into_uint().ok_or_else(|| {
-                Error::InvalidOutputType(String::from("Expected Uint for bandwidth"))
-            })?;
-        let verification_key = tokens.get(1).unwrap().clone().into_uint().ok_or_else(|| {
-            Error::InvalidOutputType(String::from("Expected Uint for verification key"))
+        let bandwidth = tokens
+            .get(0)
+            .unwrap()
+            .clone()
+            .into_uint()
+            .ok_or_else(|| Error::InvalidOutputType(String::from("Expected Uint for bandwidth")))?
+            .as_u64();
+        let verification_key: [u8; 32] = tokens
+            .get(1)
+            .unwrap()
+            .clone()
+            .into_uint()
+            .ok_or_else(|| {
+                Error::InvalidOutputType(String::from("Expected Uint for verification key"))
+            })?
+            .into();
+        let verification_key = PublicKey::from_bytes(&verification_key).map_err(|_| {
+            Error::InvalidOutputType(format!(
+                "Expected verification key of 32 bytes, got: {}",
+                verification_key.len()
+            ))
         })?;
         let signed_verification_key =
             tokens.get(2).unwrap().clone().into_bytes().ok_or_else(|| {
                 Error::InvalidOutputType(String::from("Expected Bytes for signed_verification_key"))
+            })?;
+        let signed_verification_key =
+            Signature::from_bytes(&signed_verification_key).map_err(|_| {
+                Error::InvalidOutputType(format!(
+                    "Expected signature of 64 bytes, got: {}",
+                    signed_verification_key.len()
+                ))
             })?;
 
         Ok(Burned {

@@ -38,6 +38,7 @@ gateway-requests = { path = "gateway-requests" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
+network-defaults = { path = "../common/network-defaults" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 validator-client = { path = "../common/client-libs/validator-client" }

@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 use std::process;
 use tokio::time::{sleep, Duration, Instant};
 
+pub(crate) mod gateway_clients_cache;
 pub(crate) mod gateways_pinger;
 pub(crate) mod preparer;
 pub(crate) mod processor;
@@ -269,10 +270,6 @@ impl Monitor {
         self.test_nonce += 1;
     }
 
-    async fn ping_all_gateways(&mut self) {
-        self.packet_sender.ping_all_active_gateways().await;
-    }
-
     pub(crate) async fn run(&mut self) {
         self.received_processor.start_receiving();
 
@@ -280,6 +277,9 @@ impl Monitor {
         self.packet_preparer
             .wait_for_validator_cache_initial_values(self.test_routes)
             .await;
+
+        self.packet_sender
+            .spawn_gateways_pinger(self.gateway_ping_interval);
 
         let mut run_interval = tokio::time::interval(self.run_interval);
         loop {

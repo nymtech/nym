@@ -279,7 +279,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
 
 ExpandableButton.defaultProps = {
   Icon: null,
-  nested: [],
+  nested: undefined,
   isExpandedChild: false,
 };
 

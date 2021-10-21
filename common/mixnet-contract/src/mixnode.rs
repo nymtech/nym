@@ -25,7 +25,17 @@ pub struct MixNode {
 }
 
 #[derive(
-    Copy, Clone, Debug, Serialize_repr, PartialEq, PartialOrd, Deserialize_repr, JsonSchema,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize_repr,
+    Deserialize_repr,
+    JsonSchema,
 )]
 #[repr(u8)]
 pub enum Layer {

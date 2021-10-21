@@ -223,7 +223,7 @@ impl PacketSender {
 
             let total_expected_time =
                 Duration::from_secs_f64(mix_packets.len() as f64 / max_sending_rate as f64);
-            debug!(
+            info!(
                 target: "MessageSender",
                 "With our rate of {} packets/s it should take around {:?} to send it all to {} ...",
                 max_sending_rate, total_expected_time, gateway_id

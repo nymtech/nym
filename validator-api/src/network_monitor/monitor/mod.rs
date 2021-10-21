@@ -159,7 +159,7 @@ impl Monitor {
     }
 
     async fn prepare_test_routes(&mut self) -> Option<Vec<TestRoute>> {
-        debug!(target: "Monitor", "Generating test routes...");
+        info!(target: "Monitor", "Generating test routes...");
 
         // keep track of nodes that should not be used for route construction
         let mut blacklist = HashSet::new();
@@ -206,7 +206,7 @@ impl Monitor {
     }
 
     async fn test_network_against(&mut self, routes: &[TestRoute]) {
-        debug!("Generating mix packets for all the nodes...");
+        info!("Generating test mix packets for all the network nodes...");
         let prepared_packets = self
             .packet_preparer
             .prepare_test_packets(self.test_nonce, routes)
@@ -259,7 +259,7 @@ impl Monitor {
         let start = Instant::now();
 
         if let Some(test_routes) = self.prepare_test_routes().await {
-            debug!(target: "Monitor", "Determined reliable routes to test all other nodes against.");
+            debug!(target: "Monitor", "Determined reliable routes to test all other nodes against. : {:?}", test_routes);
             self.test_network_against(&test_routes).await;
         } else {
             error!("We failed to construct sufficient number of test routes to test the network against")

@@ -158,9 +158,8 @@ impl Display for TestReport {
         for route_result in &self.route_results {
             writeln!(
                 f,
-                "{}, reliability: {:.2}",
-                route_result.route.id(),
-                route_result.reliability
+                "{:?}, reliability: {:.2}",
+                route_result.route, route_result.reliability
             )?;
         }
 

@@ -226,7 +226,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
   const fetchBlock = async () => {
     try {
       const data = await Api.fetchBlock();
-      console.log('block is ', typeof data);
       setBlock({ data, isLoading: false });
     } catch (error) {
       setBlock({

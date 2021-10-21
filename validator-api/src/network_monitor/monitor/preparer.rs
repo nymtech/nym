@@ -464,7 +464,7 @@ impl PacketPreparer {
 
         let packets_to_create = (test_routes.len() * self.per_node_test_packets)
             * (tested_mixnodes.len() + tested_gateways.len());
-        info!("Need to create {} mix packets", packets_to_create);
+        info!(target: "TestPreparer", "Need to create {} mix packets", packets_to_create);
 
         let mut all_gateway_packets = HashMap::new();
 

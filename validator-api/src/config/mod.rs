@@ -20,7 +20,7 @@ mod template;
 
 const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
 
-const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
+const DEFAULT_GATEWAY_SENDING_RATE: usize = 200;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
 const DEFAULT_PACKET_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
 const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(15 * 60);
@@ -115,9 +115,6 @@ pub struct NetworkMonitor {
     /// The list must also contain THIS validator that is running the test
     all_validator_apis: Vec<Url>,
 
-    /// Specifies whether a detailed report should be printed after each run
-    print_detailed_report: bool,
-
     /// Specifies the interval at which the network monitor sends the test packets.
     #[serde(with = "humantime_serde")]
     run_interval: Duration,
@@ -164,7 +161,6 @@ impl Default for NetworkMonitor {
         NetworkMonitor {
             enabled: false,
             all_validator_apis: default_api_endpoints(),
-            print_detailed_report: false,
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,
             gateway_sending_rate: DEFAULT_GATEWAY_SENDING_RATE,
@@ -270,11 +266,6 @@ impl Config {
         self
     }
 
-    pub fn with_detailed_network_monitor_report(mut self, detailed: bool) -> Self {
-        self.network_monitor.print_detailed_report = detailed;
-        self
-    }
-
     pub fn with_custom_nymd_validator(mut self, validator: Url) -> Self {
         self.base.local_validator = validator;
         self
@@ -322,10 +313,6 @@ impl Config {
 
     pub fn get_rewarding_enabled(&self) -> bool {
         self.rewarding.enabled
-    }
-
-    pub fn get_detailed_report(&self) -> bool {
-        self.network_monitor.print_detailed_report
     }
 
     pub fn get_nymd_validator_url(&self) -> Url {

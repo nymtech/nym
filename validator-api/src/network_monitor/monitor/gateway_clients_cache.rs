@@ -4,7 +4,6 @@
 use crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 use gateway_client::GatewayClient;
 use std::collections::HashMap;
-use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard, TryLockError};
 
@@ -66,20 +65,6 @@ impl<'a> UnlockedGatewayClientHandle<'a> {
     }
 
     pub(crate) fn invalidate(&mut self) {
-        // TODO: perhaps some connection closing aciton here?
-        /*
-        // println!(
-        //     "closing connection to {}",
-        //     packets.pub_key.to_base58_string()
-        // );
-        // // client.close_connection().await.unwrap();
-        // // println!("socket was closed");
-        // drop(client);
-        // println!("waiting a bit");
-        // tokio::time::sleep(Duration::from_secs(10)).await;
-        // println!("done waiting");
-         */
-
         *self.0 = None
     }
 }
@@ -105,9 +90,5 @@ impl ActiveGatewayClients {
 
     pub(crate) async fn lock(&self) -> MutexGuard<'_, GatewayClientsMap> {
         self.inner.lock().await
-    }
-
-    pub(crate) async fn take_inner(&self) -> GatewayClientsMap {
-        std::mem::take(self.inner.lock().await.deref_mut())
     }
 }

@@ -35,9 +35,6 @@ all_validator_apis = [
     {{/each}}
 ]
 
-# Specifies whether a detailed report should be printed after each run
-print_detailed_report = {{ network_monitor.print_detailed_report }}
-
 # Specifies the interval at which the network monitor sends the test packets.
 run_interval = '{{ network_monitor.run_interval }}'
 

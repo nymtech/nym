@@ -1,6 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::network_monitor::monitor::gateway_clients_cache::{
+    ActiveGatewayClients, GatewayClientHandle,
+};
+use crate::network_monitor::monitor::gateways_pinger::GatewayPinger;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
@@ -12,20 +16,13 @@ use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiv
 use log::{debug, info, trace, warn};
 use nymsphinx::forwarding::packet::MixPacket;
 use pin_project::pin_project;
-use std::collections::HashMap;
 use std::mem;
 use std::num::NonZeroUsize;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
-use tokio::sync::Mutex;
-use tokio::time::Instant;
 
-use crate::network_monitor::monitor::gateway_clients_cache::{
-    ActiveGatewayClients, GatewayClientHandle, GatewayClientsMap,
-};
-use crate::network_monitor::monitor::gateways_pinger::GatewayPinger;
 #[cfg(feature = "coconut")]
 use coconut_interface::Credential;
 
@@ -64,10 +61,6 @@ impl GatewayPackets {
         }
     }
 
-    pub(super) fn set_packets(&mut self, packets: Vec<MixPacket>) {
-        self.packets = packets;
-    }
-
     pub(super) fn push_packets(&mut self, mut packets: Vec<MixPacket>) {
         if self.packets.is_empty() {
             self.packets = packets
@@ -77,10 +70,6 @@ impl GatewayPackets {
             packets.append(&mut self.packets);
             self.packets = packets;
         }
-    }
-
-    pub(super) fn gateway_address(&self) -> identity::PublicKey {
-        self.pub_key
     }
 }
 
@@ -183,7 +172,7 @@ impl PacketSender {
         tokio::spawn(async move { gateway_pinger.run().await });
     }
 
-    fn new_gateway_client(
+    fn new_gateway_client_handle(
         address: String,
         identity: identity::PublicKey,
         fresh_gateway_client_data: &FreshGatewayClientData,
@@ -234,7 +223,7 @@ impl PacketSender {
 
             let total_expected_time =
                 Duration::from_secs_f64(mix_packets.len() as f64 / max_sending_rate as f64);
-            info!(
+            debug!(
                 target: "MessageSender",
                 "With our rate of {} packets/s it should take around {:?} to send it all to {} ...",
                 max_sending_rate, total_expected_time, gateway_id
@@ -273,6 +262,62 @@ impl PacketSender {
         Ok(())
     }
 
+    async fn create_new_gateway_client_handle_and_authenticate(
+        address: String,
+        identity: identity::PublicKey,
+        fresh_gateway_client_data: &FreshGatewayClientData,
+        gateway_connection_timeout: Duration,
+    ) -> Option<(
+        GatewayClientHandle,
+        (MixnetMessageReceiver, AcknowledgementReceiver),
+    )> {
+        let (new_client, (message_receiver, ack_receiver)) =
+            Self::new_gateway_client_handle(address, identity, fresh_gateway_client_data);
+
+        // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
+        // gets stuck in their TCP queue and just hangs on our end but does not terminate
+        // (an actual bug we experienced)
+        //
+        // Note: locking the client in unchecked manner is fine here as we just created the lock
+        // and it wasn't shared with anyone, therefore we're the only one holding reference to it
+        // and hence it's impossible to fail to obtain the permit.
+        let mut unlocked_client = new_client.lock_client_unchecked();
+        match tokio::time::timeout(
+            gateway_connection_timeout,
+            unlocked_client.get_mut_unchecked().authenticate_and_start(
+                #[cfg(feature = "coconut")]
+                Some(
+                    fresh_gateway_client_data
+                        .coconut_bandwidth_credential
+                        .clone(),
+                ),
+            ),
+        )
+        .await
+        {
+            Ok(Ok(_)) => {
+                drop(unlocked_client);
+                Some((new_client, (message_receiver, ack_receiver)))
+            }
+            Ok(Err(err)) => {
+                warn!(
+                    "failed to authenticate with new gateway ({}) - {}",
+                    identity.to_base58_string(),
+                    err
+                );
+                // we failed to create a client, can't do much here
+                None
+            }
+            Err(_) => {
+                warn!(
+                    "timed out while trying to authenticate with new gateway ({})",
+                    identity.to_base58_string()
+                );
+                None
+            }
+        }
+    }
+
     // TODO: perhaps it should be spawned as a task to execute it in parallel rather
     // than just concurrently?
     async fn send_gateway_packets(
@@ -282,65 +327,33 @@ impl PacketSender {
         client: Option<GatewayClientHandle>,
         max_sending_rate: usize,
     ) -> Option<GatewayClientHandle> {
-        let was_present = client.is_some();
+        let existing_client = client.is_some();
 
         // Note that in the worst case scenario we will only wait for a second or two to obtain the lock
         // as other possibly entity holding the lock (the gateway pinger) is attempting to send
         // the ping messages with a maximum timeout.
         let (client, gateway_channels) = if let Some(client) = client {
+            if client.is_invalid().await {
+                warn!("Our existing client was invalid - two test runs happened back to back without cleanup");
+                return None;
+            }
             (client, None)
         } else {
-            let (new_client, (message_receiver, ack_receiver)) = Self::new_gateway_client(
-                packets.clients_address,
-                packets.pub_key,
-                &fresh_gateway_client_data,
-            );
-
-            // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
-            // gets stuck in their TCP queue and just hangs on our end but does not terminate
-            // (an actual bug we experienced)
-            match tokio::time::timeout(
-                gateway_connection_timeout,
-                new_client
-                    .lock_client_unchecked()
-                    .get_mut_unchecked()
-                    .authenticate_and_start(
-                        #[cfg(feature = "coconut")]
-                        Some(
-                            fresh_gateway_client_data
-                                .coconut_bandwidth_credential
-                                .clone(),
-                        ),
-                    ),
-            )
-            .await
-            {
-                Ok(Ok(_)) => {}
-                Ok(Err(err)) => {
-                    warn!(
-                        "failed to authenticate with new gateway ({}) - {}",
-                        packets.pub_key.to_base58_string(),
-                        err
-                    );
-                    // we failed to create a client, can't do much here
-                    return None;
-                }
-                Err(_) => {
-                    warn!(
-                        "timed out while trying to authenticate with new gateway ({})",
-                        packets.pub_key.to_base58_string()
-                    );
-                    return None;
-                }
-            };
-
-            (new_client, Some((message_receiver, ack_receiver)))
+            let (client, gateway_channels) =
+                Self::create_new_gateway_client_handle_and_authenticate(
+                    packets.clients_address,
+                    packets.pub_key,
+                    &fresh_gateway_client_data,
+                    gateway_connection_timeout,
+                )
+                .await?;
+            (client, Some(gateway_channels))
         };
 
         let estimated_time =
             Duration::from_secs_f64(packets.packets.len() as f64 / max_sending_rate as f64);
         // give some leeway
-        let timeout = Duration::from_secs(estimated_time.as_secs() * 3);
+        let timeout = estimated_time * 3;
 
         let mut guard = client.lock_client().await;
         match tokio::time::timeout(
@@ -360,7 +373,7 @@ impl PacketSender {
                 );
                 // if this was a fresh client, there's no need to do anything as it was never
                 // registered to get read
-                if was_present {
+                if existing_client {
                     guard.invalidate();
                     fresh_gateway_client_data.notify_connection_failure(packets.pub_key.to_bytes());
                 }
@@ -374,14 +387,14 @@ impl PacketSender {
                 );
                 // if this was a fresh client, there's no need to do anything as it was never
                 // registered to get read
-                if was_present {
+                if existing_client {
                     guard.invalidate();
                     fresh_gateway_client_data.notify_connection_failure(packets.pub_key.to_bytes());
                 }
                 return None;
             }
             Ok(Ok(_)) => {
-                if !was_present {
+                if !existing_client {
                     fresh_gateway_client_data
                         .notify_new_connection(packets.pub_key, gateway_channels);
                 }
@@ -392,23 +405,7 @@ impl PacketSender {
         Some(client)
     }
 
-    // async fn obtain_required_client_handles(
-    //     &self,
-    //     packets: &[GatewayPackets],
-    // ) -> GatewayClientsMap {
-    //     let mut guard = self.active_gateway_clients.lock().await;
-    //     let mut handles = HashMap::new();
-    //     for packet in packets {
-    //         let key_bytes = packet.pub_key.to_bytes();
-    //         let entry = guard.remove(&key_bytes);
-    //         if let Some(entry) = entry {
-    //             handles.insert(key_bytes, entry);
-    //         }
-    //     }
-    //
-    //     handles
-    // }
-
+    // point of this is to basically insert handles of fresh clients that didn't exist here before
     async fn merge_client_handles(&self, handles: Vec<GatewayClientHandle>) {
         let mut guard = self.active_gateway_clients.lock().await;
         for handle in handles {
@@ -441,7 +438,10 @@ impl PacketSender {
         let max_sending_rate = self.max_sending_rate;
 
         let guard = self.active_gateway_clients.lock().await;
-        // intermediate vec of values is produced to only require the main lock on the cache once
+        // this clippy warning is a false positive as we cannot get rid of the collect by moving
+        // everything into a single iterator as it would require us to hold the lock the entire time
+        // and that is exactly what we want to avoid
+        #[allow(clippy::needless_collect)]
         let stream_data = packets
             .into_iter()
             .map(|packets| {

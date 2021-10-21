@@ -286,34 +286,5 @@ impl Monitor {
             run_interval.tick().await;
             self.test_run().await;
         }
-
-        // // start from 0 to run test immediately on startup
-        // let test_delay = sleep(Duration::from_secs(0));
-        // tokio::pin!(test_delay);
-        //
-        // let ping_delay = sleep(self.gateway_ping_interval);
-        // tokio::pin!(ping_delay);
-        //
-        // loop {
-        //     tokio::select! {
-        //         _ = &mut test_delay => {
-        //             self.test_run().await;
-        //             info!(target: "Monitor", "Next test run will happen in {:?}", self.run_interval);
-        //
-        //             let now = Instant::now();
-        //             test_delay.as_mut().reset(now + self.run_interval);
-        //             // since we just sent packets through gateways, there's no need to ping them
-        //             ping_delay.as_mut().reset(now + self.gateway_ping_interval);
-        //
-        //         }
-        //         _ = &mut ping_delay => {
-        //             info!(target: "Monitor", "Pinging all active gateways");
-        //             self.ping_all_gateways().await;
-        //
-        //             let now = Instant::now();
-        //             ping_delay.as_mut().reset(now + self.gateway_ping_interval);
-        //         }
-        //     }
-        // }
     }
 }

@@ -713,23 +713,23 @@ impl StorageManager {
         Ok(())
     }
 
-    /// Tries to obtain the most recent epoch rewarding entry currently stored.
-    ///
-    /// Returns None if no data exists.
-    pub(super) async fn get_most_recent_epoch_rewarding_entry(
-        &self,
-    ) -> Result<Option<EpochRewarding>, sqlx::Error> {
-        sqlx::query_as!(
-            EpochRewarding,
-            r#"
-                SELECT * FROM epoch_rewarding
-                ORDER BY epoch_timestamp DESC
-                LIMIT 1
-            "#,
-        )
-        .fetch_optional(&self.connection_pool)
-        .await
-    }
+    // /// Tries to obtain the most recent epoch rewarding entry currently stored.
+    // ///
+    // /// Returns None if no data exists.
+    // pub(super) async fn get_most_recent_epoch_rewarding_entry(
+    //     &self,
+    // ) -> Result<Option<EpochRewarding>, sqlx::Error> {
+    //     sqlx::query_as!(
+    //         EpochRewarding,
+    //         r#"
+    //             SELECT * FROM epoch_rewarding
+    //             ORDER BY epoch_timestamp DESC
+    //             LIMIT 1
+    //         "#,
+    //     )
+    //     .fetch_optional(&self.connection_pool)
+    //     .await
+    // }
 
     /// Tries to obtain the epoch rewarding entry that has the provided timestamp.
     ///

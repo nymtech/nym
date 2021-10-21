@@ -46,7 +46,6 @@ mod coconut;
 
 const MONITORING_ENABLED: &str = "enable-monitor";
 const REWARDING_ENABLED: &str = "enable-rewarding";
-const DETAILED_REPORT_ARG: &str = "detailed-report";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const MNEMONIC_ARG: &str = "mnemonic";
 const WRITE_CONFIG_ARG: &str = "save-config";
@@ -103,12 +102,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                  .help("Mnemonic of the network monitor used for rewarding operators")
                  .takes_value(true)
                  .requires(REWARDING_ENABLED),
-        )
-        .arg(
-            Arg::with_name(DETAILED_REPORT_ARG)
-                .help("specifies whether a detailed report should be printed after each run")
-                .long(DETAILED_REPORT_ARG)
-                .requires(MONITORING_ENABLED)
         )
         .arg(
             Arg::with_name(WRITE_CONFIG_ARG)
@@ -242,10 +235,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
             panic!("Provided monitor threshold is greater than 100!");
         }
         config = config.with_minimum_epoch_monitor_threshold(monitor_threshold)
-    }
-
-    if matches.is_present(DETAILED_REPORT_ARG) {
-        config = config.with_detailed_network_monitor_report(true)
     }
 
     #[cfg(feature = "coconut")]

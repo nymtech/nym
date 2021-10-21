@@ -4,7 +4,6 @@
 use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
 use crypto::asymmetric::identity;
-use mixnet_contract::{GatewayBond, MixNodeBond};
 use std::fmt::{Debug, Formatter};
 use topology::{gateway, mix, NymTopology};
 
@@ -86,10 +85,6 @@ impl TestRoute {
         )
     }
 
-    pub(crate) fn system_version(&self) -> &str {
-        &self.system_version
-    }
-
     pub(crate) fn substitute_mix(&self, node: &mix::Node) -> NymTopology {
         let mut topology = self.nodes.clone();
         topology.set_mixes_in_layer(node.layer as u8, vec![node.clone()]);
@@ -100,44 +95,6 @@ impl TestRoute {
         let mut topology = self.nodes.clone();
         topology.set_gateways(vec![gateway.clone()]);
         topology
-    }
-
-    /// Given slices of bonded mixnodes and gateways, checks whether all 'good' nodes are present
-    /// in the lists.
-    ///
-    /// # Arguments
-    ///
-    /// * `bonded_mixnodes`: slice of currently bonded mixnodes
-    /// * `bonded_gateways`: slice of currently bonded gateways
-    pub(crate) fn is_online(
-        &self,
-        bonded_mixnodes: &[MixNodeBond],
-        bonded_gateways: &[GatewayBond],
-    ) -> bool {
-        todo!()
-
-        // // while technically this is not the most optimal way of checking all nodes as we have to
-        // // go through entire slice multiple times, we only do it every 30s before monitor startup
-        // // so it's not really that bad
-        // for layer_mixes in self.good_v4_topology.mixes().values() {
-        //     for mix in layer_mixes {
-        //         if !bonded_mixnodes.iter().any(|bonded| {
-        //             bonded.mix_node.identity_key == mix.identity_key.to_base58_string()
-        //         }) {
-        //             return false;
-        //         }
-        //     }
-        // }
-        //
-        // for gateway in self.good_v4_topology.gateways() {
-        //     if !bonded_gateways.iter().any(|bonded| {
-        //         bonded.gateway.identity_key == gateway.identity_key.to_base58_string()
-        //     }) {
-        //         return false;
-        //     }
-        // }
-        //
-        // true
     }
 }
 

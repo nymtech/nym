@@ -13,7 +13,10 @@ const FINE_THRESHOLD: u8 = 80; // 80 - 95
 const POOR_THRESHOLD: u8 = 60; // 60 - 80
 const UNRELIABLE_THRESHOLD: u8 = 1; // 1 - 60
 
-const ALLOWED_RELIABILITY_DEVIATION: f32 = 5.0;
+// I didn't have time to implement it for this PR, however, an idea for the future is as follows:
+// After testing network against N routes, if any one of them is worse than ALLOWED_RELIABILITY_DEVIATION
+// from the average result, remove this data and recalculate scores.
+// const ALLOWED_RELIABILITY_DEVIATION: f32 = 5.0;
 
 #[derive(Debug)]
 pub(crate) struct NodeResult {

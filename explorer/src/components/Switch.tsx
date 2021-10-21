@@ -2,21 +2,10 @@ import React from 'react';
 import { styled } from '@mui/material/styles';
 import Switch from '@mui/material/Switch';
 import { Button } from '@mui/material';
+import { MainContext } from 'src/context/main';
 import { LightSwitchSVG } from '../icons/LightSwitchSVG';
 
-type MobileProps = {
-  onClick: any;
-  // onClick: (e: React.MouseEvent<HTMLElement>) => void | undefined;
-};
-export const DarkLightSwitchMobile = ({
-  onClick,
-}: MobileProps): React.ReactElement => (
-  <Button onClick={onClick}>
-    <LightSwitchSVG />
-  </Button>
-);
-
-export const DarkLightSwitch = styled(Switch)(({ theme, onClick }) => ({
+export const DarkLightSwitch = styled(Switch)(({ theme }) => ({
   width: 55,
   height: 34,
   padding: 7,
@@ -60,5 +49,24 @@ export const DarkLightSwitch = styled(Switch)(({ theme, onClick }) => ({
     backgroundColor: theme.palette.mode === 'dark' ? '#8796A5' : '#aab4be',
     borderRadius: 20 / 2,
   },
-  onClick,
 }));
+
+export const DarkLightSwitchMobile: React.FC = () => {
+  const { toggleMode } = React.useContext(MainContext);
+  return (
+    <Button onClick={() => toggleMode()}>
+      <LightSwitchSVG />
+    </Button>
+  );
+};
+
+export const DarkLightSwitchDesktop: React.FC<{ defaultChecked: boolean }> = ({
+  defaultChecked,
+}) => {
+  const { toggleMode } = React.useContext(MainContext);
+  return (
+    <Button onClick={() => toggleMode()}>
+      <DarkLightSwitch defaultChecked={defaultChecked} />
+    </Button>
+  );
+};

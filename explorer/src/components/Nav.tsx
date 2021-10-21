@@ -23,7 +23,7 @@ import { MainContext } from '../context/main';
 import { palette } from '../index';
 import { Socials } from './Socials';
 import { Footer } from './Footer';
-import { DarkLightSwitch, DarkLightSwitchMobile } from './Switch';
+import { DarkLightSwitchDesktop, DarkLightSwitchMobile } from './Switch';
 
 const drawerWidth = 300;
 
@@ -346,10 +346,8 @@ export const Nav: React.FC = ({ children }) => {
                   <Socials disableDarkMode />
                 </Box>
               )}
-              {isMobile && <DarkLightSwitchMobile onClick={toggleMode} />}
-              {!isMobile && (
-                <DarkLightSwitch onClick={toggleMode} defaultChecked />
-              )}
+              {isMobile && <DarkLightSwitchMobile />}
+              {!isMobile && <DarkLightSwitchDesktop defaultChecked />}
             </Box>
           </Toolbar>
         </AppBar>

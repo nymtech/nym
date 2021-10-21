@@ -142,7 +142,7 @@ export const BondForm = ({
             </Grid>
             {fees && (
               <Grid item>
-                <Alert severity="info">
+                <Alert severity="info" data-testid="feeAmount">
                   {`A fee of ${
                     watchNodeType === EnumNodeType.mixnode
                       ? fees.mixnode.amount
@@ -369,6 +369,7 @@ export const BondForm = ({
           color="primary"
           type="submit"
           size="large"
+          data-testid="submitButton"
           disableElevation
           onClick={handleSubmit(onSubmit)}
           endIcon={isSubmitting && <CircularProgress size={20} />}

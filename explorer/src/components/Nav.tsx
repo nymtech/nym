@@ -1,12 +1,6 @@
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  ChevronLeft,
-  ExpandLess,
-  ExpandMore,
-  WbSunnySharp,
-  Brightness4Sharp,
-} from '@mui/icons-material';
+import { ChevronLeft, ExpandLess, ExpandMore } from '@mui/icons-material';
 import { styled, CSSObject, Theme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import ListItem from '@mui/material/ListItem';
@@ -21,6 +15,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
 import { BIG_DIPPER } from 'src/api/constants';
+import { useMediaQuery, useTheme } from '@mui/material';
 import { OverviewSVG } from '../icons/OverviewSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
@@ -28,6 +23,7 @@ import { MainContext } from '../context/main';
 import { palette } from '../index';
 import { Socials } from './Socials';
 import { Footer } from './Footer';
+import { DarkLightSwitch, DarkLightSwitchMobile } from './Switch';
 
 const drawerWidth = 300;
 
@@ -280,9 +276,10 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
 };
 
 export const Nav: React.FC = ({ children }) => {
-  const { toggleMode, mode } = React.useContext(MainContext);
+  const { toggleMode } = React.useContext(MainContext);
   const [open, setOpen] = React.useState(true);
-
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const handleDrawerOpen = () => {
     setOpen(true);
   };
@@ -298,7 +295,7 @@ export const Nav: React.FC = ({ children }) => {
           position="fixed"
           open={open}
           sx={{
-            background: (theme) => theme.palette.primary.dark,
+            background: theme.palette.primary.dark,
           }}
         >
           <Toolbar
@@ -331,7 +328,7 @@ export const Nav: React.FC = ({ children }) => {
                 component="div"
                 sx={{
                   marginLeft: 3,
-                  color: (theme) => theme.palette.primary.main,
+                  color: theme.palette.primary.main,
                 }}
               >
                 Network Explorer
@@ -339,11 +336,20 @@ export const Nav: React.FC = ({ children }) => {
             </Box>
             <Box
               sx={{
-                display: { xs: 'none', md: 'flex' },
                 mr: 2,
+                alignItems: 'center',
+                display: 'flex',
               }}
             >
-              <Socials disableDarkMode />
+              {!isMobile && (
+                <Box sx={{ display: 'flex', flexDirection: 'row' }}>
+                  <Socials disableDarkMode />
+                </Box>
+              )}
+              {isMobile && <DarkLightSwitchMobile onClick={toggleMode} />}
+              {!isMobile && (
+                <DarkLightSwitch onClick={toggleMode} defaultChecked />
+              )}
             </Box>
           </Toolbar>
         </AppBar>
@@ -351,12 +357,10 @@ export const Nav: React.FC = ({ children }) => {
           variant="permanent"
           open={open}
           sx={{
-            background: (theme) => theme.palette.secondary.dark,
+            background: theme.palette.secondary.dark,
           }}
         >
-          <DrawerHeader
-            sx={{ background: (theme) => theme.palette.primary.dark }}
-          >
+          <DrawerHeader sx={{ background: theme.palette.primary.dark }}>
             <IconButton onClick={handleDrawerClose}>
               <ChevronLeft color="primary" />
             </IconButton>
@@ -372,18 +376,6 @@ export const Nav: React.FC = ({ children }) => {
               />
             ))}
           </List>
-          <ListItem disableGutters disablePadding>
-            <ListItemButton onClick={toggleMode} sx={{ pt: 2, pb: 2 }}>
-              <ListItemIcon>
-                {mode === 'light' ? <Brightness4Sharp /> : <WbSunnySharp />}
-              </ListItemIcon>
-              <ListItemText
-                sx={{ color: (theme) => theme.palette.primary.main }}
-              >
-                {mode === 'light' ? 'Dark mode' : 'Light mode'}
-              </ListItemText>
-            </ListItemButton>
-          </ListItem>
         </Drawer>
         <Box sx={{ width: '100%', p: 4 }}>
           <DrawerHeader />

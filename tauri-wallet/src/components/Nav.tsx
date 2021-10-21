@@ -131,7 +131,7 @@ export const Nav = () => {
         )}
 
         <ListItem button onClick={logOut}>
-          <ListItemIcon data-testid="logOut" className={classes.navItem}>
+          <ListItemIcon data-testid="log-out" className={classes.navItem}>
             <ExitToApp />
           </ListItemIcon>
           <ListItemText

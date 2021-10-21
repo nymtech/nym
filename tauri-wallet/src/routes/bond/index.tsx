@@ -94,10 +94,10 @@ export const Bond = () => {
             <RequestStatus
               status={status}
               Success={
-                <Alert severity="success" data-testid="bondSuccess">Successfully bonded node</Alert>
+                <Alert severity="success" data-testid="bond-success">Successfully bonded node</Alert>
               }
               Error={
-                <Alert severity="error" data-testid="bondError">
+                <Alert severity="error" data-testid="bond-error">
                   An error occurred with the request: {message}
                 </Alert>
               }

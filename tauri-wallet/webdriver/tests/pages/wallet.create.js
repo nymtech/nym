@@ -12,7 +12,7 @@ class WalletCreate {
     
     get backToSignIn() {return $('#root > div > div:nth-child(2) > div > div > div:nth-child(2) > button > span.MuiButton-label')}
 
-    get signInButton() {return $('[data-testid="signButton"]')}
+    get signInButton() {return $('[data-testid="sign-in-button"]')}
 
 
 }

@@ -6,7 +6,6 @@ extern crate rocket;
 
 use crate::cache::ValidatorCacheRefresher;
 use crate::config::Config;
-// use crate::network_monitor::tested_network::good_topology::parse_topology_file;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::nymd_client::Client;
 use crate::rewarding::epoch::Epoch;

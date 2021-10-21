@@ -34,11 +34,13 @@ export const NodeTypeSelector = ({
           value={EnumNodeType.mixnode}
           control={<Radio />}
           label="Mixnode"
+          data-testid="mixNode"
           disabled={disabled}
         />
         <FormControlLabel
           value={EnumNodeType.gateway}
           control={<Radio />}
+          data-testid="gateWay"
           label="Gateway"
           disabled={disabled}
         />

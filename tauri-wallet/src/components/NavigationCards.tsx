@@ -28,7 +28,7 @@ export const BalanceCard = () => {
         noPadding
         Action={
           <Tooltip title="Refresh balance">
-            <IconButton onClick={getBalance.fetchBalance} size="small">
+            <IconButton data-testid="refreshBalance" onClick={getBalance.fetchBalance} size="small">
               <Refresh />
             </IconButton>
           </Tooltip>
@@ -71,6 +71,7 @@ export const AddressCard = () => {
         title="Address"
         subheader="Wallet payments address"
         noPadding
+        data-testid="walletAddressHeader"
         Action={
           <Tooltip title={!copyState ? 'Copy address' : 'Copied'}>
             <span>
@@ -106,7 +107,7 @@ export const AddressCard = () => {
         }
       >
         <CardContent>
-          <Typography
+          <Typography data-testid="walletAddress"
             style={{ fontWeight: theme.typography.fontWeightRegular }}
           >
             {truncate(clientDetails?.client_address!, 35)}

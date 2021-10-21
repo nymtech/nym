@@ -239,7 +239,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
                 />
                 <Typography>Wallet setup complete</Typography>
               </div>
-              <Alert severity="info" style={{ marginBottom: theme.spacing(2) }}>
+              <Alert severity="info" style={{ marginBottom: theme.spacing(2) }} data-testid="mnemonicWarning">
                 Please store your <strong>mnemonic</strong> in a safe place.
                 You'll need it to access your wallet
               </Alert>
@@ -257,7 +257,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
                     </Typography>
                   </Grid>
                   <Grid item>
-                    <Typography>{accountDetails.mnemonic}</Typography>
+                    <Typography data-testid="mnemonicPhrase">{accountDetails.mnemonic}</Typography>
                     <div
                       style={{ display: 'flex', justifyContent: 'flex-end' }}
                     >
@@ -273,7 +273,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
                     </Typography>
                   </Grid>
                   <Grid item>
-                    <Typography>{accountDetails.client_address}</Typography>
+                    <Typography data-testid="walletAdress">{accountDetails.client_address}</Typography>
                   </Grid>
                 </Grid>
               </Card>
@@ -282,7 +282,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
         </Grid>
         {error && (
           <Grid item style={{ marginTop: theme.spacing(1) }}>
-            <Alert severity="error">{error}</Alert>
+            <Alert severity="error" data-testid="error">{error}</Alert>
           </Grid>
         )}
         <Grid item>
@@ -293,6 +293,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
               variant="contained"
               color="primary"
               type="submit"
+              data-testid="createButton"
               disableElevation
               style={{ marginBottom: theme.spacing(1) }}
               disabled={isLoading}
@@ -304,6 +305,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
             fullWidth
             variant="text"
             onClick={showSignIn}
+            data-testid="signInButton"
             startIcon={<ArrowBack />}
           >
             Sign in

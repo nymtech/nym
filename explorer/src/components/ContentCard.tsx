@@ -1,10 +1,9 @@
-import { ReactJSXElement } from '@emotion/react/types/jsx-namespace';
 import { Card, CardHeader, CardContent, Typography } from '@mui/material';
 import React, { ReactEventHandler } from 'react';
 import { MainContext } from 'src/context/main';
 
 type ContentCardProps = {
-  title?: string | ReactJSXElement;
+  title?: string | React.ReactNode;
   subtitle?: string;
   Icon?: React.ReactNode;
   Action?: React.ReactNode;
@@ -37,7 +36,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
           color: (theme) =>
             mode === 'dark' ? theme.palette.primary.main : 'secondary.main',
         }}
-        title={title}
+        title={title || ''}
         avatar={Icon}
         action={Action}
         subheader={subtitle}
@@ -50,4 +49,13 @@ export const ContentCard: React.FC<ContentCardProps> = ({
       )}
     </Card>
   );
+};
+
+ContentCard.defaultProps = {
+  title: undefined,
+  subtitle: undefined,
+  Icon: () => null,
+  Action: () => null,
+  errorMsg: undefined,
+  onClick: () => null,
 };

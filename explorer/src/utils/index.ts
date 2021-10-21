@@ -1,12 +1,14 @@
 /* eslint-disable camelcase */
+import React from 'react';
 import { GatewayResponse, MixNodeResponse } from 'src/typeDefs/explorer-api';
 
-export function formatNumber(num: number) {
+export function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num);
 }
 
-export function scrollToRef(ref: any) {
-  return ref.current.scrollIntoView();
+// TO-DO revert with TS type for passed in Ref arg
+export function scrollToRef(ref: any): void {
+  ref.current.scrollIntoView();
 }
 
 export type MixnodeRowType = {
@@ -18,6 +20,7 @@ export type MixnodeRowType = {
   host: string;
   layer: string;
 };
+
 export type GatewayRowType = {
   id: string;
   owner: string;

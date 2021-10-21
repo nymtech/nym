@@ -2,7 +2,7 @@ import * as React from 'react';
 import { GridRenderCellParams, GridColDef } from '@mui/x-data-grid';
 import { printableCoin } from '@nymproject/nym-validator-client';
 import { Link as RRDLink } from 'react-router-dom';
-import { Grid, Link as MuiLink, Typography } from '@mui/material';
+import { Button, Grid, Link as MuiLink, Typography } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import {
   cellStyles,
@@ -39,6 +39,7 @@ export const PageMixnodes: React.FC = () => {
         ) {
           return m;
         }
+        return null;
       });
       if (filtered) {
         setFilteredMixnodes(filtered);
@@ -125,12 +126,12 @@ export const PageMixnodes: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <div
+        <Button
           onClick={() => handleSearch(params.value as string)}
-          style={cellStyles}
+          sx={cellStyles}
         >
           {params.value}
-        </div>
+        </Button>
       ),
     },
     {

@@ -1,6 +1,11 @@
 import React from 'react';
-import { useMediaQuery, useTheme, TextField, MenuItem } from '@mui/material';
-import { Box } from '@mui/system';
+import {
+  Box,
+  useMediaQuery,
+  useTheme,
+  TextField,
+  MenuItem,
+} from '@mui/material';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 
 type TableToolBarProps = {
@@ -10,12 +15,12 @@ type TableToolBarProps = {
   searchTerm: string;
 };
 
-export const TableToolbar = ({
+export const TableToolbar: React.FC<TableToolBarProps> = ({
   searchTerm,
   onChangeSearch,
   onChangePageSize,
   pageSize,
-}: TableToolBarProps) => {
+}) => {
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
   return (

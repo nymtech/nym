@@ -277,6 +277,12 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   );
 };
 
+ExpandableButton.defaultProps = {
+  Icon: null,
+  nested: [],
+  isExpandedChild: false,
+};
+
 export const Nav: React.FC = ({ children }) => {
   const { toggleMode, mode } = React.useContext(MainContext);
   const [open, setOpen] = React.useState(true);
@@ -343,9 +349,9 @@ export const Nav: React.FC = ({ children }) => {
         </DrawerHeader>
 
         <List sx={{ pt: 0, pb: 0 }}>
-          {originalNavOptions.map((props, i) => (
+          {originalNavOptions.map((props) => (
             <ExpandableButton
-              key={i}
+              key={props.id}
               openDrawer={handleDrawerOpen}
               drawIsOpen={open}
               {...props}
@@ -370,3 +376,5 @@ export const Nav: React.FC = ({ children }) => {
     </Box>
   );
 };
+
+Nav.defaultProps = {};

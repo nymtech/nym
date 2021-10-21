@@ -1,5 +1,4 @@
 import * as React from 'react';
-import Paper from '@mui/material/Paper';
 import { CircularProgress, Typography } from '@mui/material';
 import { Chart } from 'react-google-charts';
 import { ApiState, UptimeStoryResponse } from 'src/typeDefs/explorer-api';
@@ -18,13 +17,13 @@ type FormattedDateRecord = [string, number, number];
 type FormattedChartHeadings = string[];
 type FormattedChartData = [FormattedChartHeadings | FormattedDateRecord];
 
-export function UptimeChart({
+export const UptimeChart: React.FC<ChartProps> = ({
   title,
   xLabel,
   yLabel,
   uptimeStory,
   loading,
-}: ChartProps) {
+}) => {
   const [formattedChartData, setFormattedChartData] =
     React.useState<FormattedChartData>();
   const { mode }: any = React.useContext(MainContext);
@@ -34,7 +33,7 @@ export function UptimeChart({
       const allFormattedChartData: FormattedChartData = [
         ['Date', 'UptimeV4', 'UptimeV6'],
       ];
-      uptimeStory.data.history.map((eachDate) => {
+      uptimeStory.data.history.forEach((eachDate) => {
         const formattedDateUptimeRecord: FormattedDateRecord = [
           format(new Date(eachDate.date), 'MMM dd'),
           eachDate.ipv4_uptime,
@@ -121,4 +120,8 @@ export function UptimeChart({
       )}
     </>
   );
-}
+};
+
+UptimeChart.defaultProps = {
+  title: undefined,
+};

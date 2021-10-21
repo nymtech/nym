@@ -15,7 +15,7 @@ import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import { MainContext } from 'src/context/main';
 
-export function BondBreakdownTable() {
+export const BondBreakdownTable: React.FC = () => {
   const { mixnodeDetailInfo, delegations, mode } =
     React.useContext(MainContext);
   const [allContentLoaded, setAllContentLoaded] =
@@ -200,4 +200,4 @@ export function BondBreakdownTable() {
     );
   }
   return null;
-}
+};

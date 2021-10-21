@@ -9,12 +9,12 @@ import {
 } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
 import { CountryDataResponse, ApiState } from 'src/typeDefs/explorer-api';
+import { CircularProgress } from '@mui/material';
 import { MainContext } from '../context/main';
 import MAP_TOPOJSON from '../assets/world-110m.json';
 import { palette } from '../index';
 
 type MapProps = {
-  title?: string;
   userLocation?: [number, number];
   countryData?: ApiState<CountryDataResponse>;
   loading: boolean;
@@ -47,6 +47,10 @@ export const WorldMap: React.FC<MapProps> = ({
       setColorScale(() => cs);
     }
   }, [countryData, userLocation]);
+
+  if (loading) {
+    return <CircularProgress />;
+  }
 
   return (
     <>
@@ -132,4 +136,9 @@ export const WorldMap: React.FC<MapProps> = ({
       <ReactTooltip>{tooltipContent}</ReactTooltip>
     </>
   );
+};
+
+WorldMap.defaultProps = {
+  userLocation: undefined,
+  countryData: undefined,
 };

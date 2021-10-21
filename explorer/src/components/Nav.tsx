@@ -26,6 +26,8 @@ import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
 import { MainContext } from '../context/main';
 import { palette } from '../index';
+import { Socials } from './Socials';
+import { Footer } from './Footer';
 
 const drawerWidth = 300;
 
@@ -203,7 +205,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             isExpandedChild
               ? palette.nested
               : location.pathname.includes(url)
-              ? palette.selectedNotNested
+              ? palette.blackBg
               : theme.palette.secondary.dark,
           borderRight: location.pathname.includes(url)
             ? `3px solid ${palette.brandOrange}`
@@ -239,7 +241,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
         sx={{
           background: (theme) =>
             open
-              ? palette.selectedNotNested
+              ? palette.blackBg
               : isExpandedChild
               ? palette.nested
               : theme.palette.secondary.dark,
@@ -290,83 +292,105 @@ export const Nav: React.FC = ({ children }) => {
   };
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar
-        position="fixed"
-        open={open}
-        sx={{
-          background: (theme) => theme.palette.primary.dark,
-        }}
-      >
-        <Toolbar disableGutters sx={{ paddingLeft: 2 }}>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            onClick={handleDrawerOpen}
-            edge="start"
-            sx={{
-              ...(open && {
-                display: 'none',
-                margin: 0,
-                padding: 2,
-              }),
-            }}
-          >
-            <NymLogoSVG />
-          </IconButton>
-          <Typography
-            variant="h6"
-            noWrap
-            component="div"
-            sx={{
-              marginLeft: 3,
-              color: (theme) => theme.palette.primary.main,
-            }}
-          >
-            Network Explorer
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <Drawer
-        variant="permanent"
-        open={open}
-        sx={{
-          background: (theme) => theme.palette.secondary.dark,
-        }}
-      >
-        <DrawerHeader
-          sx={{ background: (theme) => theme.palette.primary.dark }}
+    <>
+      <Box sx={{ display: 'flex' }}>
+        <AppBar
+          position="fixed"
+          open={open}
+          sx={{
+            background: (theme) => theme.palette.primary.dark,
+          }}
         >
-          <IconButton onClick={handleDrawerClose}>
-            <ChevronLeft color="primary" />
-          </IconButton>
-        </DrawerHeader>
+          <Toolbar
+            disableGutters
+            sx={{
+              paddingLeft: 2,
+              display: 'flex',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box display="flex" alignItems="center">
+              <IconButton
+                color="inherit"
+                aria-label="open drawer"
+                onClick={handleDrawerOpen}
+                edge="start"
+                sx={{
+                  ...(open && {
+                    display: 'none',
+                    margin: 0,
+                    padding: 2,
+                  }),
+                }}
+              >
+                <NymLogoSVG />
+              </IconButton>
+              <Typography
+                variant="h6"
+                noWrap
+                component="div"
+                sx={{
+                  marginLeft: 3,
+                  color: (theme) => theme.palette.primary.main,
+                }}
+              >
+                Network Explorer
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: { xs: 'none', md: 'flex' },
+                mr: 2,
+              }}
+            >
+              <Socials disableDarkMode />
+            </Box>
+          </Toolbar>
+        </AppBar>
+        <Drawer
+          variant="permanent"
+          open={open}
+          sx={{
+            background: (theme) => theme.palette.secondary.dark,
+          }}
+        >
+          <DrawerHeader
+            sx={{ background: (theme) => theme.palette.primary.dark }}
+          >
+            <IconButton onClick={handleDrawerClose}>
+              <ChevronLeft color="primary" />
+            </IconButton>
+          </DrawerHeader>
 
-        <List sx={{ pt: 0, pb: 0 }}>
-          {originalNavOptions.map((props, i) => (
-            <ExpandableButton
-              key={i}
-              openDrawer={handleDrawerOpen}
-              drawIsOpen={open}
-              {...props}
-            />
-          ))}
-        </List>
-        <ListItem disableGutters disablePadding>
-          <ListItemButton onClick={toggleMode} sx={{ pt: 2, pb: 2 }}>
-            <ListItemIcon>
-              {mode === 'light' ? <Brightness4Sharp /> : <WbSunnySharp />}
-            </ListItemIcon>
-            <ListItemText sx={{ color: (theme) => theme.palette.primary.main }}>
-              {mode === 'light' ? 'Dark mode' : 'Light mode'}
-            </ListItemText>
-          </ListItemButton>
-        </ListItem>
-      </Drawer>
-      <Box sx={{ width: '100%', p: 4 }}>
-        <DrawerHeader />
-        {children}
+          <List sx={{ pt: 0, pb: 0 }}>
+            {originalNavOptions.map((props, i) => (
+              <ExpandableButton
+                key={i}
+                openDrawer={handleDrawerOpen}
+                drawIsOpen={open}
+                {...props}
+              />
+            ))}
+          </List>
+          <ListItem disableGutters disablePadding>
+            <ListItemButton onClick={toggleMode} sx={{ pt: 2, pb: 2 }}>
+              <ListItemIcon>
+                {mode === 'light' ? <Brightness4Sharp /> : <WbSunnySharp />}
+              </ListItemIcon>
+              <ListItemText
+                sx={{ color: (theme) => theme.palette.primary.main }}
+              >
+                {mode === 'light' ? 'Dark mode' : 'Light mode'}
+              </ListItemText>
+            </ListItemButton>
+          </ListItem>
+        </Drawer>
+        <Box sx={{ width: '100%', p: 4 }}>
+          <DrawerHeader />
+          {children}
+          <Footer />
+        </Box>
       </Box>
-    </Box>
+    </>
   );
 };

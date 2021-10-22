@@ -143,7 +143,7 @@ pub fn compute_zeta(params: &Parameters, serial_number: Attribute) -> G2Projecti
     params.gen2() * serial_number
 }
 
-pub fn prove_credential(
+pub fn prove_bandwidth_credential(
     params: &Parameters,
     verification_key: &VerificationKey,
     signature: &Signature,
@@ -291,7 +291,7 @@ mod tests {
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
 
-        let theta = prove_credential(
+        let theta = prove_bandwidth_credential(
             &mut params,
             &keypair.verification_key(),
             &signature,

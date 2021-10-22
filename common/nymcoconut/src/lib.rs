@@ -22,20 +22,20 @@ pub use elgamal::PublicKey;
 pub use error::CoconutError;
 pub use scheme::aggregation::aggregate_signature_shares;
 pub use scheme::aggregation::aggregate_verification_keys;
-pub use scheme::issuance::blind_sign;
-pub use scheme::issuance::prepare_blind_sign;
-pub use scheme::issuance::BlindSignRequest;
-pub use scheme::keygen::ttp_keygen;
-pub use scheme::keygen::KeyPair;
-pub use scheme::keygen::VerificationKey;
-pub use scheme::setup::setup;
-pub use scheme::setup::Parameters;
-pub use scheme::verification::prove_credential;
-pub use scheme::verification::verify_credential;
-pub use scheme::verification::Theta;
 pub use scheme::BlindedSignature;
+pub use scheme::issuance::blind_sign;
+pub use scheme::issuance::BlindSignRequest;
+pub use scheme::issuance::prepare_blind_sign;
+pub use scheme::keygen::KeyPair;
+pub use scheme::keygen::ttp_keygen;
+pub use scheme::keygen::VerificationKey;
+pub use scheme::setup::Parameters;
+pub use scheme::setup::setup;
 pub use scheme::Signature;
 pub use scheme::SignatureShare;
+pub use scheme::verification::prove_bandwidth_credential;
+pub use scheme::verification::Theta;
+pub use scheme::verification::verify_credential;
 pub use traits::Base58;
 pub use utils::hash_to_scalar;
 
@@ -55,6 +55,11 @@ mod utils;
 pub type Attribute = Scalar;
 pub type PrivateAttribute = Attribute;
 pub type PublicAttribute = Attribute;
+
+pub struct BandwidthPrivateAttributes {
+    serial_number: Attribute,
+    binding_number: Attribute,
+}
 
 impl Bytable for Attribute {
     fn to_byte_vec(&self) -> Vec<u8> {

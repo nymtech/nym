@@ -3,16 +3,16 @@ class Helpers {
     //helper to decode mnemonic so plain 24 character passphrase isn't in sight albeit it is presented when ruunning the scripts
     //maybe a show passphrase toggle button?
     decodeBase = async (input) => {
-        var m = Buffer.from(input, 'base64').toString();
-        return m;
+        var m = Buffer.from(input, 'base64').toString()
+        return m
     }
 
     navigateAndClick = async (element) => {
-        await element.click();
+        await element.click()
     }
 
     scrollIntoView = async (element) => {
-        await element.scrollIntoView();
+        await element.scrollIntoView()
     }
 
 

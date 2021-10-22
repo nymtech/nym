@@ -1,10 +1,5 @@
 import * as React from 'react';
-import {
-  useMediaQuery,
-  useTheme,
-  CircularProgress,
-  Typography,
-} from '@mui/material';
+import { useTheme, CircularProgress, Typography } from '@mui/material';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -26,7 +21,7 @@ interface TableProps {
   loading: boolean;
 }
 
-export function TwoColSmallTable({
+export const TwoColSmallTable: React.FC<TableProps> = ({
   loading,
   title,
   icons,
@@ -34,7 +29,7 @@ export function TwoColSmallTable({
   values,
   marginBottom,
   error,
-}: TableProps) {
+}) => {
   const theme = useTheme();
   const { mode } = React.useContext(MainContext);
   return (
@@ -49,7 +44,7 @@ export function TwoColSmallTable({
           <TableBody>
             {keys.map((each: string, i: number) => (
               <TableRow
-                key={i}
+                key={each}
                 sx={{
                   background:
                     mode === 'dark'
@@ -90,4 +85,11 @@ export function TwoColSmallTable({
       </TableContainer>
     </>
   );
-}
+};
+
+TwoColSmallTable.defaultProps = {
+  title: undefined,
+  icons: [],
+  marginBottom: false,
+  error: undefined,
+};

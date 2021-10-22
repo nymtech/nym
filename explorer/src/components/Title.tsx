@@ -1,11 +1,7 @@
 import React from 'react';
 import { Box, Grid, Typography } from '@mui/material';
 
-export interface TitleProps {
-  text: string;
-}
-
-export const Title = ({ text }: TitleProps) => (
+export const Title: React.FC<{ text: string }> = ({ text }) => (
   <Grid
     item
     xs={12}

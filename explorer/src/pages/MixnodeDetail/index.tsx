@@ -262,7 +262,6 @@ export const PageMixnodeDetail: React.FC = () => {
                   mixnodeDetailInfo?.data[0]?.location && (
                     <WorldMap
                       loading={mixnodeDetailInfo.isLoading}
-                      title="Location"
                       userLocation={[
                         mixnodeDetailInfo?.data[0]?.location?.lng,
                         mixnodeDetailInfo?.data[0]?.location?.lat,

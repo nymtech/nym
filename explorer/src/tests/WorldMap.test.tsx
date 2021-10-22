@@ -25,7 +25,4 @@ describe('WorldMap', () => {
     expect(screen.getByTestId('svg')).toHaveAttribute('width', expectedWidth);
     expect(screen.getByTestId('svg')).toHaveAttribute('height', expectedHeight);
   });
-  it('should render countries', () => {
-    // test number of path elements?
-  });
 });

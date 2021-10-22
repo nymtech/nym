@@ -5,12 +5,6 @@ export interface ClientConfig {
   version: string;
 }
 
-export enum Layer {
-  One = 'One',
-  Two = 'Two',
-  Three = 'Three',
-}
-
 export interface MixNode {
   host: string;
   location: string;
@@ -41,7 +35,7 @@ export interface MixNodeResponseItem {
   bond_amount: Amount;
   total_delegation: Amount;
   owner: string;
-  layer: Layer;
+  layer: string;
   location: {
     country_name: string;
     lat: number;
@@ -140,7 +134,7 @@ export type DelegationsResponse = Delegation[];
 
 export type CountryDataResponse = CountryData[];
 
-export type BlockType = {};
+export type BlockType = number;
 export type BlockResponse = BlockType;
 
 export interface ApiState<RESPONSE> {

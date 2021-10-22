@@ -74,6 +74,7 @@ export const Delegate = () => {
                 status={status}
                 Error={
                   <Alert severity="error" data-testid="delegateError">
+                    <AlertTitle>Delegation failed</AlertTitle>
                     An error occurred with the request:
                     <Box style={{ wordBreak: 'break-word' }}>{message}</Box>
                   </Alert>
@@ -81,7 +82,7 @@ export const Delegate = () => {
                 Success={
                   <Alert severity="success" data-testid="delegateSuccess">
                     <AlertTitle>Delegation complete</AlertTitle>
-                    {message}
+                    <Box style={{ wordBreak: 'break-word' }}>{message}</Box>
                   </Alert>
                 }
               />

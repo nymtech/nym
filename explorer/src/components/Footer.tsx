@@ -30,7 +30,10 @@ export const Footer: React.FC = () => {
             sx={{
               display: 'flex',
               flexDirection: 'row',
+              width: 'auto',
               justifyContent: 'center',
+              alignItems: 'center',
+              mb: 2,
             }}
           >
             <Socials />

@@ -342,12 +342,22 @@ export const Nav: React.FC = ({ children }) => {
               }}
             >
               {!isMobile && (
-                <Box sx={{ display: 'flex', flexDirection: 'row' }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    width: 'auto',
+                    pr: 0,
+                    pl: 2,
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                  }}
+                >
                   <Socials disableDarkMode />
+                  <DarkLightSwitchDesktop defaultChecked />
                 </Box>
               )}
               {isMobile && <DarkLightSwitchMobile />}
-              {!isMobile && <DarkLightSwitchDesktop defaultChecked />}
             </Box>
           </Toolbar>
         </AppBar>

@@ -1,6 +1,6 @@
 class WalletHome {
 
-    get balanceCheck() { return $("#root > div > div:nth-child(2) > div:nth-child(2) > div > div > div > div.MuiCardHeader-root > div > span"); }
+    get balanceCheck() { return $("#root > div > div:nth-child(2) > div:nth-child(2) > div > div > div > div.MuiCardHeader-root > div > span") }
     get punkBalance() { return $("") }
     get punkAddress() { return $("[data-testid='wallet-address']") }
     get accountBalance() { return $("[data-testid='account-balance']") }

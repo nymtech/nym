@@ -14,15 +14,15 @@ use gateway_client::bandwidth::eth_contract;
 use network_defaults::ETH_EVENT_NAME;
 
 #[derive(Clone)]
-pub(crate) struct EthEvents {
+pub(crate) struct ERC20Bridge {
     // This is needed because web3's Contract doesn't sufficiently expose it's eth interface
     web3: Web3<Http>,
     contract: Contract<Http>,
 }
 
-impl EthEvents {
+impl ERC20Bridge {
     pub fn new(web3: Web3<Http>) -> Self {
-        EthEvents {
+        ERC20Bridge {
             contract: eth_contract(web3.clone()),
             web3,
         }

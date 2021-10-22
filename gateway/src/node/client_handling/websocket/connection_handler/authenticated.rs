@@ -231,7 +231,7 @@ where
         }
         let burned = self
             .inner
-            .eth_events
+            .erc20_bridge
             .verify_eth_events(credential.verification_key())
             .await?;
         // TODO: Check for double spending of burned tokens

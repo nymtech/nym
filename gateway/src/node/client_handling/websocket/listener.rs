@@ -17,7 +17,7 @@ use tokio::task::JoinHandle;
 use coconut_interface::VerificationKey;
 
 #[cfg(not(feature = "coconut"))]
-use crate::node::client_handling::websocket::connection_handler::eth_events::EthEvents;
+use crate::node::client_handling::websocket::connection_handler::eth_events::ERC20Bridge;
 
 pub(crate) struct Listener {
     address: SocketAddr,
@@ -27,7 +27,7 @@ pub(crate) struct Listener {
     aggregated_verification_key: VerificationKey,
 
     #[cfg(not(feature = "coconut"))]
-    eth_events: EthEvents,
+    erc20_bridge: ERC20Bridge,
 }
 
 impl Listener {
@@ -35,7 +35,7 @@ impl Listener {
         address: SocketAddr,
         local_identity: Arc<identity::KeyPair>,
         #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
-        #[cfg(not(feature = "coconut"))] eth_events: EthEvents,
+        #[cfg(not(feature = "coconut"))] erc20_bridge: ERC20Bridge,
     ) -> Self {
         Listener {
             address,
@@ -43,7 +43,7 @@ impl Listener {
             #[cfg(feature = "coconut")]
             aggregated_verification_key,
             #[cfg(not(feature = "coconut"))]
-            eth_events,
+            erc20_bridge,
         }
     }
 
@@ -80,7 +80,7 @@ impl Listener {
                         #[cfg(feature = "coconut")]
                         self.aggregated_verification_key.clone(),
                         #[cfg(not(feature = "coconut"))]
-                        self.eth_events.clone(),
+                        self.erc20_bridge.clone(),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }

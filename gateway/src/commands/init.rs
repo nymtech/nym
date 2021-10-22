@@ -50,16 +50,16 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name(VALIDATORS_ARG_NAME)
-                .long(VALIDATORS_ARG_NAME)
+            Arg::with_name(VALIDATOR_APIS_ARG_NAME)
+                .long(VALIDATOR_APIS_ARG_NAME)
                 .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         );
 
     #[cfg(not(feature = "coconut"))]
     let app = app
-        .arg(Arg::with_name("eth_endpoint")
-            .long("eth_endpoint")
+        .arg(Arg::with_name(ETH_ENDPOINT)
+            .long(ETH_ENDPOINT)
             .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
             .takes_value(true)
             .required(true));

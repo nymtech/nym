@@ -59,6 +59,13 @@ validator_api_urls = [
     {{/each}}
 ]
 
+# Addresses to validators which the node uses to check for double spending of ERC20 tokens.
+validator_nymd_urls = [
+    {{#each gateway.validator_nymd_urls }}
+        '{{this}}',
+    {{/each}}
+]
+
 ##### advanced configuration options #####
 
 # nym_home_directory specifies absolute path to the home nym gateway directory.

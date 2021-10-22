@@ -13,7 +13,11 @@ pub(crate) const ID_ARG_NAME: &str = "id";
 pub(crate) const HOST_ARG_NAME: &str = "host";
 pub(crate) const MIX_PORT_ARG_NAME: &str = "mix-port";
 pub(crate) const CLIENTS_PORT_ARG_NAME: &str = "clients-port";
+pub(crate) const VALIDATOR_APIS_ARG_NAME: &str = "validator-apis";
+#[cfg(not(feature = "coconut"))]
 pub(crate) const VALIDATORS_ARG_NAME: &str = "validators";
+#[cfg(not(feature = "coconut"))]
+pub(crate) const ETH_ENDPOINT: &str = "eth_endpoint";
 pub(crate) const ANNOUNCE_HOST_ARG_NAME: &str = "announce-host";
 pub(crate) const DATASTORE_PATH: &str = "datastore";
 
@@ -64,8 +68,13 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.announce_host_from_listening_host()
     }
 
-    if let Some(raw_validators) = matches.value_of(VALIDATORS_ARG_NAME) {
+    if let Some(raw_validators) = matches.value_of(VALIDATOR_APIS_ARG_NAME) {
         config = config.with_custom_validator_apis(parse_validators(raw_validators));
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    if let Some(raw_validators) = matches.value_of(VALIDATORS_ARG_NAME) {
+        config = config.with_custom_validator_nymd(parse_validators(raw_validators));
     }
 
     if let Some(datastore_path) = matches.value_of(DATASTORE_PATH) {
@@ -73,7 +82,7 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
     }
 
     #[cfg(not(feature = "coconut"))]
-    if let Some(eth_endpoint) = matches.value_of("eth_endpoint") {
+    if let Some(eth_endpoint) = matches.value_of(ETH_ENDPOINT) {
         config = config.with_eth_endpoint(String::from(eth_endpoint));
     }
 

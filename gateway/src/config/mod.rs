@@ -128,6 +128,12 @@ impl Config {
     }
 
     #[cfg(not(feature = "coconut"))]
+    pub fn with_custom_validator_nymd(mut self, validator_nymd_urls: Vec<Url>) -> Self {
+        self.gateway.validator_nymd_urls = validator_nymd_urls;
+        self
+    }
+
+    #[cfg(not(feature = "coconut"))]
     pub fn with_eth_endpoint(mut self, eth_endpoint: String) -> Self {
         self.gateway.eth_endpoint = eth_endpoint;
         self
@@ -204,6 +210,11 @@ impl Config {
 
     pub fn get_validator_api_endpoints(&self) -> Vec<Url> {
         self.gateway.validator_api_urls.clone()
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_validator_nymd_endpoints(&self) -> Vec<Url> {
+        self.gateway.validator_nymd_urls.clone()
     }
 
     pub fn get_listening_address(&self) -> IpAddr {
@@ -299,6 +310,10 @@ pub struct Gateway {
     /// Addresses to APIs running on validator from which the node gets the view of the network.
     validator_api_urls: Vec<Url>,
 
+    /// Addresses to validators which the node uses to check for double spending of ERC20 tokens.
+    #[cfg(not(feature = "coconut"))]
+    validator_nymd_urls: Vec<Url>,
+
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
@@ -346,6 +361,8 @@ impl Default for Gateway {
             #[cfg(not(feature = "coconut"))]
             eth_endpoint: "".to_string(),
             validator_api_urls: default_api_endpoints(),
+            #[cfg(not(feature = "coconut"))]
+            validator_nymd_urls: default_nymd_endpoints(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),
         }

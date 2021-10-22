@@ -64,8 +64,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         .arg(Arg::with_name(ETH_ENDPOINT)
             .long(ETH_ENDPOINT)
             .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
-            .takes_value(true)
-            .required(true))
+            .takes_value(true))
         .arg(Arg::with_name(VALIDATORS_ARG_NAME)
             .long(VALIDATORS_ARG_NAME)
             .help("Comma separated list of endpoints of the validator")
@@ -73,8 +72,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         .arg(Arg::with_name(COSMOS_MNEMONIC)
             .long(COSMOS_MNEMONIC)
             .help("Cosmos wallet mnemonic")
-            .takes_value(true)
-            .required(true));
+            .takes_value(true));
 
     app
 }

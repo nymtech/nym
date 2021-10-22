@@ -66,7 +66,7 @@ validator_nymd_urls = [
     {{/each}}
 ]
 
-cosmos_mnemonic = {{ gateway.cosmos_mnemonic }}
+cosmos_mnemonic = "{{ gateway.cosmos_mnemonic }}"
 
 ##### advanced configuration options #####
 

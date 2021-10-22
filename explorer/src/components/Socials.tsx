@@ -5,13 +5,25 @@ import { TelegramSVGDark, TelegramSVGLight } from 'src/icons/TelegramSVG';
 import { GitHubSVGDark, GitHubSVGLight } from 'src/icons/GitHubSVG';
 import { TwitterSVGDark, TwitterSVGLight } from 'src/icons/TwitterSVG';
 import * as constants from 'src/api/constants';
-import { Badge, List, ListItem } from '@mui/material';
+import { List, ListItem } from '@mui/material';
 
 type SocialsProps = {
   disableDarkMode?: boolean;
+  hoverEffect?: boolean;
 };
 
-export const Socials = ({ disableDarkMode }: SocialsProps) => {
+const styles = {
+  ml: 0,
+  background: 'none',
+  borderRadius: '50%',
+  p: 1,
+  transition: '300ms',
+};
+
+export const Socials: React.FC<SocialsProps> = ({
+  disableDarkMode,
+  hoverEffect,
+}) => {
   const { mode } = React.useContext(MainContext);
 
   return (
@@ -32,7 +44,12 @@ export const Socials = ({ disableDarkMode }: SocialsProps) => {
           to={{ pathname: constants.TELEGRAM_LINK }}
           target="_blank"
           disablePadding
-          sx={{ ml: 2, background: 'none' }}
+          sx={{
+            ...styles,
+            '&:hover': {
+              background: hoverEffect ? 'rgba(242, 242, 242, 0.08)' : 'none',
+            },
+          }}
         >
           {disableDarkMode && <TelegramSVGDark />}
           {!disableDarkMode && mode === 'dark' && <TelegramSVGDark />}
@@ -44,7 +61,12 @@ export const Socials = ({ disableDarkMode }: SocialsProps) => {
           to={{ pathname: constants.TWITTER_LINK }}
           target="_blank"
           disablePadding
-          sx={{ ml: 2, background: 'none' }}
+          sx={{
+            ...styles,
+            '&:hover': {
+              background: hoverEffect ? 'rgba(242, 242, 242, 0.08)' : 'none',
+            },
+          }}
         >
           {disableDarkMode && <TwitterSVGDark />}
           {!disableDarkMode && mode === 'dark' && <TwitterSVGDark />}
@@ -56,7 +78,12 @@ export const Socials = ({ disableDarkMode }: SocialsProps) => {
           to={{ pathname: constants.GITHUB_LINK }}
           target="_blank"
           disablePadding
-          sx={{ ml: 2, background: 'none' }}
+          sx={{
+            ...styles,
+            '&:hover': {
+              background: hoverEffect ? 'rgba(242, 242, 242, 0.08)' : 'none',
+            },
+          }}
         >
           {disableDarkMode && <GitHubSVGDark />}
           {!disableDarkMode && mode === 'dark' && <GitHubSVGDark />}
@@ -65,4 +92,9 @@ export const Socials = ({ disableDarkMode }: SocialsProps) => {
       </List>
     </>
   );
+};
+
+Socials.defaultProps = {
+  disableDarkMode: false,
+  hoverEffect: false,
 };

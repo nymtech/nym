@@ -8,7 +8,7 @@ import { Socials } from './Socials';
 export const Footer: React.FC = () => {
   const { mode } = React.useContext(MainContext);
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   return (
     <>

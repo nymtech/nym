@@ -9,7 +9,7 @@
 use url::Url;
 
 use coconut_interface::{
-    Attribute, Credential, Parameters, PrivateAttribute, PublicAttribute,
+    Credential, Parameters, PrivateAttribute, PublicAttribute,
     Signature, VerificationKey,
 };
 
@@ -75,7 +75,7 @@ pub fn prepare_for_spending(
     attributes: &BandwidthVoucherAttributes,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
-    let public_attributes = vec![BANDWIDTH_VALUE.to_be_bytes().to_vec()];
+    let public_attributes = vec![raw_identity.to_vec(), BANDWIDTH_VALUE.to_be_bytes().to_vec()];
 
     let params = Parameters::new(TOTAL_ATTRIBUTES)?;
 

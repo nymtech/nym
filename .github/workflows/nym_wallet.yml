@@ -4,15 +4,15 @@ on:
  push:
     paths:
       - '/tauri-wallet/*'
+      
 defaults:
   run:
-    working-directory: tauri-wallet/
+    working-directory: tauri-wallet
 
 jobs:
   test:
     name: wallet tests
     runs-on: ubuntu-latest 
-
     steps:
       - uses: actions/checkout@v2
 

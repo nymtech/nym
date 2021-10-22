@@ -8,12 +8,13 @@
 
 use url::Url;
 
-use crate::error::Error;
-use crate::utils::{obtain_aggregate_signature, prepare_credential_for_spending, ValidatorInfo};
 use coconut_interface::{
-    hash_to_scalar, Attribute, Credential, Parameters, PrivateAttribute, PublicAttribute,
+    Attribute, Credential, hash_to_scalar, Parameters, PrivateAttribute, PublicAttribute,
     Signature, VerificationKey,
 };
+
+use crate::error::Error;
+use crate::utils::{obtain_aggregate_signature, prepare_credential_for_spending, ValidatorInfo};
 
 pub const BANDWIDTH_VALUE: u64 = 10 * 1024 * 1024 * 1024; // 10 GB
 
@@ -65,7 +66,7 @@ pub async fn obtain_signature(
         validators,
         verification_key,
     )
-    .await
+        .await
 }
 
 pub fn prepare_for_spending(

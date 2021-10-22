@@ -32,14 +32,14 @@ download msedgedriver.exe from https://developer.microsoft.com/en-us/microsoft-e
 please visit [Tauri Studio](https://tauri.studio/en/docs/usage/guides/webdriver/introduction), this will specify the additional drivers you need)
 * The path to run the application is set in the `wdio.conf.js` which lives in the root directory 
 * Before running the suite you need to build the application and check that the application has
-built successfully, if so, you will have an executable sitting in the target directory in `src-tauri/*/nym_wallet` (refer to point 1)
+built successfully, if so, you will have an executable sitting in the target directory in `tauri-wallet/target/*/nym_wallet` (refer to point 1)
 * The suite will not be able to detect elements on screen if you select a release build, however you can run tests against a release target
 
 
 ## Installation & usage
 *  `test excution happens inside /webdriver directory`
 *  `test data needs to be provided inside the user-data.json`
-*  `check the wdio.conf.cjs to see the activities and path location of the binary`
+*  `check the wdio.conf.cjs to see the test execution along with the path location of the binary`
 ```
 example: 
 //mnemonic is a base64 enconded value, which is your 24 character passphrase, these values are for illustration purposes
@@ -57,6 +57,7 @@ example:
 *   You can run tests individually by passing through the script situated in the package.json for example `yarn test:newuser` 
 
 Tests are categorised and run by their pages, they follow a sequential flow, if one test case fails before the next execution it may derail the next test.
+
 //todo improve in near future
 
 ## Test reporting
@@ -67,15 +68,12 @@ Tests ouput:
 
 If any tests fail in their test run it will produce the stack trace error along with the test in question
 
-## Updates
+## TODO
 
 *Disclaimer*: Still WIP
 
 
-Refactoring needs to take place in certain areas, implement error handling/ beforeTest() - validating json file exists with data for test execution
-
-
-Configuration for happy path and non happy path (non bonded users needs to happen)
+Implement error handling/ beforeTest() - validating json file exists with data for test execution
 
 
 Currently this is dev'd against a Linux based OS, not tested against windows yet.

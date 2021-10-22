@@ -252,7 +252,7 @@ pub fn prepare_blind_sign(
 
 pub fn blind_sign(
     params: &Parameters,
-    secret_key: &SecretKey,
+    signing_secret_key: &SecretKey,
     pub_key: &elgamal::PublicKey,
     blind_sign_request: &BlindSignRequest,
     public_attributes: &[Attribute],
@@ -287,7 +287,7 @@ pub fn blind_sign(
     // rather than ((h ^ pub_m[0]) ^ y[m + 1] , (h ^ pub_m[1]) ^ y[m + 2] , ...).sum() separately
     let signed_public = h * public_attributes
         .iter()
-        .zip(secret_key.ys.iter().skip(num_private))
+        .zip(signing_secret_key.ys.iter().skip(num_private))
         .map(|(attr, yi)| attr * yi)
         .sum::<Scalar>();
 
@@ -296,7 +296,7 @@ pub fn blind_sign(
         .private_attributes_ciphertexts
         .iter()
         .map(|ciphertext| ciphertext.c1())
-        .zip(secret_key.ys.iter())
+        .zip(signing_secret_key.ys.iter())
         .map(|(c1, yi)| c1 * yi)
         .sum();
 
@@ -305,9 +305,9 @@ pub fn blind_sign(
         .private_attributes_ciphertexts
         .iter()
         .map(|ciphertext| ciphertext.c2())
-        .zip(secret_key.ys.iter())
+        .zip(signing_secret_key.ys.iter())
         .map(|(c2, yi)| c2 * yi)
-        .chain(std::iter::once(h * secret_key.x))
+        .chain(std::iter::once(h * signing_secret_key.x))
         .chain(std::iter::once(signed_public))
         .sum();
 

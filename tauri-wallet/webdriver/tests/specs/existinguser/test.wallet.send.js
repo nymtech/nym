@@ -1,9 +1,9 @@
 const userData = require('../../../common/data/user-data.json');
-const helper = require('../../../common/helpers/helper');
-const textConstants = require('../../../common/constants/text-constants');
-const walletLogin = require('../../pages/wallet.login');
-const sendWallet = require('../../pages/wallet.send');
-const walletHomepage = require('../../pages/wallet.homepage');
+const helper = require('../../../common/helpers/helper')
+const textConstants = require('../../../common/constants/text-constants')
+const walletLogin = require('../../pages/wallet.login')
+const sendWallet = require('../../pages/wallet.send')
+const walletHomepage = require('../../pages/wallet.homepage')
 
 describe("send punk to another a wallet", () => {
     it("expect send screen to display the data", async () => {

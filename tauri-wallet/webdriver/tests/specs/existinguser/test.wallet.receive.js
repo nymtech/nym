@@ -1,9 +1,9 @@
-const userData = require('../../../common/data/user-data.json');
-const textConstants = require('../../../common/constants/text-constants');
-const helper = require('../../../common/helpers/helper');
-const walletLogin = require('../../pages/wallet.login');
-const receive = require('../../pages/wallet.receive');
-const walletHomepage = require('../../pages/wallet.homepage');
+const userData = require('../../../common/data/user-data.json')
+const textConstants = require('../../../common/constants/text-constants')
+const helper = require('../../../common/helpers/helper')
+const walletLogin = require('../../pages/wallet.login')
+const receive = require('../../pages/wallet.receive')
+const walletHomepage = require('../../pages/wallet.homepage')
 
 describe("provide the relevant information about a user nym wallet address", () => {
     it("should have the receivers address and a qr code present", async () => {

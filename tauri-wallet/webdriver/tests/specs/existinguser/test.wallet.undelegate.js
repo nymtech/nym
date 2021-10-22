@@ -1,8 +1,8 @@
-const userData = require('../../../common/data/user-data.json');
-const helper = require('../../../common/helpers/helper');
-const walletLogin = require('../../pages/wallet.login');
-const walletHomepage = require('../../pages/wallet.homepage');
-const unDelegatePage = require('../../pages/wallet.delegate');
+const userData = require('../../../common/data/user-data.json')
+const helper = require('../../../common/helpers/helper')
+const walletLogin = require('../../pages/wallet.login')
+const walletHomepage = require('../../pages/wallet.homepage')
+const unDelegatePage = require('../../pages/wallet.delegate')
 
 describe("un-delegate a mix node or gateway", () => {
     it("ensure that fields are enabled for existing user", async () => {

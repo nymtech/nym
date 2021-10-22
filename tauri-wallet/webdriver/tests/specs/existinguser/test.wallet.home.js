@@ -1,8 +1,8 @@
 const userData = require('../../../common/data/user-data.json')
-const helper = require('../../../common/helpers/helper');
-const walletLogin = require('../../pages/wallet.login');
-const homepPage = require('../../pages/wallet.homepage');
-const textConstants = require('../../../common/constants/text-constants');
+const helper = require('../../../common/helpers/helper')
+const walletLogin = require('../../pages/wallet.login')
+const homepPage = require('../../pages/wallet.homepage')
+const textConstants = require('../../../common/constants/text-constants')
 
 describe("wallet splash screen", () => {
   it("should have the sign in header present", async () => {

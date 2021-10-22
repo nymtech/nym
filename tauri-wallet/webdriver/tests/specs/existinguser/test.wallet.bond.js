@@ -1,9 +1,9 @@
-const userData = require('../../../common/data/user-data.json');
-const helper = require('../../../common/helpers/helper');
-const walletLogin = require('../../pages/wallet.login');
-const textConstants = require('../../../common/constants/text-constants');
-const walletHomepage = require('../../pages/wallet.homepage');
-const bondPage = require('../../pages/wallet.bond');
+const userData = require('../../../common/data/user-data.json')
+const helper = require('../../../common/helpers/helper')
+const walletLogin = require('../../pages/wallet.login')
+const textConstants = require('../../../common/constants/text-constants')
+const walletHomepage = require('../../pages/wallet.homepage')
+const bondPage = require('../../pages/wallet.bond')
 
 describe("bonding and unbonding nodes", () => {
     it("should have a node already bonded and validate no input fields are enabled", async () => {

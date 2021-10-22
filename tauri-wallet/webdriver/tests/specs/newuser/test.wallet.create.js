@@ -1,6 +1,6 @@
-const walletLogin = require('../../pages/wallet.login');
+const walletLogin = require('../../pages/wallet.login')
 const walletSignUp = require('../../pages/wallet.create')
-const textConstants = require('../../../common/constants/text-constants');
+const textConstants = require('../../../common/constants/text-constants')
 
 describe("non existing wallet holder", () => {
     //wallet mnemonic gets pushed here

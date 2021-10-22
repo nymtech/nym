@@ -18,18 +18,18 @@ use std::borrow::Borrow;
 use std::convert::TryInto;
 
 use bls12_381::{G1Projective, G2Projective, Scalar};
-use digest::generic_array::typenum::Unsigned;
 use digest::Digest;
+use digest::generic_array::typenum::Unsigned;
 use group::GroupEncoding;
 use itertools::izip;
 use sha2::Sha256;
 
+use crate::{Attribute, elgamal, ElGamalKeyPair, PublicKey};
 use crate::elgamal::Ciphertext;
 use crate::error::{CoconutError, Result};
-use crate::scheme::setup::Parameters;
 use crate::scheme::{Signature, VerificationKey};
+use crate::scheme::setup::Parameters;
 use crate::utils::{hash_g1, try_deserialize_scalar, try_deserialize_scalar_vec};
-use crate::{elgamal, Attribute, ElGamalKeyPair, PublicKey};
 
 // as per the reference python implementation
 type ChallengeDigest = Sha256;
@@ -51,10 +51,10 @@ pub struct ProofCmCs {
 // and as per the bls12-381 library all elements are using big-endian form
 /// Generates a Scalar [or Fp] challenge by hashing a number of elliptic curve points.  
 fn compute_challenge<D, I, B>(iter: I) -> Scalar
-where
-    D: Digest,
-    I: Iterator<Item = B>,
-    B: AsRef<[u8]>,
+    where
+        D: Digest,
+        I: Iterator<Item=B>,
+        B: AsRef<[u8]>,
 {
     let mut h = D::new();
     for point_representation in iter {
@@ -82,8 +82,8 @@ fn produce_response(witness: &Scalar, challenge: &Scalar, secret: &Scalar) -> Sc
 
 // note: it's caller's responsibility to ensure witnesses.len() = secrets.len()
 fn produce_responses<S>(witnesses: &[Scalar], challenge: &Scalar, secrets: &[S]) -> Vec<Scalar>
-where
-    S: Borrow<Scalar>,
+    where
+        S: Borrow<Scalar>,
 {
     debug_assert_eq!(witnesses.len(), secrets.len());
 
@@ -150,10 +150,10 @@ impl ProofCmCs {
         // Ccm = (wr * g1) + (wm[0] * hs[0]) + ... + (wm[i] * hs[i])
         let commitment_attributes = g1 * witness_commitment_opening
             + witness_attributes
-                .iter()
-                .zip(params.gen_hs().iter())
-                .map(|(wm_i, hs_i)| hs_i * wm_i)
-                .sum::<G1Projective>();
+            .iter()
+            .zip(params.gen_hs().iter())
+            .map(|(wm_i, hs_i)| hs_i * wm_i)
+            .sum::<G1Projective>();
 
         let ciphertexts_bytes = priv_attributes_ciphertexts
             .iter()
@@ -244,19 +244,19 @@ impl ProofCmCs {
             self.response_keys.iter(),
             self.response_attributes.iter()
         )
-        .map(|(c2, res_key, res_attr)| c2 * self.challenge + pub_key * res_key + h * res_attr)
-        .map(|witness| witness.to_bytes())
-        .collect::<Vec<_>>();
+            .map(|(c2, res_key, res_attr)| c2 * self.challenge + pub_key * res_key + h * res_attr)
+            .map(|witness| witness.to_bytes())
+            .collect::<Vec<_>>();
 
         // Cw = (cm * c) + (rr * g1) + (rm[0] * hs[0]) + ... + (rm[n] * hs[n])
         let commitment_attributes = commitment * self.challenge
             + g1 * self.response_opening
             + self
-                .response_attributes
-                .iter()
-                .zip(params.gen_hs().iter())
-                .map(|(res_attr, hs)| hs * res_attr)
-                .sum::<G1Projective>();
+            .response_attributes
+            .iter()
+            .zip(params.gen_hs().iter())
+            .map(|(res_attr, hs)| hs * res_attr)
+            .sum::<G1Projective>();
 
         let ciphertexts_bytes = attributes_ciphertexts
             .iter()
@@ -400,7 +400,7 @@ impl ProofKappaNu {
         let witness_blinder = params.random_scalar();
         let witness_serial_number = params.random_scalar();
         let witness_binding_number = params.random_scalar();
-        let witness_attributes = vec![witness_serial_number, witness_blinder];
+        let witness_attributes = vec![witness_serial_number, witness_binding_number];
 
         let beta_bytes = verification_key
             .beta
@@ -413,10 +413,10 @@ impl ProofKappaNu {
         let commitment_kappa = params.gen2() * witness_blinder
             + verification_key.alpha
             + witness_attributes
-                .iter()
-                .zip(verification_key.beta.iter())
-                .map(|(wm_i, beta_i)| beta_i * wm_i)
-                .sum::<G2Projective>();
+            .iter()
+            .zip(verification_key.beta.iter())
+            .map(|(wm_i, beta_i)| beta_i * wm_i)
+            .sum::<G2Projective>();
 
         // zeta is the public value associated with the serial number
         let commitment_zeta = params.gen2() * witness_serial_number;
@@ -462,17 +462,17 @@ impl ProofKappaNu {
             .map(|beta_i| beta_i.to_bytes())
             .collect::<Vec<_>>();
 
-        let response_attributes = [self.response_serial_number, self.response_binding_number];
+        let response_attributes = vec![self.response_serial_number, self.response_binding_number];
         // re-compute witnesses commitments
         // Aw = (c * kappa) + (rt * g2) + ((1 - c) * alpha) + (rm[0] * beta[0]) + ... + (rm[i] * beta[i])
         let commitment_kappa = kappa * self.challenge
             + params.gen2() * self.response_blinder
             + verification_key.alpha * (Scalar::one() - self.challenge)
             + response_attributes
-                .iter()
-                .zip(verification_key.beta.iter())
-                .map(|(priv_attr, beta_i)| beta_i * priv_attr)
-                .sum::<G2Projective>();
+            .iter()
+            .zip(verification_key.beta.iter())
+            .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+            .sum::<G2Projective>();
 
         // zeta is the public value associated with the serial number
         let commitment_zeta = zeta * self.challenge + params.gen2() * self.response_serial_number;
@@ -655,6 +655,8 @@ mod tests {
         let signature = Signature(params.gen1() * r, params.gen1() * s);
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
+        let private_attributes = vec![serial_number, binding_number];
+
         let r = params.random_scalar();
         let kappa = compute_kappa(&params, &keypair.verification_key(), &private_attributes, r);
         let zeta = compute_zeta(&params, serial_number);
@@ -663,7 +665,7 @@ mod tests {
         let pi_v = ProofKappaNu::construct(
             &mut params,
             &keypair.verification_key(),
-            &private_attributes,
+            &serial_number,
             &binding_number,
             &r,
             &kappa,

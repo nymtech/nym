@@ -1,7 +1,7 @@
 use crate::{
-    aggregate_signature_shares, aggregate_verification_keys, blind_sign, elgamal_keygen,
-    prepare_blind_sign, prove_credential, setup, ttp_keygen, verify_credential, CoconutError,
-    Signature, SignatureShare, VerificationKey,
+    aggregate_signature_shares, aggregate_verification_keys, blind_sign, CoconutError,
+    elgamal_keygen, prepare_blind_sign, prove_credential, setup, Signature, SignatureShare,
+    ttp_keygen, VerificationKey, verify_credential,
 };
 
 #[test]
@@ -9,7 +9,9 @@ fn main() -> Result<(), CoconutError> {
     let params = setup(5)?;
 
     let public_attributes = params.n_random_scalars(2);
-    let private_attributes = params.n_random_scalars(3);
+    let serial_number = params.random_scalar();
+    let binding_number = params.random_scalar();
+    let private_attributes = vec![serial_number, binding_number];
 
     let elgamal_keypair = elgamal_keygen(&params);
 
@@ -59,7 +61,7 @@ fn main() -> Result<(), CoconutError> {
                     &verification_key,
                     &private_attributes,
                     &public_attributes,
-                    blind_sign_request.commitment_hash,
+                    &blind_sign_request.commitment_hash,
                 )
                 .unwrap()
         })
@@ -83,7 +85,7 @@ fn main() -> Result<(), CoconutError> {
 
     // Generate cryptographic material to verify them
 
-    let theta = prove_credential(&params, &verification_key, &signature, &private_attributes)?;
+    let theta = prove_credential(&params, &verification_key, &signature, serial_number, binding_number)?;
 
     // Verify credentials
 

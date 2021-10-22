@@ -12,8 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bls12_381::Scalar;
 use std::convert::TryInto;
+
+use bls12_381::Scalar;
+
+pub use elgamal::elgamal_keygen;
+pub use elgamal::ElGamalKeyPair;
+pub use elgamal::PublicKey;
+pub use error::CoconutError;
+pub use scheme::aggregation::aggregate_signature_shares;
+pub use scheme::aggregation::aggregate_verification_keys;
+pub use scheme::BlindedSignature;
+pub use scheme::issuance::blind_sign;
+pub use scheme::issuance::BlindSignRequest;
+pub use scheme::issuance::prepare_blind_sign;
+pub use scheme::keygen::KeyPair;
+pub use scheme::keygen::ttp_keygen;
+pub use scheme::keygen::VerificationKey;
+pub use scheme::setup::Parameters;
+pub use scheme::setup::setup;
+pub use scheme::Signature;
+pub use scheme::SignatureShare;
+pub use scheme::verification::prove_credential;
+pub use scheme::verification::Theta;
+pub use scheme::verification::verify_credential;
+pub use traits::Base58;
+pub use utils::hash_to_scalar;
+
+use crate::traits::Bytable;
 
 pub mod elgamal;
 mod error;
@@ -24,30 +50,6 @@ mod scheme;
 mod tests;
 mod traits;
 mod utils;
-
-use crate::traits::Bytable;
-pub use elgamal::elgamal_keygen;
-pub use elgamal::ElGamalKeyPair;
-pub use elgamal::PublicKey;
-pub use error::CoconutError;
-pub use scheme::aggregation::aggregate_signature_shares;
-pub use scheme::aggregation::aggregate_verification_keys;
-pub use scheme::issuance::blind_sign;
-pub use scheme::issuance::prepare_blind_sign;
-pub use scheme::issuance::BlindSignRequest;
-pub use scheme::keygen::ttp_keygen;
-pub use scheme::keygen::KeyPair;
-pub use scheme::keygen::VerificationKey;
-pub use scheme::setup::setup;
-pub use scheme::setup::Parameters;
-pub use scheme::verification::prove_credential;
-pub use scheme::verification::verify_credential;
-pub use scheme::verification::Theta;
-pub use scheme::BlindedSignature;
-pub use scheme::Signature;
-pub use scheme::SignatureShare;
-pub use traits::Base58;
-pub use utils::hash_to_scalar;
 
 pub type Attribute = Scalar;
 pub type PrivateAttribute = Attribute;
@@ -64,10 +66,3 @@ impl Bytable for Attribute {
 }
 
 impl Base58 for Attribute {}
-
-#[cfg(doctest)]
-mod doctest {
-    use doc_comment::doctest;
-
-    doctest!("../README.md");
-}

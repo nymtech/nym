@@ -537,6 +537,7 @@ impl GatewayClient {
             return Err(GatewayClientError::NoBandwidthControllerAvailable);
         }
 
+        warn!("Not enough bandwidth. Trying to get more bandwidth, this might take a while");
         #[cfg(feature = "coconut")]
         return self.claim_coconut_bandwidth().await;
         #[cfg(not(feature = "coconut"))]

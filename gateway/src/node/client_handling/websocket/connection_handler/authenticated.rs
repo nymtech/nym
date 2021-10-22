@@ -230,13 +230,16 @@ where
             iv,
         )?;
 
+        debug!("Received bandwidth increase request. Verifying signature");
         if !credential.verify_signature() {
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
+        debug!("Verifying Ethereum for token burn...");
         self.inner
             .erc20_bridge
             .verify_eth_events(credential.verification_key())
             .await?;
+        debug!("Verifying Cosmos for double spending...");
         self.inner
             .erc20_bridge
             .verify_double_spending(&credential)
@@ -257,6 +260,7 @@ where
 
         self.increase_bandwidth(bandwidth_value as i64).await?;
         let available_total = self.get_available_bandwidth().await?;
+        debug!("Increased bandwidth for client: {:?}", self.client.address);
 
         Ok(ServerResponse::Bandwidth { available_total })
     }

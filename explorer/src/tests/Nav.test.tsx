@@ -1,4 +1,4 @@
-import React, { render, screen } from '@testing-library/react';
+import React, { render } from '@testing-library/react';
 import '@testing-library/jest-dom/extend-expect';
 import { Nav } from '../components/Nav';
 

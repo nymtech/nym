@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import React from 'react';
 import { scaleLinear, ScaleLinear } from 'd3-scale';
 import {
@@ -9,12 +10,12 @@ import {
 } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
 import { CountryDataResponse, ApiState } from 'src/typeDefs/explorer-api';
+import { CircularProgress } from '@mui/material';
 import { MainContext } from '../context/main';
 import MAP_TOPOJSON from '../assets/world-110m.json';
 import { palette } from '../index';
 
 type MapProps = {
-  title?: string;
   userLocation?: [number, number];
   countryData?: ApiState<CountryDataResponse>;
   loading: boolean;
@@ -48,6 +49,10 @@ export const WorldMap: React.FC<MapProps> = ({
     }
   }, [countryData, userLocation]);
 
+  if (loading) {
+    return <CircularProgress />;
+  }
+
   return (
     <>
       <ComposableMap
@@ -71,7 +76,6 @@ export const WorldMap: React.FC<MapProps> = ({
             {({ geographies }: any) =>
               (colorScale || userLocation) &&
               geographies.map((geo: any) => {
-                // @ts-ignore
                 const d =
                   countryData &&
                   countryData.data &&
@@ -132,4 +136,9 @@ export const WorldMap: React.FC<MapProps> = ({
       <ReactTooltip>{tooltipContent}</ReactTooltip>
     </>
   );
+};
+
+WorldMap.defaultProps = {
+  userLocation: undefined,
+  countryData: undefined,
 };

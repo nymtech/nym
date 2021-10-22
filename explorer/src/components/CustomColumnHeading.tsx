@@ -3,10 +3,9 @@ import { Box, Typography } from '@mui/material';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { MainContext } from 'src/context/main';
 
-type HeadingProps = {
-  headingTitle: string;
-};
-export const CustomColumnHeading = ({ headingTitle }: HeadingProps) => {
+export const CustomColumnHeading: React.FC<{ headingTitle: string }> = ({
+  headingTitle,
+}) => {
   const { mode } = React.useContext(MainContext);
   const [filter, toggleFilter] = React.useState<boolean>(false);
 

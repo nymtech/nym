@@ -1,12 +1,15 @@
 /* eslint-disable camelcase */
+import { MutableRefObject } from 'react';
 import { GatewayResponse, MixNodeResponse } from 'src/typeDefs/explorer-api';
 
-export function formatNumber(num: number) {
+export function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num);
 }
 
-export function scrollToRef(ref: any) {
-  return ref.current.scrollIntoView();
+export function scrollToRef(
+  ref: MutableRefObject<HTMLDivElement | undefined>,
+): void {
+  if (ref?.current) ref.current.scrollIntoView();
 }
 
 export type MixnodeRowType = {
@@ -18,6 +21,7 @@ export type MixnodeRowType = {
   host: string;
   layer: string;
 };
+
 export type GatewayRowType = {
   id: string;
   owner: string;

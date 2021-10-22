@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Grid, Typography } from '@mui/material';
+import { Grid, Typography, Button } from '@mui/material';
 import { GridRenderCellParams, GridColDef } from '@mui/x-data-grid';
 import { printableCoin } from '@nymproject/nym-validator-client';
 import { SelectChangeEvent } from '@mui/material/Select';
@@ -37,6 +37,7 @@ export const PageGateways: React.FC = () => {
         ) {
           return g;
         }
+        return null;
       });
       if (filtered) {
         setFilteredGateways(filtered);
@@ -96,12 +97,12 @@ export const PageGateways: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <div
+        <Button
           onClick={() => handleSearch(params.value as string)}
-          style={cellStyles}
+          sx={cellStyles}
         >
           {params.value}
-        </div>
+        </Button>
       ),
     },
   ];

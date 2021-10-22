@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronLeft, ExpandLess, ExpandMore } from '@mui/icons-material';
@@ -275,6 +276,12 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   );
 };
 
+ExpandableButton.defaultProps = {
+  Icon: null,
+  nested: undefined,
+  isExpandedChild: false,
+};
+
 export const Nav: React.FC = ({ children }) => {
   const { toggleMode } = React.useContext(MainContext);
   const [open, setOpen] = React.useState(true);
@@ -394,3 +401,5 @@ export const Nav: React.FC = ({ children }) => {
     </>
   );
 };
+
+Nav.defaultProps = {};

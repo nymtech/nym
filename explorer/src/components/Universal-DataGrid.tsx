@@ -23,14 +23,14 @@ export const cellStyles = {
   'white-space': 'break-spaces',
 };
 
-export const UniversalDataGrid = ({
+export const UniversalDataGrid: React.FC<DataGridProps> = ({
   loading,
   rows,
   columnsData,
   pageSize,
   pagination,
   hideFooter,
-}: DataGridProps) => {
+}) => {
   if (columnsData && rows) {
     return (
       <DataGrid
@@ -53,4 +53,11 @@ export const UniversalDataGrid = ({
     );
   }
   return null;
+};
+
+UniversalDataGrid.defaultProps = {
+  loading: false,
+  pageSize: undefined,
+  pagination: false,
+  hideFooter: true,
 };

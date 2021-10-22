@@ -33,11 +33,6 @@ function getFromCache(key: string) {
 function storeInCache(key: string, data: any) {
   localStorage.setItem(key, data);
 }
-
-function clearCache(key: string) {
-  return localStorage.removeItem(key);
-}
-
 export class Api {
   static fetchMixnodes = async (): Promise<MixNodeResponse> => {
     const cachedMixnodes = getFromCache('mixnodes');

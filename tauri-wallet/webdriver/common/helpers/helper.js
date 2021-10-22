@@ -17,21 +17,28 @@ class Helpers {
 
 
     currentBalance = async (value) => {
-        return parseFloat(value.split(/\s+/)[0].toString()).toFixed(5);
+        return parseFloat(value.split(/\s+/)[0].toString()).toFixed(5)
     }
 
-    //this can be better - todo (fix)
-    calculateFees = async (beforeBalance, transactionFee, amount) => {
-        const fee = transactionFee.split(/\s+/)[3].toString();
-        const currentBalance = beforeBalance.split(/\s+/)[0].toString();
+    //todo need to improve calculation - WIP
+    calculateFees = async (beforeBalance, transactionFee, amount, isSend) => {
+        let fee
 
-        //cast existing balance to decimal
-        const castCurrentBalance = parseFloat(parseFloat(currentBalance).toFixed(5));
+        if (isSend) {
+            //send transaction 
+            fee = transactionFee.split(/\s+/)[0]
+        } else {
+            //delegate transaction
+            fee = transactionFee.split(/\s+/)[3]
+        }
 
-        const transCost = +parseFloat(parseFloat(fee).toFixed(5)) +
-            +parseFloat(parseFloat(amount));
+        const currentBalance = beforeBalance.split(/\s+/)[0]
 
-        return parseFloat(castCurrentBalance - transCost).toFixed(5);
+        const castCurrentBalance = parseFloat(currentBalance).toFixed(5)
+        const transCost = +parseFloat(amount) + +parseFloat(fee).toFixed(5)
+
+        let sum = parseFloat(castCurrentBalance) - parseFloat(transCost)
+        return sum.toFixed(5)
     }
 }
 

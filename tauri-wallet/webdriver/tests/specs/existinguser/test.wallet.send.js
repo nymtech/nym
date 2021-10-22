@@ -20,11 +20,11 @@ describe("send punk to another a wallet", () => {
 
     })
 
-    //continue sequential flow for test
-    //be wary about production - be wary of funds allocation factor in gas fees
     it("send funds correctly to another punk address", async () => {
 
         //already logged in due to the previous test
+        const getCurrentBalance = await walletHomepage.accountBalance.getText()
+
         await sendWallet.toAddress.addValue(userData.receiver_address)
 
         await sendWallet.amount.addValue(userData.amount_to_send)
@@ -33,13 +33,23 @@ describe("send punk to another a wallet", () => {
 
         await sendWallet.nextButton.click()
 
+        const transFee = await sendWallet.transferFeeAmount.getText()
+
         await sendWallet.sendButton.click()
 
         await sendWallet.finishButton.waitForClickable({ timeout: 10000 })
 
+        let sumCost = await helper.calculateFees(getCurrentBalance, transFee, userData.amount_to_send, true)
+       
+        await walletHomepage.accountBalance.isDisplayed()
+
+        const availablePunk = await walletHomepage.accountBalance.getText()
+
         await sendWallet.finishButton.click()
 
-        //todo implement asserts around account balance at the start vs the end
+        //expect new account balance - the fee calculation above
+        expect(await helper.currentBalance(availablePunk)).toEqual(sumCost)
+
     })
 })
 

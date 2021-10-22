@@ -2,7 +2,8 @@ class WalletHome {
 
     get balanceCheck() { return $("#root > div > div:nth-child(2) > div:nth-child(2) > div > div > div > div.MuiCardHeader-root > div > span"); }
     get punkBalance() { return $("") }
-    get punkAddress() { return $("[data-testid='walet-address']") }
+    get punkAddress() { return $("[data-testid='wallet-address']") }
+    get accountBalance() { return $("[data-testid='account-balance']") }
     get balanceButton() { return $("[href='/balance']") }
     get sendButton() { return $("[href='/send']"); }
     get receiveButton() { return $("[href='/receive']") }

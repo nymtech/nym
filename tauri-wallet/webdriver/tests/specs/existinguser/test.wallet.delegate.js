@@ -42,7 +42,7 @@ describe("delegate to a mix node or gateway", () => {
         await delegatePage.amountToDelegate.setValue(userData.delegate_amount)
 
         //transfer fee + amount delegation
-        const sumCost = await helper.calculateFees(balanceText, getTransfeeAmount, userData.delegate_amount)
+        const sumCost = await helper.calculateFees(balanceText, getTransfeeAmount, userData.delegate_amount, false)
 
         await delegatePage.delegateStakeButton.click()
 
@@ -73,7 +73,7 @@ describe("delegate to a mix node or gateway", () => {
 
         //transfer fee + amount delegation
 
-        const sumCost = await helper.calculateFees(balanceText, getTransfeeAmount, userData.delegate_amount)
+        const sumCost = await helper.calculateFees(balanceText, getTransfeeAmount, userData.delegate_amount, false)
 
         await delegatePage.delegateStakeButton.click()
         

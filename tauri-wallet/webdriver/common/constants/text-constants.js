@@ -17,6 +17,7 @@ module.exports = {
     "bondNodeHeaderText": "Bond a node or gateway",
     "unbondNodeHeaderText" : "Unbond a mixnode or gateway",
     "unbondMixNodeText": "Looks like you already have a mixnode bonded.",
+    "unbondMixNode": "UNBOND",
 
     //balancePage
 

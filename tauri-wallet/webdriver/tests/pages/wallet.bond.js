@@ -6,13 +6,14 @@ class WalletBond {
   get amountToBond() { return $("#amount") }
   get hostInput() { return $("#host") }
   get versionInput() { return $("version") }
-  get selectAdvancedOptions() { return $("[class='PrivateSwitchBase-input-20']") }
+  get selectAdvancedOptions() { return $("[type='checkbox']") }
   get mixPort() { return $("#mixPort") }
   get verlocPort() { return $("#verlocPort") }
   get httpApiPort() { return $("#httpApiPort") }
   get bondButton() { return $("[data-testid='bond-button']") }
-  get unBondButton() { return $("[data-testid='unbond-button']") }
-  get unBondInformation() { return $("[data-testid='bond-noded']") }
+  get unBondButton() { return $("[data-testid='un-bond']") }
+  get unBond() { return $("[data-testid='bond-noded']") }
+  get unBondWarning() {return $("div.MuiAlert-message")}
 
 }
 

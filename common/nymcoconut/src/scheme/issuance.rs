@@ -253,7 +253,7 @@ pub fn prepare_blind_sign(
 pub fn blind_sign(
     params: &Parameters,
     signing_secret_key: &SecretKey,
-    pub_key: &elgamal::PublicKey,
+    prover_pub_key: &elgamal::PublicKey,
     blind_sign_request: &BlindSignRequest,
     public_attributes: &[Attribute],
 ) -> Result<BlindedSignature> {
@@ -276,7 +276,7 @@ pub fn blind_sign(
     }
 
     // Verify the ZK proof
-    if !blind_sign_request.verify_proof(params, pub_key) {
+    if !blind_sign_request.verify_proof(params, prover_pub_key) {
         return Err(CoconutError::Issuance(
             "Failed to verify the proof of knowledge".to_string(),
         ));

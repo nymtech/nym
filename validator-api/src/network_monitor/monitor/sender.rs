@@ -28,6 +28,10 @@ use coconut_interface::Credential;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
+// If we're below 10MB of bandwidth, claim some more
+#[cfg(feature = "coconut")]
+const REMAINING_BANDWIDTH_THRESHOLD: i64 = 10 * 1000 * 1000;
+
 pub(crate) struct GatewayPackets {
     /// Network address of the target gateway if wanted to be accessed by the client.
     /// It is a websocket address.
@@ -318,6 +322,31 @@ impl PacketSender {
         }
     }
 
+    #[cfg(feature = "coconut")]
+    async fn check_remaining_bandwidth(
+        client: &mut GatewayClient,
+        fresh_gateway_client_data: Arc<FreshGatewayClientData>,
+    ) -> Result<(), GatewayClientError> {
+        if client.remaining_bandwidth() < REMAINING_BANDWIDTH_THRESHOLD {
+            // TODO: SECURITY:
+            // We're using exactly the same credential again because we have no double
+            // spending protection...
+            info!(
+                "Client to gateway {} is running out of bandwidth... Claiming some more...",
+                client.gateway_identity().to_base58_string()
+            );
+            client
+                .claim_coconut_bandwidth(
+                    fresh_gateway_client_data
+                        .coconut_bandwidth_credential
+                        .clone(),
+                )
+                .await
+        } else {
+            Ok(())
+        }
+    }
+
     // TODO: perhaps it should be spawned as a task to execute it in parallel rather
     // than just concurrently?
     async fn send_gateway_packets(
@@ -356,13 +385,27 @@ impl PacketSender {
         let timeout = estimated_time * 3;
 
         let mut guard = client.lock_client().await;
+        let mut unwrapped_client = guard.get_mut_unchecked();
+
+        #[cfg(feature = "coconut")]
+        if let Err(err) =
+            Self::check_remaining_bandwidth(&mut unwrapped_client, fresh_gateway_client_data).await
+        {
+            warn!(
+                "Failed to claim additional bandwidth for {} - {}",
+                client.gateway_identity().to_base58_string(),
+                err
+            );
+            if existing_client {
+                guard.invalidate();
+                fresh_gateway_client_data.notify_connection_failure(packets.pub_key.to_bytes());
+            }
+            return None;
+        }
+
         match tokio::time::timeout(
             timeout,
-            Self::attempt_to_send_packets(
-                &mut guard.get_mut_unchecked(),
-                packets.packets,
-                max_sending_rate,
-            ),
+            Self::attempt_to_send_packets(&mut unwrapped_client, packets.packets, max_sending_rate),
         )
         .await
         {

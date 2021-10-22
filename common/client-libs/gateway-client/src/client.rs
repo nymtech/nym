@@ -132,6 +132,11 @@ impl GatewayClient {
         self.gateway_identity
     }
 
+    #[cfg(feature = "coconut")]
+    pub fn remaining_bandwidth(&self) -> i64 {
+        self.bandwidth_remaining
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {

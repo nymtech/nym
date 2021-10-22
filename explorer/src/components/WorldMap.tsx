@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import React from 'react';
 import { scaleLinear, ScaleLinear } from 'd3-scale';
 import {

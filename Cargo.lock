@@ -3509,6 +3509,7 @@ dependencies = [
 name = "nym-gateway"
 version = "0.11.0"
 dependencies = [
+ "bip39",
  "clap",
  "coconut-interface",
  "config",

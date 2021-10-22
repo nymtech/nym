@@ -14,8 +14,6 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-#[cfg(not(feature = "coconut"))]
-use web3::{transports::Http, Web3};
 
 #[cfg(not(feature = "coconut"))]
 use crate::node::client_handling::websocket::connection_handler::eth_events::ERC20Bridge;
@@ -188,9 +186,11 @@ impl Gateway {
                 .expect("failed to contact validators to obtain their verification keys");
 
         #[cfg(not(feature = "coconut"))]
-        let erc20_bridge = ERC20Bridge::new(Web3::new(
-            Http::new(&self.config.get_eth_endpoint()).expect("Invalid Ethereum endpoint"),
-        ));
+        let erc20_bridge = ERC20Bridge::new(
+            self.config.get_eth_endpoint(),
+            self.config.get_validator_nymd_endpoints(),
+            self.config.get_cosmos_mnemonic(),
+        );
 
         let mix_forwarding_channel = self.start_packet_forwarder();
 

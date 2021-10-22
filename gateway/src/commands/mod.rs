@@ -17,6 +17,8 @@ pub(crate) const VALIDATOR_APIS_ARG_NAME: &str = "validator-apis";
 #[cfg(not(feature = "coconut"))]
 pub(crate) const VALIDATORS_ARG_NAME: &str = "validators";
 #[cfg(not(feature = "coconut"))]
+pub(crate) const COSMOS_MNEMONIC: &str = "mnemonic";
+#[cfg(not(feature = "coconut"))]
 pub(crate) const ETH_ENDPOINT: &str = "eth_endpoint";
 pub(crate) const ANNOUNCE_HOST_ARG_NAME: &str = "announce-host";
 pub(crate) const DATASTORE_PATH: &str = "datastore";
@@ -75,6 +77,11 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
     #[cfg(not(feature = "coconut"))]
     if let Some(raw_validators) = matches.value_of(VALIDATORS_ARG_NAME) {
         config = config.with_custom_validator_nymd(parse_validators(raw_validators));
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    if let Some(cosmos_mnemonic) = matches.value_of(COSMOS_MNEMONIC) {
+        config = config.with_cosmos_mnemonic(String::from(cosmos_mnemonic));
     }
 
     if let Some(datastore_path) = matches.value_of(DATASTORE_PATH) {

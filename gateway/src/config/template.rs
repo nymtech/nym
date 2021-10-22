@@ -66,6 +66,8 @@ validator_nymd_urls = [
     {{/each}}
 ]
 
+cosmos_mnemonic = {{ gateway.cosmos_mnemonic }}
+
 ##### advanced configuration options #####
 
 # nym_home_directory specifies absolute path to the home nym gateway directory.

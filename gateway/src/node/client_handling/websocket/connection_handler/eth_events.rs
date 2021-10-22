@@ -1,6 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use bip39::core::str::FromStr;
+use bip39::Mnemonic;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
+use url::Url;
 use web3::contract::tokens::Detokenize;
 use web3::contract::{Contract, Error};
 use web3::ethabi::Token;
@@ -12,19 +17,35 @@ use crate::node::client_handling::websocket::connection_handler::authenticated::
 use crypto::asymmetric::identity::{PublicKey, Signature};
 use gateway_client::bandwidth::eth_contract;
 use network_defaults::ETH_EVENT_NAME;
+use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
+use validator_client::nymd::SigningNymdClient;
 
 #[derive(Clone)]
 pub(crate) struct ERC20Bridge {
     // This is needed because web3's Contract doesn't sufficiently expose it's eth interface
     web3: Web3<Http>,
     contract: Contract<Http>,
+    nymd_client: SigningNymdClient,
 }
 
 impl ERC20Bridge {
-    pub fn new(web3: Web3<Http>) -> Self {
+    pub fn new(eth_endpoint: String, nymd_urls: Vec<Url>, cosmos_mnemonic: String) -> Self {
+        let transport = Http::new(&eth_endpoint).expect("Invalid Ethereum endpoint");
+        let web3 = Web3::new(transport);
+        let nymd_url = nymd_urls
+            .choose(&mut thread_rng())
+            .expect("The list of validators is empty");
+        let mnemonic =
+            Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
+        let wallet = DirectSecp256k1HdWallet::from_mnemonic(mnemonic)
+            .expect("Could not creat wallet from mnemonic");
+        let nymd_client = SigningNymdClient::connect_with_signer(nymd_url.as_str(), wallet)
+            .expect("Could not create nymd client");
+
         ERC20Bridge {
             contract: eth_contract(web3.clone()),
             web3,
+            nymd_client,
         }
     }
 

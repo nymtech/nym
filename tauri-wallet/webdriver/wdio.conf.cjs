@@ -2,7 +2,7 @@ const os = require("os");
 const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 //insert path to binary
-const nym_path = "../target/input/executable";
+const nym_path = "../target/release/nym_wallet";
 
 exports.config = {
   //run sequentially, as using one default user may cause issues for parallel test runs for now
@@ -55,7 +55,7 @@ exports.config = {
   reporters: [['allure', {
     outputDir: 'allure-results',
     disableWebdriverStepsReporting: true,
-    disableWebdriverScreenshotsReporting: false,
+    disableWebdriverScreenshotsReporting: true,
   }]],
 
   // this is documentented in the readme - you will need to build the project first

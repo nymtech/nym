@@ -3,13 +3,11 @@ Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 SPDX-License-Identifier: Apache-2.0
 -->
 
-# Nym Tauri Wallet Webdriver testsuite
+# Nym Wallet Webdriverio testsuite
 
 A webdriverio test suite implementation using tauri driver 
-with a page object model design. This project is to provide quick iterative feedback
-on the UI of the tauri nym wallet.
-
-Currently, tauri-driver is available to run on Windows and Linux machines.
+with a page object model design. This is to provide quick iterative feedback
+on the UI of the nym wallet. Currently, tauri-driver is available to run on Windows and Linux machines.
 
 ## Installation prerequisites 
 * `Yarn`
@@ -17,7 +15,7 @@ Currently, tauri-driver is available to run on Windows and Linux machines.
 * `Rust & cargo >= v1.51`
 * `tauri-driver`
 * `That you have an existing mnemonic and you can login to the app`
-* `Have the details listed below to provide the user-data.js file`
+* `Have the details listed below to provide the user-data.json file`
 
 
 ## Key Information
@@ -40,8 +38,8 @@ built successfully, if so, you will have an executable sitting in the target dir
 
 ## Installation & usage
 *  `test excution happens inside /webdriver directory`
-*  `test data needs to be provided inside the user-data.js module`
-*  `check the wdio.conf.js to see the activities and path location of the binary`
+*  `test data needs to be provided inside the user-data.json`
+*  `check the wdio.conf.cjs to see the activities and path location of the binary`
 ```
 example: 
 //mnemonic is a base64 enconded value, which is your 24 character passphrase, these values are for illustration purposes
@@ -49,24 +47,35 @@ example:
       "mnemonic" : "dGhpcyBpcyBhIHBhc3NwaHJhc2UK",   
       "punk_address" : "punk1f3dzkhmunma5ze5q952daxca6371989189",    
       "receiver_address" : "punk1p0ce82jxxglpmutvhq4mdwgcwf4avm5n1821982",    
-      "amount_to_send" : "5",
-      "identity_key_to_delegate":"value",
-      "identity_key_to_delegate_gateway" : "value"
+      "amount_to_send" : "1",
+      "identity_key_to_delegate_mix_node": "value",
+      "identity_key_to_delegate_gateway" : "value",
       "delegate_amount" : "1"
       }
 ```
 *  `yarn test:runall` - the first test run will take some time to spin up be patient
-*   You can run tests individually by passing through the script situated in the package.json for example `yarn test:delegate` 
+*   You can run tests individually by passing through the script situated in the package.json for example `yarn test:newuser` 
+
+Tests are categorised and run by their pages, they follow a sequential flow, if one test case fails before the next execution it may derail the next test.
+//todo improve in near future
+
+## Test reporting
+Currently the tests use allure reporting, the configuration can be altered in the `wdio.conf.cjs`. At present it takes snapshots of any failing tests, the test output run can be seen in the allure-results directory
+Tests ouput:
+* <guid-testuite.xml> 
+* <guid-attachment.png>
+
+If any tests fail in their test run it will produce the stack trace error along with the test in question
 
 ## Updates
 
-Disclaimer: As this project is WIP, there's a lot due to be updated and modified. This is to get the project up and running.
+*Disclaimer*: Still WIP
 
 
-Refactoring needs to take place in certain areas to reduce code duplication, tidying up selectors and improving performance, implement error handling
+Refactoring needs to take place in certain areas, implement error handling/ beforeTest() - validating json file exists with data for test execution
 
 
 Configuration for happy path and non happy path (non bonded users needs to happen)
 
 
-Currently this project has been dev'd against a Linux based OS, not currently tested against Windows.
+Currently this is dev'd against a Linux based OS, not tested against windows yet.

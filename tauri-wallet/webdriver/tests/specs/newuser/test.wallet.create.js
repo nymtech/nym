@@ -1,26 +1,38 @@
-const walletLogin = require('../../pages/wallet.login');
-const walletSignUp = require('../../pages/wallet.create')
-const textConstants = require('../../../common/constants/text-constants');
+// const walletLogin = require('../../pages/wallet.login');
+// const walletSignUp = require('../../pages/wallet.create')
+// const textConstants = require('../../../common/constants/text-constants');
 
-const WALLET_SUCCESS = "Please store your mnemonic in a safe place. You'll need it to access your wallet"
+// describe("non existing wallet holder", () => {
+//     //wallet mnemonic gets pushed here
+//     const DATA = []
+//     it("create a new account and wallet", async () => {
 
-describe("non existing wallet holder", () => {
-    it("create new account", async () => {
+//         const signInText = await walletLogin.signInLabel.getText();
+//         expect(signInText).toEqual(textConstants.homePageSignIn);
 
-        const signInText = await walletLogin.signInLabel.getText();
-        expect(signInText).toEqual(textConstants.homePageSignIn);
+//         await walletSignUp.createAccount.click();
 
-        await walletLogin.createNewAccount.click();
+//         //wallet generation takes some time - apply wait
+//         await walletSignUp.create.click()
 
-        await walletSignUp.createAccount.click();
+//         await walletSignUp.accountCreatedSuccessfully.waitForEnabled({ timeout: 10000 })
 
-        await walletSignUp.accountCreatedSuccessfully.waitForEnabled({ timeout: 6000 });
+//         const getWalletText = await walletSignUp.punkAddress.getText()
+//         expect(getWalletText.length).toEqual(43)
 
-        const getWalletText = await walletSignUp.punkAddress.getText()
-        expect(getWalletText.length).toEqual(43)
+//         const accountCreated = await walletSignUp.accountCreatedSuccessfully.getText()
+//         expect(accountCreated).toEqual(textConstants.walletSuccess)
 
-        const getMnemonic = await walletSignUp.walletMnemonicCreated.getText()
-        expect(getMnemonic).toEqual(WALLET_SUCCESS)
+//         const getMnemonic = await walletSignUp.walletMnemonicValue.getText()
+//         DATA.push(getMnemonic)
+//     })
 
-    })
-});
+//     it("navigate back to sign in screen and validate mnemonic works", async () => {
+
+//         await walletSignUp.backToSignIn.click()
+
+//         await walletLogin.enterMnemonic(DATA[0])
+        
+//         await walletLogin.walletAddress.isDisplayed()
+//     })
+// })

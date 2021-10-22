@@ -13,6 +13,7 @@ export const NymCard: React.FC<{
       <CardHeader
         title={title}
         subheader={subheader}
+        data-testid={title}
         titleTypographyProps={{ variant: 'h5' }}
         subheaderTypographyProps={{ variant: 'subtitle1' }}
         action={Action}

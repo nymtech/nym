@@ -43,7 +43,7 @@ export const BalanceCard = () => {
                 {getBalance.error}
               </Alert>
             ) : (
-              <Typography variant="h6">
+              <Typography variant="h6" data-testid="account-balance">
                 {getBalance.balance?.printable_balance}
               </Typography>
             )}

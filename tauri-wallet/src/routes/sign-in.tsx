@@ -100,7 +100,7 @@ const SignInContent = ({
   return (
     <SignInCard>
       <>
-        <Typography variant="h4">Sign in</Typography>
+        <Typography variant="h4" data-testid="sign-in">Sign in</Typography>
         <form noValidate onSubmit={handleSignIn}>
           <Grid container direction="column" spacing={1}>
             <Grid item>

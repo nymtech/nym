@@ -1,4 +1,4 @@
-const userData = require('../../../common/data/user-data');
+const userData = require('../../../common/data/user-data.json');
 const helper = require('../../../common/helpers/helper');
 const walletLogin = require('../../pages/wallet.login');
 const textConstants = require('../../../common/constants/text-constants');
@@ -24,7 +24,6 @@ describe("bonding and unbonding nodes", () => {
         const getSphinxKey = await bondPage.sphinxKey.isEnabled();
         const amountToBond = await bondPage.amountToBond.isEnabled();
         const hostInput = await bondPage.hostInput.isEnabled();
-        const bondButton = await bondPage.bondButton.isEnabled();
         const verlocPort = await bondPage.verlocPort.isEnabled();
         const httpApiPort = await bondPage.httpApiPort.isEnabled();
         const mixPort = await bondPage.mixPort.isEnabled();
@@ -35,7 +34,6 @@ describe("bonding and unbonding nodes", () => {
         expect(getSphinxKey).toEqual(false);
         expect(amountToBond).toEqual(false);
         expect(hostInput).toEqual(false);
-        expect(bondButton).toEqual(false);
         expect(verlocPort).toEqual(false);
         expect(httpApiPort).toEqual(false);
         expect(mixPort).toEqual(false);
@@ -46,12 +44,10 @@ describe("bonding and unbonding nodes", () => {
         await helper.navigateAndClick(walletHomepage.unBondButton);
 
         const getText = await bondPage.header.getText();
-        const unbondButton = await bondPage.unBondButton.isEnabled();
         const unbondText = await bondPage.unBondInformation.getText();
 
         //assert all field are not functional
         expect(getText).toEqual(textConstants.unbondNodeHeaderText);
-        expect(unbondButton).toEqual(true);
         expect(unbondText).toEqual(textConstants.unbondMixNodeText);
     })
-});
+})

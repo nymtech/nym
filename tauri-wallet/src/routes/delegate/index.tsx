@@ -96,7 +96,7 @@ export const Delegate = () => {
                 }}
               >
                 <Button
-                  data-testid="finishButton"
+                  data-testid="finish-button"
                   onClick={() => {
                     setStatus(EnumRequestStatus.initial)
                   }}

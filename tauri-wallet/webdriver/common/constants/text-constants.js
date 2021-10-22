@@ -10,6 +10,7 @@ module.exports = {
     "homePageErrorMnemonic": "Error parsing bip39 mnemonic",
     "homePageSignIn" : "Sign in",
     "createOne" : "Create one",
+    "walletSuccess" : "Please store your mnemonic in a safe place. You'll need it to access your wallet",
     
     //bondPage // unbondPage
     "bondAlreadyNoded" : "Looks like you already have a mixnode bonded.",
@@ -20,10 +21,9 @@ module.exports = {
     //balancePage
 
     //delegatePage // undelegatePage
-    "delegateHeaderText" : "Delegate to mixnode or gateway",
+    "delegateHeaderText" : "Delegate\nDelegate to mixnode or gateway",
     "nodeIdentityValidationText" : "identity is a required field",
     "amountValidationText": "amount is a required field",
-    //"transferFeeAmount" : "A fee of 0.004375 PUNK will apply to this transaction",
     "undelegateHeaderText" : "Undelegate from a mixnode or gateway",
     "delegationComplete" : "Delegation complete"
 }

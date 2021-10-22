@@ -22,14 +22,13 @@ use group::Curve;
 
 pub use keygen::{SecretKey, VerificationKey};
 
-use crate::{Attribute, elgamal};
 use crate::elgamal::Ciphertext;
 use crate::error::{CoconutError, Result};
-use crate::scheme::aggregation::{aggregate_signature_shares, aggregate_signatures};
 use crate::scheme::setup::Parameters;
 use crate::scheme::verification::check_bilinear_pairing;
 use crate::traits::{Base58, Bytable};
 use crate::utils::try_deserialize_g1_projective;
+use crate::{elgamal, Attribute};
 
 pub mod aggregation;
 pub mod issuance;
@@ -238,7 +237,7 @@ impl SignatureShare {
 
 #[cfg(test)]
 mod tests {
-    use crate::scheme::aggregation::aggregate_verification_keys;
+    use crate::scheme::aggregation::{aggregate_signatures, aggregate_verification_keys};
     use crate::scheme::issuance::{blind_sign, prepare_blind_sign, sign};
     use crate::scheme::keygen::{keygen, ttp_keygen};
     use crate::scheme::verification::{prove_credential, verify, verify_credential};
@@ -266,16 +265,16 @@ mod tests {
             &lambda,
             &[],
         )
-            .unwrap()
-            .unblind(
-                &params,
-                elgamal_keypair.private_key(),
-                &keypair1.verification_key(),
-                &private_attributes,
-                &[],
-                &lambda.commitment_hash,
-            )
-            .unwrap();
+        .unwrap()
+        .unblind(
+            &params,
+            elgamal_keypair.private_key(),
+            &keypair1.verification_key(),
+            &private_attributes,
+            &[],
+            &lambda.commitment_hash,
+        )
+        .unwrap();
 
         let sig2 = blind_sign(
             &mut params,
@@ -284,16 +283,16 @@ mod tests {
             &lambda,
             &[],
         )
-            .unwrap()
-            .unblind(
-                &params,
-                elgamal_keypair.private_key(),
-                &keypair2.verification_key(),
-                &private_attributes,
-                &[],
-                &lambda.commitment_hash,
-            )
-            .unwrap();
+        .unwrap()
+        .unblind(
+            &params,
+            elgamal_keypair.private_key(),
+            &keypair2.verification_key(),
+            &private_attributes,
+            &[],
+            &lambda.commitment_hash,
+        )
+        .unwrap();
 
         let theta1 = prove_credential(
             &mut params,
@@ -302,7 +301,7 @@ mod tests {
             serial_number,
             binding_number,
         )
-            .unwrap();
+        .unwrap();
 
         let theta2 = prove_credential(
             &mut params,
@@ -311,7 +310,7 @@ mod tests {
             serial_number,
             binding_number,
         )
-            .unwrap();
+        .unwrap();
 
         assert!(verify_credential(
             &params,
@@ -320,19 +319,19 @@ mod tests {
             &[],
         ));
 
-        // assert!(verify_credential(
-        //     &params,
-        //     &keypair2.verification_key(),
-        //     &theta2,
-        //     &[],
-        // ));
-        //
-        // assert!(!verify_credential(
-        //     &params,
-        //     &keypair1.verification_key(),
-        //     &theta2,
-        //     &[],
-        // ));
+        assert!(verify_credential(
+            &params,
+            &keypair2.verification_key(),
+            &theta2,
+            &[],
+        ));
+
+        assert!(!verify_credential(
+            &params,
+            &keypair1.verification_key(),
+            &theta2,
+            &[],
+        ));
     }
 
     #[test]
@@ -385,7 +384,7 @@ mod tests {
             &private_attributes,
             &public_attributes,
         )
-            .unwrap();
+        .unwrap();
 
         let sig1 = blind_sign(
             &mut params,
@@ -394,16 +393,16 @@ mod tests {
             &lambda,
             &public_attributes,
         )
-            .unwrap()
-            .unblind(
-                &params,
-                elgamal_keypair.private_key(),
-                &keypair1.verification_key(),
-                &private_attributes,
-                &public_attributes,
-                &lambda.commitment_hash,
-            )
-            .unwrap();
+        .unwrap()
+        .unblind(
+            &params,
+            elgamal_keypair.private_key(),
+            &keypair1.verification_key(),
+            &private_attributes,
+            &public_attributes,
+            &lambda.commitment_hash,
+        )
+        .unwrap();
 
         let sig2 = blind_sign(
             &mut params,
@@ -412,16 +411,16 @@ mod tests {
             &lambda,
             &public_attributes,
         )
-            .unwrap()
-            .unblind(
-                &params,
-                elgamal_keypair.private_key(),
-                &keypair2.verification_key(),
-                &private_attributes,
-                &public_attributes,
-                &lambda.commitment_hash,
-            )
-            .unwrap();
+        .unwrap()
+        .unblind(
+            &params,
+            elgamal_keypair.private_key(),
+            &keypair2.verification_key(),
+            &private_attributes,
+            &public_attributes,
+            &lambda.commitment_hash,
+        )
+        .unwrap();
 
         let theta1 = prove_credential(
             &mut params,
@@ -430,7 +429,7 @@ mod tests {
             serial_number,
             binding_number,
         )
-            .unwrap();
+        .unwrap();
 
         let theta2 = prove_credential(
             &mut params,
@@ -439,7 +438,7 @@ mod tests {
             serial_number,
             binding_number,
         )
-            .unwrap();
+        .unwrap();
 
         assert!(verify_credential(
             &params,
@@ -480,7 +479,7 @@ mod tests {
             &private_attributes,
             &public_attributes,
         )
-            .unwrap();
+        .unwrap();
 
         let sigs = keypairs
             .iter()
@@ -492,16 +491,16 @@ mod tests {
                     &lambda,
                     &public_attributes,
                 )
-                    .unwrap()
-                    .unblind(
-                        &params,
-                        elgamal_keypair.private_key(),
-                        &keypair.verification_key(),
-                        &private_attributes,
-                        &public_attributes,
-                        &lambda.commitment_hash,
-                    )
-                    .unwrap()
+                .unwrap()
+                .unblind(
+                    &params,
+                    elgamal_keypair.private_key(),
+                    &keypair.verification_key(),
+                    &private_attributes,
+                    &public_attributes,
+                    &lambda.commitment_hash,
+                )
+                .unwrap()
             })
             .collect::<Vec<_>>();
 
@@ -519,8 +518,14 @@ mod tests {
             aggregate_signatures(&params, &aggr_vk, &attributes, &sigs[..2], Some(&[1, 2]))
                 .unwrap();
 
-        let theta =
-            prove_credential(&mut params, &aggr_vk, &aggr_sig, serial_number, binding_number).unwrap();
+        let theta = prove_credential(
+            &mut params,
+            &aggr_vk,
+            &aggr_sig,
+            serial_number,
+            binding_number,
+        )
+        .unwrap();
 
         assert!(verify_credential(
             &params,
@@ -535,8 +540,14 @@ mod tests {
             aggregate_signatures(&params, &aggr_vk, &attributes, &sigs[1..], Some(&[2, 3]))
                 .unwrap();
 
-        let theta =
-            prove_credential(&mut params, &aggr_vk, &aggr_sig, serial_number, binding_number).unwrap();
+        let theta = prove_credential(
+            &mut params,
+            &aggr_vk,
+            &aggr_sig,
+            serial_number,
+            binding_number,
+        )
+        .unwrap();
 
         assert!(verify_credential(
             &params,
@@ -559,7 +570,7 @@ mod tests {
             signature.0.to_affine().to_compressed(),
             signature.1.to_affine().to_compressed(),
         ]
-            .concat();
+        .concat();
         assert_eq!(expected_bytes, bytes);
         assert_eq!(signature, Signature::try_from(&bytes[..]).unwrap())
     }
@@ -579,10 +590,10 @@ mod tests {
         // also make sure it is equivalent to the internal g1 compressed bytes concatenated
         let expected_bytes = [
             blinded_sig.0.to_affine().to_compressed(),
-            blinded_sig.1.0.to_affine().to_compressed(),
-            blinded_sig.1.1.to_affine().to_compressed(),
+            blinded_sig.1 .0.to_affine().to_compressed(),
+            blinded_sig.1 .1.to_affine().to_compressed(),
         ]
-            .concat();
+        .concat();
         assert_eq!(expected_bytes, bytes);
         assert_eq!(blinded_sig, BlindedSignature::try_from(&bytes[..]).unwrap())
     }

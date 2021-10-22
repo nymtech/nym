@@ -1,14 +1,17 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::Error;
+use std::borrow::Borrow;
+
+use url::Url;
+
 use coconut_interface::{
-    aggregate_signature_shares, aggregate_verification_keys, hash_to_scalar, prepare_blind_sign,
-    prove_credential, Attribute, BlindSignRequestBody, Credential, Parameters, Signature,
+    aggregate_signature_shares, aggregate_verification_keys, Attribute,
+    BlindSignRequestBody, Credential, Parameters, prepare_blind_sign, prove_credential, Signature,
     SignatureShare, VerificationKey,
 };
-use std::borrow::Borrow;
-use url::Url;
+
+use crate::error::Error;
 
 /// Contacts all provided validators and then aggregate their verification keys.
 ///
@@ -97,11 +100,6 @@ async fn obtain_partial_credential(
         .unwrap())
 }
 
-pub struct ValidatorInfo {
-    url: Url,
-    verification_key: VerificationKey,
-}
-
 pub async fn obtain_aggregate_signature(
     params: &Parameters,
     public_attributes: &[Attribute],
@@ -125,7 +123,7 @@ pub async fn obtain_aggregate_signature(
         &client,
         &validator_partial_vk.key,
     )
-    .await?;
+        .await?;
     shares.push(SignatureShare::new(first, 0));
 
     for (id, validator_url) in validators.iter().enumerate().skip(1) {
@@ -138,7 +136,7 @@ pub async fn obtain_aggregate_signature(
             &client,
             &validator_partial_vk.key,
         )
-        .await?;
+            .await?;
         let share = SignatureShare::new(signature, id as u64);
         shares.push(share)
     }

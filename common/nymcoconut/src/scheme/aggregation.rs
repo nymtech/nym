@@ -260,6 +260,7 @@ mod tests {
 
         // verify credential for good measure
         assert!(verify(&params, &aggr_vk_1, &attributes, &aggr_sig1));
+        assert!(verify(&params, &aggr_vk_2, &attributes, &aggr_sig2));
 
         // aggregating threshold+1 works
         let aggr_vk_more = aggregate_verification_keys(&vks[1..], Some(&[2, 3, 4, 5])).unwrap();
@@ -304,7 +305,7 @@ mod tests {
             &aggr_vk_bad,
             &attributes,
             &sigs[2..],
-            Some(&[42, 123, 100])
+            Some(&[42, 123, 100]),
         )
         .is_err());
     }
@@ -324,7 +325,7 @@ mod tests {
         let attributes = params.n_random_scalars(2);
         let keypairs = ttp_keygen(&mut params, 3, 5).unwrap();
 
-        let (sks, vks): (Vec<_>, Vec<_>) = keypairs
+        let (_, vks): (Vec<_>, Vec<_>) = keypairs
             .into_iter()
             .map(|keypair| (keypair.secret_key(), keypair.verification_key()))
             .unzip();
@@ -341,7 +342,7 @@ mod tests {
         let mut params = Parameters::new(2).unwrap();
         let attributes = params.n_random_scalars(2);
         let keypairs = ttp_keygen(&mut params, 3, 5).unwrap();
-        let (sks, vks): (Vec<_>, Vec<_>) = keypairs
+        let (_, vks): (Vec<_>, Vec<_>) = keypairs
             .into_iter()
             .map(|keypair| (keypair.secret_key(), keypair.verification_key()))
             .unzip();
@@ -356,7 +357,7 @@ mod tests {
             &aggr_vk_all,
             &attributes,
             &signatures,
-            Some(&[1, 2])
+            Some(&[1, 2]),
         )
         .is_err());
     }
@@ -367,7 +368,7 @@ mod tests {
         let mut params = Parameters::new(2).unwrap();
         let attributes = params.n_random_scalars(2);
         let keypairs = ttp_keygen(&mut params, 3, 5).unwrap();
-        let (sks, vks): (Vec<_>, Vec<_>) = keypairs
+        let (_, vks): (Vec<_>, Vec<_>) = keypairs
             .into_iter()
             .map(|keypair| (keypair.secret_key(), keypair.verification_key()))
             .unzip();
@@ -378,7 +379,7 @@ mod tests {
             &aggr_vk_all,
             &attributes,
             &signatures,
-            Some(&[1, 1])
+            Some(&[1, 1]),
         )
         .is_err());
     }

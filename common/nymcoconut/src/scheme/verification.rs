@@ -16,17 +16,17 @@ use core::ops::Neg;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-use bls12_381::{G1Affine, G1Projective, G2Prepared, G2Projective, multi_miller_loop, Scalar};
+use bls12_381::{multi_miller_loop, G1Affine, G2Prepared, G2Projective, Scalar};
 use group::{Curve, Group};
 
-use crate::Attribute;
 use crate::error::{CoconutError, Result};
 use crate::proofs::ProofKappaNu;
 use crate::scheme::setup::Parameters;
 use crate::scheme::Signature;
 use crate::scheme::VerificationKey;
 use crate::traits::{Base58, Bytable};
-use crate::utils::{try_deserialize_g1_projective, try_deserialize_g2_projective};
+use crate::utils::try_deserialize_g2_projective;
+use crate::Attribute;
 
 // TODO NAMING: this whole thing
 // Theta
@@ -133,10 +133,10 @@ pub fn compute_kappa(
     params.gen2() * blinding_factor
         + verification_key.alpha
         + private_attributes
-        .iter()
-        .zip(verification_key.beta.iter())
-        .map(|(priv_attr, beta_i)| beta_i * priv_attr)
-        .sum::<G2Projective>()
+            .iter()
+            .zip(verification_key.beta.iter())
+            .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+            .sum::<G2Projective>()
 }
 
 pub fn compute_zeta(params: &Parameters, serial_number: Attribute) -> G2Projective {
@@ -258,11 +258,11 @@ pub fn verify(
 ) -> bool {
     let kappa = (verification_key.alpha
         + public_attributes
-        .iter()
-        .zip(verification_key.beta.iter())
-        .map(|(m_i, b_i)| b_i * m_i)
-        .sum::<G2Projective>())
-        .to_affine();
+            .iter()
+            .zip(verification_key.beta.iter())
+            .map(|(m_i, b_i)| b_i * m_i)
+            .sum::<G2Projective>())
+    .to_affine();
 
     check_bilinear_pairing(
         &sig.0.to_affine(),
@@ -298,7 +298,7 @@ mod tests {
             serial_number,
             binding_number,
         )
-            .unwrap();
+        .unwrap();
 
         let bytes = theta.to_bytes();
         assert_eq!(Theta::try_from(bytes.as_slice()).unwrap(), theta);

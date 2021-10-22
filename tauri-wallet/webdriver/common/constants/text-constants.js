@@ -19,8 +19,6 @@ module.exports = {
     "unbondMixNodeText": "Looks like you already have a mixnode bonded.",
     "unbondMixNode": "UNBOND",
 
-    //balancePage
-
     //delegatePage // undelegatePage
     "delegateHeaderText" : "Delegate\nDelegate to mixnode or gateway",
     "nodeIdentityValidationText" : "identity is a required field",

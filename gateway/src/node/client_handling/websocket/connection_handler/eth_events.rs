@@ -3,6 +3,7 @@
 
 use bip39::core::str::FromStr;
 use bip39::Mnemonic;
+use cosmrs::{Coin, Decimal};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use url::Url;
@@ -14,11 +15,16 @@ use web3::types::{BlockNumber, FilterBuilder, H256};
 use web3::Web3;
 
 use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
+use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity::{PublicKey, Signature};
+use erc20_bridge_contract::msg::ExecuteMsg;
+use erc20_bridge_contract::payment::LinkPaymentData;
 use gateway_client::bandwidth::eth_contract;
-use network_defaults::ETH_EVENT_NAME;
+use network_defaults::{COSMOS_CONTRACT_ADDRESS, DENOM, ETH_EVENT_NAME};
 use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
-use validator_client::nymd::SigningNymdClient;
+use validator_client::nymd::{
+    AccountId, Denom, Fee, Gas, SigningCosmWasmClient, SigningNymdClient,
+};
 
 #[derive(Clone)]
 pub(crate) struct ERC20Bridge {
@@ -26,6 +32,7 @@ pub(crate) struct ERC20Bridge {
     web3: Web3<Http>,
     contract: Contract<Http>,
     nymd_client: SigningNymdClient,
+    client_address: AccountId,
 }
 
 impl ERC20Bridge {
@@ -39,6 +46,15 @@ impl ERC20Bridge {
             Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(mnemonic)
             .expect("Could not creat wallet from mnemonic");
+        let client_address = wallet
+            .try_derive_accounts()
+            .expect("Could not get account from wallet")
+            .into_iter()
+            .map(|account| account.address().clone())
+            .collect::<Vec<AccountId>>()
+            .get(0)
+            .expect("No account for wallet")
+            .clone();
         let nymd_client = SigningNymdClient::connect_with_signer(nymd_url.as_str(), wallet)
             .expect("Could not create nymd client");
 
@@ -46,13 +62,14 @@ impl ERC20Bridge {
             contract: eth_contract(web3.clone()),
             web3,
             nymd_client,
+            client_address,
         }
     }
 
     pub(crate) async fn verify_eth_events(
         &self,
-        public_key: PublicKey,
-    ) -> Result<Burned, RequestHandlingError> {
+        verification_key: PublicKey,
+    ) -> Result<(), RequestHandlingError> {
         // It's safe to unwrap here, as we are guarded by a unit test that checks the event
         // name constant against the contract abi
         let event = self.contract.abi().event(ETH_EVENT_NAME).unwrap();
@@ -60,7 +77,7 @@ impl ERC20Bridge {
             .address(vec![self.contract.address()])
             .topics(
                 Some(vec![event.signature()]),
-                Some(vec![H256::from(public_key.to_bytes())]),
+                Some(vec![H256::from(verification_key.to_bytes())]),
                 None,
                 None,
             )
@@ -76,12 +93,44 @@ impl ERC20Bridge {
             })?;
             let burned_event =
                 Burned::from_tokens(log.params.into_iter().map(|x| x.value).collect::<Vec<_>>())?;
-            if burned_event.verify(public_key) {
-                return Ok(burned_event);
+            if burned_event.verify(verification_key) {
+                return Ok(());
             }
         }
 
         Err(RequestHandlingError::InvalidBandwidthCredential)
+    }
+
+    pub(crate) async fn verify_double_spending(
+        &self,
+        credential: &TokenCredential,
+    ) -> Result<(), RequestHandlingError> {
+        // It's ok to unwrap here, as the cosmos contract and denom are set correctly
+        let contract_address = AccountId::from_str(COSMOS_CONTRACT_ADDRESS).unwrap();
+        let coin = Coin {
+            denom: Denom::from_str(DENOM).unwrap(),
+            amount: Decimal::from(100000u64),
+        };
+        let fee = Fee::from_amount_and_gas(coin.clone(), Gas::from(500000));
+        let req = ExecuteMsg::LinkPayment {
+            data: LinkPaymentData::new(
+                credential.verification_key().to_bytes(),
+                credential.gateway_identity().to_bytes(),
+                credential.bandwidth(),
+                credential.signature_bytes(),
+            ),
+        };
+        self.nymd_client
+            .execute(
+                &self.client_address,
+                &contract_address,
+                &req,
+                fee,
+                "Linking payment",
+                vec![coin],
+            )
+            .await?;
+        Ok(())
     }
 }
 

@@ -73,6 +73,7 @@ pub const BANDWIDTH_VALUE: u64 = 10 * TOKEN_BANDWIDTH_VALUE; // 10 GB
 // Ethereum constants used for token bridge
 pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("9fEE3e28c17dbB87310A51F13C4fbf4331A6f102");
+pub const COSMOS_CONTRACT_ADDRESS: &str = "punk1pw35ns28dxkj3uxeqfn35v595t6ux4tyx5fxvd";
 // Name of the event triggered by the eth contract. If the event name is changed,
 // this would also need to be changed; It is currently tested against the json abi
 pub const ETH_EVENT_NAME: &str = "Burned";

@@ -12,6 +12,7 @@ edition = "2018"
 [dependencies]
 bip39 = "1.0.1"
 clap = "2.33.0"
+cosmrs = { version = "0.1", features = ["rpc", "bip32", "cosmwasm"] }
 dirs = "3.0"
 dashmap = "4.0"
 dotenv = "0.15.0"
@@ -35,6 +36,7 @@ coconut-interface = { path = "../common/coconut-interface" , optional = true}
 credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
+erc20-bridge-contract = { path = "../common/erc20-bridge-contract" }
 gateway-requests = { path = "gateway-requests" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }

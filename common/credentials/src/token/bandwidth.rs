@@ -34,8 +34,16 @@ impl TokenCredential {
         self.verification_key
     }
 
+    pub fn gateway_identity(&self) -> PublicKey {
+        self.gateway_identity
+    }
+
     pub fn bandwidth(&self) -> u64 {
         self.bandwidth
+    }
+
+    pub fn signature_bytes(&self) -> [u8; 64] {
+        self.signature.to_bytes()
     }
 
     pub fn verify_signature(&self) -> bool {

@@ -23,10 +23,13 @@ use client_core::client::topology_control::{
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 
+#[cfg(feature = "coconut")]
 use coconut_interface::{hash_to_scalar, Credential, Parameters};
+#[cfg(feature = "coconut")]
 use credentials::bandwidth::{
     prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES,
 };
+#[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
 
 use crypto::asymmetric::identity;
@@ -41,11 +44,6 @@ use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
 use tokio::runtime::Runtime;
-
-#[cfg(feature = "coconut")]
-use coconut_interface::Credential;
-#[cfg(feature = "coconut")]
-use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
 
 pub(crate) mod config;
 

@@ -16,10 +16,13 @@ use crate::network_monitor::monitor::Monitor;
 use crate::network_monitor::tested_network::TestedNetwork;
 use crate::storage::NodeStatusStorage;
 
+#[cfg(feature = "coconut")]
 use coconut_interface::{hash_to_scalar, Credential, Parameters};
+#[cfg(feature = "coconut")]
 use credentials::bandwidth::{
     prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES,
 };
+#[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
 
 use crypto::asymmetric::{encryption, identity};
@@ -28,11 +31,6 @@ use log::info;
 use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
 use topology::NymTopology;
-
-#[cfg(feature = "coconut")]
-use coconut_interface::Credential;
-#[cfg(feature = "coconut")]
-use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;

@@ -29,7 +29,7 @@ linux:
  windows: 
 download msedgedriver.exe from https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/
 ```
-please visit [Tauri Studio](https://tauri.studio/en/docs/usage/guides/webdriver/introduction), this will specify the additional drivers you need)
+please visit [Tauri Studio](https://tauri.studio/en/docs/usage/guides/webdriver/introduction), this will specify the additional drivers you need
 * The path to run the application is set in the `wdio.conf.js` which lives in the root directory 
 * Before running the suite you need to build the application and check that the application has
 built successfully, if so, you will have an executable sitting in the target directory in `tauri-wallet/target/*/nym_wallet` (refer to point 1)

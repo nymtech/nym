@@ -6,7 +6,7 @@ on:
       - '/tauri-wallet/*'
 defaults:
   run:
-    working-directory: tauri-wallet
+    working-directory: tauri-wallet/
 
 jobs:
   test:
@@ -27,18 +27,39 @@ jobs:
           webkit2gtk-driver
           xvfb
 
+      - name: Install minimal stable
+        uses: actions-rs/toolchain@v1
+        with:
+         profile: minimal
+         toolchain: stable
+
       - name: Node v16
         uses: actions/setup-node@v1
         with:
           node-version: 16.x
 
+      - name: Install yarn for building application
+        run: yarn install    
+
       - name: Build application
         run: yarn run webpack:build & yarn run tauri:build
-        working-directory: tauri-wallet
 
-      - name: Yarn install
+      - name: Install dependencies
         run: yarn install
         working-directory: webdriver/
+
+      - name: Remove existing user datafile
+        uses: JesseTG/rm@v1.0.2
+        with:
+          path: webdriver/data/user-data.json
+
+      - name: Create user data json file
+        id: create-json
+        uses: jsdaniell/create-json@1.1.2
+        with:
+           name: "user-data.json"
+           json: ${{ secrets.WALLET_USERDATA }}
+           dir: 'webdriver/data/'
 
       - name: Install tauri-driver
         uses: actions-rs/cargo@v1

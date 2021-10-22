@@ -75,7 +75,6 @@ export const WorldMap: React.FC<MapProps> = ({
             {({ geographies }: any) =>
               (colorScale || userLocation) &&
               geographies.map((geo: any) => {
-                // @ts-ignore
                 const d =
                   countryData &&
                   countryData.data &&

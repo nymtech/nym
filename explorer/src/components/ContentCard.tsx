@@ -54,8 +54,8 @@ export const ContentCard: React.FC<ContentCardProps> = ({
 ContentCard.defaultProps = {
   title: undefined,
   subtitle: undefined,
-  Icon: () => null,
-  Action: () => null,
+  Icon: null,
+  Action: null,
   errorMsg: undefined,
   onClick: () => null,
 };

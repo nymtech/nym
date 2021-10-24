@@ -11,43 +11,41 @@ export const Footer: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   return (
-    <>
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          background: mode === 'dark' ? palette.blackBg : palette.primary.main,
-          width: '100%',
-          height: 'auto',
-          mt: 3,
-          pt: 3,
-          pb: 3,
-        }}
-      >
-        {isMobile && (
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'row',
-              width: 'auto',
-              justifyContent: 'center',
-              alignItems: 'center',
-              mb: 2,
-            }}
-          >
-            <Socials />
-          </Box>
-        )}
-        <Typography
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        background: mode === 'dark' ? palette.blackBg : palette.primary.main,
+        width: '100%',
+        height: 'auto',
+        mt: 3,
+        pt: 3,
+        pb: 3,
+      }}
+    >
+      {isMobile && (
+        <Box
           sx={{
-            fontSize: 12,
-            textAlign: isMobile ? 'center' : 'end',
+            display: 'flex',
+            flexDirection: 'row',
+            width: 'auto',
+            justifyContent: 'center',
+            alignItems: 'center',
+            mb: 2,
           }}
         >
-          © 2021 Nym Technologies SA, all rights reserved
-        </Typography>
-      </Box>
-    </>
+          <Socials />
+        </Box>
+      )}
+      <Typography
+        sx={{
+          fontSize: 12,
+          textAlign: isMobile ? 'center' : 'end',
+        }}
+      >
+        © 2021 Nym Technologies SA, all rights reserved
+      </Typography>
+    </Box>
   );
 };

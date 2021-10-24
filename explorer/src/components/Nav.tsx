@@ -358,7 +358,7 @@ export const Nav: React.FC = ({ children }) => {
                     alignItems: 'center',
                   }}
                 >
-                  <Socials hoverEffect disableDarkMode />
+                  <Socials disableDarkMode />
                   <DarkLightSwitchDesktop defaultChecked />
                 </Box>
               )}

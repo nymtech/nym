@@ -20,7 +20,6 @@ import { useMediaQuery, useTheme } from '@mui/material';
 import { OverviewSVG } from '../icons/OverviewSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
-import { MainContext } from '../context/main';
 import { palette } from '../index';
 import { Socials } from './Socials';
 import { Footer } from './Footer';
@@ -283,7 +282,6 @@ ExpandableButton.defaultProps = {
 };
 
 export const Nav: React.FC = ({ children }) => {
-  const { toggleMode } = React.useContext(MainContext);
   const [open, setOpen] = React.useState(true);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -360,7 +358,7 @@ export const Nav: React.FC = ({ children }) => {
                     alignItems: 'center',
                   }}
                 >
-                  <Socials hoverEffect disableDarkMode />
+                  <Socials disableDarkMode />
                   <DarkLightSwitchDesktop defaultChecked />
                 </Box>
               )}

@@ -19,3 +19,9 @@ included in Data Grid Pro package */
     height: 55px;
     min-height: 55px;
 }
+
+/* Unable to style nested MUI paper within the Drawer
+so styling manually here */
+div.MuiDrawer-root > .MuiDrawer-paperAnchorLeft {
+    background-color: #111826;
+}

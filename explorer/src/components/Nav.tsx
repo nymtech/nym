@@ -1,6 +1,6 @@
 /* eslint-disable no-nested-ternary */
 import * as React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ChevronLeft, ExpandLess, ExpandMore } from '@mui/icons-material';
 import { styled, CSSObject, Theme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
@@ -97,6 +97,7 @@ const Drawer = styled(MuiDrawer, {
 
 type navOptionType = {
   id: number;
+  isActive?: boolean;
   url: string;
   title: string;
   Icon?: React.ReactNode;
@@ -107,12 +108,14 @@ type navOptionType = {
 const originalNavOptions: navOptionType[] = [
   {
     id: 0,
+    isActive: false,
     url: '/overview',
     title: 'Overview',
     Icon: <OverviewSVG />,
   },
   {
     id: 1,
+    isActive: false,
     url: '/network-components',
     title: 'Network Components',
     Icon: <NetworkComponentsSVG />,
@@ -136,6 +139,7 @@ const originalNavOptions: navOptionType[] = [
   },
   {
     id: 2,
+    isActive: false,
     url: '/nodemap',
     title: 'Nodemap',
     Icon: <NodemapSVG />,
@@ -144,74 +148,105 @@ const originalNavOptions: navOptionType[] = [
 
 type ExpandableButtonType = {
   id: number;
-  url: string;
   title: string;
+  url: string;
+  isActive?: boolean;
   Icon?: React.ReactNode;
   nested?: navOptionType[];
-  isExpandedChild?: boolean;
+  isChild?: boolean;
   openDrawer: () => void;
+  closeDrawer: () => void;
   drawIsOpen: boolean;
+  setToActive: (num: number) => void;
 };
-const ExpandableButton: React.FC<ExpandableButtonType> = ({
-  nested,
-  title,
-  Icon,
-  url,
-  isExpandedChild,
-  openDrawer,
-  drawIsOpen,
-}: ExpandableButtonType) => {
-  const [open, toggle] = React.useState(false);
-  const [isExternal, setIsExternal] = React.useState<boolean>(false);
-  const location = useLocation();
 
-  const handleClickNoNestedItems = () => {
-    openDrawer();
-  };
+const ExpandableButton: React.FC<ExpandableButtonType> = ({
+  id,
+  url,
+  setToActive,
+  isActive,
+  openDrawer,
+  closeDrawer,
+  drawIsOpen,
+  Icon,
+  title,
+  nested,
+  isChild,
+}) => {
+  const [dynamicStyle, setDynamicStyle] = React.useState({});
+  const [nestedOptions, toggleNestedOptions] = React.useState(false);
+  const [isExternal, setIsExternal] = React.useState<boolean>(false);
 
   const handleClick = () => {
     openDrawer();
-    if (nested) {
-      toggle(!open);
+    // 1. if it's NetworkComponents parent...
+    if (title === 'Network Components') {
+      if (nested) {
+        // 2. if it contains nested routes
+        // open them up
+        toggleNestedOptions(!nestedOptions);
+      }
     }
+    // 3. if its NOT NetworkComponents and the drawer was open
+    // close it, and implicitly this closes nest via useEffect below
+    if (drawIsOpen && title !== 'Network Components') {
+      closeDrawer();
+    }
+    // 4. update isActive in parent
+    setToActive(id);
   };
 
   React.useEffect(() => {
     if (url) {
       setIsExternal(url.includes('http'));
     }
+    if (nested) {
+      setDynamicStyle({
+        background: '#242C3D',
+        borderRight: `3px solid ${palette.brandOrange}`,
+      });
+    }
+    if (isChild) {
+      setDynamicStyle({
+        background: '#3C4558',
+        fontWeight: 800,
+      });
+    }
+    if (!nested && !isChild) {
+      setDynamicStyle({
+        background: '#242C3D',
+        borderRight: `3px solid ${palette.brandOrange}`,
+      });
+    }
   }, [url]);
 
   React.useEffect(() => {
-    if (!drawIsOpen && open) {
-      toggle(false);
+    if (!drawIsOpen && nestedOptions) {
+      toggleNestedOptions(false);
     }
   }, [drawIsOpen]);
 
-  if (!nested) {
-    return (
+  return (
+    <>
       <ListItem
+        disablePadding
         disableGutters
-        component={Link}
+        component={!nested ? Link : 'div'}
         to={isExternal ? { pathname: url } : url}
         target={isExternal ? '_blank' : ''}
-        disablePadding
-        sx={{
-          background: (theme) =>
-            isExpandedChild
-              ? palette.nested
-              : location.pathname.includes(url)
-              ? palette.blackBg
-              : theme.palette.secondary.dark,
-          borderRight: location.pathname.includes(url)
-            ? `3px solid ${palette.brandOrange}`
-            : 'none',
-          borderBottom: `1px solid ${palette.divider}`,
-        }}
+        sx={
+          isActive
+            ? dynamicStyle
+            : { background: '#111826', borderRight: 'none' }
+        }
       >
         <ListItemButton
-          onClick={handleClickNoNestedItems}
-          sx={{ pt: 2, pb: 2 }}
+          onClick={handleClick}
+          sx={{
+            pt: 2,
+            pb: 2,
+            background: isChild ? '#3C4558' : 'none',
+          }}
         >
           <ListItemIcon>{Icon}</ListItemIcon>
           <ListItemText
@@ -221,54 +256,26 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             }}
             primaryTypographyProps={{
               style: {
-                fontWeight: location.pathname.includes(url) ? 800 : 300,
+                fontWeight: isActive ? 800 : 300,
               },
             }}
           />
+          {nested && nestedOptions && <ExpandLess color="primary" />}
+          {nested && !nestedOptions && <ExpandMore color="primary" />}
         </ListItemButton>
       </ListItem>
-    );
-  }
-  return (
-    <>
-      <ListItem
-        disablePadding
-        disableGutters
-        sx={{
-          background: (theme) =>
-            open
-              ? palette.blackBg
-              : isExpandedChild
-              ? palette.nested
-              : theme.palette.secondary.dark,
-          borderRight: open ? `3px solid ${palette.brandOrange}` : 'none',
-          borderBottom: `1px solid ${palette.divider}`,
-        }}
-      >
-        <ListItemButton onClick={handleClick} sx={{ pt: 2, pb: 2 }}>
-          <ListItemIcon>{Icon}</ListItemIcon>
-          <ListItemText
-            primary={title}
-            sx={{
-              color: (theme) => theme.palette.primary.main,
-              fontWeight: location.pathname.includes(url) ? 800 : 300,
-            }}
-          />
-          {open ? (
-            <ExpandLess color="primary" />
-          ) : (
-            <ExpandMore color="primary" />
-          )}
-        </ListItemButton>
-      </ListItem>
-      {open &&
-        nested?.map((each: navOptionType) => (
+      {nestedOptions &&
+        nested?.map((each) => (
           <ExpandableButton
+            id={each.id}
+            url={each.url}
             key={each.title}
-            isExpandedChild
+            title={each.title}
             openDrawer={openDrawer}
             drawIsOpen={drawIsOpen}
-            {...each}
+            closeDrawer={closeDrawer}
+            setToActive={setToActive}
+            isChild
           />
         ))}
     </>
@@ -278,13 +285,35 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
 ExpandableButton.defaultProps = {
   Icon: null,
   nested: undefined,
-  isExpandedChild: false,
+  isChild: false,
+  isActive: false,
 };
 
 export const Nav: React.FC = ({ children }) => {
-  const [open, setOpen] = React.useState(true);
+  const [navOptionsState, updateNavOptionsState] =
+    React.useState(originalNavOptions);
+  const [open, setOpen] = React.useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const setToActive = (id: number) => {
+    const newStuff = navOptionsState;
+
+    const updated = newStuff.map((option) => {
+      if (option.id === id) {
+        return {
+          ...option,
+          isActive: true,
+        };
+      }
+      return {
+        ...option,
+        isActive: false,
+      };
+    });
+    updateNavOptionsState(updated);
+  };
+
   const handleDrawerOpen = () => {
     setOpen(true);
   };
@@ -370,7 +399,7 @@ export const Nav: React.FC = ({ children }) => {
           variant="permanent"
           open={open}
           sx={{
-            background: theme.palette.secondary.dark,
+            background: palette.blackBg,
           }}
         >
           <DrawerHeader sx={{ background: theme.palette.primary.dark }}>
@@ -380,11 +409,13 @@ export const Nav: React.FC = ({ children }) => {
           </DrawerHeader>
 
           <List sx={{ pt: 0, pb: 0 }}>
-            {originalNavOptions.map((props, i) => (
+            {navOptionsState.map((props) => (
               <ExpandableButton
-                key={i}
+                setToActive={setToActive}
+                key={props.url}
                 openDrawer={handleDrawerOpen}
                 drawIsOpen={open}
+                closeDrawer={handleDrawerClose}
                 {...props}
               />
             ))}
@@ -399,5 +430,3 @@ export const Nav: React.FC = ({ children }) => {
     </>
   );
 };
-
-Nav.defaultProps = {};

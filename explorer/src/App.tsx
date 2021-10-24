@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { NewNav } from './components/NewNav';
+import { Nav } from './components/Nav';
 import { Routes } from './routes/index';
 
 export const App: React.FC = () => (
-  <NewNav>
+  <Nav>
     <Routes />
-  </NewNav>
+  </Nav>
 );

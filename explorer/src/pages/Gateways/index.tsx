@@ -68,7 +68,7 @@ export const PageGateways: React.FC = () => {
     },
     {
       field: 'bond',
-      width: 120,
+      flex: 1,
       renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
       headerClassName: 'MuiDataGrid-header-override',
       headerAlign: 'left',
@@ -83,7 +83,7 @@ export const PageGateways: React.FC = () => {
     {
       field: 'host',
       renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
-      width: 130,
+      flex: 1,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -93,13 +93,13 @@ export const PageGateways: React.FC = () => {
     {
       field: 'location',
       renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
-      width: 120,
+      flex: 1,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
         <Button
           onClick={() => handleSearch(params.value as string)}
-          sx={cellStyles}
+          sx={{ ...cellStyles, justifyContent: 'flex-start' }}
         >
           {params.value}
         </Button>
@@ -119,7 +119,7 @@ export const PageGateways: React.FC = () => {
         </Typography>
 
         <Grid container>
-          <Grid item xs={12} md={12} lg={8} xl={8}>
+          <Grid item xs={12} md={12} lg={10} xl={10}>
             <ContentCard>
               <TableToolbar
                 onChangeSearch={handleSearch}

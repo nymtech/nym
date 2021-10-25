@@ -1,7 +1,7 @@
 use crate::{
-    aggregate_signature_shares, aggregate_verification_keys, blind_sign, CoconutError,
-    elgamal_keygen, prepare_blind_sign, prove_bandwidth_credential, setup, Signature, SignatureShare,
-    ttp_keygen, VerificationKey, verify_credential,
+    aggregate_signature_shares, aggregate_verification_keys, blind_sign, elgamal_keygen,
+    prepare_blind_sign, prove_bandwidth_credential, setup, ttp_keygen, verify_credential,
+    CoconutError, Signature, SignatureShare, VerificationKey,
 };
 
 #[test]

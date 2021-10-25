@@ -64,7 +64,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
 }
 
-
 // this behaviour should definitely be changed, we shouldn't
 // need to get bandwidth credential for registration
 async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -> Credential {

@@ -9,8 +9,7 @@
 use url::Url;
 
 use coconut_interface::{
-    Credential, Parameters, PrivateAttribute, PublicAttribute,
-    Signature, VerificationKey,
+    Credential, Parameters, PrivateAttribute, PublicAttribute, Signature, VerificationKey,
 };
 
 use crate::error::Error;
@@ -66,7 +65,7 @@ pub async fn obtain_signature(
         validators,
         verification_key,
     )
-        .await
+    .await
 }
 
 pub fn prepare_for_spending(
@@ -75,7 +74,10 @@ pub fn prepare_for_spending(
     attributes: &BandwidthVoucherAttributes,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
-    let public_attributes = vec![raw_identity.to_vec(), BANDWIDTH_VALUE.to_be_bytes().to_vec()];
+    let public_attributes = vec![
+        raw_identity.to_vec(),
+        BANDWIDTH_VALUE.to_be_bytes().to_vec(),
+    ];
 
     let params = Parameters::new(TOTAL_ATTRIBUTES)?;
 

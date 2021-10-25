@@ -1,34 +1,34 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::Config;
-use crate::commands::override_config;
+use std::convert::TryInto;
+use std::sync::Arc;
+use std::time::Duration;
+
 use clap::{App, Arg, ArgMatches};
+use rand::{prelude::SliceRandom, rngs::OsRng, thread_rng};
+use url::Url;
+
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-
-use config::NymConfig;
-
 #[cfg(feature = "coconut")]
-use coconut_interface::{hash_to_scalar, Credential, Parameters};
+use coconut_interface::{Credential, hash_to_scalar, Parameters};
+use config::NymConfig;
 #[cfg(feature = "coconut")]
 use credentials::bandwidth::{
-    prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES,
+    BANDWIDTH_VALUE, BandwidthVoucherAttributes, prepare_for_spending, TOTAL_ATTRIBUTES,
 };
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
-
 use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
-use rand::{prelude::SliceRandom, rngs::OsRng, thread_rng};
-use std::convert::TryInto;
-use std::sync::Arc;
-use std::time::Duration;
 use topology::{filter::VersionFilterable, gateway};
-use url::Url;
+
+use crate::client::config::Config;
+use crate::commands::override_config;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -51,9 +51,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .takes_value(true)
         )
         .arg(Arg::with_name("validators")
-                .long("validators")
-                .help("Comma separated list of rest endpoints of the validators")
-                .takes_value(true),
+                 .long("validators")
+                 .help("Comma separated list of rest endpoints of the validators")
+                 .takes_value(true),
         )
         .arg(Arg::with_name("port")
             .short("p")
@@ -70,6 +70,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 
 // this behaviour should definitely be changed, we shouldn't
 // need to get bandwidth credential for registration
+#[cfg(feature = "coconut")]
 async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -> Credential {
     let verification_key = obtain_aggregate_verification_key(validators)
         .await
@@ -89,8 +90,8 @@ async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -
         validators,
         &verification_key,
     )
-    .await
-    .expect("could not obtain bandwidth credential");
+        .await
+        .expect("could not obtain bandwidth credential");
 
     prepare_for_spending(
         raw_identity,
@@ -98,7 +99,7 @@ async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -
         &bandwidth_credential_attributes,
         &verification_key,
     )
-    .expect("could not prepare out bandwidth credential for spending")
+        .expect("could not prepare out bandwidth credential for spending")
 }
 
 async fn register_with_gateway(
@@ -163,7 +164,7 @@ fn show_address(config: &Config) {
                 pathfinder.private_identity_key().to_owned(),
                 pathfinder.public_identity_key().to_owned(),
             ))
-            .expect("Failed to read stored identity key files");
+                .expect("Failed to read stored identity key files");
         identity_keypair
     }
 
@@ -173,7 +174,7 @@ fn show_address(config: &Config) {
                 pathfinder.private_encryption_key().to_owned(),
                 pathfinder.public_encryption_key().to_owned(),
             ))
-            .expect("Failed to read stored sphinx key files");
+                .expect("Failed to read stored sphinx key files");
         sphinx_keypair
     }
 
@@ -229,7 +230,7 @@ pub fn execute(matches: &ArgMatches) {
                 config.get_base().get_validator_api_endpoints(),
                 chosen_gateway_id,
             )
-            .await;
+                .await;
             config
                 .get_base_mut()
                 .with_gateway_id(gate_details.identity_key.to_base58_string());
@@ -258,7 +259,7 @@ pub fn execute(matches: &ArgMatches) {
         .save_to_file(None)
         .expect("Failed to save the config file");
     println!("Saved configuration file to {:?}", config_save_location);
-    println!("Using gateway: {}", config.get_base().get_gateway_id(),);
+    println!("Using gateway: {}", config.get_base().get_gateway_id(), );
     println!("Client configuration completed.\n\n\n");
 
     show_address(&config);

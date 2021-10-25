@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 use url::Url;
 
 use coconut_interface::{
-  self, Attribute, Credential, hash_to_scalar, Parameters, Signature, Theta, VerificationKey,
+    self, Attribute, Credential, hash_to_scalar, Parameters, Signature, Theta, VerificationKey,
 };
 use credentials::{obtain_aggregate_signature, obtain_aggregate_verification_key};
 
@@ -17,9 +17,10 @@ struct State {
     signatures: Vec<Signature>,
     n_attributes: u32,
     params: Parameters,
-    public_attributes_bytes: Vec<Vec<u8>>,
-    public_attributes: Vec<Attribute>,
-    private_attributes: Vec<Attribute>,
+    serial_number: Attribute,
+    binding_number: Attribute,
+    voucher_value: Attribute,
+    voucher_info: Attribute,
     aggregated_verification_key: Option<VerificationKey>,
 }
 
@@ -39,9 +40,10 @@ impl State {
             signatures: Vec::new(),
             n_attributes,
             params,
-            public_attributes_bytes,
-            public_attributes,
-            private_attributes,
+            serial_number: private_attributes[0],
+            binding_number: private_attributes[1],
+            voucher_value: public_attributes[0],
+            voucher_info: public_attributes[1],
             aggregated_verification_key: None,
         }
     }
@@ -65,8 +67,8 @@ async fn randomise_credential(
 ) -> Result<Vec<Signature>, String> {
     let mut state = state.write().await;
     let signature = state.signatures.remove(idx);
-    let new = signature.randomise(&state.params);
-    state.signatures.insert(idx, new);
+    let (new_signature, _) = signature.randomise(&state.params);
+    state.signatures.insert(idx, new_signature);
     Ok(state.signatures.clone())
 }
 
@@ -123,10 +125,11 @@ async fn prove_credential(
             &state.params,
             &verification_key,
             signature,
-            &state.private_attributes,
+            state.serial_number,
+            state.binding_number,
         ) {
             Ok(theta) => Ok(theta),
-            Err(e) => Err(format!("{}", e)),
+            Err(e) => Err(format!("{:?}", e)),
         }
     } else {
         Err("Got invalid Signature idx".to_string())
@@ -146,10 +149,12 @@ async fn verify_credential(
 
     let state = state.read().await;
 
+    let public_attributes_bytes = vec![state.voucher_value.to_bytes().to_vec(), state.voucher_info.to_bytes().to_vec()];
+
     let credential = Credential::new(
         state.n_attributes,
         theta,
-        state.public_attributes_bytes.clone(),
+        public_attributes_bytes,
         state
             .signatures
             .get(idx)
@@ -166,12 +171,17 @@ async fn get_credential(
 ) -> Result<Vec<Signature>, String> {
     let guard = state.read().await;
     let parsed_urls = parse_url_validators(&validator_urls)?;
+    let verification_key =
+        get_aggregated_verification_key(validator_urls.clone(), state.clone()).await?;
+    let public_attributes = vec![guard.voucher_value, guard.voucher_info];
+    let private_attributes = vec![guard.serial_number, guard.binding_number];
 
     let signature = obtain_aggregate_signature(
         &guard.params,
-        &guard.public_attributes,
-        &guard.private_attributes,
+        &public_attributes,
+        &private_attributes,
         &parsed_urls,
+        &verification_key,
     )
         .await
         .map_err(|err| format!("failed to obtain aggregate signature - {:?}", err))?;

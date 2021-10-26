@@ -320,7 +320,7 @@ impl Rewarder {
 
         let total_epoch_uptime = eligible_nodes
             .iter()
-            .fold(0, |acc, mix| acc + mix.uptime.u8()) as u128;
+            .fold(0, |acc, mix| acc + mix.uptime.u8() as u128);
 
         if cfg!(feature = "tokenomics") {
             for mix in eligible_nodes.iter_mut() {

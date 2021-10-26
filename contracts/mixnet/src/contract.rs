@@ -28,8 +28,8 @@ pub const INITIAL_MIXNODE_DELEGATION_REWARD_RATE: u64 = 110;
 
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
-// This is totally made up, lets set the pool to billion nyms, so million billion micro nyms
-pub const INITIAL_INFLATION_POOL: u128 = 1_000_000_000_000_000;
+// Based on the PyEcon scripts and scaled down to three nodes on the QA net.
+pub const INITIAL_INFLATION_POOL: u128 = 10500_00000000; 
 // We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
 pub const DEFAULT_COST_PER_EPOCH: u32 = 40_000_000;
 

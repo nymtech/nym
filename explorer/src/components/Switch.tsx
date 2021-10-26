@@ -3,6 +3,7 @@ import { styled } from '@mui/material/styles';
 import Switch from '@mui/material/Switch';
 import { Button } from '@mui/material';
 import { MainContext } from 'src/context/main';
+import { palette } from 'src';
 import { LightSwitchSVG } from '../icons/LightSwitchSVG';
 
 export const DarkLightSwitch = styled(Switch)(({ theme }) => ({
@@ -27,7 +28,7 @@ export const DarkLightSwitch = styled(Switch)(({ theme }) => ({
     },
   },
   '& .MuiSwitch-thumb': {
-    backgroundColor: theme.palette.mode === 'dark' ? 'white' : 'white',
+    backgroundColor: palette.white,
     width: 25,
     height: 25,
     marginTop: '2px',

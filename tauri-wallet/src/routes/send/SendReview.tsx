@@ -44,19 +44,19 @@ export const SendReview = () => {
       ) : (
         <Grid container spacing={2}>
           <Grid item xs={12}>
-            <SendReviewField title="From" subtitle={values.from} data-testid="fromAddress" />
+            <SendReviewField title="From" subtitle={values.from}/>
           </Grid>
           <Grid item xs={12}>
             <Divider light />
           </Grid>
           <Grid item xs={12}>
-            <SendReviewField title="To" subtitle={values.to} data-testid="toAddress"/>
+            <SendReviewField title="To" subtitle={values.to} />
           </Grid>
           <Grid item xs={12}>
             <Divider light />
           </Grid>
           <Grid item xs={12}>
-            <SendReviewField title="Amount" subtitle={values.amount} data-testid="transferAmount"/>
+            <SendReviewField title="Amount" subtitle={values.amount} />
           </Grid>
           <Grid item xs={12}>
             <Divider light />
@@ -65,7 +65,6 @@ export const SendReview = () => {
             <SendReviewField
               title="Transfer fee"
               subtitle={transferFee + ' PUNK'}
-              data-testid="transferFee"
             />
           </Grid>
         </Grid>
@@ -87,7 +86,7 @@ export const SendReviewField = ({
       <Typography style={{ color: theme.palette.grey[600] }}>
         {title}
       </Typography>
-      <Typography style={{ wordBreak: 'break-all' }}>{subtitle}</Typography>
+      <Typography data-testid={title} style={{ wordBreak: 'break-all' }}>{subtitle}</Typography>
     </>
   )
 }

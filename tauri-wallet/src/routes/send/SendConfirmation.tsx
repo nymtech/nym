@@ -46,7 +46,7 @@ export const SendConfirmation = ({
                 marginBottom: theme.spacing(1),
               }}
             />
-            <Typography data-testid="transactionComplete">Transaction complete</Typography>
+            <Typography data-testid="transaction-complete">Transaction complete</Typography>
           </div>
 
           <Card
@@ -60,7 +60,7 @@ export const SendConfirmation = ({
                 </Typography>
               </div>
               <div style={{ wordBreak: 'break-all' }}>
-                <Typography data-testid="toAddress">{data.to_address}</Typography>
+                <Typography data-testid="to-address">{data.to_address}</Typography>
               </div>
             </div>
             <div style={{ display: 'flex' }}>
@@ -70,7 +70,7 @@ export const SendConfirmation = ({
                 </Typography>
               </div>
               <div>
-                <Typography data-testid="sendAmount">{data.amount.amount + ' punks'}</Typography>
+                <Typography data-testid="send-amount">{data.amount.amount + ' punks'}</Typography>
               </div>
             </div>
           </Card>

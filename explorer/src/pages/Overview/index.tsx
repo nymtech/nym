@@ -21,7 +21,9 @@ export const PageOverview: React.FC = () => {
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Grid container spacing={2}>
           <Grid item xs={12}>
-            <Typography sx={{ marginLeft: 3 }}>Overview</Typography>
+            <Typography sx={{ marginLeft: 3, fontSize: '24px' }}>
+              Overview
+            </Typography>
           </Grid>
 
           {mixnodes && (

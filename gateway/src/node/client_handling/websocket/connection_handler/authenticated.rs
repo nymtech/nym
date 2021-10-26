@@ -288,16 +288,7 @@ where
         &self,
         mix_packet: MixPacket,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        // currently we have no way for increasing bandwidth hence we shouldn't be performing
-        // any meaningful metering. Once we have another way of claiming bandwidth, this
-        // feature lock should go away
-        #[cfg(feature = "coconut")]
-        // for now let's just use actual size of the sphinx packet. there's a tiny bit of overhead
-        // we're not including (but it's literally like 2 bytes) when the packet is framed
         let consumed_bandwidth = mix_packet.sphinx_packet().len() as i64;
-
-        #[cfg(not(feature = "coconut"))]
-        let consumed_bandwidth = 0;
 
         let available_bandwidth = self.get_available_bandwidth().await?;
 

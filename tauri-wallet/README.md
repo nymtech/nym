@@ -43,4 +43,4 @@ This will build an executable file that you can use to install the wallet on you
 ## Install the wallet
 
 Once the the building process is complete an installation file can be found in the following location `tauri-wallet/target/release/nym_wallet`
-``
+

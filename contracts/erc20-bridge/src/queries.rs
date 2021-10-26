@@ -18,7 +18,7 @@ pub fn query_payments_paged(
     let payments = payments_read(deps.storage)
         .range(start.as_deref(), None, Order::Ascending)
         .take(limit)
-        .map(|res| res.map(|item| item.1.clone()))
+        .map(|res| res.map(|item| item.1))
         .collect::<StdResult<Vec<Payment>>>()?;
 
     let start_next_after = payments.last().map(|payment| payment.verification_key());

@@ -1,6 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-use crate::contract::INITIAL_INFLATION_POOL;
+use crate::contract::REWARD_POOL;
 use crate::state::State;
 use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 use crate::{error::ContractError, queries};
@@ -16,6 +16,7 @@ use mixnet_contract::{
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use config::defaults::TOTAL_SUPPLY;
 
 // storage prefixes
 // all of them must be unique and presumably not be a prefix of a different one
@@ -25,10 +26,7 @@ use serde::Serialize;
 // singletons
 const CONFIG_KEY: &[u8] = b"config";
 const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
-// Keeps total amount of stake towards mixnodes and gateways. Removing a bond removes all its delegations from the total, the reverse is true for adding a bond.
-const TOTAL_MIX_STAKE_KEY: &[u8] = b"total_mn";
-const TOTAL_GATEWAY_STAKE_KEY: &[u8] = b"total_gt";
-const INFLATION_POOL_PREFIX: &[u8] = b"pool";
+const REWARD_POOL_PREFIX: &[u8] = b"pool";
 
 // buckets
 pub const PREFIX_MIXNODES: &[u8] = b"mn";
@@ -51,105 +49,44 @@ pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
     singleton_read(storage, CONFIG_KEY)
 }
 
-fn total_mix_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
-    singleton_read(storage, TOTAL_MIX_STAKE_KEY)
+fn reward_pool(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
+    singleton_read(storage, REWARD_POOL_PREFIX)
 }
 
-pub fn mut_total_mix_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
-    singleton(storage, TOTAL_MIX_STAKE_KEY)
+pub fn mut_reward_pool(storage: &mut dyn Storage) -> Singleton<Uint128> {
+    singleton(storage, REWARD_POOL_PREFIX)
 }
 
-fn inflation_pool(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
-    singleton_read(storage, INFLATION_POOL_PREFIX)
-}
-
-pub fn mut_inflation_pool(storage: &mut dyn Storage) -> Singleton<Uint128> {
-    singleton(storage, INFLATION_POOL_PREFIX)
-}
-
-fn total_gateway_stake(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
-    singleton_read(storage, TOTAL_GATEWAY_STAKE_KEY)
-}
-
-pub fn mut_total_gateway_stake(storage: &mut dyn Storage) -> Singleton<Uint128> {
-    singleton(storage, TOTAL_GATEWAY_STAKE_KEY)
-}
-
-pub fn total_mix_stake_value(storage: &dyn Storage) -> Uint128 {
-    match total_mix_stake(storage).load() {
+pub fn reward_pool_value(storage: &dyn Storage) -> Uint128 {
+    match reward_pool(storage).load() {
         Ok(value) => value,
-        Err(_e) => Uint128(0),
+        Err(_e) => Uint128(REWARD_POOL),
     }
-}
-
-pub fn total_gateway_stake_value(storage: &dyn Storage) -> Uint128 {
-    match total_gateway_stake(storage).load() {
-        Ok(value) => value,
-        Err(_e) => Uint128(0),
-    }
-}
-
-pub fn inflation_pool_value(storage: &dyn Storage) -> Uint128 {
-    match inflation_pool(storage).load() {
-        Ok(value) => value,
-        Err(_e) => Uint128(INITIAL_INFLATION_POOL),
-    }
-}
-
-pub fn incr_total_mix_stake(
-    amount: Uint128,
-    storage: &mut dyn Storage,
-) -> Result<Uint128, ContractError> {
-    let stake = total_mix_stake_value(storage).checked_add(amount)?;
-    mut_total_mix_stake(storage).save(&stake)?;
-    Ok(stake)
-}
-
-pub fn decr_total_mix_stake(
-    amount: Uint128,
-    storage: &mut dyn Storage,
-) -> Result<Uint128, ContractError> {
-    let stake = total_mix_stake_value(storage).checked_sub(amount)?;
-    mut_total_mix_stake(storage).save(&stake)?;
-    Ok(stake)
-}
-
-pub fn incr_total_gateway_stake(
-    amount: Uint128,
-    storage: &mut dyn Storage,
-) -> Result<Uint128, ContractError> {
-    let stake = total_gateway_stake_value(storage).checked_add(amount)?;
-    mut_total_gateway_stake(storage).save(&stake)?;
-    Ok(stake)
-}
-
-pub fn decr_total_gateway_stake(
-    amount: Uint128,
-    storage: &mut dyn Storage,
-) -> Result<Uint128, ContractError> {
-    let stake = total_gateway_stake_value(storage).checked_sub(amount)?;
-    mut_total_gateway_stake(storage).save(&stake)?;
-    Ok(stake)
 }
 
 #[allow(dead_code)]
-pub fn incr_inflation_pool(
+pub fn incr_reward_pool(
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<Uint128, ContractError> {
-    let stake = inflation_pool_value(storage).saturating_add(amount);
-    mut_inflation_pool(storage).save(&stake)?;
+    let stake = reward_pool_value(storage).saturating_add(amount);
+    mut_reward_pool(storage).save(&stake)?;
     Ok(stake)
 }
 
-pub fn decr_inflation_pool(
+pub fn decr_reward_pool(
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<Uint128, ContractError> {
     // TODO: This could got to < 0
-    let stake = inflation_pool_value(storage).checked_sub(amount)?;
-    mut_inflation_pool(storage).save(&stake)?;
+    let stake = reward_pool_value(storage).checked_sub(amount)?;
+    mut_reward_pool(storage).save(&stake)?;
     Ok(stake)
+}
+
+pub fn circulating_supply(storage: &dyn Storage) -> Uint128 {
+    let reward_pool = reward_pool_value(storage).u128();
+    Uint128(TOTAL_SUPPLY - reward_pool)
 }
 
 pub(crate) fn read_state_params(storage: &dyn Storage) -> StateParams {

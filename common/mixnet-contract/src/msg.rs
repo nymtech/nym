@@ -82,9 +82,8 @@ pub enum QueryMsg {
         address: Addr,
     },
     LayerDistribution {},
-    GetTotalMixStake {},
-    GetTotalGatewayStake {},
-    GetInflationPool {},
+    GetRewardPool {},
+    GetCirculatingSupply {}
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

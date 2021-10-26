@@ -112,8 +112,6 @@ pub(crate) fn try_add_mixnode(
     mixnodes(deps.storage).save(identity.as_bytes(), &bond)?;
     mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
     increment_layer_count(deps.storage, bond.layer)?;
-    incr_total_mix_stake(bond.bond_amount().amount, deps.storage)?;
-    incr_total_mix_stake(bond.total_delegation().amount, deps.storage)?;
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
@@ -152,9 +150,6 @@ pub(crate) fn try_remove_mixnode(
     mixnodes_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
     decrement_layer_count(deps.storage, mixnode_bond.layer)?;
-
-    decr_total_mix_stake(mixnode_bond.bond_amount().amount, deps.storage)?;
-    decr_total_mix_stake(mixnode_bond.total_delegation().amount, deps.storage)?;
 
     // log our actions
     let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
@@ -244,9 +239,6 @@ pub(crate) fn try_add_gateway(
     gateways_owners(deps.storage).save(sender_bytes, identity)?;
     increment_layer_count(deps.storage, Layer::Gateway)?;
 
-    incr_total_gateway_stake(bond.bond_amount().amount, deps.storage)?;
-    incr_total_gateway_stake(bond.total_delegation().amount, deps.storage)?;
-
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
         submessages: Vec::new(),
@@ -284,9 +276,6 @@ pub(crate) fn try_remove_gateway(
     gateways_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
     decrement_layer_count(deps.storage, Layer::Gateway)?;
-
-    decr_total_gateway_stake(gateway_bond.bond_amount().amount, deps.storage)?;
-    decr_total_gateway_stake(gateway_bond.total_delegation().amount, deps.storage)?;
 
     // log our actions
     let attributes = vec![
@@ -474,10 +463,8 @@ pub(crate) fn try_reward_mixnode_v2(
         current_bond.bond_amount.amount += operator_reward;
         current_bond.total_delegation.amount += total_delegation_reward;
         mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
-        decr_inflation_pool(operator_reward, deps.storage)?;
-        decr_inflation_pool(total_delegation_reward, deps.storage)?;
-        incr_total_mix_stake(operator_reward, deps.storage)?;
-        incr_total_mix_stake(total_delegation_reward, deps.storage)?;
+        decr_reward_pool(operator_reward, deps.storage)?;
+        decr_reward_pool(total_delegation_reward, deps.storage)?;
     }
 
     Ok(Response {
@@ -553,8 +540,6 @@ pub(crate) fn try_delegate_to_mixnode(
 
     reverse_mix_delegations(deps.storage, &info.sender).save(mix_identity.as_bytes(), &())?;
 
-    incr_total_mix_stake(amount, deps.storage)?;
-
     Ok(Response::default())
 }
 
@@ -590,8 +575,6 @@ pub(crate) fn try_remove_delegation_from_mixnode(
                     .checked_sub(delegation.amount)
                     .unwrap();
                 mixnodes_bucket.save(mix_identity.as_bytes(), &existing_bond)?;
-                // We should only decr total if a node is bonded, node unbonding remove all delegations from the total
-                decr_total_mix_stake(delegation.amount, deps.storage)?;
             }
 
             Ok(Response {
@@ -2738,125 +2721,8 @@ pub mod tests {
     }
 
     #[test]
-    fn mix_stake_accounting() {
-        let mut deps = helpers::init_contract();
-        let mut test_bond = INITIAL_MIXNODE_BOND;
-        try_add_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("alice", &good_mixnode_bond()),
-            MixNode {
-                identity_key: "alice".to_string(),
-                ..helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
-
-        assert_eq!(total_mix_stake_value(&deps.storage), test_bond);
-
-        let delegation = coin(100, DENOM);
-        try_delegate_to_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("bob", &vec![delegation.clone()]),
-            "alice".to_string(),
-        )
-        .unwrap();
-
-        test_bond += Uint128(100);
-        assert_eq!(total_mix_stake_value(&deps.storage), test_bond);
-
-        try_remove_mixnode(deps.as_mut(), mock_info("alice", &[])).unwrap();
-
-        test_bond = Uint128(0);
-        assert_eq!(total_mix_stake_value(&deps.storage), test_bond);
-
-        try_add_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("alice", &good_mixnode_bond()),
-            MixNode {
-                identity_key: "alice".to_string(),
-                ..helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
-
-        test_bond = Uint128(100) + INITIAL_MIXNODE_BOND;
-        assert_eq!(total_mix_stake_value(&deps.storage), test_bond);
-
-        try_remove_delegation_from_mixnode(
-            deps.as_mut(),
-            mock_info("bob", &[]),
-            "alice".to_string(),
-        )
-        .unwrap();
-
-        test_bond = test_bond.checked_sub(Uint128(100)).unwrap();
-        assert_eq!(total_mix_stake_value(&deps.storage), test_bond);
-    }
-
-    #[test]
-    fn gateway_stake_accounting() {
-        let mut deps = helpers::init_contract();
-        let mut test_bond = INITIAL_GATEWAY_BOND;
-        try_add_gateway(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("alice", &good_gateway_bond()),
-            Gateway {
-                identity_key: "alice".to_string(),
-                ..helpers::gateway_fixture()
-            },
-        )
-        .unwrap();
-
-        assert_eq!(total_gateway_stake_value(&deps.storage), test_bond);
-
-        let delegation = coin(100, DENOM);
-        try_delegate_to_gateway(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("bob", &vec![delegation.clone()]),
-            "alice".to_string(),
-        )
-        .unwrap();
-
-        test_bond += Uint128(100);
-        assert_eq!(total_gateway_stake_value(&deps.storage), test_bond);
-
-        try_remove_gateway(deps.as_mut(), mock_info("alice", &[])).unwrap();
-
-        test_bond = Uint128(0);
-        assert_eq!(total_gateway_stake_value(&deps.storage), test_bond);
-
-        try_add_gateway(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("alice", &good_gateway_bond()),
-            Gateway {
-                identity_key: "alice".to_string(),
-                ..helpers::gateway_fixture()
-            },
-        )
-        .unwrap();
-
-        test_bond = Uint128(100) + INITIAL_GATEWAY_BOND;
-        assert_eq!(total_gateway_stake_value(&deps.storage), test_bond);
-
-        try_remove_delegation_from_gateway(
-            deps.as_mut(),
-            mock_info("bob", &[]),
-            "alice".to_string(),
-        )
-        .unwrap();
-
-        test_bond = test_bond.checked_sub(Uint128(100)).unwrap();
-        assert_eq!(total_gateway_stake_value(&deps.storage), test_bond);
-    }
-
-    #[test]
     fn test_tokenomics_rewarding() {
+        use crate::contract::{EPOCH_REWARD_PERCENT, REWARD_POOL};
         use num::rational::Ratio;
         use std::str::FromStr;
 
@@ -2864,11 +2730,14 @@ pub mod tests {
         let mut env = mock_env();
         let current_state = config(deps.as_mut().storage).load().unwrap();
         let network_monitor_address = current_state.network_monitor_address;
-        let income_global_mix = 17500_000000;
-        let k = 5;
-        mut_inflation_pool(deps.as_mut().storage)
-            .save(&Uint128(income_global_mix))
-            .unwrap();
+        let period_reward_pool = (REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128;
+        assert_eq!(period_reward_pool, 5_000_000_000_000);
+        let k = 200; // Imagining our active set size is 200
+        let circulating_supply = circulating_supply(&deps.storage).u128();
+        assert_eq!(circulating_supply, 750_000_000_000_000u128);
+        // mut_reward_pool(deps.as_mut().storage)
+        //     .save(&Uint128(period_reward_pool))
+        //     .unwrap();
 
         try_add_mixnode(
             deps.as_mut(),
@@ -2881,170 +2750,99 @@ pub mod tests {
         )
         .unwrap();
 
-        try_add_mixnode(
+        try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("mix_1", &good_mixnode_bond()),
-            MixNode {
-                identity_key: "mix_1".to_string(),
-                ..helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
-
-        try_add_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("mix_2", &good_mixnode_bond()),
-            MixNode {
-                identity_key: "mix_2".to_string(),
-                ..helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
-
-        try_add_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("mix_3", &good_mixnode_bond()),
-            MixNode {
-                identity_key: "mix_3".to_string(),
-                ..helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
-
-        try_add_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("mix_4", &good_mixnode_bond()),
-            MixNode {
-                identity_key: "mix_4".to_string(),
-                ..helpers::mix_node_fixture()
-            },
+            mock_info("d1", &vec![coin(10_000000, DENOM)]),
+            "alice".to_string(),
         )
         .unwrap();
 
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("d1.mix_1", &vec![coin(10_000000, DENOM)]),
-            "mix_1".to_string(),
+            mock_info("d2", &vec![coin(20_000000, DENOM)]),
+            "alice".to_string(),
         )
         .unwrap();
 
-        try_delegate_to_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("d2.mix_1", &vec![coin(20_000000, DENOM)]),
-            "mix_1".to_string(),
-        )
-        .unwrap();
-
-        try_delegate_to_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("d1.mix_2", &vec![coin(10_000000, DENOM)]),
-            "mix_2".to_string(),
-        )
-        .unwrap();
-
-        try_delegate_to_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("d2.mix_2", &vec![coin(10_000000, DENOM)]),
-            "mix_2".to_string(),
-        )
-        .unwrap();
-
-        assert_eq!(total_mix_stake_value(&deps.storage).u128(), 550_000000);
-
-        let total_mix_stake = total_mix_stake_value(&deps.storage);
-
-        let total_uptime = 380;
+        let total_uptime = 200_000;
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
 
         env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
-        let mix_1 = mixnodes_read(&deps.storage).load(b"mix_1").unwrap();
+        let mix_1 = mixnodes_read(&deps.storage).load(b"alice").unwrap();
         let mix_1_uptime = 100;
         let _mix_1_performance = Decimal::from_ratio(mix_1_uptime, total_uptime);
 
         let mut params = NodeRewardParams::new(
-            income_global_mix,
+            period_reward_pool,
             k,
             total_uptime,
             None,
-            total_mix_stake.u128(),
+            circulating_supply,
             mix_1_uptime,
         );
 
         params.set_reward_blockstamp(env.block.height);
 
-        assert_eq!(params.performance(), Ratio::new(5, 19));
+        assert_eq!(params.performance(), Ratio::new(1, 2000));
 
         let mix_1_reward_result = mix_1.reward(&params);
 
         assert_eq!(
             mix_1_reward_result.sigma(),
-            Decimal::from_str("0.2").unwrap()
+            Decimal::from_str("0.000000040000000000").unwrap()
         );
         assert_eq!(
             mix_1_reward_result.lambda(),
-            Decimal::from_str("0.181818181818181818").unwrap()
+            Decimal::from_str("0.000000133333333333").unwrap()
         );
         assert_eq!(
             mix_1_reward_result.reward(),
-            Decimal::from_str("901729849.098270150901729849").unwrap()
+            Decimal::from_str("76.923692307692307692").unwrap()
         );
 
         let mix1_operator_profit = mix_1.operator_reward(&params).unwrap();
 
         let mix1_delegator1_reward = mix_1
-            .reward_delegation(Uint128(10_000000), &params)
+            .reward_delegation(Uint128(10_000_000), &params)
             .unwrap();
 
         let mix1_delegator2_reward = mix_1
-            .reward_delegation(Uint128(20_000000), &params)
+            .reward_delegation(Uint128(20_000_000), &params)
             .unwrap();
 
-        assert_eq!(mix1_operator_profit, 827951952);
-        assert_eq!(mix1_delegator1_reward, 73777896);
-        assert_eq!(mix1_delegator2_reward, 147555793);
+        // These might be generalizable over percentages, instead of exact values
+        assert_eq!(mix1_operator_profit, 238);
+        assert_eq!(mix1_delegator1_reward, 23);
+        assert_eq!(mix1_delegator2_reward, 46);
 
-        let pre_reward_bond = read_mixnode_bond(&deps.storage, b"mix_1").unwrap().u128();
-        assert_eq!(pre_reward_bond, 100_000000);
+        let pre_reward_bond = read_mixnode_bond(&deps.storage, b"alice").unwrap().u128();
+        assert_eq!(pre_reward_bond, 100_000_000);
 
-        let pre_reward_delegation = read_mixnode_delegation(&deps.storage, b"mix_1")
+        let pre_reward_delegation = read_mixnode_delegation(&deps.storage, b"alice")
             .unwrap()
             .u128();
-        assert_eq!(pre_reward_delegation, 30_000000);
+        assert_eq!(pre_reward_delegation, 30_000_000);
 
-        try_reward_mixnode_v2(deps.as_mut(), env, info, "mix_1".to_string(), params).unwrap();
+        try_reward_mixnode_v2(deps.as_mut(), env, info, "alice".to_string(), params).unwrap();
 
         assert_eq!(
-            read_mixnode_bond(&deps.storage, b"mix_1").unwrap().u128(),
+            read_mixnode_bond(&deps.storage, b"alice").unwrap().u128(),
             pre_reward_bond + mix1_operator_profit + params.operator_cost().to_u128().unwrap()
         );
         assert_eq!(
-            read_mixnode_delegation(&deps.storage, b"mix_1")
+            read_mixnode_delegation(&deps.storage, b"alice")
                 .unwrap()
                 .u128(),
-            251333689
-        );
-        assert_eq!(
-            total_mix_stake_value(&deps.storage).u128(),
-            total_mix_stake.u128()
-                + mix1_operator_profit as u128
-                + params.operator_cost().to_u128().unwrap()
-                + mix1_delegator1_reward
-                + mix1_delegator2_reward
+            pre_reward_delegation + mix1_delegator1_reward + mix1_delegator2_reward
         );
 
         assert_eq!(
-            inflation_pool_value(&deps.storage).u128(),
-            income_global_mix
+            reward_pool_value(&deps.storage).u128(),
+            REWARD_POOL
                 - (mix1_operator_profit as u128
                     + params.operator_cost().to_u128().unwrap()
                     + mix1_delegator1_reward

@@ -49,31 +49,31 @@ pub enum Layer {
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct NodeRewardParams {
-    income_global_mix: u128,
+    period_reward_pool: u128,
     k: u128,
     one_over_k: Decimal,
     total_epoch_uptime: u128,
     reward_blockstamp: Option<u64>,
-    total_mix_stake: u128,
+    circulating_supply: u128,
     uptime: u128,
 }
 
 impl NodeRewardParams {
     pub fn new(
-        income_global_mix: u128,
+        period_reward_pool: u128,
         k: u128,
         total_epoch_uptime: u128,
         reward_blockstamp: Option<u64>,
-        total_mix_stake: u128,
+        circulating_supply: u128,
         uptime: u128,
     ) -> NodeRewardParams {
         NodeRewardParams {
-            income_global_mix,
+            period_reward_pool,
             k,
             one_over_k: ratio_to_decimal(Ratio::new(1, k)),
             total_epoch_uptime,
             reward_blockstamp,
-            total_mix_stake,
+            circulating_supply,
             uptime,
         }
     }
@@ -90,16 +90,16 @@ impl NodeRewardParams {
         self.reward_blockstamp = Some(blockstamp);
     }
 
-    pub fn income_global_mix(&self) -> u128 {
-        self.income_global_mix
+    pub fn period_reward_pool(&self) -> u128 {
+        self.period_reward_pool
     }
 
     pub fn k(&self) -> u128 {
         self.k
     }
 
-    pub fn total_mix_stake(&self) -> u128 {
-        self.total_mix_stake
+    pub fn circulating_supply(&self) -> u128 {
+        self.circulating_supply
     }
 
     pub fn reward_blockstamp(&self) -> Result<u64, MixnetContractError> {
@@ -200,27 +200,28 @@ impl MixNodeBond {
         self.total_delegation.clone()
     }
 
-    pub fn bond_to_total_stake(&self, total_stake: u128) -> Ratio<u128> {
-        Ratio::new(self.bond_amount().amount.u128(), total_stake)
+    pub fn bond_to_circulating_supply(&self, circulating_supply: u128) -> Ratio<u128> {
+        Ratio::new(self.bond_amount().amount.u128(), circulating_supply)
     }
 
-    pub fn stake_to_total_stake(&self, total_stake: u128) -> Ratio<u128> {
+    pub fn delegations_to_circulating_supply(&self, delegations_to_circulating_supply: u128) -> Ratio<u128> {
         Ratio::new(
-            self.bond_amount().amount.u128() + self.total_delegation().amount.u128(),
-            total_stake,
+            self.total_delegation().amount.u128(),
+            delegations_to_circulating_supply,
         )
     }
 
     pub fn lambda(&self, params: &NodeRewardParams) -> Ratio<u128> {
         // Ratio of a bond to the total stake available in the mixnet
-        let bond_to_total_stake_ratio = self.bond_to_total_stake(params.total_mix_stake);
-        bond_to_total_stake_ratio.min(params.one_over_k())
+        let bond_to_circulating_supply_ratio = self.bond_to_circulating_supply(params.circulating_supply());
+        bond_to_circulating_supply_ratio.min(params.one_over_k())
     }
 
     pub fn sigma(&self, params: &NodeRewardParams) -> Ratio<u128> {
         // Ratio of a bond + delegation to the total stake available in the mixnet
-        let stake_to_total_stake_ratio = self.stake_to_total_stake(params.total_mix_stake);
-        stake_to_total_stake_ratio.min(params.one_over_k())
+        let delegations_to_circulating_supply_ratio =
+            self.delegations_to_circulating_supply(params.circulating_supply());
+        delegations_to_circulating_supply_ratio.min(params.one_over_k())
     }
 
     pub fn reward(&self, params: &NodeRewardParams) -> NodeRewardResult {
@@ -230,7 +231,7 @@ impl MixNodeBond {
         let sigma = self.sigma(params);
 
         let reward = (params.performance()
-            * params.income_global_mix()
+            * params.period_reward_pool()
             * (sigma * omega_k + params.alpha() * lambda * (sigma * params.k)))
             / (Ratio::new(1u128, 1u128) + params.alpha());
 
@@ -264,8 +265,8 @@ impl MixNodeBond {
     }
 
     pub fn sigma_ratio(&self, params: &NodeRewardParams) -> Ratio<u128> {
-        if self.stake_to_total_stake(params.total_mix_stake) < params.one_over_k() {
-            self.stake_to_total_stake(params.total_mix_stake)
+        if self.delegations_to_circulating_supply(params.circulating_supply()) < params.one_over_k() {
+            self.delegations_to_circulating_supply(params.circulating_supply())
         } else {
             params.one_over_k()
         }
@@ -276,7 +277,8 @@ impl MixNodeBond {
         delegation_amount: Uint128,
         params: &NodeRewardParams,
     ) -> Result<u128, MixnetContractError> {
-        let scaled_delegation_amount = Ratio::new(delegation_amount.u128(), params.total_mix_stake);
+        let scaled_delegation_amount =
+            Ratio::new(delegation_amount.u128(), params.circulating_supply());
 
         let delegator_reward = (Ratio::new(1, 1) - self.profit_margin_ratio())
             * (scaled_delegation_amount / self.sigma(params))

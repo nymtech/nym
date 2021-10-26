@@ -28,8 +28,9 @@ pub const INITIAL_MIXNODE_DELEGATION_REWARD_RATE: u64 = 110;
 
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
-// Based on the PyEcon scripts and scaled down to three nodes on the QA net.
-pub const INITIAL_INFLATION_POOL: u128 = 10500_00000000; 
+pub const REWARD_POOL: u128 = 250_000_000_000_000;
+pub const EPOCH_REWARD_PERCENT: u8 = 2; // Used to calculate epoch reward pool
+
 // We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
 pub const DEFAULT_COST_PER_EPOCH: u32 = 40_000_000;
 
@@ -163,19 +164,22 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             mix_identity,
             address,
         )?),
+        QueryMsg::GetRewardPool {} => to_binary(&queries::query_reward_pool(deps)),
+        QueryMsg::GetCirculatingSupply {} => to_binary(&queries::query_circulating_supply(deps))
     };
 
     Ok(query_res?)
 }
 #[entry_point]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    use crate::storage::{
-        gateways_read, incr_total_gateway_stake, incr_total_mix_stake, mixnodes, PREFIX_MIXNODES,
-    };
-    use cosmwasm_std::{Coin, Order, StdResult};
+    use crate::storage::{mixnodes, PREFIX_MIXNODES};
+    use cosmwasm_std::{Coin, Order};
     use cosmwasm_storage::bucket_read;
-    use mixnet_contract::{GatewayBond, Layer, MixNodeBond};
+    use mixnet_contract::{Layer, MixNodeBond};
     use serde::{Deserialize, Serialize};
+
+    // We've done the migraiton on QAnet already
+    return Ok(Default::default());
 
     #[derive(Serialize, Deserialize)]
     struct OldMixNodeBond {
@@ -209,19 +213,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
         .collect::<Vec<(Vec<u8>, MixNodeBond)>>();
 
     for (key, bond) in mixnode_bonds {
-        incr_total_mix_stake(bond.bond_amount().amount, deps.storage)?;
-        incr_total_mix_stake(bond.total_delegation().amount, deps.storage)?;
         mixnodes(deps.storage).save(&key, &bond)?;
-    }
-
-    let gateway_bonds = gateways_read(deps.storage)
-        .range(None, None, Order::Ascending)
-        .map(|res| res.map(|item| item.1))
-        .collect::<StdResult<Vec<GatewayBond>>>()?;
-
-    for bond in gateway_bonds {
-        incr_total_gateway_stake(bond.bond_amount().amount, deps.storage)?;
-        incr_total_gateway_stake(bond.total_delegation().amount, deps.storage)?;
     }
 
     Ok(Default::default())

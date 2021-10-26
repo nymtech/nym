@@ -1,9 +1,9 @@
-name: webdriverio tests for nym wallet
+name: Webdriverio tests for nym wallet
 
 on: 
  push:
     paths:
-      - '/tauri-wallet/*'
+      - 'tauri-wallet/**'
       
 defaults:
   run:

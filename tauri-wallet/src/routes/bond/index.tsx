@@ -43,7 +43,7 @@ export const Bond = () => {
       <NymCard title="Bond" subheader="Bond a node or gateway" noPadding>
         {ownership?.hasOwnership && (
           <Alert
-            severity="warning"
+            severity="warning" 
             action={
               <Button
                 disabled={status === EnumRequestStatus.loading}
@@ -53,6 +53,7 @@ export const Bond = () => {
                   getBalance.fetchBalance()
                   setStatus(EnumRequestStatus.initial)
                 }}
+                data-testid="unBond"
               >
                 Unbond
               </Button>
@@ -93,10 +94,10 @@ export const Bond = () => {
             <RequestStatus
               status={status}
               Success={
-                <Alert severity="success">Successfully bonded node</Alert>
+                <Alert severity="success" data-testid="bond-success">Successfully bonded node</Alert>
               }
               Error={
-                <Alert severity="error">
+                <Alert severity="error" data-testid="bond-error">
                   An error occurred with the request: {message}
                 </Alert>
               }

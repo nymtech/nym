@@ -1,6 +1,6 @@
 {
   "package": {
-    "productName": "tauri-wallet",
+    "productName": "nym-wallet",
     "version": "0.1.0"
   },
   "build": {

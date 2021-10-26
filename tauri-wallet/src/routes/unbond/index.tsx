@@ -29,8 +29,10 @@ export const Unbond = () => {
         {ownership?.hasOwnership && (
           <Alert
             severity="warning"
+            data-testid="bond-noded"
             action={
               <Button
+                data-testid="un-bond"
                 disabled={isLoading}
                 onClick={async () => {
                   setIsLoading(true)
@@ -48,7 +50,7 @@ export const Unbond = () => {
           </Alert>
         )}
         {!ownership.hasOwnership && (
-          <Alert severity="info" style={{ margin: theme.spacing(3) }}>
+          <Alert severity="info" style={{ margin: theme.spacing(3) }} data-testid="no-bond">
             You don't currently have a bonded node
           </Alert>
         )}

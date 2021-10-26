@@ -3,13 +3,7 @@
 
 use crate::error::ContractError;
 use crate::helpers::get_all_delegations_paged;
-use crate::storage::{
-    all_gateway_delegations_read, all_mix_delegations_read, gateway_delegations_read,
-    gateways_owners_read, gateways_read, inflation_pool_value, mix_delegations_read,
-    mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params,
-    reverse_gateway_delegations_read, reverse_mix_delegations_read, total_gateway_stake_value,
-    total_mix_stake_value,
-};
+use crate::storage::{all_gateway_delegations_read, all_mix_delegations_read, circulating_supply, gateway_delegations_read, gateways_owners_read, gateways_read, mix_delegations_read, mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params, reverse_gateway_delegations_read, reverse_mix_delegations_read, reward_pool_value};
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Deps, Order, StdResult, Uint128};
 use mixnet_contract::{
@@ -94,16 +88,12 @@ pub(crate) fn query_layer_distribution(deps: Deps) -> LayerDistribution {
     read_layer_distribution(deps.storage)
 }
 
-pub(crate) fn query_inflation_pool(deps: Deps) -> Uint128 {
-    inflation_pool_value(deps.storage)
+pub(crate) fn query_reward_pool(deps: Deps) -> Uint128 {
+    reward_pool_value(deps.storage)
 }
 
-pub(crate) fn query_total_mix_stake(deps: Deps) -> Uint128 {
-    total_mix_stake_value(deps.storage)
-}
-
-pub(crate) fn query_total_gt_stake(deps: Deps) -> Uint128 {
-    total_gateway_stake_value(deps.storage)
+pub(crate) fn query_circulating_supply(deps: Deps) -> u128 {
+    circulating_supply(deps.storage)
 }
 
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm
@@ -691,6 +681,7 @@ pub(crate) mod tests {
                 gateway_delegation_reward_rate: "0.12".parse().unwrap(),
                 mixnode_active_set_size: 1000,
                 gateway_active_set_size: 20,
+                epoch_reward_percent: 2
             },
             mixnode_epoch_bond_reward: "1.23".parse().unwrap(),
             gateway_epoch_bond_reward: "4.56".parse().unwrap(),

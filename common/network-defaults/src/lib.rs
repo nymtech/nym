@@ -93,6 +93,8 @@ pub const VALIDATOR_API_VERSION: &str = "v1";
 
 // REWARDING
 pub const DEFAULT_FIRST_EPOCH_START: OffsetDateTime = time::macros::datetime!(2021-08-23 12:00 UTC);
-pub const DEFAULT_EPOCH_LENGTH: Duration = Duration::from_secs(24 * 60 * 60); // 24h
+pub const DEFAULT_EPOCH_LENGTH: Duration = Duration::from_secs(24 * 60 * 60 * 30); // 30 days
 /// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
-pub const DEFAULT_OPERATOR_EPOCH_COST: u64 = 1333333; // 40$ a month at 1 Nym == 1$
+pub const DEFAULT_OPERATOR_EPOCH_COST: u64 = 40_000_000; // 40$/(30 days) at 1 Nym == 1$
+// TODO: is there a way to get this from the chain
+pub const TOTAL_SUPPLY: u128 = 1_000_000_000_000_000;

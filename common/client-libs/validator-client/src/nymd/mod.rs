@@ -212,31 +212,21 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn get_total_mix_stake(&self) -> Result<Uint128, NymdError>
+    pub async fn get_reward_pool(&self) -> Result<Uint128, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetTotalMixStake {};
+        let request = QueryMsg::GetRewardPool {};
         self.client
             .query_contract_smart(self.contract_address()?, &request)
             .await
     }
 
-    pub async fn get_total_gateway_stake(&self) -> Result<Uint128, NymdError>
+    pub async fn get_circulating_supply(&self) -> Result<Uint128, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetTotalGatewayStake {};
-        self.client
-            .query_contract_smart(self.contract_address()?, &request)
-            .await
-    }
-
-    pub async fn get_inflation_pool(&self) -> Result<Uint128, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::GetInflationPool {};
+        let request = QueryMsg::GetCirculatingSupply {};
         self.client
             .query_contract_smart(self.contract_address()?, &request)
             .await

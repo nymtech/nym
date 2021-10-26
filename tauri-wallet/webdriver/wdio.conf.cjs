@@ -2,7 +2,7 @@ const os = require("os");
 const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 //insert path to binary
-const nym_path = "../target/release/nym_wallet";
+const nym_path = "../target/release/nym-wallet";
 
 exports.config = {
   //run sequentially, as using one default user may cause issues for parallel test runs for now

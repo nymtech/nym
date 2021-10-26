@@ -13,6 +13,7 @@
     "@nymproject/nym-validator-client": "^0.18.0",
     "d3-scale": "^4.0.0",
     "date-fns": "^2.24.0",
+    "i18n-iso-countries": "^6.8.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-google-charts": "^3.0.15",

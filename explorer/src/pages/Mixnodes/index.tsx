@@ -20,7 +20,7 @@ export const PageMixnodes: React.FC = () => {
   const { mixnodes } = React.useContext(MainContext);
   const [filteredMixnodes, setFilteredMixnodes] =
     React.useState<MixNodeResponse>([]);
-  const [pageSize, setPageSize] = React.useState<string>('50');
+  const [pageSize, setPageSize] = React.useState<string>('10');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
 
   const handleSearch = (str: string) => {

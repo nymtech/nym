@@ -51,7 +51,7 @@ jobs:
       - name: Remove existing user datafile
         uses: JesseTG/rm@v1.0.2
         with:
-          path: tauri-wallet/webdriver/data/user-data.json
+          path: tauri-wallet/webdriver/common/data/user-data.json
 
       - name: Create user data json file
         id: create-json
@@ -59,7 +59,7 @@ jobs:
         with:
            name: "user-data.json"
            json: ${{ secrets.WALLET_USERDATA }}
-           dir: 'tauri-wallet/webdriver/data/'
+           dir: 'tauri-wallet/webdriver/common/data/'
 
       - name: Install tauri-driver
         uses: actions-rs/cargo@v1

@@ -9,6 +9,7 @@ import { BIG_DIPPER } from 'src/api/constants';
 import { ValidatorsSVG } from 'src/icons/ValidatorsSVG';
 import { GatewaysSVG } from 'src/icons/GatewaysSVG';
 import { MixnodesSVG } from 'src/icons/MixnodesSVG';
+import { Title } from 'src/components/Title';
 import { ContentCard } from '../../components/ContentCard';
 
 export const PageOverview: React.FC = () => {
@@ -19,85 +20,90 @@ export const PageOverview: React.FC = () => {
   return (
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>
-        <Grid container spacing={2}>
+        <Grid container>
           <Grid item xs={12}>
-            <Typography sx={{ marginLeft: 3 }}>Overview</Typography>
+            <Title text="Overview" />
           </Grid>
+          <Grid item xs={12} lg={9}>
+            <Grid container spacing={2}>
+              {mixnodes && (
+                <Grid item xs={12} md={4}>
+                  <ContentCard
+                    onClick={() => history.push('/network-components/mixnodes')}
+                    title="Mixnodes"
+                    subtitle={mixnodes?.data?.length || ''}
+                    errorMsg={mixnodes?.error}
+                    Icon={<MixnodesSVG />}
+                    Action={
+                      <IconButton>
+                        <ArrowForwardSharp />
+                      </IconButton>
+                    }
+                  />
+                </Grid>
+              )}
 
-          {mixnodes && (
-            <Grid item xs={12} md={4} lg={4}>
-              <ContentCard
-                onClick={() => history.push('/network-components/mixnodes')}
-                title="Mixnodes"
-                subtitle={mixnodes?.data?.length || ''}
-                errorMsg={mixnodes?.error}
-                Icon={<MixnodesSVG />}
-                Action={
-                  <IconButton>
-                    <ArrowForwardSharp />
-                  </IconButton>
-                }
-              />
-            </Grid>
-          )}
-          {gateways && (
-            <Grid item xs={12} md={4} lg={4}>
-              <ContentCard
-                onClick={() => history.push('/network-components/gateways')}
-                title="Gateways"
-                subtitle={gateways?.data?.length || ''}
-                errorMsg={gateways?.error}
-                Icon={<GatewaysSVG />}
-                Action={
-                  <IconButton>
-                    <ArrowForwardSharp />
-                  </IconButton>
-                }
-              />
-            </Grid>
-          )}
-          {validators && (
-            <Grid item xs={12} md={4} lg={4}>
-              <ContentCard
-                onClick={() => window.open(`${BIG_DIPPER}/validators`)}
-                title="Validators"
-                subtitle={validators?.data?.count || ''}
-                errorMsg={validators?.error}
-                Icon={<ValidatorsSVG />}
-                Action={
-                  <IconButton>
-                    <ArrowForwardSharp />
-                  </IconButton>
-                }
-              />
-            </Grid>
-          )}
+              {gateways && (
+                <Grid item xs={12} md={4}>
+                  <ContentCard
+                    onClick={() => history.push('/network-components/gateways')}
+                    title="Gateways"
+                    subtitle={gateways?.data?.length || ''}
+                    errorMsg={gateways?.error}
+                    Icon={<GatewaysSVG />}
+                    Action={
+                      <IconButton>
+                        <ArrowForwardSharp />
+                      </IconButton>
+                    }
+                  />
+                </Grid>
+              )}
 
-          <Grid item xs={12}>
-            <ContentCard
-              title={
-                <a
-                  href={`${BIG_DIPPER}/blocks`}
-                  target="_blank"
-                  style={{
-                    textDecoration: 'none',
-                    color:
-                      mode === 'dark'
-                        ? theme.palette.primary.main
-                        : theme.palette.secondary.main,
-                  }}
-                  rel="noreferrer"
-                >
-                  Current block height is {formatNumber(block?.data)}
-                </a>
-              }
-            />
-          </Grid>
-
-          <Grid item xs={12}>
-            <ContentCard title="Distribution of nodes around the world">
-              <WorldMap loading={false} countryData={countryData} />
-            </ContentCard>
+              {validators && (
+                <Grid item xs={12} md={4}>
+                  <ContentCard
+                    onClick={() => window.open(`${BIG_DIPPER}/validators`)}
+                    title="Validators"
+                    subtitle={validators?.data?.count || ''}
+                    errorMsg={validators?.error}
+                    Icon={<ValidatorsSVG />}
+                    Action={
+                      <IconButton>
+                        <ArrowForwardSharp />
+                      </IconButton>
+                    }
+                  />
+                </Grid>
+              )}
+              {block && (
+                <Grid item xs={12}>
+                  <ContentCard
+                    title={
+                      <a
+                        href={`${BIG_DIPPER}/blocks`}
+                        target="_blank"
+                        style={{
+                          textDecoration: 'none',
+                          color:
+                            mode === 'dark'
+                              ? theme.palette.primary.main
+                              : theme.palette.secondary.main,
+                        }}
+                        rel="noreferrer"
+                      >
+                        Current block height is {formatNumber(block?.data)}
+                      </a>
+                    }
+                  />
+                </Grid>
+              )}
+              <Grid item xs={12}>
+                <ContentCard title="Distribution of nodes around the world">
+                  <WorldMap loading={false} countryData={countryData} />
+                </ContentCard>
+              </Grid>
+            </Grid>
           </Grid>
         </Grid>
       </Box>

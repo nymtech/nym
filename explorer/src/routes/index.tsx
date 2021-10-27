@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Route, Switch } from 'react-router-dom';
 import { PageOverview } from 'src/pages/Overview';
 import { PageMixnodesMap } from 'src/pages/MixnodesMap';
+import { Page404 } from '../pages/404';
 import { NetworkComponentsRoutes } from './network-components';
 
 export const Routes: React.FC = () => (
@@ -18,5 +19,6 @@ export const Routes: React.FC = () => (
     <Route path="/nodemap">
       <PageMixnodesMap />
     </Route>
+    <Route component={Page404} />
   </Switch>
 );

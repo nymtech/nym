@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme, Box, Grid, IconButton, Typography } from '@mui/material';
+import { useTheme, Box, Grid, IconButton } from '@mui/material';
 import { ArrowForwardSharp } from '@mui/icons-material';
 import { WorldMap } from 'src/components/WorldMap';
 import { useHistory } from 'react-router-dom';

@@ -15,15 +15,16 @@ import {
 } from 'src/components/Universal-DataGrid';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-// import { CountryData } from 'src/typeDefs/explorer-api';
 import { TableToolbar } from 'src/components/TableToolbar';
-import { countryDataToGridRow } from 'src/utils';
+import { CountryDataRowType, countryDataToGridRow } from 'src/utils';
 import { ContentCard } from '../../components/ContentCard';
 
 export const PageMixnodesMap: React.FC = () => {
   const { countryData } = React.useContext(MainContext);
   const [pageSize, setPageSize] = React.useState<string>('10');
-  const [formattedCountries, setFormattedCountries] = React.useState<any>([]);
+  const [formattedCountries, setFormattedCountries] = React.useState<
+    CountryDataRowType[]
+  >([]);
   const [searchTerm, setSearchTerm] = React.useState<string>('');
 
   const handleSearch = (str: string) => {
@@ -70,45 +71,63 @@ export const PageMixnodesMap: React.FC = () => {
   ];
 
   React.useEffect(() => {
-    if (countryData?.data !== undefined) {
+    if (countryData?.data && searchTerm === '') {
       setFormattedCountries(countryDataToGridRow(countryData.data));
+    } else if (countryData?.data !== undefined && searchTerm !== '') {
+      const formatted = countryDataToGridRow(countryData?.data);
+      const filtered = formatted.filter((m) => {
+        if (
+          m.countryName.toLowerCase().includes(searchTerm) ||
+          m.ISO3.toLowerCase().includes(searchTerm)
+        ) {
+          return m;
+        }
+        return null;
+      });
+      if (filtered) {
+        setFormattedCountries(filtered);
+      }
     }
-  }, [countryData?.data]);
+  }, [searchTerm, countryData?.data]);
 
   if (countryData?.isLoading) {
     return <CircularProgress />;
   }
+
   if (countryData?.data && !countryData.isLoading) {
     return (
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Grid container spacing={1} sx={{ mb: 4 }}>
-          <Grid item xs={4}>
-            <Typography sx={{ marginLeft: 3, fontSize: '24px' }}>
+          <Grid item xs={12}>
+            <Typography sx={{ marginBottom: 2, fontSize: '24px' }}>
               Mixnodes Around the Globe
             </Typography>
           </Grid>
-        </Grid>
-        <Grid container spacing={2}>
-          <Grid item xs={12} xl={9} sx={{ maxHeight: 500 }}>
+
+          <Grid item xs={12} lg={9}>
             <ContentCard title="Distribution of nodes">
               <WorldMap loading={false} countryData={countryData} />
             </ContentCard>
 
-            <ContentCard>
-              <TableToolbar
-                onChangeSearch={handleSearch}
-                onChangePageSize={handlePageSize}
-                pageSize={pageSize}
-                searchTerm={searchTerm}
-              />
-              <UniversalDataGrid
-                loading={countryData?.isLoading}
-                columnsData={columns}
-                rows={formattedCountries}
-                pageSize={pageSize}
-                pagination
-              />
-            </ContentCard>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <ContentCard>
+                  <TableToolbar
+                    onChangeSearch={handleSearch}
+                    onChangePageSize={handlePageSize}
+                    pageSize={pageSize}
+                    searchTerm={searchTerm}
+                  />
+                  <UniversalDataGrid
+                    loading={countryData?.isLoading}
+                    columnsData={columns}
+                    rows={formattedCountries}
+                    pageSize={pageSize}
+                    pagination
+                  />
+                </ContentCard>
+              </Grid>
+            </Grid>
           </Grid>
         </Grid>
       </Box>

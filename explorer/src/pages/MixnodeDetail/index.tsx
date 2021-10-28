@@ -46,6 +46,7 @@ const columns: GridColDef[] = [
   {
     field: 'bond',
     headerName: 'Bond',
+    type: 'number',
     renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
     width: 120,
     headerAlign: 'left',

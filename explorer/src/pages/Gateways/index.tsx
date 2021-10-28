@@ -69,6 +69,7 @@ export const PageGateways: React.FC = () => {
     {
       field: 'bond',
       width: 120,
+      type: 'number',
       renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
       headerClassName: 'MuiDataGrid-header-override',
       headerAlign: 'left',

@@ -59,6 +59,20 @@ const columns: GridColDef[] = [
     },
   },
   {
+    field: 'self_percentage',
+    headerName: 'Self %',
+    headerAlign: 'left',
+    type: 'number',
+    width: 99,
+    headerClassName: 'MuiDataGrid-header-override',
+    renderHeader: () => <CustomColumnHeading headingTitle="Self %" />,
+    renderCell: (params: GridRenderCellParams) => (
+      <div>
+        <Typography sx={cellStyles}>{params.value}%</Typography>
+      </div>
+    ),
+  },
+  {
     field: 'host',
     renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
     width: 130,

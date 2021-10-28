@@ -65,7 +65,7 @@ pub async fn obtain_signature(
         validators,
         verification_key,
     )
-        .await
+    .await
 }
 
 pub fn prepare_for_spending(

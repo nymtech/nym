@@ -19,11 +19,11 @@ use bls12_381::{G2Prepared, G2Projective, Scalar};
 use group::Curve;
 use itertools::Itertools;
 
-use crate::{Attribute, Parameters};
 use crate::error::{CoconutError, Result};
-use crate::scheme::{PartialSignature, Signature, SignatureShare, SignerIndex, VerificationKey};
 use crate::scheme::verification::check_bilinear_pairing;
+use crate::scheme::{PartialSignature, Signature, SignatureShare, SignerIndex, VerificationKey};
 use crate::utils::perform_lagrangian_interpolation_at_origin;
+use crate::{Attribute, Parameters};
 
 pub(crate) trait Aggregatable: Sized {
     fn aggregate(aggregatable: &[Self], indices: Option<&[SignerIndex]>) -> Result<Self>;
@@ -36,10 +36,10 @@ pub(crate) trait Aggregatable: Sized {
 
 // includes `VerificationKey`
 impl<T> Aggregatable for T
-    where
-        T: Sum,
-        for<'a> T: Sum<&'a T>,
-        for<'a> &'a T: Mul<Scalar, Output=T>,
+where
+    T: Sum,
+    for<'a> T: Sum<&'a T>,
+    for<'a> &'a T: Mul<Scalar, Output = T>,
 {
     fn aggregate(aggregatable: &[T], indices: Option<&[u64]>) -> Result<T> {
         if aggregatable.is_empty() {
@@ -245,7 +245,7 @@ mod tests {
             &sigs[..3],
             Some(&[1, 2, 3]),
         )
-            .unwrap();
+        .unwrap();
 
         let aggr_vk_2 = aggregate_verification_keys(&vks[2..], Some(&[3, 4, 5])).unwrap();
         let aggr_sig2 = aggregate_signatures(
@@ -255,7 +255,7 @@ mod tests {
             &sigs[2..],
             Some(&[3, 4, 5]),
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(aggr_sig1, aggr_sig2);
 
         // verify credential for good measure
@@ -271,7 +271,7 @@ mod tests {
             &sigs[1..],
             Some(&[2, 3, 4, 5]),
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(aggr_sig1, aggr_more);
 
         // aggregating all
@@ -283,7 +283,7 @@ mod tests {
             &sigs,
             Some(&[1, 2, 3, 4, 5]),
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(aggr_all, aggr_sig1);
 
         // not taking enough points (threshold was 3) should fail
@@ -295,7 +295,7 @@ mod tests {
             &sigs[..2],
             Some(&[1, 2]),
         )
-            .unwrap();
+        .unwrap();
         assert_ne!(aggr_not_enough, aggr_sig1);
 
         // taking wrong index should fail
@@ -307,7 +307,7 @@ mod tests {
             &sigs[2..],
             Some(&[42, 123, 100]),
         )
-            .is_err());
+        .is_err());
     }
 
     fn random_signature() -> Signature {
@@ -359,7 +359,7 @@ mod tests {
             &signatures,
             Some(&[1, 2]),
         )
-            .is_err());
+        .is_err());
     }
 
     #[test]
@@ -381,7 +381,7 @@ mod tests {
             &signatures,
             Some(&[1, 1]),
         )
-            .is_err());
+        .is_err());
     }
 
     // TODO: test for aggregating non-threshold keys

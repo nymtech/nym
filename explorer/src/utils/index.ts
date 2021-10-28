@@ -36,15 +36,23 @@ export function mixnodeToGridRow(
 ): MixnodeRowType[] {
   return !arrayOfMixnodes
     ? []
-    : arrayOfMixnodes.map((mn) => ({
-        id: mn.owner,
-        owner: mn.owner,
-        location: mn?.location?.country_name || '',
-        identity_key: mn.mix_node.identity_key || '',
-        bond: mn.bond_amount.amount || 0,
-        host: mn.mix_node.host || '',
-        layer: mn.layer || '',
-      }));
+    : arrayOfMixnodes.map((mn) => {
+        const pledge = Number(mn.bond_amount.amount) || 0;
+        const delegations = Number(mn.total_delegation.amount) || 0;
+        const totalBond = pledge + delegations;
+        const selfPercentage = ((pledge * 100) / totalBond).toFixed(2);
+
+        return {
+          id: mn.owner,
+          owner: mn.owner,
+          location: mn?.location?.country_name || '',
+          identity_key: mn.mix_node.identity_key || '',
+          bond: totalBond || 0,
+          self_percentage: selfPercentage,
+          host: mn.mix_node.host || '',
+          layer: mn.layer || '',
+        };
+      });
 }
 
 export function gatewayToGridRow(

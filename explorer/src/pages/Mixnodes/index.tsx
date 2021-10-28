@@ -104,6 +104,23 @@ export const PageMixnodes: React.FC = () => {
       },
     },
     {
+      field: 'self_percentage',
+      headerName: 'Self %',
+      headerAlign: 'left',
+      width: 99,
+      headerClassName: 'MuiDataGrid-header-override',
+      renderHeader: () => <CustomColumnHeading headingTitle="Self %" />,
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={cellStyles}
+          component={RRDLink}
+          to={`/network-components/mixnodes/${params.row.identity_key}`}
+        >
+          {params.value}%
+        </MuiLink>
+      ),
+    },
+    {
       field: 'host',
       renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
       width: 130,

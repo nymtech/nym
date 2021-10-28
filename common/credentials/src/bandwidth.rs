@@ -59,13 +59,13 @@ pub async fn obtain_signature(
     let private_attributes = attributes.get_private_attributes();
 
     obtain_aggregate_signature(
-        &params,
+        params,
         &public_attributes,
         &private_attributes,
         validators,
         verification_key,
     )
-    .await
+        .await
 }
 
 pub fn prepare_for_spending(

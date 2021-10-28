@@ -4,8 +4,8 @@
 use url::Url;
 
 use coconut_interface::{
-    aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
-    prove_bandwidth_credential, Attribute, BlindSignRequestBody, Credential, Parameters, Signature,
+    aggregate_signature_shares, aggregate_verification_keys, Attribute,
+    BlindSignRequestBody, Credential, Parameters, prepare_blind_sign, prove_bandwidth_credential, Signature,
     SignatureShare, VerificationKey,
 };
 
@@ -88,11 +88,11 @@ async fn obtain_partial_credential(
         .blinded_signature;
     Ok(blinded_signature
         .unblind(
-            &params,
+            params,
             elgamal_keypair.private_key(),
             validator_vk,
-            &private_attributes,
-            &public_attributes,
+            private_attributes,
+            public_attributes,
             &blind_sign_request.commitment_hash,
         )
         .unwrap())
@@ -121,7 +121,7 @@ pub async fn obtain_aggregate_signature(
         &client,
         &validator_partial_vk.key,
     )
-    .await?;
+        .await?;
     shares.push(SignatureShare::new(first, 0));
 
     for (id, validator_url) in validators.iter().enumerate().skip(1) {
@@ -134,17 +134,17 @@ pub async fn obtain_aggregate_signature(
             &client,
             &validator_partial_vk.key,
         )
-        .await?;
+            .await?;
         let share = SignatureShare::new(signature, id as u64);
         shares.push(share)
     }
 
     let mut attributes = Vec::with_capacity(private_attributes.len() + public_attributes.len());
-    attributes.extend_from_slice(&private_attributes);
-    attributes.extend_from_slice(&public_attributes);
+    attributes.extend_from_slice(private_attributes);
+    attributes.extend_from_slice(public_attributes);
 
     Ok(aggregate_signature_shares(
-        &params,
+        params,
         verification_key,
         &attributes,
         &shares,

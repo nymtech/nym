@@ -48,11 +48,11 @@ impl TryFrom<&[u8]> for Ciphertext {
         let c2_bytes: &[u8; 48] = &bytes[48..].try_into().expect("Slice size != 48");
 
         let c1 = try_deserialize_g1_projective(
-            &c1_bytes,
+            c1_bytes,
             CoconutError::Deserialization("Failed to deserialize compressed c1".to_string()),
         )?;
         let c2 = try_deserialize_g1_projective(
-            &c2_bytes,
+            c2_bytes,
             CoconutError::Deserialization("Failed to deserialize compressed c2".to_string()),
         )?;
 
@@ -112,7 +112,7 @@ impl PrivateKey {
                     .to_string(),
             ),
         )
-        .map(PrivateKey)
+            .map(PrivateKey)
     }
 }
 
@@ -183,7 +183,7 @@ impl TryFrom<&[u8]> for PublicKey {
                 "Failed to deserialize compressed ElGamal public key".to_string(),
             ),
         )
-        .map(PublicKey)
+            .map(PublicKey)
     }
 }
 
@@ -326,7 +326,7 @@ mod tests {
             ciphertext.0.to_affine().to_compressed(),
             ciphertext.1.to_affine().to_compressed(),
         ]
-        .concat();
+            .concat();
         assert_eq!(expected_bytes, bytes);
         assert_eq!(ciphertext, Ciphertext::try_from(&bytes[..]).unwrap())
     }

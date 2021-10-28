@@ -107,6 +107,7 @@ export const PageMixnodes: React.FC = () => {
       field: 'self_percentage',
       headerName: 'Self %',
       headerAlign: 'left',
+      type: 'number',
       width: 99,
       headerClassName: 'MuiDataGrid-header-override',
       renderHeader: () => <CustomColumnHeading headingTitle="Self %" />,

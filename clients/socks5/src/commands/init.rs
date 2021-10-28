@@ -12,11 +12,11 @@ use url::Url;
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 #[cfg(feature = "coconut")]
-use coconut_interface::{hash_to_scalar, Credential, Parameters};
+use coconut_interface::{Credential, hash_to_scalar, Parameters};
 use config::NymConfig;
 #[cfg(feature = "coconut")]
 use credentials::bandwidth::{
-    prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES,
+    BANDWIDTH_VALUE, BandwidthVoucherAttributes, prepare_for_spending, TOTAL_ATTRIBUTES,
 };
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
@@ -71,7 +71,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 // this behaviour should definitely be changed, we shouldn't
 // need to get bandwidth credential for registration
 #[cfg(feature = "coconut")]
-async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -> Credential {
+async fn _prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -> Credential {
     let verification_key = obtain_aggregate_verification_key(validators)
         .await
         .expect("could not obtain aggregate verification key of validators");
@@ -90,8 +90,8 @@ async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -
         validators,
         &verification_key,
     )
-    .await
-    .expect("could not obtain bandwidth credential");
+        .await
+        .expect("could not obtain bandwidth credential");
 
     prepare_for_spending(
         raw_identity,
@@ -99,7 +99,7 @@ async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -
         &bandwidth_credential_attributes,
         &verification_key,
     )
-    .expect("could not prepare out bandwidth credential for spending")
+        .expect("could not prepare out bandwidth credential for spending")
 }
 
 async fn register_with_gateway(
@@ -164,7 +164,7 @@ fn show_address(config: &Config) {
                 pathfinder.private_identity_key().to_owned(),
                 pathfinder.public_identity_key().to_owned(),
             ))
-            .expect("Failed to read stored identity key files");
+                .expect("Failed to read stored identity key files");
         identity_keypair
     }
 
@@ -174,7 +174,7 @@ fn show_address(config: &Config) {
                 pathfinder.private_encryption_key().to_owned(),
                 pathfinder.public_encryption_key().to_owned(),
             ))
-            .expect("Failed to read stored sphinx key files");
+                .expect("Failed to read stored sphinx key files");
         sphinx_keypair
     }
 
@@ -230,7 +230,7 @@ pub fn execute(matches: &ArgMatches) {
                 config.get_base().get_validator_api_endpoints(),
                 chosen_gateway_id,
             )
-            .await;
+                .await;
             config
                 .get_base_mut()
                 .with_gateway_id(gate_details.identity_key.to_base58_string());
@@ -259,7 +259,7 @@ pub fn execute(matches: &ArgMatches) {
         .save_to_file(None)
         .expect("Failed to save the config file");
     println!("Saved configuration file to {:?}", config_save_location);
-    println!("Using gateway: {}", config.get_base().get_gateway_id(),);
+    println!("Using gateway: {}", config.get_base().get_gateway_id(), );
     println!("Client configuration completed.\n\n\n");
 
     show_address(&config);

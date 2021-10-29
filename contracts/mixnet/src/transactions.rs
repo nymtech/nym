@@ -4083,7 +4083,7 @@ pub mod tests {
         let period_reward_pool = (REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128;
         assert_eq!(period_reward_pool, 5_000_000_000_000);
         let k = 200; // Imagining our active set size is 200
-        let circulating_supply = circulating_supply(&deps.storage);
+        let circulating_supply = circulating_supply(&deps.storage).u128();
         assert_eq!(circulating_supply, 750_000_000_000_000u128);
         // mut_reward_pool(deps.as_mut().storage)
         //     .save(&Uint128(period_reward_pool))

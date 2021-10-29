@@ -86,9 +86,9 @@ pub fn decr_reward_pool(
     Ok(stake)
 }
 
-pub fn circulating_supply(storage: &dyn Storage) -> u128 {
+pub fn circulating_supply(storage: &dyn Storage) -> Uint128 {
     let reward_pool = reward_pool_value(storage).u128();
-    TOTAL_SUPPLY - reward_pool
+    Uint128(TOTAL_SUPPLY - reward_pool)
 }
 
 pub(crate) fn read_state_params(storage: &dyn Storage) -> StateParams {

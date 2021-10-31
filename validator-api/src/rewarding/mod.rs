@@ -56,7 +56,7 @@ pub(crate) struct MixnodeToReward {
 impl MixnodeToReward {
     /// Somewhat clumsy way of feature gatting tokenomics payments. In a tokenomics scenario this will never be None at reward time. We levarage that to Into a different ExecuteMsg variant
     fn params(&self) -> Option<NodeRewardParams> {
-        if cfg!(featrure = "tokenomics") {
+        if cfg!(feature = "tokenomics") {
             self.params
         } else {
             None
@@ -206,12 +206,16 @@ impl Rewarder {
         // by people hesitating to delegate to nodes without them and thus those nodes disappearing
         // from the active set (once introduced)
         let mixnode_delegators = self.produce_active_mixnode_delegators_map().await?;
-        // TODO: get node saturation
         let reward_pool = self.nymd_client.get_reward_pool().await?;
         let circulating_supply = self.nymd_client.get_circulating_supply().await?;
         let state = self.nymd_client.get_state_params().await?;
         let k = state.mixnode_active_set_size;
         let period_reward_pool = (reward_pool / 100) * 2_u128;
+
+        info!("Rewarding pool stats");
+        info!("-- Reward pool: {} unym", reward_pool);
+        info!("---- Epoch reward pool: {} unym", period_reward_pool);
+        info!("-- Circulating supply: {} unym", circulating_supply);
 
         // 1. go through all active mixnodes
         // 2. filter out nodes that are currently not in the active set (as `mixnode_delegators` was obtained by
@@ -242,11 +246,13 @@ impl Rewarder {
                     period_reward_pool,
                     k.into(),
                     total_epoch_uptime,
-                    None,
+                    0,
                     circulating_supply,
                     mix.uptime.u8().into(),
-                ))
+                ));
             }
+        } else {
+            info!("Tokenomics feature is OFF");
         }
 
         Ok(eligible_nodes)

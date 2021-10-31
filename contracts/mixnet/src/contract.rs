@@ -28,6 +28,7 @@ pub const INITIAL_MIXNODE_DELEGATION_REWARD_RATE: u64 = 110;
 
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
+// TODO: Make sure future migrations don't use this one, but the one pulled from storage
 pub const REWARD_POOL: u128 = 250_000_000_000_000;
 pub const EPOCH_REWARD_PERCENT: u8 = 2; // Used to calculate epoch reward pool
 
@@ -165,7 +166,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             address,
         )?),
         QueryMsg::GetRewardPool {} => to_binary(&queries::query_reward_pool(deps)),
-        QueryMsg::GetCirculatingSupply {} => to_binary(&queries::query_circulating_supply(deps))
+        QueryMsg::GetCirculatingSupply {} => to_binary(&queries::query_circulating_supply(deps)),
     };
 
     Ok(query_res?)
@@ -178,7 +179,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
     use mixnet_contract::{Layer, MixNodeBond};
     use serde::{Deserialize, Serialize};
 
-    // We've done the migraiton on QAnet already
+    // TODO: We've done the migraiton on QAnet already, but need to do it on the testnet once we're ready
     return Ok(Default::default());
 
     #[derive(Serialize, Deserialize)]

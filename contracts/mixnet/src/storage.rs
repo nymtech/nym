@@ -4,6 +4,7 @@ use crate::contract::REWARD_POOL;
 use crate::state::State;
 use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 use crate::{error::ContractError, queries};
+use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
@@ -16,7 +17,6 @@ use mixnet_contract::{
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use config::defaults::TOTAL_SUPPLY;
 
 // storage prefixes
 // all of them must be unique and presumably not be a prefix of a different one
@@ -294,11 +294,11 @@ pub(crate) fn increase_mix_delegated_stakes_v2(
         // since they delegated
         for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
             if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING
-                <= params.reward_blockstamp()?
+                <= params.reward_blockstamp()
             {
-                let reward = Uint128(bond.reward_delegation(delegation.amount, params)?);
-                delegation.amount += reward;
-                total_rewarded += reward;
+                let reward = bond.reward_delegation(delegation.amount, params);
+                delegation.amount += Uint128(reward);
+                total_rewarded += Uint128(reward);
                 mix_delegations(storage, bond.identity()).save(&delegator_address, &delegation)?;
             }
         }

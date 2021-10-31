@@ -3,7 +3,12 @@
 
 use crate::error::ContractError;
 use crate::helpers::get_all_delegations_paged;
-use crate::storage::{all_gateway_delegations_read, all_mix_delegations_read, circulating_supply, gateway_delegations_read, gateways_owners_read, gateways_read, mix_delegations_read, mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params, reverse_gateway_delegations_read, reverse_mix_delegations_read, reward_pool_value};
+use crate::storage::{
+    all_gateway_delegations_read, all_mix_delegations_read, circulating_supply,
+    gateway_delegations_read, gateways_owners_read, gateways_read, mix_delegations_read,
+    mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params,
+    reverse_gateway_delegations_read, reverse_mix_delegations_read, reward_pool_value,
+};
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Deps, Order, StdResult, Uint128};
 use mixnet_contract::{
@@ -681,7 +686,6 @@ pub(crate) mod tests {
                 gateway_delegation_reward_rate: "0.12".parse().unwrap(),
                 mixnode_active_set_size: 1000,
                 gateway_active_set_size: 20,
-                epoch_reward_percent: 2
             },
             mixnode_epoch_bond_reward: "1.23".parse().unwrap(),
             gateway_epoch_bond_reward: "4.56".parse().unwrap(),

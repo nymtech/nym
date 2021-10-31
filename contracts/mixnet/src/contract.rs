@@ -42,6 +42,7 @@ fn default_initial_state(owner: Addr) -> State {
     let gateway_bond_reward_rate = Decimal::percent(INITIAL_GATEWAY_BOND_REWARD_RATE);
     let mixnode_delegation_reward_rate = Decimal::percent(INITIAL_MIXNODE_DELEGATION_REWARD_RATE);
     let gateway_delegation_reward_rate = Decimal::percent(INITIAL_GATEWAY_DELEGATION_REWARD_RATE);
+    // TODO: Wire this through to state and rewarding
     let epoch_reward_percent = EPOCH_REWARD_PERCENT;
 
     State {
@@ -220,7 +221,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             address,
         )?),
         QueryMsg::GetRewardPool {} => to_binary(&queries::query_reward_pool(deps)),
-        QueryMsg::GetCirculatingSupply {} => to_binary(&queries::query_circulating_supply(deps))
+        QueryMsg::GetCirculatingSupply {} => to_binary(&queries::query_circulating_supply(deps)),
     };
 
     Ok(query_res?)
@@ -233,7 +234,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
     use mixnet_contract::{Layer, MixNodeBond};
     use serde::{Deserialize, Serialize};
 
-    // We've done the migraiton on QAnet already
+    // TODO: We've done the migraiton on QAnet already, but need to do it on the testnet once we're ready
     return Ok(Default::default());
 
     #[derive(Serialize, Deserialize)]

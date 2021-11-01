@@ -5,6 +5,7 @@ import {
   NetworkExplorerPalette,
   ThemeOptions,
   createTheme,
+  NymPaletteVariant,
 } from '@mui/material/styles';
 
 //-----------------------------------------------------------------------------------------------
@@ -20,6 +21,47 @@ import {
 const nymPalette: NymPalette = {
   /** emphasises important elements */
   highlight: '#FB6E4E',
+  text: {
+    nav: '#F2F2F2',
+    /** footer text colour */
+    footer: '#666B77',
+  },
+};
+
+const darkMode: NymPaletteVariant = {
+  mode: 'dark',
+  background: {
+    main: '#111826',
+    paper: '#242C3D',
+  },
+  text: {
+    main: '#F2F2F2',
+  },
+  topNav: {
+    background: '#111826',
+  },
+  nav: {
+    background: '#242C3D',
+    hover: '#111826',
+  },
+};
+
+const lightMode: NymPaletteVariant = {
+  mode: 'light',
+  background: {
+    main: '#F2F2F2',
+    paper: '#FFFFFF',
+  },
+  text: {
+    main: '#666666',
+  },
+  topNav: {
+    background: '#111826',
+  },
+  nav: {
+    background: '#242C3D',
+    hover: '#111826',
+  },
 };
 
 /**
@@ -28,13 +70,17 @@ const nymPalette: NymPalette = {
  * IMPORTANT: do not export this constant, always use the MUI `useTheme` hook to get the correct
  * colours for dark/light mode.
  */
-const networkExplorerPalette: NetworkExplorerPalette = {
+const networkExplorerPalette = (
+  variant: NymPaletteVariant,
+): NetworkExplorerPalette => ({
   networkExplorer: {
     /** world map styles */
     map: {
-      background: '#F4F8FA',
       stroke: '#333333',
       fills: ['#EFEFEF', '#FBE7E1', '#F7D1C6', '#F09379'],
+    },
+    background: {
+      tertiary: variant.mode === 'light' ? '#F4F8FA' : '#323C51',
     },
     /** left nav styles */
     nav: {
@@ -42,13 +88,37 @@ const networkExplorerPalette: NetworkExplorerPalette = {
         main: '#111826',
         nested: '#3C4558',
       },
+      background: variant.nav.background,
+      hover: variant.nav.hover,
+      text: nymPalette.text.nav,
+    },
+    topNav: {
+      ...variant.topNav,
+      socialIcons: '#F2F2F2',
+    },
+    footer: {
+      socialIcons:
+        variant.mode === 'light' ? nymPalette.text.footer : darkMode.text.main,
     },
   },
-};
+});
 
 //-----------------------------------------------------------------------------------------------
 // Nym palettes for light and dark mode
 //
+
+/**
+ * Map a Nym palette variant onto the MUI palette
+ */
+const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
+  text: {
+    primary: variant.text.main,
+  },
+  background: {
+    default: variant.background.main,
+    paper: variant.background.paper,
+  },
+});
 
 /**
  * Returns the Network Explorer palette for light mode.
@@ -56,8 +126,9 @@ const networkExplorerPalette: NetworkExplorerPalette = {
 const createLightModePalette = (): PaletteOptions => ({
   nym: {
     ...nymPalette,
-    ...networkExplorerPalette,
+    ...networkExplorerPalette(lightMode),
   },
+  ...variantToMUIPalette(lightMode),
 });
 
 /**
@@ -66,8 +137,9 @@ const createLightModePalette = (): PaletteOptions => ({
 const createDarkModePalette = (): PaletteOptions => ({
   nym: {
     ...nymPalette,
-    ...networkExplorerPalette,
+    ...networkExplorerPalette(darkMode),
   },
+  ...variantToMUIPalette(darkMode),
 });
 
 /**
@@ -126,7 +198,7 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         'Helvetica Neue',
       ].join(','),
       fontSize: 14,
-      fontWeightBold: 600,
+      fontWeightRegular: 600,
     },
     transitions: {
       duration: {
@@ -155,6 +227,7 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         styleOverrides: {
           paper: {
             background: palette.secondary.dark,
+            marginTop: 64,
           },
         },
       },

@@ -1,12 +1,10 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
-import { Typography, useMediaQuery, useTheme } from '@mui/material';
-import { MainContext } from 'src/context/main';
-import { palette } from '../index';
+import { Typography, useMediaQuery } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Socials } from './Socials';
 
 export const Footer: React.FC = () => {
-  const { mode } = React.useContext(MainContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -16,7 +14,6 @@ export const Footer: React.FC = () => {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
-        background: mode === 'dark' ? palette.blackBg : palette.primary.main,
         width: '100%',
         height: 'auto',
         mt: 3,
@@ -35,13 +32,14 @@ export const Footer: React.FC = () => {
             mb: 2,
           }}
         >
-          <Socials />
+          <Socials isFooter />
         </Box>
       )}
       <Typography
         sx={{
           fontSize: 12,
           textAlign: isMobile ? 'center' : 'end',
+          color: theme.palette.nym.text.footer,
         }}
       >
         © 2021 Nym Technologies SA, all rights reserved

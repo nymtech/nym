@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { SxProps } from '@mui/system';
 import { makeStyles } from '@mui/styles';
 import {
   DataGrid,
@@ -23,10 +24,9 @@ type DataGridProps = {
   hideFooter?: boolean;
 };
 
-export const cellStyles = {
+export const cellStyles: SxProps = {
   width: '100%',
   padding: 0,
-  'text-align': 'start',
   maxWidth: 170,
   maxHeight: 100,
   color: 'inherit',
@@ -34,8 +34,9 @@ export const cellStyles = {
   fontWeight: 400,
   fontSize: 12,
   lineHeight: 2,
-  'word-break': 'break-word',
-  'white-space': 'break-spaces',
+  textAlign: 'start',
+  wordBreak: 'break-word',
+  whiteSpace: 'break-spaces',
 };
 
 function CustomPagination() {

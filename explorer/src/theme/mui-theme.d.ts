@@ -5,6 +5,7 @@ import {
   Palette,
   PaletteOptions,
 } from '@mui/material/styles';
+import { PaletteMode } from '@mui/material';
 
 /**
  * If you are unfamiliar with Material UI theming, please read the following first:
@@ -33,6 +34,28 @@ declare module '@mui/material/styles' {
    */
   interface NymPalette {
     highlight: string;
+    text: {
+      nav: string;
+      footer: string;
+    };
+  }
+
+  interface NymPaletteVariant {
+    mode: PaletteMode;
+    background: {
+      main: string;
+      paper: string;
+    };
+    text: {
+      main: string;
+    };
+    topNav: {
+      background: string;
+    };
+    nav: {
+      background: string;
+      hover: string;
+    };
   }
 
   /**
@@ -42,14 +65,26 @@ declare module '@mui/material/styles' {
     networkExplorer: {
       map: {
         stroke: string;
-        background: string;
         fills: string[];
+      };
+      background: {
+        tertiary: string;
+      };
+      topNav: {
+        background: string;
+        socialIcons: string;
       };
       nav: {
         selected: {
           main: string;
           nested: string;
         };
+        background: string;
+        hover: string;
+        text: string;
+      };
+      footer: {
+        socialIcons: string;
       };
     };
   }

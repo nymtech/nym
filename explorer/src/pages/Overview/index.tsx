@@ -1,6 +1,5 @@
 import React from 'react';
-import { useTheme, Box, Grid, IconButton } from '@mui/material';
-import { ArrowForwardSharp } from '@mui/icons-material';
+import { Box, Grid, Link } from '@mui/material';
 import { WorldMap } from 'src/components/WorldMap';
 import { useHistory } from 'react-router-dom';
 import { MainContext } from 'src/context/main';
@@ -11,12 +10,12 @@ import { GatewaysSVG } from 'src/icons/GatewaysSVG';
 import { MixnodesSVG } from 'src/icons/MixnodesSVG';
 import { Title } from 'src/components/Title';
 import { ContentCard } from '../../components/ContentCard';
+import { StatsCard } from '../../components/StatsCard';
 
 export const PageOverview: React.FC = () => {
   const history = useHistory();
-  const { mixnodes, gateways, validators, block, countryData, mode }: any =
+  const { mixnodes, gateways, validators, block, countryData }: any =
     React.useContext(MainContext);
-  const theme = useTheme();
   return (
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>
@@ -28,51 +27,35 @@ export const PageOverview: React.FC = () => {
             <Grid container spacing={2}>
               {mixnodes && (
                 <Grid item xs={12} md={4}>
-                  <ContentCard
+                  <StatsCard
                     onClick={() => history.push('/network-components/mixnodes')}
                     title="Mixnodes"
-                    subtitle={mixnodes?.data?.length || ''}
+                    icon={<MixnodesSVG />}
+                    count={mixnodes?.data?.length || ''}
                     errorMsg={mixnodes?.error}
-                    Icon={<MixnodesSVG />}
-                    Action={
-                      <IconButton>
-                        <ArrowForwardSharp />
-                      </IconButton>
-                    }
                   />
                 </Grid>
               )}
-
               {gateways && (
                 <Grid item xs={12} md={4}>
-                  <ContentCard
+                  <StatsCard
                     onClick={() => history.push('/network-components/gateways')}
                     title="Gateways"
-                    subtitle={gateways?.data?.length || ''}
+                    count={gateways?.data?.length || ''}
                     errorMsg={gateways?.error}
-                    Icon={<GatewaysSVG />}
-                    Action={
-                      <IconButton>
-                        <ArrowForwardSharp />
-                      </IconButton>
-                    }
+                    icon={<GatewaysSVG />}
                   />
                 </Grid>
               )}
 
               {validators && (
                 <Grid item xs={12} md={4}>
-                  <ContentCard
+                  <StatsCard
                     onClick={() => window.open(`${BIG_DIPPER}/validators`)}
                     title="Validators"
-                    subtitle={validators?.data?.count || ''}
+                    count={validators?.data?.count || ''}
                     errorMsg={validators?.error}
-                    Icon={<ValidatorsSVG />}
-                    Action={
-                      <IconButton>
-                        <ArrowForwardSharp />
-                      </IconButton>
-                    }
+                    icon={<ValidatorsSVG />}
                   />
                 </Grid>
               )}
@@ -80,20 +63,15 @@ export const PageOverview: React.FC = () => {
                 <Grid item xs={12}>
                   <ContentCard
                     title={
-                      <a
+                      <Link
                         href={`${BIG_DIPPER}/blocks`}
                         target="_blank"
-                        style={{
-                          textDecoration: 'none',
-                          color:
-                            mode === 'dark'
-                              ? theme.palette.primary.main
-                              : theme.palette.secondary.main,
-                        }}
                         rel="noreferrer"
+                        underline="none"
+                        color="inherit"
                       >
                         Current block height is {formatNumber(block?.data)}
-                      </a>
+                      </Link>
                     }
                   />
                 </Grid>

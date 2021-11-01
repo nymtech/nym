@@ -43,6 +43,8 @@ fn default_initial_state(owner: Addr) -> State {
             mixnode_demanded_set_size: INITIAL_MIXNODE_DEMANDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
         },
+        rewarding_interval_nonce: 0,
+        rewarding_in_progress: false,
         mixnode_epoch_bond_reward: calculate_epoch_reward_rate(
             INITIAL_DEFAULT_EPOCH_LENGTH,
             mixnode_bond_reward_rate,

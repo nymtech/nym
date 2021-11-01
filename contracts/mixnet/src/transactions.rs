@@ -822,7 +822,6 @@ pub mod tests {
         ExecuteMsg, LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
         UnpackedDelegation,
     };
-    use num::ToPrimitive;
     use queries::tests::{store_n_gateway_delegations, store_n_mix_delegations};
 
     #[test]

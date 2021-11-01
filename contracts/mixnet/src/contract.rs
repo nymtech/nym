@@ -31,6 +31,7 @@ pub const INITIAL_GATEWAY_DELEGATION_REWARD_RATE: u64 = 110;
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 pub const INITIAL_GATEWAY_ACTIVE_SET_SIZE: u32 = 20;
 
+// TODO: Make sure future migrations don't use this one, but the one pulled from storage
 pub const REWARD_POOL: u128 = 250_000_000_000_000;
 pub const EPOCH_REWARD_PERCENT: u8 = 2; // Used to calculate epoch reward pool
 

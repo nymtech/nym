@@ -4079,9 +4079,6 @@ pub mod tests {
     #[test]
     fn test_tokenomics_rewarding() {
         use crate::contract::{EPOCH_REWARD_PERCENT, REWARD_POOL};
-        use crate::helpers::{decimal_to_uint128, uint128_to_decimal};
-        use num::rational::Ratio;
-        use std::str::FromStr;
 
         type U128 = fixed::types::U75F53;
 

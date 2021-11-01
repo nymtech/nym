@@ -13,6 +13,7 @@ import { GatewayResponse } from 'src/typeDefs/explorer-api';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { ContentCard } from 'src/components/ContentCard';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
+import { Title } from 'src/components/Title';
 
 export const PageGateways: React.FC = () => {
   const { gateways } = React.useContext(MainContext);
@@ -114,10 +115,7 @@ export const PageGateways: React.FC = () => {
   if (gateways?.data) {
     return (
       <>
-        <Typography sx={{ marginBottom: 3 }} variant="h5">
-          Gateways
-        </Typography>
-
+        <Title text="Gateways" />
         <Grid container>
           <Grid item xs={12} md={12} lg={10} xl={10}>
             <ContentCard>

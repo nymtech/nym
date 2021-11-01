@@ -1,6 +1,13 @@
 /* eslint-disable camelcase */
 import { MutableRefObject } from 'react';
-import { GatewayResponse, MixNodeResponse } from 'src/typeDefs/explorer-api';
+import {
+  CountryData,
+  GatewayResponse,
+  MixNodeResponse,
+} from 'src/typeDefs/explorer-api';
+import { registerLocale, getName } from 'i18n-iso-countries';
+
+registerLocale(require('i18n-iso-countries/langs/en.json'));
 
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num);
@@ -31,20 +38,54 @@ export type GatewayRowType = {
   location: string;
 };
 
+export type CountryDataRowType = {
+  id: number;
+  ISO3: string;
+  nodes: number;
+  countryName: string;
+  percentage: string;
+};
+
+export function countryDataToGridRow(
+  countriesData: CountryData[],
+): CountryDataRowType[] {
+  const totalNodes = countriesData.reduce((acc, obj) => acc + obj.nodes, 0);
+  const formatted = countriesData.map((each: CountryData, index: number) => {
+    const updatedCountryRecord: CountryDataRowType = {
+      ...each,
+      id: index,
+      countryName: getName(each.ISO3, 'en', { select: 'official' }),
+      percentage: ((each.nodes * 100) / totalNodes).toFixed(1),
+    };
+    return updatedCountryRecord;
+  });
+
+  const sorted = formatted.sort((a, b) => (a.nodes < b.nodes ? 1 : -1));
+  return sorted;
+}
+
 export function mixnodeToGridRow(
   arrayOfMixnodes: MixNodeResponse,
 ): MixnodeRowType[] {
   return !arrayOfMixnodes
     ? []
-    : arrayOfMixnodes.map((mn) => ({
-        id: mn.owner,
-        owner: mn.owner,
-        location: mn?.location?.country_name || '',
-        identity_key: mn.mix_node.identity_key || '',
-        bond: mn.bond_amount.amount || 0,
-        host: mn.mix_node.host || '',
-        layer: mn.layer || '',
-      }));
+    : arrayOfMixnodes.map((mn) => {
+        const pledge = Number(mn.bond_amount.amount) || 0;
+        const delegations = Number(mn.total_delegation.amount) || 0;
+        const totalBond = pledge + delegations;
+        const selfPercentage = ((pledge * 100) / totalBond).toFixed(2);
+
+        return {
+          id: mn.owner,
+          owner: mn.owner,
+          location: mn?.location?.country_name || '',
+          identity_key: mn.mix_node.identity_key || '',
+          bond: totalBond || 0,
+          self_percentage: selfPercentage,
+          host: mn.mix_node.host || '',
+          layer: mn.layer || '',
+        };
+      });
 }
 
 export function gatewayToGridRow(

@@ -13,6 +13,7 @@ import { GatewayResponse } from 'src/typeDefs/explorer-api';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { ContentCard } from 'src/components/ContentCard';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
+import { Title } from 'src/components/Title';
 
 export const PageGateways: React.FC = () => {
   const { gateways } = React.useContext(MainContext);
@@ -69,6 +70,7 @@ export const PageGateways: React.FC = () => {
     {
       field: 'bond',
       width: 120,
+      type: 'number',
       renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
       headerClassName: 'MuiDataGrid-header-override',
       headerAlign: 'left',
@@ -83,7 +85,7 @@ export const PageGateways: React.FC = () => {
     {
       field: 'host',
       renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
-      width: 130,
+      flex: 1,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -93,13 +95,13 @@ export const PageGateways: React.FC = () => {
     {
       field: 'location',
       renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
-      width: 120,
+      flex: 1,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
         <Button
           onClick={() => handleSearch(params.value as string)}
-          sx={cellStyles}
+          sx={{ ...cellStyles, justifyContent: 'flex-start' }}
         >
           {params.value}
         </Button>
@@ -114,12 +116,9 @@ export const PageGateways: React.FC = () => {
   if (gateways?.data) {
     return (
       <>
-        <Typography sx={{ marginBottom: 3 }} variant="h5">
-          Gateways
-        </Typography>
-
+        <Title text="Gateways" />
         <Grid container>
-          <Grid item xs={12} md={12} lg={8} xl={8}>
+          <Grid item xs={12} md={12} lg={10} xl={10}>
             <ContentCard>
               <TableToolbar
                 onChangeSearch={handleSearch}

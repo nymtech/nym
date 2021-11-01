@@ -29,6 +29,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
           mode === 'dark'
             ? theme.palette.secondary.dark
             : theme.palette.primary.light,
+        height: '100%',
       }}
     >
       <CardHeader

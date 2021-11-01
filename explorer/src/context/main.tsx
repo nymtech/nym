@@ -237,6 +237,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
   };
 
   const fetchCountryData = async () => {
+    setCountryData({ data: undefined, isLoading: true });
     try {
       const res = await Api.fetchCountryData();
       setCountryData({ data: res, isLoading: false });

@@ -192,10 +192,14 @@ impl PacketPreparer {
         }
     }
 
-    async fn get_network_nodes(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
+    async fn get_demanded_nodes(&self) -> (Option<Vec<MixNodeBond>>, Vec<GatewayBond>) {
         info!(target: "Monitor", "Obtaining network topology...");
 
-        let mixnodes = self.validator_cache.mixnodes().await.into_inner();
+        let mixnodes = self
+            .validator_cache
+            .demanded_mixnodes()
+            .await
+            .map(|nodes| nodes.into_inner());
         let gateways = self.validator_cache.gateways().await.into_inner();
 
         info!(target: "Monitor", "Obtained network topology");
@@ -430,11 +434,12 @@ impl PacketPreparer {
         packets
     }
 
-    pub(super) async fn prepare_test_packets(&mut self, nonce: u64) -> PreparedPackets {
-        let (mixnode_bonds, gateway_bonds) = self.get_network_nodes().await;
+    pub(super) async fn prepare_test_packets(&mut self, nonce: u64) -> Option<PreparedPackets> {
+        // only test nodes that are demanded, i.e. that will be rewarded in this epoch.
+        let (mixnode_bonds, gateway_bonds) = self.get_demanded_nodes().await;
 
         let mut invalid_nodes = Vec::new();
-        let mixes = self.prepare_mixnodes(nonce, &mixnode_bonds);
+        let mixes = self.prepare_mixnodes(nonce, &mixnode_bonds?);
         let gateways = self.prepare_gateways(nonce, &gateway_bonds);
 
         // get the keys of all nodes that will get tested this round
@@ -473,10 +478,10 @@ impl PacketPreparer {
             gateway_packets.push(main_gateway_packets);
         }
 
-        PreparedPackets {
+        Some(PreparedPackets {
             packets: gateway_packets,
             tested_nodes,
             invalid_nodes,
-        }
+        })
     }
 }

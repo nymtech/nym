@@ -154,7 +154,13 @@ impl Monitor {
         info!(target: "Monitor", "Starting test run no. {}", self.nonce);
 
         debug!(target: "Monitor", "Preparing mix packets to all nodes...");
-        let prepared_packets = self.packet_preparer.prepare_test_packets(self.nonce).await;
+        let prepared_packets = match self.packet_preparer.prepare_test_packets(self.nonce).await {
+            Some(packets) => packets,
+            None => {
+                error!("We failed to produce test packets for this monitor run");
+                return;
+            }
+        };
 
         self.received_processor.set_new_expected(self.nonce).await;
 

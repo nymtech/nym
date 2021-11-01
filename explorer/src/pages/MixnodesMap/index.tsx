@@ -17,6 +17,7 @@ import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { CountryDataRowType, countryDataToGridRow } from 'src/utils';
+import { Title } from 'src/components/Title';
 import { ContentCard } from '../../components/ContentCard';
 
 export const PageMixnodesMap: React.FC = () => {
@@ -99,19 +100,14 @@ export const PageMixnodesMap: React.FC = () => {
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Grid container spacing={1} sx={{ mb: 4 }}>
           <Grid item xs={12}>
-            <Typography sx={{ marginBottom: 2, fontSize: '24px' }}>
-              Mixnodes Around the Globe
-            </Typography>
+            <Title text="Mixnodes Around the Globe" />
           </Grid>
-
           <Grid item xs={12} lg={9}>
-            <ContentCard title="Distribution of nodes">
-              <WorldMap loading={false} countryData={countryData} />
-            </ContentCard>
-
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <ContentCard>
+                <ContentCard title="Distribution of nodes">
+                  <WorldMap loading={false} countryData={countryData} />
+                  <Box sx={{ marginTop: 2 }} />
                   <TableToolbar
                     onChangeSearch={handleSearch}
                     onChangePageSize={handlePageSize}

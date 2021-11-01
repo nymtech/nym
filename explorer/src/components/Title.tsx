@@ -1,14 +1,23 @@
 import React from 'react';
-import { Typography } from '@mui/material';
+import { Typography, useTheme } from '@mui/material';
+import { MainContext } from 'src/context/main';
 
-export const Title: React.FC<{ text: string }> = ({ text }) => (
-  <Typography
-    variant="h5"
-    sx={{
-      color: 'primary.main',
-      mb: 3,
-    }}
-  >
-    {text}
-  </Typography>
-);
+export const Title: React.FC<{ text: string }> = ({ text }) => {
+  const { mode } = React.useContext(MainContext);
+  const theme = useTheme();
+  const color =
+    mode === 'dark'
+      ? theme.palette.primary.light
+      : theme.palette.secondary.main;
+  return (
+    <Typography
+      variant="h5"
+      sx={{
+        color,
+        mb: 3,
+      }}
+    >
+      {text}
+    </Typography>
+  );
+};

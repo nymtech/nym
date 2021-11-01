@@ -17,6 +17,7 @@ import {
 import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 import { printableCoin } from '@nymproject/nym-validator-client';
+import { Title } from 'src/components/Title';
 
 const columns: GridColDef[] = [
   {
@@ -153,21 +154,11 @@ export const PageMixnodeDetail: React.FC = () => {
       <Box component="main" ref={ref}>
         <Grid container spacing={2}>
           <Grid item xs={12}>
-            <Typography
-              sx={{
-                fontWeight: 'bold',
-                color: (theme) =>
-                  mode === 'dark'
-                    ? theme.palette.primary.main
-                    : theme.palette.secondary.main,
-              }}
-            >
-              Mix node Detail
-            </Typography>
+            <Title text="Mix node Detail" />
           </Grid>
         </Grid>
 
-        <Grid container sx={{ mt: 2 }}>
+        <Grid container>
           <Grid item xs={12} xl={9}>
             {mixnodeDetailInfo && (
               <Grid container>

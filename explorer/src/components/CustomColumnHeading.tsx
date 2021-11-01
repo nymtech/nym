@@ -22,6 +22,7 @@ export const CustomColumnHeading: React.FC<{ headingTitle: string }> = ({
               ? theme.palette.primary.main
               : theme.palette.secondary.main,
           fontSize: 14,
+          padding: 0,
         }}
       >
         {headingTitle}&nbsp;

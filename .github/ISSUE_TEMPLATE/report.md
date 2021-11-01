@@ -32,16 +32,12 @@ Steps to reproduce the behaviour, if you're familiar with BDD syntax, please wri
 **Screenshots**
 If applicable, add screenshots to help explain your problem...
 
-**Which area / component of Nym were you using?**
- - [e.g. Gateway, Node, Client]
- - OS: [e.g. Ubuntu 20.x]
- - Version of binary [e.g. 0.11.0]
-
-**If this issue is a front end problem or any other area...**
-*(please complete the following information):*
- - OS: [e.g. MacOS, Windows, Linux]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 94]
+**Which area of Nym were you using?**
+ - UI: [e.g. Websites - network-explorer, nym-website]
+ - Application: [e.g Gateway, Client, Wallet]
+ - OS: [e.g. Ubuntu 20.x, MacOs Big Sur, Windows 10]
+ - Browser: [e.g Chrome (if applicable)]
+ - Version: [e.g. nym binary(0.11.0), browser(94.0)]
 
 **Additional context**
 Please provide any other information

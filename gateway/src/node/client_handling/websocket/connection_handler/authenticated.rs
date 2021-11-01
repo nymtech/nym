@@ -56,7 +56,7 @@ pub(crate) enum RequestHandlingError {
     EthContractError(#[from] web3::contract::Error),
 
     #[cfg(not(feature = "coconut"))]
-    #[error("Nymd Error")]
+    #[error("Nymd Error - {0}")]
     NymdError(#[from] validator_client::nymd::error::NymdError),
 
     #[cfg(feature = "coconut")]

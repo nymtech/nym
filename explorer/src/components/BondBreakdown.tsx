@@ -3,11 +3,9 @@ import { printableCoin } from '@nymproject/nym-validator-client';
 import {
   Alert,
   CircularProgress,
-  Typography,
   useMediaQuery,
   useTheme,
   Box,
-  Button,
 } from '@mui/material';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -18,10 +16,6 @@ import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import { MainContext } from 'src/context/main';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-// import { delegationsToGridRow } from 'src/utils';
-import { cellStyles, UniversalDataGrid } from './Universal-DataGrid';
-import { CustomColumnHeading } from './CustomColumnHeading';
 
 export const BondBreakdownTable: React.FC = () => {
   const { mixnodeDetailInfo, delegations, mode } =
@@ -92,7 +86,6 @@ export const BondBreakdownTable: React.FC = () => {
 
   const expandDelegations = () => {
     toggleShowDelegations(!showDelegations);
-    console.log('show or hide: ', showDelegations);
   };
   const calcBondPercentage = (num: number) => {
     if (mixnodeDetailInfo?.data !== undefined && mixnodeDetailInfo?.data[0]) {
@@ -108,48 +101,6 @@ export const BondBreakdownTable: React.FC = () => {
     return 0;
   };
 
-  const columns: GridColDef[] = [
-    {
-      field: 'delegators',
-      renderHeader: () => <CustomColumnHeading headingTitle="Delegators" />,
-      // width: 300,
-      flex: 1,
-      headerAlign: 'left',
-      headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography
-          sx={{
-            ...cellStyles,
-            wordBreak: 'normal',
-          }}
-        >
-          {params.value}
-        </Typography>
-      ),
-    },
-    {
-      field: 'stake',
-      renderHeader: () => <CustomColumnHeading headingTitle="Stake" />,
-      flex: 1,
-      headerAlign: 'left',
-      headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles}>{params.value}</Typography>
-      ),
-    },
-    {
-      field: 'share_from_bond',
-      renderHeader: () => (
-        <CustomColumnHeading headingTitle="Share from bond" />
-      ),
-      flex: 1,
-      headerAlign: 'left',
-      headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles}>{params.value}</Typography>
-      ),
-    },
-  ];
   if (mixnodeDetailInfo?.isLoading) {
     return <CircularProgress />;
   }
@@ -225,7 +176,7 @@ export const BondBreakdownTable: React.FC = () => {
                 overflowY: 'scroll',
               }}
             >
-              <Table>
+              <Table stickyHeader>
                 <TableHead>
                   <TableRow>
                     <TableCell
@@ -276,16 +227,6 @@ export const BondBreakdownTable: React.FC = () => {
               </Table>
             </Box>
           )}
-
-          {/* {delegations?.data && (
-            <UniversalDataGrid
-              columnsData={columns}
-              rows={delegationsToGridRow(delegations.data)}
-              pageSize="5"
-              pagination
-              hideFooter={false}
-            />
-          )} */}
         </TableContainer>
       </>
     );

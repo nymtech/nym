@@ -7,6 +7,7 @@ import {
   useMediaQuery,
   useTheme,
   Box,
+  Button,
 } from '@mui/material';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -16,8 +17,9 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import { MainContext } from 'src/context/main';
+import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { delegationsToGridRow } from 'src/utils';
+// import { delegationsToGridRow } from 'src/utils';
 import { cellStyles, UniversalDataGrid } from './Universal-DataGrid';
 import { CustomColumnHeading } from './CustomColumnHeading';
 
@@ -27,6 +29,8 @@ export const BondBreakdownTable: React.FC = () => {
   const [allContentLoaded, setAllContentLoaded] =
     React.useState<boolean>(false);
   const [showError, setShowError] = React.useState<boolean>(false);
+  const [showDelegations, toggleShowDelegations] =
+    React.useState<boolean>(false);
 
   const [bonds, setBonds] = React.useState({
     delegations: '0',
@@ -86,6 +90,10 @@ export const BondBreakdownTable: React.FC = () => {
     setAllContentLoaded(hasAllData);
   }, [mixnodeDetailInfo, delegations]);
 
+  const expandDelegations = () => {
+    toggleShowDelegations(!showDelegations);
+    console.log('show or hide: ', showDelegations);
+  };
   const calcBondPercentage = (num: number) => {
     if (mixnodeDetailInfo?.data !== undefined && mixnodeDetailInfo?.data[0]) {
       const rawDeligationAmount = Number(
@@ -173,7 +181,7 @@ export const BondBreakdownTable: React.FC = () => {
                 <TableCell
                   sx={{
                     fontWeight: 'bold',
-                    width: matches ? '90px' : 'auto',
+                    width: matches ? '150px' : 'auto',
                   }}
                   align="left"
                 >
@@ -184,7 +192,7 @@ export const BondBreakdownTable: React.FC = () => {
               <TableRow>
                 <TableCell
                   sx={{
-                    width: matches ? '90px' : 'auto',
+                    width: matches ? '150px' : 'auto',
                   }}
                   align="left"
                 >
@@ -194,40 +202,30 @@ export const BondBreakdownTable: React.FC = () => {
               </TableRow>
               <TableRow>
                 <TableCell
+                  onClick={expandDelegations}
                   sx={{
-                    width: matches ? '90px' : 'auto',
+                    width: matches ? '150px' : 'auto',
+                    display: 'flex',
+                    alignItems: 'center',
                   }}
                   align="left"
                 >
-                  Delegation total
+                  Delegation total {'\u00A0'}
+                  {showDelegations ? <ExpandLess /> : <ExpandMore />}
                 </TableCell>
                 <TableCell align="left">{bonds.delegations}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
 
-          {/* {delegations?.data && (
-            <UniversalDataGrid
-              columnsData={columns}
-              rows={delegationsToGridRow(delegations.data)}
-              pageSize="5"
-              pagination
-              hideFooter={false}
-            />
-          )} */}
-
-          {delegations?.data !== undefined && delegations?.data[0] && (
+          {showDelegations && (
             <Box
               sx={{
                 maxHeight: 400,
                 overflowY: 'scroll',
               }}
             >
-              <Table
-                sx={{ minWidth: 650 }}
-                stickyHeader
-                aria-label="delegation totals"
-              >
+              <Table>
                 <TableHead>
                   <TableRow>
                     <TableCell
@@ -243,16 +241,20 @@ export const BondBreakdownTable: React.FC = () => {
                       Stake
                     </TableCell>
                     <TableCell
-                      sx={{ fontWeight: 'bold', background: '#242C3D' }}
+                      sx={{
+                        fontWeight: 'bold',
+                        background: '#242C3D',
+                        width: '200px',
+                      }}
                       align="left"
                     >
-                      % of Bond
+                      Share from bond
                     </TableCell>
                   </TableRow>
                 </TableHead>
 
                 <TableBody>
-                  {delegations.data.map(
+                  {delegations?.data?.map(
                     ({ owner, amount: { amount, denom } }) => (
                       <TableRow key={owner}>
                         <TableCell
@@ -274,6 +276,16 @@ export const BondBreakdownTable: React.FC = () => {
               </Table>
             </Box>
           )}
+
+          {/* {delegations?.data && (
+            <UniversalDataGrid
+              columnsData={columns}
+              rows={delegationsToGridRow(delegations.data)}
+              pageSize="5"
+              pagination
+              hideFooter={false}
+            />
+          )} */}
         </TableContainer>
       </>
     );

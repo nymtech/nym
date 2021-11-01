@@ -11,7 +11,7 @@ use crate::storage::models::{
     FailedGatewayRewardChunk, FailedMixnodeRewardChunk, PossiblyUnrewardedGateway,
     PossiblyUnrewardedMixnode, RewardingReport,
 };
-use crate::storage::NodeStatusStorage;
+use crate::storage::ValidatorApiStorage;
 use log::{error, info};
 use mixnet_contract::{ExecuteMsg, IdentityKey};
 use rand::{thread_rng, Rng};
@@ -102,7 +102,7 @@ impl<'a> From<&'a GatewayToReward> for ExecuteMsg {
 pub(crate) struct Rewarder {
     nymd_client: Client<SigningNymdClient>,
     validator_cache: ValidatorCache,
-    storage: NodeStatusStorage,
+    storage: ValidatorApiStorage,
 
     /// The first epoch of the current length.
     first_epoch: Epoch,
@@ -121,7 +121,7 @@ impl Rewarder {
     pub(crate) fn new(
         nymd_client: Client<SigningNymdClient>,
         validator_cache: ValidatorCache,
-        storage: NodeStatusStorage,
+        storage: ValidatorApiStorage,
         first_epoch: Epoch,
         expected_epoch_monitor_runs: usize,
         minimum_epoch_monitor_threshold: u8,
@@ -777,32 +777,11 @@ impl Rewarder {
             }
         }
 
-        // TODO: again, this assumes 24h epochs.
-        let epoch_iso_8601 = epoch.start().date().to_string();
-        let two_days_ago = (epoch.start() - 2 * ONE_DAY).unix_timestamp();
-
-        // NOTE: this works under assumption that epochs are 24h in length.
-        // If this changes then the historical uptime updates should be performed
-        // on a timer in another task
-        if self
-            .storage
-            .check_if_historical_uptimes_exist_for_date(&epoch_iso_8601)
-            .await?
-        {
-            error!("We have already updated uptimes for all nodes this day. If you're seeing this warning, it's likely rewards were given out twice this day!")
-        } else {
-            info!(
-                "Updating historical daily uptimes of all nodes and purging old status reports..."
-            );
-            self.storage
-                .update_historical_uptimes(
-                    &epoch_iso_8601,
-                    &active_monitor_mixnodes,
-                    &active_monitor_gateways,
-                )
-                .await?;
-            self.storage.purge_old_statuses(two_days_ago).await?;
-        }
+        // since we have already performed rewards, purge everything older than the end of this epoch
+        // (+one day of buffer) as we're never going to need it again (famous last words...)
+        // note that usually end of epoch is equal to the current time
+        let cutoff = (epoch.end() - ONE_DAY).unix_timestamp();
+        self.storage.purge_old_statuses(cutoff).await?;
 
         Ok(())
     }

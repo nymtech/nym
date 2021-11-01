@@ -39,7 +39,7 @@ If applicable, add screenshots to help explain your problem...
 
 **If this issue is a front end problem or any other area...**
 *(please complete the following information):*
- - OS: [e.g. MacOs, Windows, Linux]
+ - OS: [e.g. MacOS, Windows, Linux]
  - Browser [e.g. chrome, safari]
  - Version [e.g. 94]
 

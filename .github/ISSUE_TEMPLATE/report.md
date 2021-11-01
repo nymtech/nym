@@ -26,7 +26,7 @@ Steps to reproduce the behaviour, if you're familiar with BDD syntax, please wri
 *An example:*
 - Given I was setting up a mix-node following the instructions in the docs
 - And I successfully bonded my node via the the wallet
--  When I went to start my mixnode
+- When I went to start my mixnode
 - Then I was presented with an error
 
 **Screenshots**

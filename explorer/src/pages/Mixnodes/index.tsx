@@ -20,7 +20,7 @@ export const PageMixnodes: React.FC = () => {
   const { mixnodes } = React.useContext(MainContext);
   const [filteredMixnodes, setFilteredMixnodes] =
     React.useState<MixNodeResponse>([]);
-  const [pageSize, setPageSize] = React.useState<string>('50');
+  const [pageSize, setPageSize] = React.useState<string>('10');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
 
   const handleSearch = (str: string) => {
@@ -85,7 +85,7 @@ export const PageMixnodes: React.FC = () => {
       headerName: 'Bond',
       type: 'number',
       headerAlign: 'left',
-      width: 120,
+      flex: 1,
       headerClassName: 'MuiDataGrid-header-override',
       renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
       renderCell: (params: GridRenderCellParams) => {
@@ -107,7 +107,7 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'host',
       renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
-      width: 130,
+      flex: 1,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -123,13 +123,13 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'location',
       renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
-      width: 120,
+      flex: 1,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
         <Button
           onClick={() => handleSearch(params.value as string)}
-          sx={cellStyles}
+          sx={{ ...cellStyles, justifyContent: 'flex-start' }}
         >
           {params.value}
         </Button>
@@ -140,7 +140,7 @@ export const PageMixnodes: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderHeader: () => <CustomColumnHeading headingTitle="Layer" />,
-      width: 100,
+      flex: 1,
       type: 'number',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
@@ -165,7 +165,7 @@ export const PageMixnodes: React.FC = () => {
       </Typography>
 
       <Grid container>
-        <Grid item xs={12} md={12} lg={9} xl={9}>
+        <Grid item xs={12} md={12} lg={10} xl={10}>
           <ContentCard>
             <TableToolbar
               onChangeSearch={handleSearch}

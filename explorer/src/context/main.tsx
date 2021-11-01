@@ -18,7 +18,7 @@ import { Api } from '../api';
 
 interface State {
   mode: PaletteMode;
-  toggleMode?: () => void;
+  toggleMode: () => void;
   mixnodes?: ApiState<MixNodeResponse>;
   fetchMixnodes: () => void;
   filterMixnodes: (arg: MixNodeResponse) => void;
@@ -42,6 +42,7 @@ interface State {
 export const MainContext = React.createContext<State>({
   mode: 'dark',
   fetchMixnodeById: () => null,
+  toggleMode: () => undefined,
   fetchDelegationsById: () => null,
   fetchStatsById: () => null,
   fetchStatusById: () => null,
@@ -236,6 +237,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
   };
 
   const fetchCountryData = async () => {
+    setCountryData({ data: undefined, isLoading: true });
     try {
       const res = await Api.fetchCountryData();
       setCountryData({ data: res, isLoading: false });

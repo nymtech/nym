@@ -74,7 +74,9 @@ export function mixnodeToGridRow(
         owner: mn.owner,
         location: mn?.location?.country_name || '',
         identity_key: mn.mix_node.identity_key || '',
-        bond: mn.bond_amount.amount || 0,
+        bond:
+          Number(mn.bond_amount.amount) + Number(mn.total_delegation.amount) ||
+          0,
         host: mn.mix_node.host || '',
         layer: mn.layer || '',
       }));

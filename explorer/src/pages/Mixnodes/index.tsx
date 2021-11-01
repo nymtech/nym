@@ -83,6 +83,7 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'bond',
       headerName: 'Bond',
+      type: 'number',
       headerAlign: 'left',
       flex: 1,
       headerClassName: 'MuiDataGrid-header-override',

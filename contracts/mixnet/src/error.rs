@@ -51,6 +51,9 @@ pub enum ContractError {
     #[error("The delegation reward rate for mixnode was set to be lower than 1")]
     DecreasingMixnodeDelegationReward,
 
+    #[error("Provided active set size is bigger than the demanded set")]
+    InvalidActiveSetSize,
+
     #[error("The node had uptime larger than 100%")]
     UnexpectedUptime,
 

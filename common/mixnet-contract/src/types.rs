@@ -34,13 +34,20 @@ pub struct RewardingIntervalResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct StateParams {
-    pub epoch_length: u32, // length of an epoch, expressed in hours
+    pub epoch_length: u32, // length of a rewarding epoch/interval, expressed in hours
 
     pub minimum_mixnode_bond: Uint128, // minimum amount a mixnode must bond to get into the system
     pub minimum_gateway_bond: Uint128, // minimum amount a gateway must bond to get into the system
 
     pub mixnode_bond_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
     pub mixnode_delegation_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
+
+    // number of mixnode that are going to get rewarded during current rewarding interval (k_m)
+    // based on overall demand for private bandwidth-
+    pub mixnode_demanded_set_size: u32,
+
+    // subset of rewarded mixnodes that are actively receiving mix traffic
+    // used to handle shorter-term (e.g. hourly) fluctuations of demand
     pub mixnode_active_set_size: u32,
 }
 
@@ -59,6 +66,11 @@ impl Display for StateParams {
             f,
             "mixnode delegation reward rate: {}; ",
             self.mixnode_delegation_reward_rate
+        )?;
+        write!(
+            f,
+            "mixnode demanded set size: {}",
+            self.mixnode_demanded_set_size
         )?;
         write!(
             f,

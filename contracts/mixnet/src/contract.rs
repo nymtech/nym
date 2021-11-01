@@ -121,7 +121,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             to_binary(&queries::query_owns_gateway(deps, address)?)
         }
         QueryMsg::StateParams {} => to_binary(&queries::query_state_params(deps)),
-        QueryMsg::CurrentRewardingInterval {} => to_binary(&queryes::query_rewarding_interval(deps)),
+        QueryMsg::CurrentRewardingInterval {} => {
+            to_binary(&queries::query_rewarding_interval(deps))
+        }
         QueryMsg::LayerDistribution {} => to_binary(&queries::query_layer_distribution(deps)),
         QueryMsg::GetMixDelegations {
             mix_identity,

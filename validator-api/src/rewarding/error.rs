@@ -50,7 +50,7 @@ impl RewardingError {
     pub fn is_tendermint_duplicate(&self) -> bool {
         match &self {
             RewardingError::ValidatorClientError(ValidatorClientError::NymdError(nymd_err)) => {
-                nymd_err.is_tendermint_duplicate()
+                nymd_err.is_tendermint_response_duplicate()
             }
             _ => false,
         }

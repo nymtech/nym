@@ -22,7 +22,7 @@ use cosmrs::rpc::query::Query;
 use cosmrs::rpc::{self, HttpClient, Order};
 use cosmrs::tendermint::abci::Transaction;
 use cosmrs::tendermint::{abci, block, chain};
-use cosmrs::{AccountId, Coin, Denom};
+use cosmrs::{tx, AccountId, Coin, Denom};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};

@@ -7,7 +7,10 @@ use cosmrs::{bip32, tx, AccountId};
 use std::io;
 use thiserror::Error;
 
-pub use cosmrs::rpc::error::{Code, Error as TendermintRpcError};
+pub use cosmrs::rpc::error::{
+    Error as TendermintRpcError, ErrorDetail as TendermintRpcErrorDetail,
+};
+pub use cosmrs::rpc::response_error::{Code, ResponseError};
 
 #[derive(Debug, Error)]
 pub enum NymdError {
@@ -102,17 +105,21 @@ pub enum NymdError {
 }
 
 impl NymdError {
-    pub fn is_tendermint_timeout(&self) -> bool {
+    pub fn is_tendermint_response_timeout(&self) -> bool {
         match &self {
-            NymdError::TendermintError(tm_err) => {
-                if tm_err.code() == Code::InternalError {
+            NymdError::TendermintError(TendermintRpcError(
+                TendermintRpcErrorDetail::Response(err),
+                _,
+            )) => {
+                let response = &err.source;
+                if response.code() == Code::InternalError {
                     // 0.34 (and earlier) versions of tendermint seemed to be using phrase "timed out waiting ..."
                     // (https://github.com/tendermint/tendermint/blob/v0.34.13/rpc/core/mempool.go#L124)
                     // while 0.35+ has "timeout waiting for ..."
                     // https://github.com/tendermint/tendermint/blob/v0.35.0-rc3/internal/rpc/core/mempool.go#L99
                     // note that as of the time of writing this comment (08.10.2021), the most recent version
                     // of cosmos-sdk (v0.44.1) uses tendermint 0.34.13
-                    if let Some(data) = tm_err.data() {
+                    if let Some(data) = response.data() {
                         data.contains("timed out") || data.contains("timeout")
                     } else {
                         false
@@ -125,14 +132,18 @@ impl NymdError {
         }
     }
 
-    pub fn is_tendermint_duplicate(&self) -> bool {
+    pub fn is_tendermint_response_duplicate(&self) -> bool {
         match &self {
-            NymdError::TendermintError(tm_err) => {
-                if tm_err.code() == Code::InternalError {
+            NymdError::TendermintError(TendermintRpcError(
+                TendermintRpcErrorDetail::Response(err),
+                _,
+            )) => {
+                let response = &err.source;
+                if response.code() == Code::InternalError {
                     // this particular error message seems to be unchanged between 0.34 and newer versions
                     // https://github.com/tendermint/tendermint/blob/v0.34.13/mempool/errors.go#L10
                     // https://github.com/tendermint/tendermint/blob/v0.35.0-rc3/types/mempool.go#L10
-                    if let Some(data) = tm_err.data() {
+                    if let Some(data) = response.data() {
                         data.contains("tx already exists in cache")
                     } else {
                         false

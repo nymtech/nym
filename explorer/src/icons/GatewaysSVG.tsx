@@ -1,9 +1,14 @@
 import * as React from 'react';
 import { MainContext } from 'src/context/main';
+import { useTheme } from '@mui/material';
 
 export const GatewaysSVG: React.FC = () => {
   const { mode } = React.useContext(MainContext);
-  const color = mode === 'dark' ? '#FFFFFF' : '#000000';
+  const theme = useTheme();
+  const color =
+    mode === 'dark'
+      ? theme.palette.primary.light
+      : theme.palette.secondary.main;
 
   return (
     <>

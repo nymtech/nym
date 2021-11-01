@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { MainContext } from 'src/context/main';
+import { useTheme } from '@mui/material';
 
 export const NodemapSVG: React.FC = () => {
-  const { mode } = React.useContext(MainContext);
-  const color = mode === 'dark' ? '#FFFFFF' : '#000000';
+  const theme = useTheme();
+  const color = theme.palette.primary.light;
   return (
     <>
       <svg

@@ -4,10 +4,10 @@
 use crate::nymd_client::Client;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;
-use mixnet_contract::{GatewayBond, MixNodeBond, StateParams};
+use mixnet_contract::{GatewayBond, MixNodeBond, RewardingIntervalResponse, StateParams};
 use rocket::fairing::AdHoc;
 use serde::Serialize;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
@@ -29,10 +29,15 @@ pub struct ValidatorCache {
 
 struct ValidatorCacheInner {
     initialised: AtomicBool,
+    current_rewarding_interval: AtomicU64,
+
     mixnodes: RwLock<Cache<Vec<MixNodeBond>>>,
     gateways: RwLock<Cache<Vec<GatewayBond>>>,
 
-    active_mixnodes_available: AtomicBool,
+    demanded_mixnodes: RwLock<Cache<Vec<MixNodeBond>>>,
+
+    demanded_mixnodes_available: AtomicBool,
+    current_mixnode_demanded_set_size: AtomicUsize,
     current_mixnode_active_set_size: AtomicUsize,
 }
 
@@ -45,6 +50,13 @@ pub struct Cache<T> {
 impl<T: Clone> Cache<T> {
     fn set(&mut self, value: T) {
         self.value = value;
+        self.as_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+    }
+
+    fn renew(&mut self) {
         self.as_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -79,6 +91,7 @@ impl<C> ValidatorCacheRefresher<C> {
         )?;
 
         let state_params = self.nymd_client.get_state_params().await?;
+        let current_rewarding_interval = self.nymd_client.get_current_rewarding_interval().await?;
 
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
@@ -87,7 +100,7 @@ impl<C> ValidatorCacheRefresher<C> {
         );
 
         self.cache
-            .update_cache(mixnodes, gateways, state_params)
+            .update_cache(mixnodes, gateways, state_params, current_rewarding_interval)
             .await;
 
         Ok(())
@@ -128,6 +141,7 @@ impl ValidatorCache {
                     routes::get_mixnodes,
                     routes::get_gateways,
                     routes::get_active_mixnodes,
+                    routes::get_demanded_mixnodes,
                 ],
             )
         })
@@ -156,24 +170,42 @@ impl ValidatorCache {
         mut mixnodes: Vec<MixNodeBond>,
         gateways: Vec<GatewayBond>,
         state: StateParams,
+        rewarding_interval: RewardingIntervalResponse,
     ) {
+        // if the rewarding is currently in progress, don't mess with the demanded/active sets
+        // as most likely will be changed next time this function is called
+        //
         // if our data is valid, it means the active sets are available,
         // otherwise we must explicitly indicate nobody can read this data
-
-        if self.verify_mixnodes(&mixnodes) {
-            // partial_cmp can only fail if the nodes have different denomination,
-            // but we just checked for that hence the unwraps are fine here
-            // Note the reverse order of comparison so that the "highest" node would be first
-            mixnodes.sort_by(|a, b| b.partial_cmp(a).unwrap());
-            self.inner
-                .active_mixnodes_available
-                .store(true, Ordering::SeqCst);
-            self.inner
-                .current_mixnode_active_set_size
-                .store(state.mixnode_active_set_size as usize, Ordering::SeqCst);
+        if !rewarding_interval.rewarding_in_progress && self.verify_mixnodes(&mixnodes) {
+            // if we're still in the same rewarding interval, there's nothing we have to do
+            if rewarding_interval.current_rewarding_interval
+                > self.inner.current_rewarding_interval.load(Ordering::SeqCst)
+            {
+                // partial_cmp can only fail if the nodes have different denomination,
+                // but we just checked for that hence the unwraps are fine here
+                // Note the reverse order of comparison so that the "highest" node would be first
+                //
+                // TODO: rather than simply sorting nodes, we need some random beacon or something instead...
+                // and everything has to be proportional to mixnodes' stake
+                mixnodes.sort_by(|a, b| b.partial_cmp(a).unwrap());
+                self.inner
+                    .demanded_mixnodes_available
+                    .store(true, Ordering::SeqCst);
+                self.inner
+                    .current_mixnode_demanded_set_size
+                    .store(state.mixnode_demanded_set_size as usize, Ordering::SeqCst);
+                self.inner
+                    .current_mixnode_active_set_size
+                    .store(state.mixnode_active_set_size as usize, Ordering::SeqCst);
+                self.inner.current_rewarding_interval.store(
+                    rewarding_interval.current_rewarding_interval,
+                    Ordering::SeqCst,
+                );
+            }
         } else {
             self.inner
-                .active_mixnodes_available
+                .demanded_mixnodes_available
                 .store(false, Ordering::SeqCst);
         }
 
@@ -189,10 +221,27 @@ impl ValidatorCache {
         self.inner.gateways.read().await.clone()
     }
 
+    pub async fn demanded_mixnodes(&self) -> Option<Cache<Vec<MixNodeBond>>> {
+        if self
+            .inner
+            .demanded_mixnodes_available
+            .load(Ordering::SeqCst)
+        {
+            let cache = self.inner.demanded_mixnodes.read().await;
+            Some(cache.clone())
+        } else {
+            None
+        }
+    }
+
     pub async fn active_mixnodes(&self) -> Option<Cache<Vec<MixNodeBond>>> {
-        // if active set is available, it means it is already sorted
-        if self.inner.active_mixnodes_available.load(Ordering::SeqCst) {
-            let cache = self.inner.mixnodes.read().await;
+        // if demanded set is available, it means so is active and it is already sorted
+        if self
+            .inner
+            .demanded_mixnodes_available
+            .load(Ordering::SeqCst)
+        {
+            let cache = self.inner.demanded_mixnodes.read().await;
             let timestamp = cache.as_at;
             let nodes = cache
                 .value
@@ -234,9 +283,12 @@ impl ValidatorCacheInner {
     fn new() -> Self {
         ValidatorCacheInner {
             initialised: AtomicBool::new(false),
+            current_rewarding_interval: Default::default(),
             mixnodes: RwLock::new(Cache::default()),
             gateways: RwLock::new(Cache::default()),
-            active_mixnodes_available: AtomicBool::new(false),
+            demanded_mixnodes: RwLock::new(Cache::default()),
+            demanded_mixnodes_available: AtomicBool::new(false),
+            current_mixnode_demanded_set_size: Default::default(),
             current_mixnode_active_set_size: Default::default(),
         }
     }

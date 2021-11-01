@@ -7,7 +7,10 @@ use crate::rewarding::{
     PER_MIXNODE_DELEGATION_GAS_INCREASE, REWARDING_GAS_LIMIT_MULTIPLIER,
 };
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
-use mixnet_contract::{Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond, StateParams};
+use mixnet_contract::{
+    Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond, RewardingIntervalResponse,
+    StateParams,
+};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -112,6 +115,15 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         self.0.read().await.get_state_params().await
+    }
+
+    pub(crate) async fn get_current_rewarding_interval(
+        &self,
+    ) -> Result<RewardingIntervalResponse, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0.read().await.get_current_rewarding_interval().await
     }
 
     pub(crate) async fn get_mixnode_delegations(

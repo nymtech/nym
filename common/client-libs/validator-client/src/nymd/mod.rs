@@ -16,7 +16,8 @@ use mixnet_contract::{
     Addr, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
     LayerDistribution, MixNode, MixOwnershipResponse, PagedAllDelegationsResponse,
     PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
-    PagedReverseMixDelegationsResponse, QueryMsg, RawDelegationData, StateParams,
+    PagedReverseMixDelegationsResponse, QueryMsg, RawDelegationData, RewardingIntervalResponse,
+    StateParams,
 };
 use serde::Serialize;
 use std::collections::HashMap;
@@ -196,6 +197,18 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::StateParams {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_current_rewarding_interval(
+        &self,
+    ) -> Result<RewardingIntervalResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::CurrentRewardingInterval {};
         self.client
             .query_contract_smart(self.contract_address()?, &request)
             .await

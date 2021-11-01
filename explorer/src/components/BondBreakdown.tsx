@@ -85,7 +85,9 @@ export const BondBreakdownTable: React.FC = () => {
   }, [mixnodeDetailInfo, delegations]);
 
   const expandDelegations = () => {
-    toggleShowDelegations(!showDelegations);
+    if (delegations?.data && delegations.data.length > 0) {
+      toggleShowDelegations(!showDelegations);
+    }
   };
   const calcBondPercentage = (num: number) => {
     if (mixnodeDetailInfo?.data !== undefined && mixnodeDetailInfo?.data[0]) {
@@ -156,13 +158,20 @@ export const BondBreakdownTable: React.FC = () => {
                   onClick={expandDelegations}
                   sx={{
                     width: matches ? '150px' : 'auto',
-                    display: 'flex',
-                    alignItems: 'center',
                   }}
                   align="left"
                 >
-                  Delegation total {'\u00A0'}
-                  {showDelegations ? <ExpandLess /> : <ExpandMore />}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    Delegation total {'\u00A0'}
+                    {delegations?.data && delegations?.data?.length > 0 && (
+                      <ExpandMore />
+                    )}
+                  </Box>
                 </TableCell>
                 <TableCell align="left">{bonds.delegations}</TableCell>
               </TableRow>

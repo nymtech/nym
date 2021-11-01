@@ -16,11 +16,8 @@ pub struct TauriStateParams {
   minimum_mixnode_bond: String,
   minimum_gateway_bond: String,
   mixnode_bond_reward_rate: String,
-  gateway_bond_reward_rate: String,
   mixnode_delegation_reward_rate: String,
-  gateway_delegation_reward_rate: String,
   mixnode_active_set_size: u32,
-  gateway_active_set_size: u32,
 }
 
 impl From<StateParams> for TauriStateParams {
@@ -30,11 +27,8 @@ impl From<StateParams> for TauriStateParams {
       minimum_mixnode_bond: p.minimum_mixnode_bond.to_string(),
       minimum_gateway_bond: p.minimum_gateway_bond.to_string(),
       mixnode_bond_reward_rate: p.mixnode_bond_reward_rate.to_string(),
-      gateway_bond_reward_rate: p.gateway_bond_reward_rate.to_string(),
       mixnode_delegation_reward_rate: p.mixnode_delegation_reward_rate.to_string(),
-      gateway_delegation_reward_rate: p.gateway_delegation_reward_rate.to_string(),
       mixnode_active_set_size: p.mixnode_active_set_size,
-      gateway_active_set_size: p.gateway_active_set_size,
     }
   }
 }
@@ -48,11 +42,8 @@ impl TryFrom<TauriStateParams> for StateParams {
       minimum_mixnode_bond: Uint128::try_from(p.minimum_mixnode_bond.as_str())?,
       minimum_gateway_bond: Uint128::try_from(p.minimum_gateway_bond.as_str())?,
       mixnode_bond_reward_rate: Decimal::from_str(p.mixnode_bond_reward_rate.as_str())?,
-      gateway_bond_reward_rate: Decimal::from_str(p.gateway_bond_reward_rate.as_str())?,
       mixnode_delegation_reward_rate: Decimal::from_str(p.mixnode_delegation_reward_rate.as_str())?,
-      gateway_delegation_reward_rate: Decimal::from_str(p.gateway_delegation_reward_rate.as_str())?,
       mixnode_active_set_size: p.mixnode_active_set_size,
-      gateway_active_set_size: p.gateway_active_set_size,
     })
   }
 }

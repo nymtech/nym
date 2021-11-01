@@ -31,21 +31,7 @@ pub enum ExecuteMsg {
         mix_identity: IdentityKey,
     },
 
-    DelegateToGateway {
-        gateway_identity: IdentityKey,
-    },
-
-    UndelegateFromGateway {
-        gateway_identity: IdentityKey,
-    },
-
     RewardMixnode {
-        identity: IdentityKey,
-        // percentage value in range 0-100
-        uptime: u32,
-    },
-
-    RewardGateway {
         identity: IdentityKey,
         // percentage value in range 0-100
         uptime: u32,
@@ -86,24 +72,6 @@ pub enum QueryMsg {
     },
     GetMixDelegation {
         mix_identity: IdentityKey,
-        address: Addr,
-    },
-    GetGatewayDelegations {
-        gateway_identity: IdentityKey,
-        start_after: Option<Addr>,
-        limit: Option<u32>,
-    },
-    GetAllGatewayDelegations {
-        start_after: Option<Vec<u8>>,
-        limit: Option<u32>,
-    },
-    GetReverseGatewayDelegations {
-        delegation_owner: Addr,
-        start_after: Option<IdentityKey>,
-        limit: Option<u32>,
-    },
-    GetGatewayDelegation {
-        gateway_identity: IdentityKey,
         address: Addr,
     },
     LayerDistribution {},

@@ -11,7 +11,9 @@ type DataGridProps = {
 };
 
 export const cellStyles = {
-  width: 'auto',
+  width: '100%',
+  padding: 0,
+  'text-align': 'start',
   maxWidth: 170,
   maxHeight: 100,
   color: 'inherit',

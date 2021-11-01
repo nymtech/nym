@@ -2,7 +2,7 @@ import * as React from 'react';
 import { GridRenderCellParams, GridColDef } from '@mui/x-data-grid';
 import { printableCoin } from '@nymproject/nym-validator-client';
 import { Link as RRDLink } from 'react-router-dom';
-import { Button, Grid, Link as MuiLink, Typography } from '@mui/material';
+import { Button, Grid, Link as MuiLink } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import {
   cellStyles,
@@ -15,6 +15,7 @@ import { MixNodeResponse } from 'src/typeDefs/explorer-api';
 import { BIG_DIPPER } from 'src/api/constants';
 import { ContentCard } from 'src/components/ContentCard';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
+import { Title } from 'src/components/Title';
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes } = React.useContext(MainContext);
@@ -178,10 +179,7 @@ export const PageMixnodes: React.FC = () => {
 
   return (
     <>
-      <Typography sx={{ marginBottom: 3 }} variant="h5">
-        Mixnodes
-      </Typography>
-
+      <Title text="Mixnodes" />
       <Grid container>
         <Grid item xs={12} md={12} lg={10} xl={10}>
           <ContentCard>

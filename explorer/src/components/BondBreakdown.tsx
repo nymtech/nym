@@ -3,8 +3,10 @@ import { printableCoin } from '@nymproject/nym-validator-client';
 import {
   Alert,
   CircularProgress,
+  Typography,
   useMediaQuery,
   useTheme,
+  Box,
 } from '@mui/material';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -14,6 +16,10 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import { MainContext } from 'src/context/main';
+import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
+import { delegationsToGridRow } from 'src/utils';
+import { cellStyles, UniversalDataGrid } from './Universal-DataGrid';
+import { CustomColumnHeading } from './CustomColumnHeading';
 
 export const BondBreakdownTable: React.FC = () => {
   const { mixnodeDetailInfo, delegations, mode } =
@@ -94,6 +100,48 @@ export const BondBreakdownTable: React.FC = () => {
     return 0;
   };
 
+  const columns: GridColDef[] = [
+    {
+      field: 'delegators',
+      renderHeader: () => <CustomColumnHeading headingTitle="Delegators" />,
+      // width: 300,
+      flex: 1,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography
+          sx={{
+            ...cellStyles,
+            wordBreak: 'normal',
+          }}
+        >
+          {params.value}
+        </Typography>
+      ),
+    },
+    {
+      field: 'stake',
+      renderHeader: () => <CustomColumnHeading headingTitle="Stake" />,
+      flex: 1,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography sx={cellStyles}>{params.value}</Typography>
+      ),
+    },
+    {
+      field: 'share_from_bond',
+      renderHeader: () => (
+        <CustomColumnHeading headingTitle="Share from bond" />
+      ),
+      flex: 1,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography sx={cellStyles}>{params.value}</Typography>
+      ),
+    },
+  ];
   if (mixnodeDetailInfo?.isLoading) {
     return <CircularProgress />;
   }
@@ -158,42 +206,73 @@ export const BondBreakdownTable: React.FC = () => {
             </TableBody>
           </Table>
 
+          {/* {delegations?.data && (
+            <UniversalDataGrid
+              columnsData={columns}
+              rows={delegationsToGridRow(delegations.data)}
+              pageSize="5"
+              pagination
+              hideFooter={false}
+            />
+          )} */}
+
           {delegations?.data !== undefined && delegations?.data[0] && (
-            <Table sx={{ minWidth: 650 }} aria-label="delegation totals">
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold' }} align="left">
-                    Delegators
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }} align="left">
-                    Stake
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }} align="left">
-                    % of Bond
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {delegations.data.map(
-                  ({ owner, amount: { amount, denom } }) => (
-                    <TableRow key={owner}>
-                      <TableCell
-                        sx={matches ? { width: 190 } : null}
-                        align="left"
-                      >
-                        {owner}
-                      </TableCell>
-                      <TableCell align="left">
-                        {printableCoin({ amount: amount.toString(), denom })}
-                      </TableCell>
-                      <TableCell align="left">
-                        {calcBondPercentage(amount)}%
-                      </TableCell>
-                    </TableRow>
-                  ),
-                )}
-              </TableBody>
-            </Table>
+            <Box
+              sx={{
+                maxHeight: 400,
+                overflowY: 'scroll',
+              }}
+            >
+              <Table
+                sx={{ minWidth: 650 }}
+                stickyHeader
+                aria-label="delegation totals"
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell
+                      sx={{ fontWeight: 'bold', background: '#242C3D' }}
+                      align="left"
+                    >
+                      Delegators
+                    </TableCell>
+                    <TableCell
+                      sx={{ fontWeight: 'bold', background: '#242C3D' }}
+                      align="left"
+                    >
+                      Stake
+                    </TableCell>
+                    <TableCell
+                      sx={{ fontWeight: 'bold', background: '#242C3D' }}
+                      align="left"
+                    >
+                      % of Bond
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  {delegations.data.map(
+                    ({ owner, amount: { amount, denom } }) => (
+                      <TableRow key={owner}>
+                        <TableCell
+                          sx={matches ? { width: 190 } : null}
+                          align="left"
+                        >
+                          {owner}
+                        </TableCell>
+                        <TableCell align="left">
+                          {printableCoin({ amount: amount.toString(), denom })}
+                        </TableCell>
+                        <TableCell align="left">
+                          {calcBondPercentage(amount)}%
+                        </TableCell>
+                      </TableRow>
+                    ),
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
           )}
         </TableContainer>
       </>

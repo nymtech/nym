@@ -5,6 +5,7 @@ import {
   CircularProgress,
   useMediaQuery,
   useTheme,
+  Box,
 } from '@mui/material';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -14,6 +15,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import { MainContext } from 'src/context/main';
+import { ExpandLess, ExpandMore } from '@mui/icons-material';
 
 export const BondBreakdownTable: React.FC = () => {
   const { mixnodeDetailInfo, delegations, mode } =
@@ -21,6 +23,8 @@ export const BondBreakdownTable: React.FC = () => {
   const [allContentLoaded, setAllContentLoaded] =
     React.useState<boolean>(false);
   const [showError, setShowError] = React.useState<boolean>(false);
+  const [showDelegations, toggleShowDelegations] =
+    React.useState<boolean>(false);
 
   const [bonds, setBonds] = React.useState({
     delegations: '0',
@@ -80,6 +84,11 @@ export const BondBreakdownTable: React.FC = () => {
     setAllContentLoaded(hasAllData);
   }, [mixnodeDetailInfo, delegations]);
 
+  const expandDelegations = () => {
+    if (delegations?.data && delegations.data.length > 0) {
+      toggleShowDelegations(!showDelegations);
+    }
+  };
   const calcBondPercentage = (num: number) => {
     if (mixnodeDetailInfo?.data !== undefined && mixnodeDetailInfo?.data[0]) {
       const rawDeligationAmount = Number(
@@ -125,7 +134,7 @@ export const BondBreakdownTable: React.FC = () => {
                 <TableCell
                   sx={{
                     fontWeight: 'bold',
-                    width: matches ? '90px' : 'auto',
+                    width: matches ? '150px' : 'auto',
                   }}
                   align="left"
                 >
@@ -136,7 +145,7 @@ export const BondBreakdownTable: React.FC = () => {
               <TableRow>
                 <TableCell
                   sx={{
-                    width: matches ? '90px' : 'auto',
+                    width: matches ? '150px' : 'auto',
                   }}
                   align="left"
                 >
@@ -146,54 +155,86 @@ export const BondBreakdownTable: React.FC = () => {
               </TableRow>
               <TableRow>
                 <TableCell
+                  onClick={expandDelegations}
                   sx={{
-                    width: matches ? '90px' : 'auto',
+                    width: matches ? '150px' : 'auto',
                   }}
                   align="left"
                 >
-                  Delegation total
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    Delegation total {'\u00A0'}
+                    {delegations?.data && delegations?.data?.length > 0 && (
+                      <ExpandMore />
+                    )}
+                  </Box>
                 </TableCell>
                 <TableCell align="left">{bonds.delegations}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
 
-          {delegations?.data !== undefined && delegations?.data[0] && (
-            <Table sx={{ minWidth: 650 }} aria-label="delegation totals">
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold' }} align="left">
-                    Delegators
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }} align="left">
-                    Stake
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }} align="left">
-                    % of Bond
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {delegations.data.map(
-                  ({ owner, amount: { amount, denom } }) => (
-                    <TableRow key={owner}>
-                      <TableCell
-                        sx={matches ? { width: 190 } : null}
-                        align="left"
-                      >
-                        {owner}
-                      </TableCell>
-                      <TableCell align="left">
-                        {printableCoin({ amount: amount.toString(), denom })}
-                      </TableCell>
-                      <TableCell align="left">
-                        {calcBondPercentage(amount)}%
-                      </TableCell>
-                    </TableRow>
-                  ),
-                )}
-              </TableBody>
-            </Table>
+          {showDelegations && (
+            <Box
+              sx={{
+                maxHeight: 400,
+                overflowY: 'scroll',
+              }}
+            >
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell
+                      sx={{ fontWeight: 'bold', background: '#242C3D' }}
+                      align="left"
+                    >
+                      Delegators
+                    </TableCell>
+                    <TableCell
+                      sx={{ fontWeight: 'bold', background: '#242C3D' }}
+                      align="left"
+                    >
+                      Stake
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        fontWeight: 'bold',
+                        background: '#242C3D',
+                        width: '200px',
+                      }}
+                      align="left"
+                    >
+                      Share from bond
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  {delegations?.data?.map(
+                    ({ owner, amount: { amount, denom } }) => (
+                      <TableRow key={owner}>
+                        <TableCell
+                          sx={matches ? { width: 190 } : null}
+                          align="left"
+                        >
+                          {owner}
+                        </TableCell>
+                        <TableCell align="left">
+                          {printableCoin({ amount: amount.toString(), denom })}
+                        </TableCell>
+                        <TableCell align="left">
+                          {calcBondPercentage(amount)}%
+                        </TableCell>
+                      </TableRow>
+                    ),
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
           )}
         </TableContainer>
       </>

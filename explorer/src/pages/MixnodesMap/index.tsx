@@ -1,50 +1,137 @@
 import * as React from 'react';
-import { styled } from '@mui/material/styles';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
+import {
+  Box,
+  CircularProgress,
+  Grid,
+  SelectChangeEvent,
+  Typography,
+  Alert,
+} from '@mui/material';
+import { WorldMap } from 'src/components/WorldMap';
+import { MainContext } from 'src/context/main';
+import {
+  cellStyles,
+  UniversalDataGrid,
+} from 'src/components/Universal-DataGrid';
+import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
+import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
+import { TableToolbar } from 'src/components/TableToolbar';
+import { CountryDataRowType, countryDataToGridRow } from 'src/utils';
+import { ContentCard } from '../../components/ContentCard';
 
-const DrawerHeader = styled('div')(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'flex-end',
-  padding: theme.spacing(0, 1),
-  // necessary for content to be below app bar
-  ...theme.mixins.toolbar,
-}));
+export const PageMixnodesMap: React.FC = () => {
+  const { countryData } = React.useContext(MainContext);
+  const [pageSize, setPageSize] = React.useState<string>('10');
+  const [formattedCountries, setFormattedCountries] = React.useState<
+    CountryDataRowType[]
+  >([]);
+  const [searchTerm, setSearchTerm] = React.useState<string>('');
 
-export const PageMixnodesMap: React.FC = () => (
-  <>
-    <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-      <DrawerHeader />
-      <Typography paragraph>
-        Mix Nodes Map is here and Lorem ipsum dolor sit amet, consectetur
-        adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore
-        magna aliqua. Rhoncus dolor purus non enim praesent elementum facilisis
-        leo vel. Risus at ultrices mi tempus imperdiet. Semper risus in
-        hendrerit gravida rutrum quisque non tellus. Convallis convallis tellus
-        id interdum velit laoreet id donec ultrices. Odio morbi quis commodo
-        odio aenean sed adipiscing. Amet nisl suscipit adipiscing bibendum est
-        ultricies integer quis. Cursus euismod quis viverra nibh cras. Metus
-        vulputate eu scelerisque felis imperdiet proin fermentum leo. Mauris
-        commodo quis imperdiet massa tincidunt. Cras tincidunt lobortis feugiat
-        vivamus at augue. At augue eget arcu dictum varius duis at consectetur
-        lorem. Velit sed ullamcorper morbi tincidunt. Lorem donec massa sapien
-        faucibus et molestie ac.
-      </Typography>
-      <Typography paragraph>
-        Consequat mauris nunc congue nisi vitae suscipit. Fringilla est
-        ullamcorper eget nulla facilisi etiam dignissim diam. Pulvinar elementum
-        integer enim neque volutpat ac tincidunt. Ornare suspendisse sed nisi
-        lacus sed viverra tellus. Purus sit amet volutpat consequat mauris.
-        Elementum eu facilisis sed odio morbi. Euismod lacinia at quis risus sed
-        vulputate odio. Morbi tincidunt ornare massa eget egestas purus viverra
-        accumsan in. In hendrerit gravida rutrum quisque non tellus orci ac.
-        Pellentesque nec nam aliquam sem et tortor. Habitant morbi tristique
-        senectus et. Adipiscing elit duis tristique sollicitudin nibh sit.
-        Ornare aenean euismod elementum nisi quis eleifend. Commodo viverra
-        maecenas accumsan lacus vel facilisis. Nulla posuere sollicitudin
-        aliquam ultrices sagittis orci a.
-      </Typography>
-    </Box>
-  </>
-);
+  const handleSearch = (str: string) => {
+    setSearchTerm(str.toLowerCase());
+  };
+
+  const handlePageSize = (event: SelectChangeEvent<string>) => {
+    setPageSize(event.target.value);
+  };
+
+  const columns: GridColDef[] = [
+    {
+      field: 'countryName',
+      renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
+      flex: 1,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography sx={cellStyles}>{params.value}</Typography>
+      ),
+    },
+    {
+      field: 'nodes',
+      renderHeader: () => (
+        <CustomColumnHeading headingTitle="Number of Nodes" />
+      ),
+      flex: 1,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography sx={cellStyles}>{params.value}</Typography>
+      ),
+    },
+    {
+      field: 'percentage',
+      renderHeader: () => <CustomColumnHeading headingTitle="Percentage %" />,
+      flex: 1,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography sx={cellStyles}>{params.value}</Typography>
+      ),
+    },
+  ];
+
+  React.useEffect(() => {
+    if (countryData?.data && searchTerm === '') {
+      setFormattedCountries(countryDataToGridRow(countryData.data));
+    } else if (countryData?.data !== undefined && searchTerm !== '') {
+      const formatted = countryDataToGridRow(countryData?.data);
+      const filtered = formatted.filter((m) => {
+        if (
+          m.countryName.toLowerCase().includes(searchTerm) ||
+          m.ISO3.toLowerCase().includes(searchTerm)
+        ) {
+          return m;
+        }
+        return null;
+      });
+      if (filtered) {
+        setFormattedCountries(filtered);
+      }
+    }
+  }, [searchTerm, countryData?.data]);
+
+  if (countryData?.isLoading) {
+    return <CircularProgress />;
+  }
+
+  if (countryData?.data && !countryData.isLoading) {
+    return (
+      <Box component="main" sx={{ flexGrow: 1 }}>
+        <Grid container spacing={1} sx={{ mb: 4 }}>
+          <Grid item xs={12}>
+            <Typography sx={{ marginBottom: 2, fontSize: '24px' }}>
+              Mixnodes Around the Globe
+            </Typography>
+          </Grid>
+
+          <Grid item xs={12} lg={9}>
+            <ContentCard title="Distribution of nodes">
+              <WorldMap loading={false} countryData={countryData} />
+            </ContentCard>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <ContentCard>
+                  <TableToolbar
+                    onChangeSearch={handleSearch}
+                    onChangePageSize={handlePageSize}
+                    pageSize={pageSize}
+                    searchTerm={searchTerm}
+                  />
+                  <UniversalDataGrid
+                    loading={countryData?.isLoading}
+                    columnsData={columns}
+                    rows={formattedCountries}
+                    pageSize={pageSize}
+                    pagination
+                  />
+                </ContentCard>
+              </Grid>
+            </Grid>
+          </Grid>
+        </Grid>
+      </Box>
+    );
+  }
+  return <Alert severity="error">{countryData?.error}</Alert>;
+};

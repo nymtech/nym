@@ -1,13 +1,7 @@
 /* eslint-disable no-nested-ternary */
 import * as React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import {
-  ChevronLeft,
-  ExpandLess,
-  ExpandMore,
-  WbSunnySharp,
-  Brightness4Sharp,
-} from '@mui/icons-material';
+import { Link } from 'react-router-dom';
+import { ChevronLeft, ExpandLess, ExpandMore } from '@mui/icons-material';
 import { styled, CSSObject, Theme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import ListItem from '@mui/material/ListItem';
@@ -22,11 +16,14 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
 import { BIG_DIPPER } from 'src/api/constants';
+import { useMediaQuery, useTheme } from '@mui/material';
 import { OverviewSVG } from '../icons/OverviewSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
-import { MainContext } from '../context/main';
 import { palette } from '../index';
+import { Socials } from './Socials';
+import { Footer } from './Footer';
+import { DarkLightSwitchDesktop, DarkLightSwitchMobile } from './Switch';
 
 const drawerWidth = 300;
 
@@ -100,6 +97,7 @@ const Drawer = styled(MuiDrawer, {
 
 type navOptionType = {
   id: number;
+  isActive?: boolean;
   url: string;
   title: string;
   Icon?: React.ReactNode;
@@ -110,12 +108,14 @@ type navOptionType = {
 const originalNavOptions: navOptionType[] = [
   {
     id: 0,
+    isActive: false,
     url: '/overview',
     title: 'Overview',
     Icon: <OverviewSVG />,
   },
   {
     id: 1,
+    isActive: false,
     url: '/network-components',
     title: 'Network Components',
     Icon: <NetworkComponentsSVG />,
@@ -139,6 +139,7 @@ const originalNavOptions: navOptionType[] = [
   },
   {
     id: 2,
+    isActive: false,
     url: '/nodemap',
     title: 'Nodemap',
     Icon: <NodemapSVG />,
@@ -147,74 +148,105 @@ const originalNavOptions: navOptionType[] = [
 
 type ExpandableButtonType = {
   id: number;
-  url: string;
   title: string;
+  url: string;
+  isActive?: boolean;
   Icon?: React.ReactNode;
   nested?: navOptionType[];
-  isExpandedChild?: boolean;
+  isChild?: boolean;
   openDrawer: () => void;
+  closeDrawer: () => void;
   drawIsOpen: boolean;
+  setToActive: (num: number) => void;
 };
-const ExpandableButton: React.FC<ExpandableButtonType> = ({
-  nested,
-  title,
-  Icon,
-  url,
-  isExpandedChild,
-  openDrawer,
-  drawIsOpen,
-}: ExpandableButtonType) => {
-  const [open, toggle] = React.useState(false);
-  const [isExternal, setIsExternal] = React.useState<boolean>(false);
-  const location = useLocation();
 
-  const handleClickNoNestedItems = () => {
-    openDrawer();
-  };
+const ExpandableButton: React.FC<ExpandableButtonType> = ({
+  id,
+  url,
+  setToActive,
+  isActive,
+  openDrawer,
+  closeDrawer,
+  drawIsOpen,
+  Icon,
+  title,
+  nested,
+  isChild,
+}) => {
+  const [dynamicStyle, setDynamicStyle] = React.useState({});
+  const [nestedOptions, toggleNestedOptions] = React.useState(false);
+  const [isExternal, setIsExternal] = React.useState<boolean>(false);
 
   const handleClick = () => {
     openDrawer();
-    if (nested) {
-      toggle(!open);
+    // 1. if it's NetworkComponents parent...
+    if (title === 'Network Components') {
+      if (nested) {
+        // 2. if it contains nested routes
+        // open them up
+        toggleNestedOptions(!nestedOptions);
+      }
     }
+    // 3. if its NOT NetworkComponents and the drawer was open
+    // close it, and implicitly this closes nest via useEffect below
+    if (drawIsOpen && title !== 'Network Components') {
+      closeDrawer();
+    }
+    // 4. update isActive in parent
+    setToActive(id);
   };
 
   React.useEffect(() => {
     if (url) {
       setIsExternal(url.includes('http'));
     }
+    if (nested) {
+      setDynamicStyle({
+        background: '#242C3D',
+        borderRight: `3px solid ${palette.brandOrange}`,
+      });
+    }
+    if (isChild) {
+      setDynamicStyle({
+        background: '#3C4558',
+        fontWeight: 800,
+      });
+    }
+    if (!nested && !isChild) {
+      setDynamicStyle({
+        background: '#242C3D',
+        borderRight: `3px solid ${palette.brandOrange}`,
+      });
+    }
   }, [url]);
 
   React.useEffect(() => {
-    if (!drawIsOpen && open) {
-      toggle(false);
+    if (!drawIsOpen && nestedOptions) {
+      toggleNestedOptions(false);
     }
   }, [drawIsOpen]);
 
-  if (!nested) {
-    return (
+  return (
+    <>
       <ListItem
+        disablePadding
         disableGutters
-        component={Link}
+        component={!nested ? Link : 'div'}
         to={isExternal ? { pathname: url } : url}
         target={isExternal ? '_blank' : ''}
-        disablePadding
-        sx={{
-          background: (theme) =>
-            isExpandedChild
-              ? palette.nested
-              : location.pathname.includes(url)
-              ? palette.selectedNotNested
-              : theme.palette.secondary.dark,
-          borderRight: location.pathname.includes(url)
-            ? `3px solid ${palette.brandOrange}`
-            : 'none',
-          borderBottom: `1px solid ${palette.divider}`,
-        }}
+        sx={
+          isActive
+            ? dynamicStyle
+            : { background: '#111826', borderRight: 'none' }
+        }
       >
         <ListItemButton
-          onClick={handleClickNoNestedItems}
-          sx={{ pt: 2, pb: 2 }}
+          onClick={handleClick}
+          sx={{
+            pt: 2,
+            pb: 2,
+            background: isChild ? '#3C4558' : 'none',
+          }}
         >
           <ListItemIcon>{Icon}</ListItemIcon>
           <ListItemText
@@ -224,54 +256,26 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             }}
             primaryTypographyProps={{
               style: {
-                fontWeight: location.pathname.includes(url) ? 800 : 300,
+                fontWeight: isActive ? 800 : 300,
               },
             }}
           />
+          {nested && nestedOptions && <ExpandLess color="primary" />}
+          {nested && !nestedOptions && <ExpandMore color="primary" />}
         </ListItemButton>
       </ListItem>
-    );
-  }
-  return (
-    <>
-      <ListItem
-        disablePadding
-        disableGutters
-        sx={{
-          background: (theme) =>
-            open
-              ? palette.selectedNotNested
-              : isExpandedChild
-              ? palette.nested
-              : theme.palette.secondary.dark,
-          borderRight: open ? `3px solid ${palette.brandOrange}` : 'none',
-          borderBottom: `1px solid ${palette.divider}`,
-        }}
-      >
-        <ListItemButton onClick={handleClick} sx={{ pt: 2, pb: 2 }}>
-          <ListItemIcon>{Icon}</ListItemIcon>
-          <ListItemText
-            primary={title}
-            sx={{
-              color: (theme) => theme.palette.primary.main,
-              fontWeight: location.pathname.includes(url) ? 800 : 300,
-            }}
-          />
-          {open ? (
-            <ExpandLess color="primary" />
-          ) : (
-            <ExpandMore color="primary" />
-          )}
-        </ListItemButton>
-      </ListItem>
-      {open &&
-        nested?.map((each: navOptionType) => (
+      {nestedOptions &&
+        nested?.map((each) => (
           <ExpandableButton
+            id={each.id}
+            url={each.url}
             key={each.title}
-            isExpandedChild
+            title={each.title}
             openDrawer={openDrawer}
             drawIsOpen={drawIsOpen}
-            {...each}
+            closeDrawer={closeDrawer}
+            setToActive={setToActive}
+            isChild
           />
         ))}
     </>
@@ -281,12 +285,34 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
 ExpandableButton.defaultProps = {
   Icon: null,
   nested: undefined,
-  isExpandedChild: false,
+  isChild: false,
+  isActive: false,
 };
 
 export const Nav: React.FC = ({ children }) => {
-  const { toggleMode, mode } = React.useContext(MainContext);
-  const [open, setOpen] = React.useState(true);
+  const [navOptionsState, updateNavOptionsState] =
+    React.useState(originalNavOptions);
+  const [open, setOpen] = React.useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const setToActive = (id: number) => {
+    const newStuff = navOptionsState;
+
+    const updated = newStuff.map((option) => {
+      if (option.id === id) {
+        return {
+          ...option,
+          isActive: true,
+        };
+      }
+      return {
+        ...option,
+        isActive: false,
+      };
+    });
+    updateNavOptionsState(updated);
+  };
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -297,85 +323,110 @@ export const Nav: React.FC = ({ children }) => {
   };
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar
-        position="fixed"
-        open={open}
-        sx={{
-          background: (theme) => theme.palette.primary.dark,
-        }}
-      >
-        <Toolbar disableGutters sx={{ paddingLeft: 2 }}>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            onClick={handleDrawerOpen}
-            edge="start"
-            sx={{
-              ...(open && {
-                display: 'none',
-                margin: 0,
-                padding: 2,
-              }),
-            }}
-          >
-            <NymLogoSVG />
-          </IconButton>
-          <Typography
-            variant="h6"
-            noWrap
-            component="div"
-            sx={{
-              marginLeft: 3,
-              color: (theme) => theme.palette.primary.main,
-            }}
-          >
-            Network Explorer
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <Drawer
-        variant="permanent"
-        open={open}
-        sx={{
-          background: (theme) => theme.palette.secondary.dark,
-        }}
-      >
-        <DrawerHeader
-          sx={{ background: (theme) => theme.palette.primary.dark }}
+    <>
+      <Box sx={{ display: 'flex' }}>
+        <AppBar
+          position="fixed"
+          open={open}
+          sx={{
+            background: theme.palette.primary.dark,
+          }}
         >
-          <IconButton onClick={handleDrawerClose}>
-            <ChevronLeft color="primary" />
-          </IconButton>
-        </DrawerHeader>
+          <Toolbar
+            disableGutters
+            sx={{
+              paddingLeft: 2,
+              display: 'flex',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box display="flex" alignItems="center">
+              <IconButton
+                color="inherit"
+                aria-label="open drawer"
+                onClick={handleDrawerOpen}
+                edge="start"
+                sx={{
+                  ...(open && {
+                    display: 'none',
+                    margin: 0,
+                    padding: 2,
+                  }),
+                }}
+              >
+                <NymLogoSVG />
+              </IconButton>
+              <Typography
+                variant="h6"
+                noWrap
+                component="div"
+                sx={{
+                  marginLeft: 3,
+                  color: theme.palette.primary.main,
+                }}
+              >
+                Network Explorer
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                mr: 2,
+                alignItems: 'center',
+                display: 'flex',
+              }}
+            >
+              {!isMobile && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    width: 'auto',
+                    pr: 0,
+                    pl: 2,
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Socials disableDarkMode />
+                  <DarkLightSwitchDesktop defaultChecked />
+                </Box>
+              )}
+              {isMobile && <DarkLightSwitchMobile />}
+            </Box>
+          </Toolbar>
+        </AppBar>
+        <Drawer
+          variant="permanent"
+          open={open}
+          sx={{
+            background: palette.blackBg,
+          }}
+        >
+          <DrawerHeader sx={{ background: theme.palette.primary.dark }}>
+            <IconButton onClick={handleDrawerClose}>
+              <ChevronLeft color="primary" />
+            </IconButton>
+          </DrawerHeader>
 
-        <List sx={{ pt: 0, pb: 0 }}>
-          {originalNavOptions.map((props) => (
-            <ExpandableButton
-              key={props.id}
-              openDrawer={handleDrawerOpen}
-              drawIsOpen={open}
-              {...props}
-            />
-          ))}
-        </List>
-        <ListItem disableGutters disablePadding>
-          <ListItemButton onClick={toggleMode} sx={{ pt: 2, pb: 2 }}>
-            <ListItemIcon>
-              {mode === 'light' ? <Brightness4Sharp /> : <WbSunnySharp />}
-            </ListItemIcon>
-            <ListItemText sx={{ color: (theme) => theme.palette.primary.main }}>
-              {mode === 'light' ? 'Dark mode' : 'Light mode'}
-            </ListItemText>
-          </ListItemButton>
-        </ListItem>
-      </Drawer>
-      <Box sx={{ width: '100%', p: 4 }}>
-        <DrawerHeader />
-        {children}
+          <List sx={{ pt: 0, pb: 0 }}>
+            {navOptionsState.map((props) => (
+              <ExpandableButton
+                setToActive={setToActive}
+                key={props.url}
+                openDrawer={handleDrawerOpen}
+                drawIsOpen={open}
+                closeDrawer={handleDrawerClose}
+                {...props}
+              />
+            ))}
+          </List>
+        </Drawer>
+        <Box sx={{ width: '100%', p: 4 }}>
+          <DrawerHeader />
+          {children}
+          <Footer />
+        </Box>
       </Box>
-    </Box>
+    </>
   );
 };
-
-Nav.defaultProps = {};

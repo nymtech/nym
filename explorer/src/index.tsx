@@ -21,8 +21,9 @@ export const palette = {
   // nav colors
   brandOrange: '#FB6E4E',
   divider: 'rgba(255, 255, 255, 0.1)',
-  selectedNotNested: '#111826',
+  blackBg: '#111826',
   nested: '#3C4558',
+  white: '#FFFFFF',
   // map
   mapHigh: '#F09379',
   mapLow: '#EFEFEF',

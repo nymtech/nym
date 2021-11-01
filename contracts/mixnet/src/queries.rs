@@ -4,9 +4,9 @@
 use crate::error::ContractError;
 use crate::helpers::get_all_delegations_paged;
 use crate::storage::{
-    all_mix_delegations_read, gateways_owners_read, gateways_read, mix_delegations_read,
-    mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params,
-    reverse_mix_delegations_read,
+    all_mix_delegations_read, config_read, gateways_owners_read, gateways_read,
+    mix_delegations_read, mixnodes_owners_read, mixnodes_read, read_layer_distribution,
+    read_state_params, reverse_mix_delegations_read,
 };
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
@@ -14,7 +14,7 @@ use mixnet_contract::{
     Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
     MixOwnershipResponse, PagedAllDelegationsResponse, PagedGatewayResponse,
     PagedMixDelegationsResponse, PagedMixnodeResponse, PagedReverseMixDelegationsResponse,
-    RawDelegationData, StateParams,
+    RawDelegationData, RewardingIntervalResponse, StateParams,
 };
 
 const BOND_PAGE_MAX_LIMIT: u32 = 100;
@@ -85,6 +85,14 @@ pub(crate) fn query_owns_gateway(deps: Deps, address: Addr) -> StdResult<Gateway
 
 pub(crate) fn query_state_params(deps: Deps) -> StateParams {
     read_state_params(deps.storage)
+}
+
+pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse {
+    let state = config_read(deps.storage).load().unwrap();
+    RewardingIntervalResponse {
+        current_rewarding_interval: state.rewarding_interval_nonce,
+        rewarding_in_progress: state.rewarding_in_progress,
+    }
 }
 
 pub(crate) fn query_layer_distribution(deps: Deps) -> LayerDistribution {
@@ -569,7 +577,8 @@ pub(crate) mod tests {
                 minimum_gateway_bond: 456u128.into(),
                 mixnode_bond_reward_rate: "1.23".parse().unwrap(),
                 mixnode_delegation_reward_rate: "7.89".parse().unwrap(),
-                mixnode_active_set_size: 1000,
+                mixnode_demanded_set_size: 1000,
+                mixnode_active_set_size: 500,
             },
             mixnode_epoch_bond_reward: "1.23".parse().unwrap(),
             mixnode_epoch_delegation_reward: "7.89".parse().unwrap(),

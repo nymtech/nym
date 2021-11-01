@@ -26,6 +26,12 @@ impl LayerDistribution {
     }
 }
 
+#[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
+pub struct RewardingIntervalResponse {
+    pub current_rewarding_interval: u64,
+    pub rewarding_in_progress: bool,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct StateParams {
     pub epoch_length: u32, // length of an epoch, expressed in hours

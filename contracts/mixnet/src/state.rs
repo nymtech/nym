@@ -12,6 +12,10 @@ pub struct State {
     pub network_monitor_address: Addr,
     pub params: StateParams,
 
+    // keep track of the changes to the current rewarding interval
+    pub rewarding_interval_nonce: u64,
+    pub rewarding_in_progress: bool,
+
     // helper values to avoid having to recalculate them on every single payment operation
     pub mixnode_epoch_bond_reward: Decimal, // reward per epoch expressed as a decimal like 0.05
     pub mixnode_epoch_delegation_reward: Decimal, // reward per epoch expressed as a decimal like 0.05

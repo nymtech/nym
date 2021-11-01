@@ -115,7 +115,6 @@ export const PageMixnodeDetail: React.FC = () => {
   const ref = React.useRef();
   const [row, setRow] = React.useState<MixNodeResponseItem[]>([]);
   const {
-    mode,
     fetchMixnodeById,
     mixnodeDetailInfo,
     fetchStatsById,

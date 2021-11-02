@@ -47,21 +47,27 @@ impl TokenCredential {
     }
 
     pub fn verify_signature(&self) -> bool {
-        let mut message = Vec::new();
-        message.append(&mut self.verification_key.to_bytes().to_vec());
-        message.append(&mut self.gateway_identity.to_bytes().to_vec());
+        let message: Vec<u8> = self
+            .verification_key
+            .to_bytes()
+            .iter()
+            .chain(self.gateway_identity.to_bytes().iter())
+            .copied()
+            .collect();
         self.verification_key
             .verify(&message, &self.signature)
             .is_ok()
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut message = Vec::new();
-        message.append(&mut self.verification_key.to_bytes().to_vec());
-        message.append(&mut self.gateway_identity.to_bytes().to_vec());
-        message.append(&mut self.bandwidth.to_be_bytes().to_vec());
-        message.append(&mut self.signature.to_bytes().to_vec());
-        message
+        self.verification_key
+            .to_bytes()
+            .iter()
+            .chain(self.gateway_identity.to_bytes().iter())
+            .chain(self.bandwidth.to_be_bytes().iter())
+            .chain(self.signature.to_bytes().iter())
+            .copied()
+            .collect()
     }
 
     pub fn from_bytes(b: &[u8]) -> Result<Self, Error> {

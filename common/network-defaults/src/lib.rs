@@ -67,8 +67,10 @@ pub const NETWORK_MONITOR_ADDRESS: &str = "punk1v9qauwdq5terag6uvfsdytcs2d0sdmfd
 
 /// How much bandwidth (in bytes) one token can buy
 pub const TOKEN_BANDWIDTH_VALUE: u64 = 1024 * 1024 * 1024;
+/// How many ERC20 tokens should be burned to buy bandwidth
+pub const TOKENS_TO_BURN: u64 = 10;
 /// Default bandwidth (in bytes) that we try to buy
-pub const BANDWIDTH_VALUE: u64 = 10 * TOKEN_BANDWIDTH_VALUE; // 10 GB
+pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * TOKEN_BANDWIDTH_VALUE;
 
 // Ethereum constants used for token bridge
 pub const ETH_CONTRACT_ADDRESS: [u8; 20] =

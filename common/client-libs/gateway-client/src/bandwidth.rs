@@ -12,9 +12,7 @@ use crypto::asymmetric::identity::PublicKey;
 #[cfg(not(feature = "coconut"))]
 use crypto::asymmetric::identity::Signature;
 #[cfg(not(feature = "coconut"))]
-use network_defaults::{
-    eth_contract::ETH_JSON_ABI, BANDWIDTH_VALUE, ETH_CONTRACT_ADDRESS, TOKEN_BANDWIDTH_VALUE,
-};
+use network_defaults::{eth_contract::ETH_JSON_ABI, ETH_CONTRACT_ADDRESS, TOKENS_TO_BURN};
 #[cfg(not(feature = "coconut"))]
 use secp256k1::SecretKey;
 #[cfg(not(feature = "coconut"))]
@@ -105,7 +103,6 @@ impl BandwidthController {
         verification_key: PublicKey,
         signed_verification_key: Signature,
     ) -> Result<(), GatewayClientError> {
-        let tokens_to_burn = BANDWIDTH_VALUE / TOKEN_BANDWIDTH_VALUE;
         // 0 means a transaction failure, 1 means success
         if Some(U64::from(0))
             == self
@@ -113,7 +110,7 @@ impl BandwidthController {
                 .signed_call_with_confirmations(
                     "burnTokenForAccessCode",
                     (
-                        U256::from(tokens_to_burn),
+                        U256::from(TOKENS_TO_BURN),
                         U256::from(&verification_key.to_bytes()),
                         Bytes(signed_verification_key.to_bytes().to_vec()),
                     ),

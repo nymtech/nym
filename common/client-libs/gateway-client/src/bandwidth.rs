@@ -8,13 +8,18 @@ use credentials::coconut::{
     bandwidth::{obtain_signature, prepare_for_spending},
     utils::obtain_aggregate_verification_key,
 };
+#[cfg(not(feature = "coconut"))]
+use credentials::token::bandwidth::TokenCredential;
+#[cfg(not(feature = "coconut"))]
+use crypto::asymmetric::identity;
 use crypto::asymmetric::identity::PublicKey;
 #[cfg(not(feature = "coconut"))]
-use crypto::asymmetric::identity::Signature;
-#[cfg(not(feature = "coconut"))]
 use network_defaults::{
-    eth_contract::ETH_JSON_ABI, ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS, TOKENS_TO_BURN,
+    eth_contract::ETH_JSON_ABI, BANDWIDTH_VALUE, ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS,
+    TOKENS_TO_BURN,
 };
+#[cfg(not(feature = "coconut"))]
+use rand::rngs::OsRng;
 #[cfg(not(feature = "coconut"))]
 use secp256k1::SecretKey;
 #[cfg(not(feature = "coconut"))]
@@ -100,10 +105,37 @@ impl BandwidthController {
     }
 
     #[cfg(not(feature = "coconut"))]
+    pub async fn prepare_token_credential(
+        &self,
+        gateway_identity: PublicKey,
+    ) -> Result<TokenCredential, GatewayClientError> {
+        let mut rng = OsRng;
+
+        let kp = identity::KeyPair::new(&mut rng);
+
+        let verification_key = *kp.public_key();
+        let signed_verification_key = kp.private_key().sign(&verification_key.to_bytes());
+        self.buy_token_credential(verification_key, signed_verification_key)
+            .await?;
+
+        let mut message = verification_key.to_bytes().to_vec();
+
+        message.append(&mut gateway_identity.to_bytes().to_vec());
+        let signature = kp.private_key().sign(&message);
+
+        Ok(TokenCredential::new(
+            verification_key,
+            gateway_identity,
+            BANDWIDTH_VALUE,
+            signature,
+        ))
+    }
+
+    #[cfg(not(feature = "coconut"))]
     pub async fn buy_token_credential(
         &self,
         verification_key: PublicKey,
-        signed_verification_key: Signature,
+        signed_verification_key: identity::Signature,
     ) -> Result<(), GatewayClientError> {
         // 0 means a transaction failure, 1 means success
         if Some(U64::from(0))

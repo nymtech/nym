@@ -9,6 +9,8 @@ pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
 #[cfg(not(feature = "coconut"))]
 use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity;
@@ -18,8 +20,6 @@ use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
-#[cfg(not(feature = "coconut"))]
-use network_defaults::BANDWIDTH_VALUE;
 use nymsphinx::forwarding::packet::MixPacket;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
@@ -459,19 +459,15 @@ impl GatewayClient {
     }
 
     #[cfg(feature = "coconut")]
-    async fn claim_coconut_bandwidth(&mut self) -> Result<(), GatewayClientError> {
-        let coconut_credential = self
-            .bandwidth_controller
-            .as_ref()
-            .unwrap()
-            .prepare_coconut_credential()
-            .await;
-
+    async fn claim_coconut_bandwidth(
+        &mut self,
+        credential: Credential,
+    ) -> Result<(), GatewayClientError> {
         let mut rng = OsRng;
         let iv = IV::new_random(&mut rng);
 
         let msg = ClientControlRequest::new_enc_coconut_bandwidth_credential(
-            &coconut_credential,
+            &credential,
             self.shared_key.as_ref().unwrap(),
             iv,
         )
@@ -486,30 +482,13 @@ impl GatewayClient {
     }
 
     #[cfg(not(feature = "coconut"))]
-    async fn claim_token_bandwidth(&mut self) -> Result<(), GatewayClientError> {
+    async fn claim_token_bandwidth(
+        &mut self,
+        credential: TokenCredential,
+    ) -> Result<(), GatewayClientError> {
         let mut rng = OsRng;
 
-        let kp = identity::KeyPair::new(&mut rng);
         let iv = IV::new_random(&mut rng);
-
-        let verification_key = *kp.public_key();
-        let signed_verification_key = kp.private_key().sign(&verification_key.to_bytes());
-        self.bandwidth_controller
-            .as_ref()
-            .unwrap()
-            .buy_token_credential(verification_key, signed_verification_key)
-            .await?;
-
-        let mut message = verification_key.to_bytes().to_vec();
-
-        message.append(&mut self.gateway_identity.to_bytes().to_vec());
-        let signature = kp.private_key().sign(&message);
-        let credential = TokenCredential::new(
-            verification_key,
-            self.gateway_identity,
-            BANDWIDTH_VALUE,
-            signature,
-        );
 
         let msg = ClientControlRequest::new_enc_token_bandwidth_credential(
             &credential,
@@ -538,10 +517,26 @@ impl GatewayClient {
         }
 
         warn!("Not enough bandwidth. Trying to get more bandwidth, this might take a while");
+
         #[cfg(feature = "coconut")]
-        return self.claim_coconut_bandwidth().await;
+        let credential = self
+            .bandwidth_controller
+            .as_ref()
+            .unwrap()
+            .prepare_coconut_credential()
+            .await;
         #[cfg(not(feature = "coconut"))]
-        return self.claim_token_bandwidth().await;
+        let credential = self
+            .bandwidth_controller
+            .as_ref()
+            .unwrap()
+            .prepare_token_credential(self.gateway_identity)
+            .await?;
+
+        #[cfg(feature = "coconut")]
+        return self.claim_coconut_bandwidth(credential).await;
+        #[cfg(not(feature = "coconut"))]
+        return self.claim_token_bandwidth(credential).await;
     }
 
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {

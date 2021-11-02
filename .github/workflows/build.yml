@@ -59,150 +59,21 @@ jobs:
         with:
           command: clean
 
-      # BUILD
-      - name: Build gateway with coconut feature
+      - name: Build all binaries with coconut enabled
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --bin nym-gateway --features=coconut
+          args: --all --features=coconut
 
-      - name: Build gateway without coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --bin nym-gateway
-
-      - name: Build native client with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --bin nym-client --features=coconut
-
-      - name: Build native client without coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --bin nym-client
-
-      - name: Build socks5 client with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --bin nym-socks5-client --features=coconut
-
-      - name: Build socks5 client without coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --bin nym-socks5-client
-
-      - name: Build validator-api with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --bin nym-validator-api --features=coconut
-
-      - name: Build validator-api without coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --bin nym-validator-api
-
-# TEST
-      - name: Test gateway with coconut feature
+      - name: Run all tests with coconut enabled
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --bin nym-gateway --features=coconut
+          args: --all --features=coconut
 
-      - name: Test gateway without coconut feature
+      - name: Run clippy with coconut enabled
         uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --bin nym-gateway
-
-      - name: Test native client with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --bin nym-client --features=coconut
-
-      - name: Test native client without coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --bin nym-client
-
-      - name: Test socks5 client with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --bin nym-socks5-client --features=coconut
-
-      - name: Test socks5 client without coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --bin nym-socks5-client
-
-      - name: Test validator-api with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --bin nym-validator-api --features=coconut
-
-      - name: Test validator-api without coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --bin nym-validator-api
-
-# CLIPPY
-
-      - name: Run clippy on gateway with coconut feature
-        uses: actions-rs/cargo@v1
+        if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --bin nym-gateway --features=coconut -- -D warnings
-
-      - name: Run clippy on gateway without coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --bin nym-gateway -- -D warnings
-
-      - name: Run clippy on native client with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --bin nym-client --features=coconut -- -D warnings
-
-      - name: Run clippy on native client without coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --bin nym-client -- -D warnings
-
-      - name: Run clippy on socks5 client with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --bin nym-socks5-client --features=coconut -- -D warnings
-
-      - name: Run clippy on socks5 client without coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --bin nym-socks5-client -- -D warnings
-
-      - name: Run clippy on validator-api with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --bin nym-validator-api --features=coconut -- -D warnings
-
-      - name: Run clippy on validator-api without coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --bin nym-validator-api -- -D warnings
+          args: -- --features=coconut -D warnings

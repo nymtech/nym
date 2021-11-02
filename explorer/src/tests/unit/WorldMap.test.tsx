@@ -1,6 +1,6 @@
 import React, { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/extend-expect';
-import { WorldMap } from '../components/WorldMap';
+import { WorldMap } from '../../components/WorldMap';
 
 describe('WorldMap', () => {
   beforeEach(() => {

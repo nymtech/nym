@@ -66,11 +66,11 @@ pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk10pyejy66429refv3g35g2t7a
 pub const NETWORK_MONITOR_ADDRESS: &str = "punk1v9qauwdq5terag6uvfsdytcs2d0sdmfdy7hgk3";
 
 /// How much bandwidth (in bytes) one token can buy
-pub const TOKEN_BANDWIDTH_VALUE: u64 = 1024 * 1024 * 1024;
+const BYTES_PER_TOKEN: u64 = 1024 * 1024 * 1024;
 /// How many ERC20 tokens should be burned to buy bandwidth
 pub const TOKENS_TO_BURN: u64 = 10;
 /// Default bandwidth (in bytes) that we try to buy
-pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * TOKEN_BANDWIDTH_VALUE;
+pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
 
 // Ethereum constants used for token bridge
 pub const ETH_CONTRACT_ADDRESS: [u8; 20] =

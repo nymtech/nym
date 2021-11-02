@@ -114,9 +114,12 @@ impl BandwidthController {
         self.buy_token_credential(verification_key, signed_verification_key)
             .await?;
 
-        let mut message = verification_key.to_bytes().to_vec();
-
-        message.append(&mut gateway_identity.to_bytes().to_vec());
+        let message: Vec<u8> = verification_key
+            .to_bytes()
+            .iter()
+            .chain(gateway_identity.to_bytes().iter())
+            .copied()
+            .collect();
         let signature = kp.private_key().sign(&message);
 
         Ok(TokenCredential::new(

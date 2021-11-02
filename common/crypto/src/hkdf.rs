@@ -5,18 +5,13 @@ use digest::{BlockInput, FixedOutput, Reset, Update};
 use generic_array::ArrayLength;
 use hkdf::Hkdf;
 
-#[derive(Debug)]
-pub enum HkdfError {
-    InvalidOkmLength,
-}
-
 /// Perform HKDF `extract` then `expand` as a single step.
 pub fn extract_then_expand<D>(
     salt: Option<&[u8]>,
     ikm: &[u8],
     info: Option<&[u8]>,
     okm_length: usize,
-) -> Result<Vec<u8>, HkdfError>
+) -> Result<Vec<u8>, hkdf::InvalidLength>
 where
     D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
     D::BlockSize: ArrayLength<u8>,
@@ -27,9 +22,7 @@ where
 
     let hkdf = Hkdf::<D>::new(salt, ikm);
     let mut okm = vec![0u8; okm_length];
-    if hkdf.expand(info.unwrap_or_else(|| &[]), &mut okm).is_err() {
-        return Err(HkdfError::InvalidOkmLength);
-    }
+    hkdf.expand(info.unwrap_or_else(|| &[]), &mut okm)?;
 
     Ok(okm)
 }

@@ -27,6 +27,20 @@ class ActionHelper {
         const isVis = await element.isDisplayed()
         expect(isVis).toEqual(true)
     }
+
+    openSwitchToNewTab = async (element) => {
+        const parentWindow = await browser.getWindowHandle()
+        await element.click()
+        const getWindows = await browser.getWindowHandles()
+    
+        for (var i = 0; i < getWindows.length; i++) {
+    
+            if (getWindows[i] != parentWindow) {
+                await browser.switchToWindow(getWindows[i])
+                break
+            }
+        }
+    }
 }
 
 export default new ActionHelper()

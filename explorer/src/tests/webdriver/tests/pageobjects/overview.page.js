@@ -1,29 +1,39 @@
 import Page from './page'
+import Helper from '../../helpers/actionhelper'
 
 class Overview extends Page {
 
-    //there's multiple of these, specify based upon the index
-    //0 = mixnode
-    //1 = gateways
-    //2 = validators
-    get arrowForwardIcon () { return $$("[data-testid='ArrowForwardSharpIcon']") }
-    
-    async selectMixnode () {
-        //todo sort the index
-        await this.arrowForwardIcon.click()
-    }
-    
-    async selectGateways () {
-        //todo sort the index
-        await this.arrowForwardIcon.click()
+    get mixnodeLink() { return $("[data-testid='Mixnodes']") }
+    get gatewayLink() { return $("[data-testid='Gateways']") }
+    get validatorLink() { return $("[data-testid='Validators']") }
+    get getBlockExplorer() { return $("[data-testid='Validators']") }
+    //change the id on this?
+    get getDistrbutionText() { return $("[data-testid='Distribution of nodes around the world']") }
+
+    selectMixnode = async () => {
+        await this.mixnodeLink.click()
     }
 
-    async selectValidators () {
-        //todo sort the index
-        await this.arrowForwardIcon.click()
+    selectGateways = async () => {
+
+        await this.gatewayLink.click()
     }
 
-    open () {
+    selectValidators = async () => {
+
+        await this.validatorLink.click()
+    }
+
+    openBlockExplorer = async () => {
+
+        await this.getBlockExplorer.click()
+    }
+
+    distributionText = async (text) => {
+        await Helper.validatePageText(this.getDistrbutionText, text)
+    }
+
+    open() {
         return super.open('overview')
     }
 }

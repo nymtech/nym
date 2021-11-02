@@ -43,6 +43,11 @@ jobs:
 
       - name: Build application
         run: yarn run webpack:build & yarn run tauri:build
+        
+      - name: Check binary exists
+        run: |
+             cd target/release/
+             (test -f nym-wallet && echo nym binary exists) || echo wallet does not exist
 
       - name: Install dependencies
         run: yarn install
@@ -68,5 +73,5 @@ jobs:
           args: tauri-driver
 
       - name: Launch tests
-        run: xvfb-run yarn test:login
+        run: xvfb-run yarn test:newuser
         working-directory: tauri-wallet/webdriver

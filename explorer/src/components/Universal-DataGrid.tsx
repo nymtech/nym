@@ -1,5 +1,18 @@
 import * as React from 'react';
-import { DataGrid, GridColumns, GridRowData } from '@mui/x-data-grid';
+import { makeStyles } from '@mui/styles';
+import {
+  DataGrid,
+  GridColumns,
+  GridRowData,
+  useGridSlotComponentProps,
+} from '@mui/x-data-grid';
+import Pagination from '@mui/material/Pagination';
+
+const useStyles = makeStyles({
+  root: {
+    display: 'flex',
+  },
+});
 
 type DataGridProps = {
   loading?: boolean;
@@ -25,6 +38,21 @@ export const cellStyles = {
   'white-space': 'break-spaces',
 };
 
+function CustomPagination() {
+  const { state, apiRef } = useGridSlotComponentProps();
+  const classes = useStyles();
+
+  return (
+    <Pagination
+      className={classes.root}
+      color="primary"
+      count={state.pagination.pageCount}
+      page={state.pagination.page + 1}
+      onChange={(event, value) => apiRef.current.setPage(value - 1)}
+    />
+  );
+}
+
 export const UniversalDataGrid: React.FC<DataGridProps> = ({
   loading,
   rows,
@@ -36,6 +64,10 @@ export const UniversalDataGrid: React.FC<DataGridProps> = ({
   if (columnsData && rows) {
     return (
       <DataGrid
+        pagination
+        components={{
+          Pagination: CustomPagination,
+        }}
         loading={loading}
         columns={columnsData}
         rows={rows}
@@ -50,6 +82,7 @@ export const UniversalDataGrid: React.FC<DataGridProps> = ({
         hideFooter={hideFooter}
         style={{
           width: '100%',
+          border: 'none',
         }}
       />
     );

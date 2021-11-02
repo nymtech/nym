@@ -79,6 +79,7 @@ pub const COSMOS_CONTRACT_ADDRESS: &str = "punk1pw35ns28dxkj3uxeqfn35v595t6ux4ty
 // Name of the event triggered by the eth contract. If the event name is changed,
 // this would also need to be changed; It is currently tested against the json abi
 pub const ETH_EVENT_NAME: &str = "Burned";
+pub const ETH_BURN_FUNCTION_NAME: &str = "burnTokenForAccessCode";
 
 /// Defaults Cosmos Hub/ATOM path
 pub const COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";

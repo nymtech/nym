@@ -12,7 +12,9 @@ use crypto::asymmetric::identity::PublicKey;
 #[cfg(not(feature = "coconut"))]
 use crypto::asymmetric::identity::Signature;
 #[cfg(not(feature = "coconut"))]
-use network_defaults::{eth_contract::ETH_JSON_ABI, ETH_CONTRACT_ADDRESS, TOKENS_TO_BURN};
+use network_defaults::{
+    eth_contract::ETH_JSON_ABI, ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS, TOKENS_TO_BURN,
+};
 #[cfg(not(feature = "coconut"))]
 use secp256k1::SecretKey;
 #[cfg(not(feature = "coconut"))]
@@ -108,7 +110,7 @@ impl BandwidthController {
             == self
                 .contract
                 .signed_call_with_confirmations(
-                    "burnTokenForAccessCode",
+                    ETH_BURN_FUNCTION_NAME,
                     (
                         U256::from(TOKENS_TO_BURN),
                         U256::from(&verification_key.to_bytes()),

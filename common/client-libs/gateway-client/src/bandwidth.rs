@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(not(feature = "coconut"))]
 use crate::error::GatewayClientError;
 #[cfg(feature = "coconut")]
 use credentials::coconut::{
@@ -84,24 +83,21 @@ impl BandwidthController {
     }
 
     #[cfg(feature = "coconut")]
-    pub async fn prepare_coconut_credential(&self) -> coconut_interface::Credential {
-        let verification_key = obtain_aggregate_verification_key(&self.validator_endpoints)
-            .await
-            .expect("could not obtain aggregate verification key of validators");
+    pub async fn prepare_coconut_credential(
+        &self,
+    ) -> Result<coconut_interface::Credential, GatewayClientError> {
+        let verification_key = obtain_aggregate_verification_key(&self.validator_endpoints).await?;
 
         let bandwidth_credential =
-            obtain_signature(&self.identity.to_bytes(), &self.validator_endpoints)
-                .await
-                .expect("could not obtain bandwidth credential");
+            obtain_signature(&self.identity.to_bytes(), &self.validator_endpoints).await?;
         // the above would presumably be loaded from a file
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
-        prepare_for_spending(
+        Ok(prepare_for_spending(
             &self.identity.to_bytes(),
             &bandwidth_credential,
             &verification_key,
-        )
-        .expect("could not prepare out bandwidth credential for spending")
+        )?)
     }
 
     #[cfg(not(feature = "coconut"))]

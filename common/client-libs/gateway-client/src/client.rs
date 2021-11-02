@@ -524,7 +524,7 @@ impl GatewayClient {
             .as_ref()
             .unwrap()
             .prepare_coconut_credential()
-            .await;
+            .await?;
         #[cfg(not(feature = "coconut"))]
         let credential = self
             .bandwidth_controller

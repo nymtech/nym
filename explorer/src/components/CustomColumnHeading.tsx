@@ -24,6 +24,7 @@ export const CustomColumnHeading: React.FC<{ headingTitle: string }> = ({
           fontSize: 14,
           padding: 0,
         }}
+        data-testid={headingTitle}
       >
         {headingTitle}&nbsp;
       </Typography>

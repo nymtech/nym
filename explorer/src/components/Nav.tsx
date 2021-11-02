@@ -271,6 +271,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             url={each.url}
             key={each.title}
             title={each.title}
+            data-testid={each.title}
             openDrawer={openDrawer}
             drawIsOpen={drawIsOpen}
             closeDrawer={closeDrawer}
@@ -364,6 +365,7 @@ export const Nav: React.FC = ({ children }) => {
                   marginLeft: 3,
                   color: theme.palette.primary.main,
                 }}
+                data-testid="nym-explorer-button"
               >
                 Network Explorer
               </Typography>

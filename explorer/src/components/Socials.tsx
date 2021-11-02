@@ -10,13 +10,13 @@ export const Socials: React.FC<{ disableDarkMode?: boolean }> = ({
   disableDarkMode,
 }) => (
   <Box>
-    <IconButton component="a" href={TELEGRAM_LINK} target="_blank">
+    <IconButton component="a" href={TELEGRAM_LINK} target="_blank" data-testid="telegram">
       <TelegramIcon sx={{ color: disableDarkMode ? palette.white : null }} />
     </IconButton>
-    <IconButton component="a" href={GITHUB_LINK} target="_blank">
+    <IconButton component="a" href={GITHUB_LINK} target="_blank" data-testid="github">
       <GitHubIcon sx={{ color: disableDarkMode ? palette.white : null }} />
     </IconButton>
-    <IconButton component="a" href={TWITTER_LINK} target="_blank">
+    <IconButton component="a" href={TWITTER_LINK} target="_blank" data-testid="twitter">
       <TwitterIcon sx={{ color: disableDarkMode ? palette.white : null }} />
     </IconButton>
   </Box>

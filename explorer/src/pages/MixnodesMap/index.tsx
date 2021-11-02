@@ -129,5 +129,5 @@ export const PageMixnodesMap: React.FC = () => {
       </Box>
     );
   }
-  return <Alert severity="error">{countryData?.error}</Alert>;
+  return <Alert severity="error" data-testid="error-warning">{countryData?.error}</Alert>;
 };

@@ -16,6 +16,7 @@ export const Title: React.FC<{ text: string }> = ({ text }) => {
         color,
         mb: 3,
       }}
+      data-testid={text}
     >
       {text}
     </Typography>

@@ -35,8 +35,8 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
         }}
       >
         <Select
-          labelId="demo-simple-select-label"
-          id="demo-simple-select"
+          labelId="simple-select-label"
+          id="simple-select"
           value={pageSize}
           onChange={onChangePageSize}
           sx={{

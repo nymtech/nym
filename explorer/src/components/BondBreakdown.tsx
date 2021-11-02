@@ -140,7 +140,7 @@ export const BondBreakdownTable: React.FC = () => {
                 >
                   Bond total
                 </TableCell>
-                <TableCell align="left">{bonds.bondsTotal}</TableCell>
+                <TableCell align="left" data-testid="bond-total-amount">{bonds.bondsTotal}</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell
@@ -151,7 +151,7 @@ export const BondBreakdownTable: React.FC = () => {
                 >
                   Pledge total
                 </TableCell>
-                <TableCell align="left">{bonds.pledges}</TableCell>
+                <TableCell align="left" data-testid="pledge-total-amount">{bonds.pledges}</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell
@@ -173,7 +173,7 @@ export const BondBreakdownTable: React.FC = () => {
                     )}
                   </Box>
                 </TableCell>
-                <TableCell align="left">{bonds.delegations}</TableCell>
+                <TableCell align="left" data-testid="delegation-total-amount">{bonds.delegations}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -197,6 +197,7 @@ export const BondBreakdownTable: React.FC = () => {
                     <TableCell
                       sx={{ fontWeight: 'bold', background: '#242C3D' }}
                       align="left"
+                      data-testid="stake"
                     >
                       Stake
                     </TableCell>

@@ -41,10 +41,11 @@ export const ContentCard: React.FC<ContentCardProps> = ({
         avatar={Icon}
         action={Action}
         subheader={subtitle}
+        data-testid={title} 
       />
       {children && <CardContent>{children}</CardContent>}
       {errorMsg && (
-        <Typography variant="body2" sx={{ color: 'danger', padding: 2 }}>
+        <Typography variant="body2" sx={{ color: 'danger', padding: 2 }} data-testid="card-header-error">
           {errorMsg}
         </Typography>
       )}

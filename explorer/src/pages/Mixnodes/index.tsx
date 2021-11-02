@@ -60,6 +60,7 @@ export const PageMixnodes: React.FC = () => {
           href={`${BIG_DIPPER}/account/${params.value}`}
           target="_blank"
           sx={cellStyles}
+          data-testid="big-dipper-link"
         >
           {params.value}
         </MuiLink>
@@ -76,6 +77,7 @@ export const PageMixnodes: React.FC = () => {
           sx={cellStyles}
           component={RRDLink}
           to={`/network-components/mixnodes/${params.value}`}
+          data-testid="identity-link"
         >
           {params.value}
         </MuiLink>

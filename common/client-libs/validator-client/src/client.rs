@@ -10,9 +10,9 @@ use mixnet_contract::StateParams;
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
+use mixnet_contract::{GatewayBond, MixNodeBond};
 #[cfg(feature = "nymd-client")]
-use mixnet_contract::RawDelegationData;
-use mixnet_contract::{GatewayBond, MixNodeBond, RewardingIntervalResponse};
+use mixnet_contract::{RawDelegationData, RewardingIntervalResponse};
 use url::Url;
 
 #[cfg(feature = "nymd-client")]

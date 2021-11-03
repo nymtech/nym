@@ -18,16 +18,16 @@ use std::convert::TryInto;
 use bls12_381::{G1Affine, G1Projective, Scalar};
 use group::{Curve, GroupEncoding};
 
+use crate::{Attribute, elgamal, ElGamalKeyPair};
 use crate::elgamal::{Ciphertext, EphemeralKey};
 use crate::error::{CoconutError, Result};
 use crate::proofs::ProofCmCs;
-use crate::scheme::setup::Parameters;
 use crate::scheme::BlindedSignature;
 use crate::scheme::SecretKey;
+use crate::scheme::setup::Parameters;
 /// Creates a Coconut Signature under a given secret key on a set of public attributes only.
 #[cfg(test)]
 use crate::Signature;
-use crate::{elgamal, Attribute, ElGamalKeyPair};
 // TODO: possibly completely remove those two functions.
 // They only exist to have a simpler and smaller code snippets to test
 // basic functionalities.
@@ -42,7 +42,7 @@ pub struct BlindSignRequest {
     // cm
     commitment: G1Projective,
     // h
-    pub commitment_hash: G1Projective,
+    commitment_hash: G1Projective,
     // c
     private_attributes_ciphertexts: Vec<elgamal::Ciphertext>,
     // pi_s
@@ -145,6 +145,10 @@ impl BlindSignRequest {
             &self.commitment,
             &self.private_attributes_ciphertexts,
         )
+    }
+
+    pub fn get_commitment_hash(&self) -> G1Projective {
+        self.commitment_hash
     }
 
     // TODO: perhaps also include pi_s.len()?
@@ -338,10 +342,10 @@ pub fn sign(
     // x + m0 * y0 + m1 * y1 + ... mn * yn
     let exponent = secret_key.x
         + public_attributes
-            .iter()
-            .zip(secret_key.ys.iter())
-            .map(|(m_i, y_i)| m_i * y_i)
-            .sum::<Scalar>();
+        .iter()
+        .zip(secret_key.ys.iter())
+        .map(|(m_i, y_i)| m_i * y_i)
+        .sum::<Scalar>();
 
     let sig2 = h * exponent;
     Ok(Signature(h, sig2))
@@ -364,7 +368,7 @@ mod tests {
             &private_attributes,
             &public_attributes,
         )
-        .unwrap();
+            .unwrap();
 
         let bytes = lambda.to_bytes();
         println!("{:?}", bytes.len());
@@ -382,7 +386,7 @@ mod tests {
             &private_attributes,
             &public_attributes,
         )
-        .unwrap();
+            .unwrap();
 
         let bytes = lambda.to_bytes();
         assert_eq!(

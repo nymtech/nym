@@ -196,6 +196,20 @@ impl<C> Client<C> {
         Ok(self.nymd.get_circulating_supply().await?.u128())
     }
 
+    pub async fn get_sybil_resistance_percent(&self) -> Result<u8, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_sybil_resistance_percent().await?)
+    }
+
+    pub async fn get_epoch_reward_percent(&self) -> Result<u8, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_epoch_reward_percent().await?)
+    }
+
     // basically handles paging for us
     pub async fn get_all_nymd_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where

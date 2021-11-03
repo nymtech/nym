@@ -232,6 +232,26 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn get_sybil_resistance_percent(&self) -> Result<u8, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetSybilResistancePercent {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_epoch_reward_percent(&self) -> Result<u8, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetEpochRewardPercent {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
     /// Checks whether there is a bonded mixnode associated with the provided client's address
     pub async fn owns_mixnode(&self, address: &AccountId) -> Result<bool, NymdError>
     where

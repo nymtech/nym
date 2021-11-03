@@ -108,6 +108,20 @@ impl<C> Client<C> {
         Ok(self.0.read().await.get_circulating_supply().await?)
     }
 
+    pub(crate) async fn get_sybil_resistance_percent(&self) -> Result<u8, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.0.read().await.get_sybil_resistance_percent().await?)
+    }
+
+    pub(crate) async fn get_epoch_reward_percent(&self) -> Result<u8, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.0.read().await.get_epoch_reward_percent().await?)
+    }
+
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,

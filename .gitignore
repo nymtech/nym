@@ -31,3 +31,5 @@ validator-api/v6.json
 **/node_modules
 validator-api/keypair
 contracts/mixnet/code_id
+contracts/mixnet/Justfile
+contracts/mixnet/Makefile

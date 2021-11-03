@@ -116,6 +116,8 @@ pub enum QueryMsg {
     LayerDistribution {},
     GetRewardPool {},
     GetCirculatingSupply {},
+    GetEpochRewardPercent {},
+    GetSybilResistancePercent {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

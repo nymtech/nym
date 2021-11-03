@@ -148,6 +148,7 @@ mod tests {
     #[test]
     fn gateway_bond_partial_ord() {
         let _150foos = Coin::new(150, "foo");
+        let _140foos = Coin::new(140, "foo");
         let _50foos = Coin::new(50, "foo");
         let _0foos = Coin::new(0, "foo");
 
@@ -159,7 +160,7 @@ mod tests {
         };
 
         let gate2 = GatewayBond {
-            bond_amount: _150foos.clone(),
+            bond_amount: _150foos,
             owner: Addr::unchecked("foo2"),
             block_height: 120,
             gateway: gateway_fixture(),
@@ -173,7 +174,7 @@ mod tests {
         };
 
         let gate4 = GatewayBond {
-            bond_amount: _150foos.clone(),
+            bond_amount: _140foos,
             owner: Addr::unchecked("foo4"),
             block_height: 120,
             gateway: gateway_fixture(),
@@ -190,7 +191,7 @@ mod tests {
         // gate1: 150bond, foo1, 100
         // gate2: 150bond, foo2, 120
         // gate3: 50bond, foo3, 120
-        // gate4: 150bond, foo4, 120
+        // gate4: 140bond, foo4, 120
         // gate5: 0bond, foo5, 120
 
         // highest total bond is used

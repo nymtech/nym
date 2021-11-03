@@ -47,9 +47,9 @@ pub enum CoconutError {
     Deserialization(String),
 
     #[error(
-    "Deserailization error, expected at least {} bytes, got {}",
-    min,
-    actual
+        "Deserailization error, expected at least {} bytes, got {}",
+        min,
+        actual
     )]
     DeserializationMinLength { min: usize, actual: usize },
 

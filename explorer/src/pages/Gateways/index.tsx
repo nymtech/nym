@@ -85,7 +85,7 @@ export const PageGateways: React.FC = () => {
     {
       field: 'host',
       renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
-      flex: 1,
+      width: 150,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -118,7 +118,7 @@ export const PageGateways: React.FC = () => {
       <>
         <Title text="Gateways" />
         <Grid container>
-          <Grid item xs={12} md={12} lg={10} xl={10}>
+          <Grid item xs={12} md={12} lg={8} xl={8}>
             <ContentCard>
               <TableToolbar
                 onChangeSearch={handleSearch}
@@ -131,7 +131,8 @@ export const PageGateways: React.FC = () => {
                 columnsData={columns}
                 rows={gatewayToGridRow(filteredGateways)}
                 pageSize={pageSize}
-                pagination={gateways?.data?.length > 12}
+                pagination={gateways?.data?.length >= 12}
+                hideFooter={gateways?.data?.length < 12}
               />
             </ContentCard>
           </Grid>

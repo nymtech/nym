@@ -81,7 +81,7 @@ async fn _prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) 
         serial_number: params.random_scalar(),
         binding_number: params.random_scalar(),
         voucher_value: hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
-        voucher_info: hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
+            voucher_info: hash_to_scalar("BandwidthVoucher"),
     };
 
     let bandwidth_credential = credentials::bandwidth::obtain_signature(

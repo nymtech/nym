@@ -185,7 +185,7 @@ impl<C> Client<C> {
         match res {
             Ok(_) => Ok(()),
             Err(err) => {
-                if err.is_tendermint_timeout() {
+                if err.is_tendermint_response_timeout() {
                     // wait until we're sure we're into the next block (remember we're holding the lock)
                     sleep(Duration::from_secs(11)).await;
                     let curr_sequence = client_guard.nymd.account_sequence().await?;

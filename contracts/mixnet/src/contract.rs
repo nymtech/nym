@@ -22,18 +22,13 @@ pub const INITIAL_MIXNODE_BOND: Uint128 = Uint128(100_000000);
 
 // percentage annual increase. Given starting value of x, we expect to have 1.1x at the end of the year
 pub const INITIAL_MIXNODE_BOND_REWARD_RATE: u64 = 110;
-pub const INITIAL_GATEWAY_BOND_REWARD_RATE: u64 = 110;
 pub const INITIAL_MIXNODE_DELEGATION_REWARD_RATE: u64 = 110;
-pub const INITIAL_GATEWAY_DELEGATION_REWARD_RATE: u64 = 110;
 
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
-pub const INITIAL_GATEWAY_ACTIVE_SET_SIZE: u32 = 20;
 
 fn default_initial_state(owner: Addr) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
-    let gateway_bond_reward_rate = Decimal::percent(INITIAL_GATEWAY_BOND_REWARD_RATE);
     let mixnode_delegation_reward_rate = Decimal::percent(INITIAL_MIXNODE_DELEGATION_REWARD_RATE);
-    let gateway_delegation_reward_rate = Decimal::percent(INITIAL_GATEWAY_DELEGATION_REWARD_RATE);
 
     State {
         owner,
@@ -43,27 +38,16 @@ fn default_initial_state(owner: Addr) -> State {
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
             mixnode_bond_reward_rate,
-            gateway_bond_reward_rate,
             mixnode_delegation_reward_rate,
-            gateway_delegation_reward_rate,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
-            gateway_active_set_size: INITIAL_GATEWAY_ACTIVE_SET_SIZE,
         },
         mixnode_epoch_bond_reward: calculate_epoch_reward_rate(
             INITIAL_DEFAULT_EPOCH_LENGTH,
             mixnode_bond_reward_rate,
         ),
-        gateway_epoch_bond_reward: calculate_epoch_reward_rate(
-            INITIAL_DEFAULT_EPOCH_LENGTH,
-            gateway_bond_reward_rate,
-        ),
         mixnode_epoch_delegation_reward: calculate_epoch_reward_rate(
             INITIAL_DEFAULT_EPOCH_LENGTH,
             mixnode_delegation_reward_rate,
-        ),
-        gateway_epoch_delegation_reward: calculate_epoch_reward_rate(
-            INITIAL_DEFAULT_EPOCH_LENGTH,
-            gateway_delegation_reward_rate,
         ),
     }
 }
@@ -110,20 +94,11 @@ pub fn execute(
         ExecuteMsg::RewardMixnode { identity, uptime } => {
             transactions::try_reward_mixnode(deps, env, info, identity, uptime)
         }
-        ExecuteMsg::RewardGateway { identity, uptime } => {
-            transactions::try_reward_gateway(deps, env, info, identity, uptime)
-        }
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
             transactions::try_remove_delegation_from_mixnode(deps, info, mix_identity)
-        }
-        ExecuteMsg::DelegateToGateway { gateway_identity } => {
-            transactions::try_delegate_to_gateway(deps, env, info, gateway_identity)
-        }
-        ExecuteMsg::UndelegateFromGateway { gateway_identity } => {
-            transactions::try_remove_delegation_from_gateway(deps, info, gateway_identity)
         }
     }
 }
@@ -174,37 +149,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         } => to_binary(&queries::query_mixnode_delegation(
             deps,
             mix_identity,
-            address,
-        )?),
-        QueryMsg::GetGatewayDelegations {
-            gateway_identity,
-            start_after,
-            limit,
-        } => to_binary(&queries::query_gateway_delegations_paged(
-            deps,
-            gateway_identity,
-            start_after,
-            limit,
-        )?),
-        QueryMsg::GetAllGatewayDelegations { start_after, limit } => to_binary(
-            &queries::query_all_gateway_delegations_paged(deps, start_after, limit)?,
-        ),
-        QueryMsg::GetReverseGatewayDelegations {
-            delegation_owner,
-            start_after,
-            limit,
-        } => to_binary(&queries::query_reverse_gateway_delegations_paged(
-            deps,
-            delegation_owner,
-            start_after,
-            limit,
-        )?),
-        QueryMsg::GetGatewayDelegation {
-            gateway_identity,
-            address,
-        } => to_binary(&queries::query_gateway_delegation(
-            deps,
-            gateway_identity,
             address,
         )?),
     };

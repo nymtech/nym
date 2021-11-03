@@ -14,9 +14,6 @@ pub(crate) enum RewardingError {
     #[error("There were no mixnodes to reward (network is dead)")]
     NoMixnodesToReward,
 
-    #[error("There were no gateways to reward (network is dead)")]
-    NoGatewaysToReward,
-
     #[error("Failed to execute the smart contract - {0}")]
     ContractExecutionFailure(NymdError),
 

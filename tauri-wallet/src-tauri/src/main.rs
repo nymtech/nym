@@ -58,15 +58,12 @@ fn main() {
       unbond_gateway,
       delegate_to_mixnode,
       undelegate_from_mixnode,
-      delegate_to_gateway,
-      undelegate_from_gateway,
       send,
       create_new_account,
       get_fee,
       get_state_params,
       update_state_params,
       get_reverse_mix_delegations_paged,
-      get_reverse_gateway_delegations_paged,
     ])
     .menu(create_menu_items())
     .run(tauri::generate_context!())

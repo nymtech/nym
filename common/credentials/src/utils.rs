@@ -4,11 +4,12 @@
 use url::Url;
 
 use coconut_interface::{
-    aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
-    prove_bandwidth_credential, Attribute, BlindSignRequestBody, Credential, Parameters, Signature,
+    aggregate_signature_shares, aggregate_verification_keys, Attribute,
+    BlindSignRequestBody, Credential, Parameters, prepare_blind_sign, prove_bandwidth_credential, Signature,
     SignatureShare, VerificationKey,
 };
 
+use crate::bandwidth::PRIVATE_ATTRIBUTES;
 use crate::error::Error;
 
 /// Contacts all provided validators and then aggregate their verification keys.
@@ -121,7 +122,7 @@ pub async fn obtain_aggregate_signature(
         &client,
         &validator_partial_vk.key,
     )
-    .await?;
+        .await?;
     shares.push(SignatureShare::new(first, 0));
 
     for (id, validator_url) in validators.iter().enumerate().skip(1) {
@@ -134,7 +135,7 @@ pub async fn obtain_aggregate_signature(
             &client,
             &validator_partial_vk.key,
         )
-        .await?;
+            .await?;
         let share = SignatureShare::new(signature, id as u64);
         shares.push(share)
     }
@@ -169,7 +170,7 @@ pub fn prepare_credential_for_spending(
     )?;
 
     Ok(Credential::new(
-        (public_attributes.len() + 2) as u32,
+        (public_attributes.len() + PRIVATE_ATTRIBUTES as usize) as u32,
         theta,
         public_attributes,
         signature,

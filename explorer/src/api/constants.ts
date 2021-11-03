@@ -21,3 +21,4 @@ export const MIXNODE_API_ERROR =
 export const TELEGRAM_LINK = 'https://t.me/nymchan';
 export const TWITTER_LINK = 'https://twitter.com/nymproject';
 export const GITHUB_LINK = 'https://github.com/nymtech';
+export const NYM_WEBSITE = 'https://nymtech.net';

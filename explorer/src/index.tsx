@@ -103,6 +103,7 @@ const AppWrapper = () => {
         styleOverrides: {
           paper: {
             background: palette.secondary.dark,
+            marginTop: 64,
           },
         },
       },

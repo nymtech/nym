@@ -195,6 +195,7 @@ export default function SendFunds() {
                     variant="contained"
                     color="primary"
                     type="submit"
+                    data-testid="button"
                     disabled={checkButtonDisabled()}
                   >
                     {activeStep === 1

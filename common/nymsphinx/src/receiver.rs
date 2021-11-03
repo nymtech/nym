@@ -156,11 +156,9 @@ impl MessageReceiver {
             };
 
             // Finally, remove the zero padding from the message
-            if Self::remove_padding(&mut message).is_err() {
-                return Err(MessageRecoveryError::MalformedReconstructedMessage(
-                    used_sets,
-                ));
-            };
+            Self::remove_padding(&mut message).map_err(|_| {
+                MessageRecoveryError::MalformedReconstructedMessage(used_sets.clone())
+            })?;
 
             Ok(Some((
                 ReconstructedMessage {

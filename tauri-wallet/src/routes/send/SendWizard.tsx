@@ -148,7 +148,7 @@ export const SendWizard = () => {
               disableElevation
               style={{ marginRight: theme.spacing(1) }}
               onClick={handlePreviousStep}
-              data-testid="backButton"
+              data-testid="back-button"
             >
               Back
             </Button>

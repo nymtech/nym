@@ -1,9 +1,9 @@
-name: webdriverio tests for nym wallet
+name: Webdriverio tests for nym wallet
 
 on: 
  push:
     paths:
-      - '/tauri-wallet/*'
+      - 'tauri-wallet/**'
       
 defaults:
   run:
@@ -43,15 +43,20 @@ jobs:
 
       - name: Build application
         run: yarn run webpack:build & yarn run tauri:build
+        
+      - name: Check binary exists
+        run: |
+             cd target/release/
+             (test -f nym-wallet && echo nym binary exists) || echo wallet does not exist
 
       - name: Install dependencies
         run: yarn install
-        working-directory: webdriver/
+        working-directory: tauri-wallet/webdriver
 
       - name: Remove existing user datafile
         uses: JesseTG/rm@v1.0.2
         with:
-          path: webdriver/data/user-data.json
+          path: tauri-wallet/webdriver/common/data/user-data.json
 
       - name: Create user data json file
         id: create-json
@@ -59,7 +64,7 @@ jobs:
         with:
            name: "user-data.json"
            json: ${{ secrets.WALLET_USERDATA }}
-           dir: 'webdriver/data/'
+           dir: 'tauri-wallet/webdriver/common/data/'
 
       - name: Install tauri-driver
         uses: actions-rs/cargo@v1
@@ -68,5 +73,5 @@ jobs:
           args: tauri-driver
 
       - name: Launch tests
-        run: xvfb-run yarn test:login
-        working-directory: webdriver/
+        run: xvfb-run yarn test:newuser
+        working-directory: tauri-wallet/webdriver

@@ -102,14 +102,14 @@ export const Undelegate = () => {
               <RequestStatus
                 status={status}
                 Error={
-                  <Alert severity="error" data-testid="requestError">
+                  <Alert severity="error" data-testid="request-error">
                     An error occurred with the request: {message}
                   </Alert>
                 }
                 Success={
                   <Alert severity="success">
                     {' '}
-                    <AlertTitle data-testid="undelegateSuccess">Undelegation complete</AlertTitle>
+                    <AlertTitle data-testid="undelegate-success">Undelegation complete</AlertTitle>
                     {message}
                   </Alert>
                 }
@@ -125,7 +125,7 @@ export const Undelegate = () => {
                 }}
               >
                 <Button
-                  data-testid="finishButton"
+                  data-testid="finish-button"
                   onClick={() => {
                     setStatus(EnumRequestStatus.initial)
                     initialize()

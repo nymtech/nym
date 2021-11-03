@@ -73,14 +73,14 @@ export const Delegate = () => {
               <RequestStatus
                 status={status}
                 Error={
-                  <Alert severity="error" data-testid="delegateError">
+                  <Alert severity="error" data-testid="delegate-error">
                     <AlertTitle>Delegation failed</AlertTitle>
                     An error occurred with the request:
                     <Box style={{ wordBreak: 'break-word' }}>{message}</Box>
                   </Alert>
                 }
                 Success={
-                  <Alert severity="success" data-testid="delegateSuccess">
+                  <Alert severity="success" data-testid="delegate-success">
                     <AlertTitle>Delegation complete</AlertTitle>
                     <Box style={{ wordBreak: 'break-word' }}>{message}</Box>
                   </Alert>
@@ -97,7 +97,7 @@ export const Delegate = () => {
                 }}
               >
                 <Button
-                  data-testid="finishButton"
+                  data-testid="finish-button"
                   onClick={() => {
                     setStatus(EnumRequestStatus.initial)
                   }}

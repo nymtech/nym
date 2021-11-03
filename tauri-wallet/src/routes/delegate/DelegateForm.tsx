@@ -97,7 +97,7 @@ export const DelegateForm = ({
               />
             </Grid>
             <Grid item>
-              <Alert severity="info" data-testid="feeAmount">
+              <Alert severity="info" data-testid="fee-amount">
                 {`A fee of ${
                   watchNodeType === EnumNodeType.mixnode
                     ? fees.mixnode.amount
@@ -153,7 +153,7 @@ export const DelegateForm = ({
         <Button
           onClick={handleSubmit(onSubmit)}
           disabled={isSubmitting}
-          data-testid="delegateButton"
+          data-testid="delegate-button"
           variant="contained"
           color="primary"
           type="submit"

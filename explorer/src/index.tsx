@@ -77,6 +77,20 @@ const AppWrapper = () => {
       },
     },
     components: {
+      MuiPaginationItem: {
+        styleOverrides: {
+          root: {
+            '&.Mui-selected': {
+              border: '4px solid orange',
+              background: palette.brandOrange,
+              color: palette.white,
+            },
+            background: palette.blackBg,
+            color: palette.white,
+            fontWeight: 700,
+          },
+        },
+      },
       MuiCardHeader: {
         styleOverrides: {
           title: {
@@ -89,6 +103,7 @@ const AppWrapper = () => {
         styleOverrides: {
           paper: {
             background: palette.secondary.dark,
+            marginTop: 64,
           },
         },
       },

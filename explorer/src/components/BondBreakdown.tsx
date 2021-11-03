@@ -15,7 +15,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import { MainContext } from 'src/context/main';
-import { ExpandLess, ExpandMore } from '@mui/icons-material';
+import { ExpandMore } from '@mui/icons-material';
 
 export const BondBreakdownTable: React.FC = () => {
   const { mixnodeDetailInfo, delegations, mode } =

@@ -197,6 +197,7 @@ export const PageMixnodes: React.FC = () => {
               rows={mixnodeToGridRow(filteredMixnodes)}
               pageSize={pageSize}
               pagination
+              hideFooter={false}
             />
           </ContentCard>
         </Grid>

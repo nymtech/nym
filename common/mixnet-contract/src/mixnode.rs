@@ -3,13 +3,15 @@
 
 use crate::{IdentityKey, SphinxKey};
 use az::CheckedCast;
-use config::defaults::DEFAULT_OPERATOR_EPOCH_COST;
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
+use network_defaults::{DEFAULT_OPERATOR_EPOCH_COST, DEFAULT_PROFIT_MARGIN};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::cmp::Ordering;
 use std::fmt::Display;
+
+type U128 = fixed::types::U75F53; // u128 with 18 significant digits
 
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
@@ -55,6 +57,7 @@ pub struct NodeRewardParams {
     reward_blockstamp: u64,
     circulating_supply: Uint128,
     uptime: Uint128,
+    sybil_resistance_percent: u8
 }
 
 impl NodeRewardParams {
@@ -65,6 +68,7 @@ impl NodeRewardParams {
         reward_blockstamp: u64,
         circulating_supply: u128,
         uptime: u128,
+        sybil_resistance_percent: u8
     ) -> NodeRewardParams {
         NodeRewardParams {
             period_reward_pool: Uint128(period_reward_pool),
@@ -74,6 +78,7 @@ impl NodeRewardParams {
             reward_blockstamp,
             circulating_supply: Uint128(circulating_supply),
             uptime: Uint128(uptime),
+            sybil_resistance_percent
         }
     }
 
@@ -118,7 +123,7 @@ impl NodeRewardParams {
     }
 
     pub fn alpha(&self) -> U128 {
-        default_alpha()
+        U128::from_num(self.sybil_resistance_percent) / U128::from_num(100)
     }
 }
 

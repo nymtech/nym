@@ -3017,9 +3017,9 @@ name = "mixnet-contract"
 version = "0.1.0"
 dependencies = [
  "az",
- "config",
  "cosmwasm-std",
  "fixed",
+ "network-defaults",
  "schemars",
  "serde",
  "serde_repr",

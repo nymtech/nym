@@ -461,7 +461,6 @@ pub(crate) fn try_reward_mixnode_v2(
     let total_delegation_reward =
         increase_mix_delegated_stakes_v2(deps.storage, &current_bond, &reward_params)?;
 
-    // assert_eq!(total_delegation_reward.u128(), 1);
 
     // update current bond with the reward given to the node and the delegators
     // if it has been bonded for long enough
@@ -604,7 +603,7 @@ pub mod tests {
     use super::*;
     use crate::contract::{
         execute, query, INITIAL_DEFAULT_EPOCH_LENGTH, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND,
-        INITIAL_MIXNODE_BOND_REWARD_RATE, INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
+        INITIAL_MIXNODE_BOND_REWARD_RATE, INITIAL_MIXNODE_DELEGATION_REWARD_RATE, DEFAULT_SYBIL_RESISTANCE_PERCENT
     };
     use crate::helpers::calculate_epoch_reward_rate;
     use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
@@ -2730,7 +2729,7 @@ pub mod tests {
 
     #[test]
     fn test_tokenomics_rewarding() {
-        use crate::contract::{EPOCH_REWARD_PERCENT, REWARD_POOL};
+        use crate::contract::{EPOCH_REWARD_PERCENT, INITIAL_REWARD_POOL};
 
         type U128 = fixed::types::U75F53;
 
@@ -2738,7 +2737,7 @@ pub mod tests {
         let mut env = mock_env();
         let current_state = config(deps.as_mut().storage).load().unwrap();
         let network_monitor_address = current_state.network_monitor_address;
-        let period_reward_pool = (REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128;
+        let period_reward_pool = (INITIAL_REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128;
         assert_eq!(period_reward_pool, 5_000_000_000_000);
         let k = 200; // Imagining our active set size is 200
         let circulating_supply = circulating_supply(&deps.storage).u128();
@@ -2791,6 +2790,7 @@ pub mod tests {
             0,
             circulating_supply,
             mix_1_uptime,
+            DEFAULT_SYBIL_RESISTANCE_PERCENT
         );
 
         params.set_reward_blockstamp(env.block.height);
@@ -2810,7 +2810,7 @@ pub mod tests {
             mix_1_reward_result.lambda(),
             U128::from_num(0.0000001333333333)
         );
-        // assert_eq!(mix_1_reward_result.reward(), U128::from_num(333.3359996146436116));
+        assert_eq!(mix_1_reward_result.reward().int(), 333);
 
         let mix1_operator_profit = mix_1.operator_reward(&params);
 
@@ -2846,7 +2846,7 @@ pub mod tests {
 
         assert_eq!(
             reward_pool_value(&deps.storage).u128(),
-            U128::from_num(REWARD_POOL)
+            U128::from_num(INITIAL_REWARD_POOL)
                 - (U128::from_num(mix1_operator_profit)
                     + U128::from_num(mix1_delegator1_reward)
                     + U128::from_num(mix1_delegator2_reward))

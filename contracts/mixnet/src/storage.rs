@@ -1,6 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-use crate::contract::REWARD_POOL;
+use crate::contract::INITIAL_REWARD_POOL;
 use crate::state::State;
 use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 use crate::{error::ContractError, queries};
@@ -31,7 +31,7 @@ const REWARD_POOL_PREFIX: &[u8] = b"pool";
 // buckets
 pub const PREFIX_MIXNODES: &[u8] = b"mn";
 const PREFIX_MIXNODES_OWNERS: &[u8] = b"mo";
-pub const PREFIX_GATEWAYS: &[u8] = b"gt";
+const PREFIX_GATEWAYS: &[u8] = b"gt";
 const PREFIX_GATEWAYS_OWNERS: &[u8] = b"go";
 
 const PREFIX_MIX_DELEGATION: &[u8] = b"md";
@@ -60,7 +60,7 @@ pub fn mut_reward_pool(storage: &mut dyn Storage) -> Singleton<Uint128> {
 pub fn reward_pool_value(storage: &dyn Storage) -> Uint128 {
     match reward_pool(storage).load() {
         Ok(value) => value,
-        Err(_e) => Uint128(REWARD_POOL),
+        Err(_e) => Uint128(INITIAL_REWARD_POOL),
     }
 }
 

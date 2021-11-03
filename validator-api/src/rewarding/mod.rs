@@ -206,16 +206,7 @@ impl Rewarder {
         // by people hesitating to delegate to nodes without them and thus those nodes disappearing
         // from the active set (once introduced)
         let mixnode_delegators = self.produce_active_mixnode_delegators_map().await?;
-        let reward_pool = self.nymd_client.get_reward_pool().await?;
-        let circulating_supply = self.nymd_client.get_circulating_supply().await?;
         let state = self.nymd_client.get_state_params().await?;
-        let k = state.mixnode_active_set_size;
-        let period_reward_pool = (reward_pool / 100) * 2_u128;
-
-        info!("Rewarding pool stats");
-        info!("-- Reward pool: {} unym", reward_pool);
-        info!("---- Epoch reward pool: {} unym", period_reward_pool);
-        info!("-- Circulating supply: {} unym", circulating_supply);
 
         // 1. go through all active mixnodes
         // 2. filter out nodes that are currently not in the active set (as `mixnode_delegators` was obtained by
@@ -236,11 +227,23 @@ impl Rewarder {
             .filter(|node| node.uptime.u8() > 0)
             .collect();
 
-        let total_epoch_uptime = eligible_nodes
-            .iter()
-            .fold(0, |acc, mix| acc + mix.uptime.u8() as u128);
-
         if cfg!(feature = "tokenomics") {
+            let total_epoch_uptime = eligible_nodes
+                .iter()
+                .fold(0, |acc, mix| acc + mix.uptime.u8() as u128);
+
+            let reward_pool = self.nymd_client.get_reward_pool().await?;
+            let circulating_supply = self.nymd_client.get_circulating_supply().await?;
+            let sybil_resistance_percent = self.nymd_client.get_sybil_resistance_percent().await?;
+            let epoch_reward_percent = self.nymd_client.get_epoch_reward_percent().await?;
+            let k = state.mixnode_active_set_size;
+            let period_reward_pool = (reward_pool / 100) * epoch_reward_percent as u128;
+
+            info!("Rewarding pool stats");
+            info!("-- Reward pool: {} unym", reward_pool);
+            info!("---- Epoch reward pool: {} unym", period_reward_pool);
+            info!("-- Circulating supply: {} unym", circulating_supply);
+
             for mix in eligible_nodes.iter_mut() {
                 mix.params = Some(NodeRewardParams::new(
                     period_reward_pool,
@@ -249,6 +252,7 @@ impl Rewarder {
                     0,
                     circulating_supply,
                     mix.uptime.u8().into(),
+                    sybil_resistance_percent
                 ));
             }
         } else {

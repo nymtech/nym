@@ -4,6 +4,7 @@
 mod error;
 mod queries;
 mod storage;
+mod support;
 mod transactions;
 
 use cosmwasm_std::{
@@ -55,4 +56,47 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 #[entry_point]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use config::defaults::DENOM;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::{coins, from_binary};
+    use erc20_bridge_contract::payment::PagedPaymentResponse;
+
+    #[test]
+    fn initialize_contract() {
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_env();
+        let msg = InstantiateMsg {};
+        let info = mock_info("creator", &[]);
+
+        let res = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        // payments should be empty after initialization
+        let res = query(
+            deps.as_ref(),
+            env.clone(),
+            QueryMsg::GetPayments {
+                start_after: None,
+                limit: Option::from(2),
+            },
+        )
+        .unwrap();
+        let page: PagedPaymentResponse = from_binary(&res).unwrap();
+        assert_eq!(0, page.payments.len()); // there are no payments in the list when it's just been initialized
+
+        // Contract balance should match what we initialized it as
+        assert_eq!(
+            coins(0, DENOM),
+            vec![deps
+                .as_ref()
+                .querier
+                .query_balance(env.contract.address, DENOM)
+                .unwrap()]
+        );
+    }
 }

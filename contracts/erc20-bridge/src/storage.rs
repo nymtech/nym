@@ -30,3 +30,50 @@ pub fn payments_read(storage: &dyn Storage) -> ReadonlyBucket<Payment> {
 pub fn status(storage: &mut dyn Storage) -> Bucket<Status> {
     bucket(storage, PREFIX_STATUS)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::support::tests::helpers;
+    use cosmwasm_std::testing::MockStorage;
+    use erc20_bridge_contract::keys::PublicKey;
+
+    #[test]
+    fn payments_single_read_retrieval() {
+        let mut storage = MockStorage::new();
+        let key1 = PublicKey::new([1; 32]);
+        let key2 = PublicKey::new([2; 32]);
+        let payment1 = helpers::payment_fixture();
+        let payment2 = helpers::payment_fixture();
+        payments(&mut storage)
+            .save(key1.as_ref(), &payment1)
+            .unwrap();
+        payments(&mut storage)
+            .save(key2.as_ref(), &payment2)
+            .unwrap();
+
+        let res1 = payments_read(&storage).load(key1.as_ref()).unwrap();
+        let res2 = payments_read(&storage).load(key2.as_ref()).unwrap();
+        assert_eq!(payment1, res1);
+        assert_eq!(payment2, res2);
+    }
+
+    #[test]
+    fn status_single_read_retrieval() {
+        let mut storage = MockStorage::new();
+        let key1 = PublicKey::new([1; 32]);
+        let key2 = PublicKey::new([2; 32]);
+        let status_value = Status::Unchecked;
+        status(&mut storage)
+            .save(key1.as_ref(), &status_value)
+            .unwrap();
+        status(&mut storage)
+            .save(key2.as_ref(), &status_value)
+            .unwrap();
+
+        let res1 = status(&mut storage).load(key1.as_ref()).unwrap();
+        assert_eq!(status_value, res1);
+        let res2 = status(&mut storage).load(key2.as_ref()).unwrap();
+        assert_eq!(status_value, res2);
+    }
+}

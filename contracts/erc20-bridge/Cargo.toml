@@ -25,6 +25,9 @@ overflow-checks = true
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
 
+[dev-dependencies]
+config = { path = "../../common/config"}
+
 [dependencies]
 erc20-bridge-contract = { path = "../../common/erc20-bridge-contract" }
 

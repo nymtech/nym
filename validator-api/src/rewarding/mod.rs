@@ -14,7 +14,6 @@ use crate::storage::models::{
 use crate::storage::NodeStatusStorage;
 use log::{error, info};
 use mixnet_contract::{ExecuteMsg, IdentityKey};
-use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::time::Duration;
@@ -44,8 +43,6 @@ pub(crate) const PER_GATEWAY_DELEGATION_GAS_INCREASE: u64 = 2750;
 pub(crate) const REWARDING_GAS_LIMIT_MULTIPLIER: f64 = 1.05;
 
 pub(crate) const MAX_TO_REWARD_AT_ONCE: usize = 50;
-
-pub(crate) const REWARDING_TIME_VARIANCE: f32 = 0.05; // 5% (so for example +/-1.2h for 24h epoch)
 
 #[derive(Debug, Clone)]
 pub(crate) struct MixnodeToReward {
@@ -605,19 +602,6 @@ impl Rewarder {
         Ok(())
     }
 
-    /// Determines random positive or negative time variance that should be added to the rewarding
-    /// distribution time so that all validators would not attempt to hit the smart contract
-    /// at exactly the same time.
-    fn epoch_variance(&self) -> (bool, Duration) {
-        let mut rng = thread_rng();
-
-        let abs_variance_secs = REWARDING_TIME_VARIANCE * self.first_epoch.length().as_secs_f32();
-        let variance = Duration::from_secs(rng.gen_range(0, abs_variance_secs as u64));
-        let sign = rng.gen_bool(0.5);
-
-        (sign, variance)
-    }
-
     /// Determines whether this validator has already distributed rewards for the specified epoch
     /// so that it wouldn't accidentally attempt to do it again.
     ///
@@ -707,9 +691,7 @@ impl Rewarder {
         Ok(current_epoch.next_epoch())
     }
 
-    /// Given datetime of the rewarding epoch datetime, determine time until it ends and add (or remove)
-    /// a little bit of time variance from it in order to prevent all validators distributing
-    /// the rewards at exactly the same time instant.
+    /// Given datetime of the rewarding epoch datetime, determine duration until it ends.
     ///
     /// # Arguments
     ///
@@ -723,13 +705,7 @@ impl Rewarder {
         // we have a positive duration so we can't fail the conversion
         let until_epoch_end: Duration = (rewarding_epoch.end() - now).try_into().unwrap();
 
-        // add a bit of variance to the start time
-        let (sign, variance) = self.epoch_variance();
-        if sign {
-            Some(until_epoch_end + variance)
-        } else {
-            until_epoch_end.checked_sub(variance)
-        }
+        Some(until_epoch_end)
     }
 
     /// Distribute rewards to all eligible mixnodes and gateways on the network.
@@ -866,7 +842,6 @@ impl Rewarder {
 
             // wait's until the start of the *next* epoch, e.g. end of the current chosen epoch
             // (it could be none, for example if we are distributing overdue rewards for the previous epoch)
-            // plus add a bit of variance
             if let Some(remaining_time) =
                 self.determine_delay_until_next_rewarding(next_rewarding_epoch)
             {

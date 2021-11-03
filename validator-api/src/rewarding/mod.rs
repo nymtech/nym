@@ -252,7 +252,7 @@ impl Rewarder {
                     0,
                     circulating_supply,
                     mix.uptime.u8().into(),
-                    sybil_resistance_percent
+                    sybil_resistance_percent,
                 ));
             }
         } else {

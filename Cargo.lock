@@ -3019,6 +3019,7 @@ dependencies = [
  "az",
  "cosmwasm-std",
  "fixed",
+ "log",
  "network-defaults",
  "schemars",
  "serde",

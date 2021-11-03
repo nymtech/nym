@@ -168,7 +168,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         QueryMsg::GetRewardPool {} => to_binary(&queries::query_reward_pool(deps)),
         QueryMsg::GetCirculatingSupply {} => to_binary(&queries::query_circulating_supply(deps)),
         QueryMsg::GetEpochRewardPercent {} => to_binary(&EPOCH_REWARD_PERCENT),
-        QueryMsg::GetSybilResistancePercent {} => to_binary(&DEFAULT_SYBIL_RESISTANCE_PERCENT)
+        QueryMsg::GetSybilResistancePercent {} => to_binary(&DEFAULT_SYBIL_RESISTANCE_PERCENT),
     };
 
     Ok(query_res?)

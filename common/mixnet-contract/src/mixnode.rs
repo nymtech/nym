@@ -3,7 +3,8 @@
 
 use crate::{IdentityKey, SphinxKey};
 use az::CheckedCast;
-use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Uint128};
+use log::error;
 use network_defaults::{DEFAULT_OPERATOR_EPOCH_COST, DEFAULT_PROFIT_MARGIN};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -51,13 +52,12 @@ pub enum Layer {
 pub struct NodeRewardParams {
     period_reward_pool: Uint128,
     k: Uint128,
-    one_over_k: Decimal,
     total_epoch_uptime: Uint128,
     #[serde(default = "current_block_height")]
     reward_blockstamp: u64,
     circulating_supply: Uint128,
     uptime: Uint128,
-    sybil_resistance_percent: u8
+    sybil_resistance_percent: u8,
 }
 
 impl NodeRewardParams {
@@ -68,26 +68,21 @@ impl NodeRewardParams {
         reward_blockstamp: u64,
         circulating_supply: u128,
         uptime: u128,
-        sybil_resistance_percent: u8
+        sybil_resistance_percent: u8,
     ) -> NodeRewardParams {
         NodeRewardParams {
             period_reward_pool: Uint128(period_reward_pool),
             k: Uint128(k),
-            one_over_k: Decimal::from_ratio(1u128, k),
             total_epoch_uptime: Uint128(total_epoch_uptime),
             reward_blockstamp,
             circulating_supply: Uint128(circulating_supply),
             uptime: Uint128(uptime),
-            sybil_resistance_percent
+            sybil_resistance_percent,
         }
     }
 
     pub fn performance(&self) -> U128 {
-        U128::from_num(self.uptime.u128()) / U128::from_num(self.total_epoch_uptime.u128())
-    }
-
-    pub fn performance_decimal(&self) -> Decimal {
-        Decimal::from_ratio(self.uptime.u128(), self.total_epoch_uptime.u128())
+        U128::from_num(self.uptime.u128()) / U128::from_num(100)
     }
 
     pub fn operator_cost(&self) -> U128 {
@@ -207,23 +202,9 @@ impl MixNodeBond {
         U128::from_num(self.bond_amount().amount.u128()) / U128::from_num(circulating_supply)
     }
 
-    pub fn bond_to_circulating_supply_decimal(&self, circulating_supply: u128) -> Decimal {
-        Decimal::from_ratio(self.bond_amount().amount.u128(), circulating_supply)
-    }
-
-    pub fn delegations_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
+    pub fn total_stake_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
         U128::from_num(self.bond_amount().amount.u128() + self.total_delegation().amount.u128())
             / U128::from_num(circulating_supply)
-    }
-
-    pub fn delegations_to_circulating_supply_decimal(
-        &self,
-        delegations_to_circulating_supply: u128,
-    ) -> Decimal {
-        Decimal::from_ratio(
-            self.total_delegation().amount.u128(),
-            delegations_to_circulating_supply,
-        )
     }
 
     pub fn lambda(&self, params: &NodeRewardParams) -> U128 {
@@ -235,9 +216,9 @@ impl MixNodeBond {
 
     pub fn sigma(&self, params: &NodeRewardParams) -> U128 {
         // Ratio of a delegation to the the token circulating supply
-        let delegations_to_circulating_supply_ratio =
-            self.delegations_to_circulating_supply(params.circulating_supply());
-        delegations_to_circulating_supply_ratio.min(params.one_over_k())
+        let total_stake_to_circulating_supply_ratio =
+            self.total_stake_to_circulating_supply(params.circulating_supply());
+        total_stake_to_circulating_supply_ratio.min(params.one_over_k())
     }
 
     pub fn reward(&self, params: &NodeRewardParams) -> NodeRewardResult {
@@ -278,17 +259,24 @@ impl MixNodeBond {
             + (U128::from_num(1) - self.profit_margin()) * (reward.lambda / reward.sigma))
             * profit;
 
-        // TODO: Handle the unwrap
-        (operator_reward + operator_base_reward)
-            .max(U128::from_num(0))
-            .checked_cast()
-            .unwrap()
+        let reward = (operator_reward + operator_base_reward).max(U128::from_num(0));
+
+        if let Some(int_reward) = reward.checked_cast() {
+            int_reward
+        } else {
+            error!(
+                "Could not cast reward ({}) to u128, returning 0 - mixnode {}",
+                reward,
+                self.identity()
+            );
+            0u128
+        }
     }
 
     pub fn sigma_ratio(&self, params: &NodeRewardParams) -> U128 {
-        if self.delegations_to_circulating_supply(params.circulating_supply()) < params.one_over_k()
+        if self.total_stake_to_circulating_supply(params.circulating_supply()) < params.one_over_k()
         {
-            self.delegations_to_circulating_supply(params.circulating_supply())
+            self.total_stake_to_circulating_supply(params.circulating_supply())
         } else {
             params.one_over_k()
         }
@@ -302,11 +290,17 @@ impl MixNodeBond {
             * (scaled_delegation_amount / self.sigma(params))
             * self.node_profit(params);
 
-        // TODO: Handle the unwrap
-        delegator_reward
-            .max(U128::from_num(0))
-            .checked_cast()
-            .unwrap()
+        let reward = delegator_reward.max(U128::from_num(0));
+        if let Some(int_reward) = reward.checked_cast() {
+            int_reward
+        } else {
+            error!(
+                "Could not cast delegator reward ({}) to u128, returning 0 - mixnode {}",
+                reward,
+                self.identity()
+            );
+            0u128
+        }
     }
 }
 

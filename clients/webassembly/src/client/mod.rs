@@ -1,26 +1,29 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crypto::asymmetric::{encryption, identity};
+use std::sync::Arc;
+use std::time::Duration;
+
 use futures::channel::mpsc;
+use rand::rngs::OsRng;
+use url::Url;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::spawn_local;
+
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
+use coconut_interface::{hash_to_scalar, Parameters};
+use credentials::bandwidth::{BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES};
+#[cfg(feature = "coconut")]
+use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
+use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::preparer::MessagePreparer;
-use rand::rngs::OsRng;
 use received_processor::ReceivedMessagesProcessor;
-use std::sync::Arc;
-use std::time::Duration;
 use topology::{gateway, nym_topology_from_bonds, NymTopology};
-use url::Url;
-use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::spawn_local;
 use wasm_utils::{console_log, console_warn};
-
-#[cfg(feature = "coconut")]
-use coconut_interface::Credential;
-#[cfg(feature = "coconut")]
-use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
 
 pub(crate) mod received_processor;
 
@@ -109,15 +112,32 @@ impl NymClient {
             .await
             .expect("could not obtain aggregate verification key of validators");
 
-        let bandwidth_credential =
-            credentials::bandwidth::obtain_signature(identity_bytes, validators)
-                .await
-                .expect("could not obtain bandwidth credential");
+        let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
+        let bandwidth_credential_attributes = BandwidthVoucherAttributes {
+            serial_number: params.random_scalar(),
+            binding_number: params.random_scalar(),
+            voucher_value: hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
+            voucher_info: hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
+        };
+
+        let bandwidth_credential = credentials::bandwidth::obtain_signature(
+            &params,
+            &bandwidth_credential_attributes,
+            validators,
+            &verification_key,
+        )
+        .await
+        .expect("could not obtain bandwidth credential");
         // the above would presumably be loaded from a file
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
-        prepare_for_spending(identity_bytes, &bandwidth_credential, &verification_key)
-            .expect("could not prepare out bandwidth credential for spending")
+        prepare_for_spending(
+            identity_bytes,
+            &bandwidth_credential,
+            &bandwidth_credential_attributes,
+            &verification_key,
+        )
+        .expect("could not prepare out bandwidth credential for spending")
     }
 
     // Right now it's impossible to have async exported functions to take `&self` rather than self
@@ -275,12 +295,12 @@ impl NymClient {
         let validator_client = validator_client::ApiClient::new(self.validator_server.clone());
 
         let mixnodes = match validator_client.get_cached_active_mixnodes().await {
-            Err(err) => panic!("{}", err),
+            Err(err) => panic!("{:?}", err),
             Ok(mixes) => mixes,
         };
 
         let gateways = match validator_client.get_cached_active_gateways().await {
-            Err(err) => panic!("{}", err),
+            Err(err) => panic!("{:?}", err),
             Ok(gateways) => gateways,
         };
 

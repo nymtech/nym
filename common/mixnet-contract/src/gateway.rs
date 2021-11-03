@@ -9,8 +9,6 @@ use std::cmp::Ordering;
 use std::fmt::Display;
 use ts_rs::TS;
 
-use crate::current_block_height;
-
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema, TS)]
 pub struct Gateway {
     pub host: String,
@@ -28,7 +26,6 @@ pub struct GatewayBond {
     pub bond_amount: Coin,
     pub total_delegation: Coin,
     pub owner: Addr,
-    #[serde(default = "current_block_height")]
     pub block_height: u64,
     pub gateway: Gateway,
 }

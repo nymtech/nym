@@ -229,7 +229,7 @@ impl MixNodeBond {
 
         let reward = params.performance()
             * params.period_reward_pool()
-            * (sigma * omega_k + params.alpha() * lambda * (sigma * params.k()))
+            * (sigma * omega_k + params.alpha() * lambda * sigma * params.k())
             / (U128::from_num(1) + params.alpha());
 
         NodeRewardResult {
@@ -256,7 +256,7 @@ impl MixNodeBond {
         };
         let operator_base_reward = reward.reward.min(params.operator_cost());
         let operator_reward = (self.profit_margin()
-            + (U128::from_num(1) - self.profit_margin()) * (reward.lambda / reward.sigma))
+            + (U128::from_num(1) - self.profit_margin()) * reward.lambda / reward.sigma)
             * profit;
 
         let reward = (operator_reward + operator_base_reward).max(U128::from_num(0));
@@ -287,7 +287,7 @@ impl MixNodeBond {
             U128::from_num(delegation_amount.u128()) / U128::from_num(params.circulating_supply());
 
         let delegator_reward = (U128::from_num(1) - self.profit_margin())
-            * (scaled_delegation_amount / self.sigma(params))
+            * scaled_delegation_amount / self.sigma(params)
             * self.node_profit(params);
 
         let reward = delegator_reward.max(U128::from_num(0));

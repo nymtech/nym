@@ -38,10 +38,7 @@ pub struct BandwidthVoucherAttributes {
 
 impl BandwidthVoucherAttributes {
     pub fn get_public_attributes(&self) -> Vec<PublicAttribute> {
-        let mut pub_attributes = Vec::with_capacity(PUBLIC_ATTRIBUTES as usize);
-        pub_attributes.push(self.voucher_value);
-        pub_attributes.push(self.voucher_info);
-        pub_attributes
+        vec![self.voucher_value, self.voucher_info]
     }
 
     pub fn get_private_attributes(&self) -> Vec<PrivateAttribute> {

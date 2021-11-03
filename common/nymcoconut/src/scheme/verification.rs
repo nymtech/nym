@@ -215,7 +215,7 @@ pub fn verify_credential(
     theta: &Theta,
     public_attributes: &[Attribute],
 ) -> bool {
-    if public_attributes.len() + theta.pi_v.private_attributes() > verification_key.beta.len() {
+    if public_attributes.len() + theta.pi_v.private_attributes_len() > verification_key.beta.len() {
         return false;
     }
 
@@ -232,7 +232,7 @@ pub fn verify_credential(
                 verification_key
                     .beta
                     .iter()
-                    .skip(theta.pi_v.private_attributes()),
+                    .skip(theta.pi_v.private_attributes_len()),
             )
             .map(|(pub_attr, beta_i)| beta_i * pub_attr)
             .sum::<G2Projective>();

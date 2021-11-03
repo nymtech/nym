@@ -446,7 +446,7 @@ impl ProofKappaNu {
         }
     }
 
-    pub(crate) fn private_attributes(&self) -> usize {
+    pub(crate) fn private_attributes_len(&self) -> usize {
         2
     }
 

@@ -76,4 +76,4 @@ jobs:
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: -- --features=coconut -D warnings
+          args: --features=coconut -- -D warnings

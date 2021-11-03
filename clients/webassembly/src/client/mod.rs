@@ -11,11 +11,13 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 
 #[cfg(feature = "coconut")]
-use coconut_interface::Credential;
 use coconut_interface::{hash_to_scalar, Parameters};
-use credentials::bandwidth::{BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES};
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
 #[cfg(feature = "coconut")]
 use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
+#[cfg(feature = "coconut")]
+use credentials::bandwidth::{BANDWIDTH_VALUE, BandwidthVoucherAttributes, TOTAL_ATTRIBUTES};
 use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use nymsphinx::acknowledgements::AckKey;
@@ -126,8 +128,8 @@ impl NymClient {
             validators,
             &verification_key,
         )
-        .await
-        .expect("could not obtain bandwidth credential");
+            .await
+            .expect("could not obtain bandwidth credential");
         // the above would presumably be loaded from a file
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
@@ -137,20 +139,20 @@ impl NymClient {
             &bandwidth_credential_attributes,
             &verification_key,
         )
-        .expect("could not prepare out bandwidth credential for spending")
+            .expect("could not prepare out bandwidth credential for spending")
     }
 
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
         #[cfg(feature = "coconut")]
-        let coconut_credential = {
+            let coconut_credential = {
             let validator_server = self.validator_server.clone();
             let identity_public_key = self.identity.public_key().clone();
             Self::prepare_coconut_credential(
                 &vec![validator_server],
                 &identity_public_key.to_bytes(),
             )
-            .await
+                .await
         };
 
         let mut client = self.get_and_update_topology().await;
@@ -172,7 +174,7 @@ impl NymClient {
         gateway_client
             .authenticate_and_start(
                 #[cfg(feature = "coconut")]
-                Some(coconut_credential),
+                    Some(coconut_credential),
             )
             .await
             .expect("could not authenticate and start up the gateway connection");

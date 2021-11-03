@@ -475,19 +475,11 @@ pub(crate) fn try_reward_mixnode_v2(
 
     let reward_result = current_bond.reward(&reward_params);
 
-    // return Ok(Response {
-    //     submessages: vec![],
-    //     messages: vec![],
-    //     attributes: vec![],
-    //     data: None,
-    // });
-
     // Omitting the price per packet function now, it follows that base operator reward is the node_reward
     let operator_reward = current_bond.operator_reward(&reward_params);
 
     let total_delegation_reward =
         increase_mix_delegated_stakes_v2(deps.storage, &current_bond, &reward_params)?;
-
 
     // update current bond with the reward given to the node and the delegators
     // if it has been bonded for long enough
@@ -797,7 +789,12 @@ pub(crate) fn try_remove_delegation_from_gateway(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::{DEFAULT_SYBIL_RESISTANCE_PERCENT, INITIAL_DEFAULT_EPOCH_LENGTH, INITIAL_GATEWAY_BOND, INITIAL_GATEWAY_BOND_REWARD_RATE, INITIAL_GATEWAY_DELEGATION_REWARD_RATE, INITIAL_MIXNODE_BOND, INITIAL_MIXNODE_BOND_REWARD_RATE, INITIAL_MIXNODE_DELEGATION_REWARD_RATE, execute, query};
+    use crate::contract::{
+        execute, query, DEFAULT_SYBIL_RESISTANCE_PERCENT, INITIAL_DEFAULT_EPOCH_LENGTH,
+        INITIAL_GATEWAY_BOND, INITIAL_GATEWAY_BOND_REWARD_RATE,
+        INITIAL_GATEWAY_DELEGATION_REWARD_RATE, INITIAL_MIXNODE_BOND,
+        INITIAL_MIXNODE_BOND_REWARD_RATE, INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
+    };
     use crate::helpers::calculate_epoch_reward_rate;
     use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
     use crate::storage::{
@@ -4092,7 +4089,13 @@ pub mod tests {
         try_add_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alice", &good_mixnode_bond()),
+            mock_info(
+                "alice",
+                &vec![Coin {
+                    denom: DENOM.to_string(),
+                    amount: Uint128(10000_000_000),
+                }],
+            ),
             MixNode {
                 identity_key: "alice".to_string(),
                 ..helpers::mix_node_fixture()
@@ -4103,7 +4106,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("d1", &vec![coin(10_000000, DENOM)]),
+            mock_info("d1", &vec![coin(8000_000000, DENOM)]),
             "alice".to_string(),
         )
         .unwrap();
@@ -4111,7 +4114,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("d2", &vec![coin(20_000000, DENOM)]),
+            mock_info("d2", &vec![coin(2000_000000, DENOM)]),
             "alice".to_string(),
         )
         .unwrap();
@@ -4133,46 +4136,42 @@ pub mod tests {
             0,
             circulating_supply,
             mix_1_uptime,
-            DEFAULT_SYBIL_RESISTANCE_PERCENT
+            DEFAULT_SYBIL_RESISTANCE_PERCENT,
         );
 
         params.set_reward_blockstamp(env.block.height);
 
-        assert_eq!(
-            params.performance(),
-            U128::from_num(100) / U128::from_num(200_000)
-        );
+        assert_eq!(params.performance(), 1);
 
         let mix_1_reward_result = mix_1.reward(&params);
 
         assert_eq!(
             mix_1_reward_result.sigma(),
-            U128::from_num(0.0000001733333332)
+            U128::from_num(0.0000266666666666)
         );
         assert_eq!(
             mix_1_reward_result.lambda(),
-            U128::from_num(0.0000001333333333)
+            U128::from_num(0.0000133333333333)
         );
-        assert_eq!(mix_1_reward_result.reward().int(), 333);
+        assert_eq!(mix_1_reward_result.reward().int(), 102646153);
 
         let mix1_operator_profit = mix_1.operator_reward(&params);
 
-        let mix1_delegator1_reward = mix_1.reward_delegation(Uint128(10_000_000), &params);
+        let mix1_delegator1_reward = mix_1.reward_delegation(Uint128(8000_000000), &params);
 
-        let mix1_delegator2_reward = mix_1.reward_delegation(Uint128(20_000_000), &params);
+        let mix1_delegator2_reward = mix_1.reward_delegation(Uint128(2000_000000), &params);
 
-        // These might be generalizable over percentages, instead of exact values
-        assert_eq!(mix1_operator_profit, U128::from_num(333));
-        assert_eq!(mix1_delegator1_reward, U128::from_num(0));
-        assert_eq!(mix1_delegator2_reward, U128::from_num(0));
+        assert_eq!(mix1_operator_profit, U128::from_num(74455384));
+        assert_eq!(mix1_delegator1_reward, U128::from_num(22552615));
+        assert_eq!(mix1_delegator2_reward, U128::from_num(5638153));
 
         let pre_reward_bond = read_mixnode_bond(&deps.storage, b"alice").unwrap().u128();
-        assert_eq!(pre_reward_bond, 100_000_000);
+        assert_eq!(pre_reward_bond, 10000_000_000);
 
         let pre_reward_delegation = read_mixnode_delegation(&deps.storage, b"alice")
             .unwrap()
             .u128();
-        assert_eq!(pre_reward_delegation, 30_000_000);
+        assert_eq!(pre_reward_delegation, 10000_000_000);
 
         try_reward_mixnode_v2(deps.as_mut(), env, info, "alice".to_string(), params).unwrap();
 

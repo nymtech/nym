@@ -19,6 +19,7 @@ thiserror = "1.0"
 network-defaults = { path = "../network-defaults" }
 fixed = "1.1"
 az = "1.1"
+log = "0.4.14"
 
 [features]
 default = ["ts-rs"]

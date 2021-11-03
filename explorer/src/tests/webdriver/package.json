@@ -5,7 +5,8 @@
     "scripts": {
         "test:runfeature": "ENV=devfeature wdio run wdio.conf.js",
         "test:runlocal": "ENV=local wdio run wdio.conf.js",
-        "test:runprod": "ENV=prod wdio run wdio.conf.js"
+        "test:runprod": "ENV=prod wdio run wdio.conf.js",
+        "test:runci": "ENV=devfeature wdio run wdio-github.conf.cjs"
     },
     "devDependencies": {
         "@babel/core": "^7.16.0",

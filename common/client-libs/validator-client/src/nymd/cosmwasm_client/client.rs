@@ -22,7 +22,7 @@ use cosmrs::rpc::query::Query;
 use cosmrs::rpc::{self, HttpClient, Order};
 use cosmrs::tendermint::abci::Transaction;
 use cosmrs::tendermint::{abci, block, chain};
-use cosmrs::{AccountId, Coin, Denom};
+use cosmrs::{tx, AccountId, Coin, Denom};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
@@ -153,12 +153,9 @@ pub trait CosmWasmClient: rpc::Client {
             .map_err(|_| NymdError::SerializationError("Coins".to_owned()))
     }
 
-    // disabled until https://github.com/tendermint/tendermint/issues/6802
-    // and consequently https://github.com/informalsystems/tendermint-rs/issues/942 is resolved
-    //
-    // async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, NymdError> {
-    //     Ok(self.tx(id, false).await?)
-    // }
+    async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, NymdError> {
+        Ok(self.tx(id, false).await?)
+    }
 
     async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, NymdError> {
         // according to https://docs.tendermint.com/master/rpc/#/Info/tx_search

@@ -28,6 +28,7 @@ pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::gas_price::GasPrice;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
 pub use cosmrs::tendermint::block::Height;
+pub use cosmrs::tendermint::hash;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{Fee, Gas};
 pub use cosmrs::Coin as CosmosCoin;
@@ -183,6 +184,21 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         self.client.get_height().await
+    }
+
+    /// Obtains the hash of a block specified by the provided height.
+    ///
+    /// # Arguments
+    ///
+    /// * `height`: height of the block for which we want to obtain the hash.
+    pub async fn get_block_hash(&self, height: u32) -> Result<hash::Hash, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client
+            .get_block(Some(height))
+            .await
+            .map(|block| block.block_id.hash)
     }
 
     pub async fn get_balance(&self, address: &AccountId) -> Result<Option<CosmosCoin>, NymdError>

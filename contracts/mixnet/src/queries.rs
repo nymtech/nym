@@ -90,7 +90,7 @@ pub(crate) fn query_state_params(deps: Deps) -> StateParams {
 pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse {
     let state = config_read(deps.storage).load().unwrap();
     RewardingIntervalResponse {
-        current_rewarding_interval: state.rewarding_interval_nonce,
+        current_rewarding_interval_starting_block: state.rewarding_interval_starting_block,
         rewarding_in_progress: state.rewarding_in_progress,
     }
 }
@@ -580,6 +580,8 @@ pub(crate) mod tests {
                 mixnode_demanded_set_size: 1000,
                 mixnode_active_set_size: 500,
             },
+            rewarding_interval_starting_block: 123,
+            rewarding_in_progress: false,
             mixnode_epoch_bond_reward: "1.23".parse().unwrap(),
             mixnode_epoch_delegation_reward: "7.89".parse().unwrap(),
         };

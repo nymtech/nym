@@ -16,6 +16,7 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 use validator_client::nymd::{
+    hash::{Hash, SHA256_HASH_SIZE},
     CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient, TendermintTime,
 };
 use validator_client::ValidatorClientError;
@@ -124,6 +125,27 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         self.0.read().await.get_current_rewarding_interval().await
+    }
+
+    /// Obtains the hash of a block specified by the provided height.
+    /// If the resulting digest is empty, a `None` is returned instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `height`: height of the block for which we want to obtain the hash.
+    pub async fn get_block_hash(
+        &self,
+        height: u32,
+    ) -> Result<Option<[u8; SHA256_HASH_SIZE]>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let hash = match self.0.read().await.nymd.get_block_hash(height).await? {
+            Hash::Sha256(hash) => Some(hash),
+            Hash::None => None,
+        };
+
+        Ok(hash)
     }
 
     pub(crate) async fn get_mixnode_delegations(

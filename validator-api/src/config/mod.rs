@@ -28,7 +28,7 @@ const DEFAULT_GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
 
-const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(60);
+const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(10 * 60);
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]

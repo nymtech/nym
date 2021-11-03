@@ -3438,6 +3438,8 @@ dependencies = [
  "pin-project",
  "pretty_env_logger",
  "rand 0.7.3",
+ "rand 0.8.4",
+ "rand_chacha 0.3.1",
  "reqwest",
  "rocket",
  "rocket_cors",

@@ -28,7 +28,7 @@ impl LayerDistribution {
 
 #[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
 pub struct RewardingIntervalResponse {
-    pub current_rewarding_interval: u64,
+    pub current_rewarding_interval_starting_block: u64,
     pub rewarding_in_progress: bool,
 }
 

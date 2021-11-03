@@ -76,6 +76,14 @@ impl MixNodeBond {
     pub fn mix_node(&self) -> &MixNode {
         &self.mix_node
     }
+
+    pub fn total_stake(&self) -> Option<u128> {
+        if self.bond_amount.denom != self.total_delegation.denom {
+            None
+        } else {
+            Some(self.bond_amount.amount.u128() + self.total_delegation.amount.u128())
+        }
+    }
 }
 
 impl PartialOrd for MixNodeBond {

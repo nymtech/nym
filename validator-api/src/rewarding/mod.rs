@@ -143,12 +143,7 @@ impl Rewarder {
         // instantaneous.
         let mut map = HashMap::new();
 
-        let active_bonded_mixnodes = self
-            .validator_cache
-            .active_mixnodes()
-            .await
-            .ok_or(RewardingError::NoMixnodesToReward)?
-            .into_inner();
+        let active_bonded_mixnodes = self.validator_cache.active_mixnodes().await.into_inner();
         for mix in active_bonded_mixnodes.into_iter() {
             let delegator_count = self
                 .get_mixnode_delegators_count(mix.mix_node.identity_key.clone())

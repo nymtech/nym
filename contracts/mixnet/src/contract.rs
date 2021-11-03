@@ -27,7 +27,7 @@ pub const INITIAL_MIXNODE_DELEGATION_REWARD_RATE: u64 = 110;
 pub const INITIAL_MIXNODE_DEMANDED_SET_SIZE: u32 = 200;
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
-fn default_initial_state(owner: Addr) -> State {
+fn default_initial_state(owner: Addr, env: Env) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
     let mixnode_delegation_reward_rate = Decimal::percent(INITIAL_MIXNODE_DELEGATION_REWARD_RATE);
 
@@ -43,7 +43,7 @@ fn default_initial_state(owner: Addr) -> State {
             mixnode_demanded_set_size: INITIAL_MIXNODE_DEMANDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
         },
-        rewarding_interval_nonce: 0,
+        rewarding_interval_starting_block: env.block.height,
         rewarding_in_progress: false,
         mixnode_epoch_bond_reward: calculate_epoch_reward_rate(
             INITIAL_DEFAULT_EPOCH_LENGTH,
@@ -64,11 +64,11 @@ fn default_initial_state(owner: Addr) -> State {
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     _msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    let state = default_initial_state(info.sender);
+    let state = default_initial_state(info.sender, env);
 
     config(deps.storage).save(&state)?;
     layer_distribution(deps.storage).save(&Default::default())?;

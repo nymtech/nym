@@ -1,16 +1,11 @@
 import overviewPage from '../pageobjects/overview.page'
 import actionhelper from '../../helpers/actionhelper'
+const config = require('../../wdio.conf').config
 
-//const baseUrl = 'https://feature-network-explorer-react.ci.nymte.ch/'
-//sort all these urls into configuration 
-const localHost = 'http://localhost:3000'
-const mixnodeUrl = `${localHost}/network-components/mixnodes`
-const gatewayUrl = `${localHost}/network-components/gateways`
+const mixnodeUrl = `${config.baseUrl}/network-components/mixnodes`
+const gatewayUrl = `${config.baseUrl}/network-components/gateways`
 const blockExplorerUrl = 'https://testnet-milhon-blocks.nymtech.net/validators'
 
-
-//this is still wip 
-//define sequential text execution
 describe('Access the overview of the nym explorer', () => {
     it('should match the url from the base configuration', async () => {
 
@@ -20,7 +15,7 @@ describe('Access the overview of the nym explorer', () => {
 
         const getUrl = await browser.getUrl()
 
-        expect(getUrl).toEqual(`${localHost}/overview`)
+        expect(getUrl).toEqual(`${config.baseUrl}/overview`)
     })
 
     it('selecting mixnodes opens the mixnode page', async () => {
@@ -55,6 +50,8 @@ describe('Access the overview of the nym explorer', () => {
         const getUrl = await browser.getUrl()
 
         expect(getUrl).toEqual(blockExplorerUrl)
+
+        await browser.closeWindow()
     })
 })
 

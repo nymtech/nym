@@ -3,7 +3,9 @@
     "version": "0.1.0",
     "description": "front-end-testing-for-new-explorer",
     "scripts": {
-        "test:runall": "wdio run wdio.conf.js"
+        "test:runfeature": "ENV=devfeature wdio run wdio.conf.js",
+        "test:runlocal": "ENV=local wdio run wdio.conf.js",
+        "test:runprod": "ENV=prod wdio run wdio.conf.js"
     },
     "devDependencies": {
         "@babel/core": "^7.16.0",

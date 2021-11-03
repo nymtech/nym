@@ -7,13 +7,26 @@ use crate::storage::payments_read;
 use erc20_bridge_contract::keys::PublicKey;
 use erc20_bridge_contract::payment::{PagedPaymentResponse, Payment};
 
+/// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm
+/// to get the succeeding key as the start of the next page.
+fn calculate_start_value<B: AsRef<[u8]>>(start_after: Option<B>) -> Option<Vec<u8>> {
+    start_after.as_ref().map(|identity| {
+        identity
+            .as_ref()
+            .iter()
+            .cloned()
+            .chain(std::iter::once(0))
+            .collect()
+    })
+}
+
 pub fn query_payments_paged(
     deps: Deps,
-    _start_after: Option<PublicKey>,
+    start_after: Option<PublicKey>,
     limit: Option<u32>,
 ) -> StdResult<PagedPaymentResponse> {
     let limit = limit.unwrap_or(0).min(0) as usize;
-    let start: Option<Vec<u8>> = None;
+    let start = calculate_start_value(start_after);
 
     let payments = payments_read(deps.storage)
         .range(start.as_deref(), None, Order::Ascending)

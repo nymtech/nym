@@ -17,6 +17,13 @@ impl PublicKey {
     }
 }
 
+impl AsRef<[u8]> for PublicKey {
+    #[inline]
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Signature([u8; 32], [u8; 32]);
 

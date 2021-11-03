@@ -553,11 +553,11 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if self.estimate_required_bandwidth(&packets) < self.bandwidth_remaining {
+        if self.estimate_required_bandwidth(&packets) > self.bandwidth_remaining {
             // Try to claim more bandwidth first, and return an error only if that is still not
-            // enough (the current granularity for bandwidth
+            // enough (the current granularity for bandwidth should be sufficient)
             self.claim_bandwidth().await?;
-            if self.estimate_required_bandwidth(&packets) < self.bandwidth_remaining {
+            if self.estimate_required_bandwidth(&packets) > self.bandwidth_remaining {
                 return Err(GatewayClientError::NotEnoughBandwidth);
             }
         }

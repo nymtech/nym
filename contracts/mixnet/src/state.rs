@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
     pub owner: Addr, // only the owner account can update state
-    pub network_monitor_address: Addr,
+    pub rewarding_validator_address: Addr,
     pub params: StateParams,
 
     // keep track of the changes to the current rewarding interval,

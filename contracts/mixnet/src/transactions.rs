@@ -361,7 +361,7 @@ pub(crate) fn try_reward_mixnode(
     let state = config_read(deps.storage).load().unwrap();
 
     // check if this is executed by the monitor, if not reject the transaction
-    if info.sender != state.network_monitor_address {
+    if info.sender != state.rewarding_validator_address {
         return Err(ContractError::Unauthorized);
     }
 
@@ -1492,7 +1492,7 @@ pub mod tests {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
         let current_state = config(deps.as_mut().storage).load().unwrap();
-        let network_monitor_address = current_state.network_monitor_address;
+        let rewarding_validator_address = current_state.rewarding_validator_address;
 
         let node_owner: Addr = Addr::unchecked("node-owner");
         let node_identity: IdentityKey = "nodeidentity".into();
@@ -1503,7 +1503,7 @@ pub mod tests {
         assert_eq!(res, Err(ContractError::Unauthorized));
 
         // returns bond not found attribute if the target owner hasn't bonded any mixnodes
-        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
             .unwrap();
         assert_eq!(vec![attr("result", "bond not found")], res.attributes);
@@ -1546,7 +1546,7 @@ pub mod tests {
         let expected_bond = expected_bond_reward + Uint128(initial_bond);
         let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
 
-        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
             .unwrap();
 
@@ -1575,7 +1575,7 @@ pub mod tests {
         let expected_bond = expected_bond_reward + expected_bond;
         let expected_delegation = expected_delegation_reward + expected_delegation;
 
-        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 20)
             .unwrap();
 
@@ -1602,7 +1602,7 @@ pub mod tests {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
         let current_state = config(deps.as_mut().storage).load().unwrap();
-        let network_monitor_address = current_state.network_monitor_address;
+        let rewarding_validator_address = current_state.rewarding_validator_address;
 
         let node_owner: Addr = Addr::unchecked("node-owner");
         let node_identity: IdentityKey = "nodeidentity".into();
@@ -1647,7 +1647,7 @@ pub mod tests {
         let expected_bond = expected_bond_reward + Uint128(initial_bond);
         let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
 
-        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
             .unwrap();
 
@@ -1675,7 +1675,7 @@ pub mod tests {
         let expected_bond = expected_bond_reward + expected_bond;
         let expected_delegation = expected_delegation_reward + expected_delegation;
 
-        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
             .unwrap();
 
@@ -1703,7 +1703,7 @@ pub mod tests {
         let expected_bond = expected_bond_reward + expected_bond;
         let expected_delegation = expected_delegation_reward + expected_delegation;
 
-        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         let res = try_reward_mixnode(deps.as_mut(), env.clone(), info, node_identity.clone(), 100)
             .unwrap();
 
@@ -2379,7 +2379,7 @@ pub mod tests {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
         let current_state = config(deps.as_mut().storage).load().unwrap();
-        let network_monitor_address = current_state.network_monitor_address;
+        let rewarding_validator_address = current_state.rewarding_validator_address;
 
         let initial_mix_bond = 100_000000;
         let initial_delegation1 = 50000; // will see single digits rewards
@@ -2425,7 +2425,7 @@ pub mod tests {
         let expected_delegation2 = expected_delegation2_reward + Uint128(initial_delegation2);
         let expected_delegation3 = expected_delegation3_reward + Uint128(initial_delegation3);
 
-        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         let res =
             try_reward_mixnode(deps.as_mut(), env.clone(), info, identity.clone(), 100).unwrap();
 
@@ -2485,7 +2485,7 @@ pub mod tests {
         let expected_delegation2 = expected_delegation2_reward + expected_delegation2;
         let expected_delegation3 = expected_delegation3_reward + expected_delegation3;
 
-        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         let res =
             try_reward_mixnode(deps.as_mut(), env.clone(), info, identity.clone(), 20).unwrap();
 
@@ -2532,7 +2532,7 @@ pub mod tests {
         );
 
         // if the node was 0% up, nobody will get any rewards
-        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         let res =
             try_reward_mixnode(deps.as_mut(), env.clone(), info, identity.clone(), 0).unwrap();
 

@@ -5,7 +5,7 @@ use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
 use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
-use config::defaults::NETWORK_MONITOR_ADDRESS;
+use config::defaults::REWARDING_VALIDATOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
@@ -33,7 +33,7 @@ fn default_initial_state(owner: Addr, env: Env) -> State {
 
     State {
         owner,
-        network_monitor_address: Addr::unchecked(NETWORK_MONITOR_ADDRESS), // we trust our hardcoded value
+        rewarding_validator_address: Addr::unchecked(REWARDING_VALIDATOR_ADDRESS), // we trust our hardcoded value
         params: StateParams {
             epoch_length: INITIAL_DEFAULT_EPOCH_LENGTH,
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,

@@ -570,7 +570,7 @@ pub(crate) mod tests {
 
         let dummy_state = State {
             owner: Addr::unchecked("someowner"),
-            network_monitor_address: Addr::unchecked("monitor"),
+            rewarding_validator_address: Addr::unchecked("monitor"),
             params: StateParams {
                 epoch_length: 1,
                 minimum_mixnode_bond: 123u128.into(),

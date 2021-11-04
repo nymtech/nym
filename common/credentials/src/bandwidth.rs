@@ -42,10 +42,7 @@ impl BandwidthVoucherAttributes {
     }
 
     pub fn get_private_attributes(&self) -> Vec<PrivateAttribute> {
-        let mut priv_attributes = Vec::with_capacity(PRIVATE_ATTRIBUTES as usize);
-        priv_attributes.push(self.serial_number);
-        priv_attributes.push(self.binding_number);
-        priv_attributes
+        vec![self.serial_number, self.binding_number]
     }
 }
 

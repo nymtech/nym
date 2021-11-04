@@ -96,7 +96,7 @@ fn produce_responses<S>(witnesses: &[Scalar], challenge: &Scalar, secrets: &[S])
 
 impl ProofCmCs {
     /// Construct non-interactive zero-knowledge proof of correctness of the ciphertexts and the commitment
-    /// using thw Fiat-Shamir heuristic.
+    /// using the Fiat-Shamir heuristic.
     pub(crate) fn construct(
         params: &Parameters,
         elgamal_keypair: &ElGamalKeyPair,

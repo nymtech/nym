@@ -54,7 +54,6 @@ pub async fn obtain_signature(
     params: &Parameters,
     attributes: &BandwidthVoucherAttributes,
     validators: &[Url],
-    verification_key: &VerificationKey,
 ) -> Result<Signature, Error> {
     let public_attributes = attributes.get_public_attributes();
     let private_attributes = attributes.get_private_attributes();
@@ -64,9 +63,8 @@ pub async fn obtain_signature(
         &public_attributes,
         &private_attributes,
         validators,
-        verification_key,
     )
-    .await
+        .await
 }
 
 pub fn prepare_for_spending(

@@ -104,16 +104,17 @@ pub async fn obtain_aggregate_signature(
     public_attributes: &[Attribute],
     private_attributes: &[Attribute],
     validators: &[Url],
-    verification_key: &VerificationKey,
 ) -> Result<Signature, Error> {
     if validators.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
 
     let mut shares = Vec::with_capacity(validators.len());
+    let mut validators_partial_vks: Vec<VerificationKey> = Vec::with_capacity(validators.len());
 
     let mut client = validator_client::ApiClient::new(validators[0].clone());
     let validator_partial_vk = client.get_coconut_verification_key().await?;
+    validators_partial_vks.push(validator_partial_vk.key.clone());
 
     let first = obtain_partial_credential(
         params,
@@ -128,6 +129,7 @@ pub async fn obtain_aggregate_signature(
     for (id, validator_url) in validators.iter().enumerate().skip(1) {
         client.change_validator_api(validator_url.clone());
         let validator_partial_vk = client.get_coconut_verification_key().await?;
+        validators_partial_vks.push(validator_partial_vk.key.clone());
         let signature = obtain_partial_credential(
             params,
             public_attributes,
@@ -144,9 +146,14 @@ pub async fn obtain_aggregate_signature(
     attributes.extend_from_slice(private_attributes);
     attributes.extend_from_slice(public_attributes);
 
+    let mut indices: Vec<u64> = Vec::with_capacity(validators_partial_vks.len());
+    for i in 1..validators_partial_vks.len() {
+        indices.push(i as u64);
+    }
+    let verification_key = aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref())).unwrap();
     Ok(aggregate_signature_shares(
         params,
-        verification_key,
+        &verification_key,
         &attributes,
         &shares,
     )?)

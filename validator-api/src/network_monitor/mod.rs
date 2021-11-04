@@ -1,8 +1,26 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::Arc;
+
+use futures::channel::mpsc;
+use log::info;
+
+#[cfg(feature = "coconut")]
+use coconut_interface::{Credential, hash_to_scalar, Parameters};
+#[cfg(feature = "coconut")]
+use credentials::bandwidth::{
+    BANDWIDTH_VALUE, BandwidthVoucherAttributes, prepare_for_spending, TOTAL_ATTRIBUTES,
+};
+#[cfg(feature = "coconut")]
+use credentials::obtain_aggregate_verification_key;
+use crypto::asymmetric::{encryption, identity};
+use nymsphinx::addressing::clients::Recipient;
+use topology::NymTopology;
+
 use crate::cache::ValidatorCache;
 use crate::config::Config;
+use crate::network_monitor::monitor::Monitor;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -12,25 +30,8 @@ use crate::network_monitor::monitor::receiver::{
 };
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
-use crate::network_monitor::monitor::Monitor;
 use crate::network_monitor::tested_network::TestedNetwork;
 use crate::storage::NodeStatusStorage;
-
-#[cfg(feature = "coconut")]
-use coconut_interface::{hash_to_scalar, Credential, Parameters};
-#[cfg(feature = "coconut")]
-use credentials::bandwidth::{
-    prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES,
-};
-#[cfg(feature = "coconut")]
-use credentials::obtain_aggregate_verification_key;
-
-use crypto::asymmetric::{encryption, identity};
-use futures::channel::mpsc;
-use log::info;
-use nymsphinx::addressing::clients::Recipient;
-use std::sync::Arc;
-use topology::NymTopology;
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
@@ -98,7 +99,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         );
 
         #[cfg(feature = "coconut")]
-        let bandwidth_credential =
+            let bandwidth_credential =
             TEMPORARY_obtain_bandwidth_credential(self.config, identity_keypair.public_key()).await;
 
         let packet_sender = new_packet_sender(
@@ -107,7 +108,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             Arc::clone(&identity_keypair),
             self.config.get_gateway_sending_rate(),
             #[cfg(feature = "coconut")]
-            bandwidth_credential,
+                bandwidth_credential,
         );
 
         let received_processor = new_received_processor(
@@ -197,10 +198,9 @@ async fn TEMPORARY_obtain_bandwidth_credential(
         &params,
         &bandwidth_credential_attributes,
         &validators,
-        &verification_key,
     )
-    .await
-    .expect("failed to obtain bandwidth credential!");
+        .await
+        .expect("failed to obtain bandwidth credential!");
 
     prepare_for_spending(
         &identity.to_bytes(),
@@ -208,7 +208,7 @@ async fn TEMPORARY_obtain_bandwidth_credential(
         &bandwidth_credential_attributes,
         &verification_key,
     )
-    .expect("failed to prepare bandwidth credential for spending!")
+        .expect("failed to prepare bandwidth credential for spending!")
 }
 
 fn new_packet_sender(
@@ -226,7 +226,7 @@ fn new_packet_sender(
         config.get_max_concurrent_gateway_clients(),
         max_sending_rate,
         #[cfg(feature = "coconut")]
-        bandwidth_credential,
+            bandwidth_credential,
     )
 }
 

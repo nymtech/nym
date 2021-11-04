@@ -8,6 +8,7 @@ repository = ""
 default-run = "nym_wallet"
 edition = "2018"
 build = "src/build.rs"
+rust-version = "1.56"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,12 +24,12 @@ dirs = "3.0"
 # url = "2.2"
 bip39 = "1.0"
 thiserror = "1.0"
-tendermint-rpc = "0.21.0"
+tendermint-rpc = "0.23.0"
 ts-rs = "3.0"
 url = "2.0"
 rand = "0.6.5"
 
-cosmrs = { version = "0.1", features = ["rpc", "bip32", "cosmwasm"] }
+cosmrs = { version = "0.3", features = ["rpc", "bip32", "cosmwasm"] }
 cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch = "0.14.1-updatedk256" }
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [

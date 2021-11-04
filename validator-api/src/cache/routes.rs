@@ -22,10 +22,3 @@ pub(crate) async fn get_active_mixnodes(
 ) -> Option<Json<Vec<MixNodeBond>>> {
     cache.active_mixnodes().await.map(|cache| Json(cache.value))
 }
-
-#[get("/gateways/active")]
-pub(crate) async fn get_active_gateways(
-    cache: &State<ValidatorCache>,
-) -> Option<Json<Vec<GatewayBond>>> {
-    cache.active_gateways().await.map(|cache| Json(cache.value))
-}

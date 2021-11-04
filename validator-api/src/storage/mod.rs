@@ -9,8 +9,8 @@ use crate::node_status_api::models::{
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    EpochRewarding, FailedGatewayRewardChunk, FailedMixnodeRewardChunk, NodeStatus,
-    PossiblyUnrewardedGateway, PossiblyUnrewardedMixnode, RewardingReport,
+    EpochRewarding, FailedMixnodeRewardChunk, NodeStatus, PossiblyUnrewardedMixnode,
+    RewardingReport,
 };
 use rocket::fairing::{self, AdHoc};
 use rocket::{Build, Rocket};
@@ -644,22 +644,6 @@ impl ValidatorApiStorage {
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
     }
 
-    /// Inserts new failed gateway reward chunk information into the database.
-    /// Returns id of the newly created entry.
-    ///
-    /// # Arguments
-    ///
-    /// * `failed_chunk`: chunk information to insert.
-    pub(crate) async fn insert_failed_gateway_reward_chunk(
-        &self,
-        failed_chunk: FailedGatewayRewardChunk,
-    ) -> Result<i64, ValidatorApiStorageError> {
-        self.manager
-            .insert_failed_gateway_reward_chunk(failed_chunk)
-            .await
-            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
-    }
-
     /// Inserts information into the database about a mixnode that might have been unfairly unrewarded this epoch.
     ///
     /// # Arguments
@@ -671,21 +655,6 @@ impl ValidatorApiStorage {
     ) -> Result<(), ValidatorApiStorageError> {
         self.manager
             .insert_possibly_unrewarded_mixnode(mixnode)
-            .await
-            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
-    }
-
-    /// Inserts information into the database about a gateway that might have been unfairly unrewarded this epoch.
-    ///
-    /// # Arguments
-    ///
-    /// * `gateway`: mixnode information to insert.
-    pub(crate) async fn insert_possibly_unrewarded_gateway(
-        &self,
-        gateway: PossiblyUnrewardedGateway,
-    ) -> Result<(), ValidatorApiStorageError> {
-        self.manager
-            .insert_possibly_unrewarded_gateway(gateway)
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
     }

@@ -73,11 +73,6 @@ impl Client {
             .await
     }
 
-    pub async fn get_active_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorAPIError> {
-        self.query_validator_api(&[routes::API_VERSION, routes::GATEWAYS, routes::ACTIVE])
-            .await
-    }
-
     pub async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,

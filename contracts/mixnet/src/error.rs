@@ -48,14 +48,8 @@ pub enum ContractError {
     #[error("The bond reward rate for mixnode was set to be lower than 1")]
     DecreasingMixnodeBondReward,
 
-    #[error("The bond reward rate for gateway was set to be lower than 1")]
-    DecreasingGatewayBondReward,
-
     #[error("The delegation reward rate for mixnode was set to be lower than 1")]
     DecreasingMixnodeDelegationReward,
-
-    #[error("The delegation reward rate for gateway was set to be lower than 1")]
-    DecreasingGatewayDelegationReward,
 
     #[error("The node had uptime larger than 100%")]
     UnexpectedUptime,
@@ -80,12 +74,6 @@ pub enum ContractError {
 
     #[error("Could not find any delegation information associated with mixnode {identity} for {address}")]
     NoMixnodeDelegationFound {
-        identity: IdentityKey,
-        address: Addr,
-    },
-
-    #[error("Could not find any delegation information associated with gateway {identity} for {address}")]
-    NoGatewayDelegationFound {
         identity: IdentityKey,
         address: Addr,
     },

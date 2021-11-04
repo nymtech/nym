@@ -3,6 +3,7 @@ name = "validator-client"
 version = "0.1.0"
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
+rust-version = "1.56"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -25,8 +26,8 @@ network-defaults = { path = "../../network-defaults" }
 async-trait = { version = "0.1.51", optional = true }
 bip39 = { version = "1", features = ["rand"], optional = true }
 config = { path = "../../config", optional = true }
-cosmrs = { version = "0.1", features = ["rpc", "bip32", "cosmwasm"], optional = true }
-prost = { version = "0.7", default-features = false, optional = true }
+cosmrs = { version = "0.3", features = ["rpc", "bip32", "cosmwasm"], optional = true }
+prost = { version = "0.9", default-features = false, optional = true }
 flate2 = { version = "1.0.20", optional = true }
 sha2 = { version = "0.9.5", optional = true }
 itertools = { version = "0.10", optional = true }

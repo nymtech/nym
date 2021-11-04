@@ -25,10 +25,10 @@ use client_core::client::topology_control::{
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 #[cfg(feature = "coconut")]
-use coconut_interface::{Credential, hash_to_scalar, Parameters};
+use coconut_interface::{hash_to_scalar, Credential, Parameters};
 #[cfg(feature = "coconut")]
 use credentials::bandwidth::{
-    BANDWIDTH_VALUE, BandwidthVoucherAttributes, prepare_for_spending, TOTAL_ATTRIBUTES,
+    prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES,
 };
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
@@ -117,7 +117,7 @@ impl NymClient {
             self.as_mix_recipient(),
             topology_accessor,
         )
-            .start(self.runtime.handle());
+        .start(self.runtime.handle());
     }
 
     fn start_real_traffic_controller(
@@ -152,7 +152,7 @@ impl NymClient {
             topology_accessor,
             reply_key_storage,
         )
-            .start(self.runtime.handle());
+        .start(self.runtime.handle());
     }
 
     // buffer controlling all messages fetched from provider
@@ -170,7 +170,7 @@ impl NymClient {
             mixnet_receiver,
             reply_key_storage,
         )
-            .start(self.runtime.handle())
+        .start(self.runtime.handle())
     }
 
     #[cfg(feature = "coconut")]
@@ -178,8 +178,8 @@ impl NymClient {
         let verification_key = obtain_aggregate_verification_key(
             &self.config.get_base().get_validator_api_endpoints(),
         )
-            .await
-            .expect("could not obtain aggregate verification key of validators");
+        .await
+        .expect("could not obtain aggregate verification key of validators");
 
         let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
         let bandwidth_credential_attributes = BandwidthVoucherAttributes {
@@ -194,8 +194,8 @@ impl NymClient {
             &bandwidth_credential_attributes,
             &self.config.get_base().get_validator_api_endpoints(),
         )
-            .await
-            .expect("could not obtain bandwidth credential");
+        .await
+        .expect("could not obtain bandwidth credential");
         // the above would presumably be loaded from a file
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
@@ -205,7 +205,7 @@ impl NymClient {
             &bandwidth_credential_attributes,
             &verification_key,
         )
-            .expect("could not prepare out bandwidth credential for spending")
+        .expect("could not prepare out bandwidth credential for spending")
     }
 
     fn start_gateway_client(
@@ -227,7 +227,7 @@ impl NymClient {
 
         self.runtime.block_on(async {
             #[cfg(feature = "coconut")]
-                let coconut_credential = self.prepare_coconut_credential().await;
+            let coconut_credential = self.prepare_coconut_credential().await;
 
             let mut gateway_client = GatewayClient::new(
                 gateway_address,
@@ -242,7 +242,7 @@ impl NymClient {
             gateway_client
                 .authenticate_and_start(
                     #[cfg(feature = "coconut")]
-                        Some(coconut_credential),
+                    Some(coconut_credential),
                 )
                 .await
                 .expect("could not authenticate and start up the gateway connection");

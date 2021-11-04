@@ -137,6 +137,12 @@ impl BandwidthController {
         signed_verification_key: identity::Signature,
     ) -> Result<(), GatewayClientError> {
         // 0 means a transaction failure, 1 means success
+        let confirmations = if cfg!(debug_assertions) { 1 } else { 7 };
+        // 15 seconds per confirmation block + 10 seconds of network overhead
+        log::info!(
+            "Waiting for Ethereum transaction. This should take about {} seconds",
+            confirmations * 15 + 10
+        );
         if Some(U64::from(0))
             == self
                 .contract
@@ -148,7 +154,7 @@ impl BandwidthController {
                         Bytes(signed_verification_key.to_bytes().to_vec()),
                     ),
                     Options::default(),
-                    1,
+                    confirmations,
                     &self.eth_private_key,
                 )
                 .await?

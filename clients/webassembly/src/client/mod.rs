@@ -126,7 +126,6 @@ impl NymClient {
             &params,
             &bandwidth_credential_attributes,
             validators,
-            &verification_key,
         )
             .await
             .expect("could not obtain bandwidth credential");
@@ -301,7 +300,7 @@ impl NymClient {
             Ok(mixes) => mixes,
         };
 
-        let gateways = match validator_client.get_cached_active_gateways().await {
+        let gateways = match validator_client.get_cached_gateways().await {
             Err(err) => panic!("{:?}", err),
             Ok(gateways) => gateways,
         };

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cache::ValidatorCache;
-use crate::node_status_api::models::{GatewayStatusReport, MixnodeStatusReport, Uptime};
+use crate::node_status_api::models::{MixnodeStatusReport, Uptime};
 use crate::node_status_api::ONE_DAY;
 use crate::nymd_client::Client;
 use crate::rewarding::epoch::Epoch;
@@ -223,33 +223,23 @@ impl Rewarder {
         Ok(eligible_nodes)
     }
 
-    /// Obtains the lists of all mixnodes and gateways that were tested at least a single time
+    /// Obtains the lists of all mixnodes that were tested at least a single time
     /// by the network monitor in the specified epoch.
     ///
     /// # Arguments
     ///
     /// * `epoch`: the specified epoch.
-    async fn get_active_monitor_nodes(
+    async fn get_active_monitor_mixnodes(
         &self,
         epoch: Epoch,
-    ) -> Result<(Vec<MixnodeStatusReport>, Vec<GatewayStatusReport>), RewardingError> {
-        let active_mixnodes = self
+    ) -> Result<Vec<MixnodeStatusReport>, RewardingError> {
+        Ok(self
             .storage
             .get_all_active_mixnode_reports_in_interval(
                 epoch.start_unix_timestamp(),
                 epoch.end_unix_timestamp(),
             )
-            .await?;
-
-        let active_gateways = self
-            .storage
-            .get_all_active_gateway_reports_in_interval(
-                epoch.start_unix_timestamp(),
-                epoch.end_unix_timestamp(),
-            )
-            .await?;
-
-        Ok((active_mixnodes, active_gateways))
+            .await?)
     }
 
     /// Using the list of mixnodes eligible for rewards, chunks it into pre-defined sized-chunks
@@ -511,8 +501,7 @@ impl Rewarder {
         );
 
         // get nodes that were active during the epoch
-        let (active_monitor_mixnodes, active_monitor_gateways) =
-            self.get_active_monitor_nodes(epoch).await?;
+        let active_monitor_mixnodes = self.get_active_monitor_mixnodes(epoch).await?;
 
         // insert information about beginning the procedure (so that if we crash during it,
         // we wouldn't attempt to possibly double reward operators)

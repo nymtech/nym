@@ -29,10 +29,8 @@ pub(crate) struct RewardingReport {
     pub(crate) epoch_rewarding_id: i64,
 
     pub(crate) eligible_mixnodes: i64,
-    pub(crate) eligible_gateways: i64,
 
     pub(crate) possibly_unrewarded_mixnodes: i64,
-    pub(crate) possibly_unrewarded_gateways: i64,
 }
 
 pub(crate) struct FailedMixnodeRewardChunk {
@@ -43,19 +41,6 @@ pub(crate) struct FailedMixnodeRewardChunk {
 
 pub(crate) struct PossiblyUnrewardedMixnode {
     // references particular FailedMixnodeRewardChunk (there can be multiple nodes in a chunk)
-    pub(crate) chunk_id: i64,
-    pub(crate) identity: String,
-    pub(crate) uptime: u8,
-}
-
-pub(crate) struct FailedGatewayRewardChunk {
-    // references particular epoch_rewarding (there can be multiple chunks in a rewarding epoch)
-    pub(crate) epoch_rewarding_id: i64,
-    pub(crate) error_message: String,
-}
-
-pub(crate) struct PossiblyUnrewardedGateway {
-    // references particular FailedGatewayRewardChunk (there can be multiple nodes in a chunk)
     pub(crate) chunk_id: i64,
     pub(crate) identity: String,
     pub(crate) uptime: u8,

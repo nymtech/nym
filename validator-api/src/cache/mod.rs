@@ -33,10 +33,7 @@ struct ValidatorCacheInner {
     gateways: RwLock<Cache<Vec<GatewayBond>>>,
 
     active_mixnodes_available: AtomicBool,
-    active_gateways_available: AtomicBool,
-
     current_mixnode_active_set_size: AtomicUsize,
-    current_gateway_active_set_size: AtomicUsize,
 }
 
 #[derive(Default, Serialize, Clone)]
@@ -131,7 +128,6 @@ impl ValidatorCache {
                     routes::get_mixnodes,
                     routes::get_gateways,
                     routes::get_active_mixnodes,
-                    routes::get_active_gateways
                 ],
             )
         })
@@ -155,28 +151,10 @@ impl ValidatorCache {
         true
     }
 
-    // TODO: check if all nodes can be compared together,
-    // i.e. they all have the same denom for bonds and delegations
-    fn verify_gateways(&self, gateways: &[GatewayBond]) -> bool {
-        if gateways.is_empty() {
-            return true;
-        }
-        let expected_denom = &gateways[0].bond_amount.denom;
-        for gateway in gateways {
-            if &gateway.bond_amount.denom != expected_denom
-                || &gateway.total_delegation.denom != expected_denom
-            {
-                return false;
-            }
-        }
-
-        true
-    }
-
     async fn update_cache(
         &self,
         mut mixnodes: Vec<MixNodeBond>,
-        mut gateways: Vec<GatewayBond>,
+        gateways: Vec<GatewayBond>,
         state: StateParams,
     ) {
         // if our data is valid, it means the active sets are available,
@@ -196,23 +174,6 @@ impl ValidatorCache {
         } else {
             self.inner
                 .active_mixnodes_available
-                .store(false, Ordering::SeqCst);
-        }
-
-        if self.verify_gateways(&gateways) {
-            // partial_cmp can only fail if the nodes have different denomination,
-            // but we just checked for that hence the unwraps are fine here
-            // Note the reverse order of comparison so that the "highest" node would be first
-            gateways.sort_by(|a, b| b.partial_cmp(a).unwrap());
-            self.inner
-                .active_gateways_available
-                .store(true, Ordering::SeqCst);
-            self.inner
-                .current_gateway_active_set_size
-                .store(state.gateway_active_set_size as usize, Ordering::SeqCst);
-        } else {
-            self.inner
-                .active_gateways_available
                 .store(false, Ordering::SeqCst);
         }
 
@@ -252,30 +213,6 @@ impl ValidatorCache {
         }
     }
 
-    pub async fn active_gateways(&self) -> Option<Cache<Vec<GatewayBond>>> {
-        // if active set is available, it means it is already sorted
-        if self.inner.active_gateways_available.load(Ordering::SeqCst) {
-            let cache = self.inner.gateways.read().await;
-            let timestamp = cache.as_at;
-            let nodes = cache
-                .value
-                .iter()
-                .take(
-                    self.inner
-                        .current_gateway_active_set_size
-                        .load(Ordering::SeqCst),
-                )
-                .cloned()
-                .collect();
-            Some(Cache {
-                value: nodes,
-                as_at: timestamp,
-            })
-        } else {
-            None
-        }
-    }
-
     pub fn initialised(&self) -> bool {
         self.inner.initialised.load(Ordering::Relaxed)
     }
@@ -300,9 +237,7 @@ impl ValidatorCacheInner {
             mixnodes: RwLock::new(Cache::default()),
             gateways: RwLock::new(Cache::default()),
             active_mixnodes_available: AtomicBool::new(false),
-            active_gateways_available: AtomicBool::new(false),
             current_mixnode_active_set_size: Default::default(),
-            current_gateway_active_set_size: Default::default(),
         }
     }
 }

@@ -15,8 +15,7 @@ use cosmwasm_std::Coin;
 use mixnet_contract::{
     Addr, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
     LayerDistribution, MixNode, MixOwnershipResponse, PagedAllDelegationsResponse,
-    PagedGatewayDelegationsResponse, PagedGatewayResponse, PagedMixDelegationsResponse,
-    PagedMixnodeResponse, PagedReverseGatewayDelegationsResponse,
+    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
     PagedReverseMixDelegationsResponse, QueryMsg, RawDelegationData, StateParams,
 };
 use serde::Serialize;
@@ -354,82 +353,6 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    /// Gets list of all delegations towards particular gateway on particular page.
-    pub async fn get_gateway_delegations(
-        &self,
-        gateway_identity: IdentityKey,
-        start_after: Option<Addr>,
-        page_limit: Option<u32>,
-    ) -> Result<PagedGatewayDelegationsResponse, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::GetGatewayDelegations {
-            gateway_identity,
-            start_after,
-            limit: page_limit,
-        };
-        self.client
-            .query_contract_smart(self.contract_address()?, &request)
-            .await
-    }
-
-    /// Gets list of all gateway delegations on particular page.
-    pub async fn get_all_gateway_delegations(
-        &self,
-        start_after: Option<Vec<u8>>,
-        page_limit: Option<u32>,
-    ) -> Result<PagedAllDelegationsResponse<RawDelegationData>, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::GetAllGatewayDelegations {
-            start_after,
-            limit: page_limit,
-        };
-        self.client
-            .query_contract_smart(self.contract_address()?, &request)
-            .await
-    }
-
-    /// Gets list of all the gateways on which a particular address delegated.
-    pub async fn get_reverse_gateway_delegations_paged(
-        &self,
-        delegation_owner: Addr,
-        start_after: Option<IdentityKey>,
-        page_limit: Option<u32>,
-    ) -> Result<PagedReverseGatewayDelegationsResponse, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::GetReverseGatewayDelegations {
-            delegation_owner,
-            start_after,
-            limit: page_limit,
-        };
-        self.client
-            .query_contract_smart(self.contract_address()?, &request)
-            .await
-    }
-
-    /// Checks value of delegation of given client towards particular gateway.
-    pub async fn get_gateway_delegation(
-        &self,
-        gateway_identity: IdentityKey,
-        delegator: &AccountId,
-    ) -> Result<Delegation, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::GetGatewayDelegation {
-            gateway_identity,
-            address: Addr::unchecked(delegator.as_ref()),
-        };
-        self.client
-            .query_contract_smart(self.contract_address()?, &request)
-            .await
-    }
-
     /// Send funds from one address to another
     pub async fn send(
         &self,
@@ -693,57 +616,6 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Unbonding gateway from rust!",
-                Vec::new(),
-            )
-            .await
-    }
-
-    /// Delegates specified amount of stake to particular gateway.
-    pub async fn delegate_to_gateway(
-        &self,
-        gateway_identity: &str,
-        amount: &Coin,
-    ) -> Result<ExecuteResult, NymdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let fee = self.get_fee(Operation::DelegateToGateway);
-
-        let req = ExecuteMsg::DelegateToGateway {
-            gateway_identity: gateway_identity.to_string(),
-        };
-        self.client
-            .execute(
-                self.address(),
-                self.contract_address()?,
-                &req,
-                fee,
-                "Delegating to gateway from rust!",
-                vec![cosmwasm_coin_ptr_to_cosmos_coin(amount)],
-            )
-            .await
-    }
-
-    /// Removes stake delegation from a particular gateway.
-    pub async fn remove_gateway_delegation(
-        &self,
-        gateway_identity: &str,
-    ) -> Result<ExecuteResult, NymdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let fee = self.get_fee(Operation::UndelegateFromGateway);
-
-        let req = ExecuteMsg::UndelegateFromGateway {
-            gateway_identity: gateway_identity.to_string(),
-        };
-        self.client
-            .execute(
-                self.address(),
-                self.contract_address()?,
-                &req,
-                fee,
-                "Removing gateway delegation from rust!",
                 Vec::new(),
             )
             .await

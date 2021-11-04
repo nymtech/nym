@@ -7,11 +7,18 @@ SPDX-License-Identifier: Apache-2.0
 
 A Rust and Tauri desktop wallet implementation.
 
-## Installation prerequisites
+## Installation prerequisites Linux / Mac
 
 - `Yarn`
 - `NodeJS >= v16.8.0`
 - `Rust & cargo >= v1.51`
+
+## Installation prerequisites Windows
+
+- When running on Windows you will need to install c++ build tools
+- An easy guide to get rust up and running [Installation]("http://kennykerr.ca/2019/11/18/rust-getting-started/")
+- When installing NodeJS please use the `current features` version
+- Using a package manager like [Chocolatey]("chocolatey.org") is recommended
 
 ## Installation
 

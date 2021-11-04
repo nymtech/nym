@@ -143,25 +143,26 @@ impl BandwidthController {
             "Waiting for Ethereum transaction. This should take about {} seconds",
             confirmations * 15 + 10
         );
-        if Some(U64::from(0))
-            == self
-                .contract
-                .signed_call_with_confirmations(
-                    ETH_BURN_FUNCTION_NAME,
-                    (
-                        U256::from(TOKENS_TO_BURN),
-                        U256::from(&verification_key.to_bytes()),
-                        Bytes(signed_verification_key.to_bytes().to_vec()),
-                    ),
-                    Options::default(),
-                    confirmations,
-                    &self.eth_private_key,
-                )
-                .await?
-                .status
-        {
+        let recipt = self
+            .contract
+            .signed_call_with_confirmations(
+                ETH_BURN_FUNCTION_NAME,
+                (
+                    U256::from(TOKENS_TO_BURN),
+                    U256::from(&verification_key.to_bytes()),
+                    Bytes(signed_verification_key.to_bytes().to_vec()),
+                ),
+                Options::default(),
+                confirmations,
+                &self.eth_private_key,
+            )
+            .await?;
+        if Some(U64::from(0)) == recipt.status {
             Err(GatewayClientError::BurnTokenError(
-                web3::Error::InvalidResponse(String::from("Transaction status is 0 (failure)")),
+                web3::Error::InvalidResponse(format!(
+                    "Transaction status is 0 (failure): {:?}",
+                    recipt.logs,
+                )),
             ))
         } else {
             log::info!(

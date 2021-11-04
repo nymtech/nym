@@ -158,6 +158,10 @@ impl BandwidthController {
                 web3::Error::InvalidResponse(String::from("Transaction status is 0 (failure)")),
             ))
         } else {
+            log::info!(
+                "Bought bandwidth on Ethereum: {} MB",
+                BANDWIDTH_VALUE / 1024 / 1024
+            );
             Ok(())
         }
     }

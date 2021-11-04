@@ -952,7 +952,7 @@ dependencies = [
  "clap",
  "criterion-plot",
  "csv",
- "itertools 0.10.1",
+ "itertools",
  "lazy_static",
  "num-traits",
  "oorandom",
@@ -974,7 +974,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d00996de9f2f7559f7f4dc286073197f83e92256a59ed395f9aac01fe717da57"
 dependencies = [
  "cast",
- "itertools 0.10.1",
+ "itertools",
 ]
 
 [[package]]
@@ -3524,7 +3524,7 @@ dependencies = [
  "ff",
  "getrandom 0.2.3",
  "group",
- "itertools 0.10.1",
+ "itertools",
  "rand 0.8.4",
  "serde",
  "serde_derive",

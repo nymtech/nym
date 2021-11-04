@@ -8,10 +8,11 @@ use crate::cache::ValidatorCacheRefresher;
 use crate::config::Config;
 use crate::network_monitor::tested_network::good_topology::parse_topology_file;
 use crate::network_monitor::NetworkMonitorBuilder;
+use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
 use crate::rewarding::epoch::Epoch;
 use crate::rewarding::Rewarder;
-use crate::storage::NodeStatusStorage;
+use crate::storage::ValidatorApiStorage;
 use ::config::NymConfig;
 use anyhow::Result;
 use cache::ValidatorCache;
@@ -335,7 +336,7 @@ fn setup_network_monitor<'a>(
     }
 
     // get instances of managed states
-    let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
+    let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
     let v4_topology = parse_topology_file(config.get_v4_good_topology_file());
@@ -367,7 +368,7 @@ fn setup_rewarder(
 ) -> Option<Rewarder> {
     if config.get_rewarding_enabled() && config.get_network_monitor_enabled() {
         // get instances of managed states
-        let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
+        let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
         let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
         let first_epoch = Epoch::new(
@@ -474,6 +475,12 @@ async fn main() -> Result<()> {
 
         // spawn our cacher
         tokio::spawn(async move { validator_cache_refresher.run().await });
+
+        // setup our daily uptime updater. Note that if network monitor is disabled, then we have
+        // no data for the updates and hence we don't need to start it up
+        let storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
+        let uptime_updater = HistoricalUptimeUpdater::new(storage);
+        tokio::spawn(async move { uptime_updater.run().await });
 
         if let Some(rewarder) = setup_rewarder(&config, &rocket, &nymd_client) {
             info!("Periodic rewarding is starting...");

@@ -41,6 +41,7 @@ export const Delegate = () => {
         title="Delegate"
         subheader="Delegate to mixnode or gateway"
         noPadding
+        data-testid="delegateCard"
       >
         {isLoading && (
           <Box
@@ -72,15 +73,16 @@ export const Delegate = () => {
               <RequestStatus
                 status={status}
                 Error={
-                  <Alert severity="error">
+                  <Alert severity="error" data-testid="delegate-error">
+                    <AlertTitle>Delegation failed</AlertTitle>
                     An error occurred with the request:
                     <Box style={{ wordBreak: 'break-word' }}>{message}</Box>
                   </Alert>
                 }
                 Success={
-                  <Alert severity="success">
+                  <Alert severity="success" data-testid="delegate-success">
                     <AlertTitle>Delegation complete</AlertTitle>
-                    {message}
+                    <Box style={{ wordBreak: 'break-word' }}>{message}</Box>
                   </Alert>
                 }
               />
@@ -95,6 +97,7 @@ export const Delegate = () => {
                 }}
               >
                 <Button
+                  data-testid="finish-button"
                   onClick={() => {
                     setStatus(EnumRequestStatus.initial)
                   }}

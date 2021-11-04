@@ -40,6 +40,7 @@ export const CopyToClipboard = ({ text }: { text: string }) => {
       size="small"
       variant={copied ? 'text' : 'outlined'}
       aria-label="save"
+      data-testid="copy-button"
       onClick={() => handleCopy({ text, cb: updateCopyStatus })}
       endIcon={copied && <Check />}
       style={copied ? { background: green[500], color: 'white' } : {}}

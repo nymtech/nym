@@ -8,7 +8,7 @@ use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::{NodeResult, SummaryProducer, TestReport};
 use crate::network_monitor::test_packet::NodeType;
 use crate::network_monitor::tested_network::TestedNetwork;
-use crate::storage::NodeStatusStorage;
+use crate::storage::ValidatorApiStorage;
 use log::{debug, error, info, warn};
 use std::process;
 use tokio::time::{sleep, Duration, Instant};
@@ -25,7 +25,7 @@ pub(super) struct Monitor {
     packet_sender: PacketSender,
     received_processor: ReceivedProcessor,
     summary_producer: SummaryProducer,
-    node_status_storage: NodeStatusStorage,
+    node_status_storage: ValidatorApiStorage,
     tested_network: TestedNetwork,
     run_interval: Duration,
     gateway_ping_interval: Duration,
@@ -39,7 +39,7 @@ impl Monitor {
         packet_sender: PacketSender,
         received_processor: ReceivedProcessor,
         summary_producer: SummaryProducer,
-        node_status_storage: NodeStatusStorage,
+        node_status_storage: ValidatorApiStorage,
         tested_network: TestedNetwork,
     ) -> Self {
         Monitor {

@@ -24,7 +24,6 @@ pub struct Config {
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
     mixnode_delegations_page_limit: Option<u32>,
-    gateway_delegations_page_limit: Option<u32>,
 }
 
 #[cfg(feature = "nymd-client")]
@@ -41,7 +40,6 @@ impl Config {
             mixnode_page_limit: None,
             gateway_page_limit: None,
             mixnode_delegations_page_limit: None,
-            gateway_delegations_page_limit: None,
         }
     }
 
@@ -59,11 +57,6 @@ impl Config {
         self.mixnode_delegations_page_limit = limit;
         self
     }
-
-    pub fn with_gateway_delegations_page_limit(mut self, limit: Option<u32>) -> Config {
-        self.gateway_delegations_page_limit = limit;
-        self
-    }
 }
 
 #[cfg(feature = "nymd-client")]
@@ -74,7 +67,6 @@ pub struct Client<C> {
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
     mixnode_delegations_page_limit: Option<u32>,
-    gateway_delegations_page_limit: Option<u32>,
 
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
     pub validator_api: validator_api::Client,
@@ -100,7 +92,6 @@ impl Client<SigningNymdClient> {
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
-            gateway_delegations_page_limit: config.gateway_delegations_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -136,7 +127,6 @@ impl Client<QueryNymdClient> {
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
-            gateway_delegations_page_limit: config.gateway_delegations_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -339,116 +329,6 @@ impl<C> Client<C> {
         Ok(delegations)
     }
 
-    pub async fn get_all_nymd_single_gateway_delegations(
-        &self,
-        identity: mixnet_contract::IdentityKey,
-    ) -> Result<Vec<mixnet_contract::Delegation>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let mut delegations = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .nymd
-                .get_gateway_delegations(
-                    identity.clone(),
-                    start_after.take(),
-                    self.gateway_delegations_page_limit,
-                )
-                .await?;
-            delegations.append(&mut paged_response.delegations);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res)
-            } else {
-                break;
-            }
-        }
-
-        Ok(delegations)
-    }
-
-    pub async fn get_all_nymd_gateway_delegations(
-        &self,
-    ) -> Result<Vec<mixnet_contract::UnpackedDelegation<RawDelegationData>>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let mut delegations = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .nymd
-                .get_all_gateway_delegations(
-                    start_after.take(),
-                    self.gateway_delegations_page_limit,
-                )
-                .await?;
-            delegations.append(&mut paged_response.delegations);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res)
-            } else {
-                break;
-            }
-        }
-
-        Ok(delegations)
-    }
-
-    pub async fn get_all_nymd_reverse_gateway_delegations(
-        &self,
-        delegation_owner: &cosmrs::AccountId,
-    ) -> Result<Vec<mixnet_contract::IdentityKey>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let mut delegations = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .nymd
-                .get_reverse_gateway_delegations_paged(
-                    mixnet_contract::Addr::unchecked(delegation_owner.as_ref()),
-                    start_after.take(),
-                    self.mixnode_delegations_page_limit,
-                )
-                .await?;
-            delegations.append(&mut paged_response.delegated_nodes);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res)
-            } else {
-                break;
-            }
-        }
-
-        Ok(delegations)
-    }
-
-    pub async fn get_all_nymd_gateway_delegations_of_owner(
-        &self,
-        delegation_owner: &cosmrs::AccountId,
-    ) -> Result<Vec<mixnet_contract::Delegation>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let mut delegations = Vec::new();
-        for node_identity in self
-            .get_all_nymd_reverse_gateway_delegations(delegation_owner)
-            .await?
-        {
-            let delegation = self
-                .nymd
-                .get_gateway_delegation(node_identity, delegation_owner)
-                .await?;
-            delegations.push(delegation);
-        }
-
-        Ok(delegations)
-    }
-
     pub async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,
@@ -486,12 +366,6 @@ impl ApiClient {
         &self,
     ) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
         Ok(self.validator_api.get_active_mixnodes().await?)
-    }
-
-    pub async fn get_cached_active_gateways(
-        &self,
-    ) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        Ok(self.validator_api.get_active_gateways().await?)
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {

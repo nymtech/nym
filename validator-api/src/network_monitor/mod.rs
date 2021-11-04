@@ -31,7 +31,15 @@ use crate::network_monitor::monitor::receiver::{
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::tested_network::TestedNetwork;
+
 use crate::storage::NodeStatusStorage;
+use crate::storage::ValidatorApiStorage;
+use crypto::asymmetric::{encryption, identity};
+use futures::channel::mpsc;
+use log::info;
+use nymsphinx::addressing::clients::Recipient;
+use std::sync::Arc;
+use topology::NymTopology;
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
@@ -42,7 +50,7 @@ pub(crate) mod tested_network;
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
     tested_network: TestedNetwork,
-    node_status_storage: NodeStatusStorage,
+    node_status_storage: ValidatorApiStorage,
     validator_cache: ValidatorCache,
 }
 
@@ -51,7 +59,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         config: &'a Config,
         v4_topology: NymTopology,
         v6_topology: NymTopology,
-        node_status_storage: NodeStatusStorage,
+        node_status_storage: ValidatorApiStorage,
         validator_cache: ValidatorCache,
     ) -> Self {
         let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);

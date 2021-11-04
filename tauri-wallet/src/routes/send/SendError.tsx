@@ -37,7 +37,7 @@ export const SendError = ({ message }: { message?: string }) => {
           variant="outlined"
           style={{ width: '100%', padding: theme.spacing(2) }}
         >
-          <Alert severity="error">
+          <Alert severity="error" data-testid="transaction-error">
             An error occured during the request {message}
           </Alert>
         </Card>

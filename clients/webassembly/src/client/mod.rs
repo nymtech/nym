@@ -301,7 +301,7 @@ impl NymClient {
         };
 
         let gateways = match validator_client.get_cached_gateways().await {
-            Err(err) => panic!("{:?}", err),
+            Err(err) => panic!("{}", err),
             Ok(gateways) => gateways,
         };
 

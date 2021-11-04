@@ -18,6 +18,7 @@ export const Balance = () => {
       size="small"
       color="primary"
       type="submit"
+      data-testid="refresh-button"
       onClick={fetchBalance}
       disabled={isLoading}
       disableElevation
@@ -31,12 +32,13 @@ export const Balance = () => {
 
   return (
     <Layout>
-      <NymCard title="Check Balance">
+      <NymCard title="Check Balance" data-testid="check-balance">
         <Grid container direction="column" spacing={2}>
           <Grid item>
             {error && (
               <Alert
                 severity="error"
+                data-testid="error-refresh"
                 action={<RefreshAction />}
                 style={{ padding: theme.spacing(2) }}
               >
@@ -46,6 +48,7 @@ export const Balance = () => {
             {!error && (
               <Alert
                 severity="success"
+                data-testid="refresh-success"
                 style={{ padding: theme.spacing(2, 3) }}
                 action={<RefreshAction />}
               >

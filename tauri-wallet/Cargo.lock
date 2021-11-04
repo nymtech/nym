@@ -2531,7 +2531,7 @@ dependencies = [
  "ff",
  "getrandom 0.2.3",
  "group",
- "itertools 0.10.1",
+ "itertools",
  "rand 0.8.4",
  "serde",
  "serde_derive",

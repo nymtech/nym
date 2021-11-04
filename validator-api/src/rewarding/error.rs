@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node_status_api::models::NodeStatusApiError;
+use crate::node_status_api::models::ValidatorApiStorageError;
 use thiserror::Error;
 use validator_client::nymd::error::NymdError;
 use validator_client::ValidatorClientError;
@@ -19,7 +19,7 @@ pub(crate) enum RewardingError {
 
     // The inner error should be modified at some point...
     #[error("We run into storage issues - {0}")]
-    StorageError(NodeStatusApiError),
+    StorageError(ValidatorApiStorageError),
 
     #[error("Failed to query the smart contract - {0}")]
     ValidatorClientError(ValidatorClientError),
@@ -31,8 +31,8 @@ impl From<NymdError> for RewardingError {
     }
 }
 
-impl From<NodeStatusApiError> for RewardingError {
-    fn from(err: NodeStatusApiError) -> Self {
+impl From<ValidatorApiStorageError> for RewardingError {
+    fn from(err: ValidatorApiStorageError) -> Self {
         RewardingError::StorageError(err)
     }
 }

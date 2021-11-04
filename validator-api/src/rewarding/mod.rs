@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cache::ValidatorCache;
-use crate::node_status_api::models::{GatewayStatusReport, MixnodeStatusReport, Uptime};
+use crate::node_status_api::models::{MixnodeStatusReport, Uptime};
 use crate::node_status_api::ONE_DAY;
 use crate::nymd_client::Client;
 use crate::rewarding::epoch::Epoch;
@@ -10,7 +10,7 @@ use crate::rewarding::error::RewardingError;
 use crate::storage::models::{
     FailedMixnodeRewardChunk, PossiblyUnrewardedMixnode, RewardingReport,
 };
-use crate::storage::NodeStatusStorage;
+use crate::storage::ValidatorApiStorage;
 use log::{error, info};
 use mixnet_contract::{ExecuteMsg, IdentityKey};
 use std::collections::HashMap;
@@ -72,7 +72,7 @@ impl<'a> From<&'a MixnodeToReward> for ExecuteMsg {
 pub(crate) struct Rewarder {
     nymd_client: Client<SigningNymdClient>,
     validator_cache: ValidatorCache,
-    storage: NodeStatusStorage,
+    storage: ValidatorApiStorage,
 
     /// The first epoch of the current length.
     first_epoch: Epoch,
@@ -91,7 +91,7 @@ impl Rewarder {
     pub(crate) fn new(
         nymd_client: Client<SigningNymdClient>,
         validator_cache: ValidatorCache,
-        storage: NodeStatusStorage,
+        storage: ValidatorApiStorage,
         first_epoch: Epoch,
         expected_epoch_monitor_runs: usize,
         minimum_epoch_monitor_threshold: u8,
@@ -223,33 +223,23 @@ impl Rewarder {
         Ok(eligible_nodes)
     }
 
-    /// Obtains the lists of all mixnodes and gateways that were tested at least a single time
+    /// Obtains the lists of all mixnodes that were tested at least a single time
     /// by the network monitor in the specified epoch.
     ///
     /// # Arguments
     ///
     /// * `epoch`: the specified epoch.
-    async fn get_active_monitor_nodes(
+    async fn get_active_monitor_mixnodes(
         &self,
         epoch: Epoch,
-    ) -> Result<(Vec<MixnodeStatusReport>, Vec<GatewayStatusReport>), RewardingError> {
-        let active_mixnodes = self
+    ) -> Result<Vec<MixnodeStatusReport>, RewardingError> {
+        Ok(self
             .storage
             .get_all_active_mixnode_reports_in_interval(
                 epoch.start_unix_timestamp(),
                 epoch.end_unix_timestamp(),
             )
-            .await?;
-
-        let active_gateways = self
-            .storage
-            .get_all_active_gateway_reports_in_interval(
-                epoch.start_unix_timestamp(),
-                epoch.end_unix_timestamp(),
-            )
-            .await?;
-
-        Ok((active_mixnodes, active_gateways))
+            .await?)
     }
 
     /// Using the list of mixnodes eligible for rewards, chunks it into pre-defined sized-chunks
@@ -511,8 +501,7 @@ impl Rewarder {
         );
 
         // get nodes that were active during the epoch
-        let (active_monitor_mixnodes, active_monitor_gateways) =
-            self.get_active_monitor_nodes(epoch).await?;
+        let active_monitor_mixnodes = self.get_active_monitor_mixnodes(epoch).await?;
 
         // insert information about beginning the procedure (so that if we crash during it,
         // we wouldn't attempt to possibly double reward operators)
@@ -540,32 +529,11 @@ impl Rewarder {
             }
         }
 
-        // TODO: again, this assumes 24h epochs.
-        let epoch_iso_8601 = epoch.start().date().to_string();
-        let two_days_ago = (epoch.start() - 2 * ONE_DAY).unix_timestamp();
-
-        // NOTE: this works under assumption that epochs are 24h in length.
-        // If this changes then the historical uptime updates should be performed
-        // on a timer in another task
-        if self
-            .storage
-            .check_if_historical_uptimes_exist_for_date(&epoch_iso_8601)
-            .await?
-        {
-            error!("We have already updated uptimes for all nodes this day. If you're seeing this warning, it's likely rewards were given out twice this day!")
-        } else {
-            info!(
-                "Updating historical daily uptimes of all nodes and purging old status reports..."
-            );
-            self.storage
-                .update_historical_uptimes(
-                    &epoch_iso_8601,
-                    &active_monitor_mixnodes,
-                    &active_monitor_gateways,
-                )
-                .await?;
-            self.storage.purge_old_statuses(two_days_ago).await?;
-        }
+        // since we have already performed rewards, purge everything older than the end of this epoch
+        // (+one day of buffer) as we're never going to need it again (famous last words...)
+        // note that usually end of epoch is equal to the current time
+        let cutoff = (epoch.end() - ONE_DAY).unix_timestamp();
+        self.storage.purge_old_statuses(cutoff).await?;
 
         Ok(())
     }

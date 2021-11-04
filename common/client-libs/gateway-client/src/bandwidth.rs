@@ -174,12 +174,12 @@ impl BandwidthController {
     }
 }
 
+#[cfg(not(feature = "coconut"))]
 #[cfg(test)]
 mod tests {
     use super::*;
     use network_defaults::ETH_EVENT_NAME;
 
-    #[cfg(not(feature = "coconut"))]
     #[test]
     fn parse_contract() {
         let transport =
@@ -189,7 +189,6 @@ mod tests {
         eth_contract(web3);
     }
 
-    #[cfg(not(feature = "coconut"))]
     #[test]
     fn check_event_name_constant_against_abi() {
         let transport =

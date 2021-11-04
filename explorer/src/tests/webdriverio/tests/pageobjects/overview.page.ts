@@ -6,7 +6,7 @@ class Overview extends Page {
     return $("[data-testid='Mixnodes']");
   }
 
-  get gatewayLink() {
+  get gatewayLink(): WebdriverIO.Element {
     return $("[data-testid='Gateways']");
   }
 

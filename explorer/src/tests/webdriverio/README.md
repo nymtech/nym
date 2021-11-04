@@ -6,7 +6,7 @@
 ### TODO
 
 - Write how to run locally
-- Set up CI - wdio.conf file
+- Set up CI - wdio.conf.ts file
 - Roll out rest of the test suite
 
 - Follow requirements and tasks listed in ->

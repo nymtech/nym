@@ -1,5 +1,5 @@
 reports
-node_modules
+.node_modules
 .vscode
 .idea
 driver-logs

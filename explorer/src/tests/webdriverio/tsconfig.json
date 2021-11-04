@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "ES5",
+    "types": [
+      "node",
+      "webdriverio/sync",
+      "@wdio/mocha-framework"
+    ]
+  }
+}

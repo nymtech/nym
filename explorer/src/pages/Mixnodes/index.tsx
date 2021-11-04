@@ -101,6 +101,7 @@ export const PageMixnodes: React.FC = () => {
             sx={cellStyles}
             component={RRDLink}
             to={`/network-components/mixnodes/${params.row.identity_key}`}
+            data-testid="bond-amount"
           >
             {bondAsPunk}
           </MuiLink>
@@ -120,6 +121,7 @@ export const PageMixnodes: React.FC = () => {
           sx={cellStyles}
           component={RRDLink}
           to={`/network-components/mixnodes/${params.row.identity_key}`}
+          data-testid="self-percentage"
         >
           {params.value}%
         </MuiLink>
@@ -136,6 +138,7 @@ export const PageMixnodes: React.FC = () => {
           sx={cellStyles}
           component={RRDLink}
           to={`/network-components/mixnodes/${params.row.identity_key}`}
+          data-testid="ip-port-address"
         >
           {params.value}
         </MuiLink>
@@ -151,6 +154,7 @@ export const PageMixnodes: React.FC = () => {
         <Button
           onClick={() => handleSearch(params.value as string)}
           sx={{ ...cellStyles, justifyContent: 'flex-start' }}
+          data-testid="location"
         >
           {params.value}
         </Button>
@@ -168,6 +172,7 @@ export const PageMixnodes: React.FC = () => {
           sx={{ ...cellStyles, textAlign: 'left' }}
           component={RRDLink}
           to={`/network-components/mixnodes/${params.row.identity_key}`}
+          data-testid="layer"
         >
           {params.value}
         </MuiLink>

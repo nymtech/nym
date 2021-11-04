@@ -394,12 +394,20 @@ where
             .authenticate_client(address, encrypted_address, iv)
             .await?;
         let status = shared_keys.is_some();
+        let bandwidth_remaining = self
+            .storage
+            .get_available_bandwidth(address)
+            .await?
+            .unwrap_or(0);
         let client_details =
             shared_keys.map(|shared_keys| ClientDetails::new(address, shared_keys));
 
         Ok(InitialAuthResult::new(
             client_details,
-            ServerResponse::Authenticate { status },
+            ServerResponse::Authenticate {
+                status,
+                bandwidth_remaining,
+            },
         ))
     }
 

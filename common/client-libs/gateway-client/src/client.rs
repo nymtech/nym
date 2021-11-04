@@ -446,8 +446,12 @@ impl GatewayClient {
             ClientControlRequest::new_authenticate(self_address, encrypted_address, iv).into();
 
         match self.send_websocket_message(msg).await? {
-            ServerResponse::Authenticate { status } => {
+            ServerResponse::Authenticate {
+                status,
+                bandwidth_remaining,
+            } => {
                 self.authenticated = status;
+                self.bandwidth_remaining = bandwidth_remaining;
                 Ok(())
             }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),

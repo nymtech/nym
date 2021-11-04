@@ -196,11 +196,22 @@ impl TryInto<String> for ClientControlRequest {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerResponse {
-    Authenticate { status: bool },
-    Register { status: bool },
-    Bandwidth { available_total: i64 },
-    Send { remaining_bandwidth: i64 },
-    Error { message: String },
+    Authenticate {
+        status: bool,
+        bandwidth_remaining: i64,
+    },
+    Register {
+        status: bool,
+    },
+    Bandwidth {
+        available_total: i64,
+    },
+    Send {
+        remaining_bandwidth: i64,
+    },
+    Error {
+        message: String,
+    },
 }
 
 impl ServerResponse {

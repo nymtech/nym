@@ -325,7 +325,7 @@ impl PacketSender {
     #[cfg(feature = "coconut")]
     async fn check_remaining_bandwidth(
         client: &mut GatewayClient,
-        fresh_gateway_client_data: Arc<FreshGatewayClientData>,
+        fresh_gateway_client_data: &FreshGatewayClientData,
     ) -> Result<(), GatewayClientError> {
         if client.remaining_bandwidth() < REMAINING_BANDWIDTH_THRESHOLD {
             // TODO: SECURITY:
@@ -389,11 +389,11 @@ impl PacketSender {
 
         #[cfg(feature = "coconut")]
         if let Err(err) =
-            Self::check_remaining_bandwidth(&mut unwrapped_client, fresh_gateway_client_data).await
+            Self::check_remaining_bandwidth(&mut unwrapped_client, &fresh_gateway_client_data).await
         {
             warn!(
                 "Failed to claim additional bandwidth for {} - {}",
-                client.gateway_identity().to_base58_string(),
+                unwrapped_client.gateway_identity().to_base58_string(),
                 err
             );
             if existing_client {

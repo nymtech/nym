@@ -22,7 +22,10 @@ const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(20)
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(50);
 const DEFAULT_TOPOLOGY_REFRESH_RATE: Duration = Duration::from_secs(5 * 60); // every 5min
 const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_000);
-const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(5_500);
+// Set this to a high value for now, so that we don't risk sporadic timeouts that might cause
+// bought bandwidth tokens to not have time to be spent; Once we remove the gateway from the
+// bandwidth bridging protocol, we can come back to a smaller timeout value
+const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()

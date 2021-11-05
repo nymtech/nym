@@ -15,46 +15,9 @@ use futures::{Sink, SinkExt, Stream, StreamExt};
 use log::*;
 use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::{CryptoRng, RngCore};
-use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 use tungstenite::Message as WsMessage;
 
-#[derive(Serialize, Deserialize)]
-pub struct InitMessage {
-    local_id_pubkey: [u8; identity::PUBLIC_KEY_LENGTH],
-    ephemeral_key: [u8; identity::PUBLIC_KEY_LENGTH],
-}
-
-impl InitMessage {
-    fn new(local_id_pubkey: &identity::PublicKey, ephemeral_key: &encryption::PublicKey) -> Self {
-        InitMessage {
-            local_id_pubkey: local_id_pubkey.to_bytes(),
-            ephemeral_key: ephemeral_key.to_bytes(),
-        }
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn local_id_pubkey(&self) -> identity::PublicKey {
-        identity::PublicKey::from_bytes(&self.local_id_pubkey).unwrap()
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn ephemeral_key(&self) -> encryption::PublicKey {
-        encryption::PublicKey::from_bytes(&self.ephemeral_key).unwrap()
-    }
-
-    fn to_bytes(&self) -> Vec<u8> {
-        bincode::serialize(self).unwrap()
-    }
-}
-
-impl TryFrom<&[u8]> for InitMessage {
-    type Error = HandshakeError;
-
-    fn try_from(value: &[u8]) -> Result<InitMessage, Self::Error> {
-        bincode::deserialize(value).map_err(|e| e.into())
-    }
-}
 /// Handshake state.
 pub(crate) struct State<'a, S> {
     /// The underlying WebSocket stream.
@@ -92,7 +55,6 @@ impl<'a, S> State<'a, S> {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn local_ephemeral_key(&self) -> &encryption::PublicKey {
         self.ephemeral_keypair.public_key()
     }
@@ -101,17 +63,40 @@ impl<'a, S> State<'a, S> {
     // Eventually the ID_PUBKEY prefix will get removed and recipient will know
     // initializer's identity from another source.
     pub(crate) fn init_message(&self) -> Vec<u8> {
-        InitMessage::new(
-            self.identity.public_key(),
-            self.ephemeral_keypair.public_key(),
-        )
-        .to_bytes()
+        self.identity
+            .public_key()
+            .to_bytes()
+            .iter()
+            .cloned()
+            .chain(
+                self.ephemeral_keypair
+                    .public_key()
+                    .to_bytes()
+                    .iter()
+                    .cloned(),
+            )
+            .collect()
     }
 
     // this will need to be adjusted when REMOTE_ID_PUBKEY is removed
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn parse_init_message(init_message: Vec<u8>) -> Result<InitMessage, HandshakeError> {
-        InitMessage::try_from(init_message.as_slice()).map_err(|_| HandshakeError::MalformedRequest)
+    pub(crate) fn parse_init_message(
+        mut init_message: Vec<u8>,
+    ) -> Result<(identity::PublicKey, encryption::PublicKey), HandshakeError> {
+        if init_message.len() != identity::PUBLIC_KEY_LENGTH + encryption::PUBLIC_KEY_SIZE {
+            return Err(HandshakeError::MalformedRequest);
+        }
+
+        let remote_ephemeral_key_bytes = init_message.split_off(identity::PUBLIC_KEY_LENGTH);
+        // this can only fail if the provided bytes have len different from encryption::PUBLIC_KEY_SIZE
+        // which is impossible
+        let remote_ephemeral_key =
+            encryption::PublicKey::from_bytes(&remote_ephemeral_key_bytes).unwrap();
+
+        // this could actually fail if the curve point fails to get decompressed
+        let remote_identity = identity::PublicKey::from_bytes(&init_message)
+            .map_err(|_| HandshakeError::MalformedRequest)?;
+
+        Ok((remote_identity, remote_ephemeral_key))    
     }
 
     pub(crate) fn derive_shared_key(&mut self, remote_ephemeral_key: &encryption::PublicKey) {
@@ -208,7 +193,6 @@ impl<'a, S> State<'a, S> {
             .map_err(|_| HandshakeError::InvalidSignature)
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn update_remote_identity(&mut self, remote_pubkey: identity::PublicKey) {
         self.remote_pubkey = Some(remote_pubkey)
     }

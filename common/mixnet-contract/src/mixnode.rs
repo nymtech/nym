@@ -144,7 +144,7 @@ pub struct MixNodeBond {
     #[serde(default = "current_block_height")]
     pub block_height: u64,
     pub mix_node: MixNode,
-    pub profit_margin_percent: u8,
+    pub profit_margin_percent: Option<u8>,
 }
 
 impl MixNodeBond {
@@ -163,12 +163,12 @@ impl MixNodeBond {
             layer,
             block_height,
             mix_node,
-            profit_margin_percent: profit_margin_percent.unwrap_or(DEFAULT_PROFIT_MARGIN),
+            profit_margin_percent,
         }
     }
 
     pub fn profit_margin(&self) -> U128 {
-        U128::from_num(self.profit_margin_percent) / U128::from_num(100)
+        U128::from_num(self.profit_margin_percent.unwrap_or(DEFAULT_PROFIT_MARGIN)) / U128::from_num(100)
     }
 
     pub fn identity(&self) -> &String {

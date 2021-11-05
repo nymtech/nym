@@ -1874,7 +1874,7 @@ pub mod tests {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
             },
-            profit_margin_percent: 10,
+            profit_margin_percent: Some(10),
         };
 
         mixnodes(deps.as_mut().storage)
@@ -1974,7 +1974,7 @@ pub mod tests {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
             },
-            profit_margin_percent: 10,
+            profit_margin_percent: Some(10),
         };
 
         mixnodes(deps.as_mut().storage)

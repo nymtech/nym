@@ -55,8 +55,8 @@ impl<'a> GatewayHandshake<'a> {
                 )
                 .await?;
 
-                let remote_identity = init_message.local_id_pubkey();
-                let remote_ephemeral_key = init_message.ephemeral_key();
+                let remote_identity = init_message.0;
+                let remote_ephemeral_key = init_message.1;
                 state.update_remote_identity(remote_identity);
 
                 // hkdf::<blake3>::(g^xy)

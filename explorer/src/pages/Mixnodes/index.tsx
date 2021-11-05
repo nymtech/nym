@@ -196,6 +196,12 @@ export const PageMixnodes: React.FC = () => {
               pageSize={pageSize}
               pagination
               hideFooter={false}
+              sortModel={[
+                {
+                  field: 'bond',
+                  sort: 'desc',
+                },
+              ]}
             />
           </ContentCard>
         </Grid>

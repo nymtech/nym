@@ -4,6 +4,7 @@ import {
   DataGrid,
   GridColumns,
   GridRowData,
+  GridSortModel,
   useGridSlotComponentProps,
 } from '@mui/x-data-grid';
 import Pagination from '@mui/material/Pagination';
@@ -22,6 +23,7 @@ type DataGridProps = {
   pageSize?: string;
   pagination?: boolean;
   hideFooter?: boolean;
+  sortModel?: GridSortModel;
 };
 
 export const cellStyles: SxProps = {
@@ -60,7 +62,11 @@ export const UniversalDataGrid: React.FC<DataGridProps> = ({
   pageSize,
   pagination,
   hideFooter,
+  sortModel,
 }) => {
+  const [sortModelState, setSortModelState] = React.useState<
+    GridSortModel | undefined
+  >(sortModel);
   if (columnsData && rows) {
     return (
       <DataGrid
@@ -80,6 +86,8 @@ export const UniversalDataGrid: React.FC<DataGridProps> = ({
         columnBuffer={0}
         autoHeight
         hideFooter={hideFooter}
+        sortModel={sortModelState}
+        onSortModelChange={setSortModelState}
         style={{
           width: '100%',
           border: 'none',
@@ -95,4 +103,5 @@ UniversalDataGrid.defaultProps = {
   pageSize: undefined,
   pagination: false,
   hideFooter: true,
+  sortModel: undefined,
 };

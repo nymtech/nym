@@ -133,6 +133,12 @@ export const PageGateways: React.FC = () => {
                 pageSize={pageSize}
                 pagination={gateways?.data?.length >= 12}
                 hideFooter={gateways?.data?.length < 12}
+                sortModel={[
+                  {
+                    field: 'bond',
+                    sort: 'desc',
+                  },
+                ]}
               />
             </ContentCard>
           </Grid>

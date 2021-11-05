@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { SxProps } from '@mui/system';
 import { makeStyles } from '@mui/styles';
 import {
   DataGrid,
@@ -8,6 +7,7 @@ import {
   useGridSlotComponentProps,
 } from '@mui/x-data-grid';
 import Pagination from '@mui/material/Pagination';
+import { SxProps } from '@mui/system';
 
 const useStyles = makeStyles({
   root: {

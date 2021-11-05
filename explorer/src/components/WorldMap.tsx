@@ -68,8 +68,7 @@ export const WorldMap: React.FC<MapProps> = ({
           width: '100%',
           height: 'auto',
         }}
-        width={800}
-        height={350}
+        viewBox={[0, 50, 800, 350]}
         projection="geoMercator"
         projectionConfig={{
           scale: 100,

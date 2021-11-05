@@ -1,12 +1,7 @@
 import * as React from 'react';
 import { printableCoin } from '@nymproject/nym-validator-client';
-import {
-  Alert,
-  CircularProgress,
-  useMediaQuery,
-  useTheme,
-  Box,
-} from '@mui/material';
+import { Alert, CircularProgress, useMediaQuery, Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -18,8 +13,7 @@ import { MainContext } from 'src/context/main';
 import { ExpandMore } from '@mui/icons-material';
 
 export const BondBreakdownTable: React.FC = () => {
-  const { mixnodeDetailInfo, delegations, mode } =
-    React.useContext(MainContext);
+  const { mixnodeDetailInfo, delegations } = React.useContext(MainContext);
   const [allContentLoaded, setAllContentLoaded] =
     React.useState<boolean>(false);
   const [showError, setShowError] = React.useState<boolean>(false);

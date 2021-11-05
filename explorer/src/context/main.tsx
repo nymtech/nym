@@ -56,7 +56,8 @@ export const MainContext = React.createContext<State>({
   delegations: { data: undefined, isLoading: false, error: undefined },
 });
 
-export const useMainContext = () => React.useContext<State>(MainContext);
+export const useMainContext = (): React.ContextType<typeof MainContext> =>
+  React.useContext<State>(MainContext);
 
 export const MainContextProvider: React.FC = ({ children }) => {
   // light/dark mode

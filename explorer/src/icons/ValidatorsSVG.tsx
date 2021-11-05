@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useTheme } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 
 export const ValidatorsSVG: React.FC = () => {
   const theme = useTheme();

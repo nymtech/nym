@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Grid, Typography, Paper, Button } from '@mui/material';
+import * as React from 'react';
+import { Box, Button, Grid, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useHistory } from 'react-router-dom';
 import { MainContext } from 'src/context/main';

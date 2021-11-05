@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { Box, Card, CardContent, IconButton, Typography } from '@mui/material';
 import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
 

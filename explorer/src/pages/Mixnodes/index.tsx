@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { GridRenderCellParams, GridColDef } from '@mui/x-data-grid';
+import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { printableCoin } from '@nymproject/nym-validator-client';
 import { Link as RRDLink } from 'react-router-dom';
 import { Button, Grid, Link as MuiLink } from '@mui/material';

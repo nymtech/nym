@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { Box, IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import TelegramIcon from '@mui/icons-material/Telegram';

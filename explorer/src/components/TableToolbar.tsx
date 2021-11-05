@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { Box, useMediaQuery, TextField, MenuItem } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import Select, { SelectChangeEvent } from '@mui/material/Select';

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { GridRenderCellParams, GridColDef } from '@mui/x-data-grid';
+import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { Box, Grid, Typography } from '@mui/material';
 import { MainContext } from 'src/context/main';
 import { useParams } from 'react-router-dom';

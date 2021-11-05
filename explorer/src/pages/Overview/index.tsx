@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { Box, Grid, Link } from '@mui/material';
 import { WorldMap } from 'src/components/WorldMap';
 import { useHistory } from 'react-router-dom';

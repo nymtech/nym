@@ -1,11 +1,11 @@
 import * as React from 'react';
 import {
+  Alert,
   Box,
   CircularProgress,
   Grid,
   SelectChangeEvent,
   Typography,
-  Alert,
 } from '@mui/material';
 import { WorldMap } from 'src/components/WorldMap';
 import { MainContext } from 'src/context/main';

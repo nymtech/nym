@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { Grid, Typography, Button } from '@mui/material';
-import { GridRenderCellParams, GridColDef } from '@mui/x-data-grid';
+import { Button, Grid, Typography } from '@mui/material';
+import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { printableCoin } from '@nymproject/nym-validator-client';
 import { SelectChangeEvent } from '@mui/material/Select';
 import {

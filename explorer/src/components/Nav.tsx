@@ -49,8 +49,7 @@ const DrawerHeader = styled('div')(({ theme }) => ({
   alignItems: 'center',
   justifyContent: 'flex-end',
   padding: theme.spacing(0, 1),
-  // necessary for content to be below app bar
-  ...theme.mixins.toolbar,
+  height: 64,
 }));
 
 const Drawer = styled(MuiDrawer, {
@@ -359,7 +358,7 @@ export const Nav: React.FC = ({ children }) => {
               onClick={open ? handleDrawerClose : handleDrawerOpen}
               sx={{
                 padding: 0,
-                ml: '3px',
+                ml: '7px',
                 color: theme.palette.nym.networkExplorer.nav.text,
               }}
             >
@@ -380,8 +379,7 @@ export const Nav: React.FC = ({ children }) => {
             ))}
           </List>
         </Drawer>
-        <Box sx={{ width: '100%', p: 4 }}>
-          <DrawerHeader />
+        <Box sx={{ width: '100%', p: 4, mt: 7 }}>
           {children}
           <Footer />
         </Box>

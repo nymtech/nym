@@ -21,17 +21,13 @@ use erc20_bridge_contract::msg::ExecuteMsg;
 use erc20_bridge_contract::payment::LinkPaymentData;
 use gateway_client::bandwidth::eth_contract;
 use network_defaults::{COSMOS_CONTRACT_ADDRESS, DENOM, ETH_EVENT_NAME};
-use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
-use validator_client::nymd::{
-    AccountId, Denom, Fee, Gas, SigningCosmWasmClient, SigningNymdClient,
-};
+use validator_client::nymd::{AccountId, Denom, Fee, Gas, NymdClient, SigningNymdClient};
 
 pub(crate) struct ERC20Bridge {
     // This is needed because web3's Contract doesn't sufficiently expose it's eth interface
     web3: Web3<Http>,
     contract: Contract<Http>,
-    nymd_client: SigningNymdClient,
-    client_address: AccountId,
+    nymd_client: NymdClient<SigningNymdClient>,
 }
 
 impl ERC20Bridge {
@@ -43,25 +39,17 @@ impl ERC20Bridge {
             .expect("The list of validators is empty");
         let mnemonic =
             Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
-        let wallet = DirectSecp256k1HdWallet::from_mnemonic(mnemonic)
-            .expect("Could not creat wallet from mnemonic");
-        let client_address = wallet
-            .try_derive_accounts()
-            .expect("Could not get account from wallet")
-            .into_iter()
-            .map(|account| account.address().clone())
-            .collect::<Vec<AccountId>>()
-            .get(0)
-            .expect("No account for wallet")
-            .clone();
-        let nymd_client = SigningNymdClient::connect_with_signer(nymd_url.as_str(), wallet)
-            .expect("Could not create nymd client");
+        let nymd_client = NymdClient::connect_with_mnemonic(
+            nymd_url.as_ref(),
+            AccountId::from_str(COSMOS_CONTRACT_ADDRESS).ok(),
+            mnemonic,
+        )
+        .expect("Could not create nymd client");
 
         ERC20Bridge {
             contract: eth_contract(web3.clone()),
             web3,
             nymd_client,
-            client_address,
         }
     }
 
@@ -104,8 +92,6 @@ impl ERC20Bridge {
         &self,
         credential: &TokenCredential,
     ) -> Result<(), RequestHandlingError> {
-        // It's ok to unwrap here, as the cosmos contract and denom are set correctly
-        let contract_address = AccountId::from_str(COSMOS_CONTRACT_ADDRESS).unwrap();
         let coin = Coin {
             denom: Denom::from_str(DENOM).unwrap(),
             amount: Decimal::from(100000u64),
@@ -121,8 +107,7 @@ impl ERC20Bridge {
         };
         self.nymd_client
             .execute(
-                &self.client_address,
-                &contract_address,
+                self.nymd_client.address(),
                 &req,
                 fee,
                 "Linking payment",

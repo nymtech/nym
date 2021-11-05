@@ -1,5 +1,6 @@
 import React from 'react';
-import { useTheme, Box, Grid, Typography, Paper, Button } from '@mui/material';
+import { Box, Grid, Typography, Paper, Button } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useHistory } from 'react-router-dom';
 import { MainContext } from 'src/context/main';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';

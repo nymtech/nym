@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ExpandLess, ExpandMore, Menu } from '@mui/icons-material';
-import { CSSObject, styled, Theme } from '@mui/material/styles';
+import { CSSObject, styled, Theme, useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import ListItem from '@mui/material/ListItem';
 import MuiDrawer from '@mui/material/Drawer';
@@ -16,7 +16,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
 import { BIG_DIPPER, NYM_WEBSITE } from 'src/api/constants';
-import { useMediaQuery, useTheme } from '@mui/material';
+import { useMediaQuery } from '@mui/material';
 import { OverviewSVG } from '../icons/OverviewSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';

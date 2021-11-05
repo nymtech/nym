@@ -70,8 +70,9 @@ export const WorldMap: React.FC<MapProps> = ({
         }}
         width={800}
         height={350}
+        projection="geoMercator"
         projectionConfig={{
-          scale: 120,
+          scale: 100,
         }}
       >
         <ZoomableGroup>

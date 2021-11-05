@@ -158,9 +158,6 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
     if (title === 'Network Components' && nested) {
       toggleNestedOptions(!nestedOptions);
     }
-    if (drawIsOpen && title !== 'Network Components') {
-      closeDrawer();
-    }
     setToActive(id);
   };
 

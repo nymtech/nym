@@ -153,41 +153,37 @@ export const PageMixnodeDetail: React.FC = () => {
       <Box component="main" ref={ref}>
         <Grid container spacing={2}>
           <Grid item xs={12}>
-            <Title text="Mix node Detail" />
+            <Title text="Mixnode Detail" />
           </Grid>
         </Grid>
 
         <Grid container>
-          <Grid item xs={12} xl={9}>
+          <Grid item xs={12}>
             {mixnodeDetailInfo && (
-              <Grid container>
-                <Grid item xs={12} md={12} lg={12} xl={12}>
-                  <ContentCard>
-                    <UniversalDataGrid
-                      columnsData={columns}
-                      rows={mixnodeToGridRow(row)}
-                      loading={mixnodeDetailInfo.isLoading}
-                      pageSize="1"
-                      pagination={false}
-                      hideFooter
-                    />
-                  </ContentCard>
-                </Grid>
-              </Grid>
+              <ContentCard>
+                <UniversalDataGrid
+                  columnsData={columns}
+                  rows={mixnodeToGridRow(row)}
+                  loading={mixnodeDetailInfo.isLoading}
+                  pageSize="1"
+                  pagination={false}
+                  hideFooter
+                />
+              </ContentCard>
             )}
           </Grid>
         </Grid>
 
-        <Grid container spacing={2} sx={{ mt: 0 }}>
-          <Grid item xs={12} xl={9}>
+        <Grid container spacing={2} mt={0}>
+          <Grid item xs={12}>
             <ContentCard title="Bond Breakdown">
               <BondBreakdownTable />
             </ContentCard>
           </Grid>
         </Grid>
 
-        <Grid container spacing={2} sx={{ mt: 0 }}>
-          <Grid item xs={12} md={4} xl={3}>
+        <Grid container spacing={2} mt={0}>
+          <Grid item xs={12} md={4}>
             <ContentCard title="Mixnode Stats">
               {stats && (
                 <>
@@ -224,7 +220,7 @@ export const PageMixnodeDetail: React.FC = () => {
               {!stats && <Typography>No stats information</Typography>}
             </ContentCard>
           </Grid>
-          <Grid item xs={12} md={8} xl={6}>
+          <Grid item xs={12} md={8}>
             {uptimeStory && (
               <ContentCard title="Uptime story">
                 {uptimeStory.error && (
@@ -241,8 +237,8 @@ export const PageMixnodeDetail: React.FC = () => {
           </Grid>
         </Grid>
 
-        <Grid container spacing={2} sx={{ mt: 0 }}>
-          <Grid item xs={12} md={4} xl={3}>
+        <Grid container spacing={2} mt={0}>
+          <Grid item xs={12} md={4}>
             {status && (
               <ContentCard title="Mixnode Status">
                 {status.error && (
@@ -261,7 +257,7 @@ export const PageMixnodeDetail: React.FC = () => {
               </ContentCard>
             )}
           </Grid>
-          <Grid item xs={12} md={8} xl={6}>
+          <Grid item xs={12} md={8}>
             {mixnodeDetailInfo && (
               <ContentCard title="Location">
                 {mixnodeDetailInfo?.error && (

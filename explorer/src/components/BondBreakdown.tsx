@@ -120,7 +120,7 @@ export const BondBreakdownTable: React.FC = () => {
                 <TableCell
                   sx={{
                     fontWeight: 'bold',
-                    width: matches ? '150px' : 'auto',
+                    width: '150px',
                   }}
                   align="left"
                 >
@@ -129,24 +129,11 @@ export const BondBreakdownTable: React.FC = () => {
                 <TableCell align="left">{bonds.bondsTotal}</TableCell>
               </TableRow>
               <TableRow>
-                <TableCell
-                  sx={{
-                    width: matches ? '150px' : 'auto',
-                  }}
-                  align="left"
-                >
-                  Pledge total
-                </TableCell>
+                <TableCell align="left">Pledge total</TableCell>
                 <TableCell align="left">{bonds.pledges}</TableCell>
               </TableRow>
               <TableRow>
-                <TableCell
-                  onClick={expandDelegations}
-                  sx={{
-                    width: matches ? '150px' : 'auto',
-                  }}
-                  align="left"
-                >
+                <TableCell onClick={expandDelegations} align="left">
                   <Box
                     sx={{
                       display: 'flex',

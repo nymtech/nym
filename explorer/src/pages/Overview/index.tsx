@@ -19,11 +19,11 @@ export const PageOverview: React.FC = () => {
   return (
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>
-        <Grid container>
-          <Grid item xs={12}>
+        <Grid>
+          <Grid item>
             <Title text="Overview" />
           </Grid>
-          <Grid item xs={12} lg={9}>
+          <Grid item>
             <Grid container spacing={2}>
               {mixnodes && (
                 <Grid item xs={12} md={4}>

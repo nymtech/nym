@@ -180,8 +180,8 @@ export const PageMixnodes: React.FC = () => {
   return (
     <>
       <Title text="Mixnodes" />
-      <Grid container>
-        <Grid item xs={12} md={12} lg={10} xl={10}>
+      <Grid>
+        <Grid item>
           <ContentCard>
             <TableToolbar
               onChangeSearch={handleSearch}

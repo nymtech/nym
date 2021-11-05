@@ -525,7 +525,6 @@ impl GatewayClient {
         #[cfg(feature = "coconut")]
         if self.bandwidth_remaining <= self.estimate_required_bandwidth(&packets) {
             return Err(GatewayClientError::NotEnoughBandwidth((
-                line!(),
                 self.estimate_required_bandwidth(&packets),
                 self.bandwidth_remaining,
             )));

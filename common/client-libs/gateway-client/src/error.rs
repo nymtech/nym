@@ -23,7 +23,7 @@ pub enum GatewayClientError {
     MalformedResponse,
     SerializeCredential,
     NotAuthenticated,
-    NotEnoughBandwidth((u32, i64, i64)),
+    NotEnoughBandwidth((i64, i64)),
     UnexpectedResponse,
     ConnectionInInvalidState,
     RegistrationFailure(HandshakeError),
@@ -102,11 +102,11 @@ impl fmt::Display for GatewayClientError {
                 write!(f, "gateway returned an error response - {}", err)
             }
             GatewayClientError::UnexpectedResponse => write!(f, "received an unexpected response"),
-            GatewayClientError::NotEnoughBandwidth((line_number, estimated, remaining)) => {
+            GatewayClientError::NotEnoughBandwidth((estimated, remaining)) => {
                 write!(
                     f,
-                    "line: {} - client does not have enough bandwidth: estimated {}, remaining: {}",
-                    line_number, estimated, remaining
+                    "Client does not have enough bandwidth: estimated {}, remaining: {}",
+                    estimated, remaining
                 )
             }
             GatewayClientError::SerializeCredential => {

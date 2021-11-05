@@ -52,8 +52,6 @@ pub enum Layer {
 pub struct NodeRewardParams {
     period_reward_pool: Uint128,
     k: Uint128,
-    total_epoch_uptime: Uint128,
-    #[serde(default = "current_block_height")]
     reward_blockstamp: u64,
     circulating_supply: Uint128,
     uptime: Uint128,
@@ -64,7 +62,6 @@ impl NodeRewardParams {
     pub fn new(
         period_reward_pool: u128,
         k: u128,
-        total_epoch_uptime: u128,
         reward_blockstamp: u64,
         circulating_supply: u128,
         uptime: u128,
@@ -73,7 +70,6 @@ impl NodeRewardParams {
         NodeRewardParams {
             period_reward_pool: Uint128(period_reward_pool),
             k: Uint128(k),
-            total_epoch_uptime: Uint128(total_epoch_uptime),
             reward_blockstamp,
             circulating_supply: Uint128(circulating_supply),
             uptime: Uint128(uptime),
@@ -151,7 +147,7 @@ pub struct MixNodeBond {
     pub layer: Layer,
     pub block_height: u64,
     pub mix_node: MixNode,
-    pub profit_margin_percent: u8,
+    pub profit_margin_percent: Option<u8>,
 }
 
 impl MixNodeBond {
@@ -170,12 +166,13 @@ impl MixNodeBond {
             layer,
             block_height,
             mix_node,
-            profit_margin_percent: profit_margin_percent.unwrap_or(DEFAULT_PROFIT_MARGIN),
+            profit_margin_percent,
         }
     }
 
     pub fn profit_margin(&self) -> U128 {
-        U128::from_num(self.profit_margin_percent) / U128::from_num(100)
+        U128::from_num(self.profit_margin_percent.unwrap_or(DEFAULT_PROFIT_MARGIN))
+            / U128::from_num(100)
     }
 
     pub fn identity(&self) -> &String {
@@ -287,7 +284,8 @@ impl MixNodeBond {
             U128::from_num(delegation_amount.u128()) / U128::from_num(params.circulating_supply());
 
         let delegator_reward = (U128::from_num(1) - self.profit_margin())
-            * scaled_delegation_amount / self.sigma(params)
+            * scaled_delegation_amount
+            / self.sigma(params)
             * self.node_profit(params);
 
         let reward = delegator_reward.max(U128::from_num(0));
@@ -433,7 +431,7 @@ mod tests {
             layer: Layer::One,
             block_height: 100,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: 10,
+            profit_margin_percent: Some(10),
         };
 
         let mix2 = MixNodeBond {
@@ -443,7 +441,7 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: 10,
+            profit_margin_percent: Some(10),
         };
 
         let mix3 = MixNodeBond {
@@ -453,7 +451,7 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: 10,
+            profit_margin_percent: Some(10),
         };
 
         let mix4 = MixNodeBond {
@@ -463,7 +461,7 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: 10,
+            profit_margin_percent: Some(10),
         };
 
         let mix5 = MixNodeBond {
@@ -473,7 +471,7 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: 10,
+            profit_margin_percent: Some(10),
         };
 
         // summary:

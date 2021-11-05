@@ -1568,7 +1568,7 @@ pub mod tests {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
             },
-            profit_margin_percent: 10,
+            profit_margin_percent: Some(10),
         };
 
         mixnodes(deps.as_mut().storage)
@@ -1668,7 +1668,7 @@ pub mod tests {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
             },
-            profit_margin_percent: 10,
+            profit_margin_percent: Some(10),
         };
 
         mixnodes(deps.as_mut().storage)
@@ -2771,20 +2771,16 @@ pub mod tests {
         )
         .unwrap();
 
-        let total_uptime = 200_000;
-
         let info = mock_info(network_monitor_address.as_ref(), &[]);
 
         env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
         let mix_1 = mixnodes_read(&deps.storage).load(b"alice").unwrap();
         let mix_1_uptime = 100;
-        let _mix_1_performance = Decimal::from_ratio(mix_1_uptime, total_uptime);
 
         let mut params = NodeRewardParams::new(
             period_reward_pool,
             k,
-            total_uptime,
             0,
             circulating_supply,
             mix_1_uptime,

@@ -203,7 +203,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
                 layer: o.layer,
                 block_height: o.block_height,
                 mix_node: o.mix_node,
-                profit_margin_percent: 10,
+                profit_margin_percent: Some(10),
             }
         }
     }

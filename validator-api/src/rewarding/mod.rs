@@ -228,10 +228,6 @@ impl Rewarder {
             .collect();
 
         if cfg!(feature = "tokenomics") {
-            let total_epoch_uptime = eligible_nodes
-                .iter()
-                .fold(0, |acc, mix| acc + mix.uptime.u8() as u128);
-
             let reward_pool = self.nymd_client.get_reward_pool().await?;
             let circulating_supply = self.nymd_client.get_circulating_supply().await?;
             let sybil_resistance_percent = self.nymd_client.get_sybil_resistance_percent().await?;
@@ -248,7 +244,6 @@ impl Rewarder {
                 mix.params = Some(NodeRewardParams::new(
                     period_reward_pool,
                     k.into(),
-                    total_epoch_uptime,
                     0,
                     circulating_supply,
                     mix.uptime.u8().into(),

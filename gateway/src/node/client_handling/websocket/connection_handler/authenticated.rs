@@ -239,11 +239,8 @@ where
             .erc20_bridge
             .verify_eth_events(credential.verification_key())
             .await?;
-        debug!("Verifying Cosmos for double spending...");
-        self.inner
-            .erc20_bridge
-            .verify_double_spending(&credential)
-            .await?;
+        debug!("Claim the token on Cosmos, to make sure it's not spent twice...");
+        self.inner.erc20_bridge.claim_token(&credential).await?;
 
         let bandwidth = Bandwidth::from(credential);
         let bandwidth_value = bandwidth.value();

@@ -100,7 +100,7 @@ impl ERC20Bridge {
         Err(RequestHandlingError::InvalidBandwidthCredential)
     }
 
-    pub(crate) async fn verify_double_spending(
+    pub(crate) async fn claim_token(
         &self,
         credential: &TokenCredential,
     ) -> Result<(), RequestHandlingError> {

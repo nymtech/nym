@@ -15,14 +15,14 @@ pub(crate) fn link_payment(
 ) -> Result<Response, ContractError> {
     let mut status_bucket = status(deps.storage);
 
-    let verification_key = data.verification_key.as_bytes();
-    let gateway_identity = data.gateway_identity.as_bytes();
+    let verification_key = data.verification_key.to_bytes();
+    let gateway_identity = data.gateway_identity.to_bytes();
     let message: Vec<u8> = verification_key
         .iter()
         .chain(gateway_identity.iter())
         .copied()
         .collect();
-    let signature = data.signature.as_bytes();
+    let signature = data.signature.to_bytes();
 
     if let Ok(Some(_)) = status_bucket.may_load(&verification_key) {
         return Err(ContractError::PaymentAlreadyClaimed);

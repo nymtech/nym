@@ -71,7 +71,7 @@ mod tests {
             let verification_key = PublicKey::new(bytes.try_into().unwrap());
             let payment = helpers::payment_fixture();
             payments(storage)
-                .save(&verification_key.as_bytes(), &payment)
+                .save(&verification_key.to_bytes(), &payment)
                 .unwrap();
         }
 
@@ -91,7 +91,7 @@ mod tests {
             let verification_key = PublicKey::new(bytes.try_into().unwrap());
             let payment = helpers::payment_fixture();
             payments(storage)
-                .save(&verification_key.as_bytes(), &payment)
+                .save(&verification_key.to_bytes(), &payment)
                 .unwrap();
         }
 
@@ -113,7 +113,7 @@ mod tests {
             let verification_key = PublicKey::new(bytes.try_into().unwrap());
             let payment = helpers::payment_fixture();
             payments(storage)
-                .save(&verification_key.as_bytes(), &payment)
+                .save(&verification_key.to_bytes(), &payment)
                 .unwrap();
         }
 
@@ -135,7 +135,7 @@ mod tests {
         let mut deps = helpers::init_contract();
         let payment = helpers::payment_fixture();
         payments(&mut deps.storage)
-            .save(&key1.as_bytes(), &payment)
+            .save(&key1.to_bytes(), &payment)
             .unwrap();
 
         let per_page = 2;
@@ -146,7 +146,7 @@ mod tests {
 
         // save another
         payments(&mut deps.storage)
-            .save(&key2.as_bytes(), &payment)
+            .save(&key2.to_bytes(), &payment)
             .unwrap();
 
         // page1 should have 2 results on it
@@ -154,7 +154,7 @@ mod tests {
         assert_eq!(2, page1.payments.len());
 
         payments(&mut deps.storage)
-            .save(&key3.as_bytes(), &payment)
+            .save(&key3.to_bytes(), &payment)
             .unwrap();
 
         // page1 still has 2 results
@@ -174,7 +174,7 @@ mod tests {
 
         // save another one
         payments(&mut deps.storage)
-            .save(&key4.as_bytes(), &payment)
+            .save(&key4.to_bytes(), &payment)
             .unwrap();
 
         let start_after = key2;

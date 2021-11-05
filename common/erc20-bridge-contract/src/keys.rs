@@ -12,7 +12,7 @@ impl PublicKey {
     pub fn new(bytes: [u8; 32]) -> Self {
         PublicKey(bytes)
     }
-    pub fn as_bytes(&self) -> [u8; 32] {
+    pub fn to_bytes(&self) -> [u8; 32] {
         self.0
     }
 }
@@ -36,7 +36,7 @@ impl Signature {
 
         Signature(sig1, sig2)
     }
-    pub fn as_bytes(&self) -> [u8; 64] {
+    pub fn to_bytes(&self) -> [u8; 64] {
         let mut res = [0u8; 64];
         res[..32].copy_from_slice(&self.0);
         res[32..].copy_from_slice(&self.1);

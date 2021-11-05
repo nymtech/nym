@@ -92,7 +92,7 @@ export const WorldMap: React.FC<MapProps> = ({
                     geography={geo}
                     // @ts-ignore
                     fill={d ? colorScale(d.nodes) : '#FFFFFF'}
-                    stroke="black"
+                    stroke={palette.nym.networkExplorer.map.stroke}
                     strokeWidth={0.2}
                     onMouseEnter={() => {
                       const { NAME_LONG } = geo.properties;

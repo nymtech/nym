@@ -222,8 +222,8 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       MuiCardHeader: {
         styleOverrides: {
           title: {
-            fontSize: '16px',
-            fontWeight: 'bold',
+            fontSize: 18,
+            fontWeight: 800,
           },
         },
       },

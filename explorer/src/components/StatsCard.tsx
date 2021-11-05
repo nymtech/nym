@@ -29,13 +29,15 @@ export const StatsCard: React.FC<StatsCardProps> = ({
       <Box
         display="flex"
         alignItems="center"
-        sx={{ color: (theme) => theme.palette.text.primary }}
+        sx={{ color: (theme) => theme.palette.text.primary, fontSize: 18 }}
       >
         {icon}
-        <Typography ml={3} mr={0.75}>
+        <Typography ml={3} mr={0.75} fontSize="inherit">
           {count}
         </Typography>
-        <Typography mr={1}>{title}</Typography>
+        <Typography mr={1} fontSize="inherit">
+          {title}
+        </Typography>
         <IconButton color="inherit">
           <ArrowRightAltIcon />
         </IconButton>

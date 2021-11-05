@@ -2,12 +2,12 @@ import * as React from 'react';
 import { Box, Button, Grid, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useHistory } from 'react-router-dom';
-import { MainContext } from 'src/context/main';
+import { useMainContext } from 'src/context/main';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
 
 export const Page404: React.FC = () => {
   const history = useHistory();
-  const { mode }: any = React.useContext(MainContext);
+  const { mode } = useMainContext();
   const theme = useTheme();
   return (
     <Box component="main" sx={{ flexGrow: 1 }}>

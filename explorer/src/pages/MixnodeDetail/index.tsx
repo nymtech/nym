@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { Box, Grid, Typography } from '@mui/material';
-import { MainContext } from 'src/context/main';
+import { useMainContext } from 'src/context/main';
 import { useParams } from 'react-router-dom';
 import { ContentCard } from 'src/components/ContentCard';
 import { WorldMap } from 'src/components/WorldMap';
@@ -124,7 +124,7 @@ export const PageMixnodeDetail: React.FC = () => {
     stats,
     status,
     uptimeStory,
-  } = React.useContext(MainContext);
+  } = useMainContext();
   const { id }: any = useParams();
 
   React.useEffect(() => {

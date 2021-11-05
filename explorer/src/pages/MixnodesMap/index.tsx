@@ -8,7 +8,7 @@ import {
   Typography,
 } from '@mui/material';
 import { WorldMap } from 'src/components/WorldMap';
-import { MainContext } from 'src/context/main';
+import { useMainContext } from 'src/context/main';
 import {
   cellStyles,
   UniversalDataGrid,
@@ -21,7 +21,7 @@ import { Title } from 'src/components/Title';
 import { ContentCard } from '../../components/ContentCard';
 
 export const PageMixnodesMap: React.FC = () => {
-  const { countryData } = React.useContext(MainContext);
+  const { countryData } = useMainContext();
   const [pageSize, setPageSize] = React.useState<string>('10');
   const [formattedCountries, setFormattedCountries] = React.useState<
     CountryDataRowType[]

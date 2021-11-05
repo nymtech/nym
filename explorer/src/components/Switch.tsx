@@ -2,7 +2,7 @@ import * as React from 'react';
 import { styled } from '@mui/material/styles';
 import Switch from '@mui/material/Switch';
 import { Button } from '@mui/material';
-import { MainContext } from 'src/context/main';
+import { useMainContext } from 'src/context/main';
 import { LightSwitchSVG } from '../icons/LightSwitchSVG';
 
 export const DarkLightSwitch = styled(Switch)(({ theme }) => ({
@@ -52,7 +52,7 @@ export const DarkLightSwitch = styled(Switch)(({ theme }) => ({
 }));
 
 export const DarkLightSwitchMobile: React.FC = () => {
-  const { toggleMode } = React.useContext(MainContext);
+  const { toggleMode } = useMainContext();
   return (
     <Button onClick={() => toggleMode()}>
       <LightSwitchSVG />
@@ -63,7 +63,7 @@ export const DarkLightSwitchMobile: React.FC = () => {
 export const DarkLightSwitchDesktop: React.FC<{ defaultChecked: boolean }> = ({
   defaultChecked,
 }) => {
-  const { toggleMode } = React.useContext(MainContext);
+  const { toggleMode } = useMainContext();
   return (
     <Button onClick={() => toggleMode()}>
       <DarkLightSwitch defaultChecked={defaultChecked} />

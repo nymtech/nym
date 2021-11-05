@@ -9,11 +9,11 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
-import { MainContext } from 'src/context/main';
+import { useMainContext } from 'src/context/main';
 import { ExpandMore } from '@mui/icons-material';
 
 export const BondBreakdownTable: React.FC = () => {
-  const { mixnodeDetailInfo, delegations } = React.useContext(MainContext);
+  const { mixnodeDetailInfo, delegations } = useMainContext();
   const [allContentLoaded, setAllContentLoaded] =
     React.useState<boolean>(false);
   const [showError, setShowError] = React.useState<boolean>(false);

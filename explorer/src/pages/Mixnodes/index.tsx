@@ -8,7 +8,7 @@ import {
   cellStyles,
   UniversalDataGrid,
 } from 'src/components/Universal-DataGrid';
-import { MainContext } from 'src/context/main';
+import { useMainContext } from 'src/context/main';
 import { mixnodeToGridRow } from 'src/utils';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { MixNodeResponse } from 'src/typeDefs/explorer-api';
@@ -18,7 +18,7 @@ import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 import { Title } from 'src/components/Title';
 
 export const PageMixnodes: React.FC = () => {
-  const { mixnodes } = React.useContext(MainContext);
+  const { mixnodes } = useMainContext();
   const [filteredMixnodes, setFilteredMixnodes] =
     React.useState<MixNodeResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('10');

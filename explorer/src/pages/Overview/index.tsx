@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Box, Grid, Link } from '@mui/material';
 import { WorldMap } from 'src/components/WorldMap';
 import { useHistory } from 'react-router-dom';
-import { MainContext } from 'src/context/main';
+import { useMainContext } from 'src/context/main';
 import { formatNumber } from 'src/utils';
 import { BIG_DIPPER } from 'src/api/constants';
 import { ValidatorsSVG } from 'src/icons/ValidatorsSVG';
@@ -14,8 +14,8 @@ import { StatsCard } from '../../components/StatsCard';
 
 export const PageOverview: React.FC = () => {
   const history = useHistory();
-  const { mixnodes, gateways, validators, block, countryData }: any =
-    React.useContext(MainContext);
+  const { mixnodes, gateways, validators, block, countryData } =
+    useMainContext();
   return (
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>
@@ -59,7 +59,7 @@ export const PageOverview: React.FC = () => {
                   />
                 </Grid>
               )}
-              {block && (
+              {block?.data && (
                 <Grid item xs={12}>
                   <ContentCard
                     title={
@@ -70,7 +70,7 @@ export const PageOverview: React.FC = () => {
                         underline="none"
                         color="inherit"
                       >
-                        Current block height is {formatNumber(block?.data)}
+                        Current block height is {formatNumber(block.data)}
                       </Link>
                     }
                   />

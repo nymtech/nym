@@ -6,7 +6,7 @@ interface StatsCardProps {
   icon: React.ReactNode;
   title: string;
   count: string | number;
-  errorMsg?: string;
+  errorMsg?: Error | string;
   onClick?: () => void;
 }
 export const StatsCard: React.FC<StatsCardProps> = ({

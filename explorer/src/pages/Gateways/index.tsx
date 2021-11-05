@@ -7,7 +7,7 @@ import {
   cellStyles,
   UniversalDataGrid,
 } from 'src/components/Universal-DataGrid';
-import { MainContext } from 'src/context/main';
+import { useMainContext } from 'src/context/main';
 import { gatewayToGridRow } from 'src/utils';
 import { GatewayResponse } from 'src/typeDefs/explorer-api';
 import { TableToolbar } from 'src/components/TableToolbar';
@@ -16,7 +16,7 @@ import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 import { Title } from 'src/components/Title';
 
 export const PageGateways: React.FC = () => {
-  const { gateways } = React.useContext(MainContext);
+  const { gateways } = useMainContext();
   const [filteredGateways, setFilteredGateways] =
     React.useState<GatewayResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('50');

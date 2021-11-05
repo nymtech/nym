@@ -16,6 +16,7 @@ pub struct State {
     // i.e. at which block has the latest rewarding occurred
     // and whether another run is already in progress
     pub rewarding_interval_starting_block: u64,
+    pub latest_rewarding_interval_nonce: u32,
     pub rewarding_in_progress: bool,
 
     // helper values to avoid having to recalculate them on every single payment operation

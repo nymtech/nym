@@ -80,4 +80,16 @@ pub enum ContractError {
         identity: IdentityKey,
         address: Addr,
     },
+
+    #[error("Received invalid rewarding interval nonce. Expected {expected}, received {received}")]
+    InvalidRewardingIntervalNonce { received: u32, expected: u32 },
+
+    #[error("Rewarding distribution is currently in progress")]
+    RewardingInProgress,
+
+    #[error("Rewarding distribution is currently not in progress")]
+    RewardingNotInProgress,
+
+    #[error("Mixnode {identity} has already been rewarded during the current rewarding interval")]
+    MixnodeAlreadyRewarded { identity: IdentityKey },
 }

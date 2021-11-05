@@ -44,6 +44,7 @@ fn default_initial_state(owner: Addr, env: Env) -> State {
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
         },
         rewarding_interval_starting_block: env.block.height,
+        latest_rewarding_interval_nonce: 0,
         rewarding_in_progress: false,
         mixnode_epoch_bond_reward: calculate_epoch_reward_rate(
             INITIAL_DEFAULT_EPOCH_LENGTH,
@@ -95,15 +96,30 @@ pub fn execute(
         ExecuteMsg::UpdateStateParams(params) => {
             transactions::try_update_state_params(deps, info, params)
         }
-        ExecuteMsg::RewardMixnode { identity, uptime } => {
-            transactions::try_reward_mixnode(deps, env, info, identity, uptime)
-        }
+        ExecuteMsg::RewardMixnode {
+            identity,
+            uptime,
+            rewarding_interval_nonce,
+        } => transactions::try_reward_mixnode(
+            deps,
+            env,
+            info,
+            identity,
+            uptime,
+            rewarding_interval_nonce,
+        ),
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
             transactions::try_remove_delegation_from_mixnode(deps, info, mix_identity)
         }
+        ExecuteMsg::BeginMixnodeRewarding {
+            rewarding_interval_nonce,
+        } => transactions::try_begin_mixnode_rewarding(deps, env, info, rewarding_interval_nonce),
+        ExecuteMsg::FinishMixnodeRewarding {
+            rewarding_interval_nonce,
+        } => transactions::try_finish_mixnode_rewarding(deps, info, rewarding_interval_nonce),
     }
 }
 

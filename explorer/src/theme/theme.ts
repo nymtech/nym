@@ -114,6 +114,10 @@ const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
   text: {
     primary: variant.text.main,
   },
+  primary: {
+    main: nymPalette.highlight,
+    contrastText: '#fff',
+  },
   background: {
     default: variant.background.main,
     paper: variant.background.paper,

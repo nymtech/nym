@@ -57,25 +57,6 @@ fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
     Ok(())
 }
 
-// We don't want to end up in a permanently locked contract state because rewarding validator
-// might have crashed (or maliciously decided to do it) and did not finish up rewarding thus
-// blocking any mixnode delegation changes.
-fn check_and_unlock_rewarding_state(
-    deps: DepsMut,
-    mut state: State,
-    current_height: u64,
-) -> Result<(), ContractError> {
-    if state.rewarding_in_progress
-        && state.rewarding_interval_starting_block + MAX_REWARDING_DURATION_IN_BLOCKS
-            > current_height
-    {
-        state.rewarding_in_progress = false;
-        config(deps.storage).save(&state)?;
-    }
-
-    Ok(())
-}
-
 pub(crate) fn try_add_mixnode(
     deps: DepsMut,
     env: Env,

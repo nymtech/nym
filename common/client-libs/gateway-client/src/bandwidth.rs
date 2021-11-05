@@ -22,6 +22,8 @@ use rand::rngs::OsRng;
 #[cfg(not(feature = "coconut"))]
 use secp256k1::SecretKey;
 #[cfg(not(feature = "coconut"))]
+use std::io::Write;
+#[cfg(not(feature = "coconut"))]
 use std::str::FromStr;
 #[cfg(not(feature = "coconut"))]
 use web3::{
@@ -54,6 +56,8 @@ pub struct BandwidthController {
     contract: Contract<Http>,
     #[cfg(not(feature = "coconut"))]
     eth_private_key: SecretKey,
+    #[cfg(not(feature = "coconut"))]
+    backup_bandwidth_token_keys_dir: std::path::PathBuf,
 }
 
 impl BandwidthController {
@@ -66,7 +70,11 @@ impl BandwidthController {
     }
 
     #[cfg(not(feature = "coconut"))]
-    pub fn new(eth_endpoint: String, eth_private_key: String) -> Result<Self, GatewayClientError> {
+    pub fn new(
+        eth_endpoint: String,
+        eth_private_key: String,
+        backup_bandwidth_token_keys_dir: std::path::PathBuf,
+    ) -> Result<Self, GatewayClientError> {
         // Fail early, on invalid url
         let transport =
             Http::new(&eth_endpoint).map_err(|_| GatewayClientError::InvalidURL(eth_endpoint))?;
@@ -79,7 +87,20 @@ impl BandwidthController {
         Ok(BandwidthController {
             contract,
             eth_private_key,
+            backup_bandwidth_token_keys_dir,
         })
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    fn backup_keypair(&self, keypair: &identity::KeyPair) -> Result<(), GatewayClientError> {
+        std::fs::create_dir_all(&self.backup_bandwidth_token_keys_dir)?;
+        let file_path = self
+            .backup_bandwidth_token_keys_dir
+            .join(keypair.public_key().to_base58_string());
+        let mut file = std::fs::File::create(file_path)?;
+        file.write_all(&keypair.private_key().to_bytes())?;
+
+        Ok(())
     }
 
     #[cfg(feature = "coconut")]
@@ -108,6 +129,7 @@ impl BandwidthController {
         let mut rng = OsRng;
 
         let kp = identity::KeyPair::new(&mut rng);
+        self.backup_keypair(&kp)?;
 
         let verification_key = *kp.public_key();
         let signed_verification_key = kp.private_key().sign(&verification_key.to_bytes());

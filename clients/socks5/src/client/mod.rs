@@ -180,6 +180,7 @@ impl NymClient {
             let bandwidth_controller = BandwidthController::new(
                 self.config.get_base().get_eth_endpoint(),
                 self.config.get_base().get_eth_private_key(),
+                self.config.get_base().get_backup_bandwidth_token_keys_dir(),
             )
             .expect("Could not create bandwidth controller");
 

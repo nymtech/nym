@@ -151,6 +151,12 @@ pub struct NetworkMonitor {
     #[serde(with = "humantime_serde")]
     packet_delivery_timeout: Duration,
 
+    /// Path to directory containing public/private keys used for bandwidth token purchase.
+    /// Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
+    /// The public key is the name of the file, while the private key is the content.
+    #[cfg(not(feature = "coconut"))]
+    backup_bandwidth_token_keys_dir: PathBuf,
+
     /// Ethereum private key.
     #[cfg(not(feature = "coconut"))]
     eth_private_key: String,
@@ -167,6 +173,11 @@ impl NetworkMonitor {
 
     fn default_good_v6_topology_file() -> PathBuf {
         Config::default_data_directory(None).join("v6-topology.json")
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    fn default_backup_bandwidth_token_keys_dir() -> PathBuf {
+        Config::default_data_directory(None).join("backup_bandwidth_token_keys_dir")
     }
 }
 
@@ -185,6 +196,8 @@ impl Default for NetworkMonitor {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             gateway_connection_timeout: DEFAULT_GATEWAY_CONNECTION_TIMEOUT,
             packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
+            #[cfg(not(feature = "coconut"))]
+            backup_bandwidth_token_keys_dir: Self::default_backup_bandwidth_token_keys_dir(),
             #[cfg(not(feature = "coconut"))]
             eth_private_key: "".to_string(),
             #[cfg(not(feature = "coconut"))]
@@ -354,6 +367,11 @@ impl Config {
 
     pub fn get_network_monitor_enabled(&self) -> bool {
         self.network_monitor.enabled
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_backup_bandwidth_token_keys_dir(&self) -> PathBuf {
+        self.network_monitor.backup_bandwidth_token_keys_dir.clone()
     }
 
     #[cfg(not(feature = "coconut"))]

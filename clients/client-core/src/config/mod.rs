@@ -100,6 +100,17 @@ impl<T: NymConfig> Config<T> {
                 self::Client::<T>::default_reply_encryption_key_store_path(&id);
         }
 
+        #[cfg(not(feature = "coconut"))]
+        if self
+            .client
+            .backup_bandwidth_token_keys_dir
+            .as_os_str()
+            .is_empty()
+        {
+            self.client.backup_bandwidth_token_keys_dir =
+                self::Client::<T>::default_backup_bandwidth_token_keys_dir(&id);
+        }
+
         self.client.id = id;
     }
 
@@ -181,6 +192,11 @@ impl<T: NymConfig> Config<T> {
 
     pub fn get_gateway_listener(&self) -> String {
         self.client.gateway_listener.clone()
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_backup_bandwidth_token_keys_dir(&self) -> PathBuf {
+        self.client.backup_bandwidth_token_keys_dir.clone()
     }
 
     #[cfg(not(feature = "coconut"))]
@@ -288,6 +304,12 @@ pub struct Client<T> {
     /// Address of the gateway listener to which all client requests should be sent.
     gateway_listener: String,
 
+    /// Path to directory containing public/private keys used for bandwidth token purchase.
+    /// Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
+    /// The public key is the name of the file, while the private key is the content.
+    #[cfg(not(feature = "coconut"))]
+    backup_bandwidth_token_keys_dir: PathBuf,
+
     /// Ethereum private key.
     #[cfg(not(feature = "coconut"))]
     eth_private_key: String,
@@ -320,6 +342,8 @@ impl<T: NymConfig> Default for Client<T> {
             reply_encryption_key_store_path: Default::default(),
             gateway_id: "".to_string(),
             gateway_listener: "".to_string(),
+            #[cfg(not(feature = "coconut"))]
+            backup_bandwidth_token_keys_dir: Default::default(),
             #[cfg(not(feature = "coconut"))]
             eth_private_key: "".to_string(),
             #[cfg(not(feature = "coconut"))]
@@ -357,6 +381,11 @@ impl<T: NymConfig> Client<T> {
 
     fn default_reply_encryption_key_store_path(id: &str) -> PathBuf {
         T::default_data_directory(Some(id)).join("reply_key_store")
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    fn default_backup_bandwidth_token_keys_dir(id: &str) -> PathBuf {
+        T::default_data_directory(Some(id)).join("backup_bandwidth_token_keys")
     }
 }
 

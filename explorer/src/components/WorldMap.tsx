@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import * as React from 'react';
-import { scaleLinear, ScaleLinear } from 'd3-scale';
+import { scaleLinear } from 'd3-scale';
 import {
   ComposableMap,
   Geographies,
@@ -25,33 +25,29 @@ export const WorldMap: React.FC<MapProps> = ({
   userLocation,
   loading,
 }) => {
-  const [colorScale, setColorScale] =
-    React.useState<() => ScaleLinear<string, string>>();
-  const [hasNoContent, setHasNoContent] = React.useState<boolean>(true);
-  const [tooltipContent, setTooltipContent] = React.useState<string | null>(
-    null,
-  );
   const { palette } = useTheme();
 
-  React.useEffect(() => {
-    if (userLocation || countryData) {
-      setHasNoContent(false);
-    }
+  const colorScale = React.useMemo(() => {
     if (countryData?.data) {
       const heighestNumberOfNodes = Math.max(
-        ...countryData.data.map((country) => country.nodes),
+        ...Object.values(countryData.data).map((country) => country.nodes),
       );
-      const cs = scaleLinear<string, string>()
+      return scaleLinear<string, string>()
         .domain([
           0,
           heighestNumberOfNodes / 4,
           heighestNumberOfNodes / 2,
           heighestNumberOfNodes,
         ])
-        .range(palette.nym.networkExplorer.map.fills);
-      setColorScale(() => cs);
+        .range(palette.nym.networkExplorer.map.fills)
+        .unknown(palette.nym.networkExplorer.map.fills[0]);
     }
-  }, [countryData, userLocation]);
+    return () => palette.nym.networkExplorer.map.fills[0];
+  }, [countryData, palette]);
+
+  const [tooltipContent, setTooltipContent] = React.useState<string | null>(
+    null,
+  );
 
   if (loading) {
     return <CircularProgress />;
@@ -63,57 +59,46 @@ export const WorldMap: React.FC<MapProps> = ({
         data-tip=""
         style={{
           backgroundColor: palette.nym.networkExplorer.background.tertiary,
-          WebkitFilter: hasNoContent ? 'blur(5px)' : null,
-          filter: hasNoContent ? 'blur(5px)' : null,
           width: '100%',
           height: 'auto',
         }}
-        viewBox={[0, 50, 800, 350]}
+        viewBox="0, 50, 800, 350"
         projection="geoMercator"
         projectionConfig={{
-          scale: 100,
+          scale: userLocation ? 200 : 100,
+          center: userLocation,
         }}
       >
         <ZoomableGroup>
           <Geographies geography={MAP_TOPOJSON}>
-            {({ geographies }: any) =>
-              (colorScale || userLocation) &&
-              geographies.map((geo: any) => {
-                const d =
-                  countryData &&
-                  countryData.data &&
-                  countryData.data.find(
-                    (s) => s.ISO3 === geo.properties.ISO_A3,
-                  );
+            {({ geographies }) =>
+              geographies.map((geo) => {
+                const d = (countryData?.data || {})[geo.properties.ISO_A3];
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
-                    // @ts-ignore
-                    fill={d ? colorScale(d.nodes) : '#FFFFFF'}
+                    fill={colorScale(d?.nodes || 0)}
                     stroke={palette.nym.networkExplorer.map.stroke}
                     strokeWidth={0.2}
                     onMouseEnter={() => {
                       const { NAME_LONG } = geo.properties;
                       if (!userLocation) {
-                        setTooltipContent(
-                          // @ts-ignore
-                          `${NAME_LONG} | ${d?.nodes || 0}`,
-                        );
+                        setTooltipContent(`${NAME_LONG} | ${d?.nodes || 0}`);
                       }
                     }}
                     onMouseLeave={() => {
                       setTooltipContent('');
                     }}
-                    style={
-                      !userLocation &&
-                      countryData && {
-                        hover: {
-                          fill: palette.nym.highlight,
-                          outline: 'white',
-                        },
-                      }
-                    }
+                    style={{
+                      hover:
+                        !userLocation && countryData
+                          ? {
+                              fill: palette.nym.highlight,
+                              outline: 'white',
+                            }
+                          : undefined,
+                    }}
                   />
                 );
               })

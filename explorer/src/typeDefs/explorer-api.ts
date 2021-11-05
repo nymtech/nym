@@ -132,7 +132,9 @@ export type Delegation = {
 
 export type DelegationsResponse = Delegation[];
 
-export type CountryDataResponse = CountryData[];
+export interface CountryDataResponse {
+  [threeLetterCountryCode: string]: CountryData;
+}
 
 export type BlockType = number;
 export type BlockResponse = BlockType;

@@ -75,13 +75,13 @@ export class Api {
   };
 
   static fetchCountryData = async (): Promise<CountryDataResponse> => {
-    const arr: CountryDataResponse = [];
+    const result: CountryDataResponse = {};
     const res = await fetch(COUNTRY_DATA_API);
     const json = await res.json();
     Object.keys(json).forEach((ISO3) => {
-      arr.push({ ISO3, nodes: json[ISO3] });
+      result[ISO3] = { ISO3, nodes: json[ISO3] };
     });
-    return arr;
+    return result;
   };
 
   static fetchDelegationsById = async (

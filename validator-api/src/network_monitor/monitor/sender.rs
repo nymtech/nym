@@ -70,8 +70,9 @@ struct FreshGatewayClientData {
 
     // TODO:
     // SECURITY:
-    // since currently we have no double spending protection, just to get things running
-    // we're re-using the same credential for all gateways all the time. THIS IS VERY BAD!!
+    // for coconut bandwidth credentials we currently have no double spending protection, just to
+    // get things running we're re-using the same credential for all gateways all the time.
+    // THIS IS VERY BAD!!
     bandwidth_controller: BandwidthController,
 }
 

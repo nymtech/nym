@@ -30,8 +30,7 @@ pub(crate) fn link_payment(
 
     if !deps
         .api
-        .ed25519_verify(&message, &signature, &verification_key)
-        .map_err(|_| ContractError::ParseSignatureError)?
+        .ed25519_verify(&message, &signature, &verification_key)?
     {
         return Err(ContractError::BadSignature);
     }

@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::StdError;
+use cosmwasm_std::{StdError, VerificationError};
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.
@@ -19,8 +19,8 @@ pub enum ContractError {
     #[error("This payment has already been claimed by someone")]
     PaymentAlreadyClaimed,
 
-    #[error("Error parsing signature")]
-    ParseSignatureError,
+    #[error("Error while verifying ed25519 signature - {0}")]
+    VerificationError(#[from] VerificationError),
 
     #[error("The payment is not properly signed")]
     BadSignature,

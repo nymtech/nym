@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ExpandLess, ExpandMore, Menu } from '@mui/icons-material';
-import { styled, CSSObject, Theme } from '@mui/material/styles';
+import { CSSObject, styled, Theme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import ListItem from '@mui/material/ListItem';
 import MuiDrawer from '@mui/material/Drawer';
@@ -20,7 +20,6 @@ import { useMediaQuery, useTheme } from '@mui/material';
 import { OverviewSVG } from '../icons/OverviewSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
-import { palette } from '../index';
 import { Socials } from './Socials';
 import { Footer } from './Footer';
 import { DarkLightSwitchDesktop, DarkLightSwitchMobile } from './Switch';
@@ -152,14 +151,12 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   const [dynamicStyle, setDynamicStyle] = React.useState({});
   const [nestedOptions, toggleNestedOptions] = React.useState(false);
   const [isExternal, setIsExternal] = React.useState<boolean>(false);
+  const { palette } = useTheme();
 
   const handleClick = () => {
     openDrawer();
     if (title === 'Network Components' && nested) {
       toggleNestedOptions(!nestedOptions);
-    }
-    if (drawIsOpen && title !== 'Network Components') {
-      closeDrawer();
     }
     setToActive(id);
   };
@@ -171,7 +168,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
     if (nested) {
       setDynamicStyle({
         background: '#242C3D',
-        borderRight: `3px solid ${palette.brandOrange}`,
+        borderRight: `3px solid ${palette.nym.highlight}`,
       });
     }
     if (isChild) {
@@ -183,7 +180,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
     if (!nested && !isChild) {
       setDynamicStyle({
         background: '#242C3D',
-        borderRight: `3px solid ${palette.brandOrange}`,
+        borderRight: `3px solid ${palette.nym.highlight}`,
       });
     }
   }, [url]);
@@ -220,7 +217,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
           <ListItemText
             primary={title}
             sx={{
-              color: (theme) => theme.palette.primary.main,
+              color: palette.nym.networkExplorer.nav.text,
             }}
             primaryTypographyProps={{
               style: {
@@ -228,8 +225,8 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
               },
             }}
           />
-          {nested && nestedOptions && <ExpandLess color="primary" />}
-          {nested && !nestedOptions && <ExpandMore color="primary" />}
+          {nested && nestedOptions && <ExpandLess />}
+          {nested && !nestedOptions && <ExpandMore />}
         </ListItemButton>
       </ListItem>
       {nestedOptions &&
@@ -265,20 +262,10 @@ export const Nav: React.FC = ({ children }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const setToActive = (id: number) => {
-    const newStuff = navOptionsState;
-
-    const updated = newStuff.map((option) => {
-      if (option.id === id) {
-        return {
-          ...option,
-          isActive: true,
-        };
-      }
-      return {
-        ...option,
-        isActive: false,
-      };
-    });
+    const updated = navOptionsState.map((option) => ({
+      ...option,
+      isActive: option.id === id,
+    }));
     updateNavOptionsState(updated);
   };
 
@@ -295,7 +282,7 @@ export const Nav: React.FC = ({ children }) => {
       <Box sx={{ display: 'flex' }}>
         <AppBar
           sx={{
-            background: theme.palette.primary.dark,
+            background: theme.palette.nym.networkExplorer.nav.background,
           }}
         >
           <Toolbar
@@ -320,7 +307,10 @@ export const Nav: React.FC = ({ children }) => {
               <Typography
                 variant="h6"
                 noWrap
-                sx={{ color: theme.palette.primary.main, fontSize: '18px' }}
+                sx={{
+                  color: theme.palette.nym.networkExplorer.nav.text,
+                  fontSize: '18px',
+                }}
               >
                 Network Explorer
               </Typography>
@@ -344,7 +334,7 @@ export const Nav: React.FC = ({ children }) => {
                     alignItems: 'center',
                   }}
                 >
-                  <Socials disableDarkMode />
+                  <Socials />
                   <DarkLightSwitchDesktop defaultChecked />
                 </Box>
               )}
@@ -352,30 +342,28 @@ export const Nav: React.FC = ({ children }) => {
             </Box>
           </Toolbar>
         </AppBar>
-
         <Drawer
           variant="permanent"
           open={open}
           sx={{
-            background: palette.blackBg,
+            background: theme.palette.nym.networkExplorer.nav.background,
           }}
         >
           <DrawerHeader
             sx={{
-              background: theme.palette.primary.dark,
               justifyContent: open ? 'flex-end' : 'center',
               paddingLeft: 0,
             }}
           >
             <IconButton
               onClick={open ? handleDrawerClose : handleDrawerOpen}
-              sx={{ padding: 0, ml: '3px' }}
+              sx={{
+                padding: 0,
+                ml: '3px',
+                color: theme.palette.nym.networkExplorer.nav.text,
+              }}
             >
-              {open ? (
-                <ChevronLeft color="primary" />
-              ) : (
-                <Menu color="primary" />
-              )}
+              {open ? <ChevronLeft /> : <Menu />}
             </IconButton>
           </DrawerHeader>
 

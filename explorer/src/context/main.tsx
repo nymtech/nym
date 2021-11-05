@@ -39,6 +39,7 @@ interface State {
   uptimeStory?: ApiState<UptimeStoryResponse>;
 }
 
+// TODO: remove the export and replace all uses with `useMainContext()` hook
 export const MainContext = React.createContext<State>({
   mode: 'dark',
   fetchMixnodeById: () => null,
@@ -54,6 +55,8 @@ export const MainContext = React.createContext<State>({
   mixnodeDetailInfo: { data: undefined, isLoading: false, error: undefined },
   delegations: { data: undefined, isLoading: false, error: undefined },
 });
+
+export const useMainContext = () => React.useContext<State>(MainContext);
 
 export const MainContextProvider: React.FC = ({ children }) => {
   // light/dark mode

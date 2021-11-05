@@ -119,15 +119,7 @@ export const BondBreakdownTable: React.FC = () => {
   if (!showError && allContentLoaded) {
     return (
       <>
-        <TableContainer
-          component={Paper}
-          sx={{
-            background:
-              mode === 'dark'
-                ? theme.palette.secondary.dark
-                : theme.palette.primary.light,
-          }}
-        >
+        <TableContainer component={Paper}>
           <Table sx={{ minWidth: 650 }} aria-label="bond breakdown totals">
             <TableBody>
               <TableRow sx={matches ? { minWidth: '70vw' } : null}>

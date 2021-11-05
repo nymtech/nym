@@ -5,15 +5,14 @@ import {
   ComposableMap,
   Geographies,
   Geography,
-  ZoomableGroup,
   Marker,
+  ZoomableGroup,
 } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
-import { CountryDataResponse, ApiState } from 'src/typeDefs/explorer-api';
+import { ApiState, CountryDataResponse } from 'src/typeDefs/explorer-api';
 import { CircularProgress } from '@mui/material';
-import { MainContext } from '../context/main';
+import { useTheme } from '@mui/material/styles';
 import MAP_TOPOJSON from '../assets/world-110m.json';
-import { palette } from '../index';
 
 type MapProps = {
   userLocation?: [number, number];
@@ -32,7 +31,7 @@ export const WorldMap: React.FC<MapProps> = ({
   const [tooltipContent, setTooltipContent] = React.useState<string | null>(
     null,
   );
-  const { mode } = React.useContext(MainContext);
+  const { palette } = useTheme();
 
   React.useEffect(() => {
     if (userLocation || countryData) {
@@ -43,8 +42,13 @@ export const WorldMap: React.FC<MapProps> = ({
         ...countryData.data.map((country) => country.nodes),
       );
       const cs = scaleLinear<string, string>()
-        .domain([0, heighestNumberOfNodes])
-        .range([palette.mapLow, palette.mapHigh]);
+        .domain([
+          0,
+          heighestNumberOfNodes / 4,
+          heighestNumberOfNodes / 2,
+          heighestNumberOfNodes,
+        ])
+        .range(palette.nym.networkExplorer.map.fills);
       setColorScale(() => cs);
     }
   }, [countryData, userLocation]);
@@ -58,8 +62,7 @@ export const WorldMap: React.FC<MapProps> = ({
       <ComposableMap
         data-tip=""
         style={{
-          backgroundColor:
-            mode === 'dark' ? palette.mapBgDark : palette.mapBgLight,
+          backgroundColor: palette.nym.networkExplorer.background.tertiary,
           WebkitFilter: hasNoContent ? 'blur(5px)' : null,
           filter: hasNoContent ? 'blur(5px)' : null,
           width: '100%',
@@ -67,8 +70,9 @@ export const WorldMap: React.FC<MapProps> = ({
         }}
         width={800}
         height={350}
+        projection="geoMercator"
         projectionConfig={{
-          scale: 120,
+          scale: 100,
         }}
       >
         <ZoomableGroup>
@@ -88,8 +92,8 @@ export const WorldMap: React.FC<MapProps> = ({
                     geography={geo}
                     // @ts-ignore
                     fill={d ? colorScale(d.nodes) : '#FFFFFF'}
-                    stroke="rgba(0, 0, 0, 0.3)"
-                    strokeWidth={1}
+                    stroke={palette.nym.networkExplorer.map.stroke}
+                    strokeWidth={0.2}
                     onMouseEnter={() => {
                       const { NAME_LONG } = geo.properties;
                       if (!userLocation) {
@@ -106,7 +110,7 @@ export const WorldMap: React.FC<MapProps> = ({
                       !userLocation &&
                       countryData && {
                         hover: {
-                          fill: 'black',
+                          fill: palette.nym.highlight,
                           outline: 'white',
                         },
                       }

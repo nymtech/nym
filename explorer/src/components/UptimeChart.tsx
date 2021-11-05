@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { CircularProgress, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Chart } from 'react-google-charts';
 import { ApiState, UptimeStoryResponse } from 'src/typeDefs/explorer-api';
 import { format } from 'date-fns';
-import { MainContext } from '../context/main';
 
 interface ChartProps {
   title?: string;
@@ -26,8 +26,8 @@ export const UptimeChart: React.FC<ChartProps> = ({
 }) => {
   const [formattedChartData, setFormattedChartData] =
     React.useState<FormattedChartData>();
-  const { mode }: any = React.useContext(MainContext);
-
+  const theme = useTheme();
+  const color = theme.palette.text.primary;
   React.useEffect(() => {
     if (uptimeStory.data?.history) {
       const allFormattedChartData: FormattedChartData = [
@@ -71,14 +71,16 @@ export const UptimeChart: React.FC<ChartProps> = ({
           }
           options={{
             backgroundColor:
-              mode === 'dark' ? 'rgb(50, 60, 81)' : 'rgb(241, 234, 234)',
+              theme.palette.mode === 'dark'
+                ? theme.palette.nym.networkExplorer.background.tertiary
+                : undefined,
             color: uptimeStory.error
               ? 'rgba(255, 255, 255, 0.4)'
               : 'rgba(255, 255, 255, 1)',
             colors: ['#FB7A21', '#CC808A'],
             legend: {
               textStyle: {
-                color: 'white',
+                color,
                 opacity: uptimeStory.error ? 0.4 : 1,
               },
             },
@@ -88,10 +90,10 @@ export const UptimeChart: React.FC<ChartProps> = ({
               // horizontal / date
               title: xLabel,
               titleTextStyle: {
-                color: mode === 'dark' ? 'white' : 'black',
+                color,
               },
               textStyle: {
-                color: mode === 'dark' ? 'white' : 'black',
+                color,
                 // fontSize: 11
               },
               gridlines: {
@@ -106,11 +108,11 @@ export const UptimeChart: React.FC<ChartProps> = ({
               },
               title: yLabel,
               titleTextStyle: {
-                color: mode === 'dark' ? 'white' : 'black',
+                color,
                 opacity: uptimeStory.error ? 0.4 : 1,
               },
               textStyle: {
-                color: mode === 'dark' ? 'white' : 'black',
+                color,
                 fontSize: 11,
                 opacity: uptimeStory.error ? 0.4 : 1,
               },

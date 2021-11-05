@@ -7,8 +7,8 @@ use crate::storage::payments_read;
 use erc20_bridge_contract::keys::PublicKey;
 use erc20_bridge_contract::payment::{PagedPaymentResponse, Payment};
 
-const BOND_PAGE_MAX_LIMIT: u32 = 100;
-const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
+const PAYMENT_PAGE_MAX_LIMIT: u32 = 100;
+const PAYMENT_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm
 /// to get the succeeding key as the start of the next page.
@@ -29,8 +29,8 @@ pub fn query_payments_paged(
     limit: Option<u32>,
 ) -> StdResult<PagedPaymentResponse> {
     let limit = limit
-        .unwrap_or(BOND_PAGE_DEFAULT_LIMIT)
-        .min(BOND_PAGE_MAX_LIMIT) as usize;
+        .unwrap_or(PAYMENT_PAGE_DEFAULT_LIMIT)
+        .min(PAYMENT_PAGE_MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
     let payments = payments_read(deps.storage)
@@ -98,7 +98,7 @@ mod tests {
         // query without explicitly setting a limit
         let page1 = query_payments_paged(deps.as_ref(), None, None).unwrap();
 
-        assert_eq!(BOND_PAGE_DEFAULT_LIMIT, page1.payments.len() as u32);
+        assert_eq!(PAYMENT_PAGE_DEFAULT_LIMIT, page1.payments.len() as u32);
     }
 
     #[test]
@@ -122,7 +122,7 @@ mod tests {
         let page1 = query_payments_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
 
         // we default to a decent sized upper bound instead
-        assert_eq!(BOND_PAGE_MAX_LIMIT, page1.payments.len() as u32);
+        assert_eq!(PAYMENT_PAGE_MAX_LIMIT, page1.payments.len() as u32);
     }
 
     #[test]

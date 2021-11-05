@@ -56,6 +56,7 @@ export const MainContext = React.createContext<State>({
   delegations: { data: undefined, isLoading: false, error: undefined },
 });
 
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export const useMainContext = () => React.useContext<State>(MainContext);
 
 export const MainContextProvider: React.FC = ({ children }) => {

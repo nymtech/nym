@@ -27,7 +27,6 @@ type DataGridProps = {
 export const cellStyles: SxProps = {
   width: '100%',
   padding: 0,
-  maxWidth: 170,
   maxHeight: 100,
   color: 'inherit',
   textDecoration: 'none',

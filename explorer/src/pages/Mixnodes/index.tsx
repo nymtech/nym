@@ -52,7 +52,7 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'owner',
       renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
-      width: 200,
+      flex: 3,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -68,7 +68,7 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'identity_key',
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
-      width: 200,
+      flex: 3,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (

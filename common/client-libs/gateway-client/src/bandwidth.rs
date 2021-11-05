@@ -15,7 +15,7 @@ use crypto::asymmetric::identity::PublicKey;
 #[cfg(not(feature = "coconut"))]
 use network_defaults::{
     eth_contract::ETH_JSON_ABI, BANDWIDTH_VALUE, ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS,
-    TOKENS_TO_BURN,
+    ETH_MIN_BLOCK_DEPTH, TOKENS_TO_BURN,
 };
 #[cfg(not(feature = "coconut"))]
 use rand::rngs::OsRng;
@@ -137,7 +137,11 @@ impl BandwidthController {
         signed_verification_key: identity::Signature,
     ) -> Result<(), GatewayClientError> {
         // 0 means a transaction failure, 1 means success
-        let confirmations = if cfg!(debug_assertions) { 1 } else { 7 };
+        let confirmations = if cfg!(debug_assertions) {
+            1
+        } else {
+            ETH_MIN_BLOCK_DEPTH
+        };
         // 15 seconds per confirmation block + 10 seconds of network overhead
         log::info!(
             "Waiting for Ethereum transaction. This should take about {} seconds",

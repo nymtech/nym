@@ -20,7 +20,7 @@ use crypto::asymmetric::identity::{PublicKey, Signature};
 use erc20_bridge_contract::msg::ExecuteMsg;
 use erc20_bridge_contract::payment::LinkPaymentData;
 use gateway_client::bandwidth::eth_contract;
-use network_defaults::{COSMOS_CONTRACT_ADDRESS, DENOM, ETH_EVENT_NAME};
+use network_defaults::{COSMOS_CONTRACT_ADDRESS, DENOM, ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
 use validator_client::nymd::{AccountId, Denom, Fee, Gas, NymdClient, SigningNymdClient};
 
 pub(crate) struct ERC20Bridge {
@@ -60,6 +60,12 @@ impl ERC20Bridge {
         // It's safe to unwrap here, as we are guarded by a unit test that checks the event
         // name constant against the contract abi
         let event = self.contract.abi().event(ETH_EVENT_NAME).unwrap();
+        let latest_block = self.web3.eth().block_number().await?;
+        let check_until = if cfg!(debug_assertions) {
+            latest_block
+        } else {
+            latest_block - ETH_MIN_BLOCK_DEPTH
+        };
         let filter = FilterBuilder::default()
             .address(vec![self.contract.address()])
             .topics(
@@ -69,7 +75,7 @@ impl ERC20Bridge {
                 None,
             )
             .from_block(BlockNumber::Earliest)
-            .to_block(BlockNumber::Latest)
+            .to_block(BlockNumber::Number(check_until))
             .build();
         // Get only the first event that checks out. If the client burns more tokens with the
         // same verification key, those token would be lost

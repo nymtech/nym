@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ExpandLess, ExpandMore, Menu } from '@mui/icons-material';
 import { CSSObject, styled, Theme, useTheme } from '@mui/material/styles';
+import MuiLink from '@mui/material/Link';
 import Box from '@mui/material/Box';
 import ListItem from '@mui/material/ListItem';
 import MuiDrawer from '@mui/material/Drawer';
@@ -311,7 +312,14 @@ export const Nav: React.FC = ({ children }) => {
                   fontSize: '18px',
                 }}
               >
-                Network Explorer
+                <MuiLink
+                  component={Link}
+                  to="/overview"
+                  underline="none"
+                  color="inherit"
+                >
+                  Network Explorer
+                </MuiLink>
               </Typography>
             </Box>
             <Box

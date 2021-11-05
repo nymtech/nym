@@ -80,7 +80,7 @@ pub(crate) struct FreshHandler<R, S> {
     pub(crate) aggregated_verification_key: VerificationKey,
 
     #[cfg(not(feature = "coconut"))]
-    pub(crate) erc20_bridge: ERC20Bridge,
+    pub(crate) erc20_bridge: Arc<ERC20Bridge>,
 }
 
 impl<R, S> FreshHandler<R, S>
@@ -97,7 +97,7 @@ where
         storage: PersistentStorage,
         active_clients_store: ActiveClientsStore,
         #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
-        #[cfg(not(feature = "coconut"))] erc20_bridge: ERC20Bridge,
+        #[cfg(not(feature = "coconut"))] erc20_bridge: Arc<ERC20Bridge>,
     ) -> Self {
         FreshHandler {
             rng,

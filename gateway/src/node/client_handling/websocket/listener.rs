@@ -27,7 +27,7 @@ pub(crate) struct Listener {
     aggregated_verification_key: VerificationKey,
 
     #[cfg(not(feature = "coconut"))]
-    erc20_bridge: ERC20Bridge,
+    erc20_bridge: Arc<ERC20Bridge>,
 }
 
 impl Listener {
@@ -43,7 +43,7 @@ impl Listener {
             #[cfg(feature = "coconut")]
             aggregated_verification_key,
             #[cfg(not(feature = "coconut"))]
-            erc20_bridge,
+            erc20_bridge: Arc::new(erc20_bridge),
         }
     }
 
@@ -80,7 +80,7 @@ impl Listener {
                         #[cfg(feature = "coconut")]
                         self.aggregated_verification_key.clone(),
                         #[cfg(not(feature = "coconut"))]
-                        self.erc20_bridge.clone(),
+                        Arc::clone(&self.erc20_bridge),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }

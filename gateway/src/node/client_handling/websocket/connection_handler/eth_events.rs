@@ -26,7 +26,6 @@ use validator_client::nymd::{
     AccountId, Denom, Fee, Gas, SigningCosmWasmClient, SigningNymdClient,
 };
 
-#[derive(Clone)]
 pub(crate) struct ERC20Bridge {
     // This is needed because web3's Contract doesn't sufficiently expose it's eth interface
     web3: Web3<Http>,

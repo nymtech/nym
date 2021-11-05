@@ -73,7 +73,7 @@ export const TwoColSmallTable: React.FC<TableProps> = ({
 
 TwoColSmallTable.defaultProps = {
   title: undefined,
-  icons: [],
+  icons: undefined,
   marginBottom: false,
   error: undefined,
 };

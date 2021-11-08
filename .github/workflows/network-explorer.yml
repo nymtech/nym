@@ -44,6 +44,7 @@ jobs:
       env:
         NYM_PROJECT_NAME: "Network Explorer"
         NYM_CI_WWW_BASE: "${{ secrets.NYM_CI_WWW_BASE }}"
+        NYM_CI_WWW_LOCATION: "network-explorer-${{ env.GITHUB_REF_SLUG }}"
         GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
         GIT_BRANCH: "${GITHUB_REF##*/}"
         KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"

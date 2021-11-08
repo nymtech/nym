@@ -385,11 +385,11 @@ impl PacketSender {
         let timeout = estimated_time * 3;
 
         let mut guard = client.lock_client().await;
-        let mut unwrapped_client = guard.get_mut_unchecked();
+        let unwrapped_client = guard.get_mut_unchecked();
 
         #[cfg(feature = "coconut")]
         if let Err(err) =
-            Self::check_remaining_bandwidth(&mut unwrapped_client, &fresh_gateway_client_data).await
+            Self::check_remaining_bandwidth(unwrapped_client, &fresh_gateway_client_data).await
         {
             warn!(
                 "Failed to claim additional bandwidth for {} - {}",
@@ -405,7 +405,7 @@ impl PacketSender {
 
         match tokio::time::timeout(
             timeout,
-            Self::attempt_to_send_packets(&mut unwrapped_client, packets.packets, max_sending_rate),
+            Self::attempt_to_send_packets(unwrapped_client, packets.packets, max_sending_rate),
         )
         .await
         {

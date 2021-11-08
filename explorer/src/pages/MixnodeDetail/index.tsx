@@ -1,5 +1,11 @@
 import * as React from 'react';
-import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
 import { Box, Grid, Typography } from '@mui/material';
 import { useMainContext } from 'src/context/main';
 import { useParams } from 'react-router-dom';
@@ -10,106 +16,11 @@ import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
 import { UptimeChart } from 'src/components/UptimeChart';
 import { mixnodeToGridRow, scrollToRef } from 'src/utils';
 import { ComponentError } from 'src/components/ComponentError';
-import {
-  cellStyles,
-  UniversalDataGrid,
-} from 'src/components/Universal-DataGrid';
+import { cellStyles } from 'src/components/Universal-DataGrid';
 import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
-import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
+
 import { printableCoin } from '@nymproject/nym-validator-client';
 import { Title } from 'src/components/Title';
-
-const columns: GridColDef[] = [
-  {
-    field: 'owner',
-    renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
-    width: 200,
-    headerAlign: 'left',
-    headerClassName: 'MuiDataGrid-header-override',
-    renderCell: (params: GridRenderCellParams) => (
-      <div>
-        <Typography sx={cellStyles}>{params.value}</Typography>
-      </div>
-    ),
-  },
-  {
-    field: 'identity_key',
-    renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
-    width: 200,
-    headerAlign: 'left',
-    headerClassName: 'MuiDataGrid-header-override',
-    renderCell: (params: GridRenderCellParams) => (
-      <div>
-        <Typography sx={cellStyles}>{params.value}</Typography>
-      </div>
-    ),
-  },
-  {
-    field: 'bond',
-    headerName: 'Bond',
-    type: 'number',
-    renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
-    flex: 1,
-    headerAlign: 'left',
-    headerClassName: 'MuiDataGrid-header-override',
-    renderCell: (params: GridRenderCellParams) => {
-      const bondAsPunk = printableCoin({
-        amount: params.value as string,
-        denom: 'upunk',
-      });
-      return <Typography sx={cellStyles}>{bondAsPunk}</Typography>;
-    },
-  },
-  {
-    field: 'self_percentage',
-    headerName: 'Self %',
-    headerAlign: 'left',
-    type: 'number',
-    width: 99,
-    headerClassName: 'MuiDataGrid-header-override',
-    renderHeader: () => <CustomColumnHeading headingTitle="Self %" />,
-    renderCell: (params: GridRenderCellParams) => (
-      <div>
-        <Typography sx={cellStyles}>{params.value}%</Typography>
-      </div>
-    ),
-  },
-  {
-    field: 'host',
-    renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
-    flex: 1,
-    headerAlign: 'left',
-    headerClassName: 'MuiDataGrid-header-override',
-    renderCell: (params: GridRenderCellParams) => (
-      <div>
-        <Typography sx={cellStyles}>{params.value}</Typography>
-      </div>
-    ),
-  },
-  {
-    field: 'location',
-    renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
-    flex: 1,
-    headerAlign: 'left',
-    headerClassName: 'MuiDataGrid-header-override',
-    renderCell: (params: GridRenderCellParams) => (
-      <div>
-        <Typography sx={cellStyles}>{params.value}</Typography>
-      </div>
-    ),
-  },
-  {
-    field: 'layer',
-    renderHeader: () => <CustomColumnHeading headingTitle="Layer" />,
-    flex: 1,
-    headerAlign: 'left',
-    headerClassName: 'MuiDataGrid-header-override',
-    type: 'number',
-    renderCell: (params: GridRenderCellParams) => (
-      <Typography sx={cellStyles}>{params.value}</Typography>
-    ),
-  },
-];
 
 export const PageMixnodeDetail: React.FC = () => {
   const ref = React.useRef();
@@ -159,18 +70,126 @@ export const PageMixnodeDetail: React.FC = () => {
 
         <Grid container>
           <Grid item xs={12}>
-            {mixnodeDetailInfo && (
-              <ContentCard>
-                <UniversalDataGrid
-                  columnsData={columns}
-                  rows={mixnodeToGridRow(row)}
-                  loading={mixnodeDetailInfo.isLoading}
-                  pageSize="1"
-                  pagination={false}
-                  hideFooter
-                />
-              </ContentCard>
-            )}
+            <TableContainer component={Paper}>
+              <Table sx={{ minWidth: 650 }} aria-label="mixnode detail table">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Owner</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>
+                      Identity Key
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>
+                      Bond&nbsp;
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>
+                      Self %&nbsp;
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>
+                      IP:Port&nbsp;
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>
+                      Location&nbsp;
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>
+                      Layer&nbsp;
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {mixnodeToGridRow(row).map((eachRow) => (
+                    <TableRow
+                      key={eachRow.owner}
+                      sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                    >
+                      <TableCell
+                        component="th"
+                        scope="row"
+                        sx={{
+                          ...cellStyles,
+                          padding: 2,
+                          minWidth: 230,
+                          maxWidth: 230,
+                          width: 230,
+                        }}
+                      >
+                        {eachRow.owner}
+                      </TableCell>
+                      <TableCell
+                        component="th"
+                        scope="row"
+                        sx={{
+                          ...cellStyles,
+                          padding: 2,
+                          minWidth: 220,
+                          maxWidth: 220,
+                          width: 220,
+                        }}
+                      >
+                        {eachRow.identity_key}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          ...cellStyles,
+                          padding: 2,
+                          minWidth: 140,
+                          maxWidth: 140,
+                          width: 140,
+                        }}
+                      >
+                        {printableCoin({
+                          amount: eachRow.bond.toString(),
+                          denom: 'upunk',
+                        })}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          ...cellStyles,
+                          padding: 2,
+                          minWidth: 90,
+                          maxWidth: 90,
+                          width: 90,
+                        }}
+                      >
+                        {eachRow.self_percentage}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          ...cellStyles,
+                          padding: 2,
+                          minWidth: 120,
+                          maxWidth: 120,
+                          width: 120,
+                        }}
+                      >
+                        {eachRow.host}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          ...cellStyles,
+                          padding: 2,
+                          minWidth: 150,
+                          maxWidth: 150,
+                          width: 150,
+                        }}
+                      >
+                        {eachRow.location}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          ...cellStyles,
+                          padding: 2,
+                          minWidth: 200,
+                          maxWidth: 200,
+                          width: 200,
+                        }}
+                      >
+                        {eachRow.layer}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Grid>
         </Grid>
 

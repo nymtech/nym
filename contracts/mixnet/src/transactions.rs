@@ -4,7 +4,6 @@
 use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime, Delegations};
 use crate::queries;
-use crate::state::State;
 use crate::storage::*;
 use config::defaults::DENOM;
 use cosmwasm_std::{

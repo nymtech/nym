@@ -9,18 +9,10 @@ mod types;
 
 pub use cosmwasm_std::{Addr, Coin};
 pub use delegation::{
-    Delegation, PagedAllDelegationsResponse, PagedGatewayDelegationsResponse,
-    PagedMixDelegationsResponse, PagedReverseGatewayDelegationsResponse,
+    Delegation, PagedAllDelegationsResponse, PagedMixDelegationsResponse,
     PagedReverseMixDelegationsResponse, RawDelegationData, UnpackedDelegation,
 };
 pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayResponse};
 pub use mixnode::{Layer, MixNode, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse};
 pub use msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 pub use types::{IdentityKey, IdentityKeyRef, LayerDistribution, SphinxKey, StateParams};
-
-use std::sync::atomic::{AtomicU64, Ordering};
-pub static CURRENT_BLOCK_HEIGHT: AtomicU64 = AtomicU64::new(0);
-
-pub fn current_block_height() -> u64 {
-    CURRENT_BLOCK_HEIGHT.load(Ordering::Relaxed)
-}

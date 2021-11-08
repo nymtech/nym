@@ -27,12 +27,7 @@ pub struct ExplorerApiState {
 
 impl ExplorerApiState {
     pub(crate) async fn get_mix_node(&self, pubkey: &str) -> Option<MixNodeBond> {
-        self.mix_nodes
-            .get()
-            .await
-            .value
-            .get(pubkey)
-            .map(|cache_item| cache_item.bond.clone())
+        self.mix_nodes.get().await.value.get(pubkey).cloned()
     }
 }
 
@@ -46,14 +41,12 @@ pub struct ExplorerApiStateOnDisk {
 #[derive(Clone)]
 pub(crate) struct ExplorerApiStateContext {
     pub(crate) inner: ExplorerApiState,
-    state_file: String,
 }
 
 impl ExplorerApiStateContext {
     pub(crate) fn new() -> Self {
         ExplorerApiStateContext {
             inner: ExplorerApiStateContext::read_from_file(),
-            state_file: std::env::var("API_STATE_FILE").unwrap_or_else(|_| STATE_FILE.to_string()),
         }
     }
 

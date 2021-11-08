@@ -13,7 +13,7 @@ use crate::network_monitor::monitor::receiver::{
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
-use crate::storage::NodeStatusStorage;
+use crate::storage::ValidatorApiStorage;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use std::sync::Arc;
@@ -34,7 +34,7 @@ pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
     system_version: String,
-    node_status_storage: NodeStatusStorage,
+    node_status_storage: ValidatorApiStorage,
     validator_cache: ValidatorCache,
 }
 
@@ -42,7 +42,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a Config,
         system_version: &str,
-        node_status_storage: NodeStatusStorage,
+        node_status_storage: ValidatorApiStorage,
         validator_cache: ValidatorCache,
     ) -> Self {
         NetworkMonitorBuilder {

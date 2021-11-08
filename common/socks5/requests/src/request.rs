@@ -63,6 +63,13 @@ impl TryFrom<u8> for RequestFlag {
     }
 }
 
+#[derive(Debug)]
+pub struct ConnectRequest {
+    pub conn_id: ConnectionId,
+    pub remote_addr: RemoteAddress,
+    pub return_address: Recipient,
+}
+
 /// A request from a SOCKS5 client that a Nym Socks5 service provider should
 /// take an action for an application using a (probably local) Nym Socks5 proxy.
 #[derive(Debug)]
@@ -70,11 +77,7 @@ pub enum Request {
     /// Start a new TCP connection to the specified `RemoteAddress` and send
     /// the request data up the connection.
     /// All responses produced on this `ConnectionId` should come back to the specified `Recipient`
-    Connect {
-        conn_id: ConnectionId,
-        remote_addr: RemoteAddress,
-        return_address: Recipient,
-    },
+    Connect(Box<ConnectRequest>),
 
     /// Re-use an existing TCP connection, sending more request data up it.
     Send(ConnectionId, Vec<u8>, bool),
@@ -87,11 +90,11 @@ impl Request {
         remote_addr: RemoteAddress,
         return_address: Recipient,
     ) -> Request {
-        Request::Connect {
+        Request::Connect(Box::new(ConnectRequest {
             conn_id,
             remote_addr,
             return_address,
-        }
+        }))
     }
 
     /// Construct a new Request::Send instance
@@ -156,11 +159,11 @@ impl Request {
                 let return_address = Recipient::try_from_bytes(return_bytes)
                     .map_err(RequestError::MalformedReturnAddress)?;
 
-                Ok(Request::Connect {
-                    conn_id: connection_id,
-                    remote_addr: remote_address,
+                Ok(Request::new_connect(
+                    connection_id,
+                    remote_address,
                     return_address,
-                })
+                ))
             }
             RequestFlag::Send => {
                 let local_closed = b[9] != 0;
@@ -177,19 +180,15 @@ impl Request {
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
             // connect is: CONN_FLAG || CONN_ID || REMOTE_LEN || REMOTE || RETURN
-            Request::Connect {
-                conn_id,
-                remote_addr,
-                return_address,
-            } => {
-                let remote_address_bytes = remote_addr.into_bytes();
+            Request::Connect(req) => {
+                let remote_address_bytes = req.remote_addr.into_bytes();
                 let remote_address_bytes_len = remote_address_bytes.len() as u16;
 
                 std::iter::once(RequestFlag::Connect as u8)
-                    .chain(conn_id.to_be_bytes().iter().cloned())
+                    .chain(req.conn_id.to_be_bytes().iter().cloned())
                     .chain(remote_address_bytes_len.to_be_bytes().iter().cloned())
                     .chain(remote_address_bytes.into_iter())
-                    .chain(return_address.to_bytes().iter().cloned())
+                    .chain(req.return_address.to_bytes().iter().cloned())
                     .collect()
             }
             Request::Send(conn_id, data, local_closed) => std::iter::once(RequestFlag::Send as u8)
@@ -373,15 +372,11 @@ mod request_deserialization_tests {
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Connect {
-                    conn_id,
-                    remote_addr,
-                    return_address,
-                } => {
-                    assert_eq!("foo.com".to_string(), remote_addr);
-                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
+                Request::Connect(req) => {
+                    assert_eq!("foo.com".to_string(), req.remote_addr);
+                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), req.conn_id);
                     assert_eq!(
-                        return_address.to_bytes().to_vec(),
+                        req.return_address.to_bytes().to_vec(),
                         recipient.to_bytes().to_vec()
                     );
                 }
@@ -424,15 +419,11 @@ mod request_deserialization_tests {
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Connect {
-                    conn_id,
-                    remote_addr,
-                    return_address,
-                } => {
-                    assert_eq!("foo.com".to_string(), remote_addr);
-                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
+                Request::Connect(req) => {
+                    assert_eq!("foo.com".to_string(), req.remote_addr);
+                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), req.conn_id);
                     assert_eq!(
-                        return_address.to_bytes().to_vec(),
+                        req.return_address.to_bytes().to_vec(),
                         recipient.to_bytes().to_vec()
                     );
                 }

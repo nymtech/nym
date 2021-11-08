@@ -34,27 +34,7 @@ pub(crate) struct PrettyMixNodeBondWithLocation {
 pub(crate) async fn list(
     state: &State<ExplorerApiStateContext>,
 ) -> Json<Vec<PrettyMixNodeBondWithLocation>> {
-    Json(
-        state
-            .inner
-            .mix_nodes
-            .get()
-            .await
-            .value
-            .values()
-            .map(|i| {
-                let mix_node = i.bond.clone();
-                PrettyMixNodeBondWithLocation {
-                    location: i.location.clone(),
-                    bond_amount: mix_node.bond_amount,
-                    total_delegation: mix_node.total_delegation,
-                    owner: mix_node.owner,
-                    layer: mix_node.layer,
-                    mix_node: mix_node.mix_node,
-                }
-            })
-            .collect::<Vec<PrettyMixNodeBondWithLocation>>(),
-    )
+    Json(state.inner.mix_nodes.get_mixnodes_with_location().await)
 }
 
 #[openapi(tag = "mix_node")]

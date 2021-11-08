@@ -16,7 +16,7 @@ pub struct Account {
   contract_address: String,
   client_address: String,
   denom: Denom,
-  mnemonmic: Option<String>,
+  mnemonic: Option<String>,
 }
 
 #[derive(TS, Serialize, Deserialize)]
@@ -54,7 +54,7 @@ pub async fn connect_with_mnemonic(
     contract_address,
     client_address,
     denom: Denom::from_str(&denom.to_string())?,
-    mnemonmic: None,
+    mnemonic: None,
   };
 
   let mut w_state = state.write().await;
@@ -90,9 +90,9 @@ pub async fn get_balance(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<
 pub async fn create_new_account(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, String> {
-  let mnemonic = random_mnemonic();
-  let mut client = connect_with_mnemonic(mnemonic.to_string(), state).await?;
-  client.mnemonmic = Some(mnemonic.to_string());
+  let rand_mnemonic = random_mnemonic();
+  let mut client = connect_with_mnemonic(rand_mnemonic.to_string(), state).await?;
+  client.mnemonic = Some(rand_mnemonic.to_string());
   Ok(client)
 }
 

@@ -13,8 +13,8 @@ use cosmrs::distribution::MsgWithdrawDelegatorReward;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
-use cosmrs::tx::{Fee, Msg, MsgType, SignDoc, SignerInfo};
-use cosmrs::{cosmwasm, rpc, tx, AccountId, Coin};
+use cosmrs::tx::{Fee, Msg, SignDoc, SignerInfo};
+use cosmrs::{cosmwasm, rpc, tx, AccountId, Any, Coin};
 use log::debug;
 use serde::Serialize;
 use sha2::Digest;
@@ -52,7 +52,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
                 .unwrap_or_default(),
             instantiate_permission: Default::default(),
         }
-        .to_msg()
+        .to_any()
         .map_err(|_| NymdError::SerializationError("MsgStoreCode".to_owned()))?;
 
         let tx_res = self
@@ -114,7 +114,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             init_msg: serde_json::to_vec(msg)?,
             funds: options.map(|options| options.funds).unwrap_or_default(),
         }
-        .to_msg()
+        .to_any()
         .map_err(|_| NymdError::SerializationError("MsgInstantiateContract".to_owned()))?;
 
         let tx_res = self
@@ -154,7 +154,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             new_admin: new_admin.clone(),
             contract: contract_address.clone(),
         }
-        .to_msg()
+        .to_any()
         .map_err(|_| NymdError::SerializationError("MsgUpdateAdmin".to_owned()))?;
 
         let tx_res = self
@@ -179,7 +179,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             sender: sender_address.clone(),
             contract: contract_address.clone(),
         }
-        .to_msg()
+        .to_any()
         .map_err(|_| NymdError::SerializationError("MsgClearAdmin".to_owned()))?;
 
         let tx_res = self
@@ -211,7 +211,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             code_id,
             migrate_msg: serde_json::to_vec(msg)?,
         }
-        .to_msg()
+        .to_any()
         .map_err(|_| NymdError::SerializationError("MsgMigrateContract".to_owned()))?;
 
         let tx_res = self
@@ -243,7 +243,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             msg: serde_json::to_vec(msg)?,
             funds,
         }
-        .to_msg()
+        .to_any()
         .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))?;
 
         let tx_res = self
@@ -278,7 +278,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
                     msg: serde_json::to_vec(&msg)?,
                     funds,
                 }
-                .to_msg()
+                .to_any()
                 .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))
             })
             .collect::<Result<_, _>>()?;
@@ -312,7 +312,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             to_address: recipient_address.clone(),
             amount,
         }
-        .to_msg()
+        .to_any()
         .map_err(|_| NymdError::SerializationError("MsgSend".to_owned()))?;
 
         self.sign_and_broadcast_commit(sender_address, vec![send_msg], fee, memo)
@@ -332,7 +332,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             validator_address: validator_address.to_owned(),
             amount,
         }
-        .to_msg()
+        .to_any()
         .map_err(|_| NymdError::SerializationError("MsgDelegate".to_owned()))?;
 
         self.sign_and_broadcast_commit(delegator_address, vec![delegate_msg], fee, memo)
@@ -352,7 +352,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             validator_address: validator_address.to_owned(),
             amount: Some(amount),
         }
-        .to_msg()
+        .to_any()
         .map_err(|_| NymdError::SerializationError("MsgUndelegate".to_owned()))?;
 
         self.sign_and_broadcast_commit(delegator_address, vec![undelegate_msg], fee, memo)
@@ -370,7 +370,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
         }
-        .to_msg()
+        .to_any()
         .map_err(|_| NymdError::SerializationError("MsgWithdrawDelegatorReward".to_owned()))?;
 
         self.sign_and_broadcast_commit(delegator_address, vec![withdraw_msg], fee, memo)
@@ -381,7 +381,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
     async fn sign_and_broadcast_async(
         &self,
         signer_address: &AccountId,
-        messages: Vec<Msg>,
+        messages: Vec<Any>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_async::Response, NymdError> {
@@ -397,7 +397,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
     async fn sign_and_broadcast_sync(
         &self,
         signer_address: &AccountId,
-        messages: Vec<Msg>,
+        messages: Vec<Any>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_sync::Response, NymdError> {
@@ -413,7 +413,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
     async fn sign_and_broadcast_commit(
         &self,
         signer_address: &AccountId,
-        messages: Vec<Msg>,
+        messages: Vec<Any>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_commit::Response, NymdError> {
@@ -428,7 +428,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
     fn sign_direct(
         &self,
         signer_address: &AccountId,
-        messages: Vec<Msg>,
+        messages: Vec<Any>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
         signer_data: SignerData,
@@ -466,7 +466,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
     async fn sign(
         &self,
         signer_address: &AccountId,
-        messages: Vec<Msg>,
+        messages: Vec<Any>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<tx::Raw, NymdError> {
@@ -506,7 +506,7 @@ impl Client {
 
 #[async_trait]
 impl rpc::Client for Client {
-    async fn perform<R>(&self, request: R) -> rpc::Result<R::Response>
+    async fn perform<R>(&self, request: R) -> Result<R::Response, rpc::Error>
     where
         R: SimpleRequest,
     {

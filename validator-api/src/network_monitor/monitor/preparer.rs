@@ -184,34 +184,32 @@ impl PacketPreparer {
         info!("Waiting for minimal topology to be online");
         let initialisation_backoff = Duration::from_secs(30);
         loop {
-            let gateways = self.validator_cache.active_gateways().await;
+            let gateways = self.validator_cache.gateways().await;
             let mixnodes = self.validator_cache.active_mixnodes().await;
 
-            if let Some(gateways) = gateways {
-                if let Some(mixnodes) = mixnodes {
-                    if gateways.into_inner().len() < minimum_full_routes {
-                        continue;
-                    }
+            if let Some(mixnodes) = mixnodes {
+                if gateways.into_inner().len() < minimum_full_routes {
+                    continue;
+                }
 
-                    let mut layered_mixes = HashMap::new();
-                    for mix in mixnodes.into_inner() {
-                        let layer = mix.layer;
-                        let mixes = layered_mixes.entry(layer).or_insert_with(Vec::new);
-                        mixes.push(mix)
-                    }
+                let mut layered_mixes = HashMap::new();
+                for mix in mixnodes.into_inner() {
+                    let layer = mix.layer;
+                    let mixes = layered_mixes.entry(layer).or_insert_with(Vec::new);
+                    mixes.push(mix)
+                }
 
-                    // we remove the entries as this gives us the ownership and thus we can unwrap to default value
-                    // which makes the code slightly nicer without having to deal with options
-                    let layer1 = layered_mixes.remove(&Layer::One).unwrap_or_default();
-                    let layer2 = layered_mixes.remove(&Layer::Two).unwrap_or_default();
-                    let layer3 = layered_mixes.remove(&Layer::Three).unwrap_or_default();
+                // we remove the entries as this gives us the ownership and thus we can unwrap to default value
+                // which makes the code slightly nicer without having to deal with options
+                let layer1 = layered_mixes.remove(&Layer::One).unwrap_or_default();
+                let layer2 = layered_mixes.remove(&Layer::Two).unwrap_or_default();
+                let layer3 = layered_mixes.remove(&Layer::Three).unwrap_or_default();
 
-                    if layer1.len() >= minimum_full_routes
-                        && layer2.len() >= minimum_full_routes
-                        && layer3.len() >= minimum_full_routes
-                    {
-                        break;
-                    }
+                if layer1.len() >= minimum_full_routes
+                    && layer2.len() >= minimum_full_routes
+                    && layer3.len() >= minimum_full_routes
+                {
+                    break;
                 }
             }
 
@@ -221,13 +219,6 @@ impl PacketPreparer {
             );
             tokio::time::sleep(initialisation_backoff).await;
         }
-    }
-
-    async fn get_active_nodes(&self) -> Option<(Vec<MixNodeBond>, Vec<GatewayBond>)> {
-        let mixnodes = self.validator_cache.active_mixnodes().await?.into_inner();
-        let gateways = self.validator_cache.active_gateways().await?.into_inner();
-
-        Some((mixnodes, gateways))
     }
 
     async fn get_network_nodes(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
@@ -266,11 +257,12 @@ impl PacketPreparer {
         n: usize,
         blacklist: &mut HashSet<String>,
     ) -> Option<Vec<TestRoute>> {
-        let (active_mixes, active_gateways) = self.get_active_nodes().await?;
+        let active_mixnodes = self.validator_cache.active_mixnodes().await?.into_inner();
+        let gateways = self.validator_cache.gateways().await.into_inner();
 
         // separate mixes into layers for easier selection
         let mut layered_mixes = HashMap::new();
-        for active_mix in active_mixes {
+        for active_mix in active_mixnodes {
             // filter out mixes on the blacklist
             if blacklist.contains(&active_mix.mix_node.identity_key) {
                 continue;
@@ -280,7 +272,7 @@ impl PacketPreparer {
             mixes.push(active_mix)
         }
         // filter out gateways on the blacklist
-        let gateways = active_gateways
+        let gateways = gateways
             .into_iter()
             .filter(|gateway| !blacklist.contains(&gateway.gateway.identity_key))
             .collect::<Vec<_>>();

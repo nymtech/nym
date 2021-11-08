@@ -100,7 +100,7 @@ const SignInContent = ({
   return (
     <SignInCard>
       <>
-        <Typography variant="h4">Sign in</Typography>
+        <Typography variant="h4" data-testid="sign-in">Sign in</Typography>
         <form noValidate onSubmit={handleSignIn}>
           <Grid container direction="column" spacing={1}>
             <Grid item>
@@ -202,7 +202,6 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
         setIsLoading(false)
       }, 2500)
     } catch (e: any) {
-      console.log(e)
       setError(e)
     }
   }
@@ -210,7 +209,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
     <SignInCard>
       <Typography variant="h4">Create wallet</Typography>
       <Typography color="textSecondary">
-        Create an new wallet to start using the Nym network
+        Create a new wallet to start using the Nym network
       </Typography>
       <Grid
         container
@@ -240,7 +239,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
                 />
                 <Typography>Wallet setup complete</Typography>
               </div>
-              <Alert severity="info" style={{ marginBottom: theme.spacing(2) }}>
+              <Alert severity="info" style={{ marginBottom: theme.spacing(2) }} data-testid="mnemonic-warning">
                 Please store your <strong>mnemonic</strong> in a safe place.
                 You'll need it to access your wallet
               </Alert>
@@ -258,7 +257,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
                     </Typography>
                   </Grid>
                   <Grid item>
-                    <Typography>{accountDetails.mnemonic}</Typography>
+                    <Typography data-testid="mnemonic-phrase">{accountDetails.mnemonic}</Typography>
                     <div
                       style={{ display: 'flex', justifyContent: 'flex-end' }}
                     >
@@ -274,7 +273,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
                     </Typography>
                   </Grid>
                   <Grid item>
-                    <Typography>{accountDetails.client_address}</Typography>
+                    <Typography data-testid="wallet-address">{accountDetails.client_address}</Typography>
                   </Grid>
                 </Grid>
               </Card>
@@ -283,7 +282,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
         </Grid>
         {error && (
           <Grid item style={{ marginTop: theme.spacing(1) }}>
-            <Alert severity="error">{error}</Alert>
+            <Alert severity="error" data-testid="error">{error}</Alert>
           </Grid>
         )}
         <Grid item>
@@ -294,6 +293,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
               variant="contained"
               color="primary"
               type="submit"
+              data-testid="create-button"
               disableElevation
               style={{ marginBottom: theme.spacing(1) }}
               disabled={isLoading}
@@ -305,6 +305,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
             fullWidth
             variant="text"
             onClick={showSignIn}
+            data-testid="sign-in-button"
             startIcon={<ArrowBack />}
           >
             Sign in

@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cache::ValidatorCache;
-use crate::node_status_api::models::{GatewayStatusReport, MixnodeStatusReport, Uptime};
+use crate::node_status_api::models::{MixnodeStatusReport, Uptime};
 use crate::node_status_api::ONE_DAY;
 use crate::nymd_client::Client;
 use crate::rewarding::epoch::Epoch;
 use crate::rewarding::error::RewardingError;
 use crate::storage::models::{
-    FailedGatewayRewardChunk, FailedMixnodeRewardChunk, PossiblyUnrewardedGateway,
-    PossiblyUnrewardedMixnode, RewardingReport,
+    FailedMixnodeRewardChunk, PossiblyUnrewardedMixnode, RewardingReport,
 };
-use crate::storage::NodeStatusStorage;
+use crate::storage::ValidatorApiStorage;
 use log::{error, info};
 use mixnet_contract::{ExecuteMsg, IdentityKey};
-use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::time::Duration;
@@ -28,7 +26,6 @@ pub(crate) mod error;
 // the actual base cost is around 125_000, but let's give ourselves a bit of safety net in case
 // we introduce some tiny contract changes that would bump that value up
 pub(crate) const MIXNODE_REWARD_OP_BASE_GAS_LIMIT: u64 = 150_000;
-pub(crate) const GATEWAY_REWARD_OP_BASE_GAS_LIMIT: u64 = 150_000;
 
 // For each delegation reward we perform a read and a write is being executed,
 // which are the most costly parts involved in process. Both of them are ~1000 sdk gas in cost.
@@ -37,15 +34,12 @@ pub(crate) const GATEWAY_REWARD_OP_BASE_GAS_LIMIT: u64 = 150_000;
 // Therefore, since base cost is not tuned to the bare minimum, let's treat all of delegations as extra
 // 2750 of sdk gas.
 pub(crate) const PER_MIXNODE_DELEGATION_GAS_INCREASE: u64 = 2750;
-pub(crate) const PER_GATEWAY_DELEGATION_GAS_INCREASE: u64 = 2750;
 
 // Another safety net in case of contract changes,
 // the calculated total gas limit is going to get multiplied by that value.
 pub(crate) const REWARDING_GAS_LIMIT_MULTIPLIER: f64 = 1.05;
 
 pub(crate) const MAX_TO_REWARD_AT_ONCE: usize = 50;
-
-pub(crate) const REWARDING_TIME_VARIANCE: f32 = 0.05; // 5% (so for example +/-1.2h for 24h epoch)
 
 #[derive(Debug, Clone)]
 pub(crate) struct MixnodeToReward {
@@ -56,29 +50,14 @@ pub(crate) struct MixnodeToReward {
     pub(crate) total_delegations: usize,
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct GatewayToReward {
-    pub(crate) identity: IdentityKey,
-    pub(crate) uptime: Uptime,
-
-    /// Total number of individual addresses that have delegated to this particular gateway
-    pub(crate) total_delegations: usize,
-}
-
 pub(crate) struct FailedMixnodeRewardChunkDetails {
     possibly_unrewarded: Vec<MixnodeToReward>,
-    error_message: String,
-}
-
-pub(crate) struct FailedGatewayRewardChunkDetails {
-    possibly_unrewarded: Vec<GatewayToReward>,
     error_message: String,
 }
 
 #[derive(Default)]
 pub(crate) struct FailureData {
     mixnodes: Option<Vec<FailedMixnodeRewardChunkDetails>>,
-    gateways: Option<Vec<FailedGatewayRewardChunkDetails>>,
 }
 
 impl<'a> From<&'a MixnodeToReward> for ExecuteMsg {
@@ -90,19 +69,10 @@ impl<'a> From<&'a MixnodeToReward> for ExecuteMsg {
     }
 }
 
-impl<'a> From<&'a GatewayToReward> for ExecuteMsg {
-    fn from(node: &GatewayToReward) -> Self {
-        ExecuteMsg::RewardGateway {
-            identity: node.identity.clone(),
-            uptime: node.uptime.u8() as u32,
-        }
-    }
-}
-
 pub(crate) struct Rewarder {
     nymd_client: Client<SigningNymdClient>,
     validator_cache: ValidatorCache,
-    storage: NodeStatusStorage,
+    storage: ValidatorApiStorage,
 
     /// The first epoch of the current length.
     first_epoch: Epoch,
@@ -121,7 +91,7 @@ impl Rewarder {
     pub(crate) fn new(
         nymd_client: Client<SigningNymdClient>,
         validator_cache: ValidatorCache,
-        storage: NodeStatusStorage,
+        storage: ValidatorApiStorage,
         first_epoch: Epoch,
         expected_epoch_monitor_runs: usize,
         minimum_epoch_monitor_threshold: u8,
@@ -148,22 +118,6 @@ impl Rewarder {
         Ok(self
             .nymd_client
             .get_mixnode_delegations(identity)
-            .await?
-            .len())
-    }
-
-    /// Obtains the current number of delegators that have delegated their stake towards this particular gateway.
-    ///
-    /// # Arguments
-    ///
-    /// * `identity`: identity key of the gateway
-    async fn get_gateway_delegators_count(
-        &self,
-        identity: IdentityKey,
-    ) -> Result<usize, RewardingError> {
-        Ok(self
-            .nymd_client
-            .get_gateway_delegations(identity)
             .await?
             .len())
     }
@@ -200,30 +154,6 @@ impl Rewarder {
                 .get_mixnode_delegators_count(mix.mix_node.identity_key.clone())
                 .await?;
             map.insert(mix.mix_node.identity_key, delegator_count);
-        }
-
-        Ok(map)
-    }
-
-    /// Queries the smart contract in order to obtain the current list of bonded gateways and then
-    /// for each gateway determines how many delegators it has.
-    async fn produce_active_gateway_delegators_map(
-        &self,
-    ) -> Result<HashMap<IdentityKey, usize>, RewardingError> {
-        // look at comments in `produce_mixnode_delegators_map` for some optimisation elaboration
-        let mut map = HashMap::new();
-
-        let active_bonded_gateways = self
-            .validator_cache
-            .active_gateways()
-            .await
-            .ok_or(RewardingError::NoGatewaysToReward)?
-            .into_inner();
-        for gateway in active_bonded_gateways.into_iter() {
-            let delegator_count = self
-                .get_gateway_delegators_count(gateway.gateway.identity_key.clone())
-                .await?;
-            map.insert(gateway.gateway.identity_key, delegator_count);
         }
 
         Ok(map)
@@ -277,70 +207,23 @@ impl Rewarder {
         Ok(eligible_nodes)
     }
 
-    /// Given the list of gateways that were tested in the last epoch, tries to determine the
-    /// subset that are eligible for any rewards.
-    ///
-    /// As of right now, it is a rather straightforward process. It is checked whether the node
-    /// is currently bonded, has uptime > 0 and is part of the "active" set.
-    /// Unlike the typescript rewards script, it currently does not look at the non-mixing ports are open.
-    ///
-    /// The method also obtains the number of delegators towards the node in order to more accurately
-    /// approximate the required gas fees when distributing the rewards.
-    ///
-    /// # Arguments
-    ///
-    /// * `active_gateways`: list of the nodes that were tested at least once by the network monitor
-    ///                      in the last epoch.
-    async fn determine_eligible_gateways(
-        &self,
-        active_gateways: &[GatewayStatusReport],
-    ) -> Result<Vec<GatewayToReward>, RewardingError> {
-        let gateway_delegators = self.produce_active_gateway_delegators_map().await?;
-
-        let eligible_nodes = active_gateways
-            .iter()
-            .filter_map(|gateway| {
-                gateway_delegators
-                    .get(&gateway.identity)
-                    .map(|&total_delegations| GatewayToReward {
-                        identity: gateway.identity.clone(),
-                        uptime: gateway.last_day,
-                        total_delegations,
-                    })
-            })
-            .filter(|node| node.uptime.u8() > 0)
-            .collect();
-
-        Ok(eligible_nodes)
-    }
-
-    /// Obtains the lists of all mixnodes and gateways that were tested at least a single time
+    /// Obtains the lists of all mixnodes that were tested at least a single time
     /// by the network monitor in the specified epoch.
     ///
     /// # Arguments
     ///
     /// * `epoch`: the specified epoch.
-    async fn get_active_monitor_nodes(
+    async fn get_active_monitor_mixnodes(
         &self,
         epoch: Epoch,
-    ) -> Result<(Vec<MixnodeStatusReport>, Vec<GatewayStatusReport>), RewardingError> {
-        let active_mixnodes = self
+    ) -> Result<Vec<MixnodeStatusReport>, RewardingError> {
+        Ok(self
             .storage
             .get_all_active_mixnode_reports_in_interval(
                 epoch.start_unix_timestamp(),
                 epoch.end_unix_timestamp(),
             )
-            .await?;
-
-        let active_gateways = self
-            .storage
-            .get_all_active_gateway_reports_in_interval(
-                epoch.start_unix_timestamp(),
-                epoch.end_unix_timestamp(),
-            )
-            .await?;
-
-        Ok((active_mixnodes, active_gateways))
+            .await?)
     }
 
     /// Using the list of mixnodes eligible for rewards, chunks it into pre-defined sized-chunks
@@ -365,11 +248,17 @@ impl Rewarder {
 
         for (i, mix_chunk) in eligible_mixnodes.chunks(MAX_TO_REWARD_AT_ONCE).enumerate() {
             if let Err(err) = self.nymd_client.reward_mixnodes(mix_chunk).await {
-                error!("failed to reward mixnodes... - {}", err);
-                failed_chunks.push(FailedMixnodeRewardChunkDetails {
-                    possibly_unrewarded: mix_chunk.to_vec(),
-                    error_message: err.to_string(),
-                })
+                // this is a super weird edge case that we didn't catch change to sequence and
+                // resent rewards unnecessarily, but the mempool saved us from executing it again
+                // however, still we want to wait until we're sure we're into the next block
+                if !err.is_tendermint_duplicate() {
+                    error!("failed to reward mixnodes... - {}", err);
+                    failed_chunks.push(FailedMixnodeRewardChunkDetails {
+                        possibly_unrewarded: mix_chunk.to_vec(),
+                        error_message: err.to_string(),
+                    });
+                }
+                sleep(Duration::from_secs(11)).await;
             }
             let rewarded = i * MAX_TO_REWARD_AT_ONCE + mix_chunk.len();
             let percentage = rewarded as f32 * 100.0 / eligible_mixnodes.len() as f32;
@@ -377,52 +266,6 @@ impl Rewarder {
                 "Rewarded {} / {} mixnodes\t{:.2}%",
                 rewarded,
                 eligible_mixnodes.len(),
-                percentage
-            );
-        }
-
-        if failed_chunks.is_empty() {
-            None
-        } else {
-            Some(failed_chunks)
-        }
-    }
-
-    /// Using the list of gateways eligible for rewards, chunks it into pre-defined sized-chunks
-    /// and gives out the rewards by calling the smart contract.
-    ///
-    /// Returns an optional vector containing list of chunks that experienced a smart contract
-    /// execution error during reward distribution. However, it does not necessarily imply they
-    /// were not rewarded. There are some edge cases where we time out waiting for block to be included
-    /// yet the transactions went through.
-    ///
-    /// Only returns errors for problems originating from before smart contract was called, i.e.
-    /// we know for sure not a single node has been rewarded.
-    ///
-    /// # Arguments
-    ///
-    /// * `eligible_gateways`: list of the nodes that are eligible to receive non-zero rewards.
-    async fn distribute_rewards_to_gateways(
-        &self,
-        eligible_gateways: &[GatewayToReward],
-    ) -> Option<Vec<FailedGatewayRewardChunkDetails>> {
-        let mut failed_chunks = Vec::new();
-
-        for (i, gateway_chunk) in eligible_gateways.chunks(MAX_TO_REWARD_AT_ONCE).enumerate() {
-            if let Err(err) = self.nymd_client.reward_gateways(gateway_chunk).await {
-                error!("failed to reward gateways... - {}", err);
-                failed_chunks.push(FailedGatewayRewardChunkDetails {
-                    possibly_unrewarded: gateway_chunk.to_vec(),
-                    error_message: err.to_string(),
-                })
-            }
-
-            let rewarded = i * MAX_TO_REWARD_AT_ONCE + gateway_chunk.len();
-            let percentage = rewarded as f32 * 100.0 / eligible_gateways.len() as f32;
-            info!(
-                "Rewarded {} / {} gateways\t{:.2}%",
-                rewarded,
-                eligible_gateways.len(),
                 percentage
             );
         }
@@ -443,14 +286,10 @@ impl Rewarder {
     ///
     /// * `active_monitor_mixnodes`: list of the nodes that were tested at least once by the network monitor
     ///                              in the last epoch.
-    ///
-    /// * `active_monitor_gateways`: list of the nodes that were tested at least once by the network monitor
-    ///                              in the last epoch.
     async fn distribute_rewards(
         &self,
         epoch_rewarding_id: i64,
         active_monitor_mixnodes: &[MixnodeStatusReport],
-        active_monitor_gateways: &[GatewayStatusReport],
     ) -> Result<(RewardingReport, Option<FailureData>), RewardingError> {
         let mut failure_data = FailureData::default();
 
@@ -461,25 +300,13 @@ impl Rewarder {
             return Err(RewardingError::NoMixnodesToReward);
         }
 
-        let eligible_gateways = self
-            .determine_eligible_gateways(active_monitor_gateways)
-            .await?;
-        if eligible_gateways.is_empty() {
-            return Err(RewardingError::NoGatewaysToReward);
-        }
-
         failure_data.mixnodes = self
             .distribute_rewards_to_mixnodes(&eligible_mixnodes)
-            .await;
-
-        failure_data.gateways = self
-            .distribute_rewards_to_gateways(&eligible_gateways)
             .await;
 
         let report = RewardingReport {
             epoch_rewarding_id,
             eligible_mixnodes: eligible_mixnodes.len() as i64,
-            eligible_gateways: eligible_gateways.len() as i64,
             possibly_unrewarded_mixnodes: failure_data
                 .mixnodes
                 .as_ref()
@@ -490,19 +317,9 @@ impl Rewarder {
                         .sum::<usize>() as i64
                 })
                 .unwrap_or_default(),
-            possibly_unrewarded_gateways: failure_data
-                .gateways
-                .as_ref()
-                .map(|chunks| {
-                    chunks
-                        .iter()
-                        .map(|chunk| chunk.possibly_unrewarded.len())
-                        .sum::<usize>() as i64
-                })
-                .unwrap_or_default(),
         };
 
-        if failure_data.mixnodes.is_none() && failure_data.gateways.is_none() {
+        if failure_data.mixnodes.is_none() {
             Ok((report, None))
         } else {
             Ok((report, Some(failure_data)))
@@ -547,44 +364,7 @@ impl Rewarder {
             }
         }
 
-        if let Some(failed_gateway_chunks) = failure_data.gateways {
-            for failed_chunk in failed_gateway_chunks.into_iter() {
-                // save the chunk
-                let chunk_id = self
-                    .storage
-                    .insert_failed_gateway_reward_chunk(FailedGatewayRewardChunk {
-                        epoch_rewarding_id,
-                        error_message: failed_chunk.error_message,
-                    })
-                    .await?;
-
-                // and then all associated nodes
-                for node in failed_chunk.possibly_unrewarded.into_iter() {
-                    self.storage
-                        .insert_possibly_unrewarded_gateway(PossiblyUnrewardedGateway {
-                            chunk_id,
-                            identity: node.identity,
-                            uptime: node.uptime.u8(),
-                        })
-                        .await?;
-                }
-            }
-        }
-
         Ok(())
-    }
-
-    /// Determines random positive or negative time variance that should be added to the rewarding
-    /// distribution time so that all validators would not attempt to hit the smart contract
-    /// at exactly the same time.
-    fn epoch_variance(&self) -> (bool, Duration) {
-        let mut rng = thread_rng();
-
-        let abs_variance_secs = REWARDING_TIME_VARIANCE * self.first_epoch.length().as_secs_f32();
-        let variance = Duration::from_secs(rng.gen_range(0, abs_variance_secs as u64));
-        let sign = rng.gen_bool(0.5);
-
-        (sign, variance)
     }
 
     /// Determines whether this validator has already distributed rewards for the specified epoch
@@ -676,9 +456,7 @@ impl Rewarder {
         Ok(current_epoch.next_epoch())
     }
 
-    /// Given datetime of the rewarding epoch datetime, determine time until it ends and add (or remove)
-    /// a little bit of time variance from it in order to prevent all validators distributing
-    /// the rewards at exactly the same time instant.
+    /// Given datetime of the rewarding epoch datetime, determine duration until it ends.
     ///
     /// # Arguments
     ///
@@ -692,13 +470,7 @@ impl Rewarder {
         // we have a positive duration so we can't fail the conversion
         let until_epoch_end: Duration = (rewarding_epoch.end() - now).try_into().unwrap();
 
-        // add a bit of variance to the start time
-        let (sign, variance) = self.epoch_variance();
-        if sign {
-            Some(until_epoch_end + variance)
-        } else {
-            until_epoch_end.checked_sub(variance)
-        }
+        Some(until_epoch_end)
     }
 
     /// Distribute rewards to all eligible mixnodes and gateways on the network.
@@ -713,8 +485,7 @@ impl Rewarder {
         );
 
         // get nodes that were active during the epoch
-        let (active_monitor_mixnodes, active_monitor_gateways) =
-            self.get_active_monitor_nodes(epoch).await?;
+        let active_monitor_mixnodes = self.get_active_monitor_mixnodes(epoch).await?;
 
         // insert information about beginning the procedure (so that if we crash during it,
         // we wouldn't attempt to possibly double reward operators)
@@ -724,11 +495,7 @@ impl Rewarder {
             .await?;
 
         let (report, failure_data) = self
-            .distribute_rewards(
-                epoch_rewarding_id,
-                &active_monitor_mixnodes,
-                &active_monitor_gateways,
-            )
+            .distribute_rewards(epoch_rewarding_id, &active_monitor_mixnodes)
             .await?;
 
         self.storage
@@ -746,32 +513,11 @@ impl Rewarder {
             }
         }
 
-        // TODO: again, this assumes 24h epochs.
-        let epoch_iso_8601 = epoch.start().date().to_string();
-        let two_days_ago = (epoch.start() - 2 * ONE_DAY).unix_timestamp();
-
-        // NOTE: this works under assumption that epochs are 24h in length.
-        // If this changes then the historical uptime updates should be performed
-        // on a timer in another task
-        if self
-            .storage
-            .check_if_historical_uptimes_exist_for_date(&epoch_iso_8601)
-            .await?
-        {
-            error!("We have already updated uptimes for all nodes this day. If you're seeing this warning, it's likely rewards were given out twice this day!")
-        } else {
-            info!(
-                "Updating historical daily uptimes of all nodes and purging old status reports..."
-            );
-            self.storage
-                .update_historical_uptimes(
-                    &epoch_iso_8601,
-                    &active_monitor_mixnodes,
-                    &active_monitor_gateways,
-                )
-                .await?;
-            self.storage.purge_old_statuses(two_days_ago).await?;
-        }
+        // since we have already performed rewards, purge everything older than the end of this epoch
+        // (+one day of buffer) as we're never going to need it again (famous last words...)
+        // note that usually end of epoch is equal to the current time
+        let cutoff = (epoch.end() - ONE_DAY).unix_timestamp();
+        self.storage.purge_old_statuses(cutoff).await?;
 
         Ok(())
     }
@@ -835,7 +581,6 @@ impl Rewarder {
 
             // wait's until the start of the *next* epoch, e.g. end of the current chosen epoch
             // (it could be none, for example if we are distributing overdue rewards for the previous epoch)
-            // plus add a bit of variance
             if let Some(remaining_time) =
                 self.determine_delay_until_next_rewarding(next_rewarding_epoch)
             {

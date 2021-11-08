@@ -5,8 +5,8 @@ use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
 use crate::node_status_api::utils::ActiveNodeStatuses;
 use crate::storage::models::{
-    ActiveNode, EpochRewarding, FailedGatewayRewardChunk, FailedMixnodeRewardChunk, NodeStatus,
-    PossiblyUnrewardedGateway, PossiblyUnrewardedMixnode, RewardingReport, TestingRoute,
+    ActiveNode, EpochRewarding, FailedMixnodeRewardChunk, NodeStatus, PossiblyUnrewardedMixnode,
+    RewardingReport, TestingRoute,
 };
 use crate::storage::UnixTimestamp;
 use std::convert::TryFrom;
@@ -766,17 +766,15 @@ impl StorageManager {
         sqlx::query!(
             r#"
                 INSERT INTO rewarding_report
-                (epoch_rewarding_id, eligible_mixnodes, eligible_gateways, possibly_unrewarded_mixnodes, possibly_unrewarded_gateways)
-                VALUES (?, ?, ?, ?, ?);
+                (epoch_rewarding_id, eligible_mixnodes, possibly_unrewarded_mixnodes)
+                VALUES (?, ?, ?);
             "#,
             report.epoch_rewarding_id,
             report.eligible_mixnodes,
-            report.eligible_gateways,
             report.possibly_unrewarded_mixnodes,
-            report.possibly_unrewarded_gateways,
         )
-            .execute(&self.connection_pool)
-            .await?;
+        .execute(&self.connection_pool)
+        .await?;
         Ok(())
     }
 
@@ -801,27 +799,6 @@ impl StorageManager {
         Ok(res.last_insert_rowid())
     }
 
-    /// Inserts new failed gateway reward chunk information into the database.
-    /// Returns id of the newly created entry.
-    ///
-    /// # Arguments
-    ///
-    /// * `failed_chunk`: chunk information to insert.
-    pub(super) async fn insert_failed_gateway_reward_chunk(
-        &self,
-        failed_chunk: FailedGatewayRewardChunk,
-    ) -> Result<i64, sqlx::Error> {
-        let res = sqlx::query!(
-            r#"
-                INSERT INTO failed_gateway_reward_chunk (error_message, reward_summary_id) VALUES (?, ?)
-            "#,
-            failed_chunk.error_message,
-            failed_chunk.epoch_rewarding_id,
-        ).execute(&self.connection_pool).await?;
-
-        Ok(res.last_insert_rowid())
-    }
-
     /// Inserts information into the database about a mixnode that might have been unfairly unrewarded this epoch.
     ///
     /// # Arguments
@@ -838,26 +815,6 @@ impl StorageManager {
             mixnode.identity,
             mixnode.uptime,
             mixnode.chunk_id
-        ).execute(&self.connection_pool).await?;
-        Ok(())
-    }
-
-    /// Inserts information into the database about a gateway that might have been unfairly unrewarded this epoch.
-    ///
-    /// # Arguments
-    ///
-    /// * `gateway`: mixnode information to insert.
-    pub(super) async fn insert_possibly_unrewarded_gateway(
-        &self,
-        gateway: PossiblyUnrewardedGateway,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO possibly_unrewarded_gateway (identity, uptime, failed_gateway_reward_chunk_id) VALUES (?, ?, ?)
-            "#,
-            gateway.identity,
-            gateway.uptime,
-            gateway.chunk_id
         ).execute(&self.connection_pool).await?;
         Ok(())
     }

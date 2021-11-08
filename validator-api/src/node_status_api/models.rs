@@ -208,12 +208,12 @@ pub struct HistoricalUptime {
 }
 
 pub(crate) struct ErrorResponse {
-    error: NodeStatusApiError,
+    error: ValidatorApiStorageError,
     status: Status,
 }
 
 impl ErrorResponse {
-    pub(crate) fn new(error: NodeStatusApiError, status: Status) -> Self {
+    pub(crate) fn new(error: ValidatorApiStorageError, status: Status) -> Self {
         ErrorResponse { error, status }
     }
 }
@@ -230,7 +230,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for ErrorResponse {
 }
 
 #[derive(Debug)]
-pub enum NodeStatusApiError {
+pub enum ValidatorApiStorageError {
     MixnodeReportNotFound(String),
     GatewayReportNotFound(String),
     MixnodeUptimeHistoryNotFound(String),
@@ -240,30 +240,30 @@ pub enum NodeStatusApiError {
     InternalDatabaseError,
 }
 
-impl Display for NodeStatusApiError {
+impl Display for ValidatorApiStorageError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            NodeStatusApiError::MixnodeReportNotFound(identity) => write!(
+            ValidatorApiStorageError::MixnodeReportNotFound(identity) => write!(
                 f,
                 "Could not find status report associated with mixnode {}",
                 identity
             ),
-            NodeStatusApiError::GatewayReportNotFound(identity) => write!(
+            ValidatorApiStorageError::GatewayReportNotFound(identity) => write!(
                 f,
                 "Could not find status report associated with gateway {}",
                 identity
             ),
-            NodeStatusApiError::MixnodeUptimeHistoryNotFound(identity) => write!(
+            ValidatorApiStorageError::MixnodeUptimeHistoryNotFound(identity) => write!(
                 f,
                 "Could not find uptime history associated with mixnode {}",
                 identity
             ),
-            NodeStatusApiError::GatewayUptimeHistoryNotFound(identity) => write!(
+            ValidatorApiStorageError::GatewayUptimeHistoryNotFound(identity) => write!(
                 f,
                 "Could not find uptime history associated with gateway {}",
                 identity
             ),
-            NodeStatusApiError::InternalDatabaseError => {
+            ValidatorApiStorageError::InternalDatabaseError => {
                 write!(f, "The internal database has experienced an issue")
             }
         }

@@ -74,7 +74,7 @@ export const DelegateForm = ({
     })
       .then((res) => {
         onSuccess(
-          `Successfully delegated ${data.amount} punk to ${res.source_address}`
+          `Successfully delegated ${data.amount} punk to ${res.target_address}`
         )
         getBalance.fetchBalance()
       })
@@ -97,7 +97,7 @@ export const DelegateForm = ({
               />
             </Grid>
             <Grid item>
-              <Alert severity="info">
+              <Alert severity="info" data-testid="fee-amount">
                 {`A fee of ${
                   watchNodeType === EnumNodeType.mixnode
                     ? fees.mixnode.amount
@@ -153,6 +153,7 @@ export const DelegateForm = ({
         <Button
           onClick={handleSubmit(onSubmit)}
           disabled={isSubmitting}
+          data-testid="delegate-button"
           variant="contained"
           color="primary"
           type="submit"

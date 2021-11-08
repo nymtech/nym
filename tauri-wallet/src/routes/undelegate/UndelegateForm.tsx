@@ -1,5 +1,5 @@
-import React, { useContext } from 'react'
-import { useForm } from 'react-hook-form'
+import React, { useContext, useEffect } from 'react'
+import { useForm, Controller } from 'react-hook-form'
 import {
   Button,
   CircularProgress,
@@ -8,14 +8,15 @@ import {
   TextField,
   Theme,
 } from '@material-ui/core'
-import { Alert } from '@material-ui/lab'
+import { Alert, Autocomplete } from '@material-ui/lab'
 import { useTheme } from '@material-ui/styles'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { EnumNodeType, TFee } from '../../types'
 import { ClientContext } from '../../context/main'
-import { minorToMajor, undelegate } from '../../requests'
+import { undelegate } from '../../requests'
+import { TDelegations } from '.'
 
 type TFormData = {
   nodeType: EnumNodeType
@@ -29,16 +30,18 @@ const defaultValues = {
 
 export const UndelegateForm = ({
   fees,
+  delegations,
   onError,
   onSuccess,
 }: {
   fees: TFee
+  delegations: TDelegations
   onError: (message?: string) => void
   onSuccess: (message?: string) => void
 }) => {
   const {
+    control,
     handleSubmit,
-    register,
     setValue,
     watch,
     formState: { errors, isSubmitting },
@@ -47,7 +50,14 @@ export const UndelegateForm = ({
     resolver: yupResolver(validationSchema),
   })
   const watchNodeType = watch('nodeType')
+
+  useEffect(() => {
+    setValue('identity', '')
+  }, [watchNodeType])
+
   const { getBalance } = useContext(ClientContext)
+
+  const theme: Theme = useTheme()
 
   const onSubmit = async (data: TFormData) => {
     await undelegate({
@@ -55,13 +65,11 @@ export const UndelegateForm = ({
       identity: data.identity,
     })
       .then(async (res) => {
-        onSuccess(`Successfully undelegated from ${res.source_address}`)
+        onSuccess(`Successfully undelegated from ${res.target_address}`)
         getBalance.fetchBalance()
       })
       .catch((e) => onError(e))
   }
-
-  const theme: Theme = useTheme()
 
   return (
     <FormControl fullWidth>
@@ -72,10 +80,11 @@ export const UndelegateForm = ({
               <NodeTypeSelector
                 nodeType={watchNodeType}
                 setNodeType={(nodeType) => setValue('nodeType', nodeType)}
+                disabled={isSubmitting}
               />
             </Grid>
             <Grid item>
-              <Alert severity="info">
+              <Alert severity="info" data-testid="fee-amount">
                 {`A fee of ${
                   watchNodeType === EnumNodeType.mixnode
                     ? fees.mixnode.amount
@@ -85,26 +94,35 @@ export const UndelegateForm = ({
             </Grid>
           </Grid>
           <Grid item xs={12}>
-            <TextField
-              {...register('identity')}
-              required
-              variant="outlined"
-              id="identity"
+            <Controller
+              control={control}
               name="identity"
-              label="Node identity"
-              error={!!errors.identity}
-              helperText={errors.identity?.message}
-              fullWidth
+              render={({ field }) => (
+                <Autocomplete
+                  value={field.value}
+                  onChange={(_, value) => setValue('identity', value || '')}
+                  options={
+                    watchNodeType === EnumNodeType.mixnode
+                      ? delegations.mixnodes.delegated_nodes
+                      : delegations.gateways.delegated_nodes
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      required
+                      variant="outlined"
+                      id="identity"
+                      name="identity"
+                      label="Node identity"
+                      error={!!errors.identity}
+                      helperText={errors.identity?.message}
+                      fullWidth
+                    />
+                  )}
+                />
+              )}
             />
           </Grid>
-
-          {/* {allocationWarning && (
-            <Grid item xs={12} lg={6}>
-              <Alert severity={!isValidAmount ? 'error' : 'info'}>
-                {allocationWarning}
-              </Alert>
-            </Grid>
-          )} */}
         </Grid>
       </div>
       <div
@@ -122,6 +140,7 @@ export const UndelegateForm = ({
           variant="contained"
           color="primary"
           type="submit"
+          data-testid="submit-button"
           disableElevation
           disabled={isSubmitting}
           endIcon={isSubmitting && <CircularProgress size={20} />}

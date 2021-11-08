@@ -17,7 +17,7 @@ export const Receive = () => {
       <NymCard title="Receive Nym">
         <Grid container direction="column" spacing={1}>
           <Grid item>
-            <Alert severity="info">
+            <Alert severity="info" data-testid="receive-nym">
               You can receive tokens by providing this address to the sender
             </Alert>
           </Grid>
@@ -40,6 +40,7 @@ export const Receive = () => {
               >
                 <Grid item>
                   <Typography
+                    data-testid="client-address"
                     variant={matches ? 'h5' : 'subtitle1'}
                     style={{
                       wordBreak: 'break-word',
@@ -61,7 +62,7 @@ export const Receive = () => {
                     component="div"
                   >
                     {clientDetails && (
-                      <QRCode value={clientDetails.client_address} />
+                      <QRCode data-testid="qr-code" value={clientDetails.client_address} />
                     )}
                   </Box>
                 </Grid>

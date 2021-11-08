@@ -156,11 +156,9 @@ impl MessageReceiver {
             };
 
             // Finally, remove the zero padding from the message
-            if Self::remove_padding(&mut message).is_err() {
-                return Err(MessageRecoveryError::MalformedReconstructedMessage(
-                    used_sets,
-                ));
-            };
+            Self::remove_padding(&mut message).map_err(|_| {
+                MessageRecoveryError::MalformedReconstructedMessage(used_sets.clone())
+            })?;
 
             Ok(Some((
                 ReconstructedMessage {
@@ -270,7 +268,6 @@ mod message_receiver {
             vec![gateway::Node {
                 owner: "foomp4".to_string(),
                 stake: 123,
-                delegation: 456,
                 location: "unknown".to_string(),
                 host: "1.2.3.4".parse().unwrap(),
                 mix_host: "1.2.3.4:1789".parse().unwrap(),

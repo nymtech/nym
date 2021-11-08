@@ -44,7 +44,7 @@ export const SendReview = () => {
       ) : (
         <Grid container spacing={2}>
           <Grid item xs={12}>
-            <SendReviewField title="From" subtitle={values.from} />
+            <SendReviewField title="From" subtitle={values.from}/>
           </Grid>
           <Grid item xs={12}>
             <Divider light />
@@ -86,7 +86,7 @@ export const SendReviewField = ({
       <Typography style={{ color: theme.palette.grey[600] }}>
         {title}
       </Typography>
-      <Typography style={{ wordBreak: 'break-all' }}>{subtitle}</Typography>
+      <Typography data-testid={title} style={{ wordBreak: 'break-all' }}>{subtitle}</Typography>
     </>
   )
 }

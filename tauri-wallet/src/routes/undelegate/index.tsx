@@ -8,31 +8,59 @@ import {
   EnumRequestStatus,
   RequestStatus,
 } from '../../components/RequestStatus'
-import { Box, CircularProgress, Theme } from '@material-ui/core'
-import { getGasFee } from '../../requests'
-import { TFee } from '../../types'
+import { Box, Button, CircularProgress, Theme } from '@material-ui/core'
+import {
+  getGasFee,
+  getReverseGatewayDelegations,
+  getReverseMixDelegations,
+} from '../../requests'
+import { TFee, TDelegation } from '../../types'
+
+export type TDelegations = {
+  mixnodes: TDelegation
+  gateways: TDelegation
+}
 
 export const Undelegate = () => {
   const [message, setMessage] = useState<string>()
-  const [status, setStaus] = useState<EnumRequestStatus>(
+  const [status, setStatus] = useState<EnumRequestStatus>(
     EnumRequestStatus.initial
   )
   const [isLoading, setIsLoading] = useState(true)
   const [fees, setFees] = useState<TFee>()
+  const [delegations, setDelegations] = useState<TDelegations>()
 
   useEffect(() => {
-    const getFees = async () => {
-      const mixnode = await getGasFee('UndelegateFromMixnode')
-      const gateway = await getGasFee('UndelegateFromGateway')
+    initialize()
+  }, [])
+
+  const initialize = async () => {
+    setIsLoading(true)
+
+    try {
+      const [mixnodeFee, gatewayFee, mixnodeDelegations, gatewayDelegations] =
+        await Promise.all([
+          getGasFee('UndelegateFromMixnode'),
+          getGasFee('UndelegateFromGateway'),
+          getReverseMixDelegations(),
+          getReverseGatewayDelegations(),
+        ])
       setFees({
-        mixnode: mixnode,
-        gateway: gateway,
+        mixnode: mixnodeFee,
+        gateway: gatewayFee,
       })
-      setIsLoading(false)
+
+      setDelegations({
+        mixnodes: mixnodeDelegations,
+        gateways: gatewayDelegations,
+      })
+    } catch {
+      setStatus(EnumRequestStatus.error)
+      setMessage('An error occured when initialising the page')
     }
 
-    getFees()
-  }, [])
+    setIsLoading(false)
+  }
 
   const theme: Theme = useTheme()
 
@@ -55,35 +83,58 @@ export const Undelegate = () => {
           </Box>
         )}
         <>
-          {status === EnumRequestStatus.initial && fees && (
+          {status === EnumRequestStatus.initial && fees && delegations && (
             <UndelegateForm
               fees={fees}
+              delegations={delegations}
               onError={(message) => {
                 setMessage(message)
-                setStaus(EnumRequestStatus.error)
+                setStatus(EnumRequestStatus.error)
               }}
               onSuccess={(message) => {
                 setMessage(message)
-                setStaus(EnumRequestStatus.success)
+                setStatus(EnumRequestStatus.success)
               }}
             />
           )}
           {status !== EnumRequestStatus.initial && (
-            <RequestStatus
-              status={status}
-              Error={
-                <Alert severity="error">
-                  An error occurred with the request: {message}
-                </Alert>
-              }
-              Success={
-                <Alert severity="success">
-                  {' '}
-                  <AlertTitle>Undelegation complete</AlertTitle>
-                  {message}
-                </Alert>
-              }
-            />
+            <>
+              <RequestStatus
+                status={status}
+                Error={
+                  <Alert severity="error" data-testid="request-error">
+                    An error occurred with the request: {message}
+                  </Alert>
+                }
+                Success={
+                  <Alert severity="success">
+                    {' '}
+                    <AlertTitle data-testid="undelegate-success">Undelegation complete</AlertTitle>
+                    {message}
+                  </Alert>
+                }
+              />
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  borderTop: `1px solid ${theme.palette.grey[200]}`,
+                  background: theme.palette.grey[100],
+                  padding: theme.spacing(2),
+                }}
+              >
+                <Button
+                  data-testid="finish-button"
+                  onClick={() => {
+                    setStatus(EnumRequestStatus.initial)
+                    initialize()
+                  }}
+                >
+                  Finish
+                </Button>
+              </div>
+            </>
           )}
         </>
       </NymCard>

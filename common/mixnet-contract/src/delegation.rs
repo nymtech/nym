@@ -121,48 +121,6 @@ impl PagedReverseMixDelegationsResponse {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct PagedGatewayDelegationsResponse {
-    pub node_identity: IdentityKey,
-    pub delegations: Vec<Delegation>,
-    pub start_next_after: Option<Addr>,
-}
-
-impl PagedGatewayDelegationsResponse {
-    pub fn new(
-        node_identity: IdentityKey,
-        delegations: Vec<Delegation>,
-        start_next_after: Option<Addr>,
-    ) -> Self {
-        PagedGatewayDelegationsResponse {
-            node_identity,
-            delegations,
-            start_next_after,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct PagedReverseGatewayDelegationsResponse {
-    pub delegation_owner: Addr,
-    pub delegated_nodes: Vec<IdentityKey>,
-    pub start_next_after: Option<IdentityKey>,
-}
-
-impl PagedReverseGatewayDelegationsResponse {
-    pub fn new(
-        delegation_owner: Addr,
-        delegated_nodes: Vec<IdentityKey>,
-        start_next_after: Option<IdentityKey>,
-    ) -> Self {
-        PagedReverseGatewayDelegationsResponse {
-            delegation_owner,
-            delegated_nodes,
-            start_next_after,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedAllDelegationsResponse<T> {
     pub delegations: Vec<UnpackedDelegation<T>>,
     pub start_next_after: Option<Vec<u8>>,

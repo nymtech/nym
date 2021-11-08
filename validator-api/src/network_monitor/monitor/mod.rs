@@ -36,9 +36,12 @@ pub(super) struct Monitor {
     /// Number of test packets sent via each "random" route to verify whether they work correctly.
     route_test_packets: usize,
 
-    /// Number of test routes that need to be constructed (and working) in order for
-    /// a monitor test run to be valid.
+    /// Desired number of test routes to be constructed (and working) during a monitor test run.
     test_routes: usize,
+
+    /// The minimum number of test routes that need to be constructed (and working) in order for
+    /// a monitor test run to be valid.
+    minimum_test_routes: usize,
 }
 
 impl Monitor {
@@ -62,6 +65,7 @@ impl Monitor {
             packet_delivery_timeout: config.get_packet_delivery_timeout(),
             route_test_packets: config.get_route_test_packets(),
             test_routes: config.get_test_routes(),
+            minimum_test_routes: config.get_minimum_test_routes(),
         }
     }
 
@@ -103,11 +107,15 @@ impl Monitor {
     }
 
     async fn test_chosen_test_routes(&mut self, routes: &[TestRoute]) -> HashMap<u64, bool> {
-        // notes:
+        // notes for the future improvements:
         /*
            - gateway authentication failure should only 'blacklist' gateways, not mixnodes
 
         */
+
+        if routes.is_empty() {
+            return HashMap::new();
+        }
 
         debug!("Testing the following test routes: {:#?}", routes);
 
@@ -172,15 +180,29 @@ impl Monitor {
 
         'outer: loop {
             if current_attempt >= max_attempts {
+                if verified_routes.len() >= self.minimum_test_routes {
+                    return Some(verified_routes);
+                }
                 return None;
             }
 
             // try to construct slightly more than what we actually need to more quickly reach
             // the actual target
-            let candidates = self
+            let candidates = match self
                 .packet_preparer
                 .prepare_test_routes(remaining * 2, &mut blacklist)
-                .await?;
+                .await
+            {
+                Some(candidates) => candidates,
+                // if there are no more routes to generate, see if we have managed to construct
+                // at least the minimum number of routes
+                None => {
+                    if verified_routes.len() >= self.minimum_test_routes {
+                        return Some(verified_routes);
+                    }
+                    return None;
+                }
+            };
             let results = self.test_chosen_test_routes(&candidates).await;
             for candidate in candidates {
                 // ideally we would blacklist all nodes regardless of the result so we would not use them anymore

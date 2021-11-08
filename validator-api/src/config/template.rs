@@ -57,10 +57,13 @@ gateway_connection_timeout = '{{ network_monitor.gateway_connection_timeout }}'
 # Specifies the duration the monitor is going to wait after sending all measurement
 # packets before declaring nodes unreachable.
 packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
-    
-# Number of test routes that need to be constructed (and working) in order for
-# a monitor test run to be valid.
+
+# Desired number of test routes to be constructed (and working) during a monitor test run.
 test_routes = {{ network_monitor.test_routes }}
+
+# The minimum number of test routes that need to be constructed (and working) in order for
+# a monitor test run to be valid.
+minimum_test_routes = {{ network_monitor.minimum_test_routes }}
 
 # Number of test packets sent via each pseudorandom route to verify whether they work correctly,
 # before using them for testing the rest of the network.

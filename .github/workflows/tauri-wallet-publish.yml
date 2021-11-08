@@ -1,0 +1,12 @@
+name: Publish Tauri Wallet
+on:
+  push:
+    tags:
+      - tauri-wallet-*
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run a one-line script
+        run: echo Hello, world!

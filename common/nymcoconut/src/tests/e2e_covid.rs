@@ -1,9 +1,9 @@
+use crate::scheme::verification::{prove_covid_credential, verify_covid_credential};
 use crate::{
-    aggregate_signature_shares, aggregate_verification_keys, blind_sign, CoconutError,
-    elgamal_keygen, hash_to_scalar, prepare_blind_sign, setup, Signature, SignatureShare, ttp_keygen,
+    aggregate_signature_shares, aggregate_verification_keys, blind_sign, elgamal_keygen,
+    hash_to_scalar, prepare_blind_sign, setup, ttp_keygen, CoconutError, Signature, SignatureShare,
     VerificationKey,
 };
-use crate::scheme::verification::{prove_covid_credential, verify_covid_credential};
 
 #[test]
 fn main() -> Result<(), CoconutError> {

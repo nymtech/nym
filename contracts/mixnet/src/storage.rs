@@ -352,7 +352,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            Uint128(bond_value),
+            Uint128::new(bond_value),
             read_mixnode_bond(&storage, node_identity.as_bytes()).unwrap()
         );
     }
@@ -386,14 +386,14 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            Uint128(bond_value),
+            Uint128::new(bond_value),
             read_gateway_bond(&storage, node_identity.as_bytes()).unwrap()
         );
     }
 
     #[test]
     fn all_mixnode_delegations_read_retrieval() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let node_identity1: IdentityKey = "foo1".into();
         let delegation_owner1 = Addr::unchecked("bar1");
         let node_identity2: IdentityKey = "foo2".into();
@@ -432,7 +432,7 @@ mod tests {
 
         #[test]
         fn when_there_are_no_delegations() {
-            let mut deps = mock_dependencies(&[]);
+            let mut deps = mock_dependencies();
             let node_identity: IdentityKey = "nodeidentity".into();
 
             // 0.001
@@ -460,7 +460,7 @@ mod tests {
 
         #[test]
         fn when_there_is_a_single_delegation() {
-            let mut deps = mock_dependencies(&[]);
+            let mut deps = mock_dependencies();
             let node_identity: IdentityKey = "nodeidentity".into();
             let delegation_blockstamp = 42;
 
@@ -483,7 +483,7 @@ mod tests {
             )
             .unwrap();
 
-            assert_eq!(Uint128(1), total_increase);
+            assert_eq!(Uint128::new(1), total_increase);
 
             // amount is incremented, block height remains the same
             assert_eq!(
@@ -496,7 +496,7 @@ mod tests {
 
         #[test]
         fn when_there_is_a_single_delegation_depending_on_blockstamp() {
-            let mut deps = mock_dependencies(&[]);
+            let mut deps = mock_dependencies();
             let node_identity: IdentityKey = "nodeidentity".into();
             let delegation_blockstamp = 42;
 
@@ -539,7 +539,7 @@ mod tests {
             .unwrap();
 
             // there is an increase now, that the lock period has passed
-            assert_eq!(Uint128(1), total_increase);
+            assert_eq!(Uint128::new(1), total_increase);
 
             // amount is incremented
             assert_eq!(
@@ -552,7 +552,7 @@ mod tests {
 
         #[test]
         fn when_there_are_multiple_delegations() {
-            let mut deps = mock_dependencies(&[]);
+            let mut deps = mock_dependencies();
             let node_identity: IdentityKey = "nodeidentity".into();
             let delegation_blockstamp = 42;
 
@@ -577,7 +577,7 @@ mod tests {
             )
             .unwrap();
 
-            assert_eq!(Uint128(100), total_increase);
+            assert_eq!(Uint128::new(100), total_increase);
 
             for i in 0..100 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
@@ -592,7 +592,7 @@ mod tests {
 
         #[test]
         fn when_there_are_more_delegations_than_page_size() {
-            let mut deps = mock_dependencies(&[]);
+            let mut deps = mock_dependencies();
             let node_identity: IdentityKey = "nodeidentity".into();
             let delegation_blockstamp = 42;
 
@@ -618,7 +618,7 @@ mod tests {
             .unwrap();
 
             assert_eq!(
-                Uint128(queries::DELEGATION_PAGE_MAX_LIMIT as u128 * 10),
+                Uint128::new(queries::DELEGATION_PAGE_MAX_LIMIT as u128 * 10),
                 total_increase
             );
 

@@ -97,7 +97,7 @@ pub mod helpers {
     }
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let msg = InstantiateMsg {};
         let env = mock_env();
         let info = mock_info("creator", &[]);
@@ -163,7 +163,7 @@ pub mod helpers {
     }
 
     pub fn raw_delegation_fixture(amount: u128) -> RawDelegationData {
-        RawDelegationData::new(Uint128(amount), 42)
+        RawDelegationData::new(Uint128::new(amount), 42)
     }
 
     pub fn query_contract_balance(

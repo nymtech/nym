@@ -38,7 +38,7 @@ impl<'a> Mul<Gas> for &'a GasPrice {
         // however, realistically that is impossible to happen as the resultant value
         // would have to be way higher than our token limit of 10^15 (1 billion of tokens * 1 million for denomination)
         // and max value of u128 is approximately 10^38
-        if limit_uint128.u128() * gas_price_numerator > amount.u128() * gas_price_denominator {
+        if limit_uint128 * gas_price_numerator > amount * gas_price_denominator {
             amount += Uint128::new(1);
         }
 

@@ -7,9 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# this branch is identical to 0.14.1 with addition of updated k256 dependency required to help poor cargo choose correct version
-cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-updatedk256" }
-#cosmwasm-std = { version = "0.14.1" }
+cosmwasm-std = { git = "https://github.com/CosmWasm/cosmwasm", rev="v1.0.0-beta2" }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_repr = "0.1"

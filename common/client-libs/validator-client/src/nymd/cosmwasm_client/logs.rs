@@ -29,7 +29,7 @@ pub(crate) fn find_attribute<'a>(
 ) -> Option<&'a cosmwasm_std::Attribute> {
     logs.iter()
         .flat_map(|log| log.events.iter())
-        .find(|event| event.kind == event_type)?
+        .find(|event| event.ty == event_type)?
         .attributes
         .iter()
         .find(|attr| attr.key == attribute_key)
@@ -61,7 +61,7 @@ mod tests {
         assert_eq!(parsed.len(), 1);
         assert_eq!(parsed[0].msg_index, 0);
         assert_eq!(parsed[0].events.len(), 1);
-        assert_eq!(parsed[0].events[0].kind, "message");
+        assert_eq!(parsed[0].events[0].ty, "message");
         assert_eq!(parsed[0].events[0].attributes[3].key, "code_id");
         assert_eq!(parsed[0].events[0].attributes[3].value, "1");
     }
@@ -76,12 +76,12 @@ mod tests {
         assert_eq!(parsed[2].msg_index, 2);
 
         assert_eq!(parsed[0].events.len(), 1);
-        assert_eq!(parsed[0].events[0].kind, "message");
+        assert_eq!(parsed[0].events[0].ty, "message");
         assert_eq!(parsed[0].events[0].attributes[3].key, "code_id");
         assert_eq!(parsed[0].events[0].attributes[3].value, "9");
 
         assert_eq!(parsed[2].events.len(), 1);
-        assert_eq!(parsed[2].events[0].kind, "message");
+        assert_eq!(parsed[2].events[0].ty, "message");
         assert_eq!(parsed[2].events[0].attributes[2].key, "signer");
         assert_eq!(
             parsed[2].events[0].attributes[2].value,

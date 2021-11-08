@@ -15,10 +15,10 @@ use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StatePar
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
 /// Constant specifying minimum of coin required to bond a gateway
-pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128(100_000000);
+pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128::new(100_000000);
 
 /// Constant specifying minimum of coin required to bond a mixnode
-pub const INITIAL_MIXNODE_BOND: Uint128 = Uint128(100_000000);
+pub const INITIAL_MIXNODE_BOND: Uint128 = Uint128::new(100_000000);
 
 // percentage annual increase. Given starting value of x, we expect to have 1.1x at the end of the year
 pub const INITIAL_MIXNODE_BOND_REWARD_RATE: u64 = 110;
@@ -172,7 +172,7 @@ pub mod tests {
 
     #[test]
     fn initialize_contract() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let env = mock_env();
         let msg = InstantiateMsg {};
         let info = mock_info("creator", &[]);

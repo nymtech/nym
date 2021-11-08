@@ -14,7 +14,7 @@ use std::ops::Sub;
 // i.e. 8760 hours
 const HOURS_IN_YEAR: u128 = 8760;
 
-const DECIMAL_FRACTIONAL: Uint128 = Uint128(1_000_000_000_000_000_000u128);
+const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
 
 // cosmwasm bucket internal value
 const NAMESPACE_LENGTH: usize = 2;
@@ -328,7 +328,7 @@ mod tests {
 
     #[test]
     fn all_mix_delegations() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let node_identity1: IdentityKey = "foo1".into();
         let delegation_owner1 = Addr::unchecked("bar1");
         let node_identity2: IdentityKey = "foo2".into();

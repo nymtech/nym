@@ -649,8 +649,8 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-crypto"
-version = "0.14.1"
-source = "git+https://github.com/jstuczyn/cosmwasm?branch=0.14.1-updatedk256#308781cd5f33b0e996176c6b500793d3648c0f7b"
+version = "1.0.0-beta2"
+source = "git+https://github.com/CosmWasm/cosmwasm?rev=v1.0.0-beta2#a0cf296c43aa092b81457d96a9c6bc2ab223f6d3"
 dependencies = [
  "digest 0.9.0",
  "ed25519-zebra",
@@ -661,16 +661,16 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
-version = "0.14.1"
-source = "git+https://github.com/jstuczyn/cosmwasm?branch=0.14.1-updatedk256#308781cd5f33b0e996176c6b500793d3648c0f7b"
+version = "1.0.0-beta2"
+source = "git+https://github.com/CosmWasm/cosmwasm?rev=v1.0.0-beta2#a0cf296c43aa092b81457d96a9c6bc2ab223f6d3"
 dependencies = [
  "syn",
 ]
 
 [[package]]
 name = "cosmwasm-std"
-version = "0.14.1"
-source = "git+https://github.com/jstuczyn/cosmwasm?branch=0.14.1-updatedk256#308781cd5f33b0e996176c6b500793d3648c0f7b"
+version = "1.0.0-beta2"
+source = "git+https://github.com/CosmWasm/cosmwasm?rev=v1.0.0-beta2#a0cf296c43aa092b81457d96a9c6bc2ab223f6d3"
 dependencies = [
  "base64",
  "cosmwasm-crypto",

@@ -30,7 +30,7 @@ url = "2.0"
 rand = "0.6.5"
 
 cosmrs = { version = "0.3", features = ["rpc", "bip32", "cosmwasm"] }
-cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch = "0.14.1-updatedk256" }
+cosmwasm-std = { git = "https://github.com/CosmWasm/cosmwasm", rev="v1.0.0-beta2" }
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nymd-client",

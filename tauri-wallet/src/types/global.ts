@@ -23,7 +23,7 @@ export type TCreateAccount = {
   mnemonic: string
 } & TSignInWithMnemonic
 
-export type TFee = { [key in EnumNodeType]: Coin }
+export type TFee = { [EnumNodeType.mixnode]: Coin }
 
 export type TDelegation = {
   delegated_nodes: string[]

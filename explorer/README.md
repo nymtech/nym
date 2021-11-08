@@ -38,7 +38,7 @@ Make sure you have built the [explorer-api](./explorer-api) and are running it a
 
 ## License
 
-Please see https://github.com/nymtech/nym for license details for all Nym software.
+Please see the [project README](./README.md) and the [LICENSES directory](../LICENSES) for license details for all Nym software.
 
 ## Contributing
 

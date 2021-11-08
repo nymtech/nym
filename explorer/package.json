@@ -2,6 +2,7 @@
   "name": "@nym/network-explorer",
   "version": "1.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "dependencies": {
     "@cosmjs/math": "^0.26.2",
     "@emotion/react": "^11.4.1",

@@ -1,6 +1,12 @@
 name: Mixnet Contract
 
-on: [push, pull_request]
+on:
+  push:
+    paths-ignore:
+      - 'explorer/**'
+  pull_request:
+    paths-ignore:
+      - 'explorer/**'
 
 jobs:
   mixnet-contract:

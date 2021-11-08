@@ -1,6 +1,12 @@
 name: Generate TS types
 
-on: push
+on:
+  push:
+    paths-ignore:
+      - 'explorer/**'
+  pull_request:
+    paths-ignore:
+      - 'explorer/**'
 
 jobs:
   tauri-wallet-types:

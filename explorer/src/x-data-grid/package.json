@@ -1,0 +1,89 @@
+{
+  "_from": "@mui/x-data-grid",
+  "_id": "@mui/x-data-grid@4.0.0",
+  "_inBundle": false,
+  "_integrity": "sha512-BYn7uLx5tJbMarcWltjjVArWNBdC22/2xOpq3Azhltbb3TRx3h2RLUeKwZI685xmGHmzvtu6QqaoYqQgFe/h+g==",
+  "_location": "/@mui/x-data-grid",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "@mui/x-data-grid",
+    "name": "@mui/x-data-grid",
+    "escapedName": "@mui%2fx-data-grid",
+    "scope": "@mui",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/@mui/x-data-grid/-/x-data-grid-4.0.0.tgz",
+  "_shasum": "e9e9c33a8b86e85872c48f30f4a8de72ee819153",
+  "_spec": "@mui/x-data-grid",
+  "_where": "/Users/adrianthompson/Documents/nym/explorer",
+  "author": {
+    "name": "MUI Team"
+  },
+  "bugs": {
+    "url": "https://github.com/mui-org/material-ui-x/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "@material-ui/utils": "^5.0.0-beta.4",
+    "clsx": "^1.1.1",
+    "prop-types": "^15.7.2",
+    "reselect": "^4.0.0"
+  },
+  "deprecated": false,
+  "description": "The community edition of the data grid component (Material-UI X).",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "files": [
+    "dist/*"
+  ],
+  "gitHead": "940d6238fe499f027ee27e818d714f79ca40e9a5",
+  "homepage": "https://material-ui.com/components/data-grid/",
+  "keywords": [
+    "react",
+    "react-component",
+    "material-ui",
+    "mui",
+    "react-table",
+    "table",
+    "datatable",
+    "data-table",
+    "datagrid",
+    "data-grid"
+  ],
+  "license": "MIT",
+  "main": "dist/index-cjs.js",
+  "module": "dist/index-esm.js",
+  "name": "@mui/x-data-grid",
+  "peerDependencies": {
+    "@material-ui/core": "^4.12.0 || ^5.0.0-beta.0",
+    "@mui/styles": "^4.11.4 || ^5.0.0-beta.0",
+    "react": "^17.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mui-org/material-ui-x.git",
+    "directory": "packages/grid/data-grid"
+  },
+  "scripts": {
+    "build": "cd ../ && rollup --config rollup.data-grid.config.js",
+    "typescript": "tsc -p tsconfig.json"
+  },
+  "setupFiles": [
+    "<rootDir>/src/setupTests.js"
+  ],
+  "sideEffects": false,
+  "types": "dist/data-grid.d.ts",
+  "version": "4.0.0"
+}

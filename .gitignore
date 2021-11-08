@@ -11,7 +11,6 @@ target
 /.vscode/settings.json
 validator/.vscode
 sample-configs/validator-config.toml
-.vscode
 scripts/deploy_qa.sh
 scripts/run_gate.sh
 scripts/run_mix.sh

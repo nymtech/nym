@@ -3,7 +3,7 @@
 
 use crate::error::ContractError;
 use crate::transactions::OLD_DELEGATIONS_CHUNK_SIZE;
-use cosmwasm_std::{Decimal, Order, StdError, StdResult, Uint128};
+use cosmwasm_std::{Decimal, Order, StdError, StdResult};
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{Addr, IdentityKey, PagedAllDelegationsResponse, UnpackedDelegation};
 use serde::de::DeserializeOwned;
@@ -14,18 +14,8 @@ use std::ops::Sub;
 // i.e. 8760 hours
 const HOURS_IN_YEAR: u128 = 8760;
 
-const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
-
 // cosmwasm bucket internal value
 const NAMESPACE_LENGTH: usize = 2;
-
-fn decimal_to_uint128(value: Decimal) -> Uint128 {
-    value * DECIMAL_FRACTIONAL
-}
-
-fn uint128_to_decimal(value: Uint128) -> Decimal {
-    Decimal::from_ratio(value, DECIMAL_FRACTIONAL)
-}
 
 pub(crate) fn calculate_epoch_reward_rate(
     epoch_length: u32,
@@ -37,20 +27,10 @@ pub(crate) fn calculate_epoch_reward_rate(
 
     // converts reward rate, like 1.25 into the expected gain, like 0.25
     let annual_reward = annual_reward_rate.sub(Decimal::one());
-    // do a simple cross-multiplication:
-    // `annual_reward`  -    `HOURS_IN_YEAR`
-    //          x       -    `epoch_length`
-    //
-    // x = `annual_reward` * `epoch_length` / `HOURS_IN_YEAR`
 
-    // converts reward, like 0.25 into 250000000000000000
-    let annual_reward_uint128 = decimal_to_uint128(annual_reward);
+    let rewarding_interval_ratio = Decimal::from_ratio(epoch_length, HOURS_IN_YEAR);
 
-    // calculates `annual_reward_uint128` * `epoch_length` / `HOURS_IN_YEAR`
-    let epoch_reward_uint128 = annual_reward_uint128.multiply_ratio(epoch_length, HOURS_IN_YEAR);
-
-    // note: this returns a % reward, like 0.05 rather than reward rate (like 1.05)
-    uint128_to_decimal(epoch_reward_uint128)
+    annual_reward * rewarding_interval_ratio
 }
 
 pub(crate) fn scale_reward_by_uptime(
@@ -60,17 +40,9 @@ pub(crate) fn scale_reward_by_uptime(
     if uptime > 100 {
         return Err(ContractError::UnexpectedUptime);
     }
+
     let uptime_ratio = Decimal::from_ratio(uptime, 100u128);
-    // if we do not convert into a more precise representation, we might end up with, for example,
-    // reward 0.05 and uptime of 50% which would produce 0.50 * 0.05 = 0 (because of u128 representation)
-    // and also the above would be impossible to compute as Mul<Decimal> for Decimal is not implemented
-    //
-    // but with the intermediate conversion, we would have
-    // 0.50 * 50_000_000_000_000_000 = 25_000_000_000_000_000
-    // which converted back would give us the proper 0.025
-    let uptime_ratio_u128 = decimal_to_uint128(uptime_ratio);
-    let scaled = reward * uptime_ratio_u128;
-    Ok(uint128_to_decimal(scaled))
+    Ok(uptime_ratio * reward)
 }
 
 // Extracts the node identity and owner of a delegation from the bytes used as

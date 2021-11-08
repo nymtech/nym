@@ -20,7 +20,7 @@ use bls12_381::{multi_miller_loop, G1Affine, G2Prepared, G2Projective, Scalar};
 use group::{Curve, Group};
 
 use crate::error::{CoconutError, Result};
-use crate::proofs::ProofKappaNu;
+use crate::proofs::{ProofKappa, ProofKappaNu};
 use crate::scheme::setup::Parameters;
 use crate::scheme::Signature;
 use crate::scheme::VerificationKey;
@@ -30,6 +30,36 @@ use crate::Attribute;
 
 // TODO NAMING: this whole thing
 // Theta
+
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
+pub struct ThetaCovid {
+    // blinded_message (kappa)
+    pub blinded_message: G2Projective,
+    // sigma
+    pub credential: Signature,
+    // pi_v
+    pub pi_v: ProofKappa,
+}
+
+impl ThetaCovid {
+    fn verify_proof(
+        &self,
+        params: &Parameters,
+        verification_key: &VerificationKey,
+        verifier_id: &[u8; 32],
+        timestamp: &[u8; 32],
+    ) -> bool {
+        self.pi_v.verify(
+            params,
+            verification_key,
+            &self.blinded_message,
+            verifier_id,
+            timestamp,
+        )
+    }
+}
+
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct Theta {
@@ -143,6 +173,57 @@ pub fn compute_zeta(params: &Parameters, serial_number: Attribute) -> G2Projecti
     params.gen2() * serial_number
 }
 
+#[cfg(test)]
+pub fn prove_covid_credential(
+    params: &Parameters,
+    verification_key: &VerificationKey,
+    signature: &Signature,
+    private_attributes: &[Attribute],
+    verifier_id: &[u8; 32],
+    timestamp: &[u8; 32],
+) -> Result<ThetaCovid> {
+    if verification_key.beta.len() < params.gen_hs().len() {
+        return Err(
+            CoconutError::Verification(
+                format!("Tried to prove a credential for higher than supported by the provided verification key number of attributes (max: {}, requested: 2)",
+                        verification_key.beta.len()
+                )));
+    }
+
+    // Randomize the signature
+    let (signature_prime, sign_blinding_factor) = signature.randomise(params);
+
+    // blinded_message : kappa in the paper.
+    // Value kappa is needed since we want to show a signature sigma'.
+    // In order to verify sigma' we need both the verification key vk and the message m.
+    // However, we do not want to reveal m to whomever we are showing the signature.
+    // Thus, we need kappa which allows us to verify sigma'. In particular,
+    // kappa is computed on m as input, but thanks to the use or random value r,
+    // it does not reveal any information about m.
+    let blinded_message = compute_kappa(
+        params,
+        verification_key,
+        &private_attributes,
+        sign_blinding_factor,
+    );
+
+    let pi_v = ProofKappa::construct(
+        params,
+        verification_key,
+        &sign_blinding_factor,
+        &blinded_message,
+        &private_attributes,
+        verifier_id,
+        timestamp,
+    );
+
+    Ok(ThetaCovid {
+        blinded_message,
+        credential: signature_prime,
+        pi_v,
+    })
+}
+
 pub fn prove_bandwidth_credential(
     params: &Parameters,
     verification_key: &VerificationKey,
@@ -207,6 +288,48 @@ pub fn check_bilinear_pairing(p: &G1Affine, q: &G2Prepared, r: &G1Affine, s: &G2
 
     let multi_miller = multi_miller_loop(&[(p, q), (&r.neg(), s)]);
     multi_miller.final_exponentiation().is_identity().into()
+}
+
+#[cfg(test)]
+pub fn verify_covid_credential(
+    params: &Parameters,
+    verification_key: &VerificationKey,
+    theta: &ThetaCovid,
+    public_attributes: &[Attribute],
+    verifier_id: &[u8; 32],
+    timestamp: &[u8; 32],
+) -> bool {
+    if public_attributes.len() + theta.pi_v.private_attributes_len() > verification_key.beta.len() {
+        return false;
+    }
+
+    if !theta.verify_proof(params, verification_key, verifier_id, timestamp) {
+        return false;
+    }
+
+    let kappa = if public_attributes.is_empty() {
+        theta.blinded_message
+    } else {
+        let signed_public_attributes = public_attributes
+            .iter()
+            .zip(
+                verification_key
+                    .beta
+                    .iter()
+                    .skip(theta.pi_v.private_attributes_len()),
+            )
+            .map(|(pub_attr, beta_i)| beta_i * pub_attr)
+            .sum::<G2Projective>();
+
+        theta.blinded_message + signed_public_attributes
+    };
+
+    check_bilinear_pairing(
+        &theta.credential.0.to_affine(),
+        &G2Prepared::from(kappa.to_affine()),
+        &(theta.credential.1).to_affine(),
+        params.prepared_miller_g2(),
+    ) && !bool::from(theta.credential.0.is_identity())
 }
 
 pub fn verify_credential(

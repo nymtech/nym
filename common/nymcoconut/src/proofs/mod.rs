@@ -376,6 +376,111 @@ impl ProofCmCs {
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
+pub struct ProofKappa {
+    challenge: Scalar,
+    response_attributes: Vec<Scalar>,
+    response_blinder: Scalar,
+}
+
+impl ProofKappa {
+    pub(crate) fn construct(
+        params: &Parameters,
+        verification_key: &VerificationKey,
+        blinding_factor: &Scalar,
+        blinded_message: &G2Projective,
+        private_attributes: &[Attribute],
+        verifier_id: &[u8; 32],
+        timestamp: &[u8; 32],
+    ) -> Self {
+        // create the witnesses
+        let witness_blinder = params.random_scalar();
+        let witness_attributes = params.n_random_scalars(private_attributes.len());
+
+        let beta_bytes = verification_key
+            .beta
+            .iter()
+            .map(|beta_i| beta_i.to_bytes())
+            .collect::<Vec<_>>();
+
+        // witnesses commitments
+        // Aw = g2 * wt + alpha + beta[0] * wm[0] + ... + beta[i] * wm[i]
+        let commitment_kappa = params.gen2() * witness_blinder
+            + verification_key.alpha
+            + witness_attributes
+                .iter()
+                .zip(verification_key.beta.iter())
+                .map(|(wm_i, beta_i)| beta_i * wm_i)
+                .sum::<G2Projective>();
+
+        let challenge = compute_challenge::<ChallengeDigest, _, _>(
+            std::iter::once(params.gen2().to_bytes().as_ref())
+                .chain(std::iter::once(blinded_message.to_bytes().as_ref())) //kappa
+                .chain(std::iter::once(verification_key.alpha.to_bytes().as_ref()))
+                .chain(beta_bytes.iter().map(|b| b.as_ref()))
+                .chain(std::iter::once(commitment_kappa.to_bytes().as_ref()))
+                .chain(std::iter::once(verifier_id.as_ref()))
+                .chain(std::iter::once(timestamp.as_ref())),
+        );
+
+        // responses
+        let response_blinder = produce_response(&witness_blinder, &challenge, blinding_factor);
+        let response_attributes =
+            produce_responses(&witness_attributes, &challenge, private_attributes);
+
+        ProofKappa {
+            challenge,
+            response_attributes,
+            response_blinder,
+        }
+    }
+
+    pub(crate) fn private_attributes_len(&self) -> usize {
+        self.response_attributes.len()
+    }
+
+    pub(crate) fn verify(
+        &self,
+        params: &Parameters,
+        verification_key: &VerificationKey,
+        kappa: &G2Projective,
+        verifier_id: &[u8; 32],
+        timestamp: &[u8; 32],
+    ) -> bool {
+        let beta_bytes = verification_key
+            .beta
+            .iter()
+            .map(|beta_i| beta_i.to_bytes())
+            .collect::<Vec<_>>();
+
+        // re-compute witnesses commitments
+        // Aw = (c * kappa) + (rt * g2) + ((1 - c) * alpha) + (rm[0] * beta[0]) + ... + (rm[i] * beta[i])
+        let commitment_kappa = kappa * self.challenge
+            + params.gen2() * self.response_blinder
+            + verification_key.alpha * (Scalar::one() - self.challenge)
+            + self
+                .response_attributes
+                .iter()
+                .zip(verification_key.beta.iter())
+                .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+                .sum::<G2Projective>();
+
+        // compute the challenge
+        let challenge = compute_challenge::<ChallengeDigest, _, _>(
+            std::iter::once(params.gen2().to_bytes().as_ref())
+                .chain(std::iter::once(kappa.to_bytes().as_ref()))
+                .chain(std::iter::once(verification_key.alpha.to_bytes().as_ref()))
+                .chain(beta_bytes.iter().map(|b| b.as_ref()))
+                .chain(std::iter::once(commitment_kappa.to_bytes().as_ref()))
+                .chain(std::iter::once(verifier_id.as_ref()))
+                .chain(std::iter::once(timestamp.as_ref())),
+        );
+
+        challenge == self.challenge
+    }
+}
+
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct ProofKappaNu {
     // c
     challenge: Scalar,

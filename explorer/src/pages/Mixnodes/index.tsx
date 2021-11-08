@@ -125,7 +125,7 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'host',
-      renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
+      renderHeader: () => <CustomColumnHeading headingTitle="Host" />,
       flex: 1,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',

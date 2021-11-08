@@ -75,8 +75,8 @@ impl InboxManager {
                     ORDER BY id ASC
                     LIMIT ?;
                 "#,
-                start_after,
                 client_address_bs58,
+                start_after,
                 limit
             )
             .fetch_all(&self.connection_pool)

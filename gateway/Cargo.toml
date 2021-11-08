@@ -6,13 +6,13 @@ name = "nym-gateway"
 version = "0.11.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
+rust-version = "1.56"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bip39 = "1.0.1"
 clap = "2.33.0"
-cosmrs = { version = "0.1", features = ["rpc", "bip32", "cosmwasm"] }
 dirs = "3.0"
 dashmap = "4.0"
 dotenv = "0.15.0"

@@ -2,14 +2,12 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::{IdentityKey, SphinxKey};
-use cosmwasm_std::{coin, Addr, Coin};
+use cosmwasm_std::{Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::Display;
 use ts_rs::TS;
-
-use crate::current_block_height;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema, TS)]
 pub struct Gateway {
@@ -26,9 +24,7 @@ pub struct Gateway {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayBond {
     pub bond_amount: Coin,
-    pub total_delegation: Coin,
     pub owner: Addr,
-    #[serde(default = "current_block_height")]
     pub block_height: u64,
     pub gateway: Gateway,
 }
@@ -36,7 +32,6 @@ pub struct GatewayBond {
 impl GatewayBond {
     pub fn new(bond_amount: Coin, owner: Addr, block_height: u64, gateway: Gateway) -> Self {
         GatewayBond {
-            total_delegation: coin(0, &bond_amount.denom),
             bond_amount,
             owner,
             block_height,
@@ -64,42 +59,17 @@ impl GatewayBond {
 impl PartialOrd for GatewayBond {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         // first remove invalid cases
-        if self.bond_amount.denom != self.total_delegation.denom {
-            return None;
-        }
-
-        if other.bond_amount.denom != other.total_delegation.denom {
-            return None;
-        }
-
         if self.bond_amount.denom != other.bond_amount.denom {
             return None;
         }
 
-        // try to order by total bond + delegation
-        let total_cmp = (self.bond_amount.amount + self.total_delegation.amount)
-            .partial_cmp(&(self.bond_amount.amount + self.total_delegation.amount))?;
-
-        if total_cmp != Ordering::Equal {
-            return Some(total_cmp);
-        }
-
-        // then if those are equal, prefer higher bond over delegation
+        // try to order by total bond
         let bond_cmp = self
             .bond_amount
             .amount
             .partial_cmp(&other.bond_amount.amount)?;
         if bond_cmp != Ordering::Equal {
             return Some(bond_cmp);
-        }
-
-        // then look at delegation (I'm not sure we can get here, but better safe than sorry)
-        let delegation_cmp = self
-            .total_delegation
-            .amount
-            .partial_cmp(&other.total_delegation.amount)?;
-        if delegation_cmp != Ordering::Equal {
-            return Some(delegation_cmp);
         }
 
         // then check block height
@@ -175,20 +145,19 @@ mod tests {
     #[test]
     fn gateway_bond_partial_ord() {
         let _150foos = Coin::new(150, "foo");
+        let _140foos = Coin::new(140, "foo");
         let _50foos = Coin::new(50, "foo");
         let _0foos = Coin::new(0, "foo");
 
         let gate1 = GatewayBond {
             bond_amount: _150foos.clone(),
-            total_delegation: _50foos.clone(),
             owner: Addr::unchecked("foo1"),
             block_height: 100,
             gateway: gateway_fixture(),
         };
 
         let gate2 = GatewayBond {
-            bond_amount: _150foos.clone(),
-            total_delegation: _50foos.clone(),
+            bond_amount: _150foos,
             owner: Addr::unchecked("foo2"),
             block_height: 120,
             gateway: gateway_fixture(),
@@ -196,15 +165,13 @@ mod tests {
 
         let gate3 = GatewayBond {
             bond_amount: _50foos,
-            total_delegation: _150foos.clone(),
             owner: Addr::unchecked("foo3"),
             block_height: 120,
             gateway: gateway_fixture(),
         };
 
         let gate4 = GatewayBond {
-            bond_amount: _150foos.clone(),
-            total_delegation: _0foos.clone(),
+            bond_amount: _140foos,
             owner: Addr::unchecked("foo4"),
             block_height: 120,
             gateway: gateway_fixture(),
@@ -212,21 +179,19 @@ mod tests {
 
         let gate5 = GatewayBond {
             bond_amount: _0foos,
-            total_delegation: _150foos,
             owner: Addr::unchecked("foo5"),
             block_height: 120,
             gateway: gateway_fixture(),
         };
 
         // summary:
-        // gate1: 150bond + 50delegation, foo1, 100
-        // gate2: 150bond + 50delegation, foo2, 120
-        // gate3: 50bond + 150delegation, foo3, 120
-        // gate4: 150bond + 0delegation, foo4, 120
-        // gate5: 0bond + 150delegation, foo5, 120
+        // gate1: 150bond, foo1, 100
+        // gate2: 150bond, foo2, 120
+        // gate3: 50bond, foo3, 120
+        // gate4: 140bond, foo4, 120
+        // gate5: 0bond, foo5, 120
 
-        // highest total bond+delegation is used
-        // then bond followed by delegation
+        // highest total bond is used
         // finally just the rest of the fields
 
         // gate1 has higher total than gate4 or gate5

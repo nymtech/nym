@@ -3,7 +3,6 @@
 
 use bip39::core::str::FromStr;
 use bip39::Mnemonic;
-use cosmrs::{Coin, Decimal};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use url::Url;
@@ -21,7 +20,9 @@ use erc20_bridge_contract::msg::ExecuteMsg;
 use erc20_bridge_contract::payment::LinkPaymentData;
 use gateway_client::bandwidth::eth_contract;
 use network_defaults::{COSMOS_CONTRACT_ADDRESS, DENOM, ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
-use validator_client::nymd::{AccountId, Denom, Fee, Gas, NymdClient, SigningNymdClient};
+use validator_client::nymd::{
+    AccountId, CosmosCoin, Decimal, Denom, Fee, Gas, NymdClient, SigningNymdClient,
+};
 
 pub(crate) struct ERC20Bridge {
     // This is needed because web3's Contract doesn't sufficiently expose it's eth interface
@@ -100,7 +101,7 @@ impl ERC20Bridge {
     ) -> Result<(), RequestHandlingError> {
         // It's ok to unwrap here, as the cosmos contract and denom are set correctly
         let contract_address = self.nymd_client.contract_address().unwrap();
-        let coin = Coin {
+        let coin = CosmosCoin {
             denom: Denom::from_str(DENOM).unwrap(),
             amount: Decimal::from(100000u64),
         };

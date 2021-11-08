@@ -5,14 +5,14 @@ use crate::node_status_api::models::{
     ErrorResponse, GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport,
     MixnodeUptimeHistory,
 };
-use crate::storage::NodeStatusStorage;
+use crate::storage::ValidatorApiStorage;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 
 #[get("/mixnode/<pubkey>/report")]
 pub(crate) async fn mixnode_report(
-    storage: &State<NodeStatusStorage>,
+    storage: &State<ValidatorApiStorage>,
     pubkey: &str,
 ) -> Result<Json<MixnodeStatusReport>, ErrorResponse> {
     storage
@@ -24,7 +24,7 @@ pub(crate) async fn mixnode_report(
 
 #[get("/gateway/<pubkey>/report")]
 pub(crate) async fn gateway_report(
-    storage: &State<NodeStatusStorage>,
+    storage: &State<ValidatorApiStorage>,
     pubkey: &str,
 ) -> Result<Json<GatewayStatusReport>, ErrorResponse> {
     storage
@@ -36,7 +36,7 @@ pub(crate) async fn gateway_report(
 
 #[get("/mixnode/<pubkey>/history")]
 pub(crate) async fn mixnode_uptime_history(
-    storage: &State<NodeStatusStorage>,
+    storage: &State<ValidatorApiStorage>,
     pubkey: &str,
 ) -> Result<Json<MixnodeUptimeHistory>, ErrorResponse> {
     storage
@@ -48,7 +48,7 @@ pub(crate) async fn mixnode_uptime_history(
 
 #[get("/gateway/<pubkey>/history")]
 pub(crate) async fn gateway_uptime_history(
-    storage: &State<NodeStatusStorage>,
+    storage: &State<ValidatorApiStorage>,
     pubkey: &str,
 ) -> Result<Json<GatewayUptimeHistory>, ErrorResponse> {
     storage

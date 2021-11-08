@@ -13,7 +13,7 @@ on the UI of the nym wallet. Currently, tauri-driver is available to run on Wind
 
 - `Yarn`
 - `NodeJS >= v16.8.0`
-- `Rust & cargo >= v1.51`
+- `Rust & cargo >= v1.56.1`
 - `tauri-driver`
 - `That you have an existing mnemonic and you can login to the app`
 - `Have the details listed below to provide the user-data.json file`

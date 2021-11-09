@@ -577,7 +577,7 @@ pub(crate) mod tests {
                 minimum_gateway_bond: 456u128.into(),
                 mixnode_bond_reward_rate: "1.23".parse().unwrap(),
                 mixnode_delegation_reward_rate: "7.89".parse().unwrap(),
-                mixnode_demanded_set_size: 1000,
+                mixnode_rewarded_set_size: 1000,
                 mixnode_active_set_size: 500,
             },
             rewarding_interval_starting_block: 123,

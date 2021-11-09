@@ -24,7 +24,7 @@ pub const INITIAL_MIXNODE_BOND: Uint128 = Uint128(100_000000);
 pub const INITIAL_MIXNODE_BOND_REWARD_RATE: u64 = 110;
 pub const INITIAL_MIXNODE_DELEGATION_REWARD_RATE: u64 = 110;
 
-pub const INITIAL_MIXNODE_DEMANDED_SET_SIZE: u32 = 200;
+pub const INITIAL_MIXNODE_REWARDED_SET_SIZE: u32 = 200;
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
 fn default_initial_state(owner: Addr, env: Env) -> State {
@@ -40,7 +40,7 @@ fn default_initial_state(owner: Addr, env: Env) -> State {
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
             mixnode_bond_reward_rate,
             mixnode_delegation_reward_rate,
-            mixnode_demanded_set_size: INITIAL_MIXNODE_DEMANDED_SET_SIZE,
+            mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
         },
         rewarding_interval_starting_block: env.block.height,

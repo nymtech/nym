@@ -314,9 +314,9 @@ pub(crate) fn try_update_state_params(
         return Err(ContractError::DecreasingMixnodeDelegationReward);
     }
 
-    // note: demanded_set = active_set + idle_set
-    // hence demanded set must always be bigger than (or equal to) the active set
-    if params.mixnode_demanded_set_size < params.mixnode_active_set_size {
+    // note: rewarded_set = active_set + idle_set
+    // hence rewarded set must always be bigger than (or equal to) the active set
+    if params.mixnode_rewarded_set_size < params.mixnode_active_set_size {
         return Err(ContractError::InvalidActiveSetSize);
     }
 
@@ -1403,7 +1403,7 @@ pub mod tests {
             mixnode_delegation_reward_rate: Decimal::percent(
                 INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
             ),
-            mixnode_demanded_set_size: 100,
+            mixnode_rewarded_set_size: 100,
             mixnode_active_set_size: 50,
         };
 
@@ -1482,7 +1482,7 @@ pub mod tests {
         // error is thrown if rewarded set is smaller than the active set
         let info = mock_info("creator", &[]);
         let mut new_params = current_state.params.clone();
-        new_params.mixnode_demanded_set_size = new_params.mixnode_active_set_size - 1;
+        new_params.mixnode_rewarded_set_size = new_params.mixnode_active_set_size - 1;
         let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
         assert_eq!(Err(ContractError::InvalidActiveSetSize), res)
     }

@@ -185,7 +185,7 @@ impl PacketPreparer {
         let initialisation_backoff = Duration::from_secs(30);
         loop {
             let gateways = self.validator_cache.gateways().await;
-            let mixnodes = self.validator_cache.demanded_mixnodes().await;
+            let mixnodes = self.validator_cache.rewarded_mixnodes().await;
 
             if gateways.into_inner().len() < minimum_full_routes {
                 continue;
@@ -219,10 +219,10 @@ impl PacketPreparer {
         }
     }
 
-    async fn get_demanded_nodes(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
+    async fn get_rewarded_nodes(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
         info!(target: "Monitor", "Obtaining network topology...");
 
-        let mixnodes = self.validator_cache.demanded_mixnodes().await.into_inner();
+        let mixnodes = self.validator_cache.rewarded_mixnodes().await.into_inner();
         let gateways = self.validator_cache.gateways().await.into_inner();
 
         (mixnodes, gateways)
@@ -257,19 +257,19 @@ impl PacketPreparer {
         n: usize,
         blacklist: &mut HashSet<String>,
     ) -> Option<Vec<TestRoute>> {
-        let demanded_mixnodes = self.validator_cache.demanded_mixnodes().await.into_inner();
+        let rewarded_mixnodes = self.validator_cache.rewarded_mixnodes().await.into_inner();
         let gateways = self.validator_cache.gateways().await.into_inner();
 
         // separate mixes into layers for easier selection
         let mut layered_mixes = HashMap::new();
-        for demanded_mix in demanded_mixnodes {
+        for rewarded_mix in rewarded_mixnodes {
             // filter out mixes on the blacklist
-            if blacklist.contains(&demanded_mix.mix_node.identity_key) {
+            if blacklist.contains(&rewarded_mix.mix_node.identity_key) {
                 continue;
             }
-            let layer = demanded_mix.layer;
+            let layer = rewarded_mix.layer;
             let mixes = layered_mixes.entry(layer).or_insert_with(Vec::new);
-            mixes.push(demanded_mix)
+            mixes.push(rewarded_mix)
         }
         // filter out gateways on the blacklist
         let gateways = gateways
@@ -445,9 +445,9 @@ impl PacketPreparer {
         test_nonce: u64,
         test_routes: &[TestRoute],
     ) -> PreparedPackets {
-        // only test nodes that are demanded, i.e. that will be rewarded in this epoch.
-        let (mixnode_bonds, gateway_bonds) = self.get_demanded_nodes().await;
-        
+        // only test nodes that are rewarded, i.e. that will be rewarded in this epoch.
+        let (mixnode_bonds, gateway_bonds) = self.get_rewarded_nodes().await;
+
         let (mixes, invalid_mixnodes) = self.filter_outdated_and_malformed_mixnodes(mixnode_bonds);
         let (gateways, invalid_gateways) =
             self.filter_outdated_and_malformed_gateways(gateway_bonds);

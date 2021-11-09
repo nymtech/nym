@@ -4,6 +4,6 @@ export interface TauriStateParams {
   minimum_gateway_bond: string;
   mixnode_bond_reward_rate: string;
   mixnode_delegation_reward_rate: string;
-  mixnode_demanded_set_size: number;
+  mixnode_rewarded_set_size: number;
   mixnode_active_set_size: number;
 }

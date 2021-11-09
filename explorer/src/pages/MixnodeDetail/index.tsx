@@ -1,19 +1,23 @@
 import * as React from 'react';
-import { Typography, Box, Grid } from '@mui/material';
-import { useMainContext } from 'src/context/main';
-import { useParams } from 'react-router-dom';
-import { ContentCard } from 'src/components/ContentCard';
-import { WorldMap } from 'src/components/WorldMap';
-import { BondBreakdownTable } from 'src/components/BondBreakdown';
-import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
-import { UptimeChart } from 'src/components/UptimeChart';
+import { Box, Grid, Typography } from '@mui/material';
+import { ColumnsType, UniversalTable } from 'src/components/UniversalTable';
 import { mixnodeToGridRow, scrollToRef } from 'src/utils';
+import { useParams } from 'react-router-dom';
+
+// eslint-disable-next-line sort-imports
+import { BondBreakdownTable } from 'src/components/BondBreakdown';
+// unsusure what the sort import issue is here - AID
+
 import { ComponentError } from 'src/components/ComponentError';
+import { ContentCard } from 'src/components/ContentCard';
 import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
 import { Title } from 'src/components/Title';
-import { UniversalTable } from 'src/components/UniversalTable';
+import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
+import { UptimeChart } from 'src/components/UptimeChart';
+import { WorldMap } from 'src/components/WorldMap';
+import { useMainContext } from 'src/context/main';
 
-const columns: any = [
+const columns: ColumnsType[] = [
   {
     field: 'owner',
     title: 'Owner',

@@ -11,14 +11,17 @@ import {
 import { printableCoin } from '@nymproject/nym-validator-client';
 import { cellStyles } from './Universal-DataGrid';
 
+export type ColumnsType = {
+  field: string;
+  title: string;
+  headerAlign: string;
+  flex?: number;
+  width?: number;
+};
+
 export interface UniversalTableProps {
   tableName: string;
-  columnsData: {
-    field: string;
-    title: string;
-    headerAlign: string;
-    flex: number;
-  }[];
+  columnsData: ColumnsType[];
   rows: any[];
 }
 

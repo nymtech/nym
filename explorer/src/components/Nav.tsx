@@ -352,6 +352,8 @@ export const Nav: React.FC = ({ children }) => {
         <Drawer
           variant="permanent"
           open={open}
+          onMouseEnter={handleDrawerOpen}
+          onMouseLeave={handleDrawerClose}
           sx={{
             background: theme.palette.nym.networkExplorer.nav.background,
           }}

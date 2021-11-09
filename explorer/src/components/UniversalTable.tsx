@@ -22,8 +22,8 @@ export interface UniversalTableProps {
   rows: any[];
 }
 
-function formatCellValues(val: string | number) {
-  if (typeof val === 'number') {
+function formatCellValues(val: string | number, field: string) {
+  if (field === 'bond') {
     return printableCoin({ amount: val.toString(), denom: 'unpunk' });
   }
   return val;
@@ -59,11 +59,13 @@ export const UniversalTable = ({
                 sx={{
                   ...cellStyles,
                   padding: 2,
-                  flex: 1,
                   width: 200,
                 }}
               >
-                {formatCellValues(eachRow[columnsData[index].field])}
+                {formatCellValues(
+                  eachRow[columnsData[index].field],
+                  columnsData[index].field,
+                )}
               </TableCell>
             ))}
           </TableRow>

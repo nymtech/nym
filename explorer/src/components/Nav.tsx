@@ -159,6 +159,9 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
       toggleNestedOptions(!nestedOptions);
     }
     setToActive(id);
+    if (!nested) {
+      closeDrawer();
+    }
   };
 
   React.useEffect(() => {

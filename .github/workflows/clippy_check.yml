@@ -1,6 +1,9 @@
 name: Clippy check
 
-on: push
+on:
+  push:
+    paths-ignore:
+      - 'explorer/**'
 
 jobs:
   clippy_check:

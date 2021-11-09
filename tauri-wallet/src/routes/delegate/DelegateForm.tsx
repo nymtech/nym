@@ -10,7 +10,6 @@ import {
   useTheme,
 } from '@material-ui/core'
 import { useForm } from 'react-hook-form'
-import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { EnumNodeType, TFee } from '../../types'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
@@ -43,7 +42,6 @@ export const DelegateForm = ({
   const theme = useTheme<Theme>()
   const {
     register,
-    setValue,
     watch,
     handleSubmit,
     setError,
@@ -90,19 +88,8 @@ export const DelegateForm = ({
         <Grid container spacing={3}>
           <Grid container item xs={12} justifyContent="space-between">
             <Grid item>
-              <NodeTypeSelector
-                nodeType={watchNodeType}
-                setNodeType={(nodeType) => setValue('nodeType', nodeType)}
-                disabled={isSubmitting}
-              />
-            </Grid>
-            <Grid item>
               <Alert severity="info" data-testid="fee-amount">
-                {`A fee of ${
-                  watchNodeType === EnumNodeType.mixnode
-                    ? fees.mixnode.amount
-                    : fees.gateway.amount
-                } PUNK will apply to this transaction`}
+                {`A fee of ${fees.mixnode.amount} PUNK will apply to this transaction`}
               </Alert>
             </Grid>
           </Grid>
@@ -113,7 +100,7 @@ export const DelegateForm = ({
               variant="outlined"
               id="identity"
               name="identity"
-              label="Node identity"
+              label="Mixnode identity"
               fullWidth
               error={!!errors.identity}
               helperText={errors?.identity?.message}

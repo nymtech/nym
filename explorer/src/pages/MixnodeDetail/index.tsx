@@ -1,16 +1,5 @@
 import * as React from 'react';
-import {
-  Box,
-  Grid,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from '@mui/material';
+import { Typography, Box, Grid } from '@mui/material';
 import { useMainContext } from 'src/context/main';
 import { useParams } from 'react-router-dom';
 import { ContentCard } from 'src/components/ContentCard';
@@ -20,10 +9,7 @@ import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
 import { UptimeChart } from 'src/components/UptimeChart';
 import { mixnodeToGridRow, scrollToRef } from 'src/utils';
 import { ComponentError } from 'src/components/ComponentError';
-import { cellStyles } from 'src/components/Universal-DataGrid';
 import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
-
-import { printableCoin } from '@nymproject/nym-validator-client';
 import { Title } from 'src/components/Title';
 import { UniversalTable } from 'src/components/UniversalTable';
 

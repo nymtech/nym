@@ -78,8 +78,15 @@ pub fn decr_reward_pool(
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<Uint128, ContractError> {
-    // TODO: This could got to < 0
-    let stake = reward_pool_value(storage).checked_sub(amount)?;
+    let stake = match reward_pool_value(storage).checked_sub(amount) {
+        Ok(stake) => stake,
+        Err(_e) => {
+            return Err(ContractError::OutOfFunds {
+                to_remove: amount.u128(),
+                reward_pool: reward_pool_value(storage).u128(),
+            })
+        }
+    };
     mut_reward_pool(storage).save(&stake)?;
     Ok(stake)
 }

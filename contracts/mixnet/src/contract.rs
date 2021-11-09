@@ -12,7 +12,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
 };
-use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, MixNode, QueryMsg, StateParams};
+use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateParams};
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -174,51 +174,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
     Ok(query_res?)
 }
 #[entry_point]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    use crate::storage::{mixnodes, PREFIX_MIXNODES};
-    use cosmwasm_std::{Coin, Order};
-    use cosmwasm_storage::bucket_read;
-    use mixnet_contract::{Layer, MixNodeBond};
-    use serde::{Deserialize, Serialize};
-
-    // TODO: We've done the migraiton on QAnet already, but need to do it on the testnet once we're ready
-    return Ok(Default::default());
-
-    #[derive(Serialize, Deserialize)]
-    struct OldMixNodeBond {
-        pub bond_amount: Coin,
-        pub total_delegation: Coin,
-        pub owner: Addr,
-        pub layer: Layer,
-        pub block_height: u64,
-        pub mix_node: MixNode,
-    }
-
-    impl From<OldMixNodeBond> for MixNodeBond {
-        fn from(o: OldMixNodeBond) -> MixNodeBond {
-            MixNodeBond {
-                bond_amount: o.bond_amount,
-                total_delegation: o.total_delegation,
-                owner: o.owner,
-                layer: o.layer,
-                block_height: o.block_height,
-                mix_node: o.mix_node,
-                profit_margin_percent: Some(10),
-            }
-        }
-    }
-
-    let mixnode_bonds = bucket_read(deps.storage, PREFIX_MIXNODES)
-        .range(None, None, Order::Ascending)
-        .take_while(Result::is_ok)
-        .map(Result::unwrap)
-        .map(|(key, bond): (Vec<u8>, OldMixNodeBond)| (key, bond.into()))
-        .collect::<Vec<(Vec<u8>, MixNodeBond)>>();
-
-    for (key, bond) in mixnode_bonds {
-        mixnodes(deps.storage).save(&key, &bond)?;
-    }
-
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
 }
 

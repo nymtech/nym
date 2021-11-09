@@ -32,3 +32,5 @@ validator-api/keypair
 contracts/mixnet/code_id
 contracts/mixnet/Justfile
 contracts/mixnet/Makefile
+validator-config
+*.patch

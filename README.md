@@ -5,7 +5,6 @@ SPDX-License-Identifier: Apache-2.0
 
 ## The Nym Privacy Platform
 
-This reposit
 The platform is composed of multiple Rust crates. Top-level executable binary crates include:
 
 * nym-mixnode - shuffles [Sphinx](https://github.com/nymtech/sphinx) packets together to provide privacy against network-level attackers.
@@ -34,7 +33,7 @@ You can chat to us in [Keybase](https://keybase.io). Download their chat app, th
 
 ### Rewards
 
-Node, node operator and delegator rewards are determined according to the principles laid out in the [Nym Tokenomics paper](needs-link). Below is a TLDR of the variables and formulas involved in calculating the epoch rewards. Initial reward pool is set to 250 million Nym, making the circulating supply 750 million Nym.
+Node, node operator and delegator rewards are determined according to the principles laid out in the section 6 of [Nym Whitepaper](https://nymtech.net/nym-whitepaper.pdf). Below is a TLDR of the variables and formulas involved in calculating the epoch rewards. Initial reward pool is set to 250 million Nym, making the circulating supply 750 million Nym.
 
 |Symbol|Definition|
 |---|---|

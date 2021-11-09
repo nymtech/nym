@@ -596,7 +596,6 @@ impl GatewayClient {
         #[cfg(feature = "coconut")]
         if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
             return Err(GatewayClientError::NotEnoughBandwidth((
-                line!(),
                 (mix_packet.sphinx_packet().len() as i64),
                 self.bandwidth_remaining,
             )));
@@ -639,7 +638,6 @@ impl GatewayClient {
         #[cfg(feature = "coconut")]
         if self.bandwidth_remaining <= 0 {
             return Err(GatewayClientError::NotEnoughBandwidth((
-                line!(),
                 0,
                 self.bandwidth_remaining,
             )));

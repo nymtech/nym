@@ -236,6 +236,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             url={each.url}
             key={each.title}
             title={each.title}
+            data-testid={each.title}
             openDrawer={openDrawer}
             drawIsOpen={drawIsOpen}
             closeDrawer={closeDrawer}

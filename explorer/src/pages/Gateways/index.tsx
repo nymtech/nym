@@ -54,7 +54,9 @@ export const PageGateways: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="owner">{params.value}</Typography>
+        <Typography sx={cellStyles} data-testid="owner">
+          {params.value}
+        </Typography>
       ),
     },
     {
@@ -64,7 +66,9 @@ export const PageGateways: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="identity-key">{params.value}</Typography>
+        <Typography sx={cellStyles} data-testid="identity-key">
+          {params.value}
+        </Typography>
       ),
     },
     {
@@ -79,7 +83,11 @@ export const PageGateways: React.FC = () => {
           amount: params.value as string,
           denom: 'upunk',
         });
-        return <Typography sx={cellStyles} data-testid="bond-amount">{bondAsPunk}</Typography>;
+        return (
+          <Typography sx={cellStyles} data-testid="bond-amount">
+            {bondAsPunk}
+          </Typography>
+        );
       },
     },
     {
@@ -89,7 +97,9 @@ export const PageGateways: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="host">{params.value}</Typography>
+        <Typography sx={cellStyles} data-testid="host">
+          {params.value}
+        </Typography>
       ),
     },
     {

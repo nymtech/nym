@@ -39,10 +39,18 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
             marginBottom: matches ? 2 : 0,
           }}
         >
-          <MenuItem value={10} data-testid="ten">10</MenuItem>
-          <MenuItem value={30} data-testid="thirty">30</MenuItem>
-          <MenuItem value={50} data-testid="fifty">50</MenuItem>
-          <MenuItem value={100} data-testid="hundred">100</MenuItem>
+          <MenuItem value={10} data-testid="ten">
+            10
+          </MenuItem>
+          <MenuItem value={30} data-testid="thirty">
+            30
+          </MenuItem>
+          <MenuItem value={50} data-testid="fifty">
+            50
+          </MenuItem>
+          <MenuItem value={100} data-testid="hundred">
+            100
+          </MenuItem>
         </Select>
         <TextField
           sx={{ width: 350 }}

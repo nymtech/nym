@@ -44,7 +44,9 @@ export const PageMixnodesMap: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="country-name">{params.value}</Typography>
+        <Typography sx={cellStyles} data-testid="country-name">
+          {params.value}
+        </Typography>
       ),
     },
     {
@@ -56,7 +58,9 @@ export const PageMixnodesMap: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="number-of-nodes">{params.value}</Typography>
+        <Typography sx={cellStyles} data-testid="number-of-nodes">
+          {params.value}
+        </Typography>
       ),
     },
     {
@@ -66,7 +70,9 @@ export const PageMixnodesMap: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="percentage">{params.value}</Typography>
+        <Typography sx={cellStyles} data-testid="percentage">
+          {params.value}
+        </Typography>
       ),
     },
   ];

@@ -32,7 +32,12 @@ export const StatsCard: React.FC<StatsCardProps> = ({
         sx={{ color: (theme) => theme.palette.text.primary, fontSize: 18 }}
       >
         {icon}
-        <Typography ml={3} mr={0.75} fontSize="inherit" data-testid={title + "-amount"}>
+        <Typography
+          ml={3}
+          mr={0.75}
+          fontSize="inherit"
+          data-testid={`${title}-amount`}
+        >
           {count}
         </Typography>
         <Typography mr={1} fontSize="inherit" data-testid={title}>

@@ -4,7 +4,10 @@ var path = require('path')
 
 module.exports = {
   mode: 'development',
-  entry: path.resolve(__dirname, '/src/index'),
+  node: {
+    __dirname: false
+  },
+  entry: path.resolve(__dirname, './src/index'),
   devServer: {
     port: 9000,
     compress: true,
@@ -13,10 +16,10 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: path.resolve(__dirname, 'public/index.html'),
+      template: path.resolve(__dirname, './public/index.html'),
       filename: 'index.html',
     }),
-    new FaviconsWebpackPlugin(path.resolve(__dirname, 'public/favicon.ico')),
+    new FaviconsWebpackPlugin(path.resolve(__dirname, './public/favicon.ico')),
   ],
   module: {
     rules: [

@@ -1,12 +1,136 @@
-name: Publish Tauri Wallet
+name: Publish Nym Wallet
 on:
   push:
     tags:
       - tauri-wallet-*
+    branches:
+      - feature/gh-action-build-tauri-wallet
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: tauri-wallet
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macos-10.15, macos-11, windows-latest]
+    outputs:
+      PACKAGE_VERSION: ${{ steps.package-node-version.outputs.version }}
     steps:
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - uses: actions/checkout@v2
+
+      - name: Tauri dependencies
+        if: ${{ startsWith(matrix.os, 'ubuntu') }}
+        run: >
+          sudo apt-get update &&
+          sudo apt-get install -y
+          libgtk-3-dev
+          libgtksourceview-3.0-dev
+          webkit2gtk-4.0
+          libappindicator3-dev
+          webkit2gtk-driver
+          xvfb
+
+      - name: Install minimal stable
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Node v16
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.x
+
+      - name: Read node from package.json
+        uses: culshaw/read-package-node-version-actions@v1
+        with:
+          path: "${{github.workspace}}/tauri-wallet"
+        id: package-node-version
+
+      - name: Install yarn for building application
+        run: yarn install
+
+      - name: Build application (bundle)
+        run: yarn run webpack:build
+
+      - name: Build application (tauri)
+        run: yarn run tauri:build
+
+#      - name: Fake build
+#        run: |
+#          mkdir release-assets
+#          cp package.json release-assets/${{ matrix.os }}-${{ steps.package-node-version.outputs.version }}.zip
+
+      - name: Compress (MacOS / Linux)
+        if: ${{ matrix.os != 'windows-latest' }}
+        working-directory: tauri-wallet
+        env:
+          TARGET_FILE: ${{ matrix.os }}_v${{ steps.package-node-version.outputs.version }}.tar.gz
+        run: |
+          mkdir release-assets
+          pushd target/release/bundle
+          tar -cvzf ../../../release-assets/$TARGET_FILE .
+
+      - name: Compress (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        uses: thedoctor0/zip-release@master
+        with:
+          type: 'zip'
+          filename: '${{github.workspace}}/tauri-wallet/release-assets/${{ runner.os }}_v${{ steps.package-node-version.outputs.version }}.zip'
+          path: "${{github.workspace}}/tauri-wallet/target/release/bundle"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v2
+        with:
+          name: release-assets-${{ matrix.os }}
+          path: "${{github.workspace}}/tauri-wallet/release-assets/*"
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      PACKAGE_VERSION: ${{ needs.build.outputs.PACKAGE_VERSION }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download assets
+        uses: actions/download-artifact@v2
+        with:
+          path: download-assets
+      - name: Display downloaded assets
+        run: ls -R download-assets
+      - name: Re-arrange downloaded assets
+        run: |
+          mkdir release-assets
+          find download-assets -mindepth 2 -type f -exec mv -t ${{github.workspace}}/release-assets -i '{}' +
+          rm -rf download-assets
+      - name: Hash files
+        id: file_hashes
+        # Put the multi-line string in an env var and create a new action env var by wrapping the multiline value
+        run: |
+          cd release-assets
+          ASSET_HASHES=$(find . -type f -exec sha256sum {} \;)
+          echo "ASSET_HASHES<<EOF" >> $GITHUB_ENV
+          echo "$ASSET_HASHES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+      - name: Display file hashes
+        run: echo $ASSET_HASHES
+      - uses: ncipollo/release-action@v1
+        with:
+          # The pipe syntax needs to stay to escape the wildcard correctly
+          artifacts: |
+            release-assets/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: "nym-wallet-v${{env.PACKAGE_VERSION}}"
+          commit: feature/gh-action-build-tauri-wallet
+          draft: true
+          name: "Nym Wallet v${{ env.PACKAGE_VERSION }}"
+          body: |
+            This is a build of the Nym Wallet from commit `${{ github.sha }}` [(browse commit)](https://github.com/nymtech/nym/tree/${{ github.sha }}).
+
+            Installers for each operating system have the following SHA256 hashes:
+
+            ```
+            ${{ env.ASSET_HASHES }}
+            ```

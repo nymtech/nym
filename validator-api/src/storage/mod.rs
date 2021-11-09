@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::monitor::summary_producer::NodeResult;
+use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{
     GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
     ValidatorApiStorageError,
@@ -10,7 +11,7 @@ use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
     EpochRewarding, FailedMixnodeRewardChunk, NodeStatus, PossiblyUnrewardedMixnode,
-    RewardingReport,
+    RewardingReport, TestingRoute,
 };
 use rocket::fairing::{self, AdHoc};
 use rocket::{Build, Rocket};
@@ -70,10 +71,8 @@ impl ValidatorApiStorage {
         })
     }
 
-    /// Gets all statuses for particular mixnode (ipv4 and ipv6) that were inserted
+    /// Gets all statuses for particular mixnode that were inserted
     /// since the provided timestamp.
-    ///
-    /// Returns tuple containing vectors of ipv4 statuses and ipv6 statuses.
     ///
     /// # Arguments
     ///
@@ -83,26 +82,18 @@ impl ValidatorApiStorage {
         &self,
         identity: &str,
         since: UnixTimestamp,
-    ) -> Result<(Vec<NodeStatus>, Vec<NodeStatus>), ValidatorApiStorageError> {
-        let ipv4_statuses = self
+    ) -> Result<Vec<NodeStatus>, ValidatorApiStorageError> {
+        let statuses = self
             .manager
-            .get_mixnode_ipv4_statuses_since(identity, since)
+            .get_mixnode_statuses_since(identity, since)
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
 
-        let ipv6_statuses = self
-            .manager
-            .get_mixnode_ipv6_statuses_since(identity, since)
-            .await
-            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
-
-        Ok((ipv4_statuses, ipv6_statuses))
+        Ok(statuses)
     }
 
-    /// Gets all statuses for particular gateway (ipv4 and ipv6) that were inserted
+    /// Gets all statuses for particular gateway that were inserted
     /// since the provided timestamp.
-    ///
-    /// Returns tuple containing vectors of ipv4 statuses and ipv6 statuses.
     ///
     /// # Arguments
     ///
@@ -112,23 +103,21 @@ impl ValidatorApiStorage {
         &self,
         identity: &str,
         since: UnixTimestamp,
-    ) -> Result<(Vec<NodeStatus>, Vec<NodeStatus>), ValidatorApiStorageError> {
-        let ipv4_statuses = self
+    ) -> Result<Vec<NodeStatus>, ValidatorApiStorageError> {
+        let statuses = self
             .manager
-            .get_gateway_ipv4_statuses_since(identity, since)
+            .get_gateway_statuses_since(identity, since)
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
 
-        let ipv6_statuses = self
-            .manager
-            .get_gateway_ipv6_statuses_since(identity, since)
-            .await
-            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
-
-        Ok((ipv4_statuses, ipv6_statuses))
+        Ok(statuses)
     }
 
     /// Tries to construct a status report for mixnode with the specified identity.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the mixnode.
     pub(crate) async fn construct_mixnode_report(
         &self,
         identity: &str,
@@ -137,10 +126,10 @@ impl ValidatorApiStorage {
         let day_ago = (now - ONE_DAY).unix_timestamp();
         let hour_ago = (now - ONE_HOUR).unix_timestamp();
 
-        let (ipv4_statuses, ipv6_statuses) = self.get_mixnode_statuses(identity, day_ago).await?;
+        let statuses = self.get_mixnode_statuses(identity, day_ago).await?;
 
         // if we have no statuses, the node doesn't exist (or monitor is down), but either way, we can't make a report
-        if ipv4_statuses.is_empty() {
+        if statuses.is_empty() {
             return Err(ValidatorApiStorageError::MixnodeReportNotFound(
                 identity.to_owned(),
             ));
@@ -154,16 +143,6 @@ impl ValidatorApiStorage {
             .get_monitor_runs_count(day_ago, now.unix_timestamp())
             .await?;
 
-        // now, technically this is not a critical error, but this should have NEVER happened in the first place
-        // so something super weird is going on
-        if ipv4_statuses.len() != ipv6_statuses.len() {
-            error!("Somehow we have different number of ipv4 and ipv6 statuses for mixnode {}! (ipv4: {}, ipv6: {})",
-                   identity,
-                   ipv4_statuses.len(),
-                   ipv6_statuses.len(),
-            )
-        }
-
         let mixnode_owner = self
             .manager
             .get_mixnode_owner(identity)
@@ -175,8 +154,7 @@ impl ValidatorApiStorage {
             now,
             identity.to_owned(),
             mixnode_owner,
-            ipv4_statuses,
-            ipv6_statuses,
+            statuses,
             last_hour_runs_count,
             last_day_runs_count,
         ))
@@ -190,10 +168,10 @@ impl ValidatorApiStorage {
         let day_ago = (now - ONE_DAY).unix_timestamp();
         let hour_ago = (now - ONE_HOUR).unix_timestamp();
 
-        let (ipv4_statuses, ipv6_statuses) = self.get_gateway_statuses(identity, day_ago).await?;
+        let statuses = self.get_gateway_statuses(identity, day_ago).await?;
 
         // if we have no statuses, the node doesn't exist (or monitor is down), but either way, we can't make a report
-        if ipv4_statuses.is_empty() {
+        if statuses.is_empty() {
             return Err(ValidatorApiStorageError::GatewayReportNotFound(
                 identity.to_owned(),
             ));
@@ -206,16 +184,6 @@ impl ValidatorApiStorage {
         let last_day_runs_count = self
             .get_monitor_runs_count(day_ago, now.unix_timestamp())
             .await?;
-
-        // now, technically this is not a critical error, but this should have NEVER happened in the first place
-        // so something super weird is going on
-        if ipv4_statuses.len() != ipv6_statuses.len() {
-            error!("Somehow we have different number of ipv4 and ipv6 statuses for gateway {}! (ipv4: {}, ipv6: {})",
-                   identity,
-                   ipv4_statuses.len(),
-                   ipv6_statuses.len(),
-            )
-        }
 
         let gateway_owner = self
             .manager
@@ -230,8 +198,7 @@ impl ValidatorApiStorage {
             now,
             identity.to_owned(),
             gateway_owner,
-            ipv4_statuses,
-            ipv6_statuses,
+            statuses,
             last_hour_runs_count,
             last_day_runs_count,
         ))
@@ -331,8 +298,7 @@ impl ValidatorApiStorage {
                     OffsetDateTime::from_unix_timestamp(end).unwrap(),
                     statuses.identity,
                     statuses.owner,
-                    statuses.ipv4_statuses,
-                    statuses.ipv6_statuses,
+                    statuses.statuses,
                     last_hour_runs_count,
                     last_day_runs_count,
                 )
@@ -376,8 +342,7 @@ impl ValidatorApiStorage {
                     OffsetDateTime::from_unix_timestamp(end).unwrap(),
                     statuses.identity,
                     statuses.owner,
-                    statuses.ipv4_statuses,
-                    statuses.ipv6_statuses,
+                    statuses.statuses,
                     last_hour_runs_count,
                     last_day_runs_count,
                 )
@@ -387,15 +352,147 @@ impl ValidatorApiStorage {
         Ok(reports)
     }
 
-    // Used by network monitor
-    pub(crate) async fn submit_new_statuses(
+    /// Saves information about test route used during the network monitor run to the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `monitor_run_id` id (as saved in the database) of the associated network monitor test run.
+    /// * `test_route`: one of the test routes used during network testing.
+    async fn insert_test_route(
+        &self,
+        monitor_run_id: i64,
+        test_route: TestRoute,
+    ) -> Result<(), ValidatorApiStorageError> {
+        // we MUST have those entries in the database, otherwise the route wouldn't have been chosen
+        // in the first place
+        let layer1_mix_id = self
+            .manager
+            .get_mixnode_id(&test_route.layer_one_mix().identity_key.to_base58_string())
+            .await
+            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?
+            .ok_or(ValidatorApiStorageError::InternalDatabaseError)?;
+
+        let layer2_mix_id = self
+            .manager
+            .get_mixnode_id(&test_route.layer_two_mix().identity_key.to_base58_string())
+            .await
+            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?
+            .ok_or(ValidatorApiStorageError::InternalDatabaseError)?;
+
+        let layer3_mix_id = self
+            .manager
+            .get_mixnode_id(&test_route.layer_three_mix().identity_key.to_base58_string())
+            .await
+            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?
+            .ok_or(ValidatorApiStorageError::InternalDatabaseError)?;
+
+        let gateway_id = self
+            .manager
+            .get_gateway_id(&test_route.gateway().identity_key.to_base58_string())
+            .await
+            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?
+            .ok_or(ValidatorApiStorageError::InternalDatabaseError)?;
+
+        self.manager
+            .submit_testing_route_used(TestingRoute {
+                gateway_id,
+                layer1_mix_id,
+                layer2_mix_id,
+                layer3_mix_id,
+                monitor_run_id,
+            })
+            .await
+            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
+        Ok(())
+    }
+
+    /// Retrieves number of times particular mixnode was used as a core node during network monitor
+    /// test runs since the specified unix timestamp. If no value is provided, last 30 days of data
+    /// are used instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the mixnode.
+    /// * `since`: optional unix timestamp indicating the lower bound interval of the selection.
+    pub(crate) async fn get_core_mixnode_status_count(
+        &self,
+        identity: &str,
+        since: Option<UnixTimestamp>,
+    ) -> Result<i32, ValidatorApiStorageError> {
+        let node_id = self
+            .manager
+            .get_mixnode_id(identity)
+            .await
+            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
+
+        if let Some(node_id) = node_id {
+            let since = since
+                .unwrap_or_else(|| (OffsetDateTime::now_utc() - (30 * ONE_DAY)).unix_timestamp());
+
+            self.manager
+                .get_mixnode_testing_route_presence_count_since(node_id, since)
+                .await
+                .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
+        } else {
+            Ok(0)
+        }
+    }
+
+    /// Retrieves number of times particular gateway was used as a core node during network monitor
+    /// test runs since the specified unix timestamp. If no value is provided, last 30 days of data
+    /// are used instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the gateway.
+    /// * `since`: optional unix timestamp indicating the lower bound interval of the selection.
+    pub(crate) async fn get_core_gateway_status_count(
+        &self,
+        identity: &str,
+        since: Option<UnixTimestamp>,
+    ) -> Result<i32, ValidatorApiStorageError> {
+        let node_id = self
+            .manager
+            .get_gateway_id(identity)
+            .await
+            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
+
+        if let Some(node_id) = node_id {
+            let since = since
+                .unwrap_or_else(|| (OffsetDateTime::now_utc() - (30 * ONE_DAY)).unix_timestamp());
+
+            self.manager
+                .get_gateway_testing_route_presence_count_since(node_id, since)
+                .await
+                .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
+        } else {
+            Ok(0)
+        }
+    }
+
+    /// Inserts an entry to the database with the network monitor test run information
+    /// that has occurred at this instant alongside the results of all the measurements performed.
+    ///
+    /// # Arguments
+    ///
+    /// * `mixnode_results`:
+    /// * `gateway_results`:
+    /// * `route_results`:
+    pub(crate) async fn insert_monitor_run_results(
         &self,
         mixnode_results: Vec<NodeResult>,
         gateway_results: Vec<NodeResult>,
+        test_routes: Vec<TestRoute>,
     ) -> Result<(), ValidatorApiStorageError> {
         info!("Submitting new node results to the database. There are {} mixnode results and {} gateway results", mixnode_results.len(), gateway_results.len());
 
         let now = OffsetDateTime::now_utc().unix_timestamp();
+
+        let monitor_run_id = self
+            .manager
+            .insert_monitor_run(now)
+            .await
+            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
 
         self.manager
             .submit_mixnode_statuses(now, mixnode_results)
@@ -405,18 +502,13 @@ impl ValidatorApiStorage {
         self.manager
             .submit_gateway_statuses(now, gateway_results)
             .await
-            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
-    }
+            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
 
-    /// Inserts an entry to the database with the network monitor test run information
-    /// that has occurred at this instant.
-    pub(crate) async fn insert_monitor_run(&self) -> Result<(), ValidatorApiStorageError> {
-        let now = OffsetDateTime::now_utc().unix_timestamp();
+        for test_route in test_routes {
+            self.insert_test_route(monitor_run_id, test_route).await?;
+        }
 
-        self.manager
-            .insert_monitor_run(now)
-            .await
-            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
+        Ok(())
     }
 
     /// Obtains number of network monitor test runs that have occurred within the specified interval.
@@ -477,12 +569,7 @@ impl ValidatorApiStorage {
             };
 
             self.manager
-                .insert_mixnode_historical_uptime(
-                    node_id,
-                    today_iso_8601,
-                    report.last_day_ipv4.u8(),
-                    report.last_day_ipv4.u8(),
-                )
+                .insert_mixnode_historical_uptime(node_id, today_iso_8601, report.last_day.u8())
                 .await
                 .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
         }
@@ -507,12 +594,7 @@ impl ValidatorApiStorage {
             };
 
             self.manager
-                .insert_gateway_historical_uptime(
-                    node_id,
-                    today_iso_8601,
-                    report.last_day_ipv4.u8(),
-                    report.last_day_ipv4.u8(),
-                )
+                .insert_gateway_historical_uptime(node_id, today_iso_8601, report.last_day.u8())
                 .await
                 .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
         }
@@ -541,19 +623,11 @@ impl ValidatorApiStorage {
         until: UnixTimestamp,
     ) -> Result<(), ValidatorApiStorageError> {
         self.manager
-            .purge_old_mixnode_ipv4_statuses(until)
+            .purge_old_mixnode_statuses(until)
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
         self.manager
-            .purge_old_mixnode_ipv6_statuses(until)
-            .await
-            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
-        self.manager
-            .purge_old_gateway_ipv4_statuses(until)
-            .await
-            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
-        self.manager
-            .purge_old_gateway_ipv6_statuses(until)
+            .purge_old_gateway_statuses(until)
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
     }
@@ -583,11 +657,11 @@ impl ValidatorApiStorage {
     // /// Returns None if no data exists.
     // pub(crate) async fn get_most_recent_epoch_rewarding_entry(
     //     &self,
-    // ) -> Result<Option<EpochRewarding>, NodeStatusApiError> {
+    // ) -> Result<Option<EpochRewarding>, ValidatorApiStorageError> {
     //     self.manager
     //         .get_most_recent_epoch_rewarding_entry()
     //         .await
-    //         .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    //         .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
     // }
 
     /// Tries to obtain the epoch rewarding entry that has the provided timestamp.

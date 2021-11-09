@@ -1,12 +1,16 @@
 import * as React from 'react';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
-import { Box, Grid, Typography } from '@mui/material';
+import {
+  Box,
+  Grid,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from '@mui/material';
 import { useMainContext } from 'src/context/main';
 import { useParams } from 'react-router-dom';
 import { ContentCard } from 'src/components/ContentCard';
@@ -21,6 +25,55 @@ import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
 
 import { printableCoin } from '@nymproject/nym-validator-client';
 import { Title } from 'src/components/Title';
+import { UniversalTable } from 'src/components/UniversalTable';
+
+const columns: any = [
+  {
+    field: 'owner',
+    title: 'Owner',
+    flex: 1,
+    headerAlign: 'left',
+    width: 230,
+  },
+  {
+    field: 'identity_key',
+    title: 'Identity Key',
+    flex: 1,
+    headerAlign: 'left',
+    width: 230,
+  },
+
+  {
+    field: 'bond',
+    title: 'Bond',
+    flex: 1,
+    headerAlign: 'left',
+  },
+  {
+    field: 'self_percentage',
+    title: 'Self %',
+    headerAlign: 'left',
+    width: 99,
+  },
+  {
+    field: 'host',
+    title: 'Host',
+    headerAlign: 'left',
+    flex: 1,
+  },
+  {
+    field: 'location',
+    title: 'Location',
+    headerAlign: 'left',
+    flex: 1,
+  },
+  {
+    field: 'layer',
+    title: 'Layer',
+    headerAlign: 'left',
+    flex: 1,
+  },
+];
 
 export const PageMixnodeDetail: React.FC = () => {
   const ref = React.useRef();
@@ -70,126 +123,11 @@ export const PageMixnodeDetail: React.FC = () => {
 
         <Grid container>
           <Grid item xs={12}>
-            <TableContainer component={Paper}>
-              <Table sx={{ minWidth: 650 }} aria-label="mixnode detail table">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Owner</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>
-                      Identity Key
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>
-                      Bond&nbsp;
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>
-                      Self %&nbsp;
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>
-                      IP:Port&nbsp;
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>
-                      Location&nbsp;
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>
-                      Layer&nbsp;
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {mixnodeToGridRow(row).map((eachRow) => (
-                    <TableRow
-                      key={eachRow.owner}
-                      sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                    >
-                      <TableCell
-                        component="th"
-                        scope="row"
-                        sx={{
-                          ...cellStyles,
-                          padding: 2,
-                          minWidth: 230,
-                          maxWidth: 230,
-                          width: 230,
-                        }}
-                      >
-                        {eachRow.owner}
-                      </TableCell>
-                      <TableCell
-                        component="th"
-                        scope="row"
-                        sx={{
-                          ...cellStyles,
-                          padding: 2,
-                          minWidth: 220,
-                          maxWidth: 220,
-                          width: 220,
-                        }}
-                      >
-                        {eachRow.identity_key}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          ...cellStyles,
-                          padding: 2,
-                          minWidth: 140,
-                          maxWidth: 140,
-                          width: 140,
-                        }}
-                      >
-                        {printableCoin({
-                          amount: eachRow.bond.toString(),
-                          denom: 'upunk',
-                        })}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          ...cellStyles,
-                          padding: 2,
-                          minWidth: 90,
-                          maxWidth: 90,
-                          width: 90,
-                        }}
-                      >
-                        {eachRow.self_percentage}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          ...cellStyles,
-                          padding: 2,
-                          minWidth: 120,
-                          maxWidth: 120,
-                          width: 120,
-                        }}
-                      >
-                        {eachRow.host}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          ...cellStyles,
-                          padding: 2,
-                          minWidth: 150,
-                          maxWidth: 150,
-                          width: 150,
-                        }}
-                      >
-                        {eachRow.location}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          ...cellStyles,
-                          padding: 2,
-                          minWidth: 200,
-                          maxWidth: 200,
-                          width: 200,
-                        }}
-                      >
-                        {eachRow.layer}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <UniversalTable
+              columnsData={columns}
+              tableName="Mixnode detail table"
+              rows={mixnodeToGridRow(row)}
+            />
           </Grid>
         </Grid>
 

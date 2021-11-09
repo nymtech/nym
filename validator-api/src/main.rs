@@ -6,12 +6,12 @@ extern crate rocket;
 
 use crate::cache::ValidatorCacheRefresher;
 use crate::config::Config;
-use crate::network_monitor::tested_network::good_topology::parse_topology_file;
 use crate::network_monitor::NetworkMonitorBuilder;
+use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
 use crate::rewarding::epoch::Epoch;
 use crate::rewarding::Rewarder;
-use crate::storage::NodeStatusStorage;
+use crate::storage::ValidatorApiStorage;
 use ::config::NymConfig;
 use anyhow::Result;
 use cache::ValidatorCache;
@@ -46,9 +46,6 @@ mod coconut;
 
 const MONITORING_ENABLED: &str = "enable-monitor";
 const REWARDING_ENABLED: &str = "enable-rewarding";
-const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
-const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
-const DETAILED_REPORT_ARG: &str = "detailed-report";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const MNEMONIC_ARG: &str = "mnemonic";
 const WRITE_CONFIG_ARG: &str = "save-config";
@@ -64,8 +61,6 @@ const COCONUT_ONLY_FLAG: &str = "coconut-only";
 const EPOCH_LENGTH_ARG: &str = "epoch-length";
 const FIRST_REWARDING_EPOCH_ARG: &str = "first-epoch";
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
-
-pub(crate) const PENALISE_OUTDATED: bool = false;
 
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
@@ -95,19 +90,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .requires(MONITORING_ENABLED)
         )
         .arg(
-            Arg::with_name(V4_TOPOLOGY_ARG)
-                .help("location of .json file containing IPv4 'good' network topology")
-                .long(V4_TOPOLOGY_ARG)
-                .requires(MONITORING_ENABLED)
-        )
-        .arg(
-            Arg::with_name(V6_TOPOLOGY_ARG)
-                .help("location of .json file containing IPv6 'good' network topology")
-                .long(V6_TOPOLOGY_ARG)
-                .takes_value(true)
-                .requires(MONITORING_ENABLED)
-        )
-        .arg(
             Arg::with_name(NYMD_VALIDATOR_ARG)
                 .help("Endpoint to nymd part of the validator from which the monitor will grab nodes to test")
                 .long(NYMD_VALIDATOR_ARG)
@@ -123,12 +105,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                  .help("Mnemonic of the network monitor used for rewarding operators")
                  .takes_value(true)
                  .requires(REWARDING_ENABLED),
-        )
-        .arg(
-            Arg::with_name(DETAILED_REPORT_ARG)
-                .help("specifies whether a detailed report should be printed after each run")
-                .long(DETAILED_REPORT_ARG)
-                .requires(MONITORING_ENABLED)
         )
         .arg(
             Arg::with_name(WRITE_CONFIG_ARG)
@@ -219,14 +195,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_rewarding_enabled(true)
     }
 
-    if let Some(v4_topology_path) = matches.value_of(V4_TOPOLOGY_ARG) {
-        config = config.with_v4_good_topology(v4_topology_path)
-    }
-
-    if let Some(v6_topology_path) = matches.value_of(V6_TOPOLOGY_ARG) {
-        config = config.with_v6_good_topology(v6_topology_path)
-    }
-
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
         config = config.with_custom_validator_apis(parse_validators(raw_validators));
     }
@@ -277,10 +245,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_minimum_epoch_monitor_threshold(monitor_threshold)
     }
 
-    if matches.is_present(DETAILED_REPORT_ARG) {
-        config = config.with_detailed_network_monitor_report(true)
-    }
-
     #[cfg(feature = "coconut")]
     if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
         let keypair_bs58 = std::fs::read_to_string(keypair_path)
@@ -328,6 +292,7 @@ fn setup_liftoff_notify(notify: Arc<Notify>) -> AdHoc {
 
 fn setup_network_monitor<'a>(
     config: &'a Config,
+    system_version: &str,
     rocket: &Rocket<Ignite>,
 ) -> Option<NetworkMonitorBuilder<'a>> {
     if !config.get_network_monitor_enabled() {
@@ -335,17 +300,12 @@ fn setup_network_monitor<'a>(
     }
 
     // get instances of managed states
-    let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
+    let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
-
-    let v4_topology = parse_topology_file(config.get_v4_good_topology_file());
-    let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
-    network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
 
     Some(NetworkMonitorBuilder::new(
         config,
-        v4_topology,
-        v6_topology,
+        system_version,
         node_status_storage,
         validator_cache,
     ))
@@ -367,7 +327,7 @@ fn setup_rewarder(
 ) -> Option<Rewarder> {
     if config.get_rewarding_enabled() && config.get_network_monitor_enabled() {
         // get instances of managed states
-        let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
+        let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
         let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
         let first_epoch = Epoch::new(
@@ -416,6 +376,7 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
 #[tokio::main]
 async fn main() -> Result<()> {
     setup_logging();
+    let system_version = env!("CARGO_PKG_VERSION");
 
     println!("Starting validator api...");
 
@@ -458,7 +419,7 @@ async fn main() -> Result<()> {
 
     // let's build our rocket!
     let rocket = setup_rocket(&config, Arc::clone(&liftoff_notify)).await?;
-    let monitor_builder = setup_network_monitor(&config, &rocket);
+    let monitor_builder = setup_network_monitor(&config, system_version, &rocket);
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
@@ -474,6 +435,12 @@ async fn main() -> Result<()> {
 
         // spawn our cacher
         tokio::spawn(async move { validator_cache_refresher.run().await });
+
+        // setup our daily uptime updater. Note that if network monitor is disabled, then we have
+        // no data for the updates and hence we don't need to start it up
+        let storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
+        let uptime_updater = HistoricalUptimeUpdater::new(storage);
+        tokio::spawn(async move { uptime_updater.run().await });
 
         if let Some(rewarder) = setup_rewarder(&config, &rocket, &nymd_client) {
             info!("Periodic rewarding is starting...");

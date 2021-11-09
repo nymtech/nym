@@ -35,7 +35,7 @@ jobs:
         SOURCE: "explorer/dist/"
         REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
         REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/${{ env.GITHUB_REF_SLUG }}
+        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/network-explorer-${{ env.GITHUB_REF_SLUG }}
         EXCLUDE: "/dist/, /node_modules/"
     - name: Keybase - Node Install
       run: npm install
@@ -44,6 +44,7 @@ jobs:
       env:
         NYM_PROJECT_NAME: "Network Explorer"
         NYM_CI_WWW_BASE: "${{ secrets.NYM_CI_WWW_BASE }}"
+        NYM_CI_WWW_LOCATION: "network-explorer-${{ env.GITHUB_REF_SLUG }}"
         GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
         GIT_BRANCH: "${GITHUB_REF##*/}"
         KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"

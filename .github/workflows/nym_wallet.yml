@@ -73,5 +73,5 @@ jobs:
           args: tauri-driver
 
       - name: Launch tests
-        run: xvfb-run yarn test:newuser
+        run: xvfb-run yarn test:runall
         working-directory: tauri-wallet/webdriver

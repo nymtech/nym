@@ -3,10 +3,10 @@
 
 use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
-use crate::node_status_api::utils::ActiveNodeDayStatuses;
+use crate::node_status_api::utils::ActiveNodeStatuses;
 use crate::storage::models::{
     ActiveNode, EpochRewarding, FailedMixnodeRewardChunk, NodeStatus, PossiblyUnrewardedMixnode,
-    RewardingReport,
+    RewardingReport, TestingRoute,
 };
 use crate::storage::UnixTimestamp;
 use std::convert::TryFrom;
@@ -18,7 +18,11 @@ pub(crate) struct StorageManager {
 
 // all SQL goes here
 impl StorageManager {
-    /// Tries to obtain row id of given mixnode given its identity
+    /// Tries to obtain row id of given mixnode given its identity.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the mixnode.
     pub(super) async fn get_mixnode_id(&self, identity: &str) -> Result<Option<i64>, sqlx::Error> {
         let id = sqlx::query!(
             "SELECT id FROM mixnode_details WHERE identity = ?",
@@ -32,6 +36,10 @@ impl StorageManager {
     }
 
     /// Tries to obtain row id of given gateway given its identity
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the gateway.
     pub(super) async fn get_gateway_id(&self, identity: &str) -> Result<Option<i64>, sqlx::Error> {
         let id = sqlx::query!(
             "SELECT id FROM gateway_details WHERE identity = ?",
@@ -45,6 +53,10 @@ impl StorageManager {
     }
 
     /// Tries to obtain owner value of given mixnode given its identity
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the mixnode.
     pub(super) async fn get_mixnode_owner(
         &self,
         identity: &str,
@@ -61,6 +73,10 @@ impl StorageManager {
     }
 
     /// Tries to obtain owner value of given gateway given its identity
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the gateway.
     pub(super) async fn get_gateway_owner(
         &self,
         identity: &str,
@@ -76,9 +92,14 @@ impl StorageManager {
         Ok(owner)
     }
 
-    /// Gets all ipv4 statuses for mixnode with particular identity that were inserted
+    /// Gets all reliability statuses for mixnode with particular identity that were inserted
     /// into the database after the specified unix timestamp.
-    pub(super) async fn get_mixnode_ipv4_statuses_since(
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the mixnode.
+    /// * `timestamp`: unix timestamp of the lower bound of the selection.
+    pub(super) async fn get_mixnode_statuses_since(
         &self,
         identity: &str,
         timestamp: UnixTimestamp,
@@ -86,11 +107,11 @@ impl StorageManager {
         sqlx::query_as!(
             NodeStatus,
             r#"
-                SELECT timestamp, up
-                    FROM mixnode_ipv4_status
+                SELECT timestamp, reliability as "reliability: u8"
+                    FROM mixnode_status
                     JOIN mixnode_details
-                    ON mixnode_ipv4_status.mixnode_details_id = mixnode_details.id
-                    WHERE mixnode_details.identity=? AND mixnode_ipv4_status.timestamp > ?;
+                    ON mixnode_status.mixnode_details_id = mixnode_details.id
+                    WHERE mixnode_details.identity=? AND mixnode_status.timestamp > ?;
             "#,
             identity,
             timestamp,
@@ -99,9 +120,14 @@ impl StorageManager {
         .await
     }
 
-    /// Gets all ipv6 statuses for mixnode with particular identity that were inserted
+    /// Gets all reliability statuses for gateway with particular identity that were inserted
     /// into the database after the specified unix timestamp.
-    pub(super) async fn get_mixnode_ipv6_statuses_since(
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the gateway.
+    /// * `timestamp`: unix timestamp of the lower bound of the selection.
+    pub(super) async fn get_gateway_statuses_since(
         &self,
         identity: &str,
         timestamp: UnixTimestamp,
@@ -109,73 +135,31 @@ impl StorageManager {
         sqlx::query_as!(
             NodeStatus,
             r#"
-                SELECT timestamp, up
-                    FROM mixnode_ipv6_status
-                    JOIN mixnode_details
-                    ON mixnode_ipv6_status.mixnode_details_id = mixnode_details.id
-                    WHERE mixnode_details.identity=? AND mixnode_ipv6_status.timestamp > ?;
-            "#,
-            identity,
-            timestamp
-        )
-        .fetch_all(&self.connection_pool)
-        .await
-    }
-
-    /// Gets all ipv4 statuses for gateway with particular identity that were inserted
-    /// into the database after the specified unix timestamp.
-    pub(super) async fn get_gateway_ipv4_statuses_since(
-        &self,
-        identity: &str,
-        timestamp: UnixTimestamp,
-    ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        sqlx::query_as!(
-            NodeStatus,
-            r#"
-                SELECT timestamp, up
-                    FROM gateway_ipv4_status
+                SELECT timestamp, reliability as "reliability: u8"
+                    FROM gateway_status
                     JOIN gateway_details
-                    ON gateway_ipv4_status.gateway_details_id = gateway_details.id
-                    WHERE gateway_details.identity=? AND gateway_ipv4_status.timestamp > ?;
+                    ON gateway_status.gateway_details_id = gateway_details.id
+                    WHERE gateway_details.identity=? AND gateway_status.timestamp > ?;
             "#,
             identity,
             timestamp,
-        )
-        .fetch_all(&self.connection_pool)
-        .await
-    }
-
-    /// Gets all ipv6 statuses for gateway with particular identity that were inserted
-    /// into the database after the specified unix timestamp.
-    pub(super) async fn get_gateway_ipv6_statuses_since(
-        &self,
-        identity: &str,
-        timestamp: UnixTimestamp,
-    ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        sqlx::query_as!(
-            NodeStatus,
-            r#"
-                SELECT timestamp, up
-                    FROM gateway_ipv6_status
-                    JOIN gateway_details
-                    ON gateway_ipv6_status.gateway_details_id = gateway_details.id
-                    WHERE gateway_details.identity=? AND gateway_ipv6_status.timestamp > ?;
-            "#,
-            identity,
-            timestamp
         )
         .fetch_all(&self.connection_pool)
         .await
     }
 
     /// Gets the historical daily uptime associated with the particular mixnode
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the mixnode.
     pub(super) async fn get_mixnode_historical_uptimes(
         &self,
         identity: &str,
     ) -> Result<Vec<HistoricalUptime>, sqlx::Error> {
         let uptimes = sqlx::query!(
             r#"
-                SELECT date, ipv4_uptime, ipv6_uptime
+                SELECT date, uptime
                     FROM mixnode_historical_uptime
                     JOIN mixnode_details
                     ON mixnode_historical_uptime.mixnode_details_id = mixnode_details.id
@@ -190,18 +174,12 @@ impl StorageManager {
         // filter out nodes with valid uptime (in theory all should be 100% valid since we insert them ourselves, but
         // better safe than sorry and not use an unwrap)
         .filter_map(|row| {
-            Uptime::try_from(row.ipv4_uptime)
-                .ok()
-                .map(|ipv4_uptime| {
-                    Uptime::try_from(row.ipv6_uptime)
-                        .ok()
-                        .map(|ipv6_uptime| HistoricalUptime {
-                            date: row.date,
-                            ipv4_uptime,
-                            ipv6_uptime,
-                        })
+            Uptime::try_from(row.uptime)
+                .map(|uptime| HistoricalUptime {
+                    date: row.date,
+                    uptime,
                 })
-                .flatten()
+                .ok()
         })
         .collect();
 
@@ -209,13 +187,17 @@ impl StorageManager {
     }
 
     /// Gets the historical daily uptime associated with the particular gateway
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: identity (base58-encoded public key) of the gateway.
     pub(super) async fn get_gateway_historical_uptimes(
         &self,
         identity: &str,
     ) -> Result<Vec<HistoricalUptime>, sqlx::Error> {
         let uptimes = sqlx::query!(
             r#"
-                SELECT date, ipv4_uptime, ipv6_uptime
+                SELECT date, uptime
                     FROM gateway_historical_uptime
                     JOIN gateway_details
                     ON gateway_historical_uptime.gateway_details_id = gateway_details.id
@@ -230,32 +212,26 @@ impl StorageManager {
         // filter out nodes with valid uptime (in theory all should be 100% valid since we insert them ourselves, but
         // better safe than sorry and not use an unwrap)
         .filter_map(|row| {
-            Uptime::try_from(row.ipv4_uptime)
-                .ok()
-                .map(|ipv4_uptime| {
-                    Uptime::try_from(row.ipv6_uptime)
-                        .ok()
-                        .map(|ipv6_uptime| HistoricalUptime {
-                            date: row.date,
-                            ipv4_uptime,
-                            ipv6_uptime,
-                        })
+            Uptime::try_from(row.uptime)
+                .map(|uptime| HistoricalUptime {
+                    date: row.date,
+                    uptime,
                 })
-                .flatten()
+                .ok()
         })
         .collect();
 
         Ok(uptimes)
     }
 
-    /// Gets all ipv4 statuses for mixnode with particular id that were inserted
+    /// Gets all reliability statuses for mixnode with particular id that were inserted
     /// into the database within the specified time interval.
     ///
     /// # Arguments
     ///
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `until`: unix timestamp indicating the upper bound interval of the selection.
-    pub(super) async fn get_mixnode_ipv4_statuses_by_id(
+    pub(super) async fn get_mixnode_statuses_by_id(
         &self,
         id: i64,
         since: UnixTimestamp,
@@ -264,8 +240,8 @@ impl StorageManager {
         sqlx::query_as!(
             NodeStatus,
             r#"
-                SELECT timestamp, up
-                    FROM mixnode_ipv4_status
+                SELECT timestamp, reliability as "reliability: u8"
+                    FROM mixnode_status
                     WHERE mixnode_details_id=? AND timestamp > ? AND timestamp < ?;
             "#,
             id,
@@ -276,14 +252,14 @@ impl StorageManager {
         .await
     }
 
-    /// Gets all ipv6 statuses for mixnode with particular id that were inserted
+    /// Gets all reliability statuses for gateway with particular id that were inserted
     /// into the database within the specified time interval.
     ///
     /// # Arguments
     ///
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `until`: unix timestamp indicating the upper bound interval of the selection.
-    pub(super) async fn get_mixnode_ipv6_statuses_by_id(
+    pub(super) async fn get_gateway_statuses_by_id(
         &self,
         id: i64,
         since: UnixTimestamp,
@@ -292,64 +268,8 @@ impl StorageManager {
         sqlx::query_as!(
             NodeStatus,
             r#"
-                SELECT timestamp, up
-                    FROM mixnode_ipv6_status
-                    WHERE mixnode_details_id=? AND timestamp > ? AND timestamp < ?;
-            "#,
-            id,
-            since,
-            until,
-        )
-        .fetch_all(&self.connection_pool)
-        .await
-    }
-
-    /// Gets all ipv4 statuses for gateway with particular id that were inserted
-    /// into the database within the specified time interval.
-    ///
-    /// # Arguments
-    ///
-    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
-    /// * `until`: unix timestamp indicating the upper bound interval of the selection.
-    pub(super) async fn get_gateway_ipv4_statuses_by_id(
-        &self,
-        id: i64,
-        since: UnixTimestamp,
-        until: UnixTimestamp,
-    ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        sqlx::query_as!(
-            NodeStatus,
-            r#"
-                SELECT timestamp, up
-                    FROM gateway_ipv4_status
-                    WHERE gateway_details_id=? AND timestamp > ? AND timestamp < ?;
-            "#,
-            id,
-            since,
-            until,
-        )
-        .fetch_all(&self.connection_pool)
-        .await
-    }
-
-    /// Gets all ipv6 statuses for gateway with particular id that were inserted
-    /// into the database within the specified time interval.
-    ///
-    /// # Arguments
-    ///
-    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
-    /// * `until`: unix timestamp indicating the upper bound interval of the selection.
-    pub(super) async fn get_gateway_ipv6_statuses_by_id(
-        &self,
-        id: i64,
-        since: UnixTimestamp,
-        until: UnixTimestamp,
-    ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        sqlx::query_as!(
-            NodeStatus,
-            r#"
-                SELECT timestamp, up
-                    FROM gateway_ipv6_status
+                SELECT timestamp, reliability as "reliability: u8"
+                    FROM gateway_status
                     WHERE gateway_details_id=? AND timestamp > ? AND timestamp < ?;
             "#,
             id,
@@ -361,6 +281,11 @@ impl StorageManager {
     }
 
     /// Tries to submit mixnode [`NodeResult`] from the network monitor to the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `timestamp`: unix timestamp indicating when the measurements took place.
+    /// * `mixnode_results`: reliability results of each node that got tested.
     pub(super) async fn submit_mixnode_statuses(
         &self,
         timestamp: UnixTimestamp,
@@ -383,27 +308,15 @@ impl StorageManager {
             .await?
             .id;
 
-            // insert ipv4 status
+            // insert the actual status
             sqlx::query!(
-                r#"
-                    INSERT INTO mixnode_ipv4_status (mixnode_details_id, up, timestamp) VALUES (?, ?, ?);
-                "#,
-                mixnode_id,
-                mixnode_result.working_ipv4,
-                timestamp
-            )
-                .execute(&mut tx)
-                .await?;
-
-            // insert ipv6 status
-            sqlx::query!(
-                r#"
-                    INSERT INTO mixnode_ipv6_status (mixnode_details_id, up, timestamp) VALUES (?, ?, ?);
-                "#,
-                mixnode_id,
-                mixnode_result.working_ipv6,
-                timestamp
-            )
+                    r#"
+                        INSERT INTO mixnode_status (mixnode_details_id, reliability, timestamp) VALUES (?, ?, ?);
+                    "#,
+                    mixnode_id,
+                    mixnode_result.reliability,
+                    timestamp
+                )
                 .execute(&mut tx)
                 .await?;
         }
@@ -413,6 +326,11 @@ impl StorageManager {
     }
 
     /// Tries to submit gateway [`NodeResult`] from the network monitor to the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `timestamp`: unix timestamp indicating when the measurements took place.
+    /// * `gateway_results`: reliability results of each node that got tested.
     pub(super) async fn submit_gateway_statuses(
         &self,
         timestamp: UnixTimestamp,
@@ -439,33 +357,125 @@ impl StorageManager {
             .await?
             .id;
 
-            // insert ipv4 status
+            // insert the actual status
             sqlx::query!(
-                r#"
-                    INSERT INTO gateway_ipv4_status (gateway_details_id, up, timestamp) VALUES (?, ?, ?);
-                "#,
-                gateway_id,
-                gateway_result.working_ipv4,
-                timestamp
-            )
-                .execute(&mut tx)
-                .await?;
-
-            // insert ipv6 status
-            sqlx::query!(
-                r#"
-                    INSERT INTO gateway_ipv6_status (gateway_details_id, up, timestamp) VALUES (?, ?, ?);
-                "#,
-                gateway_id,
-                gateway_result.working_ipv6,
-                timestamp
-            )
+                    r#"
+                        INSERT INTO gateway_status (gateway_details_id, reliability, timestamp) VALUES (?, ?, ?);
+                    "#,
+                    gateway_id,
+                    gateway_result.reliability,
+                    timestamp
+                )
                 .execute(&mut tx)
                 .await?;
         }
 
         // finally commit the transaction
         tx.commit().await
+    }
+
+    /// Saves the information about which nodes were used as core nodes during this particular
+    /// network monitor test run.
+    ///
+    /// # Arguments
+    ///
+    /// * `testing_route`: test route used for this particular network monitor run.
+    pub(super) async fn submit_testing_route_used(
+        &self,
+        testing_route: TestingRoute,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO testing_route 
+                (gateway_id, layer1_mix_id, layer2_mix_id, layer3_mix_id, monitor_run_id) 
+                VALUES (?, ?, ?, ?, ?);
+            "#,
+            testing_route.gateway_id,
+            testing_route.layer1_mix_id,
+            testing_route.layer2_mix_id,
+            testing_route.layer3_mix_id,
+            testing_route.monitor_run_id,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Get the number of times mixnode with the particular id is present in any `testing_route`
+    /// since the provided unix timestamp.
+    ///
+    /// # Arguments
+    ///
+    /// * `mixnode_id`: id (as saved in the database) of the mixnode.
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    pub(super) async fn get_mixnode_testing_route_presence_count_since(
+        &self,
+        mixnode_id: i64,
+        since: UnixTimestamp,
+    ) -> Result<i32, sqlx::Error> {
+        let count = sqlx::query!(
+            r#"
+                SELECT COUNT(*) as count FROM
+                (
+                    SELECT monitor_run_id 
+                    FROM testing_route 
+                    WHERE testing_route.layer1_mix_id = ? OR testing_route.layer2_mix_id = ? OR testing_route.layer3_mix_id = ?
+                ) testing_route
+                JOIN 
+                (
+                    SELECT id 
+                    FROM monitor_run 
+                    WHERE monitor_run.timestamp > ?
+                ) monitor_run
+                ON monitor_run.id = testing_route.monitor_run_id;
+            "#,
+            mixnode_id,
+            mixnode_id,
+            mixnode_id,
+            since,
+        ).fetch_one(&self.connection_pool)
+            .await?
+            .count;
+
+        Ok(count)
+    }
+
+    /// Get the number of times gateway with the particular id is present in any `testing_route`
+    /// since the provided unix timestamp.
+    ///
+    /// # Arguments
+    ///
+    /// * `gateway_id`: id (as saved in the database) of the gateway.
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    pub(super) async fn get_gateway_testing_route_presence_count_since(
+        &self,
+        gateway_id: i64,
+        since: UnixTimestamp,
+    ) -> Result<i32, sqlx::Error> {
+        let count = sqlx::query!(
+            r#"
+                SELECT COUNT(*) as count FROM
+                (
+                    SELECT monitor_run_id 
+                    FROM testing_route 
+                    WHERE testing_route.gateway_id = ?
+                ) testing_route
+                JOIN 
+                (
+                    SELECT id 
+                    FROM monitor_run 
+                    WHERE monitor_run.timestamp > ?
+                ) monitor_run
+                ON monitor_run.id = testing_route.monitor_run_id;
+            "#,
+            gateway_id,
+            since,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?
+        .count;
+
+        Ok(count)
     }
 
     /// Checks whether there are already any historical uptimes with this particular date.
@@ -483,42 +493,51 @@ impl StorageManager {
     }
 
     /// Creates new entry for mixnode historical uptime
+    ///
+    /// # Arguments
+    ///
+    /// * `node_id`: id of the mixnode (as inserted in `mixnode_details_id` table).
+    /// * `date`: date associated with the uptime represented in ISO 8601, i.e. YYYY-MM-DD.
+    /// * `uptime`: the actual uptime of the node during the specified day.
     pub(super) async fn insert_mixnode_historical_uptime(
         &self,
         node_id: i64,
         date: &str,
-        ipv4_uptime: u8,
-        ipv6_uptime: u8,
+        uptime: u8,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO mixnode_historical_uptime(mixnode_details_id, date, ipv4_uptime, ipv6_uptime) VALUES (?, ?, ?, ?)",
-            node_id,
+            "INSERT INTO mixnode_historical_uptime(mixnode_details_id, date, uptime) VALUES (?, ?, ?)",
+                node_id,
                 date,
-                ipv4_uptime,
-                ipv6_uptime,
+                uptime,
             ).execute(&self.connection_pool).await?;
         Ok(())
     }
 
     /// Creates new entry for gateway historical uptime
+    ///
+    /// # Arguments
+    ///
+    /// * `node_id`: id of the gateway (as inserted in `gateway_details_id` table).
+    /// * `date`: date associated with the uptime represented in ISO 8601, i.e. YYYY-MM-DD.
+    /// * `uptime`: the actual uptime of the node during the specified day.
     pub(super) async fn insert_gateway_historical_uptime(
         &self,
         node_id: i64,
         date: &str,
-        ipv4_uptime: u8,
-        ipv6_uptime: u8,
+        uptime: u8,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO gateway_historical_uptime(gateway_details_id, date, ipv4_uptime, ipv6_uptime) VALUES (?, ?, ?, ?)",
-            node_id,
+            "INSERT INTO gateway_historical_uptime(gateway_details_id, date, uptime) VALUES (?, ?, ?)",
+                node_id,
                 date,
-                ipv4_uptime,
-                ipv6_uptime,
+                uptime,
             ).execute(&self.connection_pool).await?;
         Ok(())
     }
 
     /// Creates a database entry for a finished network monitor test run.
+    /// Returns id of the newly created entry.
     ///
     /// # Arguments
     ///
@@ -526,11 +545,11 @@ impl StorageManager {
     pub(super) async fn insert_monitor_run(
         &self,
         timestamp: UnixTimestamp,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!("INSERT INTO monitor_run(timestamp) VALUES (?)", timestamp)
+    ) -> Result<i64, sqlx::Error> {
+        let res = sqlx::query!("INSERT INTO monitor_run(timestamp) VALUES (?)", timestamp)
             .execute(&self.connection_pool)
             .await?;
-        Ok(())
+        Ok(res.last_insert_rowid())
     }
 
     /// Obtains number of network monitor test runs that have occurred within the specified interval.
@@ -555,83 +574,39 @@ impl StorageManager {
         Ok(count)
     }
 
-    /// Removes all ipv4 statuses for all mixnodes that are older than the
+    /// Removes all statuses for all mixnodes that are older than the
     /// provided timestamp. This method is indirectly called at every reward cycle.
     ///
     /// # Arguments
     ///
     /// * `until`: timestamp specifying the purge cutoff.
-    pub(super) async fn purge_old_mixnode_ipv4_statuses(
+    pub(super) async fn purge_old_mixnode_statuses(
         &self,
         timestamp: UnixTimestamp,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "DELETE FROM mixnode_ipv4_status WHERE timestamp < ?",
-            timestamp
-        )
-        .execute(&self.connection_pool)
-        .await?;
+        sqlx::query!("DELETE FROM mixnode_status WHERE timestamp < ?", timestamp)
+            .execute(&self.connection_pool)
+            .await?;
         Ok(())
     }
 
-    /// Removes all ipv6 statuses for all mixnodes that are older than the
+    /// Removes all statuses for all gateways that are older than the
     /// provided timestamp. This method is indirectly called at every reward cycle.
     ///
     /// # Arguments
     ///
     /// * `until`: timestamp specifying the purge cutoff.
-    pub(super) async fn purge_old_mixnode_ipv6_statuses(
+    pub(super) async fn purge_old_gateway_statuses(
         &self,
         timestamp: UnixTimestamp,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "DELETE FROM mixnode_ipv6_status WHERE timestamp < ?",
-            timestamp
-        )
-        .execute(&self.connection_pool)
-        .await?;
+        sqlx::query!("DELETE FROM gateway_status WHERE timestamp < ?", timestamp)
+            .execute(&self.connection_pool)
+            .await?;
         Ok(())
     }
 
-    /// Removes all ipv4 statuses for all gateways that are older than the
-    /// provided timestamp. This method is indirectly called at every reward cycle.
-    ///
-    /// # Arguments
-    ///
-    /// * `until`: timestamp specifying the purge cutoff.
-    pub(super) async fn purge_old_gateway_ipv4_statuses(
-        &self,
-        timestamp: UnixTimestamp,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "DELETE FROM gateway_ipv4_status WHERE timestamp < ?",
-            timestamp
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
-    /// Removes all ipv6 statuses for all gateways that are older than the
-    /// provided timestamp. This method is indirectly called at every reward cycle.
-    ///
-    /// # Arguments
-    ///
-    /// * `until`: timestamp specifying the purge cutoff.
-    pub(super) async fn purge_old_gateway_ipv6_statuses(
-        &self,
-        timestamp: UnixTimestamp,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "DELETE FROM gateway_ipv6_status WHERE timestamp < ?",
-            timestamp
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
-    /// Returns public key, owner and id of all mixnodes that have had any ipv4 statuses submitted
+    /// Returns public key, owner and id of all mixnodes that have had any statuses submitted
     /// within the provided time interval.
     ///
     /// # Arguments
@@ -643,7 +618,7 @@ impl StorageManager {
         since: UnixTimestamp,
         until: UnixTimestamp,
     ) -> Result<Vec<ActiveNode>, sqlx::Error> {
-        // find mixnode details of all nodes that have had at least 1 ipv4 status since the provided
+        // find mixnode details of all nodes that have had at least 1 status information since the provided
         // timestamp
         // TODO: I dont know if theres a potential issue of if we have a lot of inactive nodes that
         // haven't mixed in ages, they might increase the query times?
@@ -652,10 +627,10 @@ impl StorageManager {
             r#"
                 SELECT DISTINCT identity, owner, id
                     FROM mixnode_details
-                    JOIN mixnode_ipv4_status
-                    ON mixnode_details.id = mixnode_ipv4_status.mixnode_details_id
+                    JOIN mixnode_status
+                    ON mixnode_details.id = mixnode_status.mixnode_details_id
                     WHERE EXISTS (
-                        SELECT 1 FROM mixnode_ipv4_status WHERE timestamp > ? AND timestamp < ?
+                        SELECT 1 FROM mixnode_status WHERE timestamp > ? AND timestamp < ?
                     )
             "#,
             since,
@@ -665,7 +640,7 @@ impl StorageManager {
         .await
     }
 
-    /// Returns public key, owner and id of all gateways that have had any ipv4 statuses submitted
+    /// Returns public key, owner and id of all gateways that have had any statuses submitted
     /// within the provided time interval.
     ///
     /// # Arguments
@@ -682,10 +657,10 @@ impl StorageManager {
             r#"
                 SELECT DISTINCT identity, owner, id
                     FROM gateway_details
-                    JOIN gateway_ipv4_status
-                    ON gateway_details.id = gateway_ipv4_status.gateway_details_id
+                    JOIN gateway_status
+                    ON gateway_details.id = gateway_status.gateway_details_id
                     WHERE EXISTS (
-                        SELECT 1 FROM gateway_ipv4_status WHERE timestamp > ? AND timestamp < ?
+                        SELECT 1 FROM gateway_status WHERE timestamp > ? AND timestamp < ?
                     )
             "#,
             since,
@@ -854,25 +829,21 @@ impl StorageManager {
         &self,
         since: UnixTimestamp,
         until: UnixTimestamp,
-    ) -> Result<Vec<ActiveNodeDayStatuses>, sqlx::Error> {
+    ) -> Result<Vec<ActiveNodeStatuses>, sqlx::Error> {
         let active_nodes = self
             .get_all_active_mixnodes_in_interval(since, until)
             .await?;
 
         let mut active_day_statuses = Vec::with_capacity(active_nodes.len());
         for active_node in active_nodes.into_iter() {
-            let ipv4_statuses = self
-                .get_mixnode_ipv4_statuses_by_id(active_node.id, since, until)
-                .await?;
-            let ipv6_statuses = self
-                .get_mixnode_ipv6_statuses_by_id(active_node.id, since, until)
+            let statuses = self
+                .get_mixnode_statuses_by_id(active_node.id, since, until)
                 .await?;
 
-            let statuses = ActiveNodeDayStatuses {
+            let statuses = ActiveNodeStatuses {
                 identity: active_node.identity,
                 owner: active_node.owner,
-                ipv4_statuses,
-                ipv6_statuses,
+                statuses,
             };
 
             active_day_statuses.push(statuses);
@@ -891,25 +862,21 @@ impl StorageManager {
         &self,
         since: UnixTimestamp,
         until: UnixTimestamp,
-    ) -> Result<Vec<ActiveNodeDayStatuses>, sqlx::Error> {
+    ) -> Result<Vec<ActiveNodeStatuses>, sqlx::Error> {
         let active_nodes = self
             .get_all_active_gateways_in_interval(since, until)
             .await?;
 
         let mut active_day_statuses = Vec::with_capacity(active_nodes.len());
         for active_node in active_nodes.into_iter() {
-            let ipv4_statuses = self
-                .get_gateway_ipv4_statuses_by_id(active_node.id, since, until)
-                .await?;
-            let ipv6_statuses = self
-                .get_gateway_ipv6_statuses_by_id(active_node.id, since, until)
+            let statuses = self
+                .get_gateway_statuses_by_id(active_node.id, since, until)
                 .await?;
 
-            let statuses = ActiveNodeDayStatuses {
+            let statuses = ActiveNodeStatuses {
                 identity: active_node.identity,
                 owner: active_node.owner,
-                ipv4_statuses,
-                ipv6_statuses,
+                statuses,
             };
 
             active_day_statuses.push(statuses);

@@ -76,7 +76,7 @@ pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
 pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("9fEE3e28c17dbB87310A51F13C4fbf4331A6f102");
 pub const ETH_MIN_BLOCK_DEPTH: usize = 7;
-pub const COSMOS_CONTRACT_ADDRESS: &str = "punk1mhe697nesvcvauuqzxwkeepf9jvht6yfly9wmg";
+pub const COSMOS_CONTRACT_ADDRESS: &str = "punk1jld76tqw4wnpfenmay2xkv86nr3j0w426eka82";
 // Name of the event triggered by the eth contract. If the event name is changed,
 // this would also need to be changed; It is currently tested against the json abi
 pub const ETH_EVENT_NAME: &str = "Burned";

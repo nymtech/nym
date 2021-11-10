@@ -58,6 +58,11 @@ const KEYPAIR_ARG: &str = "keypair";
 #[cfg(feature = "coconut")]
 const COCONUT_ONLY_FLAG: &str = "coconut-only";
 
+#[cfg(not(feature = "coconut"))]
+const ETH_ENDPOINT: &str = "eth_endpoint";
+#[cfg(not(feature = "coconut"))]
+const ETH_PRIVATE_KEY: &str = "eth_private_key";
+
 const EPOCH_LENGTH_ARG: &str = "epoch-length";
 const FIRST_REWARDING_EPOCH_ARG: &str = "first-epoch";
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
@@ -74,6 +79,11 @@ fn parse_validators(raw: &str) -> Vec<Url> {
 }
 
 fn parse_args<'a>() -> ArgMatches<'a> {
+    #[cfg(feature = "coconut")]
+    let monitor_reqs = &[];
+    #[cfg(not(feature = "coconut"))]
+    let monitor_reqs = &[ETH_ENDPOINT, ETH_PRIVATE_KEY];
+
     let base_app = App::new("Nym Validator API")
         .author("Nymtech")
         .arg(
@@ -81,6 +91,7 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("specifies whether a network monitoring is enabled on this API")
                 .long(MONITORING_ENABLED)
                 .short("m")
+                .requires_all(monitor_reqs)
         )
         .arg(
             Arg::with_name(REWARDING_ENABLED)
@@ -150,6 +161,19 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         Arg::with_name(COCONUT_ONLY_FLAG)
             .help("Flag to indicate whether validator api should only be used for credential issuance with no blockchain connection")
             .long(COCONUT_ONLY_FLAG),
+    );
+
+    #[cfg(not(feature = "coconut"))]
+        let base_app = base_app.arg(
+        Arg::with_name(ETH_ENDPOINT)
+            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
+            .takes_value(true)
+            .long(ETH_ENDPOINT),
+    ).arg(
+        Arg::with_name(ETH_PRIVATE_KEY)
+            .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens")
+            .takes_value(true)
+            .long(ETH_PRIVATE_KEY),
     );
 
     base_app.get_matches()

@@ -43,5 +43,14 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_port(port.unwrap());
     }
 
+    #[cfg(not(feature = "coconut"))]
+    if let Some(eth_endpoint) = matches.value_of("eth_endpoint") {
+        config.get_base_mut().with_eth_endpoint(eth_endpoint);
+    }
+    #[cfg(not(feature = "coconut"))]
+    if let Some(eth_private_key) = matches.value_of("eth_private_key") {
+        config.get_base_mut().with_eth_private_key(eth_private_key);
+    }
+
     config
 }

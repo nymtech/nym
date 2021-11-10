@@ -17,10 +17,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use wasm_utils::{console_log, console_warn};
 
-#[cfg(feature = "coconut")]
-use coconut_interface::Credential;
-#[cfg(feature = "coconut")]
-use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
+use gateway_client::bandwidth::BandwidthController;
 
 pub(crate) mod received_processor;
 
@@ -103,35 +100,15 @@ impl NymClient {
         self.self_recipient().to_string()
     }
 
-    #[cfg(feature = "coconut")]
-    async fn prepare_coconut_credential(validators: &[Url], identity_bytes: &[u8]) -> Credential {
-        let verification_key = obtain_aggregate_verification_key(validators)
-            .await
-            .expect("could not obtain aggregate verification key of validators");
-
-        let bandwidth_credential =
-            credentials::bandwidth::obtain_signature(identity_bytes, validators)
-                .await
-                .expect("could not obtain bandwidth credential");
-        // the above would presumably be loaded from a file
-
-        // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
-        prepare_for_spending(identity_bytes, &bandwidth_credential, &verification_key)
-            .expect("could not prepare out bandwidth credential for spending")
-    }
-
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
         #[cfg(feature = "coconut")]
-        let coconut_credential = {
-            let validator_server = self.validator_server.clone();
-            let identity_public_key = self.identity.public_key().clone();
-            Self::prepare_coconut_credential(
-                &vec![validator_server],
-                &identity_public_key.to_bytes(),
-            )
-            .await
-        };
+        let bandwidth_controller = Some(BandwidthController::new(
+            vec![self.validator_server.clone()],
+            *self.identity.public_key(),
+        ));
+        #[cfg(not(feature = "coconut"))]
+        let bandwidth_controller = None;
 
         let mut client = self.get_and_update_topology().await;
         let gateway = client.choose_gateway();
@@ -147,13 +124,11 @@ impl NymClient {
             mixnet_messages_sender,
             ack_sender,
             DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
+            bandwidth_controller,
         );
 
         gateway_client
-            .authenticate_and_start(
-                #[cfg(feature = "coconut")]
-                Some(coconut_credential),
-            )
+            .authenticate_and_start()
             .await
             .expect("could not authenticate and start up the gateway connection");
 

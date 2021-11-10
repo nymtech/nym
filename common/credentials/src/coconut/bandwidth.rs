@@ -8,11 +8,10 @@
 
 use url::Url;
 
+use super::utils::{obtain_aggregate_signature, prepare_credential_for_spending};
 use crate::error::Error;
-use crate::utils::{obtain_aggregate_signature, prepare_credential_for_spending};
 use coconut_interface::{hash_to_scalar, Credential, Parameters, Signature, VerificationKey};
-
-const BANDWIDTH_VALUE: u64 = 10 * 1024 * 1024 * 1024; // 10 GB
+use network_defaults::BANDWIDTH_VALUE;
 
 pub const PUBLIC_ATTRIBUTES: u32 = 1;
 pub const PRIVATE_ATTRIBUTES: u32 = 1;

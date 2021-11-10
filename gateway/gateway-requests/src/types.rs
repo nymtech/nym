@@ -22,6 +22,8 @@ use tungstenite::protocol::Message;
 
 #[cfg(feature = "coconut")]
 use coconut_interface::Credential;
+#[cfg(not(feature = "coconut"))]
+use credentials::token::bandwidth::TokenCredential;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -117,8 +119,7 @@ pub enum ClientControlRequest {
     },
     #[serde(alias = "handshakePayload")]
     RegisterHandshakeInitRequest { data: Vec<u8> },
-    #[cfg(feature = "coconut")]
-    CoconutBandwidthCredential {
+    BandwidthCredential {
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     },
@@ -148,7 +149,7 @@ impl ClientControlRequest {
                 let enc_credential =
                     shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
 
-                Some(ClientControlRequest::CoconutBandwidthCredential {
+                Some(ClientControlRequest::BandwidthCredential {
                     enc_credential,
                     iv: iv.to_bytes(),
                 })
@@ -165,6 +166,30 @@ impl ClientControlRequest {
     ) -> Result<Credential, GatewayRequestsError> {
         let credential = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
         bincode::deserialize(&credential).map_err(|_| GatewayRequestsError::MalformedEncryption)
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn new_enc_token_bandwidth_credential(
+        credential: &TokenCredential,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Self {
+        let enc_credential = shared_key.encrypt_and_tag(&credential.to_bytes(), Some(iv.inner()));
+        ClientControlRequest::BandwidthCredential {
+            enc_credential,
+            iv: iv.to_bytes(),
+        }
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn try_from_enc_token_bandwidth_credential(
+        enc_credential: Vec<u8>,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Result<TokenCredential, GatewayRequestsError> {
+        let credential = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
+        TokenCredential::from_bytes(&credential)
+            .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 }
 
@@ -196,11 +221,22 @@ impl TryInto<String> for ClientControlRequest {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerResponse {
-    Authenticate { status: bool },
-    Register { status: bool },
-    Bandwidth { available_total: i64 },
-    Send { remaining_bandwidth: i64 },
-    Error { message: String },
+    Authenticate {
+        status: bool,
+        bandwidth_remaining: i64,
+    },
+    Register {
+        status: bool,
+    },
+    Bandwidth {
+        available_total: i64,
+    },
+    Send {
+        remaining_bandwidth: i64,
+    },
+    Error {
+        message: String,
+    },
 }
 
 impl ServerResponse {

@@ -32,7 +32,7 @@ pub use cosmrs::tendermint::hash;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{Fee, Gas};
 pub use cosmrs::Coin as CosmosCoin;
-pub use cosmrs::{AccountId, Denom};
+pub use cosmrs::{AccountId, Decimal, Denom};
 pub use signing_client::Client as SigningNymdClient;
 
 pub mod cosmwasm_client;

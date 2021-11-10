@@ -29,6 +29,8 @@ jobs:
           components: rustfmt, clippy
 
       - uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: '-C link-arg=-s'
         with:
           command: build
           args: --manifest-path contracts/mixnet/Cargo.toml --target wasm32-unknown-unknown

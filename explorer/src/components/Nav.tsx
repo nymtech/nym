@@ -133,6 +133,8 @@ type ExpandableButtonType = {
   closeDrawer: () => void;
   drawIsTempOpen: boolean;
   drawIsFixed: boolean;
+  fixDrawerClose: () => void;
+  isMobile: boolean;
   setToActive: (num: number) => void;
 };
 
@@ -145,9 +147,11 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   closeDrawer,
   drawIsTempOpen,
   drawIsFixed,
+  fixDrawerClose,
   Icon,
   title,
   nested,
+  isMobile,
   isChild,
 }) => {
   const [dynamicStyle, setDynamicStyle] = React.useState({});
@@ -162,6 +166,9 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
     }
     if (!nested && !drawIsFixed) {
       closeDrawer();
+    }
+    if (!nested && isMobile) {
+      fixDrawerClose();
     }
   };
 
@@ -245,6 +252,8 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             closeDrawer={closeDrawer}
             setToActive={setToActive}
             drawIsFixed={drawIsFixed}
+            fixDrawerClose={fixDrawerClose}
+            isMobile={isMobile}
             isChild
           />
         ))}
@@ -330,6 +339,7 @@ export const Nav: React.FC = ({ children }) => {
                 sx={{
                   color: theme.palette.nym.networkExplorer.nav.text,
                   fontSize: '18px',
+                  fontWeight: 800,
                 }}
               >
                 <MuiLink
@@ -405,8 +415,10 @@ export const Nav: React.FC = ({ children }) => {
                 closeDrawer={tempDrawerClose}
                 drawIsTempOpen={drawerIsOpen}
                 drawIsFixed={fixedOpen}
+                fixDrawerClose={fixDrawerClose}
                 openDrawer={tempDrawerOpen}
                 setToActive={setToActive}
+                isMobile={isMobile}
                 {...props}
               />
             ))}

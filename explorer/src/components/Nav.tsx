@@ -131,7 +131,8 @@ type ExpandableButtonType = {
   isChild?: boolean;
   openDrawer: () => void;
   closeDrawer: () => void;
-  drawIsOpen: boolean;
+  drawIsTempOpen: boolean;
+  drawIsFixed: boolean;
   setToActive: (num: number) => void;
 };
 
@@ -142,7 +143,8 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   isActive,
   openDrawer,
   closeDrawer,
-  drawIsOpen,
+  drawIsTempOpen,
+  drawIsFixed,
   Icon,
   title,
   nested,
@@ -154,12 +156,11 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   const { palette } = useTheme();
 
   const handleClick = () => {
-    openDrawer();
+    setToActive(id);
     if (title === 'Network Components' && nested) {
       toggleNestedOptions(!nestedOptions);
     }
-    setToActive(id);
-    if (!nested) {
+    if ((!nested || isChild) && !drawIsFixed) {
       closeDrawer();
     }
   };
@@ -189,10 +190,10 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   }, [url]);
 
   React.useEffect(() => {
-    if (!drawIsOpen && nestedOptions) {
+    if (!drawIsTempOpen && nestedOptions) {
       toggleNestedOptions(false);
     }
-  }, [drawIsOpen]);
+  }, [drawIsTempOpen]);
 
   return (
     <>
@@ -240,9 +241,10 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             key={each.title}
             title={each.title}
             openDrawer={openDrawer}
-            drawIsOpen={drawIsOpen}
+            drawIsTempOpen={drawIsTempOpen}
             closeDrawer={closeDrawer}
             setToActive={setToActive}
+            drawIsFixed={drawIsFixed}
             isChild
           />
         ))}
@@ -260,7 +262,8 @@ ExpandableButton.defaultProps = {
 export const Nav: React.FC = ({ children }) => {
   const [navOptionsState, updateNavOptionsState] =
     React.useState(originalNavOptions);
-  const [open, setOpen] = React.useState(false);
+  const [tempOpen, setTempOpen] = React.useState(false);
+  const [drawIsFixed, setDrawIsFixed] = React.useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -273,11 +276,25 @@ export const Nav: React.FC = ({ children }) => {
   };
 
   const handleDrawerOpen = () => {
-    setOpen(true);
+    setDrawIsFixed(true);
+    setTempOpen(true);
   };
 
   const handleDrawerClose = () => {
-    setOpen(false);
+    setDrawIsFixed(false);
+    setTempOpen(false);
+  };
+
+  const handleMouseEnterOpen = () => {
+    if (!drawIsFixed) {
+      setTempOpen(true);
+    }
+  };
+
+  const handleMouseLeaveClose = () => {
+    if (!drawIsFixed) {
+      setTempOpen(false);
+    }
   };
 
   return (
@@ -354,39 +371,42 @@ export const Nav: React.FC = ({ children }) => {
         </AppBar>
         <Drawer
           variant="permanent"
-          open={open}
-          onMouseEnter={handleDrawerOpen}
-          onMouseLeave={handleDrawerClose}
+          open={tempOpen}
           sx={{
             background: theme.palette.nym.networkExplorer.nav.background,
           }}
         >
           <DrawerHeader
             sx={{
-              justifyContent: open ? 'flex-end' : 'center',
+              justifyContent: tempOpen ? 'flex-end' : 'center',
               paddingLeft: 0,
             }}
           >
             <IconButton
-              onClick={open ? handleDrawerClose : handleDrawerOpen}
+              onClick={tempOpen ? handleDrawerClose : handleDrawerOpen}
               sx={{
                 padding: 0,
                 ml: '7px',
                 color: theme.palette.nym.networkExplorer.nav.text,
               }}
             >
-              {open ? <ChevronLeft /> : <Menu />}
+              {tempOpen ? <ChevronLeft /> : <Menu />}
             </IconButton>
           </DrawerHeader>
 
-          <List sx={{ pt: 0, pb: 0 }}>
+          <List
+            sx={{ pt: 0, pb: 0 }}
+            onMouseEnter={handleMouseEnterOpen}
+            onMouseLeave={handleMouseLeaveClose}
+          >
             {navOptionsState.map((props) => (
               <ExpandableButton
-                setToActive={setToActive}
                 key={props.url}
-                openDrawer={handleDrawerOpen}
-                drawIsOpen={open}
                 closeDrawer={handleDrawerClose}
+                drawIsTempOpen={tempOpen}
+                drawIsFixed={drawIsFixed}
+                openDrawer={handleDrawerOpen}
+                setToActive={setToActive}
                 {...props}
               />
             ))}

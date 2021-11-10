@@ -63,6 +63,7 @@ pub enum QueryMsg {
         address: Addr,
     },
     StateParams {},
+    CurrentRewardingInterval {},
     GetMixDelegations {
         mix_identity: IdentityKey,
         start_after: Option<Addr>,

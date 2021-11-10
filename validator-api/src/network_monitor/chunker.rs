@@ -5,7 +5,7 @@ use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::{
     acknowledgements::AckKey, addressing::clients::Recipient, preparer::MessagePreparer,
 };
-use rand::rngs::OsRng;
+use rand_07::rngs::OsRng;
 use std::time::Duration;
 use topology::NymTopology;
 

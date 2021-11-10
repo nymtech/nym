@@ -4,14 +4,18 @@
 use crate::nymd_client::Client;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;
-use mixnet_contract::{GatewayBond, MixNodeBond, StateParams};
+use mixnet_contract::{GatewayBond, MixNodeBond, RewardingIntervalResponse, StateParams};
+use rand::prelude::SliceRandom;
+use rand_chacha::rand_core::SeedableRng;
+use rand_chacha::ChaCha20Rng;
 use rocket::fairing::AdHoc;
 use serde::Serialize;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tokio::time;
+use validator_client::nymd::hash::SHA256_HASH_SIZE;
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
@@ -29,11 +33,15 @@ pub struct ValidatorCache {
 
 struct ValidatorCacheInner {
     initialised: AtomicBool,
+    latest_known_rewarding_block: AtomicU64,
+
     mixnodes: RwLock<Cache<Vec<MixNodeBond>>>,
     gateways: RwLock<Cache<Vec<GatewayBond>>>,
 
-    active_mixnodes_available: AtomicBool,
-    current_mixnode_active_set_size: AtomicUsize,
+    rewarded_mixnodes: RwLock<Cache<Vec<MixNodeBond>>>,
+
+    current_mixnode_rewarded_set_size: AtomicU32,
+    current_mixnode_active_set_size: AtomicU32,
 }
 
 #[derive(Default, Serialize, Clone)]
@@ -45,6 +53,13 @@ pub struct Cache<T> {
 impl<T: Clone> Cache<T> {
     fn set(&mut self, value: T) {
         self.value = value;
+        self.as_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+    }
+
+    fn renew(&mut self) {
         self.as_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -79,6 +94,13 @@ impl<C> ValidatorCacheRefresher<C> {
         )?;
 
         let state_params = self.nymd_client.get_state_params().await?;
+        let current_rewarding_interval = self.nymd_client.get_current_rewarding_interval().await?;
+        let rewarding_block_hash = self
+            .nymd_client
+            .get_block_hash(
+                current_rewarding_interval.current_rewarding_interval_starting_block as u32,
+            )
+            .await?;
 
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
@@ -87,7 +109,13 @@ impl<C> ValidatorCacheRefresher<C> {
         );
 
         self.cache
-            .update_cache(mixnodes, gateways, state_params)
+            .update_cache(
+                mixnodes,
+                gateways,
+                state_params,
+                current_rewarding_interval,
+                rewarding_block_hash,
+            )
             .await;
 
         Ok(())
@@ -128,53 +156,106 @@ impl ValidatorCache {
                     routes::get_mixnodes,
                     routes::get_gateways,
                     routes::get_active_mixnodes,
+                    routes::get_rewarded_mixnodes,
                 ],
             )
         })
     }
 
-    // TODO: check if all nodes can be compared together,
-    // i.e. they all have the same denom for bonds and delegations
-    fn verify_mixnodes(&self, mixnodes: &[MixNodeBond]) -> bool {
+    fn determine_rewarded_set(
+        &self,
+        mixnodes: &[MixNodeBond],
+        nodes_to_select: u32,
+        block_hash: Option<[u8; SHA256_HASH_SIZE]>,
+    ) -> Vec<MixNodeBond> {
         if mixnodes.is_empty() {
-            return true;
-        }
-        let expected_denom = &mixnodes[0].bond_amount.denom;
-        for mixnode in mixnodes {
-            if &mixnode.bond_amount.denom != expected_denom
-                || &mixnode.total_delegation.denom != expected_denom
-            {
-                return false;
-            }
+            return Vec::new();
         }
 
-        true
+        if block_hash.is_none() {
+            // I'm not entirely sure under what condition can hash of a block be empty
+            // (note that we know the block exists otherwise we would have gotten an error
+            // when attempting to retrieve the hash)
+            error!("The hash of the block of the rewarding interval is None - we're not going to update the set");
+            return Vec::new();
+        }
+
+        // seed our rng with the hash of the block of the most recent rewarding interval
+        let mut rng = ChaCha20Rng::from_seed(block_hash.unwrap());
+
+        // generate list of mixnodes and their relatively weight (by total stake)
+        let choices = mixnodes
+            .iter()
+            .map(|mix| {
+                // note that the theoretical maximum possible stake is equal to the total
+                // supply of all tokens, i.e. 1B (which is 1 quadrillion of native tokens, i.e. 10^15 ~ 2^50)
+                // which is way below maximum value of f64, so the cast is fine
+                let total_stake = mix.total_stake().unwrap_or_default() as f64;
+                (mix, total_stake)
+            }) // if for some reason node is invalid, treat it as 0 stake/weight
+            .collect::<Vec<_>>();
+
+        // the unwrap here is fine as an error can only be thrown under one of the following conditions:
+        // - our mixnode list is empty - we have already checked for that
+        // - we have invalid weights, i.e. less than zero or NaNs - it shouldn't happen in our case as we safely cast down from u128
+        // - all weights are zero - it's impossible in our case as the list of nodes is not empty and weight is proportional to stake. You must have non-zero stake in order to bond
+        // - we have more than u32::MAX values (which is incredibly unrealistic to have 4B mixnodes bonded... literally every other person on the planet would need one)
+        choices
+            .choose_multiple_weighted(&mut rng, nodes_to_select as usize, |item| item.1)
+            .unwrap()
+            .map(|(bond, _weight)| *bond)
+            .cloned()
+            .collect()
     }
 
     async fn update_cache(
         &self,
-        mut mixnodes: Vec<MixNodeBond>,
+        mixnodes: Vec<MixNodeBond>,
         gateways: Vec<GatewayBond>,
         state: StateParams,
+        rewarding_interval: RewardingIntervalResponse,
+        rewarding_block_hash: Option<[u8; SHA256_HASH_SIZE]>,
     ) {
+        // if the rewarding is currently in progress, don't mess with the rewarded/active sets
+        // as most likely will be changed next time this function is called
+        //
         // if our data is valid, it means the active sets are available,
         // otherwise we must explicitly indicate nobody can read this data
+        if !rewarding_interval.rewarding_in_progress {
+            // if we're still in the same rewarding interval, i.e. the latest block is the same,
+            // there's nothing we have to do
+            if rewarding_interval.current_rewarding_interval_starting_block
+                > self
+                    .inner
+                    .latest_known_rewarding_block
+                    .load(Ordering::SeqCst)
+            {
+                let rewarded_nodes = self.determine_rewarded_set(
+                    &mixnodes,
+                    state.mixnode_rewarded_set_size,
+                    rewarding_block_hash,
+                );
 
-        if self.verify_mixnodes(&mixnodes) {
-            // partial_cmp can only fail if the nodes have different denomination,
-            // but we just checked for that hence the unwraps are fine here
-            // Note the reverse order of comparison so that the "highest" node would be first
-            mixnodes.sort_by(|a, b| b.partial_cmp(a).unwrap());
-            self.inner
-                .active_mixnodes_available
-                .store(true, Ordering::SeqCst);
-            self.inner
-                .current_mixnode_active_set_size
-                .store(state.mixnode_active_set_size as usize, Ordering::SeqCst);
-        } else {
-            self.inner
-                .active_mixnodes_available
-                .store(false, Ordering::SeqCst);
+                self.inner
+                    .current_mixnode_rewarded_set_size
+                    .store(state.mixnode_rewarded_set_size, Ordering::SeqCst);
+                self.inner
+                    .current_mixnode_active_set_size
+                    .store(state.mixnode_active_set_size, Ordering::SeqCst);
+                self.inner.latest_known_rewarding_block.store(
+                    rewarding_interval.current_rewarding_interval_starting_block,
+                    Ordering::SeqCst,
+                );
+
+                self.inner
+                    .rewarded_mixnodes
+                    .write()
+                    .await
+                    .set(rewarded_nodes);
+            } else {
+                // however, update the timestamp on the cache
+                self.inner.rewarded_mixnodes.write().await.renew()
+            }
         }
 
         self.inner.mixnodes.write().await.set(mixnodes);
@@ -189,27 +270,28 @@ impl ValidatorCache {
         self.inner.gateways.read().await.clone()
     }
 
-    pub async fn active_mixnodes(&self) -> Option<Cache<Vec<MixNodeBond>>> {
-        // if active set is available, it means it is already sorted
-        if self.inner.active_mixnodes_available.load(Ordering::SeqCst) {
-            let cache = self.inner.mixnodes.read().await;
-            let timestamp = cache.as_at;
-            let nodes = cache
-                .value
-                .iter()
-                .take(
-                    self.inner
-                        .current_mixnode_active_set_size
-                        .load(Ordering::SeqCst),
-                )
-                .cloned()
-                .collect();
-            Some(Cache {
-                value: nodes,
-                as_at: timestamp,
-            })
-        } else {
-            None
+    pub async fn rewarded_mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
+        self.inner.rewarded_mixnodes.read().await.clone()
+    }
+
+    pub async fn active_mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
+        // rewarded set is already "sorted" by pseudo-randomly choosing mixnodes from
+        // all bonded nodes, weighted by stake. For the active set choose first k nodes.
+        let cache = self.inner.rewarded_mixnodes.read().await;
+        let timestamp = cache.as_at;
+        let nodes = cache
+            .value
+            .iter()
+            .take(
+                self.inner
+                    .current_mixnode_active_set_size
+                    .load(Ordering::SeqCst) as usize,
+            )
+            .cloned()
+            .collect();
+        Cache {
+            value: nodes,
+            as_at: timestamp,
         }
     }
 
@@ -234,9 +316,11 @@ impl ValidatorCacheInner {
     fn new() -> Self {
         ValidatorCacheInner {
             initialised: AtomicBool::new(false),
+            latest_known_rewarding_block: Default::default(),
             mixnodes: RwLock::new(Cache::default()),
             gateways: RwLock::new(Cache::default()),
-            active_mixnodes_available: AtomicBool::new(false),
+            rewarded_mixnodes: RwLock::new(Cache::default()),
+            current_mixnode_rewarded_set_size: Default::default(),
             current_mixnode_active_set_size: Default::default(),
         }
     }

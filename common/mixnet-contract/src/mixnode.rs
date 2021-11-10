@@ -191,6 +191,14 @@ impl MixNodeBond {
         &self.mix_node
     }
 
+    pub fn total_stake(&self) -> Option<u128> {
+        if self.bond_amount.denom != self.total_delegation.denom {
+            None
+        } else {
+            Some(self.bond_amount.amount.u128() + self.total_delegation.amount.u128())
+        }
+    }
+
     pub fn total_delegation(&self) -> Coin {
         self.total_delegation.clone()
     }

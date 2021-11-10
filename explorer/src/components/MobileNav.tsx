@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { CSSObject, Theme, useTheme, styled } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import MuiLink from '@mui/material/Link';
 import {
   AppBar,
@@ -12,16 +12,17 @@ import {
   ListItem,
   ListItemButton,
   ListItemIcon,
-  ListItemText,
   Toolbar,
   Typography,
 } from '@mui/material';
-import { ExpandMore, Menu } from '@mui/icons-material';
+import { Menu } from '@mui/icons-material';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
 import { useMainContext } from 'src/context/main';
+import { MobileDrawerClose } from 'src/icons/MobileDrawerClose';
 import { Footer } from './Footer';
 import { NYM_WEBSITE } from '../api/constants';
 import { ExpandableButton } from './Nav';
+import { DarkLightSwitchMobile } from './Switch';
 
 type MobileNavProps = {
   children: React.ReactNode;
@@ -34,7 +35,6 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
 }: MobileNavProps) => {
   const theme = useTheme();
   const { navState, updateNavState } = useMainContext();
-  const [nestedOptions, toggleNestedOptions] = React.useState(false);
   const [drawerOpen, setDrawerOpen] = React.useState(true);
 
   const toggleDrawer = () => {
@@ -49,8 +49,6 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
   const openDrawer = () => {
     setDrawerOpen(true);
   };
-
-  console.log('nav state is now', navState);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -99,24 +97,36 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
               </MuiLink>
             </Typography>
           </Box>
-          <Button onClick={toggleDrawer}>
-            <Menu sx={{ color: theme.palette.primary.contrastText }} />
-          </Button>
+
+          <Box>
+            <DarkLightSwitchMobile />
+            <Button onClick={toggleDrawer}>
+              <Menu sx={{ color: theme.palette.primary.contrastText }} />
+            </Button>
+          </Box>
         </Toolbar>
       </AppBar>
       <Drawer anchor="left" open={drawerOpen} onClose={toggleDrawer}>
         <Box role="presentation">
-          <List sx={{ pt: 0, pb: 0, background: '#111826' }}>
-            <ListItem disablePadding disableGutters>
+          <List sx={{ pt: 0, pb: 0 }}>
+            <ListItem
+              disablePadding
+              disableGutters
+              sx={{ height: 64, background }}
+            >
               <ListItemButton
                 onClick={toggleDrawer}
                 sx={{
                   pt: 2,
                   pb: 2,
                   background,
+                  display: 'flex',
+                  justifyContent: 'flex-start',
                 }}
               >
-                <ListItemIcon>🆇</ListItemIcon>
+                <ListItemIcon>
+                  <MobileDrawerClose />
+                </ListItemIcon>
               </ListItemButton>
             </ListItem>
           </List>
@@ -136,6 +146,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
                 setToActive={handleClick}
                 nested={props.nested}
                 isMobile
+                isActive={props.isActive}
               />
             ))}
           </List>

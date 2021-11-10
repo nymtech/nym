@@ -17,13 +17,13 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
 import { BIG_DIPPER, NYM_WEBSITE } from 'src/api/constants';
-import { useMediaQuery } from '@mui/material';
+import { useMainContext } from 'src/context/main';
 import { OverviewSVG } from '../icons/OverviewSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
 import { Socials } from './Socials';
 import { Footer } from './Footer';
-import { DarkLightSwitchDesktop, DarkLightSwitchMobile } from './Switch';
+import { DarkLightSwitchDesktop } from './Switch';
 
 const drawerWidth = 300;
 
@@ -179,7 +179,7 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
     }
     if (nested) {
       setDynamicStyle({
-        background: '#242C3D',
+        background: '#111826',
         borderRight: `3px solid ${palette.nym.highlight}`,
       });
     }
@@ -191,7 +191,7 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
     }
     if (!nested && !isChild) {
       setDynamicStyle({
-        background: '#242C3D',
+        background: '#111826',
         borderRight: `3px solid ${palette.nym.highlight}`,
       });
     }
@@ -214,7 +214,7 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
         sx={
           isActive
             ? dynamicStyle
-            : { background: '#111826', borderRight: 'none' }
+            : { background: '#242C3D', borderRight: 'none' }
         }
       >
         <ListItemButton
@@ -270,19 +270,13 @@ ExpandableButton.defaultProps = {
 };
 
 export const Nav: React.FC = ({ children }) => {
-  const [navOptionsState, updateNavOptionsState] =
-    React.useState(originalNavOptions);
+  const { updateNavState, navState } = useMainContext();
   const [drawerIsOpen, setDrawerToOpen] = React.useState(false);
   const [fixedOpen, setFixedOpen] = React.useState(false);
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const setToActive = (id: number) => {
-    const updated = navOptionsState.map((option) => ({
-      ...option,
-      isActive: option.id === id,
-    }));
-    updateNavOptionsState(updated);
+    updateNavState(id);
   };
 
   const fixDrawerOpen = () => {
@@ -328,7 +322,7 @@ export const Nav: React.FC = ({ children }) => {
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                width: 185,
+                width: 205,
               }}
             >
               <IconButton component="a" href={NYM_WEBSITE} target="_blank">
@@ -360,28 +354,20 @@ export const Nav: React.FC = ({ children }) => {
                 display: 'flex',
               }}
             >
-              {!isMobile && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    width: 'auto',
-                    pr: 0,
-                    pl: 2,
-                    justifyContent: 'flex-end',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Socials />
-                  <DarkLightSwitchDesktop defaultChecked />
-                </Box>
-              )}
-              {isMobile && (
-                <>
-                  <DarkLightSwitchMobile />
-                  <Menu />
-                </>
-              )}
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  width: 'auto',
+                  pr: 0,
+                  pl: 2,
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                }}
+              >
+                <Socials />
+                <DarkLightSwitchDesktop defaultChecked />
+              </Box>
             </Box>
           </Toolbar>
         </AppBar>
@@ -415,7 +401,7 @@ export const Nav: React.FC = ({ children }) => {
             onMouseEnter={tempDrawerOpen}
             onMouseLeave={tempDrawerClose}
           >
-            {navOptionsState.map((props) => (
+            {navState.map((props) => (
               <ExpandableButton
                 key={props.url}
                 closeDrawer={tempDrawerClose}
@@ -424,7 +410,7 @@ export const Nav: React.FC = ({ children }) => {
                 fixDrawerClose={fixDrawerClose}
                 openDrawer={tempDrawerOpen}
                 setToActive={setToActive}
-                isMobile={isMobile}
+                isMobile={false}
                 {...props}
               />
             ))}

@@ -20,12 +20,8 @@ import { navOptionType, originalNavOptions } from './nav';
 interface State {
   mode: PaletteMode;
   toggleMode: () => void;
-
-  // 🚨 nav state in context now
   navState: navOptionType[];
   updateNavState: (id: number) => void;
-  //  🚨  APT
-
   mixnodes?: ApiState<MixNodeResponse>;
   fetchMixnodes: () => void;
   filterMixnodes: (arg: MixNodeResponse) => void;
@@ -46,15 +42,10 @@ interface State {
   uptimeStory?: ApiState<UptimeStoryResponse>;
 }
 
-// TODO: remove the export and replace all uses with `useMainContext()` hook
 export const MainContext = React.createContext<State>({
   mode: 'dark',
-
-  // 🚨 - nav state now in main context
   updateNavState: () => null,
   navState: originalNavOptions,
-  // 🚨 - APT^^
-
   fetchMixnodeById: () => null,
   toggleMode: () => undefined,
   fetchDelegationsById: () => null,
@@ -79,7 +70,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
   // nav state
   const [navState, updateNav] =
     React.useState<navOptionType[]>(originalNavOptions);
-  // 🚨 - ^^ nav state now in main context
 
   // global / banner error messaging
   const [globalError, setGlobalError] = React.useState<string>();
@@ -263,8 +253,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
       });
     }
   };
-
-  // 🚨 - nav state now in main context
   const updateNavState = (id: number) => {
     const updated = navState.map((option) => ({
       ...option,
@@ -272,8 +260,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
     }));
     updateNav(updated);
   };
-  // 🚨 - nav state now in main context
-  // ^^^^^^^^
   React.useEffect(() => {
     Promise.all([
       fetchMixnodes(),
@@ -290,7 +276,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
         mode,
         updateNavState,
         navState,
-
         toggleMode,
         mixnodes,
         filterMixnodes,

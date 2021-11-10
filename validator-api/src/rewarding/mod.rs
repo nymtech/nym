@@ -14,7 +14,7 @@ use crate::storage::ValidatorApiStorage;
 use log::{error, info};
 use mixnet_contract::{ExecuteMsg, IdentityKey};
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryInto;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::sleep;
@@ -159,21 +159,6 @@ impl Rewarder {
         Ok(map)
     }
 
-    /// Calculates the absolute uptime of given node that is then passed as one of the arguments
-    /// in the smart contract to determine the actual reward value.
-    ///
-    /// Currently both ipv4 and ipv6 uptimes carry the same weight in the calculation.
-    ///
-    /// # Arguments
-    ///
-    /// * `ipv4_uptime`: ipv4 uptime of the node in the last epoch.
-    /// * `ipv6_uptime`: ipv6 uptime of the node in the last epoch.
-    fn calculate_absolute_uptime(&self, ipv4_uptime: Uptime, ipv6_uptime: Uptime) -> Uptime {
-        // just take average of ipv4 and ipv6 uptimes using equal weights
-        let abs = ((ipv4_uptime.u8() as f32 + ipv6_uptime.u8() as f32) / 2.0).round();
-        Uptime::try_from(abs as i64).unwrap()
-    }
-
     /// Given the list of mixnodes that were tested in the last epoch, tries to determine the
     /// subset that are eligible for any rewards.
     ///
@@ -212,8 +197,7 @@ impl Rewarder {
                     .get(&mix.identity)
                     .map(|&total_delegations| MixnodeToReward {
                         identity: mix.identity.clone(),
-                        uptime: self
-                            .calculate_absolute_uptime(mix.last_day_ipv4, mix.last_day_ipv6),
+                        uptime: mix.last_day,
                         total_delegations,
                     })
             })

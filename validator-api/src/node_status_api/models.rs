@@ -30,7 +30,21 @@ impl Uptime {
             return Ok(Self::zero());
         }
 
-        let uptime = ((numerator as f32 / denominator as f32) * 100.0) as u8;
+        let uptime = ((numerator as f32 / denominator as f32) * 100.0).round() as u8;
+
+        if uptime > 100 {
+            Err(InvalidUptime)
+        } else {
+            Ok(Uptime(uptime))
+        }
+    }
+
+    pub fn from_uptime_sum(running_sum: f32, count: usize) -> Result<Self, InvalidUptime> {
+        if count == 0 {
+            return Ok(Self::zero());
+        }
+
+        let uptime = (running_sum / count as f32).round() as u8;
 
         if uptime > 100 {
             Err(InvalidUptime)
@@ -79,14 +93,10 @@ pub struct MixnodeStatusReport {
     pub(crate) identity: String,
     pub(crate) owner: String,
 
-    pub(crate) most_recent_ipv4: bool,
-    pub(crate) most_recent_ipv6: bool,
+    pub(crate) most_recent: Uptime,
 
-    pub(crate) last_hour_ipv4: Uptime,
-    pub(crate) last_hour_ipv6: Uptime,
-
-    pub(crate) last_day_ipv4: Uptime,
-    pub(crate) last_day_ipv6: Uptime,
+    pub(crate) last_hour: Uptime,
+    pub(crate) last_day: Uptime,
 }
 
 impl MixnodeStatusReport {
@@ -94,15 +104,13 @@ impl MixnodeStatusReport {
         report_time: OffsetDateTime,
         identity: String,
         owner: String,
-        last_day_ipv4: Vec<NodeStatus>,
-        last_day_ipv6: Vec<NodeStatus>,
+        last_day: Vec<NodeStatus>,
         last_hour_test_runs: usize,
         last_day_test_runs: usize,
     ) -> Self {
         let node_uptimes = NodeUptimes::calculate_from_last_day_reports(
             report_time,
-            last_day_ipv4,
-            last_day_ipv6,
+            last_day,
             last_hour_test_runs,
             last_day_test_runs,
         );
@@ -110,12 +118,9 @@ impl MixnodeStatusReport {
         MixnodeStatusReport {
             identity,
             owner,
-            most_recent_ipv4: node_uptimes.most_recent_ipv4,
-            most_recent_ipv6: node_uptimes.most_recent_ipv6,
-            last_hour_ipv4: node_uptimes.last_hour_ipv4,
-            last_hour_ipv6: node_uptimes.last_hour_ipv6,
-            last_day_ipv4: node_uptimes.last_day_ipv4,
-            last_day_ipv6: node_uptimes.last_day_ipv6,
+            most_recent: node_uptimes.most_recent,
+            last_hour: node_uptimes.last_hour,
+            last_day: node_uptimes.last_day,
         }
     }
 }
@@ -125,14 +130,10 @@ pub struct GatewayStatusReport {
     pub(crate) identity: String,
     pub(crate) owner: String,
 
-    pub(crate) most_recent_ipv4: bool,
-    pub(crate) most_recent_ipv6: bool,
+    pub(crate) most_recent: Uptime,
 
-    pub(crate) last_hour_ipv4: Uptime,
-    pub(crate) last_hour_ipv6: Uptime,
-
-    pub(crate) last_day_ipv4: Uptime,
-    pub(crate) last_day_ipv6: Uptime,
+    pub(crate) last_hour: Uptime,
+    pub(crate) last_day: Uptime,
 }
 
 impl GatewayStatusReport {
@@ -140,15 +141,13 @@ impl GatewayStatusReport {
         report_time: OffsetDateTime,
         identity: String,
         owner: String,
-        last_day_ipv4: Vec<NodeStatus>,
-        last_day_ipv6: Vec<NodeStatus>,
+        last_day: Vec<NodeStatus>,
         last_hour_test_runs: usize,
         last_day_test_runs: usize,
     ) -> Self {
         let node_uptimes = NodeUptimes::calculate_from_last_day_reports(
             report_time,
-            last_day_ipv4,
-            last_day_ipv6,
+            last_day,
             last_hour_test_runs,
             last_day_test_runs,
         );
@@ -156,12 +155,9 @@ impl GatewayStatusReport {
         GatewayStatusReport {
             identity,
             owner,
-            most_recent_ipv4: node_uptimes.most_recent_ipv4,
-            most_recent_ipv6: node_uptimes.most_recent_ipv6,
-            last_hour_ipv4: node_uptimes.last_hour_ipv4,
-            last_hour_ipv6: node_uptimes.last_hour_ipv6,
-            last_day_ipv4: node_uptimes.last_day_ipv4,
-            last_day_ipv6: node_uptimes.last_day_ipv6,
+            most_recent: node_uptimes.most_recent,
+            last_hour: node_uptimes.last_hour,
+            last_day: node_uptimes.last_day,
         }
     }
 }
@@ -208,8 +204,7 @@ pub struct HistoricalUptime {
     // I think this is more than enough, we don't need the uber precision of timezone offsets, etc
     pub(crate) date: String,
 
-    pub(crate) ipv4_uptime: Uptime,
-    pub(crate) ipv6_uptime: Uptime,
+    pub(crate) uptime: Uptime,
 }
 
 pub(crate) struct ErrorResponse {
@@ -273,4 +268,10 @@ impl Display for ValidatorApiStorageError {
             }
         }
     }
+}
+
+#[derive(Serialize)]
+pub struct CoreNodeStatus {
+    pub(crate) identity: String,
+    pub(crate) count: i32,
 }

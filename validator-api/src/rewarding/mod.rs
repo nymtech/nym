@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cache::ValidatorCache;
-use crate::node_status_api::models::{GatewayStatusReport, MixnodeStatusReport, Uptime};
+use crate::node_status_api::models::{MixnodeStatusReport, Uptime};
 use crate::node_status_api::ONE_DAY;
 use crate::nymd_client::Client;
 use crate::rewarding::epoch::Epoch;
@@ -10,11 +10,12 @@ use crate::rewarding::error::RewardingError;
 use crate::storage::models::{
     FailedMixnodeRewardChunk, PossiblyUnrewardedMixnode, RewardingReport,
 };
-use crate::storage::NodeStatusStorage;
+use crate::storage::ValidatorApiStorage;
 use log::{error, info};
+use mixnet_contract::mixnode::NodeRewardParams;
 use mixnet_contract::{ExecuteMsg, IdentityKey};
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryInto;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::sleep;
@@ -48,6 +49,21 @@ pub(crate) struct MixnodeToReward {
 
     /// Total number of individual addresses that have delegated to this particular node
     pub(crate) total_delegations: usize,
+    /// Node absolute uptime over total active set uptime
+    params: Option<NodeRewardParams>,
+}
+
+impl MixnodeToReward {
+    /// Somewhat clumsy way of feature gatting tokenomics payments. In a tokenomics scenario this will never be None at reward time. We levarage that to Into a different ExecuteMsg variant
+    // TODO: to re-integrate in another PR that combines rewarded/active sets with tokenomics
+    #[allow(dead_code)]
+    fn params(&self) -> Option<NodeRewardParams> {
+        if cfg!(feature = "tokenomics") {
+            self.params
+        } else {
+            None
+        }
+    }
 }
 
 impl MixnodeToReward {
@@ -55,6 +71,16 @@ impl MixnodeToReward {
         ExecuteMsg::RewardMixnode {
             identity: self.identity.clone(),
             uptime: self.uptime.u8() as u32,
+            rewarding_interval_nonce,
+        }
+    }
+
+    // TODO: to re-integrate in another PR that combines rewarded/active sets with tokenomics
+    #[allow(dead_code)]
+    pub(crate) fn to_execute_msg_v2(&self, rewarding_interval_nonce: u32) -> ExecuteMsg {
+        ExecuteMsg::RewardMixnodeV2 {
+            identity: self.identity.clone(),
+            params: self.params().unwrap(),
             rewarding_interval_nonce,
         }
     }
@@ -73,7 +99,7 @@ pub(crate) struct FailureData {
 pub(crate) struct Rewarder {
     nymd_client: Client<SigningNymdClient>,
     validator_cache: ValidatorCache,
-    storage: NodeStatusStorage,
+    storage: ValidatorApiStorage,
 
     /// The first epoch of the current length.
     first_epoch: Epoch,
@@ -92,7 +118,7 @@ impl Rewarder {
     pub(crate) fn new(
         nymd_client: Client<SigningNymdClient>,
         validator_cache: ValidatorCache,
-        storage: NodeStatusStorage,
+        storage: ValidatorApiStorage,
         first_epoch: Epoch,
         expected_epoch_monitor_runs: usize,
         minimum_epoch_monitor_threshold: u8,
@@ -155,21 +181,6 @@ impl Rewarder {
         Ok(map)
     }
 
-    /// Calculates the absolute uptime of given node that is then passed as one of the arguments
-    /// in the smart contract to determine the actual reward value.
-    ///
-    /// Currently both ipv4 and ipv6 uptimes carry the same weight in the calculation.
-    ///
-    /// # Arguments
-    ///
-    /// * `ipv4_uptime`: ipv4 uptime of the node in the last epoch.
-    /// * `ipv6_uptime`: ipv6 uptime of the node in the last epoch.
-    fn calculate_absolute_uptime(&self, ipv4_uptime: Uptime, ipv6_uptime: Uptime) -> Uptime {
-        // just take average of ipv4 and ipv6 uptimes using equal weights
-        let abs = ((ipv4_uptime.u8() as f32 + ipv6_uptime.u8() as f32) / 2.0).round();
-        Uptime::try_from(abs as i64).unwrap()
-    }
-
     /// Given the list of mixnodes that were tested in the last epoch, tries to determine the
     /// subset that are eligible for any rewards.
     ///
@@ -196,56 +207,74 @@ impl Rewarder {
         // by people hesitating to delegate to nodes without them and thus those nodes disappearing
         // from the active set (once introduced)
         let mixnode_delegators = self.produce_active_mixnode_delegators_map().await?;
+        let state = self.nymd_client.get_state_params().await?;
 
         // 1. go through all active mixnodes
         // 2. filter out nodes that are currently not in the active set (as `mixnode_delegators` was obtained by
         //    querying the validator)
         // 3. determine uptime and attach delegators count
-        let eligible_nodes = active_mixnodes
+        let mut eligible_nodes: Vec<MixnodeToReward> = active_mixnodes
             .iter()
             .filter_map(|mix| {
                 mixnode_delegators
                     .get(&mix.identity)
                     .map(|&total_delegations| MixnodeToReward {
                         identity: mix.identity.clone(),
-                        uptime: self
-                            .calculate_absolute_uptime(mix.last_day_ipv4, mix.last_day_ipv6),
+                        uptime: mix.last_day,
                         total_delegations,
+                        params: None,
                     })
             })
             .filter(|node| node.uptime.u8() > 0)
             .collect();
 
+        if cfg!(feature = "tokenomics") {
+            let reward_pool = self.nymd_client.get_reward_pool().await?;
+            let circulating_supply = self.nymd_client.get_circulating_supply().await?;
+            let sybil_resistance_percent = self.nymd_client.get_sybil_resistance_percent().await?;
+            let epoch_reward_percent = self.nymd_client.get_epoch_reward_percent().await?;
+            let k = state.mixnode_active_set_size;
+            let period_reward_pool = (reward_pool / 100) * epoch_reward_percent as u128;
+
+            info!("Rewarding pool stats");
+            info!("-- Reward pool: {} unym", reward_pool);
+            info!("---- Epoch reward pool: {} unym", period_reward_pool);
+            info!("-- Circulating supply: {} unym", circulating_supply);
+
+            for mix in eligible_nodes.iter_mut() {
+                mix.params = Some(NodeRewardParams::new(
+                    period_reward_pool,
+                    k.into(),
+                    0,
+                    circulating_supply,
+                    mix.uptime.u8().into(),
+                    sybil_resistance_percent,
+                ));
+            }
+        } else {
+            info!("Tokenomics feature is OFF");
+        }
+
         Ok(eligible_nodes)
     }
 
-    /// Obtains the lists of all mixnodes and gateways that were tested at least a single time
+    /// Obtains the lists of all mixnodes that were tested at least a single time
     /// by the network monitor in the specified epoch.
     ///
     /// # Arguments
     ///
     /// * `epoch`: the specified epoch.
-    async fn get_active_monitor_nodes(
+    async fn get_active_monitor_mixnodes(
         &self,
         epoch: Epoch,
-    ) -> Result<(Vec<MixnodeStatusReport>, Vec<GatewayStatusReport>), RewardingError> {
-        let active_mixnodes = self
+    ) -> Result<Vec<MixnodeStatusReport>, RewardingError> {
+        Ok(self
             .storage
             .get_all_active_mixnode_reports_in_interval(
                 epoch.start_unix_timestamp(),
                 epoch.end_unix_timestamp(),
             )
-            .await?;
-
-        let active_gateways = self
-            .storage
-            .get_all_active_gateway_reports_in_interval(
-                epoch.start_unix_timestamp(),
-                epoch.end_unix_timestamp(),
-            )
-            .await?;
-
-        Ok((active_mixnodes, active_gateways))
+            .await?)
     }
 
     /// Using the list of mixnodes eligible for rewards, chunks it into pre-defined sized-chunks
@@ -525,8 +554,7 @@ impl Rewarder {
         );
 
         // get nodes that were active during the epoch
-        let (active_monitor_mixnodes, active_monitor_gateways) =
-            self.get_active_monitor_nodes(epoch).await?;
+        let active_monitor_mixnodes = self.get_active_monitor_mixnodes(epoch).await?;
 
         // insert information about beginning the procedure (so that if we crash during it,
         // we wouldn't attempt to possibly double reward operators)
@@ -554,32 +582,11 @@ impl Rewarder {
             }
         }
 
-        // TODO: again, this assumes 24h epochs.
-        let epoch_iso_8601 = epoch.start().date().to_string();
-        let two_days_ago = (epoch.start() - 2 * ONE_DAY).unix_timestamp();
-
-        // NOTE: this works under assumption that epochs are 24h in length.
-        // If this changes then the historical uptime updates should be performed
-        // on a timer in another task
-        if self
-            .storage
-            .check_if_historical_uptimes_exist_for_date(&epoch_iso_8601)
-            .await?
-        {
-            error!("We have already updated uptimes for all nodes this day. If you're seeing this warning, it's likely rewards were given out twice this day!")
-        } else {
-            info!(
-                "Updating historical daily uptimes of all nodes and purging old status reports..."
-            );
-            self.storage
-                .update_historical_uptimes(
-                    &epoch_iso_8601,
-                    &active_monitor_mixnodes,
-                    &active_monitor_gateways,
-                )
-                .await?;
-            self.storage.purge_old_statuses(two_days_ago).await?;
-        }
+        // since we have already performed rewards, purge everything older than the end of this epoch
+        // (+one day of buffer) as we're never going to need it again (famous last words...)
+        // note that usually end of epoch is equal to the current time
+        let cutoff = (epoch.end() - ONE_DAY).unix_timestamp();
+        self.storage.purge_old_statuses(cutoff).await?;
 
         Ok(())
     }

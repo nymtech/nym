@@ -62,4 +62,4 @@ default-members = [
     "validator-api",
 ]
 
-exclude = ["explorer", "contracts"]
+exclude = ["explorer", "contracts", "tokenomics-py"]

@@ -4,12 +4,12 @@
 use crate::error::ContractError;
 use crate::helpers::get_all_delegations_paged;
 use crate::storage::{
-    all_mix_delegations_read, config_read, gateways_owners_read, gateways_read,
+    all_mix_delegations_read, circulating_supply, config_read, gateways_owners_read, gateways_read,
     mix_delegations_read, mixnodes_owners_read, mixnodes_read, read_layer_distribution,
-    read_state_params, reverse_mix_delegations_read,
+    read_state_params, reverse_mix_delegations_read, reward_pool_value,
 };
 use config::defaults::DENOM;
-use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
+use cosmwasm_std::{coin, Addr, Deps, Order, StdResult, Uint128};
 use mixnet_contract::{
     Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
     MixOwnershipResponse, PagedAllDelegationsResponse, PagedGatewayResponse,
@@ -98,6 +98,14 @@ pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse 
 
 pub(crate) fn query_layer_distribution(deps: Deps) -> LayerDistribution {
     read_layer_distribution(deps.storage)
+}
+
+pub(crate) fn query_reward_pool(deps: Deps) -> Uint128 {
+    reward_pool_value(deps.storage)
+}
+
+pub(crate) fn query_circulating_supply(deps: Deps) -> Uint128 {
+    circulating_supply(deps.storage)
 }
 
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm
@@ -578,7 +586,7 @@ pub(crate) mod tests {
                 minimum_gateway_bond: 456u128.into(),
                 mixnode_bond_reward_rate: "1.23".parse().unwrap(),
                 mixnode_delegation_reward_rate: "7.89".parse().unwrap(),
-                mixnode_demanded_set_size: 1000,
+                mixnode_rewarded_set_size: 1000,
                 mixnode_active_set_size: 500,
             },
             rewarding_interval_starting_block: 123,

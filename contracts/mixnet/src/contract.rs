@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::u128;
+
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
 use crate::storage::{config, layer_distribution};
@@ -24,8 +26,15 @@ pub const INITIAL_MIXNODE_BOND: Uint128 = Uint128(100_000000);
 pub const INITIAL_MIXNODE_BOND_REWARD_RATE: u64 = 110;
 pub const INITIAL_MIXNODE_DELEGATION_REWARD_RATE: u64 = 110;
 
-pub const INITIAL_MIXNODE_DEMANDED_SET_SIZE: u32 = 200;
+pub const INITIAL_MIXNODE_REWARDED_SET_SIZE: u32 = 200;
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
+
+pub const INITIAL_REWARD_POOL: u128 = 250_000_000_000_000;
+pub const EPOCH_REWARD_PERCENT: u8 = 2; // Used to calculate epoch reward pool
+pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
+
+// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
+pub const DEFAULT_COST_PER_EPOCH: u32 = 40_000_000;
 
 fn default_initial_state(owner: Addr, env: Env) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
@@ -40,7 +49,7 @@ fn default_initial_state(owner: Addr, env: Env) -> State {
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
             mixnode_bond_reward_rate,
             mixnode_delegation_reward_rate,
-            mixnode_demanded_set_size: INITIAL_MIXNODE_DEMANDED_SET_SIZE,
+            mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
         },
         rewarding_interval_starting_block: env.block.height,
@@ -106,6 +115,18 @@ pub fn execute(
             info,
             identity,
             uptime,
+            rewarding_interval_nonce,
+        ),
+        ExecuteMsg::RewardMixnodeV2 {
+            identity,
+            params,
+            rewarding_interval_nonce,
+        } => transactions::try_reward_mixnode_v2(
+            deps,
+            env,
+            info,
+            identity,
+            params,
             rewarding_interval_nonce,
         ),
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
@@ -174,11 +195,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             mix_identity,
             address,
         )?),
+        QueryMsg::GetRewardPool {} => to_binary(&queries::query_reward_pool(deps)),
+        QueryMsg::GetCirculatingSupply {} => to_binary(&queries::query_circulating_supply(deps)),
+        QueryMsg::GetEpochRewardPercent {} => to_binary(&EPOCH_REWARD_PERCENT),
+        QueryMsg::GetSybilResistancePercent {} => to_binary(&DEFAULT_SYBIL_RESISTANCE_PERCENT),
     };
 
     Ok(query_res?)
 }
-
 #[entry_point]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())

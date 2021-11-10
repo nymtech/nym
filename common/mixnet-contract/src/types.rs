@@ -45,7 +45,7 @@ pub struct StateParams {
 
     // number of mixnode that are going to get rewarded during current rewarding interval (k_m)
     // based on overall demand for private bandwidth-
-    pub mixnode_demanded_set_size: u32,
+    pub mixnode_rewarded_set_size: u32,
 
     // subset of rewarded mixnodes that are actively receiving mix traffic
     // used to handle shorter-term (e.g. hourly) fluctuations of demand
@@ -70,8 +70,8 @@ impl Display for StateParams {
         )?;
         write!(
             f,
-            "mixnode demanded set size: {}",
-            self.mixnode_demanded_set_size
+            "mixnode rewarded set size: {}",
+            self.mixnode_rewarded_set_size
         )?;
         write!(
             f,

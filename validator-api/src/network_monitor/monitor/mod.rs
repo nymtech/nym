@@ -2,17 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::network_monitor::monitor::preparer::{PacketPreparer, TestedNode};
+use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::ReceivedProcessor;
 use crate::network_monitor::monitor::sender::PacketSender;
-use crate::network_monitor::monitor::summary_producer::{NodeResult, SummaryProducer, TestReport};
-use crate::network_monitor::test_packet::NodeType;
-use crate::network_monitor::tested_network::TestedNetwork;
-use crate::storage::NodeStatusStorage;
-use log::{debug, error, info, warn};
+use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestSummary};
+use crate::network_monitor::test_packet::TestPacket;
+use crate::network_monitor::test_route::TestRoute;
+use crate::storage::ValidatorApiStorage;
+use log::{debug, error, info};
+use std::collections::{HashMap, HashSet};
 use std::process;
 use tokio::time::{sleep, Duration, Instant};
 
+pub(crate) mod gateway_clients_cache;
+pub(crate) mod gateways_pinger;
 pub(crate) mod preparer;
 pub(crate) mod processor;
 pub(crate) mod receiver;
@@ -20,16 +23,25 @@ pub(crate) mod sender;
 pub(crate) mod summary_producer;
 
 pub(super) struct Monitor {
-    nonce: u64,
+    test_nonce: u64,
     packet_preparer: PacketPreparer,
     packet_sender: PacketSender,
     received_processor: ReceivedProcessor,
     summary_producer: SummaryProducer,
-    node_status_storage: NodeStatusStorage,
-    tested_network: TestedNetwork,
+    node_status_storage: ValidatorApiStorage,
     run_interval: Duration,
     gateway_ping_interval: Duration,
     packet_delivery_timeout: Duration,
+
+    /// Number of test packets sent via each "random" route to verify whether they work correctly.
+    route_test_packets: usize,
+
+    /// Desired number of test routes to be constructed (and working) during a monitor test run.
+    test_routes: usize,
+
+    /// The minimum number of test routes that need to be constructed (and working) in order for
+    /// a monitor test run to be valid.
+    minimum_test_routes: usize,
 }
 
 impl Monitor {
@@ -39,48 +51,42 @@ impl Monitor {
         packet_sender: PacketSender,
         received_processor: ReceivedProcessor,
         summary_producer: SummaryProducer,
-        node_status_storage: NodeStatusStorage,
-        tested_network: TestedNetwork,
+        node_status_storage: ValidatorApiStorage,
     ) -> Self {
         Monitor {
-            nonce: 1,
+            test_nonce: 1,
             packet_preparer,
             packet_sender,
             received_processor,
             summary_producer,
             node_status_storage,
-            tested_network,
             run_interval: config.get_network_monitor_run_interval(),
             gateway_ping_interval: config.get_gateway_ping_interval(),
             packet_delivery_timeout: config.get_packet_delivery_timeout(),
+            route_test_packets: config.get_route_test_packets(),
+            test_routes: config.get_test_routes(),
+            minimum_test_routes: config.get_minimum_test_routes(),
         }
     }
 
     // while it might have been cleaner to put this into a separate `Notifier` structure,
     // I don't see much point considering it's only a single, small, method
-    async fn submit_new_node_statuses(
-        &self,
-        mixnode_results: Vec<NodeResult>,
-        gateway_results: Vec<NodeResult>,
-    ) {
-        if let Err(err) = self
-            .node_status_storage
-            .submit_new_statuses(mixnode_results, gateway_results)
-            .await
-        {
-            // this can only fail if there's an issue with the database - we can't really recover
-            error!(
-                "Failed to submit new monitoring results to the database - {}",
-                err
-            );
-
-            // TODO: slightly more graceful shutdown here
-            process::exit(1);
-        }
-
+    async fn submit_new_node_statuses(&self, test_summary: TestSummary) {
         // indicate our run has completed successfully and should be used in any future
         // uptime calculations
-        if let Err(err) = self.node_status_storage.insert_monitor_run().await {
+        if let Err(err) = self
+            .node_status_storage
+            .insert_monitor_run_results(
+                test_summary.mixnode_results,
+                test_summary.gateway_results,
+                test_summary
+                    .route_results
+                    .into_iter()
+                    .map(|result| result.route)
+                    .collect(),
+            )
+            .await
+        {
             error!(
                 "Failed to submit monitor run information to the database - {}",
                 err
@@ -91,79 +97,159 @@ impl Monitor {
         }
     }
 
-    // checking it this way with a TestReport is rather suboptimal but given the fact we're only
-    // doing this fewer than 10 times, it's not that problematic
-    fn check_good_nodes_status(&self, report: &TestReport) -> bool {
-        let mut good_nodes_status = true;
-        for v4_mixes in self.tested_network.v4_topology().mixes().values() {
-            for v4_mix in v4_mixes {
-                let node = &TestedNode {
-                    identity: v4_mix.identity_key.to_base58_string(),
-                    owner: v4_mix.owner.clone(),
-                    node_type: NodeType::Mixnode,
-                };
-                if !report.fully_working_mixes.contains(node) {
-                    warn!("Mixnode {} has not passed the ipv4 check", node.identity);
-                    good_nodes_status = false;
-                }
-            }
+    fn analyse_received_test_route_packets(&self, packets: &[TestPacket]) -> HashMap<u64, usize> {
+        let mut received = HashMap::new();
+        for packet in packets {
+            *received.entry(packet.route_id).or_insert(0usize) += 1usize
         }
 
-        for v4_gateway in self.tested_network.v4_topology().gateways() {
-            let node = &TestedNode {
-                identity: v4_gateway.identity_key.to_base58_string(),
-                owner: v4_gateway.owner.clone(),
-                node_type: NodeType::Gateway,
-            };
-            if !report.fully_working_gateways.contains(node) {
-                warn!("Gateway {} has not passed the ipv4 check", node.identity);
-                good_nodes_status = false;
-            }
-        }
-
-        for v6_mixes in self.tested_network.v6_topology().mixes().values() {
-            for v6_mix in v6_mixes {
-                let node = &TestedNode {
-                    identity: v6_mix.identity_key.to_base58_string(),
-                    owner: v6_mix.owner.clone(),
-                    node_type: NodeType::Mixnode,
-                };
-                if !report.fully_working_mixes.contains(node) {
-                    warn!("Mixnode {} has not passed the ipv6 check", node.identity);
-                    good_nodes_status = false;
-                }
-            }
-        }
-
-        for v6_gateway in self.tested_network.v6_topology().gateways() {
-            let node = &TestedNode {
-                identity: v6_gateway.identity_key.to_base58_string(),
-                owner: v6_gateway.owner.clone(),
-                node_type: NodeType::Gateway,
-            };
-            if !report.fully_working_gateways.contains(node) {
-                warn!("Gateway {} has not passed the ipv6 check", node.identity);
-                good_nodes_status = false;
-            }
-        }
-
-        good_nodes_status
+        received
     }
 
-    async fn test_run(&mut self) {
-        info!(target: "Monitor", "Starting test run no. {}", self.nonce);
+    async fn test_chosen_test_routes(&mut self, routes: &[TestRoute]) -> HashMap<u64, bool> {
+        // notes for the future improvements:
+        /*
+           - gateway authentication failure should only 'blacklist' gateways, not mixnodes
 
-        debug!(target: "Monitor", "Preparing mix packets to all nodes...");
-        let prepared_packets = self.packet_preparer.prepare_test_packets(self.nonce).await;
+        */
 
-        self.received_processor.set_new_expected(self.nonce).await;
+        if routes.is_empty() {
+            return HashMap::new();
+        }
 
-        info!(target: "Monitor", "Starting to send all the packets...");
+        debug!("Testing the following test routes: {:#?}", routes);
+
+        let mut packets = Vec::with_capacity(routes.len());
+        for route in routes {
+            packets.push(
+                self.packet_preparer
+                    .prepare_test_route_viability_packets(route, self.route_test_packets)
+                    .await,
+            );
+        }
+
+        self.received_processor.set_route_test_nonce().await;
+        self.packet_sender.send_packets(packets).await;
+
+        // give the packets some time to traverse the network
+        sleep(self.packet_delivery_timeout).await;
+
+        let received = self.received_processor.return_received().await;
+        let mut results = self.analyse_received_test_route_packets(&received);
+
+        // create entry for routes that might have not forwarded a single packet
+        for route in routes {
+            results.entry(route.id()).or_insert(0);
+        }
+
+        for entry in results.iter() {
+            if *entry.1 == self.route_test_packets {
+                debug!("✔️ {} succeeded", entry.0)
+            } else {
+                debug!(
+                    "❌️ {} failed ({}/{} received)",
+                    entry.0, entry.1, self.route_test_packets
+                )
+            }
+        }
+
+        results
+            .into_iter()
+            .map(|(k, v)| (k, v == self.route_test_packets))
+            .collect()
+    }
+
+    fn blacklist_route_nodes(&self, route: &TestRoute, blacklist: &mut HashSet<String>) {
+        for mix in route.topology().mixes_as_vec() {
+            blacklist.insert(mix.identity_key.to_base58_string());
+        }
+        blacklist.insert(route.gateway_identity().to_base58_string());
+    }
+
+    async fn prepare_test_routes(&mut self) -> Option<Vec<TestRoute>> {
+        info!(target: "Monitor", "Generating test routes...");
+
+        // keep track of nodes that should not be used for route construction
+        let mut blacklist = HashSet::new();
+        let mut verified_routes = Vec::new();
+        let mut remaining = self.test_routes;
+        let mut current_attempt = 0;
+
+        // todo: tweak this to something more appropriate
+        let max_attempts = self.test_routes * 2;
+
+        'outer: loop {
+            if current_attempt >= max_attempts {
+                if verified_routes.len() >= self.minimum_test_routes {
+                    return Some(verified_routes);
+                }
+                return None;
+            }
+
+            // try to construct slightly more than what we actually need to more quickly reach
+            // the actual target
+            let candidates = match self
+                .packet_preparer
+                .prepare_test_routes(remaining * 2, &mut blacklist)
+                .await
+            {
+                Some(candidates) => candidates,
+                // if there are no more routes to generate, see if we have managed to construct
+                // at least the minimum number of routes
+                None => {
+                    if verified_routes.len() >= self.minimum_test_routes {
+                        return Some(verified_routes);
+                    }
+                    return None;
+                }
+            };
+            let results = self.test_chosen_test_routes(&candidates).await;
+            for candidate in candidates {
+                // ideally we would blacklist all nodes regardless of the result so we would not use them anymore
+                // however, currently we have huge imbalance of gateways to mixnodes so we might accidentally
+                // discard working gateway because it was paired with broken mixnode
+                if *results.get(&candidate.id()).unwrap() {
+                    // if the path is fully working, blacklist those nodes so we wouldn't construct
+                    // any other path through any of those nodes
+                    self.blacklist_route_nodes(&candidate, &mut blacklist);
+
+                    verified_routes.push(candidate);
+                    if verified_routes.len() == self.test_routes {
+                        break 'outer;
+                    }
+                }
+            }
+
+            remaining = self.test_routes - verified_routes.len();
+            current_attempt += 1;
+        }
+
+        Some(verified_routes)
+    }
+
+    async fn test_network_against(&mut self, routes: &[TestRoute]) {
+        info!("Generating test mix packets for all the network nodes...");
+        let prepared_packets = self
+            .packet_preparer
+            .prepare_test_packets(self.test_nonce, routes)
+            .await;
+
+        let total_sent = prepared_packets
+            .packets
+            .iter()
+            .flat_map(|packets| packets.packets.iter())
+            .count();
+
+        self.received_processor
+            .set_new_test_nonce(self.test_nonce)
+            .await;
+
+        debug!("Sending packets to all gateways...");
         self.packet_sender
             .send_packets(prepared_packets.packets)
             .await;
 
-        info!(
+        debug!(
             target: "Monitor",
             "Sending is over, waiting for {:?} before checking what we received",
             self.packet_delivery_timeout
@@ -173,29 +259,37 @@ impl Monitor {
         sleep(self.packet_delivery_timeout).await;
 
         let received = self.received_processor.return_received().await;
+        let total_received = received.len();
 
-        let test_summary = self.summary_producer.produce_summary(
-            prepared_packets.tested_nodes,
+        let summary = self.summary_producer.produce_summary(
+            prepared_packets.tested_mixnodes,
+            prepared_packets.tested_gateways,
             received,
-            prepared_packets.invalid_nodes,
+            prepared_packets.invalid_mixnodes,
+            prepared_packets.invalid_gateways,
+            routes,
         );
 
-        // our "good" nodes MUST be working correctly otherwise we cannot trust the results
-        if self.check_good_nodes_status(&test_summary.test_report) {
-            self.submit_new_node_statuses(
-                test_summary.mixnode_results,
-                test_summary.gateway_results,
-            )
-            .await;
-        } else {
-            error!("our own 'good' nodes did not pass the check - we are not going to submit results to the node status API");
-        }
+        let report = summary.create_report(total_sent, total_received);
+        info!("{}", report);
 
-        self.nonce += 1;
+        self.submit_new_node_statuses(summary).await;
     }
 
-    async fn ping_all_gateways(&mut self) {
-        self.packet_sender.ping_all_active_gateways().await;
+    async fn test_run(&mut self) {
+        info!(target: "Monitor", "Starting test run no. {}", self.test_nonce);
+        let start = Instant::now();
+
+        if let Some(test_routes) = self.prepare_test_routes().await {
+            debug!(target: "Monitor", "Determined reliable routes to test all other nodes against. : {:?}", test_routes);
+            self.test_network_against(&test_routes).await;
+        } else {
+            error!("We failed to construct sufficient number of test routes to test the network against")
+        }
+
+        debug!("Test run took {:?}", Instant::now().duration_since(start));
+
+        self.test_nonce += 1;
     }
 
     pub(crate) async fn run(&mut self) {
@@ -203,36 +297,16 @@ impl Monitor {
 
         // wait for validator cache to be ready
         self.packet_preparer
-            .wait_for_validator_cache_initial_values()
+            .wait_for_validator_cache_initial_values(self.test_routes)
             .await;
 
-        // start from 0 to run test immediately on startup
-        let test_delay = sleep(Duration::from_secs(0));
-        tokio::pin!(test_delay);
+        self.packet_sender
+            .spawn_gateways_pinger(self.gateway_ping_interval);
 
-        let ping_delay = sleep(self.gateway_ping_interval);
-        tokio::pin!(ping_delay);
-
+        let mut run_interval = tokio::time::interval(self.run_interval);
         loop {
-            tokio::select! {
-                _ = &mut test_delay => {
-                    self.test_run().await;
-                    info!(target: "Monitor", "Next test run will happen in {:?}", self.run_interval);
-
-                    let now = Instant::now();
-                    test_delay.as_mut().reset(now + self.run_interval);
-                    // since we just sent packets through gateways, there's no need to ping them
-                    ping_delay.as_mut().reset(now + self.gateway_ping_interval);
-
-                }
-                _ = &mut ping_delay => {
-                    info!(target: "Monitor", "Pinging all active gateways");
-                    self.ping_all_gateways().await;
-
-                    let now = Instant::now();
-                    ping_delay.as_mut().reset(now + self.gateway_ping_interval);
-                }
-            }
+            run_interval.tick().await;
+            self.test_run().await;
         }
     }
 }

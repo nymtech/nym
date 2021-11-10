@@ -19,11 +19,11 @@ const DECIMAL_FRACTIONAL: Uint128 = Uint128(1_000_000_000_000_000_000u128);
 // cosmwasm bucket internal value
 const NAMESPACE_LENGTH: usize = 2;
 
-fn decimal_to_uint128(value: Decimal) -> Uint128 {
+pub fn decimal_to_uint128(value: Decimal) -> Uint128 {
     value * DECIMAL_FRACTIONAL
 }
 
-fn uint128_to_decimal(value: Uint128) -> Decimal {
+pub fn uint128_to_decimal(value: Uint128) -> Decimal {
     Decimal::from_ratio(value, DECIMAL_FRACTIONAL)
 }
 

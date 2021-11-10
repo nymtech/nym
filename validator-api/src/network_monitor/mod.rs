@@ -13,14 +13,10 @@ use crate::network_monitor::monitor::receiver::{
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
-use crate::network_monitor::tested_network::TestedNetwork;
-use crate::storage::NodeStatusStorage;
+use crate::storage::ValidatorApiStorage;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
-use log::info;
-use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
-use topology::NymTopology;
 
 #[cfg(feature = "coconut")]
 use coconut_interface::Credential;
@@ -31,41 +27,33 @@ pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
 pub(crate) mod monitor;
 pub(crate) mod test_packet;
-pub(crate) mod tested_network;
+pub(crate) mod test_route;
+
+pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
-    tested_network: TestedNetwork,
-    node_status_storage: NodeStatusStorage,
+    system_version: String,
+    node_status_storage: ValidatorApiStorage,
     validator_cache: ValidatorCache,
 }
 
 impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a Config,
-        v4_topology: NymTopology,
-        v6_topology: NymTopology,
-        node_status_storage: NodeStatusStorage,
+        system_version: &str,
+        node_status_storage: ValidatorApiStorage,
         validator_cache: ValidatorCache,
     ) -> Self {
-        let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
-
         NetworkMonitorBuilder {
             config,
-            tested_network,
+            system_version: system_version.to_string(),
             node_status_storage,
             validator_cache,
         }
     }
 
     pub(crate) async fn build(self) -> NetworkMonitorRunnables {
-        // TODO: in the future I guess this should somehow change to distribute the load
-        let tested_mix_gateway = self.tested_network.main_v4_gateway().clone();
-        info!(
-            "* gateway for testing mixnodes: {}",
-            tested_mix_gateway.identity_key.to_base58_string()
-        );
-
         // TODO: those keys change constant throughout the whole execution of the monitor.
         // and on top of that, they are used with ALL the gateways -> presumably this should change
         // in the future
@@ -74,20 +62,14 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
         let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
 
-        let test_mixnode_sender = Recipient::new(
-            *identity_keypair.public_key(),
-            *encryption_keypair.public_key(),
-            tested_mix_gateway.identity_key,
-        );
-
         let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
         let (received_processor_sender_channel, received_processor_receiver_channel) =
             mpsc::unbounded();
 
         let packet_preparer = new_packet_preparer(
+            &self.system_version,
             self.validator_cache,
-            self.tested_network.clone(),
-            test_mixnode_sender,
+            self.config.get_per_node_test_packets(),
             *identity_keypair.public_key(),
             *encryption_keypair.public_key(),
         );
@@ -109,7 +91,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             received_processor_receiver_channel,
             Arc::clone(&encryption_keypair),
         );
-        let summary_producer = new_summary_producer(self.config.get_detailed_report());
+        let summary_producer = new_summary_producer(self.config.get_per_node_test_packets());
         let packet_receiver = new_packet_receiver(
             gateway_status_update_receiver,
             received_processor_sender_channel,
@@ -122,7 +104,6 @@ impl<'a> NetworkMonitorBuilder<'a> {
             received_processor,
             summary_producer,
             self.node_status_storage,
-            self.tested_network,
         );
 
         NetworkMonitorRunnables {
@@ -150,16 +131,16 @@ impl NetworkMonitorRunnables {
 }
 
 fn new_packet_preparer(
+    system_version: &str,
     validator_cache: ValidatorCache,
-    tested_network: TestedNetwork,
-    test_mixnode_sender: Recipient,
+    per_node_test_packets: usize,
     self_public_identity: identity::PublicKey,
     self_public_encryption: encryption::PublicKey,
 ) -> PacketPreparer {
     PacketPreparer::new(
+        system_version,
         validator_cache,
-        tested_network,
-        test_mixnode_sender,
+        per_node_test_packets,
         self_public_identity,
         self_public_encryption,
     )
@@ -219,15 +200,10 @@ fn new_received_processor(
     ReceivedProcessor::new(packets_receiver, client_encryption_keypair)
 }
 
-fn new_summary_producer(detailed_report: bool) -> SummaryProducer {
+fn new_summary_producer(per_node_test_packets: usize) -> SummaryProducer {
     // right now always print the basic report. If we feel like we need to change it, it can
     // be easily adjusted by adding some flag or something
-    let summary_producer = SummaryProducer::default().with_report();
-    if detailed_report {
-        summary_producer.with_detailed_report()
-    } else {
-        summary_producer
-    }
+    SummaryProducer::new(per_node_test_packets).with_report()
 }
 
 fn new_packet_receiver(
@@ -235,47 +211,4 @@ fn new_packet_receiver(
     processor_packets_sender: ReceivedProcessorSender,
 ) -> PacketReceiver {
     PacketReceiver::new(gateways_status_updater, processor_packets_sender)
-}
-
-pub(crate) fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTopology) {
-    let monitor_version = env!("CARGO_PKG_VERSION");
-    for (_, layer_mixes) in v4_topology.mixes().iter() {
-        for mix in layer_mixes.iter() {
-            if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
-                panic!(
-                    "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
-                    mix.version, monitor_version
-                )
-            }
-        }
-    }
-
-    for gateway in v4_topology.gateways().iter() {
-        if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
-            panic!(
-                "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
-                gateway.version, monitor_version
-            )
-        }
-    }
-
-    for (_, layer_mixes) in v6_topology.mixes().iter() {
-        for mix in layer_mixes.iter() {
-            if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
-                panic!(
-                    "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
-                    mix.version, monitor_version
-                )
-            }
-        }
-    }
-
-    for gateway in v6_topology.gateways().iter() {
-        if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
-            panic!(
-                "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
-                gateway.version, monitor_version
-            )
-        }
-    }
 }

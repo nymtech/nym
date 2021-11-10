@@ -139,6 +139,11 @@ impl GatewayClient {
         self.gateway_identity
     }
 
+    #[cfg(feature = "coconut")]
+    pub fn remaining_bandwidth(&self) -> i64 {
+        self.bandwidth_remaining
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
@@ -518,8 +523,11 @@ impl GatewayClient {
             return Err(GatewayClientError::NotAuthenticated);
         }
         #[cfg(feature = "coconut")]
-        if self.estimate_required_bandwidth(&packets) < self.bandwidth_remaining {
-            return Err(GatewayClientError::NotEnoughBandwidth);
+        if self.bandwidth_remaining <= self.estimate_required_bandwidth(&packets) {
+            return Err(GatewayClientError::NotEnoughBandwidth((
+                self.estimate_required_bandwidth(&packets),
+                self.bandwidth_remaining,
+            )));
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -587,7 +595,10 @@ impl GatewayClient {
         }
         #[cfg(feature = "coconut")]
         if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
-            return Err(GatewayClientError::NotEnoughBandwidth);
+            return Err(GatewayClientError::NotEnoughBandwidth((
+                (mix_packet.sphinx_packet().len() as i64),
+                self.bandwidth_remaining,
+            )));
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -626,7 +637,10 @@ impl GatewayClient {
         }
         #[cfg(feature = "coconut")]
         if self.bandwidth_remaining <= 0 {
-            return Err(GatewayClientError::NotEnoughBandwidth);
+            return Err(GatewayClientError::NotEnoughBandwidth((
+                0,
+                self.bandwidth_remaining,
+            )));
         }
         if self.connection.is_partially_delegated() {
             return Ok(());

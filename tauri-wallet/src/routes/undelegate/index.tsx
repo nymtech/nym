@@ -18,7 +18,6 @@ import { TFee, TDelegation } from '../../types'
 
 export type TDelegations = {
   mixnodes: TDelegation
-  gateways: TDelegation
 }
 
 export const Undelegate = () => {
@@ -38,21 +37,17 @@ export const Undelegate = () => {
     setIsLoading(true)
 
     try {
-      const [mixnodeFee, gatewayFee, mixnodeDelegations, gatewayDelegations] =
-        await Promise.all([
-          getGasFee('UndelegateFromMixnode'),
-          getGasFee('UndelegateFromGateway'),
-          getReverseMixDelegations(),
-          getReverseGatewayDelegations(),
-        ])
+      const [mixnodeFee, mixnodeDelegations] = await Promise.all([
+        getGasFee('UndelegateFromMixnode'),
+        getReverseMixDelegations(),
+      ])
+
       setFees({
         mixnode: mixnodeFee,
-        gateway: gatewayFee,
       })
 
       setDelegations({
         mixnodes: mixnodeDelegations,
-        gateways: gatewayDelegations,
       })
     } catch {
       setStatus(EnumRequestStatus.error)
@@ -68,7 +63,7 @@ export const Undelegate = () => {
     <Layout>
       <NymCard
         title="Undelegate"
-        subheader="Undelegate from a mixnode or gateway"
+        subheader="Undelegate from a mixnode"
         noPadding
       >
         {isLoading && (
@@ -109,7 +104,9 @@ export const Undelegate = () => {
                 Success={
                   <Alert severity="success">
                     {' '}
-                    <AlertTitle data-testid="undelegate-success">Undelegation complete</AlertTitle>
+                    <AlertTitle data-testid="undelegate-success">
+                      Undelegation complete
+                    </AlertTitle>
                     {message}
                   </Alert>
                 }

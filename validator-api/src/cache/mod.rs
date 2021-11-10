@@ -38,9 +38,9 @@ struct ValidatorCacheInner {
     mixnodes: RwLock<Cache<Vec<MixNodeBond>>>,
     gateways: RwLock<Cache<Vec<GatewayBond>>>,
 
-    demanded_mixnodes: RwLock<Cache<Vec<MixNodeBond>>>,
+    rewarded_mixnodes: RwLock<Cache<Vec<MixNodeBond>>>,
 
-    current_mixnode_demanded_set_size: AtomicU32,
+    current_mixnode_rewarded_set_size: AtomicU32,
     current_mixnode_active_set_size: AtomicU32,
 }
 
@@ -90,7 +90,7 @@ impl<C> ValidatorCacheRefresher<C> {
     {
         let (mixnodes, gateways) = tokio::try_join!(
             self.nymd_client.get_mixnodes(),
-            self.nymd_client.get_gateways()
+            self.nymd_client.get_gateways(),
         )?;
 
         let state_params = self.nymd_client.get_state_params().await?;
@@ -105,7 +105,7 @@ impl<C> ValidatorCacheRefresher<C> {
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
             mixnodes.len(),
-            gateways.len()
+            gateways.len(),
         );
 
         self.cache
@@ -156,7 +156,7 @@ impl ValidatorCache {
                     routes::get_mixnodes,
                     routes::get_gateways,
                     routes::get_active_mixnodes,
-                    routes::get_demanded_mixnodes,
+                    routes::get_rewarded_mixnodes,
                 ],
             )
         })
@@ -172,7 +172,7 @@ impl ValidatorCache {
     //
     // alternatively we could have some state locking mechanism for the duration of determining the demanded set
     // this could work with multiple validators via some multisig mechanism
-    fn determine_demanded_set(
+    fn determine_rewarded_set(
         &self,
         mixnodes: &[MixNodeBond],
         nodes_to_select: u32,
@@ -226,7 +226,7 @@ impl ValidatorCache {
         rewarding_interval: RewardingIntervalResponse,
         rewarding_block_hash: Option<[u8; SHA256_HASH_SIZE]>,
     ) {
-        // if the rewarding is currently in progress, don't mess with the demanded/active sets
+        // if the rewarding is currently in progress, don't mess with the rewarded/active sets
         // as most likely will be changed next time this function is called
         //
         // if our data is valid, it means the active sets are available,
@@ -240,15 +240,15 @@ impl ValidatorCache {
                     .latest_known_rewarding_block
                     .load(Ordering::SeqCst)
             {
-                let demanded_nodes = self.determine_demanded_set(
+                let rewarded_nodes = self.determine_rewarded_set(
                     &mixnodes,
-                    state.mixnode_demanded_set_size,
+                    state.mixnode_rewarded_set_size,
                     rewarding_block_hash,
                 );
 
                 self.inner
-                    .current_mixnode_demanded_set_size
-                    .store(state.mixnode_demanded_set_size, Ordering::SeqCst);
+                    .current_mixnode_rewarded_set_size
+                    .store(state.mixnode_rewarded_set_size, Ordering::SeqCst);
                 self.inner
                     .current_mixnode_active_set_size
                     .store(state.mixnode_active_set_size, Ordering::SeqCst);
@@ -258,13 +258,13 @@ impl ValidatorCache {
                 );
 
                 self.inner
-                    .demanded_mixnodes
+                    .rewarded_mixnodes
                     .write()
                     .await
-                    .set(demanded_nodes);
+                    .set(rewarded_nodes);
             } else {
                 // however, update the timestamp on the cache
-                self.inner.demanded_mixnodes.write().await.renew()
+                self.inner.rewarded_mixnodes.write().await.renew()
             }
         }
 
@@ -280,14 +280,14 @@ impl ValidatorCache {
         self.inner.gateways.read().await.clone()
     }
 
-    pub async fn demanded_mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
-        self.inner.demanded_mixnodes.read().await.clone()
+    pub async fn rewarded_mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
+        self.inner.rewarded_mixnodes.read().await.clone()
     }
 
     pub async fn active_mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
-        // demanded set is already "sorted" by pseudo-randomly choosing mixnodes from
+        // rewarded set is already "sorted" by pseudo-randomly choosing mixnodes from
         // all bonded nodes, weighted by stake. For the active set choose first k nodes.
-        let cache = self.inner.demanded_mixnodes.read().await;
+        let cache = self.inner.rewarded_mixnodes.read().await;
         let timestamp = cache.as_at;
         let nodes = cache
             .value
@@ -329,8 +329,8 @@ impl ValidatorCacheInner {
             latest_known_rewarding_block: Default::default(),
             mixnodes: RwLock::new(Cache::default()),
             gateways: RwLock::new(Cache::default()),
-            demanded_mixnodes: RwLock::new(Cache::default()),
-            current_mixnode_demanded_set_size: Default::default(),
+            rewarded_mixnodes: RwLock::new(Cache::default()),
+            current_mixnode_rewarded_set_size: Default::default(),
             current_mixnode_active_set_size: Default::default(),
         }
     }

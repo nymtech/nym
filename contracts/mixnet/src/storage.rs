@@ -1,14 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use crate::queries;
+use crate::contract::INITIAL_REWARD_POOL;
 use crate::state::State;
 use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+use crate::{error::ContractError, queries};
+use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
+use mixnet_contract::mixnode::NodeRewardParams;
 use mixnet_contract::{
     Addr, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
     RawDelegationData, StateParams,
@@ -24,9 +26,10 @@ use serde::Serialize;
 // singletons
 const CONFIG_KEY: &[u8] = b"config";
 const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
+const REWARD_POOL_PREFIX: &[u8] = b"pool";
 
 // buckets
-const PREFIX_MIXNODES: &[u8] = b"mn";
+pub const PREFIX_MIXNODES: &[u8] = b"mn";
 const PREFIX_MIXNODES_OWNERS: &[u8] = b"mo";
 const PREFIX_GATEWAYS: &[u8] = b"gt";
 const PREFIX_GATEWAYS_OWNERS: &[u8] = b"go";
@@ -46,6 +49,53 @@ pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
 
 pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
     singleton_read(storage, CONFIG_KEY)
+}
+
+fn reward_pool(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
+    singleton_read(storage, REWARD_POOL_PREFIX)
+}
+
+pub fn mut_reward_pool(storage: &mut dyn Storage) -> Singleton<Uint128> {
+    singleton(storage, REWARD_POOL_PREFIX)
+}
+
+pub fn reward_pool_value(storage: &dyn Storage) -> Uint128 {
+    match reward_pool(storage).load() {
+        Ok(value) => value,
+        Err(_e) => Uint128(INITIAL_REWARD_POOL),
+    }
+}
+
+#[allow(dead_code)]
+pub fn incr_reward_pool(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<Uint128, ContractError> {
+    let stake = reward_pool_value(storage).saturating_add(amount);
+    mut_reward_pool(storage).save(&stake)?;
+    Ok(stake)
+}
+
+pub fn decr_reward_pool(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<Uint128, ContractError> {
+    let stake = match reward_pool_value(storage).checked_sub(amount) {
+        Ok(stake) => stake,
+        Err(_e) => {
+            return Err(ContractError::OutOfFunds {
+                to_remove: amount.u128(),
+                reward_pool: reward_pool_value(storage).u128(),
+            })
+        }
+    };
+    mut_reward_pool(storage).save(&stake)?;
+    Ok(stake)
+}
+
+pub fn circulating_supply(storage: &dyn Storage) -> Uint128 {
+    let reward_pool = reward_pool_value(storage).u128();
+    Uint128(TOTAL_SUPPLY - reward_pool)
 }
 
 pub(crate) fn read_state_params(storage: &dyn Storage) -> StateParams {
@@ -211,6 +261,55 @@ pub(crate) fn increase_mix_delegated_stakes(
     Ok(total_rewarded)
 }
 
+pub(crate) fn increase_mix_delegated_stakes_v2(
+    storage: &mut dyn Storage,
+    bond: &MixNodeBond,
+    params: &NodeRewardParams,
+) -> Result<Uint128, ContractError> {
+    let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
+
+    let mut total_rewarded = Uint128::zero();
+    let mut chunk_start: Option<Vec<_>> = None;
+    loop {
+        // get `chunk_size` of delegations
+        let delegations_chunk = mix_delegations_read(storage, bond.identity())
+            .range(chunk_start.as_deref(), None, Order::Ascending)
+            .take(chunk_size)
+            .collect::<StdResult<Vec<_>>>()?;
+
+        if delegations_chunk.is_empty() {
+            break;
+        }
+
+        // append 0 byte to the last value to start with whatever is the next succeeding key
+        chunk_start = Some(
+            delegations_chunk
+                .last()
+                .unwrap()
+                .0
+                .iter()
+                .cloned()
+                .chain(std::iter::once(0u8))
+                .collect(),
+        );
+
+        // and for each of them increase the stake proportionally to the reward
+        // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
+        // since they delegated
+        for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
+            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING
+                <= params.reward_blockstamp()
+            {
+                let reward = bond.reward_delegation(delegation.amount, params);
+                delegation.amount += Uint128(reward);
+                total_rewarded += Uint128(reward);
+                mix_delegations(storage, bond.identity()).save(&delegator_address, &delegation)?;
+            }
+        }
+    }
+
+    Ok(total_rewarded)
+}
 // currently not used outside tests
 #[cfg(test)]
 pub(crate) fn read_mixnode_bond(
@@ -360,6 +459,7 @@ mod tests {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
             },
+            profit_margin_percent: Some(10),
         };
 
         mixnodes(&mut storage)

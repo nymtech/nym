@@ -11,7 +11,7 @@ use crate::nymd::fee_helpers::Operation;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
-use cosmwasm_std::Coin;
+use cosmwasm_std::{Coin, Uint128};
 use mixnet_contract::{
     Addr, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
     LayerDistribution, MixNode, MixOwnershipResponse, PagedAllDelegationsResponse,
@@ -235,6 +235,46 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::LayerDistribution {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_reward_pool(&self) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetRewardPool {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_circulating_supply(&self) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetCirculatingSupply {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_sybil_resistance_percent(&self) -> Result<u8, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetSybilResistancePercent {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_epoch_reward_percent(&self) -> Result<u8, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetEpochRewardPercent {};
         self.client
             .query_contract_smart(self.contract_address()?, &request)
             .await

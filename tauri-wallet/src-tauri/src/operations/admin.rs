@@ -17,7 +17,7 @@ pub struct TauriStateParams {
   minimum_gateway_bond: String,
   mixnode_bond_reward_rate: String,
   mixnode_delegation_reward_rate: String,
-  mixnode_demanded_set_size: u32,
+  mixnode_rewarded_set_size: u32,
   mixnode_active_set_size: u32,
 }
 
@@ -29,7 +29,7 @@ impl From<StateParams> for TauriStateParams {
       minimum_gateway_bond: p.minimum_gateway_bond.to_string(),
       mixnode_bond_reward_rate: p.mixnode_bond_reward_rate.to_string(),
       mixnode_delegation_reward_rate: p.mixnode_delegation_reward_rate.to_string(),
-      mixnode_demanded_set_size: p.mixnode_demanded_set_size,
+      mixnode_rewarded_set_size: p.mixnode_rewarded_set_size,
       mixnode_active_set_size: p.mixnode_active_set_size,
     }
   }
@@ -45,7 +45,7 @@ impl TryFrom<TauriStateParams> for StateParams {
       minimum_gateway_bond: Uint128::try_from(p.minimum_gateway_bond.as_str())?,
       mixnode_bond_reward_rate: Decimal::from_str(p.mixnode_bond_reward_rate.as_str())?,
       mixnode_delegation_reward_rate: Decimal::from_str(p.mixnode_delegation_reward_rate.as_str())?,
-      mixnode_demanded_set_size: p.mixnode_demanded_set_size,
+      mixnode_rewarded_set_size: p.mixnode_rewarded_set_size,
       mixnode_active_set_size: p.mixnode_active_set_size,
     })
   }

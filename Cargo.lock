@@ -882,7 +882,8 @@ dependencies = [
 [[package]]
 name = "cosmwasm-crypto"
 version = "1.0.0-beta2"
-source = "git+https://github.com/CosmWasm/cosmwasm?rev=v1.0.0-beta2#a0cf296c43aa092b81457d96a9c6bc2ab223f6d3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c16b255449b3f5cd7fa4b79acd5225b5185655261087a3d8aaac44f88a0e23e9"
 dependencies = [
  "digest 0.9.0",
  "ed25519-zebra",
@@ -894,7 +895,8 @@ dependencies = [
 [[package]]
 name = "cosmwasm-derive"
 version = "1.0.0-beta2"
-source = "git+https://github.com/CosmWasm/cosmwasm?rev=v1.0.0-beta2#a0cf296c43aa092b81457d96a9c6bc2ab223f6d3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abad1a6ff427a2f66890a4dce6354b4563cd07cee91a942300e011c921c09ed2"
 dependencies = [
  "syn",
 ]
@@ -902,7 +904,8 @@ dependencies = [
 [[package]]
 name = "cosmwasm-std"
 version = "1.0.0-beta2"
-source = "git+https://github.com/CosmWasm/cosmwasm?rev=v1.0.0-beta2#a0cf296c43aa092b81457d96a9c6bc2ab223f6d3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1660ee3d5734672e1eb4f0ceda403e2d83345e15143a48845f340f3252ce99a6"
 dependencies = [
  "base64",
  "cosmwasm-crypto",

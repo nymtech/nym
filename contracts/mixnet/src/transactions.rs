@@ -594,8 +594,9 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 pub mod tests {
     use super::*;
     use crate::contract::{
-        execute, query, INITIAL_DEFAULT_EPOCH_LENGTH, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND,
-        INITIAL_MIXNODE_BOND_REWARD_RATE, INITIAL_MIXNODE_DELEGATION_REWARD_RATE, DEFAULT_SYBIL_RESISTANCE_PERCENT
+        execute, query, DEFAULT_SYBIL_RESISTANCE_PERCENT, INITIAL_DEFAULT_EPOCH_LENGTH,
+        INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND, INITIAL_MIXNODE_BOND_REWARD_RATE,
+        INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
     };
     use crate::helpers::calculate_epoch_reward_rate;
     use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;

@@ -103,10 +103,9 @@ pub fn execute(
         ExecuteMsg::RewardMixnode { identity, uptime } => {
             transactions::try_reward_mixnode(deps, env, info, identity, uptime)
         }
-        ExecuteMsg::RewardMixnodeV2 {
-            identity,
-            params
-        } => transactions::try_reward_mixnode_v2(deps, env, info, identity, params),
+        ExecuteMsg::RewardMixnodeV2 { identity, params } => {
+            transactions::try_reward_mixnode_v2(deps, env, info, identity, params)
+        }
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }

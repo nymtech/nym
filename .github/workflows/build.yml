@@ -17,7 +17,7 @@ jobs:
       # creates the matrix strategy from build_matrix_includes.json
       - uses: actions/checkout@v2
       - id: set-matrix
-        uses: JoshuaTheMiller/conditional-build-matrix
+        uses: JoshuaTheMiller/conditional-build-matrix@main
         with:
           inputFile: '.github/workflows/build_matrix_includes.json'
           filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'

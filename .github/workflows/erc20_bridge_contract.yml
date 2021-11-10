@@ -1,6 +1,6 @@
 name: ERC20 Bridge Contract
 
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 jobs:
   matrix_prep:
@@ -11,7 +11,7 @@ jobs:
       # creates the matrix strategy from build_matrix_includes.json
       - uses: actions/checkout@v2
       - id: set-matrix
-        uses: JoshuaTheMiller/conditional-build-matrix
+        uses: JoshuaTheMiller/conditional-build-matrix@main
         with:
           inputFile: '.github/workflows/contract_matrix_includes.json'
           filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'

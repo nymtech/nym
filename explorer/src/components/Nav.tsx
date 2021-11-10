@@ -133,6 +133,8 @@ type ExpandableButtonType = {
   closeDrawer: () => void;
   drawIsTempOpen: boolean;
   drawIsFixed: boolean;
+  fixDrawerClose: () => void;
+  isMobile: boolean;
   setToActive: (num: number) => void;
 };
 
@@ -145,9 +147,11 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   closeDrawer,
   drawIsTempOpen,
   drawIsFixed,
+  fixDrawerClose,
   Icon,
   title,
   nested,
+  isMobile,
   isChild,
 }) => {
   const [dynamicStyle, setDynamicStyle] = React.useState({});
@@ -162,6 +166,9 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
     }
     if (!nested && !drawIsFixed) {
       closeDrawer();
+    }
+    if (!nested && isMobile) {
+      fixDrawerClose();
     }
   };
 
@@ -245,6 +252,8 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             closeDrawer={closeDrawer}
             setToActive={setToActive}
             drawIsFixed={drawIsFixed}
+            fixDrawerClose={fixDrawerClose}
+            isMobile={isMobile}
             isChild
           />
         ))}
@@ -318,7 +327,7 @@ export const Nav: React.FC = ({ children }) => {
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                width: 205,
+                width: 185,
               }}
             >
               <IconButton component="a" href={NYM_WEBSITE} target="_blank">
@@ -330,6 +339,7 @@ export const Nav: React.FC = ({ children }) => {
                 sx={{
                   color: theme.palette.nym.networkExplorer.nav.text,
                   fontSize: '18px',
+                  fontWeight: 800,
                 }}
               >
                 <MuiLink
@@ -338,7 +348,7 @@ export const Nav: React.FC = ({ children }) => {
                   underline="none"
                   color="inherit"
                 >
-                  Network Explorer
+                  Nym Network
                 </MuiLink>
               </Typography>
             </Box>
@@ -365,7 +375,12 @@ export const Nav: React.FC = ({ children }) => {
                   <DarkLightSwitchDesktop defaultChecked />
                 </Box>
               )}
-              {isMobile && <DarkLightSwitchMobile />}
+              {isMobile && (
+                <>
+                  <DarkLightSwitchMobile />
+                  <Menu />
+                </>
+              )}
             </Box>
           </Toolbar>
         </AppBar>
@@ -405,8 +420,10 @@ export const Nav: React.FC = ({ children }) => {
                 closeDrawer={tempDrawerClose}
                 drawIsTempOpen={drawerIsOpen}
                 drawIsFixed={fixedOpen}
+                fixDrawerClose={fixDrawerClose}
                 openDrawer={tempDrawerOpen}
                 setToActive={setToActive}
+                isMobile={isMobile}
                 {...props}
               />
             ))}

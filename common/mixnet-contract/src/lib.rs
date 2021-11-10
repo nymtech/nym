@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 mod delegation;
+pub mod error;
 mod gateway;
-mod mixnode;
+pub mod mixnode;
 mod msg;
 mod types;
 

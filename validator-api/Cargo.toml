@@ -40,6 +40,7 @@ getset = "0.1.1"
 rocket_sync_db_pools = {version = "0.1.0-rc.1", default-features = false}
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
 
+
 ## internal
 config = { path = "../common/config" }
 crypto = { path="../common/crypto" }
@@ -54,6 +55,8 @@ credentials = { path = "../common/credentials", optional = true }
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
+default = ["tokenomics"]
+tokenomics = []
 
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }

@@ -25,7 +25,10 @@ const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
 const DEFAULT_PACKET_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
 const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(15 * 60);
 const DEFAULT_GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
-const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
+// Set this to a high value for now, so that we don't risk sporadic timeouts that might cause
+// bought bandwidth tokens to not have time to be spent; Once we remove the gateway from the
+// bandwidth bridging protocol, we can come back to a smaller timeout value
+const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
 
 const DEFAULT_TEST_ROUTES: usize = 3;

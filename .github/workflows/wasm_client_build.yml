@@ -1,9 +1,6 @@
 name: Wasm Client
 
 on:
-  push:
-    paths-ignore:
-      - 'explorer/**'
   pull_request:
     paths-ignore:
       - 'explorer/**'

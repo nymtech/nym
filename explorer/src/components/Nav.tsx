@@ -179,19 +179,19 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
     }
     if (nested) {
       setDynamicStyle({
-        background: '#111826',
+        background: palette.nym.networkExplorer.nav.selected.main,
         borderRight: `3px solid ${palette.nym.highlight}`,
       });
     }
     if (isChild) {
       setDynamicStyle({
-        background: '#3C4558',
+        background: palette.nym.networkExplorer.nav.selected.nested,
         fontWeight: 800,
       });
     }
     if (!nested && !isChild) {
       setDynamicStyle({
-        background: '#111826',
+        background: palette.nym.networkExplorer.nav.selected.main,
         borderRight: `3px solid ${palette.nym.highlight}`,
       });
     }

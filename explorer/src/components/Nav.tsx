@@ -370,6 +370,7 @@ export const Nav: React.FC = ({ children }) => {
                 ml: '7px',
                 color: theme.palette.nym.networkExplorer.nav.text,
               }}
+              data-testid="menu-buttons"
             >
               {open ? <ChevronLeft /> : <Menu />}
             </IconButton>

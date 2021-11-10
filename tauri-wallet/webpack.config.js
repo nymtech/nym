@@ -3,8 +3,11 @@ const FaviconsWebpackPlugin = require('favicons-webpack-plugin')
 var path = require('path')
 
 module.exports = {
+  node: {
+    __dirname: false
+  },
   mode: 'development',
-  entry: path.resolve(__dirname, '/src/index'),
+  entry: path.resolve(__dirname, 'src/index'),
   devServer: {
     port: 9000,
     compress: true,

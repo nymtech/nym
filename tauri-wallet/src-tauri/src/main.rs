@@ -5,7 +5,6 @@
 
 use mixnet_contract::{Gateway, MixNode};
 use std::sync::Arc;
-use tauri::{Menu, MenuItem};
 use tokio::sync::RwLock;
 use ts_rs::export;
 use validator_client::nymd::fee_helpers::Operation;
@@ -36,12 +35,6 @@ macro_rules! format_err {
   };
 }
 
-pub fn create_menu_items() -> Menu {
-  Menu::new()
-    .add_native_item(MenuItem::Copy)
-    .add_native_item(MenuItem::Paste)
-}
-
 fn main() {
   tauri::Builder::default()
     .manage(Arc::new(RwLock::new(State::default())))
@@ -65,7 +58,6 @@ fn main() {
       update_state_params,
       get_reverse_mix_delegations_paged,
     ])
-    .menu(create_menu_items())
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

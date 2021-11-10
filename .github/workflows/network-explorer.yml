@@ -11,7 +11,7 @@ defaults:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: custom-runner-linux
     steps:
     - uses: actions/checkout@v2
     - name: Install rsync

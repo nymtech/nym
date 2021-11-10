@@ -11,7 +11,7 @@ on:
 jobs:
   mixnet-contract:
     # run all matrix values on PRs, on push run only stable
-    if: github.event_name == 'pull_request' || matrix.rust == 'stable
+    if: ${{ github.event_name == 'pull_request' || matrix.rust == 'stable }}
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
     runs-on: ubuntu-latest

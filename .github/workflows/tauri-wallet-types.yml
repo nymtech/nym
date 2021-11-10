@@ -11,7 +11,7 @@ on:
 jobs:
   tauri-wallet-types:
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: ${{ github.event_name != 'pull_request' }}
     steps:
       - name: Prepare
         run: sudo apt-get update && sudo apt-get install -y libpango1.0-dev libatk1.0-dev libgdk-pixbuf2.0-dev libsoup2.4-dev librust-gdk-dev libwebkit2gtk-4.0-dev

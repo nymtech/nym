@@ -203,9 +203,42 @@ impl<C> Client<C> {
             .calculate_custom_fee(total_gas_limit)
     }
 
+    pub(crate) async fn begin_mixnode_rewarding(
+        &self,
+        rewarding_interval_nonce: u32,
+    ) -> Result<(), RewardingError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0
+            .write()
+            .await
+            .nymd
+            .begin_mixnode_rewarding(rewarding_interval_nonce)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn finish_mixnode_rewarding(
+        &self,
+        rewarding_interval_nonce: u32,
+    ) -> Result<(), RewardingError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0
+            .write()
+            .await
+            .nymd
+            .finish_mixnode_rewarding(rewarding_interval_nonce)
+            .await?;
+        Ok(())
+    }
+
     pub(crate) async fn reward_mixnodes(
         &self,
         nodes: &[MixnodeToReward],
+        rewarding_interval_nonce: u32,
     ) -> Result<(), RewardingError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -216,7 +249,7 @@ impl<C> Client<C> {
             .await;
         let msgs: Vec<(ExecuteMsg, _)> = nodes
             .iter()
-            .map(Into::into)
+            .map(|node| node.to_execute_msg(rewarding_interval_nonce))
             .zip(std::iter::repeat(Vec::new()))
             .collect();
 

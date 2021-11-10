@@ -711,6 +711,54 @@ impl<C> NymdClient<C> {
             )
             .await
     }
+
+    pub async fn begin_mixnode_rewarding(
+        &self,
+        rewarding_interval_nonce: u32,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee(Operation::BeginMixnodeRewarding);
+
+        let req = ExecuteMsg::BeginMixnodeRewarding {
+            rewarding_interval_nonce,
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.contract_address()?,
+                &req,
+                fee,
+                "Beginning mixnode rewarding procedure",
+                Vec::new(),
+            )
+            .await
+    }
+
+    pub async fn finish_mixnode_rewarding(
+        &self,
+        rewarding_interval_nonce: u32,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee(Operation::FinishMixnodeRewarding);
+
+        let req = ExecuteMsg::FinishMixnodeRewarding {
+            rewarding_interval_nonce,
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.contract_address()?,
+                &req,
+                fee,
+                "Finishing mixnode rewarding procedure",
+                Vec::new(),
+            )
+            .await
+    }
 }
 
 fn cosmwasm_coin_to_cosmos_coin(coin: Coin) -> CosmosCoin {

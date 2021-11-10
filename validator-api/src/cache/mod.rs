@@ -162,6 +162,16 @@ impl ValidatorCache {
         })
     }
 
+    // NOTE: this does not guarantee consistent results between multiple validator APIs, because
+    // currently we do not guarantee the list of mixnodes (i.e. `mixnodes: &[MixNodeBond]`) will be the same -
+    // somebody might bond/unbond a node or change delegation between different cache refreshes.
+    //
+    // I guess that's not a problem right now and we can resolve it later. My idea for that would be as follows:
+    // since the demanded set changes only monthly, just write the identities of those nodes to the smart
+    // contract upon finished rewarding (this works under assumption of rewards being distributed by a single validator)
+    //
+    // alternatively we could have some state locking mechanism for the duration of determining the demanded set
+    // this could work with multiple validators via some multisig mechanism
     fn determine_rewarded_set(
         &self,
         mixnodes: &[MixNodeBond],

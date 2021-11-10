@@ -55,11 +55,33 @@ pub(crate) struct MixnodeToReward {
 
 impl MixnodeToReward {
     /// Somewhat clumsy way of feature gatting tokenomics payments. In a tokenomics scenario this will never be None at reward time. We levarage that to Into a different ExecuteMsg variant
+    // TODO: to re-integrate in another PR that combines rewarded/active sets with tokenomics
+    #[allow(dead_code)]
     fn params(&self) -> Option<NodeRewardParams> {
         if cfg!(feature = "tokenomics") {
             self.params
         } else {
             None
+        }
+    }
+}
+
+impl MixnodeToReward {
+    pub(crate) fn to_execute_msg(&self, rewarding_interval_nonce: u32) -> ExecuteMsg {
+        ExecuteMsg::RewardMixnode {
+            identity: self.identity.clone(),
+            uptime: self.uptime.u8() as u32,
+            rewarding_interval_nonce,
+        }
+    }
+
+    // TODO: to re-integrate in another PR that combines rewarded/active sets with tokenomics
+    #[allow(dead_code)]
+    pub(crate) fn to_execute_msg_v2(&self, rewarding_interval_nonce: u32) -> ExecuteMsg {
+        ExecuteMsg::RewardMixnodeV2 {
+            identity: self.identity.clone(),
+            params: self.params().unwrap(),
+            rewarding_interval_nonce,
         }
     }
 }
@@ -72,22 +94,6 @@ pub(crate) struct FailedMixnodeRewardChunkDetails {
 #[derive(Default)]
 pub(crate) struct FailureData {
     mixnodes: Option<Vec<FailedMixnodeRewardChunkDetails>>,
-}
-
-impl<'a> From<&'a MixnodeToReward> for ExecuteMsg {
-    fn from(node: &MixnodeToReward) -> Self {
-        if let Some(params) = node.params() {
-            ExecuteMsg::RewardMixnodeV2 {
-                identity: node.identity.clone(),
-                params,
-            }
-        } else {
-            ExecuteMsg::RewardMixnode {
-                identity: node.identity.clone(),
-                uptime: node.uptime.u8() as u32,
-            }
-        }
-    }
 }
 
 pub(crate) struct Rewarder {
@@ -285,14 +291,20 @@ impl Rewarder {
     /// # Arguments
     ///
     /// * `eligible_mixnodes`: list of the nodes that are eligible to receive non-zero rewards.
+    /// * `rewarding_interval_nonce`: nonce associated with the current rewarding interval
     async fn distribute_rewards_to_mixnodes(
         &self,
         eligible_mixnodes: &[MixnodeToReward],
+        rewarding_interval_nonce: u32,
     ) -> Option<Vec<FailedMixnodeRewardChunkDetails>> {
         let mut failed_chunks = Vec::new();
 
         for (i, mix_chunk) in eligible_mixnodes.chunks(MAX_TO_REWARD_AT_ONCE).enumerate() {
-            if let Err(err) = self.nymd_client.reward_mixnodes(mix_chunk).await {
+            if let Err(err) = self
+                .nymd_client
+                .reward_mixnodes(mix_chunk, rewarding_interval_nonce)
+                .await
+            {
                 // this is a super weird edge case that we didn't catch change to sequence and
                 // resent rewards unnecessarily, but the mempool saved us from executing it again
                 // however, still we want to wait until we're sure we're into the next block
@@ -327,13 +339,13 @@ impl Rewarder {
     ///
     /// # Arguments
     ///
-    /// * `epoch_rewarding_id`: id of the current epoch rewarding.
+    /// * `epoch_rewarding_id`: id of the current epoch rewarding as stored in the databse.
     ///
     /// * `active_monitor_mixnodes`: list of the nodes that were tested at least once by the network monitor
     ///                              in the last epoch.
     async fn distribute_rewards(
         &self,
-        epoch_rewarding_id: i64,
+        epoch_rewarding_database_id: i64,
         active_monitor_mixnodes: &[MixnodeStatusReport],
     ) -> Result<(RewardingReport, Option<FailureData>), RewardingError> {
         let mut failure_data = FailureData::default();
@@ -345,12 +357,20 @@ impl Rewarder {
             return Err(RewardingError::NoMixnodesToReward);
         }
 
+        let current_rewarding_nonce = self
+            .nymd_client
+            .get_current_rewarding_interval()
+            .await?
+            .current_rewarding_interval_nonce;
+        self.nymd_client
+            .begin_mixnode_rewarding(current_rewarding_nonce + 1)
+            .await?;
         failure_data.mixnodes = self
-            .distribute_rewards_to_mixnodes(&eligible_mixnodes)
+            .distribute_rewards_to_mixnodes(&eligible_mixnodes, current_rewarding_nonce + 1)
             .await;
 
         let report = RewardingReport {
-            epoch_rewarding_id,
+            epoch_rewarding_id: epoch_rewarding_database_id,
             eligible_mixnodes: eligible_mixnodes.len() as i64,
             possibly_unrewarded_mixnodes: failure_data
                 .mixnodes
@@ -363,6 +383,10 @@ impl Rewarder {
                 })
                 .unwrap_or_default(),
         };
+
+        self.nymd_client
+            .finish_mixnode_rewarding(current_rewarding_nonce + 1)
+            .await?;
 
         if failure_data.mixnodes.is_none() {
             Ok((report, None))

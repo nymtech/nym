@@ -37,6 +37,8 @@ const PREFIX_GATEWAYS_OWNERS: &[u8] = b"go";
 const PREFIX_MIX_DELEGATION: &[u8] = b"md";
 const PREFIX_REVERSE_MIX_DELEGATION: &[u8] = b"dm";
 
+const PREFIX_REWARDED_MIXNODES: &[u8] = b"rm";
+
 // Contract-level stuff
 
 // TODO Unify bucket and mixnode storage functions
@@ -101,22 +103,6 @@ pub(crate) fn read_state_params(storage: &dyn Storage) -> StateParams {
     // if we fail to load the stored state we would already be in the undefined behaviour land,
     // so we better just blow up immediately.
     config_read(storage).load().unwrap().params
-}
-
-pub(crate) fn read_mixnode_epoch_bond_reward_rate(storage: &dyn Storage) -> Decimal {
-    // same justification as in `read_state_params` for the unwrap
-    config_read(storage)
-        .load()
-        .unwrap()
-        .mixnode_epoch_bond_reward
-}
-
-pub(crate) fn read_mixnode_epoch_delegation_reward_rate(storage: &dyn Storage) -> Decimal {
-    // same justification as in `read_state_params` for the unwrap
-    config_read(storage)
-        .load()
-        .unwrap()
-        .mixnode_epoch_delegation_reward
 }
 
 pub fn layer_distribution(storage: &mut dyn Storage) -> Singleton<LayerDistribution> {
@@ -194,6 +180,35 @@ pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<IdentityKey> {
 
 pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey> {
     bucket_read(storage, PREFIX_MIXNODES_OWNERS)
+}
+
+// we want to treat this bucket as a set so we don't really care about what type of data is being stored.
+// I went with u8 as after serialization it takes only a single byte of space, while if a `()` was used,
+// it would have taken 4 bytes (representation of 'null')
+pub fn rewarded_mixnodes(storage: &mut dyn Storage, rewarding_interval_nonce: u32) -> Bucket<u8> {
+    Bucket::multilevel(
+        storage,
+        &[
+            rewarding_interval_nonce.to_be_bytes().as_ref(),
+            PREFIX_REWARDED_MIXNODES,
+        ],
+    )
+}
+
+// we want to treat this bucket as a set so we don't really care about what type of data is being stored.
+// I went with u8 as after serialization it takes only a single byte of space, while if a `()` was used,
+// it would have taken 4 bytes (representation of 'null')
+pub fn rewarded_mixnodes_read(
+    storage: &dyn Storage,
+    rewarding_interval_nonce: u32,
+) -> ReadonlyBucket<u8> {
+    ReadonlyBucket::multilevel(
+        storage,
+        &[
+            rewarding_interval_nonce.to_be_bytes().as_ref(),
+            PREFIX_REWARDED_MIXNODES,
+        ],
+    )
 }
 
 // helpers

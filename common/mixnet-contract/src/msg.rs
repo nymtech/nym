@@ -32,16 +32,32 @@ pub enum ExecuteMsg {
         mix_identity: IdentityKey,
     },
 
+    BeginMixnodeRewarding {
+        // nonce of the current rewarding interval
+        rewarding_interval_nonce: u32,
+    },
+
     RewardMixnode {
         identity: IdentityKey,
         // percentage value in range 0-100
         uptime: u32,
+
+        // nonce of the current rewarding interval
+        rewarding_interval_nonce: u32,
+    },
+
+    FinishMixnodeRewarding {
+        // nonce of the current rewarding interval
+        rewarding_interval_nonce: u32,
     },
 
     RewardMixnodeV2 {
         identity: IdentityKey,
         // percentage value in range 0-100
         params: NodeRewardParams,
+
+        // nonce of the current rewarding interval
+        rewarding_interval_nonce: u32,
     },
 }
 

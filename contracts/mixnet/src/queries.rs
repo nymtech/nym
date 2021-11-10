@@ -91,6 +91,7 @@ pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse 
     let state = config_read(deps.storage).load().unwrap();
     RewardingIntervalResponse {
         current_rewarding_interval_starting_block: state.rewarding_interval_starting_block,
+        current_rewarding_interval_nonce: state.latest_rewarding_interval_nonce,
         rewarding_in_progress: state.rewarding_in_progress,
     }
 }
@@ -578,7 +579,7 @@ pub(crate) mod tests {
 
         let dummy_state = State {
             owner: Addr::unchecked("someowner"),
-            network_monitor_address: Addr::unchecked("monitor"),
+            rewarding_validator_address: Addr::unchecked("monitor"),
             params: StateParams {
                 epoch_length: 1,
                 minimum_mixnode_bond: 123u128.into(),
@@ -589,6 +590,7 @@ pub(crate) mod tests {
                 mixnode_active_set_size: 500,
             },
             rewarding_interval_starting_block: 123,
+            latest_rewarding_interval_nonce: 0,
             rewarding_in_progress: false,
             mixnode_epoch_bond_reward: "1.23".parse().unwrap(),
             mixnode_epoch_delegation_reward: "7.89".parse().unwrap(),

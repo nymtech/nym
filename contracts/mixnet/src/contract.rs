@@ -7,7 +7,7 @@ use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
 use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
-use config::defaults::NETWORK_MONITOR_ADDRESS;
+use config::defaults::REWARDING_VALIDATOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
@@ -42,7 +42,7 @@ fn default_initial_state(owner: Addr, env: Env) -> State {
 
     State {
         owner,
-        network_monitor_address: Addr::unchecked(NETWORK_MONITOR_ADDRESS), // we trust our hardcoded value
+        rewarding_validator_address: Addr::unchecked(REWARDING_VALIDATOR_ADDRESS), // we trust our hardcoded value
         params: StateParams {
             epoch_length: INITIAL_DEFAULT_EPOCH_LENGTH,
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
@@ -53,6 +53,7 @@ fn default_initial_state(owner: Addr, env: Env) -> State {
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
         },
         rewarding_interval_starting_block: env.block.height,
+        latest_rewarding_interval_nonce: 0,
         rewarding_in_progress: false,
         mixnode_epoch_bond_reward: calculate_epoch_reward_rate(
             INITIAL_DEFAULT_EPOCH_LENGTH,
@@ -104,18 +105,42 @@ pub fn execute(
         ExecuteMsg::UpdateStateParams(params) => {
             transactions::try_update_state_params(deps, info, params)
         }
-        ExecuteMsg::RewardMixnode { identity, uptime } => {
-            transactions::try_reward_mixnode(deps, env, info, identity, uptime)
-        }
-        ExecuteMsg::RewardMixnodeV2 { identity, params } => {
-            transactions::try_reward_mixnode_v2(deps, env, info, identity, params)
-        }
+        ExecuteMsg::RewardMixnode {
+            identity,
+            uptime,
+            rewarding_interval_nonce,
+        } => transactions::try_reward_mixnode(
+            deps,
+            env,
+            info,
+            identity,
+            uptime,
+            rewarding_interval_nonce,
+        ),
+        ExecuteMsg::RewardMixnodeV2 {
+            identity,
+            params,
+            rewarding_interval_nonce,
+        } => transactions::try_reward_mixnode_v2(
+            deps,
+            env,
+            info,
+            identity,
+            params,
+            rewarding_interval_nonce,
+        ),
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
             transactions::try_remove_delegation_from_mixnode(deps, info, mix_identity)
         }
+        ExecuteMsg::BeginMixnodeRewarding {
+            rewarding_interval_nonce,
+        } => transactions::try_begin_mixnode_rewarding(deps, env, info, rewarding_interval_nonce),
+        ExecuteMsg::FinishMixnodeRewarding {
+            rewarding_interval_nonce,
+        } => transactions::try_finish_mixnode_rewarding(deps, info, rewarding_interval_nonce),
     }
 }
 

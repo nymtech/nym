@@ -10,6 +10,6 @@ export type Operation =
   | "UndelegateFromMixnode"
   | "BondGateway"
   | "UnbondGateway"
-  | "DelegateToGateway"
-  | "UndelegateFromGateway"
-  | "UpdateStateParams";
+  | "UpdateStateParams"
+  | "BeginMixnodeRewarding"
+  | "FinishMixnodeRewarding";

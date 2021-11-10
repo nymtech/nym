@@ -73,6 +73,7 @@ declare module '@mui/material/styles' {
       topNav: {
         background: string;
         socialIcons: string;
+        appBar: string;
       };
       nav: {
         selected: {

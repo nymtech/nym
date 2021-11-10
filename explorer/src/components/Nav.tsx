@@ -163,7 +163,7 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
     setToActive(id);
     if (title === 'Network Components' && nested) {
       openDrawer();
-      toggleNestedOptions(true);
+      toggleNestedOptions(!nestedOptions);
     }
     if (!nested && !drawIsFixed) {
       closeDrawer();
@@ -211,18 +211,21 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
         component={!nested ? Link : 'div'}
         to={isExternal ? { pathname: url } : url}
         target={isExternal ? '_blank' : ''}
-        sx={
-          isActive
+        sx={{
+          borderBottom: isChild ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+          ...(isActive
             ? dynamicStyle
-            : { background: '#242C3D', borderRight: 'none' }
-        }
+            : { background: '#242C3D', borderRight: 'none' }),
+        }}
       >
         <ListItemButton
           onClick={handleClick}
           sx={{
             pt: 2,
             pb: 2,
-            background: isChild ? '#3C4558' : 'none',
+            background: isChild
+              ? palette.nym.networkExplorer.nav.selected.nested
+              : 'none',
           }}
         >
           <ListItemIcon>{Icon}</ListItemIcon>
@@ -306,7 +309,7 @@ export const Nav: React.FC = ({ children }) => {
       <Box sx={{ display: 'flex' }}>
         <AppBar
           sx={{
-            background: theme.palette.nym.networkExplorer.nav.background,
+            background: theme.palette.nym.networkExplorer.topNav.appBar,
           }}
         >
           <Toolbar
@@ -382,6 +385,7 @@ export const Nav: React.FC = ({ children }) => {
             sx={{
               justifyContent: drawerIsOpen ? 'flex-end' : 'center',
               paddingLeft: 0,
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
             }}
           >
             <IconButton

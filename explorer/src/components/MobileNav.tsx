@@ -54,7 +54,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       <AppBar
         sx={{
-          background: theme.palette.nym.networkExplorer.nav.background,
+          background: theme.palette.nym.networkExplorer.topNav.appBar,
         }}
       >
         <Toolbar
@@ -112,7 +112,11 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
             <ListItem
               disablePadding
               disableGutters
-              sx={{ height: 64, background }}
+              sx={{
+                height: 64,
+                background,
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+              }}
             >
               <ListItemButton
                 onClick={toggleDrawer}

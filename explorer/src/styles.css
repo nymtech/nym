@@ -31,3 +31,10 @@ so styling manually here */
 div.MuiDrawer-root > .MuiDrawer-paperAnchorLeft {
     background-color: #111826;
 }
+
+@media screen and (max-width: 900px) {
+    .MuiDrawer-paperAnchorLeft {
+        min-width: 100vw;
+        margin-top: 58px;
+    }
+}

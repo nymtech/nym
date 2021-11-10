@@ -1,5 +1,5 @@
-import { PaletteMode } from '@mui/material';
 import * as React from 'react';
+import { PaletteMode } from '@mui/material';
 import { MIXNODE_API_ERROR } from 'src/api/constants';
 import {
   CountryDataResponse,
@@ -15,10 +15,17 @@ import {
   UptimeStoryResponse,
 } from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
+import { navOptionType, originalNavOptions } from './nav';
 
 interface State {
   mode: PaletteMode;
   toggleMode: () => void;
+
+  // 🚨 nav state in context now
+  navState: navOptionType[];
+  updateNavState: (id: number) => void;
+  //  🚨  APT
+
   mixnodes?: ApiState<MixNodeResponse>;
   fetchMixnodes: () => void;
   filterMixnodes: (arg: MixNodeResponse) => void;
@@ -42,6 +49,12 @@ interface State {
 // TODO: remove the export and replace all uses with `useMainContext()` hook
 export const MainContext = React.createContext<State>({
   mode: 'dark',
+
+  // 🚨 - nav state now in main context
+  updateNavState: () => null,
+  navState: originalNavOptions,
+  // 🚨 - APT^^
+
   fetchMixnodeById: () => null,
   toggleMode: () => undefined,
   fetchDelegationsById: () => null,
@@ -62,6 +75,11 @@ export const useMainContext = (): React.ContextType<typeof MainContext> =>
 export const MainContextProvider: React.FC = ({ children }) => {
   // light/dark mode
   const [mode, setMode] = React.useState<PaletteMode>('dark');
+
+  // nav state
+  const [navState, updateNav] =
+    React.useState<navOptionType[]>(originalNavOptions);
+  // 🚨 - ^^ nav state now in main context
 
   // global / banner error messaging
   const [globalError, setGlobalError] = React.useState<string>();
@@ -87,7 +105,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
-  // actions passed down to Overview and Detail pages
   const fetchUptimeStoryById = async (id: string) => {
     setUptimeStory({
       data: uptimeStory?.data,
@@ -105,7 +122,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
       });
     }
   };
-
   const fetchDelegationsById = async (id: string) => {
     setDelegations({ data: delegations?.data, isLoading: true });
     try {
@@ -119,7 +135,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
       });
     }
   };
-
   const fetchStatusById = async (id: string) => {
     setStatus({ data: status?.data, isLoading: true, error: status?.error });
     try {
@@ -132,7 +147,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
       });
     }
   };
-
   const fetchStatsById = async (id: string) => {
     setStats({ data: stats?.data, isLoading: true, error: stats?.error });
     try {
@@ -145,7 +159,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
       });
     }
   };
-
   const fetchMixnodeById = async (id: string) => {
     setMixnodeDetailInfo({ data: mixnodeDetailInfo?.data, isLoading: true });
 
@@ -214,7 +227,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
       });
     }
   };
-
   const fetchValidators = async () => {
     try {
       const data = await Api.fetchValidators();
@@ -227,7 +239,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
       });
     }
   };
-
   const fetchBlock = async () => {
     try {
       const data = await Api.fetchBlock();
@@ -239,7 +250,6 @@ export const MainContextProvider: React.FC = ({ children }) => {
       });
     }
   };
-
   const fetchCountryData = async () => {
     setCountryData({ data: undefined, isLoading: true });
     try {
@@ -254,6 +264,16 @@ export const MainContextProvider: React.FC = ({ children }) => {
     }
   };
 
+  // 🚨 - nav state now in main context
+  const updateNavState = (id: number) => {
+    const updated = navState.map((option) => ({
+      ...option,
+      isActive: option.id === id,
+    }));
+    updateNav(updated);
+  };
+  // 🚨 - nav state now in main context
+  // ^^^^^^^^
   React.useEffect(() => {
     Promise.all([
       fetchMixnodes(),
@@ -268,6 +288,9 @@ export const MainContextProvider: React.FC = ({ children }) => {
     <MainContext.Provider
       value={{
         mode,
+        updateNavState,
+        navState,
+
         toggleMode,
         mixnodes,
         filterMixnodes,

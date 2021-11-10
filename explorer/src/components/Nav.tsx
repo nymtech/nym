@@ -80,7 +80,7 @@ type navOptionType = {
   isExpandedChild?: boolean;
 };
 
-const originalNavOptions: navOptionType[] = [
+export const originalNavOptions: navOptionType[] = [
   {
     id: 0,
     isActive: false,
@@ -138,7 +138,7 @@ type ExpandableButtonType = {
   setToActive: (num: number) => void;
 };
 
-const ExpandableButton: React.FC<ExpandableButtonType> = ({
+export const ExpandableButton: React.FC<ExpandableButtonType> = ({
   id,
   url,
   setToActive,
@@ -162,7 +162,8 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
   const handleClick = () => {
     setToActive(id);
     if (title === 'Network Components' && nested) {
-      toggleNestedOptions(!nestedOptions);
+      openDrawer();
+      toggleNestedOptions(true);
     }
     if (!nested && !drawIsFixed) {
       closeDrawer();
@@ -348,7 +349,7 @@ export const Nav: React.FC = ({ children }) => {
                   underline="none"
                   color="inherit"
                 >
-                  Nym Network
+                  Network Explorer
                 </MuiLink>
               </Typography>
             </Box>

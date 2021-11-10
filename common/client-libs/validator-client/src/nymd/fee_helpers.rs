@@ -6,9 +6,9 @@ use cosmrs::tx::{Fee, Gas};
 use cosmrs::Coin;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use ts_rs::TS;
 
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Operation {
     Upload,
     Init,

@@ -10,12 +10,12 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
-use ts_rs::TS;
 use validator_client::nymd::{CosmosCoin, GasPrice};
 
 use crate::format_err;
 
-#[derive(TS, Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub enum Denom {
   Major,
   Minor,
@@ -50,7 +50,8 @@ impl FromStr for Denom {
   }
 }
 
-#[derive(TS, Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct Coin {
   amount: String,
   denom: Denom,

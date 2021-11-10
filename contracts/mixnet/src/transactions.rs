@@ -3449,7 +3449,7 @@ pub mod tests {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
         let current_state = config(deps.as_mut().storage).load().unwrap();
-        let network_monitor_address = current_state.network_monitor_address;
+        let rewarding_validator_address = current_state.rewarding_validator_address;
         let period_reward_pool = (INITIAL_REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128;
         assert_eq!(period_reward_pool, 5_000_000_000_000);
         let k = 200; // Imagining our active set size is 200
@@ -3492,7 +3492,14 @@ pub mod tests {
         )
         .unwrap();
 
-        let info = mock_info(network_monitor_address.as_ref(), &[]);
+        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+        try_begin_mixnode_rewarding(
+            deps.as_mut(),
+            env.clone(),
+            mock_info(rewarding_validator_address.as_ref(), &[]),
+            1,
+        )
+        .unwrap();
 
         env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
@@ -3542,7 +3549,7 @@ pub mod tests {
             .u128();
         assert_eq!(pre_reward_delegation, 10000_000_000);
 
-        try_reward_mixnode_v2(deps.as_mut(), env, info, "alice".to_string(), params).unwrap();
+        try_reward_mixnode_v2(deps.as_mut(), env, info, "alice".to_string(), params, 1).unwrap();
 
         assert_eq!(
             read_mixnode_bond(&deps.storage, b"alice").unwrap().u128(),

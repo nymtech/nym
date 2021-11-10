@@ -80,4 +80,12 @@ pub enum ContractError {
         identity: IdentityKey,
         address: Addr,
     },
+    #[error("Overflow error!")]
+    Overflow(#[from] cosmwasm_std::OverflowError),
+
+    #[error("We tried to remove more funds then are available in the Reward pool. Wanted to remove {to_remove}, but have only {reward_pool}")]
+    OutOfFunds { to_remove: u128, reward_pool: u128 },
+
+    #[error("Invalid ratio")]
+    Ratio(#[from] mixnet_contract::error::MixnetContractError),
 }

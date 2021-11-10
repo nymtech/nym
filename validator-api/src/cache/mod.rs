@@ -90,7 +90,7 @@ impl<C> ValidatorCacheRefresher<C> {
     {
         let (mixnodes, gateways) = tokio::try_join!(
             self.nymd_client.get_mixnodes(),
-            self.nymd_client.get_gateways()
+            self.nymd_client.get_gateways(),
         )?;
 
         let state_params = self.nymd_client.get_state_params().await?;
@@ -105,7 +105,7 @@ impl<C> ValidatorCacheRefresher<C> {
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
             mixnodes.len(),
-            gateways.len()
+            gateways.len(),
         );
 
         self.cache

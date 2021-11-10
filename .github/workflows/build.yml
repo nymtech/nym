@@ -11,7 +11,7 @@ on:
 jobs:
   build:
     # run all matrix values on PRs, on push run only stable on ubuntu-latest
-    if: github.event_name == 'pull_request' || (matrix.rust == 'stable' && matrix.os == 'ubuntu-latest')
+    if: ${{ github.event_name == 'pull_request' || (matrix.rust == 'stable' && matrix.os == 'ubuntu-latest') }}
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.rust == 'nightly' || matrix.rust == 'beta' || matrix.os == 'windows-latest' }}
     strategy:

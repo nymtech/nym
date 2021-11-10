@@ -7,7 +7,7 @@ module.exports = {
   node: {
     __dirname: false
   },
-  entry: path.resolve(__dirname, 'src/index'),
+  entry: path.resolve(__dirname, './src/index'),
   devServer: {
     port: 9000,
     compress: true,

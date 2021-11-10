@@ -9,16 +9,26 @@ on:
       - 'explorer/**'
 
 jobs:
+  matrix_prep:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      # creates the matrix strategy from build_matrix_includes.json
+      - uses: actions/checkout@v2
+      - id: set-matrix
+        uses: JoshuaTheMiller/conditional-build-matrix
+        with:
+          inputFile: '.github/workflows/contract_matrix_includes.json'
+          filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   mixnet-contract:
-    # run all matrix values on PRs, on push run only stable
-    if: ${{ github.event_name == 'pull_request' || matrix.rust == 'stable }}
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.rust == 'nightly' }}
+    needs: matrix_prep
     strategy:
-      matrix:
-        rust: [ stable, beta, nightly ]
+      matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
     steps:
       - uses: actions/checkout@v2
 

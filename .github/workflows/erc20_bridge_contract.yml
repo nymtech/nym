@@ -3,16 +3,26 @@ name: ERC20 Bridge Contract
 on: [push, pull_request]
 
 jobs:
+  matrix_prep:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      # creates the matrix strategy from build_matrix_includes.json
+      - uses: actions/checkout@v2
+      - id: set-matrix
+        uses: JoshuaTheMiller/conditional-build-matrix
+        with:
+          inputFile: '.github/workflows/contract_matrix_includes.json'
+          filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   erc20-bridge-contract:
-    # run all matrix values on PRs, on push run only stable
-    if: ${{ github.event_name == 'pull_request' || matrix.rust == 'stable' }}
+    needs: matrix_prep
+    strategy:
+      matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.rust == 'nightly' }}
-    strategy:
-      matrix:
-        rust: [ stable, beta, nightly ]
     steps:
       - uses: actions/checkout@v2
 

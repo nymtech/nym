@@ -22,7 +22,10 @@ const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(20)
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(50);
 const DEFAULT_TOPOLOGY_REFRESH_RATE: Duration = Duration::from_secs(5 * 60); // every 5min
 const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_000);
-const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
+// Set this to a high value for now, so that we don't risk sporadic timeouts that might cause
+// bought bandwidth tokens to not have time to be spent; Once we remove the gateway from the
+// bandwidth bridging protocol, we can come back to a smaller timeout value
+const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
@@ -100,6 +103,17 @@ impl<T: NymConfig> Config<T> {
                 self::Client::<T>::default_reply_encryption_key_store_path(&id);
         }
 
+        #[cfg(not(feature = "coconut"))]
+        if self
+            .client
+            .backup_bandwidth_token_keys_dir
+            .as_os_str()
+            .is_empty()
+        {
+            self.client.backup_bandwidth_token_keys_dir =
+                self::Client::<T>::default_backup_bandwidth_token_keys_dir(&id);
+        }
+
         self.client.id = id;
     }
 
@@ -109,6 +123,16 @@ impl<T: NymConfig> Config<T> {
 
     pub fn with_gateway_listener<S: Into<String>>(&mut self, gateway_listener: S) {
         self.client.gateway_listener = gateway_listener.into();
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn with_eth_private_key<S: Into<String>>(&mut self, eth_private_key: S) {
+        self.client.eth_private_key = eth_private_key.into();
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn with_eth_endpoint<S: Into<String>>(&mut self, eth_endpoint: S) {
+        self.client.eth_endpoint = eth_endpoint.into();
     }
 
     pub fn set_custom_validator_apis(&mut self, validator_api_urls: Vec<Url>) {
@@ -171,6 +195,21 @@ impl<T: NymConfig> Config<T> {
 
     pub fn get_gateway_listener(&self) -> String {
         self.client.gateway_listener.clone()
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_backup_bandwidth_token_keys_dir(&self) -> PathBuf {
+        self.client.backup_bandwidth_token_keys_dir.clone()
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_eth_endpoint(&self) -> String {
+        self.client.eth_endpoint.clone()
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_eth_private_key(&self) -> String {
+        self.client.eth_private_key.clone()
     }
 
     // Debug getters
@@ -268,6 +307,20 @@ pub struct Client<T> {
     /// Address of the gateway listener to which all client requests should be sent.
     gateway_listener: String,
 
+    /// Path to directory containing public/private keys used for bandwidth token purchase.
+    /// Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
+    /// The public key is the name of the file, while the private key is the content.
+    #[cfg(not(feature = "coconut"))]
+    backup_bandwidth_token_keys_dir: PathBuf,
+
+    /// Ethereum private key.
+    #[cfg(not(feature = "coconut"))]
+    eth_private_key: String,
+
+    /// Address to an Ethereum full node.
+    #[cfg(not(feature = "coconut"))]
+    eth_endpoint: String,
+
     /// nym_home_directory specifies absolute path to the home nym Clients directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
@@ -292,6 +345,12 @@ impl<T: NymConfig> Default for Client<T> {
             reply_encryption_key_store_path: Default::default(),
             gateway_id: "".to_string(),
             gateway_listener: "".to_string(),
+            #[cfg(not(feature = "coconut"))]
+            backup_bandwidth_token_keys_dir: Default::default(),
+            #[cfg(not(feature = "coconut"))]
+            eth_private_key: "".to_string(),
+            #[cfg(not(feature = "coconut"))]
+            eth_endpoint: "".to_string(),
             nym_root_directory: T::default_root_directory(),
             super_struct: Default::default(),
         }
@@ -325,6 +384,11 @@ impl<T: NymConfig> Client<T> {
 
     fn default_reply_encryption_key_store_path(id: &str) -> PathBuf {
         T::default_data_directory(Some(id)).join("reply_key_store")
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    fn default_backup_bandwidth_token_keys_dir(id: &str) -> PathBuf {
+        T::default_data_directory(Some(id)).join("backup_bandwidth_token_keys")
     }
 }
 

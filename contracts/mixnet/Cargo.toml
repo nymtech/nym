@@ -45,3 +45,4 @@ thiserror = { version = "1.0.23" }
 
 [dev-dependencies]
 cosmwasm-schema = "1.0.0-beta2"
+fixed = "1.1"

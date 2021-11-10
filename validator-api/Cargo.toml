@@ -23,7 +23,9 @@ humantime-serde = "1.0"
 log = "0.4"
 pin-project = "1.0"
 pretty_env_logger = "0.4"
-rand = "0.7"
+rand-07 = { package = "rand", version = "0.7" } # required for compatibility
+rand = "0.8"
+rand_chacha = "0.3.1"
 reqwest = { version = "0.11", features = ["json"] }
 rocket = { version = "0.5.0-rc.1", features = ["json"] }
 serde = "1.0"
@@ -40,6 +42,7 @@ getset = "0.1.1"
 rocket_sync_db_pools = {version = "0.1.0-rc.1", default-features = false}
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
 
+
 ## internal
 config = { path = "../common/config" }
 crypto = { path="../common/crypto" }
@@ -54,6 +57,8 @@ credentials = { path = "../common/credentials", optional = true }
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
+default = ["tokenomics"]
+tokenomics = []
 
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }

@@ -1,11 +1,17 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(feature = "coconut")]
 use std::convert::TryFrom;
 
+#[cfg(feature = "coconut")]
 use coconut_interface::Credential;
+#[cfg(feature = "coconut")]
 use credentials::error::Error;
+#[cfg(not(feature = "coconut"))]
+use credentials::token::bandwidth::TokenCredential;
 
+#[cfg(feature = "coconut")]
 const BANDWIDTH_INDEX: usize = 0;
 
 pub struct Bandwidth {
@@ -18,6 +24,7 @@ impl Bandwidth {
     }
 }
 
+#[cfg(feature = "coconut")]
 impl TryFrom<Credential> for Bandwidth {
     type Error = Error;
 
@@ -31,6 +38,15 @@ impl TryFrom<Credential> for Bandwidth {
                 }
                 Err(_) => Err(Error::InvalidBandwidthSize),
             },
+        }
+    }
+}
+
+#[cfg(not(feature = "coconut"))]
+impl From<TokenCredential> for Bandwidth {
+    fn from(credential: TokenCredential) -> Self {
+        Bandwidth {
+            value: credential.bandwidth(),
         }
     }
 }

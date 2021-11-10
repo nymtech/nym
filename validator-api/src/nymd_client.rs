@@ -7,12 +7,16 @@ use crate::rewarding::{
     PER_MIXNODE_DELEGATION_GAS_INCREASE, REWARDING_GAS_LIMIT_MULTIPLIER,
 };
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
-use mixnet_contract::{Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond, StateParams};
+use mixnet_contract::{
+    Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond, RewardingIntervalResponse,
+    StateParams,
+};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 use validator_client::nymd::{
+    hash::{Hash, SHA256_HASH_SIZE},
     CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient, TendermintTime,
 };
 use validator_client::ValidatorClientError;
@@ -93,6 +97,34 @@ impl<C> Client<C> {
         Ok(time)
     }
 
+    pub(crate) async fn get_reward_pool(&self) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.0.read().await.get_reward_pool().await?)
+    }
+
+    pub(crate) async fn get_circulating_supply(&self) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.0.read().await.get_circulating_supply().await?)
+    }
+
+    pub(crate) async fn get_sybil_resistance_percent(&self) -> Result<u8, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.0.read().await.get_sybil_resistance_percent().await?)
+    }
+
+    pub(crate) async fn get_epoch_reward_percent(&self) -> Result<u8, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.0.read().await.get_epoch_reward_percent().await?)
+    }
+
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -112,6 +144,36 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         self.0.read().await.get_state_params().await
+    }
+
+    pub(crate) async fn get_current_rewarding_interval(
+        &self,
+    ) -> Result<RewardingIntervalResponse, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0.read().await.get_current_rewarding_interval().await
+    }
+
+    /// Obtains the hash of a block specified by the provided height.
+    /// If the resulting digest is empty, a `None` is returned instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `height`: height of the block for which we want to obtain the hash.
+    pub async fn get_block_hash(
+        &self,
+        height: u32,
+    ) -> Result<Option<[u8; SHA256_HASH_SIZE]>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let hash = match self.0.read().await.nymd.get_block_hash(height).await? {
+            Hash::Sha256(hash) => Some(hash),
+            Hash::None => None,
+        };
+
+        Ok(hash)
     }
 
     pub(crate) async fn get_mixnode_delegations(
@@ -141,9 +203,42 @@ impl<C> Client<C> {
             .calculate_custom_fee(total_gas_limit)
     }
 
+    pub(crate) async fn begin_mixnode_rewarding(
+        &self,
+        rewarding_interval_nonce: u32,
+    ) -> Result<(), RewardingError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0
+            .write()
+            .await
+            .nymd
+            .begin_mixnode_rewarding(rewarding_interval_nonce)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn finish_mixnode_rewarding(
+        &self,
+        rewarding_interval_nonce: u32,
+    ) -> Result<(), RewardingError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0
+            .write()
+            .await
+            .nymd
+            .finish_mixnode_rewarding(rewarding_interval_nonce)
+            .await?;
+        Ok(())
+    }
+
     pub(crate) async fn reward_mixnodes(
         &self,
         nodes: &[MixnodeToReward],
+        rewarding_interval_nonce: u32,
     ) -> Result<(), RewardingError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -154,7 +249,7 @@ impl<C> Client<C> {
             .await;
         let msgs: Vec<(ExecuteMsg, _)> = nodes
             .iter()
-            .map(Into::into)
+            .map(|node| node.to_execute_msg(rewarding_interval_nonce))
             .zip(std::iter::repeat(Vec::new()))
             .collect();
 

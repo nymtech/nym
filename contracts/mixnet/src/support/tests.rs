@@ -133,6 +133,7 @@ pub mod helpers {
             Layer::One,
             12_345,
             mix_node,
+            None,
         )
     }
 

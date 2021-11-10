@@ -11,12 +11,13 @@ use crate::nymd::fee_helpers::Operation;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
-use cosmwasm_std::Coin;
+use cosmwasm_std::{Coin, Uint128};
 use mixnet_contract::{
     Addr, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
     LayerDistribution, MixNode, MixOwnershipResponse, PagedAllDelegationsResponse,
     PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
-    PagedReverseMixDelegationsResponse, QueryMsg, RawDelegationData, StateParams,
+    PagedReverseMixDelegationsResponse, QueryMsg, RawDelegationData, RewardingIntervalResponse,
+    StateParams,
 };
 use serde::Serialize;
 use std::collections::HashMap;
@@ -27,10 +28,11 @@ pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::gas_price::GasPrice;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
 pub use cosmrs::tendermint::block::Height;
+pub use cosmrs::tendermint::hash;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{Fee, Gas};
 pub use cosmrs::Coin as CosmosCoin;
-pub use cosmrs::{AccountId, Denom};
+pub use cosmrs::{AccountId, Decimal, Denom};
 pub use signing_client::Client as SigningNymdClient;
 
 pub mod cosmwasm_client;
@@ -184,6 +186,21 @@ impl<C> NymdClient<C> {
         self.client.get_height().await
     }
 
+    /// Obtains the hash of a block specified by the provided height.
+    ///
+    /// # Arguments
+    ///
+    /// * `height`: height of the block for which we want to obtain the hash.
+    pub async fn get_block_hash(&self, height: u32) -> Result<hash::Hash, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client
+            .get_block(Some(height))
+            .await
+            .map(|block| block.block_id.hash)
+    }
+
     pub async fn get_balance(&self, address: &AccountId) -> Result<Option<CosmosCoin>, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -201,11 +218,63 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn get_current_rewarding_interval(
+        &self,
+    ) -> Result<RewardingIntervalResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::CurrentRewardingInterval {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
     pub async fn get_layer_distribution(&self) -> Result<LayerDistribution, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::LayerDistribution {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_reward_pool(&self) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetRewardPool {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_circulating_supply(&self) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetCirculatingSupply {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_sybil_resistance_percent(&self) -> Result<u8, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetSybilResistancePercent {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_epoch_reward_percent(&self) -> Result<u8, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetEpochRewardPercent {};
         self.client
             .query_contract_smart(self.contract_address()?, &request)
             .await
@@ -638,6 +707,54 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Updating contract state from rust!",
+                Vec::new(),
+            )
+            .await
+    }
+
+    pub async fn begin_mixnode_rewarding(
+        &self,
+        rewarding_interval_nonce: u32,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee(Operation::BeginMixnodeRewarding);
+
+        let req = ExecuteMsg::BeginMixnodeRewarding {
+            rewarding_interval_nonce,
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.contract_address()?,
+                &req,
+                fee,
+                "Beginning mixnode rewarding procedure",
+                Vec::new(),
+            )
+            .await
+    }
+
+    pub async fn finish_mixnode_rewarding(
+        &self,
+        rewarding_interval_nonce: u32,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee(Operation::FinishMixnodeRewarding);
+
+        let req = ExecuteMsg::FinishMixnodeRewarding {
+            rewarding_interval_nonce,
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.contract_address()?,
+                &req,
+                fee,
+                "Finishing mixnode rewarding procedure",
                 Vec::new(),
             )
             .await

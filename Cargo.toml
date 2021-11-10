@@ -25,6 +25,7 @@ members = [
     "common/config",
     "common/credentials",
     "common/crypto",
+    "common/erc20-bridge-contract",
     "common/mixnet-contract",
     "common/mixnode-common",
     "common/network-defaults",
@@ -62,4 +63,4 @@ default-members = [
     "validator-api",
 ]
 
-exclude = ["explorer", "contracts"]
+exclude = ["explorer", "contracts", "tokenomics-py"]

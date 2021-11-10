@@ -30,3 +30,6 @@ validator-client = { path = "../../common/client-libs/validator-client" }
 
 [dev-dependencies]
 tempfile = "3.1.0"
+
+[features]
+coconut = []

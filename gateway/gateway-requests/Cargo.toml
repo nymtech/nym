@@ -24,10 +24,10 @@ crypto = { path = "../../common/crypto" }
 pemstore = { path = "../../common/pemstore" }
 
 coconut-interface = { path = "../../common/coconut-interface", optional = true }
-credentials = { path = "../../common/credentials", optional = true }
+credentials = { path = "../../common/credentials" }
 
 [features]
-coconut = ["coconut-interface", "credentials"]
+coconut = ["coconut-interface"]
 
 [dependencies.tungstenite]
 version = "0.13.0"

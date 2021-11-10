@@ -23,11 +23,11 @@ export const Delegate = () => {
   useEffect(() => {
     const getFees = async () => {
       const mixnode = await getGasFee('DelegateToMixnode')
-      const gateway = await getGasFee('DelegateToGateway')
+
       setFees({
         mixnode: mixnode,
-        gateway: gateway,
       })
+
       setIsLoading(false)
     }
 
@@ -39,7 +39,7 @@ export const Delegate = () => {
     <Layout>
       <NymCard
         title="Delegate"
-        subheader="Delegate to mixnode or gateway"
+        subheader="Delegate to mixnode"
         noPadding
         data-testid="delegateCard"
       >

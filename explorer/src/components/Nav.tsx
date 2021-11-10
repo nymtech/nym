@@ -160,7 +160,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
     if (title === 'Network Components' && nested) {
       toggleNestedOptions(!nestedOptions);
     }
-    if ((!nested || isChild) && !drawIsFixed) {
+    if (!nested && !drawIsFixed) {
       closeDrawer();
     }
   };
@@ -262,8 +262,8 @@ ExpandableButton.defaultProps = {
 export const Nav: React.FC = ({ children }) => {
   const [navOptionsState, updateNavOptionsState] =
     React.useState(originalNavOptions);
-  const [tempOpen, setTempOpen] = React.useState(false);
-  const [drawIsFixed, setDrawIsFixed] = React.useState(false);
+  const [drawerIsOpen, setDrawerToOpen] = React.useState(false);
+  const [fixedOpen, setFixedOpen] = React.useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -275,25 +275,25 @@ export const Nav: React.FC = ({ children }) => {
     updateNavOptionsState(updated);
   };
 
-  const handleDrawerOpen = () => {
-    setDrawIsFixed(true);
-    setTempOpen(true);
+  const fixDrawerOpen = () => {
+    setFixedOpen(true);
+    setDrawerToOpen(true);
   };
 
-  const handleDrawerClose = () => {
-    setDrawIsFixed(false);
-    setTempOpen(false);
+  const fixDrawerClose = () => {
+    setFixedOpen(false);
+    setDrawerToOpen(false);
   };
 
-  const handleMouseEnterOpen = () => {
-    if (!drawIsFixed) {
-      setTempOpen(true);
+  const tempDrawerOpen = () => {
+    if (!fixedOpen) {
+      setDrawerToOpen(true);
     }
   };
 
-  const handleMouseLeaveClose = () => {
-    if (!drawIsFixed) {
-      setTempOpen(false);
+  const tempDrawerClose = () => {
+    if (!fixedOpen) {
+      setDrawerToOpen(false);
     }
   };
 
@@ -371,41 +371,41 @@ export const Nav: React.FC = ({ children }) => {
         </AppBar>
         <Drawer
           variant="permanent"
-          open={tempOpen}
+          open={drawerIsOpen}
           sx={{
             background: theme.palette.nym.networkExplorer.nav.background,
           }}
         >
           <DrawerHeader
             sx={{
-              justifyContent: tempOpen ? 'flex-end' : 'center',
+              justifyContent: drawerIsOpen ? 'flex-end' : 'center',
               paddingLeft: 0,
             }}
           >
             <IconButton
-              onClick={tempOpen ? handleDrawerClose : handleDrawerOpen}
+              onClick={drawerIsOpen ? fixDrawerClose : fixDrawerOpen}
               sx={{
                 padding: 0,
                 ml: '7px',
                 color: theme.palette.nym.networkExplorer.nav.text,
               }}
             >
-              {tempOpen ? <ChevronLeft /> : <Menu />}
+              {drawerIsOpen ? <ChevronLeft /> : <Menu />}
             </IconButton>
           </DrawerHeader>
 
           <List
             sx={{ pt: 0, pb: 0 }}
-            onMouseEnter={handleMouseEnterOpen}
-            onMouseLeave={handleMouseLeaveClose}
+            onMouseEnter={tempDrawerOpen}
+            onMouseLeave={tempDrawerClose}
           >
             {navOptionsState.map((props) => (
               <ExpandableButton
                 key={props.url}
-                closeDrawer={handleDrawerClose}
-                drawIsTempOpen={tempOpen}
-                drawIsFixed={drawIsFixed}
-                openDrawer={handleDrawerOpen}
+                closeDrawer={tempDrawerClose}
+                drawIsTempOpen={drawerIsOpen}
+                drawIsFixed={fixedOpen}
+                openDrawer={tempDrawerOpen}
                 setToActive={setToActive}
                 {...props}
               />

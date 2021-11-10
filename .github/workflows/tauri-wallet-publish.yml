@@ -63,6 +63,12 @@ jobs:
 #          mkdir release-assets
 #          cp package.json release-assets/${{ matrix.os }}-${{ steps.package-node-version.outputs.version }}.zip
 
+      - name: Display built app target files
+        run: ls target/release
+
+      - name: Display built app target bundle files
+        run: ls -R target/release/bundle
+
       - name: Compress (MacOS / Linux)
         if: ${{ matrix.os != 'windows-latest' }}
         working-directory: tauri-wallet

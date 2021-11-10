@@ -62,8 +62,8 @@ pub enum GatewayClientError {
     #[error("Client is not authenticated")]
     NotAuthenticated,
 
-    #[error("Client does not have enough bandwidth")]
-    NotEnoughBandwidth,
+    #[error("Client does not have enough bandwidth: estimated {0}, remaining: {1}")]
+    NotEnoughBandwidth(i64, i64),
 
     #[error("Received an unexpected response")]
     UnexpectedResponse,

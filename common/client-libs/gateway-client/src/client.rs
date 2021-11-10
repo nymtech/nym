@@ -566,7 +566,10 @@ impl GatewayClient {
             // enough (the current granularity for bandwidth should be sufficient)
             self.claim_bandwidth().await?;
             if self.estimate_required_bandwidth(&packets) > self.bandwidth_remaining {
-                return Err(GatewayClientError::NotEnoughBandwidth);
+                return Err(GatewayClientError::NotEnoughBandwidth(
+                    self.estimate_required_bandwidth(&packets),
+                    self.bandwidth_remaining,
+                ));
             }
         }
         if !self.connection.is_established() {
@@ -638,7 +641,10 @@ impl GatewayClient {
             // enough
             self.claim_bandwidth().await?;
             if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
-                return Err(GatewayClientError::NotEnoughBandwidth);
+                return Err(GatewayClientError::NotEnoughBandwidth(
+                    mix_packet.sphinx_packet().len() as i64,
+                    self.bandwidth_remaining,
+                ));
             }
         }
         if !self.connection.is_established() {

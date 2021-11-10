@@ -49,14 +49,11 @@ impl<'a> GatewayHandshake<'a> {
                 }
 
                 // init: <- pub_key || g^x
-                let init_message = check_processing_error(
+                let (remote_identity, remote_ephemeral_key) = check_processing_error(
                     State::<S>::parse_init_message(received_init_payload),
                     &mut state,
                 )
                 .await?;
-
-                let remote_identity = init_message.local_id_pubkey();
-                let remote_ephemeral_key = init_message.ephemeral_key();
                 state.update_remote_identity(remote_identity);
 
                 // hkdf::<blake3>::(g^xy)

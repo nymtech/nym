@@ -28,8 +28,6 @@ type MobileNavProps = {
   children: React.ReactNode;
 };
 
-const background = '#242C3D';
-
 export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
   children,
 }: MobileNavProps) => {
@@ -123,7 +121,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
                 sx={{
                   pt: 2,
                   pb: 2,
-                  background,
+                  background: theme.palette.nym.networkExplorer.topNav.appBar,
                   display: 'flex',
                   justifyContent: 'flex-start',
                 }}

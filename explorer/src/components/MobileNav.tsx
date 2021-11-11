@@ -114,7 +114,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
               disableGutters
               sx={{
                 height: 64,
-                background,
+                background: theme.palette.nym.networkExplorer.nav.background,
                 borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
               }}
             >
@@ -133,8 +133,6 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
                 </ListItemIcon>
               </ListItemButton>
             </ListItem>
-          </List>
-          <List sx={{ pt: 0, pb: 0 }}>
             {navState.map((props) => (
               <ExpandableButton
                 key={props.url}

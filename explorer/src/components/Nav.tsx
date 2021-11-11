@@ -1,7 +1,7 @@
 /* eslint-disable no-nested-ternary */
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ExpandLess, ExpandMore, Menu } from '@mui/icons-material';
+import { ExpandLess, ExpandMore, Menu } from '@mui/icons-material';
 import { CSSObject, styled, Theme, useTheme } from '@mui/material/styles';
 import MuiLink from '@mui/material/Link';
 import Box from '@mui/material/Box';
@@ -18,6 +18,7 @@ import ListItemText from '@mui/material/ListItemText';
 import { NymLogoSVG } from 'src/icons/NymLogoSVG';
 import { BIG_DIPPER, NYM_WEBSITE } from 'src/api/constants';
 import { useMainContext } from 'src/context/main';
+import { MobileDrawerClose } from 'src/icons/MobileDrawerClose';
 import { OverviewSVG } from '../icons/OverviewSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
@@ -215,7 +216,10 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
           borderBottom: isChild ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
           ...(isActive
             ? dynamicStyle
-            : { background: '#242C3D', borderRight: 'none' }),
+            : {
+                background: palette.nym.networkExplorer.nav.background,
+                borderRight: 'none',
+              }),
         }}
       >
         <ListItemButton
@@ -305,126 +309,126 @@ export const Nav: React.FC = ({ children }) => {
   };
 
   return (
-    <>
-      <Box sx={{ display: 'flex' }}>
-        <AppBar
+    <Box sx={{ display: 'flex' }}>
+      <AppBar
+        sx={{
+          background: theme.palette.nym.networkExplorer.topNav.appBar,
+        }}
+      >
+        <Toolbar
+          disableGutters
           sx={{
-            background: theme.palette.nym.networkExplorer.topNav.appBar,
+            display: 'flex',
+            justifyContent: 'space-between',
           }}
         >
-          <Toolbar
-            disableGutters
+          <Box
             sx={{
               display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
               justifyContent: 'space-between',
+              width: 205,
+              ml: 0.5,
+            }}
+          >
+            <IconButton component="a" href={NYM_WEBSITE} target="_blank">
+              <NymLogoSVG />
+            </IconButton>
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{
+                color: theme.palette.nym.networkExplorer.nav.text,
+                fontSize: '18px',
+                fontWeight: 800,
+              }}
+            >
+              <MuiLink
+                component={Link}
+                to="/overview"
+                underline="none"
+                color="inherit"
+              >
+                Network Explorer
+              </MuiLink>
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              mr: 2,
+              alignItems: 'center',
+              display: 'flex',
             }}
           >
             <Box
               sx={{
                 display: 'flex',
                 flexDirection: 'row',
+                width: 'auto',
+                pr: 0,
+                pl: 2,
+                justifyContent: 'flex-end',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                width: 205,
               }}
             >
-              <IconButton component="a" href={NYM_WEBSITE} target="_blank">
-                <NymLogoSVG />
-              </IconButton>
-              <Typography
-                variant="h6"
-                noWrap
-                sx={{
-                  color: theme.palette.nym.networkExplorer.nav.text,
-                  fontSize: '18px',
-                  fontWeight: 800,
-                }}
-              >
-                <MuiLink
-                  component={Link}
-                  to="/overview"
-                  underline="none"
-                  color="inherit"
-                >
-                  Network Explorer
-                </MuiLink>
-              </Typography>
+              <Socials />
+              <DarkLightSwitchDesktop defaultChecked />
             </Box>
-            <Box
-              sx={{
-                mr: 2,
-                alignItems: 'center',
-                display: 'flex',
-              }}
-            >
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  width: 'auto',
-                  pr: 0,
-                  pl: 2,
-                  justifyContent: 'flex-end',
-                  alignItems: 'center',
-                }}
-              >
-                <Socials />
-                <DarkLightSwitchDesktop defaultChecked />
-              </Box>
-            </Box>
-          </Toolbar>
-        </AppBar>
-        <Drawer
-          variant="permanent"
-          open={drawerIsOpen}
+          </Box>
+        </Toolbar>
+      </AppBar>
+      <Drawer
+        variant="permanent"
+        open={drawerIsOpen}
+        sx={{
+          background: theme.palette.nym.networkExplorer.nav.background,
+          // border: '1px solid skyblue',
+        }}
+      >
+        <DrawerHeader
           sx={{
-            background: theme.palette.nym.networkExplorer.nav.background,
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+            justifyContent: 'flex-start',
+            paddingLeft: 0,
           }}
         >
-          <DrawerHeader
+          <IconButton
+            onClick={drawerIsOpen ? fixDrawerClose : fixDrawerOpen}
             sx={{
-              justifyContent: drawerIsOpen ? 'flex-end' : 'center',
-              paddingLeft: 0,
-              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+              padding: 1,
+              ml: 1,
+              color: theme.palette.nym.networkExplorer.nav.text,
             }}
           >
-            <IconButton
-              onClick={drawerIsOpen ? fixDrawerClose : fixDrawerOpen}
-              sx={{
-                padding: 0,
-                ml: '7px',
-                color: theme.palette.nym.networkExplorer.nav.text,
-              }}
-            >
-              {drawerIsOpen ? <ChevronLeft /> : <Menu />}
-            </IconButton>
-          </DrawerHeader>
+            {drawerIsOpen ? <MobileDrawerClose /> : <Menu />}
+          </IconButton>
+        </DrawerHeader>
 
-          <List
-            sx={{ pt: 0, pb: 0 }}
-            onMouseEnter={tempDrawerOpen}
-            onMouseLeave={tempDrawerClose}
-          >
-            {navState.map((props) => (
-              <ExpandableButton
-                key={props.url}
-                closeDrawer={tempDrawerClose}
-                drawIsTempOpen={drawerIsOpen}
-                drawIsFixed={fixedOpen}
-                fixDrawerClose={fixDrawerClose}
-                openDrawer={tempDrawerOpen}
-                setToActive={setToActive}
-                isMobile={false}
-                {...props}
-              />
-            ))}
-          </List>
-        </Drawer>
-        <Box sx={{ width: '100%', p: 4, mt: 7 }}>
-          {children}
-          <Footer />
-        </Box>
+        <List
+          sx={{ pt: 0, pb: 0 }}
+          onMouseEnter={tempDrawerOpen}
+          onMouseLeave={tempDrawerClose}
+        >
+          {navState.map((props) => (
+            <ExpandableButton
+              key={props.url}
+              closeDrawer={tempDrawerClose}
+              drawIsTempOpen={drawerIsOpen}
+              drawIsFixed={fixedOpen}
+              fixDrawerClose={fixDrawerClose}
+              openDrawer={tempDrawerOpen}
+              setToActive={setToActive}
+              isMobile={false}
+              {...props}
+            />
+          ))}
+        </List>
+      </Drawer>
+      <Box sx={{ width: '100%', p: 4, mt: 7 }}>
+        {children}
+        <Footer />
       </Box>
-    </>
+    </Box>
   );
 };

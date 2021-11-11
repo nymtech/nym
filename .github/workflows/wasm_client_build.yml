@@ -1,9 +1,6 @@
 name: Wasm Client
 
 on:
-  push:
-    paths-ignore:
-      - 'explorer/**'
   pull_request:
     paths-ignore:
       - 'explorer/**'
@@ -22,10 +19,11 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown
+# token credentials (non-coconut) don't work for wasm right now
+#      - uses: actions-rs/cargo@v1
+#        with:
+#          command: build
+#          args: --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown
 
       - uses: actions-rs/cargo@v1
         with:

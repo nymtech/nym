@@ -9,14 +9,24 @@ on:
       - 'explorer/**'
 
 jobs:
+  matrix_prep:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      # creates the matrix strategy from build_matrix_includes.json
+      - uses: actions/checkout@v2
+      - id: set-matrix
+        uses: JoshuaTheMiller/conditional-build-matrix@main
+        with:
+          inputFile: '.github/workflows/build_matrix_includes.json'
+          filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   build:
+    needs: matrix_prep
+    strategy:
+      matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.rust == 'nightly' || matrix.rust == 'beta' || matrix.os == 'windows-latest' }}
-    strategy:
-      matrix:
-        rust: [stable, beta, nightly]
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
     steps:
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev squashfs-tools
@@ -51,6 +61,13 @@ jobs:
           command: fmt
           args: --all -- --check
 
+      - uses: actions-rs/clippy-check@v1
+        name: Clippy checks
+#        if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features
+
       - name: Run clippy
         uses: actions-rs/cargo@v1
         if: ${{ matrix.rust != 'nightly' }}
@@ -65,78 +82,21 @@ jobs:
         with:
           command: clean
 
-      # BUILD
-      - name: Build gateway with coconut feature
+      - name: Build all binaries with coconut enabled
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --bin nym-gateway --features=coconut
+          args: --all --features=coconut
 
-      - name: Build native client with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --bin nym-client --features=coconut
-
-      - name: Build socks5 client with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --bin nym-socks5-client --features=coconut
-
-      - name: Build validator-api with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --bin nym-validator-api --features=coconut
-
-# TEST
-      - name: Test gateway with coconut feature
+      - name: Run all tests with coconut enabled
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --bin nym-gateway --features=coconut
+          args: --all --features=coconut
 
-      - name: Test native client with coconut feature
+      - name: Run clippy with coconut enabled
         uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --bin nym-client --features=coconut
-
-      - name: Test socks5 client with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --bin nym-socks5-client --features=coconut
-
-      - name: Test validator-api with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --bin nym-validator-api --features=coconut
-
-# CLIPPY
-
-      - name: Run clippy on gateway with coconut feature
-        uses: actions-rs/cargo@v1
+        if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --bin nym-gateway --features=coconut -- -D warnings
-
-      - name: Run clippy on native client with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --bin nym-client --features=coconut -- -D warnings
-
-      - name: Run clippy on socks5 client with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --bin nym-socks5-client --features=coconut -- -D warnings
-
-      - name: Run clippy on validator-api with coconut feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --bin nym-validator-api --features=coconut -- -D warnings
+          args: --features=coconut -- -D warnings

@@ -1,0 +1,14 @@
+[
+  {
+    "rust":"stable",
+    "runOnEvent":"always"
+  },
+  {
+    "rust":"beta",
+    "runOnEvent":"pull_request"
+  },
+  {
+    "rust":"nightly",
+    "runOnEvent":"pull_request"
+  }
+]

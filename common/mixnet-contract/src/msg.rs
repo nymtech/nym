@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::mixnode::NodeRewardParams;
 use crate::StateParams;
 use crate::{Gateway, IdentityKey, MixNode};
 use cosmwasm_std::Addr;
@@ -31,10 +32,32 @@ pub enum ExecuteMsg {
         mix_identity: IdentityKey,
     },
 
+    BeginMixnodeRewarding {
+        // nonce of the current rewarding interval
+        rewarding_interval_nonce: u32,
+    },
+
     RewardMixnode {
         identity: IdentityKey,
         // percentage value in range 0-100
         uptime: u32,
+
+        // nonce of the current rewarding interval
+        rewarding_interval_nonce: u32,
+    },
+
+    FinishMixnodeRewarding {
+        // nonce of the current rewarding interval
+        rewarding_interval_nonce: u32,
+    },
+
+    RewardMixnodeV2 {
+        identity: IdentityKey,
+        // percentage value in range 0-100
+        params: NodeRewardParams,
+
+        // nonce of the current rewarding interval
+        rewarding_interval_nonce: u32,
     },
 }
 
@@ -56,6 +79,7 @@ pub enum QueryMsg {
         address: Addr,
     },
     StateParams {},
+    CurrentRewardingInterval {},
     GetMixDelegations {
         mix_identity: IdentityKey,
         start_after: Option<Addr>,
@@ -75,6 +99,10 @@ pub enum QueryMsg {
         address: Addr,
     },
     LayerDistribution {},
+    GetRewardPool {},
+    GetCirculatingSupply {},
+    GetEpochRewardPercent {},
+    GetSybilResistancePercent {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

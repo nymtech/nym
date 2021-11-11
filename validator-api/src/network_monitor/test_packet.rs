@@ -188,11 +188,10 @@ impl From<TestPacket> for TestedNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::thread_rng;
 
     #[test]
     fn test_packet_roundtrip() {
-        let mut rng = thread_rng();
+        let mut rng = rand_07::thread_rng();
         let dummy_keypair = identity::KeyPair::new(&mut rng);
         let owner = "some owner".to_string();
         let packet = TestPacket::new(

@@ -58,6 +58,17 @@ gateway_connection_timeout = '{{ network_monitor.gateway_connection_timeout }}'
 # packets before declaring nodes unreachable.
 packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
 
+# Path to directory containing public/private keys used for bandwidth token purchase.
+# Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
+# The public key is the name of the file, while the private key is the content.
+backup_bandwidth_token_keys_dir = '{{ network_monitor.backup_bandwidth_token_keys_dir }}'
+
+# Ethereum private key.
+eth_private_key = '{{ network_monitor.eth_private_key }}'
+
+# Addess to an Ethereum full node.
+eth_endpoint = '{{ network_monitor.eth_endpoint }}'
+
 # Desired number of test routes to be constructed (and working) during a monitor test run.
 test_routes = {{ network_monitor.test_routes }}
 

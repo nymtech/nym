@@ -44,8 +44,17 @@ export const TwoColSmallTable: React.FC<TableProps> = ({
                   {icons[i] ? <CheckCircleSharpIcon /> : <ErrorIcon />}
                 </TableCell>
               )}
-              <TableCell sx={error ? { opacity: 0.4 } : null}>{each}</TableCell>
-              <TableCell sx={error ? { opacity: 0.4 } : null} align="right">
+              <TableCell
+                sx={error ? { opacity: 0.4 } : null}
+                data-testid={each.replace(/ /g, '')}
+              >
+                {each}
+              </TableCell>
+              <TableCell
+                sx={error ? { opacity: 0.4 } : null}
+                align="right"
+                data-testid={`${each.replace(/ /g, '-')}-value`}
+              >
                 {values[i]}
               </TableCell>
               {error && (

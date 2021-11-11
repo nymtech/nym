@@ -15,6 +15,8 @@ use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
 
+#[cfg(not(feature = "coconut"))]
+use crate::node::client_handling::websocket::connection_handler::eth_events::ERC20Bridge;
 #[cfg(feature = "coconut")]
 use coconut_interface::VerificationKey;
 #[cfg(feature = "coconut")]
@@ -88,6 +90,7 @@ impl Gateway {
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         #[cfg(feature = "coconut")] verification_key: VerificationKey,
+        #[cfg(not(feature = "coconut"))] erc20_bridge: ERC20Bridge,
     ) {
         info!("Starting client [web]socket listener...");
 
@@ -101,6 +104,8 @@ impl Gateway {
             Arc::clone(&self.identity),
             #[cfg(feature = "coconut")]
             verification_key,
+            #[cfg(not(feature = "coconut"))]
+            erc20_bridge,
         )
         .start(
             forwarding_channel,
@@ -180,6 +185,13 @@ impl Gateway {
                 .await
                 .expect("failed to contact validators to obtain their verification keys");
 
+        #[cfg(not(feature = "coconut"))]
+        let erc20_bridge = ERC20Bridge::new(
+            self.config.get_eth_endpoint(),
+            self.config.get_validator_nymd_endpoints(),
+            self.config.get_cosmos_mnemonic(),
+        );
+
         let mix_forwarding_channel = self.start_packet_forwarder();
 
         let active_clients_store = ActiveClientsStore::new();
@@ -193,6 +205,8 @@ impl Gateway {
             active_clients_store,
             #[cfg(feature = "coconut")]
             validators_verification_key,
+            #[cfg(not(feature = "coconut"))]
+            erc20_bridge,
         );
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");

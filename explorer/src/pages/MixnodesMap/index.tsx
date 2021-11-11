@@ -44,7 +44,9 @@ export const PageMixnodesMap: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles}>{params.value}</Typography>
+        <Typography sx={cellStyles} data-testid="country-name">
+          {params.value}
+        </Typography>
       ),
     },
     {
@@ -56,7 +58,9 @@ export const PageMixnodesMap: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles}>{params.value}</Typography>
+        <Typography sx={cellStyles} data-testid="number-of-nodes">
+          {params.value}
+        </Typography>
       ),
     },
     {
@@ -66,7 +70,9 @@ export const PageMixnodesMap: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles}>{params.value}</Typography>
+        <Typography sx={cellStyles} data-testid="percentage">
+          {params.value}
+        </Typography>
       ),
     },
   ];
@@ -101,7 +107,7 @@ export const PageMixnodesMap: React.FC = () => {
     return (
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Grid container spacing={1} sx={{ mb: 4 }}>
-          <Grid item xs={12}>
+          <Grid item xs={12} data-testid="mixnodes-globe">
             <Title text="Mixnodes Around the Globe" />
           </Grid>
           <Grid item xs={12} lg={9}>

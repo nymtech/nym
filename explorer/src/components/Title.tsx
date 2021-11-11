@@ -7,6 +7,7 @@ export const Title: React.FC<{ text: string }> = ({ text }) => (
     sx={{
       mb: 3,
     }}
+    data-testid={text}
   >
     {text}
   </Typography>

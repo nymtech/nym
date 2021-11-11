@@ -25,7 +25,10 @@ const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
 const DEFAULT_PACKET_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
 const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(15 * 60);
 const DEFAULT_GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
-const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
+// Set this to a high value for now, so that we don't risk sporadic timeouts that might cause
+// bought bandwidth tokens to not have time to be spent; Once we remove the gateway from the
+// bandwidth bridging protocol, we can come back to a smaller timeout value
+const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
 
 const DEFAULT_TEST_ROUTES: usize = 3;
@@ -33,7 +36,7 @@ const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
 const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
-const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(60);
+const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(10 * 60);
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -145,6 +148,20 @@ pub struct NetworkMonitor {
     #[serde(with = "humantime_serde")]
     packet_delivery_timeout: Duration,
 
+    /// Path to directory containing public/private keys used for bandwidth token purchase.
+    /// Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
+    /// The public key is the name of the file, while the private key is the content.
+    #[cfg(not(feature = "coconut"))]
+    backup_bandwidth_token_keys_dir: PathBuf,
+
+    /// Ethereum private key.
+    #[cfg(not(feature = "coconut"))]
+    eth_private_key: String,
+
+    /// Addess to an Ethereum full node.
+    #[cfg(not(feature = "coconut"))]
+    eth_endpoint: String,
+
     /// Desired number of test routes to be constructed (and working) during a monitor test run.
     test_routes: usize,
 
@@ -160,6 +177,13 @@ pub struct NetworkMonitor {
     per_node_test_packets: usize,
 }
 
+impl NetworkMonitor {
+    #[cfg(not(feature = "coconut"))]
+    fn default_backup_bandwidth_token_keys_dir() -> PathBuf {
+        Config::default_data_directory(None).join("backup_bandwidth_token_keys_dir")
+    }
+}
+
 impl Default for NetworkMonitor {
     fn default() -> Self {
         NetworkMonitor {
@@ -172,6 +196,12 @@ impl Default for NetworkMonitor {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             gateway_connection_timeout: DEFAULT_GATEWAY_CONNECTION_TIMEOUT,
             packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
+            #[cfg(not(feature = "coconut"))]
+            backup_bandwidth_token_keys_dir: Self::default_backup_bandwidth_token_keys_dir(),
+            #[cfg(not(feature = "coconut"))]
+            eth_private_key: "".to_string(),
+            #[cfg(not(feature = "coconut"))]
+            eth_endpoint: "".to_string(),
             test_routes: DEFAULT_TEST_ROUTES,
             minimum_test_routes: DEFAULT_MINIMUM_TEST_ROUTES,
             route_test_packets: DEFAULT_ROUTE_TEST_PACKETS,
@@ -312,8 +342,35 @@ impl Config {
         self
     }
 
+    #[cfg(not(feature = "coconut"))]
+    pub fn with_eth_private_key(mut self, eth_private_key: String) -> Self {
+        self.network_monitor.eth_private_key = eth_private_key;
+        self
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn with_eth_endpoint(mut self, eth_endpoint: String) -> Self {
+        self.network_monitor.eth_endpoint = eth_endpoint;
+        self
+    }
+
     pub fn get_network_monitor_enabled(&self) -> bool {
         self.network_monitor.enabled
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_backup_bandwidth_token_keys_dir(&self) -> PathBuf {
+        self.network_monitor.backup_bandwidth_token_keys_dir.clone()
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_network_monitor_eth_private_key(&self) -> String {
+        self.network_monitor.eth_private_key.clone()
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_network_monitor_eth_endpoint(&self) -> String {
+        self.network_monitor.eth_endpoint.clone()
     }
 
     pub fn get_rewarding_enabled(&self) -> bool {

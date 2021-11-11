@@ -7,10 +7,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tendermint_rpc::endpoint::broadcast::tx_commit::Response;
 use tokio::sync::RwLock;
-use ts_rs::TS;
 use validator_client::nymd::{AccountId, CosmosCoin};
 
-#[derive(Deserialize, Serialize, TS)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Deserialize, Serialize)]
 pub struct TauriTxResult {
   code: u32,
   gas_wanted: u64,
@@ -19,7 +19,8 @@ pub struct TauriTxResult {
   details: TransactionDetails,
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Deserialize, Serialize)]
 pub struct TransactionDetails {
   from_address: String,
   to_address: String,

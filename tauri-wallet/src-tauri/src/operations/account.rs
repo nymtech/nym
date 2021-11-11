@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use ts_rs::TS;
 use validator_client::nymd::{AccountId, NymdClient, SigningNymdClient};
 
-#[derive(TS, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Serialize, Deserialize)]
 pub struct Account {
   contract_address: String,
   client_address: String,
@@ -19,7 +19,8 @@ pub struct Account {
   mnemonic: Option<String>,
 }
 
-#[derive(TS, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Serialize, Deserialize)]
 pub struct Balance {
   coin: Coin,
   printable_balance: String,

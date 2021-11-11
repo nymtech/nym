@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use ts_rs::TS;
 
-#[derive(TS, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Serialize, Deserialize)]
 pub struct DelegationResult {
   source_address: String,
   target_address: String,

@@ -14,7 +14,7 @@ cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch = "0.14.1-
 serde = { version = "1.0", features = ["derive"] }
 serde_repr = "0.1"
 schemars = "0.8"
-ts-rs = { version = "3.0", optional = true }
+ts-rs = { version = "5.1", optional = true }
 thiserror = "1.0"
 network-defaults = { path = "../network-defaults" }
 fixed = "1.1"
@@ -22,4 +22,4 @@ az = "1.1"
 log = "0.4.14"
 
 [features]
-default = ["ts-rs"]
+default = []

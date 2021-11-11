@@ -94,7 +94,9 @@ const columns: GridColDef[] = [
     headerClassName: 'MuiDataGrid-header-override',
     renderCell: (params: GridRenderCellParams) => (
       <div>
-        <Typography sx={cellStyles}>{params.value}</Typography>
+        <Typography sx={cellStyles} data-testid="location-value">
+          {params.value}
+        </Typography>
       </div>
     ),
   },
@@ -106,7 +108,9 @@ const columns: GridColDef[] = [
     headerClassName: 'MuiDataGrid-header-override',
     type: 'number',
     renderCell: (params: GridRenderCellParams) => (
-      <Typography sx={cellStyles}>{params.value}</Typography>
+      <Typography sx={cellStyles} data-testid="node-layer">
+        {params.value}
+      </Typography>
     ),
   },
 ];

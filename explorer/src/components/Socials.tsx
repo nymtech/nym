@@ -13,13 +13,28 @@ export const Socials: React.FC<{ isFooter?: boolean }> = ({ isFooter }) => {
     : theme.palette.nym.networkExplorer.topNav.socialIcons;
   return (
     <Box>
-      <IconButton component="a" href={TELEGRAM_LINK} target="_blank">
+      <IconButton
+        component="a"
+        href={TELEGRAM_LINK}
+        target="_blank"
+        data-testid="telegram"
+      >
         <TelegramIcon sx={{ color }} />
       </IconButton>
-      <IconButton component="a" href={GITHUB_LINK} target="_blank">
+      <IconButton
+        component="a"
+        href={GITHUB_LINK}
+        target="_blank"
+        data-testid="github"
+      >
         <GitHubIcon sx={{ color }} />
       </IconButton>
-      <IconButton component="a" href={TWITTER_LINK} target="_blank">
+      <IconButton
+        component="a"
+        href={TWITTER_LINK}
+        target="_blank"
+        data-testid="twitter"
+      >
         <TwitterIcon sx={{ color }} />
       </IconButton>
     </Box>

@@ -30,8 +30,8 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
         }}
       >
         <Select
-          labelId="demo-simple-select-label"
-          id="demo-simple-select"
+          labelId="simple-select-label"
+          id="simple-select"
           value={pageSize}
           onChange={onChangePageSize}
           sx={{
@@ -39,14 +39,23 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
             marginBottom: matches ? 2 : 0,
           }}
         >
-          <MenuItem value={10}>10</MenuItem>
-          <MenuItem value={30}>30</MenuItem>
-          <MenuItem value={50}>50</MenuItem>
-          <MenuItem value={100}>100</MenuItem>
+          <MenuItem value={10} data-testid="ten">
+            10
+          </MenuItem>
+          <MenuItem value={30} data-testid="thirty">
+            30
+          </MenuItem>
+          <MenuItem value={50} data-testid="fifty">
+            50
+          </MenuItem>
+          <MenuItem value={100} data-testid="hundred">
+            100
+          </MenuItem>
         </Select>
         <TextField
           sx={{ width: 350 }}
           value={searchTerm}
+          data-testid="search-box"
           placeholder="search"
           onChange={(event) => onChangeSearch(event.target.value)}
         />

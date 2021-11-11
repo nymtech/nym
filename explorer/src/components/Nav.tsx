@@ -236,6 +236,7 @@ const ExpandableButton: React.FC<ExpandableButtonType> = ({
             url={each.url}
             key={each.title}
             title={each.title}
+            data-testid={each.title}
             openDrawer={openDrawer}
             drawIsOpen={drawIsOpen}
             closeDrawer={closeDrawer}
@@ -369,6 +370,7 @@ export const Nav: React.FC = ({ children }) => {
                 ml: '7px',
                 color: theme.palette.nym.networkExplorer.nav.text,
               }}
+              data-testid="menu-buttons"
             >
               {open ? <ChevronLeft /> : <Menu />}
             </IconButton>

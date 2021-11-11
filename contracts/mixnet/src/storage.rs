@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::contract::INITIAL_REWARD_POOL;
 use crate::state::State;
-use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+use crate::transactions::{RewardingStatus, MINIMUM_BLOCK_AGE_FOR_REWARDING};
 use crate::{error::ContractError, queries};
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
@@ -185,7 +185,10 @@ pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey
 // we want to treat this bucket as a set so we don't really care about what type of data is being stored.
 // I went with u8 as after serialization it takes only a single byte of space, while if a `()` was used,
 // it would have taken 4 bytes (representation of 'null')
-pub fn rewarded_mixnodes(storage: &mut dyn Storage, rewarding_interval_nonce: u32) -> Bucket<u8> {
+pub(crate) fn rewarded_mixnodes(
+    storage: &mut dyn Storage,
+    rewarding_interval_nonce: u32,
+) -> Bucket<RewardingStatus> {
     Bucket::multilevel(
         storage,
         &[
@@ -195,13 +198,10 @@ pub fn rewarded_mixnodes(storage: &mut dyn Storage, rewarding_interval_nonce: u3
     )
 }
 
-// we want to treat this bucket as a set so we don't really care about what type of data is being stored.
-// I went with u8 as after serialization it takes only a single byte of space, while if a `()` was used,
-// it would have taken 4 bytes (representation of 'null')
-pub fn rewarded_mixnodes_read(
+pub(crate) fn rewarded_mixnodes_read(
     storage: &dyn Storage,
     rewarding_interval_nonce: u32,
-) -> ReadonlyBucket<u8> {
+) -> ReadonlyBucket<RewardingStatus> {
     ReadonlyBucket::multilevel(
         storage,
         &[

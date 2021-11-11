@@ -16,6 +16,8 @@ use mixnet_contract::{
     RawDelegationData, StateParams,
 };
 
+use serde::{Deserialize, Serialize};
+
 pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 
 // approximately 1 day (assuming 5s per block)
@@ -419,110 +421,115 @@ pub(crate) fn try_reward_mixnode(
     uptime: u32,
     rewarding_interval_nonce: u32,
 ) -> Result<Response, ContractError> {
-    let state = config_read(deps.storage).load()?;
-
-    // check if this is executed by the permitted validator, if not reject the transaction
-    if info.sender != state.rewarding_validator_address {
-        return Err(ContractError::Unauthorized);
-    }
-
-    if !state.rewarding_in_progress {
-        return Err(ContractError::RewardingNotInProgress);
-    }
-
-    // make sure the transaction is sent for the correct rewarding interval
-    if rewarding_interval_nonce != state.latest_rewarding_interval_nonce {
-        return Err(ContractError::InvalidRewardingIntervalNonce {
-            received: rewarding_interval_nonce,
-            expected: state.latest_rewarding_interval_nonce,
-        });
-    }
-
-    // check if the mixnode hasn't been rewarded in this rewarding interval already
-    if rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
-        .may_load(mix_identity.as_bytes())?
-        .is_some()
-    {
-        return Err(ContractError::MixnodeAlreadyRewarded {
-            identity: mix_identity,
-        });
-    }
-
-    // optimisation for uptime being 0. No rewards will be given so just terminate here
-    if uptime == 0 {
-        rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
-            .save(mix_identity.as_bytes(), &Default::default())?;
-        return Ok(Response {
-            submessages: vec![],
-            messages: vec![],
-            attributes: vec![
-                attr("bond increase", Uint128(0)),
-                attr("total delegation increase", Uint128(0)),
-            ],
-            data: None,
-        });
-    }
-
-    // check if the bond even exists
-    let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
-        Ok(bond) => bond,
-        Err(_) => {
-            return Ok(Response {
-                attributes: vec![attr("result", "bond not found")],
-                ..Default::default()
-            });
-        }
-    };
-
-    let mut node_reward = Uint128(0);
-    let mut total_delegation_reward = Uint128(0);
-
-    // update current bond with the reward given to the node and the delegators
-    // if it has been bonded for long enough
-    if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height {
-        let bond_reward_rate = state.mixnode_epoch_bond_reward;
-        let delegation_reward_rate = state.mixnode_epoch_delegation_reward;
-        let bond_scaled_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
-        let delegation_scaled_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
-
-        total_delegation_reward = increase_mix_delegated_stakes(
-            deps.storage,
-            &mix_identity,
-            delegation_scaled_reward_rate,
-            env.block.height,
-        )?;
-
-        node_reward = current_bond.bond_amount.amount * bond_scaled_reward_rate;
-        current_bond.bond_amount.amount += node_reward;
-        current_bond.total_delegation.amount += total_delegation_reward;
-        mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
-    }
-
-    rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
-        .save(mix_identity.as_bytes(), &Default::default())?;
-
-    Ok(Response {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![
-            attr("bond increase", node_reward),
-            attr("total delegation increase", total_delegation_reward),
-        ],
-        data: None,
-    })
+    todo!()
+    //
+    // let state = config_read(deps.storage).load()?;
+    //
+    // // check if this is executed by the permitted validator, if not reject the transaction
+    // if info.sender != state.rewarding_validator_address {
+    //     return Err(ContractError::Unauthorized);
+    // }
+    //
+    // if !state.rewarding_in_progress {
+    //     return Err(ContractError::RewardingNotInProgress);
+    // }
+    //
+    // // make sure the transaction is sent for the correct rewarding interval
+    // if rewarding_interval_nonce != state.latest_rewarding_interval_nonce {
+    //     return Err(ContractError::InvalidRewardingIntervalNonce {
+    //         received: rewarding_interval_nonce,
+    //         expected: state.latest_rewarding_interval_nonce,
+    //     });
+    // }
+    //
+    // // check if the mixnode hasn't been rewarded in this rewarding interval already
+    // if rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
+    //     .may_load(mix_identity.as_bytes())?
+    //     .is_some()
+    // {
+    //     return Err(ContractError::MixnodeAlreadyRewarded {
+    //         identity: mix_identity,
+    //     });
+    // }
+    //
+    // // optimisation for uptime being 0. No rewards will be given so just terminate here
+    // if uptime == 0 {
+    //     rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
+    //         .save(mix_identity.as_bytes(), &Default::default())?;
+    //     return Ok(Response {
+    //         submessages: vec![],
+    //         messages: vec![],
+    //         attributes: vec![
+    //             attr("bond increase", Uint128(0)),
+    //             attr("total delegation increase", Uint128(0)),
+    //         ],
+    //         data: None,
+    //     });
+    // }
+    //
+    // // check if the bond even exists
+    // let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
+    //     Ok(bond) => bond,
+    //     Err(_) => {
+    //         return Ok(Response {
+    //             attributes: vec![attr("result", "bond not found")],
+    //             ..Default::default()
+    //         });
+    //     }
+    // };
+    //
+    // let mut node_reward = Uint128(0);
+    // let mut total_delegation_reward = Uint128(0);
+    //
+    // // update current bond with the reward given to the node and the delegators
+    // // if it has been bonded for long enough
+    // if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height {
+    //     let bond_reward_rate = state.mixnode_epoch_bond_reward;
+    //     let delegation_reward_rate = state.mixnode_epoch_delegation_reward;
+    //     let bond_scaled_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
+    //     let delegation_scaled_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
+    //
+    //     total_delegation_reward = increase_mix_delegated_stakes(
+    //         deps.storage,
+    //         &mix_identity,
+    //         delegation_scaled_reward_rate,
+    //         env.block.height,
+    //     )?;
+    //
+    //     node_reward = current_bond.bond_amount.amount * bond_scaled_reward_rate;
+    //     current_bond.bond_amount.amount += node_reward;
+    //     current_bond.total_delegation.amount += total_delegation_reward;
+    //     mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+    // }
+    //
+    // rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
+    //     .save(mix_identity.as_bytes(), &Default::default())?;
+    //
+    // Ok(Response {
+    //     submessages: vec![],
+    //     messages: vec![],
+    //     attributes: vec![
+    //         attr("bond increase", node_reward),
+    //         attr("total delegation increase", total_delegation_reward),
+    //     ],
+    //     data: None,
+    // })
 }
 
+#[derive(Debug)]
 struct MixDelegationRewardingResult {
     total_rewarded: Uint128,
     start_next: Option<String>,
 }
 
-struct RewardingResult {
+#[derive(Default, Serialize, Deserialize)]
+pub(crate) struct RewardingResult {
     operator_reward: Uint128,
     total_delegator_reward: Uint128,
 }
 
-struct PendingDelegatorRewarding {
+#[derive(Serialize, Deserialize)]
+pub(crate) struct PendingDelegatorRewarding {
     // keep track of the running rewarding results so we'd known how much was the operator and its delegators rewarded
     running_results: RewardingResult,
 
@@ -531,9 +538,18 @@ struct PendingDelegatorRewarding {
     rewarding_params: DelegatorRewardParams,
 }
 
-enum RewardingStatus {
+#[derive(Serialize, Deserialize)]
+pub(crate) enum RewardingStatus {
     Complete(RewardingResult),
     PendingNextDelegatorPage(PendingDelegatorRewarding),
+}
+
+impl RewardingStatus {
+    fn new_complete(rewarding_results: RewardingResult) -> Self {
+        RewardingStatus::Complete(rewarding_results)
+    }
+
+    // fn new_pending()
 }
 
 fn reward_mix_delegators_v2(
@@ -542,6 +558,8 @@ fn reward_mix_delegators_v2(
     start: Option<String>,
     params: DelegatorRewardParams,
 ) -> StdResult<MixDelegationRewardingResult> {
+    // TODO: some checks to make sure stuff is not TOO stale.
+
     let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
     let start_value = start.as_ref().map(|addr| addr.as_bytes());
 
@@ -659,6 +677,8 @@ pub(crate) fn try_reward_mixnode_v2(
         });
     }
 
+    // TODO: different error based on whether complete or delegators to reward
+
     // check if the mixnode hasn't been rewarded in this rewarding interval already
     if rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
         .may_load(mix_identity.as_bytes())?
@@ -680,39 +700,69 @@ pub(crate) fn try_reward_mixnode_v2(
         }
     };
 
-    let mut reward_params = params;
+    if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height {
+        let mut node_reward_params = params;
+        node_reward_params.set_reward_blockstamp(env.block.height);
 
-    reward_params.set_reward_blockstamp(env.block.height);
+        let operator_reward_result = current_bond.reward(&node_reward_params);
+        let node_reward = operator_reward_result.reward();
 
-    let reward_result = current_bond.reward(&reward_params);
+        // Omitting the price per packet function now, it follows that base operator reward is the node_reward
+        let operator_reward = Uint128(current_bond.operator_reward(&node_reward_params));
 
-    // Omitting the price per packet function now, it follows that base operator reward is the node_reward
-    let operator_reward = current_bond.operator_reward(&reward_params);
+        let delegator_params = DelegatorRewardParams::new(&current_bond, node_reward_params);
+        let delegation_rewarding_result =
+            reward_mix_delegators_v2(deps.storage, &mix_identity, None, delegator_params)?;
 
-    let total_delegation_reward =
-        increase_mix_delegated_stakes_v2(deps.storage, &current_bond, &reward_params)?;
-
-    // update current bond with the reward given to the node and the delegators
-    // if it has been bonded for long enough
-    if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING
-        <= reward_params.reward_blockstamp()
-    {
-        current_bond.bond_amount.amount += Uint128(operator_reward);
-        current_bond.total_delegation.amount += total_delegation_reward;
+        current_bond.bond_amount.amount += operator_reward;
+        current_bond.total_delegation.amount += delegation_rewarding_result.total_rewarded;
         mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
-        decr_reward_pool(Uint128(operator_reward), deps.storage)?;
-        decr_reward_pool(total_delegation_reward, deps.storage)?;
-    }
+        decr_reward_pool(operator_reward, deps.storage)?;
+        decr_reward_pool(delegation_rewarding_result.total_rewarded, deps.storage)?;
 
-    rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
-        .save(mix_identity.as_bytes(), &Default::default())?;
+        let rewarding_results = RewardingResult {
+            operator_reward,
+            total_delegator_reward: delegation_rewarding_result.total_rewarded,
+        };
+
+        if let Some(next_start) = delegation_rewarding_result.start_next {
+            rewarded_mixnodes(deps.storage, rewarding_interval_nonce).save(
+                mix_identity.as_bytes(),
+                &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
+                    running_results: rewarding_results,
+                    next_start,
+                    rewarding_params: delegator_params,
+                }),
+            )?;
+        } else {
+            rewarded_mixnodes(deps.storage, rewarding_interval_nonce).save(
+                mix_identity.as_bytes(),
+                &RewardingStatus::new_complete(rewarding_results),
+            )?;
+        }
+    } else {
+        // node is not eligible for rewarding, so we're done immediately
+        rewarded_mixnodes(deps.storage, rewarding_interval_nonce).save(
+            mix_identity.as_bytes(),
+            &RewardingStatus::Complete(Default::default()),
+        )?;
+    }
 
     Ok(Response {
         submessages: vec![],
         messages: vec![],
         attributes: vec![
-            attr("bond increase", reward_result.reward()),
-            attr("total delegation increase", total_delegation_reward),
+            //
+            // attr("node reward", node_reward),
+            // attr("operator reward", operator_reward),
+            // attr(
+            //     "total delegation increase",
+            //     delegation_rewarding_result.total_rewarded,
+            // ),
+            // attr(
+            //     "more delegators to reward",
+            //     delegation_rewarding_result.start_next.is_some(),
+            // ),
         ],
         data: None,
     })

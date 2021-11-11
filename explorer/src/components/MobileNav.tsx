@@ -121,7 +121,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
                 sx={{
                   pt: 2,
                   pb: 2,
-                  background: theme.palette.nym.networkExplorer.topNav.appBar,
+                  background: theme.palette.nym.networkExplorer.nav.background,
                   display: 'flex',
                   justifyContent: 'flex-start',
                 }}
@@ -138,10 +138,8 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
                 title={props.title}
                 openDrawer={openDrawer}
                 url={props.url}
-                closeDrawer={() => null}
                 drawIsTempOpen={drawerOpen === true}
                 drawIsFixed={false}
-                fixDrawerClose={() => null}
                 Icon={props.Icon}
                 setToActive={handleClick}
                 nested={props.nested}

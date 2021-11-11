@@ -131,10 +131,10 @@ type ExpandableButtonType = {
   nested?: navOptionType[];
   isChild?: boolean;
   openDrawer: () => void;
-  closeDrawer: () => void;
+  closeDrawer?: () => void;
   drawIsTempOpen: boolean;
   drawIsFixed: boolean;
-  fixDrawerClose: () => void;
+  fixDrawerClose?: () => void;
   isMobile: boolean;
   setToActive: (num: number) => void;
 };
@@ -167,10 +167,10 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
       toggleNestedOptions(!nestedOptions);
     }
     if (!nested && !drawIsFixed) {
-      closeDrawer();
+      closeDrawer?.();
     }
     if (!nested && isMobile) {
-      fixDrawerClose();
+      fixDrawerClose?.();
     }
   };
 
@@ -274,6 +274,8 @@ ExpandableButton.defaultProps = {
   nested: undefined,
   isChild: false,
   isActive: false,
+  fixDrawerClose: undefined,
+  closeDrawer: undefined,
 };
 
 export const Nav: React.FC = ({ children }) => {

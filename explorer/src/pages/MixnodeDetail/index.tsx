@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Box, Grid, Typography } from '@mui/material';
-import { ColumnsType, UniversalTable } from 'src/components/UniversalTable';
+import { ColumnsType, DetailTable } from 'src/components/UniversalTable';
 import { mixnodeToGridRow, scrollToRef } from 'src/utils';
 import { useParams } from 'react-router-dom';
 import { BondBreakdownTable } from 'src/components/BondBreakdown';
@@ -109,7 +109,7 @@ export const PageMixnodeDetail: React.FC = () => {
 
         <Grid container>
           <Grid item xs={12}>
-            <UniversalTable
+            <DetailTable
               columnsData={columns}
               tableName="Mixnode detail table"
               rows={mixnodeToGridRow(row)}

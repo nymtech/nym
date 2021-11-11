@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { printableCoin } from '@nymproject/nym-validator-client';
 import { cellStyles } from './Universal-DataGrid';
+import { MixnodeRowType } from '../utils/index';
 
 export type ColumnsType = {
   field: string;
@@ -32,11 +33,11 @@ function formatCellValues(val: string | number, field: string) {
   return val;
 }
 
-export const UniversalTable = ({
-  tableName,
-  columnsData,
-  rows,
-}: UniversalTableProps) => (
+export const DetailTable: React.FC<{
+  tableName: string;
+  columnsData: ColumnsType[];
+  rows: MixnodeRowType[];
+}> = ({ tableName, columnsData, rows }: UniversalTableProps) => (
   <TableContainer component={Paper}>
     <Table sx={{ minWidth: 650 }} aria-label={tableName}>
       <TableHead>
@@ -51,11 +52,12 @@ export const UniversalTable = ({
       <TableBody>
         {rows.map((eachRow) => (
           <TableRow
-            key={eachRow.owner}
+            key={eachRow.id}
             sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
           >
             {columnsData?.map((_, index) => (
               <TableCell
+                key={_.title}
                 component="th"
                 scope="row"
                 variant="body"

@@ -18,6 +18,7 @@ import { NymLogoSVG } from 'src/icons/NymLogoSVG';
 import { BIG_DIPPER, NYM_WEBSITE } from 'src/api/constants';
 import { useMainContext } from 'src/context/main';
 import { MobileDrawerClose } from 'src/icons/MobileDrawerClose';
+import { Paper } from '@mui/material';
 import { OverviewSVG } from '../icons/OverviewSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
@@ -277,6 +278,9 @@ ExpandableButton.defaultProps = {
   closeDrawer: undefined,
 };
 
+const MyPaper = styled(Paper)(({ children }) => ({
+  border: '1px solid red',
+}));
 export const Nav: React.FC = ({ children }) => {
   const { updateNavState, navState } = useMainContext();
   const [drawerIsOpen, setDrawerToOpen] = React.useState(false);
@@ -382,8 +386,8 @@ export const Nav: React.FC = ({ children }) => {
       <Drawer
         variant="permanent"
         open={drawerIsOpen}
-        sx={{
-          '& .MuiPaper-root': {
+        PaperProps={{
+          style: {
             background: theme.palette.nym.networkExplorer.nav.background,
           },
         }}

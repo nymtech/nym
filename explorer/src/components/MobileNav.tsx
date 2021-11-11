@@ -108,8 +108,8 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
         anchor="left"
         open={drawerOpen}
         onClose={toggleDrawer}
-        sx={{
-          '& .MuiPaper-root': {
+        PaperProps={{
+          style: {
             background: theme.palette.nym.networkExplorer.nav.background,
           },
         }}

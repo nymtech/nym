@@ -1,4 +1,3 @@
-/* eslint-disable no-nested-ternary */
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ExpandLess, ExpandMore, Menu } from '@mui/icons-material';
@@ -384,7 +383,9 @@ export const Nav: React.FC = ({ children }) => {
         variant="permanent"
         open={drawerIsOpen}
         sx={{
-          background: theme.palette.nym.networkExplorer.nav.background,
+          '& .MuiPaper-root': {
+            background: theme.palette.nym.networkExplorer.nav.background,
+          },
         }}
       >
         <DrawerHeader

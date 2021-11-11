@@ -26,12 +26,6 @@ div div.MuiDataGrid-root .MuiDataGrid-columnHeaderTitleContainer {
     padding-left: 0;
 }
 
-/* Unable to style nested MUI paper within the Drawer
-so styling manually here */
-div.MuiDrawer-root > .MuiDrawer-paperAnchorLeft {
-    background-color: #242C3D;
-}
-
 @media screen and (max-width: 900px) {
     .MuiDrawer-paperAnchorLeft {
         min-width: 100vw;

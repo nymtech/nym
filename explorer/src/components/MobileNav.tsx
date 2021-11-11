@@ -104,7 +104,16 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
           </Box>
         </Toolbar>
       </AppBar>
-      <Drawer anchor="left" open={drawerOpen} onClose={toggleDrawer}>
+      <Drawer
+        anchor="left"
+        open={drawerOpen}
+        onClose={toggleDrawer}
+        sx={{
+          '& .MuiPaper-root': {
+            background: theme.palette.nym.networkExplorer.nav.background,
+          },
+        }}
+      >
         <Box role="presentation">
           <List sx={{ pt: 0, pb: 0 }}>
             <ListItem

@@ -23,10 +23,11 @@ pub enum Operation {
 
     BondGateway,
     UnbondGateway,
-    DelegateToGateway,
-    UndelegateFromGateway,
 
     UpdateStateParams,
+
+    BeginMixnodeRewarding,
+    FinishMixnodeRewarding,
 }
 
 pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
@@ -43,13 +44,13 @@ impl fmt::Display for Operation {
             Operation::Send => f.write_str("Send"),
             Operation::BondMixnode => f.write_str("BondMixnode"),
             Operation::UnbondMixnode => f.write_str("UnbondMixnode"),
-            Operation::DelegateToMixnode => f.write_str("DelegateToMixnode"),
-            Operation::UndelegateFromMixnode => f.write_str("UndelegateFromMixnode"),
             Operation::BondGateway => f.write_str("BondGateway"),
             Operation::UnbondGateway => f.write_str("UnbondGateway"),
-            Operation::DelegateToGateway => f.write_str("DelegateToGateway"),
-            Operation::UndelegateFromGateway => f.write_str("UndelegateFromGateway"),
+            Operation::DelegateToMixnode => f.write_str("DelegateToMixnode"),
+            Operation::UndelegateFromMixnode => f.write_str("UndelegateFromMixnode"),
             Operation::UpdateStateParams => f.write_str("UpdateStateParams"),
+            Operation::BeginMixnodeRewarding => f.write_str("BeginMixnodeRewarding"),
+            Operation::FinishMixnodeRewarding => f.write_str("FinishMixnodeRewarding"),
         }
     }
 }
@@ -71,10 +72,10 @@ impl Operation {
 
             Operation::BondGateway => 175_000u64.into(),
             Operation::UnbondGateway => 175_000u64.into(),
-            Operation::DelegateToGateway => 175_000u64.into(),
-            Operation::UndelegateFromGateway => 175_000u64.into(),
 
             Operation::UpdateStateParams => 175_000u64.into(),
+            Operation::BeginMixnodeRewarding => 175_000u64.into(),
+            Operation::FinishMixnodeRewarding => 175_000u64.into(),
         }
     }
 

@@ -18,10 +18,7 @@ use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use std::sync::Arc;
 
-#[cfg(feature = "coconut")]
-use coconut_interface::Credential;
-#[cfg(feature = "coconut")]
-use credentials::{bandwidth::prepare_for_spending, obtain_aggregate_verification_key};
+use gateway_client::bandwidth::BandwidthController;
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
@@ -57,7 +54,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         // TODO: those keys change constant throughout the whole execution of the monitor.
         // and on top of that, they are used with ALL the gateways -> presumably this should change
         // in the future
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand_07::rngs::OsRng;
 
         let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
         let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
@@ -75,16 +72,24 @@ impl<'a> NetworkMonitorBuilder<'a> {
         );
 
         #[cfg(feature = "coconut")]
-        let bandwidth_credential =
-            TEMPORARY_obtain_bandwidth_credential(self.config, identity_keypair.public_key()).await;
+        let bandwidth_controller = BandwidthController::new(
+            self.config.get_all_validator_api_endpoints(),
+            *identity_keypair.public_key(),
+        );
+        #[cfg(not(feature = "coconut"))]
+        let bandwidth_controller = BandwidthController::new(
+            self.config.get_network_monitor_eth_endpoint(),
+            self.config.get_network_monitor_eth_private_key(),
+            self.config.get_backup_bandwidth_token_keys_dir(),
+        )
+        .expect("Could not create bandwidth controller");
 
         let packet_sender = new_packet_sender(
             self.config,
             gateway_status_update_sender,
             Arc::clone(&identity_keypair),
             self.config.get_gateway_sending_rate(),
-            #[cfg(feature = "coconut")]
-            bandwidth_credential,
+            bandwidth_controller,
         );
 
         let received_processor = new_received_processor(
@@ -146,40 +151,12 @@ fn new_packet_preparer(
     )
 }
 
-// SECURITY:
-// this implies we are re-using the same credential for all gateways all the time (which unfortunately is true!)
-#[cfg(feature = "coconut")]
-#[allow(non_snake_case)]
-async fn TEMPORARY_obtain_bandwidth_credential(
-    config: &Config,
-    identity: &identity::PublicKey,
-) -> Credential {
-    info!("Trying to obtain bandwidth credential...");
-    let validators = config.get_all_validator_api_endpoints();
-
-    let verification_key = obtain_aggregate_verification_key(&validators)
-        .await
-        .expect("could not obtain aggregate verification key of ALL validators");
-
-    let bandwidth_credential =
-        credentials::bandwidth::obtain_signature(&identity.to_bytes(), &validators)
-            .await
-            .expect("failed to obtain bandwidth credential!");
-
-    prepare_for_spending(
-        &identity.to_bytes(),
-        &bandwidth_credential,
-        &verification_key,
-    )
-    .expect("failed to prepare bandwidth credential for spending!")
-}
-
 fn new_packet_sender(
     config: &Config,
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     max_sending_rate: usize,
-    #[cfg(feature = "coconut")] bandwidth_credential: Credential,
+    bandwidth_controller: BandwidthController,
 ) -> PacketSender {
     PacketSender::new(
         gateways_status_updater,
@@ -188,8 +165,7 @@ fn new_packet_sender(
         config.get_gateway_connection_timeout(),
         config.get_max_concurrent_gateway_clients(),
         max_sending_rate,
-        #[cfg(feature = "coconut")]
-        bandwidth_credential,
+        bandwidth_controller,
     )
 }
 

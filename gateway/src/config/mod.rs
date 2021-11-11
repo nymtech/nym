@@ -127,6 +127,24 @@ impl Config {
         self
     }
 
+    #[cfg(not(feature = "coconut"))]
+    pub fn with_custom_validator_nymd(mut self, validator_nymd_urls: Vec<Url>) -> Self {
+        self.gateway.validator_nymd_urls = validator_nymd_urls;
+        self
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn with_cosmos_mnemonic(mut self, cosmos_mnemonic: String) -> Self {
+        self.gateway.cosmos_mnemonic = cosmos_mnemonic;
+        self
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn with_eth_endpoint(mut self, eth_endpoint: String) -> Self {
+        self.gateway.eth_endpoint = eth_endpoint;
+        self
+    }
+
     pub fn with_listening_address<S: Into<String>>(mut self, listening_address: S) -> Self {
         let listening_address_string = listening_address.into();
         if let Ok(ip_addr) = listening_address_string.parse() {
@@ -191,8 +209,23 @@ impl Config {
         self.gateway.public_sphinx_key_file.clone()
     }
 
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_eth_endpoint(&self) -> String {
+        self.gateway.eth_endpoint.clone()
+    }
+
     pub fn get_validator_api_endpoints(&self) -> Vec<Url> {
         self.gateway.validator_api_urls.clone()
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_validator_nymd_endpoints(&self) -> Vec<Url> {
+        self.gateway.validator_nymd_urls.clone()
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_cosmos_mnemonic(&self) -> String {
+        self.gateway.cosmos_mnemonic.clone()
     }
 
     pub fn get_listening_address(&self) -> IpAddr {
@@ -281,8 +314,20 @@ pub struct Gateway {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
+    /// Address to an Ethereum full node.
+    #[cfg(not(feature = "coconut"))]
+    eth_endpoint: String,
+
     /// Addresses to APIs running on validator from which the node gets the view of the network.
     validator_api_urls: Vec<Url>,
+
+    /// Addresses to validators which the node uses to check for double spending of ERC20 tokens.
+    #[cfg(not(feature = "coconut"))]
+    validator_nymd_urls: Vec<Url>,
+
+    /// Mnemonic of a cosmos wallet used for checking for double spending.
+    #[cfg(not(feature = "coconut"))]
+    cosmos_mnemonic: String,
 
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -328,7 +373,13 @@ impl Default for Gateway {
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
+            #[cfg(not(feature = "coconut"))]
+            eth_endpoint: "".to_string(),
             validator_api_urls: default_api_endpoints(),
+            #[cfg(not(feature = "coconut"))]
+            validator_nymd_urls: default_nymd_endpoints(),
+            #[cfg(not(feature = "coconut"))]
+            cosmos_mnemonic: "".to_string(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),
         }

@@ -4,17 +4,17 @@
 use crate::error::ContractError;
 use crate::helpers::get_all_delegations_paged;
 use crate::storage::{
-    all_mix_delegations_read, gateways_owners_read, gateways_read, mix_delegations_read,
-    mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params,
-    reverse_mix_delegations_read,
+    all_mix_delegations_read, circulating_supply, config_read, gateways_owners_read, gateways_read,
+    mix_delegations_read, mixnodes_owners_read, mixnodes_read, read_layer_distribution,
+    read_state_params, reverse_mix_delegations_read, reward_pool_value,
 };
 use config::defaults::DENOM;
-use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
+use cosmwasm_std::{coin, Addr, Deps, Order, StdResult, Uint128};
 use mixnet_contract::{
     Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
     MixOwnershipResponse, PagedAllDelegationsResponse, PagedGatewayResponse,
     PagedMixDelegationsResponse, PagedMixnodeResponse, PagedReverseMixDelegationsResponse,
-    RawDelegationData, StateParams,
+    RawDelegationData, RewardingIntervalResponse, StateParams,
 };
 
 const BOND_PAGE_MAX_LIMIT: u32 = 100;
@@ -87,8 +87,25 @@ pub(crate) fn query_state_params(deps: Deps) -> StateParams {
     read_state_params(deps.storage)
 }
 
+pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse {
+    let state = config_read(deps.storage).load().unwrap();
+    RewardingIntervalResponse {
+        current_rewarding_interval_starting_block: state.rewarding_interval_starting_block,
+        current_rewarding_interval_nonce: state.latest_rewarding_interval_nonce,
+        rewarding_in_progress: state.rewarding_in_progress,
+    }
+}
+
 pub(crate) fn query_layer_distribution(deps: Deps) -> LayerDistribution {
     read_layer_distribution(deps.storage)
+}
+
+pub(crate) fn query_reward_pool(deps: Deps) -> Uint128 {
+    reward_pool_value(deps.storage)
+}
+
+pub(crate) fn query_circulating_supply(deps: Deps) -> Uint128 {
+    circulating_supply(deps.storage)
 }
 
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm
@@ -562,15 +579,19 @@ pub(crate) mod tests {
 
         let dummy_state = State {
             owner: Addr::unchecked("someowner"),
-            network_monitor_address: Addr::unchecked("monitor"),
+            rewarding_validator_address: Addr::unchecked("monitor"),
             params: StateParams {
                 epoch_length: 1,
                 minimum_mixnode_bond: 123u128.into(),
                 minimum_gateway_bond: 456u128.into(),
                 mixnode_bond_reward_rate: "1.23".parse().unwrap(),
                 mixnode_delegation_reward_rate: "7.89".parse().unwrap(),
-                mixnode_active_set_size: 1000,
+                mixnode_rewarded_set_size: 1000,
+                mixnode_active_set_size: 500,
             },
+            rewarding_interval_starting_block: 123,
+            latest_rewarding_interval_nonce: 0,
+            rewarding_in_progress: false,
             mixnode_epoch_bond_reward: "1.23".parse().unwrap(),
             mixnode_epoch_delegation_reward: "7.89".parse().unwrap(),
         };

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 mod delegation;
+pub mod error;
 mod gateway;
-mod mixnode;
+pub mod mixnode;
 mod msg;
 mod types;
 
@@ -15,4 +16,7 @@ pub use delegation::{
 pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayResponse};
 pub use mixnode::{Layer, MixNode, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse};
 pub use msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-pub use types::{IdentityKey, IdentityKeyRef, LayerDistribution, SphinxKey, StateParams};
+pub use types::{
+    IdentityKey, IdentityKeyRef, LayerDistribution, RewardingIntervalResponse, SphinxKey,
+    StateParams,
+};

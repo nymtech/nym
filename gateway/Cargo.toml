@@ -11,6 +11,7 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bip39 = "1.0.1"
 clap = "2.33.0"
 dirs = "3.0"
 dashmap = "4.0"
@@ -28,22 +29,26 @@ tokio-stream = { version = "0.1", features = [ "fs" ] }
 tokio-tungstenite = "0.14"
 url = { version = "2.2", features = [ "serde" ] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+web3 = "0.17.0"
 
 # internal
 coconut-interface = { path = "../common/coconut-interface" , optional = true}
-credentials = { path = "../common/credentials" , optional = true}
+credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
+erc20-bridge-contract = { path = "../common/erc20-bridge-contract" }
 gateway-requests = { path = "gateway-requests" }
+gateway-client = { path = "../common/client-libs/gateway-client" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
+network-defaults = { path = "../common/network-defaults" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
-validator-client = { path = "../common/client-libs/validator-client" }
+validator-client = { path = "../common/client-libs/validator-client", features = ["nymd-client"] }
 version-checker = { path = "../common/version-checker" }
 
 [features]
-coconut = ["coconut-interface", "credentials", "gateway-requests/coconut"]
+coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coconut"]
 
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }

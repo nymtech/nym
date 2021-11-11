@@ -23,13 +23,11 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
-#[cfg(feature = "coconut")]
-use coconut_interface::Credential;
+use gateway_client::bandwidth::BandwidthController;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
 // If we're below 10MB of bandwidth, claim some more
-#[cfg(feature = "coconut")]
 const REMAINING_BANDWIDTH_THRESHOLD: i64 = 10 * 1000 * 1000;
 
 pub(crate) struct GatewayPackets {
@@ -88,10 +86,10 @@ struct FreshGatewayClientData {
 
     // TODO:
     // SECURITY:
-    // since currently we have no double spending protection, just to get things running
-    // we're re-using the same credential for all gateways all the time. THIS IS VERY BAD!!
-    #[cfg(feature = "coconut")]
-    coconut_bandwidth_credential: Credential,
+    // for coconut bandwidth credentials we currently have no double spending protection, just to
+    // get things running we're re-using the same credential for all gateways all the time.
+    // THIS IS VERY BAD!!
+    bandwidth_controller: BandwidthController,
 }
 
 impl FreshGatewayClientData {
@@ -147,7 +145,7 @@ impl PacketSender {
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
         max_sending_rate: usize,
-        #[cfg(feature = "coconut")] coconut_bandwidth_credential: Credential,
+        bandwidth_controller: BandwidthController,
     ) -> Self {
         PacketSender {
             active_gateway_clients: ActiveGatewayClients::new(),
@@ -155,8 +153,7 @@ impl PacketSender {
                 gateways_status_updater,
                 local_identity,
                 gateway_response_timeout,
-                #[cfg(feature = "coconut")]
-                coconut_bandwidth_credential,
+                bandwidth_controller,
             }),
             gateway_connection_timeout,
             max_concurrent_clients,
@@ -200,6 +197,7 @@ impl PacketSender {
                 message_sender,
                 ack_sender,
                 fresh_gateway_client_data.gateway_response_timeout,
+                Some(fresh_gateway_client_data.bandwidth_controller.clone()),
             )),
             (message_receiver, ack_receiver),
         )
@@ -288,14 +286,7 @@ impl PacketSender {
         let mut unlocked_client = new_client.lock_client_unchecked();
         match tokio::time::timeout(
             gateway_connection_timeout,
-            unlocked_client.get_mut_unchecked().authenticate_and_start(
-                #[cfg(feature = "coconut")]
-                Some(
-                    fresh_gateway_client_data
-                        .coconut_bandwidth_credential
-                        .clone(),
-                ),
-            ),
+            unlocked_client.get_mut_unchecked().authenticate_and_start(),
         )
         .await
         {
@@ -322,26 +313,15 @@ impl PacketSender {
         }
     }
 
-    #[cfg(feature = "coconut")]
     async fn check_remaining_bandwidth(
         client: &mut GatewayClient,
-        fresh_gateway_client_data: &FreshGatewayClientData,
     ) -> Result<(), GatewayClientError> {
         if client.remaining_bandwidth() < REMAINING_BANDWIDTH_THRESHOLD {
-            // TODO: SECURITY:
-            // We're using exactly the same credential again because we have no double
-            // spending protection...
             info!(
                 "Client to gateway {} is running out of bandwidth... Claiming some more...",
                 client.gateway_identity().to_base58_string()
             );
-            client
-                .claim_coconut_bandwidth(
-                    fresh_gateway_client_data
-                        .coconut_bandwidth_credential
-                        .clone(),
-                )
-                .await
+            client.claim_bandwidth().await
         } else {
             Ok(())
         }
@@ -387,10 +367,7 @@ impl PacketSender {
         let mut guard = client.lock_client().await;
         let unwrapped_client = guard.get_mut_unchecked();
 
-        #[cfg(feature = "coconut")]
-        if let Err(err) =
-            Self::check_remaining_bandwidth(unwrapped_client, &fresh_gateway_client_data).await
-        {
+        if let Err(err) = Self::check_remaining_bandwidth(unwrapped_client).await {
             warn!(
                 "Failed to claim additional bandwidth for {} - {}",
                 unwrapped_client.gateway_identity().to_base58_string(),

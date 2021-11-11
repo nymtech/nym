@@ -34,6 +34,9 @@ private_sphinx_key_file = '{{ gateway.private_sphinx_key_file }}'
 # Path to file containing public sphinx key.
 public_sphinx_key_file = '{{ gateway.public_sphinx_key_file }}'
 
+# Addess to an Ethereum full node.
+eth_endpoint = '{{ gateway.eth_endpoint }}'
+
 ##### additional gateway config options #####
 
 # Optional address announced to the directory server for the clients to connect to.
@@ -55,6 +58,15 @@ validator_api_urls = [
         '{{this}}',
     {{/each}}
 ]
+
+# Addresses to validators which the node uses to check for double spending of ERC20 tokens.
+validator_nymd_urls = [
+    {{#each gateway.validator_nymd_urls }}
+        '{{this}}',
+    {{/each}}
+]
+
+cosmos_mnemonic = "{{ gateway.cosmos_mnemonic }}"
 
 ##### advanced configuration options #####
 

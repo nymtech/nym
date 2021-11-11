@@ -1,0 +1,40 @@
+[package]
+name = "cosmos_contract"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace] # adding a blank workspace to keep it out of the global workspace.
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true
+
+[features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+
+[dev-dependencies]
+config = { path = "../../common/config"}
+
+[dependencies]
+erc20-bridge-contract = { path = "../../common/erc20-bridge-contract" }
+
+# this branch is identical to 0.14.1 with addition of updated k256 dependency required to help poor cargo choose correct version
+cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-updatedk256", features = ["iterator"] }
+cosmwasm-storage = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-updatedk256", features = ["iterator"] }
+
+schemars = "0.8"
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+thiserror = "1.0.23"

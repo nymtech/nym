@@ -17,14 +17,12 @@ const columns: ColumnsType[] = [
   {
     field: 'owner',
     title: 'Owner',
-    flex: 1,
     headerAlign: 'left',
     width: 230,
   },
   {
     field: 'identity_key',
     title: 'Identity Key',
-    flex: 1,
     headerAlign: 'left',
     width: 230,
   },

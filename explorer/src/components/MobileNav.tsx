@@ -35,7 +35,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
 }: MobileNavProps) => {
   const theme = useTheme();
   const { navState, updateNavState } = useMainContext();
-  const [drawerOpen, setDrawerOpen] = React.useState(true);
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);

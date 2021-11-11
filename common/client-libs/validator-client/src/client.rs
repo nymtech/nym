@@ -10,9 +10,9 @@ use mixnet_contract::StateParams;
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-#[cfg(feature = "nymd-client")]
-use mixnet_contract::RawDelegationData;
 use mixnet_contract::{GatewayBond, MixNodeBond};
+#[cfg(feature = "nymd-client")]
+use mixnet_contract::{RawDelegationData, RewardingIntervalResponse};
 use url::Url;
 
 #[cfg(feature = "nymd-client")]
@@ -170,6 +170,43 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.nymd.get_state_params().await?)
+    }
+
+    pub async fn get_current_rewarding_interval(
+        &self,
+    ) -> Result<RewardingIntervalResponse, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_current_rewarding_interval().await?)
+    }
+
+    pub async fn get_reward_pool(&self) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_reward_pool().await?.u128())
+    }
+
+    pub async fn get_circulating_supply(&self) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_circulating_supply().await?.u128())
+    }
+
+    pub async fn get_sybil_resistance_percent(&self) -> Result<u8, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_sybil_resistance_percent().await?)
+    }
+
+    pub async fn get_epoch_reward_percent(&self) -> Result<u8, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_epoch_reward_percent().await?)
     }
 
     // basically handles paging for us

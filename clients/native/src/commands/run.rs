@@ -10,7 +10,7 @@ use log::*;
 use version_checker::is_minor_version_compatible;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
-    App::new("run")
+    let app = App::new("run")
         .about("Run the Nym client with provided configuration client optionally overriding set parameters")
         .arg(Arg::with_name("id")
             .long("id")
@@ -38,7 +38,19 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .long("port")
             .help("Port for the socket (if applicable) to listen on")
             .takes_value(true)
-        )
+        );
+    #[cfg(not(feature = "coconut"))]
+        let app = app
+        .arg(Arg::with_name("eth_endpoint")
+            .long("eth_endpoint")
+            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
+            .takes_value(true))
+        .arg(Arg::with_name("eth_private_key")
+            .long("eth_private_key")
+            .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens")
+            .takes_value(true));
+
+    app
 }
 
 // this only checks compatibility between config the binary. It does not take into consideration

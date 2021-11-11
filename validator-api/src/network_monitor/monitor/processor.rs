@@ -3,6 +3,7 @@
 
 use crate::network_monitor::gateways_reader::GatewayMessages;
 use crate::network_monitor::test_packet::TestPacket;
+use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
 use crypto::asymmetric::encryption;
 use futures::channel::mpsc;
 use futures::lock::{Mutex, MutexGuard};
@@ -50,7 +51,7 @@ enum LockPermit {
 
 struct ReceivedProcessorInner {
     /// Nonce of the current test run indicating which packets should get rejected.
-    nonce: Option<u64>,
+    test_nonce: Option<u64>,
 
     /// Channel for receiving packets/messages from the gateway clients
     packets_receiver: ReceivedProcessorReceiver,
@@ -70,7 +71,7 @@ impl ReceivedProcessorInner {
     fn on_message(&mut self, message: Vec<u8>) -> Result<(), ProcessingError> {
         // if the nonce is none it means the packet was received during the 'waiting' for the
         // next test run
-        if self.nonce.is_none() {
+        if self.test_nonce.is_none() {
             return Err(ProcessingError::ReceivedOutsideTestRun);
         }
 
@@ -91,8 +92,8 @@ impl ReceivedProcessorInner {
             .map_err(|_| ProcessingError::MalformedPacketReceived)?;
 
         // we know nonce is NOT none
-        if test_packet.nonce() != self.nonce.unwrap() {
-            return Err(ProcessingError::NonMatchingNonce(test_packet.nonce()));
+        if test_packet.test_nonce() != self.test_nonce.unwrap() {
+            return Err(ProcessingError::NonMatchingNonce(test_packet.test_nonce()));
         }
 
         self.received_packets.push(test_packet);
@@ -101,7 +102,7 @@ impl ReceivedProcessorInner {
     }
 
     fn finish_run(&mut self) -> Vec<TestPacket> {
-        self.nonce = None;
+        self.test_nonce = None;
         mem::take(&mut self.received_packets)
     }
 }
@@ -118,7 +119,7 @@ impl ReceivedProcessor {
     ) -> Self {
         let inner: Arc<Mutex<ReceivedProcessorInner>> =
             Arc::new(Mutex::new(ReceivedProcessorInner {
-                nonce: None,
+                test_nonce: None,
                 packets_receiver,
                 client_encryption_keypair,
                 message_receiver: MessageReceiver::new(),
@@ -185,7 +186,11 @@ impl ReceivedProcessor {
         });
     }
 
-    pub(super) async fn set_new_expected(&mut self, nonce: u64) {
+    pub(super) async fn set_route_test_nonce(&mut self) {
+        self.set_new_test_nonce(ROUTE_TESTING_TEST_NONCE).await
+    }
+
+    pub(super) async fn set_new_test_nonce(&mut self, test_nonce: u64) {
         // ask for the lock back
         self.permit_changer
             .as_mut()
@@ -195,7 +200,7 @@ impl ReceivedProcessor {
             .expect("processing task has died!");
         let mut inner = self.inner.lock().await;
 
-        inner.nonce = Some(nonce);
+        inner.test_nonce = Some(test_nonce);
 
         // give the permit back
         drop(inner);

@@ -119,7 +119,7 @@ impl PartiallyDelegated {
             }
             .is_err()
             {
-                panic!("failed to send back `mixnet_receiver_future` result on the oneshot channel")
+                warn!("failed to send back `mixnet_receiver_future` result on the oneshot channel")
             }
         };
 

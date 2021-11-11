@@ -22,7 +22,7 @@ use topology::{filter::VersionFilterable, gateway};
 use url::Url;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
-    App::new("init")
+    let app = App::new("init")
         .about("Initialise a Nym client. Do this first!")
         .arg(Arg::with_name("id")
             .long("id")
@@ -54,7 +54,21 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .long("fastmode")
             .hidden(true) // this will prevent this flag from being displayed in `--help`
             .help("Mostly debug-related option to increase default traffic rate so that you would not need to modify config post init")
-        )
+        );
+    #[cfg(not(feature = "coconut"))]
+        let app = app
+        .arg(Arg::with_name("eth_endpoint")
+            .long("eth_endpoint")
+            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
+            .takes_value(true)
+            .required(true))
+        .arg(Arg::with_name("eth_private_key")
+            .long("eth_private_key")
+            .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens")
+            .takes_value(true)
+            .required(true));
+
+    app
 }
 
 async fn register_with_gateway(

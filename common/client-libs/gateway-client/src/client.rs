@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::bandwidth::BandwidthController;
 use crate::cleanup_socket_message;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
@@ -8,6 +9,10 @@ pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
+#[cfg(not(feature = "coconut"))]
+use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
@@ -30,15 +35,11 @@ use fluvio_wasm_timer as wasm_timer;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 
-#[cfg(feature = "coconut")]
-use coconut_interface::Credential;
-
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
 pub struct GatewayClient {
     authenticated: bool,
-    #[cfg(feature = "coconut")]
     bandwidth_remaining: i64,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
@@ -47,6 +48,7 @@ pub struct GatewayClient {
     connection: SocketState,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
+    bandwidth_controller: Option<BandwidthController>,
 
     // reconnection related variables
     /// Specifies whether client should try to reconnect to gateway on connection failure.
@@ -69,20 +71,19 @@ impl GatewayClient {
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
+        bandwidth_controller: Option<BandwidthController>,
     ) -> Self {
         GatewayClient {
             authenticated: false,
-
-            #[cfg(feature = "coconut")]
             bandwidth_remaining: 0,
             gateway_address,
-
             gateway_identity,
             local_identity,
             shared_key,
             connection: SocketState::NotConnected,
             packet_router: PacketRouter::new(ack_sender, mixnet_message_sender),
             response_timeout_duration,
+            bandwidth_controller,
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
@@ -118,10 +119,7 @@ impl GatewayClient {
 
         GatewayClient {
             authenticated: false,
-
-            #[cfg(feature = "coconut")]
             bandwidth_remaining: 0,
-
             gateway_address,
             gateway_identity,
             local_identity,
@@ -129,6 +127,7 @@ impl GatewayClient {
             connection: SocketState::NotConnected,
             packet_router,
             response_timeout_duration,
+            bandwidth_controller: None,
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
@@ -137,6 +136,10 @@ impl GatewayClient {
 
     pub fn gateway_identity(&self) -> identity::PublicKey {
         self.gateway_identity
+    }
+
+    pub fn remaining_bandwidth(&self) -> i64 {
+        self.bandwidth_remaining
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -203,14 +206,7 @@ impl GatewayClient {
 
         for i in 1..self.reconnection_attempts {
             info!("attempt {}...", i);
-            if self
-                .authenticate_and_start(
-                    #[cfg(feature = "coconut")]
-                    None,
-                )
-                .await
-                .is_ok()
-            {
+            if self.authenticate_and_start().await.is_ok() {
                 info!("managed to reconnect!");
                 return Ok(());
             }
@@ -229,13 +225,7 @@ impl GatewayClient {
 
         // final attempt (done separately to be able to return a proper error)
         info!("attempt {}", self.reconnection_attempts);
-        match self
-            .authenticate_and_start(
-                #[cfg(feature = "coconut")]
-                None,
-            )
-            .await
-        {
+        match self.authenticate_and_start().await {
             Ok(_) => {
                 info!("managed to reconnect!");
                 Ok(())
@@ -446,8 +436,12 @@ impl GatewayClient {
             ClientControlRequest::new_authenticate(self_address, encrypted_address, iv).into();
 
         match self.send_websocket_message(msg).await? {
-            ServerResponse::Authenticate { status } => {
+            ServerResponse::Authenticate {
+                status,
+                bandwidth_remaining,
+            } => {
                 self.authenticated = status;
+                self.bandwidth_remaining = bandwidth_remaining;
                 Ok(())
             }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
@@ -473,22 +467,15 @@ impl GatewayClient {
     }
 
     #[cfg(feature = "coconut")]
-    pub async fn claim_coconut_bandwidth(
+    async fn claim_coconut_bandwidth(
         &mut self,
-        coconut_credential: Credential,
+        credential: Credential,
     ) -> Result<(), GatewayClientError> {
-        if !self.authenticated {
-            return Err(GatewayClientError::NotAuthenticated);
-        }
-        if self.shared_key.is_none() {
-            return Err(GatewayClientError::NoSharedKeyAvailable);
-        }
-
         let mut rng = OsRng;
         let iv = IV::new_random(&mut rng);
 
         let msg = ClientControlRequest::new_enc_coconut_bandwidth_credential(
-            &coconut_credential,
+            &credential,
             self.shared_key.as_ref().unwrap(),
             iv,
         )
@@ -502,7 +489,64 @@ impl GatewayClient {
         Ok(())
     }
 
-    #[cfg(feature = "coconut")]
+    #[cfg(not(feature = "coconut"))]
+    async fn claim_token_bandwidth(
+        &mut self,
+        credential: TokenCredential,
+    ) -> Result<(), GatewayClientError> {
+        let mut rng = OsRng;
+
+        let iv = IV::new_random(&mut rng);
+
+        let msg = ClientControlRequest::new_enc_token_bandwidth_credential(
+            &credential,
+            self.shared_key.as_ref().unwrap(),
+            iv,
+        )
+        .into();
+        self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
+            ServerResponse::Bandwidth { available_total } => Ok(available_total),
+            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+            _ => Err(GatewayClientError::UnexpectedResponse),
+        }?;
+
+        Ok(())
+    }
+
+    pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError> {
+        if !self.authenticated {
+            return Err(GatewayClientError::NotAuthenticated);
+        }
+        if self.shared_key.is_none() {
+            return Err(GatewayClientError::NoSharedKeyAvailable);
+        }
+        if self.bandwidth_controller.is_none() {
+            return Err(GatewayClientError::NoBandwidthControllerAvailable);
+        }
+
+        warn!("Not enough bandwidth. Trying to get more bandwidth, this might take a while");
+
+        #[cfg(feature = "coconut")]
+        let credential = self
+            .bandwidth_controller
+            .as_ref()
+            .unwrap()
+            .prepare_coconut_credential()
+            .await?;
+        #[cfg(not(feature = "coconut"))]
+        let credential = self
+            .bandwidth_controller
+            .as_ref()
+            .unwrap()
+            .prepare_token_credential(self.gateway_identity)
+            .await?;
+
+        #[cfg(feature = "coconut")]
+        return self.claim_coconut_bandwidth(credential).await;
+        #[cfg(not(feature = "coconut"))]
+        return self.claim_token_bandwidth(credential).await;
+    }
+
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {
         packets
             .iter()
@@ -517,9 +561,16 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        #[cfg(feature = "coconut")]
-        if self.estimate_required_bandwidth(&packets) < self.bandwidth_remaining {
-            return Err(GatewayClientError::NotEnoughBandwidth);
+        if self.estimate_required_bandwidth(&packets) > self.bandwidth_remaining {
+            // Try to claim more bandwidth first, and return an error only if that is still not
+            // enough (the current granularity for bandwidth should be sufficient)
+            self.claim_bandwidth().await?;
+            if self.estimate_required_bandwidth(&packets) > self.bandwidth_remaining {
+                return Err(GatewayClientError::NotEnoughBandwidth(
+                    self.estimate_required_bandwidth(&packets),
+                    self.bandwidth_remaining,
+                ));
+            }
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -585,9 +636,16 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        #[cfg(feature = "coconut")]
         if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
-            return Err(GatewayClientError::NotEnoughBandwidth);
+            // Try to claim more bandwidth first, and return an error only if that is still not
+            // enough
+            self.claim_bandwidth().await?;
+            if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
+                return Err(GatewayClientError::NotEnoughBandwidth(
+                    mix_packet.sphinx_packet().len() as i64,
+                    self.bandwidth_remaining,
+                ));
+            }
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -624,10 +682,6 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        #[cfg(feature = "coconut")]
-        if self.bandwidth_remaining <= 0 {
-            return Err(GatewayClientError::NotEnoughBandwidth);
-        }
         if self.connection.is_partially_delegated() {
             return Ok(());
         }
@@ -655,21 +709,11 @@ impl GatewayClient {
         Ok(())
     }
 
-    pub async fn authenticate_and_start(
-        &mut self,
-        #[cfg(feature = "coconut")] coconut_credential: Option<Credential>,
-    ) -> Result<Arc<SharedKeys>, GatewayClientError> {
+    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError> {
         if !self.connection.is_established() {
             self.establish_connection().await?;
         }
         let shared_key = self.perform_initial_authentication().await?;
-
-        #[cfg(feature = "coconut")]
-        {
-            if let Some(coconut_credential) = coconut_credential {
-                self.claim_coconut_bandwidth(coconut_credential).await?;
-            }
-        }
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

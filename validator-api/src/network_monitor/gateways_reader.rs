@@ -75,7 +75,7 @@ impl Stream for GatewayChannel {
                             // it is fine enough to use the same constant here as in the main GatewayReader
                             // as only a single channel, i.e. the main gateway will be capable
                             // of returning more than 2 values
-                            if polled == YIELD_EVERY {
+                            if polled >= YIELD_EVERY {
                                 cx.waker().wake_by_ref();
                                 break;
                             }

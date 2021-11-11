@@ -6,7 +6,6 @@ extern crate rocket;
 
 use crate::cache::ValidatorCacheRefresher;
 use crate::config::Config;
-use crate::network_monitor::tested_network::good_topology::parse_topology_file;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
@@ -47,9 +46,6 @@ mod coconut;
 
 const MONITORING_ENABLED: &str = "enable-monitor";
 const REWARDING_ENABLED: &str = "enable-rewarding";
-const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
-const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
-const DETAILED_REPORT_ARG: &str = "detailed-report";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const MNEMONIC_ARG: &str = "mnemonic";
 const WRITE_CONFIG_ARG: &str = "save-config";
@@ -62,11 +58,14 @@ const KEYPAIR_ARG: &str = "keypair";
 #[cfg(feature = "coconut")]
 const COCONUT_ONLY_FLAG: &str = "coconut-only";
 
+#[cfg(not(feature = "coconut"))]
+const ETH_ENDPOINT: &str = "eth_endpoint";
+#[cfg(not(feature = "coconut"))]
+const ETH_PRIVATE_KEY: &str = "eth_private_key";
+
 const EPOCH_LENGTH_ARG: &str = "epoch-length";
 const FIRST_REWARDING_EPOCH_ARG: &str = "first-epoch";
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
-
-pub(crate) const PENALISE_OUTDATED: bool = false;
 
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
@@ -80,6 +79,11 @@ fn parse_validators(raw: &str) -> Vec<Url> {
 }
 
 fn parse_args<'a>() -> ArgMatches<'a> {
+    #[cfg(feature = "coconut")]
+    let monitor_reqs = &[];
+    #[cfg(not(feature = "coconut"))]
+    let monitor_reqs = &[ETH_ENDPOINT, ETH_PRIVATE_KEY];
+
     let base_app = App::new("Nym Validator API")
         .author("Nymtech")
         .arg(
@@ -87,25 +91,13 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("specifies whether a network monitoring is enabled on this API")
                 .long(MONITORING_ENABLED)
                 .short("m")
+                .requires_all(monitor_reqs)
         )
         .arg(
             Arg::with_name(REWARDING_ENABLED)
                 .help("specifies whether a network rewarding is enabled on this API")
                 .long(REWARDING_ENABLED)
                 .short("r")
-                .requires(MONITORING_ENABLED)
-        )
-        .arg(
-            Arg::with_name(V4_TOPOLOGY_ARG)
-                .help("location of .json file containing IPv4 'good' network topology")
-                .long(V4_TOPOLOGY_ARG)
-                .requires(MONITORING_ENABLED)
-        )
-        .arg(
-            Arg::with_name(V6_TOPOLOGY_ARG)
-                .help("location of .json file containing IPv6 'good' network topology")
-                .long(V6_TOPOLOGY_ARG)
-                .takes_value(true)
                 .requires(MONITORING_ENABLED)
         )
         .arg(
@@ -124,12 +116,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                  .help("Mnemonic of the network monitor used for rewarding operators")
                  .takes_value(true)
                  .requires(REWARDING_ENABLED),
-        )
-        .arg(
-            Arg::with_name(DETAILED_REPORT_ARG)
-                .help("specifies whether a detailed report should be printed after each run")
-                .long(DETAILED_REPORT_ARG)
-                .requires(MONITORING_ENABLED)
         )
         .arg(
             Arg::with_name(WRITE_CONFIG_ARG)
@@ -177,6 +163,19 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             .long(COCONUT_ONLY_FLAG),
     );
 
+    #[cfg(not(feature = "coconut"))]
+        let base_app = base_app.arg(
+        Arg::with_name(ETH_ENDPOINT)
+            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
+            .takes_value(true)
+            .long(ETH_ENDPOINT),
+    ).arg(
+        Arg::with_name(ETH_PRIVATE_KEY)
+            .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens")
+            .takes_value(true)
+            .long(ETH_PRIVATE_KEY),
+    );
+
     base_app.get_matches()
 }
 
@@ -218,14 +217,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
 
     if matches.is_present(REWARDING_ENABLED) {
         config = config.with_rewarding_enabled(true)
-    }
-
-    if let Some(v4_topology_path) = matches.value_of(V4_TOPOLOGY_ARG) {
-        config = config.with_v4_good_topology(v4_topology_path)
-    }
-
-    if let Some(v6_topology_path) = matches.value_of(V6_TOPOLOGY_ARG) {
-        config = config.with_v6_good_topology(v6_topology_path)
     }
 
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
@@ -278,10 +269,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_minimum_epoch_monitor_threshold(monitor_threshold)
     }
 
-    if matches.is_present(DETAILED_REPORT_ARG) {
-        config = config.with_detailed_network_monitor_report(true)
-    }
-
     #[cfg(feature = "coconut")]
     if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
         let keypair_bs58 = std::fs::read_to_string(keypair_path)
@@ -289,6 +276,16 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
             .trim()
             .to_string();
         config = config.with_keypair(keypair_bs58)
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    if let Some(eth_private_key) = matches.value_of("eth_private_key") {
+        config = config.with_eth_private_key(String::from(eth_private_key));
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    if let Some(eth_endpoint) = matches.value_of("eth_endpoint") {
+        config = config.with_eth_endpoint(String::from(eth_endpoint));
     }
 
     if matches.is_present(WRITE_CONFIG_ARG) {
@@ -329,6 +326,7 @@ fn setup_liftoff_notify(notify: Arc<Notify>) -> AdHoc {
 
 fn setup_network_monitor<'a>(
     config: &'a Config,
+    system_version: &str,
     rocket: &Rocket<Ignite>,
 ) -> Option<NetworkMonitorBuilder<'a>> {
     if !config.get_network_monitor_enabled() {
@@ -339,14 +337,9 @@ fn setup_network_monitor<'a>(
     let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
-    let v4_topology = parse_topology_file(config.get_v4_good_topology_file());
-    let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
-    network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
-
     Some(NetworkMonitorBuilder::new(
         config,
-        v4_topology,
-        v6_topology,
+        system_version,
         node_status_storage,
         validator_cache,
     ))
@@ -417,6 +410,7 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
 #[tokio::main]
 async fn main() -> Result<()> {
     setup_logging();
+    let system_version = env!("CARGO_PKG_VERSION");
 
     println!("Starting validator api...");
 
@@ -459,7 +453,7 @@ async fn main() -> Result<()> {
 
     // let's build our rocket!
     let rocket = setup_rocket(&config, Arc::clone(&liftoff_notify)).await?;
-    let monitor_builder = setup_network_monitor(&config, &rocket);
+    let monitor_builder = setup_network_monitor(&config, system_version, &rocket);
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 

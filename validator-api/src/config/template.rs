@@ -35,15 +35,6 @@ all_validator_apis = [
     {{/each}}
 ]
 
-# Specifies whether a detailed report should be printed after each run
-print_detailed_report = {{ network_monitor.print_detailed_report }}
-
-# Location of .json file containing IPv4 'good' network topology
-good_v4_topology_file = '{{ network_monitor.good_v4_topology_file }}'
-
-# Location of .json file containing IPv6 'good' network topology
-good_v6_topology_file = '{{ network_monitor.good_v6_topology_file }}'
-
 # Specifies the interval at which the network monitor sends the test packets.
 run_interval = '{{ network_monitor.run_interval }}'
 
@@ -66,6 +57,31 @@ gateway_connection_timeout = '{{ network_monitor.gateway_connection_timeout }}'
 # Specifies the duration the monitor is going to wait after sending all measurement
 # packets before declaring nodes unreachable.
 packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
+
+# Path to directory containing public/private keys used for bandwidth token purchase.
+# Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
+# The public key is the name of the file, while the private key is the content.
+backup_bandwidth_token_keys_dir = '{{ network_monitor.backup_bandwidth_token_keys_dir }}'
+
+# Ethereum private key.
+eth_private_key = '{{ network_monitor.eth_private_key }}'
+
+# Addess to an Ethereum full node.
+eth_endpoint = '{{ network_monitor.eth_endpoint }}'
+
+# Desired number of test routes to be constructed (and working) during a monitor test run.
+test_routes = {{ network_monitor.test_routes }}
+
+# The minimum number of test routes that need to be constructed (and working) in order for
+# a monitor test run to be valid.
+minimum_test_routes = {{ network_monitor.minimum_test_routes }}
+
+# Number of test packets sent via each pseudorandom route to verify whether they work correctly,
+# before using them for testing the rest of the network.
+route_test_packets = {{ network_monitor.route_test_packets }}
+
+# Number of test packets sent to each node during regular monitor test run.
+per_node_test_packets = {{ network_monitor.per_node_test_packets }}
     
 [node_status_api]
 

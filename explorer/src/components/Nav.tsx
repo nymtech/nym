@@ -383,7 +383,6 @@ export const Nav: React.FC = ({ children }) => {
         open={drawerIsOpen}
         sx={{
           background: theme.palette.nym.networkExplorer.nav.background,
-          // border: '1px solid skyblue',
         }}
       >
         <DrawerHeader

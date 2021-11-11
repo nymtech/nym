@@ -3,13 +3,13 @@ name: Generate TS types
 on:
   push:
     paths-ignore:
-      - 'explorer/**'
+      - "explorer/**"
   pull_request:
     paths-ignore:
-      - 'explorer/**'
+      - "explorer/**"
 
 jobs:
-  tauri-wallet-types:
+  nym-wallet-types:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'pull_request' }}
     steps:
@@ -20,10 +20,10 @@ jobs:
         with:
           toolchain: stable
       - name: Generate TS
-        run: cd tauri-wallet/src-tauri && cargo test
+        run: cd nym-wallet/src-tauri && cargo test
       - uses: EndBug/add-and-commit@v7.2.1 # https://github.com/marketplace/actions/add-commit
         with:
-          add: '["tauri-wallet"]'
-          message: '[ci skip] Generate TS types'
+          add: '["nym-wallet"]'
+          message: "[ci skip] Generate TS types"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

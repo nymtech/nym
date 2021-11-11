@@ -36,5 +36,5 @@ Cargo.* @durch @futurechimp @jstuczyn @neacsu
 
 # Explorer and wallet should probably get looked by the product team
 /explorer/ @nymtech/product 
-/tauri-wallet/ @nymtech/product 
+/nym-wallet/ @nymtech/product 
 /wallet-web/ @nymtech/product

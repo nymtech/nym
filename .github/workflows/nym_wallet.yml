@@ -1,18 +1,18 @@
 name: Webdriverio tests for nym wallet
 
-on: 
- push:
+on:
+  push:
     paths:
-      - 'tauri-wallet/**'
-      
+      - "nym-wallet/**"
+
 defaults:
   run:
-    working-directory: tauri-wallet
+    working-directory: nym-wallet
 
 jobs:
   test:
     name: wallet tests
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
@@ -30,8 +30,8 @@ jobs:
       - name: Install minimal stable
         uses: actions-rs/toolchain@v1
         with:
-         profile: minimal
-         toolchain: stable
+          profile: minimal
+          toolchain: stable
 
       - name: Node v16
         uses: actions/setup-node@v1
@@ -39,32 +39,32 @@ jobs:
           node-version: 16.x
 
       - name: Install yarn for building application
-        run: yarn install    
+        run: yarn install
 
       - name: Build application
         run: yarn run webpack:build & yarn run tauri:build
-        
+
       - name: Check binary exists
         run: |
-             cd target/release/
-             (test -f nym-wallet && echo nym binary exists) || echo wallet does not exist
+          cd target/release/
+          (test -f nym-wallet && echo nym binary exists) || echo wallet does not exist
 
       - name: Install dependencies
         run: yarn install
-        working-directory: tauri-wallet/webdriver
+        working-directory: nym-wallet/webdriver
 
       - name: Remove existing user datafile
         uses: JesseTG/rm@v1.0.2
         with:
-          path: tauri-wallet/webdriver/common/data/user-data.json
+          path: nym-wallet/webdriver/common/data/user-data.json
 
       - name: Create user data json file
         id: create-json
         uses: jsdaniell/create-json@1.1.2
         with:
-           name: "user-data.json"
-           json: ${{ secrets.WALLET_USERDATA }}
-           dir: 'tauri-wallet/webdriver/common/data/'
+          name: "user-data.json"
+          json: ${{ secrets.WALLET_USERDATA }}
+          dir: "nym-wallet/webdriver/common/data/"
 
       - name: Install tauri-driver
         uses: actions-rs/cargo@v1
@@ -74,4 +74,4 @@ jobs:
 
       - name: Launch tests
         run: xvfb-run yarn test:runall
-        working-directory: tauri-wallet/webdriver
+        working-directory: nym-wallet/webdriver

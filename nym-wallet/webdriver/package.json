@@ -9,7 +9,8 @@
     "test:home": "wdio run wdio.conf.cjs --suite home",
     "test:bond": "wdio run wdio.conf.cjs --suite bond",
     "test:delegate": "wdio run wdio.conf.cjs --suite delegate",
-    "test:newuser": "wdio run wdio.conf.cjs --suite newuser"
+    "test:newuser": "wdio run wdio.conf.cjs --suite newuser",
+    "run:prettier": "prettier --write ."
   },
   "dependencies": {
     "@types/node": "^16.11.0",
@@ -20,6 +21,7 @@
   "devDependencies": {
     "@wdio/local-runner": "^7.14.1",
     "@wdio/mocha-framework": "^7.14.1",
-    "@wdio/spec-reporter": "^7.14.1"
+    "@wdio/spec-reporter": "^7.14.1",
+    "prettier": "2.4.1"
   }
 }

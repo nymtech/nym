@@ -8,9 +8,9 @@ use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use ts_rs::TS;
 
-#[derive(Serialize, Deserialize, TS)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Serialize, Deserialize)]
 pub struct TauriStateParams {
   epoch_length: u32,
   minimum_mixnode_bond: String,

@@ -61,7 +61,7 @@ packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
 # Path to directory containing public/private keys used for bandwidth token purchase.
 # Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
 # The public key is the name of the file, while the private key is the content.
-backup_bandwidth_token_keys_dir = '{{ client.backup_bandwidth_token_keys_dir }}'
+backup_bandwidth_token_keys_dir = '{{ network_monitor.backup_bandwidth_token_keys_dir }}'
 
 # Ethereum private key.
 eth_private_key = '{{ network_monitor.eth_private_key }}'

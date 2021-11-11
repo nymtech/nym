@@ -7,7 +7,6 @@ use mixnet_contract::{Gateway, MixNode};
 use std::sync::Arc;
 use tauri::{Menu, MenuItem};
 use tokio::sync::RwLock;
-use ts_rs::export;
 use validator_client::nymd::fee_helpers::Operation;
 
 mod coin;
@@ -70,16 +69,19 @@ fn main() {
     .expect("error while running tauri application");
 }
 
-export! {
-  MixNode => "../src/types/rust/mixnode.ts",
-  Coin => "../src/types/rust/coin.ts",
-  Balance => "../src/types/rust/balance.ts",
-  Gateway => "../src/types/rust/gateway.ts",
-  TauriTxResult => "../src/types/rust/tauritxresult.ts",
-  TransactionDetails => "../src/types/rust/transactiondetails.ts",
-  Operation => "../src/types/rust/operation.ts",
-  Denom => "../src/types/rust/denom.ts",
-  DelegationResult => "../src/types/rust/delegationresult.ts",
-  Account => "../src/types/rust/account.ts",
-  TauriStateParams => "../src/types/rust/stateparams.ts"
+#[cfg(test)]
+mod test {
+  ts_rs::export! {
+    mixnet_contract::MixNode => "../src/types/rust/mixnode.ts",
+    crate::Coin => "../src/types/rust/coin.ts",
+    crate::Balance => "../src/types/rust/balance.ts",
+    mixnet_contract::Gateway => "../src/types/rust/gateway.ts",
+    crate::TauriTxResult => "../src/types/rust/tauritxresult.ts",
+    crate::TransactionDetails => "../src/types/rust/transactiondetails.ts",
+    validator_client::nymd::fee_helpers::Operation => "../src/types/rust/operation.ts",
+    crate::Denom => "../src/types/rust/denom.ts",
+    crate::DelegationResult => "../src/types/rust/delegationresult.ts",
+    crate::Account => "../src/types/rust/account.ts",
+    crate::TauriStateParams => "../src/types/rust/stateparams.ts"
+  }
 }

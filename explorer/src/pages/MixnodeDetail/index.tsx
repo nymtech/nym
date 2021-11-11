@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Box, Grid, Typography } from '@mui/material';
-import { ColumnsType, DetailTable } from 'src/components/UniversalTable';
+import { ColumnsType, DetailTable } from 'src/components/DetailTable';
 import { mixnodeToGridRow, scrollToRef } from 'src/utils';
 import { useParams } from 'react-router-dom';
 import { BondBreakdownTable } from 'src/components/BondBreakdown';

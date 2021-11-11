@@ -6,12 +6,14 @@ use crate::queries;
 use crate::storage::*;
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, StdResult, Storage,
+    Uint128,
 };
-use cosmwasm_storage::ReadonlyBucket;
-use mixnet_contract::mixnode::NodeRewardParams;
+use cosmwasm_storage::{Bucket, ReadonlyBucket};
+use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
 use mixnet_contract::{
-    Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
+    Gateway, GatewayBond, IdentityKey, IdentityKeyRef, Layer, MixNode, MixNodeBond,
+    RawDelegationData, StateParams,
 };
 
 pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
@@ -408,6 +410,7 @@ pub(crate) fn try_begin_mixnode_rewarding(
 // for example delegation reward distribution, the gas limits must be retested and both
 // validator-api/src/rewarding/mod.rs::{MIXNODE_REWARD_OP_BASE_GAS_LIMIT, PER_MIXNODE_DELEGATION_GAS_INCREASE}
 // must be updated appropriately.
+#[deprecated]
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut,
     env: Env,
@@ -507,6 +510,126 @@ pub(crate) fn try_reward_mixnode(
         ],
         data: None,
     })
+}
+
+struct MixDelegationRewardingResult {
+    total_rewarded: Uint128,
+    start_next: Option<String>,
+}
+
+struct RewardingResult {
+    operator_reward: Uint128,
+    total_delegator_reward: Uint128,
+}
+
+struct PendingDelegatorRewarding {
+    // keep track of the running rewarding results so we'd known how much was the operator and its delegators rewarded
+    running_results: RewardingResult,
+
+    next_start: String,
+
+    rewarding_params: DelegatorRewardParams,
+}
+
+enum RewardingStatus {
+    Complete(RewardingResult),
+    PendingNextDelegatorPage(PendingDelegatorRewarding),
+}
+
+fn reward_mix_delegators_v2(
+    storage: &mut dyn Storage,
+    mix_identity: IdentityKeyRef,
+    start: Option<String>,
+    params: DelegatorRewardParams,
+) -> StdResult<MixDelegationRewardingResult> {
+    let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
+    let start_value = start.as_ref().map(|addr| addr.as_bytes());
+
+    let mut delegations = mix_delegations(storage, mix_identity);
+
+    let mut total_rewarded = Uint128::zero();
+    let mut items = 0;
+
+    // keep track of the last iterated address so that we'd known what is the starting point
+    // of the next call (if required)
+    let mut start_next = None;
+
+    // I really hate this intermediate allocation, but I don't think there's a nice
+    // way around it as we need to have immutable borrow into the bucket to retrieve delegation
+    // itself and then we need a mutable one to insert an updated one back
+    let mut rewarded_delegations = Vec::new();
+
+    // get `chunk_size` + 1 of delegations
+    // we get the additional one to know the optional starting point of the next call
+    // TODO: optimization for the future: we're reading 1 additional item than what's strictly
+    // required for this transaction thus slightly increasing the gas costs.
+    // however this makes the logic slightly simpler (I hope)
+    // Note: we can't just return last key of `chunk_size` with appended 0 byte as that
+    // would not be a valid utf8 string
+    for delegation in delegations
+        .range(start_value, None, cosmwasm_std::Order::Ascending)
+        .take(chunk_size + 1)
+    {
+        items += 1;
+
+        let (delegator_address, mut delegation) = delegation?;
+
+        if items == chunk_size + 1 {
+            // we shouldn't process this data, it's for the next call
+            start_next = Some(String::from_utf8(delegator_address)?);
+            break;
+        } else {
+            // and for each of them increase the stake proportionally to the reward
+            // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
+            // since they delegated
+            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING
+                <= params.node_reward_params().reward_blockstamp()
+            {
+                let reward = params.determine_delegation_reward(delegation.amount);
+                delegation.amount += Uint128(reward);
+                total_rewarded += Uint128(reward);
+
+                rewarded_delegations.push((delegator_address, delegation));
+            }
+        }
+    }
+
+    // finally save all delegation data back into the bucket
+    for rewarded_delegation in rewarded_delegations {
+        delegations.save(&rewarded_delegation.0, &rewarded_delegation.1)?;
+    }
+
+    Ok(MixDelegationRewardingResult {
+        total_rewarded,
+        start_next,
+    })
+}
+
+pub(crate) fn increase_mix_delegated_stakes_v2(
+    storage: &mut dyn Storage,
+    bond: &MixNodeBond,
+    params: &NodeRewardParams,
+) -> Result<Uint128, ContractError> {
+    let mut chunk_start: Option<String> = None;
+    let mut total_rewarded = Uint128::zero();
+
+    let delegator_rewarding_params = DelegatorRewardParams::new(bond, *params);
+
+    loop {
+        let res = reward_mix_delegators_v2(
+            storage,
+            bond.identity(),
+            chunk_start.clone(),
+            delegator_rewarding_params,
+        )?;
+        chunk_start = res.start_next;
+        total_rewarded += res.total_rewarded;
+        if chunk_start.is_none() {
+            break;
+        }
+    }
+
+    Ok(total_rewarded)
 }
 
 pub(crate) fn try_reward_mixnode_v2(
@@ -2532,7 +2655,7 @@ pub mod tests {
                     deps.as_mut(),
                     mock_env(),
                     mock_info("sender", &coins(123, DENOM)),
-                    "non-existent-mix-identity".into()
+                    "non-existent-mix-identity".into(),
                 )
             );
         }
@@ -2549,7 +2672,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
-                identity.clone()
+                identity.clone(),
             )
             .is_ok());
 
@@ -2593,7 +2716,7 @@ pub mod tests {
                     deps.as_mut(),
                     mock_env(),
                     mock_info(delegation_owner.as_str(), &coins(123, DENOM)),
-                    identity
+                    identity,
                 )
             );
         }
@@ -2613,7 +2736,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
-                identity.clone()
+                identity.clone(),
             )
             .is_ok());
 
@@ -2668,7 +2791,7 @@ pub mod tests {
             assert_eq!(
                 RawDelegationData::new(
                     delegation1.amount + delegation2.amount,
-                    mock_env().block.height
+                    mock_env().block.height,
                 ),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
@@ -2817,7 +2940,7 @@ pub mod tests {
                     deps.as_mut(),
                     mock_env(),
                     mock_info(delegation_owner.as_str(), &coins(50, DENOM)),
-                    identity
+                    identity,
                 )
             );
         }
@@ -2835,7 +2958,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(123, DENOM)),
-                identity1.clone()
+                identity1.clone(),
             )
             .is_ok());
 
@@ -2843,7 +2966,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(42, DENOM)),
-                identity2.clone()
+                identity2.clone(),
             )
             .is_ok());
 
@@ -2885,7 +3008,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info("sender1", &vec![delegation1.clone()]),
-                identity.clone()
+                identity.clone(),
             )
             .is_ok());
 
@@ -2893,7 +3016,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info("sender2", &vec![delegation2.clone()]),
-                identity.clone()
+                identity.clone(),
             )
             .is_ok());
 
@@ -3086,7 +3209,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info(delegation_owner1.as_str(), &vec![delegation1.clone()]),
-                identity.clone()
+                identity.clone(),
             )
             .is_ok());
 
@@ -3094,7 +3217,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info(delegation_owner2.as_str(), &vec![delegation2.clone()]),
-                identity.clone()
+                identity.clone(),
             )
             .is_ok());
 
@@ -3218,7 +3341,7 @@ pub mod tests {
                     "total delegation increase",
                     expected_delegation1_reward
                         + expected_delegation2_reward
-                        + expected_delegation3_reward
+                        + expected_delegation3_reward,
                 ),
             ],
             res.attributes
@@ -3287,7 +3410,7 @@ pub mod tests {
                     "total delegation increase",
                     expected_delegation1_reward
                         + expected_delegation2_reward
-                        + expected_delegation3_reward
+                        + expected_delegation3_reward,
                 ),
             ],
             res.attributes

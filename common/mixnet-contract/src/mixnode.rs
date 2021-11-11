@@ -14,6 +14,10 @@ use std::fmt::Display;
 
 type U128 = fixed::types::U75F53; // u128 with 18 significant digits
 
+fixed::const_fixed_from_int! {
+    const ONE: U128 = 1;
+}
+
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct MixNode {
@@ -110,11 +114,62 @@ impl NodeRewardParams {
     }
 
     pub fn one_over_k(&self) -> U128 {
-        U128::from_num(1) / U128::from_num(self.k.u128())
+        ONE / U128::from_num(self.k.u128())
     }
 
     pub fn alpha(&self) -> U128 {
         U128::from_num(self.sybil_resistance_percent) / U128::from_num(100)
+    }
+}
+
+// everything required to reward delegator of given mixnode
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+pub struct DelegatorRewardParams {
+    node_reward_params: NodeRewardParams,
+
+    // to be completely honest I don't understand all consequences of using `#[schemars(with = "String")]`
+    // for U128 here, but it seems that CosmWasm is using the same attribute for their Uint128
+    #[schemars(with = "String")]
+    sigma: U128,
+    #[schemars(with = "String")]
+    profit_margin: U128,
+    #[schemars(with = "String")]
+    node_profit: U128,
+}
+
+impl DelegatorRewardParams {
+    pub fn new(mixnode_bond: &MixNodeBond, node_reward_params: NodeRewardParams) -> Self {
+        DelegatorRewardParams {
+            sigma: mixnode_bond.sigma(&node_reward_params),
+            profit_margin: mixnode_bond.profit_margin(),
+            node_profit: mixnode_bond.node_profit(&node_reward_params),
+            node_reward_params,
+        }
+    }
+
+    pub fn determine_delegation_reward(&self, delegation_amount: Uint128) -> u128 {
+        // change all values into their fixed representations
+        let delegation_amount = U128::from_num(delegation_amount.u128());
+        let circulating_supply = U128::from_num(self.node_reward_params.circulating_supply());
+
+        let scaled_delegation_amount = delegation_amount / circulating_supply;
+        let delegator_reward =
+            (ONE - self.profit_margin) * scaled_delegation_amount / self.sigma * self.node_profit;
+
+        let reward = delegator_reward.max(U128::ZERO);
+        if let Some(int_reward) = reward.checked_cast() {
+            int_reward
+        } else {
+            error!(
+                "Could not cast delegator reward ({}) to u128, returning 0",
+                reward,
+            );
+            0u128
+        }
+    }
+
+    pub fn node_reward_params(&self) -> &NodeRewardParams {
+        &self.node_reward_params
     }
 }
 
@@ -228,14 +283,14 @@ impl MixNodeBond {
 
     pub fn reward(&self, params: &NodeRewardParams) -> NodeRewardResult {
         // Assuming uniform work distribution across the network this is one_over_k * k
-        let omega_k = U128::from_num(1u128);
+        let omega_k = ONE;
         let lambda = self.lambda(params);
         let sigma = self.sigma(params);
 
         let reward = params.performance()
             * params.period_reward_pool()
             * (sigma * omega_k + params.alpha() * lambda * sigma * params.k())
-            / (U128::from_num(1) + params.alpha());
+            / (ONE + params.alpha());
 
         NodeRewardResult {
             reward,
@@ -261,7 +316,7 @@ impl MixNodeBond {
         };
         let operator_base_reward = reward.reward.min(params.operator_cost());
         let operator_reward = (self.profit_margin()
-            + (U128::from_num(1) - self.profit_margin()) * reward.lambda / reward.sigma)
+            + (ONE - self.profit_margin()) * reward.lambda / reward.sigma)
             * profit;
 
         let reward = (operator_reward + operator_base_reward).max(U128::from_num(0));
@@ -288,25 +343,8 @@ impl MixNodeBond {
     }
 
     pub fn reward_delegation(&self, delegation_amount: Uint128, params: &NodeRewardParams) -> u128 {
-        let scaled_delegation_amount =
-            U128::from_num(delegation_amount.u128()) / U128::from_num(params.circulating_supply());
-
-        let delegator_reward = (U128::from_num(1) - self.profit_margin())
-            * scaled_delegation_amount
-            / self.sigma(params)
-            * self.node_profit(params);
-
-        let reward = delegator_reward.max(U128::from_num(0));
-        if let Some(int_reward) = reward.checked_cast() {
-            int_reward
-        } else {
-            error!(
-                "Could not cast delegator reward ({}) to u128, returning 0 - mixnode {}",
-                reward,
-                self.identity()
-            );
-            0u128
-        }
+        let reward_params = DelegatorRewardParams::new(self, *params);
+        reward_params.determine_delegation_reward(delegation_amount)
     }
 }
 

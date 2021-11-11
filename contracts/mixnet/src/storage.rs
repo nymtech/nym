@@ -212,6 +212,7 @@ pub fn rewarded_mixnodes_read(
 }
 
 // helpers
+#[deprecated]
 pub(crate) fn increase_mix_delegated_stakes(
     storage: &mut dyn Storage,
     mix_identity: IdentityKeyRef,
@@ -261,6 +262,7 @@ pub(crate) fn increase_mix_delegated_stakes(
     Ok(total_rewarded)
 }
 
+#[deprecated]
 pub(crate) fn increase_mix_delegated_stakes_v2(
     storage: &mut dyn Storage,
     bond: &MixNodeBond,
@@ -310,6 +312,7 @@ pub(crate) fn increase_mix_delegated_stakes_v2(
 
     Ok(total_rewarded)
 }
+
 // currently not used outside tests
 #[cfg(test)]
 pub(crate) fn read_mixnode_bond(

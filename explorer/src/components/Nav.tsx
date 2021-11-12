@@ -18,7 +18,6 @@ import { NymLogoSVG } from 'src/icons/NymLogoSVG';
 import { BIG_DIPPER, NYM_WEBSITE } from 'src/api/constants';
 import { useMainContext } from 'src/context/main';
 import { MobileDrawerClose } from 'src/icons/MobileDrawerClose';
-import { Paper } from '@mui/material';
 import { OverviewSVG } from '../icons/OverviewSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';

@@ -12,10 +12,12 @@ use validator_client::nymd::fee_helpers::Operation;
 mod coin;
 mod config;
 mod error;
+mod menu;
 mod operations;
 mod state;
 mod utils;
 
+use crate::menu::AddDefaultSubmenus;
 use crate::operations::account::*;
 use crate::operations::admin::*;
 use crate::operations::bond::*;
@@ -64,7 +66,7 @@ fn main() {
       update_state_params,
       get_reverse_mix_delegations_paged,
     ])
-    .menu(create_menu_items())
+    .menu(Menu::new().add_default_app_submenu_if_macos())
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

@@ -623,6 +623,17 @@ fn reward_mix_delegators_v2(
     })
 }
 
+/// Checks whether under the current context, any rewarding-related functionalities can be called.
+/// The following must be true:
+/// - the call has originated from the address of the authorised rewarding validator,
+/// - the rewarding procedure has been initialised and has not concluded yet,
+/// - the call has been made with the nonce corresponding to the current rewarding procedure,
+///
+/// # Arguments
+///
+/// * `storage`: reference (kinda) to the underlying storage pool of the contract used to read the current state
+/// * `info`: contains the essential info for authorization, such as identity of the call
+/// * `rewarding_interval_nonce`: nonce of the rewarding procedure sent alongside the call
 fn verify_rewarding_state(
     storage: &dyn Storage,
     info: MessageInfo,
@@ -669,15 +680,15 @@ pub(crate) fn try_reward_next_mixnode_delegators_v2(
         None => {
             // we haven't called 'regular' try_reward_mixnode, i.e. the operator itself
             // was not rewarded yet
-            return Err(ContractError::MixnodeOperatorNotRewarded {
+            Err(ContractError::MixnodeOperatorNotRewarded {
                 identity: mix_identity,
-            });
+            })
         }
         Some(RewardingStatus::Complete(_)) => {
             // rewarding of this mixnode operator and all of its delegators has already been completed
-            return Err(ContractError::MixnodeAlreadyRewarded {
+            Err(ContractError::MixnodeAlreadyRewarded {
                 identity: mix_identity,
-            });
+            })
         }
         Some(RewardingStatus::PendingNextDelegatorPage(next_page_info)) => {
             let delegation_rewarding_result = reward_mix_delegators_v2(
@@ -700,7 +711,15 @@ pub(crate) fn try_reward_next_mixnode_delegators_v2(
             let mut rewarding_results = next_page_info.running_results;
             rewarding_results.total_delegator_reward += delegation_rewarding_result.total_rewarded;
 
+            let mut attributes = Vec::new();
+            attributes.push((
+                "current round delegation increase",
+                delegation_rewarding_result.total_rewarded.to_string(),
+            ));
+
             if let Some(next_start) = delegation_rewarding_result.start_next {
+                attributes.push(("more delegators to reward", "true".to_owned()));
+
                 rewarded_mixnodes(deps.storage, rewarding_interval_nonce).save(
                     mix_identity.as_bytes(),
                     &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
@@ -710,15 +729,23 @@ pub(crate) fn try_reward_next_mixnode_delegators_v2(
                     }),
                 )?;
             } else {
+                attributes.push(("more delegators to reward", "false".to_owned()));
+
                 rewarded_mixnodes(deps.storage, rewarding_interval_nonce).save(
                     mix_identity.as_bytes(),
                     &RewardingStatus::new_complete(rewarding_results),
                 )?;
             }
+
+            let mut response = Response::new();
+            // it looks kinda ugly now, but the API for this is vastly improved in cosmwasm 1.0
+            for attribute in attributes {
+                response.add_attribute(attribute.0, attribute.1)
+            }
+
+            Ok(response)
         }
     }
-
-    Ok(Response::new())
 }
 
 pub(crate) fn try_reward_mixnode_v2(

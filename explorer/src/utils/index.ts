@@ -25,6 +25,7 @@ export type MixnodeRowType = {
   location: string;
   identity_key: string;
   bond: number;
+  self_percentage: string;
   host: string;
   layer: string;
 };

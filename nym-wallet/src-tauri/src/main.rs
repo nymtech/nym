@@ -5,7 +5,7 @@
 
 use mixnet_contract::{Gateway, MixNode};
 use std::sync::Arc;
-use tauri::{Menu, MenuItem};
+use tauri::{Menu};
 use tokio::sync::RwLock;
 use validator_client::nymd::fee_helpers::Operation;
 
@@ -35,12 +35,6 @@ macro_rules! format_err {
   ($e:expr) => {
     format!("line {}: {}", line!(), $e)
   };
-}
-
-pub fn create_menu_items() -> Menu {
-  Menu::new()
-    .add_native_item(MenuItem::Copy)
-    .add_native_item(MenuItem::Paste)
 }
 
 fn main() {

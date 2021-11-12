@@ -11,9 +11,11 @@ impl AddDefaultSubmenus for Menu {
       "Menu",
       Menu::new()
         .add_native_item(MenuItem::Copy)
+        .add_native_item(MenuItem::Cut)
         .add_native_item(MenuItem::Paste)
         .add_native_item(MenuItem::Hide)
         .add_native_item(MenuItem::HideOthers)
+        .add_native_item(MenuItem::SelectAll)
         .add_native_item(MenuItem::ShowAll)
         .add_native_item(MenuItem::Quit),
     ));

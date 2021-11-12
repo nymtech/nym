@@ -94,6 +94,7 @@ const networkExplorerPalette = (
     },
     topNav: {
       ...variant.topNav,
+      appBar: '#070B15',
       socialIcons: '#F2F2F2',
     },
     footer: {

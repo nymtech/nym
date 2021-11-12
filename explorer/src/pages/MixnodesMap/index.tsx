@@ -84,15 +84,11 @@ export const PageMixnodesMap: React.FC = () => {
       );
     } else if (countryData?.data !== undefined && searchTerm !== '') {
       const formatted = countryDataToGridRow(Object.values(countryData?.data));
-      const filtered = formatted.filter((m) => {
-        if (
+      const filtered = formatted.filter(
+        (m) =>
           m?.countryName?.toLowerCase().includes(searchTerm) ||
-          m?.ISO3?.toLowerCase().includes(searchTerm)
-        ) {
-          return m;
-        }
-        return null;
-      });
+          m?.ISO3?.toLowerCase().includes(searchTerm),
+      );
       if (filtered) {
         setFormattedCountries(filtered);
       }

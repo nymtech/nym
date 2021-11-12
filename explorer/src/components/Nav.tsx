@@ -278,9 +278,6 @@ ExpandableButton.defaultProps = {
   closeDrawer: undefined,
 };
 
-const MyPaper = styled(Paper)(({ children }) => ({
-  border: '1px solid red',
-}));
 export const Nav: React.FC = ({ children }) => {
   const { updateNavState, navState } = useMainContext();
   const [drawerIsOpen, setDrawerToOpen] = React.useState(false);

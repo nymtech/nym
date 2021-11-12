@@ -1,4 +1,4 @@
-use crate::scheme::verification::{prove_covid_credential, verify_covid_credential};
+use crate::scheme::verification::{prove_covid_credential, verify_covid_credential, ThetaCovid};
 use crate::{
     aggregate_signature_shares, aggregate_verification_keys, blind_sign, elgamal_keygen,
     hash_to_scalar, prepare_blind_sign, setup, ttp_keygen, CoconutError, Signature, SignatureShare,
@@ -7,7 +7,7 @@ use crate::{
 
 #[test]
 fn main() -> Result<(), CoconutError> {
-    let params = setup(10)?;
+    let params = setup(15)?;
 
     // validators keys
     let coconut_keypairs = ttp_keygen(&params, 2, 3)?;
@@ -133,12 +133,17 @@ fn main() -> Result<(), CoconutError> {
         &timestamp,
     )?;
 
+    let theta_covid_bytes = theta_covid.to_bytes();
+    println!("Length of theta in bytes: {:?}", theta_covid_bytes.len());
+
+    let theta_covid_from_bytes = ThetaCovid::from_bytes(&*theta_covid_bytes).unwrap();
+
     // Verify covid credentials
     let disclosed_attributes = vec![is_vaccinated, is_over_18, is_over_21];
     assert!(verify_covid_credential(
         &params,
         &verification_key,
-        &theta_covid,
+        &theta_covid_from_bytes,
         disclosed_attributes.as_ref(),
         &verifier_id,
         &timestamp,

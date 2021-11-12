@@ -58,6 +58,45 @@ impl ThetaCovid {
             timestamp,
         )
     }
+
+    // kappa || credential || proof
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let blinded_message_bytes = self.blinded_message.to_affine().to_compressed();
+        let credential_bytes = self.credential.to_bytes();
+        let proof_bytes = self.pi_v.to_bytes();
+
+        let mut bytes = Vec::with_capacity(192 + proof_bytes.len());
+        bytes.extend_from_slice(&blinded_message_bytes);
+        bytes.extend_from_slice(&credential_bytes);
+        bytes.extend_from_slice(&proof_bytes);
+
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<ThetaCovid> {
+        if bytes.len() < 192 {
+            return Err(
+                CoconutError::Deserialization(
+                    format!("Tried to deserialize theta with insufficient number of bytes, expected >= 192, got {}", bytes.len()),
+                ));
+        }
+
+        let blinded_message_bytes = bytes[..96].try_into().unwrap();
+        let blinded_message = try_deserialize_g2_projective(
+            &blinded_message_bytes,
+            CoconutError::Deserialization("failed to deserialize kappa".to_string()),
+        )?;
+
+        let credential = Signature::try_from(&bytes[96..192])?;
+
+        let pi_v = ProofKappa::from_bytes(&bytes[192..])?;
+
+        Ok(ThetaCovid {
+            blinded_message,
+            credential,
+            pi_v,
+        })
+    }
 }
 
 #[derive(Debug)]

@@ -477,6 +477,57 @@ impl ProofKappa {
 
         challenge == self.challenge
     }
+
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+        let attributes_len = self.response_attributes.len() as u64;
+        let mut bytes = Vec::with_capacity(8 + (attributes_len + 2) as usize * 32);
+
+        bytes.extend_from_slice(&self.challenge.to_bytes());
+        bytes.extend_from_slice(&self.response_blinder.to_bytes());
+
+        bytes.extend_from_slice(&attributes_len.to_le_bytes());
+
+        for rm in &self.response_attributes {
+            bytes.extend_from_slice(&rm.to_bytes());
+        }
+
+        bytes
+    }
+
+    pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        // at the very minimum there must be a single attribute being proven
+        if bytes.len() < 32 * 2 + 8 || (bytes.len() - 8) % 32 != 0 {
+            return Err(
+                CoconutError::Deserialization(
+                    "tried to deserialize proof of ciphertexts and commitment with bytes of invalid length".to_string())
+            );
+        }
+
+        let challenge_bytes = bytes[..32].try_into().unwrap();
+        let challenge = try_deserialize_scalar(
+            &challenge_bytes,
+            CoconutError::Deserialization("Failed to deserialize challenge".to_string()),
+        )?;
+
+        let blinder_bytes = bytes[32..64].try_into().unwrap();
+        let response_blinder = try_deserialize_scalar(
+            &blinder_bytes,
+            CoconutError::Deserialization("failed to deserialize the blinder".to_string()),
+        )?;
+
+        let rm_len = u64::from_le_bytes(bytes[64..64 + 8].try_into().unwrap());
+        let response_attributes = try_deserialize_scalar_vec(
+            rm_len,
+            &bytes[64 + 8..],
+            CoconutError::Deserialization("Failed to deserialize attributes response".to_string()),
+        )?;
+
+        Ok(ProofKappa {
+            challenge,
+            response_attributes,
+            response_blinder,
+        })
+    }
 }
 
 #[derive(Debug)]

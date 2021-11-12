@@ -86,8 +86,8 @@ export const PageMixnodesMap: React.FC = () => {
       const formatted = countryDataToGridRow(Object.values(countryData?.data));
       const filtered = formatted.filter((m) => {
         if (
-          m.countryName.toLowerCase().includes(searchTerm) ||
-          m.ISO3.toLowerCase().includes(searchTerm)
+          m?.countryName?.toLowerCase().includes(searchTerm) ||
+          m?.ISO3?.toLowerCase().includes(searchTerm)
         ) {
           return m;
         }

@@ -96,6 +96,9 @@ pub enum ContractError {
     #[error("Mixnode {identity} has already been rewarded during the current rewarding interval")]
     MixnodeAlreadyRewarded { identity: IdentityKey },
 
+    #[error("Some of mixnodes {identity} delegators are still pending reward")]
+    DelegatorsPendingReward { identity: IdentityKey },
+
     #[error("Mixnode's {identity} operator has not been rewarded yet - cannot perform delegator rewarding until that happens")]
     MixnodeOperatorNotRewarded { identity: IdentityKey },
 }

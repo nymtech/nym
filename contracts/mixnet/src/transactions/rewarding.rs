@@ -321,7 +321,21 @@ pub(crate) fn try_reward_mixnode_v2(
 ) -> Result<Response, ContractError> {
     verify_rewarding_state(deps.storage, info, rewarding_interval_nonce)?;
 
-    // TODO: different error based on whether complete or delegators to reward
+    match rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
+        .may_load(mix_identity.as_bytes())?
+    {
+        None => (),
+        Some(RewardingStatus::Complete(_)) => {
+            return Err(ContractError::MixnodeAlreadyRewarded {
+                identity: mix_identity,
+            })
+        }
+        Some(RewardingStatus::PendingNextDelegatorPage(_)) => {
+            return Err(ContractError::DelegatorsPendingReward {
+                identity: mix_identity,
+            })
+        }
+    }
 
     // check if the mixnode hasn't been rewarded in this rewarding interval already
     if rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)

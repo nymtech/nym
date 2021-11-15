@@ -243,13 +243,15 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
+        todo!("This needs more sophisticated mechanism to also call `RewardNextMixDelegators` on the contract");
+
         let total_delegations = nodes.iter().map(|node| node.total_delegations).sum();
         let fee = self
             .estimate_mixnode_reward_fees(nodes.len(), total_delegations)
             .await;
         let msgs: Vec<(ExecuteMsg, _)> = nodes
             .iter()
-            .map(|node| node.to_execute_msg(rewarding_interval_nonce))
+            .map(|node| node.to_execute_msg_v2(rewarding_interval_nonce))
             .zip(std::iter::repeat(Vec::new()))
             .collect();
 

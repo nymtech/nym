@@ -49,6 +49,7 @@ pub(crate) struct MixnodeToReward {
 
     /// Total number of individual addresses that have delegated to this particular node
     pub(crate) total_delegations: usize,
+
     /// Node absolute uptime over total active set uptime
     params: Option<NodeRewardParams>,
 }
@@ -56,31 +57,29 @@ pub(crate) struct MixnodeToReward {
 impl MixnodeToReward {
     /// Somewhat clumsy way of feature gatting tokenomics payments. In a tokenomics scenario this will never be None at reward time. We levarage that to Into a different ExecuteMsg variant
     // TODO: to re-integrate in another PR that combines rewarded/active sets with tokenomics
-    #[allow(dead_code)]
+    // #[allow(dead_code)]
     fn params(&self) -> Option<NodeRewardParams> {
-        if cfg!(feature = "tokenomics") {
-            self.params
-        } else {
-            None
-        }
+        self.params
     }
 }
 
 impl MixnodeToReward {
-    pub(crate) fn to_execute_msg(&self, rewarding_interval_nonce: u32) -> ExecuteMsg {
-        ExecuteMsg::RewardMixnode {
-            identity: self.identity.clone(),
-            uptime: self.uptime.u8() as u32,
-            rewarding_interval_nonce,
-        }
-    }
+    // pub(crate) fn to_execute_msg(&self, rewarding_interval_nonce: u32) -> ExecuteMsg {
+    //     ExecuteMsg::RewardMixnode {
+    //         identity: self.identity.clone(),
+    //         uptime: self.uptime.u8() as u32,
+    //         rewarding_interval_nonce,
+    //     }
+    // }
 
     // TODO: to re-integrate in another PR that combines rewarded/active sets with tokenomics
     #[allow(dead_code)]
     pub(crate) fn to_execute_msg_v2(&self, rewarding_interval_nonce: u32) -> ExecuteMsg {
         ExecuteMsg::RewardMixnodeV2 {
             identity: self.identity.clone(),
-            params: self.params().unwrap(),
+            params: self
+                .params()
+                .expect("this unwrap must be dealt with, ideally params shouldn't be an option"),
             rewarding_interval_nonce,
         }
     }
@@ -228,31 +227,27 @@ impl Rewarder {
             .filter(|node| node.uptime.u8() > 0)
             .collect();
 
-        if cfg!(feature = "tokenomics") {
-            let reward_pool = self.nymd_client.get_reward_pool().await?;
-            let circulating_supply = self.nymd_client.get_circulating_supply().await?;
-            let sybil_resistance_percent = self.nymd_client.get_sybil_resistance_percent().await?;
-            let epoch_reward_percent = self.nymd_client.get_epoch_reward_percent().await?;
-            let k = state.mixnode_active_set_size;
-            let period_reward_pool = (reward_pool / 100) * epoch_reward_percent as u128;
+        let reward_pool = self.nymd_client.get_reward_pool().await?;
+        let circulating_supply = self.nymd_client.get_circulating_supply().await?;
+        let sybil_resistance_percent = self.nymd_client.get_sybil_resistance_percent().await?;
+        let epoch_reward_percent = self.nymd_client.get_epoch_reward_percent().await?;
+        let k = state.mixnode_active_set_size;
+        let period_reward_pool = (reward_pool / 100) * epoch_reward_percent as u128;
 
-            info!("Rewarding pool stats");
-            info!("-- Reward pool: {} unym", reward_pool);
-            info!("---- Epoch reward pool: {} unym", period_reward_pool);
-            info!("-- Circulating supply: {} unym", circulating_supply);
+        info!("Rewarding pool stats");
+        info!("-- Reward pool: {} unym", reward_pool);
+        info!("---- Epoch reward pool: {} unym", period_reward_pool);
+        info!("-- Circulating supply: {} unym", circulating_supply);
 
-            for mix in eligible_nodes.iter_mut() {
-                mix.params = Some(NodeRewardParams::new(
-                    period_reward_pool,
-                    k.into(),
-                    0,
-                    circulating_supply,
-                    mix.uptime.u8().into(),
-                    sybil_resistance_percent,
-                ));
-            }
-        } else {
-            info!("Tokenomics feature is OFF");
+        for mix in eligible_nodes.iter_mut() {
+            mix.params = Some(NodeRewardParams::new(
+                period_reward_pool,
+                k.into(),
+                0,
+                circulating_supply,
+                mix.uptime.u8().into(),
+                sybil_resistance_percent,
+            ));
         }
 
         Ok(eligible_nodes)
@@ -299,33 +294,35 @@ impl Rewarder {
     ) -> Option<Vec<FailedMixnodeRewardChunkDetails>> {
         let mut failed_chunks = Vec::new();
 
-        for (i, mix_chunk) in eligible_mixnodes.chunks(MAX_TO_REWARD_AT_ONCE).enumerate() {
-            if let Err(err) = self
-                .nymd_client
-                .reward_mixnodes(mix_chunk, rewarding_interval_nonce)
-                .await
-            {
-                // this is a super weird edge case that we didn't catch change to sequence and
-                // resent rewards unnecessarily, but the mempool saved us from executing it again
-                // however, still we want to wait until we're sure we're into the next block
-                if !err.is_tendermint_duplicate() {
-                    error!("failed to reward mixnodes... - {}", err);
-                    failed_chunks.push(FailedMixnodeRewardChunkDetails {
-                        possibly_unrewarded: mix_chunk.to_vec(),
-                        error_message: err.to_string(),
-                    });
-                }
-                sleep(Duration::from_secs(11)).await;
-            }
-            let rewarded = i * MAX_TO_REWARD_AT_ONCE + mix_chunk.len();
-            let percentage = rewarded as f32 * 100.0 / eligible_mixnodes.len() as f32;
-            info!(
-                "Rewarded {} / {} mixnodes\t{:.2}%",
-                rewarded,
-                eligible_mixnodes.len(),
-                percentage
-            );
-        }
+        todo!("here needs to be a slighty more sophisticated chunking based on number of nodes AND delegations");
+
+        // for (i, mix_chunk) in eligible_mixnodes.chunks(MAX_TO_REWARD_AT_ONCE).enumerate() {
+        //     if let Err(err) = self
+        //         .nymd_client
+        //         .reward_mixnodes(mix_chunk, rewarding_interval_nonce)
+        //         .await
+        //     {
+        //         // this is a super weird edge case that we didn't catch change to sequence and
+        //         // resent rewards unnecessarily, but the mempool saved us from executing it again
+        //         // however, still we want to wait until we're sure we're into the next block
+        //         if !err.is_tendermint_duplicate() {
+        //             error!("failed to reward mixnodes... - {}", err);
+        //             failed_chunks.push(FailedMixnodeRewardChunkDetails {
+        //                 possibly_unrewarded: mix_chunk.to_vec(),
+        //                 error_message: err.to_string(),
+        //             });
+        //         }
+        //         sleep(Duration::from_secs(11)).await;
+        //     }
+        //     let rewarded = i * MAX_TO_REWARD_AT_ONCE + mix_chunk.len();
+        //     let percentage = rewarded as f32 * 100.0 / eligible_mixnodes.len() as f32;
+        //     info!(
+        //         "Rewarded {} / {} mixnodes\t{:.2}%",
+        //         rewarded,
+        //         eligible_mixnodes.len(),
+        //         percentage
+        //     );
+        // }
 
         if failed_chunks.is_empty() {
             None

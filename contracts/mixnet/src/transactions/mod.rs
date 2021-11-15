@@ -457,7 +457,7 @@ pub mod tests {
         add_mixnode, good_gateway_bond, good_mixnode_bond, mix_node_fixture, raw_delegation_fixture,
     };
     use crate::transactions::rewarding::{
-        try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
+        try_begin_mixnode_rewarding, try_finish_mixnode_rewarding,
     };
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};

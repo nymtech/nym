@@ -122,6 +122,36 @@ impl NodeRewardParams {
     }
 }
 
+// cosmwasm's limited serde doesn't work with U128 directly
+#[allow(non_snake_case)]
+pub mod fixed_U128_as_string {
+    use super::U128;
+    use serde::de::Error;
+    use serde::Deserialize;
+    use std::str::FromStr;
+
+    pub fn serialize<S>(val: &U128, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = (*val).to_string();
+        serializer.serialize_str(&s)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<U128, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        U128::from_str(&s).map_err(|err| {
+            D::Error::custom(format!(
+                "failed to deserialize U128 with its string representation - {}",
+                err
+            ))
+        })
+    }
+}
+
 // everything required to reward delegator of given mixnode
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct DelegatorRewardParams {
@@ -130,10 +160,13 @@ pub struct DelegatorRewardParams {
     // to be completely honest I don't understand all consequences of using `#[schemars(with = "String")]`
     // for U128 here, but it seems that CosmWasm is using the same attribute for their Uint128
     #[schemars(with = "String")]
+    #[serde(with = "fixed_U128_as_string")]
     sigma: U128,
     #[schemars(with = "String")]
+    #[serde(with = "fixed_U128_as_string")]
     profit_margin: U128,
     #[schemars(with = "String")]
+    #[serde(with = "fixed_U128_as_string")]
     node_profit: U128,
 }
 

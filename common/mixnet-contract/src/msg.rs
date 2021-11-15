@@ -50,6 +50,12 @@ pub enum ExecuteMsg {
         // nonce of the current rewarding interval
         rewarding_interval_nonce: u32,
     },
+
+    RewardNextMixDelegators {
+        mix_identity: IdentityKey,
+        // nonce of the current rewarding interval
+        rewarding_interval_nonce: u32,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

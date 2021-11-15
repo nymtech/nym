@@ -107,6 +107,15 @@ pub fn execute(
         ExecuteMsg::FinishMixnodeRewarding {
             rewarding_interval_nonce,
         } => transactions::try_finish_mixnode_rewarding(deps, info, rewarding_interval_nonce),
+        ExecuteMsg::RewardNextMixDelegators {
+            mix_identity,
+            rewarding_interval_nonce,
+        } => transactions::try_reward_next_mixnode_delegators_v2(
+            deps,
+            info,
+            mix_identity,
+            rewarding_interval_nonce,
+        ),
     }
 }
 

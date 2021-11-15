@@ -1,14 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::ContractError;
 use crate::transactions::OLD_DELEGATIONS_CHUNK_SIZE;
-use cosmwasm_std::{Decimal, Order, StdError, StdResult, Uint128};
+use cosmwasm_std::{Order, StdError, StdResult};
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{Addr, IdentityKey, PagedAllDelegationsResponse, UnpackedDelegation};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::ops::Sub;
 
 // cosmwasm bucket internal value
 const NAMESPACE_LENGTH: usize = 2;
@@ -153,7 +151,6 @@ mod tests {
     use crate::support::tests::helpers;
     use cosmwasm_std::testing::mock_dependencies;
     use mixnet_contract::RawDelegationData;
-    use std::str::FromStr;
 
     #[test]
     fn delegations_iterator() {

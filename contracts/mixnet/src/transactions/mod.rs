@@ -6,14 +6,11 @@ use crate::queries;
 use crate::storage::*;
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, StdResult, Storage,
-    Uint128,
+    attr, coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
-use cosmwasm_storage::{Bucket, ReadonlyBucket};
-use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
+use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{
-    Gateway, GatewayBond, IdentityKey, IdentityKeyRef, Layer, MixNode, MixNodeBond,
-    RawDelegationData, StateParams,
+    Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
 };
 
 pub(crate) mod rewarding;
@@ -446,18 +443,12 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::{
-        execute, query, DEFAULT_SYBIL_RESISTANCE_PERCENT, INITIAL_DEFAULT_EPOCH_LENGTH,
-        INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND,
-    };
+    use crate::contract::{execute, query, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND};
     use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
-    use crate::storage::{layer_distribution_read, mix_delegations_read, read_mixnode_bond};
+    use crate::storage::{layer_distribution_read, mix_delegations_read};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
-        add_mixnode, good_gateway_bond, good_mixnode_bond, mix_node_fixture, raw_delegation_fixture,
-    };
-    use crate::transactions::rewarding::{
-        try_begin_mixnode_rewarding, try_finish_mixnode_rewarding,
+        good_gateway_bond, good_mixnode_bond, raw_delegation_fixture,
     };
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
@@ -1307,7 +1298,6 @@ pub mod tests {
         let mut deps = helpers::init_contract();
 
         let new_params = StateParams {
-            epoch_length: 42,
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
             mixnode_rewarded_set_size: 100,

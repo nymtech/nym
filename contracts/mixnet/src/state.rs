@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::Addr;
 use mixnet_contract::StateParams;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

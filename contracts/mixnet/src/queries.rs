@@ -581,7 +581,6 @@ pub(crate) mod tests {
             owner: Addr::unchecked("someowner"),
             rewarding_validator_address: Addr::unchecked("monitor"),
             params: StateParams {
-                epoch_length: 1,
                 minimum_mixnode_bond: 123u128.into(),
                 minimum_gateway_bond: 456u128.into(),
                 mixnode_rewarded_set_size: 1000,

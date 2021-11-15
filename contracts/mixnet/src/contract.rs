@@ -8,12 +8,9 @@ use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
 use config::defaults::REWARDING_VALIDATOR_ADDRESS;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Uint128,
+    entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
 use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateParams};
-
-pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128(100_000000);
@@ -28,7 +25,7 @@ pub const INITIAL_REWARD_POOL: u128 = 250_000_000_000_000;
 pub const EPOCH_REWARD_PERCENT: u8 = 2; // Used to calculate epoch reward pool
 pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
 
-// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
+// We'll be assuming a few more things, profit margin and cost function. Since we don't have reliable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
 pub const DEFAULT_COST_PER_EPOCH: u32 = 40_000_000;
 
 fn default_initial_state(owner: Addr, env: Env) -> State {
@@ -36,7 +33,6 @@ fn default_initial_state(owner: Addr, env: Env) -> State {
         owner,
         rewarding_validator_address: Addr::unchecked(REWARDING_VALIDATOR_ADDRESS), // we trust our hardcoded value
         params: StateParams {
-            epoch_length: INITIAL_DEFAULT_EPOCH_LENGTH,
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,

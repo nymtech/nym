@@ -461,18 +461,33 @@ pub(crate) fn try_finish_mixnode_rewarding(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contract::DEFAULT_SYBIL_RESISTANCE_PERCENT;
-    use crate::helpers::scale_reward_by_uptime;
+    use crate::contract::{
+        DEFAULT_SYBIL_RESISTANCE_PERCENT, EPOCH_REWARD_PERCENT, INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+        INITIAL_REWARD_POOL,
+    };
     use crate::storage::{
-        circulating_supply, read_mixnode_bond, read_mixnode_delegation, reward_pool_value,
+        circulating_supply, mix_delegations_read, read_mixnode_bond, read_mixnode_delegation,
+        reward_pool_value,
     };
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{good_mixnode_bond, mix_node_fixture};
+    use crate::support::tests::helpers::{add_mixnode, good_mixnode_bond, mix_node_fixture};
     use crate::transactions::{try_add_mixnode, try_delegate_to_mixnode};
-    use config::defaults::DENOM;
+    use config::defaults::{DENOM, TOTAL_SUPPLY};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, Addr, Coin};
     use mixnet_contract::{Layer, MixNode, MixNodeBond, RawDelegationData};
+
+    // when exact values are irrelevant and what matters is the action of rewarding
+    fn node_rewarding_params_fixture(uptime: u128) -> NodeRewardParams {
+        NodeRewardParams::new(
+            (INITIAL_REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128,
+            INITIAL_MIXNODE_ACTIVE_SET_SIZE as u128,
+            0,
+            TOTAL_SUPPLY - INITIAL_REWARD_POOL,
+            uptime,
+            DEFAULT_SYBIL_RESISTANCE_PERCENT,
+        )
+    }
 
     #[cfg(test)]
     mod beginning_mixnode_rewarding {
@@ -784,149 +799,6 @@ mod tests {
     }
 
     #[test]
-    fn rewarding_mixnode() {
-        let mut deps = helpers::init_contract();
-        let mut env = mock_env();
-        let current_state = config_read(deps.as_mut().storage).load().unwrap();
-        let rewarding_validator_address = current_state.rewarding_validator_address;
-
-        let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity: IdentityKey = "nodeidentity".into();
-
-        // errors out if executed by somebody else than network monitor
-        let info = mock_info("not-the-monitor", &[]);
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info,
-            node_identity.clone(),
-            100,
-            1,
-        );
-        assert_eq!(res, Err(ContractError::Unauthorized));
-
-        // begin rewarding period
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-        // returns bond not found attribute if the target owner hasn't bonded any mixnodes
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info,
-            node_identity.clone(),
-            100,
-            1,
-        )
-        .unwrap();
-        assert_eq!(vec![attr("result", "bond not found")], res.attributes);
-
-        let initial_bond = 100_000000;
-        let initial_delegation = 200_000000;
-        let mixnode_bond = MixNodeBond {
-            bond_amount: coin(initial_bond, DENOM),
-            total_delegation: coin(initial_delegation, DENOM),
-            owner: node_owner.clone(),
-            layer: Layer::One,
-            block_height: env.block.height,
-            mix_node: MixNode {
-                identity_key: node_identity.clone(),
-                ..mix_node_fixture()
-            },
-            profit_margin_percent: Some(10),
-        };
-
-        mixnodes(deps.as_mut().storage)
-            .save(node_identity.as_bytes(), &mixnode_bond)
-            .unwrap();
-
-        mix_delegations(&mut deps.storage, &node_identity)
-            .save(
-                b"delegator",
-                &RawDelegationData::new(initial_delegation.into(), env.block.height),
-            )
-            .unwrap();
-
-        env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
-
-        let bond_reward_rate = current_state.mixnode_epoch_bond_reward;
-        let delegation_reward_rate = current_state.mixnode_epoch_delegation_reward;
-        let expected_bond_reward = Uint128(initial_bond) * bond_reward_rate;
-        let expected_delegation_reward = Uint128(initial_delegation) * delegation_reward_rate;
-
-        // the node's bond and delegations are correctly increased and scaled by uptime
-        // if node was 100% up, it will get full epoch reward
-        let expected_bond = expected_bond_reward + Uint128(initial_bond);
-        let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            1,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation,
-            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_bond_reward),
-                attr("total delegation increase", expected_delegation_reward),
-            ],
-            res.attributes
-        );
-
-        // if node was 20% up, it will get 1/5th of epoch reward
-        let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 20).unwrap();
-        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 20).unwrap();
-        let expected_bond_reward = expected_bond * scaled_bond_reward;
-        let expected_delegation_reward = expected_delegation * scaled_delegation_reward;
-        let expected_bond = expected_bond_reward + expected_bond;
-        let expected_delegation = expected_delegation_reward + expected_delegation;
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info,
-            node_identity.clone(),
-            20,
-            2,
-        )
-        .unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation,
-            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_bond_reward),
-                attr("total delegation increase", expected_delegation_reward),
-            ],
-            res.attributes
-        );
-    }
-
-    #[test]
     fn rewarding_mixnodes_outside_rewarding_period() {
         let mut deps = helpers::init_contract();
         let env = mock_env();
@@ -949,24 +821,24 @@ mod tests {
         .unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        let res = try_reward_mixnode(
+        let res = try_reward_mixnode_v2(
             deps.as_mut(),
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            100,
+            node_rewarding_params_fixture(100),
             1,
         );
         assert_eq!(Err(ContractError::RewardingNotInProgress), res);
 
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
 
-        let res = try_reward_mixnode(
+        let res = try_reward_mixnode_v2(
             deps.as_mut(),
             env.clone(),
             info,
             node_identity.clone(),
-            100,
+            node_rewarding_params_fixture(100),
             1,
         );
         assert!(res.is_ok())
@@ -996,12 +868,12 @@ mod tests {
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-        let res = try_reward_mixnode(
+        let res = try_reward_mixnode_v2(
             deps.as_mut(),
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            100,
+            node_rewarding_params_fixture(100),
             0,
         );
         assert_eq!(
@@ -1012,12 +884,12 @@ mod tests {
             res
         );
 
-        let res = try_reward_mixnode(
+        let res = try_reward_mixnode_v2(
             deps.as_mut(),
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            100,
+            node_rewarding_params_fixture(100),
             2,
         );
         assert_eq!(
@@ -1028,12 +900,12 @@ mod tests {
             res
         );
 
-        let res = try_reward_mixnode(
+        let res = try_reward_mixnode_v2(
             deps.as_mut(),
             env.clone(),
             info,
             node_identity.clone(),
-            100,
+            node_rewarding_params_fixture(100),
             1,
         );
         assert!(res.is_ok())
@@ -1065,23 +937,23 @@ mod tests {
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
 
         // first reward goes through just fine
-        let res = try_reward_mixnode(
+        let res = try_reward_mixnode_v2(
             deps.as_mut(),
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            100,
+            node_rewarding_params_fixture(100),
             1,
         );
         assert!(res.is_ok());
 
         // but the other one fails
-        let res = try_reward_mixnode(
+        let res = try_reward_mixnode_v2(
             deps.as_mut(),
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            100,
+            node_rewarding_params_fixture(100),
             1,
         );
         assert_eq!(
@@ -1095,7 +967,14 @@ mod tests {
         try_finish_mixnode_rewarding(deps.as_mut(), info.clone(), 1).unwrap();
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
 
-        let res = try_reward_mixnode(deps.as_mut(), env, info, node_identity.clone(), 100, 2);
+        let res = try_reward_mixnode_v2(
+            deps.as_mut(),
+            env,
+            info,
+            node_identity.clone(),
+            node_rewarding_params_fixture(100),
+            2,
+        );
         assert!(res.is_ok());
     }
 
@@ -1138,120 +1017,347 @@ mod tests {
             )
             .unwrap();
 
-        let bond_reward_rate = current_state.mixnode_epoch_bond_reward;
-        let delegation_reward_rate = current_state.mixnode_epoch_delegation_reward;
-        let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 100).unwrap();
-        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 100).unwrap();
+        // let bond_reward_rate = current_state.mixnode_epoch_bond_reward;
+        // let delegation_reward_rate = current_state.mixnode_epoch_delegation_reward;
+        // let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 100).unwrap();
+        // let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 100).unwrap();
+        //
+        // // no reward is due
+        // let expected_bond_reward = Uint128(0);
+        // let expected_delegation_reward = Uint128(0);
+        // let expected_bond = expected_bond_reward + Uint128(initial_bond);
+        // let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
+        //
+        // let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+        // try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
+        // let res = try_reward_mixnode(
+        //     deps.as_mut(),
+        //     env.clone(),
+        //     info.clone(),
+        //     node_identity.clone(),
+        //     100,
+        //     1,
+        // )
+        // .unwrap();
+        // try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
+        //
+        // assert_eq!(
+        //     expected_bond,
+        //     read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        // );
+        // assert_eq!(
+        //     expected_delegation,
+        //     read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        // );
+        //
+        // assert_eq!(
+        //     vec![
+        //         attr("bond increase", expected_bond_reward),
+        //         attr("total delegation increase", expected_delegation_reward),
+        //     ],
+        //     res.attributes
+        // );
+        //
+        // // reward can happen now, but only for bonded node
+        // env.block.height += 1;
+        // let expected_bond_reward = expected_bond * scaled_bond_reward;
+        // let expected_delegation_reward = Uint128(0);
+        // let expected_bond = expected_bond_reward + expected_bond;
+        // let expected_delegation = expected_delegation_reward + expected_delegation;
+        //
+        // let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+        // try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
+        // let res = try_reward_mixnode(
+        //     deps.as_mut(),
+        //     env.clone(),
+        //     info.clone(),
+        //     node_identity.clone(),
+        //     100,
+        //     2,
+        // )
+        // .unwrap();
+        // try_finish_mixnode_rewarding(deps.as_mut(), info, 2).unwrap();
+        //
+        // assert_eq!(
+        //     expected_bond,
+        //     read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        // );
+        // assert_eq!(
+        //     expected_delegation,
+        //     read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        // );
+        //
+        // assert_eq!(
+        //     vec![
+        //         attr("bond increase", expected_bond_reward),
+        //         attr("total delegation increase", expected_delegation_reward),
+        //     ],
+        //     res.attributes
+        // );
+        //
+        // // reward happens now, both for node owner and delegators
+        // env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+        // let expected_bond_reward = expected_bond * scaled_bond_reward;
+        // let expected_delegation_reward = expected_delegation * scaled_delegation_reward;
+        // let expected_bond = expected_bond_reward + expected_bond;
+        // let expected_delegation = expected_delegation_reward + expected_delegation;
+        //
+        // let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+        // try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 3).unwrap();
+        // let res = try_reward_mixnode(
+        //     deps.as_mut(),
+        //     env.clone(),
+        //     info.clone(),
+        //     node_identity.clone(),
+        //     100,
+        //     3,
+        // )
+        // .unwrap();
+        // try_finish_mixnode_rewarding(deps.as_mut(), info, 3).unwrap();
+        //
+        // assert_eq!(
+        //     expected_bond,
+        //     read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        // );
+        // assert_eq!(
+        //     expected_delegation,
+        //     read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        // );
+        //
+        // assert_eq!(
+        //     vec![
+        //         attr("bond increase", expected_bond_reward),
+        //         attr("total delegation increase", expected_delegation_reward),
+        //     ],
+        //     res.attributes
+        // );
+    }
 
-        // no reward is due
-        let expected_bond_reward = Uint128(0);
-        let expected_delegation_reward = Uint128(0);
-        let expected_bond = expected_bond_reward + Uint128(initial_bond);
-        let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            1,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation,
-            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_bond_reward),
-                attr("total delegation increase", expected_delegation_reward),
-            ],
-            res.attributes
-        );
-
-        // reward can happen now, but only for bonded node
-        env.block.height += 1;
-        let expected_bond_reward = expected_bond * scaled_bond_reward;
-        let expected_delegation_reward = Uint128(0);
-        let expected_bond = expected_bond_reward + expected_bond;
-        let expected_delegation = expected_delegation_reward + expected_delegation;
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            2,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 2).unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation,
-            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_bond_reward),
-                attr("total delegation increase", expected_delegation_reward),
-            ],
-            res.attributes
-        );
-
-        // reward happens now, both for node owner and delegators
-        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
-        let expected_bond_reward = expected_bond * scaled_bond_reward;
-        let expected_delegation_reward = expected_delegation * scaled_delegation_reward;
-        let expected_bond = expected_bond_reward + expected_bond;
-        let expected_delegation = expected_delegation_reward + expected_delegation;
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 3).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            3,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 3).unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation,
-            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_bond_reward),
-                attr("total delegation increase", expected_delegation_reward),
-            ],
-            res.attributes
-        );
+    #[test]
+    fn delegators_on_mix_node_reward_rate() {
+        // let mut deps = helpers::init_contract();
+        // let mut env = mock_env();
+        // let current_state = config_read(deps.as_mut().storage).load().unwrap();
+        // let rewarding_validator_address = current_state.rewarding_validator_address;
+        //
+        // let initial_mix_bond = 100_000000;
+        // let initial_delegation1 = 50000; // will see single digits rewards
+        // let initial_delegation2 = 100; // won't see any rewards due to such a small delegation
+        // let initial_delegation3 = 100000_000000; // will see big proper rewards
+        //
+        // let node_owner = "node-owner";
+        // let identity = add_mixnode(node_owner, good_mixnode_bond(), &mut deps);
+        //
+        // mix_delegations(&mut deps.storage, &identity)
+        //     .save(
+        //         b"delegator1",
+        //         &RawDelegationData::new(initial_delegation1.into(), env.block.height),
+        //     )
+        //     .unwrap();
+        // mix_delegations(&mut deps.storage, &identity)
+        //     .save(
+        //         b"delegator2",
+        //         &RawDelegationData::new(initial_delegation2.into(), env.block.height),
+        //     )
+        //     .unwrap();
+        // mix_delegations(&mut deps.storage, &identity)
+        //     .save(
+        //         b"delegator3",
+        //         &RawDelegationData::new(initial_delegation3.into(), env.block.height),
+        //     )
+        //     .unwrap();
+        //
+        // env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
+        //
+        // let bond_reward = current_state.mixnode_epoch_bond_reward;
+        // let delegation_reward = current_state.mixnode_epoch_delegation_reward;
+        //
+        // // the node's bond and delegations are correctly increased and scaled by uptime
+        // // if node was 100% up, it will get full epoch reward
+        // let expected_mix_reward = Uint128(initial_mix_bond) * bond_reward;
+        // let expected_delegation1_reward = Uint128(initial_delegation1) * delegation_reward;
+        // let expected_delegation2_reward = Uint128(initial_delegation2) * delegation_reward;
+        // let expected_delegation3_reward = Uint128(initial_delegation3) * delegation_reward;
+        //
+        // let expected_bond = expected_mix_reward + Uint128(initial_mix_bond);
+        // let expected_delegation1 = expected_delegation1_reward + Uint128(initial_delegation1);
+        // let expected_delegation2 = expected_delegation2_reward + Uint128(initial_delegation2);
+        // let expected_delegation3 = expected_delegation3_reward + Uint128(initial_delegation3);
+        //
+        // let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+        // try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
+        // let res = try_reward_mixnode(
+        //     deps.as_mut(),
+        //     env.clone(),
+        //     info.clone(),
+        //     identity.clone(),
+        //     100,
+        //     1,
+        // )
+        // .unwrap();
+        // try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
+        //
+        // assert_eq!(
+        //     expected_bond,
+        //     read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
+        // );
+        //
+        // assert_eq!(
+        //     expected_delegation1,
+        //     mix_delegations_read(deps.as_ref().storage, &identity)
+        //         .load("delegator1".as_bytes())
+        //         .unwrap()
+        //         .amount
+        // );
+        //
+        // assert_eq!(
+        //     expected_delegation2,
+        //     mix_delegations_read(deps.as_ref().storage, &identity)
+        //         .load("delegator2".as_bytes())
+        //         .unwrap()
+        //         .amount
+        // );
+        //
+        // assert_eq!(
+        //     expected_delegation3,
+        //     mix_delegations_read(deps.as_ref().storage, &identity)
+        //         .load("delegator3".as_bytes())
+        //         .unwrap()
+        //         .amount
+        // );
+        //
+        // assert_eq!(
+        //     vec![
+        //         attr("bond increase", expected_mix_reward),
+        //         attr(
+        //             "total delegation increase",
+        //             expected_delegation1_reward
+        //                 + expected_delegation2_reward
+        //                 + expected_delegation3_reward,
+        //         ),
+        //     ],
+        //     res.attributes
+        // );
+        //
+        // // if node was 20% up, it will get 1/5th of epoch reward
+        // let scaled_bond_reward = scale_reward_by_uptime(bond_reward, 20).unwrap();
+        // let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward, 20).unwrap();
+        //
+        // let expected_mix_reward = expected_bond * scaled_bond_reward;
+        // let expected_delegation1_reward = expected_delegation1 * scaled_delegation_reward;
+        // let expected_delegation2_reward = expected_delegation2 * scaled_delegation_reward;
+        // let expected_delegation3_reward = expected_delegation3 * scaled_delegation_reward;
+        //
+        // let expected_bond = expected_mix_reward + expected_bond;
+        // let expected_delegation1 = expected_delegation1_reward + expected_delegation1;
+        // let expected_delegation2 = expected_delegation2_reward + expected_delegation2;
+        // let expected_delegation3 = expected_delegation3_reward + expected_delegation3;
+        //
+        // let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+        // try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
+        // let res = try_reward_mixnode(
+        //     deps.as_mut(),
+        //     env.clone(),
+        //     info.clone(),
+        //     identity.clone(),
+        //     20,
+        //     2,
+        // )
+        // .unwrap();
+        // try_finish_mixnode_rewarding(deps.as_mut(), info, 2).unwrap();
+        //
+        // assert_eq!(
+        //     expected_bond,
+        //     read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
+        // );
+        //
+        // assert_eq!(
+        //     expected_delegation1,
+        //     mix_delegations_read(deps.as_ref().storage, &identity)
+        //         .load("delegator1".as_bytes())
+        //         .unwrap()
+        //         .amount
+        // );
+        //
+        // assert_eq!(
+        //     expected_delegation2,
+        //     mix_delegations_read(deps.as_ref().storage, &identity)
+        //         .load("delegator2".as_bytes())
+        //         .unwrap()
+        //         .amount
+        // );
+        //
+        // assert_eq!(
+        //     expected_delegation3,
+        //     mix_delegations_read(deps.as_ref().storage, &identity)
+        //         .load("delegator3".as_bytes())
+        //         .unwrap()
+        //         .amount
+        // );
+        //
+        // assert_eq!(
+        //     vec![
+        //         attr("bond increase", expected_mix_reward),
+        //         attr(
+        //             "total delegation increase",
+        //             expected_delegation1_reward
+        //                 + expected_delegation2_reward
+        //                 + expected_delegation3_reward,
+        //         ),
+        //     ],
+        //     res.attributes
+        // );
+        //
+        // // if the node was 0% up, nobody will get any rewards
+        // let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+        // try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 3).unwrap();
+        // let res = try_reward_mixnode(
+        //     deps.as_mut(),
+        //     env.clone(),
+        //     info.clone(),
+        //     identity.clone(),
+        //     0,
+        //     3,
+        // )
+        // .unwrap();
+        // try_finish_mixnode_rewarding(deps.as_mut(), info, 3).unwrap();
+        //
+        // assert_eq!(
+        //     expected_bond,
+        //     read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
+        // );
+        //
+        // assert_eq!(
+        //     expected_delegation1,
+        //     mix_delegations_read(deps.as_ref().storage, &identity)
+        //         .load("delegator1".as_bytes())
+        //         .unwrap()
+        //         .amount
+        // );
+        //
+        // assert_eq!(
+        //     expected_delegation2,
+        //     mix_delegations_read(deps.as_ref().storage, &identity)
+        //         .load("delegator2".as_bytes())
+        //         .unwrap()
+        //         .amount
+        // );
+        //
+        // assert_eq!(
+        //     expected_delegation3,
+        //     mix_delegations_read(deps.as_ref().storage, &identity)
+        //         .load("delegator3".as_bytes())
+        //         .unwrap()
+        //         .amount
+        // );
+        //
+        // assert_eq!(
+        //     vec![
+        //         attr("bond increase", Uint128(0)),
+        //         attr("total delegation increase", Uint128(0)),
+        //     ],
+        //     res.attributes
+        // );
     }
 
     #[test]

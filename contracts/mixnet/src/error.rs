@@ -45,12 +45,6 @@ pub enum ContractError {
     #[error("No coin was sent for the bonding, you must send {}", DENOM)]
     NoBondFound,
 
-    #[error("The bond reward rate for mixnode was set to be lower than 1")]
-    DecreasingMixnodeBondReward,
-
-    #[error("The delegation reward rate for mixnode was set to be lower than 1")]
-    DecreasingMixnodeDelegationReward,
-
     #[error("Provided active set size is bigger than the demanded set")]
     InvalidActiveSetSize,
 

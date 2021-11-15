@@ -35,13 +35,11 @@ pub struct RewardingIntervalResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct StateParams {
+    #[deprecated]
     pub epoch_length: u32, // length of a rewarding epoch/interval, expressed in hours
 
     pub minimum_mixnode_bond: Uint128, // minimum amount a mixnode must bond to get into the system
     pub minimum_gateway_bond: Uint128, // minimum amount a gateway must bond to get into the system
-
-    pub mixnode_bond_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
-    pub mixnode_delegation_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
 
     // number of mixnode that are going to get rewarded during current rewarding interval (k_m)
     // based on overall demand for private bandwidth-
@@ -58,16 +56,6 @@ impl Display for StateParams {
         write!(f, "epoch length: {}; ", self.epoch_length)?;
         write!(f, "minimum mixnode bond: {}; ", self.minimum_mixnode_bond)?;
         write!(f, "minimum gateway bond: {}; ", self.minimum_gateway_bond)?;
-        write!(
-            f,
-            "mixnode bond reward rate: {}; ",
-            self.mixnode_bond_reward_rate
-        )?;
-        write!(
-            f,
-            "mixnode delegation reward rate: {}; ",
-            self.mixnode_delegation_reward_rate
-        )?;
         write!(
             f,
             "mixnode rewarded set size: {}",

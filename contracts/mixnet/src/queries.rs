@@ -584,16 +584,12 @@ pub(crate) mod tests {
                 epoch_length: 1,
                 minimum_mixnode_bond: 123u128.into(),
                 minimum_gateway_bond: 456u128.into(),
-                mixnode_bond_reward_rate: "1.23".parse().unwrap(),
-                mixnode_delegation_reward_rate: "7.89".parse().unwrap(),
                 mixnode_rewarded_set_size: 1000,
                 mixnode_active_set_size: 500,
             },
             rewarding_interval_starting_block: 123,
             latest_rewarding_interval_nonce: 0,
             rewarding_in_progress: false,
-            mixnode_epoch_bond_reward: "1.23".parse().unwrap(),
-            mixnode_epoch_delegation_reward: "7.89".parse().unwrap(),
         };
 
         config(deps.as_mut().storage).save(&dummy_state).unwrap();

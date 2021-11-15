@@ -29,7 +29,7 @@ use crate::error::{CoconutError, Result};
 use crate::scheme::setup::Parameters;
 use crate::scheme::VerificationKey;
 use crate::utils::{hash_g1, try_deserialize_scalar, try_deserialize_scalar_vec};
-use crate::{elgamal, Attribute, ElGamalKeyPair};
+use crate::{elgamal, Attribute, Bytable, ElGamalKeyPair};
 
 // as per the reference python implementation
 type ChallengeDigest = Sha256;
@@ -49,7 +49,7 @@ pub struct ProofCmCs {
 // representations together and hash that.
 // note2: G1 and G2 elements are using their compressed representations
 // and as per the bls12-381 library all elements are using big-endian form
-/// Generates a Scalar [or Fp] challenge by hashing a number of elliptic curve points.  
+/// Generates a Scalar [or Fp] challenge by hashing a number of elliptic curve points.
 fn compute_challenge<D, I, B>(iter: I) -> Scalar
 where
     D: Digest,
@@ -383,7 +383,7 @@ pub struct ProofKappa {
 }
 
 impl ProofKappa {
-    pub(crate) fn construct(
+    pub fn construct(
         params: &Parameters,
         verification_key: &VerificationKey,
         blinding_factor: &Scalar,
@@ -434,11 +434,11 @@ impl ProofKappa {
         }
     }
 
-    pub(crate) fn private_attributes_len(&self) -> usize {
+    pub fn private_attributes_len(&self) -> usize {
         self.response_attributes.len()
     }
 
-    pub(crate) fn verify(
+    pub fn verify(
         &self,
         params: &Parameters,
         verification_key: &VerificationKey,
@@ -478,7 +478,7 @@ impl ProofKappa {
         challenge == self.challenge
     }
 
-    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let attributes_len = self.response_attributes.len() as u64;
         let mut bytes = Vec::with_capacity(8 + (attributes_len + 2) as usize * 32);
 
@@ -494,7 +494,7 @@ impl ProofKappa {
         bytes
     }
 
-    pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Self> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         // at the very minimum there must be a single attribute being proven
         if bytes.len() < 32 * 2 + 8 || (bytes.len() - 8) % 32 != 0 {
             return Err(

@@ -43,7 +43,7 @@ pub struct ThetaCovid {
 }
 
 impl ThetaCovid {
-    fn verify_proof(
+    pub fn verify_proof(
         &self,
         params: &Parameters,
         verification_key: &VerificationKey,
@@ -212,7 +212,6 @@ pub fn compute_zeta(params: &Parameters, serial_number: Attribute) -> G2Projecti
     params.gen2() * serial_number
 }
 
-#[cfg(test)]
 pub fn prove_covid_credential(
     params: &Parameters,
     verification_key: &VerificationKey,
@@ -329,7 +328,6 @@ pub fn check_bilinear_pairing(p: &G1Affine, q: &G2Prepared, r: &G1Affine, s: &G2
     multi_miller.final_exponentiation().is_identity().into()
 }
 
-#[cfg(test)]
 pub fn verify_covid_credential(
     params: &Parameters,
     verification_key: &VerificationKey,

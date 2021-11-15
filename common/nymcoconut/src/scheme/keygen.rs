@@ -124,8 +124,8 @@ impl Base58 for SecretKey {}
 #[derive(Debug, PartialEq, Clone)]
 pub struct VerificationKey {
     // TODO add gen2 as per the paper or imply it from the fact library is using bls381?
-    pub(crate) alpha: G2Projective,
-    pub(crate) beta: Vec<G2Projective>,
+    pub alpha: G2Projective,
+    pub beta: Vec<G2Projective>,
 }
 
 impl TryFrom<&[u8]> for VerificationKey {

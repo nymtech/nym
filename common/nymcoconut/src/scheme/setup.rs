@@ -57,15 +57,15 @@ impl Parameters {
         &self.g1
     }
 
-    pub(crate) fn gen2(&self) -> &G2Affine {
+    pub fn gen2(&self) -> &G2Affine {
         &self.g2
     }
 
-    pub(crate) fn prepared_miller_g2(&self) -> &G2Prepared {
+    pub fn prepared_miller_g2(&self) -> &G2Prepared {
         &self._g2_prepared_miller
     }
 
-    pub(crate) fn gen_hs(&self) -> &[G1Affine] {
+    pub fn gen_hs(&self) -> &[G1Affine] {
         &self.hs
     }
 

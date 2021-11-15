@@ -44,8 +44,8 @@ use crate::traits::Bytable;
 pub mod elgamal;
 mod error;
 mod impls;
-mod proofs;
-mod scheme;
+pub mod proofs;
+pub mod scheme;
 #[cfg(test)]
 mod tests;
 mod traits;

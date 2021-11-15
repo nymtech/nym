@@ -1,13 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use url::Url;
-
 use coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
-    prove_bandwidth_credential, Attribute, BlindSignRequestBody, Credential, Parameters, Signature,
-    SignatureShare, VerificationKey,
+    prove_bandwidth_credential, Attribute, BlindSignRequest, BlindSignRequestBody,
+    BlindedSignature, Credential, ElGamalKeyPair, Parameters, Signature, SignatureShare,
+    VerificationKey,
 };
+use url::Url;
 
 use crate::bandwidth::PRIVATE_ATTRIBUTES;
 use crate::error::Error;
@@ -35,6 +35,43 @@ use crate::error::Error;
 ///     Ok(())
 /// }
 /// ```
+pub async fn get_verification_keys(validators: &[Url]) -> Result<Vec<VerificationKey>, Error> {
+    if validators.is_empty() {
+        return Err(Error::NoValidatorsAvailable);
+    }
+
+    let mut shares = Vec::with_capacity(validators.len());
+
+    let mut client = validator_client::ApiClient::new(validators[0].clone());
+    let response = client.get_coconut_verification_key().await?;
+
+    shares.push(response.key);
+
+    for validator_url in validators.iter().enumerate().skip(1) {
+        client.change_validator_api(validator_url.1.clone());
+        let response = client.get_coconut_verification_key().await?;
+        shares.push(response.key);
+    }
+
+    Ok(shares)
+}
+
+pub fn create_aggregate_verification_key(
+    verification_keys: &Vec<VerificationKey>,
+) -> Result<VerificationKey, Error> {
+    if verification_keys.is_empty() {
+        return Err(Error::NoValidatorsAvailable);
+    }
+
+    // creates a vec of [1, 2, .. n] where n is length of verification_keys, e.g. [1,2,3] for 3 keys
+    let indices: Vec<u64> = (1u64..(verification_keys.len() + 1) as u64).collect();
+
+    Ok(aggregate_verification_keys(
+        &verification_keys,
+        Some(&indices.as_slice()),
+    )?)
+}
+
 pub async fn obtain_aggregate_verification_key(
     validators: &[Url],
 ) -> Result<VerificationKey, Error> {
@@ -59,6 +96,28 @@ pub async fn obtain_aggregate_verification_key(
     }
 
     Ok(aggregate_verification_keys(&shares, Some(&indices))?)
+}
+
+pub async fn blind_sign_partial_credential(
+    validator_url: &Url,
+    elgamal_keypair: &ElGamalKeyPair,
+    blind_sign_request: &BlindSignRequest,
+    public_attributes: &[Attribute],
+    total_params: u32,
+) -> Result<BlindedSignature, Error> {
+    let client = validator_client::ApiClient::new(validator_url.clone());
+
+    let blind_sign_request_body = BlindSignRequestBody::new(
+        &blind_sign_request,
+        elgamal_keypair.public_key(),
+        public_attributes,
+        total_params,
+    );
+
+    Ok(client
+        .blind_sign(&blind_sign_request_body)
+        .await?
+        .blinded_signature)
 }
 
 async fn obtain_partial_credential(

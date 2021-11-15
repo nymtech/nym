@@ -41,7 +41,7 @@ pub type SignerIndex = u64;
 // (h, s)
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(test, derive(PartialEq))]
-pub struct Signature(pub(crate) G1Projective, pub(crate) G1Projective);
+pub struct Signature(pub G1Projective, pub G1Projective);
 
 pub type PartialSignature = Signature;
 

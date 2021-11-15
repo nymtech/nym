@@ -45,41 +45,26 @@ pub(crate) const MAX_TO_REWARD_AT_ONCE: usize = 50;
 #[derive(Debug, Clone)]
 pub(crate) struct MixnodeToReward {
     pub(crate) identity: IdentityKey,
-    pub(crate) uptime: Uptime,
 
     /// Total number of individual addresses that have delegated to this particular node
     pub(crate) total_delegations: usize,
 
     /// Node absolute uptime over total active set uptime
-    params: Option<NodeRewardParams>,
+    pub(crate) params: NodeRewardParams,
 }
 
 impl MixnodeToReward {
-    /// Somewhat clumsy way of feature gatting tokenomics payments. In a tokenomics scenario this will never be None at reward time. We levarage that to Into a different ExecuteMsg variant
-    // TODO: to re-integrate in another PR that combines rewarded/active sets with tokenomics
-    // #[allow(dead_code)]
-    fn params(&self) -> Option<NodeRewardParams> {
+    /// Somewhat clumsy way of feature gatting tokenomics payments. In a tokenomics scenario this will never be None at reward time. We leverage that to Into a different ExecuteMsg variant
+    fn params(&self) -> NodeRewardParams {
         self.params
     }
 }
 
 impl MixnodeToReward {
-    // pub(crate) fn to_execute_msg(&self, rewarding_interval_nonce: u32) -> ExecuteMsg {
-    //     ExecuteMsg::RewardMixnode {
-    //         identity: self.identity.clone(),
-    //         uptime: self.uptime.u8() as u32,
-    //         rewarding_interval_nonce,
-    //     }
-    // }
-
-    // TODO: to re-integrate in another PR that combines rewarded/active sets with tokenomics
-    #[allow(dead_code)]
     pub(crate) fn to_execute_msg_v2(&self, rewarding_interval_nonce: u32) -> ExecuteMsg {
         ExecuteMsg::RewardMixnodeV2 {
             identity: self.identity.clone(),
-            params: self
-                .params()
-                .expect("this unwrap must be dealt with, ideally params shouldn't be an option"),
+            params: self.params(),
             rewarding_interval_nonce,
         }
     }
@@ -148,38 +133,6 @@ impl Rewarder {
             .len())
     }
 
-    /// Queries the smart contract in order to obtain the current list of bonded mixnodes and then
-    /// for each mixnode determines how many delegators it has.
-    async fn produce_active_mixnode_delegators_map(
-        &self,
-    ) -> Result<HashMap<IdentityKey, usize>, RewardingError> {
-        // Technically we could optimise it by creating a concurrent stream and executing multiple
-        // queries concurrently.
-        //
-        // I've actually tested that approach and for 5300 nodes running it all sequentially was taking around 19s
-        // while running it with 20 concurrent queries was taking around 4.5s.
-        // Note that the results were a bit biased as I was testing it against remote validator
-        // while in real world this would be making only local requests.
-        // During the test my average ping times to the machine were around 2.6ms.
-        // So I guess the network latency was 2.6ms * 5300 = 13.78s in total in the sequential case.
-        //
-        // HOWEVER, even if the method was taking that long in real world,
-        // in the grand scheme of things it makes absolutely no difference. If the rewards
-        // distribution is delayed by 15s, it changes nothing as the process itself is not
-        // instantaneous.
-        let mut map = HashMap::new();
-
-        let active_bonded_mixnodes = self.validator_cache.active_mixnodes().await.into_inner();
-        for mix in active_bonded_mixnodes.into_iter() {
-            let delegator_count = self
-                .get_mixnode_delegators_count(mix.mix_node.identity_key.clone())
-                .await?;
-            map.insert(mix.mix_node.identity_key, delegator_count);
-        }
-
-        Ok(map)
-    }
-
     /// Given the list of mixnodes that were tested in the last epoch, tries to determine the
     /// subset that are eligible for any rewards.
     ///
@@ -205,32 +158,14 @@ impl Rewarder {
         // and the lack of port data / verloc data will eventually be balanced out anyway
         // by people hesitating to delegate to nodes without them and thus those nodes disappearing
         // from the active set (once introduced)
-        let mixnode_delegators = self.produce_active_mixnode_delegators_map().await?;
         let state = self.nymd_client.get_state_params().await?;
-
-        // 1. go through all active mixnodes
-        // 2. filter out nodes that are currently not in the active set (as `mixnode_delegators` was obtained by
-        //    querying the validator)
-        // 3. determine uptime and attach delegators count
-        let mut eligible_nodes: Vec<MixnodeToReward> = active_mixnodes
-            .iter()
-            .filter_map(|mix| {
-                mixnode_delegators
-                    .get(&mix.identity)
-                    .map(|&total_delegations| MixnodeToReward {
-                        identity: mix.identity.clone(),
-                        uptime: mix.last_day,
-                        total_delegations,
-                        params: None,
-                    })
-            })
-            .filter(|node| node.uptime.u8() > 0)
-            .collect();
 
         let reward_pool = self.nymd_client.get_reward_pool().await?;
         let circulating_supply = self.nymd_client.get_circulating_supply().await?;
         let sybil_resistance_percent = self.nymd_client.get_sybil_resistance_percent().await?;
         let epoch_reward_percent = self.nymd_client.get_epoch_reward_percent().await?;
+
+        // TODO: question to @durch: is k active set or 'rewarded' set?
         let k = state.mixnode_active_set_size;
         let period_reward_pool = (reward_pool / 100) * epoch_reward_percent as u128;
 
@@ -239,15 +174,42 @@ impl Rewarder {
         info!("---- Epoch reward pool: {} unym", period_reward_pool);
         info!("-- Circulating supply: {} unym", circulating_supply);
 
-        for mix in eligible_nodes.iter_mut() {
-            mix.params = Some(NodeRewardParams::new(
-                period_reward_pool,
-                k.into(),
-                0,
-                circulating_supply,
-                mix.uptime.u8().into(),
-                sybil_resistance_percent,
-            ));
+        // 1. get list of 'rewarded' nodes
+        // 2. for each of them determine their delegator count
+        // 3. for each of them determine their uptime for the epoch
+        let rewarded_nodes = self.validator_cache.rewarded_mixnodes().await.into_inner();
+        let mut nodes_with_delegations = Vec::with_capacity(rewarded_nodes.len());
+        for rewarded_node in rewarded_nodes {
+            let delegator_count = self
+                .get_mixnode_delegators_count(rewarded_node.mix_node.identity_key.clone())
+                .await?;
+            nodes_with_delegations.push((rewarded_node, delegator_count));
+        }
+
+        let mut eligible_nodes = Vec::with_capacity(nodes_with_delegations.len());
+        for (rewarded_node, total_delegations) in nodes_with_delegations {
+            // TODO: THIS HAS TO BE CHANGED TO INSTEAD QUERY DATABASE TO USE ENTIRE EPOCH!!
+            // TEMPORARY:
+            let uptime = active_mixnodes
+                .iter()
+                .find(|report| &report.identity == rewarded_node.identity())
+                .map(|report| report.last_day)
+                .unwrap_or_default();
+
+            if uptime.u8() > 0 {
+                eligible_nodes.push(MixnodeToReward {
+                    identity: rewarded_node.mix_node.identity_key,
+                    total_delegations,
+                    params: NodeRewardParams::new(
+                        period_reward_pool,
+                        k.into(),
+                        0,
+                        circulating_supply,
+                        uptime.u8().into(),
+                        sybil_resistance_percent,
+                    ),
+                })
+            }
         }
 
         Ok(eligible_nodes)
@@ -423,7 +385,7 @@ impl Rewarder {
                         .insert_possibly_unrewarded_mixnode(PossiblyUnrewardedMixnode {
                             chunk_id,
                             identity: node.identity,
-                            uptime: node.uptime.u8(),
+                            uptime: node.params.uptime() as u8,
                         })
                         .await?;
                 }

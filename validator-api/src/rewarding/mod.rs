@@ -133,24 +133,18 @@ impl Rewarder {
             .len())
     }
 
-    /// Given the list of mixnodes that were tested in the last epoch, tries to determine the
-    /// subset that are eligible for any rewards.
-    ///
-    /// As of right now, it is a rather straightforward process. It is checked whether the node
-    /// is currently bonded, has uptime > 0 and is part of the "active" set.
-    /// Unlike the typescript rewards script, it currently does not look at the verloc data nor
-    /// whether the non-mixing ports are open.
+    /// Obtain the list of current 'rewarded' set, determine their uptime in the provided epoch
+    /// and attach information required for rewarding
     ///
     /// The method also obtains the number of delegators towards the node in order to more accurately
     /// approximate the required gas fees when distributing the rewards.
     ///
     /// # Arguments
     ///
-    /// * `active_mixnodes`: list of the nodes that were tested at least once by the network monitor
-    ///                      in the last epoch.
+    /// * `epoch`: current rewarding epoch
     async fn determine_eligible_mixnodes(
         &self,
-        active_mixnodes: &[MixnodeStatusReport],
+        epoch: Epoch,
     ) -> Result<Vec<MixnodeToReward>, RewardingError> {
         // Currently we don't have as many 'features' as in the typescript reward script,
         // such as we don't check ports or verloc data anymore. However, that's fine as
@@ -188,13 +182,15 @@ impl Rewarder {
 
         let mut eligible_nodes = Vec::with_capacity(nodes_with_delegations.len());
         for (rewarded_node, total_delegations) in nodes_with_delegations {
-            // TODO: THIS HAS TO BE CHANGED TO INSTEAD QUERY DATABASE TO USE ENTIRE EPOCH!!
             // TEMPORARY:
-            let uptime = active_mixnodes
-                .iter()
-                .find(|report| &report.identity == rewarded_node.identity())
-                .map(|report| report.last_day)
-                .unwrap_or_default();
+            let uptime = self
+                .storage
+                .get_average_mixnode_uptime_in_interval(
+                    rewarded_node.identity(),
+                    epoch.start_unix_timestamp(),
+                    epoch.end_unix_timestamp(),
+                )
+                .await?;
 
             if uptime.u8() > 0 {
                 eligible_nodes.push(MixnodeToReward {
@@ -298,20 +294,17 @@ impl Rewarder {
     ///
     /// # Arguments
     ///
-    /// * `epoch_rewarding_id`: id of the current epoch rewarding as stored in the databse.
+    /// * `epoch_rewarding_id`: id of the current epoch rewarding as stored in the database.
     ///
-    /// * `active_monitor_mixnodes`: list of the nodes that were tested at least once by the network monitor
-    ///                              in the last epoch.
+    /// * `epoch`: current rewarding epoch
     async fn distribute_rewards(
         &self,
         epoch_rewarding_database_id: i64,
-        active_monitor_mixnodes: &[MixnodeStatusReport],
+        epoch: Epoch,
     ) -> Result<(RewardingReport, Option<FailureData>), RewardingError> {
         let mut failure_data = FailureData::default();
 
-        let eligible_mixnodes = self
-            .determine_eligible_mixnodes(active_monitor_mixnodes)
-            .await?;
+        let eligible_mixnodes = self.determine_eligible_mixnodes(epoch).await?;
         if eligible_mixnodes.is_empty() {
             return Err(RewardingError::NoMixnodesToReward);
         }
@@ -512,9 +505,6 @@ impl Rewarder {
             epoch
         );
 
-        // get nodes that were active during the epoch
-        let active_monitor_mixnodes = self.get_active_monitor_mixnodes(epoch).await?;
-
         // insert information about beginning the procedure (so that if we crash during it,
         // we wouldn't attempt to possibly double reward operators)
         let epoch_rewarding_id = self
@@ -522,9 +512,7 @@ impl Rewarder {
             .insert_started_epoch_rewarding(epoch.start_unix_timestamp())
             .await?;
 
-        let (report, failure_data) = self
-            .distribute_rewards(epoch_rewarding_id, &active_monitor_mixnodes)
-            .await?;
+        let (report, failure_data) = self.distribute_rewards(epoch_rewarding_id, epoch).await?;
 
         self.storage
             .finish_rewarding_epoch_and_insert_report(report)

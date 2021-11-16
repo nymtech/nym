@@ -144,14 +144,14 @@ pub fn execute(
         ExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_identity,
             delegate_addr,
-            coin
+            coin,
         } => transactions::try_delegate_to_mixnode_on_behalf(
             deps,
             env,
             info,
             mix_identity,
             delegate_addr,
-            coin
+            coin,
         ),
         ExecuteMsg::UnDelegateFromMixnodeOnBehalf {
             mix_identity,

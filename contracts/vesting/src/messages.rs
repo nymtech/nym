@@ -1,6 +1,6 @@
 use crate::vesting::VestingPeriod;
 use cosmwasm_std::{Addr, Coin, Timestamp};
-use mixnet_contract::{IdentityKey};
+use mixnet_contract::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

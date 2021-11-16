@@ -1,7 +1,7 @@
 [package]
-name = "mixnet-contracts"
+name = "vesting-contracts"
 version = "0.1.0"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
+authors = ["Drazen Urch <durch@users.noreply.github.com>"]
 edition = "2018"
 
 exclude = [
@@ -9,8 +9,6 @@ exclude = [
   "contract.wasm",
   "hash.txt",
 ]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -21,19 +19,16 @@ backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
 mixnet-contract = { path = "../../common/mixnet-contract" }
-config = { path = "../../common/config"}
+config = { path = "../../common/config" }
 
-cosmwasm-std = "1.0.0-beta2"
-cosmwasm-storage = "1.0.0-beta2"
-cw-storage-plus = "0.10.3"
+# this branch is identical to 0.14.1 with addition of updated k256 dependency required to help poor cargo choose correct version
+cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch = "0.14.1-updatedk256", features = [
+  "iterator",
+] }
+cosmwasm-storage = { git = "https://github.com/jstuczyn/cosmwasm", branch = "0.14.1-updatedk256", features = [
+  "iterator",
+] }
 
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
-
-[dev-dependencies]
-cosmwasm-schema = "1.0.0-beta2"
-fixed = "1.1"
-
-[build-dependencies]
-vergen = { version = "5", default-features = false, features = ["build", "git", "rustc"] }

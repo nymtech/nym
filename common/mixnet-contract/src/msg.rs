@@ -5,6 +5,7 @@ use crate::mixnode::NodeRewardParams;
 use crate::ContractSettingsParams;
 use crate::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
+use cosmwasm_std::Coin;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -55,6 +56,15 @@ pub enum ExecuteMsg {
         // nonce of the current rewarding interval
         rewarding_interval_nonce: u32,
     },
+    DelegateToMixnodeOnBehalf {
+        mix_identity: IdentityKey,
+        delegate_addr: Addr,
+        coin: Coin,
+    },
+    UnDelegateFromMixnodeOnBehalf {
+        mix_identity: IdentityKey,
+        delegate_addr: Addr,
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

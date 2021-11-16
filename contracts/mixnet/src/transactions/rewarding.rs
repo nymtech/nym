@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
-use crate::queries;
 use crate::storage::{
     config, config_read, decr_reward_pool, mix_delegations, mixnodes, mixnodes_read,
     rewarded_mixnodes, rewarded_mixnodes_read,
@@ -10,7 +9,7 @@ use crate::storage::{
 use crate::transactions::{MAX_REWARDING_DURATION_IN_BLOCKS, MINIMUM_BLOCK_AGE_FOR_REWARDING};
 use cosmwasm_std::{attr, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
 use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
-use mixnet_contract::{IdentityKey, IdentityKeyRef};
+use mixnet_contract::{IdentityKey, IdentityKeyRef, MIXNODE_DELEGATORS_PAGE_LIMIT};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
@@ -100,7 +99,7 @@ fn reward_mix_delegators_v2(
 ) -> StdResult<MixDelegationRewardingResult> {
     // TODO: some checks to make sure stuff is not TOO stale.
 
-    let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
+    let chunk_size = MIXNODE_DELEGATORS_PAGE_LIMIT;
     let start_value = start.as_ref().map(|addr| addr.as_bytes());
 
     let mut delegations = mix_delegations(storage, mix_identity);
@@ -1240,7 +1239,6 @@ mod tests {
 
     #[cfg(test)]
     mod mixnode_rewarding_distributes_rewards_to_up_to_one_page_of_delegators {
-        use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
         use crate::storage::mix_delegations_read;
 
         #[test]
@@ -1336,20 +1334,20 @@ mod tests {
                 deps.as_mut(),
                 env.clone(),
                 mock_info(
-                    "DELEGATION_PAGE_MAX_LIMIT_delegators",
+                    "MIXNODE_DELEGATORS_PAGE_LIMIT_delegators",
                     &vec![Coin {
                         denom: DENOM.to_string(),
                         amount: mix_bond,
                     }],
                 ),
                 MixNode {
-                    identity_key: "DELEGATION_PAGE_MAX_LIMIT_delegators".to_string(),
+                    identity_key: "MIXNODE_DELEGATORS_PAGE_LIMIT_delegators".to_string(),
                     ..helpers::mix_node_fixture()
                 },
             )
             .unwrap();
 
-            for i in 0..DELEGATION_PAGE_MAX_LIMIT {
+            for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT {
                 try_delegate_to_mixnode(
                     deps.as_mut(),
                     env.clone(),
@@ -1357,7 +1355,7 @@ mod tests {
                         &*format!("delegator{}", i),
                         &vec![coin(delegation_value, DENOM)],
                     ),
-                    "DELEGATION_PAGE_MAX_LIMIT_delegators".to_string(),
+                    "MIXNODE_DELEGATORS_PAGE_LIMIT_delegators".to_string(),
                 )
                 .unwrap();
             }
@@ -1377,7 +1375,7 @@ mod tests {
                 deps.as_mut(),
                 env,
                 info,
-                "DELEGATION_PAGE_MAX_LIMIT_delegators".to_string(),
+                "MIXNODE_DELEGATORS_PAGE_LIMIT_delegators".to_string(),
                 node_rewarding_params_fixture(100),
                 1,
             )
@@ -1391,10 +1389,10 @@ mod tests {
             )
             .unwrap();
 
-            for i in 0..DELEGATION_PAGE_MAX_LIMIT {
+            for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT {
                 let delegation = mix_delegations_read(
                     deps.as_ref().storage,
-                    "DELEGATION_PAGE_MAX_LIMIT_delegators",
+                    "MIXNODE_DELEGATORS_PAGE_LIMIT_delegators",
                 )
                 .load(format!("delegator{}", i).as_bytes())
                 .unwrap();
@@ -1417,20 +1415,20 @@ mod tests {
                 deps.as_mut(),
                 env.clone(),
                 mock_info(
-                    "DELEGATION_PAGE_MAX_LIMIT+1_delegators",
+                    "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators",
                     &vec![Coin {
                         denom: DENOM.to_string(),
                         amount: mix_bond,
                     }],
                 ),
                 MixNode {
-                    identity_key: "DELEGATION_PAGE_MAX_LIMIT+1_delegators".to_string(),
+                    identity_key: "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators".to_string(),
                     ..helpers::mix_node_fixture()
                 },
             )
             .unwrap();
 
-            for i in 0..DELEGATION_PAGE_MAX_LIMIT + 1 {
+            for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT + 1 {
                 try_delegate_to_mixnode(
                     deps.as_mut(),
                     env.clone(),
@@ -1438,7 +1436,7 @@ mod tests {
                         &*format!("delegator{:04}", i),
                         &vec![coin(delegation_value, DENOM)],
                     ),
-                    "DELEGATION_PAGE_MAX_LIMIT+1_delegators".to_string(),
+                    "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators".to_string(),
                 )
                 .unwrap();
             }
@@ -1458,7 +1456,7 @@ mod tests {
                 deps.as_mut(),
                 env,
                 info,
-                "DELEGATION_PAGE_MAX_LIMIT+1_delegators".to_string(),
+                "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators".to_string(),
                 node_rewarding_params_fixture(100),
                 1,
             )
@@ -1472,10 +1470,10 @@ mod tests {
             )
             .unwrap();
 
-            for i in 0..DELEGATION_PAGE_MAX_LIMIT {
+            for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT {
                 let delegation = mix_delegations_read(
                     deps.as_ref().storage,
-                    "DELEGATION_PAGE_MAX_LIMIT+1_delegators",
+                    "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators",
                 )
                 .load(format!("delegator{:04}", i).as_bytes())
                 .unwrap();
@@ -1485,9 +1483,9 @@ mod tests {
             // and the one on the next page should have been unrewarded
             let delegation = mix_delegations_read(
                 deps.as_ref().storage,
-                "DELEGATION_PAGE_MAX_LIMIT+1_delegators",
+                "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators",
             )
-            .load(format!("delegator{:04}", DELEGATION_PAGE_MAX_LIMIT).as_bytes())
+            .load(format!("delegator{:04}", MIXNODE_DELEGATORS_PAGE_LIMIT).as_bytes())
             .unwrap();
             assert_eq!(delegation.amount, Uint128(delegation_value));
         }
@@ -1496,7 +1494,6 @@ mod tests {
     #[cfg(test)]
     mod delegator_rewarding {
         use super::*;
-        use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
         use crate::storage::mix_delegations_read;
 
         #[test]
@@ -1642,7 +1639,7 @@ mod tests {
             )
             .unwrap();
 
-            for i in 0..DELEGATION_PAGE_MAX_LIMIT + 1 {
+            for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT + 1 {
                 try_delegate_to_mixnode(
                     deps.as_mut(),
                     env.clone(),
@@ -1718,7 +1715,7 @@ mod tests {
             let mix_bond = Uint128(10000_000_000);
             let delegation_value = 2000_000000;
 
-            let total_delegators = 2 * DELEGATION_PAGE_MAX_LIMIT + 123;
+            let total_delegators = 2 * MIXNODE_DELEGATORS_PAGE_LIMIT + 123;
 
             try_add_mixnode(
                 deps.as_mut(),
@@ -1813,7 +1810,7 @@ mod tests {
             let mix_bond = Uint128(10000_000_000);
             let delegation_value = 2000_000000;
 
-            let total_delegators = DELEGATION_PAGE_MAX_LIMIT + 123;
+            let total_delegators = MIXNODE_DELEGATORS_PAGE_LIMIT + 123;
 
             try_add_mixnode(
                 deps.as_mut(),
@@ -1860,7 +1857,7 @@ mod tests {
                 deps.as_mut(),
                 env.clone(),
                 mock_info(
-                    &*format!("delegator{:04}", 123 + DELEGATION_PAGE_MAX_LIMIT),
+                    &*format!("delegator{:04}", 123 + MIXNODE_DELEGATORS_PAGE_LIMIT),
                     &vec![coin(delegation_value, DENOM)],
                 ),
                 "alice".to_string(),
@@ -1908,7 +1905,7 @@ mod tests {
                     .load(format!("delegator{:04}", i).as_bytes())
                     .unwrap();
 
-                if i == 123 || i == 123 + DELEGATION_PAGE_MAX_LIMIT {
+                if i == 123 || i == 123 + MIXNODE_DELEGATORS_PAGE_LIMIT {
                     assert_eq!(delegation.amount, Uint128(2 * delegation_value))
                 } else {
                     assert!(delegation.amount > Uint128(delegation_value));

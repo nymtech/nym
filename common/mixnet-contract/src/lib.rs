@@ -8,6 +8,8 @@ pub mod mixnode;
 mod msg;
 mod types;
 
+pub const MIXNODE_DELEGATORS_PAGE_LIMIT: usize = 250;
+
 pub use cosmwasm_std::{Addr, Coin};
 pub use delegation::{
     Delegation, PagedAllDelegationsResponse, PagedMixDelegationsResponse,

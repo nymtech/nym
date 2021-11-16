@@ -444,7 +444,6 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 pub mod tests {
     use super::*;
     use crate::contract::{execute, query, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND};
-    use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
     use crate::storage::{layer_distribution_read, mix_delegations_read};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
@@ -454,7 +453,7 @@ pub mod tests {
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
     use mixnet_contract::{
         ExecuteMsg, LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
-        UnpackedDelegation,
+        UnpackedDelegation, MIXNODE_DELEGATORS_PAGE_LIMIT,
     };
     use queries::tests::store_n_mix_delegations;
 
@@ -1981,7 +1980,7 @@ pub mod tests {
         let node_identity: IdentityKey = "foo".into();
 
         store_n_mix_delegations(
-            DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+            MIXNODE_DELEGATORS_PAGE_LIMIT as u32 * 10,
             &mut deps.storage,
             &node_identity,
         );
@@ -1989,7 +1988,7 @@ pub mod tests {
         let mix_delegations =
             Delegations::new(mix_bucket).collect::<Vec<UnpackedDelegation<RawDelegationData>>>();
         assert_eq!(
-            DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+            MIXNODE_DELEGATORS_PAGE_LIMIT as u32 * 10,
             mix_delegations.len() as u32
         );
     }

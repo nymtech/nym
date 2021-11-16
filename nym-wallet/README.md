@@ -3,15 +3,17 @@ Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 SPDX-License-Identifier: Apache-2.0
 -->
 
-# Nym Tauri Wallet
+# Nym Wallet
 
-A Rust and Tauri desktop wallet implementation.
+Nym is an open-source, decentralized and permissionless privacy system. It provides full-stack privacy, allowing other applications, services or blockchains to provide their users with strong metadata protection, at both the network level (mixnet), and the application level (anonymous credentials) without the need to build privacy from scratch.
+
+The Nym desktop wallet enables you to use the Nym network and take advantage of its key capabilities
 
 ## Installation prerequisites Linux / Mac
 
 - `Yarn`
 - `NodeJS >= v16.8.0`
-- `Rust & cargo >= v1.51`
+- `Rust & cargo >= v1.56`
 
 ## Installation prerequisites Windows
 
@@ -22,25 +24,52 @@ A Rust and Tauri desktop wallet implementation.
 
 ## Installation
 
-Inside of the `tauri-wallet` folder, run the following commands
-
-- `yarn install`
-
+Inside the `nym-wallet` directory, run the following command:
+```
+yarn install
+```
 ## Development mode
 
-You can run the wallet without having to install it in development mode by running the following terminal command from the `tauri-wallet` folder
+You can compile the wallet in development mode by running the following command inside the `nym-wallet` directory:
+```
+yarn dev
+```
+This will produce a binary in - `nym-wallet/target/debug/` named `nym-wallet`
 
-`yarn dev`
+To launch the wallet, navigate to the directory and run the following command: `./nym-wallet`
 
 ## Production mode
 
-To build and install the wallet, run the following terminal command from the `tauri-wallet` folder
+Run the following command from the `nym-wallet` folder
+```
+yarn build
+```
+The output will compile different types of binaries dependent on your hardware / OS system. Once the binaries are build, they can be located as follows:
 
-`$ yarn build`
-
-This will build an executable file that you can use to install the wallet on your machine
-
-## Install the wallet
-
-Once the the building process is complete an installation file can be found in the following location `tauri-wallet/target/release/nym_wallet`
-``
+### Binary output directory structure 
+```
+**macos**
+|
+└─── target/release
+|   |─ nym-wallet
+└───target/release/bundle/dmg
+│   │─ bundle_dmg.sh
+│   │─ nym-wallet.*.dmg
+└───target/release/bundle/macos/MacOs
+│   │─ nym-wallet
+|
+**Linux**
+└─── target/release
+|   │─  nym-wallet
+└───target/release/bundle/appimage
+│   │─  nym-wallet_*_.AppImage
+│   │─  build_appimage.sh
+└───target/release/bundle/deb
+│   │─  nym-wallet_*_.deb
+|
+**Windows**
+└─── target/release
+|   │─  nym-wallet.exe
+└───target/release/bundle/msi
+│   │─  nym-wallet_*_.msi
+```

@@ -6,6 +6,7 @@ use cosmwasm_std::{
     Timestamp,
 };
 use mixnet_contract::IdentityKey;
+
 /// Instantiate the contract.
 ///
 /// `deps` contains Storage, API and Querier
@@ -106,7 +107,6 @@ fn try_get_locked_coins(
     deps: Deps,
 ) -> Result<Vec<Coin>, ContractError> {
     let block_time = block_time.unwrap_or_else(|| env.block.time);
-
     unimplemented!()
 }
 

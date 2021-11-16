@@ -1,4 +1,7 @@
-use cosmwasm_std::{Addr, Coin, DepsMut, Env, Timestamp};
+use crate::errors::ContractError;
+use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
+use cosmwasm_std::{Addr, Coin, DepsMut, Env, QueryRequest, Response, Timestamp};
+use mixnet_contract::ExecuteMsg as MixnetExecuteMsg;
 use mixnet_contract::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -43,8 +46,20 @@ trait VestingAccount {
 }
 
 trait DelegationAccount {
-    fn try_delegate_to_mixnode(mix_identity: IdentityKey, amount: Vec<Coin>);
-    fn try_undelegate_from_mixnode(mix_identity: IdentityKey);
+    // TODO: Add delegate on behalf messages in the mixnet contract. 
+    // As the vesting account is delegating on behalf of the token holders/vesters
+    fn try_delegate_to_mixnode(
+        mix_identity: IdentityKey,
+        amount: Vec<Coin>,
+        env: Env,
+        deps: DepsMut,
+    ) -> Result<(), ContractError> {
+        let querier = deps.querier;
+        let msg = MixnetExecuteMsg::DelegateToMixnode { mix_identity };
+        querier.query_wasm_smart(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg)?;
+        Ok(())
+    }
+    fn try_undelegate_from_mixnode(mix_identity: IdentityKey, env: Env, deps: DepsMut);
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

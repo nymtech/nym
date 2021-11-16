@@ -64,7 +64,7 @@ pub enum ExecuteMsg {
     UnDelegateFromMixnodeOnBehalf {
         mix_identity: IdentityKey,
         delegate_addr: Addr,
-    }
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

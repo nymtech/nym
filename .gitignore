@@ -35,3 +35,4 @@ contracts/mixnet/Justfile
 contracts/mixnet/Makefile
 validator-config
 *.patch
+validator-api-config.toml

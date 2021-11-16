@@ -4,8 +4,8 @@
 use url::Url;
 
 use coconut_interface::{
-    aggregate_signature_shares, aggregate_verification_keys, Attribute,
-    BlindSignRequestBody, Credential, Parameters, prepare_blind_sign, prove_bandwidth_credential, Signature,
+    aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
+    prove_bandwidth_credential, Attribute, BlindSignRequestBody, Credential, Parameters, Signature,
     SignatureShare, VerificationKey,
 };
 
@@ -88,15 +88,14 @@ async fn obtain_partial_credential(
         .await?
         .blinded_signature;
 
-    let unblinded_signature = blinded_signature
-        .unblind(
-            params,
-            elgamal_keypair.private_key(),
-            validator_vk,
-            private_attributes,
-            public_attributes,
-            &blind_sign_request.get_commitment_hash(),
-        )?;
+    let unblinded_signature = blinded_signature.unblind(
+        params,
+        elgamal_keypair.private_key(),
+        validator_vk,
+        private_attributes,
+        public_attributes,
+        &blind_sign_request.get_commitment_hash(),
+    )?;
 
     Ok(unblinded_signature)
 }
@@ -125,7 +124,7 @@ pub async fn obtain_aggregate_signature(
         &client,
         &validator_partial_vk.key,
     )
-        .await?;
+    .await?;
     shares.push(SignatureShare::new(first, 0));
 
     for (id, validator_url) in validators.iter().enumerate().skip(1) {
@@ -139,7 +138,7 @@ pub async fn obtain_aggregate_signature(
             &client,
             &validator_partial_vk.key,
         )
-            .await?;
+        .await?;
         let share = SignatureShare::new(signature, id as u64);
         shares.push(share)
     }

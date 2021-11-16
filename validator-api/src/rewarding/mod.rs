@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cache::ValidatorCache;
-use crate::node_status_api::models::{MixnodeStatusReport, Uptime};
 use crate::node_status_api::ONE_DAY;
 use crate::nymd_client::Client;
 use crate::rewarding::epoch::Epoch;
@@ -13,8 +12,7 @@ use crate::storage::models::{
 use crate::storage::ValidatorApiStorage;
 use log::{error, info};
 use mixnet_contract::mixnode::NodeRewardParams;
-use mixnet_contract::{ExecuteMsg, IdentityKey};
-use std::collections::HashMap;
+use mixnet_contract::{ExecuteMsg, IdentityKey, MIXNODE_DELEGATORS_PAGE_LIMIT};
 use std::convert::TryInto;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -40,8 +38,6 @@ pub(crate) const PER_MIXNODE_DELEGATION_GAS_INCREASE: u64 = 2750;
 // the calculated total gas limit is going to get multiplied by that value.
 pub(crate) const REWARDING_GAS_LIMIT_MULTIPLIER: f64 = 1.05;
 
-pub(crate) const MAX_TO_REWARD_AT_ONCE: usize = 50;
-
 #[derive(Debug, Clone)]
 pub(crate) struct MixnodeToReward {
     pub(crate) identity: IdentityKey,
@@ -61,10 +57,20 @@ impl MixnodeToReward {
 }
 
 impl MixnodeToReward {
-    pub(crate) fn to_execute_msg_v2(&self, rewarding_interval_nonce: u32) -> ExecuteMsg {
+    pub(crate) fn to_reward_execute_msg_v2(&self, rewarding_interval_nonce: u32) -> ExecuteMsg {
         ExecuteMsg::RewardMixnodeV2 {
             identity: self.identity.clone(),
             params: self.params(),
+            rewarding_interval_nonce,
+        }
+    }
+
+    pub(crate) fn to_next_delegator_reward_execute_msg_v2(
+        &self,
+        rewarding_interval_nonce: u32,
+    ) -> ExecuteMsg {
+        ExecuteMsg::RewardNextMixDelegators {
+            mix_identity: self.identity.clone(),
             rewarding_interval_nonce,
         }
     }
@@ -134,7 +140,7 @@ impl Rewarder {
     }
 
     /// Obtain the list of current 'rewarded' set, determine their uptime in the provided epoch
-    /// and attach information required for rewarding
+    /// and attach information required for rewarding.
     ///
     /// The method also obtains the number of delegators towards the node in order to more accurately
     /// approximate the required gas fees when distributing the rewards.
@@ -182,7 +188,6 @@ impl Rewarder {
 
         let mut eligible_nodes = Vec::with_capacity(nodes_with_delegations.len());
         for (rewarded_node, total_delegations) in nodes_with_delegations {
-            // TEMPORARY:
             let uptime = self
                 .storage
                 .get_average_mixnode_uptime_in_interval(
@@ -211,25 +216,6 @@ impl Rewarder {
         Ok(eligible_nodes)
     }
 
-    /// Obtains the lists of all mixnodes that were tested at least a single time
-    /// by the network monitor in the specified epoch.
-    ///
-    /// # Arguments
-    ///
-    /// * `epoch`: the specified epoch.
-    async fn get_active_monitor_mixnodes(
-        &self,
-        epoch: Epoch,
-    ) -> Result<Vec<MixnodeStatusReport>, RewardingError> {
-        Ok(self
-            .storage
-            .get_all_active_mixnode_reports_in_interval(
-                epoch.start_unix_timestamp(),
-                epoch.end_unix_timestamp(),
-            )
-            .await?)
-    }
-
     /// Using the list of mixnodes eligible for rewards, chunks it into pre-defined sized-chunks
     /// and gives out the rewards by calling the smart contract.
     ///
@@ -252,35 +238,95 @@ impl Rewarder {
     ) -> Option<Vec<FailedMixnodeRewardChunkDetails>> {
         let mut failed_chunks = Vec::new();
 
-        todo!("here needs to be a slighty more sophisticated chunking based on number of nodes AND delegations");
+        // construct chunks such that we reward at most MIXNODE_DELEGATORS_PAGE_LIMIT delegators per block
 
-        // for (i, mix_chunk) in eligible_mixnodes.chunks(MAX_TO_REWARD_AT_ONCE).enumerate() {
-        //     if let Err(err) = self
-        //         .nymd_client
-        //         .reward_mixnodes(mix_chunk, rewarding_interval_nonce)
-        //         .await
-        //     {
-        //         // this is a super weird edge case that we didn't catch change to sequence and
-        //         // resent rewards unnecessarily, but the mempool saved us from executing it again
-        //         // however, still we want to wait until we're sure we're into the next block
-        //         if !err.is_tendermint_duplicate() {
-        //             error!("failed to reward mixnodes... - {}", err);
-        //             failed_chunks.push(FailedMixnodeRewardChunkDetails {
-        //                 possibly_unrewarded: mix_chunk.to_vec(),
-        //                 error_message: err.to_string(),
-        //             });
-        //         }
-        //         sleep(Duration::from_secs(11)).await;
-        //     }
-        //     let rewarded = i * MAX_TO_REWARD_AT_ONCE + mix_chunk.len();
-        //     let percentage = rewarded as f32 * 100.0 / eligible_mixnodes.len() as f32;
-        //     info!(
-        //         "Rewarded {} / {} mixnodes\t{:.2}%",
-        //         rewarded,
-        //         eligible_mixnodes.len(),
-        //         percentage
-        //     );
-        // }
+        // nodes with > MIXNODE_DELEGATORS_PAGE_LIMIT delegators that have to be treated in a special way
+        let mut individually_rewarded = Vec::new();
+
+        // sets of nodes that together they have < MIXNODE_DELEGATORS_PAGE_LIMIT delegators
+        let mut batch_rewarded = vec![vec![]];
+        let mut current_batch_i = 0;
+        let mut current_batch_total = 0;
+
+        // right now put mixes into batches super naively, if it doesn't fit into the current one,
+        // create a new one.
+        for mix in eligible_mixnodes {
+            if mix.total_delegations > MIXNODE_DELEGATORS_PAGE_LIMIT {
+                individually_rewarded.push(mix)
+            } else if current_batch_total + mix.total_delegations < MIXNODE_DELEGATORS_PAGE_LIMIT {
+                batch_rewarded[current_batch_i].push(mix.clone());
+                current_batch_total += mix.total_delegations;
+            } else {
+                batch_rewarded.push(vec![mix.clone()]);
+                current_batch_i += 1;
+                current_batch_total = 0;
+            }
+        }
+
+        let mut total_rewarded = 0;
+
+        // start rewarding, first the nodes that are dealt with individually
+        for mix in individually_rewarded {
+            if let Err(err) = self
+                .nymd_client
+                .reward_mixnode_and_all_delegators(mix, rewarding_interval_nonce)
+                .await
+            {
+                // this is a super weird edge case that we didn't catch change to sequence and
+                // resent rewards unnecessarily, but the mempool saved us from executing it again
+                // however, still we want to wait until we're sure we're into the next block
+                if !err.is_tendermint_duplicate() {
+                    error!("failed to reward mixnode with all delegators... - {}", err);
+                    failed_chunks.push(FailedMixnodeRewardChunkDetails {
+                        possibly_unrewarded: vec![mix.clone()],
+                        error_message: err.to_string(),
+                    });
+                }
+                sleep(Duration::from_secs(11)).await;
+            }
+
+            total_rewarded += 1;
+            let percentage = total_rewarded as f32 * 100.0 / eligible_mixnodes.len() as f32;
+            info!(
+                "Rewarded {} / {} mixnodes\t{:.2}%",
+                total_rewarded,
+                eligible_mixnodes.len(),
+                percentage
+            );
+        }
+
+        // then we move onto the chunks
+        for mix_chunk in batch_rewarded {
+            if let Err(err) = self
+                .nymd_client
+                .reward_mixnodes_with_single_page_of_delegators(
+                    &mix_chunk,
+                    rewarding_interval_nonce,
+                )
+                .await
+            {
+                // this is a super weird edge case that we didn't catch change to sequence and
+                // resent rewards unnecessarily, but the mempool saved us from executing it again
+                // however, still we want to wait until we're sure we're into the next block
+                if !err.is_tendermint_duplicate() {
+                    error!("failed to reward mixnodes... - {}", err);
+                    failed_chunks.push(FailedMixnodeRewardChunkDetails {
+                        possibly_unrewarded: mix_chunk.to_vec(),
+                        error_message: err.to_string(),
+                    });
+                }
+                sleep(Duration::from_secs(11)).await;
+            }
+
+            total_rewarded += mix_chunk.len();
+            let percentage = total_rewarded as f32 * 100.0 / eligible_mixnodes.len() as f32;
+            info!(
+                "Rewarded {} / {} mixnodes\t{:.2}%",
+                total_rewarded,
+                eligible_mixnodes.len(),
+                percentage
+            );
+        }
 
         if failed_chunks.is_empty() {
             None
@@ -295,7 +341,6 @@ impl Rewarder {
     /// # Arguments
     ///
     /// * `epoch_rewarding_id`: id of the current epoch rewarding as stored in the database.
-    ///
     /// * `epoch`: current rewarding epoch
     async fn distribute_rewards(
         &self,

@@ -14,7 +14,6 @@ pub enum ExecuteMsg {
     },
     UndelegateFromMixnode {
         mix_identity: IdentityKey,
-        amount: Vec<Coin>,
     },
     CreatePeriodicVestingAccount {
         address: Addr,

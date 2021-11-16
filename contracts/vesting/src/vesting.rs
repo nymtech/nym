@@ -44,7 +44,7 @@ trait VestingAccount {
 
 trait DelegationAccount {
     fn try_delegate_to_mixnode(mix_identity: IdentityKey, amount: Vec<Coin>);
-    fn try_undelegate_from_mixnode(mix_identity: IdentityKey, amount: Vec<Coin>);
+    fn try_undelegate_from_mixnode(mix_identity: IdentityKey);
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -67,7 +67,12 @@ impl Default for VestingPeriod {
 }
 
 impl PeriodicVestingAccount {
-    pub fn new(address: Addr, coins: Vec<Coin>, start_time: u64, periods: Vec<VestingPeriod>) -> Self {
+    pub fn new(
+        address: Addr,
+        coins: Vec<Coin>,
+        start_time: u64,
+        periods: Vec<VestingPeriod>,
+    ) -> Self {
         unimplemented!()
     }
 }

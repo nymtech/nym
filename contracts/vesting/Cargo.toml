@@ -1,7 +1,7 @@
 [package]
-name = "mixnet-contracts"
+name = "vesting-contracts"
 version = "0.1.0"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
+authors = ["Drazen Urch <durch@users.noreply.github.com>"]
 edition = "2018"
 
 exclude = [
@@ -10,10 +10,19 @@ exclude = [
   "hash.txt",
 ]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
 crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true
 
 [features]
 # for more explicit tests, cargo test --features=backtraces
@@ -21,19 +30,16 @@ backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
 mixnet-contract = { path = "../../common/mixnet-contract" }
-config = { path = "../../common/config"}
+config = { path = "../../common/config" }
 
 # this branch is identical to 0.14.1 with addition of updated k256 dependency required to help poor cargo choose correct version
-cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-updatedk256", features = ["iterator"] }
-cosmwasm-storage = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-updatedk256", features = ["iterator"] }
-
-#cosmwasm-std = { version = "0.14.1", features = ["iterator"] }
-#cosmwasm-storage = { version = "0.14.1", features = ["iterator"] }
+cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch = "0.14.1-updatedk256", features = [
+  "iterator",
+] }
+cosmwasm-storage = { git = "https://github.com/jstuczyn/cosmwasm", branch = "0.14.1-updatedk256", features = [
+  "iterator",
+] }
 
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
-
-[dev-dependencies]
-cosmwasm-schema = { version = "0.14.0" }
-fixed = "1.1"

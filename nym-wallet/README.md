@@ -44,7 +44,7 @@ Run the following command from the `nym-wallet` folder
 ```
 yarn build
 ```
-The output will compile different types of binaries dependent on your hardware / OS system. Once the binaries are build, they can be located as follows:
+The output will compile different types of binaries dependent on your hardware / OS system. Once the binaries are built, they can be located as follows:
 
 ### Binary output directory structure 
 ```

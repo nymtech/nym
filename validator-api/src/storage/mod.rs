@@ -299,7 +299,7 @@ impl ValidatorApiStorage {
         for mixnode_status in mixnode_statuses {
             total += mixnode_status.reliability as f32;
         }
-        
+
         let uptime = match Uptime::from_uptime_sum(total, monitor_runs) {
             Ok(uptime) => uptime,
             Err(_) => {

@@ -6,6 +6,10 @@ use cosmwasm_std::{
     Timestamp,
 };
 use mixnet_contract::IdentityKey;
+
+pub const NUM_VESTING_PERIODS: u64 = 8;
+pub const VESTING_PERIOD: u64 = 3 * 30 * 86400;
+
 /// Instantiate the contract.
 ///
 /// `deps` contains Storage, API and Querier
@@ -38,10 +42,10 @@ pub fn execute(
         }
         ExecuteMsg::CreatePeriodicVestingAccount {
             address,
-            coins,
+            coin,
             start_time,
             periods,
-        } => try_create_periodic_vesting_account(address, coins, start_time, periods, env, deps),
+        } => try_create_periodic_vesting_account(address, coin, start_time, env, deps),
     }
 }
 
@@ -63,15 +67,26 @@ fn try_undelegate_from_mixnode(
 
 fn try_create_periodic_vesting_account(
     address: Addr,
-    coins: Vec<Coin>,
+    coin: Coin,
     start_time: Option<u64>,
-    periods: Option<Vec<VestingPeriod>>,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
     let start_time = start_time.unwrap_or_else(|| env.block.time.seconds());
-    let periods = periods.unwrap_or_else(|| vec![VestingPeriod::default(); 8]);
-    let account = crate::vesting::PeriodicVestingAccount::new(address, coins, start_time, periods);
+    let mut periods = Vec::new();
+    // There are eight 3 month periods in two years
+    for i in 0..(NUM_VESTING_PERIODS - 1) {
+        let period = VestingPeriod {
+            start_time: start_time + i * VESTING_PERIOD,
+        };
+        periods.push(period);
+    }
+    let account = crate::vesting::PeriodicVestingAccount::new(
+        address,
+        coin,
+        Timestamp::from_seconds(start_time),
+        periods,
+    );
     unimplemented!()
 }
 
@@ -105,8 +120,7 @@ fn try_get_locked_coins(
     env: Env,
     deps: Deps,
 ) -> Result<Vec<Coin>, ContractError> {
-    let block_time = block_time.unwrap_or_else(|| env.block.time);
-
+    let block_time = block_time.unwrap_or(env.block.time);
     unimplemented!()
 }
 
@@ -115,7 +129,7 @@ fn try_get_spendable_coins(
     env: Env,
     deps: Deps,
 ) -> Result<Vec<Coin>, ContractError> {
-    let block_time = block_time.unwrap_or_else(|| env.block.time);
+    let block_time = block_time.unwrap_or(env.block.time);
     unimplemented!()
 }
 
@@ -124,7 +138,7 @@ fn try_get_vested_coins(
     env: Env,
     deps: Deps,
 ) -> Result<Vec<Coin>, ContractError> {
-    let block_time = block_time.unwrap_or_else(|| env.block.time);
+    let block_time = block_time.unwrap_or(env.block.time);
     unimplemented!()
 }
 
@@ -133,7 +147,7 @@ fn try_get_vesting_coins(
     env: Env,
     deps: Deps,
 ) -> Result<Vec<Coin>, ContractError> {
-    let block_time = block_time.unwrap_or_else(|| env.block.time);
+    let block_time = block_time.unwrap_or(env.block.time);
     unimplemented!()
 }
 

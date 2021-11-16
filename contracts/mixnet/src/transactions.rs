@@ -6,7 +6,8 @@ use crate::queries;
 use crate::storage::*;
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    attr, coins, Addr, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, StdResult,
+    Uint128,
 };
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::mixnode::NodeRewardParams;
@@ -656,6 +657,34 @@ pub(crate) fn try_delegate_to_mixnode(
     // check if the delegation contains any funds of the appropriate denomination
     validate_delegation_stake(&info.funds)?;
 
+    let delegate_addr = info.sender.clone();
+    let amount = info.funds[0].amount;
+
+    _try_delegate_to_mixnode(deps, env, mix_identity, &delegate_addr, amount)
+}
+
+pub(crate) fn try_delegate_to_mixnode_on_behalf(
+    deps: DepsMut,
+    env: Env,
+    _info: MessageInfo,
+    mix_identity: IdentityKey,
+    delegate_addr: Addr,
+    coin: Coin,
+) -> Result<Response, ContractError> {
+    // check if the delegation contains any funds of the appropriate denomination
+    validate_delegation_stake(&[coin.clone()])?;
+    let amount = coin.amount;
+
+    _try_delegate_to_mixnode(deps, env, mix_identity, &delegate_addr, amount)
+}
+
+fn _try_delegate_to_mixnode(
+    deps: DepsMut,
+    env: Env,
+    mix_identity: IdentityKey,
+    delegate_addr: &Addr,
+    amount: Uint128,
+) -> Result<Response, ContractError> {
     // check if the target node actually exists
     let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
         Ok(bond) => bond,
@@ -666,14 +695,12 @@ pub(crate) fn try_delegate_to_mixnode(
         }
     };
 
-    let amount = info.funds[0].amount;
-
     // update total_delegation of this node
-    current_bond.total_delegation.amount += info.funds[0].amount;
+    current_bond.total_delegation.amount += amount;
     mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
 
     let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
-    let sender_bytes = info.sender.as_bytes();
+    let sender_bytes = delegate_addr.as_bytes();
 
     // write the delegation
     let new_amount = match delegation_bucket.may_load(sender_bytes)? {
@@ -684,7 +711,7 @@ pub(crate) fn try_delegate_to_mixnode(
     let new_delegation = RawDelegationData::new(new_amount, env.block.height);
     delegation_bucket.save(sender_bytes, &new_delegation)?;
 
-    reverse_mix_delegations(deps.storage, &info.sender).save(mix_identity.as_bytes(), &())?;
+    reverse_mix_delegations(deps.storage, delegate_addr).save(mix_identity.as_bytes(), &())?;
 
     Ok(Response::default())
 }
@@ -694,8 +721,27 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     info: MessageInfo,
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
+    let sender = info.sender.clone();
+    _try_remove_delegation_from_mixnode(deps, info, mix_identity, &sender)
+}
+
+pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
+    deps: DepsMut,
+    info: MessageInfo,
+    mix_identity: IdentityKey,
+    delegate_addr: Addr,
+) -> Result<Response, ContractError> {
+    _try_remove_delegation_from_mixnode(deps, info, mix_identity, &delegate_addr)
+}
+
+fn _try_remove_delegation_from_mixnode(
+    deps: DepsMut,
+    info: MessageInfo,
+    mix_identity: IdentityKey,
+    delegate_addr: &Addr,
+) -> Result<Response, ContractError> {
     let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
-    let sender_bytes = info.sender.as_bytes();
+    let sender_bytes = delegate_addr.as_bytes();
     match delegation_bucket.may_load(sender_bytes)? {
         Some(delegation) => {
             // remove delegation from the buckets

@@ -1,10 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
 use crate::mixnode::NodeRewardParams;
 use crate::StateParams;
 use crate::{Gateway, IdentityKey, MixNode};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -59,6 +58,15 @@ pub enum ExecuteMsg {
         // nonce of the current rewarding interval
         rewarding_interval_nonce: u32,
     },
+    DelegateToMixnodeOnBehalf {
+        mix_identity: IdentityKey,
+        delegate_addr: Addr,
+        coin: Coin,
+    },
+    UnDelegateFromMixnodeOnBehalf {
+        mix_identity: IdentityKey,
+        delegate_addr: Addr,
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

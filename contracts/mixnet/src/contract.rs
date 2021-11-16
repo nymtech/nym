@@ -141,6 +141,27 @@ pub fn execute(
         ExecuteMsg::FinishMixnodeRewarding {
             rewarding_interval_nonce,
         } => transactions::try_finish_mixnode_rewarding(deps, info, rewarding_interval_nonce),
+        ExecuteMsg::DelegateToMixnodeOnBehalf {
+            mix_identity,
+            delegate_addr,
+            coin
+        } => transactions::try_delegate_to_mixnode_on_behalf(
+            deps,
+            env,
+            info,
+            mix_identity,
+            delegate_addr,
+            coin
+        ),
+        ExecuteMsg::UnDelegateFromMixnodeOnBehalf {
+            mix_identity,
+            delegate_addr,
+        } => transactions::try_remove_delegation_from_mixnode_on_behalf(
+            deps,
+            info,
+            mix_identity,
+            delegate_addr,
+        ),
     }
 }
 

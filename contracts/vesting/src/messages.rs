@@ -1,6 +1,6 @@
 use crate::vesting::VestingPeriod;
 use cosmwasm_std::{Addr, Coin, Timestamp};
-use mixnet_contract::IdentityKey;
+use mixnet_contract::{IdentityKey};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +17,7 @@ pub enum ExecuteMsg {
     },
     CreatePeriodicVestingAccount {
         address: Addr,
-        coins: Vec<Coin>,
+        coin: Coin,
         start_time: Option<u64>,
         periods: Option<Vec<VestingPeriod>>,
     },

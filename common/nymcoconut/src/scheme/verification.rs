@@ -73,6 +73,14 @@ impl ThetaCovid {
         bytes
     }
 
+    pub fn to_bytes_tuple(&self) -> ([u8; 96], [u8; 96], Vec<u8>) {
+        let blinded_message_bytes = self.blinded_message.to_affine().to_compressed();
+        let credential_bytes = self.credential.to_bytes();
+        let proof_bytes = self.pi_v.to_bytes();
+
+        (blinded_message_bytes, credential_bytes, proof_bytes)
+    }
+
     pub fn from_bytes(bytes: &[u8]) -> Result<ThetaCovid> {
         if bytes.len() < 192 {
             return Err(

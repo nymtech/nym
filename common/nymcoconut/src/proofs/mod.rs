@@ -29,7 +29,7 @@ use crate::error::{CoconutError, Result};
 use crate::scheme::setup::Parameters;
 use crate::scheme::VerificationKey;
 use crate::utils::{hash_g1, try_deserialize_scalar, try_deserialize_scalar_vec};
-use crate::{elgamal, Attribute, Bytable, ElGamalKeyPair};
+use crate::{elgamal, Attribute, ElGamalKeyPair};
 
 // as per the reference python implementation
 type ChallengeDigest = Sha256;

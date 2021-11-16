@@ -48,7 +48,7 @@ pub mod proofs;
 pub mod scheme;
 #[cfg(test)]
 mod tests;
-mod traits;
+pub mod traits;
 mod utils;
 
 pub type Attribute = Scalar;

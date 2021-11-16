@@ -1,113 +1,61 @@
 import * as React from 'react';
-import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { Box, Grid, Typography } from '@mui/material';
-import { useMainContext } from 'src/context/main';
+import { ColumnsType, DetailTable } from 'src/components/DetailTable';
+import { mixnodeToGridRow, scrollToRef } from 'src/utils';
 import { useParams } from 'react-router-dom';
-import { ContentCard } from 'src/components/ContentCard';
-import { WorldMap } from 'src/components/WorldMap';
 import { BondBreakdownTable } from 'src/components/BondBreakdown';
+import { ComponentError } from 'src/components/ComponentError';
+import { ContentCard } from 'src/components/ContentCard';
+import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
+import { Title } from 'src/components/Title';
 import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
 import { UptimeChart } from 'src/components/UptimeChart';
-import { mixnodeToGridRow, scrollToRef } from 'src/utils';
-import { ComponentError } from 'src/components/ComponentError';
-import {
-  cellStyles,
-  UniversalDataGrid,
-} from 'src/components/Universal-DataGrid';
-import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
-import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
-import { printableCoin } from '@nymproject/nym-validator-client';
-import { Title } from 'src/components/Title';
+import { WorldMap } from 'src/components/WorldMap';
+import { useMainContext } from 'src/context/main';
 
-const columns: GridColDef[] = [
+const columns: ColumnsType[] = [
   {
     field: 'owner',
-    renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
-    width: 200,
+    title: 'Owner',
     headerAlign: 'left',
-    headerClassName: 'MuiDataGrid-header-override',
-    renderCell: (params: GridRenderCellParams) => (
-      <div>
-        <Typography sx={cellStyles}>{params.value}</Typography>
-      </div>
-    ),
+    width: 230,
   },
   {
     field: 'identity_key',
-    renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
-    width: 200,
+    title: 'Identity Key',
     headerAlign: 'left',
-    headerClassName: 'MuiDataGrid-header-override',
-    renderCell: (params: GridRenderCellParams) => (
-      <div>
-        <Typography sx={cellStyles}>{params.value}</Typography>
-      </div>
-    ),
+    width: 230,
   },
+
   {
     field: 'bond',
-    headerName: 'Bond',
-    type: 'number',
-    renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
+    title: 'Bond',
     flex: 1,
     headerAlign: 'left',
-    headerClassName: 'MuiDataGrid-header-override',
-    renderCell: (params: GridRenderCellParams) => {
-      const bondAsPunk = printableCoin({
-        amount: params.value as string,
-        denom: 'upunk',
-      });
-      return <Typography sx={cellStyles}>{bondAsPunk}</Typography>;
-    },
   },
   {
     field: 'self_percentage',
-    headerName: 'Self %',
+    title: 'Self %',
     headerAlign: 'left',
-    type: 'number',
     width: 99,
-    headerClassName: 'MuiDataGrid-header-override',
-    renderHeader: () => <CustomColumnHeading headingTitle="Self %" />,
-    renderCell: (params: GridRenderCellParams) => (
-      <div>
-        <Typography sx={cellStyles}>{params.value}%</Typography>
-      </div>
-    ),
   },
   {
     field: 'host',
-    renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
-    flex: 1,
+    title: 'Host',
     headerAlign: 'left',
-    headerClassName: 'MuiDataGrid-header-override',
-    renderCell: (params: GridRenderCellParams) => (
-      <div>
-        <Typography sx={cellStyles}>{params.value}</Typography>
-      </div>
-    ),
+    flex: 1,
   },
   {
     field: 'location',
-    renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
-    flex: 1,
+    title: 'Location',
     headerAlign: 'left',
-    headerClassName: 'MuiDataGrid-header-override',
-    renderCell: (params: GridRenderCellParams) => (
-      <div>
-        <Typography sx={cellStyles}>{params.value}</Typography>
-      </div>
-    ),
+    flex: 1,
   },
   {
     field: 'layer',
-    renderHeader: () => <CustomColumnHeading headingTitle="Layer" />,
-    flex: 1,
+    title: 'Layer',
     headerAlign: 'left',
-    headerClassName: 'MuiDataGrid-header-override',
-    type: 'number',
-    renderCell: (params: GridRenderCellParams) => (
-      <Typography sx={cellStyles}>{params.value}</Typography>
-    ),
+    flex: 1,
   },
 ];
 
@@ -159,18 +107,11 @@ export const PageMixnodeDetail: React.FC = () => {
 
         <Grid container>
           <Grid item xs={12}>
-            {mixnodeDetailInfo && (
-              <ContentCard>
-                <UniversalDataGrid
-                  columnsData={columns}
-                  rows={mixnodeToGridRow(row)}
-                  loading={mixnodeDetailInfo.isLoading}
-                  pageSize="1"
-                  pagination={false}
-                  hideFooter
-                />
-              </ContentCard>
-            )}
+            <DetailTable
+              columnsData={columns}
+              tableName="Mixnode detail table"
+              rows={mixnodeToGridRow(row)}
+            />
           </Grid>
         </Grid>
 

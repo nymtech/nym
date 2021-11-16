@@ -2,7 +2,7 @@ name: Publish Tauri Wallet
 on:
   push:
     tags:
-      - tauri-wallet-*
+      - nym-wallet-*
 
 jobs:
   build:

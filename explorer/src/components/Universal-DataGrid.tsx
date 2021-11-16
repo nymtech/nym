@@ -3,9 +3,10 @@ import { makeStyles } from '@mui/styles';
 import {
   DataGrid,
   GridColumns,
-  GridRowData,
+  GridRowModel,
   GridSortModel,
-  useGridSlotComponentProps,
+  useGridApiContext,
+  useGridState,
 } from '@mui/x-data-grid';
 import Pagination from '@mui/material/Pagination';
 import { SxProps } from '@mui/system';
@@ -18,7 +19,7 @@ const useStyles = makeStyles({
 
 type DataGridProps = {
   loading?: boolean;
-  rows: GridRowData[];
+  rows: GridRowModel[];
   columnsData: GridColumns;
   pageSize?: string;
   pagination?: boolean;
@@ -41,7 +42,9 @@ export const cellStyles: SxProps = {
 };
 
 function CustomPagination() {
-  const { state, apiRef } = useGridSlotComponentProps();
+  const apiRef = useGridApiContext();
+  const [state] = useGridState(apiRef);
+
   const classes = useStyles();
 
   return (

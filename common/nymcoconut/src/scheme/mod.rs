@@ -16,20 +16,19 @@
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
-use std::error::Error;
 
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::Curve;
 
 pub use keygen::{SecretKey, VerificationKey};
 
+use crate::{Attribute, elgamal};
 use crate::elgamal::Ciphertext;
 use crate::error::{CoconutError, Result};
 use crate::scheme::setup::Parameters;
 use crate::scheme::verification::check_bilinear_pairing;
 use crate::traits::{Base58, Bytable};
 use crate::utils::try_deserialize_g1_projective;
-use crate::{elgamal, Attribute};
 
 pub mod aggregation;
 pub mod issuance;
@@ -267,7 +266,7 @@ mod tests {
             &lambda,
             &[],
         )
-        .unwrap();
+            .unwrap();
 
         let wrong_commitment_opening = params.random_scalar();
         let wrong_commitment = params.gen1() * wrong_commitment_opening;
@@ -279,7 +278,7 @@ mod tests {
                 &keypair1.verification_key(),
                 &private_attributes,
                 &[],
-                &fake_commitment_hash
+                &fake_commitment_hash,
             )
             .is_err());
     }
@@ -303,7 +302,7 @@ mod tests {
             &lambda,
             &[],
         )
-        .unwrap();
+            .unwrap();
 
         assert!(sig1
             .unblind(
@@ -312,7 +311,7 @@ mod tests {
                 &keypair1.verification_key(),
                 &private_attributes2,
                 &[],
-                &lambda.get_commitment_hash()
+                &lambda.get_commitment_hash(),
             )
             .is_err());
     }
@@ -338,16 +337,16 @@ mod tests {
             &lambda,
             &[],
         )
-        .unwrap()
-        .unblind(
-            &params,
-            elgamal_keypair.private_key(),
-            &keypair1.verification_key(),
-            &private_attributes,
-            &[],
-            &lambda.get_commitment_hash(),
-        )
-        .unwrap();
+            .unwrap()
+            .unblind(
+                &params,
+                elgamal_keypair.private_key(),
+                &keypair1.verification_key(),
+                &private_attributes,
+                &[],
+                &lambda.get_commitment_hash(),
+            )
+            .unwrap();
 
         let sig2 = blind_sign(
             &mut params,
@@ -356,16 +355,16 @@ mod tests {
             &lambda,
             &[],
         )
-        .unwrap()
-        .unblind(
-            &params,
-            elgamal_keypair.private_key(),
-            &keypair2.verification_key(),
-            &private_attributes,
-            &[],
-            &lambda.get_commitment_hash(),
-        )
-        .unwrap();
+            .unwrap()
+            .unblind(
+                &params,
+                elgamal_keypair.private_key(),
+                &keypair2.verification_key(),
+                &private_attributes,
+                &[],
+                &lambda.get_commitment_hash(),
+            )
+            .unwrap();
 
         let theta1 = prove_bandwidth_credential(
             &mut params,
@@ -374,7 +373,7 @@ mod tests {
             serial_number,
             binding_number,
         )
-        .unwrap();
+            .unwrap();
 
         let theta2 = prove_bandwidth_credential(
             &mut params,
@@ -383,7 +382,7 @@ mod tests {
             serial_number,
             binding_number,
         )
-        .unwrap();
+            .unwrap();
 
         assert!(verify_credential(
             &params,
@@ -457,7 +456,7 @@ mod tests {
             &private_attributes,
             &public_attributes,
         )
-        .unwrap();
+            .unwrap();
 
         let sig1 = blind_sign(
             &mut params,
@@ -466,16 +465,16 @@ mod tests {
             &lambda,
             &public_attributes,
         )
-        .unwrap()
-        .unblind(
-            &params,
-            elgamal_keypair.private_key(),
-            &keypair1.verification_key(),
-            &private_attributes,
-            &public_attributes,
-            &lambda.get_commitment_hash(),
-        )
-        .unwrap();
+            .unwrap()
+            .unblind(
+                &params,
+                elgamal_keypair.private_key(),
+                &keypair1.verification_key(),
+                &private_attributes,
+                &public_attributes,
+                &lambda.get_commitment_hash(),
+            )
+            .unwrap();
 
         let sig2 = blind_sign(
             &mut params,
@@ -484,16 +483,16 @@ mod tests {
             &lambda,
             &public_attributes,
         )
-        .unwrap()
-        .unblind(
-            &params,
-            elgamal_keypair.private_key(),
-            &keypair2.verification_key(),
-            &private_attributes,
-            &public_attributes,
-            &lambda.get_commitment_hash(),
-        )
-        .unwrap();
+            .unwrap()
+            .unblind(
+                &params,
+                elgamal_keypair.private_key(),
+                &keypair2.verification_key(),
+                &private_attributes,
+                &public_attributes,
+                &lambda.get_commitment_hash(),
+            )
+            .unwrap();
 
         let theta1 = prove_bandwidth_credential(
             &mut params,
@@ -502,7 +501,7 @@ mod tests {
             serial_number,
             binding_number,
         )
-        .unwrap();
+            .unwrap();
 
         let theta2 = prove_bandwidth_credential(
             &mut params,
@@ -511,7 +510,7 @@ mod tests {
             serial_number,
             binding_number,
         )
-        .unwrap();
+            .unwrap();
 
         assert!(verify_credential(
             &params,
@@ -552,7 +551,7 @@ mod tests {
             &private_attributes,
             &public_attributes,
         )
-        .unwrap();
+            .unwrap();
 
         let sigs = keypairs
             .iter()
@@ -564,16 +563,16 @@ mod tests {
                     &lambda,
                     &public_attributes,
                 )
-                .unwrap()
-                .unblind(
-                    &params,
-                    elgamal_keypair.private_key(),
-                    &keypair.verification_key(),
-                    &private_attributes,
-                    &public_attributes,
-                    &lambda.get_commitment_hash(),
-                )
-                .unwrap()
+                    .unwrap()
+                    .unblind(
+                        &params,
+                        elgamal_keypair.private_key(),
+                        &keypair.verification_key(),
+                        &private_attributes,
+                        &public_attributes,
+                        &lambda.get_commitment_hash(),
+                    )
+                    .unwrap()
             })
             .collect::<Vec<_>>();
 
@@ -598,7 +597,7 @@ mod tests {
             serial_number,
             binding_number,
         )
-        .unwrap();
+            .unwrap();
 
         assert!(verify_credential(
             &params,
@@ -620,7 +619,7 @@ mod tests {
             serial_number,
             binding_number,
         )
-        .unwrap();
+            .unwrap();
 
         assert!(verify_credential(
             &params,
@@ -643,7 +642,7 @@ mod tests {
             signature.0.to_affine().to_compressed(),
             signature.1.to_affine().to_compressed(),
         ]
-        .concat();
+            .concat();
         assert_eq!(expected_bytes, bytes);
         assert_eq!(signature, Signature::try_from(&bytes[..]).unwrap())
     }
@@ -663,10 +662,10 @@ mod tests {
         // also make sure it is equivalent to the internal g1 compressed bytes concatenated
         let expected_bytes = [
             blinded_sig.0.to_affine().to_compressed(),
-            blinded_sig.1 .0.to_affine().to_compressed(),
-            blinded_sig.1 .1.to_affine().to_compressed(),
+            blinded_sig.1.0.to_affine().to_compressed(),
+            blinded_sig.1.1.to_affine().to_compressed(),
         ]
-        .concat();
+            .concat();
         assert_eq!(expected_bytes, bytes);
         assert_eq!(blinded_sig, BlindedSignature::try_from(&bytes[..]).unwrap())
     }

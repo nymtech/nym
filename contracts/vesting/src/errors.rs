@@ -14,5 +14,5 @@ pub enum ContractError {
     #[error("Insufficient balance")]
     InsufficientBalance(String, u128),
     #[error("Insufficient spendable balance")]
-    InsufficientSpendable(String, u128)
+    InsufficientSpendable(String, u128),
 }

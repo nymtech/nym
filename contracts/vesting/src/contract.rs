@@ -1,11 +1,13 @@
 use crate::errors::ContractError;
 use crate::messages::{ExecuteMsg, InitMsg, QueryMsg};
 use crate::storage::{get_account, get_account_balance, set_account_balance};
-use crate::vesting::{DelegationAccount, PeriodicVestingAccount, VestingAccount, populate_vesting_periods};
+use crate::vesting::{
+    populate_vesting_periods, DelegationAccount, PeriodicVestingAccount, VestingAccount,
+};
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    entry_point, to_binary, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, BankMsg,
-    Timestamp, attr, Uint128
+    attr, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    Response, Timestamp, Uint128,
 };
 use mixnet_contract::IdentityKey;
 
@@ -51,27 +53,37 @@ pub fn execute(
             coin,
             start_time,
         } => try_create_periodic_vesting_account(address, coin, start_time, info, env, deps),
-        ExecuteMsg::WithdrawVestedCoins { amount } => try_withdraw_vested_coins(amount, env, info, deps),
+        ExecuteMsg::WithdrawVestedCoins { amount } => {
+            try_withdraw_vested_coins(amount, env, info, deps)
+        }
     }
 }
 
-fn try_withdraw_vested_coins(amount: Coin, env: Env, info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
+fn try_withdraw_vested_coins(
+    amount: Coin,
+    env: Env,
+    info: MessageInfo,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
     let address = info.sender;
     if let Some(account) = get_account(deps.storage, &address) {
         let spendable_coins = account.spendable_coins(None, &env, deps.storage);
         if amount.amount < spendable_coins.amount {
-            if let Some(balance)= get_account_balance(deps.storage, &address) {
+            if let Some(balance) = get_account_balance(deps.storage, &address) {
                 let new_balance = balance.u128().saturating_sub(amount.amount.u128());
                 set_account_balance(deps.storage, &address, Uint128(new_balance))?;
             } else {
-                return Err(ContractError::NoBalanceForAddress(address.as_str().to_string()));
+                return Err(ContractError::NoBalanceForAddress(
+                    address.as_str().to_string(),
+                ));
             }
 
             let messages = vec![BankMsg::Send {
                 to_address: address.as_str().to_string(),
-                amount: vec!(amount.clone()),
-            }.into()];
-            
+                amount: vec![amount],
+            }
+            .into()];
+
             let attributes = vec![attr("action", "whitdraw")];
 
             return Ok(Response {
@@ -79,16 +91,19 @@ fn try_withdraw_vested_coins(amount: Coin, env: Env, info: MessageInfo, deps: De
                 messages,
                 attributes,
                 data: None,
-            })
+            });
         } else {
-            return Err(ContractError::InsufficientSpendable(address.as_str().to_string(), spendable_coins.amount.u128()));
+            return Err(ContractError::InsufficientSpendable(
+                address.as_str().to_string(),
+                spendable_coins.amount.u128(),
+            ));
         }
-        
     } else {
-        return Err(ContractError::NoAccountForAddress(address.as_str().to_string()));
+        return Err(ContractError::NoAccountForAddress(
+            address.as_str().to_string(),
+        ));
     }
     Ok(Response::default())
-    
 }
 
 fn try_delegate_to_mixnode(
@@ -104,7 +119,13 @@ fn try_delegate_to_mixnode(
     }
     let address = deps.api.addr_validate(&delegate_addr)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage, Some(deps.querier))?;
+        account.try_delegate_to_mixnode(
+            mix_identity,
+            amount,
+            &env,
+            deps.storage,
+            Some(deps.querier),
+        )?;
     }
     Ok(Response::default())
 }
@@ -204,7 +225,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
         QueryMsg::GetDelegatedFree {
             block_time,
             vesting_account_address,
-        } => to_binary(&try_get_delegated_free(block_time, vesting_account_address, env, deps)?),
+        } => to_binary(&try_get_delegated_free(
+            block_time,
+            vesting_account_address,
+            env,
+            deps,
+        )?),
         QueryMsg::GetDelegatedVesting {
             block_time,
             vesting_account_address,

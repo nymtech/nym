@@ -175,7 +175,7 @@ impl PeriodicVestingAccount {
         env: &Env,
         storage: &dyn Storage,
     ) -> Coin {
-        let block_time = block_time.unwrap_or_else(|| env.block.time);
+        let block_time = block_time.unwrap_or(env.block.time);
         let period = self.get_current_vesting_period(block_time);
         if period == 0 {
             return Coin {
@@ -191,16 +191,19 @@ impl PeriodicVestingAccount {
         };
 
         if let Some(delegations) = get_account_delegations(storage, &self.address) {
-            delegations.iter().filter(|d| op(d.block_time.seconds(), end_time)).fold(
-                Coin {
-                    amount: Uint128(0),
-                    denom: DENOM.to_string(),
-                },
-                |mut acc, d| {
-                    acc.amount += d.amount;
-                    acc
-                },
-            )
+            delegations
+                .iter()
+                .filter(|d| op(d.block_time.seconds(), end_time))
+                .fold(
+                    Coin {
+                        amount: Uint128(0),
+                        denom: DENOM.to_string(),
+                    },
+                    |mut acc, d| {
+                        acc.amount += d.amount;
+                        acc
+                    },
+                )
         } else {
             Coin {
                 amount: Uint128(0),
@@ -240,7 +243,6 @@ impl DelegationAccount for PeriodicVestingAccount {
                 self.get_balance(storage).u128(),
             ));
         }
-        
     }
 
     fn try_undelegate_from_mixnode(
@@ -288,11 +290,13 @@ impl DelegationAccount for PeriodicVestingAccount {
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
         // This has to exist in storage at this point.
-        let delegations = get_account_delegations(storage, &self.address).unwrap().into_iter().filter(
-            |d| d.mix_identity != mix_identity,
-        ).collect();
+        let delegations = get_account_delegations(storage, &self.address)
+            .unwrap()
+            .into_iter()
+            .filter(|d| d.mix_identity != mix_identity)
+            .collect();
         // Since we're always removing the entire delegation we can just drop the key
-        
+
         Ok(set_account_delegations(
             storage,
             &self.address,
@@ -311,7 +315,7 @@ impl VestingAccount for PeriodicVestingAccount {
         // Returns 0 in case of underflow.
         Coin {
             amount: Uint128(
-                self.get_vesting_coins(block_time, &env)
+                self.get_vesting_coins(block_time, env)
                     .amount
                     .u128()
                     .saturating_sub(
@@ -428,7 +432,7 @@ mod tests {
     use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD};
     use crate::storage::{get_account, get_account_balance, get_account_delegations};
     use crate::support::tests::helpers::{init_contract, vesting_account_fixture};
-    use crate::vesting::{VestingAccount, DelegationData};
+    use crate::vesting::{DelegationData, VestingAccount};
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
@@ -543,6 +547,13 @@ mod tests {
         assert!(ok.is_ok());
 
         let delegations = get_account_delegations(&mut deps.storage, &account.address).unwrap();
-        assert_eq!(DelegationData{mix_identity: "alice".to_string(), block_time: env.block.time, amount: Uint128(100_000_000_000)}, delegations[0]);
+        assert_eq!(
+            DelegationData {
+                mix_identity: "alice".to_string(),
+                block_time: env.block.time,
+                amount: Uint128(100_000_000_000)
+            },
+            delegations[0]
+        );
     }
 }

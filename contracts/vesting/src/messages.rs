@@ -26,7 +26,7 @@ pub enum ExecuteMsg {
     },
     WithdrawVestedCoins {
         amount: Coin,
-    }
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

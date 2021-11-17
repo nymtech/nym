@@ -28,15 +28,11 @@ fn accounts(storage: &dyn Storage) -> ReadonlyBucket<PeriodicVestingAccount> {
     bucket_read(storage, PREFIX_ACCOUNTS)
 }
 
-fn account_delegations_mut(
-    storage: &mut dyn Storage,
-) -> Bucket<Vec<DelegationData>> {
+fn account_delegations_mut(storage: &mut dyn Storage) -> Bucket<Vec<DelegationData>> {
     bucket(storage, PREFIX_ACCOUNT_DELEGATIONS)
 }
 
-fn account_delegations(
-    storage: &dyn Storage,
-) -> ReadonlyBucket<Vec<DelegationData>> {
+fn account_delegations(storage: &dyn Storage) -> ReadonlyBucket<Vec<DelegationData>> {
     bucket_read(storage, PREFIX_ACCOUNT_DELEGATIONS)
 }
 

@@ -1,11 +1,11 @@
-
-
 #[cfg(test)]
 pub mod helpers {
+    use crate::contract::{instantiate, NUM_VESTING_PERIODS, VESTING_PERIOD};
     use crate::messages::InitMsg;
     use crate::storage;
-    use crate::vesting::PeriodicVestingAccount;
     use crate::vesting::populate_vesting_periods;
+    use crate::vesting::PeriodicVestingAccount;
+    use crate::vesting::VestingPeriod;
     use config::defaults::DENOM;
     use cosmwasm_std::from_binary;
     use cosmwasm_std::testing::mock_dependencies;
@@ -17,9 +17,7 @@ pub mod helpers {
     use cosmwasm_std::Coin;
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::Uint128;
-    use cosmwasm_std::{Empty, Storage, MemoryStorage, Env};
-    use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD, instantiate};
-    use crate::vesting::VestingPeriod;
+    use cosmwasm_std::{Empty, Env, MemoryStorage, Storage};
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies(&[]);
@@ -33,7 +31,7 @@ pub mod helpers {
     pub fn vesting_account_fixture(storage: &mut dyn Storage, env: &Env) -> PeriodicVestingAccount {
         let start_time = env.block.time;
         let periods = populate_vesting_periods(start_time.seconds(), NUM_VESTING_PERIODS);
-    
+
         PeriodicVestingAccount::new(
             Addr::unchecked("fixture"),
             Coin {
@@ -42,8 +40,8 @@ pub mod helpers {
             },
             start_time,
             periods,
-            storage
-        ).unwrap()
+            storage,
+        )
+        .unwrap()
     }
-    
 }

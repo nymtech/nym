@@ -66,6 +66,7 @@ export const DetailTable: React.FC<{
                   padding: 2,
                   width: 200,
                 }}
+                data-testid={`${_.title.replace(/ /g, '-')}-value`}
               >
                 {formatCellValues(
                   eachRow[columnsData[index].field],

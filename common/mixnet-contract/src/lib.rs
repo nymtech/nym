@@ -18,7 +18,4 @@ pub use delegation::{
 pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayResponse};
 pub use mixnode::{Layer, MixNode, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse};
 pub use msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-pub use types::{
-    IdentityKey, IdentityKeyRef, LayerDistribution, RewardingIntervalResponse, SphinxKey,
-    StateParams,
-};
+pub use types::*;

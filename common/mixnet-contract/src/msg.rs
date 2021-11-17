@@ -100,6 +100,10 @@ pub enum QueryMsg {
     GetCirculatingSupply {},
     GetEpochRewardPercent {},
     GetSybilResistancePercent {},
+    GetRewardingStatus {
+        mix_identity: IdentityKey,
+        rewarding_interval_nonce: u32,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

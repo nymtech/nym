@@ -3,7 +3,6 @@
 use crate::contract::INITIAL_REWARD_POOL;
 use crate::error::ContractError;
 use crate::state::State;
-use crate::transactions::RewardingStatus;
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cosmwasm_storage::{
@@ -12,7 +11,7 @@ use cosmwasm_storage::{
 };
 use mixnet_contract::{
     Addr, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
-    RawDelegationData, StateParams,
+    RawDelegationData, RewardingStatus, StateParams,
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;

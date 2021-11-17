@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::mixnode::DelegatorRewardParams;
 use crate::Layer;
 use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
@@ -67,6 +68,33 @@ impl Display for StateParams {
             self.mixnode_active_set_size
         )
     }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct RewardingResult {
+    pub operator_reward: Uint128,
+    pub total_delegator_reward: Uint128,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PendingDelegatorRewarding {
+    // keep track of the running rewarding results so we'd known how much was the operator and its delegators rewarded
+    pub running_results: RewardingResult,
+
+    pub next_start: String,
+
+    pub rewarding_params: DelegatorRewardParams,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum RewardingStatus {
+    Complete(RewardingResult),
+    PendingNextDelegatorPage(PendingDelegatorRewarding),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MixnodeRewardingStatusResponse {
+    pub status: Option<RewardingStatus>,
 }
 
 // type aliases for better reasoning about available data

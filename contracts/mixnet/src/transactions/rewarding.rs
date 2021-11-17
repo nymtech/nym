@@ -9,35 +9,15 @@ use crate::storage::{
 use crate::transactions::{MAX_REWARDING_DURATION_IN_BLOCKS, MINIMUM_BLOCK_AGE_FOR_REWARDING};
 use cosmwasm_std::{attr, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
 use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
-use mixnet_contract::{IdentityKey, IdentityKeyRef, MIXNODE_DELEGATORS_PAGE_LIMIT};
-use serde::{Deserialize, Serialize};
+use mixnet_contract::{
+    IdentityKey, IdentityKeyRef, PendingDelegatorRewarding, RewardingResult, RewardingStatus,
+    MIXNODE_DELEGATORS_PAGE_LIMIT,
+};
 
 #[derive(Debug)]
 struct MixDelegationRewardingResult {
     total_rewarded: Uint128,
     start_next: Option<String>,
-}
-
-#[derive(Default, Serialize, Deserialize)]
-pub(crate) struct RewardingResult {
-    operator_reward: Uint128,
-    total_delegator_reward: Uint128,
-}
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct PendingDelegatorRewarding {
-    // keep track of the running rewarding results so we'd known how much was the operator and its delegators rewarded
-    running_results: RewardingResult,
-
-    next_start: String,
-
-    rewarding_params: DelegatorRewardParams,
-}
-
-#[derive(Serialize, Deserialize)]
-pub(crate) enum RewardingStatus {
-    Complete(RewardingResult),
-    PendingNextDelegatorPage(PendingDelegatorRewarding),
 }
 
 // Note: this function is designed to work with only a single validator entity distributing rewards
@@ -446,31 +426,19 @@ pub(crate) fn try_finish_mixnode_rewarding(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contract::{
-        DEFAULT_SYBIL_RESISTANCE_PERCENT, EPOCH_REWARD_PERCENT, INITIAL_REWARD_POOL,
-    };
+    use crate::contract::DEFAULT_SYBIL_RESISTANCE_PERCENT;
     use crate::storage::{
         circulating_supply, read_mixnode_bond, read_mixnode_delegation, reward_pool_value,
     };
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{good_mixnode_bond, mix_node_fixture};
+    use crate::support::tests::helpers::{
+        good_mixnode_bond, mix_node_fixture, node_rewarding_params_fixture,
+    };
     use crate::transactions::{try_add_mixnode, try_delegate_to_mixnode};
-    use config::defaults::{DENOM, TOTAL_SUPPLY};
+    use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, Addr, Coin};
     use mixnet_contract::{Layer, MixNode, MixNodeBond, RawDelegationData};
-
-    // when exact values are irrelevant and what matters is the action of rewarding
-    fn node_rewarding_params_fixture(uptime: u128) -> NodeRewardParams {
-        NodeRewardParams::new(
-            (INITIAL_REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128,
-            50 as u128,
-            0,
-            TOTAL_SUPPLY - INITIAL_REWARD_POOL,
-            uptime,
-            DEFAULT_SYBIL_RESISTANCE_PERCENT,
-        )
-    }
 
     #[cfg(test)]
     mod beginning_mixnode_rewarding {

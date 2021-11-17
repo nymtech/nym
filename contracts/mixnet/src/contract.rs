@@ -174,6 +174,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         QueryMsg::GetCirculatingSupply {} => to_binary(&queries::query_circulating_supply(deps)),
         QueryMsg::GetEpochRewardPercent {} => to_binary(&EPOCH_REWARD_PERCENT),
         QueryMsg::GetSybilResistancePercent {} => to_binary(&DEFAULT_SYBIL_RESISTANCE_PERCENT),
+        QueryMsg::GetRewardingStatus {
+            mix_identity,
+            rewarding_interval_nonce,
+        } => to_binary(&queries::query_rewarding_status(
+            deps,
+            mix_identity,
+            rewarding_interval_nonce,
+        )?),
     };
 
     Ok(query_res?)

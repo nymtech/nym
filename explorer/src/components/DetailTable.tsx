@@ -28,7 +28,7 @@ export interface UniversalTableProps {
 
 function formatCellValues(val: string | number, field: string) {
   if (field === 'bond') {
-    return printableCoin({ amount: val.toString(), denom: 'unpunk' });
+    return printableCoin({ amount: val.toString(), denom: 'upunk' });
   }
   return val;
 }

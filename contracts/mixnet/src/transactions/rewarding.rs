@@ -1234,7 +1234,24 @@ mod tests {
                 - (U128::from_num(mix1_operator_profit)
                     + U128::from_num(mix1_delegator1_reward)
                     + U128::from_num(mix1_delegator2_reward))
-        )
+        );
+
+        // it's all correctly saved
+        match rewarded_mixnodes_read(&deps.storage, 1)
+            .load(b"alice")
+            .unwrap()
+        {
+            RewardingStatus::Complete(result) => assert_eq!(
+                RewardingResult {
+                    operator_reward: Uint128::new(mix1_operator_profit),
+                    total_delegator_reward: Uint128::new(
+                        mix1_delegator1_reward + mix1_delegator2_reward
+                    )
+                },
+                result
+            ),
+            _ => unreachable!(),
+        }
     }
 
     #[cfg(test)]

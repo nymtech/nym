@@ -428,7 +428,8 @@ mod tests {
     use super::*;
     use crate::contract::DEFAULT_SYBIL_RESISTANCE_PERCENT;
     use crate::storage::{
-        circulating_supply, read_mixnode_bond, read_mixnode_delegation, reward_pool_value,
+        circulating_supply, mix_delegations_read, read_mixnode_bond, read_mixnode_delegation,
+        reward_pool_value,
     };
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
@@ -437,7 +438,7 @@ mod tests {
     use crate::transactions::{try_add_mixnode, try_delegate_to_mixnode};
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{coin, Addr, Coin};
+    use cosmwasm_std::{coin, Addr, Coin, Order};
     use mixnet_contract::{Layer, MixNode, MixNodeBond, RawDelegationData};
 
     #[cfg(test)]
@@ -1224,7 +1225,6 @@ mod tests {
 
     #[cfg(test)]
     mod mixnode_rewarding_distributes_rewards_to_up_to_one_page_of_delegators {
-        use crate::storage::mix_delegations_read;
 
         #[test]
         fn with_10_delegations() {
@@ -1476,8 +1476,159 @@ mod tests {
         }
     }
 
+    #[test]
+    fn rewarding_mix_delegators_return_consistent_results() {
+        // with single page
+        let mut deps = helpers::init_contract();
+        let mut env = mock_env();
+
+        let node_identity = "bobsnode".to_string();
+        try_add_mixnode(
+            deps.as_mut(),
+            env.clone(),
+            mock_info("bob", &[coin(10000_000_000, DENOM)]),
+            MixNode {
+                identity_key: node_identity.clone(),
+                ..helpers::mix_node_fixture()
+            },
+        )
+        .unwrap();
+        let bond = mixnodes_read(deps.as_ref().storage)
+            .load(node_identity.as_bytes())
+            .unwrap();
+
+        let base_delegation = 200_000000;
+        let delegations = 123;
+
+        for i in 0..delegations {
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                env.clone(),
+                mock_info(
+                    &*format!("delegator{:04}", i),
+                    &vec![coin(base_delegation, DENOM)],
+                ),
+                node_identity.clone(),
+            )
+            .unwrap();
+        }
+
+        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING + 1;
+        let mut node_rewarding_params = node_rewarding_params_fixture(100);
+        node_rewarding_params.set_reward_blockstamp(env.block.height);
+
+        let params = DelegatorRewardParams::new(&bond, node_rewarding_params);
+        let res =
+            reward_mix_delegators_v2(deps.as_mut().storage, &node_identity, None, params).unwrap();
+
+        let mut actual_reward = Uint128::new(0);
+        for delegation in mix_delegations_read(deps.as_ref().storage, &node_identity).range(
+            None,
+            None,
+            Order::Ascending,
+        ) {
+            actual_reward += Uint128(delegation.unwrap().1.amount.u128() - base_delegation);
+        }
+
+        // sanity check to make sure we actually gave out any rewards
+        assert_ne!(actual_reward, Uint128::zero());
+
+        assert_eq!(actual_reward, res.total_rewarded);
+        assert!(res.start_next.is_none());
+
+        // with paging
+        let node_identity = "alicesnode".to_string();
+        try_add_mixnode(
+            deps.as_mut(),
+            env.clone(),
+            mock_info("alice", &[coin(10000_000_000, DENOM)]),
+            MixNode {
+                identity_key: node_identity.clone(),
+                ..helpers::mix_node_fixture()
+            },
+        )
+        .unwrap();
+        let bond = mixnodes_read(deps.as_ref().storage)
+            .load(node_identity.as_bytes())
+            .unwrap();
+
+        let base_delegation = 200_000000;
+        let delegations = MIXNODE_DELEGATORS_PAGE_LIMIT + 123;
+
+        for i in 0..delegations {
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                env.clone(),
+                mock_info(
+                    &*format!("delegator{:04}", i),
+                    &vec![coin(base_delegation, DENOM)],
+                ),
+                node_identity.clone(),
+            )
+            .unwrap();
+        }
+
+        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING + 1;
+        let mut node_rewarding_params = node_rewarding_params_fixture(100);
+        node_rewarding_params.set_reward_blockstamp(env.block.height);
+
+        let params = DelegatorRewardParams::new(&bond, node_rewarding_params);
+        let res =
+            reward_mix_delegators_v2(deps.as_mut().storage, &node_identity, None, params).unwrap();
+
+        let mut actual_reward = Uint128::new(0);
+        for delegation in mix_delegations_read(deps.as_ref().storage, &node_identity).range(
+            None,
+            None,
+            Order::Ascending,
+        ) {
+            let (delegator, delegation) = delegation.unwrap();
+            let delegator_reward = Uint128(delegation.amount.u128() - base_delegation);
+            actual_reward += delegator_reward;
+
+            let delegator = String::from_utf8(delegator).unwrap();
+            let delegator_id: usize = delegator
+                .strip_prefix("delegator")
+                .unwrap()
+                .parse()
+                .unwrap();
+            if delegator_id >= MIXNODE_DELEGATORS_PAGE_LIMIT {
+                // if they were in next page, they shouldn't have gotten anything!
+                assert_eq!(Uint128::zero(), delegator_reward)
+            } else {
+                assert_ne!(Uint128::zero(), delegator_reward);
+            }
+        }
+
+        assert_eq!(actual_reward, res.total_rewarded);
+        let expected_next_page_start = format!("delegator{:04}", MIXNODE_DELEGATORS_PAGE_LIMIT);
+        assert_eq!(expected_next_page_start, res.start_next.clone().unwrap());
+
+        let res2 = reward_mix_delegators_v2(
+            deps.as_mut().storage,
+            &node_identity,
+            res.start_next.clone(),
+            params,
+        )
+        .unwrap();
+
+        let start = res.start_next.unwrap();
+        let start_bytes = start.as_bytes();
+        let mut actual_reward = Uint128::new(0);
+        for delegation in mix_delegations_read(deps.as_ref().storage, &node_identity).range(
+            Some(start_bytes),
+            None,
+            Order::Ascending,
+        ) {
+            actual_reward += Uint128(delegation.unwrap().1.amount.u128() - base_delegation);
+        }
+
+        assert_eq!(actual_reward, res2.total_rewarded);
+        assert!(res2.start_next.is_none());
+    }
+
     #[cfg(test)]
-    mod delegator_rewarding {
+    mod delegator_rewarding_tx {
         use super::*;
         use crate::storage::mix_delegations_read;
 

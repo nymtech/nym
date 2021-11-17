@@ -24,6 +24,9 @@ pub enum ExecuteMsg {
         coin: Coin,
         start_time: Option<u64>,
     },
+    WithdrawVestedCoins {
+        amount: Coin,
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -55,9 +58,11 @@ pub enum QueryMsg {
         vesting_account_address: String,
     },
     GetDelegatedFree {
+        block_time: Option<Timestamp>,
         vesting_account_address: String,
     },
     GetDelegatedVesting {
+        block_time: Option<Timestamp>,
         vesting_account_address: String,
     },
 }

@@ -1,10 +1,13 @@
 use crate::errors::ContractError;
 use crate::messages::{ExecuteMsg, InitMsg, QueryMsg};
-use crate::storage::{get_account, set_account};
-use crate::vesting::{DelegationAccount, VestingAccount, VestingPeriod};
+use crate::storage::{get_account, get_account_balance, set_account_balance};
+use crate::vesting::{
+    populate_vesting_periods, DelegationAccount, PeriodicVestingAccount, VestingAccount,
+};
+use config::defaults::DENOM;
 use cosmwasm_std::{
-    entry_point, to_binary, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-    Timestamp,
+    attr, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    Response, Timestamp, Uint128,
 };
 use mixnet_contract::IdentityKey;
 
@@ -50,7 +53,57 @@ pub fn execute(
             coin,
             start_time,
         } => try_create_periodic_vesting_account(address, coin, start_time, info, env, deps),
+        ExecuteMsg::WithdrawVestedCoins { amount } => {
+            try_withdraw_vested_coins(amount, env, info, deps)
+        }
     }
+}
+
+fn try_withdraw_vested_coins(
+    amount: Coin,
+    env: Env,
+    info: MessageInfo,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
+    let address = info.sender;
+    if let Some(account) = get_account(deps.storage, &address) {
+        let spendable_coins = account.spendable_coins(None, &env, deps.storage);
+        if amount.amount < spendable_coins.amount {
+            if let Some(balance) = get_account_balance(deps.storage, &address) {
+                let new_balance = balance.u128().saturating_sub(amount.amount.u128());
+                set_account_balance(deps.storage, &address, Uint128(new_balance))?;
+            } else {
+                return Err(ContractError::NoBalanceForAddress(
+                    address.as_str().to_string(),
+                ));
+            }
+
+            let messages = vec![BankMsg::Send {
+                to_address: address.as_str().to_string(),
+                amount: vec![amount],
+            }
+            .into()];
+
+            let attributes = vec![attr("action", "withdraw")];
+
+            return Ok(Response {
+                submessages: Vec::new(),
+                messages,
+                attributes,
+                data: None,
+            });
+        } else {
+            return Err(ContractError::InsufficientSpendable(
+                address.as_str().to_string(),
+                spendable_coins.amount.u128(),
+            ));
+        }
+    } else {
+        return Err(ContractError::NoAccountForAddress(
+            address.as_str().to_string(),
+        ));
+    }
+    Ok(Response::default())
 }
 
 fn try_delegate_to_mixnode(
@@ -66,7 +119,13 @@ fn try_delegate_to_mixnode(
     }
     let address = deps.api.addr_validate(&delegate_addr)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        account.try_delegate_to_mixnode(mix_identity, amount, env, deps)?;
+        account.try_delegate_to_mixnode(
+            mix_identity,
+            amount,
+            &env,
+            deps.storage,
+            Some(deps.querier),
+        )?;
     }
     Ok(Response::default())
 }
@@ -82,7 +141,7 @@ fn try_undelegate_from_mixnode(
     }
     let address = deps.api.addr_validate(&delegate_addr)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        account.try_undelegate_from_mixnode(mix_identity, deps)?;
+        account.try_undelegate_from_mixnode(mix_identity, deps.storage, Some(deps.querier))?;
     }
     Ok(Response::default())
 }
@@ -95,28 +154,19 @@ fn try_create_periodic_vesting_account(
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let mut deps = deps;
     if info.sender != ADMIN_ADDRESS {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
     let address = deps.api.addr_validate(&address)?;
     let start_time = start_time.unwrap_or_else(|| env.block.time.seconds());
-    let mut periods = Vec::new();
-    // There are eight 3 month periods in two years
-    for i in 0..(NUM_VESTING_PERIODS - 1) {
-        let period = VestingPeriod {
-            start_time: start_time + i * VESTING_PERIOD,
-        };
-        periods.push(period);
-    }
-    let account = crate::vesting::PeriodicVestingAccount::new(
+    let periods = populate_vesting_periods(start_time, NUM_VESTING_PERIODS);
+    PeriodicVestingAccount::new(
         address,
         coin,
         Timestamp::from_seconds(start_time),
         periods,
-        &mut deps,
+        deps.storage,
     )?;
-    set_account(deps.storage, account)?;
     Ok(Response::default())
 }
 
@@ -173,11 +223,19 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             deps,
         )?),
         QueryMsg::GetDelegatedFree {
+            block_time,
             vesting_account_address,
-        } => to_binary(&try_get_delegated_free(vesting_account_address, env, deps)?),
+        } => to_binary(&try_get_delegated_free(
+            block_time,
+            vesting_account_address,
+            env,
+            deps,
+        )?),
         QueryMsg::GetDelegatedVesting {
+            block_time,
             vesting_account_address,
         } => to_binary(&try_get_delegated_vesting(
+            block_time,
             vesting_account_address,
             env,
             deps,
@@ -193,12 +251,11 @@ fn try_get_locked_coins(
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let block_time = block_time.unwrap_or(env.block.time);
     let address = deps.api.addr_validate(&vesting_account_address)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        Ok(account.locked_coins(block_time, env, deps))
+        Ok(account.locked_coins(block_time, &env, deps.storage))
     } else {
-        Err(ContractError::NoSuchAccount(vesting_account_address))
+        Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }
 
@@ -208,12 +265,11 @@ fn try_get_spendable_coins(
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let block_time = block_time.unwrap_or(env.block.time);
     let address = deps.api.addr_validate(&vesting_account_address)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        Ok(account.spendable_coins(block_time, env, deps))
+        Ok(account.spendable_coins(block_time, &env, deps.storage))
     } else {
-        Err(ContractError::NoSuchAccount(vesting_account_address))
+        Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }
 
@@ -223,12 +279,11 @@ fn try_get_vested_coins(
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let block_time = block_time.unwrap_or(env.block.time);
     let address = deps.api.addr_validate(&vesting_account_address)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        Ok(account.get_vested_coins(block_time))
+        Ok(account.get_vested_coins(block_time, &env))
     } else {
-        Err(ContractError::NoSuchAccount(vesting_account_address))
+        Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }
 
@@ -238,12 +293,11 @@ fn try_get_vesting_coins(
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let block_time = block_time.unwrap_or(env.block.time);
     let address = deps.api.addr_validate(&vesting_account_address)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        Ok(account.get_vesting_coins(block_time))
+        Ok(account.get_vesting_coins(block_time, &env))
     } else {
-        Err(ContractError::NoSuchAccount(vesting_account_address))
+        Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }
 
@@ -256,7 +310,7 @@ fn try_get_start_time(
     if let Some(account) = get_account(deps.storage, &address) {
         Ok(account.get_start_time())
     } else {
-        Err(ContractError::NoSuchAccount(vesting_account_address))
+        Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }
 
@@ -269,7 +323,7 @@ fn try_get_end_time(
     if let Some(account) = get_account(deps.storage, &address) {
         Ok(account.get_end_time())
     } else {
-        Err(ContractError::NoSuchAccount(vesting_account_address))
+        Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }
 
@@ -282,32 +336,34 @@ fn try_get_original_vesting(
     if let Some(account) = get_account(deps.storage, &address) {
         Ok(account.get_original_vesting())
     } else {
-        Err(ContractError::NoSuchAccount(vesting_account_address))
+        Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }
 
 fn try_get_delegated_free(
+    block_time: Option<Timestamp>,
     vesting_account_address: String,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
     let address = deps.api.addr_validate(&vesting_account_address)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        Ok(account.get_delegated_free(env, deps))
+        Ok(account.get_delegated_free(block_time, &env, deps.storage))
     } else {
-        Err(ContractError::NoSuchAccount(vesting_account_address))
+        Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }
 
 fn try_get_delegated_vesting(
+    block_time: Option<Timestamp>,
     vesting_account_address: String,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
     let address = deps.api.addr_validate(&vesting_account_address)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        Ok(account.get_delegated_vesting(env, deps))
+        Ok(account.get_delegated_vesting(block_time, &env, deps.storage))
     } else {
-        Err(ContractError::NoSuchAccount(vesting_account_address))
+        Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }

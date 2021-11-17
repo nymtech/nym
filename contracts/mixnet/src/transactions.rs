@@ -1,5 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+use crate::contract::VESTING_CONTRACT_ADDR;
 use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime, Delegations};
 use crate::queries;
@@ -666,7 +667,7 @@ pub(crate) fn try_delegate_to_mixnode(
 pub(crate) fn try_delegate_to_mixnode_on_behalf(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     mix_identity: IdentityKey,
     delegate_addr: Addr,
     coin: Coin,
@@ -674,6 +675,10 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     // check if the delegation contains any funds of the appropriate denomination
     validate_delegation_stake(&[coin.clone()])?;
     let amount = coin.amount;
+
+    if info.sender != VESTING_CONTRACT_ADDR {
+        return Err(ContractError::Unauthorized);
+    }
 
     _try_delegate_to_mixnode(deps, env, mix_identity, &delegate_addr, amount)
 }
@@ -731,6 +736,10 @@ pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
     mix_identity: IdentityKey,
     delegate_addr: Addr,
 ) -> Result<Response, ContractError> {
+    if info.sender != VESTING_CONTRACT_ADDR {
+        return Err(ContractError::Unauthorized);
+    }
+
     _try_remove_delegation_from_mixnode(deps, info, mix_identity, &delegate_addr)
 }
 

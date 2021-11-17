@@ -299,6 +299,29 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    pub(crate) async fn reward_mix_delegators(
+        &self,
+        node: &MixnodeToReward,
+        rewarding_interval_nonce: u32,
+    ) -> Result<(), RewardingError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        // the fee is a tricky subject here because we don't know exactly how many delegators we missed,
+        // let's aim for the worst case scenario and assume it was the entire page
+        let fee = self
+            .estimate_mixnode_reward_fees(1, MIXNODE_DELEGATORS_PAGE_LIMIT)
+            .await;
+        let delegator_rewarding_msg = (
+            node.to_next_delegator_reward_execute_msg_v2(rewarding_interval_nonce),
+            vec![],
+        );
+
+        let memo = "rewarding delegators".to_string();
+        self.execute_multiple_with_retry(vec![delegator_rewarding_msg], fee, memo)
+            .await
+    }
+
     pub(crate) async fn reward_mixnodes_with_single_page_of_delegators(
         &self,
         nodes: &[MixnodeToReward],

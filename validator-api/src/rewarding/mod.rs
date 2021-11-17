@@ -12,7 +12,7 @@ use crate::storage::models::{
 use crate::storage::ValidatorApiStorage;
 use log::{error, info};
 use mixnet_contract::mixnode::NodeRewardParams;
-use mixnet_contract::{ExecuteMsg, IdentityKey, MIXNODE_DELEGATORS_PAGE_LIMIT};
+use mixnet_contract::{ExecuteMsg, IdentityKey, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT};
 use std::convert::TryInto;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -216,6 +216,42 @@ impl Rewarder {
         Ok(eligible_nodes)
     }
 
+    /// Check whether every node, and their delegators, on the provided list were fully rewarded
+    /// in the specified interval.
+    ///
+    /// It is used to deal with edge cases such that mixnode had exactly full page of delegations and
+    /// somebody created a new delegation thus causing the "last" delegator to possibly be pushed
+    /// onto the next page that the validator API was not aware of.
+    ///
+    /// * `eligible_mixnodes`: list of the nodes that were eligible to receive rewards.
+    /// * `rewarding_interval_nonce`: nonce associated with the current rewarding interval
+    async fn verify_rewarding_completion(
+        &self,
+        eligible_mixnodes: &[MixnodeToReward],
+        current_rewarding_nonce: u32,
+    ) -> (Vec<MixnodeToReward>, Vec<MixnodeToReward>) {
+        let mut unrewarded = Vec::new();
+        let mut further_delegators_present = Vec::new();
+        for mix in eligible_mixnodes {
+            let rewarding_status = self
+                .nymd_client
+                .get_rewarding_status(mix.identity.clone(), current_rewarding_nonce)
+                .await
+                .expect("error handling");
+            match rewarding_status.status {
+                // that case is super weird, it implies the node hasn't been rewarded at all!
+                // maybe the transaction timed out twice or something? In any case, we should attempt
+                // the reward for the final time!
+                None => unrewarded.push(mix.clone()),
+                Some(RewardingStatus::PendingNextDelegatorPage(_)) => {
+                    further_delegators_present.push(mix.clone())
+                }
+                Some(RewardingStatus::Complete(_)) => {}
+            }
+        }
+        (unrewarded, further_delegators_present)
+    }
+
     /// Using the list of mixnodes eligible for rewards, chunks it into pre-defined sized-chunks
     /// and gives out the rewards by calling the smart contract.
     ///
@@ -229,7 +265,7 @@ impl Rewarder {
     ///
     /// # Arguments
     ///
-    /// * `eligible_mixnodes`: list of the nodes that are eligible to receive non-zero rewards.
+    /// * `eligible_mixnodes`: list of the nodes that are eligible to receive rewards.
     /// * `rewarding_interval_nonce`: nonce associated with the current rewarding interval
     async fn distribute_rewards_to_mixnodes(
         &self,
@@ -240,7 +276,8 @@ impl Rewarder {
 
         // construct chunks such that we reward at most MIXNODE_DELEGATORS_PAGE_LIMIT delegators per block
 
-        // nodes with > MIXNODE_DELEGATORS_PAGE_LIMIT delegators that have to be treated in a special way
+        // nodes with > MIXNODE_DELEGATORS_PAGE_LIMIT delegators that have to be treated in a special way,
+        // because we cannot batch them together
         let mut individually_rewarded = Vec::new();
 
         // sets of nodes that together they have < MIXNODE_DELEGATORS_PAGE_LIMIT delegators
@@ -265,7 +302,8 @@ impl Rewarder {
 
         let mut total_rewarded = 0;
 
-        // start rewarding, first the nodes that are dealt with individually
+        // start rewarding, first the nodes that are dealt with individually, i.e. nodes that
+        // need to have their own special blocks due to number of delegators
         for mix in individually_rewarded {
             if let Err(err) = self
                 .nymd_client
@@ -335,6 +373,34 @@ impl Rewarder {
         }
     }
 
+    /// For each mixnode on the list, try to "continue" rewarding its delegators.
+    /// Note: due to the checks inside the smart contract, it's impossible to accidentally
+    /// reward the same mixnode (or delegator) twice during particular rewarding interval.
+    ///
+    /// Realistically if this method is ever called, it will be only done once per node, so there's
+    /// no need to determine the exact number of missed delegators.
+    ///
+    /// * `nodes`: mixnodes which delegators did not receive all rewards in this epoch.
+    /// * `rewarding_interval_nonce`: nonce associated with the current rewarding interval.
+    async fn reward_missed_delegators(
+        &self,
+        nodes: &[MixnodeToReward],
+        rewarding_interval_nonce: u32,
+    ) {
+        for missed_node in nodes {
+            if let Err(err) = self
+                .nymd_client
+                .reward_mix_delegators(missed_node, rewarding_interval_nonce)
+                .await
+            {
+                warn!(
+                    "failed to attempt to reward missed delegators of node {} - {}",
+                    missed_node.identity, err
+                )
+            }
+        }
+    }
+
     /// Using the list of active mixnode and gateways, determine which of them are eligible for
     /// rewarding and distribute the rewards.
     ///
@@ -353,6 +419,7 @@ impl Rewarder {
         if eligible_mixnodes.is_empty() {
             return Err(RewardingError::NoMixnodesToReward);
         }
+        let total_eligible = eligible_mixnodes.len();
 
         let current_rewarding_nonce = self
             .nymd_client
@@ -366,9 +433,43 @@ impl Rewarder {
             .distribute_rewards_to_mixnodes(&eligible_mixnodes, current_rewarding_nonce + 1)
             .await;
 
+        let mut nodes_to_verify = eligible_mixnodes;
+
+        // if there's some underlying networking error or something, don't keep retrying forever
+        let mut retries_allowed = 5;
+        loop {
+            if retries_allowed <= 0 {
+                break;
+            }
+            let (unrewarded, mut pending_delegators) = self
+                .verify_rewarding_completion(&nodes_to_verify, current_rewarding_nonce + 1)
+                .await;
+            if unrewarded.is_empty() && pending_delegators.is_empty() {
+                // we're all good - everyone got their rewards
+                break;
+            }
+
+            if !unrewarded.is_empty() {
+                // no need to save failure data as we already know about those from the very first run
+                self.distribute_rewards_to_mixnodes(&unrewarded, current_rewarding_nonce + 1)
+                    .await;
+            }
+
+            if !pending_delegators.is_empty() {
+                self.reward_missed_delegators(&pending_delegators, current_rewarding_nonce + 1)
+                    .await;
+            }
+
+            // no point in verifying EVERYTHING again, just check the nodes that went through retries
+            nodes_to_verify = unrewarded;
+            nodes_to_verify.append(&mut pending_delegators);
+
+            retries_allowed -= 1;
+        }
+
         let report = RewardingReport {
             epoch_rewarding_id: epoch_rewarding_database_id,
-            eligible_mixnodes: eligible_mixnodes.len() as i64,
+            eligible_mixnodes: total_eligible as i64,
             possibly_unrewarded_mixnodes: failure_data
                 .mixnodes
                 .as_ref()

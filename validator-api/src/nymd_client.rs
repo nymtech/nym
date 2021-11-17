@@ -8,8 +8,8 @@ use crate::rewarding::{
 };
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract::{
-    Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond, RewardingIntervalResponse,
-    StateParams, MIXNODE_DELEGATORS_PAGE_LIMIT,
+    Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond, MixnodeRewardingStatusResponse,
+    RewardingIntervalResponse, StateParams, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 use serde::Serialize;
 use std::sync::Arc;
@@ -155,6 +155,21 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         self.0.read().await.get_current_rewarding_interval().await
+    }
+
+    pub(crate) async fn get_rewarding_status(
+        &self,
+        mix_identity: mixnet_contract::IdentityKey,
+        rewarding_interval_nonce: u32,
+    ) -> Result<MixnodeRewardingStatusResponse, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0
+            .read()
+            .await
+            .get_rewarding_status(mix_identity, rewarding_interval_nonce)
+            .await
     }
 
     /// Obtains the hash of a block specified by the provided height.

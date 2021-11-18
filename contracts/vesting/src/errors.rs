@@ -15,4 +15,6 @@ pub enum ContractError {
     InsufficientBalance(String, u128),
     #[error("Insufficient spendable balance")]
     InsufficientSpendable(String, u128),
+    #[error("Only delegation owner can perform delegation actions, {0} is not the delegation owner")]
+    NotDelegate(String),
 }

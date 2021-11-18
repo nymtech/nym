@@ -12,16 +12,13 @@ pub struct InitMsg {}
 pub enum ExecuteMsg {
     DelegateToMixnode {
         mix_identity: IdentityKey,
-        delegate_addr: String,
         amount: Coin,
     },
     UndelegateFromMixnode {
         mix_identity: IdentityKey,
-        delegate_addr: String,
     },
     CreatePeriodicVestingAccount {
         address: String,
-        coin: Coin,
         start_time: Option<u64>,
     },
     WithdrawVestedCoins {

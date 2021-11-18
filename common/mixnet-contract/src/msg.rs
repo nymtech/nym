@@ -59,7 +59,6 @@ pub enum ExecuteMsg {
     DelegateToMixnodeOnBehalf {
         mix_identity: IdentityKey,
         delegate_addr: Addr,
-        coin: Coin,
     },
     UnDelegateFromMixnodeOnBehalf {
         mix_identity: IdentityKey,

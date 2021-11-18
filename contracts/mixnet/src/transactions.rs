@@ -670,11 +670,10 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     info: MessageInfo,
     mix_identity: IdentityKey,
     delegate_addr: Addr,
-    coin: Coin,
 ) -> Result<Response, ContractError> {
     // check if the delegation contains any funds of the appropriate denomination
-    validate_delegation_stake(&[coin.clone()])?;
-    let amount = coin.amount;
+    validate_delegation_stake(&info.funds)?;
+    let amount = info.funds[0].amount;
 
     if info.sender != VESTING_CONTRACT_ADDR {
         return Err(ContractError::Unauthorized);

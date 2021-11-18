@@ -10,7 +10,7 @@ use cosmwasm_std::{
 };
 use mixnet_contract::IdentityKey;
 
-pub const NUM_VESTING_PERIODS: u64 = 8;
+pub const NUM_VESTING_PERIODS: usize = 8;
 pub const VESTING_PERIOD: u64 = 3 * 30 * 86400;
 pub const ADMIN_ADDRESS: &str = "admin";
 
@@ -55,7 +55,7 @@ pub fn execute(
     }
 }
 
-fn try_withdraw_vested_coins(
+pub fn try_withdraw_vested_coins(
     amount: Coin,
     env: Env,
     info: MessageInfo,
@@ -63,7 +63,7 @@ fn try_withdraw_vested_coins(
 ) -> Result<Response, ContractError> {
     let address = info.sender;
     if let Some(account) = get_account(deps.storage, &address) {
-        let spendable_coins = account.spendable_coins(None, &env, deps.storage);
+        let spendable_coins = account.spendable_coins(None, &env, deps.storage)?;
         if amount.amount < spendable_coins.amount {
             if let Some(balance) = get_account_balance(deps.storage, &address) {
                 let new_balance = balance.u128().saturating_sub(amount.amount.u128());
@@ -194,15 +194,14 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
         )?),
         QueryMsg::GetStartTime {
             vesting_account_address,
-        } => to_binary(&try_get_start_time(vesting_account_address, env, deps)?),
+        } => to_binary(&try_get_start_time(vesting_account_address, deps)?),
         QueryMsg::GetEndTime {
             vesting_account_address,
-        } => to_binary(&try_get_end_time(vesting_account_address, env, deps)?),
+        } => to_binary(&try_get_end_time(vesting_account_address, deps)?),
         QueryMsg::GetOriginalVesting {
             vesting_account_address,
         } => to_binary(&try_get_original_vesting(
             vesting_account_address,
-            env,
             deps,
         )?),
         QueryMsg::GetDelegatedFree {
@@ -228,7 +227,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
     Ok(query_res?)
 }
 
-fn try_get_locked_coins(
+pub fn try_get_locked_coins(
     vesting_account_address: String,
     block_time: Option<Timestamp>,
     env: Env,
@@ -236,13 +235,13 @@ fn try_get_locked_coins(
 ) -> Result<Coin, ContractError> {
     let address = deps.api.addr_validate(&vesting_account_address)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        Ok(account.locked_coins(block_time, &env, deps.storage))
+        Ok(account.locked_coins(block_time, &env, deps.storage)?)
     } else {
         Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }
 
-fn try_get_spendable_coins(
+pub fn try_get_spendable_coins(
     vesting_account_address: String,
     block_time: Option<Timestamp>,
     env: Env,
@@ -250,13 +249,13 @@ fn try_get_spendable_coins(
 ) -> Result<Coin, ContractError> {
     let address = deps.api.addr_validate(&vesting_account_address)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        Ok(account.spendable_coins(block_time, &env, deps.storage))
+        Ok(account.spendable_coins(block_time, &env, deps.storage)?)
     } else {
         Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }
 
-fn try_get_vested_coins(
+pub fn try_get_vested_coins(
     vesting_account_address: String,
     block_time: Option<Timestamp>,
     env: Env,
@@ -264,13 +263,13 @@ fn try_get_vested_coins(
 ) -> Result<Coin, ContractError> {
     let address = deps.api.addr_validate(&vesting_account_address)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        Ok(account.get_vested_coins(block_time, &env))
+        Ok(account.get_vested_coins(block_time, &env)?)
     } else {
         Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }
 
-fn try_get_vesting_coins(
+pub fn try_get_vesting_coins(
     vesting_account_address: String,
     block_time: Option<Timestamp>,
     env: Env,
@@ -278,15 +277,14 @@ fn try_get_vesting_coins(
 ) -> Result<Coin, ContractError> {
     let address = deps.api.addr_validate(&vesting_account_address)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        Ok(account.get_vesting_coins(block_time, &env))
+        Ok(account.get_vesting_coins(block_time, &env)?)
     } else {
         Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
 }
 
-fn try_get_start_time(
+pub fn try_get_start_time(
     vesting_account_address: String,
-    env: Env,
     deps: Deps,
 ) -> Result<Timestamp, ContractError> {
     let address = deps.api.addr_validate(&vesting_account_address)?;
@@ -297,9 +295,8 @@ fn try_get_start_time(
     }
 }
 
-fn try_get_end_time(
+pub fn try_get_end_time(
     vesting_account_address: String,
-    env: Env,
     deps: Deps,
 ) -> Result<Timestamp, ContractError> {
     let address = deps.api.addr_validate(&vesting_account_address)?;
@@ -310,9 +307,8 @@ fn try_get_end_time(
     }
 }
 
-fn try_get_original_vesting(
+pub fn try_get_original_vesting(
     vesting_account_address: String,
-    env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
     let address = deps.api.addr_validate(&vesting_account_address)?;
@@ -323,7 +319,7 @@ fn try_get_original_vesting(
     }
 }
 
-fn try_get_delegated_free(
+pub fn try_get_delegated_free(
     block_time: Option<Timestamp>,
     vesting_account_address: String,
     env: Env,
@@ -337,7 +333,7 @@ fn try_get_delegated_free(
     }
 }
 
-fn try_get_delegated_vesting(
+pub fn try_get_delegated_vesting(
     block_time: Option<Timestamp>,
     vesting_account_address: String,
     env: Env,

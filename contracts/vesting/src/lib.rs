@@ -1,6 +1,6 @@
-mod contract;
+pub mod contract;
 mod errors;
-mod messages;
+pub mod messages;
 mod storage;
 mod support;
 mod vesting;

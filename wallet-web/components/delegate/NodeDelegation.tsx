@@ -11,12 +11,9 @@ import DelegateForm from './DelegateForm'
 import { Coin } from '@cosmjs/launchpad'
 import { UDENOM } from '../../pages/_app'
 import { theme } from '../../lib/theme'
-import { makeBasicStyle } from '../../common/helpers'
-import NodeTypeChooser from '../NodeTypeChooser'
 import ExecFeeNotice from '../ExecFeeNotice'
 
 const DelegateToNode = () => {
-  const classes = makeBasicStyle(theme)
   const router = useRouter()
   const { client } = useContext(ValidatorClientContext)
 
@@ -79,12 +76,7 @@ const DelegateToNode = () => {
 
     // we haven't clicked delegate button yet
     if (isLoading === undefined) {
-      return (
-        <>
-          <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
-          <DelegateForm onSubmit={delegateToNode} />
-        </>
-      )
+      return <DelegateForm onSubmit={delegateToNode} />
     }
 
     // We started delegation

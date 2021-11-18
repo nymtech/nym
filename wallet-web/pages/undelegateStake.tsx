@@ -8,10 +8,7 @@ const UndelegateStake = () => {
     <>
       <MainNav />
       <Layout>
-        <NymCard
-          title="Undelegate"
-          subheader="Undelegate from a Mixnode or Gateway"
-        >
+        <NymCard title="Undelegate" subheader="Undelegate from a Mixnode">
           <NodeUndelegation />
         </NymCard>
       </Layout>

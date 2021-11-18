@@ -5,12 +5,11 @@ use crate::storage::{
     set_account_delegations,
 };
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
-use cosmwasm_std::{Addr, Coin, DepsMut, Env, QuerierWrapper, Storage, Timestamp, Uint128};
+use cosmwasm_std::{wasm_execute, Addr, Coin, Env, QuerierWrapper, Storage, Timestamp, Uint128};
 use mixnet_contract::ExecuteMsg as MixnetExecuteMsg;
 use mixnet_contract::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 pub trait VestingAccount {
     // locked_coins returns the set of coins that are not spendable (can still be delegated tough) (i.e. locked),
@@ -58,16 +57,12 @@ pub trait DelegationAccount {
         amount: Coin,
         env: &Env,
         storage: &mut dyn Storage,
-        // There isn't a trait that unifies Queriers so we clutch by passing in the option here, so we'll query
-        // mixnet contract only when we're deployed, during testing query will not be sent.
-        querier: Option<QuerierWrapper>,
     ) -> Result<(), ContractError>;
 
     fn try_undelegate_from_mixnode(
         &self,
         mix_identity: IdentityKey,
         storage: &mut dyn Storage,
-        querier: Option<QuerierWrapper>,
     ) -> Result<(), ContractError>;
 
     // track_delegation performs internal vesting accounting necessary when
@@ -224,18 +219,15 @@ impl DelegationAccount for PeriodicVestingAccount {
         coin: Coin,
         env: &Env,
         storage: &mut dyn Storage,
-        querier: Option<QuerierWrapper>,
     ) -> Result<(), ContractError> {
         if coin.amount < self.get_balance(storage) {
-            if let Some(querier) = querier {
-                let msg = MixnetExecuteMsg::DelegateToMixnodeOnBehalf {
-                    mix_identity: mix_identity.clone(),
-                    delegate_addr: self.address.clone(),
-                    coin: coin.clone(),
-                };
-                querier.query_wasm_smart(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg)?;
-            }
+            let msg = MixnetExecuteMsg::DelegateToMixnodeOnBehalf {
+                mix_identity: mix_identity.clone(),
+                delegate_addr: self.address.clone(),
+            };
+            wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![coin.clone()])?;
             self.track_delegation(env.block.time, mix_identity, coin, storage)?;
+
             Ok(())
         } else {
             return Err(ContractError::InsufficientBalance(
@@ -249,15 +241,19 @@ impl DelegationAccount for PeriodicVestingAccount {
         &self,
         mix_identity: IdentityKey,
         storage: &mut dyn Storage,
-        querier: Option<QuerierWrapper>,
     ) -> Result<(), ContractError> {
-        if let Some(querier) = querier {
-            let msg = MixnetExecuteMsg::UnDelegateFromMixnodeOnBehalf {
-                mix_identity: mix_identity.clone(),
-                delegate_addr: self.address.clone(),
-            };
-            querier.query_wasm_smart(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg)?;
-        }
+        let msg = MixnetExecuteMsg::UnDelegateFromMixnodeOnBehalf {
+            mix_identity: mix_identity.clone(),
+            delegate_addr: self.address.clone(),
+        };
+        wasm_execute(
+            DEFAULT_MIXNET_CONTRACT_ADDRESS,
+            &msg,
+            vec![Coin {
+                amount: Uint128(0),
+                denom: DENOM.to_string(),
+            }],
+        )?;
         self.track_undelegation(mix_identity, storage)?;
         Ok(())
     }
@@ -280,6 +276,7 @@ impl DelegationAccount for PeriodicVestingAccount {
             amount: delegation_amount.amount,
             block_time,
         });
+        // TODO: track balance here as well.
         set_account_delegations(storage, &self.address, delegations)?;
         Ok(())
     }
@@ -296,7 +293,7 @@ impl DelegationAccount for PeriodicVestingAccount {
             .filter(|d| d.mix_identity != mix_identity)
             .collect();
         // Since we're always removing the entire delegation we can just drop the key
-
+        // TODO: track balance here as well.
         Ok(set_account_delegations(
             storage,
             &self.address,
@@ -530,7 +527,6 @@ mod tests {
             },
             &env,
             &mut deps.storage,
-            None,
         );
         assert!(err.is_err());
 
@@ -542,7 +538,6 @@ mod tests {
             },
             &env,
             &mut deps.storage,
-            None,
         );
         assert!(ok.is_ok());
 

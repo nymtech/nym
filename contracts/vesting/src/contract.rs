@@ -4,7 +4,6 @@ use crate::storage::{get_account, get_account_balance, set_account_balance};
 use crate::vesting::{
     populate_vesting_periods, DelegationAccount, PeriodicVestingAccount, VestingAccount,
 };
-use config::defaults::DENOM;
 use cosmwasm_std::{
     attr, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Timestamp, Uint128,
@@ -41,18 +40,15 @@ pub fn execute(
     match msg {
         ExecuteMsg::DelegateToMixnode {
             mix_identity,
-            delegate_addr,
             amount,
-        } => try_delegate_to_mixnode(mix_identity, delegate_addr, amount, info, env, deps),
-        ExecuteMsg::UndelegateFromMixnode {
-            mix_identity,
-            delegate_addr,
-        } => try_undelegate_from_mixnode(mix_identity, delegate_addr, info, deps),
+        } => try_delegate_to_mixnode(mix_identity, amount, info, env, deps),
+        ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
+            try_undelegate_from_mixnode(mix_identity, info, deps)
+        }
         ExecuteMsg::CreatePeriodicVestingAccount {
             address,
-            coin,
             start_time,
-        } => try_create_periodic_vesting_account(address, coin, start_time, info, env, deps),
+        } => try_create_periodic_vesting_account(address, start_time, info, env, deps),
         ExecuteMsg::WithdrawVestedCoins { amount } => {
             try_withdraw_vested_coins(amount, env, info, deps)
         }
@@ -86,69 +82,55 @@ fn try_withdraw_vested_coins(
 
             let attributes = vec![attr("action", "withdraw")];
 
-            return Ok(Response {
+            Ok(Response {
                 submessages: Vec::new(),
                 messages,
                 attributes,
                 data: None,
-            });
+            })
         } else {
-            return Err(ContractError::InsufficientSpendable(
+            Err(ContractError::InsufficientSpendable(
                 address.as_str().to_string(),
                 spendable_coins.amount.u128(),
-            ));
+            ))
         }
     } else {
         return Err(ContractError::NoAccountForAddress(
             address.as_str().to_string(),
         ));
     }
-    Ok(Response::default())
 }
 
 fn try_delegate_to_mixnode(
     mix_identity: IdentityKey,
-    delegate_addr: String,
     amount: Coin,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    if info.sender != ADMIN_ADDRESS {
-        return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
-    }
-    let address = deps.api.addr_validate(&delegate_addr)?;
+    let delegate_addr = info.sender;
+    let address = deps.api.addr_validate(delegate_addr.as_str())?;
     if let Some(account) = get_account(deps.storage, &address) {
-        account.try_delegate_to_mixnode(
-            mix_identity,
-            amount,
-            &env,
-            deps.storage,
-            Some(deps.querier),
-        )?;
+        account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)?;
     }
     Ok(Response::default())
 }
 
 fn try_undelegate_from_mixnode(
     mix_identity: IdentityKey,
-    delegate_addr: String,
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    if info.sender != ADMIN_ADDRESS {
-        return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
-    }
-    let address = deps.api.addr_validate(&delegate_addr)?;
+    let delegate_addr = info.sender;
+    let address = deps.api.addr_validate(delegate_addr.as_str())?;
     if let Some(account) = get_account(deps.storage, &address) {
-        account.try_undelegate_from_mixnode(mix_identity, deps.storage, Some(deps.querier))?;
+        account.try_undelegate_from_mixnode(mix_identity, deps.storage)?;
     }
     Ok(Response::default())
 }
 
 fn try_create_periodic_vesting_account(
     address: String,
-    coin: Coin,
     start_time: Option<u64>,
     info: MessageInfo,
     env: Env,
@@ -157,6 +139,7 @@ fn try_create_periodic_vesting_account(
     if info.sender != ADMIN_ADDRESS {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
+    let coin = info.funds[0].clone();
     let address = deps.api.addr_validate(&address)?;
     let start_time = start_time.unwrap_or_else(|| env.block.time.seconds());
     let periods = populate_vesting_periods(start_time, NUM_VESTING_PERIODS);

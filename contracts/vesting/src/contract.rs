@@ -84,7 +84,7 @@ fn try_withdraw_vested_coins(
             }
             .into()];
 
-            let attributes = vec![attr("action", "whitdraw")];
+            let attributes = vec![attr("action", "withdraw")];
 
             return Ok(Response {
                 submessages: Vec::new(),

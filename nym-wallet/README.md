@@ -9,18 +9,19 @@ Nym is an open-source, decentralized and permissionless privacy system. It provi
 
 The Nym desktop wallet enables you to use the Nym network and take advantage of its key capabilities
 
-## Installation prerequisites Linux / Mac
+## Installation prerequisites - Linux / Mac
 
 - `Yarn`
 - `NodeJS >= v16.8.0`
 - `Rust & cargo >= v1.56`
 
-## Installation prerequisites Windows
+## Installation prerequisites - Windows
 
 - When running on Windows you will need to install c++ build tools
 - An easy guide to get rust up and running [Installation]("http://kennykerr.ca/2019/11/18/rust-getting-started/")
 - When installing NodeJS please use the `current features` version
 - Using a package manager like [Chocolatey]("chocolatey.org") is recommended
+- The nym wallet requires you to have `Webview2` installed, please head to the [Installer](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section), this will ensure a smooth app launch
 
 ## Installation
 

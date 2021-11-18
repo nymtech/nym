@@ -8,7 +8,7 @@ const DelegateStake = () => {
     <>
       <MainNav />
       <Layout>
-        <NymCard title="Delegate" subheader="Delegate to Mixnode or Gateway">
+        <NymCard title="Delegate" subheader="Delegate to Mixnode">
           <NodeDelegation />
         </NymCard>
       </Layout>

@@ -28,7 +28,7 @@ export interface UniversalTableProps {
 
 function formatCellValues(val: string | number, field: string) {
   if (field === 'bond') {
-    return printableCoin({ amount: val.toString(), denom: 'unpunk' });
+    return printableCoin({ amount: val.toString(), denom: 'upunk' });
   }
   return val;
 }
@@ -66,6 +66,7 @@ export const DetailTable: React.FC<{
                   padding: 2,
                   width: 200,
                 }}
+                data-testid={`${_.title.replace(/ /g, '-')}-value`}
               >
                 {formatCellValues(
                   eachRow[columnsData[index].field],

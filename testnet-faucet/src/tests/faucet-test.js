@@ -24,8 +24,8 @@ const homepageTest = async () => {
   const element = await page.$(faucet.transaction);
   const text = await page.evaluate((element) => element.textContent, element);
 
-  //Successfuly transfered 5 upunk to address `punkaddress`
-  //input browser
+  //Successfully transfered 5 upunk to address `punkaddress`
+  //input test framework to assert expected response
   console.log(text);
 
   await page.screenshot({ path: 'successful_transaction.png' });

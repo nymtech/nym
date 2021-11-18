@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 use cosmwasm_std::{Addr, StdResult, Storage, Uint128};
 use cosmwasm_storage::{bucket, bucket_read, Bucket, ReadonlyBucket};
-use mixnet_contract::IdentityKey;
-use std::collections::HashMap;
 
 use crate::{
     errors::ContractError,

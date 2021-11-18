@@ -11,10 +11,14 @@ pub enum ContractError {
     NotAdmin(String),
     #[error("Balance not found for existing account ({0}), this is a bug")]
     NoBalanceForAddress(String),
-    #[error("Insufficient balance")]
+    #[error("Insufficient balance for address {0} -> {1}")]
     InsufficientBalance(String, u128),
-    #[error("Insufficient spendable balance")]
+    #[error("Insufficient spendable balance for address {0} -> {1}")]
     InsufficientSpendable(String, u128),
-    #[error("Only delegation owner can perform delegation actions, {0} is not the delegation owner")]
+    #[error(
+        "Only delegation owner can perform delegation actions, {0} is not the delegation owner"
+    )]
     NotDelegate(String),
+    #[error("Total vesting amount is inprobably low -> {0}, this is likely an error")]
+    ImprobableVestingAmount(u128),
 }

@@ -5,7 +5,7 @@ use crate::storage::{
     set_account_delegations,
 };
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
-use cosmwasm_std::{wasm_execute, Addr, Coin, Env, QuerierWrapper, Storage, Timestamp, Uint128};
+use cosmwasm_std::{wasm_execute, Addr, Coin, Env, Storage, Timestamp, Uint128};
 use mixnet_contract::ExecuteMsg as MixnetExecuteMsg;
 use mixnet_contract::IdentityKey;
 use schemars::JsonSchema;
@@ -18,8 +18,12 @@ pub trait VestingAccount {
     // To get spendable coins of a vesting account, first the total balance must
     // be retrieved and the locked tokens can be subtracted from the total balance.
     // Note, the spendable balance can be negative.
-    fn locked_coins(&self, block_time: Option<Timestamp>, env: &Env, storage: &dyn Storage)
-        -> Coin;
+    fn locked_coins(
+        &self,
+        block_time: Option<Timestamp>,
+        env: &Env,
+        storage: &dyn Storage,
+    ) -> Result<Coin, ContractError>;
 
     // Calculates the total spendable balance that can be sent to other accounts.
     fn spendable_coins(
@@ -27,10 +31,18 @@ pub trait VestingAccount {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Coin;
+    ) -> Result<Coin, ContractError>;
 
-    fn get_vested_coins(&self, block_time: Option<Timestamp>, env: &Env) -> Coin;
-    fn get_vesting_coins(&self, block_time: Option<Timestamp>, env: &Env) -> Coin;
+    fn get_vested_coins(
+        &self,
+        block_time: Option<Timestamp>,
+        env: &Env,
+    ) -> Result<Coin, ContractError>;
+    fn get_vesting_coins(
+        &self,
+        block_time: Option<Timestamp>,
+        env: &Env,
+    ) -> Result<Coin, ContractError>;
 
     fn get_start_time(&self) -> Timestamp;
     fn get_end_time(&self) -> Timestamp;
@@ -135,15 +147,20 @@ impl PeriodicVestingAccount {
         self.address.clone()
     }
 
-    pub fn tokens_per_period(&self) -> u128 {
-        // Remainder tokens will be lumped into the last period.
-        self.coin.amount.u128() / NUM_VESTING_PERIODS as u128
+    pub fn tokens_per_period(&self) -> Result<u128, ContractError> {
+        let amount = self.coin.amount.u128();
+        if amount < NUM_VESTING_PERIODS as u128 {
+            Err(ContractError::ImprobableVestingAmount(amount))
+        } else {
+            // Remainder tokens will be lumped into the last period.
+            Ok(amount / NUM_VESTING_PERIODS as u128)
+        }
     }
 
-    fn get_next_vesting_period(&self, block_time: Timestamp) -> usize {
+    fn get_current_vesting_period(&self, block_time: Timestamp) -> usize {
         // Returns the index of the next vesting period. Unless the current time is somehow in the past or vesting has not started yet.
         // In case vesting is over it will always return NUM_VESTING_PERIODS.
-        match self
+        let period = match self
             .periods
             .iter()
             .map(|period| period.start_time)
@@ -152,12 +169,10 @@ impl PeriodicVestingAccount {
         {
             Ok(u) => u,
             Err(u) => u,
-        }
-    }
+        };
 
-    fn get_current_vesting_period(&self, block_time: Timestamp) -> usize {
-        if self.get_next_vesting_period(block_time) > 0 {
-            self.get_next_vesting_period(block_time) - 1
+        if period > 0 {
+            period - 1
         } else {
             0
         }
@@ -308,11 +323,11 @@ impl VestingAccount for PeriodicVestingAccount {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Coin {
+    ) -> Result<Coin, ContractError> {
         // Returns 0 in case of underflow.
-        Coin {
+        Ok(Coin {
             amount: Uint128(
-                self.get_vesting_coins(block_time, env)
+                self.get_vesting_coins(block_time, env)?
                     .amount
                     .u128()
                     .saturating_sub(
@@ -322,7 +337,7 @@ impl VestingAccount for PeriodicVestingAccount {
                     ),
             ),
             denom: DENOM.to_string(),
-        }
+        })
     }
 
     fn spendable_coins(
@@ -330,46 +345,56 @@ impl VestingAccount for PeriodicVestingAccount {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Coin {
-        Coin {
+    ) -> Result<Coin, ContractError> {
+        Ok(Coin {
             amount: Uint128(
                 self.get_balance(storage)
                     .u128()
-                    .saturating_sub(self.locked_coins(block_time, env, storage).amount.u128()),
+                    .saturating_sub(self.locked_coins(block_time, env, storage)?.amount.u128()),
             ),
             denom: DENOM.to_string(),
-        }
+        })
     }
 
-    fn get_vested_coins(&self, block_time: Option<Timestamp>, env: &Env) -> Coin {
+    fn get_vested_coins(
+        &self,
+        block_time: Option<Timestamp>,
+        env: &Env,
+    ) -> Result<Coin, ContractError> {
         let block_time = block_time.unwrap_or(env.block.time);
         let period = self.get_current_vesting_period(block_time);
 
-        match period {
+        let amount = match period {
             // We're in the first period, or the vesting has not started yet.
             0 => Coin {
                 amount: Uint128(0),
                 denom: DENOM.to_string(),
             },
+            // We always have 8 vesting periods, so periods 1-7 are special
             1..=7 => Coin {
-                amount: Uint128(self.tokens_per_period() * period as u128),
+                amount: Uint128(self.tokens_per_period()? * period as u128),
                 denom: DENOM.to_string(),
             },
             _ => Coin {
                 amount: self.coin.amount,
                 denom: DENOM.to_string(),
             },
-        }
+        };
+        Ok(amount)
     }
 
-    fn get_vesting_coins(&self, block_time: Option<Timestamp>, env: &Env) -> Coin {
-        Coin {
+    fn get_vesting_coins(
+        &self,
+        block_time: Option<Timestamp>,
+        env: &Env,
+    ) -> Result<Coin, ContractError> {
+        Ok(Coin {
             amount: Uint128(
                 self.get_original_vesting().amount.u128()
-                    - self.get_vested_coins(block_time, env).amount.u128(),
+                    - self.get_vested_coins(block_time, env)?.amount.u128(),
             ),
             denom: DENOM.to_string(),
-        }
+        })
     }
 
     fn get_start_time(&self) -> Timestamp {
@@ -411,16 +436,14 @@ fn ge(x: u64, y: u64) -> bool {
     x >= y
 }
 
-pub fn populate_vesting_periods(start_time: u64, n: u64) -> Vec<VestingPeriod> {
-    let mut periods = Vec::new();
-    // There are eight 3 month periods in two years
+pub fn populate_vesting_periods(start_time: u64, n: usize) -> Vec<VestingPeriod> {
+    let mut periods = Vec::with_capacity(n as usize);
     for i in 0..n {
         let period = VestingPeriod {
-            start_time: start_time + i * VESTING_PERIOD,
+            start_time: start_time + i as u64 * VESTING_PERIOD,
         };
         periods.push(period);
     }
-    periods.shrink_to_fit();
     periods
 }
 
@@ -466,17 +489,13 @@ mod tests {
         assert_eq!(account.periods.len(), 8);
 
         let current_period = account.get_current_vesting_period(Timestamp::from_seconds(0));
-        let next_period = account.get_next_vesting_period(Timestamp::from_seconds(0));
         assert_eq!(0, current_period);
-        assert_eq!(0, next_period);
 
         let block_time = Timestamp::from_seconds(account.start_time.seconds() + VESTING_PERIOD + 1);
         let current_period = account.get_current_vesting_period(block_time);
-        let next_period = account.get_next_vesting_period(block_time);
         assert_eq!(current_period, 1);
-        assert_eq!(next_period, 2);
-        let vested_coins = account.get_vested_coins(Some(block_time), &env);
-        let vesting_coins = account.get_vesting_coins(Some(block_time), &env);
+        let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
+        let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
         assert_eq!(
             vested_coins.amount,
             Uint128(account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128)
@@ -492,11 +511,9 @@ mod tests {
         let block_time =
             Timestamp::from_seconds(account.start_time.seconds() + 5 * VESTING_PERIOD + 1);
         let current_period = account.get_current_vesting_period(block_time);
-        let next_period = account.get_next_vesting_period(block_time);
         assert_eq!(current_period, 5);
-        assert_eq!(next_period, 6);
-        let vested_coins = account.get_vested_coins(Some(block_time), &env);
-        let vesting_coins = account.get_vesting_coins(Some(block_time), &env);
+        let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
+        let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
         assert_eq!(
             vested_coins.amount,
             Uint128(5 * account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128)

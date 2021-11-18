@@ -120,7 +120,7 @@ import Validator from '@nymproject/nym-validator-client';
     error?: any;
   }) => {
     if (success && balanceElem) {
-      balanceElem.innerHTML = `Successfuly transfered ${amount!} upunk to address ${accountAddress!}`;
+      balanceElem.innerHTML = `Successfully transfered ${amount!} upunk to address ${accountAddress!}`;
     } else if (!success && balanceElem) {
       balanceElem.innerHTML = `Transfer failed - ${error}`;
     }

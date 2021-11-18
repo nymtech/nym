@@ -8,10 +8,12 @@
     "build": "yarn parcel build src/index.html"
   },
   "dependencies": {
-    "@nymproject/nym-validator-client": "^0.18.0"
+    "@nymproject/nym-validator-client": "^0.18.0",
+    "puppeteer": "^11.0.0"
   },
   "devDependencies": {
     "@parcel/transformer-sass": "^2.0.1",
+    "jest-puppeteer": "^6.0.0",
     "parcel": "^2.0.1"
   }
 }

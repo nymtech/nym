@@ -6,13 +6,11 @@ import { NodeType } from '../../common/node'
 import NoClientError from '../NoClientError'
 import Confirmation from '../Confirmation'
 import { theme } from '../../lib/theme'
-import { makeBasicStyle } from '../../common/helpers'
 import NodeTypeChooser from '../NodeTypeChooser'
 import NodeIdentityForm from '../NodeIdentityForm'
 import ExecFeeNotice from '../ExecFeeNotice'
 
 const UndelegateFromNode = () => {
-  const classes = makeBasicStyle(theme)
   const router = useRouter()
   const { client } = useContext(ValidatorClientContext)
 
@@ -66,13 +64,10 @@ const UndelegateFromNode = () => {
     // we haven't clicked undelegate button yet
     if (isLoading === undefined) {
       return (
-        <>
-          <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
-          <NodeIdentityForm
-            onSubmit={undelegateFromNode}
-            buttonText={'Remove delegation'}
-          />
-        </>
+        <NodeIdentityForm
+          onSubmit={undelegateFromNode}
+          buttonText={'Remove delegation'}
+        />
       )
     }
 

@@ -1,0 +1,17 @@
+{
+  "name": "testnet-faucet",
+  "version": "0.1.0",
+  "description": "nym testnet token faucet",
+  "license": "MIT",
+  "scripts": {
+    "dev": "yarn parcel src/index.html",
+    "build": "yarn parcel build src/index.html"
+  },
+  "dependencies": {
+    "@nymproject/nym-validator-client": "^0.18.0"
+  },
+  "devDependencies": {
+    "@parcel/transformer-sass": "^2.0.1",
+    "parcel": "^2.0.1"
+  }
+}

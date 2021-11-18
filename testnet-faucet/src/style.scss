@@ -1,0 +1,158 @@
+$primary-light: #f4731b;
+$primary-dark: #f12d50;
+
+* {
+  font-family: sans-serif;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #070b15;
+  height: 100vh;
+  width: 100vw;
+}
+
+.layout {
+  position: relative;
+}
+
+.container {
+  margin: auto;
+}
+
+nav {
+  padding: 2rem;
+}
+
+main {
+  padding: 3rem 2rem;
+}
+
+h2 {
+  color: white;
+  margin: 0;
+  font-size: 2rem;
+  margin-bottom: 0.3rem;
+  font-weight: lighter;
+}
+
+h3 {
+  color: $primary-light;
+  font-weight: normal;
+  margin: 0;
+  font-size: 2.25rem;
+  margin-bottom: 1rem;
+}
+
+form {
+  .inputs {
+    margin-bottom: 1.5rem;
+  }
+  label {
+    color: white;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  input {
+    width: 100%;
+    padding: 15px 20px;
+    border-radius: 25px;
+    border: none;
+    margin: 0.75rem 0;
+  }
+}
+
+.balance {
+  margin-top: 2rem;
+  color: white;
+  font-size: 1.75rem;
+
+  strong {
+    text-decoration: underline;
+  }
+}
+
+.loading {
+  margin-top: 2rem;
+  display: flex;
+  align-items: center;
+
+  span {
+    font-size: 1.5rem;
+    color: white;
+  }
+}
+
+.loading.hide,
+.balance.hide,
+.error-text.hide {
+  display: none;
+}
+
+.error-text {
+  color: red;
+  margin: 2rem 0;
+}
+
+button {
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 25px;
+  font-weight: 600;
+  text-transform: uppercase;
+  min-width: 200px;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+button.primary {
+  background: linear-gradient(90deg, $primary-light 1.05%, $primary-dark 100%);
+  color: white;
+  &:hover {
+    background: linear-gradient(
+      90deg,
+      darken($primary-light, 5%) 1.05%,
+      darken($primary-dark, 5%) 100%
+    );
+  }
+  &:disabled {
+    background: rgb(175, 175, 175);
+  }
+}
+
+button.outlined {
+  border: 2px solid $primary-light;
+  color: white;
+  background: transparent;
+  margin-right: 0.5rem;
+  &:hover {
+    border: 2px solid $primary-dark;
+  }
+  &:disabled {
+    background: rgb(175, 175, 175);
+    border-color: rgb(175, 175, 175);
+  }
+}
+
+@media screen and (min-width: 1088px) {
+  .container {
+    max-width: 960px;
+    width: 960px;
+  }
+}
+
+@media screen and (min-width: 1280px) {
+  .container {
+    max-width: 1152px;
+    width: 1152px;
+  }
+}
+
+@media screen and (min-width: 1472px) {
+  .container {
+    max-width: 1344px;
+    width: 1344px;
+  }
+}

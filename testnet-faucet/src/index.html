@@ -1,0 +1,67 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="shortcut icon" href="./images/favicon.png" />
+    <link rel="stylesheet" href="./normalize.scss" />
+    <link rel="stylesheet" href="./style.scss" />
+    <title>Nym Testnet faucet</title>
+  </head>
+  <body>
+    <div class="layout">
+      <div class="overlay"></div>
+      <nav>
+        <div class="container">
+          <img src="./images/logo-white.svg" width="100px" />
+        </div>
+      </nav>
+      <main class="container">
+        <div>
+          <h2>Nym Testnet Faucet</h2>
+          <h3>Nym tokens to your address</h3>
+          <form>
+            <div class="inputs">
+              <label for="address-input">Address</label>
+
+              <input
+                type="text"
+                placeholder="0x000000"
+                id="address-input"
+                name="address-input"
+              />
+
+              <label for="amount-input">Amount (UPunks)</label>
+
+              <input
+                type="number"
+                placeholder="0"
+                id="amount-input"
+                name="amount-input"
+              />
+            </div>
+            <div class="actions">
+              <button id="check-balance" class="outlined">Check balance</button>
+              <button id="request-tokens" class="primary">
+                Request tokens
+              </button>
+            </div>
+          </form>
+          <div class="error-text hide">
+            Please fill in the Address and Amount fields
+          </div>
+          <div class="balance">
+            Transfer failed - Error: Broadcasting transaction failed with code 7
+            (codespace: sdk). Log: Invalid recipient address (decoding bech32
+            failed: checksum failed. Expected ve5zcd, got yjw2le.): invalid
+            address
+          </div>
+          <div class="loading hide">
+            <span>Processing...</span>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="./index.ts" type="module"></script>
+  </body>
+</html>

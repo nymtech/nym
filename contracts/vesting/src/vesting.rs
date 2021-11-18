@@ -261,6 +261,7 @@ impl DelegationAccount for PeriodicVestingAccount {
             mix_identity: mix_identity.clone(),
             delegate_addr: self.address.clone(),
         };
+        // TODO: Do we need to send this message, or does this magically send?
         wasm_execute(
             DEFAULT_MIXNET_CONTRACT_ADDRESS,
             &msg,
@@ -269,6 +270,7 @@ impl DelegationAccount for PeriodicVestingAccount {
                 denom: DENOM.to_string(),
             }],
         )?;
+        // TODO: this needs to move into a separate UndelegationResult Msg as returned rewards can be greater then the original delegated amount due to rewarding.
         self.track_undelegation(mix_identity, storage)?;
         Ok(())
     }
@@ -291,8 +293,17 @@ impl DelegationAccount for PeriodicVestingAccount {
             amount: delegation_amount.amount,
             block_time,
         });
-        // TODO: track balance here as well.
+
+        let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
+            // We've checked that delegation_amount < balance in the caller function
+            Uint128(balance.u128() - delegation_amount.amount.u128())
+        } else {
+            return Err(ContractError::NoBalanceForAddress(self.address.as_str().to_string()))
+        };
+
         set_account_delegations(storage, &self.address, delegations)?;
+        set_account_balance(storage, &self.address, new_balance)?;
+
         Ok(())
     }
 
@@ -308,7 +319,7 @@ impl DelegationAccount for PeriodicVestingAccount {
             .filter(|d| d.mix_identity != mix_identity)
             .collect();
         // Since we're always removing the entire delegation we can just drop the key
-        // TODO: track balance here as well.
+        // TODO: track balance here as well, maybe
         Ok(set_account_delegations(
             storage,
             &self.address,

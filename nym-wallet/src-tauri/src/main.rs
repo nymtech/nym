@@ -5,17 +5,19 @@
 
 use mixnet_contract::{Gateway, MixNode};
 use std::sync::Arc;
-use tauri::{Menu, MenuItem};
+use tauri::{Menu};
 use tokio::sync::RwLock;
 use validator_client::nymd::fee_helpers::Operation;
 
 mod coin;
 mod config;
 mod error;
+mod menu;
 mod operations;
 mod state;
 mod utils;
 
+use crate::menu::AddDefaultSubmenus;
 use crate::operations::account::*;
 use crate::operations::admin::*;
 use crate::operations::bond::*;
@@ -33,12 +35,6 @@ macro_rules! format_err {
   ($e:expr) => {
     format!("line {}: {}", line!(), $e)
   };
-}
-
-pub fn create_menu_items() -> Menu {
-  Menu::new()
-    .add_native_item(MenuItem::Copy)
-    .add_native_item(MenuItem::Paste)
 }
 
 fn main() {
@@ -64,7 +60,7 @@ fn main() {
       update_state_params,
       get_reverse_mix_delegations_paged,
     ])
-    .menu(create_menu_items())
+    .menu(Menu::new().add_default_app_submenu_if_macos())
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

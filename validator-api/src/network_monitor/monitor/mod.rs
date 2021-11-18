@@ -297,7 +297,7 @@ impl Monitor {
 
         // wait for validator cache to be ready
         self.packet_preparer
-            .wait_for_validator_cache_initial_values(self.test_routes)
+            .wait_for_validator_cache_initial_values(self.minimum_test_routes)
             .await;
 
         self.packet_sender

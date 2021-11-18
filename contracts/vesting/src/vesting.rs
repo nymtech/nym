@@ -512,7 +512,7 @@ mod tests {
     }
 
     #[test]
-    fn test_toodelegations() {
+    fn test_delegations() {
         let mut deps = init_contract();
         let env = mock_env();
 

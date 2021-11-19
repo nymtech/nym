@@ -148,43 +148,22 @@ pub(crate) fn try_remove_mixnode(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::bonding_gateways::transactions::try_add_gateway;
-    use crate::bonding_gateways::transactions::validate_gateway_bond;
     use crate::bonding_mixnodes::transactions::try_add_mixnode;
     use crate::bonding_mixnodes::transactions::validate_mixnode_bond;
-    use crate::contract::{
-        execute, query, DEFAULT_SYBIL_RESISTANCE_PERCENT, INITIAL_DEFAULT_EPOCH_LENGTH,
-        INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND, INITIAL_MIXNODE_BOND_REWARD_RATE,
-        INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
-    };
-    use crate::delegating_mixnodes::transactions::try_delegate_to_mixnode;
+    use crate::contract::{execute, query, INITIAL_MIXNODE_BOND};
     use crate::error::ContractError;
-    use crate::helpers::calculate_epoch_reward_rate;
-    use crate::helpers::scale_reward_by_uptime;
-    use crate::mixnet_params::transactions::try_update_state_params;
-    use crate::rewards::transactions::{
-        try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
-        try_reward_mixnode_v2,
-    };
-    use crate::storage::*;
-    use crate::storage::{layer_distribution_read, read_mixnode_bond};
+    use crate::storage::layer_distribution_read;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{good_gateway_bond, good_mixnode_bond, mix_node_fixture};
+    use crate::support::tests::helpers::{good_gateway_bond, good_mixnode_bond};
     use config::defaults::DENOM;
     use cosmwasm_std::attr;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::Decimal;
-    use cosmwasm_std::{coin, from_binary, Addr, Uint128};
-    use cosmwasm_std::{coins, BankMsg, Coin, Response};
-    use mixnet_contract::mixnode::NodeRewardParams;
+    use cosmwasm_std::{coins, BankMsg, Response};
+    use cosmwasm_std::{from_binary, Addr, Uint128};
     use mixnet_contract::Gateway;
+    use mixnet_contract::Layer;
     use mixnet_contract::MixNode;
-    use mixnet_contract::MixNodeBond;
-    use mixnet_contract::StateParams;
-    use mixnet_contract::{
-        ExecuteMsg, LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
-    };
-    use mixnet_contract::{IdentityKey, Layer, RawDelegationData};
+    use mixnet_contract::{ExecuteMsg, LayerDistribution, PagedMixnodeResponse, QueryMsg};
 
     #[test]
     fn validating_mixnode_bond() {
@@ -618,5 +597,29 @@ pub mod tests {
                 .load("mix-owner".as_bytes())
                 .unwrap()
         );
+    }
+
+    #[test]
+    fn choose_layer_mix_node() {
+        let mut deps = helpers::init_contract();
+        for owner in ["alice", "bob"] {
+            try_add_mixnode(
+                deps.as_mut(),
+                mock_env(),
+                mock_info(owner, &good_mixnode_bond()),
+                MixNode {
+                    identity_key: owner.to_string(),
+                    ..helpers::mix_node_fixture()
+                },
+            )
+            .unwrap();
+        }
+        let bonded_mix_nodes = helpers::get_mix_nodes(&mut deps);
+        let alice_node = bonded_mix_nodes.get(0).unwrap().clone();
+        let bob_node = bonded_mix_nodes.get(1).unwrap().clone();
+        assert_eq!(alice_node.mix_node.identity_key, "alice");
+        assert_eq!(alice_node.layer, Layer::One);
+        assert_eq!(bob_node.mix_node.identity_key, "bob");
+        assert_eq!(bob_node.layer, mixnet_contract::Layer::Two);
     }
 }

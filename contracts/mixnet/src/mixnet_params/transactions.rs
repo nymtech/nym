@@ -62,3 +62,114 @@ pub(crate) fn try_update_state_params(
 
     Ok(Response::default())
 }
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use crate::contract::{
+        INITIAL_DEFAULT_EPOCH_LENGTH, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND,
+        INITIAL_MIXNODE_BOND_REWARD_RATE, INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
+    };
+    use crate::error::ContractError;
+    use crate::helpers::calculate_epoch_reward_rate;
+    use crate::mixnet_params::transactions::try_update_state_params;
+    use crate::support::tests::helpers;
+    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::Decimal;
+    use cosmwasm_std::Response;
+    use mixnet_contract::StateParams;
+
+    #[test]
+    fn updating_state_params() {
+        let mut deps = helpers::init_contract();
+
+        let new_params = StateParams {
+            epoch_length: INITIAL_DEFAULT_EPOCH_LENGTH,
+            minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
+            minimum_gateway_bond: INITIAL_GATEWAY_BOND,
+            mixnode_bond_reward_rate: Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE),
+            mixnode_delegation_reward_rate: Decimal::percent(
+                INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
+            ),
+            mixnode_rewarded_set_size: 100,
+            mixnode_active_set_size: 50,
+        };
+
+        // cannot be updated from non-owner account
+        let info = mock_info("not-the-creator", &[]);
+        let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
+        assert_eq!(res, Err(ContractError::Unauthorized));
+
+        // but works fine from the creator account
+        let info = mock_info("creator", &[]);
+        let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
+        assert_eq!(res, Ok(Response::default()));
+
+        // and the state is actually updated
+        let current_state = config_read(deps.as_ref().storage).load().unwrap();
+        assert_eq!(current_state.params, new_params);
+
+        // mixnode_epoch_rewards are recalculated if annual reward  is changed
+        let current_mix_bond_reward_rate = current_state.mixnode_epoch_bond_reward;
+        let current_mix_delegation_reward_rate = current_state.mixnode_epoch_delegation_reward;
+        let new_mixnode_bond_reward_rate = Decimal::percent(120);
+        let new_mixnode_delegation_reward_rate = Decimal::percent(120);
+
+        // sanity check to make sure we are actually updating the values (in case we changed defaults at some point)
+        assert_ne!(new_mixnode_bond_reward_rate, current_mix_bond_reward_rate);
+        assert_ne!(
+            new_mixnode_delegation_reward_rate,
+            current_mix_delegation_reward_rate
+        );
+
+        let mut new_params = current_state.params.clone();
+        new_params.mixnode_bond_reward_rate = new_mixnode_bond_reward_rate;
+        new_params.mixnode_delegation_reward_rate = new_mixnode_delegation_reward_rate;
+
+        let info = mock_info("creator", &[]);
+        try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
+
+        let new_state = config_read(deps.as_ref().storage).load().unwrap();
+        let expected_bond =
+            calculate_epoch_reward_rate(new_params.epoch_length, new_mixnode_bond_reward_rate);
+        let expected_delegation = calculate_epoch_reward_rate(
+            new_params.epoch_length,
+            new_mixnode_delegation_reward_rate,
+        );
+        assert_eq!(expected_bond, new_state.mixnode_epoch_bond_reward);
+        assert_eq!(
+            expected_delegation,
+            new_state.mixnode_epoch_delegation_reward
+        );
+
+        // mixnode_epoch_rewards is updated on epoch length change
+        let new_epoch_length = 42;
+        // sanity check to make sure we are actually updating the value (in case we changed defaults at some point)
+        assert_ne!(new_epoch_length, current_state.params.epoch_length);
+        let mut new_params = current_state.params.clone();
+        new_params.epoch_length = new_epoch_length;
+
+        let info = mock_info("creator", &[]);
+        try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
+
+        let new_state = config_read(deps.as_ref().storage).load().unwrap();
+        let expected_mixnode_bond =
+            calculate_epoch_reward_rate(new_epoch_length, new_params.mixnode_bond_reward_rate);
+        let expected_mixnode_delegation = calculate_epoch_reward_rate(
+            new_epoch_length,
+            new_params.mixnode_delegation_reward_rate,
+        );
+        assert_eq!(expected_mixnode_bond, new_state.mixnode_epoch_bond_reward);
+        assert_eq!(
+            expected_mixnode_delegation,
+            new_state.mixnode_epoch_delegation_reward
+        );
+
+        // error is thrown if rewarded set is smaller than the active set
+        let info = mock_info("creator", &[]);
+        let mut new_params = current_state.params.clone();
+        new_params.mixnode_rewarded_set_size = new_params.mixnode_active_set_size - 1;
+        let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
+        assert_eq!(Err(ContractError::InvalidActiveSetSize), res)
+    }
+}

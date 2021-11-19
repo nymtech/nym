@@ -5,17 +5,16 @@ use crate::queries::BOND_PAGE_DEFAULT_LIMIT;
 use crate::queries::BOND_PAGE_MAX_LIMIT;
 use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
 use crate::storage::{
-    all_mix_delegations_read, circulating_supply, config_read, gateways_owners_read, gateways_read,
-    mix_delegations_read, mixnodes_owners_read, mixnodes_read, read_layer_distribution,
-    read_state_params, reverse_mix_delegations_read, reward_pool_value,
+    all_mix_delegations_read,
+    mix_delegations_read, mixnodes_owners_read, mixnodes_read, reverse_mix_delegations_read,
 };
 use config::defaults::DENOM;
-use cosmwasm_std::{coin, Addr, Deps, Order, StdResult, Uint128};
+use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
 use mixnet_contract::{
-    Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
-    MixOwnershipResponse, PagedAllDelegationsResponse, PagedGatewayResponse,
+    Delegation, IdentityKey, MixNodeBond,
+    MixOwnershipResponse, PagedAllDelegationsResponse,
     PagedMixDelegationsResponse, PagedMixnodeResponse, PagedReverseMixDelegationsResponse,
-    RawDelegationData, RewardingIntervalResponse, StateParams,
+    RawDelegationData,
 };
 pub fn query_mixnodes_paged(
     deps: Deps,

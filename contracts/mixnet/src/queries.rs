@@ -1,20 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::ContractError;
-use crate::helpers::get_all_delegations_paged;
+
+
 use crate::storage::{
-    all_mix_delegations_read, circulating_supply, config_read, gateways_owners_read, gateways_read,
-    mix_delegations_read, mixnodes_owners_read, mixnodes_read, read_layer_distribution,
-    read_state_params, reverse_mix_delegations_read, reward_pool_value,
+    circulating_supply, config_read, read_layer_distribution,
+    read_state_params, reward_pool_value,
 };
-use config::defaults::DENOM;
-use cosmwasm_std::{coin, Addr, Deps, Order, StdResult, Uint128};
+
+use cosmwasm_std::{Deps, Uint128};
 use mixnet_contract::{
-    Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
-    MixOwnershipResponse, PagedAllDelegationsResponse, PagedGatewayResponse,
-    PagedMixDelegationsResponse, PagedMixnodeResponse, PagedReverseMixDelegationsResponse,
-    RawDelegationData, RewardingIntervalResponse, StateParams,
+    LayerDistribution, RewardingIntervalResponse, StateParams,
 };
 
 pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 100;

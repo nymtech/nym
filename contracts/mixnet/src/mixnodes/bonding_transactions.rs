@@ -1,4 +1,5 @@
 use crate::error::ContractError;
+use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::storage::{
     decrement_layer_count, gateways_owners_read, increment_layer_count, mix_delegations_read,
     mixnodes, mixnodes_owners, mixnodes_owners_read, mixnodes_read, read_state_params,
@@ -72,7 +73,7 @@ pub(crate) fn try_add_mixnode(
     let minimum_bond = read_state_params(deps.storage).minimum_mixnode_bond;
     validate_mixnode_bond(&info.funds, minimum_bond)?;
 
-    let layer_distribution = crate::queries::query_layer_distribution(deps.as_ref());
+    let layer_distribution = query_layer_distribution(deps.as_ref());
     let layer = layer_distribution.choose_with_fewest();
 
     let mut bond = MixNodeBond::new(

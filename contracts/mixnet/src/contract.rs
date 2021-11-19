@@ -12,6 +12,7 @@ use crate::mixnodes::bonding_queries::query_mixnodes_paged;
 use crate::mixnodes::delegation_queries::query_all_mixnode_delegations_paged;
 use crate::mixnodes::delegation_queries::query_mixnode_delegation;
 use crate::mixnodes::delegation_queries::query_reverse_mixnode_delegations_paged;
+use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries};
 use config::defaults::REWARDING_VALIDATOR_ADDRESS;
@@ -191,7 +192,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         QueryMsg::CurrentRewardingInterval {} => {
             to_binary(&queries::query_rewarding_interval(deps))
         }
-        QueryMsg::LayerDistribution {} => to_binary(&queries::query_layer_distribution(deps)),
+        QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)),
         QueryMsg::GetMixDelegations {
             mix_identity,
             start_after,

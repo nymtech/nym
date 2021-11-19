@@ -9,6 +9,7 @@ namespace NodeJS {
       VALIDATOR_ADDRESS: string
       MNEMONIC: string
       TESTNET_URL_1: string
+      TESTNET_URL_2: string
       ACCOUNT_ADDRESS: string
     }
   }

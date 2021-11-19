@@ -1,8 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::gateways::queries::query_gateways_paged;
+use crate::gateways::queries::query_owns_gateway;
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::mixnet_params::state::State;
+use crate::mixnodes::bonding_queries as mixnode_queries;
+use crate::mixnodes::bonding_queries::query_all_mixnode_delegations_paged;
+use crate::mixnodes::bonding_queries::query_mixnode_delegation;
+use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
+use crate::mixnodes::bonding_queries::query_mixnodes_paged;
+use crate::mixnodes::bonding_queries::query_reverse_mixnode_delegations_paged;
 use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries};
 use config::defaults::REWARDING_VALIDATOR_ADDRESS;
@@ -169,17 +177,15 @@ pub fn execute(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetMixNodes { start_after, limit } => {
-            to_binary(&queries::query_mixnodes_paged(deps, start_after, limit)?)
+            to_binary(&query_mixnodes_paged(deps, start_after, limit)?)
         }
         QueryMsg::GetGateways { limit, start_after } => {
-            to_binary(&queries::query_gateways_paged(deps, start_after, limit)?)
+            to_binary(&query_gateways_paged(deps, start_after, limit)?)
         }
         QueryMsg::OwnsMixnode { address } => {
-            to_binary(&queries::query_owns_mixnode(deps, address)?)
+            to_binary(&mixnode_queries::query_owns_mixnode(deps, address)?)
         }
-        QueryMsg::OwnsGateway { address } => {
-            to_binary(&queries::query_owns_gateway(deps, address)?)
-        }
+        QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
         QueryMsg::StateParams {} => to_binary(&queries::query_state_params(deps)),
         QueryMsg::CurrentRewardingInterval {} => {
             to_binary(&queries::query_rewarding_interval(deps))
@@ -189,20 +195,20 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             mix_identity,
             start_after,
             limit,
-        } => to_binary(&queries::query_mixnode_delegations_paged(
+        } => to_binary(&query_mixnode_delegations_paged(
             deps,
             mix_identity,
             start_after,
             limit,
         )?),
         QueryMsg::GetAllMixDelegations { start_after, limit } => to_binary(
-            &queries::query_all_mixnode_delegations_paged(deps, start_after, limit)?,
+            &query_all_mixnode_delegations_paged(deps, start_after, limit)?,
         ),
         QueryMsg::GetReverseMixDelegations {
             delegation_owner,
             start_after,
             limit,
-        } => to_binary(&queries::query_reverse_mixnode_delegations_paged(
+        } => to_binary(&query_reverse_mixnode_delegations_paged(
             deps,
             delegation_owner,
             start_after,
@@ -211,11 +217,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         QueryMsg::GetMixDelegation {
             mix_identity,
             address,
-        } => to_binary(&queries::query_mixnode_delegation(
-            deps,
-            mix_identity,
-            address,
-        )?),
+        } => to_binary(&query_mixnode_delegation(deps, mix_identity, address)?),
         QueryMsg::GetRewardPool {} => to_binary(&queries::query_reward_pool(deps)),
         QueryMsg::GetCirculatingSupply {} => to_binary(&queries::query_circulating_supply(deps)),
         QueryMsg::GetEpochRewardPercent {} => to_binary(&EPOCH_REWARD_PERCENT),

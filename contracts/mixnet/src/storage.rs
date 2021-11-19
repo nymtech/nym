@@ -542,7 +542,7 @@ mod tests {
     #[cfg(test)]
     mod increasing_mix_delegated_stakes {
         use super::*;
-        use crate::queries::query_mixnode_delegations_paged;
+        use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
         use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
         use cosmwasm_std::testing::mock_dependencies;
 

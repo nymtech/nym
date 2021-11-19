@@ -111,9 +111,10 @@ fn try_delegate_to_mixnode(
     let delegate_addr = info.sender;
     let address = deps.api.addr_validate(delegate_addr.as_str())?;
     if let Some(account) = get_account(deps.storage, &address) {
-        account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)?;
+        account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
+    } else {
+        Err(ContractError::NoAccountForAddress(address.as_str().to_string()))
     }
-    Ok(Response::default())
 }
 
 fn try_undelegate_from_mixnode(
@@ -124,9 +125,10 @@ fn try_undelegate_from_mixnode(
     let delegate_addr = info.sender;
     let address = deps.api.addr_validate(delegate_addr.as_str())?;
     if let Some(account) = get_account(deps.storage, &address) {
-        account.try_undelegate_from_mixnode(mix_identity, deps.storage)?;
+        account.try_undelegate_from_mixnode(mix_identity, deps.storage)
+    } else {
+        Err(ContractError::NoAccountForAddress(address.as_str().to_string()))
     }
-    Ok(Response::default())
 }
 
 fn try_create_periodic_vesting_account(

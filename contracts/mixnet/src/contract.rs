@@ -4,6 +4,7 @@
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
 use crate::helpers::calculate_epoch_reward_rate;
+use crate::mixnet_params::queries::query_rewarding_interval;
 use crate::mixnet_params::queries::query_state_params;
 use crate::mixnet_params::state::State;
 use crate::mixnodes::bonding_queries as mixnode_queries;
@@ -189,9 +190,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         }
         QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
         QueryMsg::StateParams {} => to_binary(&query_state_params(deps)),
-        QueryMsg::CurrentRewardingInterval {} => {
-            to_binary(&queries::query_rewarding_interval(deps))
-        }
+        QueryMsg::CurrentRewardingInterval {} => to_binary(&query_rewarding_interval(deps)),
         QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)),
         QueryMsg::GetMixDelegations {
             mix_identity,

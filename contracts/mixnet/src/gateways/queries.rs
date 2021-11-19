@@ -1,5 +1,5 @@
+use crate::mixnodes::bonding_queries::BOND_PAGE_DEFAULT_LIMIT;
 use crate::queries::calculate_start_value;
-use crate::queries::BOND_PAGE_DEFAULT_LIMIT;
 use crate::storage::{gateways_owners_read, gateways_read};
 
 use cosmwasm_std::{Addr, Deps, Order, StdResult};
@@ -39,15 +39,13 @@ pub(crate) fn query_owns_gateway(deps: Deps, address: Addr) -> StdResult<Gateway
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    
-    use crate::storage::{gateways};
+
+    use crate::storage::gateways;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{
-        good_gateway_bond,
-    };
+    use crate::support::tests::helpers::good_gateway_bond;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Addr, Storage};
-    use mixnet_contract::{Gateway};
+    use mixnet_contract::Gateway;
 
     #[test]
     fn gateways_empty_on_init() {

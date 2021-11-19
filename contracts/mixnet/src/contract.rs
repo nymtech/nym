@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
 use crate::helpers::calculate_epoch_reward_rate;
@@ -14,8 +15,9 @@ use crate::mixnodes::delegation_queries::query_all_mixnode_delegations_paged;
 use crate::mixnodes::delegation_queries::query_mixnode_delegation;
 use crate::mixnodes::delegation_queries::query_reverse_mixnode_delegations_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
+use crate::rewards::queries::query_circulating_supply;
+use crate::rewards::queries::query_reward_pool;
 use crate::storage::{config, layer_distribution};
-use crate::{error::ContractError, queries};
 use config::defaults::REWARDING_VALIDATOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
@@ -219,8 +221,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             mix_identity,
             address,
         } => to_binary(&query_mixnode_delegation(deps, mix_identity, address)?),
-        QueryMsg::GetRewardPool {} => to_binary(&queries::query_reward_pool(deps)),
-        QueryMsg::GetCirculatingSupply {} => to_binary(&queries::query_circulating_supply(deps)),
+        QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)),
+        QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)),
         QueryMsg::GetEpochRewardPercent {} => to_binary(&EPOCH_REWARD_PERCENT),
         QueryMsg::GetSybilResistancePercent {} => to_binary(&DEFAULT_SYBIL_RESISTANCE_PERCENT),
     };

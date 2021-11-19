@@ -5,10 +5,15 @@ use crate::storage::{
     config_read, decr_reward_pool, increase_mix_delegated_stakes, increase_mix_delegated_stakes_v2,
     mixnodes, mixnodes_read, rewarded_mixnodes, rewarded_mixnodes_read,
 };
-use crate::transactions::{MAX_REWARDING_DURATION_IN_BLOCKS, MINIMUM_BLOCK_AGE_FOR_REWARDING};
 use cosmwasm_std::{attr, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::mixnode::NodeRewardParams;
 use mixnet_contract::IdentityKey;
+
+// approximately 1 day (assuming 5s per block)
+pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
+
+// approximately 30min (assuming 5s per block)
+pub(crate) const MAX_REWARDING_DURATION_IN_BLOCKS: u64 = 360;
 
 // Note: this function is designed to work with only a single validator entity distributing rewards
 // The main purpose of this function is to update `latest_rewarding_interval_nonce` which

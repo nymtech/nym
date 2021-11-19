@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::delegating_mixnodes::transactions::OLD_DELEGATIONS_CHUNK_SIZE;
 use crate::error::ContractError;
-use crate::transactions::OLD_DELEGATIONS_CHUNK_SIZE;
 use cosmwasm_std::{Decimal, Order, StdError, StdResult, Uint128};
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{Addr, IdentityKey, PagedAllDelegationsResponse, UnpackedDelegation};

@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use crate::contract::INITIAL_REWARD_POOL;
+use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 use crate::state::State;
-use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 use crate::{error::ContractError, queries};
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
@@ -543,6 +543,7 @@ mod tests {
     mod increasing_mix_delegated_stakes {
         use super::*;
         use crate::queries::query_mixnode_delegations_paged;
+        use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
         use cosmwasm_std::testing::mock_dependencies;
 
         #[test]

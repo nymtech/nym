@@ -10,6 +10,8 @@ use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::IdentityKey;
 use mixnet_contract::RawDelegationData;
 
+pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
+
 pub fn total_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
     Ok(Coin::new(
         Delegations::new(delegations_bucket)
@@ -135,6 +137,7 @@ mod tests {
     use super::*;
     use crate::delegating_mixnodes::transactions::try_delegate_to_mixnode;
     use crate::helpers::scale_reward_by_uptime;
+    use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
     use crate::rewards::transactions::{
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
     };
@@ -142,7 +145,6 @@ mod tests {
     use crate::storage::{mix_delegations_read, read_mixnode_bond};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{add_mixnode, good_mixnode_bond};
-    use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
     use cosmwasm_std::attr;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, Uint128};
@@ -961,7 +963,6 @@ mod tests {
         use super::*;
         use crate::delegating_mixnodes::transactions::total_delegations;
         use crate::support::tests::helpers::raw_delegation_fixture;
-        use crate::transactions::OLD_DELEGATIONS_CHUNK_SIZE;
         use cosmwasm_std::Addr;
         #[test]
         fn when_there_werent_any() {

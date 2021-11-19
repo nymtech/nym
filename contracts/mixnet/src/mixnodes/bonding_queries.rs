@@ -3,16 +3,16 @@ use crate::helpers::get_all_delegations_paged;
 use crate::queries::calculate_start_value;
 use crate::queries::BOND_PAGE_DEFAULT_LIMIT;
 use crate::queries::BOND_PAGE_MAX_LIMIT;
+use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
 use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
 use crate::storage::{
-    all_mix_delegations_read,
-    mix_delegations_read, mixnodes_owners_read, mixnodes_read, reverse_mix_delegations_read,
+    all_mix_delegations_read, mix_delegations_read, mixnodes_owners_read, mixnodes_read,
+    reverse_mix_delegations_read,
 };
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
 use mixnet_contract::{
-    Delegation, IdentityKey, MixNodeBond,
-    MixOwnershipResponse, PagedAllDelegationsResponse,
+    Delegation, IdentityKey, MixNodeBond, MixOwnershipResponse, PagedAllDelegationsResponse,
     PagedMixDelegationsResponse, PagedMixnodeResponse, PagedReverseMixDelegationsResponse,
     RawDelegationData,
 };
@@ -51,7 +51,7 @@ pub(crate) fn query_mixnode_delegations_paged(
     limit: Option<u32>,
 ) -> StdResult<PagedMixDelegationsResponse> {
     let limit = limit
-        .unwrap_or(BOND_PAGE_DEFAULT_LIMIT)
+        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
@@ -86,7 +86,7 @@ pub(crate) fn query_all_mixnode_delegations_paged(
     limit: Option<u32>,
 ) -> StdResult<PagedAllDelegationsResponse<RawDelegationData>> {
     let limit = limit
-        .unwrap_or(DELEGATION_PAGE_MAX_LIMIT)
+        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
 
     let bucket = all_mix_delegations_read::<RawDelegationData>(deps.storage);
@@ -104,7 +104,7 @@ pub(crate) fn query_reverse_mixnode_delegations_paged(
     limit: Option<u32>,
 ) -> StdResult<PagedReverseMixDelegationsResponse> {
     let limit = limit
-        .unwrap_or(DELEGATION_PAGE_MAX_LIMIT)
+        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
@@ -150,15 +150,13 @@ pub(crate) fn query_mixnode_delegation(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::mixnet_params::state::State;
-    use crate::storage::{config, gateways, mix_delegations, mixnodes};
+
+    use crate::storage::mixnodes;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{
-        good_gateway_bond, good_mixnode_bond, raw_delegation_fixture,
-    };
+    use crate::support::tests::helpers::good_mixnode_bond;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{Addr, Storage};
-    use mixnet_contract::{Gateway, MixNode, RawDelegationData};
+    use cosmwasm_std::Addr;
+    use mixnet_contract::MixNode;
 
     #[test]
     fn mixnodes_empty_on_init() {

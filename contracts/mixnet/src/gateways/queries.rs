@@ -39,15 +39,15 @@ pub(crate) fn query_owns_gateway(deps: Deps, address: Addr) -> StdResult<Gateway
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::mixnet_params::state::State;
-    use crate::storage::{config, gateways, mix_delegations, mixnodes};
+    
+    use crate::storage::{gateways};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
-        good_gateway_bond, good_mixnode_bond, raw_delegation_fixture,
+        good_gateway_bond,
     };
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Addr, Storage};
-    use mixnet_contract::{Gateway, MixNode, RawDelegationData};
+    use mixnet_contract::{Gateway};
 
     #[test]
     fn gateways_empty_on_init() {

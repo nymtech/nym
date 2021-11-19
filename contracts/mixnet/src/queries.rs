@@ -61,18 +61,15 @@ pub(crate) mod tests {
     use crate::error::ContractError;
     use crate::mixnet_params::state::State;
     use crate::mixnodes::bonding_queries::query_mixnode_delegation;
-    use crate::storage::{config, gateways, mix_delegations, mixnodes};
+    use crate::storage::{config, mix_delegations};
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{
-        good_gateway_bond, good_mixnode_bond, raw_delegation_fixture,
-    };
+    use crate::support::tests::helpers::raw_delegation_fixture;
     use config::defaults::DENOM;
     use cosmwasm_std::coin;
-    use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Addr, Storage};
     use mixnet_contract::Delegation;
     use mixnet_contract::IdentityKey;
-    use mixnet_contract::{Gateway, MixNode, RawDelegationData};
+    use mixnet_contract::RawDelegationData;
 
     #[test]
     fn query_for_contract_state_works() {

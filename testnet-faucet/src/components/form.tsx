@@ -1,7 +1,7 @@
 import { Button, TextField, useMediaQuery } from '@mui/material'
 import { Box } from '@mui/system'
-import ClientValidator from '@nymproject/nym-validator-client'
 import { useForm, SubmitHandler } from 'react-hook-form'
+import { useValidatorClient } from './useValidtorClient'
 
 type TFormData = {
   address: string
@@ -23,7 +23,8 @@ export const Form = () => {
     setValue('amount', '')
   }
 
-  const checkBalance = async () => {}
+  const { getBalance } = useValidatorClient()
+
   return (
     <>
       <TextField
@@ -44,6 +45,10 @@ export const Form = () => {
           variant="outlined"
           sx={matches ? { mb: 1 } : { mr: 1 }}
           fullWidth={matches}
+          onClick={async () => {
+            const balance = await getBalance()
+            console.log(balance)
+          }}
         >
           Check Balance
         </Button>

@@ -1,10 +1,6 @@
 use crate::error::ContractError;
 use crate::helpers::scale_reward_by_uptime;
 use crate::storage;
-use crate::storage::{
-    config_read, decr_reward_pool, increase_mix_delegated_stakes, increase_mix_delegated_stakes_v2,
-    mixnodes, mixnodes_read, rewarded_mixnodes, rewarded_mixnodes_read,
-};
 use cosmwasm_std::{attr, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::mixnode::NodeRewardParams;
 use mixnet_contract::IdentityKey;
@@ -24,7 +20,7 @@ pub(crate) fn try_begin_mixnode_rewarding(
     info: MessageInfo,
     rewarding_interval_nonce: u32,
 ) -> Result<Response, ContractError> {
-    let mut state = config_read(deps.storage).load()?;
+    let mut state = storage::config_read(deps.storage).load()?;
 
     // check if this is executed by the permitted validator, if not reject the transaction
     if info.sender != state.rewarding_validator_address {
@@ -78,7 +74,7 @@ pub(crate) fn try_reward_mixnode(
     uptime: u32,
     rewarding_interval_nonce: u32,
 ) -> Result<Response, ContractError> {
-    let state = config_read(deps.storage).load()?;
+    let state = storage::config_read(deps.storage).load()?;
 
     // check if this is executed by the permitted validator, if not reject the transaction
     if info.sender != state.rewarding_validator_address {
@@ -98,7 +94,7 @@ pub(crate) fn try_reward_mixnode(
     }
 
     // check if the mixnode hasn't been rewarded in this rewarding interval already
-    if rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
+    if storage::rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
         .may_load(mix_identity.as_bytes())?
         .is_some()
     {
@@ -109,7 +105,7 @@ pub(crate) fn try_reward_mixnode(
 
     // optimisation for uptime being 0. No rewards will be given so just terminate here
     if uptime == 0 {
-        rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
+        storage::rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
             .save(mix_identity.as_bytes(), &Default::default())?;
         return Ok(Response {
             submessages: vec![],
@@ -123,7 +119,8 @@ pub(crate) fn try_reward_mixnode(
     }
 
     // check if the bond even exists
-    let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
+    let mut current_bond = match storage::mixnodes_read(deps.storage).load(mix_identity.as_bytes())
+    {
         Ok(bond) => bond,
         Err(_) => {
             return Ok(Response {
@@ -144,7 +141,7 @@ pub(crate) fn try_reward_mixnode(
         let bond_scaled_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
         let delegation_scaled_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
 
-        total_delegation_reward = increase_mix_delegated_stakes(
+        total_delegation_reward = storage::increase_mix_delegated_stakes(
             deps.storage,
             &mix_identity,
             delegation_scaled_reward_rate,
@@ -154,10 +151,10 @@ pub(crate) fn try_reward_mixnode(
         node_reward = current_bond.bond_amount.amount * bond_scaled_reward_rate;
         current_bond.bond_amount.amount += node_reward;
         current_bond.total_delegation.amount += total_delegation_reward;
-        mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+        storage::mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
     }
 
-    rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
+    storage::rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
         .save(mix_identity.as_bytes(), &Default::default())?;
 
     Ok(Response {
@@ -179,7 +176,7 @@ pub(crate) fn try_reward_mixnode_v2(
     params: NodeRewardParams,
     rewarding_interval_nonce: u32,
 ) -> Result<Response, ContractError> {
-    let state = config_read(deps.storage).load()?;
+    let state = storage::config_read(deps.storage).load()?;
 
     // check if this is executed by the permitted validator, if not reject the transaction
     if info.sender != state.rewarding_validator_address {
@@ -199,7 +196,7 @@ pub(crate) fn try_reward_mixnode_v2(
     }
 
     // check if the mixnode hasn't been rewarded in this rewarding interval already
-    if rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
+    if storage::rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
         .may_load(mix_identity.as_bytes())?
         .is_some()
     {
@@ -209,7 +206,8 @@ pub(crate) fn try_reward_mixnode_v2(
     }
 
     // check if the bond even exists
-    let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
+    let mut current_bond = match storage::mixnodes_read(deps.storage).load(mix_identity.as_bytes())
+    {
         Ok(bond) => bond,
         Err(_) => {
             return Ok(Response {
@@ -229,7 +227,7 @@ pub(crate) fn try_reward_mixnode_v2(
     let operator_reward = current_bond.operator_reward(&reward_params);
 
     let total_delegation_reward =
-        increase_mix_delegated_stakes_v2(deps.storage, &current_bond, &reward_params)?;
+        storage::increase_mix_delegated_stakes_v2(deps.storage, &current_bond, &reward_params)?;
 
     // update current bond with the reward given to the node and the delegators
     // if it has been bonded for long enough
@@ -238,12 +236,12 @@ pub(crate) fn try_reward_mixnode_v2(
     {
         current_bond.bond_amount.amount += Uint128(operator_reward);
         current_bond.total_delegation.amount += total_delegation_reward;
-        mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
-        decr_reward_pool(Uint128(operator_reward), deps.storage)?;
-        decr_reward_pool(total_delegation_reward, deps.storage)?;
+        storage::mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+        storage::decr_reward_pool(Uint128(operator_reward), deps.storage)?;
+        storage::decr_reward_pool(total_delegation_reward, deps.storage)?;
     }
 
-    rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
+    storage::rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
         .save(mix_identity.as_bytes(), &Default::default())?;
 
     Ok(Response {
@@ -261,7 +259,7 @@ pub(crate) fn try_finish_mixnode_rewarding(
     info: MessageInfo,
     rewarding_interval_nonce: u32,
 ) -> Result<Response, ContractError> {
-    let mut state = config_read(deps.storage).load()?;
+    let mut state = storage::config_read(deps.storage).load()?;
 
     // check if this is executed by the permitted validator, if not reject the transaction
     if info.sender != state.rewarding_validator_address {

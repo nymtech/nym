@@ -4,7 +4,7 @@ use crate::queries::BOND_PAGE_MAX_LIMIT;
 
 use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
 use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
-use crate::storage::{mix_delegations_read, mixnodes_owners_read, mixnodes_read};
+use crate::storage;
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
 use mixnet_contract::{
@@ -22,7 +22,7 @@ pub fn query_mixnodes_paged(
         .min(BOND_PAGE_MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
-    let nodes = mixnodes_read(deps.storage)
+    let nodes = storage::mixnodes_read(deps.storage)
         .range(start.as_deref(), None, Order::Ascending)
         .take(limit)
         .map(|res| res.map(|item| item.1))
@@ -34,7 +34,7 @@ pub fn query_mixnodes_paged(
 }
 
 pub fn query_owns_mixnode(deps: Deps, address: Addr) -> StdResult<MixOwnershipResponse> {
-    let has_node = mixnodes_owners_read(deps.storage)
+    let has_node = storage::mixnodes_owners_read(deps.storage)
         .may_load(address.as_bytes())?
         .is_some();
     Ok(MixOwnershipResponse { address, has_node })
@@ -51,7 +51,7 @@ pub(crate) fn query_mixnode_delegations_paged(
         .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
-    let delegations = mix_delegations_read(deps.storage, &mix_identity)
+    let delegations = storage::mix_delegations_read(deps.storage, &mix_identity)
         .range(start.as_deref(), None, Order::Ascending)
         .take(limit)
         .map(|res| {

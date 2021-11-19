@@ -3,9 +3,7 @@ use crate::helpers::get_all_delegations_paged;
 use crate::queries::calculate_start_value;
 use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
 use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
-use crate::storage::all_mix_delegations_read;
-use crate::storage::mix_delegations_read;
-use crate::storage::reverse_mix_delegations_read;
+use crate::storage;
 use config::defaults::DENOM;
 use cosmwasm_std::coin;
 use cosmwasm_std::Addr;
@@ -27,7 +25,7 @@ pub(crate) fn query_all_mixnode_delegations_paged(
         .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
 
-    let bucket = all_mix_delegations_read::<RawDelegationData>(deps.storage);
+    let bucket = storage::all_mix_delegations_read::<RawDelegationData>(deps.storage);
     let start = start_after.map(|mut v| {
         v.push(0);
         v
@@ -46,7 +44,7 @@ pub(crate) fn query_reverse_mixnode_delegations_paged(
         .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
-    let delegations = reverse_mix_delegations_read(deps.storage, &delegation_owner)
+    let delegations = storage::reverse_mix_delegations_read(deps.storage, &delegation_owner)
         .range(start.as_deref(), None, Order::Ascending)
         .take(limit)
         .map(|res| {
@@ -72,7 +70,7 @@ pub(crate) fn query_mixnode_delegation(
     mix_identity: IdentityKey,
     address: Addr,
 ) -> Result<Delegation, ContractError> {
-    match mix_delegations_read(deps.storage, &mix_identity).may_load(address.as_bytes())? {
+    match storage::mix_delegations_read(deps.storage, &mix_identity).may_load(address.as_bytes())? {
         Some(delegation_value) => Ok(Delegation::new(
             address,
             coin(delegation_value.amount.u128(), DENOM),

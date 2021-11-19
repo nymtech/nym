@@ -1,17 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-
-
 use crate::storage::{
-    circulating_supply, config_read, read_layer_distribution,
-    read_state_params, reward_pool_value,
+    circulating_supply, config_read, read_layer_distribution, read_state_params, reward_pool_value,
 };
 
 use cosmwasm_std::{Deps, Uint128};
-use mixnet_contract::{
-    LayerDistribution, RewardingIntervalResponse, StateParams,
-};
+use mixnet_contract::{LayerDistribution, RewardingIntervalResponse, StateParams};
 
 pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 100;
 pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
@@ -63,6 +58,7 @@ pub fn calculate_start_value<S: AsRef<str>>(start_after: Option<S>) -> Option<Ve
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::error::ContractError;
     use crate::mixnet_params::state::State;
     use crate::mixnodes::bonding_queries::query_mixnode_delegation;
     use crate::storage::{config, gateways, mix_delegations, mixnodes};
@@ -70,8 +66,12 @@ pub(crate) mod tests {
     use crate::support::tests::helpers::{
         good_gateway_bond, good_mixnode_bond, raw_delegation_fixture,
     };
+    use config::defaults::DENOM;
+    use cosmwasm_std::coin;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Addr, Storage};
+    use mixnet_contract::Delegation;
+    use mixnet_contract::IdentityKey;
     use mixnet_contract::{Gateway, MixNode, RawDelegationData};
 
     #[test]
@@ -115,6 +115,7 @@ pub(crate) mod tests {
     mod querying_for_mixnode_delegations_paged {
         use super::*;
         use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
+        use mixnet_contract::IdentityKey;
 
         #[test]
         fn retrieval_obeys_limits() {
@@ -263,6 +264,7 @@ pub(crate) mod tests {
         use super::*;
         use crate::helpers::identity_and_owner_to_bytes;
         use crate::mixnodes::bonding_queries::query_all_mixnode_delegations_paged;
+        use mixnet_contract::IdentityKey;
 
         #[test]
         fn retrieval_obeys_limits() {
@@ -460,6 +462,7 @@ pub(crate) mod tests {
     #[cfg(test)]
     mod querying_for_reverse_mixnode_delegations_paged {
         use super::*;
+        use crate::mixnodes::bonding_queries::query_reverse_mixnode_delegations_paged;
         use crate::storage::reverse_mix_delegations;
 
         fn store_n_reverse_delegations(n: u32, storage: &mut dyn Storage, delegation_owner: &Addr) {

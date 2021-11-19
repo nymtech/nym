@@ -603,7 +603,7 @@ mod tests {
             // amount is incremented, block height remains the same
             assert_eq!(
                 RawDelegationData::new(1001u128.into(), 42),
-                mix_delegations_read(&mut deps.storage, &node_identity)
+                mix_delegations_read(&deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()
             )
@@ -640,7 +640,7 @@ mod tests {
             // amount is not incremented
             assert_eq!(
                 RawDelegationData::new(1000u128.into(), delegation_blockstamp),
-                mix_delegations_read(&mut deps.storage, &node_identity)
+                mix_delegations_read(&deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()
             );
@@ -659,7 +659,7 @@ mod tests {
             // amount is incremented
             assert_eq!(
                 RawDelegationData::new(1001u128.into(), delegation_blockstamp),
-                mix_delegations_read(&mut deps.storage, &node_identity)
+                mix_delegations_read(&deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()
             )

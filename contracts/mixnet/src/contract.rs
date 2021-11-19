@@ -1,18 +1,17 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::u128;
-
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
 use crate::storage::{config, layer_distribution};
-use crate::{error::ContractError, queries, transactions};
+use crate::{error::ContractError, queries};
 use config::defaults::REWARDING_VALIDATOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
 };
 use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateParams};
+use std::u128;
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -95,21 +94,25 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::BondMixnode { mix_node } => {
-            transactions::try_add_mixnode(deps, env, info, mix_node)
+            crate::bonding_mixnodes::transactions::try_add_mixnode(deps, env, info, mix_node)
         }
-        ExecuteMsg::UnbondMixnode {} => transactions::try_remove_mixnode(deps, info),
+        ExecuteMsg::UnbondMixnode {} => {
+            crate::bonding_mixnodes::transactions::try_remove_mixnode(deps, info)
+        }
         ExecuteMsg::BondGateway { gateway } => {
-            transactions::try_add_gateway(deps, env, info, gateway)
+            crate::bonding_gateways::transactions::try_add_gateway(deps, env, info, gateway)
         }
-        ExecuteMsg::UnbondGateway {} => transactions::try_remove_gateway(deps, info),
+        ExecuteMsg::UnbondGateway {} => {
+            crate::bonding_gateways::transactions::try_remove_gateway(deps, info)
+        }
         ExecuteMsg::UpdateStateParams(params) => {
-            transactions::try_update_state_params(deps, info, params)
+            crate::mixnet_params::transactions::try_update_state_params(deps, info, params)
         }
         ExecuteMsg::RewardMixnode {
             identity,
             uptime,
             rewarding_interval_nonce,
-        } => transactions::try_reward_mixnode(
+        } => crate::rewards::transactions::try_reward_mixnode(
             deps,
             env,
             info,
@@ -121,7 +124,7 @@ pub fn execute(
             identity,
             params,
             rewarding_interval_nonce,
-        } => transactions::try_reward_mixnode_v2(
+        } => crate::rewards::transactions::try_reward_mixnode_v2(
             deps,
             env,
             info,
@@ -130,17 +133,35 @@ pub fn execute(
             rewarding_interval_nonce,
         ),
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
-            transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
+            crate::delegating_mixnodes::transactions::try_delegate_to_mixnode(
+                deps,
+                env,
+                info,
+                mix_identity,
+            )
         }
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
-            transactions::try_remove_delegation_from_mixnode(deps, info, mix_identity)
+            crate::delegating_mixnodes::transactions::try_remove_delegation_from_mixnode(
+                deps,
+                info,
+                mix_identity,
+            )
         }
         ExecuteMsg::BeginMixnodeRewarding {
             rewarding_interval_nonce,
-        } => transactions::try_begin_mixnode_rewarding(deps, env, info, rewarding_interval_nonce),
+        } => crate::rewards::transactions::try_begin_mixnode_rewarding(
+            deps,
+            env,
+            info,
+            rewarding_interval_nonce,
+        ),
         ExecuteMsg::FinishMixnodeRewarding {
             rewarding_interval_nonce,
-        } => transactions::try_finish_mixnode_rewarding(deps, info, rewarding_interval_nonce),
+        } => crate::rewards::transactions::try_finish_mixnode_rewarding(
+            deps,
+            info,
+            rewarding_interval_nonce,
+        ),
     }
 }
 

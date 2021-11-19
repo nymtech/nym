@@ -235,7 +235,6 @@ pub(crate) mod tests {
     use crate::support::tests::helpers::{
         good_gateway_bond, good_mixnode_bond, raw_delegation_fixture,
     };
-    use crate::transactions;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Addr, Storage};
     use mixnet_contract::{Gateway, MixNode, RawDelegationData};
@@ -492,7 +491,7 @@ pub(crate) mod tests {
             identity_key: "bobsnode".into(),
             ..helpers::mix_node_fixture()
         };
-        transactions::try_add_mixnode(
+        crate::bonding_mixnodes::transactions::try_add_mixnode(
             deps.as_mut(),
             mock_env(),
             mock_info("bob", &good_mixnode_bond()),
@@ -508,7 +507,7 @@ pub(crate) mod tests {
             identity_key: "fredsnode".into(),
             ..helpers::mix_node_fixture()
         };
-        transactions::try_add_mixnode(
+        crate::bonding_mixnodes::transactions::try_add_mixnode(
             deps.as_mut(),
             mock_env(),
             mock_info("fred", &good_mixnode_bond()),
@@ -520,7 +519,11 @@ pub(crate) mod tests {
         assert!(res.has_node);
 
         // but after unbonding it, he doesn't own one anymore
-        transactions::try_remove_mixnode(deps.as_mut(), mock_info("fred", &[])).unwrap();
+        crate::bonding_mixnodes::transactions::try_remove_mixnode(
+            deps.as_mut(),
+            mock_info("fred", &[]),
+        )
+        .unwrap();
 
         let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(!res.has_node);
@@ -539,7 +542,7 @@ pub(crate) mod tests {
             identity_key: "bobsnode".into(),
             ..helpers::gateway_fixture()
         };
-        transactions::try_add_gateway(
+        crate::bonding_gateways::transactions::try_add_gateway(
             deps.as_mut(),
             mock_env(),
             mock_info("bob", &good_gateway_bond()),
@@ -555,7 +558,7 @@ pub(crate) mod tests {
             identity_key: "fredsnode".into(),
             ..helpers::gateway_fixture()
         };
-        transactions::try_add_gateway(
+        crate::bonding_gateways::transactions::try_add_gateway(
             deps.as_mut(),
             mock_env(),
             mock_info("fred", &good_gateway_bond()),
@@ -567,7 +570,11 @@ pub(crate) mod tests {
         assert!(res.has_gateway);
 
         // but after unbonding it, he doesn't own one anymore
-        transactions::try_remove_gateway(deps.as_mut(), mock_info("fred", &[])).unwrap();
+        crate::bonding_gateways::transactions::try_remove_gateway(
+            deps.as_mut(),
+            mock_info("fred", &[]),
+        )
+        .unwrap();
 
         let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(!res.has_gateway);

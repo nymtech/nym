@@ -608,7 +608,7 @@ pub(crate) mod tests {
         assert_eq!(dummy_state.params, query_state_params(deps.as_ref()))
     }
 
-    pub fn store_n_mix_delegations(n: u32, storage: &mut dyn Storage, node_identity: &IdentityKey) {
+    pub fn store_n_mix_delegations(n: u32, storage: &mut dyn Storage, node_identity: &str) {
         for i in 0..n {
             let address = format!("address{}", i);
             mix_delegations(storage, node_identity)

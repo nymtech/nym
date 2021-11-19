@@ -935,7 +935,7 @@ mod tests {
     #[cfg(test)]
     mod multi_delegations {
         use crate::helpers::Delegations;
-        use crate::queries::tests::store_n_mix_delegations;
+        use crate::mixnodes::delegation_queries::tests::store_n_mix_delegations;
         use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
         use crate::support::tests::helpers;
         use mixnet_contract::IdentityKey;

@@ -1,9 +1,9 @@
 use crate::storage::{
-    circulating_supply, config_read, read_layer_distribution, read_state_params, reward_pool_value,
+    config_read, read_state_params,
 };
 
-use cosmwasm_std::{Deps, Uint128};
-use mixnet_contract::{LayerDistribution, RewardingIntervalResponse, StateParams};
+use cosmwasm_std::{Deps};
+use mixnet_contract::{RewardingIntervalResponse, StateParams};
 
 pub(crate) fn query_state_params(deps: Deps) -> StateParams {
     read_state_params(deps.storage)
@@ -22,14 +22,12 @@ pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse 
 pub(crate) mod tests {
     use super::*;
     use crate::mixnet_params::state::State;
-    use crate::storage::{config, gateways, mix_delegations, mixnodes};
+    use crate::storage::{config};
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{
-        good_gateway_bond, good_mixnode_bond, raw_delegation_fixture,
-    };
-    use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{Addr, Storage};
-    use mixnet_contract::{Gateway, MixNode, RawDelegationData};
+    
+    
+    use cosmwasm_std::{Addr};
+    
 
     #[test]
     fn query_for_contract_state_works() {

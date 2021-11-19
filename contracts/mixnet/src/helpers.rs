@@ -208,7 +208,7 @@ impl<'a, T: Clone + Serialize + DeserializeOwned> Iterator for Delegations<'a, T
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::queries::tests::store_n_mix_delegations;
+    use crate::mixnodes::delegation_queries::tests::store_n_mix_delegations;
     use crate::storage::{all_mix_delegations_read, mix_delegations};
     use crate::support::tests::helpers;
     use cosmwasm_std::testing::mock_dependencies;

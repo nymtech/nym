@@ -1,4 +1,13 @@
 import Validator from '@nymproject/nym-validator-client';
+import {
+  checkBalanceBtn,
+  requestTokensBtn,
+  addressInput,
+  amountInput,
+  balanceElem,
+  errorText,
+  loadingElem,
+} from './dom-elements';
 
 (async () => {
   // Environment variables
@@ -16,19 +25,6 @@ import Validator from '@nymproject/nym-validator-client';
     [testnetURL1],
     'punk',
   );
-
-  // DOM elements
-  const addressInput = document.getElementById(
-    'address-input',
-  ) as HTMLInputElement;
-  const amountInput = document.getElementById(
-    'amount-input',
-  ) as HTMLInputElement;
-  const requestTokensBtn = document.getElementById('request-tokens');
-  const checkBalanceBtn = document.getElementById('check-balance');
-  const balanceElem = document.querySelector('.balance');
-  const loadingElem = document.querySelector('.loading');
-  const errorText = document.querySelector('.error-text');
 
   // Add event listeners and handlers to button elements
   checkBalanceBtn?.addEventListener('click', async (e) => {

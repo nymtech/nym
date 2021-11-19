@@ -3,7 +3,7 @@
 use crate::mixnode::NodeRewardParams;
 use crate::StateParams;
 use crate::{Gateway, IdentityKey, MixNode};
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

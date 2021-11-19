@@ -5,7 +5,7 @@ use crate::storage::{
     set_account_delegations,
 };
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
-use cosmwasm_std::{wasm_execute, Addr, Coin, Env, Storage, Timestamp, Uint128};
+use cosmwasm_std::{attr, wasm_execute, Addr, Coin, Env, Response, Storage, Timestamp, Uint128};
 use mixnet_contract::ExecuteMsg as MixnetExecuteMsg;
 use mixnet_contract::IdentityKey;
 use schemars::JsonSchema;
@@ -69,13 +69,13 @@ pub trait DelegationAccount {
         amount: Coin,
         env: &Env,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError>;
+    ) -> Result<Response, ContractError>;
 
     fn try_undelegate_from_mixnode(
         &self,
         mix_identity: IdentityKey,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError>;
+    ) -> Result<Response, ContractError>;
 
     // track_delegation performs internal vesting accounting necessary when
     // delegating from a vesting account. It accepts the current block time, the
@@ -234,16 +234,25 @@ impl DelegationAccount for PeriodicVestingAccount {
         coin: Coin,
         env: &Env,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError> {
+    ) -> Result<Response, ContractError> {
         if coin.amount < self.get_balance(storage) {
             let msg = MixnetExecuteMsg::DelegateToMixnodeOnBehalf {
                 mix_identity: mix_identity.clone(),
                 delegate_addr: self.address.clone(),
             };
-            wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![coin.clone()])?;
+            let messages =
+                vec![
+                    wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![coin.clone()])?.into(),
+                ];
+            let attributes = vec![attr("action", "delegate to mixnode on behalf")];
             self.track_delegation(env.block.time, mix_identity, coin, storage)?;
 
-            Ok(())
+            Ok(Response {
+                submessages: Vec::new(),
+                messages,
+                attributes,
+                data: None,
+            })
         } else {
             return Err(ContractError::InsufficientBalance(
                 self.address.as_str().to_string(),
@@ -256,23 +265,29 @@ impl DelegationAccount for PeriodicVestingAccount {
         &self,
         mix_identity: IdentityKey,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError> {
+    ) -> Result<Response, ContractError> {
         let msg = MixnetExecuteMsg::UnDelegateFromMixnodeOnBehalf {
-            mix_identity: mix_identity.clone(),
+            mix_identity: mix_identity,
             delegate_addr: self.address.clone(),
         };
-        // TODO: Do we need to send this message, or does this magically send?
-        wasm_execute(
+        let messages = vec![wasm_execute(
             DEFAULT_MIXNET_CONTRACT_ADDRESS,
             &msg,
             vec![Coin {
                 amount: Uint128(0),
                 denom: DENOM.to_string(),
             }],
-        )?;
-        // TODO: this needs to move into a separate UndelegationResult Msg as returned rewards can be greater then the original delegated amount due to rewarding.
-        self.track_undelegation(mix_identity, storage)?;
-        Ok(())
+        )?
+        .into()];
+
+        let attributes = vec![attr("action", "delegate to mixnode on behalf")];
+
+        Ok(Response {
+            submessages: Vec::new(),
+            messages,
+            attributes,
+            data: None,
+        })
     }
 
     fn track_delegation(
@@ -298,7 +313,9 @@ impl DelegationAccount for PeriodicVestingAccount {
             // We've checked that delegation_amount < balance in the caller function
             Uint128(balance.u128() - delegation_amount.amount.u128())
         } else {
-            return Err(ContractError::NoBalanceForAddress(self.address.as_str().to_string()))
+            return Err(ContractError::NoBalanceForAddress(
+                self.address.as_str().to_string(),
+            ));
         };
 
         set_account_delegations(storage, &self.address, delegations)?;

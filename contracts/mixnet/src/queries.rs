@@ -491,7 +491,7 @@ pub(crate) mod tests {
             identity_key: "bobsnode".into(),
             ..helpers::mix_node_fixture()
         };
-        crate::bonding_mixnodes::transactions::try_add_mixnode(
+        crate::mixnodes::bonding_transactions::try_add_mixnode(
             deps.as_mut(),
             mock_env(),
             mock_info("bob", &good_mixnode_bond()),
@@ -507,7 +507,7 @@ pub(crate) mod tests {
             identity_key: "fredsnode".into(),
             ..helpers::mix_node_fixture()
         };
-        crate::bonding_mixnodes::transactions::try_add_mixnode(
+        crate::mixnodes::bonding_transactions::try_add_mixnode(
             deps.as_mut(),
             mock_env(),
             mock_info("fred", &good_mixnode_bond()),
@@ -519,7 +519,7 @@ pub(crate) mod tests {
         assert!(res.has_node);
 
         // but after unbonding it, he doesn't own one anymore
-        crate::bonding_mixnodes::transactions::try_remove_mixnode(
+        crate::mixnodes::bonding_transactions::try_remove_mixnode(
             deps.as_mut(),
             mock_info("fred", &[]),
         )
@@ -542,7 +542,7 @@ pub(crate) mod tests {
             identity_key: "bobsnode".into(),
             ..helpers::gateway_fixture()
         };
-        crate::bonding_gateways::transactions::try_add_gateway(
+        crate::gateways::transactions::try_add_gateway(
             deps.as_mut(),
             mock_env(),
             mock_info("bob", &good_gateway_bond()),
@@ -558,7 +558,7 @@ pub(crate) mod tests {
             identity_key: "fredsnode".into(),
             ..helpers::gateway_fixture()
         };
-        crate::bonding_gateways::transactions::try_add_gateway(
+        crate::gateways::transactions::try_add_gateway(
             deps.as_mut(),
             mock_env(),
             mock_info("fred", &good_gateway_bond()),
@@ -570,11 +570,8 @@ pub(crate) mod tests {
         assert!(res.has_gateway);
 
         // but after unbonding it, he doesn't own one anymore
-        crate::bonding_gateways::transactions::try_remove_gateway(
-            deps.as_mut(),
-            mock_info("fred", &[]),
-        )
-        .unwrap();
+        crate::gateways::transactions::try_remove_gateway(deps.as_mut(), mock_info("fred", &[]))
+            .unwrap();
 
         let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(!res.has_gateway);

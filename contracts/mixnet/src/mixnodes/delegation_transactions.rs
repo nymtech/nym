@@ -135,8 +135,8 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::delegating_mixnodes::transactions::try_delegate_to_mixnode;
     use crate::helpers::scale_reward_by_uptime;
+    use crate::mixnodes::delegation_transactions::try_delegate_to_mixnode;
     use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
     use crate::rewards::transactions::{
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
@@ -152,7 +152,7 @@ mod tests {
     #[cfg(test)]
     mod delegation_stake_validation {
         use super::*;
-        use crate::delegating_mixnodes::transactions::validate_delegation_stake;
+        use crate::mixnodes::delegation_transactions::validate_delegation_stake;
         use cosmwasm_std::coin;
         #[test]
         fn stake_cant_be_empty() {
@@ -193,7 +193,7 @@ mod tests {
     #[cfg(test)]
     mod mix_stake_delegation {
         use super::*;
-        use crate::bonding_mixnodes::transactions::try_remove_mixnode;
+        use crate::mixnodes::bonding_transactions::try_remove_mixnode;
         use crate::storage::mix_delegations_read;
         use crate::storage::reverse_mix_delegations_read;
         use crate::support::tests::helpers::add_mixnode;
@@ -573,7 +573,7 @@ mod tests {
     #[cfg(test)]
     mod removing_mix_stake_delegation {
         use super::*;
-        use crate::bonding_mixnodes::transactions::try_remove_mixnode;
+        use crate::mixnodes::bonding_transactions::try_remove_mixnode;
         use crate::storage::mix_delegations_read;
         use crate::storage::reverse_mix_delegations_read;
         use crate::support::tests::helpers::add_mixnode;
@@ -961,7 +961,7 @@ mod tests {
     #[cfg(test)]
     mod finding_old_delegations {
         use super::*;
-        use crate::delegating_mixnodes::transactions::total_delegations;
+        use crate::mixnodes::delegation_transactions::total_delegations;
         use crate::support::tests::helpers::raw_delegation_fixture;
         use cosmwasm_std::Addr;
         #[test]

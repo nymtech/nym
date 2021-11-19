@@ -68,7 +68,7 @@ pub(crate) fn try_begin_mixnode_rewarding(
 
 // Note: if any changes are made to this function or anything it is calling down the stack,
 // for example delegation reward distribution, the gas limits must be retested and both
-// validator-api/src/rewarding/bonding_mixnodes::{MIXNODE_REWARD_OP_BASE_GAS_LIMIT, PER_MIXNODE_DELEGATION_GAS_INCREASE}
+// validator-api/src/rewarding/mixnodes::{MIXNODE_REWARD_OP_BASE_GAS_LIMIT, PER_MIXNODE_DELEGATION_GAS_INCREASE}
 // must be updated appropriately.
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut,
@@ -289,11 +289,11 @@ pub(crate) fn try_finish_mixnode_rewarding(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::bonding_mixnodes::transactions::try_add_mixnode;
     use crate::contract::DEFAULT_SYBIL_RESISTANCE_PERCENT;
-    use crate::delegating_mixnodes::transactions::try_delegate_to_mixnode;
     use crate::error::ContractError;
     use crate::helpers::scale_reward_by_uptime;
+    use crate::mixnodes::bonding_transactions::try_add_mixnode;
+    use crate::mixnodes::delegation_transactions::try_delegate_to_mixnode;
     use crate::rewards::transactions::{
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
         try_reward_mixnode_v2,

@@ -140,10 +140,10 @@ pub(crate) fn try_remove_gateway(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::bonding_gateways::transactions::try_add_gateway;
-    use crate::bonding_gateways::transactions::validate_gateway_bond;
     use crate::contract::{execute, query, INITIAL_GATEWAY_BOND};
     use crate::error::ContractError;
+    use crate::gateways::transactions::try_add_gateway;
+    use crate::gateways::transactions::validate_gateway_bond;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{good_gateway_bond, good_mixnode_bond};
     use config::defaults::DENOM;

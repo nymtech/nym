@@ -87,7 +87,7 @@ pub(crate) fn try_add_mixnode(
     // this might potentially require more gas if a significant number of delegations was there
     let delegations_bucket = mix_delegations_read(deps.storage, &bond.mix_node.identity_key);
     let existing_delegation =
-        crate::delegating_mixnodes::transactions::total_delegations(delegations_bucket)?;
+        crate::mixnodes::delegation_transactions::total_delegations(delegations_bucket)?;
     bond.total_delegation = existing_delegation;
 
     let identity = bond.identity();
@@ -148,10 +148,10 @@ pub(crate) fn try_remove_mixnode(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::bonding_mixnodes::transactions::try_add_mixnode;
-    use crate::bonding_mixnodes::transactions::validate_mixnode_bond;
     use crate::contract::{execute, query, INITIAL_MIXNODE_BOND};
     use crate::error::ContractError;
+    use crate::mixnodes::bonding_transactions::try_add_mixnode;
+    use crate::mixnodes::bonding_transactions::validate_mixnode_bond;
     use crate::storage::layer_distribution_read;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{good_gateway_bond, good_mixnode_bond};

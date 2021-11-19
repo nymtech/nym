@@ -94,16 +94,16 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::BondMixnode { mix_node } => {
-            crate::bonding_mixnodes::transactions::try_add_mixnode(deps, env, info, mix_node)
+            crate::mixnodes::bonding_transactions::try_add_mixnode(deps, env, info, mix_node)
         }
         ExecuteMsg::UnbondMixnode {} => {
-            crate::bonding_mixnodes::transactions::try_remove_mixnode(deps, info)
+            crate::mixnodes::bonding_transactions::try_remove_mixnode(deps, info)
         }
         ExecuteMsg::BondGateway { gateway } => {
-            crate::bonding_gateways::transactions::try_add_gateway(deps, env, info, gateway)
+            crate::gateways::transactions::try_add_gateway(deps, env, info, gateway)
         }
         ExecuteMsg::UnbondGateway {} => {
-            crate::bonding_gateways::transactions::try_remove_gateway(deps, info)
+            crate::gateways::transactions::try_remove_gateway(deps, info)
         }
         ExecuteMsg::UpdateStateParams(params) => {
             crate::mixnet_params::transactions::try_update_state_params(deps, info, params)
@@ -133,7 +133,7 @@ pub fn execute(
             rewarding_interval_nonce,
         ),
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
-            crate::delegating_mixnodes::transactions::try_delegate_to_mixnode(
+            crate::mixnodes::delegation_transactions::try_delegate_to_mixnode(
                 deps,
                 env,
                 info,
@@ -141,7 +141,7 @@ pub fn execute(
             )
         }
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
-            crate::delegating_mixnodes::transactions::try_remove_delegation_from_mixnode(
+            crate::mixnodes::delegation_transactions::try_remove_delegation_from_mixnode(
                 deps,
                 info,
                 mix_identity,

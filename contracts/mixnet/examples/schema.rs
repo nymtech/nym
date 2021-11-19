@@ -5,7 +5,7 @@ extern crate mixnet_contract;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 use mixnet_contract::{ExecuteMsg, InstantiateMsg, MixNodeBond, QueryMsg};
-use mixnet_contracts::state::State;
+use mixnet_contracts::mixnet_params::state::State;
 use std::env::current_dir;
 use std::fs::create_dir_all;
 

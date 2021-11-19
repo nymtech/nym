@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::calculate_epoch_reward_rate;
-use crate::state::State;
+use crate::mixnet_params::state::State;
 use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries};
 use config::defaults::REWARDING_VALIDATOR_ADDRESS;

@@ -229,7 +229,7 @@ pub(crate) fn query_mixnode_delegation(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::state::State;
+    use crate::mixnet_params::state::State;
     use crate::storage::{config, gateways, mix_delegations, mixnodes};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{

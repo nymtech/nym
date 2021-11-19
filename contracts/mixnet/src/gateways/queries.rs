@@ -1,6 +1,6 @@
+use super::storage;
 use crate::queries::calculate_start_value;
 use crate::queries::BOND_PAGE_DEFAULT_LIMIT;
-use crate::storage::{gateways_owners_read, gateways_read};
 
 use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use mixnet_contract::{GatewayBond, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse};
@@ -15,7 +15,7 @@ pub(crate) fn query_gateways_paged(
         .min(BOND_PAGE_DEFAULT_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
-    let nodes = gateways_read(deps.storage)
+    let nodes = storage::gateways_read(deps.storage)
         .range(start.as_deref(), None, Order::Ascending)
         .take(limit)
         .map(|res| res.map(|item| item.1))
@@ -27,7 +27,7 @@ pub(crate) fn query_gateways_paged(
 }
 
 pub(crate) fn query_owns_gateway(deps: Deps, address: Addr) -> StdResult<GatewayOwnershipResponse> {
-    let has_gateway = gateways_owners_read(deps.storage)
+    let has_gateway = storage::gateways_owners_read(deps.storage)
         .may_load(address.as_bytes())?
         .is_some();
     Ok(GatewayOwnershipResponse {
@@ -40,7 +40,7 @@ pub(crate) fn query_owns_gateway(deps: Deps, address: Addr) -> StdResult<Gateway
 pub(crate) mod tests {
     use super::*;
 
-    use crate::storage::gateways;
+    use crate::gateways::storage;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::good_gateway_bond;
     use cosmwasm_std::testing::{mock_env, mock_info};
@@ -58,7 +58,9 @@ pub(crate) mod tests {
         for i in 0..n {
             let key = format!("bond{}", i);
             let node = helpers::gateway_bond_fixture();
-            gateways(storage).save(key.as_bytes(), &node).unwrap();
+            storage::gateways(storage)
+                .save(key.as_bytes(), &node)
+                .unwrap();
         }
     }
 
@@ -109,7 +111,7 @@ pub(crate) mod tests {
 
         let mut deps = helpers::init_contract();
         let node = helpers::gateway_bond_fixture();
-        gateways(&mut deps.storage)
+        storage::gateways(&mut deps.storage)
             .save(addr1.as_bytes(), &node)
             .unwrap();
 
@@ -120,7 +122,7 @@ pub(crate) mod tests {
         assert_eq!(1, page1.nodes.len());
 
         // save another
-        gateways(&mut deps.storage)
+        storage::gateways(&mut deps.storage)
             .save(addr2.as_bytes(), &node)
             .unwrap();
 
@@ -128,7 +130,7 @@ pub(crate) mod tests {
         let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.nodes.len());
 
-        gateways(&mut deps.storage)
+        storage::gateways(&mut deps.storage)
             .save(addr3.as_bytes(), &node)
             .unwrap();
 
@@ -148,7 +150,7 @@ pub(crate) mod tests {
         assert_eq!(1, page2.nodes.len());
 
         // save another one
-        gateways(&mut deps.storage)
+        storage::gateways(&mut deps.storage)
             .save(addr4.as_bytes(), &node)
             .unwrap();
 

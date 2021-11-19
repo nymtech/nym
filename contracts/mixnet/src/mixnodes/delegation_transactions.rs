@@ -1,6 +1,7 @@
+use super::storage;
 use crate::error::ContractError;
 use crate::helpers::Delegations;
-use crate::storage;
+use crate::storage as main_storage;
 use config::defaults::DENOM;
 use cosmwasm_std::{coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, StdResult};
 use cosmwasm_storage::ReadonlyBucket;
@@ -134,6 +135,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 }
 #[cfg(test)]
 mod tests {
+    use super::storage;
     use super::*;
     use crate::helpers::scale_reward_by_uptime;
     use crate::mixnodes::delegation_transactions::try_delegate_to_mixnode;
@@ -142,7 +144,6 @@ mod tests {
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
     };
     use crate::storage::config_read;
-    use crate::storage::{mix_delegations_read, read_mixnode_bond};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{add_mixnode, good_mixnode_bond};
     use cosmwasm_std::attr;
@@ -192,10 +193,9 @@ mod tests {
     }
     #[cfg(test)]
     mod mix_stake_delegation {
+        use super::storage;
         use super::*;
         use crate::mixnodes::bonding_transactions::try_remove_mixnode;
-        use crate::storage::mix_delegations_read;
-        use crate::storage::reverse_mix_delegations_read;
         use crate::support::tests::helpers::add_mixnode;
         #[cfg(test)]
         use crate::support::tests::helpers::good_mixnode_bond;
@@ -234,12 +234,12 @@ mod tests {
             .is_ok());
             assert_eq!(
                 RawDelegationData::new(delegation.amount, mock_env().block.height),
-                mix_delegations_read(&deps.storage, &identity)
+                storage::mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
             );
             assert!(
-                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                storage::reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity.as_bytes())
                     .is_ok()
             );
@@ -289,12 +289,12 @@ mod tests {
             .is_ok());
             assert_eq!(
                 RawDelegationData::new(delegation.amount, mock_env().block.height),
-                mix_delegations_read(&deps.storage, &identity)
+                storage::mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
             );
             assert!(
-                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                storage::reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity.as_bytes())
                     .is_ok()
             );
@@ -334,12 +334,12 @@ mod tests {
                     delegation1.amount + delegation2.amount,
                     mock_env().block.height
                 ),
-                mix_delegations_read(&deps.storage, &identity)
+                storage::mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
             );
             assert!(
-                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                storage::reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity.as_bytes())
                     .is_ok()
             );
@@ -375,7 +375,7 @@ mod tests {
             .unwrap();
             assert_eq!(
                 RawDelegationData::new(delegation.amount, initial_height),
-                mix_delegations_read(&deps.storage, &identity)
+                storage::mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
             );
@@ -388,7 +388,7 @@ mod tests {
             .unwrap();
             assert_eq!(
                 RawDelegationData::new(delegation.amount + delegation.amount, updated_height),
-                mix_delegations_read(&deps.storage, &identity)
+                storage::mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
             );
@@ -417,7 +417,7 @@ mod tests {
             .unwrap();
             assert_eq!(
                 RawDelegationData::new(delegation1.amount, initial_height),
-                mix_delegations_read(&deps.storage, &identity)
+                storage::mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner1.as_bytes())
                     .unwrap()
             );
@@ -430,13 +430,13 @@ mod tests {
             .unwrap();
             assert_eq!(
                 RawDelegationData::new(delegation1.amount, initial_height),
-                mix_delegations_read(&deps.storage, &identity)
+                storage::mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner1.as_bytes())
                     .unwrap()
             );
             assert_eq!(
                 RawDelegationData::new(delegation2.amount, second_height),
-                mix_delegations_read(&deps.storage, &identity)
+                storage::mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner2.as_bytes())
                     .unwrap()
             );
@@ -491,23 +491,23 @@ mod tests {
             .is_ok());
             assert_eq!(
                 RawDelegationData::new(123u128.into(), mock_env().block.height),
-                mix_delegations_read(&deps.storage, &identity1)
+                storage::mix_delegations_read(&deps.storage, &identity1)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
             );
             assert!(
-                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                storage::reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity1.as_bytes())
                     .is_ok()
             );
             assert_eq!(
                 RawDelegationData::new(42u128.into(), mock_env().block.height),
-                mix_delegations_read(&deps.storage, &identity2)
+                storage::mix_delegations_read(&deps.storage, &identity2)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
             );
             assert!(
-                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                storage::reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity2.as_bytes())
                     .is_ok()
             );
@@ -559,12 +559,12 @@ mod tests {
             try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
             assert_eq!(
                 RawDelegationData::new(100u128.into(), mock_env().block.height),
-                mix_delegations_read(&deps.storage, &identity)
+                storage::mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
             );
             assert!(
-                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                storage::reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .load(identity.as_bytes())
                     .is_ok()
             );
@@ -572,10 +572,9 @@ mod tests {
     }
     #[cfg(test)]
     mod removing_mix_stake_delegation {
+        use super::storage;
         use super::*;
         use crate::mixnodes::bonding_transactions::try_remove_mixnode;
-        use crate::storage::mix_delegations_read;
-        use crate::storage::reverse_mix_delegations_read;
         use crate::support::tests::helpers::add_mixnode;
         use crate::support::tests::helpers::good_mixnode_bond;
         use cosmwasm_std::coin;
@@ -631,12 +630,12 @@ mod tests {
                     identity.clone(),
                 )
             );
-            assert!(mix_delegations_read(&deps.storage, &identity)
+            assert!(storage::mix_delegations_read(&deps.storage, &identity)
                 .may_load(delegation_owner.as_bytes())
                 .unwrap()
                 .is_none());
             assert!(
-                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                storage::reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .may_load(identity.as_bytes())
                     .unwrap()
                     .is_none()
@@ -682,12 +681,12 @@ mod tests {
                     identity.clone(),
                 )
             );
-            assert!(mix_delegations_read(&deps.storage, &identity)
+            assert!(storage::mix_delegations_read(&deps.storage, &identity)
                 .may_load(delegation_owner.as_bytes())
                 .unwrap()
                 .is_none());
             assert!(
-                reverse_mix_delegations_read(&deps.storage, &delegation_owner)
+                storage::reverse_mix_delegations_read(&deps.storage, &delegation_owner)
                     .may_load(identity.as_bytes())
                     .unwrap()
                     .is_none()
@@ -791,25 +790,25 @@ mod tests {
         try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
         assert_eq!(
             expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
+            storage::read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
         );
         assert_eq!(
             expected_delegation1,
-            mix_delegations_read(deps.as_ref().storage, &identity)
+            storage::mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
                 .amount
         );
         assert_eq!(
             expected_delegation2,
-            mix_delegations_read(deps.as_ref().storage, &identity)
+            storage::mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
                 .amount
         );
         assert_eq!(
             expected_delegation3,
-            mix_delegations_read(deps.as_ref().storage, &identity)
+            storage::mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
                 .amount
@@ -851,25 +850,25 @@ mod tests {
         try_finish_mixnode_rewarding(deps.as_mut(), info, 2).unwrap();
         assert_eq!(
             expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
+            storage::read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
         );
         assert_eq!(
             expected_delegation1,
-            mix_delegations_read(deps.as_ref().storage, &identity)
+            storage::mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
                 .amount
         );
         assert_eq!(
             expected_delegation2,
-            mix_delegations_read(deps.as_ref().storage, &identity)
+            storage::mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
                 .amount
         );
         assert_eq!(
             expected_delegation3,
-            mix_delegations_read(deps.as_ref().storage, &identity)
+            storage::mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
                 .amount
@@ -901,25 +900,25 @@ mod tests {
         try_finish_mixnode_rewarding(deps.as_mut(), info, 3).unwrap();
         assert_eq!(
             expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
+            storage::read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
         );
         assert_eq!(
             expected_delegation1,
-            mix_delegations_read(deps.as_ref().storage, &identity)
+            storage::mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator1".as_bytes())
                 .unwrap()
                 .amount
         );
         assert_eq!(
             expected_delegation2,
-            mix_delegations_read(deps.as_ref().storage, &identity)
+            storage::mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator2".as_bytes())
                 .unwrap()
                 .amount
         );
         assert_eq!(
             expected_delegation3,
-            mix_delegations_read(deps.as_ref().storage, &identity)
+            storage::mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
                 .amount
@@ -934,6 +933,7 @@ mod tests {
     }
     #[cfg(test)]
     mod multi_delegations {
+        use super::storage;
         use crate::helpers::Delegations;
         use crate::mixnodes::delegation_queries::tests::store_n_mix_delegations;
         use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
@@ -949,8 +949,7 @@ mod tests {
                 &mut deps.storage,
                 &node_identity,
             );
-            let mix_bucket =
-                crate::storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
+            let mix_bucket = storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
             let mix_delegations = Delegations::new(mix_bucket);
             assert_eq!(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
@@ -968,7 +967,7 @@ mod tests {
         fn when_there_werent_any() {
             let deps = helpers::init_contract();
             let node_identity: IdentityKey = "nodeidentity".into();
-            let read_bucket = mix_delegations_read(&deps.storage, &node_identity);
+            let read_bucket = storage::mix_delegations_read(&deps.storage, &node_identity);
             let old_delegations = total_delegations(read_bucket).unwrap();
             assert_eq!(Coin::new(0, DENOM), old_delegations);
         }
@@ -995,7 +994,7 @@ mod tests {
                         .save(delegator.as_bytes(), &delegation)
                         .unwrap();
                 }
-                let read_bucket = mix_delegations_read(&deps.storage, &node_identity);
+                let read_bucket = storage::mix_delegations_read(&deps.storage, &node_identity);
                 let old_delegations = total_delegations(read_bucket).unwrap();
                 let total_delegation = (1..=delegations as u128).into_iter().sum();
                 assert_eq!(Coin::new(total_delegation, DENOM), old_delegations);

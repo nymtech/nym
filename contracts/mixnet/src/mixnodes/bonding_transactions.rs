@@ -1,9 +1,8 @@
+use super::storage;
 use crate::error::ContractError;
+use crate::gateways::storage as gateways_storage;
 use crate::mixnodes::layer_queries::query_layer_distribution;
-use crate::storage::{
-    decrement_layer_count, gateways_owners_read, increment_layer_count, mix_delegations_read,
-    mixnodes, mixnodes_owners, mixnodes_owners_read, mixnodes_read, read_state_params,
-};
+use crate::storage as main_storage;
 use config::defaults::DENOM;
 use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::{MixNode, MixNodeBond};
@@ -43,7 +42,7 @@ pub(crate) fn try_add_mixnode(
     let sender_bytes = info.sender.as_bytes();
 
     // if the client has an active bonded gateway, don't allow mixnode bonding
-    if gateways_owners_read(deps.storage)
+    if gateways_storage::gateways_owners_read(deps.storage)
         .may_load(sender_bytes)?
         .is_some()
     {
@@ -52,7 +51,9 @@ pub(crate) fn try_add_mixnode(
 
     let mut was_present = false;
     // if the client has an active mixnode with a different identity, don't allow bonding
-    if let Some(existing_node) = mixnodes_owners_read(deps.storage).may_load(sender_bytes)? {
+    if let Some(existing_node) =
+        storage::mixnodes_owners_read(deps.storage).may_load(sender_bytes)?
+    {
         if existing_node != mix_node.identity_key {
             return Err(ContractError::AlreadyOwnsMixnode);
         }
@@ -61,7 +62,7 @@ pub(crate) fn try_add_mixnode(
 
     // check if somebody else has already bonded a mixnode with this identity
     if let Some(existing_bond) =
-        mixnodes_read(deps.storage).may_load(mix_node.identity_key.as_bytes())?
+        storage::mixnodes_read(deps.storage).may_load(mix_node.identity_key.as_bytes())?
     {
         if existing_bond.owner != info.sender {
             return Err(ContractError::DuplicateMixnode {
@@ -70,7 +71,7 @@ pub(crate) fn try_add_mixnode(
         }
     }
 
-    let minimum_bond = read_state_params(deps.storage).minimum_mixnode_bond;
+    let minimum_bond = main_storage::read_state_params(deps.storage).minimum_mixnode_bond;
     validate_mixnode_bond(&info.funds, minimum_bond)?;
 
     let layer_distribution = query_layer_distribution(deps.as_ref());
@@ -86,16 +87,17 @@ pub(crate) fn try_add_mixnode(
     );
 
     // this might potentially require more gas if a significant number of delegations was there
-    let delegations_bucket = mix_delegations_read(deps.storage, &bond.mix_node.identity_key);
+    let delegations_bucket =
+        storage::mix_delegations_read(deps.storage, &bond.mix_node.identity_key);
     let existing_delegation =
         crate::mixnodes::delegation_transactions::total_delegations(delegations_bucket)?;
     bond.total_delegation = existing_delegation;
 
     let identity = bond.identity();
 
-    mixnodes(deps.storage).save(identity.as_bytes(), &bond)?;
-    mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
-    increment_layer_count(deps.storage, bond.layer)?;
+    storage::mixnodes(deps.storage).save(identity.as_bytes(), &bond)?;
+    storage::mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
+    main_storage::increment_layer_count(deps.storage, bond.layer)?;
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
@@ -113,13 +115,13 @@ pub(crate) fn try_remove_mixnode(
     let sender_bytes = info.sender.as_bytes();
 
     // try to find the identity of the sender's node
-    let mix_identity = match mixnodes_owners_read(deps.storage).may_load(sender_bytes)? {
+    let mix_identity = match storage::mixnodes_owners_read(deps.storage).may_load(sender_bytes)? {
         Some(identity) => identity,
         None => return Err(ContractError::NoAssociatedMixNodeBond { owner: info.sender }),
     };
 
     // get the bond, since we found associated identity, the node MUST exist
-    let mixnode_bond = mixnodes_read(deps.storage).load(mix_identity.as_bytes())?;
+    let mixnode_bond = storage::mixnodes_read(deps.storage).load(mix_identity.as_bytes())?;
 
     // send bonded funds back to the bond owner
     let messages = vec![BankMsg::Send {
@@ -129,11 +131,11 @@ pub(crate) fn try_remove_mixnode(
     .into()];
 
     // remove the bond from the list of bonded mixnodes
-    mixnodes(deps.storage).remove(mix_identity.as_bytes());
+    storage::mixnodes(deps.storage).remove(mix_identity.as_bytes());
     // remove the node ownership
-    mixnodes_owners(deps.storage).remove(sender_bytes);
+    storage::mixnodes_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
-    decrement_layer_count(deps.storage, mixnode_bond.layer)?;
+    main_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
 
     // log our actions
     let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
@@ -348,7 +350,7 @@ pub mod tests {
         };
 
         // before the execution the node had no associated owner
-        assert!(mixnodes_owners_read(deps.as_ref().storage)
+        assert!(storage::mixnodes_owners_read(deps.as_ref().storage)
             .may_load("myAwesomeMixnode".as_bytes())
             .unwrap()
             .is_none());
@@ -359,7 +361,7 @@ pub mod tests {
 
         assert_eq!(
             "myAwesomeMixnode",
-            mixnodes_owners_read(deps.as_ref().storage)
+            storage::mixnodes_owners_read(deps.as_ref().storage)
                 .load("mix-owner".as_bytes())
                 .unwrap()
         );
@@ -426,7 +428,7 @@ pub mod tests {
         // make sure the host information was updated
         assert_eq!(
             "2.2.2.2:1789".to_string(),
-            mixnodes_read(deps.as_ref().storage)
+            storage::mixnodes_read(deps.as_ref().storage)
                 .load("myAwesomeMixnode".as_bytes())
                 .unwrap()
                 .mix_node
@@ -567,7 +569,7 @@ pub mod tests {
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(
             "myAwesomeMixnode",
-            mixnodes_owners_read(deps.as_ref().storage)
+            storage::mixnodes_owners_read(deps.as_ref().storage)
                 .load("mix-owner".as_bytes())
                 .unwrap()
         );
@@ -577,7 +579,7 @@ pub mod tests {
 
         assert!(execute(deps.as_mut(), mock_env(), info, msg).is_ok());
 
-        assert!(mixnodes_owners_read(deps.as_ref().storage)
+        assert!(storage::mixnodes_owners_read(deps.as_ref().storage)
             .may_load("mix-owner".as_bytes())
             .unwrap()
             .is_none());
@@ -594,7 +596,7 @@ pub mod tests {
         assert!(execute(deps.as_mut(), mock_env(), info, msg).is_ok());
         assert_eq!(
             "myAwesomeMixnode",
-            mixnodes_owners_read(deps.as_ref().storage)
+            storage::mixnodes_owners_read(deps.as_ref().storage)
                 .load("mix-owner".as_bytes())
                 .unwrap()
         );

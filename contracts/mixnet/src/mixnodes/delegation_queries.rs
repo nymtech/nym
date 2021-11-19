@@ -1,9 +1,10 @@
+use super::storage;
 use crate::error::ContractError;
 use crate::helpers::get_all_delegations_paged;
 use crate::queries::calculate_start_value;
 use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
 use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
-use crate::storage;
+use crate::storage as main_storage;
 use config::defaults::DENOM;
 use cosmwasm_std::coin;
 use cosmwasm_std::Addr;
@@ -86,10 +87,10 @@ pub(crate) fn query_mixnode_delegation(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::storage::mix_delegations;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::raw_delegation_fixture;
     use cosmwasm_std::{Addr, Storage};
+    use storage::mix_delegations;
 
     pub fn store_n_mix_delegations(n: u32, storage: &mut dyn Storage, node_identity: &str) {
         for i in 0..n {
@@ -451,7 +452,7 @@ pub(crate) mod tests {
     mod querying_for_reverse_mixnode_delegations_paged {
         use super::*;
         use crate::mixnodes::delegation_queries::query_reverse_mixnode_delegations_paged;
-        use crate::storage::reverse_mix_delegations;
+        use storage::reverse_mix_delegations;
 
         fn store_n_reverse_delegations(n: u32, storage: &mut dyn Storage, delegation_owner: &Addr) {
             for i in 0..n {

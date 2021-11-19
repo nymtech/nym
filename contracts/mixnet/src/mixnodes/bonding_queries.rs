@@ -2,9 +2,9 @@ use crate::queries::calculate_start_value;
 use crate::queries::BOND_PAGE_DEFAULT_LIMIT;
 use crate::queries::BOND_PAGE_MAX_LIMIT;
 
+use super::storage;
 use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
 use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
-use crate::storage;
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
 use mixnet_contract::{
@@ -80,7 +80,7 @@ pub(crate) fn query_mixnode_delegations_paged(
 pub(crate) mod tests {
     use super::*;
 
-    use crate::storage::mixnodes;
+    use super::storage;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::good_mixnode_bond;
     use cosmwasm_std::testing::{mock_env, mock_info};
@@ -102,7 +102,9 @@ pub(crate) mod tests {
         for n in 0..10000 {
             let key = format!("bond{}", n);
             let node = helpers::mixnode_bond_fixture();
-            mixnodes(storage).save(key.as_bytes(), &node).unwrap();
+            storage::mixnodes(storage)
+                .save(key.as_bytes(), &node)
+                .unwrap();
         }
 
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
@@ -116,7 +118,9 @@ pub(crate) mod tests {
         for n in 0..100 {
             let key = format!("bond{}", n);
             let node = helpers::mixnode_bond_fixture();
-            mixnodes(storage).save(key.as_bytes(), &node).unwrap();
+            storage::mixnodes(storage)
+                .save(key.as_bytes(), &node)
+                .unwrap();
         }
 
         // query without explicitly setting a limit
@@ -133,7 +137,9 @@ pub(crate) mod tests {
         for n in 0..10000 {
             let key = format!("bond{}", n);
             let node = helpers::mixnode_bond_fixture();
-            mixnodes(storage).save(key.as_bytes(), &node).unwrap();
+            storage::mixnodes(storage)
+                .save(key.as_bytes(), &node)
+                .unwrap();
         }
 
         // query with a crazily high limit in an attempt to use too many resources
@@ -154,7 +160,7 @@ pub(crate) mod tests {
 
         let mut deps = helpers::init_contract();
         let node = helpers::mixnode_bond_fixture();
-        mixnodes(&mut deps.storage)
+        storage::mixnodes(&mut deps.storage)
             .save(addr1.as_bytes(), &node)
             .unwrap();
 
@@ -165,7 +171,7 @@ pub(crate) mod tests {
         assert_eq!(1, page1.nodes.len());
 
         // save another
-        mixnodes(&mut deps.storage)
+        storage::mixnodes(&mut deps.storage)
             .save(addr2.as_bytes(), &node)
             .unwrap();
 
@@ -173,7 +179,7 @@ pub(crate) mod tests {
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.nodes.len());
 
-        mixnodes(&mut deps.storage)
+        storage::mixnodes(&mut deps.storage)
             .save(addr3.as_bytes(), &node)
             .unwrap();
 
@@ -193,7 +199,7 @@ pub(crate) mod tests {
         assert_eq!(1, page2.nodes.len());
 
         // save another one
-        mixnodes(&mut deps.storage)
+        storage::mixnodes(&mut deps.storage)
             .save(addr4.as_bytes(), &node)
             .unwrap();
 

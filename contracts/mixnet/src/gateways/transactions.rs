@@ -1,8 +1,7 @@
+use super::storage;
 use crate::error::ContractError;
-use crate::storage::{
-    decrement_layer_count, gateways, gateways_owners, gateways_owners_read, gateways_read,
-    increment_layer_count, mixnodes_owners_read, read_state_params,
-};
+use crate::mixnodes::storage as mixnodes_storage;
+use crate::storage as main_storage;
 use config::defaults::DENOM;
 use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::{Gateway, GatewayBond, Layer};
@@ -42,7 +41,7 @@ pub(crate) fn try_add_gateway(
     let sender_bytes = info.sender.as_bytes();
 
     // if the client has an active bonded mixnode, don't allow gateway bonding
-    if mixnodes_owners_read(deps.storage)
+    if mixnodes_storage::mixnodes_owners_read(deps.storage)
         .may_load(sender_bytes)?
         .is_some()
     {
@@ -51,7 +50,9 @@ pub(crate) fn try_add_gateway(
 
     let mut was_present = false;
     // if the client has an active gateway with a different identity, don't allow bonding
-    if let Some(existing_node) = gateways_owners_read(deps.storage).may_load(sender_bytes)? {
+    if let Some(existing_node) =
+        storage::gateways_owners_read(deps.storage).may_load(sender_bytes)?
+    {
         if existing_node != gateway.identity_key {
             return Err(ContractError::AlreadyOwnsGateway);
         }
@@ -60,7 +61,7 @@ pub(crate) fn try_add_gateway(
 
     // check if somebody else has already bonded a gateway with this identity
     if let Some(existing_bond) =
-        gateways_read(deps.storage).may_load(gateway.identity_key.as_bytes())?
+        storage::gateways_read(deps.storage).may_load(gateway.identity_key.as_bytes())?
     {
         if existing_bond.owner != info.sender {
             return Err(ContractError::DuplicateGateway {
@@ -69,7 +70,7 @@ pub(crate) fn try_add_gateway(
         }
     }
 
-    let minimum_bond = read_state_params(deps.storage).minimum_gateway_bond;
+    let minimum_bond = main_storage::read_state_params(deps.storage).minimum_gateway_bond;
     validate_gateway_bond(&info.funds, minimum_bond)?;
 
     let bond = GatewayBond::new(
@@ -80,9 +81,9 @@ pub(crate) fn try_add_gateway(
     );
 
     let identity = bond.identity();
-    gateways(deps.storage).save(identity.as_bytes(), &bond)?;
-    gateways_owners(deps.storage).save(sender_bytes, identity)?;
-    increment_layer_count(deps.storage, Layer::Gateway)?;
+    storage::gateways(deps.storage).save(identity.as_bytes(), &bond)?;
+    storage::gateways_owners(deps.storage).save(sender_bytes, identity)?;
+    main_storage::increment_layer_count(deps.storage, Layer::Gateway)?;
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
@@ -100,13 +101,14 @@ pub(crate) fn try_remove_gateway(
     let sender_bytes = info.sender.as_str().as_bytes();
 
     // try to find the identity of the sender's node
-    let gateway_identity = match gateways_owners_read(deps.storage).may_load(sender_bytes)? {
-        Some(identity) => identity,
-        None => return Err(ContractError::NoAssociatedGatewayBond { owner: info.sender }),
-    };
+    let gateway_identity =
+        match storage::gateways_owners_read(deps.storage).may_load(sender_bytes)? {
+            Some(identity) => identity,
+            None => return Err(ContractError::NoAssociatedGatewayBond { owner: info.sender }),
+        };
 
     // get the bond, since we found associated identity, the node MUST exist
-    let gateway_bond = gateways_read(deps.storage).load(gateway_identity.as_bytes())?;
+    let gateway_bond = storage::gateways_read(deps.storage).load(gateway_identity.as_bytes())?;
 
     // send bonded funds back to the bond owner
     let messages = vec![BankMsg::Send {
@@ -116,11 +118,11 @@ pub(crate) fn try_remove_gateway(
     .into()];
 
     // remove the bond from the list of bonded gateways
-    gateways(deps.storage).remove(gateway_identity.as_bytes());
+    storage::gateways(deps.storage).remove(gateway_identity.as_bytes());
     // remove the node ownership
-    gateways_owners(deps.storage).remove(sender_bytes);
+    storage::gateways_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
-    decrement_layer_count(deps.storage, Layer::Gateway)?;
+    main_storage::decrement_layer_count(deps.storage, Layer::Gateway)?;
 
     // log our actions
     let attributes = vec![
@@ -328,7 +330,7 @@ pub mod tests {
         };
 
         // before the execution the node had no associated owner
-        assert!(gateways_owners_read(deps.as_ref().storage)
+        assert!(storage::gateways_owners_read(deps.as_ref().storage)
             .may_load("gateway-owner".as_bytes())
             .unwrap()
             .is_none());
@@ -339,7 +341,7 @@ pub mod tests {
 
         assert_eq!(
             "myAwesomeGateway",
-            gateways_owners_read(deps.as_ref().storage)
+            storage::gateways_owners_read(deps.as_ref().storage)
                 .load("gateway-owner".as_bytes())
                 .unwrap()
         );
@@ -406,7 +408,7 @@ pub mod tests {
         // make sure the host information was updated
         assert_eq!(
             "2.2.2.2".to_string(),
-            gateways_read(deps.as_ref().storage)
+            storage::gateways_read(deps.as_ref().storage)
                 .load("myAwesomeGateway".as_bytes())
                 .unwrap()
                 .gateway
@@ -523,7 +525,7 @@ pub mod tests {
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(
             "myAwesomeGateway",
-            gateways_owners_read(deps.as_ref().storage)
+            storage::gateways_owners_read(deps.as_ref().storage)
                 .load("gateway-owner".as_bytes())
                 .unwrap()
         );
@@ -533,7 +535,7 @@ pub mod tests {
 
         assert!(execute(deps.as_mut(), mock_env(), info, msg).is_ok());
 
-        assert!(gateways_owners_read(deps.as_ref().storage)
+        assert!(storage::gateways_owners_read(deps.as_ref().storage)
             .may_load("gateway-owner".as_bytes())
             .unwrap()
             .is_none());
@@ -550,7 +552,7 @@ pub mod tests {
         assert!(execute(deps.as_mut(), mock_env(), info, msg).is_ok());
         assert_eq!(
             "myAwesomeGateway",
-            gateways_owners_read(deps.as_ref().storage)
+            storage::gateways_owners_read(deps.as_ref().storage)
                 .load("gateway-owner".as_bytes())
                 .unwrap()
         );

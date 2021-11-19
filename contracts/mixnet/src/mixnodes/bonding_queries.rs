@@ -1,4 +1,6 @@
 use crate::queries::calculate_start_value;
+use crate::queries::BOND_PAGE_DEFAULT_LIMIT;
+use crate::queries::BOND_PAGE_MAX_LIMIT;
 
 use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
 use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
@@ -9,9 +11,6 @@ use mixnet_contract::{
     Delegation, IdentityKey, MixNodeBond, MixOwnershipResponse, PagedMixDelegationsResponse,
     PagedMixnodeResponse,
 };
-
-pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 100;
-pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 pub fn query_mixnodes_paged(
     deps: Deps,

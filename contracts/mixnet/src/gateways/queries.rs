@@ -1,5 +1,5 @@
-use crate::mixnodes::bonding_queries::BOND_PAGE_DEFAULT_LIMIT;
 use crate::queries::calculate_start_value;
+use crate::queries::BOND_PAGE_DEFAULT_LIMIT;
 use crate::storage::{gateways_owners_read, gateways_read};
 
 use cosmwasm_std::{Addr, Deps, Order, StdResult};

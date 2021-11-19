@@ -103,7 +103,7 @@ pub mod helpers {
         let env = mock_env();
         let info = mock_info("creator", &[]);
         instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
-        return deps;
+        deps
     }
 
     pub fn mix_node_fixture() -> MixNode {

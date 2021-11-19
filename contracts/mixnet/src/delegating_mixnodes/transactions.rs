@@ -281,7 +281,7 @@ mod tests {
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
+                mock_info(delegation_owner.as_str(), &[delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
@@ -316,14 +316,14 @@ mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(delegation_owner.as_str(), &vec![delegation1.clone()]),
+                mock_info(delegation_owner.as_str(), &[delegation1.clone()]),
                 identity.clone(),
             )
             .unwrap();
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(delegation_owner.as_str(), &vec![delegation2.clone()]),
+                mock_info(delegation_owner.as_str(), &[delegation2.clone()]),
                 identity.clone(),
             )
             .unwrap();
@@ -367,7 +367,7 @@ mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 env1,
-                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
+                mock_info(delegation_owner.as_str(), &[delegation.clone()]),
                 identity.clone(),
             )
             .unwrap();
@@ -380,7 +380,7 @@ mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 env2,
-                mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
+                mock_info(delegation_owner.as_str(), &[delegation.clone()]),
                 identity.clone(),
             )
             .unwrap();
@@ -409,7 +409,7 @@ mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 env1,
-                mock_info(delegation_owner1.as_str(), &vec![delegation1.clone()]),
+                mock_info(delegation_owner1.as_str(), &[delegation1.clone()]),
                 identity.clone(),
             )
             .unwrap();
@@ -422,7 +422,7 @@ mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 env2,
-                mock_info(delegation_owner2.as_str(), &vec![delegation2.clone()]),
+                mock_info(delegation_owner2.as_str(), &[delegation2.clone()]),
                 identity.clone(),
             )
             .unwrap();
@@ -520,14 +520,14 @@ mod tests {
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info("sender1", &vec![delegation1.clone()]),
+                mock_info("sender1", &[delegation1.clone()]),
                 identity.clone()
             )
             .is_ok());
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info("sender2", &vec![delegation2.clone()]),
+                mock_info("sender2", &[delegation2.clone()]),
                 identity.clone()
             )
             .is_ok());
@@ -703,14 +703,14 @@ mod tests {
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(delegation_owner1.as_str(), &vec![delegation1.clone()]),
+                mock_info(delegation_owner1.as_str(), &[delegation1.clone()]),
                 identity.clone()
             )
             .is_ok());
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(delegation_owner2.as_str(), &vec![delegation2.clone()]),
+                mock_info(delegation_owner2.as_str(), &[delegation2.clone()]),
                 identity.clone()
             )
             .is_ok());
@@ -938,7 +938,6 @@ mod tests {
         use crate::support::tests::helpers;
         use mixnet_contract::IdentityKey;
         use mixnet_contract::RawDelegationData;
-        use mixnet_contract::UnpackedDelegation;
         #[test]
         fn multiple_page_delegations() {
             let mut deps = helpers::init_contract();
@@ -950,11 +949,10 @@ mod tests {
             );
             let mix_bucket =
                 crate::storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
-            let mix_delegations = Delegations::new(mix_bucket)
-                .collect::<Vec<UnpackedDelegation<RawDelegationData>>>();
+            let mix_delegations = Delegations::new(mix_bucket);
             assert_eq!(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
-                mix_delegations.len() as u32
+                mix_delegations.count() as u32
             );
         }
     }

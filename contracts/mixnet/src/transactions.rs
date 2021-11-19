@@ -1,11 +1,5 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-use crate::error::ContractError;
-use crate::storage::*;
-use config::defaults::DENOM;
-use cosmwasm_std::{coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
-
-use mixnet_contract::{IdentityKey, Layer, RawDelegationData};
 
 pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 
@@ -28,25 +22,24 @@ pub mod tests {
         INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
     };
     use crate::delegating_mixnodes::transactions::try_delegate_to_mixnode;
+    use crate::error::ContractError;
     use crate::helpers::calculate_epoch_reward_rate;
     use crate::helpers::scale_reward_by_uptime;
-    use crate::helpers::Delegations;
     use crate::mixnet_params::transactions::try_update_state_params;
-    use crate::queries::tests::store_n_mix_delegations;
-    use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
     use crate::rewards::transactions::{
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
         try_reward_mixnode_v2,
     };
-    use crate::storage::{layer_distribution_read, mix_delegations_read, read_mixnode_bond};
+    use crate::storage::*;
+    use crate::storage::{layer_distribution_read, read_mixnode_bond};
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{
-        add_mixnode, good_gateway_bond, good_mixnode_bond, mix_node_fixture, raw_delegation_fixture,
-    };
+    use crate::support::tests::helpers::{good_gateway_bond, good_mixnode_bond, mix_node_fixture};
+    use config::defaults::DENOM;
     use cosmwasm_std::attr;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Decimal;
-    use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
+    use cosmwasm_std::{coin, from_binary, Addr, Uint128};
+    use cosmwasm_std::{coins, BankMsg, Coin, Response};
     use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::Gateway;
     use mixnet_contract::MixNode;
@@ -54,8 +47,8 @@ pub mod tests {
     use mixnet_contract::StateParams;
     use mixnet_contract::{
         ExecuteMsg, LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
-        UnpackedDelegation,
     };
+    use mixnet_contract::{IdentityKey, Layer, RawDelegationData};
 
     #[test]
     fn validating_mixnode_bond() {
@@ -1818,7 +1811,7 @@ pub mod tests {
             mock_env(),
             mock_info(
                 "alice",
-                &vec![Coin {
+                &[Coin {
                     denom: DENOM.to_string(),
                     amount: Uint128(10_000_000_000),
                 }],
@@ -1833,7 +1826,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("d1", &vec![coin(8000_000000, DENOM)]),
+            mock_info("d1", &[coin(8000_000000, DENOM)]),
             "alice".to_string(),
         )
         .unwrap();
@@ -1841,7 +1834,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("d2", &vec![coin(2000_000000, DENOM)]),
+            mock_info("d2", &[coin(2000_000000, DENOM)]),
             "alice".to_string(),
         )
         .unwrap();

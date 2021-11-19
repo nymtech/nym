@@ -108,7 +108,7 @@ fn extract_identity_and_owner(bytes: Vec<u8>) -> StdResult<(Addr, IdentityKey)> 
 #[cfg(test)]
 // Converts the node identity and owner of a delegation into the bytes used as
 // key in the delegation buckets.
-pub(crate) fn identity_and_owner_to_bytes(identity: &IdentityKey, owner: &Addr) -> Vec<u8> {
+pub(crate) fn identity_and_owner_to_bytes(identity: &str, owner: &Addr) -> Vec<u8> {
     let mut bytes = u16::to_be_bytes(identity.len() as u16).to_vec();
     bytes.append(&mut identity.as_bytes().to_vec());
     bytes.append(&mut owner.as_bytes().to_vec());

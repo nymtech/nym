@@ -698,7 +698,7 @@ mod tests {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 assert_eq!(
                     raw_delegation_fixture(1001),
-                    mix_delegations_read(&mut deps.storage, &node_identity)
+                    mix_delegations_read(&deps.storage, &node_identity)
                         .load(delegator_address.as_bytes())
                         .unwrap()
                 )
@@ -741,7 +741,7 @@ mod tests {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 assert_eq!(
                     raw_delegation_fixture(1001),
-                    mix_delegations_read(&mut deps.storage, &node_identity)
+                    mix_delegations_read(&deps.storage, &node_identity)
                         .load(delegator_address.as_bytes())
                         .unwrap()
                 )

@@ -4,9 +4,9 @@
 
 `yarn install`
 
-## Environment variabled
+## Environment variables
 
-Create a file in the root directory called `.env`. Copy the everything from the `.env.sample` file into the `.env` file and add the required values`
+Create a file in the root directory called `.env`. Copy everything from the `.env.sample` file into the `.env` file and add the required values`
 
 ## Development environment
 

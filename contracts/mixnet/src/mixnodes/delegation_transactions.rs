@@ -1,6 +1,6 @@
+use super::delegation_helpers;
 use super::storage;
 use crate::error::ContractError;
-use crate::helpers::Delegations;
 
 use config::defaults::DENOM;
 use cosmwasm_std::{coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, StdResult};
@@ -12,7 +12,7 @@ pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 
 pub fn total_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
     Ok(Coin::new(
-        Delegations::new(delegations_bucket)
+        delegation_helpers::Delegations::new(delegations_bucket)
             .fold(0, |acc, x| acc + x.delegation_data.amount.u128()),
         DENOM,
     ))
@@ -937,8 +937,7 @@ mod tests {
     }
     #[cfg(test)]
     mod multi_delegations {
-        use super::storage;
-        use crate::helpers::Delegations;
+        use super::*;
         use crate::mixnodes::delegation_queries::tests::store_n_mix_delegations;
         use crate::query_support::DELEGATION_PAGE_DEFAULT_LIMIT;
         use crate::support::tests::helpers;
@@ -954,7 +953,7 @@ mod tests {
                 &node_identity,
             );
             let mix_bucket = storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
-            let mix_delegations = Delegations::new(mix_bucket);
+            let mix_delegations = delegation_helpers::Delegations::new(mix_bucket);
             assert_eq!(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 mix_delegations.count() as u32

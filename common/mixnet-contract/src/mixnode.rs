@@ -148,6 +148,7 @@ pub struct MixNodeBond {
     pub block_height: u64,
     pub mix_node: MixNode,
     pub profit_margin_percent: Option<u8>,
+    pub proxy: Option<Addr>
 }
 
 impl MixNodeBond {
@@ -158,6 +159,7 @@ impl MixNodeBond {
         block_height: u64,
         mix_node: MixNode,
         profit_margin_percent: Option<u8>,
+        proxy: Option<Addr>,
     ) -> Self {
         MixNodeBond {
             total_delegation: coin(0, &bond_amount.denom),
@@ -167,6 +169,7 @@ impl MixNodeBond {
             block_height,
             mix_node,
             profit_margin_percent,
+            proxy
         }
     }
 
@@ -440,6 +443,7 @@ mod tests {
             block_height: 100,
             mix_node: mixnode_fixture(),
             profit_margin_percent: Some(10),
+            proxy: None
         };
 
         let mix2 = MixNodeBond {
@@ -450,6 +454,7 @@ mod tests {
             block_height: 120,
             mix_node: mixnode_fixture(),
             profit_margin_percent: Some(10),
+            proxy: None
         };
 
         let mix3 = MixNodeBond {
@@ -460,6 +465,7 @@ mod tests {
             block_height: 120,
             mix_node: mixnode_fixture(),
             profit_margin_percent: Some(10),
+            proxy: None
         };
 
         let mix4 = MixNodeBond {
@@ -470,6 +476,7 @@ mod tests {
             block_height: 120,
             mix_node: mixnode_fixture(),
             profit_margin_percent: Some(10),
+            proxy: None
         };
 
         let mix5 = MixNodeBond {
@@ -480,6 +487,7 @@ mod tests {
             block_height: 120,
             mix_node: mixnode_fixture(),
             profit_margin_percent: Some(10),
+            proxy: None
         };
 
         // summary:

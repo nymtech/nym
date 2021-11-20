@@ -238,7 +238,7 @@ impl DelegationAccount for PeriodicVestingAccount {
         if coin.amount < self.get_balance(storage) {
             let msg = MixnetExecuteMsg::DelegateToMixnodeOnBehalf {
                 mix_identity: mix_identity.clone(),
-                delegate_addr: self.address.clone(),
+                delegate: self.address.clone(),
             };
             let messages =
                 vec![
@@ -265,9 +265,9 @@ impl DelegationAccount for PeriodicVestingAccount {
         &self,
         mix_identity: IdentityKey,
     ) -> Result<Response, ContractError> {
-        let msg = MixnetExecuteMsg::UnDelegateFromMixnodeOnBehalf {
+        let msg = MixnetExecuteMsg::UndelegateFromMixnodeOnBehalf {
             mix_identity,
-            delegate_addr: self.address.clone(),
+            delegate: self.address.clone(),
         };
         let messages = vec![wasm_execute(
             DEFAULT_MIXNET_CONTRACT_ADDRESS,

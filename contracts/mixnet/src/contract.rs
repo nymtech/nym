@@ -145,23 +145,29 @@ pub fn execute(
         } => transactions::try_finish_mixnode_rewarding(deps, info, rewarding_interval_nonce),
         ExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_identity,
-            delegate_addr,
+            delegate,
         } => transactions::try_delegate_to_mixnode_on_behalf(
             deps,
             env,
             info,
             mix_identity,
-            delegate_addr,
+            delegate,
         ),
-        ExecuteMsg::UnDelegateFromMixnodeOnBehalf {
+        ExecuteMsg::UndelegateFromMixnodeOnBehalf {
             mix_identity,
-            delegate_addr,
+            delegate,
         } => transactions::try_remove_delegation_from_mixnode_on_behalf(
             deps,
             info,
             mix_identity,
-            delegate_addr,
+            delegate,
         ),
+        ExecuteMsg::BondMixnodeOnBehalf { mix_node, owner } => {
+            transactions::try_add_mixnode_on_behalf(deps, env, info, mix_node, owner)
+        }
+        ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
+            transactions::try_remove_mixnode_on_behalf(deps, env, info, owner)
+        }
     }
 }
 

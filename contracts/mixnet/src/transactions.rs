@@ -59,13 +59,42 @@ fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
     Ok(())
 }
 
-pub(crate) fn try_add_mixnode(
+pub fn try_add_mixnode_on_behalf(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    mix_node: MixNode,
+    owner: Addr,
+) -> Result<Response, ContractError> {
+    let proxy = info.sender.to_owned();
+
+    if proxy != VESTING_CONTRACT_ADDR {
+        return Err(ContractError::Unauthorized);
+    }
+
+    _try_add_mixnode(deps, env, info, mix_node, owner, None)
+}
+
+pub fn try_add_mixnode(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<Response, ContractError> {
-    let sender_bytes = info.sender.as_bytes();
+    let owner = info.sender.to_owned();
+
+    _try_add_mixnode(deps, env, info, mix_node, owner, None)
+}
+
+fn _try_add_mixnode(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    mix_node: MixNode,
+    owner: Addr,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
+    let sender_bytes = owner.as_bytes();
 
     // if the client has an active bonded gateway, don't allow mixnode bonding
     if gateways_owners_read(deps.storage)
@@ -88,7 +117,7 @@ pub(crate) fn try_add_mixnode(
     if let Some(existing_bond) =
         mixnodes_read(deps.storage).may_load(mix_node.identity_key.as_bytes())?
     {
-        if existing_bond.owner != info.sender {
+        if existing_bond.owner != owner {
             return Err(ContractError::DuplicateMixnode {
                 owner: existing_bond.owner,
             });
@@ -103,11 +132,12 @@ pub(crate) fn try_add_mixnode(
 
     let mut bond = MixNodeBond::new(
         info.funds[0].clone(),
-        info.sender.clone(),
+        owner.clone(),
         layer,
         env.block.height,
         mix_node,
         None,
+        proxy,
     );
 
     // this might potentially require more gas if a significant number of delegations was there
@@ -128,6 +158,15 @@ pub(crate) fn try_add_mixnode(
         attributes,
         data: None,
     })
+}
+
+pub fn try_remove_mixnode_on_behalf(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    owner: Addr,
+) -> Result<Response, ContractError> {
+    unimplemented!()
 }
 
 pub(crate) fn try_remove_mixnode(
@@ -670,7 +709,7 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     env: Env,
     info: MessageInfo,
     mix_identity: IdentityKey,
-    delegate_addr: Addr,
+    delegate: Addr,
 ) -> Result<Response, ContractError> {
     // check if the delegation contains any funds of the appropriate denomination
     validate_delegation_stake(&info.funds)?;
@@ -686,7 +725,7 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
         deps,
         env,
         mix_identity,
-        &delegate_addr,
+        &delegate,
         amount,
         Some(proxy_address),
     )
@@ -696,7 +735,7 @@ fn _try_delegate_to_mixnode(
     deps: DepsMut,
     env: Env,
     mix_identity: IdentityKey,
-    delegate_addr: &Addr,
+    delegate: &Addr,
     amount: Uint128,
     proxy_address: Option<Addr>,
 ) -> Result<Response, ContractError> {
@@ -717,14 +756,14 @@ fn _try_delegate_to_mixnode(
     let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
     // We need to differentiate proxy delefations from direct delegations with the same owner
     let sender_bytes = if let Some(proxy_address) = &proxy_address {
-        delegate_addr
+        delegate
             .as_bytes()
             .iter()
             .zip(proxy_address.as_bytes())
             .map(|(x, y)| x ^ y)
             .collect()
     } else {
-        delegate_addr.as_bytes().to_vec()
+        delegate.as_bytes().to_vec()
     };
 
     // write the delegation
@@ -736,7 +775,7 @@ fn _try_delegate_to_mixnode(
     let new_delegation = RawDelegationData::new(new_amount, env.block.height, proxy_address);
     delegation_bucket.save(&sender_bytes, &new_delegation)?;
 
-    reverse_mix_delegations(deps.storage, delegate_addr).save(mix_identity.as_bytes(), &())?;
+    reverse_mix_delegations(deps.storage, delegate).save(mix_identity.as_bytes(), &())?;
 
     Ok(Response::default())
 }
@@ -2169,6 +2208,7 @@ pub mod tests {
                 ..mix_node_fixture()
             },
             profit_margin_percent: Some(10),
+            proxy: None,
         };
 
         mixnodes(deps.as_mut().storage)
@@ -2458,6 +2498,7 @@ pub mod tests {
                 ..mix_node_fixture()
             },
             profit_margin_percent: Some(10),
+            proxy: None,
         };
 
         mixnodes(deps.as_mut().storage)

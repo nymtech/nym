@@ -60,11 +60,18 @@ pub enum ExecuteMsg {
     },
     DelegateToMixnodeOnBehalf {
         mix_identity: IdentityKey,
-        delegate_addr: Addr,
+        delegate: Addr,
     },
-    UnDelegateFromMixnodeOnBehalf {
+    UndelegateFromMixnodeOnBehalf {
         mix_identity: IdentityKey,
-        delegate_addr: Addr,
+        delegate: Addr,
+    },
+    BondMixnodeOnBehalf {
+        mix_node: MixNode,
+        owner: Addr,
+    },
+    UnbondMixnodeOnBehalf {
+        owner: Addr,
     },
 }
 

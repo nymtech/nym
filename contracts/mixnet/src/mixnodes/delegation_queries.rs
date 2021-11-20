@@ -1,6 +1,6 @@
+use super::delegation_helpers;
 use super::storage;
 use crate::error::ContractError;
-use crate::helpers::get_all_delegations_paged;
 use crate::query_support::calculate_start_value;
 use crate::query_support::DELEGATION_PAGE_DEFAULT_LIMIT;
 use crate::query_support::DELEGATION_PAGE_MAX_LIMIT;
@@ -31,7 +31,7 @@ pub(crate) fn query_all_mixnode_delegations_paged(
         v.push(0);
         v
     });
-    get_all_delegations_paged::<RawDelegationData>(&bucket, &start, limit)
+    delegation_helpers::get_all_delegations_paged::<RawDelegationData>(&bucket, &start, limit)
 }
 
 pub(crate) fn query_reverse_mixnode_delegations_paged(

@@ -1,46 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::mixnodes::delegation_helpers::get_all_delegations_paged;
 use crate::mixnodes::delegation_transactions::OLD_DELEGATIONS_CHUNK_SIZE;
-use cosmwasm_std::{Decimal, Order, StdError, StdResult, Uint128};
+use cosmwasm_std::{Order, StdError, StdResult};
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{Addr, IdentityKey, PagedAllDelegationsResponse, UnpackedDelegation};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-
-// Extracts the node identity and owner of a delegation from the bytes used as
-// key in the delegation buckets.
-fn extract_identity_and_owner(bytes: Vec<u8>) -> StdResult<(Addr, IdentityKey)> {
-    // cosmwasm bucket internal value
-    const NAMESPACE_LENGTH: usize = 2;
-
-    if bytes.len() < NAMESPACE_LENGTH {
-        return Err(StdError::parse_err(
-            "mixnet_contract::types::IdentityKey",
-            "Invalid type",
-        ));
-    }
-    let identity_size = u16::from_be_bytes([bytes[0], bytes[1]]) as usize;
-    let identity_bytes: Vec<u8> = bytes
-        .iter()
-        .skip(NAMESPACE_LENGTH)
-        .take(identity_size)
-        .copied()
-        .collect();
-    let identity = IdentityKey::from_utf8(identity_bytes)
-        .map_err(|_| StdError::parse_err("mixnet_contract::types::IdentityKey", "Invalid type"))?;
-    let owner_bytes: Vec<u8> = bytes
-        .iter()
-        .skip(NAMESPACE_LENGTH + identity_size)
-        .copied()
-        .collect();
-    let owner = Addr::unchecked(
-        String::from_utf8(owner_bytes)
-            .map_err(|_| StdError::parse_err("cosmwasm_std::addresses::Addr", "Invalid type"))?,
-    );
-
-    Ok((owner, identity))
-}
 
 // currently not used outside tests
 #[cfg(test)]
@@ -52,43 +19,6 @@ pub(crate) fn identity_and_owner_to_bytes(identity: &str, owner: &Addr) -> Vec<u
     bytes.append(&mut owner.as_bytes().to_vec());
 
     bytes
-}
-
-pub(crate) fn get_all_delegations_paged<T>(
-    bucket: &ReadonlyBucket<T>,
-    start_after: &Option<Vec<u8>>,
-    limit: usize,
-) -> StdResult<PagedAllDelegationsResponse<T>>
-where
-    T: Serialize + DeserializeOwned,
-{
-    let delegations = bucket
-        .range(start_after.as_deref(), None, Order::Ascending)
-        .filter(|res| res.is_ok())
-        .take(limit)
-        .map(|res| {
-            res.map(|entry| {
-                let (owner, identity) = extract_identity_and_owner(entry.0).expect("Invalid node identity or address used as key in bucket. The storage is corrupted!");
-                UnpackedDelegation::new(owner, identity, entry.1)
-            })
-        })
-        .collect::<StdResult<Vec<UnpackedDelegation<T>>>>()?;
-
-    let start_next_after = if let Some(Ok(last)) = bucket
-        .range(start_after.as_deref(), None, Order::Ascending)
-        .filter(|res| res.is_ok())
-        .take(limit)
-        .last()
-    {
-        Some(last.0)
-    } else {
-        None
-    };
-
-    Ok(PagedAllDelegationsResponse::new(
-        delegations,
-        start_next_after,
-    ))
 }
 
 pub struct Delegations<'a, T: Clone + Serialize + DeserializeOwned> {
@@ -185,18 +115,6 @@ mod tests {
             delegations.next().unwrap();
         }
         assert!(delegations.next().is_none());
-    }
-
-    #[test]
-    fn identity_and_owner_deserialization() {
-        assert!(extract_identity_and_owner(vec![]).is_err());
-        assert!(extract_identity_and_owner(vec![0]).is_err());
-        let (owner, identity) = extract_identity_and_owner(vec![
-            0, 7, 109, 105, 120, 110, 111, 100, 101, 97, 108, 105, 99, 101,
-        ])
-        .unwrap();
-        assert_eq!(owner, "alice");
-        assert_eq!(identity, "mixnode");
     }
 
     #[test]

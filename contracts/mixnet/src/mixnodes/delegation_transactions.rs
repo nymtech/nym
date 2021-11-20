@@ -939,7 +939,6 @@ mod tests {
     mod multi_delegations {
         use super::*;
         use crate::mixnodes::delegation_queries::tests::store_n_mix_delegations;
-        use crate::query_support::DELEGATION_PAGE_DEFAULT_LIMIT;
         use crate::support::tests::test_helpers;
         use mixnet_contract::IdentityKey;
         use mixnet_contract::RawDelegationData;
@@ -948,14 +947,14 @@ mod tests {
             let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
             store_n_mix_delegations(
-                DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+                storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,
             );
             let mix_bucket = storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
             let mix_delegations = delegation_helpers::Delegations::new(mix_bucket);
             assert_eq!(
-                DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+                storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 mix_delegations.count() as u32
             );
         }

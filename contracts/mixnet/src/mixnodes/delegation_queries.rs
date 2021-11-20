@@ -2,9 +2,6 @@ use super::delegation_helpers;
 use super::storage;
 use crate::error::ContractError;
 use crate::query_support::calculate_start_value;
-use crate::query_support::DELEGATION_PAGE_DEFAULT_LIMIT;
-use crate::query_support::DELEGATION_PAGE_MAX_LIMIT;
-
 use config::defaults::DENOM;
 use cosmwasm_std::coin;
 use cosmwasm_std::Addr;
@@ -23,8 +20,8 @@ pub(crate) fn query_all_mixnode_delegations_paged(
     limit: Option<u32>,
 ) -> StdResult<PagedAllDelegationsResponse<RawDelegationData>> {
     let limit = limit
-        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
-        .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
+        .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
+        .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
 
     let bucket = storage::all_mix_delegations_read::<RawDelegationData>(deps.storage);
     let start = start_after.map(|mut v| {
@@ -41,8 +38,8 @@ pub(crate) fn query_reverse_mixnode_delegations_paged(
     limit: Option<u32>,
 ) -> StdResult<PagedReverseMixDelegationsResponse> {
     let limit = limit
-        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
-        .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
+        .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
+        .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
     let delegations = storage::reverse_mix_delegations_read(deps.storage, &delegation_owner)
@@ -131,7 +128,7 @@ pub(crate) mod tests {
             let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
             store_n_mix_delegations(
-                DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+                storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,
             );
@@ -140,7 +137,7 @@ pub(crate) mod tests {
             let page1 =
                 query_mixnode_delegations_paged(deps.as_ref(), node_identity, None, None).unwrap();
             assert_eq!(
-                DELEGATION_PAGE_DEFAULT_LIMIT,
+                storage::DELEGATION_PAGE_DEFAULT_LIMIT,
                 page1.delegations.len() as u32
             );
         }
@@ -150,13 +147,13 @@ pub(crate) mod tests {
             let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
             store_n_mix_delegations(
-                DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+                storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,
             );
 
             // query with a crazily high limit in an attempt to use too many resources
-            let crazy_limit = 1000 * DELEGATION_PAGE_DEFAULT_LIMIT;
+            let crazy_limit = 1000 * storage::DELEGATION_PAGE_DEFAULT_LIMIT;
             let page1 = query_mixnode_delegations_paged(
                 deps.as_ref(),
                 node_identity,
@@ -166,7 +163,7 @@ pub(crate) mod tests {
             .unwrap();
 
             // we default to a decent sized upper bound instead
-            let expected_limit = DELEGATION_PAGE_MAX_LIMIT;
+            let expected_limit = storage::DELEGATION_PAGE_MAX_LIMIT;
             assert_eq!(expected_limit, page1.delegations.len() as u32);
         }
 
@@ -275,7 +272,7 @@ pub(crate) mod tests {
             let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
             store_n_mix_delegations(
-                DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+                storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,
             );
@@ -283,7 +280,7 @@ pub(crate) mod tests {
             // query without explicitly setting a limit
             let page1 = query_all_mixnode_delegations_paged(deps.as_ref(), None, None).unwrap();
             assert_eq!(
-                DELEGATION_PAGE_DEFAULT_LIMIT,
+                storage::DELEGATION_PAGE_DEFAULT_LIMIT,
                 page1.delegations.len() as u32
             );
         }
@@ -293,19 +290,19 @@ pub(crate) mod tests {
             let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
             store_n_mix_delegations(
-                DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+                storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &node_identity,
             );
 
             // query with a crazily high limit in an attempt to use too many resources
-            let crazy_limit = 1000 * DELEGATION_PAGE_DEFAULT_LIMIT;
+            let crazy_limit = 1000 * storage::DELEGATION_PAGE_DEFAULT_LIMIT;
             let page1 =
                 query_all_mixnode_delegations_paged(deps.as_ref(), None, Option::from(crazy_limit))
                     .unwrap();
 
             // we default to a decent sized upper bound instead
-            let expected_limit = DELEGATION_PAGE_MAX_LIMIT;
+            let expected_limit = storage::DELEGATION_PAGE_MAX_LIMIT;
             assert_eq!(expected_limit, page1.delegations.len() as u32);
         }
 
@@ -494,7 +491,7 @@ pub(crate) mod tests {
             let mut deps = test_helpers::init_contract();
             let delegation_owner = Addr::unchecked("foo");
             store_n_reverse_delegations(
-                DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+                storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &delegation_owner,
             );
@@ -508,7 +505,7 @@ pub(crate) mod tests {
             )
             .unwrap();
             assert_eq!(
-                DELEGATION_PAGE_DEFAULT_LIMIT,
+                storage::DELEGATION_PAGE_DEFAULT_LIMIT,
                 page1.delegated_nodes.len() as u32
             );
         }
@@ -518,13 +515,13 @@ pub(crate) mod tests {
             let mut deps = test_helpers::init_contract();
             let delegation_owner = Addr::unchecked("foo");
             store_n_reverse_delegations(
-                DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+                storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
                 &delegation_owner,
             );
 
             // query with a crazy high limit in an attempt to use too many resources
-            let crazy_limit = 1000 * DELEGATION_PAGE_DEFAULT_LIMIT;
+            let crazy_limit = 1000 * storage::DELEGATION_PAGE_DEFAULT_LIMIT;
             let page1 = query_reverse_mixnode_delegations_paged(
                 deps.as_ref(),
                 delegation_owner,
@@ -534,7 +531,7 @@ pub(crate) mod tests {
             .unwrap();
 
             // we default to a decent sized upper bound instead
-            let expected_limit = DELEGATION_PAGE_MAX_LIMIT;
+            let expected_limit = storage::DELEGATION_PAGE_MAX_LIMIT;
             assert_eq!(expected_limit, page1.delegated_nodes.len() as u32);
         }
 

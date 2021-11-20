@@ -1,10 +1,7 @@
+use super::storage;
 use crate::query_support::calculate_start_value;
 use crate::query_support::BOND_PAGE_DEFAULT_LIMIT;
 use crate::query_support::BOND_PAGE_MAX_LIMIT;
-
-use super::storage;
-use crate::query_support::DELEGATION_PAGE_DEFAULT_LIMIT;
-use crate::query_support::DELEGATION_PAGE_MAX_LIMIT;
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
 use mixnet_contract::{
@@ -47,8 +44,8 @@ pub(crate) fn query_mixnode_delegations_paged(
     limit: Option<u32>,
 ) -> StdResult<PagedMixDelegationsResponse> {
     let limit = limit
-        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
-        .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
+        .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
+        .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
     let delegations = storage::mix_delegations_read(deps.storage, &mix_identity)

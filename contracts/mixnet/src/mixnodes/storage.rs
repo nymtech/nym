@@ -1,5 +1,4 @@
 use crate::error::ContractError;
-use crate::query_support::DELEGATION_PAGE_MAX_LIMIT;
 use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Decimal;
@@ -25,6 +24,11 @@ const PREFIX_MIXNODES_OWNERS: &[u8] = b"mo";
 const PREFIX_MIX_DELEGATION: &[u8] = b"md";
 const PREFIX_REVERSE_MIX_DELEGATION: &[u8] = b"dm";
 pub const PREFIX_REWARDED_MIXNODES: &[u8] = b"rm";
+
+// paged retrieval limits for all queries and transactions
+// currently the maximum limit before running into memory issue is somewhere between 1150 and 1200
+pub(crate) const DELEGATION_PAGE_MAX_LIMIT: u32 = 750;
+pub(crate) const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 500;
 
 pub fn mixnodes(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
     bucket(storage, PREFIX_MIXNODES)
@@ -229,6 +233,7 @@ pub fn reverse_mix_delegations_read<'a>(
 #[cfg(test)]
 mod tests {
     use super::super::storage;
+    use super::*;
     use crate::support::tests::test_helpers;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, MockStorage};
@@ -330,7 +335,6 @@ mod tests {
     mod increasing_mix_delegated_stakes {
         use super::*;
         use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
-        use crate::query_support::DELEGATION_PAGE_MAX_LIMIT;
         use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
         use cosmwasm_std::testing::mock_dependencies;
         use cosmwasm_std::Decimal;

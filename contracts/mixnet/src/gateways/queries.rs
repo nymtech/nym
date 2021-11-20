@@ -1,7 +1,6 @@
 use super::storage;
+use crate::mixnodes::storage::{BOND_PAGE_DEFAULT_LIMIT, BOND_PAGE_MAX_LIMIT}; // Keeps gateway and mixnode retrieval in sync by re-using the constant. Debatable.
 use crate::query_support::calculate_start_value;
-use crate::query_support::BOND_PAGE_DEFAULT_LIMIT;
-
 use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use mixnet_contract::{GatewayBond, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse};
 
@@ -12,7 +11,7 @@ pub(crate) fn query_gateways_paged(
 ) -> StdResult<PagedGatewayResponse> {
     let limit = limit
         .unwrap_or(BOND_PAGE_DEFAULT_LIMIT)
-        .min(BOND_PAGE_DEFAULT_LIMIT) as usize;
+        .min(BOND_PAGE_MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
     let nodes = storage::gateways_read(deps.storage)
@@ -97,7 +96,7 @@ pub(crate) mod tests {
         let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
 
         // we default to a decent sized upper bound instead
-        let expected_limit = BOND_PAGE_DEFAULT_LIMIT;
+        let expected_limit = BOND_PAGE_MAX_LIMIT;
         assert_eq!(expected_limit, page1.nodes.len() as u32);
     }
 

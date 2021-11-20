@@ -41,15 +41,14 @@ pub(crate) mod tests {
     use super::*;
 
     use crate::gateways::storage;
-    use crate::support::tests::helpers;
-    use crate::support::tests::helpers::good_gateway_bond;
+    use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Addr, Storage};
     use mixnet_contract::Gateway;
 
     #[test]
     fn gateways_empty_on_init() {
-        let deps = helpers::init_contract();
+        let deps = test_helpers::init_contract();
         let response = query_gateways_paged(deps.as_ref(), None, Option::from(2)).unwrap();
         assert_eq!(0, response.nodes.len());
     }
@@ -57,7 +56,7 @@ pub(crate) mod tests {
     fn store_n_gateway_fixtures(n: u32, storage: &mut dyn Storage) {
         for i in 0..n {
             let key = format!("bond{}", i);
-            let node = helpers::gateway_bond_fixture();
+            let node = test_helpers::gateway_bond_fixture();
             storage::gateways(storage)
                 .save(key.as_bytes(), &node)
                 .unwrap();
@@ -66,7 +65,7 @@ pub(crate) mod tests {
 
     #[test]
     fn gateways_paged_retrieval_obeys_limits() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let storage = deps.as_mut().storage;
         let limit = 2;
         store_n_gateway_fixtures(100, storage);
@@ -77,7 +76,7 @@ pub(crate) mod tests {
 
     #[test]
     fn gateways_paged_retrieval_has_default_limit() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let storage = deps.as_mut().storage;
         store_n_gateway_fixtures(10 * BOND_PAGE_DEFAULT_LIMIT, storage);
 
@@ -89,7 +88,7 @@ pub(crate) mod tests {
 
     #[test]
     fn gateways_paged_retrieval_has_max_limit() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let storage = deps.as_mut().storage;
         store_n_gateway_fixtures(100, storage);
 
@@ -109,8 +108,8 @@ pub(crate) mod tests {
         let addr3 = "hal102";
         let addr4 = "hal103";
 
-        let mut deps = helpers::init_contract();
-        let node = helpers::gateway_bond_fixture();
+        let mut deps = test_helpers::init_contract();
+        let node = test_helpers::gateway_bond_fixture();
         storage::gateways(&mut deps.storage)
             .save(addr1.as_bytes(), &node)
             .unwrap();
@@ -168,7 +167,7 @@ pub(crate) mod tests {
 
     #[test]
     fn query_for_gateway_owner_works() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
 
         // "fred" does not own a mixnode if there are no mixnodes
         let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
@@ -177,12 +176,12 @@ pub(crate) mod tests {
         // mixnode was added to "bob", "fred" still does not own one
         let node = Gateway {
             identity_key: "bobsnode".into(),
-            ..helpers::gateway_fixture()
+            ..test_helpers::gateway_fixture()
         };
         crate::gateways::transactions::try_add_gateway(
             deps.as_mut(),
             mock_env(),
-            mock_info("bob", &good_gateway_bond()),
+            mock_info("bob", &test_helpers::good_gateway_bond()),
             node,
         )
         .unwrap();
@@ -193,12 +192,12 @@ pub(crate) mod tests {
         // "fred" now owns a gateway!
         let node = Gateway {
             identity_key: "fredsnode".into(),
-            ..helpers::gateway_fixture()
+            ..test_helpers::gateway_fixture()
         };
         crate::gateways::transactions::try_add_gateway(
             deps.as_mut(),
             mock_env(),
-            mock_info("fred", &good_gateway_bond()),
+            mock_info("fred", &test_helpers::good_gateway_bond()),
             node,
         )
         .unwrap();

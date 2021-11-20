@@ -138,7 +138,7 @@ mod tests {
     use super::*;
     use crate::mixnodes::delegation_queries::tests::store_n_mix_delegations;
     use crate::mixnodes::storage as mixnodes_storage;
-    use crate::support::tests::helpers;
+    use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_dependencies;
     use mixnet_contract::RawDelegationData;
 
@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn delegations_iterator() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let node_identity: IdentityKey = "foo".into();
 
         store_n_mix_delegations(

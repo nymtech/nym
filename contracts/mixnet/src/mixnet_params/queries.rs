@@ -19,13 +19,13 @@ pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse 
 pub(crate) mod tests {
     use super::*;
     use crate::mixnet_params::state::State;
-    use crate::support::tests::helpers;
+    use crate::support::tests::test_helpers;
 
     use cosmwasm_std::Addr;
 
     #[test]
     fn query_for_contract_state_works() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
 
         let dummy_state = State {
             owner: Addr::unchecked("someowner"),

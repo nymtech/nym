@@ -301,8 +301,8 @@ pub mod tests {
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
         try_reward_mixnode_v2,
     };
-    use crate::support::tests::helpers as test_helpers;
-    use crate::support::tests::helpers::{good_mixnode_bond, mix_node_fixture};
+    use crate::support::tests::test_helpers;
+    use crate::support::tests::test_helpers::{good_mixnode_bond, mix_node_fixture};
     use config::defaults::DENOM;
     use cosmwasm_std::attr;
     use cosmwasm_std::testing::{mock_env, mock_info};
@@ -317,7 +317,7 @@ pub mod tests {
     mod beginning_mixnode_rewarding {
         use super::*;
         use crate::rewards::transactions::try_begin_mixnode_rewarding;
-        use crate::support::tests::helpers as test_helpers;
+        use crate::support::tests::test_helpers;
         use cosmwasm_std::testing::mock_env;
 
         #[test]
@@ -505,7 +505,7 @@ pub mod tests {
         use crate::rewards::transactions::{
             try_begin_mixnode_rewarding, try_finish_mixnode_rewarding,
         };
-        use crate::support::tests::helpers as test_helpers;
+        use crate::support::tests::test_helpers;
 
         #[test]
         fn can_only_be_called_by_specified_validator_address() {

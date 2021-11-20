@@ -34,7 +34,7 @@ mod tests {
     use cosmwasm_std::Storage;
 
     use super::super::storage;
-    use crate::support::tests::helpers::{gateway_bond_fixture, gateway_fixture};
+    use crate::support::tests::test_helpers;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::{coin, Addr, Uint128};
@@ -55,8 +55,8 @@ mod tests {
     #[test]
     fn gateway_single_read_retrieval() {
         let mut storage = MockStorage::new();
-        let bond1 = gateway_bond_fixture();
-        let bond2 = gateway_bond_fixture();
+        let bond1 = test_helpers::gateway_bond_fixture();
+        let bond2 = test_helpers::gateway_bond_fixture();
         storage::gateways(&mut storage)
             .save(b"bond1", &bond1)
             .unwrap();
@@ -89,7 +89,7 @@ mod tests {
             block_height: 12_345,
             gateway: Gateway {
                 identity_key: node_identity.clone(),
-                ..gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         };
 

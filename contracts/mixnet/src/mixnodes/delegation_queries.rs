@@ -87,8 +87,7 @@ pub(crate) fn query_mixnode_delegation(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::support::tests::helpers;
-    use crate::support::tests::helpers::raw_delegation_fixture;
+    use crate::support::tests::test_helpers;
     use cosmwasm_std::{Addr, Storage};
     use storage::mix_delegations;
 
@@ -96,7 +95,10 @@ pub(crate) mod tests {
         for i in 0..n {
             let address = format!("address{}", i);
             mix_delegations(storage, node_identity)
-                .save(address.as_bytes(), &raw_delegation_fixture(42))
+                .save(
+                    address.as_bytes(),
+                    &test_helpers::raw_delegation_fixture(42),
+                )
                 .unwrap();
         }
     }
@@ -109,7 +111,7 @@ pub(crate) mod tests {
 
         #[test]
         fn retrieval_obeys_limits() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let limit = 2;
             let node_identity: IdentityKey = "foo".into();
             store_n_mix_delegations(100, &mut deps.storage, &node_identity);
@@ -126,7 +128,7 @@ pub(crate) mod tests {
 
         #[test]
         fn retrieval_has_default_limit() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
             store_n_mix_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
@@ -145,7 +147,7 @@ pub(crate) mod tests {
 
         #[test]
         fn retrieval_has_max_limit() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
             store_n_mix_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
@@ -170,11 +172,11 @@ pub(crate) mod tests {
 
         #[test]
         fn pagination_works() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
 
             mix_delegations(&mut deps.storage, &node_identity)
-                .save("1".as_bytes(), &raw_delegation_fixture(42))
+                .save("1".as_bytes(), &test_helpers::raw_delegation_fixture(42))
                 .unwrap();
 
             let per_page = 2;
@@ -191,7 +193,7 @@ pub(crate) mod tests {
 
             // save another
             mix_delegations(&mut deps.storage, &node_identity)
-                .save("2".as_bytes(), &raw_delegation_fixture(42))
+                .save("2".as_bytes(), &test_helpers::raw_delegation_fixture(42))
                 .unwrap();
 
             // page1 should have 2 results on it
@@ -205,7 +207,7 @@ pub(crate) mod tests {
             assert_eq!(2, page1.delegations.len());
 
             mix_delegations(&mut deps.storage, &node_identity)
-                .save("3".as_bytes(), &raw_delegation_fixture(42))
+                .save("3".as_bytes(), &test_helpers::raw_delegation_fixture(42))
                 .unwrap();
 
             // page1 still has 2 results
@@ -232,7 +234,7 @@ pub(crate) mod tests {
 
             // save another one
             mix_delegations(&mut deps.storage, &node_identity)
-                .save("4".as_bytes(), &raw_delegation_fixture(42))
+                .save("4".as_bytes(), &test_helpers::raw_delegation_fixture(42))
                 .unwrap();
 
             let start_after = Addr::unchecked("2");
@@ -252,12 +254,12 @@ pub(crate) mod tests {
     #[cfg(test)]
     mod querying_for_all_mixnode_delegations_paged {
         use super::*;
-        use crate::support::tests::helpers as test_helpers;
+        use crate::support::tests::test_helpers;
         use mixnet_contract::IdentityKey;
 
         #[test]
         fn retrieval_obeys_limits() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let limit = 2;
             let node_identity: IdentityKey = "foo".into();
             store_n_mix_delegations(100, &mut deps.storage, &node_identity);
@@ -270,7 +272,7 @@ pub(crate) mod tests {
 
         #[test]
         fn retrieval_has_default_limit() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
             store_n_mix_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
@@ -288,7 +290,7 @@ pub(crate) mod tests {
 
         #[test]
         fn retrieval_has_max_limit() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
             store_n_mix_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
@@ -309,11 +311,11 @@ pub(crate) mod tests {
 
         #[test]
         fn pagination_works() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
 
             mix_delegations(&mut deps.storage, &node_identity)
-                .save("1".as_bytes(), &raw_delegation_fixture(42))
+                .save("1".as_bytes(), &test_helpers::raw_delegation_fixture(42))
                 .unwrap();
 
             let per_page = 2;
@@ -326,7 +328,7 @@ pub(crate) mod tests {
 
             // save another
             mix_delegations(&mut deps.storage, &node_identity)
-                .save("2".as_bytes(), &raw_delegation_fixture(42))
+                .save("2".as_bytes(), &test_helpers::raw_delegation_fixture(42))
                 .unwrap();
 
             // page1 should have 2 results on it
@@ -336,7 +338,7 @@ pub(crate) mod tests {
             assert_eq!(2, page1.delegations.len());
 
             mix_delegations(&mut deps.storage, &node_identity)
-                .save("3".as_bytes(), &raw_delegation_fixture(42))
+                .save("3".as_bytes(), &test_helpers::raw_delegation_fixture(42))
                 .unwrap();
 
             // page1 still has 2 results
@@ -359,7 +361,7 @@ pub(crate) mod tests {
 
             // save another one
             mix_delegations(&mut deps.storage, &node_identity)
-                .save("4".as_bytes(), &raw_delegation_fixture(42))
+                .save("4".as_bytes(), &test_helpers::raw_delegation_fixture(42))
                 .unwrap();
 
             let page2 = query_all_mixnode_delegations_paged(
@@ -376,7 +378,7 @@ pub(crate) mod tests {
 
     #[test]
     fn mix_deletion_query_returns_current_delegation_value() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let node_identity: IdentityKey = "foo".into();
         let delegation_owner = Addr::unchecked("bar");
 
@@ -399,7 +401,7 @@ pub(crate) mod tests {
 
     #[test]
     fn mix_deletion_query_returns_error_if_delegation_doesnt_exist() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
 
         let node_identity1: IdentityKey = "foo1".into();
         let node_identity2: IdentityKey = "foo2".into();
@@ -420,7 +422,10 @@ pub(crate) mod tests {
 
         // add delegation from a different address
         mix_delegations(&mut deps.storage, &node_identity1)
-            .save(delegation_owner2.as_bytes(), &raw_delegation_fixture(42))
+            .save(
+                delegation_owner2.as_bytes(),
+                &test_helpers::raw_delegation_fixture(42),
+            )
             .unwrap();
 
         assert_eq!(
@@ -437,7 +442,10 @@ pub(crate) mod tests {
 
         // add delegation for a different node
         mix_delegations(&mut deps.storage, &node_identity2)
-            .save(delegation_owner1.as_bytes(), &raw_delegation_fixture(42))
+            .save(
+                delegation_owner1.as_bytes(),
+                &test_helpers::raw_delegation_fixture(42),
+            )
             .unwrap();
 
         assert_eq!(
@@ -466,7 +474,7 @@ pub(crate) mod tests {
 
         #[test]
         fn retrieval_obeys_limits() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let limit = 2;
             let delegation_owner = Addr::unchecked("foo");
             store_n_reverse_delegations(100, &mut deps.storage, &delegation_owner);
@@ -483,7 +491,7 @@ pub(crate) mod tests {
 
         #[test]
         fn retrieval_has_default_limit() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let delegation_owner = Addr::unchecked("foo");
             store_n_reverse_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
@@ -507,7 +515,7 @@ pub(crate) mod tests {
 
         #[test]
         fn retrieval_has_max_limit() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let delegation_owner = Addr::unchecked("foo");
             store_n_reverse_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
@@ -532,7 +540,7 @@ pub(crate) mod tests {
 
         #[test]
         fn pagination_works() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let delegation_owner = Addr::unchecked("bar");
 
             reverse_mix_delegations(&mut deps.storage, &delegation_owner)

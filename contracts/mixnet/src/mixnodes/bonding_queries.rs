@@ -81,27 +81,26 @@ pub(crate) mod tests {
     use super::*;
 
     use super::storage;
-    use crate::support::tests::helpers;
-    use crate::support::tests::helpers::good_mixnode_bond;
+    use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
     use mixnet_contract::MixNode;
 
     #[test]
     fn mixnodes_empty_on_init() {
-        let deps = helpers::init_contract();
+        let deps = test_helpers::init_contract();
         let response = query_mixnodes_paged(deps.as_ref(), None, Option::from(2)).unwrap();
         assert_eq!(0, response.nodes.len());
     }
 
     #[test]
     fn mixnodes_paged_retrieval_obeys_limits() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let storage = deps.as_mut().storage;
         let limit = 2;
         for n in 0..10000 {
             let key = format!("bond{}", n);
-            let node = helpers::mixnode_bond_fixture();
+            let node = test_helpers::mixnode_bond_fixture();
             storage::mixnodes(storage)
                 .save(key.as_bytes(), &node)
                 .unwrap();
@@ -113,11 +112,11 @@ pub(crate) mod tests {
 
     #[test]
     fn mixnodes_paged_retrieval_has_default_limit() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let storage = deps.as_mut().storage;
         for n in 0..100 {
             let key = format!("bond{}", n);
-            let node = helpers::mixnode_bond_fixture();
+            let node = test_helpers::mixnode_bond_fixture();
             storage::mixnodes(storage)
                 .save(key.as_bytes(), &node)
                 .unwrap();
@@ -132,11 +131,11 @@ pub(crate) mod tests {
 
     #[test]
     fn mixnodes_paged_retrieval_has_max_limit() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let storage = deps.as_mut().storage;
         for n in 0..10000 {
             let key = format!("bond{}", n);
-            let node = helpers::mixnode_bond_fixture();
+            let node = test_helpers::mixnode_bond_fixture();
             storage::mixnodes(storage)
                 .save(key.as_bytes(), &node)
                 .unwrap();
@@ -158,8 +157,8 @@ pub(crate) mod tests {
         let addr3 = "hal102";
         let addr4 = "hal103";
 
-        let mut deps = helpers::init_contract();
-        let node = helpers::mixnode_bond_fixture();
+        let mut deps = test_helpers::init_contract();
+        let node = test_helpers::mixnode_bond_fixture();
         storage::mixnodes(&mut deps.storage)
             .save(addr1.as_bytes(), &node)
             .unwrap();
@@ -217,7 +216,7 @@ pub(crate) mod tests {
 
     #[test]
     fn query_for_mixnode_owner_works() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
 
         // "fred" does not own a mixnode if there are no mixnodes
         let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
@@ -226,12 +225,12 @@ pub(crate) mod tests {
         // mixnode was added to "bob", "fred" still does not own one
         let node = MixNode {
             identity_key: "bobsnode".into(),
-            ..helpers::mix_node_fixture()
+            ..test_helpers::mix_node_fixture()
         };
         crate::mixnodes::bonding_transactions::try_add_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("bob", &good_mixnode_bond()),
+            mock_info("bob", &test_helpers::good_mixnode_bond()),
             node,
         )
         .unwrap();
@@ -242,12 +241,12 @@ pub(crate) mod tests {
         // "fred" now owns a mixnode!
         let node = MixNode {
             identity_key: "fredsnode".into(),
-            ..helpers::mix_node_fixture()
+            ..test_helpers::mix_node_fixture()
         };
         crate::mixnodes::bonding_transactions::try_add_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("fred", &good_mixnode_bond()),
+            mock_info("fred", &test_helpers::good_mixnode_bond()),
             node,
         )
         .unwrap();

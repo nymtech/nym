@@ -1,5 +1,5 @@
 #[cfg(test)]
-pub mod helpers {
+pub mod test_helpers {
     use super::*;
     use crate::contract::query;
     use crate::contract::{instantiate, INITIAL_MIXNODE_BOND};
@@ -36,7 +36,7 @@ pub mod helpers {
             info,
             MixNode {
                 identity_key: key.clone(),
-                ..helpers::mix_node_fixture()
+                ..test_helpers::mix_node_fixture()
             },
         )
         .unwrap();
@@ -73,7 +73,7 @@ pub mod helpers {
             info,
             Gateway {
                 identity_key: key.clone(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         )
         .unwrap();

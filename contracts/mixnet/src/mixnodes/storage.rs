@@ -229,10 +229,7 @@ pub fn reverse_mix_delegations_read<'a>(
 #[cfg(test)]
 mod tests {
     use super::super::storage;
-    use crate::support::tests::helpers as test_helpers;
-    use crate::support::tests::helpers::{
-        mix_node_fixture, mixnode_bond_fixture, raw_delegation_fixture,
-    };
+    use crate::support::tests::test_helpers;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, MockStorage};
     use cosmwasm_std::{coin, Addr, Uint128};
@@ -245,8 +242,8 @@ mod tests {
     #[test]
     fn mixnode_single_read_retrieval() {
         let mut storage = MockStorage::new();
-        let bond1 = mixnode_bond_fixture();
-        let bond2 = mixnode_bond_fixture();
+        let bond1 = test_helpers::mixnode_bond_fixture();
+        let bond2 = test_helpers::mixnode_bond_fixture();
         storage::mixnodes(&mut storage)
             .save(b"bond1", &bond1)
             .unwrap();
@@ -281,7 +278,7 @@ mod tests {
             block_height: 12_345,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
-                ..mix_node_fixture()
+                ..test_helpers::mix_node_fixture()
             },
             profit_margin_percent: Some(10),
         };
@@ -490,7 +487,7 @@ mod tests {
             for i in 0..100 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 assert_eq!(
-                    raw_delegation_fixture(1001),
+                    test_helpers::raw_delegation_fixture(1001),
                     storage::mix_delegations_read(&deps.storage, &node_identity)
                         .load(delegator_address.as_bytes())
                         .unwrap()
@@ -533,7 +530,7 @@ mod tests {
             for i in 0..DELEGATION_PAGE_MAX_LIMIT * 10 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
                 assert_eq!(
-                    raw_delegation_fixture(1001),
+                    test_helpers::raw_delegation_fixture(1001),
                     storage::mix_delegations_read(&deps.storage, &node_identity)
                         .load(delegator_address.as_bytes())
                         .unwrap()
@@ -545,11 +542,11 @@ mod tests {
     #[cfg(test)]
     mod reverse_mix_delegations {
         use super::*;
-        use crate::support::tests::helpers;
+        use crate::support::tests::test_helpers;
 
         #[test]
         fn reverse_mix_delegation_exists() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
             let delegation_owner = Addr::unchecked("bar");
 
@@ -568,7 +565,7 @@ mod tests {
 
         #[test]
         fn reverse_mix_delegation_returns_none_if_delegation_doesnt_exist() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
 
             let node_identity1: IdentityKey = "foo1".into();
             let node_identity2: IdentityKey = "foo2".into();

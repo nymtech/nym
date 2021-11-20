@@ -146,8 +146,7 @@ pub mod tests {
     use crate::error::ContractError;
     use crate::gateways::transactions::try_add_gateway;
     use crate::gateways::transactions::validate_gateway_bond;
-    use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{good_gateway_bond, good_mixnode_bond};
+    use crate::support::tests::test_helpers;
     use config::defaults::DENOM;
     use cosmwasm_std::attr;
     use cosmwasm_std::testing::{mock_env, mock_info};
@@ -164,7 +163,7 @@ pub mod tests {
         assert_eq!(result, Err(ContractError::NoBondFound));
 
         // you must send at least 100 coins...
-        let mut bond = good_gateway_bond();
+        let mut bond = test_helpers::good_gateway_bond();
         bond[0].amount = INITIAL_GATEWAY_BOND.checked_sub(Uint128(1)).unwrap();
         let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
         assert_eq!(
@@ -176,18 +175,18 @@ pub mod tests {
         );
 
         // more than that is still fine
-        let mut bond = good_gateway_bond();
+        let mut bond = test_helpers::good_gateway_bond();
         bond[0].amount = INITIAL_GATEWAY_BOND + Uint128(1);
         let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
         assert!(result.is_ok());
 
         // it must be sent in the defined denom!
-        let mut bond = good_gateway_bond();
+        let mut bond = test_helpers::good_gateway_bond();
         bond[0].denom = "baddenom".to_string();
         let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
 
-        let mut bond = good_gateway_bond();
+        let mut bond = test_helpers::good_gateway_bond();
         bond[0].denom = "foomp".to_string();
         let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
@@ -195,13 +194,13 @@ pub mod tests {
 
     #[test]
     fn gateway_add() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
 
         // if we fail validation (by say not sending enough funds
         let insufficient_bond = Into::<u128>::into(INITIAL_GATEWAY_BOND) - 1;
         let info = mock_info("anyone", &coins(insufficient_bond, DENOM));
         let msg = ExecuteMsg::BondGateway {
-            gateway: helpers::gateway_fixture(),
+            gateway: test_helpers::gateway_fixture(),
         };
 
         // we are informed that we didn't send enough funds
@@ -228,11 +227,11 @@ pub mod tests {
         assert_eq!(0, page.nodes.len());
 
         // if we send enough funds
-        let info = mock_info("anyone", &good_gateway_bond());
+        let info = mock_info("anyone", &test_helpers::good_gateway_bond());
         let msg = ExecuteMsg::BondGateway {
             gateway: Gateway {
                 identity_key: "anyonesgateway".into(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         };
 
@@ -255,28 +254,28 @@ pub mod tests {
         assert_eq!(
             &Gateway {
                 identity_key: "anyonesgateway".into(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
             page.nodes[0].gateway()
         );
 
         // if there was already a gateway bonded by particular user
-        let info = mock_info("foomper", &good_gateway_bond());
+        let info = mock_info("foomper", &test_helpers::good_gateway_bond());
         let msg = ExecuteMsg::BondGateway {
             gateway: Gateway {
                 identity_key: "foompersgateway".into(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         };
 
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(execute_response.attributes[0], attr("overwritten", false));
 
-        let info = mock_info("foomper", &good_gateway_bond());
+        let info = mock_info("foomper", &test_helpers::good_gateway_bond());
         let msg = ExecuteMsg::BondGateway {
             gateway: Gateway {
                 identity_key: "foompersgateway".into(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         };
 
@@ -285,18 +284,18 @@ pub mod tests {
         assert_eq!(execute_response.attributes[0], attr("overwritten", true));
 
         // bonding fails if the user already owns a mixnode
-        let info = mock_info("mixnode-owner", &good_mixnode_bond());
+        let info = mock_info("mixnode-owner", &test_helpers::good_mixnode_bond());
         let msg = ExecuteMsg::BondMixnode {
             mix_node: MixNode {
                 identity_key: "ownersmix".into(),
-                ..helpers::mix_node_fixture()
+                ..test_helpers::mix_node_fixture()
             },
         };
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        let info = mock_info("mixnode-owner", &good_gateway_bond());
+        let info = mock_info("mixnode-owner", &test_helpers::good_gateway_bond());
         let msg = ExecuteMsg::BondGateway {
-            gateway: helpers::gateway_fixture(),
+            gateway: test_helpers::gateway_fixture(),
         };
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
         assert_eq!(execute_response, Err(ContractError::AlreadyOwnsMixnode));
@@ -306,9 +305,9 @@ pub mod tests {
         let msg = ExecuteMsg::UnbondMixnode {};
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        let info = mock_info("mixnode-owner", &good_gateway_bond());
+        let info = mock_info("mixnode-owner", &test_helpers::good_gateway_bond());
         let msg = ExecuteMsg::BondGateway {
-            gateway: helpers::gateway_fixture(),
+            gateway: test_helpers::gateway_fixture(),
         };
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
         assert!(execute_response.is_ok());
@@ -319,13 +318,13 @@ pub mod tests {
 
     #[test]
     fn adding_gateway_without_existing_owner() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
 
-        let info = mock_info("gateway-owner", &good_gateway_bond());
+        let info = mock_info("gateway-owner", &test_helpers::good_gateway_bond());
         let msg = ExecuteMsg::BondGateway {
             gateway: Gateway {
                 identity_key: "myAwesomeGateway".to_string(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         };
 
@@ -349,24 +348,27 @@ pub mod tests {
 
     #[test]
     fn adding_gateway_with_existing_owner() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
 
-        let info = mock_info("gateway-owner", &good_gateway_bond());
+        let info = mock_info("gateway-owner", &test_helpers::good_gateway_bond());
         let msg = ExecuteMsg::BondGateway {
             gateway: Gateway {
                 identity_key: "myAwesomeGateway".to_string(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         };
 
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // request fails giving the existing owner address in the message
-        let info = mock_info("gateway-owner-pretender", &good_gateway_bond());
+        let info = mock_info(
+            "gateway-owner-pretender",
+            &test_helpers::good_gateway_bond(),
+        );
         let msg = ExecuteMsg::BondGateway {
             gateway: Gateway {
                 identity_key: "myAwesomeGateway".to_string(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         };
 
@@ -381,25 +383,25 @@ pub mod tests {
 
     #[test]
     fn adding_gateway_with_existing_unchanged_owner() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
 
-        let info = mock_info("gateway-owner", &good_gateway_bond());
+        let info = mock_info("gateway-owner", &test_helpers::good_gateway_bond());
         let msg = ExecuteMsg::BondGateway {
             gateway: Gateway {
                 identity_key: "myAwesomeGateway".to_string(),
                 host: "1.1.1.1".into(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         };
 
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        let info = mock_info("gateway-owner", &good_gateway_bond());
+        let info = mock_info("gateway-owner", &test_helpers::good_gateway_bond());
         let msg = ExecuteMsg::BondGateway {
             gateway: Gateway {
                 identity_key: "myAwesomeGateway".to_string(),
                 host: "2.2.2.2".into(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         };
 
@@ -418,7 +420,7 @@ pub mod tests {
 
     #[test]
     fn gateway_remove() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
 
         // try unbond when no nodes exist yet
         let info = mock_info("anyone", &[]);
@@ -434,7 +436,7 @@ pub mod tests {
         );
 
         // let's add a node owned by bob
-        helpers::add_gateway("bob", good_gateway_bond(), &mut deps);
+        test_helpers::add_gateway("bob", test_helpers::good_gateway_bond(), &mut deps);
 
         // attempt to unbond fred's node, which doesn't exist
         let info = mock_info("fred", &[]);
@@ -448,27 +450,27 @@ pub mod tests {
         );
 
         // bob's node is still there
-        let nodes = helpers::get_gateways(&mut deps);
+        let nodes = test_helpers::get_gateways(&mut deps);
         assert_eq!(1, nodes.len());
 
         let first_node = &nodes[0];
         assert_eq!(&Addr::unchecked("bob"), first_node.owner());
 
         // add a node owned by fred
-        let info = mock_info("fred", &good_gateway_bond());
+        let info = mock_info("fred", &test_helpers::good_gateway_bond());
         try_add_gateway(
             deps.as_mut(),
             mock_env(),
             info,
             Gateway {
                 identity_key: "fredsgateway".into(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         )
         .unwrap();
 
         // let's make sure we now have 2 nodes:
-        assert_eq!(2, helpers::get_gateways(&mut deps).len());
+        assert_eq!(2, test_helpers::get_gateways(&mut deps).len());
 
         // unbond fred's node
         let info = mock_info("fred", &[]);
@@ -491,7 +493,7 @@ pub mod tests {
         // we should see a funds transfer from the contract back to fred
         let expected_messages = vec![BankMsg::Send {
             to_address: String::from(info.sender),
-            amount: good_gateway_bond(),
+            amount: test_helpers::good_gateway_bond(),
         }
         .into()];
 
@@ -505,20 +507,20 @@ pub mod tests {
         assert_eq!(remove_fred, expected);
 
         // only 1 node now exists, owned by bob:
-        let gateway_bonds = helpers::get_gateways(&mut deps);
+        let gateway_bonds = test_helpers::get_gateways(&mut deps);
         assert_eq!(1, gateway_bonds.len());
         assert_eq!(&Addr::unchecked("bob"), gateway_bonds[0].owner());
     }
 
     #[test]
     fn removing_gateway_clears_ownership() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
 
-        let info = mock_info("gateway-owner", &good_mixnode_bond());
+        let info = mock_info("gateway-owner", &test_helpers::good_mixnode_bond());
         let msg = ExecuteMsg::BondGateway {
             gateway: Gateway {
                 identity_key: "myAwesomeGateway".to_string(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         };
 
@@ -541,11 +543,11 @@ pub mod tests {
             .is_none());
 
         // and since it's removed, it can be reclaimed
-        let info = mock_info("gateway-owner", &good_mixnode_bond());
+        let info = mock_info("gateway-owner", &test_helpers::good_mixnode_bond());
         let msg = ExecuteMsg::BondGateway {
             gateway: Gateway {
                 identity_key: "myAwesomeGateway".to_string(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         };
 

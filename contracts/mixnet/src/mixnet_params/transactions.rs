@@ -72,7 +72,7 @@ pub mod tests {
     };
     use crate::error::ContractError;
     use crate::mixnet_params::transactions::try_update_state_params;
-    use crate::support::tests::helpers;
+    use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::Decimal;
     use cosmwasm_std::Response;
@@ -80,7 +80,7 @@ pub mod tests {
 
     #[test]
     fn updating_state_params() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
 
         let new_params = StateParams {
             epoch_length: INITIAL_DEFAULT_EPOCH_LENGTH,

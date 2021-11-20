@@ -1,6 +1,6 @@
 use crate::contract::INITIAL_REWARD_POOL;
 use crate::error::ContractError;
-use crate::mixnet_params::models::GlobalContractParams;
+use crate::mixnet_params::models::ContractSettings;
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Storage;
@@ -9,20 +9,20 @@ use cosmwasm_storage::singleton;
 use cosmwasm_storage::singleton_read;
 use cosmwasm_storage::ReadonlySingleton;
 use cosmwasm_storage::Singleton;
+use mixnet_contract::ContractSettingsParams;
 use mixnet_contract::Layer;
 use mixnet_contract::LayerDistribution;
-use mixnet_contract::StateParams;
 
 // storage prefixes
 const CONFIG_KEY: &[u8] = b"config";
 const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
 const REWARD_POOL_PREFIX: &[u8] = b"pool";
 
-pub fn config(storage: &mut dyn Storage) -> Singleton<GlobalContractParams> {
+pub fn config(storage: &mut dyn Storage) -> Singleton<ContractSettings> {
     singleton(storage, CONFIG_KEY)
 }
 
-pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<GlobalContractParams> {
+pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<ContractSettings> {
     singleton_read(storage, CONFIG_KEY)
 }
 
@@ -55,7 +55,7 @@ pub(crate) fn read_layer_distribution(storage: &dyn Storage) -> LayerDistributio
 pub fn layer_distribution_read(storage: &dyn Storage) -> ReadonlySingleton<LayerDistribution> {
     singleton_read(storage, LAYER_DISTRIBUTION_KEY)
 }
-pub(crate) fn read_state_params(storage: &dyn Storage) -> StateParams {
+pub(crate) fn read_state_params(storage: &dyn Storage) -> ContractSettingsParams {
     // note: In any other case, I wouldn't have attempted to unwrap this result, but in here
     // if we fail to load the stored state we would already be in the undefined behaviour land,
     // so we better just blow up immediately.

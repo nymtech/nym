@@ -1,8 +1,8 @@
 use super::storage;
 use cosmwasm_std::Deps;
-use mixnet_contract::{RewardingIntervalResponse, StateParams};
+use mixnet_contract::{ContractSettingsParams, RewardingIntervalResponse};
 
-pub(crate) fn query_state_params(deps: Deps) -> StateParams {
+pub(crate) fn query_state_params(deps: Deps) -> ContractSettingsParams {
     storage::read_state_params(deps.storage)
 }
 
@@ -18,19 +18,19 @@ pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse 
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::mixnet_params::models::GlobalContractParams;
+    use crate::mixnet_params::models::ContractSettings;
     use crate::support::tests::test_helpers;
 
     use cosmwasm_std::Addr;
 
     #[test]
-    fn query_for_contract_state_works() {
+    fn query_for_contract_settings_works() {
         let mut deps = test_helpers::init_contract();
 
-        let dummy_state = GlobalContractParams {
+        let dummy_state = ContractSettings {
             owner: Addr::unchecked("someowner"),
             rewarding_validator_address: Addr::unchecked("monitor"),
-            params: StateParams {
+            params: ContractSettingsParams {
                 epoch_length: 1,
                 minimum_mixnode_bond: 123u128.into(),
                 minimum_gateway_bond: 456u128.into(),

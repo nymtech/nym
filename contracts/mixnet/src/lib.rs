@@ -7,6 +7,6 @@ pub mod gateways;
 pub mod helpers;
 pub mod mixnet_params;
 pub mod mixnodes;
-pub mod queries;
+pub mod query_support;
 mod rewards;
 pub mod support;

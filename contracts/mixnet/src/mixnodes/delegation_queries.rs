@@ -1,9 +1,9 @@
 use super::storage;
 use crate::error::ContractError;
 use crate::helpers::get_all_delegations_paged;
-use crate::queries::calculate_start_value;
-use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
-use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
+use crate::query_support::calculate_start_value;
+use crate::query_support::DELEGATION_PAGE_DEFAULT_LIMIT;
+use crate::query_support::DELEGATION_PAGE_MAX_LIMIT;
 
 use config::defaults::DENOM;
 use cosmwasm_std::coin;

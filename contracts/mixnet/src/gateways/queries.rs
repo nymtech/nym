@@ -1,6 +1,6 @@
 use super::storage;
-use crate::queries::calculate_start_value;
-use crate::queries::BOND_PAGE_DEFAULT_LIMIT;
+use crate::query_support::calculate_start_value;
+use crate::query_support::BOND_PAGE_DEFAULT_LIMIT;
 
 use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use mixnet_contract::{GatewayBond, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse};

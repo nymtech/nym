@@ -1,5 +1,5 @@
 use crate::error::ContractError;
-use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
+use crate::query_support::DELEGATION_PAGE_MAX_LIMIT;
 use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Decimal;
@@ -333,7 +333,7 @@ mod tests {
     mod increasing_mix_delegated_stakes {
         use super::*;
         use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
-        use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
+        use crate::query_support::DELEGATION_PAGE_MAX_LIMIT;
         use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
         use cosmwasm_std::testing::mock_dependencies;
         use cosmwasm_std::Decimal;

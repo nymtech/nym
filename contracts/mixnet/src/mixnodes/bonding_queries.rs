@@ -1,10 +1,10 @@
-use crate::queries::calculate_start_value;
-use crate::queries::BOND_PAGE_DEFAULT_LIMIT;
-use crate::queries::BOND_PAGE_MAX_LIMIT;
+use crate::query_support::calculate_start_value;
+use crate::query_support::BOND_PAGE_DEFAULT_LIMIT;
+use crate::query_support::BOND_PAGE_MAX_LIMIT;
 
 use super::storage;
-use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
-use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
+use crate::query_support::DELEGATION_PAGE_DEFAULT_LIMIT;
+use crate::query_support::DELEGATION_PAGE_MAX_LIMIT;
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
 use mixnet_contract::{

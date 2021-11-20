@@ -939,7 +939,7 @@ mod tests {
         use super::storage;
         use crate::helpers::Delegations;
         use crate::mixnodes::delegation_queries::tests::store_n_mix_delegations;
-        use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
+        use crate::query_support::DELEGATION_PAGE_DEFAULT_LIMIT;
         use crate::support::tests::helpers;
         use mixnet_contract::IdentityKey;
         use mixnet_contract::RawDelegationData;

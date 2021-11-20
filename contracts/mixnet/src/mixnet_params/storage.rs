@@ -1,6 +1,6 @@
 use crate::contract::INITIAL_REWARD_POOL;
 use crate::error::ContractError;
-use crate::mixnet_params::state::State;
+use crate::mixnet_params::models::GlobalContractParams;
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Storage;
@@ -18,11 +18,11 @@ const CONFIG_KEY: &[u8] = b"config";
 const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
 const REWARD_POOL_PREFIX: &[u8] = b"pool";
 
-pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
+pub fn config(storage: &mut dyn Storage) -> Singleton<GlobalContractParams> {
     singleton(storage, CONFIG_KEY)
 }
 
-pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
+pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<GlobalContractParams> {
     singleton_read(storage, CONFIG_KEY)
 }
 

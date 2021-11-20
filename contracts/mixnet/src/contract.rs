@@ -4,9 +4,9 @@
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
+use crate::mixnet_params::models::GlobalContractParams;
 use crate::mixnet_params::queries::query_rewarding_interval;
 use crate::mixnet_params::queries::query_state_params;
-use crate::mixnet_params::state::State;
 use crate::mixnet_params::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
@@ -48,11 +48,11 @@ pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
 // We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
 pub const DEFAULT_COST_PER_EPOCH: u32 = 40_000_000;
 
-fn default_initial_state(owner: Addr, env: Env) -> State {
+fn default_initial_state(owner: Addr, env: Env) -> GlobalContractParams {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
     let mixnode_delegation_reward_rate = Decimal::percent(INITIAL_MIXNODE_DELEGATION_REWARD_RATE);
 
-    State {
+    GlobalContractParams {
         owner,
         rewarding_validator_address: Addr::unchecked(REWARDING_VALIDATOR_ADDRESS), // we trust our hardcoded value
         params: StateParams {

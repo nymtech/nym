@@ -18,7 +18,7 @@ pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse 
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::mixnet_params::state::State;
+    use crate::mixnet_params::models::GlobalContractParams;
     use crate::support::tests::test_helpers;
 
     use cosmwasm_std::Addr;
@@ -27,7 +27,7 @@ pub(crate) mod tests {
     fn query_for_contract_state_works() {
         let mut deps = test_helpers::init_contract();
 
-        let dummy_state = State {
+        let dummy_state = GlobalContractParams {
             owner: Addr::unchecked("someowner"),
             rewarding_validator_address: Addr::unchecked("monitor"),
             params: StateParams {

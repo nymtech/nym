@@ -7,7 +7,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct State {
+pub struct GlobalContractParams {
     pub owner: Addr, // only the owner account can update state
     pub rewarding_validator_address: Addr,
     pub params: StateParams,

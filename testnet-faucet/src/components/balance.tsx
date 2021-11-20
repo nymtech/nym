@@ -14,7 +14,7 @@ export const Balance = ({ balance }: { balance: string }) => {
       <CardHeader
         title={
           <Typography variant="h5">
-            The total number of tokens available is currently{' '}
+            The total number of available tokens is currently{' '}
             <Typography
               component="span"
               variant="h5"

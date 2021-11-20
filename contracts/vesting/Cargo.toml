@@ -1,5 +1,5 @@
 [package]
-name = "vesting-contracts"
+name = "vesting-contract"
 version = "0.1.0"
 authors = ["Drazen Urch <durch@users.noreply.github.com>"]
 edition = "2018"

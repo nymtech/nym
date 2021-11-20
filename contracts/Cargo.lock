@@ -518,6 +518,7 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+ "vesting-contract",
 ]
 
 [[package]]
@@ -926,7 +927,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
 
 [[package]]
-name = "vesting-contracts"
+name = "vesting-contract"
 version = "0.1.0"
 dependencies = [
  "config",

@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, Timestamp};
+use cosmwasm_std::{Coin, Timestamp, Addr};
 use mixnet_contract::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -23,6 +23,11 @@ pub enum ExecuteMsg {
     WithdrawVestedCoins {
         amount: Coin,
     },
+    TrackUndelegation {
+        address: Addr,
+        mix_identity: IdentityKey,
+        amount: Coin,
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

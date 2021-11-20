@@ -22,6 +22,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 [dependencies]
 mixnet-contract = { path = "../../common/mixnet-contract" }
 config = { path = "../../common/config"}
+vesting-contract = { path = "../vesting" }
 
 # this branch is identical to 0.14.1 with addition of updated k256 dependency required to help poor cargo choose correct version
 cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-updatedk256", features = ["iterator"] }

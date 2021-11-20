@@ -34,7 +34,7 @@ pub struct RewardingIntervalResponse {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct StateParams {
+pub struct ContractSettingsParams {
     pub epoch_length: u32, // length of a rewarding epoch/interval, expressed in hours
 
     pub minimum_mixnode_bond: Uint128, // minimum amount a mixnode must bond to get into the system
@@ -52,7 +52,7 @@ pub struct StateParams {
     pub mixnode_active_set_size: u32,
 }
 
-impl Display for StateParams {
+impl Display for ContractSettingsParams {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "Contract state parameters: [ ")?;
         write!(f, "epoch length: {}; ", self.epoch_length)?;

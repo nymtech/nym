@@ -6,7 +6,7 @@ use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
 #[cfg(feature = "nymd-client")]
-use mixnet_contract::StateParams;
+use mixnet_contract::ContractSettingsParams;
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
@@ -165,7 +165,7 @@ impl<C> Client<C> {
         Ok(self.validator_api.get_gateways().await?)
     }
 
-    pub async fn get_state_params(&self) -> Result<StateParams, ValidatorClientError>
+    pub async fn get_state_params(&self) -> Result<ContractSettingsParams, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {

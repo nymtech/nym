@@ -5,12 +5,12 @@ use cosmwasm_std::Decimal;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;
-use mixnet_contract::StateParams;
+use mixnet_contract::ContractSettingsParams;
 
 pub(crate) fn try_update_state_params(
     deps: DepsMut,
     info: MessageInfo,
-    params: StateParams,
+    params: ContractSettingsParams,
 ) -> Result<Response, ContractError> {
     // note: In any other case, I wouldn't have attempted to unwrap this result, but in here
     // if we fail to load the stored state we would already be in the undefined behaviour land,
@@ -76,13 +76,13 @@ pub mod tests {
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::Decimal;
     use cosmwasm_std::Response;
-    use mixnet_contract::StateParams;
+    use mixnet_contract::ContractSettingsParams;
 
     #[test]
     fn updating_state_params() {
         let mut deps = test_helpers::init_contract();
 
-        let new_params = StateParams {
+        let new_params = ContractSettingsParams {
             epoch_length: INITIAL_DEFAULT_EPOCH_LENGTH,
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,

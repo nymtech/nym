@@ -8,8 +8,8 @@ use crate::rewarding::{
 };
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract::{
-    Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond, RewardingIntervalResponse,
-    StateParams,
+    ContractSettingsParams, Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond,
+    RewardingIntervalResponse,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -139,7 +139,9 @@ impl<C> Client<C> {
         self.0.read().await.get_all_nymd_gateways().await
     }
 
-    pub(crate) async fn get_state_params(&self) -> Result<StateParams, ValidatorClientError>
+    pub(crate) async fn get_state_params(
+        &self,
+    ) -> Result<ContractSettingsParams, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {

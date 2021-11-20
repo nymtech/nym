@@ -2,12 +2,14 @@ use super::storage;
 use cosmwasm_std::Deps;
 use mixnet_contract::{ContractSettingsParams, RewardingIntervalResponse};
 
-pub(crate) fn query_state_params(deps: Deps) -> ContractSettingsParams {
-    storage::read_state_params(deps.storage)
+pub(crate) fn query_contract_settings_params(deps: Deps) -> ContractSettingsParams {
+    storage::read_contract_settings_params(deps.storage)
 }
 
 pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse {
-    let state = storage::config_read(deps.storage).load().unwrap();
+    let state = storage::contract_settings_read(deps.storage)
+        .load()
+        .unwrap();
     RewardingIntervalResponse {
         current_rewarding_interval_starting_block: state.rewarding_interval_starting_block,
         current_rewarding_interval_nonce: state.latest_rewarding_interval_nonce,
@@ -46,10 +48,13 @@ pub(crate) mod tests {
             mixnode_epoch_delegation_reward: "7.89".parse().unwrap(),
         };
 
-        storage::config(deps.as_mut().storage)
+        storage::contract_settings(deps.as_mut().storage)
             .save(&dummy_state)
             .unwrap();
 
-        assert_eq!(dummy_state.params, query_state_params(deps.as_ref()))
+        assert_eq!(
+            dummy_state.params,
+            query_contract_settings_params(deps.as_ref())
+        )
     }
 }

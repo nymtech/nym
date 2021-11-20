@@ -737,7 +737,7 @@ mod tests {
 
         let mut deps = test_helpers::init_contract();
         let mut env = mock_env();
-        let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+        let current_state = mixnet_params_storage::contract_settings_read(deps.as_mut().storage)
             .load()
             .unwrap();
         let rewarding_validator_address = current_state.rewarding_validator_address;

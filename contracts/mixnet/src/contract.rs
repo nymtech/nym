@@ -5,8 +5,8 @@ use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
 use crate::mixnet_params::models::ContractSettings;
+use crate::mixnet_params::queries::query_contract_settings_params;
 use crate::mixnet_params::queries::query_rewarding_interval;
-use crate::mixnet_params::queries::query_state_params;
 use crate::mixnet_params::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
@@ -92,7 +92,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let state = default_initial_state(info.sender, env);
 
-    mixnet_params_storage::config(deps.storage).save(&state)?;
+    mixnet_params_storage::contract_settings(deps.storage).save(&state)?;
     mixnet_params_storage::layer_distribution(deps.storage).save(&Default::default())?;
     Ok(Response::default())
 }
@@ -191,7 +191,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             to_binary(&mixnode_queries::query_owns_mixnode(deps, address)?)
         }
         QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
-        QueryMsg::StateParams {} => to_binary(&query_state_params(deps)),
+        QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)),
         QueryMsg::CurrentRewardingInterval {} => to_binary(&query_rewarding_interval(deps)),
         QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)),
         QueryMsg::GetMixDelegations {

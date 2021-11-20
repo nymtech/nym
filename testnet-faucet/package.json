@@ -4,7 +4,8 @@
   "description": "testnet faucet for token aquisition",
   "license": "MIT",
   "scripts": {
-    "dev": "yarn parcel ./src/index.html"
+    "dev": "yarn parcel ./src/index.html",
+    "build": "yarn parcel build ./src/index.html"
   },
   "dependencies": {
     "@emotion/react": "^11.6.0",

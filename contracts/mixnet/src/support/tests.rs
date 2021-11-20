@@ -189,4 +189,32 @@ pub mod helpers {
             amount: INITIAL_MIXNODE_BOND,
         }]
     }
+
+    // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+    // SPDX-License-Identifier: Apache-2.0
+
+    // Converts the node identity and owner of a delegation into the bytes used as
+    // key in the delegation buckets.
+    pub(crate) fn identity_and_owner_to_bytes(identity: &str, owner: &Addr) -> Vec<u8> {
+        let mut bytes = u16::to_be_bytes(identity.len() as u16).to_vec();
+        bytes.append(&mut identity.as_bytes().to_vec());
+        bytes.append(&mut owner.as_bytes().to_vec());
+
+        bytes
+    }
+
+    mod tests {
+        use super::*;
+        use mixnet_contract::IdentityKey;
+
+        #[test]
+        fn identity_and_owner_serialization() {
+            let identity: IdentityKey = "gateway".into();
+            let owner = Addr::unchecked("bob");
+            assert_eq!(
+                vec![0, 7, 103, 97, 116, 101, 119, 97, 121, 98, 111, 98],
+                identity_and_owner_to_bytes(&identity, &owner)
+            );
+        }
+    }
 }

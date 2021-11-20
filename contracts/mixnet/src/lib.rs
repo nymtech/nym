@@ -4,7 +4,6 @@
 pub mod contract;
 pub mod error;
 pub mod gateways;
-pub mod helpers;
 pub mod mixnet_params;
 pub mod mixnodes;
 pub mod query_support;

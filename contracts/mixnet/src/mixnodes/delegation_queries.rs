@@ -252,7 +252,7 @@ pub(crate) mod tests {
     #[cfg(test)]
     mod querying_for_all_mixnode_delegations_paged {
         use super::*;
-        use crate::helpers::identity_and_owner_to_bytes;
+        use crate::support::tests::helpers as test_helpers;
         use mixnet_contract::IdentityKey;
 
         #[test]
@@ -346,7 +346,8 @@ pub(crate) mod tests {
             assert_eq!(2, page1.delegations.len());
 
             // retrieving the next page should start after the last key on this page
-            let start_after = identity_and_owner_to_bytes(&node_identity, &Addr::unchecked("2"));
+            let start_after =
+                test_helpers::identity_and_owner_to_bytes(&node_identity, &Addr::unchecked("2"));
             let page2 = query_all_mixnode_delegations_paged(
                 deps.as_ref(),
                 Option::from(start_after.clone()),

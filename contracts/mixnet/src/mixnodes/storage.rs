@@ -229,7 +229,7 @@ pub fn reverse_mix_delegations_read<'a>(
 #[cfg(test)]
 mod tests {
     use super::super::storage;
-    use crate::helpers::identity_and_owner_to_bytes;
+    use crate::support::tests::helpers as test_helpers;
     use crate::support::tests::helpers::{
         mix_node_fixture, mixnode_bond_fixture, raw_delegation_fixture,
     };
@@ -314,13 +314,13 @@ mod tests {
             .unwrap();
 
         let res1 = storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage)
-            .load(&*identity_and_owner_to_bytes(
+            .load(&*test_helpers::identity_and_owner_to_bytes(
                 &node_identity1,
                 &delegation_owner1,
             ))
             .unwrap();
         let res2 = storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage)
-            .load(&*identity_and_owner_to_bytes(
+            .load(&*test_helpers::identity_and_owner_to_bytes(
                 &node_identity2,
                 &delegation_owner2,
             ))

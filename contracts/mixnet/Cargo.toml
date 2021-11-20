@@ -22,6 +22,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 [dependencies]
 mixnet-contract = { path = "../../common/mixnet-contract" }
 config = { path = "../../common/config"}
+vesting-contract = { path = "../vesting" }
 
 cosmwasm-std = "1.0.0-beta2"
 cosmwasm-storage = "1.0.0-beta2"

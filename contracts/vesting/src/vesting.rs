@@ -92,6 +92,7 @@ pub trait DelegationAccount {
     fn track_undelegation(
         &self,
         mix_identity: IdentityKey,
+        amount: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError>;
 }
@@ -325,6 +326,7 @@ impl DelegationAccount for PeriodicVestingAccount {
     fn track_undelegation(
         &self,
         mix_identity: IdentityKey,
+        amount: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
         // This has to exist in storage at this point.
@@ -333,6 +335,17 @@ impl DelegationAccount for PeriodicVestingAccount {
             .into_iter()
             .filter(|d| d.mix_identity != mix_identity)
             .collect();
+        
+        let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
+            Uint128(balance.u128() + amount.amount.u128())
+        } else {
+            return Err(ContractError::NoBalanceForAddress(
+                self.address.as_str().to_string(),
+            ));
+        };
+
+        set_account_balance(storage, &self.address, new_balance)?;
+
         // Since we're always removing the entire delegation we can just drop the key
         // TODO: track balance here as well, maybe
         Ok(set_account_delegations(

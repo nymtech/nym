@@ -7,14 +7,15 @@ use crate::queries;
 use crate::storage::*;
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    attr, coins, Addr, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, StdResult,
-    Uint128,
+    attr, coins, wasm_execute, Addr, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response,
+    StdResult, Uint128,
 };
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::mixnode::NodeRewardParams;
 use mixnet_contract::{
     Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
 };
+use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 
@@ -714,16 +715,26 @@ fn _try_delegate_to_mixnode(
     mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
 
     let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
-    let sender_bytes = delegate_addr.as_bytes();
+    // We need to differentiate proxy delefations from direct delegations with the same owner
+    let sender_bytes = if let Some(proxy_address) = &proxy_address {
+        delegate_addr
+            .as_bytes()
+            .iter()
+            .zip(proxy_address.as_bytes())
+            .map(|(x, y)| x ^ y)
+            .collect()
+    } else {
+        delegate_addr.as_bytes().to_vec()
+    };
 
     // write the delegation
-    let new_amount = match delegation_bucket.may_load(sender_bytes)? {
+    let new_amount = match delegation_bucket.may_load(&sender_bytes)? {
         Some(existing_delegation) => existing_delegation.amount + amount,
         None => amount,
     };
     // the block height is reset, if it existed
     let new_delegation = RawDelegationData::new(new_amount, env.block.height, proxy_address);
-    delegation_bucket.save(sender_bytes, &new_delegation)?;
+    delegation_bucket.save(&sender_bytes, &new_delegation)?;
 
     reverse_mix_delegations(deps.storage, delegate_addr).save(mix_identity.as_bytes(), &())?;
 
@@ -768,23 +779,43 @@ fn _try_remove_delegation_from_mixnode(
     proxy_address: Option<Addr>,
 ) -> Result<Response, ContractError> {
     let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
-    let sender_bytes = delegate_addr.as_bytes();
-    match delegation_bucket.may_load(sender_bytes)? {
+
+    let sender_bytes = if let Some(proxy_address) = &proxy_address {
+        delegate_addr
+            .as_bytes()
+            .iter()
+            .zip(proxy_address.as_bytes())
+            .map(|(x, y)| x ^ y)
+            .collect()
+    } else {
+        delegate_addr.as_bytes().to_vec()
+    };
+    match delegation_bucket.may_load(&sender_bytes)? {
         Some(delegation) => {
             // remove delegation from the buckets
             if proxy_address == delegation.proxy_address {
-                delegation_bucket.remove(sender_bytes);
+                delegation_bucket.remove(&sender_bytes);
                 reverse_mix_delegations(deps.storage, &info.sender).remove(mix_identity.as_bytes());
 
-                // Send delegated funds back to the delegation owner. In case of a direct delegation proxy_address should be None. 
+                // Send delegated funds back to the delegation owner. In case of a direct delegation proxy_address should be None.
                 // Both the function call and in the RawDelegationData, in a proxied undelegation proxy_address and sender must match.
                 // Since we control that only vesting account address can create proxy delegations at time of delegation only vesting account
                 // can undelegate proxy undelegations.
-                let messages = vec![BankMsg::Send {
+                let mut messages = vec![BankMsg::Send {
                     to_address: info.sender.to_string(),
                     amount: coins(delegation.amount.u128(), DENOM),
                 }
                 .into()];
+
+                if let Some(proxy_address) = &proxy_address {
+                    let msg = VestingContractExecuteMsg::TrackUndelegation {
+                        address: delegate_addr.to_owned(),
+                        mix_identity: mix_identity.clone(),
+                        amount: coins(delegation.amount.u128(), DENOM)[0].clone(),
+                    };
+
+                    messages.push(wasm_execute(proxy_address, &msg, coins(0, DENOM))?.into());
+                }
 
                 // TODO: Send TrackUndelegation message back to the proxy address in case of a proxied undelegation
 

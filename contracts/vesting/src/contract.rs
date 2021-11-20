@@ -5,8 +5,8 @@ use crate::vesting::{
     populate_vesting_periods, DelegationAccount, PeriodicVestingAccount, VestingAccount,
 };
 use cosmwasm_std::{
-    attr, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Timestamp, Uint128,
+    attr, entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo,
+    QueryResponse, Response, Timestamp, Uint128,
 };
 use mixnet_contract::IdentityKey;
 
@@ -51,6 +51,9 @@ pub fn execute(
         } => try_create_periodic_vesting_account(address, start_time, info, env, deps),
         ExecuteMsg::WithdrawVestedCoins { amount } => {
             try_withdraw_vested_coins(amount, env, info, deps)
+        }
+        ExecuteMsg::TrackUndelegation { address, mix_identity, amount } => {
+            try_track_undelegation(address, mix_identity, amount, deps)
         }
     }
 }
@@ -101,6 +104,23 @@ pub fn try_withdraw_vested_coins(
     }
 }
 
+fn try_track_undelegation(
+    address: Addr,
+    mix_identity: IdentityKey,
+    amount: Coin,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
+    let adddress = deps.api.addr_validate(address.as_str())?;
+    if let Some(account) = get_account(deps.storage, &adddress) {
+        account.track_undelegation(mix_identity, amount, deps.storage)?;
+        Ok(Response::default())
+    } else {
+        Err(ContractError::NoAccountForAddress(
+            address.as_str().to_string(),
+        ))
+    }
+}
+
 fn try_delegate_to_mixnode(
     mix_identity: IdentityKey,
     amount: Coin,
@@ -113,7 +133,9 @@ fn try_delegate_to_mixnode(
     if let Some(account) = get_account(deps.storage, &address) {
         account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
     } else {
-        Err(ContractError::NoAccountForAddress(address.as_str().to_string()))
+        Err(ContractError::NoAccountForAddress(
+            address.as_str().to_string(),
+        ))
     }
 }
 
@@ -127,7 +149,9 @@ fn try_undelegate_from_mixnode(
     if let Some(account) = get_account(deps.storage, &address) {
         account.try_undelegate_from_mixnode(mix_identity)
     } else {
-        Err(ContractError::NoAccountForAddress(address.as_str().to_string()))
+        Err(ContractError::NoAccountForAddress(
+            address.as_str().to_string(),
+        ))
     }
 }
 
@@ -202,10 +226,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
         } => to_binary(&try_get_end_time(vesting_account_address, deps)?),
         QueryMsg::GetOriginalVesting {
             vesting_account_address,
-        } => to_binary(&try_get_original_vesting(
-            vesting_account_address,
-            deps,
-        )?),
+        } => to_binary(&try_get_original_vesting(vesting_account_address, deps)?),
         QueryMsg::GetDelegatedFree {
             block_time,
             vesting_account_address,

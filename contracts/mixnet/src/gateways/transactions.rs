@@ -6,32 +6,6 @@ use config::defaults::DENOM;
 use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::{Gateway, GatewayBond, Layer};
 
-pub fn validate_gateway_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
-    // check if anything was put as bond
-    if bond.is_empty() {
-        return Err(ContractError::NoBondFound);
-    }
-
-    if bond.len() > 1 {
-        return Err(ContractError::MultipleDenoms);
-    }
-
-    // check that the denomination is correct
-    if bond[0].denom != DENOM {
-        return Err(ContractError::WrongDenom {});
-    }
-
-    // check that we have at least 100 coins in our bond
-    if bond[0].amount < minimum_bond {
-        return Err(ContractError::InsufficientGatewayBond {
-            received: bond[0].amount.into(),
-            minimum: minimum_bond.into(),
-        });
-    }
-
-    Ok(())
-}
-
 pub(crate) fn try_add_gateway(
     deps: DepsMut,
     env: Env,
@@ -137,6 +111,32 @@ pub(crate) fn try_remove_gateway(
         attributes,
         data: None,
     })
+}
+
+fn validate_gateway_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
+    // check if anything was put as bond
+    if bond.is_empty() {
+        return Err(ContractError::NoBondFound);
+    }
+
+    if bond.len() > 1 {
+        return Err(ContractError::MultipleDenoms);
+    }
+
+    // check that the denomination is correct
+    if bond[0].denom != DENOM {
+        return Err(ContractError::WrongDenom {});
+    }
+
+    // check that we have at least 100 coins in our bond
+    if bond[0].amount < minimum_bond {
+        return Err(ContractError::InsufficientGatewayBond {
+            received: bond[0].amount.into(),
+            minimum: minimum_bond.into(),
+        });
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

@@ -2,8 +2,6 @@
 
 use crate::storage::PREFIX_GATEWAYS;
 use crate::storage::PREFIX_GATEWAYS_OWNERS;
-use cosmwasm_std::StdResult;
-
 use cosmwasm_std::Storage;
 use cosmwasm_storage::bucket;
 use cosmwasm_storage::bucket_read;
@@ -31,29 +29,28 @@ pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey
 
 // currently not used outside tests
 #[cfg(test)]
-pub(crate) fn read_gateway_bond(
-    storage: &dyn Storage,
-    identity: &[u8],
-) -> StdResult<cosmwasm_std::Uint128> {
-    let bucket = gateways_read(storage);
-    let node = bucket.load(identity)?;
-    Ok(node.bond_amount.amount)
-}
-
-#[cfg(test)]
 mod tests {
+    use cosmwasm_std::StdResult;
+    use cosmwasm_std::Storage;
+
     use super::super::storage;
-    use crate::helpers::identity_and_owner_to_bytes;
-    use crate::support::tests::helpers::{
-        gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
-        raw_delegation_fixture,
-    };
+    use crate::support::tests::helpers::{gateway_bond_fixture, gateway_fixture};
     use config::defaults::DENOM;
-    use cosmwasm_std::testing::{mock_dependencies, MockStorage};
+    use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::{coin, Addr, Uint128};
+    use mixnet_contract::Gateway;
     use mixnet_contract::GatewayBond;
     use mixnet_contract::IdentityKey;
-    use mixnet_contract::{Gateway, MixNode};
+
+    // currently this is only used in tests but may become useful later on
+    pub(crate) fn read_gateway_bond(
+        storage: &dyn Storage,
+        identity: &[u8],
+    ) -> StdResult<cosmwasm_std::Uint128> {
+        let bucket = storage::gateways_read(storage);
+        let node = bucket.load(identity)?;
+        Ok(node.bond_amount.amount)
+    }
 
     #[test]
     fn gateway_single_read_retrieval() {
@@ -80,7 +77,7 @@ mod tests {
         let node_identity: IdentityKey = "nodeidentity".into();
 
         // produces an error if target gateway doesn't exist
-        let res = storage::read_gateway_bond(&mock_storage, node_owner.as_bytes());
+        let res = read_gateway_bond(&mock_storage, node_owner.as_bytes());
         assert!(res.is_err());
 
         // returns appropriate value otherwise
@@ -102,7 +99,7 @@ mod tests {
 
         assert_eq!(
             Uint128(bond_value),
-            storage::read_gateway_bond(&mock_storage, node_identity.as_bytes()).unwrap()
+            read_gateway_bond(&mock_storage, node_identity.as_bytes()).unwrap()
         );
     }
 }

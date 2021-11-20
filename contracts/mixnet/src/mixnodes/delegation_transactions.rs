@@ -1,7 +1,7 @@
 use super::storage;
 use crate::error::ContractError;
 use crate::helpers::Delegations;
-use crate::storage as main_storage;
+
 use config::defaults::DENOM;
 use cosmwasm_std::{coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, StdResult};
 use cosmwasm_storage::ReadonlyBucket;

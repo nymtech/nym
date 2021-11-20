@@ -489,7 +489,7 @@ pub mod tests {
     #[cfg(test)]
     mod finishing_mixnode_rewarding {
         use super::*;
-        use crate::mixnodes::storage as mixnodes_storage;
+        
         use crate::rewards::transactions::{
             try_begin_mixnode_rewarding, try_finish_mixnode_rewarding,
         };

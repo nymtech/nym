@@ -229,7 +229,7 @@ mod tests {
     use super::super::storage;
     use crate::helpers::identity_and_owner_to_bytes;
     use crate::support::tests::helpers::{
-        gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
+        mix_node_fixture, mixnode_bond_fixture,
         raw_delegation_fixture,
     };
     use config::defaults::DENOM;
@@ -239,7 +239,7 @@ mod tests {
     use mixnet_contract::Layer;
     use mixnet_contract::MixNodeBond;
     use mixnet_contract::RawDelegationData;
-    use mixnet_contract::{Gateway, MixNode};
+    use mixnet_contract::{MixNode};
 
     #[test]
     fn mixnode_single_read_retrieval() {

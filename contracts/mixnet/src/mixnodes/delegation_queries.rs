@@ -4,7 +4,7 @@ use crate::helpers::get_all_delegations_paged;
 use crate::queries::calculate_start_value;
 use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
 use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
-use crate::storage as main_storage;
+
 use config::defaults::DENOM;
 use cosmwasm_std::coin;
 use cosmwasm_std::Addr;

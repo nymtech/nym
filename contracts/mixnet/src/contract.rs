@@ -29,10 +29,10 @@ use std::u128;
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
 /// Constant specifying minimum of coin required to bond a gateway
-pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128(100_000000);
+pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128(100_000_000);
 
 /// Constant specifying minimum of coin required to bond a mixnode
-pub const INITIAL_MIXNODE_BOND: Uint128 = Uint128(100_000000);
+pub const INITIAL_MIXNODE_BOND: Uint128 = Uint128(100_000_000);
 
 // percentage annual increase. Given starting value of x, we expect to have 1.1x at the end of the year
 pub const INITIAL_MIXNODE_BOND_REWARD_RATE: u64 = 110;

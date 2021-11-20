@@ -733,7 +733,7 @@ mod tests {
     }
     #[test]
     fn delegators_on_mix_node_reward_rate() {
-        use crate::mixnet_params::storage as mixnet_params_storage;
+        use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 
         let mut deps = test_helpers::init_contract();
         let mut env = mock_env();

@@ -1,6 +1,6 @@
 use crate::contract::INITIAL_REWARD_POOL;
 use crate::error::ContractError;
-use crate::mixnet_params::models::ContractSettings;
+use crate::mixnet_contract_settings::models::ContractSettings;
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Storage;

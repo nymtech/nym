@@ -1,4 +1,4 @@
-use crate::mixnet_params::storage as mixnet_params_storage;
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use cosmwasm_std::Deps;
 use cosmwasm_std::Uint128;
 

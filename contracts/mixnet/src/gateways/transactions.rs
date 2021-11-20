@@ -1,6 +1,6 @@
 use super::storage;
 use crate::error::ContractError;
-use crate::mixnet_params::storage as mixnet_params_storage;
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use config::defaults::DENOM;
 use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};

@@ -20,7 +20,7 @@ pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse 
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::mixnet_params::models::ContractSettings;
+    use crate::mixnet_contract_settings::models::ContractSettings;
     use crate::support::tests::test_helpers;
 
     use cosmwasm_std::Addr;

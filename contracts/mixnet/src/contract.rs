@@ -4,10 +4,10 @@
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
-use crate::mixnet_params::models::ContractSettings;
-use crate::mixnet_params::queries::query_contract_settings_params;
-use crate::mixnet_params::queries::query_rewarding_interval;
-use crate::mixnet_params::storage as mixnet_params_storage;
+use crate::mixnet_contract_settings::models::ContractSettings;
+use crate::mixnet_contract_settings::queries::query_contract_settings_params;
+use crate::mixnet_contract_settings::queries::query_rewarding_interval;
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
 use crate::mixnodes::bonding_queries::query_mixnodes_paged;
@@ -119,7 +119,9 @@ pub fn execute(
             crate::gateways::transactions::try_remove_gateway(deps, info)
         }
         ExecuteMsg::UpdateStateParams(params) => {
-            crate::mixnet_params::transactions::try_update_state_params(deps, info, params)
+            crate::mixnet_contract_settings::transactions::try_update_state_params(
+                deps, info, params,
+            )
         }
         ExecuteMsg::RewardMixnode {
             identity,

@@ -1,6 +1,6 @@
 use super::helpers;
 use crate::error::ContractError;
-use crate::mixnet_params::storage as mixnet_params_storage;
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::{attr, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::mixnode::NodeRewardParams;

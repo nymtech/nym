@@ -1,7 +1,7 @@
 use super::storage;
 use crate::error::ContractError;
 use crate::gateways::storage as gateways_storage;
-use crate::mixnet_params::storage as mixnet_params_storage;
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use config::defaults::DENOM;
 use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};

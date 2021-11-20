@@ -71,7 +71,7 @@ pub mod tests {
         INITIAL_MIXNODE_BOND_REWARD_RATE, INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
     };
     use crate::error::ContractError;
-    use crate::mixnet_params::transactions::try_update_state_params;
+    use crate::mixnet_contract_settings::transactions::try_update_state_params;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::Decimal;

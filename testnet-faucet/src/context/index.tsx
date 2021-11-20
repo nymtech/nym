@@ -1,18 +1,23 @@
 import { createContext, useEffect, useState } from 'react'
-import ClientValidator, { Coin } from '@nymproject/nym-validator-client'
+import ClientValidator, {
+  Coin,
+  nativeToPrintable,
+  printableCoin,
+} from '@nymproject/nym-validator-client'
 
 type TGlobalContext = {
   getBalance: () => void
   requestTokens: ({
     address,
-    amount,
+    upunks,
   }: {
     address: string
-    amount: string
+    upunks: string
+    punks: string
   }) => void
   loadingState: TLoadingState
   balance?: string
-  tokenTransfer?: string
+  tokenTransfer?: { address: string; amount: string }
   error?: string
 }
 
@@ -44,13 +49,14 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
   })
   const [balance, setBalance] = useState<string>()
   const [error, setError] = useState<string>()
-  const [tokenTransfer, setTokenTransfer] = useState<string>()
+  const [tokenTransfer, setTokenTransfer] =
+    useState<{ address: string; amount: string }>()
 
   const getValidator = async () => {
     const Validator = await ClientValidator.connect(
       VALIDATOR_ADDRESS,
       MNEMONIC,
-      [TESTNET_URL_1, TESTNET_URL_2],
+      [TESTNET_URL_1],
       'punk'
     )
     setValidator(Validator)
@@ -72,7 +78,8 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     setLoadingState({ isLoading: true, requestType: EnumRequestType.balance })
     try {
       const balance = await validator?.getBalance(ACCOUNT_ADDRESS)
-      setBalance(balance?.amount)
+      const punks = nativeToPrintable(balance?.amount || '')
+      setBalance(punks)
     } catch (e) {
       setError(`An error occured while getting the balance: ${e}`)
     } finally {
@@ -82,17 +89,19 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
 
   const requestTokens = async ({
     address,
-    amount,
+    upunks,
+    punks,
   }: {
     address: string
-    amount: string
+    upunks: string
+    punks: string
   }) => {
     setLoadingState({ isLoading: true, requestType: EnumRequestType.tokens })
     try {
-      const res = await validator?.send(VALIDATOR_ADDRESS, address, [
-        { amount, denom: 'upunk' },
+      await validator?.send(ACCOUNT_ADDRESS, address, [
+        { amount: upunks, denom: 'upunk' },
       ])
-      console.log(res)
+      setTokenTransfer({ address, amount: punks })
     } catch (e) {
       setError(`An error occured during the transfer request: ${e}`)
     } finally {

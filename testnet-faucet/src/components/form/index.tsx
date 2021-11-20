@@ -1,3 +1,4 @@
+import { useContext } from 'react'
 import {
   Alert,
   Button,
@@ -6,11 +7,13 @@ import {
   useMediaQuery,
 } from '@mui/material'
 import { Box } from '@mui/system'
-import { useContext } from 'react'
+import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm, SubmitHandler } from 'react-hook-form'
-import { EnumRequestType, GlobalContext } from '../context'
-import { Balance } from './Balance'
-import { TokenTransfer } from './TokenTransfer'
+import { validationSchema } from './validationSchema'
+import { getCoinValue } from '../../utils'
+import { EnumRequestType, GlobalContext } from '../../context'
+import { Balance } from '../balance'
+import { TokenTransfer } from '../token-transfer'
 
 type TFormData = {
   address: string
@@ -20,7 +23,14 @@ type TFormData = {
 export const Form = () => {
   const matches = useMediaQuery('(max-width:500px)')
 
-  const { register, handleSubmit, setValue } = useForm()
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm({ resolver: yupResolver(validationSchema) })
+
+  console.log(errors)
 
   const {
     getBalance,
@@ -32,7 +42,12 @@ export const Form = () => {
   } = useContext(GlobalContext)
 
   const onSubmit: SubmitHandler<TFormData> = async (data) => {
-    await requestTokens({ address: data.address, amount: data.amount })
+    const upunks = getCoinValue(data.amount)
+    await requestTokens({
+      address: data.address,
+      upunks: upunks.toString(),
+      punks: data.amount,
+    })
     resetForm()
   }
 
@@ -48,12 +63,16 @@ export const Form = () => {
         fullWidth
         {...register('address')}
         sx={{ mb: 1 }}
+        helperText={errors?.address?.message}
+        error={!!errors.address}
       />
       <TextField
-        label="Amount"
+        label="Amount (PUNKS)"
         fullWidth
         {...register('amount')}
         sx={{ mb: 1 }}
+        helperText={errors?.amount?.message}
+        error={!!errors.amount}
       />
       <Box
         sx={{
@@ -99,8 +118,8 @@ export const Form = () => {
       {error && <Alert severity="error">{error}</Alert>}
       {tokenTransfer && (
         <TokenTransfer
-          address="punk1s63y29jf8f3ft64z0vh80g3c76ty8lnyr74eur"
-          amount="1000"
+          address={tokenTransfer.address}
+          amount={tokenTransfer.amount}
         />
       )}
     </Box>

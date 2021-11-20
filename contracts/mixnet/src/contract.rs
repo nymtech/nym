@@ -8,6 +8,7 @@ use crate::helpers::calculate_epoch_reward_rate;
 use crate::mixnet_params::queries::query_rewarding_interval;
 use crate::mixnet_params::queries::query_state_params;
 use crate::mixnet_params::state::State;
+use crate::mixnet_params::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
 use crate::mixnodes::bonding_queries::query_mixnodes_paged;
@@ -17,7 +18,6 @@ use crate::mixnodes::delegation_queries::query_reverse_mixnode_delegations_paged
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::rewards::queries::query_circulating_supply;
 use crate::rewards::queries::query_reward_pool;
-use crate::storage::{config, layer_distribution};
 use config::defaults::REWARDING_VALIDATOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
@@ -92,8 +92,8 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let state = default_initial_state(info.sender, env);
 
-    config(deps.storage).save(&state)?;
-    layer_distribution(deps.storage).save(&Default::default())?;
+    mixnet_params_storage::config(deps.storage).save(&state)?;
+    mixnet_params_storage::layer_distribution(deps.storage).save(&Default::default())?;
     Ok(Response::default())
 }
 

@@ -1,16 +1,13 @@
-use crate::storage::{
-    config_read, read_state_params,
-};
-
-use cosmwasm_std::{Deps};
+use super::storage;
+use cosmwasm_std::Deps;
 use mixnet_contract::{RewardingIntervalResponse, StateParams};
 
 pub(crate) fn query_state_params(deps: Deps) -> StateParams {
-    read_state_params(deps.storage)
+    storage::read_state_params(deps.storage)
 }
 
 pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse {
-    let state = config_read(deps.storage).load().unwrap();
+    let state = storage::config_read(deps.storage).load().unwrap();
     RewardingIntervalResponse {
         current_rewarding_interval_starting_block: state.rewarding_interval_starting_block,
         current_rewarding_interval_nonce: state.latest_rewarding_interval_nonce,
@@ -22,12 +19,9 @@ pub(crate) fn query_rewarding_interval(deps: Deps) -> RewardingIntervalResponse 
 pub(crate) mod tests {
     use super::*;
     use crate::mixnet_params::state::State;
-    use crate::storage::{config};
     use crate::support::tests::helpers;
-    
-    
-    use cosmwasm_std::{Addr};
-    
+
+    use cosmwasm_std::Addr;
 
     #[test]
     fn query_for_contract_state_works() {
@@ -52,7 +46,9 @@ pub(crate) mod tests {
             mixnode_epoch_delegation_reward: "7.89".parse().unwrap(),
         };
 
-        config(deps.as_mut().storage).save(&dummy_state).unwrap();
+        storage::config(deps.as_mut().storage)
+            .save(&dummy_state)
+            .unwrap();
 
         assert_eq!(dummy_state.params, query_state_params(deps.as_ref()))
     }

@@ -1,7 +1,7 @@
 use crate::error::ContractError;
 use crate::helpers::scale_reward_by_uptime;
+use crate::mixnet_params::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-use crate::storage;
 use cosmwasm_std::{attr, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::mixnode::NodeRewardParams;
 use mixnet_contract::IdentityKey;
@@ -21,7 +21,7 @@ pub(crate) fn try_begin_mixnode_rewarding(
     info: MessageInfo,
     rewarding_interval_nonce: u32,
 ) -> Result<Response, ContractError> {
-    let mut state = storage::config_read(deps.storage).load()?;
+    let mut state = mixnet_params_storage::config_read(deps.storage).load()?;
 
     // check if this is executed by the permitted validator, if not reject the transaction
     if info.sender != state.rewarding_validator_address {
@@ -53,7 +53,7 @@ pub(crate) fn try_begin_mixnode_rewarding(
     state.latest_rewarding_interval_nonce = rewarding_interval_nonce;
     state.rewarding_in_progress = true;
 
-    storage::config(deps.storage).save(&state)?;
+    mixnet_params_storage::config(deps.storage).save(&state)?;
 
     let mut response = Response::new();
     response.add_attribute(
@@ -75,7 +75,7 @@ pub(crate) fn try_reward_mixnode(
     uptime: u32,
     rewarding_interval_nonce: u32,
 ) -> Result<Response, ContractError> {
-    let state = storage::config_read(deps.storage).load()?;
+    let state = mixnet_params_storage::config_read(deps.storage).load()?;
 
     // check if this is executed by the permitted validator, if not reject the transaction
     if info.sender != state.rewarding_validator_address {
@@ -177,7 +177,7 @@ pub(crate) fn try_reward_mixnode_v2(
     params: NodeRewardParams,
     rewarding_interval_nonce: u32,
 ) -> Result<Response, ContractError> {
-    let state = storage::config_read(deps.storage).load()?;
+    let state = mixnet_params_storage::config_read(deps.storage).load()?;
 
     // check if this is executed by the permitted validator, if not reject the transaction
     if info.sender != state.rewarding_validator_address {
@@ -241,8 +241,8 @@ pub(crate) fn try_reward_mixnode_v2(
         current_bond.bond_amount.amount += Uint128(operator_reward);
         current_bond.total_delegation.amount += total_delegation_reward;
         mixnodes_storage::mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
-        storage::decr_reward_pool(Uint128(operator_reward), deps.storage)?;
-        storage::decr_reward_pool(total_delegation_reward, deps.storage)?;
+        mixnet_params_storage::decr_reward_pool(Uint128(operator_reward), deps.storage)?;
+        mixnet_params_storage::decr_reward_pool(total_delegation_reward, deps.storage)?;
     }
 
     mixnodes_storage::rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
@@ -263,7 +263,7 @@ pub(crate) fn try_finish_mixnode_rewarding(
     info: MessageInfo,
     rewarding_interval_nonce: u32,
 ) -> Result<Response, ContractError> {
-    let mut state = storage::config_read(deps.storage).load()?;
+    let mut state = mixnet_params_storage::config_read(deps.storage).load()?;
 
     // check if this is executed by the permitted validator, if not reject the transaction
     if info.sender != state.rewarding_validator_address {
@@ -283,7 +283,7 @@ pub(crate) fn try_finish_mixnode_rewarding(
     }
 
     state.rewarding_in_progress = false;
-    storage::config(deps.storage).save(&state)?;
+    mixnet_params_storage::config(deps.storage).save(&state)?;
 
     Ok(Response::new())
 }
@@ -301,7 +301,7 @@ pub mod tests {
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
         try_reward_mixnode_v2,
     };
-    use crate::storage;
+    
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{good_mixnode_bond, mix_node_fixture};
     use config::defaults::DENOM;
@@ -323,7 +323,9 @@ pub mod tests {
         fn can_only_be_called_by_specified_validator_address() {
             let mut deps = helpers::init_contract();
             let env = mock_env();
-            let current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+            let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+                .load()
+                .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             let res = try_begin_mixnode_rewarding(
@@ -347,7 +349,9 @@ pub mod tests {
         fn cannot_be_called_if_rewarding_is_already_in_progress_with_little_day() {
             let mut deps = helpers::init_contract();
             let env = mock_env();
-            let current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+            let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+                .load()
+                .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             try_begin_mixnode_rewarding(
@@ -371,7 +375,9 @@ pub mod tests {
         fn can_be_called_if_rewarding_is_in_progress_if_sufficient_number_of_blocks_elapsed() {
             let mut deps = helpers::init_contract();
             let env = mock_env();
-            let current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+            let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+                .load()
+                .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             try_begin_mixnode_rewarding(
@@ -399,9 +405,11 @@ pub mod tests {
         fn provided_nonce_must_be_equal_the_current_plus_one() {
             let mut deps = helpers::init_contract();
             let env = mock_env();
-            let mut current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+            let mut current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+                .load()
+                .unwrap();
             current_state.latest_rewarding_interval_nonce = 42;
-            storage::config(deps.as_mut().storage)
+            mixnet_params_storage::config(deps.as_mut().storage)
                 .save(&current_state)
                 .unwrap();
 
@@ -462,7 +470,9 @@ pub mod tests {
         fn updates_contract_state() {
             let mut deps = helpers::init_contract();
             let env = mock_env();
-            let start_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+            let start_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+                .load()
+                .unwrap();
             let rewarding_validator_address = start_state.rewarding_validator_address;
 
             try_begin_mixnode_rewarding(
@@ -473,7 +483,9 @@ pub mod tests {
             )
             .unwrap();
 
-            let new_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+            let new_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+                .load()
+                .unwrap();
             assert!(new_state.rewarding_in_progress);
             assert_eq!(
                 new_state.rewarding_interval_starting_block,
@@ -489,7 +501,6 @@ pub mod tests {
     #[cfg(test)]
     mod finishing_mixnode_rewarding {
         use super::*;
-        
         use crate::rewards::transactions::{
             try_begin_mixnode_rewarding, try_finish_mixnode_rewarding,
         };
@@ -498,7 +509,9 @@ pub mod tests {
         fn can_only_be_called_by_specified_validator_address() {
             let mut deps = helpers::init_contract();
             let env = mock_env();
-            let current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+            let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+                .load()
+                .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             try_begin_mixnode_rewarding(
@@ -527,7 +540,9 @@ pub mod tests {
         #[test]
         fn cannot_be_called_if_rewarding_is_not_in_progress() {
             let mut deps = helpers::init_contract();
-            let current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+            let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+                .load()
+                .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             let res = try_finish_mixnode_rewarding(
@@ -542,9 +557,11 @@ pub mod tests {
         fn provided_nonce_must_be_equal_the_current_one() {
             let mut deps = helpers::init_contract();
             let env = mock_env();
-            let mut current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+            let mut current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+                .load()
+                .unwrap();
             current_state.latest_rewarding_interval_nonce = 42;
-            storage::config(deps.as_mut().storage)
+            mixnet_params_storage::config(deps.as_mut().storage)
                 .save(&current_state)
                 .unwrap();
 
@@ -609,7 +626,9 @@ pub mod tests {
         fn updates_contract_state() {
             let mut deps = helpers::init_contract();
             let env = mock_env();
-            let current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+            let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+                .load()
+                .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             try_begin_mixnode_rewarding(
@@ -627,7 +646,9 @@ pub mod tests {
             )
             .unwrap();
 
-            let new_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+            let new_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+                .load()
+                .unwrap();
             assert!(!new_state.rewarding_in_progress);
         }
     }
@@ -636,7 +657,9 @@ pub mod tests {
     fn rewarding_mixnode() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        let current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+        let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+            .load()
+            .unwrap();
         let rewarding_validator_address = current_state.rewarding_validator_address;
 
         let node_owner: Addr = Addr::unchecked("node-owner");
@@ -789,7 +812,9 @@ pub mod tests {
     fn rewarding_mixnodes_outside_rewarding_period() {
         let mut deps = helpers::init_contract();
         let env = mock_env();
-        let current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+        let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+            .load()
+            .unwrap();
         let rewarding_validator_address = current_state.rewarding_validator_address;
 
         // bond the node
@@ -835,7 +860,9 @@ pub mod tests {
     fn rewarding_mixnodes_with_incorrect_rewarding_nonce() {
         let mut deps = helpers::init_contract();
         let env = mock_env();
-        let current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+        let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+            .load()
+            .unwrap();
         let rewarding_validator_address = current_state.rewarding_validator_address;
 
         // bond the node
@@ -902,7 +929,9 @@ pub mod tests {
     fn attempting_rewarding_mixnode_multiple_times_per_interval() {
         let mut deps = helpers::init_contract();
         let env = mock_env();
-        let current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+        let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+            .load()
+            .unwrap();
         let rewarding_validator_address = current_state.rewarding_validator_address;
 
         // bond the node
@@ -962,7 +991,9 @@ pub mod tests {
     fn rewarding_mixnode_blockstamp_based() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        let current_state = storage::config_read(deps.as_mut().storage).load().unwrap();
+        let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+            .load()
+            .unwrap();
         let rewarding_validator_address = current_state.rewarding_validator_address;
 
         let node_owner: Addr = Addr::unchecked("node-owner");
@@ -1136,12 +1167,14 @@ pub mod tests {
 
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        let current_state = storage::config(deps.as_mut().storage).load().unwrap();
+        let current_state = mixnet_params_storage::config(deps.as_mut().storage)
+            .load()
+            .unwrap();
         let rewarding_validator_address = current_state.rewarding_validator_address;
         let period_reward_pool = (INITIAL_REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128;
         assert_eq!(period_reward_pool, 5_000_000_000_000);
         let k = 200; // Imagining our active set size is 200
-        let circulating_supply = storage::circulating_supply(&deps.storage).u128();
+        let circulating_supply = mixnet_params_storage::circulating_supply(&deps.storage).u128();
         assert_eq!(circulating_supply, 750_000_000_000_000u128);
         // mut_reward_pool(deps.as_mut().storage)
         //     .save(&Uint128(period_reward_pool))
@@ -1258,7 +1291,7 @@ pub mod tests {
         );
 
         assert_eq!(
-            storage::reward_pool_value(&deps.storage).u128(),
+            mixnet_params_storage::reward_pool_value(&deps.storage).u128(),
             U128::from_num(INITIAL_REWARD_POOL)
                 - (U128::from_num(mix1_operator_profit)
                     + U128::from_num(mix1_delegator1_reward)

@@ -1,6 +1,6 @@
+use super::storage;
 use crate::error::ContractError;
 use crate::helpers::calculate_epoch_reward_rate;
-use crate::storage::config_read;
 use cosmwasm_std::Decimal;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
@@ -15,7 +15,7 @@ pub(crate) fn try_update_state_params(
     // note: In any other case, I wouldn't have attempted to unwrap this result, but in here
     // if we fail to load the stored state we would already be in the undefined behaviour land,
     // so we better just blow up immediately.
-    let mut state = config_read(deps.storage).load()?;
+    let mut state = storage::config_read(deps.storage).load()?;
 
     // check if this is executed by the owner, if not reject the transaction
     if info.sender != state.owner {
@@ -58,7 +58,7 @@ pub(crate) fn try_update_state_params(
 
     state.params = params;
 
-    crate::storage::config(deps.storage).save(&state)?;
+    storage::config(deps.storage).save(&state)?;
 
     Ok(Response::default())
 }
@@ -106,7 +106,7 @@ pub mod tests {
         assert_eq!(res, Ok(Response::default()));
 
         // and the state is actually updated
-        let current_state = config_read(deps.as_ref().storage).load().unwrap();
+        let current_state = storage::config_read(deps.as_ref().storage).load().unwrap();
         assert_eq!(current_state.params, new_params);
 
         // mixnode_epoch_rewards are recalculated if annual reward  is changed
@@ -129,7 +129,7 @@ pub mod tests {
         let info = mock_info("creator", &[]);
         try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
 
-        let new_state = config_read(deps.as_ref().storage).load().unwrap();
+        let new_state = storage::config_read(deps.as_ref().storage).load().unwrap();
         let expected_bond =
             calculate_epoch_reward_rate(new_params.epoch_length, new_mixnode_bond_reward_rate);
         let expected_delegation = calculate_epoch_reward_rate(
@@ -152,7 +152,7 @@ pub mod tests {
         let info = mock_info("creator", &[]);
         try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
 
-        let new_state = config_read(deps.as_ref().storage).load().unwrap();
+        let new_state = storage::config_read(deps.as_ref().storage).load().unwrap();
         let expected_mixnode_bond =
             calculate_epoch_reward_rate(new_epoch_length, new_params.mixnode_bond_reward_rate);
         let expected_mixnode_delegation = calculate_epoch_reward_rate(

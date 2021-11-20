@@ -1,8 +1,8 @@
 use super::storage;
 use crate::error::ContractError;
 use crate::gateways::storage as gateways_storage;
+use crate::mixnet_params::storage as mixnet_params_storage;
 use crate::mixnodes::layer_queries::query_layer_distribution;
-use crate::storage as main_storage;
 use config::defaults::DENOM;
 use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::{MixNode, MixNodeBond};
@@ -71,7 +71,7 @@ pub(crate) fn try_add_mixnode(
         }
     }
 
-    let minimum_bond = main_storage::read_state_params(deps.storage).minimum_mixnode_bond;
+    let minimum_bond = mixnet_params_storage::read_state_params(deps.storage).minimum_mixnode_bond;
     validate_mixnode_bond(&info.funds, minimum_bond)?;
 
     let layer_distribution = query_layer_distribution(deps.as_ref());
@@ -97,7 +97,7 @@ pub(crate) fn try_add_mixnode(
 
     storage::mixnodes(deps.storage).save(identity.as_bytes(), &bond)?;
     storage::mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
-    main_storage::increment_layer_count(deps.storage, bond.layer)?;
+    mixnet_params_storage::increment_layer_count(deps.storage, bond.layer)?;
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
@@ -135,7 +135,7 @@ pub(crate) fn try_remove_mixnode(
     // remove the node ownership
     storage::mixnodes_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
-    main_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
+    mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
 
     // log our actions
     let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
@@ -155,7 +155,6 @@ pub mod tests {
     use crate::error::ContractError;
     use crate::mixnodes::bonding_transactions::try_add_mixnode;
     use crate::mixnodes::bonding_transactions::validate_mixnode_bond;
-    use crate::storage::layer_distribution_read;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{good_gateway_bond, good_mixnode_bond};
     use config::defaults::DENOM;
@@ -442,7 +441,9 @@ pub mod tests {
 
         assert_eq!(
             LayerDistribution::default(),
-            layer_distribution_read(&deps.storage).load().unwrap(),
+            mixnet_params_storage::layer_distribution_read(&deps.storage)
+                .load()
+                .unwrap(),
         );
 
         let info = mock_info("mix-owner", &good_mixnode_bond());
@@ -459,7 +460,9 @@ pub mod tests {
                 layer1: 1,
                 ..Default::default()
             },
-            layer_distribution_read(&deps.storage).load().unwrap()
+            mixnet_params_storage::layer_distribution_read(&deps.storage)
+                .load()
+                .unwrap()
         );
     }
 

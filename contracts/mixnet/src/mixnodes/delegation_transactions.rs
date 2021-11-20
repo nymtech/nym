@@ -143,7 +143,6 @@ mod tests {
     use crate::rewards::transactions::{
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
     };
-    use crate::storage::config_read;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{add_mixnode, good_mixnode_bond};
     use cosmwasm_std::attr;
@@ -735,9 +734,13 @@ mod tests {
     }
     #[test]
     fn delegators_on_mix_node_reward_rate() {
+        use crate::mixnet_params::storage as mixnet_params_storage;
+
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        let current_state = config_read(deps.as_mut().storage).load().unwrap();
+        let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
+            .load()
+            .unwrap();
         let rewarding_validator_address = current_state.rewarding_validator_address;
         let initial_mix_bond = 100_000000;
         let initial_delegation1 = 50000; // will see single digits rewards

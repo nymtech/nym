@@ -1,7 +1,7 @@
 use super::storage;
 use crate::error::ContractError;
+use crate::mixnet_params::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-use crate::storage as main_storage;
 use config::defaults::DENOM;
 use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::{Gateway, GatewayBond, Layer};
@@ -70,7 +70,7 @@ pub(crate) fn try_add_gateway(
         }
     }
 
-    let minimum_bond = main_storage::read_state_params(deps.storage).minimum_gateway_bond;
+    let minimum_bond = mixnet_params_storage::read_state_params(deps.storage).minimum_gateway_bond;
     validate_gateway_bond(&info.funds, minimum_bond)?;
 
     let bond = GatewayBond::new(
@@ -83,7 +83,7 @@ pub(crate) fn try_add_gateway(
     let identity = bond.identity();
     storage::gateways(deps.storage).save(identity.as_bytes(), &bond)?;
     storage::gateways_owners(deps.storage).save(sender_bytes, identity)?;
-    main_storage::increment_layer_count(deps.storage, Layer::Gateway)?;
+    mixnet_params_storage::increment_layer_count(deps.storage, Layer::Gateway)?;
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
@@ -122,7 +122,7 @@ pub(crate) fn try_remove_gateway(
     // remove the node ownership
     storage::gateways_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
-    main_storage::decrement_layer_count(deps.storage, Layer::Gateway)?;
+    mixnet_params_storage::decrement_layer_count(deps.storage, Layer::Gateway)?;
 
     // log our actions
     let attributes = vec![

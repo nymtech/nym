@@ -29,6 +29,7 @@ pub const PREFIX_REWARDED_MIXNODES: &[u8] = b"rm";
 // currently the maximum limit before running into memory issue is somewhere between 1150 and 1200
 pub(crate) const DELEGATION_PAGE_MAX_LIMIT: u32 = 750;
 pub(crate) const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 500;
+pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 100;
 
 pub fn mixnodes(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
     bucket(storage, PREFIX_MIXNODES)

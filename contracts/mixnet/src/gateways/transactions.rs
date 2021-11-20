@@ -158,42 +158,6 @@ pub mod tests {
     use mixnet_contract::{ExecuteMsg, PagedGatewayResponse, QueryMsg};
 
     #[test]
-    fn validating_gateway_bond() {
-        // you must send SOME funds
-        let result = validate_gateway_bond(&[], INITIAL_GATEWAY_BOND);
-        assert_eq!(result, Err(ContractError::NoBondFound));
-
-        // you must send at least 100 coins...
-        let mut bond = test_helpers::good_gateway_bond();
-        bond[0].amount = INITIAL_GATEWAY_BOND.checked_sub(Uint128(1)).unwrap();
-        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
-        assert_eq!(
-            result,
-            Err(ContractError::InsufficientGatewayBond {
-                received: Into::<u128>::into(INITIAL_GATEWAY_BOND) - 1,
-                minimum: INITIAL_GATEWAY_BOND.into(),
-            })
-        );
-
-        // more than that is still fine
-        let mut bond = test_helpers::good_gateway_bond();
-        bond[0].amount = INITIAL_GATEWAY_BOND + Uint128(1);
-        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
-        assert!(result.is_ok());
-
-        // it must be sent in the defined denom!
-        let mut bond = test_helpers::good_gateway_bond();
-        bond[0].denom = "baddenom".to_string();
-        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
-        assert_eq!(result, Err(ContractError::WrongDenom {}));
-
-        let mut bond = test_helpers::good_gateway_bond();
-        bond[0].denom = "foomp".to_string();
-        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
-        assert_eq!(result, Err(ContractError::WrongDenom {}));
-    }
-
-    #[test]
     fn gateway_add() {
         let mut deps = test_helpers::init_contract();
 
@@ -559,5 +523,41 @@ pub mod tests {
                 .load("gateway-owner".as_bytes())
                 .unwrap()
         );
+    }
+
+    #[test]
+    fn validating_gateway_bond() {
+        // you must send SOME funds
+        let result = validate_gateway_bond(&[], INITIAL_GATEWAY_BOND);
+        assert_eq!(result, Err(ContractError::NoBondFound));
+
+        // you must send at least 100 coins...
+        let mut bond = test_helpers::good_gateway_bond();
+        bond[0].amount = INITIAL_GATEWAY_BOND.checked_sub(Uint128(1)).unwrap();
+        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
+        assert_eq!(
+            result,
+            Err(ContractError::InsufficientGatewayBond {
+                received: Into::<u128>::into(INITIAL_GATEWAY_BOND) - 1,
+                minimum: INITIAL_GATEWAY_BOND.into(),
+            })
+        );
+
+        // more than that is still fine
+        let mut bond = test_helpers::good_gateway_bond();
+        bond[0].amount = INITIAL_GATEWAY_BOND + Uint128(1);
+        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
+        assert!(result.is_ok());
+
+        // it must be sent in the defined denom!
+        let mut bond = test_helpers::good_gateway_bond();
+        bond[0].denom = "baddenom".to_string();
+        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
+        assert_eq!(result, Err(ContractError::WrongDenom {}));
+
+        let mut bond = test_helpers::good_gateway_bond();
+        bond[0].denom = "foomp".to_string();
+        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
+        assert_eq!(result, Err(ContractError::WrongDenom {}));
     }
 }

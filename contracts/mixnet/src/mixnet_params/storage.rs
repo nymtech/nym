@@ -64,7 +64,7 @@ pub fn layer_distribution_read(storage: &dyn Storage) -> ReadonlySingleton<Layer
 }
 
 #[allow(dead_code)]
-pub fn incr_reward_pool(
+pub fn increment_reward_pool(
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<Uint128, ContractError> {
@@ -73,7 +73,7 @@ pub fn incr_reward_pool(
     Ok(stake)
 }
 
-pub fn decr_reward_pool(
+pub fn decrement_reward_pool(
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<Uint128, ContractError> {

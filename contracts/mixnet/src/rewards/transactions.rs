@@ -242,8 +242,8 @@ pub(crate) fn try_reward_mixnode_v2(
         current_bond.bond_amount.amount += Uint128(operator_reward);
         current_bond.total_delegation.amount += total_delegation_reward;
         mixnodes_storage::mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
-        mixnet_params_storage::decr_reward_pool(Uint128(operator_reward), deps.storage)?;
-        mixnet_params_storage::decr_reward_pool(total_delegation_reward, deps.storage)?;
+        mixnet_params_storage::decrement_reward_pool(Uint128(operator_reward), deps.storage)?;
+        mixnet_params_storage::decrement_reward_pool(total_delegation_reward, deps.storage)?;
     }
 
     mixnodes_storage::rewarded_mixnodes(deps.storage, rewarding_interval_nonce)

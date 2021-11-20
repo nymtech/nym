@@ -7,32 +7,6 @@ use config::defaults::DENOM;
 use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::{MixNode, MixNodeBond};
 
-pub fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
-    // check if anything was put as bond
-    if bond.is_empty() {
-        return Err(ContractError::NoBondFound);
-    }
-
-    if bond.len() > 1 {
-        return Err(ContractError::MultipleDenoms);
-    }
-
-    // check that the denomination is correct
-    if bond[0].denom != DENOM {
-        return Err(ContractError::WrongDenom {});
-    }
-
-    // check that we have at least MIXNODE_BOND coins in our bond
-    if bond[0].amount < minimum_bond {
-        return Err(ContractError::InsufficientMixNodeBond {
-            received: bond[0].amount.into(),
-            minimum: minimum_bond.into(),
-        });
-    }
-
-    Ok(())
-}
-
 pub(crate) fn try_add_mixnode(
     deps: DepsMut,
     env: Env,
@@ -149,6 +123,32 @@ pub(crate) fn try_remove_mixnode(
     })
 }
 
+fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
+    // check if anything was put as bond
+    if bond.is_empty() {
+        return Err(ContractError::NoBondFound);
+    }
+
+    if bond.len() > 1 {
+        return Err(ContractError::MultipleDenoms);
+    }
+
+    // check that the denomination is correct
+    if bond[0].denom != DENOM {
+        return Err(ContractError::WrongDenom {});
+    }
+
+    // check that we have at least MIXNODE_BOND coins in our bond
+    if bond[0].amount < minimum_bond {
+        return Err(ContractError::InsufficientMixNodeBond {
+            received: bond[0].amount.into(),
+            minimum: minimum_bond.into(),
+        });
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -166,42 +166,6 @@ pub mod tests {
     use mixnet_contract::Layer;
     use mixnet_contract::MixNode;
     use mixnet_contract::{ExecuteMsg, LayerDistribution, PagedMixnodeResponse, QueryMsg};
-
-    #[test]
-    fn validating_mixnode_bond() {
-        // you must send SOME funds
-        let result = validate_mixnode_bond(&[], INITIAL_MIXNODE_BOND);
-        assert_eq!(result, Err(ContractError::NoBondFound));
-
-        // you must send at least 100 coins...
-        let mut bond = test_helpers::good_mixnode_bond();
-        bond[0].amount = INITIAL_MIXNODE_BOND.checked_sub(Uint128(1)).unwrap();
-        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
-        assert_eq!(
-            result,
-            Err(ContractError::InsufficientMixNodeBond {
-                received: Into::<u128>::into(INITIAL_MIXNODE_BOND) - 1,
-                minimum: INITIAL_MIXNODE_BOND.into(),
-            })
-        );
-
-        // more than that is still fine
-        let mut bond = test_helpers::good_mixnode_bond();
-        bond[0].amount = INITIAL_MIXNODE_BOND + Uint128(1);
-        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
-        assert!(result.is_ok());
-
-        // it must be sent in the defined denom!
-        let mut bond = test_helpers::good_mixnode_bond();
-        bond[0].denom = "baddenom".to_string();
-        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
-        assert_eq!(result, Err(ContractError::WrongDenom {}));
-
-        let mut bond = test_helpers::good_mixnode_bond();
-        bond[0].denom = "foomp".to_string();
-        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
-        assert_eq!(result, Err(ContractError::WrongDenom {}));
-    }
 
     #[test]
     fn mixnode_add() {
@@ -603,6 +567,42 @@ pub mod tests {
                 .load("mix-owner".as_bytes())
                 .unwrap()
         );
+    }
+
+    #[test]
+    fn validating_mixnode_bond() {
+        // you must send SOME funds
+        let result = validate_mixnode_bond(&[], INITIAL_MIXNODE_BOND);
+        assert_eq!(result, Err(ContractError::NoBondFound));
+
+        // you must send at least 100 coins...
+        let mut bond = test_helpers::good_mixnode_bond();
+        bond[0].amount = INITIAL_MIXNODE_BOND.checked_sub(Uint128(1)).unwrap();
+        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
+        assert_eq!(
+            result,
+            Err(ContractError::InsufficientMixNodeBond {
+                received: Into::<u128>::into(INITIAL_MIXNODE_BOND) - 1,
+                minimum: INITIAL_MIXNODE_BOND.into(),
+            })
+        );
+
+        // more than that is still fine
+        let mut bond = test_helpers::good_mixnode_bond();
+        bond[0].amount = INITIAL_MIXNODE_BOND + Uint128(1);
+        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
+        assert!(result.is_ok());
+
+        // it must be sent in the defined denom!
+        let mut bond = test_helpers::good_mixnode_bond();
+        bond[0].denom = "baddenom".to_string();
+        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
+        assert_eq!(result, Err(ContractError::WrongDenom {}));
+
+        let mut bond = test_helpers::good_mixnode_bond();
+        bond[0].denom = "foomp".to_string();
+        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
+        assert_eq!(result, Err(ContractError::WrongDenom {}));
     }
 
     #[test]

@@ -1,5 +1,5 @@
+use super::helpers;
 use crate::error::ContractError;
-use crate::helpers::scale_reward_by_uptime;
 use crate::mixnet_params::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::{attr, DepsMut, Env, MessageInfo, Response, Uint128};
@@ -139,8 +139,9 @@ pub(crate) fn try_reward_mixnode(
     if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height {
         let bond_reward_rate = state.mixnode_epoch_bond_reward;
         let delegation_reward_rate = state.mixnode_epoch_delegation_reward;
-        let bond_scaled_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
-        let delegation_scaled_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
+        let bond_scaled_reward_rate = helpers::scale_reward_by_uptime(bond_reward_rate, uptime)?;
+        let delegation_scaled_reward_rate =
+            helpers::scale_reward_by_uptime(delegation_reward_rate, uptime)?;
 
         total_delegation_reward = mixnodes_storage::increase_mix_delegated_stakes(
             deps.storage,
@@ -293,7 +294,6 @@ pub mod tests {
     use super::*;
     use crate::contract::DEFAULT_SYBIL_RESISTANCE_PERCENT;
     use crate::error::ContractError;
-    use crate::helpers::scale_reward_by_uptime;
     use crate::mixnodes::bonding_transactions::try_add_mixnode;
     use crate::mixnodes::delegation_transactions::try_delegate_to_mixnode;
     use crate::mixnodes::storage as mixnodes_storage;
@@ -301,8 +301,7 @@ pub mod tests {
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
         try_reward_mixnode_v2,
     };
-    
-    use crate::support::tests::helpers;
+    use crate::support::tests::helpers as test_helpers;
     use crate::support::tests::helpers::{good_mixnode_bond, mix_node_fixture};
     use config::defaults::DENOM;
     use cosmwasm_std::attr;
@@ -318,10 +317,12 @@ pub mod tests {
     mod beginning_mixnode_rewarding {
         use super::*;
         use crate::rewards::transactions::try_begin_mixnode_rewarding;
+        use crate::support::tests::helpers as test_helpers;
+        use cosmwasm_std::testing::mock_env;
 
         #[test]
         fn can_only_be_called_by_specified_validator_address() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let env = mock_env();
             let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
                 .load()
@@ -347,7 +348,7 @@ pub mod tests {
 
         #[test]
         fn cannot_be_called_if_rewarding_is_already_in_progress_with_little_day() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let env = mock_env();
             let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
                 .load()
@@ -373,7 +374,7 @@ pub mod tests {
 
         #[test]
         fn can_be_called_if_rewarding_is_in_progress_if_sufficient_number_of_blocks_elapsed() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let env = mock_env();
             let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
                 .load()
@@ -403,7 +404,7 @@ pub mod tests {
 
         #[test]
         fn provided_nonce_must_be_equal_the_current_plus_one() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let env = mock_env();
             let mut current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
                 .load()
@@ -468,7 +469,7 @@ pub mod tests {
 
         #[test]
         fn updates_contract_state() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let env = mock_env();
             let start_state = mixnet_params_storage::config_read(deps.as_mut().storage)
                 .load()
@@ -504,10 +505,11 @@ pub mod tests {
         use crate::rewards::transactions::{
             try_begin_mixnode_rewarding, try_finish_mixnode_rewarding,
         };
+        use crate::support::tests::helpers as test_helpers;
 
         #[test]
         fn can_only_be_called_by_specified_validator_address() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let env = mock_env();
             let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
                 .load()
@@ -539,7 +541,7 @@ pub mod tests {
 
         #[test]
         fn cannot_be_called_if_rewarding_is_not_in_progress() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
                 .load()
                 .unwrap();
@@ -555,7 +557,7 @@ pub mod tests {
 
         #[test]
         fn provided_nonce_must_be_equal_the_current_one() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let env = mock_env();
             let mut current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
                 .load()
@@ -624,7 +626,7 @@ pub mod tests {
 
         #[test]
         fn updates_contract_state() {
-            let mut deps = helpers::init_contract();
+            let mut deps = test_helpers::init_contract();
             let env = mock_env();
             let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
                 .load()
@@ -655,7 +657,7 @@ pub mod tests {
 
     #[test]
     fn rewarding_mixnode() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let mut env = mock_env();
         let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
             .load()
@@ -765,8 +767,9 @@ pub mod tests {
         );
 
         // if node was 20% up, it will get 1/5th of epoch reward
-        let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 20).unwrap();
-        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 20).unwrap();
+        let scaled_bond_reward = helpers::scale_reward_by_uptime(bond_reward_rate, 20).unwrap();
+        let scaled_delegation_reward =
+            helpers::scale_reward_by_uptime(delegation_reward_rate, 20).unwrap();
         let expected_bond_reward = expected_bond * scaled_bond_reward;
         let expected_delegation_reward = expected_delegation * scaled_delegation_reward;
         let expected_bond = expected_bond_reward + expected_bond;
@@ -810,7 +813,7 @@ pub mod tests {
 
     #[test]
     fn rewarding_mixnodes_outside_rewarding_period() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let env = mock_env();
         let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
             .load()
@@ -827,7 +830,7 @@ pub mod tests {
             mock_info(node_owner.as_ref(), &good_mixnode_bond()),
             MixNode {
                 identity_key: node_identity.to_string(),
-                ..helpers::mix_node_fixture()
+                ..test_helpers::mix_node_fixture()
             },
         )
         .unwrap();
@@ -858,7 +861,7 @@ pub mod tests {
 
     #[test]
     fn rewarding_mixnodes_with_incorrect_rewarding_nonce() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let env = mock_env();
         let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
             .load()
@@ -875,7 +878,7 @@ pub mod tests {
             mock_info(node_owner.as_ref(), &good_mixnode_bond()),
             MixNode {
                 identity_key: node_identity.to_string(),
-                ..helpers::mix_node_fixture()
+                ..test_helpers::mix_node_fixture()
             },
         )
         .unwrap();
@@ -927,7 +930,7 @@ pub mod tests {
 
     #[test]
     fn attempting_rewarding_mixnode_multiple_times_per_interval() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let env = mock_env();
         let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
             .load()
@@ -944,7 +947,7 @@ pub mod tests {
             mock_info(node_owner.as_ref(), &good_mixnode_bond()),
             MixNode {
                 identity_key: node_identity.to_string(),
-                ..helpers::mix_node_fixture()
+                ..test_helpers::mix_node_fixture()
             },
         )
         .unwrap();
@@ -989,7 +992,7 @@ pub mod tests {
 
     #[test]
     fn rewarding_mixnode_blockstamp_based() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let mut env = mock_env();
         let current_state = mixnet_params_storage::config_read(deps.as_mut().storage)
             .load()
@@ -1030,8 +1033,9 @@ pub mod tests {
 
         let bond_reward_rate = current_state.mixnode_epoch_bond_reward;
         let delegation_reward_rate = current_state.mixnode_epoch_delegation_reward;
-        let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 100).unwrap();
-        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 100).unwrap();
+        let scaled_bond_reward = helpers::scale_reward_by_uptime(bond_reward_rate, 100).unwrap();
+        let scaled_delegation_reward =
+            helpers::scale_reward_by_uptime(delegation_reward_rate, 100).unwrap();
 
         // no reward is due
         let expected_bond_reward = Uint128(0);
@@ -1165,7 +1169,7 @@ pub mod tests {
 
         type U128 = fixed::types::U75F53;
 
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let mut env = mock_env();
         let current_state = mixnet_params_storage::config(deps.as_mut().storage)
             .load()
@@ -1192,7 +1196,7 @@ pub mod tests {
             ),
             MixNode {
                 identity_key: "alice".to_string(),
-                ..helpers::mix_node_fixture()
+                ..test_helpers::mix_node_fixture()
             },
         )
         .unwrap();

@@ -4,7 +4,6 @@
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
-use crate::helpers::calculate_epoch_reward_rate;
 use crate::mixnet_params::queries::query_rewarding_interval;
 use crate::mixnet_params::queries::query_state_params;
 use crate::mixnet_params::state::State;
@@ -16,6 +15,7 @@ use crate::mixnodes::delegation_queries::query_all_mixnode_delegations_paged;
 use crate::mixnodes::delegation_queries::query_mixnode_delegation;
 use crate::mixnodes::delegation_queries::query_reverse_mixnode_delegations_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
+use crate::rewards::helpers as rewards_helpers;
 use crate::rewards::queries::query_circulating_supply;
 use crate::rewards::queries::query_reward_pool;
 use config::defaults::REWARDING_VALIDATOR_ADDRESS;
@@ -67,11 +67,11 @@ fn default_initial_state(owner: Addr, env: Env) -> State {
         rewarding_interval_starting_block: env.block.height,
         latest_rewarding_interval_nonce: 0,
         rewarding_in_progress: false,
-        mixnode_epoch_bond_reward: calculate_epoch_reward_rate(
+        mixnode_epoch_bond_reward: rewards_helpers::calculate_epoch_reward_rate(
             INITIAL_DEFAULT_EPOCH_LENGTH,
             mixnode_bond_reward_rate,
         ),
-        mixnode_epoch_delegation_reward: calculate_epoch_reward_rate(
+        mixnode_epoch_delegation_reward: rewards_helpers::calculate_epoch_reward_rate(
             INITIAL_DEFAULT_EPOCH_LENGTH,
             mixnode_delegation_reward_rate,
         ),

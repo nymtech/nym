@@ -137,8 +137,8 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 mod tests {
     use super::storage;
     use super::*;
-    use crate::helpers::scale_reward_by_uptime;
     use crate::mixnodes::delegation_transactions::try_delegate_to_mixnode;
+    use crate::rewards::helpers as rewards_helpers;
     use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
     use crate::rewards::transactions::{
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
@@ -829,8 +829,9 @@ mod tests {
             res.attributes
         );
         // if node was 20% up, it will get 1/5th of epoch reward
-        let scaled_bond_reward = scale_reward_by_uptime(bond_reward, 20).unwrap();
-        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward, 20).unwrap();
+        let scaled_bond_reward = rewards_helpers::scale_reward_by_uptime(bond_reward, 20).unwrap();
+        let scaled_delegation_reward =
+            rewards_helpers::scale_reward_by_uptime(delegation_reward, 20).unwrap();
         let expected_mix_reward = expected_bond * scaled_bond_reward;
         let expected_delegation1_reward = expected_delegation1 * scaled_delegation_reward;
         let expected_delegation2_reward = expected_delegation2 * scaled_delegation_reward;

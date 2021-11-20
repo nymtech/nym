@@ -1,6 +1,6 @@
 use super::storage;
 use crate::error::ContractError;
-use crate::helpers::calculate_epoch_reward_rate;
+use crate::rewards::helpers::calculate_epoch_reward_rate;
 use cosmwasm_std::Decimal;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
@@ -71,7 +71,6 @@ pub mod tests {
         INITIAL_MIXNODE_BOND_REWARD_RATE, INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
     };
     use crate::error::ContractError;
-    use crate::helpers::calculate_epoch_reward_rate;
     use crate::mixnet_params::transactions::try_update_state_params;
     use crate::support::tests::helpers;
     use cosmwasm_std::testing::mock_info;

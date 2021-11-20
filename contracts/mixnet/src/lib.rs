@@ -9,5 +9,4 @@ pub mod mixnet_params;
 pub mod mixnodes;
 pub mod queries;
 mod rewards;
-pub(crate) mod storage;
 pub mod support;

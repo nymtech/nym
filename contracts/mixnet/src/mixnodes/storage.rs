@@ -1,11 +1,6 @@
 use crate::error::ContractError;
 use crate::queries::DELEGATION_PAGE_MAX_LIMIT;
 use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
-use crate::storage::PREFIX_MIXNODES;
-use crate::storage::PREFIX_MIXNODES_OWNERS;
-use crate::storage::PREFIX_MIX_DELEGATION;
-use crate::storage::PREFIX_REVERSE_MIX_DELEGATION;
-use crate::storage::PREFIX_REWARDED_MIXNODES;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Decimal;
 use cosmwasm_std::Order;
@@ -23,6 +18,13 @@ use mixnet_contract::MixNodeBond;
 use mixnet_contract::RawDelegationData;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+
+// storage prefixes
+const PREFIX_MIXNODES: &[u8] = b"mn";
+const PREFIX_MIXNODES_OWNERS: &[u8] = b"mo";
+const PREFIX_MIX_DELEGATION: &[u8] = b"md";
+const PREFIX_REVERSE_MIX_DELEGATION: &[u8] = b"dm";
+pub const PREFIX_REWARDED_MIXNODES: &[u8] = b"rm";
 
 pub fn mixnodes(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
     bucket(storage, PREFIX_MIXNODES)
@@ -229,17 +231,16 @@ mod tests {
     use super::super::storage;
     use crate::helpers::identity_and_owner_to_bytes;
     use crate::support::tests::helpers::{
-        mix_node_fixture, mixnode_bond_fixture,
-        raw_delegation_fixture,
+        mix_node_fixture, mixnode_bond_fixture, raw_delegation_fixture,
     };
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, MockStorage};
     use cosmwasm_std::{coin, Addr, Uint128};
     use mixnet_contract::IdentityKey;
     use mixnet_contract::Layer;
+    use mixnet_contract::MixNode;
     use mixnet_contract::MixNodeBond;
     use mixnet_contract::RawDelegationData;
-    use mixnet_contract::{MixNode};
 
     #[test]
     fn mixnode_single_read_retrieval() {

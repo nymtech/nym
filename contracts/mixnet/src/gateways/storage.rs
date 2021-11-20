@@ -1,7 +1,3 @@
-// Gateway-related stuff
-
-use crate::storage::PREFIX_GATEWAYS;
-use crate::storage::PREFIX_GATEWAYS_OWNERS;
 use cosmwasm_std::Storage;
 use cosmwasm_storage::bucket;
 use cosmwasm_storage::bucket_read;
@@ -9,6 +5,10 @@ use cosmwasm_storage::Bucket;
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::GatewayBond;
 use mixnet_contract::IdentityKey;
+
+// storage prefixes
+const PREFIX_GATEWAYS: &[u8] = b"gt";
+const PREFIX_GATEWAYS_OWNERS: &[u8] = b"go";
 
 pub fn gateways(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
     bucket(storage, PREFIX_GATEWAYS)

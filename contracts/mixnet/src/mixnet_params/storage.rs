@@ -1,9 +1,6 @@
 use crate::contract::INITIAL_REWARD_POOL;
 use crate::error::ContractError;
 use crate::mixnet_params::state::State;
-use crate::storage::CONFIG_KEY;
-use crate::storage::LAYER_DISTRIBUTION_KEY;
-use crate::storage::REWARD_POOL_PREFIX;
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Storage;
@@ -15,6 +12,11 @@ use cosmwasm_storage::Singleton;
 use mixnet_contract::Layer;
 use mixnet_contract::LayerDistribution;
 use mixnet_contract::StateParams;
+
+// storage prefixes
+const CONFIG_KEY: &[u8] = b"config";
+const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
+const REWARD_POOL_PREFIX: &[u8] = b"pool";
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
     singleton(storage, CONFIG_KEY)

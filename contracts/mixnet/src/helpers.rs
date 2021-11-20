@@ -333,7 +333,7 @@ mod tests {
         let delegation_owner1 = Addr::unchecked("bar1");
         let node_identity2: IdentityKey = "foo2".into();
         let delegation_owner2 = Addr::unchecked("bar2");
-        let raw_delegation = RawDelegationData::new(1000u128.into(), 42);
+        let raw_delegation = RawDelegationData::new(1000u128.into(), 42, None);
         let mut start_after = None;
 
         mix_delegations(&mut deps.storage, &node_identity1)

@@ -74,7 +74,6 @@ pub trait DelegationAccount {
     fn try_undelegate_from_mixnode(
         &self,
         mix_identity: IdentityKey,
-        storage: &mut dyn Storage,
     ) -> Result<Response, ContractError>;
 
     // track_delegation performs internal vesting accounting necessary when
@@ -264,10 +263,9 @@ impl DelegationAccount for PeriodicVestingAccount {
     fn try_undelegate_from_mixnode(
         &self,
         mix_identity: IdentityKey,
-        storage: &mut dyn Storage,
     ) -> Result<Response, ContractError> {
         let msg = MixnetExecuteMsg::UnDelegateFromMixnodeOnBehalf {
-            mix_identity: mix_identity,
+            mix_identity,
             delegate_addr: self.address.clone(),
         };
         let messages = vec![wasm_execute(

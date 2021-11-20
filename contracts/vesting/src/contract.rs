@@ -125,7 +125,7 @@ fn try_undelegate_from_mixnode(
     let delegate_addr = info.sender;
     let address = deps.api.addr_validate(delegate_addr.as_str())?;
     if let Some(account) = get_account(deps.storage, &address) {
-        account.try_undelegate_from_mixnode(mix_identity, deps.storage)
+        account.try_undelegate_from_mixnode(mix_identity)
     } else {
         Err(ContractError::NoAccountForAddress(address.as_str().to_string()))
     }

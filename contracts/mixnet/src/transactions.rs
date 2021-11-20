@@ -661,7 +661,7 @@ pub(crate) fn try_delegate_to_mixnode(
     let delegate_addr = info.sender.clone();
     let amount = info.funds[0].amount;
 
-    _try_delegate_to_mixnode(deps, env, mix_identity, &delegate_addr, amount)
+    _try_delegate_to_mixnode(deps, env, mix_identity, &delegate_addr, amount, None)
 }
 
 pub(crate) fn try_delegate_to_mixnode_on_behalf(
@@ -675,11 +675,20 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     validate_delegation_stake(&info.funds)?;
     let amount = info.funds[0].amount;
 
-    if info.sender != VESTING_CONTRACT_ADDR {
+    let proxy_address = info.sender;
+
+    if proxy_address != VESTING_CONTRACT_ADDR {
         return Err(ContractError::Unauthorized);
     }
 
-    _try_delegate_to_mixnode(deps, env, mix_identity, &delegate_addr, amount)
+    _try_delegate_to_mixnode(
+        deps,
+        env,
+        mix_identity,
+        &delegate_addr,
+        amount,
+        Some(proxy_address),
+    )
 }
 
 fn _try_delegate_to_mixnode(
@@ -688,6 +697,7 @@ fn _try_delegate_to_mixnode(
     mix_identity: IdentityKey,
     delegate_addr: &Addr,
     amount: Uint128,
+    proxy_address: Option<Addr>,
 ) -> Result<Response, ContractError> {
     // check if the target node actually exists
     let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
@@ -712,7 +722,7 @@ fn _try_delegate_to_mixnode(
         None => amount,
     };
     // the block height is reset, if it existed
-    let new_delegation = RawDelegationData::new(new_amount, env.block.height);
+    let new_delegation = RawDelegationData::new(new_amount, env.block.height, proxy_address);
     delegation_bucket.save(sender_bytes, &new_delegation)?;
 
     reverse_mix_delegations(deps.storage, delegate_addr).save(mix_identity.as_bytes(), &())?;
@@ -726,7 +736,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
     let sender = info.sender.clone();
-    _try_remove_delegation_from_mixnode(deps, info, mix_identity, &sender)
+    _try_remove_delegation_from_mixnode(deps, info, mix_identity, &sender, None)
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
@@ -739,7 +749,15 @@ pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
         return Err(ContractError::Unauthorized);
     }
 
-    _try_remove_delegation_from_mixnode(deps, info, mix_identity, &delegate_addr)
+    let proxy_address = info.sender.clone();
+
+    _try_remove_delegation_from_mixnode(
+        deps,
+        info,
+        mix_identity,
+        &delegate_addr,
+        Some(proxy_address),
+    )
 }
 
 fn _try_remove_delegation_from_mixnode(
@@ -747,46 +765,64 @@ fn _try_remove_delegation_from_mixnode(
     info: MessageInfo,
     mix_identity: IdentityKey,
     delegate_addr: &Addr,
+    proxy_address: Option<Addr>,
 ) -> Result<Response, ContractError> {
     let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
     let sender_bytes = delegate_addr.as_bytes();
     match delegation_bucket.may_load(sender_bytes)? {
         Some(delegation) => {
             // remove delegation from the buckets
-            delegation_bucket.remove(sender_bytes);
-            reverse_mix_delegations(deps.storage, &info.sender).remove(mix_identity.as_bytes());
+            if proxy_address == delegation.proxy_address {
+                delegation_bucket.remove(sender_bytes);
+                reverse_mix_delegations(deps.storage, &info.sender).remove(mix_identity.as_bytes());
 
-            // send delegated funds back to the delegation owner
-            let messages = vec![BankMsg::Send {
-                to_address: info.sender.to_string(),
-                amount: coins(delegation.amount.u128(), DENOM),
+                // Send delegated funds back to the delegation owner. In case of a direct delegation proxy_address should be None. 
+                // Both the function call and in the RawDelegationData, in a proxied undelegation proxy_address and sender must match.
+                // Since we control that only vesting account address can create proxy delegations at time of delegation only vesting account
+                // can undelegate proxy undelegations.
+                let messages = vec![BankMsg::Send {
+                    to_address: info.sender.to_string(),
+                    amount: coins(delegation.amount.u128(), DENOM),
+                }
+                .into()];
+
+                // TODO: Send TrackUndelegation message back to the proxy address in case of a proxied undelegation
+
+                // update total_delegation of this node
+                let mut mixnodes_bucket = mixnodes(deps.storage);
+                // in some rare cases the mixnode bond might no longer exist as the node unbonded
+                // before delegation was removed. that is fine
+                if let Some(mut existing_bond) =
+                    mixnodes_bucket.may_load(mix_identity.as_bytes())?
+                {
+                    // we should NEVER underflow here, if we do, it means we have some serious error in our logic
+                    existing_bond.total_delegation.amount = existing_bond
+                        .total_delegation
+                        .amount
+                        .checked_sub(delegation.amount)
+                        .unwrap();
+                    mixnodes_bucket.save(mix_identity.as_bytes(), &existing_bond)?;
+                }
+
+                Ok(Response {
+                    submessages: Vec::new(),
+                    messages,
+                    attributes: Vec::new(),
+                    data: None,
+                })
+            } else {
+                Err(ContractError::ProxyMismatch {
+                    existing: delegation
+                        .proxy_address
+                        .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+                    incoming: proxy_address
+                        .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+                })
             }
-            .into()];
-
-            // update total_delegation of this node
-            let mut mixnodes_bucket = mixnodes(deps.storage);
-            // in some rare cases the mixnode bond might no longer exist as the node unbonded
-            // before delegation was removed. that is fine
-            if let Some(mut existing_bond) = mixnodes_bucket.may_load(mix_identity.as_bytes())? {
-                // we should NEVER underflow here, if we do, it means we have some serious error in our logic
-                existing_bond.total_delegation.amount = existing_bond
-                    .total_delegation
-                    .amount
-                    .checked_sub(delegation.amount)
-                    .unwrap();
-                mixnodes_bucket.save(mix_identity.as_bytes(), &existing_bond)?;
-            }
-
-            Ok(Response {
-                submessages: Vec::new(),
-                messages,
-                attributes: Vec::new(),
-                data: None,
-            })
         }
         None => Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
-            address: info.sender,
+            address: delegate_addr.to_owned(),
         }),
     }
 }
@@ -2111,7 +2147,7 @@ pub mod tests {
         mix_delegations(&mut deps.storage, &node_identity)
             .save(
                 b"delegator",
-                &RawDelegationData::new(initial_delegation.into(), env.block.height),
+                &RawDelegationData::new(initial_delegation.into(), env.block.height, None),
             )
             .unwrap();
 
@@ -2403,7 +2439,7 @@ pub mod tests {
         mix_delegations(&mut deps.storage, &node_identity)
             .save(
                 b"delegator",
-                &RawDelegationData::new(initial_delegation.into(), env.block.height),
+                &RawDelegationData::new(initial_delegation.into(), env.block.height, None),
             )
             .unwrap();
 
@@ -2608,7 +2644,7 @@ pub mod tests {
             .is_ok());
 
             assert_eq!(
-                RawDelegationData::new(delegation.amount, mock_env().block.height),
+                RawDelegationData::new(delegation.amount, mock_env().block.height, None),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -2672,7 +2708,7 @@ pub mod tests {
             .is_ok());
 
             assert_eq!(
-                RawDelegationData::new(delegation.amount, mock_env().block.height),
+                RawDelegationData::new(delegation.amount, mock_env().block.height, None),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -2722,7 +2758,8 @@ pub mod tests {
             assert_eq!(
                 RawDelegationData::new(
                     delegation1.amount + delegation2.amount,
-                    mock_env().block.height
+                    mock_env().block.height,
+                    None
                 ),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
@@ -2769,7 +2806,7 @@ pub mod tests {
             .unwrap();
 
             assert_eq!(
-                RawDelegationData::new(delegation.amount, initial_height),
+                RawDelegationData::new(delegation.amount, initial_height, None),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -2784,7 +2821,7 @@ pub mod tests {
             .unwrap();
 
             assert_eq!(
-                RawDelegationData::new(delegation.amount + delegation.amount, updated_height),
+                RawDelegationData::new(delegation.amount + delegation.amount, updated_height, None),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -2817,7 +2854,7 @@ pub mod tests {
             .unwrap();
 
             assert_eq!(
-                RawDelegationData::new(delegation1.amount, initial_height),
+                RawDelegationData::new(delegation1.amount, initial_height, None),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner1.as_bytes())
                     .unwrap()
@@ -2832,13 +2869,13 @@ pub mod tests {
             .unwrap();
 
             assert_eq!(
-                RawDelegationData::new(delegation1.amount, initial_height),
+                RawDelegationData::new(delegation1.amount, initial_height, None),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner1.as_bytes())
                     .unwrap()
             );
             assert_eq!(
-                RawDelegationData::new(delegation2.amount, second_height),
+                RawDelegationData::new(delegation2.amount, second_height, None),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner2.as_bytes())
                     .unwrap()
@@ -2902,7 +2939,7 @@ pub mod tests {
             .is_ok());
 
             assert_eq!(
-                RawDelegationData::new(123u128.into(), mock_env().block.height),
+                RawDelegationData::new(123u128.into(), mock_env().block.height, None),
                 mix_delegations_read(&deps.storage, &identity1)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -2914,7 +2951,7 @@ pub mod tests {
             );
 
             assert_eq!(
-                RawDelegationData::new(42u128.into(), mock_env().block.height),
+                RawDelegationData::new(42u128.into(), mock_env().block.height, None),
                 mix_delegations_read(&deps.storage, &identity2)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -2981,7 +3018,7 @@ pub mod tests {
             try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
 
             assert_eq!(
-                RawDelegationData::new(100u128.into(), mock_env().block.height),
+                RawDelegationData::new(100u128.into(), mock_env().block.height, None),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
                     .unwrap()
@@ -3190,19 +3227,19 @@ pub mod tests {
         mix_delegations(&mut deps.storage, &identity)
             .save(
                 b"delegator1",
-                &RawDelegationData::new(initial_delegation1.into(), env.block.height),
+                &RawDelegationData::new(initial_delegation1.into(), env.block.height, None),
             )
             .unwrap();
         mix_delegations(&mut deps.storage, &identity)
             .save(
                 b"delegator2",
-                &RawDelegationData::new(initial_delegation2.into(), env.block.height),
+                &RawDelegationData::new(initial_delegation2.into(), env.block.height, None),
             )
             .unwrap();
         mix_delegations(&mut deps.storage, &identity)
             .save(
                 b"delegator3",
-                &RawDelegationData::new(initial_delegation3.into(), env.block.height),
+                &RawDelegationData::new(initial_delegation3.into(), env.block.height, None),
             )
             .unwrap();
 

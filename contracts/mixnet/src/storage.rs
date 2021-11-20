@@ -513,8 +513,8 @@ mod tests {
         let delegation_owner1 = Addr::unchecked("bar1");
         let node_identity2: IdentityKey = "foo2".into();
         let delegation_owner2 = Addr::unchecked("bar2");
-        let raw_delegation1 = RawDelegationData::new(1u128.into(), 1000);
-        let raw_delegation2 = RawDelegationData::new(2u128.into(), 2000);
+        let raw_delegation1 = RawDelegationData::new(1u128.into(), 1000, None);
+        let raw_delegation2 = RawDelegationData::new(2u128.into(), 2000, None);
 
         mix_delegations(&mut deps.storage, &node_identity1)
             .save(delegation_owner1.as_bytes(), &raw_delegation1)
@@ -586,7 +586,7 @@ mod tests {
             mix_delegations(&mut deps.storage, &node_identity)
                 .save(
                     delegator_address.as_bytes(),
-                    &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                    &RawDelegationData::new(1000u128.into(), delegation_blockstamp, None),
                 )
                 .unwrap();
 
@@ -602,7 +602,7 @@ mod tests {
 
             // amount is incremented, block height remains the same
             assert_eq!(
-                RawDelegationData::new(1001u128.into(), 42),
+                RawDelegationData::new(1001u128.into(), 42, None),
                 mix_delegations_read(&mut deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()
@@ -622,7 +622,7 @@ mod tests {
             mix_delegations(&mut deps.storage, &node_identity)
                 .save(
                     delegator_address.as_bytes(),
-                    &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                    &RawDelegationData::new(1000u128.into(), delegation_blockstamp, None),
                 )
                 .unwrap();
 
@@ -639,7 +639,7 @@ mod tests {
 
             // amount is not incremented
             assert_eq!(
-                RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                RawDelegationData::new(1000u128.into(), delegation_blockstamp, None),
                 mix_delegations_read(&mut deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()
@@ -658,7 +658,7 @@ mod tests {
 
             // amount is incremented
             assert_eq!(
-                RawDelegationData::new(1001u128.into(), delegation_blockstamp),
+                RawDelegationData::new(1001u128.into(), delegation_blockstamp, None),
                 mix_delegations_read(&mut deps.storage, &node_identity)
                     .load(delegator_address.as_bytes())
                     .unwrap()
@@ -679,7 +679,7 @@ mod tests {
                 mix_delegations(&mut deps.storage, &node_identity)
                     .save(
                         delegator_address.as_bytes(),
-                        &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                        &RawDelegationData::new(1000u128.into(), delegation_blockstamp, None),
                     )
                     .unwrap();
             }
@@ -719,7 +719,7 @@ mod tests {
                 mix_delegations(&mut deps.storage, &node_identity)
                     .save(
                         delegator_address.as_bytes(),
-                        &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
+                        &RawDelegationData::new(1000u128.into(), delegation_blockstamp, None),
                     )
                     .unwrap();
             }

@@ -888,7 +888,7 @@ pub(crate) mod tests {
         mix_delegations(&mut deps.storage, &node_identity)
             .save(
                 delegation_owner.as_bytes(),
-                &RawDelegationData::new(42u128.into(), 12_345),
+                &RawDelegationData::new(42u128.into(), 12_345, None),
             )
             .unwrap();
 

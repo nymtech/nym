@@ -164,7 +164,7 @@ pub mod helpers {
     }
 
     pub fn raw_delegation_fixture(amount: u128) -> RawDelegationData {
-        RawDelegationData::new(Uint128(amount), 42)
+        RawDelegationData::new(Uint128(amount), 42, None)
     }
 
     pub fn query_contract_balance(

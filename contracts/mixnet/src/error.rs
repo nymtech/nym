@@ -100,4 +100,7 @@ pub enum ContractError {
 
     #[error("Mixnode {identity} has already been rewarded during the current rewarding interval")]
     MixnodeAlreadyRewarded { identity: IdentityKey },
+
+    #[error("Proxy address mismatch, expected {existing}, got {incoming}")]
+    ProxyMismatch{existing: String, incoming: String}
 }

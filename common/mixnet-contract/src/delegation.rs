@@ -11,7 +11,7 @@ use std::fmt::Display;
 pub struct UnpackedDelegation<T> {
     pub owner: Addr,
     pub node_identity: IdentityKey,
-    pub delegation_data: T,
+    pub delegation_data: T, // proxy address used to delegate the funds on behalf of anouther address
 }
 
 impl<T> UnpackedDelegation<T> {
@@ -28,13 +28,15 @@ impl<T> UnpackedDelegation<T> {
 pub struct RawDelegationData {
     pub amount: Uint128,
     pub block_height: u64,
+    pub proxy_address: Option<Addr> // proxy address used to delegate the funds on behalf of anouther address
 }
 
 impl RawDelegationData {
-    pub fn new(amount: Uint128, block_height: u64) -> Self {
+    pub fn new(amount: Uint128, block_height: u64, proxy_address: Option<Addr>) -> Self {
         RawDelegationData {
             amount,
             block_height,
+            proxy_address
         }
     }
 }

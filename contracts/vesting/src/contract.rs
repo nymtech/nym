@@ -2,13 +2,15 @@ use crate::errors::ContractError;
 use crate::messages::{ExecuteMsg, InitMsg, QueryMsg};
 use crate::storage::{get_account, get_account_balance, set_account_balance};
 use crate::vesting::{
-    populate_vesting_periods, DelegationAccount, PeriodicVestingAccount, VestingAccount,
+    populate_vesting_periods, BondingAccount, DelegationAccount, PeriodicVestingAccount,
+    VestingAccount,
 };
+use config::defaults::DENOM;
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo,
     QueryResponse, Response, Timestamp, Uint128,
 };
-use mixnet_contract::IdentityKey;
+use mixnet_contract::{IdentityKey, MixNode};
 
 pub const NUM_VESTING_PERIODS: usize = 8;
 pub const VESTING_PERIOD: u64 = 3 * 30 * 86400;
@@ -38,10 +40,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::DelegateToMixnode {
-            mix_identity,
-            amount,
-        } => try_delegate_to_mixnode(mix_identity, amount, info, env, deps),
+        ExecuteMsg::DelegateToMixnode { mix_identity } => {
+            try_delegate_to_mixnode(mix_identity, info, env, deps)
+        }
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
             try_undelegate_from_mixnode(mix_identity, info, deps)
         }
@@ -53,39 +54,58 @@ pub fn execute(
             try_withdraw_vested_coins(amount, env, info, deps)
         }
         ExecuteMsg::TrackUndelegation {
-            address,
+            owner,
             mix_identity,
             amount,
-        } => try_track_undelegation(address, mix_identity, amount, deps),
-        ExecuteMsg::BondMixnode {
-            mix_identity,
-            amount,
-        } => try_bond_mixnode(mix_identity, amount, info, env, deps),
-        ExecuteMsg::UnbondMixnode {
-            mix_identity,
-            amount,
-        } => try_unbond_mixnode(mix_identity, amount, info, env, deps),
+        } => try_track_undelegation(owner, mix_identity, amount, deps),
+        ExecuteMsg::BondMixnode { mix_node } => try_bond_mixnode(mix_node, info, env, deps),
+        ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
+        ExecuteMsg::TrackUnbond { owner, amount } => try_track_unbond(owner, amount, deps),
     }
 }
 
-fn try_bond_mixnode(
-    mix_identity: IdentityKey,
-    amount: Coin,
+pub fn try_bond_mixnode(
+    mix_node: MixNode,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    unimplemented!()
+    let owner = deps.api.addr_validate(info.sender.as_str())?;
+    let bond = validate_funds(&info.funds)?;
+    if let Some(account) = get_account(deps.storage, &owner) {
+        account.try_bond_mixnode(mix_node, bond, &env, deps.storage)
+    } else {
+        Err(ContractError::NoAccountForAddress(
+            owner.as_str().to_string(),
+        ))
+    }
 }
 
-fn try_unbond_mixnode(
-    mix_identity: IdentityKey,
+pub fn try_unbond_mixnode(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(info.sender.as_str())?;
+    if let Some(account) = get_account(deps.storage, &owner) {
+        account.try_unbond_mixnode()
+    } else {
+        Err(ContractError::NoAccountForAddress(
+            owner.as_str().to_string(),
+        ))
+    }
+}
+
+pub fn try_track_unbond(
+    owner: Addr,
     amount: Coin,
-    info: MessageInfo,
-    env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    unimplemented!()
+    let owner = deps.api.addr_validate(owner.as_str())?;
+    if let Some(account) = get_account(deps.storage, &owner) {
+        account.track_unbond(amount, deps.storage)?;
+        Ok(Response::default())
+    } else {
+        Err(ContractError::NoAccountForAddress(
+            owner.as_str().to_string(),
+        ))
+    }
 }
 
 pub fn try_withdraw_vested_coins(
@@ -153,12 +173,12 @@ fn try_track_undelegation(
 
 fn try_delegate_to_mixnode(
     mix_identity: IdentityKey,
-    amount: Coin,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
     let delegate_addr = info.sender;
+    let amount = validate_funds(&info.funds)?;
     let address = deps.api.addr_validate(delegate_addr.as_str())?;
     if let Some(account) = get_account(deps.storage, &address) {
         account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
@@ -195,7 +215,7 @@ fn try_create_periodic_vesting_account(
     if info.sender != ADMIN_ADDRESS {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
-    let coin = info.funds[0].clone();
+    let coin = validate_funds(&info.funds)?;
     let address = deps.api.addr_validate(&address)?;
     let start_time = start_time.unwrap_or_else(|| env.block.time.seconds());
     let periods = populate_vesting_periods(start_time, NUM_VESTING_PERIODS);
@@ -398,4 +418,23 @@ pub fn try_get_delegated_vesting(
     } else {
         Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
+}
+
+fn validate_funds(funds: &[Coin]) -> Result<Coin, ContractError> {
+    if funds.is_empty() || funds[0].amount.is_zero() {
+        return Err(ContractError::EmptyFunds);
+    }
+
+    if funds.len() > 1 {
+        return Err(ContractError::MultipleDenoms);
+    }
+
+    if funds[0].denom != DENOM {
+        return Err(ContractError::WrongDenom(
+            funds[0].denom.clone(),
+            DENOM.to_string(),
+        ));
+    }
+
+    Ok(funds[0].clone())
 }

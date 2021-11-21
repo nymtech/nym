@@ -21,4 +21,12 @@ pub enum ContractError {
     NotDelegate(String),
     #[error("Total vesting amount is inprobably low -> {0}, this is likely an error")]
     ImprobableVestingAmount(u128),
+    #[error("Address {0} has already bonded a node")]
+    AlreadyBonded(String),
+    #[error("Recieved empty funds vector")]
+    EmptyFunds,
+    #[error("Recieved wrong denom: {0}, expected {1}")]
+    WrongDenom(String, String),
+    #[error("Recieved multiple denoms, expected 1")]
+    MultipleDenoms,
 }

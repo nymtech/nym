@@ -174,7 +174,7 @@ pub fn execute(
             transactions::try_add_mixnode_on_behalf(deps, env, info, mix_node, owner)
         }
         ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
-            transactions::try_remove_mixnode_on_behalf(deps, env, info, owner)
+            transactions::try_remove_mixnode_on_behalf(deps, info, owner)
         }
     }
 }

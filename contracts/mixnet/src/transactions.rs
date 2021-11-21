@@ -94,11 +94,9 @@ fn _try_add_mixnode(
     owner: Addr,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
-    let sender_bytes = owner.as_bytes();
-
     // if the client has an active bonded gateway, don't allow mixnode bonding
     if gateways_owners_read(deps.storage)
-        .may_load(sender_bytes)?
+        .may_load(&owner.as_bytes())?
         .is_some()
     {
         return Err(ContractError::AlreadyOwnsGateway);
@@ -106,7 +104,7 @@ fn _try_add_mixnode(
 
     let mut was_present = false;
     // if the client has an active mixnode with a different identity, don't allow bonding
-    if let Some(existing_node) = mixnodes_owners_read(deps.storage).may_load(sender_bytes)? {
+    if let Some(existing_node) = mixnodes_owners_read(deps.storage).may_load(&owner.as_bytes())? {
         if existing_node != mix_node.identity_key {
             return Err(ContractError::AlreadyOwnsMixnode);
         }
@@ -148,7 +146,7 @@ fn _try_add_mixnode(
     let identity = bond.identity();
 
     mixnodes(deps.storage).save(identity.as_bytes(), &bond)?;
-    mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
+    mixnodes_owners(deps.storage).save(&owner.as_bytes(), identity)?;
     increment_layer_count(deps.storage, bond.layer)?;
 
     let attributes = vec![attr("overwritten", was_present)];
@@ -162,51 +160,80 @@ fn _try_add_mixnode(
 
 pub fn try_remove_mixnode_on_behalf(
     deps: DepsMut,
-    env: Env,
     info: MessageInfo,
     owner: Addr,
 ) -> Result<Response, ContractError> {
-    unimplemented!()
+    let proxy = info.sender.to_owned();
+
+    if proxy != VESTING_CONTRACT_ADDR {
+        Err(ContractError::Unauthorized)
+    } else {
+        _try_remove_mixnode(deps, owner, Some(proxy))
+    }
 }
 
-pub(crate) fn try_remove_mixnode(
-    deps: DepsMut,
-    info: MessageInfo,
-) -> Result<Response, ContractError> {
-    let sender_bytes = info.sender.as_bytes();
+pub fn try_remove_mixnode(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    let owner = info.sender;
 
+    _try_remove_mixnode(deps, owner, None)
+}
+
+pub(crate) fn _try_remove_mixnode(
+    deps: DepsMut,
+    owner: Addr,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
     // try to find the identity of the sender's node
-    let mix_identity = match mixnodes_owners_read(deps.storage).may_load(sender_bytes)? {
+
+    let mix_identity = match mixnodes_owners_read(deps.storage).may_load(owner.as_bytes())? {
         Some(identity) => identity,
-        None => return Err(ContractError::NoAssociatedMixNodeBond { owner: info.sender }),
+        None => return Err(ContractError::NoAssociatedMixNodeBond { owner: owner }),
     };
 
     // get the bond, since we found associated identity, the node MUST exist
     let mixnode_bond = mixnodes_read(deps.storage).load(mix_identity.as_bytes())?;
 
-    // send bonded funds back to the bond owner
-    let messages = vec![BankMsg::Send {
-        to_address: info.sender.as_str().to_owned(),
-        amount: vec![mixnode_bond.bond_amount()],
+    if proxy == mixnode_bond.proxy {
+        // send bonded funds back to the bond owner
+        let mut messages = vec![BankMsg::Send {
+            to_address: owner.as_str().to_owned(),
+            amount: vec![mixnode_bond.bond_amount()],
+        }
+        .into()];
+
+        if let Some(proxy) = &proxy {
+            let msg = VestingContractExecuteMsg::TrackUnbond {
+                owner: owner.to_owned(),
+                amount: coins(mixnode_bond.bond_amount.amount.u128(), DENOM)[0].clone(),
+            };
+
+            messages.push(wasm_execute(proxy, &msg, coins(0, DENOM))?.into());
+        }
+
+        // remove the bond from the list of bonded mixnodes
+        mixnodes(deps.storage).remove(mix_identity.as_bytes());
+        // remove the node ownership
+        mixnodes_owners(deps.storage).remove(owner.as_bytes());
+        // decrement layer count
+        decrement_layer_count(deps.storage, mixnode_bond.layer)?;
+
+        // log our actions
+        let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
+
+        Ok(Response {
+            submessages: Vec::new(),
+            messages,
+            attributes,
+            data: None,
+        })
+    } else {
+        Err(ContractError::ProxyMismatch {
+            existing: mixnode_bond
+                .proxy
+                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+            incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+        })
     }
-    .into()];
-
-    // remove the bond from the list of bonded mixnodes
-    mixnodes(deps.storage).remove(mix_identity.as_bytes());
-    // remove the node ownership
-    mixnodes_owners(deps.storage).remove(sender_bytes);
-    // decrement layer count
-    decrement_layer_count(deps.storage, mixnode_bond.layer)?;
-
-    // log our actions
-    let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
-
-    Ok(Response {
-        submessages: Vec::new(),
-        messages,
-        attributes,
-        data: None,
-    })
 }
 
 fn validate_gateway_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
@@ -715,20 +742,13 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     validate_delegation_stake(&info.funds)?;
     let amount = info.funds[0].amount;
 
-    let proxy_address = info.sender;
+    let proxy = info.sender;
 
-    if proxy_address != VESTING_CONTRACT_ADDR {
+    if proxy != VESTING_CONTRACT_ADDR {
         return Err(ContractError::Unauthorized);
     }
 
-    _try_delegate_to_mixnode(
-        deps,
-        env,
-        mix_identity,
-        &delegate,
-        amount,
-        Some(proxy_address),
-    )
+    _try_delegate_to_mixnode(deps, env, mix_identity, &delegate, amount, Some(proxy))
 }
 
 fn _try_delegate_to_mixnode(
@@ -737,7 +757,7 @@ fn _try_delegate_to_mixnode(
     mix_identity: IdentityKey,
     delegate: &Addr,
     amount: Uint128,
-    proxy_address: Option<Addr>,
+    proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
     // check if the target node actually exists
     let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
@@ -755,25 +775,15 @@ fn _try_delegate_to_mixnode(
 
     let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
     // We need to differentiate proxy delefations from direct delegations with the same owner
-    let sender_bytes = if let Some(proxy_address) = &proxy_address {
-        delegate
-            .as_bytes()
-            .iter()
-            .zip(proxy_address.as_bytes())
-            .map(|(x, y)| x ^ y)
-            .collect()
-    } else {
-        delegate.as_bytes().to_vec()
-    };
-
+    let storage_key = generate_storage_key(delegate, proxy.as_ref());
     // write the delegation
-    let new_amount = match delegation_bucket.may_load(&sender_bytes)? {
+    let new_amount = match delegation_bucket.may_load(&storage_key)? {
         Some(existing_delegation) => existing_delegation.amount + amount,
         None => amount,
     };
     // the block height is reset, if it existed
-    let new_delegation = RawDelegationData::new(new_amount, env.block.height, proxy_address);
-    delegation_bucket.save(&sender_bytes, &new_delegation)?;
+    let new_delegation = RawDelegationData::new(new_amount, env.block.height, proxy);
+    delegation_bucket.save(&storage_key, &new_delegation)?;
 
     reverse_mix_delegations(deps.storage, delegate).save(mix_identity.as_bytes(), &())?;
 
@@ -793,51 +803,37 @@ pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
     deps: DepsMut,
     info: MessageInfo,
     mix_identity: IdentityKey,
-    delegate_addr: Addr,
+    delegate: Addr,
 ) -> Result<Response, ContractError> {
     if info.sender != VESTING_CONTRACT_ADDR {
         return Err(ContractError::Unauthorized);
     }
 
-    let proxy_address = info.sender.clone();
+    let proxy = info.sender.clone();
 
-    _try_remove_delegation_from_mixnode(
-        deps,
-        info,
-        mix_identity,
-        &delegate_addr,
-        Some(proxy_address),
-    )
+    _try_remove_delegation_from_mixnode(deps, info, mix_identity, &delegate, Some(proxy))
 }
 
 fn _try_remove_delegation_from_mixnode(
     deps: DepsMut,
     info: MessageInfo,
     mix_identity: IdentityKey,
-    delegate_addr: &Addr,
-    proxy_address: Option<Addr>,
+    delegate: &Addr,
+    proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
     let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
 
-    let sender_bytes = if let Some(proxy_address) = &proxy_address {
-        delegate_addr
-            .as_bytes()
-            .iter()
-            .zip(proxy_address.as_bytes())
-            .map(|(x, y)| x ^ y)
-            .collect()
-    } else {
-        delegate_addr.as_bytes().to_vec()
-    };
-    match delegation_bucket.may_load(&sender_bytes)? {
+    let storage_key = generate_storage_key(delegate, proxy.as_ref());
+
+    match delegation_bucket.may_load(&storage_key)? {
         Some(delegation) => {
             // remove delegation from the buckets
-            if proxy_address == delegation.proxy_address {
-                delegation_bucket.remove(&sender_bytes);
+            if proxy == delegation.proxy {
+                delegation_bucket.remove(&storage_key);
                 reverse_mix_delegations(deps.storage, &info.sender).remove(mix_identity.as_bytes());
 
-                // Send delegated funds back to the delegation owner. In case of a direct delegation proxy_address should be None.
-                // Both the function call and in the RawDelegationData, in a proxied undelegation proxy_address and sender must match.
+                // Send delegated funds back to the delegation owner. In case of a direct delegation proxy should be None.
+                // Both the function call and in the RawDelegationData, in a proxied undelegation proxy and sender must match.
                 // Since we control that only vesting account address can create proxy delegations at time of delegation only vesting account
                 // can undelegate proxy undelegations.
                 let mut messages = vec![BankMsg::Send {
@@ -846,17 +842,15 @@ fn _try_remove_delegation_from_mixnode(
                 }
                 .into()];
 
-                if let Some(proxy_address) = &proxy_address {
+                if let Some(proxy) = &proxy {
                     let msg = VestingContractExecuteMsg::TrackUndelegation {
-                        address: delegate_addr.to_owned(),
+                        owner: delegate.to_owned(),
                         mix_identity: mix_identity.clone(),
                         amount: coins(delegation.amount.u128(), DENOM)[0].clone(),
                     };
 
-                    messages.push(wasm_execute(proxy_address, &msg, coins(0, DENOM))?.into());
+                    messages.push(wasm_execute(proxy, &msg, coins(0, DENOM))?.into());
                 }
-
-                // TODO: Send TrackUndelegation message back to the proxy address in case of a proxied undelegation
 
                 // update total_delegation of this node
                 let mut mixnodes_bucket = mixnodes(deps.storage);
@@ -883,16 +877,15 @@ fn _try_remove_delegation_from_mixnode(
             } else {
                 Err(ContractError::ProxyMismatch {
                     existing: delegation
-                        .proxy_address
+                        .proxy
                         .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
-                    incoming: proxy_address
-                        .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+                    incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
                 })
             }
         }
         None => Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
-            address: delegate_addr.to_owned(),
+            address: delegate.to_owned(),
         }),
     }
 }

@@ -28,15 +28,15 @@ impl<T> UnpackedDelegation<T> {
 pub struct RawDelegationData {
     pub amount: Uint128,
     pub block_height: u64,
-    pub proxy_address: Option<Addr> // proxy address used to delegate the funds on behalf of anouther address
+    pub proxy: Option<Addr> // proxy address used to delegate the funds on behalf of anouther address
 }
 
 impl RawDelegationData {
-    pub fn new(amount: Uint128, block_height: u64, proxy_address: Option<Addr>) -> Self {
+    pub fn new(amount: Uint128, block_height: u64, proxy: Option<Addr>) -> Self {
         RawDelegationData {
             amount,
             block_height,
-            proxy_address
+            proxy
         }
     }
 }

@@ -24,7 +24,7 @@ pub enum ExecuteMsg {
         amount: Coin,
     },
     TrackUndelegation {
-        address: Addr,
+        owner: Addr,
         mix_identity: IdentityKey,
         amount: Coin,
     },
@@ -36,6 +36,11 @@ pub enum ExecuteMsg {
         mix_identity: IdentityKey,
         amount: Coin,
     },
+    TrackUnbond {
+        mix_identity: IdentityKey,
+        owner: Addr,
+        amount: Coin
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

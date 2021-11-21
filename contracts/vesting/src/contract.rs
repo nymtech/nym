@@ -53,10 +53,10 @@ pub fn execute(
             try_withdraw_vested_coins(amount, env, info, deps)
         }
         ExecuteMsg::TrackUndelegation {
-            address,
+            owner,
             mix_identity,
             amount,
-        } => try_track_undelegation(address, mix_identity, amount, deps),
+        } => try_track_undelegation(owner, mix_identity, amount, deps),
         ExecuteMsg::BondMixnode {
             mix_identity,
             amount,
@@ -65,10 +65,15 @@ pub fn execute(
             mix_identity,
             amount,
         } => try_unbond_mixnode(mix_identity, amount, info, env, deps),
+        ExecuteMsg::TrackUnbond {
+            owner,
+            mix_identity,
+            amount,
+        } => try_track_unbond(owner, mix_identity, amount, deps),
     }
 }
 
-fn try_bond_mixnode(
+pub fn try_bond_mixnode(
     mix_identity: IdentityKey,
     amount: Coin,
     info: MessageInfo,
@@ -78,11 +83,20 @@ fn try_bond_mixnode(
     unimplemented!()
 }
 
-fn try_unbond_mixnode(
+pub fn try_unbond_mixnode(
     mix_identity: IdentityKey,
     amount: Coin,
     info: MessageInfo,
     env: Env,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
+    unimplemented!()
+}
+
+pub fn try_track_unbond(
+    owner: Addr,
+    mix_identity: IdentityKey,
+    amount: Coin,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
     unimplemented!()

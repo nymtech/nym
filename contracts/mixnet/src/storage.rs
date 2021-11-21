@@ -42,6 +42,18 @@ const PREFIX_REWARDED_MIXNODES: &[u8] = b"rm";
 // Contract-level stuff
 
 // TODO Unify bucket and mixnode storage functions
+pub fn generate_storage_key(address: &Addr, proxy: Option<&Addr>) -> Vec<u8> {
+    if let Some(proxy) = &proxy {
+        address
+            .as_bytes()
+            .iter()
+            .zip(proxy.as_bytes())
+            .map(|(x, y)| x ^ y)
+            .collect()
+    } else {
+        address.as_bytes().to_vec()
+    }
+}
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
     singleton(storage, CONFIG_KEY)
@@ -460,7 +472,7 @@ mod tests {
                 ..mix_node_fixture()
             },
             profit_margin_percent: Some(10),
-            proxy: None
+            proxy: None,
         };
 
         mixnodes(&mut storage)

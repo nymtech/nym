@@ -5,7 +5,7 @@ use cosmwasm_storage::{bucket, bucket_read, Bucket, ReadonlyBucket};
 
 use crate::{
     errors::ContractError,
-    vesting::{DelegationData, PeriodicVestingAccount},
+    vesting::{BondData, DelegationData, PeriodicVestingAccount},
 };
 // storage prefixes
 // all of them must be unique and presumably not be a prefix of a different one
@@ -16,6 +16,7 @@ use crate::{
 const PREFIX_ACCOUNTS: &[u8] = b"ac";
 const PREFIX_ACCOUNT_DELEGATIONS: &[u8] = b"ad";
 const PREFIX_ACCOUNT_BALANCE: &[u8] = b"ab";
+const PREFIX_ACCOUNT_MIXBOND: &[u8] = b"am";
 // Contract-level stuff
 
 fn accounts_mut(storage: &mut dyn Storage) -> Bucket<PeriodicVestingAccount> {
@@ -31,6 +32,14 @@ fn account_delegations_mut(storage: &mut dyn Storage) -> Bucket<Vec<DelegationDa
 }
 
 fn account_delegations(storage: &dyn Storage) -> ReadonlyBucket<Vec<DelegationData>> {
+    bucket_read(storage, PREFIX_ACCOUNT_DELEGATIONS)
+}
+
+fn account_bond_mut(storage: &mut dyn Storage) -> Bucket<BondData> {
+    bucket(storage, PREFIX_ACCOUNT_DELEGATIONS)
+}
+
+fn account_bond(storage: &dyn Storage) -> ReadonlyBucket<BondData> {
     bucket_read(storage, PREFIX_ACCOUNT_DELEGATIONS)
 }
 
@@ -70,6 +79,23 @@ pub fn set_account_delegations(
     delegations: Vec<DelegationData>,
 ) -> StdResult<()> {
     account_delegations_mut(storage).save(address.as_bytes(), &delegations)
+}
+
+pub fn get_account_bond(storage: &dyn Storage, address: &Addr) -> Option<BondData> {
+    // Due to using may_load this should be safe to unwrap
+    account_bond(storage).may_load(address.as_bytes()).unwrap()
+}
+
+pub fn drop_account_bond(storage: &mut dyn Storage, address: &Addr) -> StdResult<()> {
+    Ok(account_bond_mut(storage).remove(address.as_bytes()))
+}
+
+pub fn set_account_bond(
+    storage: &mut dyn Storage,
+    address: &Addr,
+    bond: BondData,
+) -> StdResult<()> {
+    account_bond_mut(storage).save(address.as_bytes(), &bond)
 }
 
 pub fn get_account_balance(storage: &dyn Storage, address: &Addr) -> Option<Uint128> {

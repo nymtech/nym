@@ -204,7 +204,6 @@ pub(crate) fn _try_remove_mixnode(
         if let Some(proxy) = &proxy {
             let msg = VestingContractExecuteMsg::TrackUnbond {
                 owner: owner.to_owned(),
-                mix_identity: mix_identity.clone(),
                 amount: coins(mixnode_bond.bond_amount.amount.u128(), DENOM)[0].clone(),
             };
 

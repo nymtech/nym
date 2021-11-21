@@ -1,5 +1,6 @@
 use cosmwasm_std::{Addr, Coin, Timestamp};
 use mixnet_contract::IdentityKey;
+use mixnet_contract::MixNode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +12,6 @@ pub struct InitMsg {}
 pub enum ExecuteMsg {
     DelegateToMixnode {
         mix_identity: IdentityKey,
-        amount: Coin,
     },
     UndelegateFromMixnode {
         mix_identity: IdentityKey,
@@ -29,18 +29,13 @@ pub enum ExecuteMsg {
         amount: Coin,
     },
     BondMixnode {
-        mix_identity: IdentityKey,
-        amount: Coin,
+        mix_node: MixNode,
     },
-    UnbondMixnode {
-        mix_identity: IdentityKey,
-        amount: Coin,
-    },
+    UnbondMixnode {},
     TrackUnbond {
-        mix_identity: IdentityKey,
         owner: Addr,
-        amount: Coin
-    }
+        amount: Coin,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

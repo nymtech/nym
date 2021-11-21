@@ -1,13 +1,13 @@
 use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD};
 use crate::errors::ContractError;
 use crate::storage::{
-    get_account_balance, get_account_delegations, set_account, set_account_balance,
-    set_account_delegations,
+    drop_account_bond, get_account_balance, get_account_bond, get_account_delegations, set_account,
+    set_account_balance, set_account_bond, set_account_delegations,
 };
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{attr, wasm_execute, Addr, Coin, Env, Response, Storage, Timestamp, Uint128};
-use mixnet_contract::ExecuteMsg as MixnetExecuteMsg;
 use mixnet_contract::IdentityKey;
+use mixnet_contract::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -84,7 +84,7 @@ pub trait DelegationAccount {
         &self,
         block_time: Timestamp,
         mix_identity: IdentityKey,
-        delegation_amount: Coin,
+        delegation: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError>;
     // track_undelegation performs internal vesting accounting necessary when a
@@ -95,6 +95,27 @@ pub trait DelegationAccount {
         amount: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError>;
+}
+
+pub trait BondingAccount {
+    fn try_bond_mixnode(
+        &self,
+        mix_node: MixNode,
+        amount: Coin,
+        env: &Env,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError>;
+
+    fn try_unbond_mixnode(&self) -> Result<Response, ContractError>;
+
+    fn track_bond(
+        &self,
+        block_time: Timestamp,
+        bond: Coin,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError>;
+
+    fn track_unbond(&self, amount: Coin, storage: &mut dyn Storage) -> Result<(), ContractError>;
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -114,13 +135,6 @@ pub struct PeriodicVestingAccount {
     start_time: Timestamp,
     periods: Vec<VestingPeriod>,
     coin: Coin,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct DelegationData {
-    mix_identity: IdentityKey,
-    amount: Uint128,
-    block_time: Timestamp,
 }
 
 impl PeriodicVestingAccount {
@@ -254,10 +268,10 @@ impl DelegationAccount for PeriodicVestingAccount {
                 data: None,
             })
         } else {
-            return Err(ContractError::InsufficientBalance(
+            Err(ContractError::InsufficientBalance(
                 self.address.as_str().to_string(),
                 self.get_balance(storage).u128(),
-            ));
+            ))
         }
     }
 
@@ -293,7 +307,7 @@ impl DelegationAccount for PeriodicVestingAccount {
         &self,
         block_time: Timestamp,
         mix_identity: IdentityKey,
-        delegation_amount: Coin,
+        delegation: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
         let mut delegations =
@@ -304,13 +318,13 @@ impl DelegationAccount for PeriodicVestingAccount {
             };
         delegations.push(DelegationData {
             mix_identity,
-            amount: delegation_amount.amount,
+            amount: delegation.amount,
             block_time,
         });
 
         let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
-            // We've checked that delegation_amount < balance in the caller function
-            Uint128(balance.u128() - delegation_amount.amount.u128())
+            // We've checked that delegation < balance in the caller function
+            Uint128(balance.u128() - delegation.amount.u128())
         } else {
             return Err(ContractError::NoBalanceForAddress(
                 self.address.as_str().to_string(),
@@ -335,7 +349,7 @@ impl DelegationAccount for PeriodicVestingAccount {
             .into_iter()
             .filter(|d| d.mix_identity != mix_identity)
             .collect();
-        
+
         let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
             Uint128(balance.u128() + amount.amount.u128())
         } else {
@@ -346,13 +360,114 @@ impl DelegationAccount for PeriodicVestingAccount {
 
         set_account_balance(storage, &self.address, new_balance)?;
 
-        // Since we're always removing the entire delegation we can just drop the key
-        // TODO: track balance here as well, maybe
         Ok(set_account_delegations(
             storage,
             &self.address,
             delegations,
         )?)
+    }
+}
+
+impl BondingAccount for PeriodicVestingAccount {
+    fn try_bond_mixnode(
+        &self,
+        mix_node: MixNode,
+        bond: Coin,
+        env: &Env,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError> {
+        if bond.amount < self.get_balance(storage) {
+            let msg = MixnetExecuteMsg::BondMixnodeOnBehalf {
+                mix_node,
+                owner: self.address.clone(),
+            };
+            let messages =
+                vec![
+                    wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![bond.clone()])?.into(),
+                ];
+            let attributes = vec![attr("action", "bond mixnode on behalf")];
+            self.track_bond(env.block.time, bond, storage)?;
+
+            Ok(Response {
+                submessages: Vec::new(),
+                messages,
+                attributes,
+                data: None,
+            })
+        } else {
+            Err(ContractError::InsufficientBalance(
+                self.address.as_str().to_string(),
+                self.get_balance(storage).u128(),
+            ))
+        }
+    }
+
+    fn track_bond(
+        &self,
+        block_time: Timestamp,
+        bond: Coin,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
+        let bond = if let Some(_bond) = get_account_bond(storage, &self.address) {
+            return Err(ContractError::AlreadyBonded(
+                self.address.as_str().to_string(),
+            ));
+        } else {
+            BondData {
+                block_time,
+                amount: bond.amount,
+            }
+        };
+
+        let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
+            // We've checked that bond.amount < balance in the caller function
+            Uint128(balance.u128() - bond.amount.u128())
+        } else {
+            return Err(ContractError::NoBalanceForAddress(
+                self.address.as_str().to_string(),
+            ));
+        };
+
+        set_account_balance(storage, &self.address, new_balance)?;
+        Ok(set_account_bond(storage, &self.address, bond)?)
+    }
+
+    fn try_unbond_mixnode(&self) -> Result<Response, ContractError> {
+        let msg = MixnetExecuteMsg::UnbondMixnodeOnBehalf {
+            owner: self.address.clone(),
+        };
+        let messages = vec![wasm_execute(
+            DEFAULT_MIXNET_CONTRACT_ADDRESS,
+            &msg,
+            vec![Coin {
+                amount: Uint128(0),
+                denom: DENOM.to_string(),
+            }],
+        )?
+        .into()];
+
+        let attributes = vec![attr("action", "unbond mixnode on behalf")];
+
+        Ok(Response {
+            submessages: Vec::new(),
+            messages,
+            attributes,
+            data: None,
+        })
+    }
+
+    fn track_unbond(&self, amount: Coin, storage: &mut dyn Storage) -> Result<(), ContractError> {
+        let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
+            Uint128(balance.u128() + amount.amount.u128())
+        } else {
+            return Err(ContractError::NoBalanceForAddress(
+                self.address.as_str().to_string(),
+            ));
+        };
+
+        set_account_balance(storage, &self.address, new_balance)?;
+        drop_account_bond(storage, &self.address)?;
+        Ok(())
     }
 }
 
@@ -465,6 +580,19 @@ impl VestingAccount for PeriodicVestingAccount {
     ) -> Coin {
         self.get_delegated_with_op(&ge, block_time, env, storage)
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct DelegationData {
+    mix_identity: IdentityKey,
+    amount: Uint128,
+    block_time: Timestamp,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct BondData {
+    amount: Uint128,
+    block_time: Timestamp,
 }
 
 fn lt(x: u64, y: u64) -> bool {

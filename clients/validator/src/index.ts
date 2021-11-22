@@ -80,6 +80,13 @@ export default class ValidatorClient {
     this.denom = "u" + prefix;
   }
 
+  /**
+   * @param contractAddress the user's contract address eg. `punk23o85698370891702470413487`
+   * @param mnemonic A mnemonic string from which to generate a public/private keypair.
+   * @param urls the validator URLs in either array of string format.
+   * @param prefix the denom eg. `punk`
+   * @returns user's instance of the Validator Client.
+   */
   // allows also entering 'string' by itself for backwards compatibility
   static async connect(
     contractAddress: string,
@@ -126,6 +133,14 @@ export default class ValidatorClient {
     throw new Error("None of the provided validators seem to be alive");
   }
 
+  /**
+   * This method is the same as connect() but doesnt require a mnemonic
+   * as you cannot transfer/withdraw once connected. It is effectively ReadOnly.
+   * @param contractAddress the user's contract address eg. `punk23o85698370891702470413487`
+   * @param urls the validator URLs in either array of string format.
+   * @param prefix the denom eg. `punk`
+   * @returns user's instance of the Validator Client.
+   */
   // allows also entering 'string' by itself for backwards compatibility
   static async connectForQuery(
     contractAddress: string,
@@ -164,6 +179,10 @@ export default class ValidatorClient {
     throw new Error("None of the provided validators seem to be alive");
   }
 
+  /**
+   * @param urls the validator URLs in either array of string format.
+   * @returns a shuffled array of validator URLs.
+   */
   private static ensureArray(urls: string | string[]): string[] {
     let validatorsUrls: string[] = [];
     if (typeof urls === "string") {
@@ -184,8 +203,12 @@ export default class ValidatorClient {
     return validatorsUrls;
   }
 
-  // an error adapter function that upon an error attempts to switch currently used validator to the next one available
-  // note that it ALWAYS throws an error
+  /**
+   * Error adapter function that - upon an error - attempts to switch currently used validator to the next one available
+   * note that it ALWAYS throws an error
+   * @param error Error thrown by async/netw requests in other methods within this class.
+   * @returns a thrown error, as normal.
+   */
   async handleRequestFailure(error: Error): Promise<never> {
     // don't bother doing any fancy validator switches if we only have 1 validator to choose from
     if (this.urls.length > 1) {
@@ -208,12 +231,21 @@ export default class ValidatorClient {
       throw error;
     }
   }
-
+  /**
+   * changes the client's validator to the new validator passed in.
+   * @param newUrl the URL of the new/alternative validator.
+   * @returns void
+   */
   private async changeValidator(newUrl: string): Promise<void> {
     console.log("Changing validator to", newUrl);
     return await this.client.changeValidator(newUrl);
   }
 
+  /**
+   * shuffles the array
+   * @param arr the URL of the new/alternative validator.
+   * @returns array
+   */
   // adapted from https://stackoverflow.com/questions/6274339/how-can-i-shuffle-an-array/6274381#6274381
   static shuffleArray<T>(arr: T[]): T[] {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -223,6 +255,12 @@ export default class ValidatorClient {
     return arr;
   }
 
+  /**
+   * utility function that moves the first element (Val url) to the back
+   * of the array again.
+   * @param arr
+   * @returns void
+   */
   // It is responsibility of the caller to ensure the input array is non-empty
   private static moveArrayHeadToBack<T>(arr: T[]) {
     const head = <T>arr.shift();
@@ -265,6 +303,7 @@ export default class ValidatorClient {
   }
 
   /**
+   * effectively decodes a mnemonic phrase into a public punk address.
    * @param mnemonic A mnemonic from which to generate a public/private keypair.
    * @returns the address for this client wallet
    */
@@ -277,6 +316,12 @@ export default class ValidatorClient {
     return address;
   }
 
+  /**
+   * async func to build/create a NYM wallet.
+   * @param mnemonic
+   * @param prefix
+   * @returns Promise<DirectSecp256k1HdWallet>
+   */
   static async buildWallet(
     mnemonic: string,
     prefix: string
@@ -285,12 +330,22 @@ export default class ValidatorClient {
     return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, signerOptions);
   }
 
+  /**
+   * this method returns a promise which returns the amount/denom of a given user
+   * @param address the user's public contract address eg. `punk23o85698370891702470413487`
+   * @returns user's instance of the Validator Client.
+   */
   getBalance(address: string): Promise<Coin | null> {
     return this.client
       .getBalance(address, this.denom)
       .catch((err) => this.handleRequestFailure(err));
   }
 
+  /**
+   * Func calls the client (instance of INetClient / NetClient) method `getStateParams(addr)`
+   * Used in minimumMixnodeBond() and minimumGatewayBond()
+   * @returns Promisified State Params.
+   */
   async getStateParams(): Promise<StateParams> {
     return this.client
       .getStateParams(this.contractAddress)
@@ -305,9 +360,9 @@ export default class ValidatorClient {
    * TODO: We will want to put this puppy on a timer, but for the moment we can
    * just get things strung together and refresh it manually.
    */
-  refreshMixNodes(): Promise<MixNodeBond[]> {
+  async refreshMixNodes(arg: string): Promise<MixNodeBond[]> {
     return this.mixNodesCache
-      .refreshMixNodes(this.contractAddress)
+      .refreshMixNodes(arg)
       .catch((err) => this.handleRequestFailure(err));
   }
 
@@ -319,7 +374,7 @@ export default class ValidatorClient {
    * TODO: We will want to put this puppy on a timer, but for the moment we can
    * just get things strung together and refresh it manually.
    */
-  refreshValidatorAPIMixNodes(): Promise<MixNodeBond[]> {
+  async refreshValidatorAPIMixNodes(): Promise<MixNodeBond[]> {
     return this.mixNodesCache
       .refreshValidatorAPIMixNodes(this.urls)
       .catch((err) => this.handleRequestFailure(err));
@@ -397,6 +452,7 @@ export default class ValidatorClient {
     amount: Coin
   ): Promise<ExecuteResult> {
     if (this.client instanceof NetClient) {
+      console.log("args mixID ", mixIdentity, " amount ", amount);
       const result = await this.client
         .executeContract(
           this.client.clientAddress,
@@ -747,6 +803,10 @@ export default class ValidatorClient {
 
   /**
    * Send funds multiple times from one address to another in a single block.
+   * @param senderAddress
+   * @param data
+   * @param memo
+   * @returns result
    */
   async sendMultiple(
     senderAddress: string,

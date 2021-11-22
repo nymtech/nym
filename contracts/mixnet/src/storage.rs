@@ -3,7 +3,7 @@
 use crate::contract::INITIAL_REWARD_POOL;
 use crate::state::State;
 use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
-use crate::{error::ContractError, queries, StoredMixnodeBond};
+use crate::{error::ContractError, queries};
 use config::defaults::{DENOM, TOTAL_SUPPLY};
 use cosmwasm_std::{Coin, Decimal, Order, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
@@ -12,11 +12,12 @@ use cosmwasm_storage::{
 };
 use mixnet_contract::mixnode::NodeRewardParams;
 use mixnet_contract::{
-    Addr, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
+    Addr, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNode, MixNodeBond,
     RawDelegationData, StateParams,
 };
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 // storage prefixes
 // all of them must be unique and presumably not be a prefix of a different one
@@ -40,6 +41,69 @@ const PREFIX_REVERSE_MIX_DELEGATION: &[u8] = b"dm";
 const PREFIX_REWARDED_MIXNODES: &[u8] = b"rm";
 
 const PREFIX_TOTAL_DELEGATION: &[u8] = b"td";
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub(crate) struct StoredMixnodeBond {
+    pub bond_amount: Coin,
+    pub owner: Addr,
+    pub layer: Layer,
+    pub block_height: u64,
+    pub mix_node: MixNode,
+    pub profit_margin_percent: Option<u8>,
+}
+
+impl StoredMixnodeBond {
+    pub(crate) fn new(
+        bond_amount: Coin,
+        owner: Addr,
+        layer: Layer,
+        block_height: u64,
+        mix_node: MixNode,
+        profit_margin_percent: Option<u8>,
+    ) -> Self {
+        StoredMixnodeBond {
+            bond_amount,
+            owner,
+            layer,
+            block_height,
+            mix_node,
+            profit_margin_percent,
+        }
+    }
+
+    pub(crate) fn attach_delegation(self, total_delegation: Uint128) -> MixNodeBond {
+        MixNodeBond {
+            total_delegation: Coin {
+                denom: self.bond_amount.denom.clone(),
+                amount: total_delegation,
+            },
+            bond_amount: self.bond_amount,
+            owner: self.owner,
+            layer: self.layer,
+            block_height: self.block_height,
+            mix_node: self.mix_node,
+            profit_margin_percent: self.profit_margin_percent,
+        }
+    }
+
+    pub(crate) fn identity(&self) -> &String {
+        &self.mix_node.identity_key
+    }
+
+    pub(crate) fn bond_amount(&self) -> Coin {
+        self.bond_amount.clone()
+    }
+}
+
+impl Display for StoredMixnodeBond {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "amount: {}, owner: {}, identity: {}",
+            self.bond_amount, self.owner, self.mix_node.identity_key
+        )
+    }
+}
 
 // Contract-level stuff
 

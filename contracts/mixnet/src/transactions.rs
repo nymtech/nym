@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
+use crate::queries;
 use crate::storage::*;
-use crate::{queries, StoredMixnodeBond};
 use config::defaults::DENOM;
 use cosmwasm_std::{
     attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, Uint128,

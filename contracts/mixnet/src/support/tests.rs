@@ -3,8 +3,8 @@ pub mod helpers {
     use super::*;
     use crate::contract::query;
     use crate::contract::{instantiate, INITIAL_MIXNODE_BOND};
+    use crate::storage::StoredMixnodeBond;
     use crate::transactions::{try_add_gateway, try_add_mixnode};
-    use crate::StoredMixnodeBond;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;

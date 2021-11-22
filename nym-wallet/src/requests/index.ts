@@ -7,7 +7,7 @@ import {
   Gateway,
   MixNode,
   Operation,
-  TauriStateParams,
+  TauriContractSettingsParams,
   TauriTxResult,
   TCreateAccount,
   TDelegation,
@@ -78,12 +78,12 @@ export const unbond = async (type: EnumNodeType) =>
 export const getBalance = async (): Promise<Balance> =>
   await invoke('get_balance')
 
-export const getContractParams = async (): Promise<TauriStateParams> =>
-  await invoke('get_state_params')
+export const getContractParams = async (): Promise<TauriContractSettingsParams> =>
+  await invoke('get_contract_settings')
 
 export const setContractParams = async (
-  params: TauriStateParams
-): Promise<TauriStateParams> => await invoke('update_state_params', { params })
+  params: TauriContractSettingsParams
+): Promise<TauriContractSettingsParams> => await invoke('update_contract_settings', { params })
 
 export const getReverseMixDelegations = async (): Promise<TDelegation> =>
   await invoke('get_reverse_mix_delegations_paged')

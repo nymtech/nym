@@ -207,7 +207,7 @@ impl Rewarder {
         // by people hesitating to delegate to nodes without them and thus those nodes disappearing
         // from the active set (once introduced)
         let mixnode_delegators = self.produce_active_mixnode_delegators_map().await?;
-        let state = self.nymd_client.get_state_params().await?;
+        let state = self.nymd_client.get_contract_settings().await?;
 
         // 1. go through all active mixnodes
         // 2. filter out nodes that are currently not in the active set (as `mixnode_delegators` was obtained by

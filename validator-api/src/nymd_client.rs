@@ -139,13 +139,13 @@ impl<C> Client<C> {
         self.0.read().await.get_all_nymd_gateways().await
     }
 
-    pub(crate) async fn get_state_params(
+    pub(crate) async fn get_contract_settings(
         &self,
     ) -> Result<ContractSettingsParams, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        self.0.read().await.get_state_params().await
+        self.0.read().await.get_contract_settings().await
     }
 
     pub(crate) async fn get_current_rewarding_interval(

@@ -118,8 +118,8 @@ pub fn execute(
         ExecuteMsg::UnbondGateway {} => {
             crate::gateways::transactions::try_remove_gateway(deps, info)
         }
-        ExecuteMsg::UpdateStateParams(params) => {
-            crate::mixnet_contract_settings::transactions::try_update_state_params(
+        ExecuteMsg::UpdateContractSettings(params) => {
+            crate::mixnet_contract_settings::transactions::try_update_contract_settings(
                 deps, info, params,
             )
         }

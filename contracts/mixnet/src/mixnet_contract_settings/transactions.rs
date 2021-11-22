@@ -7,7 +7,7 @@ use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;
 use mixnet_contract::ContractSettingsParams;
 
-pub(crate) fn try_update_state_params(
+pub(crate) fn try_update_contract_settings(
     deps: DepsMut,
     info: MessageInfo,
     params: ContractSettingsParams,
@@ -71,7 +71,7 @@ pub mod tests {
         INITIAL_MIXNODE_BOND_REWARD_RATE, INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
     };
     use crate::error::ContractError;
-    use crate::mixnet_contract_settings::transactions::try_update_state_params;
+    use crate::mixnet_contract_settings::transactions::try_update_contract_settings;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::Decimal;
@@ -79,7 +79,7 @@ pub mod tests {
     use mixnet_contract::ContractSettingsParams;
 
     #[test]
-    fn updating_state_params() {
+    fn updating_contract_settings() {
         let mut deps = test_helpers::init_contract();
 
         let new_params = ContractSettingsParams {
@@ -96,12 +96,12 @@ pub mod tests {
 
         // cannot be updated from non-owner account
         let info = mock_info("not-the-creator", &[]);
-        let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
+        let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
         assert_eq!(res, Err(ContractError::Unauthorized));
 
         // but works fine from the creator account
         let info = mock_info("creator", &[]);
-        let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
+        let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
         assert_eq!(res, Ok(Response::default()));
 
         // and the state is actually updated
@@ -128,7 +128,7 @@ pub mod tests {
         new_params.mixnode_delegation_reward_rate = new_mixnode_delegation_reward_rate;
 
         let info = mock_info("creator", &[]);
-        try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
+        try_update_contract_settings(deps.as_mut(), info, new_params.clone()).unwrap();
 
         let new_state = storage::contract_settings_read(deps.as_ref().storage)
             .load()
@@ -153,7 +153,7 @@ pub mod tests {
         new_params.epoch_length = new_epoch_length;
 
         let info = mock_info("creator", &[]);
-        try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
+        try_update_contract_settings(deps.as_mut(), info, new_params.clone()).unwrap();
 
         let new_state = storage::contract_settings_read(deps.as_ref().storage)
             .load()
@@ -174,7 +174,7 @@ pub mod tests {
         let info = mock_info("creator", &[]);
         let mut new_params = current_state.params.clone();
         new_params.mixnode_rewarded_set_size = new_params.mixnode_active_set_size - 1;
-        let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
+        let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
         assert_eq!(Err(ContractError::InvalidActiveSetSize), res)
     }
 }

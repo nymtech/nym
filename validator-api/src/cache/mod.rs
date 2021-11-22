@@ -95,7 +95,7 @@ impl<C> ValidatorCacheRefresher<C> {
             self.nymd_client.get_gateways(),
         )?;
 
-        let state_params = self.nymd_client.get_state_params().await?;
+        let contract_settings = self.nymd_client.get_contract_settings().await?;
         let current_rewarding_interval = self.nymd_client.get_current_rewarding_interval().await?;
         let rewarding_block_hash = self
             .nymd_client
@@ -114,7 +114,7 @@ impl<C> ValidatorCacheRefresher<C> {
             .update_cache(
                 mixnodes,
                 gateways,
-                state_params,
+                contract_settings,
                 current_rewarding_interval,
                 rewarding_block_hash,
             )

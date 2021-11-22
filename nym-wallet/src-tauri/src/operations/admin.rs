@@ -52,19 +52,19 @@ impl TryFrom<TauriContractSettingsParams> for ContractSettingsParams {
 }
 
 #[tauri::command]
-pub async fn get_state_params(
+pub async fn get_contract_settings(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TauriContractSettingsParams, String> {
   let r_state = state.read().await;
   let client = r_state.client()?;
-  match client.get_state_params().await {
+  match client.get_contract_settings().await {
     Ok(params) => Ok(params.into()),
     Err(e) => Err(format_err!(e)),
   }
 }
 
 #[tauri::command]
-pub async fn update_state_params(
+pub async fn update_contract_settings(
   params: TauriContractSettingsParams,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TauriContractSettingsParams, String> {
@@ -75,7 +75,7 @@ pub async fn update_state_params(
     Err(e) => return Err(format_err!(e)),
   };
   match client
-    .update_state_params(mixnet_contract_settings_params.clone())
+    .update_contract_settings(mixnet_contract_settings_params.clone())
     .await
   {
     Ok(_) => Ok(mixnet_contract_settings_params.into()),

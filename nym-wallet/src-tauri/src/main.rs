@@ -56,8 +56,8 @@ fn main() {
       send,
       create_new_account,
       get_fee,
-      get_state_params,
-      update_state_params,
+      get_contract_settings,
+      update_contract_settings,
       get_reverse_mix_delegations_paged,
     ])
     .menu(Menu::new().add_default_app_submenu_if_macos())

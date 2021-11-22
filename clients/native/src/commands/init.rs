@@ -1,15 +1,23 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::Config;
-use crate::commands::override_config;
 use clap::{App, Arg, ArgMatches};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+#[cfg(feature = "coconut")]
+use coconut_interface::{hash_to_scalar, Credential, Parameters};
 use config::NymConfig;
+#[cfg(feature = "coconut")]
+use credentials::coconut::bandwidth::{
+    obtain_signature, prepare_for_spending, BandwidthVoucherAttributes, TOTAL_ATTRIBUTES,
+};
+#[cfg(feature = "coconut")]
+use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
+#[cfg(feature = "coconut")]
+use network_defaults::BANDWIDTH_VALUE;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use rand::rngs::OsRng;
@@ -20,6 +28,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use topology::{filter::VersionFilterable, gateway};
 use url::Url;
+
+use crate::client::config::Config;
+use crate::commands::override_config;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     let app = App::new("init")
@@ -36,9 +47,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .takes_value(true)
         )
         .arg(Arg::with_name("validators")
-                .long("validators")
-                .help("Comma separated list of rest endpoints of the validators")
-                .takes_value(true),
+                 .long("validators")
+                 .help("Comma separated list of rest endpoints of the validators")
+                 .takes_value(true),
         )
         .arg(Arg::with_name("disable-socket")
             .long("disable-socket")
@@ -69,6 +80,36 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .required(true));
 
     app
+}
+
+// this behaviour should definitely be changed, we shouldn't
+// need to get bandwidth credential for registration
+#[cfg(feature = "coconut")]
+async fn _prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -> Credential {
+    let verification_key = obtain_aggregate_verification_key(validators)
+        .await
+        .expect("could not obtain aggregate verification key of validators");
+
+    let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
+    let bandwidth_credential_attributes = BandwidthVoucherAttributes {
+        serial_number: params.random_scalar(),
+        binding_number: params.random_scalar(),
+        voucher_value: hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
+        voucher_info: hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
+    };
+
+    let bandwidth_credential =
+        obtain_signature(&params, &bandwidth_credential_attributes, validators)
+            .await
+            .expect("could not obtain bandwidth credential");
+
+    prepare_for_spending(
+        raw_identity,
+        &bandwidth_credential,
+        &bandwidth_credential_attributes,
+        &verification_key,
+    )
+    .expect("could not prepare out bandwidth credential for spending")
 }
 
 async fn register_with_gateway(

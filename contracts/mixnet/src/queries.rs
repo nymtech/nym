@@ -239,7 +239,7 @@ pub(crate) fn query_mixnode_delegation(
 pub(crate) mod tests {
     use super::*;
     use crate::state::State;
-    use crate::storage::{config, gateways, mix_delegations, mixnodes, total_delegation};
+    use crate::storage::{config, gateways, mix_delegations};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
         good_gateway_bond, good_mixnode_bond, raw_delegation_fixture,
@@ -259,7 +259,6 @@ pub(crate) mod tests {
     #[test]
     fn mixnodes_paged_retrieval_obeys_limits() {
         let mut deps = helpers::init_contract();
-        let storage = deps.as_mut().storage;
         let limit = 2;
         for n in 0..10000 {
             let key = format!("bond{}", n);
@@ -273,7 +272,6 @@ pub(crate) mod tests {
     #[test]
     fn mixnodes_paged_retrieval_has_default_limit() {
         let mut deps = helpers::init_contract();
-        let storage = deps.as_mut().storage;
         for n in 0..100 {
             let key = format!("bond{}", n);
             helpers::add_mixnode(&key, good_mixnode_bond(), deps.as_mut());
@@ -289,7 +287,6 @@ pub(crate) mod tests {
     #[test]
     fn mixnodes_paged_retrieval_has_max_limit() {
         let mut deps = helpers::init_contract();
-        let storage = deps.as_mut().storage;
         for n in 0..10000 {
             let key = format!("bond{}", n);
             helpers::add_mixnode(&key, good_mixnode_bond(), deps.as_mut());

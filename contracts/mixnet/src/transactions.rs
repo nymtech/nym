@@ -767,13 +767,13 @@ pub mod tests {
     use crate::storage::{layer_distribution_read, mix_delegations_read, read_mixnode_bond};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
-        add_mixnode, good_gateway_bond, good_mixnode_bond, mix_node_fixture, raw_delegation_fixture,
+        add_mixnode, good_gateway_bond, good_mixnode_bond, mix_node_fixture,
     };
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
     use mixnet_contract::{
-        ExecuteMsg, LayerDistribution, MixNodeBond, PagedGatewayResponse, PagedMixnodeResponse,
-        QueryMsg, UnpackedDelegation,
+        ExecuteMsg, LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
+        UnpackedDelegation,
     };
     use queries::tests::store_n_mix_delegations;
 

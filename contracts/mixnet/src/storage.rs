@@ -425,8 +425,8 @@ mod tests {
     use super::*;
     use crate::helpers::identity_and_owner_to_bytes;
     use crate::support::tests::helpers::{
-        gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
-        raw_delegation_fixture, stored_mixnode_bond_fixture,
+        gateway_bond_fixture, gateway_fixture, mix_node_fixture, raw_delegation_fixture,
+        stored_mixnode_bond_fixture,
     };
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, MockStorage};

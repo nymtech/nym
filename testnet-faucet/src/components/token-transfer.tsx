@@ -27,6 +27,7 @@ export const TokenTransfer = ({
               component="span"
               variant="h5"
               sx={{ textDecoration: 'underline' }}
+              data-testid="success-sent-message"
             >
               {address}
             </Typography>

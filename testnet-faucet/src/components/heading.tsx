@@ -5,7 +5,7 @@ export const Header = () => {
   const matches = useMediaQuery('(min-width: 500px)')
   return (
     <Box sx={{ mb: 5, mt: 3 }}>
-      <Typography variant="h4" sx={{ fontWeight: 'light' }}>
+      <Typography variant="h4" sx={{ fontWeight: 'light' }} data-testid="token-faucet">
         Nym token faucet
       </Typography>
       {matches && (

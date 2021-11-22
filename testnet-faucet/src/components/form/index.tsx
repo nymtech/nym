@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+  import { useContext } from 'react'
 import {
   Alert,
   Button,
@@ -65,6 +65,7 @@ export const Form = () => {
         sx={{ mb: 1 }}
         helperText={errors?.address?.message}
         error={!!errors.address}
+        data-testid='address'
       />
       <TextField
         label="Amount (PUNKS)"
@@ -73,6 +74,7 @@ export const Form = () => {
         sx={{ mb: 1 }}
         helperText={errors?.amount?.message}
         error={!!errors.amount}
+        data-testid={"punk-amounts"}
       />
       <Box
         sx={{
@@ -96,6 +98,7 @@ export const Form = () => {
           onClick={async () => {
             await getBalance()
           }}
+          data-testid="check-balance-button"
         >
           Check Balance
         </Button>
@@ -110,6 +113,7 @@ export const Form = () => {
             )
           }
           disabled={loadingState.isLoading}
+          data-testid="request-token-button"
         >
           Request Tokens
         </Button>

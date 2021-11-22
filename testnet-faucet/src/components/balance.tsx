@@ -19,6 +19,7 @@ export const Balance = ({ balance }: { balance: string }) => {
               component="span"
               variant="h5"
               sx={{ textDecoration: 'underline' }}
+              data-testid="punk-balance-message"
             >
               {balance} PUNKS
             </Typography>

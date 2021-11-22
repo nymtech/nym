@@ -6,7 +6,7 @@ use crate::helpers::get_all_delegations_paged;
 use crate::storage::{
     all_mix_delegations_read, circulating_supply, config_read, gateways_owners_read, gateways_read,
     mix_delegations_read, mixnodes_owners_read, mixnodes_read, read_layer_distribution,
-    read_state_params, reverse_mix_delegations_read, reward_pool_value,
+    read_state_params, reverse_mix_delegations_read, reward_pool_value, total_delegation_read,
 };
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Deps, Order, StdResult, Uint128};
@@ -17,7 +17,7 @@ use mixnet_contract::{
     RawDelegationData, RewardingIntervalResponse, StateParams,
 };
 
-const BOND_PAGE_MAX_LIMIT: u32 = 100;
+const BOND_PAGE_MAX_LIMIT: u32 = 75;
 const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 // currently the maximum limit before running into memory issue is somewhere between 1150 and 1200
@@ -38,7 +38,16 @@ pub fn query_mixnodes_paged(
         .range(start.as_deref(), None, Order::Ascending)
         .take(limit)
         .map(|res| res.map(|item| item.1))
-        .collect::<StdResult<Vec<MixNodeBond>>>()?;
+        .map(|stored_bond| {
+            // I really don't like this additional read per entry, but I don't see an obvious way to remove it
+            stored_bond.map(|stored_bond| {
+                let total_delegation =
+                    total_delegation_read(deps.storage).load(stored_bond.identity().as_bytes());
+                total_delegation
+                    .map(|total_delegation| stored_bond.attach_delegation(total_delegation))
+            })
+        })
+        .collect::<StdResult<StdResult<Vec<MixNodeBond>>>>()??;
 
     let start_next_after = nodes.last().map(|node| node.identity().clone());
 

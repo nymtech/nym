@@ -3,9 +3,9 @@
 use crate::contract::INITIAL_REWARD_POOL;
 use crate::state::State;
 use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
-use crate::{error::ContractError, queries};
-use config::defaults::TOTAL_SUPPLY;
-use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
+use crate::{error::ContractError, queries, StoredMixnodeBond};
+use config::defaults::{DENOM, TOTAL_SUPPLY};
+use cosmwasm_std::{Coin, Decimal, Order, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -29,7 +29,7 @@ const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
 const REWARD_POOL_PREFIX: &[u8] = b"pool";
 
 // buckets
-pub const PREFIX_MIXNODES: &[u8] = b"mn";
+const PREFIX_MIXNODES: &[u8] = b"mn";
 const PREFIX_MIXNODES_OWNERS: &[u8] = b"mo";
 const PREFIX_GATEWAYS: &[u8] = b"gt";
 const PREFIX_GATEWAYS_OWNERS: &[u8] = b"go";
@@ -38,6 +38,8 @@ const PREFIX_MIX_DELEGATION: &[u8] = b"md";
 const PREFIX_REVERSE_MIX_DELEGATION: &[u8] = b"dm";
 
 const PREFIX_REWARDED_MIXNODES: &[u8] = b"rm";
+
+const PREFIX_TOTAL_DELEGATION: &[u8] = b"td";
 
 // Contract-level stuff
 
@@ -165,11 +167,11 @@ pub fn decrement_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResu
 
 // Mixnode-related stuff
 
-pub fn mixnodes(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
+pub(crate) fn mixnodes(storage: &mut dyn Storage) -> Bucket<StoredMixnodeBond> {
     bucket(storage, PREFIX_MIXNODES)
 }
 
-pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
+pub(crate) fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<StoredMixnodeBond> {
     bucket_read(storage, PREFIX_MIXNODES)
 }
 
@@ -180,6 +182,14 @@ pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<IdentityKey> {
 
 pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey> {
     bucket_read(storage, PREFIX_MIXNODES_OWNERS)
+}
+
+pub fn total_delegation(storage: &mut dyn Storage) -> Bucket<Uint128> {
+    bucket(storage, PREFIX_TOTAL_DELEGATION)
+}
+
+pub fn total_delegation_read(storage: &dyn Storage) -> ReadonlyBucket<Uint128> {
+    bucket_read(storage, PREFIX_TOTAL_DELEGATION)
 }
 
 // we want to treat this bucket as a set so we don't really care about what type of data is being stored.
@@ -212,6 +222,32 @@ pub fn rewarded_mixnodes_read(
 }
 
 // helpers
+pub(crate) fn read_mixnode_bond(
+    storage: &dyn Storage,
+    mix_identity: IdentityKeyRef,
+) -> StdResult<Option<MixNodeBond>> {
+    let stored_bond = mixnodes_read(storage).may_load(mix_identity.as_bytes())?;
+    match stored_bond {
+        None => Ok(None),
+        Some(stored_bond) => {
+            let total_delegation =
+                total_delegation_read(storage).may_load(mix_identity.as_bytes())?;
+            Ok(Some(MixNodeBond {
+                bond_amount: stored_bond.bond_amount,
+                total_delegation: Coin {
+                    denom: DENOM.to_owned(),
+                    amount: total_delegation.unwrap_or_default(),
+                },
+                owner: stored_bond.owner,
+                layer: stored_bond.layer,
+                block_height: stored_bond.block_height,
+                mix_node: stored_bond.mix_node,
+                profit_margin_percent: stored_bond.profit_margin_percent,
+            }))
+        }
+    }
+}
+
 pub(crate) fn increase_mix_delegated_stakes(
     storage: &mut dyn Storage,
     mix_identity: IdentityKeyRef,
@@ -312,7 +348,7 @@ pub(crate) fn increase_mix_delegated_stakes_v2(
 }
 // currently not used outside tests
 #[cfg(test)]
-pub(crate) fn read_mixnode_bond(
+pub(crate) fn read_mixnode_bond_amount(
     storage: &dyn Storage,
     identity: &[u8],
 ) -> StdResult<cosmwasm_std::Uint128> {
@@ -443,7 +479,7 @@ mod tests {
         let node_identity: IdentityKey = "nodeidentity".into();
 
         // produces an error if target mixnode doesn't exist
-        let res = read_mixnode_bond(&storage, node_owner.as_bytes());
+        let res = read_mixnode_bond_amount(&storage, node_owner.as_bytes());
         assert!(res.is_err());
 
         // returns appropriate value otherwise
@@ -468,7 +504,7 @@ mod tests {
 
         assert_eq!(
             Uint128(bond_value),
-            read_mixnode_bond(&storage, node_identity.as_bytes()).unwrap()
+            read_mixnode_bond_amount(&storage, node_identity.as_bytes()).unwrap()
         );
     }
 

@@ -1,34 +1,23 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use crate::error::ContractError;
-use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime, Delegations};
-use crate::queries;
+use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
 use crate::storage::*;
+use crate::{queries, StoredMixnodeBond};
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, Uint128,
 };
-use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::mixnode::NodeRewardParams;
 use mixnet_contract::{
-    Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
+    Gateway, GatewayBond, IdentityKey, Layer, MixNode, RawDelegationData, StateParams,
 };
-
-pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 
 // approximately 1 day (assuming 5s per block)
 pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
 
 // approximately 30min (assuming 5s per block)
 pub(crate) const MAX_REWARDING_DURATION_IN_BLOCKS: u64 = 360;
-
-fn total_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
-    Ok(Coin::new(
-        Delegations::new(delegations_bucket)
-            .fold(0, |acc, x| acc + x.delegation_data.amount.u128()),
-        DENOM,
-    ))
-}
 
 fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
     // check if anything was put as bond
@@ -98,7 +87,7 @@ pub(crate) fn try_add_mixnode(
     let layer_distribution = queries::query_layer_distribution(deps.as_ref());
     let layer = layer_distribution.choose_with_fewest();
 
-    let mut bond = MixNodeBond::new(
+    let stored_bond = StoredMixnodeBond::new(
         info.funds[0].clone(),
         info.sender.clone(),
         layer,
@@ -107,16 +96,14 @@ pub(crate) fn try_add_mixnode(
         None,
     );
 
-    // this might potentially require more gas if a significant number of delegations was there
-    let delegations_bucket = mix_delegations_read(deps.storage, &bond.mix_node.identity_key);
-    let existing_delegation = total_delegations(delegations_bucket)?;
-    bond.total_delegation = existing_delegation;
+    let identity = stored_bond.identity();
 
-    let identity = bond.identity();
-
-    mixnodes(deps.storage).save(identity.as_bytes(), &bond)?;
+    // technically we don't have to set the total_delegation bucket, but it makes things easier
+    // in different places that we can guarantee that if node exists, so does the data behind the total delegation
+    mixnodes(deps.storage).save(identity.as_bytes(), &stored_bond)?;
     mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
-    increment_layer_count(deps.storage, bond.layer)?;
+    total_delegation(deps.storage).save(identity.as_bytes(), &Uint128::zero())?;
+    increment_layer_count(deps.storage, layer)?;
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
@@ -491,8 +478,15 @@ pub(crate) fn try_reward_mixnode(
 
         node_reward = current_bond.bond_amount.amount * bond_scaled_reward_rate;
         current_bond.bond_amount.amount += node_reward;
-        current_bond.total_delegation.amount += total_delegation_reward;
         mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+
+        total_delegation(deps.storage).update::<_, ContractError>(
+            mix_identity.as_bytes(),
+            |total_delegation| {
+                // unwrap is fine as if the mixnode itself exists, so must this entry
+                Ok(total_delegation.unwrap() + total_delegation_reward)
+            },
+        )?;
     }
 
     rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
@@ -547,9 +541,9 @@ pub(crate) fn try_reward_mixnode_v2(
     }
 
     // check if the bond even exists
-    let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
-        Ok(bond) => bond,
-        Err(_) => {
+    let current_bond = match read_mixnode_bond(deps.storage, &mix_identity)? {
+        Some(bond) => bond,
+        None => {
             return Ok(Response {
                 attributes: vec![attr("result", "bond not found")],
                 ..Default::default()
@@ -558,14 +552,12 @@ pub(crate) fn try_reward_mixnode_v2(
     };
 
     let mut reward_params = params;
-
     reward_params.set_reward_blockstamp(env.block.height);
 
     let reward_result = current_bond.reward(&reward_params);
 
     // Omitting the price per packet function now, it follows that base operator reward is the node_reward
     let operator_reward = current_bond.operator_reward(&reward_params);
-
     let total_delegation_reward =
         increase_mix_delegated_stakes_v2(deps.storage, &current_bond, &reward_params)?;
 
@@ -574,9 +566,23 @@ pub(crate) fn try_reward_mixnode_v2(
     if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING
         <= reward_params.reward_blockstamp()
     {
-        current_bond.bond_amount.amount += Uint128(operator_reward);
-        current_bond.total_delegation.amount += total_delegation_reward;
-        mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+        total_delegation(deps.storage).update::<_, ContractError>(
+            mix_identity.as_bytes(),
+            |current_total| {
+                // unwrap is fine as if the mixnode itself exists, so must this entry
+                Ok(current_total.unwrap() + total_delegation_reward)
+            },
+        )?;
+        mixnodes(deps.storage).update::<_, ContractError>(
+            mix_identity.as_bytes(),
+            |current_bond| {
+                // unwrap is fine because we just read the entry...
+                let mut unwrapped = current_bond.unwrap();
+                unwrapped.bond_amount.amount += Uint128(operator_reward);
+                Ok(unwrapped)
+            },
+        )?;
+
         decr_reward_pool(Uint128(operator_reward), deps.storage)?;
         decr_reward_pool(total_delegation_reward, deps.storage)?;
     }
@@ -657,33 +663,41 @@ pub(crate) fn try_delegate_to_mixnode(
     validate_delegation_stake(&info.funds)?;
 
     // check if the target node actually exists
-    let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
-        Ok(bond) => bond,
-        Err(_) => {
-            return Err(ContractError::MixNodeBondNotFound {
-                identity: mix_identity,
-            });
-        }
-    };
-
-    let amount = info.funds[0].amount;
+    if mixnodes_read(deps.storage)
+        .load(mix_identity.as_bytes())
+        .is_err()
+    {
+        return Err(ContractError::MixNodeBondNotFound {
+            identity: mix_identity,
+        });
+    }
 
     // update total_delegation of this node
-    current_bond.total_delegation.amount += info.funds[0].amount;
-    mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+    total_delegation(deps.storage).update::<_, ContractError>(
+        mix_identity.as_bytes(),
+        |total_delegation| {
+            // unwrap is fine as if the mixnode itself exists, so must this entry
+            Ok(total_delegation.unwrap() + info.funds[0].amount)
+        },
+    )?;
 
-    let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
-    let sender_bytes = info.sender.as_bytes();
+    // update delegation of this delegator
+    mix_delegations(deps.storage, &mix_identity).update::<_, ContractError>(
+        info.sender.as_bytes(),
+        |existing_delegation| {
+            let existing_delegation_amount = existing_delegation
+                .map(|existing_delegation| existing_delegation.amount)
+                .unwrap_or_default();
 
-    // write the delegation
-    let new_amount = match delegation_bucket.may_load(sender_bytes)? {
-        Some(existing_delegation) => existing_delegation.amount + amount,
-        None => amount,
-    };
-    // the block height is reset, if it existed
-    let new_delegation = RawDelegationData::new(new_amount, env.block.height);
-    delegation_bucket.save(sender_bytes, &new_delegation)?;
+            // the block height is reset, if it existed
+            Ok(RawDelegationData::new(
+                existing_delegation_amount + info.funds[0].amount,
+                env.block.height,
+            ))
+        },
+    )?;
 
+    // save information about delegations of this sender
     reverse_mix_delegations(deps.storage, &info.sender).save(mix_identity.as_bytes(), &())?;
 
     Ok(Response::default())
@@ -696,44 +710,45 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 ) -> Result<Response, ContractError> {
     let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
     let sender_bytes = info.sender.as_bytes();
-    match delegation_bucket.may_load(sender_bytes)? {
-        Some(delegation) => {
-            // remove delegation from the buckets
-            delegation_bucket.remove(sender_bytes);
-            reverse_mix_delegations(deps.storage, &info.sender).remove(mix_identity.as_bytes());
 
-            // send delegated funds back to the delegation owner
-            let messages = vec![BankMsg::Send {
-                to_address: info.sender.to_string(),
-                amount: coins(delegation.amount.u128(), DENOM),
-            }
-            .into()];
+    if let Some(delegation) = delegation_bucket.may_load(sender_bytes)? {
+        // remove all delegation associated with this delegator
+        delegation_bucket.remove(sender_bytes);
+        reverse_mix_delegations(deps.storage, &info.sender).remove(mix_identity.as_bytes());
 
-            // update total_delegation of this node
-            let mut mixnodes_bucket = mixnodes(deps.storage);
-            // in some rare cases the mixnode bond might no longer exist as the node unbonded
-            // before delegation was removed. that is fine
-            if let Some(mut existing_bond) = mixnodes_bucket.may_load(mix_identity.as_bytes())? {
-                // we should NEVER underflow here, if we do, it means we have some serious error in our logic
-                existing_bond.total_delegation.amount = existing_bond
-                    .total_delegation
-                    .amount
-                    .checked_sub(delegation.amount)
-                    .unwrap();
-                mixnodes_bucket.save(mix_identity.as_bytes(), &existing_bond)?;
-            }
-
-            Ok(Response {
-                submessages: Vec::new(),
-                messages,
-                attributes: Vec::new(),
-                data: None,
-            })
+        // send delegated funds back to the delegation owner
+        let messages = vec![BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: coins(delegation.amount.u128(), DENOM),
         }
-        None => Err(ContractError::NoMixnodeDelegationFound {
+        .into()];
+
+        // update total_delegation of this node
+        total_delegation(deps.storage).update::<_, ContractError>(
+            mix_identity.as_bytes(),
+            |total_delegation| {
+                // the first unwrap is fine because the delegation information MUST exist, otherwise we would
+                // have never gotten here in the first place
+                // the second unwrap is also fine because we should NEVER underflow here,
+                // if we do, it means we have some serious error in our logic
+                Ok(total_delegation
+                    .unwrap()
+                    .checked_sub(delegation.amount)
+                    .unwrap())
+            },
+        )?;
+
+        Ok(Response {
+            submessages: Vec::new(),
+            messages,
+            attributes: Vec::new(),
+            data: None,
+        })
+    } else {
+        Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
             address: info.sender,
-        }),
+        })
     }
 }
 
@@ -2087,7 +2102,7 @@ pub mod tests {
 
         assert_eq!(
             expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
         );
         assert_eq!(
             expected_delegation,
@@ -2125,7 +2140,7 @@ pub mod tests {
 
         assert_eq!(
             expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
         );
         assert_eq!(
             expected_delegation,
@@ -2379,7 +2394,7 @@ pub mod tests {
 
         assert_eq!(
             expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
         );
         assert_eq!(
             expected_delegation,
@@ -2416,7 +2431,7 @@ pub mod tests {
 
         assert_eq!(
             expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
         );
         assert_eq!(
             expected_delegation,
@@ -2453,7 +2468,7 @@ pub mod tests {
 
         assert_eq!(
             expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
         );
         assert_eq!(
             expected_delegation,
@@ -3184,7 +3199,7 @@ pub mod tests {
 
         assert_eq!(
             expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
+            read_mixnode_bond_amount(deps.as_ref().storage, identity.as_bytes()).unwrap()
         );
 
         assert_eq!(
@@ -3253,7 +3268,7 @@ pub mod tests {
 
         assert_eq!(
             expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
+            read_mixnode_bond_amount(deps.as_ref().storage, identity.as_bytes()).unwrap()
         );
 
         assert_eq!(
@@ -3309,7 +3324,7 @@ pub mod tests {
 
         assert_eq!(
             expected_bond,
-            read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
+            read_mixnode_bond_amount(deps.as_ref().storage, identity.as_bytes()).unwrap()
         );
 
         assert_eq!(
@@ -3541,7 +3556,9 @@ pub mod tests {
         assert_eq!(mix1_delegator1_reward, U128::from_num(22552615));
         assert_eq!(mix1_delegator2_reward, U128::from_num(5638153));
 
-        let pre_reward_bond = read_mixnode_bond(&deps.storage, b"alice").unwrap().u128();
+        let pre_reward_bond = read_mixnode_bond_amount(&deps.storage, b"alice")
+            .unwrap()
+            .u128();
         assert_eq!(pre_reward_bond, 10000_000_000);
 
         let pre_reward_delegation = read_mixnode_delegation(&deps.storage, b"alice")
@@ -3552,7 +3569,9 @@ pub mod tests {
         try_reward_mixnode_v2(deps.as_mut(), env, info, "alice".to_string(), params, 1).unwrap();
 
         assert_eq!(
-            read_mixnode_bond(&deps.storage, b"alice").unwrap().u128(),
+            read_mixnode_bond_amount(&deps.storage, b"alice")
+                .unwrap()
+                .u128(),
             U128::from_num(pre_reward_bond) + U128::from_num(mix1_operator_profit)
         );
         assert_eq!(

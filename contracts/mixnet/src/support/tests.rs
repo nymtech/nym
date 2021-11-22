@@ -4,8 +4,8 @@ pub mod helpers {
     use crate::contract::query;
     use crate::contract::{instantiate, INITIAL_MIXNODE_BOND};
     use crate::transactions::{try_add_gateway, try_add_mixnode};
+    use crate::StoredMixnodeBond;
     use config::defaults::DENOM;
-    use cosmwasm_std::from_binary;
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::mock_info;
@@ -16,21 +16,18 @@ pub mod helpers {
     use cosmwasm_std::Coin;
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{coin, Uint128};
+    use cosmwasm_std::{from_binary, DepsMut};
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::{
         Gateway, GatewayBond, InstantiateMsg, Layer, MixNode, MixNodeBond, PagedGatewayResponse,
         PagedMixnodeResponse, QueryMsg, RawDelegationData,
     };
 
-    pub fn add_mixnode(
-        sender: &str,
-        stake: Vec<Coin>,
-        deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) -> String {
+    pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
         let info = mock_info(sender, &stake);
         let key = format!("{}mixnode", sender);
         try_add_mixnode(
-            deps.as_mut(),
+            deps,
             mock_env(),
             info,
             MixNode {
@@ -133,6 +130,17 @@ pub mod helpers {
             Layer::One,
             12_345,
             mix_node,
+            None,
+        )
+    }
+
+    pub(crate) fn stored_mixnode_bond_fixture() -> StoredMixnodeBond {
+        StoredMixnodeBond::new(
+            coin(50, DENOM),
+            Addr::unchecked("foo"),
+            Layer::One,
+            12_345,
+            mix_node_fixture(),
             None,
         )
     }

@@ -357,17 +357,6 @@ pub(crate) fn read_mixnode_bond_amount(
     Ok(node.bond_amount.amount)
 }
 
-// currently not used outside tests
-#[cfg(test)]
-pub(crate) fn read_mixnode_delegation(
-    storage: &dyn Storage,
-    identity: &[u8],
-) -> StdResult<cosmwasm_std::Uint128> {
-    let bucket = mixnodes_read(storage);
-    let node = bucket.load(identity)?;
-    Ok(node.total_delegation.amount)
-}
-
 // Gateway-related stuff
 
 pub fn gateways(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
@@ -437,7 +426,7 @@ mod tests {
     use crate::helpers::identity_and_owner_to_bytes;
     use crate::support::tests::helpers::{
         gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
-        raw_delegation_fixture,
+        raw_delegation_fixture, stored_mixnode_bond_fixture,
     };
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, MockStorage};
@@ -447,8 +436,8 @@ mod tests {
     #[test]
     fn mixnode_single_read_retrieval() {
         let mut storage = MockStorage::new();
-        let bond1 = mixnode_bond_fixture();
-        let bond2 = mixnode_bond_fixture();
+        let bond1 = stored_mixnode_bond_fixture();
+        let bond2 = stored_mixnode_bond_fixture();
         mixnodes(&mut storage).save(b"bond1", &bond1).unwrap();
         mixnodes(&mut storage).save(b"bond2", &bond2).unwrap();
 
@@ -485,9 +474,8 @@ mod tests {
         // returns appropriate value otherwise
         let bond_value = 1000;
 
-        let mixnode_bond = MixNodeBond {
+        let mixnode_bond = StoredMixnodeBond {
             bond_amount: coin(bond_value, DENOM),
-            total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
             layer: Layer::One,
             block_height: 12_345,

@@ -32,7 +32,7 @@ pub fn query_mixnodes_paged(
     let limit = limit
         .unwrap_or(BOND_PAGE_DEFAULT_LIMIT)
         .min(BOND_PAGE_MAX_LIMIT) as usize;
-    let start = calculate_start_value(start_after);
+    let start = calculate_start_value(start_after.clone());
 
     let nodes = mixnodes_read(deps.storage)
         .range(start.as_deref(), None, Order::Ascending)
@@ -239,7 +239,7 @@ pub(crate) fn query_mixnode_delegation(
 pub(crate) mod tests {
     use super::*;
     use crate::state::State;
-    use crate::storage::{config, gateways, mix_delegations, mixnodes};
+    use crate::storage::{config, gateways, mix_delegations, mixnodes, total_delegation};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
         good_gateway_bond, good_mixnode_bond, raw_delegation_fixture,
@@ -263,8 +263,7 @@ pub(crate) mod tests {
         let limit = 2;
         for n in 0..10000 {
             let key = format!("bond{}", n);
-            let node = helpers::mixnode_bond_fixture();
-            mixnodes(storage).save(key.as_bytes(), &node).unwrap();
+            helpers::add_mixnode(&key, good_mixnode_bond(), deps.as_mut());
         }
 
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
@@ -277,8 +276,7 @@ pub(crate) mod tests {
         let storage = deps.as_mut().storage;
         for n in 0..100 {
             let key = format!("bond{}", n);
-            let node = helpers::mixnode_bond_fixture();
-            mixnodes(storage).save(key.as_bytes(), &node).unwrap();
+            helpers::add_mixnode(&key, good_mixnode_bond(), deps.as_mut());
         }
 
         // query without explicitly setting a limit
@@ -294,8 +292,7 @@ pub(crate) mod tests {
         let storage = deps.as_mut().storage;
         for n in 0..10000 {
             let key = format!("bond{}", n);
-            let node = helpers::mixnode_bond_fixture();
-            mixnodes(storage).save(key.as_bytes(), &node).unwrap();
+            helpers::add_mixnode(&key, good_mixnode_bond(), deps.as_mut());
         }
 
         // query with a crazily high limit in an attempt to use too many resources
@@ -303,7 +300,7 @@ pub(crate) mod tests {
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
 
         // we default to a decent sized upper bound instead
-        let expected_limit = 100;
+        let expected_limit = BOND_PAGE_MAX_LIMIT;
         assert_eq!(expected_limit, page1.nodes.len() as u32);
     }
 
@@ -315,10 +312,7 @@ pub(crate) mod tests {
         let addr4 = "hal103";
 
         let mut deps = helpers::init_contract();
-        let node = helpers::mixnode_bond_fixture();
-        mixnodes(&mut deps.storage)
-            .save(addr1.as_bytes(), &node)
-            .unwrap();
+        let _identity1 = helpers::add_mixnode(&addr1, good_mixnode_bond(), deps.as_mut());
 
         let per_page = 2;
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
@@ -327,24 +321,20 @@ pub(crate) mod tests {
         assert_eq!(1, page1.nodes.len());
 
         // save another
-        mixnodes(&mut deps.storage)
-            .save(addr2.as_bytes(), &node)
-            .unwrap();
+        let identity2 = helpers::add_mixnode(&addr2, good_mixnode_bond(), deps.as_mut());
 
         // page1 should have 2 results on it
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.nodes.len());
 
-        mixnodes(&mut deps.storage)
-            .save(addr3.as_bytes(), &node)
-            .unwrap();
+        let _identity3 = helpers::add_mixnode(&addr3, good_mixnode_bond(), deps.as_mut());
 
         // page1 still has 2 results
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.nodes.len());
 
         // retrieving the next page should start after the last key on this page
-        let start_after = String::from(addr2);
+        let start_after = identity2.clone();
         let page2 = query_mixnodes_paged(
             deps.as_ref(),
             Option::from(start_after),
@@ -355,11 +345,9 @@ pub(crate) mod tests {
         assert_eq!(1, page2.nodes.len());
 
         // save another one
-        mixnodes(&mut deps.storage)
-            .save(addr4.as_bytes(), &node)
-            .unwrap();
+        helpers::add_mixnode(&addr4, good_mixnode_bond(), deps.as_mut());
 
-        let start_after = String::from(addr2);
+        let start_after = identity2;
         let page2 = query_mixnodes_paged(
             deps.as_ref(),
             Option::from(start_after),

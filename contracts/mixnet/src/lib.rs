@@ -15,7 +15,7 @@ use mixnet_contract::{Layer, MixNode, MixNodeBond};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub(crate) struct StoredMixnodeBond {
     pub bond_amount: Coin,
     pub owner: Addr,
@@ -73,7 +73,7 @@ impl Display for StoredMixnodeBond {
         write!(
             f,
             "amount: {}, owner: {}, identity: {}",
-            self.bond_amount.amount, self.owner, self.mix_node.identity_key
+            self.bond_amount, self.owner, self.mix_node.identity_key
         )
     }
 }

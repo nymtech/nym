@@ -1,14 +1,22 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
+use gateway_client::GatewayClient;
+use nymsphinx::acknowledgements::AckKey;
+use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::preparer::MessagePreparer;
 use rand::rngs::OsRng;
+use received_processor::ReceivedMessagesProcessor;
 use std::sync::Arc;
 use std::time::Duration;
+use topology::{gateway, nym_topology_from_bonds, NymTopology};
 use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
+use wasm_utils::{console_log, console_warn};
 
 pub(crate) mod received_processor;
 
@@ -94,12 +102,12 @@ impl NymClient {
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
         #[cfg(feature = "coconut")]
-        let bandwidth_controller = Some(BandwidthController::new(
+            let bandwidth_controller = Some(BandwidthController::new(
             vec![self.validator_server.clone()],
             *self.identity.public_key(),
         ));
         #[cfg(not(feature = "coconut"))]
-        let bandwidth_controller = None;
+            let bandwidth_controller = None;
 
         let mut client = self.get_and_update_topology().await;
         let gateway = client.choose_gateway();

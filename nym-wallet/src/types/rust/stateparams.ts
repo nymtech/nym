@@ -1,4 +1,4 @@
-export interface TauriStateParams {
+export interface TauriContractSettingsParams {
   epoch_length: number;
   minimum_mixnode_bond: string;
   minimum_gateway_bond: string;

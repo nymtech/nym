@@ -32,7 +32,7 @@ pub fn query_mixnodes_paged(
     let limit = limit
         .unwrap_or(BOND_PAGE_DEFAULT_LIMIT)
         .min(BOND_PAGE_MAX_LIMIT) as usize;
-    let start = calculate_start_value(start_after.clone());
+    let start = calculate_start_value(start_after);
 
     let nodes = mixnodes_read(deps.storage)
         .range(start.as_deref(), None, Order::Ascending)

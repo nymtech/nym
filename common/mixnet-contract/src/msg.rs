@@ -22,7 +22,7 @@ pub enum ExecuteMsg {
         gateway: Gateway,
     },
     UnbondGateway {},
-    UpdateStateParams(ContractSettingsParams),
+    UpdateContractSettings(ContractSettingsParams),
 
     DelegateToMixnode {
         mix_identity: IdentityKey,

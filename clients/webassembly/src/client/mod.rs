@@ -102,12 +102,12 @@ impl NymClient {
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
         #[cfg(feature = "coconut")]
-            let bandwidth_controller = Some(BandwidthController::new(
+        let bandwidth_controller = Some(BandwidthController::new(
             vec![self.validator_server.clone()],
             *self.identity.public_key(),
         ));
         #[cfg(not(feature = "coconut"))]
-            let bandwidth_controller = None;
+        let bandwidth_controller = None;
 
         let mut client = self.get_and_update_topology().await;
         let gateway = client.choose_gateway();

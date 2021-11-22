@@ -32,13 +32,14 @@ crypto = { path = "../../common/crypto" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 nymsphinx = { path = "../../common/nymsphinx" }
-ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
+ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 socks5-requests = { path = "../../common/socks5/requests" }
 topology = { path = "../../common/topology" }
 pemstore = { path = "../../common/pemstore" }
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 validator-client = { path = "../../common/client-libs/validator-client" }
 version-checker = { path = "../../common/version-checker" }
+network-defaults = { path = "../../common/network-defaults" }
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut"]

@@ -1,10 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use futures::channel::mpsc;
-use log::*;
-use tokio::runtime::Runtime;
-
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -24,23 +20,19 @@ use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-#[cfg(feature = "coconut")]
-use coconut_interface::{hash_to_scalar, Credential, Parameters};
-#[cfg(feature = "coconut")]
-use credentials::bandwidth::{
-    prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES,
-};
-#[cfg(feature = "coconut")]
-use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::identity;
+use futures::channel::mpsc;
+use gateway_client::bandwidth::BandwidthController;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
 };
+use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
+use tokio::runtime::Runtime;
 
 use crate::client::config::{Config, SocketType};
 use crate::websocket;
@@ -173,41 +165,6 @@ impl NymClient {
         .start(self.runtime.handle())
     }
 
-    #[cfg(feature = "coconut")]
-    async fn prepare_coconut_credential(&self) -> Credential {
-        let verification_key = obtain_aggregate_verification_key(
-            &self.config.get_base().get_validator_api_endpoints(),
-        )
-        .await
-        .expect("could not obtain aggregate verification key of validators");
-
-        let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-        let bandwidth_credential_attributes = BandwidthVoucherAttributes {
-            serial_number: params.random_scalar(),
-            binding_number: params.random_scalar(),
-            voucher_value: hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
-            voucher_info: hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
-        };
-
-        let bandwidth_credential = credentials::bandwidth::obtain_signature(
-            &params,
-            &bandwidth_credential_attributes,
-            &self.config.get_base().get_validator_api_endpoints(),
-        )
-        .await
-        .expect("could not obtain bandwidth credential");
-        // the above would presumably be loaded from a file
-
-        // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
-        prepare_for_spending(
-            &self.key_manager.identity_keypair().public_key().to_bytes(),
-            &bandwidth_credential,
-            &bandwidth_credential_attributes,
-            &verification_key,
-        )
-        .expect("could not prepare out bandwidth credential for spending")
-    }
-
     fn start_gateway_client(
         &mut self,
         mixnet_message_sender: MixnetMessageSender,
@@ -227,7 +184,17 @@ impl NymClient {
 
         self.runtime.block_on(async {
             #[cfg(feature = "coconut")]
-            let coconut_credential = self.prepare_coconut_credential().await;
+            let bandwidth_controller = BandwidthController::new(
+                self.config.get_base().get_validator_api_endpoints(),
+                *self.key_manager.identity_keypair().public_key(),
+            );
+            #[cfg(not(feature = "coconut"))]
+            let bandwidth_controller = BandwidthController::new(
+                self.config.get_base().get_eth_endpoint(),
+                self.config.get_base().get_eth_private_key(),
+                self.config.get_base().get_backup_bandwidth_token_keys_dir(),
+            )
+            .expect("Could not create bandwidth controller");
 
             let mut gateway_client = GatewayClient::new(
                 gateway_address,
@@ -237,13 +204,11 @@ impl NymClient {
                 mixnet_message_sender,
                 ack_sender,
                 self.config.get_base().get_gateway_response_timeout(),
+                Some(bandwidth_controller),
             );
 
             gateway_client
-                .authenticate_and_start(
-                    #[cfg(feature = "coconut")]
-                    Some(coconut_credential),
-                )
+                .authenticate_and_start()
                 .await
                 .expect("could not authenticate and start up the gateway connection");
 

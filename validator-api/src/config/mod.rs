@@ -8,7 +8,7 @@ use config::defaults::{
 };
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
 use url::Url;
@@ -20,15 +20,23 @@ mod template;
 
 const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
 
-const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
+const DEFAULT_GATEWAY_SENDING_RATE: usize = 200;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
 const DEFAULT_PACKET_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
 const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(15 * 60);
 const DEFAULT_GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
-const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
+// Set this to a high value for now, so that we don't risk sporadic timeouts that might cause
+// bought bandwidth tokens to not have time to be spent; Once we remove the gateway from the
+// bandwidth bridging protocol, we can come back to a smaller timeout value
+const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
 
-const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(60);
+const DEFAULT_TEST_ROUTES: usize = 3;
+const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
+const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
+const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
+
+const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(10 * 60);
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -111,17 +119,6 @@ pub struct NetworkMonitor {
     /// The list must also contain THIS validator that is running the test
     all_validator_apis: Vec<Url>,
 
-    /// Specifies whether a detailed report should be printed after each run
-    print_detailed_report: bool,
-
-    // I guess in the future this will be deprecated/removed in favour
-    // of choosing 'good' network based on current nodes with best behaviour
-    /// Location of .json file containing IPv4 'good' network topology
-    good_v4_topology_file: PathBuf,
-
-    /// Location of .json file containing IPv6 'good' network topology
-    good_v6_topology_file: PathBuf,
-
     /// Specifies the interval at which the network monitor sends the test packets.
     #[serde(with = "humantime_serde")]
     run_interval: Duration,
@@ -150,15 +147,40 @@ pub struct NetworkMonitor {
     /// packets before declaring nodes unreachable.
     #[serde(with = "humantime_serde")]
     packet_delivery_timeout: Duration,
+
+    /// Path to directory containing public/private keys used for bandwidth token purchase.
+    /// Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
+    /// The public key is the name of the file, while the private key is the content.
+    #[cfg(not(feature = "coconut"))]
+    backup_bandwidth_token_keys_dir: PathBuf,
+
+    /// Ethereum private key.
+    #[cfg(not(feature = "coconut"))]
+    eth_private_key: String,
+
+    /// Addess to an Ethereum full node.
+    #[cfg(not(feature = "coconut"))]
+    eth_endpoint: String,
+
+    /// Desired number of test routes to be constructed (and working) during a monitor test run.
+    test_routes: usize,
+
+    /// The minimum number of test routes that need to be constructed (and working) in order for
+    /// a monitor test run to be valid.
+    minimum_test_routes: usize,
+
+    /// Number of test packets sent via each pseudorandom route to verify whether they work correctly,
+    /// before using them for testing the rest of the network.
+    route_test_packets: usize,
+
+    /// Number of test packets sent to each node during regular monitor test run.
+    per_node_test_packets: usize,
 }
 
 impl NetworkMonitor {
-    fn default_good_v4_topology_file() -> PathBuf {
-        Config::default_data_directory(None).join("v4-topology.json")
-    }
-
-    fn default_good_v6_topology_file() -> PathBuf {
-        Config::default_data_directory(None).join("v6-topology.json")
+    #[cfg(not(feature = "coconut"))]
+    fn default_backup_bandwidth_token_keys_dir() -> PathBuf {
+        Config::default_data_directory(None).join("backup_bandwidth_token_keys_dir")
     }
 }
 
@@ -167,9 +189,6 @@ impl Default for NetworkMonitor {
         NetworkMonitor {
             enabled: false,
             all_validator_apis: default_api_endpoints(),
-            print_detailed_report: false,
-            good_v4_topology_file: Self::default_good_v4_topology_file(),
-            good_v6_topology_file: Self::default_good_v6_topology_file(),
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,
             gateway_sending_rate: DEFAULT_GATEWAY_SENDING_RATE,
@@ -177,6 +196,16 @@ impl Default for NetworkMonitor {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             gateway_connection_timeout: DEFAULT_GATEWAY_CONNECTION_TIMEOUT,
             packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
+            #[cfg(not(feature = "coconut"))]
+            backup_bandwidth_token_keys_dir: Self::default_backup_bandwidth_token_keys_dir(),
+            #[cfg(not(feature = "coconut"))]
+            eth_private_key: "".to_string(),
+            #[cfg(not(feature = "coconut"))]
+            eth_endpoint: "".to_string(),
+            test_routes: DEFAULT_TEST_ROUTES,
+            minimum_test_routes: DEFAULT_MINIMUM_TEST_ROUTES,
+            route_test_packets: DEFAULT_ROUTE_TEST_PACKETS,
+            per_node_test_packets: DEFAULT_PER_NODE_TEST_PACKETS,
         }
     }
 }
@@ -272,21 +301,6 @@ impl Config {
         self
     }
 
-    pub fn with_detailed_network_monitor_report(mut self, detailed: bool) -> Self {
-        self.network_monitor.print_detailed_report = detailed;
-        self
-    }
-
-    pub fn with_v4_good_topology<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.network_monitor.good_v4_topology_file = path.as_ref().to_owned();
-        self
-    }
-
-    pub fn with_v6_good_topology<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.network_monitor.good_v6_topology_file = path.as_ref().to_owned();
-        self
-    }
-
     pub fn with_custom_nymd_validator(mut self, validator: Url) -> Self {
         self.base.local_validator = validator;
         self
@@ -328,24 +342,39 @@ impl Config {
         self
     }
 
+    #[cfg(not(feature = "coconut"))]
+    pub fn with_eth_private_key(mut self, eth_private_key: String) -> Self {
+        self.network_monitor.eth_private_key = eth_private_key;
+        self
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn with_eth_endpoint(mut self, eth_endpoint: String) -> Self {
+        self.network_monitor.eth_endpoint = eth_endpoint;
+        self
+    }
+
     pub fn get_network_monitor_enabled(&self) -> bool {
         self.network_monitor.enabled
     }
 
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_backup_bandwidth_token_keys_dir(&self) -> PathBuf {
+        self.network_monitor.backup_bandwidth_token_keys_dir.clone()
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_network_monitor_eth_private_key(&self) -> String {
+        self.network_monitor.eth_private_key.clone()
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn get_network_monitor_eth_endpoint(&self) -> String {
+        self.network_monitor.eth_endpoint.clone()
+    }
+
     pub fn get_rewarding_enabled(&self) -> bool {
         self.rewarding.enabled
-    }
-
-    pub fn get_detailed_report(&self) -> bool {
-        self.network_monitor.print_detailed_report
-    }
-
-    pub fn get_v4_good_topology_file(&self) -> PathBuf {
-        self.network_monitor.good_v4_topology_file.clone()
-    }
-
-    pub fn get_v6_good_topology_file(&self) -> PathBuf {
-        self.network_monitor.good_v6_topology_file.clone()
     }
 
     pub fn get_nymd_validator_url(&self) -> Url {
@@ -386,6 +415,22 @@ impl Config {
 
     pub fn get_gateway_connection_timeout(&self) -> Duration {
         self.network_monitor.gateway_connection_timeout
+    }
+
+    pub fn get_test_routes(&self) -> usize {
+        self.network_monitor.test_routes
+    }
+
+    pub fn get_minimum_test_routes(&self) -> usize {
+        self.network_monitor.minimum_test_routes
+    }
+
+    pub fn get_route_test_packets(&self) -> usize {
+        self.network_monitor.route_test_packets
+    }
+
+    pub fn get_per_node_test_packets(&self) -> usize {
+        self.network_monitor.per_node_test_packets
     }
 
     pub fn get_caching_interval(&self) -> Duration {

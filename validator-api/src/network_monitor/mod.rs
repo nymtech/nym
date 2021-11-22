@@ -1,22 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::sync::Arc;
-
-use futures::channel::mpsc;
-use log::info;
-
-#[cfg(feature = "coconut")]
-use coconut_interface::{hash_to_scalar, Credential, Parameters};
-#[cfg(feature = "coconut")]
-use credentials::bandwidth::{
-    prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES,
-};
-#[cfg(feature = "coconut")]
-use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
-use nymsphinx::addressing::clients::Recipient;
-use topology::NymTopology;
+use futures::channel::mpsc;
+use gateway_client::bandwidth::BandwidthController;
+use std::sync::Arc;
 
 use crate::cache::ValidatorCache;
 use crate::config::Config;
@@ -30,18 +18,19 @@ use crate::network_monitor::monitor::receiver::{
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
-use crate::network_monitor::tested_network::TestedNetwork;
 use crate::storage::ValidatorApiStorage;
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
 pub(crate) mod monitor;
 pub(crate) mod test_packet;
-pub(crate) mod tested_network;
+pub(crate) mod test_route;
+
+pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
-    tested_network: TestedNetwork,
+    system_version: String,
     node_status_storage: ValidatorApiStorage,
     validator_cache: ValidatorCache,
 }
@@ -49,73 +38,65 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
 impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a Config,
-        v4_topology: NymTopology,
-        v6_topology: NymTopology,
+        system_version: &str,
         node_status_storage: ValidatorApiStorage,
         validator_cache: ValidatorCache,
     ) -> Self {
-        let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
-
         NetworkMonitorBuilder {
             config,
-            tested_network,
+            system_version: system_version.to_string(),
             node_status_storage,
             validator_cache,
         }
     }
 
     pub(crate) async fn build(self) -> NetworkMonitorRunnables {
-        // TODO: in the future I guess this should somehow change to distribute the load
-        let tested_mix_gateway = self.tested_network.main_v4_gateway().clone();
-        info!(
-            "* gateway for testing mixnodes: {}",
-            tested_mix_gateway.identity_key.to_base58_string()
-        );
-
         // TODO: those keys change constant throughout the whole execution of the monitor.
         // and on top of that, they are used with ALL the gateways -> presumably this should change
         // in the future
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand_07::rngs::OsRng;
 
         let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
         let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
-
-        let test_mixnode_sender = Recipient::new(
-            *identity_keypair.public_key(),
-            *encryption_keypair.public_key(),
-            tested_mix_gateway.identity_key,
-        );
 
         let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
         let (received_processor_sender_channel, received_processor_receiver_channel) =
             mpsc::unbounded();
 
         let packet_preparer = new_packet_preparer(
+            &self.system_version,
             self.validator_cache,
-            self.tested_network.clone(),
-            test_mixnode_sender,
+            self.config.get_per_node_test_packets(),
             *identity_keypair.public_key(),
             *encryption_keypair.public_key(),
         );
 
         #[cfg(feature = "coconut")]
-        let bandwidth_credential =
-            TEMPORARY_obtain_bandwidth_credential(self.config, identity_keypair.public_key()).await;
+        let bandwidth_controller = BandwidthController::new(
+            self.config.get_all_validator_api_endpoints(),
+            *identity_keypair.public_key(),
+        );
+        #[cfg(not(feature = "coconut"))]
+        let bandwidth_controller = BandwidthController::new(
+            self.config.get_network_monitor_eth_endpoint(),
+            self.config.get_network_monitor_eth_private_key(),
+            self.config.get_backup_bandwidth_token_keys_dir(),
+        )
+        .expect("Could not create bandwidth controller");
 
         let packet_sender = new_packet_sender(
             self.config,
             gateway_status_update_sender,
             Arc::clone(&identity_keypair),
             self.config.get_gateway_sending_rate(),
-            #[cfg(feature = "coconut")]
-            bandwidth_credential,
+            bandwidth_controller,
         );
 
         let received_processor = new_received_processor(
             received_processor_receiver_channel,
             Arc::clone(&encryption_keypair),
         );
-        let summary_producer = new_summary_producer(self.config.get_detailed_report());
+        let summary_producer = new_summary_producer(self.config.get_per_node_test_packets());
         let packet_receiver = new_packet_receiver(
             gateway_status_update_receiver,
             received_processor_sender_channel,
@@ -128,7 +109,6 @@ impl<'a> NetworkMonitorBuilder<'a> {
             received_processor,
             summary_producer,
             self.node_status_storage,
-            self.tested_network,
         );
 
         NetworkMonitorRunnables {
@@ -156,59 +136,19 @@ impl NetworkMonitorRunnables {
 }
 
 fn new_packet_preparer(
+    system_version: &str,
     validator_cache: ValidatorCache,
-    tested_network: TestedNetwork,
-    test_mixnode_sender: Recipient,
+    per_node_test_packets: usize,
     self_public_identity: identity::PublicKey,
     self_public_encryption: encryption::PublicKey,
 ) -> PacketPreparer {
     PacketPreparer::new(
+        system_version,
         validator_cache,
-        tested_network,
-        test_mixnode_sender,
+        per_node_test_packets,
         self_public_identity,
         self_public_encryption,
     )
-}
-
-// SECURITY:
-// this implies we are re-using the same credential for all gateways all the time (which unfortunately is true!)
-#[cfg(feature = "coconut")]
-#[allow(non_snake_case)]
-async fn TEMPORARY_obtain_bandwidth_credential(
-    config: &Config,
-    identity: &identity::PublicKey,
-) -> Credential {
-    info!("Trying to obtain bandwidth credential...");
-    let validators = config.get_all_validator_api_endpoints();
-
-    let verification_key = obtain_aggregate_verification_key(&validators)
-        .await
-        .expect("could not obtain aggregate verification key of ALL validators");
-
-    let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-    let bandwidth_credential_attributes = BandwidthVoucherAttributes {
-        serial_number: params.random_scalar(),
-        binding_number: params.random_scalar(),
-        voucher_value: hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
-        voucher_info: hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
-    };
-
-    let bandwidth_credential = credentials::bandwidth::obtain_signature(
-        &params,
-        &bandwidth_credential_attributes,
-        &validators,
-    )
-    .await
-    .expect("failed to obtain bandwidth credential!");
-
-    prepare_for_spending(
-        &identity.to_bytes(),
-        &bandwidth_credential,
-        &bandwidth_credential_attributes,
-        &verification_key,
-    )
-    .expect("failed to prepare bandwidth credential for spending!")
 }
 
 fn new_packet_sender(
@@ -216,7 +156,7 @@ fn new_packet_sender(
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     max_sending_rate: usize,
-    #[cfg(feature = "coconut")] bandwidth_credential: Credential,
+    bandwidth_controller: BandwidthController,
 ) -> PacketSender {
     PacketSender::new(
         gateways_status_updater,
@@ -225,8 +165,7 @@ fn new_packet_sender(
         config.get_gateway_connection_timeout(),
         config.get_max_concurrent_gateway_clients(),
         max_sending_rate,
-        #[cfg(feature = "coconut")]
-        bandwidth_credential,
+        bandwidth_controller,
     )
 }
 
@@ -237,15 +176,10 @@ fn new_received_processor(
     ReceivedProcessor::new(packets_receiver, client_encryption_keypair)
 }
 
-fn new_summary_producer(detailed_report: bool) -> SummaryProducer {
+fn new_summary_producer(per_node_test_packets: usize) -> SummaryProducer {
     // right now always print the basic report. If we feel like we need to change it, it can
     // be easily adjusted by adding some flag or something
-    let summary_producer = SummaryProducer::default().with_report();
-    if detailed_report {
-        summary_producer.with_detailed_report()
-    } else {
-        summary_producer
-    }
+    SummaryProducer::new(per_node_test_packets).with_report()
 }
 
 fn new_packet_receiver(
@@ -253,47 +187,4 @@ fn new_packet_receiver(
     processor_packets_sender: ReceivedProcessorSender,
 ) -> PacketReceiver {
     PacketReceiver::new(gateways_status_updater, processor_packets_sender)
-}
-
-pub(crate) fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTopology) {
-    let monitor_version = env!("CARGO_PKG_VERSION");
-    for (_, layer_mixes) in v4_topology.mixes().iter() {
-        for mix in layer_mixes.iter() {
-            if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
-                panic!(
-                    "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
-                    mix.version, monitor_version
-                )
-            }
-        }
-    }
-
-    for gateway in v4_topology.gateways().iter() {
-        if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
-            panic!(
-                "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
-                gateway.version, monitor_version
-            )
-        }
-    }
-
-    for (_, layer_mixes) in v6_topology.mixes().iter() {
-        for mix in layer_mixes.iter() {
-            if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
-                panic!(
-                    "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
-                    mix.version, monitor_version
-                )
-            }
-        }
-    }
-
-    for gateway in v6_topology.gateways().iter() {
-        if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
-            panic!(
-                "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
-                gateway.version, monitor_version
-            )
-        }
-    }
 }

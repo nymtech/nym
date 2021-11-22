@@ -1,0 +1,34 @@
+/* last resort for styles that cannot be handled by Material UI and Emotion JS */
+
+/* TODO - this override should take place in either
+the theme declaration in index.tsx or the style prop
+in <DataGrid /> */
+
+.MuiDataGrid-sortIcon {
+    display: none !important;
+}
+
+.MuiDataGrid-columnSeparator {
+    visibility: hidden;
+}
+
+/* TODO - this should be managed somehow in MUI DataGrid
+but documentation doesnt offer a way to do it. Possibly only
+included in Data Grid Pro package */
+.MuiDataGrid-header-override {
+    height: 55px;
+    min-height: 55px;
+}
+
+/* Again, no offered way to add sx to this specific div to kill the padding
+which puts it out of sync with other (sx styled) cells */
+div div.MuiDataGrid-root .MuiDataGrid-columnHeaderTitleContainer {
+    padding-left: 0;
+}
+
+@media screen and (max-width: 900px) {
+    .MuiDrawer-paperAnchorLeft {
+        min-width: 100vw;
+        margin-top: 58px;
+    }
+}

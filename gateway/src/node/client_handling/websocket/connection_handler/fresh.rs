@@ -30,6 +30,9 @@ use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 #[cfg(feature = "coconut")]
 use coconut_interface::VerificationKey;
 
+#[cfg(not(feature = "coconut"))]
+use crate::node::client_handling::websocket::connection_handler::eth_events::ERC20Bridge;
+
 #[derive(Debug, Error)]
 enum InitialAuthenticationError {
     #[error("Internal gateway storage error")]
@@ -75,6 +78,9 @@ pub(crate) struct FreshHandler<R, S> {
 
     #[cfg(feature = "coconut")]
     pub(crate) aggregated_verification_key: VerificationKey,
+
+    #[cfg(not(feature = "coconut"))]
+    pub(crate) erc20_bridge: Arc<ERC20Bridge>,
 }
 
 impl<R, S> FreshHandler<R, S>
@@ -91,6 +97,7 @@ where
         storage: PersistentStorage,
         active_clients_store: ActiveClientsStore,
         #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
+        #[cfg(not(feature = "coconut"))] erc20_bridge: Arc<ERC20Bridge>,
     ) -> Self {
         FreshHandler {
             rng,
@@ -101,6 +108,8 @@ where
             storage,
             #[cfg(feature = "coconut")]
             aggregated_verification_key,
+            #[cfg(not(feature = "coconut"))]
+            erc20_bridge,
         }
     }
 
@@ -394,12 +403,20 @@ where
             .authenticate_client(address, encrypted_address, iv)
             .await?;
         let status = shared_keys.is_some();
+        let bandwidth_remaining = self
+            .storage
+            .get_available_bandwidth(address)
+            .await?
+            .unwrap_or(0);
         let client_details =
             shared_keys.map(|shared_keys| ClientDetails::new(address, shared_keys));
 
         Ok(InitialAuthResult::new(
             client_details,
-            ServerResponse::Authenticate { status },
+            ServerResponse::Authenticate {
+                status,
+                bandwidth_remaining,
+            },
         ))
     }
 
@@ -497,11 +514,6 @@ where
                 ClientControlRequest::RegisterHandshakeInitRequest { data } => {
                     self.handle_register(data).await
                 }
-
-                // note: this is not technically a "coconut" thing, but currently we have no non-coconut
-                // bandwidth handling and hence clippy complains about dead and unreachable code
-                // so whenever we introduce another form of bandwidth claim, this feature flag should get removed
-                #[cfg(feature = "coconut")]
                 // won't accept anything else (like bandwidth) without prior authentication
                 _ => Err(InitialAuthenticationError::InvalidRequest),
             }

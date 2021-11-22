@@ -11,7 +11,6 @@ target
 /.vscode/settings.json
 validator/.vscode
 sample-configs/validator-config.toml
-.vscode
 scripts/deploy_qa.sh
 scripts/run_gate.sh
 scripts/run_mix.sh
@@ -25,8 +24,14 @@ v6-topology.json
 /explorer/downloads/topology.json
 /explorer/public/downloads/mixmining.json
 /explorer/public/downloads/topology.json
+/nym-wallet/dist/*
 /clients/validator/examples/nym-driver-example/current-contract.txt
 validator-api/v4.json
 validator-api/v6.json
 **/node_modules
 validator-api/keypair
+contracts/mixnet/code_id
+contracts/mixnet/Justfile
+contracts/mixnet/Makefile
+validator-config
+*.patch

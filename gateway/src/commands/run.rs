@@ -12,7 +12,7 @@ use log::*;
 use version_checker::is_minor_version_compatible;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
-    App::new("run")
+    let app = App::new("run")
         .about("Starts the gateway")
         .arg(
             Arg::with_name(ID_ARG_NAME)
@@ -53,11 +53,28 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name(VALIDATORS_ARG_NAME)
-                .long(VALIDATORS_ARG_NAME)
-                .help("Comma separated list of rest endpoints of the validators")
+            Arg::with_name(VALIDATOR_APIS_ARG_NAME)
+                .long(VALIDATOR_APIS_ARG_NAME)
+                .help("Comma separated list of endpoints of the validators APIs")
                 .takes_value(true),
-        )
+        );
+
+    #[cfg(not(feature = "coconut"))]
+        let app = app
+        .arg(Arg::with_name(ETH_ENDPOINT)
+            .long(ETH_ENDPOINT)
+            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
+            .takes_value(true))
+        .arg(Arg::with_name(VALIDATORS_ARG_NAME)
+            .long(VALIDATORS_ARG_NAME)
+            .help("Comma separated list of endpoints of the validator")
+            .takes_value(true))
+        .arg(Arg::with_name(COSMOS_MNEMONIC)
+            .long(COSMOS_MNEMONIC)
+            .help("Cosmos wallet mnemonic")
+            .takes_value(true));
+
+    app
 }
 
 fn show_binding_warning(address: String) {
@@ -149,7 +166,7 @@ pub async fn execute(matches: ArgMatches<'static>) {
     }
 
     println!(
-        "Validator servers: {:?}",
+        "Validator API servers: {:?}",
         config.get_validator_api_endpoints()
     );
 

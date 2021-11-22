@@ -1,37 +1,37 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::convert::TryInto;
-use std::sync::Arc;
-use std::time::Duration;
-
 use clap::{App, Arg, ArgMatches};
-use rand::{prelude::SliceRandom, rngs::OsRng, thread_rng};
-use url::Url;
-
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 #[cfg(feature = "coconut")]
 use coconut_interface::{hash_to_scalar, Credential, Parameters};
 use config::NymConfig;
 #[cfg(feature = "coconut")]
-use credentials::bandwidth::{
-    prepare_for_spending, BandwidthVoucherAttributes, BANDWIDTH_VALUE, TOTAL_ATTRIBUTES,
+use credentials::coconut::bandwidth::{
+    obtain_signature, prepare_for_spending, BandwidthVoucherAttributes, TOTAL_ATTRIBUTES,
 };
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
+#[cfg(feature = "coconut")]
+use network_defaults::BANDWIDTH_VALUE;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use rand::{prelude::SliceRandom, rngs::OsRng, thread_rng};
+use std::convert::TryInto;
+use std::sync::Arc;
+use std::time::Duration;
 use topology::{filter::VersionFilterable, gateway};
+use url::Url;
 
 use crate::client::config::Config;
 use crate::commands::override_config;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
-    App::new("init")
+    let app = App::new("init")
         .about("Initialise a Nym client. Do this first!")
         .arg(Arg::with_name("id")
             .long("id")
@@ -65,7 +65,21 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .long("fastmode")
             .hidden(true) // this will prevent this flag from being displayed in `--help`
             .help("Mostly debug-related option to increase default traffic rate so that you would not need to modify config post init")
-        )
+        );
+    #[cfg(not(feature = "coconut"))]
+        let app = app
+        .arg(Arg::with_name("eth_endpoint")
+            .long("eth_endpoint")
+            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
+            .takes_value(true)
+            .required(true))
+        .arg(Arg::with_name("eth_private_key")
+            .long("eth_private_key")
+            .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens")
+            .takes_value(true)
+            .required(true));
+
+    app
 }
 
 // this behaviour should definitely be changed, we shouldn't
@@ -84,13 +98,10 @@ async fn _prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) 
         voucher_info: hash_to_scalar("BandwidthVoucher"),
     };
 
-    let bandwidth_credential = credentials::bandwidth::obtain_signature(
-        &params,
-        &bandwidth_credential_attributes,
-        validators,
-    )
-    .await
-    .expect("could not obtain bandwidth credential");
+    let bandwidth_credential =
+        obtain_signature(&params, &bandwidth_credential_attributes, validators)
+            .await
+            .expect("could not obtain bandwidth credential");
 
     prepare_for_spending(
         raw_identity,

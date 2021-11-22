@@ -1,0 +1,15 @@
+export type Operation =
+  | "Upload"
+  | "Init"
+  | "Migrate"
+  | "ChangeAdmin"
+  | "Send"
+  | "BondMixnode"
+  | "UnbondMixnode"
+  | "DelegateToMixnode"
+  | "UndelegateFromMixnode"
+  | "BondGateway"
+  | "UnbondGateway"
+  | "UpdateStateParams"
+  | "BeginMixnodeRewarding"
+  | "FinishMixnodeRewarding";

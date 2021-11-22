@@ -207,7 +207,7 @@ impl<C> NymdClient<C> {
         self.client.get_balance(address, self.denom()?).await
     }
 
-    pub async fn get_state_params(&self) -> Result<ContractSettingsParams, NymdError>
+    pub async fn get_contract_settings(&self) -> Result<ContractSettingsParams, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -689,7 +689,7 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn update_state_params(
+    pub async fn update_contract_settings(
         &self,
         new_params: ContractSettingsParams,
     ) -> Result<ExecuteResult, NymdError>
@@ -698,7 +698,7 @@ impl<C> NymdClient<C> {
     {
         let fee = self.get_fee(Operation::UpdateStateParams);
 
-        let req = ExecuteMsg::UpdateStateParams(new_params);
+        let req = ExecuteMsg::UpdateContractSettings(new_params);
         self.client
             .execute(
                 self.address(),

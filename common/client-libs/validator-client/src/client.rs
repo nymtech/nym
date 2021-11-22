@@ -165,11 +165,13 @@ impl<C> Client<C> {
         Ok(self.validator_api.get_gateways().await?)
     }
 
-    pub async fn get_state_params(&self) -> Result<ContractSettingsParams, ValidatorClientError>
+    pub async fn get_contract_settings(
+        &self,
+    ) -> Result<ContractSettingsParams, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.nymd.get_state_params().await?)
+        Ok(self.nymd.get_contract_settings().await?)
     }
 
     pub async fn get_current_rewarding_interval(

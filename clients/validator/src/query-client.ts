@@ -6,7 +6,7 @@ import {
     MixOwnershipResponse, PagedGatewayDelegationsResponse,
     PagedGatewayResponse, PagedMixDelegationsResponse,
     PagedMixnodeResponse,
-    StateParams
+    ContractSettingsParams
 } from "./types";
 
 export interface IQueryClient {
@@ -28,7 +28,7 @@ export interface IQueryClient {
 
     ownsGateway(contractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
 
-    getStateParams(contractAddress: string): Promise<StateParams>;
+    getStateParams(contractAddress: string): Promise<ContractSettingsParams>;
 
     changeValidator(newUrl: string): Promise<void>
 }
@@ -59,17 +59,17 @@ export default class QueryClient implements IQueryClient {
 
     public getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedMixnodeResponse> {
         if (start_after == undefined) { // TODO: check if we can take this out, I'm not sure what will happen if we send an "undefined" so I'm playing it safe here.
-            return this.cosmClient.queryContractSmart(contractAddress, {get_mix_nodes: {limit}});
+            return this.cosmClient.queryContractSmart(contractAddress, { get_mix_nodes: { limit } });
         } else {
-            return this.cosmClient.queryContractSmart(contractAddress, {get_mix_nodes: {limit, start_after}});
+            return this.cosmClient.queryContractSmart(contractAddress, { get_mix_nodes: { limit, start_after } });
         }
     }
 
     public getGateways(contractAddress: string, limit: number, start_after?: string): Promise<PagedGatewayResponse> {
         if (start_after == undefined) { // TODO: check if we can take this out, I'm not sure what will happen if we send an "undefined" so I'm playing it safe here.
-            return this.cosmClient.queryContractSmart(contractAddress, {get_gateways: {limit}});
+            return this.cosmClient.queryContractSmart(contractAddress, { get_gateways: { limit } });
         } else {
-            return this.cosmClient.queryContractSmart(contractAddress, {get_gateways: {limit, start_after}});
+            return this.cosmClient.queryContractSmart(contractAddress, { get_gateways: { limit, start_after } });
         }
     }
 
@@ -130,18 +130,18 @@ export default class QueryClient implements IQueryClient {
     }
 
     public ownsMixNode(contractAddress: string, address: string): Promise<MixOwnershipResponse> {
-        return this.cosmClient.queryContractSmart(contractAddress, {owns_mixnode: {address}});
+        return this.cosmClient.queryContractSmart(contractAddress, { owns_mixnode: { address } });
     }
 
     public ownsGateway(contractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
-        return this.cosmClient.queryContractSmart(contractAddress, {owns_gateway: {address}});
+        return this.cosmClient.queryContractSmart(contractAddress, { owns_gateway: { address } });
     }
 
     public getBalance(address: string, stakeDenom: string): Promise<Coin | null> {
         return this.cosmClient.getBalance(address, stakeDenom);
     }
 
-    public getStateParams(contractAddress: string): Promise<StateParams> {
-        return this.cosmClient.queryContractSmart(contractAddress, {state_params: {}});
+    public getStateParams(contractAddress: string): Promise<ContractSettingsParams> {
+        return this.cosmClient.queryContractSmart(contractAddress, { contract_settings_params: {} });
     }
 }

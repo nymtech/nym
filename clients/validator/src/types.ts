@@ -42,7 +42,7 @@ export type GatewayOwnershipResponse = {
     has_gateway: boolean,
 }
 
-export type StateParams = {
+export type ContractSettingsParams = {
     epoch_length: number,
     // ideally I'd want to define those as `number` rather than `string`, but
     // rust-side they are defined as Uint128 and Decimal that don't have
@@ -103,7 +103,7 @@ export type MixNode = {
 export type GatewayBond = {
     owner: string
     gateway: Gateway,
-    
+
     bond_amount: Coin,
     total_delegation: Coin,
 }

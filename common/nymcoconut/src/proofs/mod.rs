@@ -1,16 +1,5 @@
-// Copyright 2021 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 // TODO: look at https://crates.io/crates/merlin to perhaps use it instead?
 
@@ -282,7 +271,7 @@ impl ProofCmCs {
         challenge == self.challenge
     }
 
-    // challenge || rr || rk.len() || rk || rm.len() || rm
+    // challenge || response opening || response private elgamal key || keys len || response keys || attributes len || response attributes
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
         let keys_len = self.response_keys.len() as u64;
         let attributes_len = self.response_attributes.len() as u64;
@@ -309,7 +298,7 @@ impl ProofCmCs {
 
     pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Self> {
         // at the very minimum there must be a single attribute being proven
-        if bytes.len() < 32 * 4 + 16 || (bytes.len() - 16) % 32 != 0 {
+        if bytes.len() < 32 * 5 + 16 || (bytes.len() - 16) % 32 != 0 {
             return Err(
                 CoconutError::Deserialization(
                     "tried to deserialize proof of ciphertexts and commitment with bytes of invalid length".to_string())
@@ -376,7 +365,7 @@ impl ProofCmCs {
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
-pub struct ProofKappaNu {
+pub struct ProofKappaZeta {
     // c
     challenge: Scalar,
 
@@ -386,7 +375,7 @@ pub struct ProofKappaNu {
     response_blinder: Scalar,
 }
 
-impl ProofKappaNu {
+impl ProofKappaZeta {
     pub(crate) fn construct(
         params: &Parameters,
         verification_key: &VerificationKey,
@@ -424,7 +413,7 @@ impl ProofKappaNu {
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(params.gen2().to_bytes().as_ref())
                 .chain(std::iter::once(blinded_message.to_bytes().as_ref()))
-                .chain(std::iter::once(blinded_serial_number.to_bytes().as_ref())) //kappa
+                .chain(std::iter::once(blinded_serial_number.to_bytes().as_ref()))
                 .chain(std::iter::once(verification_key.alpha.to_bytes().as_ref()))
                 .chain(beta_bytes.iter().map(|b| b.as_ref()))
                 .chain(std::iter::once(commitment_kappa.to_bytes().as_ref()))
@@ -438,7 +427,7 @@ impl ProofKappaNu {
         let response_binding_number =
             produce_response(&witness_binding_number, &challenge, binding_number);
 
-        ProofKappaNu {
+        ProofKappaZeta {
             challenge,
             response_serial_number,
             response_binding_number,
@@ -492,11 +481,10 @@ impl ProofKappaNu {
         challenge == self.challenge
     }
 
-    // challenge || rm.len() || rm || rt
+    // challenge || response serial number || response binding number || repose blinder
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        //let attributes_len = self.response_attributes.len() as u64;
-        let attributes_len = 2;
-        let mut bytes = Vec::with_capacity((attributes_len + 1) as usize * 32);
+        let attributes_len = 2; // because we have serial number and the binding number
+        let mut bytes = Vec::with_capacity((1 + attributes_len + 1) as usize * 32);
 
         bytes.extend_from_slice(&self.challenge.to_bytes());
         bytes.extend_from_slice(&self.response_serial_number.to_bytes());
@@ -509,13 +497,13 @@ impl ProofKappaNu {
 
     pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Self> {
         // at the very minimum there must be a single attribute being proven
-        if bytes.len() < 32 * 3 || (bytes.len()) % 32 != 0 {
+        if bytes.len() < 32 * 4 || (bytes.len()) % 32 != 0 {
             return Err(CoconutError::DeserializationInvalidLength {
                 actual: bytes.len(),
                 modulus_target: bytes.len(),
                 modulus: 32,
                 object: "kappa and zeta".to_string(),
-                target: 32 * 3 + 8,
+                target: 32 * 4,
             });
         }
 
@@ -524,15 +512,6 @@ impl ProofKappaNu {
             &challenge_bytes,
             CoconutError::Deserialization("Failed to deserialize challenge".to_string()),
         )?;
-
-        // let rm_len = u64::from_le_bytes(bytes[32..40].try_into().unwrap());
-        if bytes[32..].len() != (2 + 1) as usize * 32 {
-            return Err(
-                CoconutError::Deserialization(
-                    format!("Tried to deserialize proof of kappa and zeta with insufficient number of bytes provided, expected {} got {}.", (2 + 1) as usize * 32, bytes[32..].len())
-                )
-            );
-        }
 
         let serial_number_bytes = &bytes[32..64].try_into().unwrap();
         let response_serial_number = try_deserialize_scalar(
@@ -552,7 +531,7 @@ impl ProofKappaNu {
             CoconutError::Deserialization("failed to deserialize the blinder".to_string()),
         )?;
 
-        Ok(ProofKappaNu {
+        Ok(ProofKappaZeta {
             challenge,
             response_serial_number,
             response_binding_number,
@@ -632,8 +611,8 @@ mod tests {
     }
 
     #[test]
-    fn proof_kappa_nu_bytes_roundtrip() {
-        let mut params = setup(1).unwrap();
+    fn proof_kappa_zeta_bytes_roundtrip() {
+        let mut params = setup(4).unwrap();
 
         let keypair = keygen(&mut params);
 
@@ -647,7 +626,7 @@ mod tests {
         let zeta = compute_zeta(&params, serial_number);
 
         // 0 public 2 private
-        let pi_v = ProofKappaNu::construct(
+        let pi_v = ProofKappaZeta::construct(
             &mut params,
             &keypair.verification_key(),
             &serial_number,
@@ -657,14 +636,16 @@ mod tests {
             &zeta,
         );
 
-        let bytes = pi_v.to_bytes();
-        assert_eq!(ProofKappaNu::from_bytes(&bytes).unwrap(), pi_v);
+        let proof_bytes = pi_v.to_bytes();
+
+        let proof_from_bytes = ProofKappaZeta::from_bytes(&proof_bytes).unwrap();
+        assert_eq!(proof_from_bytes, pi_v);
 
         // 2 public 2 private
         let mut params = setup(4).unwrap();
         let keypair = keygen(&mut params);
 
-        let pi_v = ProofKappaNu::construct(
+        let pi_v = ProofKappaZeta::construct(
             &mut params,
             &keypair.verification_key(),
             &serial_number,
@@ -674,7 +655,9 @@ mod tests {
             &zeta,
         );
 
-        let bytes = pi_v.to_bytes();
-        assert_eq!(ProofKappaNu::from_bytes(&bytes).unwrap(), pi_v);
+        let proof_bytes = pi_v.to_bytes();
+
+        let proof_from_bytes = ProofKappaZeta::from_bytes(&proof_bytes).unwrap();
+        assert_eq!(proof_from_bytes, pi_v);
     }
 }

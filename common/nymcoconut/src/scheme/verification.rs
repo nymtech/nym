@@ -1,16 +1,5 @@
-// Copyright 2021 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use core::ops::Neg;
 use std::convert::TryFrom;
@@ -20,7 +9,7 @@ use bls12_381::{multi_miller_loop, G1Affine, G2Prepared, G2Projective, Scalar};
 use group::{Curve, Group};
 
 use crate::error::{CoconutError, Result};
-use crate::proofs::ProofKappaNu;
+use crate::proofs::ProofKappaZeta;
 use crate::scheme::setup::Parameters;
 use crate::scheme::Signature;
 use crate::scheme::VerificationKey;
@@ -40,7 +29,7 @@ pub struct Theta {
     // sigma
     pub credential: Signature,
     // pi_v
-    pub pi_v: ProofKappaNu,
+    pub pi_v: ProofKappaZeta,
 }
 
 impl TryFrom<&[u8]> for Theta {
@@ -57,17 +46,21 @@ impl TryFrom<&[u8]> for Theta {
         let blinded_message_bytes = bytes[..96].try_into().unwrap();
         let blinded_message = try_deserialize_g2_projective(
             &blinded_message_bytes,
-            CoconutError::Deserialization("failed to deserialize kappa".to_string()),
+            CoconutError::Deserialization(
+                "failed to deserialize the blinded message (kappa)".to_string(),
+            ),
         )?;
 
         let blinded_serial_number_bytes = bytes[96..192].try_into().unwrap();
         let blinded_serial_number = try_deserialize_g2_projective(
             &blinded_serial_number_bytes,
-            CoconutError::Deserialization("failed to deserialize zeta".to_string()),
+            CoconutError::Deserialization(
+                "failed to deserialize the blinded serial number (zeta)".to_string(),
+            ),
         )?;
         let credential = Signature::try_from(&bytes[192..288])?;
 
-        let pi_v = ProofKappaNu::from_bytes(&bytes[288..])?;
+        let pi_v = ProofKappaZeta::from_bytes(&bytes[288..])?;
 
         Ok(Theta {
             blinded_message,
@@ -88,10 +81,7 @@ impl Theta {
         )
     }
 
-    // TODO: perhaps also include pi_v.len()?
-    // to be determined once we implement serde to make sure its 1:1 compatible
-    // with bincode
-    // kappa || nu || credential || pi_v
+    // blinded message (kappa)  || blinded serial number (zeta) || credential || pi_v
     pub fn to_bytes(&self) -> Vec<u8> {
         let blinded_message_bytes = self.blinded_message.to_affine().to_compressed();
         let blinded_serial_number_bytes = self.blinded_serial_number.to_affine().to_compressed();
@@ -179,7 +169,7 @@ pub fn prove_bandwidth_credential(
     // zeta is a commitment to the serial number (i.e., a public value associated with the serial number)
     let blinded_serial_number = compute_zeta(params, serial_number);
 
-    let pi_v = ProofKappaNu::construct(
+    let pi_v = ProofKappaZeta::construct(
         params,
         verification_key,
         &serial_number,

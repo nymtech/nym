@@ -4,7 +4,7 @@
 use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{
-    GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
+    GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory, Uptime,
     ValidatorApiStorageError,
 };
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
@@ -262,6 +262,54 @@ impl ValidatorApiStorage {
             gateway_owner,
             history,
         ))
+    }
+
+    /// Based on the data available in the validator API, determines the average uptime of particular
+    /// mixnode during the specified time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: base58-encoded identity of the mixnode.
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `end`: unix timestamp indicating the upper bound interval of the selection.
+    pub(crate) async fn get_average_mixnode_uptime_in_interval(
+        &self,
+        identity: &str,
+        start: UnixTimestamp,
+        end: UnixTimestamp,
+    ) -> Result<Uptime, ValidatorApiStorageError> {
+        let mixnode_database_id = match self
+            .manager
+            .get_mixnode_id(identity)
+            .await
+            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?
+        {
+            Some(id) => id,
+            None => return Ok(Uptime::zero()),
+        };
+
+        let monitor_runs = self.get_monitor_runs_count(start, end).await?;
+        let mixnode_statuses = self
+            .manager
+            .get_mixnode_statuses_by_id(mixnode_database_id, start, end)
+            .await
+            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
+
+        let mut total: f32 = 0.0;
+        for mixnode_status in mixnode_statuses {
+            total += mixnode_status.reliability as f32;
+        }
+
+        let uptime = match Uptime::from_uptime_sum(total, monitor_runs) {
+            Ok(uptime) => uptime,
+            Err(_) => {
+                // this should really ever happen...
+                error!("mixnode {} has uptime > 100!", identity);
+                Uptime::default()
+            }
+        };
+
+        Ok(uptime)
     }
 
     /// Obtain status reports of mixnodes that were active in the specified time interval.
@@ -633,7 +681,7 @@ impl ValidatorApiStorage {
     }
 
     ////////////////////////////////////////////////////////////////////////
-    // TODO: Should all of the below really return a "NodeStatusApi" Errors?
+    // TODO: Should all of the below really return a "ValidatorApiStorageError" Errors?
     ////////////////////////////////////////////////////////////////////////
 
     /// Inserts information about starting new epoch rewarding into the database.

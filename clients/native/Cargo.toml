@@ -24,7 +24,7 @@ dirs = "3.0" # for determining default store directories in config
 dotenv = "0.15.0" # for obtaining environmental variables (only used for RUST_LOG for time being)
 log = "0.4" # self explanatory
 pretty_env_logger = "0.4" # for formatting log messages
-rand = {version = "0.7.3", features = ["wasm-bindgen"]} # rng-related traits + some rng implementation to use
+rand = { version = "0.7.3", features = ["wasm-bindgen"] } # rng-related traits + some rng implementation to use
 serde = { version = "1.0.104", features = ["derive"] } # for config serialization/deserialization
 sled = "0.34" # for storage of replySURB decryption keys
 tokio = { version = "1.4", features = ["rt-multi-thread", "net", "signal"] } # async runtime
@@ -44,6 +44,7 @@ topology = { path = "../../common/topology" }
 websocket-requests = { path = "websocket-requests" }
 validator-client = { path = "../../common/client-libs/validator-client" }
 version-checker = { path = "../../common/version-checker" }
+network-defaults = { path = "../../common/network-defaults" }
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut"]

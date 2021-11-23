@@ -57,8 +57,6 @@ credentials = { path = "../common/credentials", optional = true }
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
-default = ["tokenomics"]
-tokenomics = []
 
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }

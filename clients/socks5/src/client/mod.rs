@@ -1,11 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::Config;
-use crate::socks::{
-    authentication::{AuthenticationMethods, Authenticator, User},
-    server::SphinxSocksServer,
-};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -25,6 +20,7 @@ use client_core::client::topology_control::{
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
+use gateway_client::bandwidth::BandwidthController;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
@@ -34,7 +30,11 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use tokio::runtime::Runtime;
 
-use gateway_client::bandwidth::BandwidthController;
+use crate::client::config::Config;
+use crate::socks::{
+    authentication::{AuthenticationMethods, Authenticator, User},
+    server::SphinxSocksServer,
+};
 
 pub(crate) mod config;
 

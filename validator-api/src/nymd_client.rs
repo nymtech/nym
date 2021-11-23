@@ -8,16 +8,18 @@ use crate::rewarding::{
 };
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract::{
-    Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond, RewardingIntervalResponse,
-    StateParams,
+    Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond, MixnodeRewardingStatusResponse,
+    RewardingIntervalResponse, StateParams, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
+use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 use validator_client::nymd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient, TendermintTime,
+    CosmWasmClient, CosmosCoin, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
+    TendermintTime,
 };
 use validator_client::ValidatorClientError;
 
@@ -155,6 +157,21 @@ impl<C> Client<C> {
         self.0.read().await.get_current_rewarding_interval().await
     }
 
+    pub(crate) async fn get_rewarding_status(
+        &self,
+        mix_identity: mixnet_contract::IdentityKey,
+        rewarding_interval_nonce: u32,
+    ) -> Result<MixnodeRewardingStatusResponse, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0
+            .read()
+            .await
+            .get_rewarding_status(mix_identity, rewarding_interval_nonce)
+            .await
+    }
+
     /// Obtains the hash of a block specified by the provided height.
     /// If the resulting digest is empty, a `None` is returned instead.
     ///
@@ -235,7 +252,77 @@ impl<C> Client<C> {
         Ok(())
     }
 
-    pub(crate) async fn reward_mixnodes(
+    pub(crate) async fn reward_mixnode_and_all_delegators(
+        &self,
+        node: &MixnodeToReward,
+        rewarding_interval_nonce: u32,
+    ) -> Result<(), RewardingError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        // determine how many times we are going to have to call the delegator rewarding,
+        // note that it doesn't include the "base" call to `RewardMixnode` that rewards one page
+        let further_calls = node.total_delegations / MIXNODE_DELEGATORS_PAGE_LIMIT;
+
+        // start with the base call to reward operator and first page of delegators
+        let fee = self
+            .estimate_mixnode_reward_fees(1, MIXNODE_DELEGATORS_PAGE_LIMIT)
+            .await;
+        let msgs = vec![(
+            node.to_reward_execute_msg_v2(rewarding_interval_nonce),
+            vec![],
+        )];
+        let memo = format!(
+            "operator + {} delegators rewarding",
+            MIXNODE_DELEGATORS_PAGE_LIMIT
+        );
+        self.execute_multiple_with_retry(msgs, fee, memo).await?;
+
+        // reward rest of delegators
+        let mut remaining_delegators = node.total_delegations - MIXNODE_DELEGATORS_PAGE_LIMIT;
+        let delegator_rewarding_msg = (
+            node.to_next_delegator_reward_execute_msg_v2(rewarding_interval_nonce),
+            vec![],
+        );
+        for _ in 0..further_calls {
+            let delegators_in_call = remaining_delegators.min(MIXNODE_DELEGATORS_PAGE_LIMIT);
+            let fee = self
+                .estimate_mixnode_reward_fees(1, delegators_in_call)
+                .await;
+            let msgs = vec![delegator_rewarding_msg.clone()];
+            let memo = format!("rewarding another {} delegators", delegators_in_call);
+            self.execute_multiple_with_retry(msgs, fee, memo).await?;
+
+            remaining_delegators -= MIXNODE_DELEGATORS_PAGE_LIMIT;
+        }
+
+        Ok(())
+    }
+
+    pub(crate) async fn reward_mix_delegators(
+        &self,
+        node: &MixnodeToReward,
+        rewarding_interval_nonce: u32,
+    ) -> Result<(), RewardingError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        // the fee is a tricky subject here because we don't know exactly how many delegators we missed,
+        // let's aim for the worst case scenario and assume it was the entire page
+        let fee = self
+            .estimate_mixnode_reward_fees(1, MIXNODE_DELEGATORS_PAGE_LIMIT)
+            .await;
+        let delegator_rewarding_msg = (
+            node.to_next_delegator_reward_execute_msg_v2(rewarding_interval_nonce),
+            vec![],
+        );
+
+        let memo = "rewarding delegators".to_string();
+        self.execute_multiple_with_retry(vec![delegator_rewarding_msg], fee, memo)
+            .await
+    }
+
+    pub(crate) async fn reward_mixnodes_with_single_page_of_delegators(
         &self,
         nodes: &[MixnodeToReward],
         rewarding_interval_nonce: u32,
@@ -249,12 +336,25 @@ impl<C> Client<C> {
             .await;
         let msgs: Vec<(ExecuteMsg, _)> = nodes
             .iter()
-            .map(|node| node.to_execute_msg(rewarding_interval_nonce))
+            .map(|node| node.to_reward_execute_msg_v2(rewarding_interval_nonce))
             .zip(std::iter::repeat(Vec::new()))
             .collect();
 
         let memo = format!("rewarding {} mixnodes", msgs.len());
 
+        self.execute_multiple_with_retry(msgs, fee, memo).await
+    }
+
+    async fn execute_multiple_with_retry<M>(
+        &self,
+        msgs: Vec<(M, Vec<CosmosCoin>)>,
+        fee: Fee,
+        memo: String,
+    ) -> Result<(), RewardingError>
+    where
+        C: SigningCosmWasmClient + Sync,
+        M: Serialize + Clone + Send,
+    {
         let contract = self
             .0
             .read()

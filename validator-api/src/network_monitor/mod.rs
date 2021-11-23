@@ -1,6 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crypto::asymmetric::{encryption, identity};
+use futures::channel::mpsc;
+use gateway_client::bandwidth::BandwidthController;
+use std::sync::Arc;
+
 use crate::cache::ValidatorCache;
 use crate::config::Config;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
@@ -14,11 +19,6 @@ use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
 use crate::storage::ValidatorApiStorage;
-use crypto::asymmetric::{encryption, identity};
-use futures::channel::mpsc;
-use std::sync::Arc;
-
-use gateway_client::bandwidth::BandwidthController;
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;

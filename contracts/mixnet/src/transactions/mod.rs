@@ -1,17 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use crate::error::ContractError;
-use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
 use crate::queries;
 use crate::storage::*;
 use config::defaults::DENOM;
-use cosmwasm_std::{
-    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, Uint128,
-};
-use mixnet_contract::mixnode::NodeRewardParams;
+use cosmwasm_std::{attr, coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::{
     Gateway, GatewayBond, IdentityKey, Layer, MixNode, RawDelegationData, StateParams,
 };
+
+pub(crate) mod rewarding;
+pub(crate) use rewarding::*;
 
 pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 
@@ -301,12 +300,12 @@ pub(crate) fn try_update_state_params(
         return Err(ContractError::Unauthorized);
     }
 
-    if params.mixnode_bond_reward_rate < Decimal::one() {
-        return Err(ContractError::DecreasingMixnodeBondReward);
+    if params.mixnode_rewarded_set_size == 0 {
+        return Err(ContractError::ZeroRewardedSet);
     }
 
-    if params.mixnode_delegation_reward_rate < Decimal::one() {
-        return Err(ContractError::DecreasingMixnodeDelegationReward);
+    if params.mixnode_active_set_size == 0 {
+        return Err(ContractError::ZeroActiveSet);
     }
 
     // note: rewarded_set = active_set + idle_set
@@ -315,321 +314,11 @@ pub(crate) fn try_update_state_params(
         return Err(ContractError::InvalidActiveSetSize);
     }
 
-    // if we're updating epoch length, recalculate rewards for mixnodes
-    if state.params.epoch_length != params.epoch_length {
-        state.mixnode_epoch_bond_reward =
-            calculate_epoch_reward_rate(params.epoch_length, params.mixnode_bond_reward_rate);
-        state.mixnode_epoch_delegation_reward =
-            calculate_epoch_reward_rate(params.epoch_length, params.mixnode_delegation_reward_rate);
-    } else {
-        // if mixnode rewards changed, recalculate respective values
-        if state.params.mixnode_bond_reward_rate != params.mixnode_bond_reward_rate {
-            state.mixnode_epoch_bond_reward =
-                calculate_epoch_reward_rate(params.epoch_length, params.mixnode_bond_reward_rate);
-        }
-        if state.params.mixnode_delegation_reward_rate != params.mixnode_delegation_reward_rate {
-            state.mixnode_epoch_delegation_reward = calculate_epoch_reward_rate(
-                params.epoch_length,
-                params.mixnode_delegation_reward_rate,
-            );
-        }
-    }
-
     state.params = params;
 
     config(deps.storage).save(&state)?;
 
     Ok(Response::default())
-}
-
-// Note: this function is designed to work with only a single validator entity distributing rewards
-// The main purpose of this function is to update `latest_rewarding_interval_nonce` which
-// will trigger a different seed selection for the pseudorandom generation of the "demanded" set of mixnodes.
-pub(crate) fn try_begin_mixnode_rewarding(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    rewarding_interval_nonce: u32,
-) -> Result<Response, ContractError> {
-    let mut state = config_read(deps.storage).load()?;
-
-    // check if this is executed by the permitted validator, if not reject the transaction
-    if info.sender != state.rewarding_validator_address {
-        return Err(ContractError::Unauthorized);
-    }
-
-    // check whether sufficient number of blocks already elapsed since the previous rewarding happened
-    // (this implies the validator responsible for rewarding in the previous interval did not call
-    // `try_finish_mixnode_rewarding` - perhaps they crashed or something. Regardless of the reason
-    // it shouldn't prevent anyone from distributing rewards in the following interval)
-    // Do note, however, that calling `try_finish_mixnode_rewarding` is crucial as otherwise the
-    // "demanded" set won't get updated on the validator API side
-    if state.rewarding_in_progress
-        && state.rewarding_interval_starting_block + MAX_REWARDING_DURATION_IN_BLOCKS
-            > env.block.height
-    {
-        return Err(ContractError::RewardingInProgress);
-    }
-
-    // make sure the validator is in sync with the contract state
-    if rewarding_interval_nonce != state.latest_rewarding_interval_nonce + 1 {
-        return Err(ContractError::InvalidRewardingIntervalNonce {
-            received: rewarding_interval_nonce,
-            expected: state.latest_rewarding_interval_nonce + 1,
-        });
-    }
-
-    state.rewarding_interval_starting_block = env.block.height;
-    state.latest_rewarding_interval_nonce = rewarding_interval_nonce;
-    state.rewarding_in_progress = true;
-
-    config(deps.storage).save(&state)?;
-
-    let mut response = Response::new();
-    response.add_attribute(
-        "rewarding interval nonce",
-        rewarding_interval_nonce.to_string(),
-    );
-    Ok(response)
-}
-
-// Note: if any changes are made to this function or anything it is calling down the stack,
-// for example delegation reward distribution, the gas limits must be retested and both
-// validator-api/src/rewarding/mod.rs::{MIXNODE_REWARD_OP_BASE_GAS_LIMIT, PER_MIXNODE_DELEGATION_GAS_INCREASE}
-// must be updated appropriately.
-pub(crate) fn try_reward_mixnode(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    mix_identity: IdentityKey,
-    uptime: u32,
-    rewarding_interval_nonce: u32,
-) -> Result<Response, ContractError> {
-    let state = config_read(deps.storage).load()?;
-
-    // check if this is executed by the permitted validator, if not reject the transaction
-    if info.sender != state.rewarding_validator_address {
-        return Err(ContractError::Unauthorized);
-    }
-
-    if !state.rewarding_in_progress {
-        return Err(ContractError::RewardingNotInProgress);
-    }
-
-    // make sure the transaction is sent for the correct rewarding interval
-    if rewarding_interval_nonce != state.latest_rewarding_interval_nonce {
-        return Err(ContractError::InvalidRewardingIntervalNonce {
-            received: rewarding_interval_nonce,
-            expected: state.latest_rewarding_interval_nonce,
-        });
-    }
-
-    // check if the mixnode hasn't been rewarded in this rewarding interval already
-    if rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
-        .may_load(mix_identity.as_bytes())?
-        .is_some()
-    {
-        return Err(ContractError::MixnodeAlreadyRewarded {
-            identity: mix_identity,
-        });
-    }
-
-    // optimisation for uptime being 0. No rewards will be given so just terminate here
-    if uptime == 0 {
-        rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
-            .save(mix_identity.as_bytes(), &Default::default())?;
-        return Ok(Response {
-            submessages: vec![],
-            messages: vec![],
-            attributes: vec![
-                attr("bond increase", Uint128(0)),
-                attr("total delegation increase", Uint128(0)),
-            ],
-            data: None,
-        });
-    }
-
-    // check if the bond even exists
-    let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
-        Ok(bond) => bond,
-        Err(_) => {
-            return Ok(Response {
-                attributes: vec![attr("result", "bond not found")],
-                ..Default::default()
-            });
-        }
-    };
-
-    let mut node_reward = Uint128(0);
-    let mut total_delegation_reward = Uint128(0);
-
-    // update current bond with the reward given to the node and the delegators
-    // if it has been bonded for long enough
-    if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height {
-        let bond_reward_rate = state.mixnode_epoch_bond_reward;
-        let delegation_reward_rate = state.mixnode_epoch_delegation_reward;
-        let bond_scaled_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
-        let delegation_scaled_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
-
-        total_delegation_reward = increase_mix_delegated_stakes(
-            deps.storage,
-            &mix_identity,
-            delegation_scaled_reward_rate,
-            env.block.height,
-        )?;
-
-        node_reward = current_bond.bond_amount.amount * bond_scaled_reward_rate;
-        current_bond.bond_amount.amount += node_reward;
-        mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
-
-        total_delegation(deps.storage).update::<_, ContractError>(
-            mix_identity.as_bytes(),
-            |total_delegation| {
-                // unwrap is fine as if the mixnode itself exists, so must this entry
-                Ok(total_delegation.unwrap() + total_delegation_reward)
-            },
-        )?;
-    }
-
-    rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
-        .save(mix_identity.as_bytes(), &Default::default())?;
-
-    Ok(Response {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![
-            attr("bond increase", node_reward),
-            attr("total delegation increase", total_delegation_reward),
-        ],
-        data: None,
-    })
-}
-
-pub(crate) fn try_reward_mixnode_v2(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    mix_identity: IdentityKey,
-    params: NodeRewardParams,
-    rewarding_interval_nonce: u32,
-) -> Result<Response, ContractError> {
-    let state = config_read(deps.storage).load()?;
-
-    // check if this is executed by the permitted validator, if not reject the transaction
-    if info.sender != state.rewarding_validator_address {
-        return Err(ContractError::Unauthorized);
-    }
-
-    if !state.rewarding_in_progress {
-        return Err(ContractError::RewardingNotInProgress);
-    }
-
-    // make sure the transaction is sent for the correct rewarding interval
-    if rewarding_interval_nonce != state.latest_rewarding_interval_nonce {
-        return Err(ContractError::InvalidRewardingIntervalNonce {
-            received: rewarding_interval_nonce,
-            expected: state.latest_rewarding_interval_nonce,
-        });
-    }
-
-    // check if the mixnode hasn't been rewarded in this rewarding interval already
-    if rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
-        .may_load(mix_identity.as_bytes())?
-        .is_some()
-    {
-        return Err(ContractError::MixnodeAlreadyRewarded {
-            identity: mix_identity,
-        });
-    }
-
-    // check if the bond even exists
-    let current_bond = match read_mixnode_bond(deps.storage, &mix_identity)? {
-        Some(bond) => bond,
-        None => {
-            return Ok(Response {
-                attributes: vec![attr("result", "bond not found")],
-                ..Default::default()
-            });
-        }
-    };
-
-    let mut reward_params = params;
-    reward_params.set_reward_blockstamp(env.block.height);
-
-    let reward_result = current_bond.reward(&reward_params);
-
-    // Omitting the price per packet function now, it follows that base operator reward is the node_reward
-    let operator_reward = current_bond.operator_reward(&reward_params);
-    let total_delegation_reward =
-        increase_mix_delegated_stakes_v2(deps.storage, &current_bond, &reward_params)?;
-
-    // update current bond with the reward given to the node and the delegators
-    // if it has been bonded for long enough
-    if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING
-        <= reward_params.reward_blockstamp()
-    {
-        total_delegation(deps.storage).update::<_, ContractError>(
-            mix_identity.as_bytes(),
-            |current_total| {
-                // unwrap is fine as if the mixnode itself exists, so must this entry
-                Ok(current_total.unwrap() + total_delegation_reward)
-            },
-        )?;
-        mixnodes(deps.storage).update::<_, ContractError>(
-            mix_identity.as_bytes(),
-            |current_bond| {
-                // unwrap is fine because we just read the entry...
-                let mut unwrapped = current_bond.unwrap();
-                unwrapped.bond_amount.amount += Uint128(operator_reward);
-                Ok(unwrapped)
-            },
-        )?;
-
-        decr_reward_pool(Uint128(operator_reward), deps.storage)?;
-        decr_reward_pool(total_delegation_reward, deps.storage)?;
-    }
-
-    rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
-        .save(mix_identity.as_bytes(), &Default::default())?;
-
-    Ok(Response {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![
-            attr("bond increase", reward_result.reward()),
-            attr("total delegation increase", total_delegation_reward),
-        ],
-        data: None,
-    })
-}
-pub(crate) fn try_finish_mixnode_rewarding(
-    deps: DepsMut,
-    info: MessageInfo,
-    rewarding_interval_nonce: u32,
-) -> Result<Response, ContractError> {
-    let mut state = config_read(deps.storage).load()?;
-
-    // check if this is executed by the permitted validator, if not reject the transaction
-    if info.sender != state.rewarding_validator_address {
-        return Err(ContractError::Unauthorized);
-    }
-
-    if !state.rewarding_in_progress {
-        return Err(ContractError::RewardingNotInProgress);
-    }
-
-    // make sure the validator is in sync with the contract state
-    if rewarding_interval_nonce != state.latest_rewarding_interval_nonce {
-        return Err(ContractError::InvalidRewardingIntervalNonce {
-            received: rewarding_interval_nonce,
-            expected: state.latest_rewarding_interval_nonce,
-        });
-    }
-
-    state.rewarding_in_progress = false;
-    config(deps.storage).save(&state)?;
-
-    Ok(Response::new())
 }
 
 fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {
@@ -757,23 +446,16 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::{
-        execute, query, DEFAULT_SYBIL_RESISTANCE_PERCENT, INITIAL_DEFAULT_EPOCH_LENGTH,
-        INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND, INITIAL_MIXNODE_BOND_REWARD_RATE,
-        INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
-    };
-    use crate::helpers::{calculate_epoch_reward_rate, Delegations};
-    use crate::queries::DELEGATION_PAGE_DEFAULT_LIMIT;
-    use crate::storage::{layer_distribution_read, mix_delegations_read, read_mixnode_bond};
+    use crate::contract::{execute, query, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND};
+    use crate::helpers::Delegations;
+    use crate::storage::layer_distribution_read;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{
-        add_mixnode, good_gateway_bond, good_mixnode_bond, mix_node_fixture,
-    };
+    use crate::support::tests::helpers::{good_gateway_bond, good_mixnode_bond};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
     use mixnet_contract::{
         ExecuteMsg, LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
-        UnpackedDelegation,
+        UnpackedDelegation, MIXNODE_DELEGATORS_PAGE_LIMIT,
     };
     use queries::tests::store_n_mix_delegations;
 
@@ -1617,13 +1299,8 @@ pub mod tests {
         let mut deps = helpers::init_contract();
 
         let new_params = StateParams {
-            epoch_length: INITIAL_DEFAULT_EPOCH_LENGTH,
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
-            mixnode_bond_reward_rate: Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE),
-            mixnode_delegation_reward_rate: Decimal::percent(
-                INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
-            ),
             mixnode_rewarded_set_size: 100,
             mixnode_active_set_size: 50,
         };
@@ -1642,862 +1319,26 @@ pub mod tests {
         let current_state = config_read(deps.as_ref().storage).load().unwrap();
         assert_eq!(current_state.params, new_params);
 
-        // mixnode_epoch_rewards are recalculated if annual reward  is changed
-        let current_mix_bond_reward_rate = current_state.mixnode_epoch_bond_reward;
-        let current_mix_delegation_reward_rate = current_state.mixnode_epoch_delegation_reward;
-        let new_mixnode_bond_reward_rate = Decimal::percent(120);
-        let new_mixnode_delegation_reward_rate = Decimal::percent(120);
-
-        // sanity check to make sure we are actually updating the values (in case we changed defaults at some point)
-        assert_ne!(new_mixnode_bond_reward_rate, current_mix_bond_reward_rate);
-        assert_ne!(
-            new_mixnode_delegation_reward_rate,
-            current_mix_delegation_reward_rate
-        );
-
-        let mut new_params = current_state.params.clone();
-        new_params.mixnode_bond_reward_rate = new_mixnode_bond_reward_rate;
-        new_params.mixnode_delegation_reward_rate = new_mixnode_delegation_reward_rate;
-
-        let info = mock_info("creator", &[]);
-        try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
-
-        let new_state = config_read(deps.as_ref().storage).load().unwrap();
-        let expected_bond =
-            calculate_epoch_reward_rate(new_params.epoch_length, new_mixnode_bond_reward_rate);
-        let expected_delegation = calculate_epoch_reward_rate(
-            new_params.epoch_length,
-            new_mixnode_delegation_reward_rate,
-        );
-        assert_eq!(expected_bond, new_state.mixnode_epoch_bond_reward);
-        assert_eq!(
-            expected_delegation,
-            new_state.mixnode_epoch_delegation_reward
-        );
-
-        // mixnode_epoch_rewards is updated on epoch length change
-        let new_epoch_length = 42;
-        // sanity check to make sure we are actually updating the value (in case we changed defaults at some point)
-        assert_ne!(new_epoch_length, current_state.params.epoch_length);
-        let mut new_params = current_state.params.clone();
-        new_params.epoch_length = new_epoch_length;
-
-        let info = mock_info("creator", &[]);
-        try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
-
-        let new_state = config_read(deps.as_ref().storage).load().unwrap();
-        let expected_mixnode_bond =
-            calculate_epoch_reward_rate(new_epoch_length, new_params.mixnode_bond_reward_rate);
-        let expected_mixnode_delegation = calculate_epoch_reward_rate(
-            new_epoch_length,
-            new_params.mixnode_delegation_reward_rate,
-        );
-        assert_eq!(expected_mixnode_bond, new_state.mixnode_epoch_bond_reward);
-        assert_eq!(
-            expected_mixnode_delegation,
-            new_state.mixnode_epoch_delegation_reward
-        );
-
         // error is thrown if rewarded set is smaller than the active set
         let info = mock_info("creator", &[]);
         let mut new_params = current_state.params.clone();
         new_params.mixnode_rewarded_set_size = new_params.mixnode_active_set_size - 1;
         let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
-        assert_eq!(Err(ContractError::InvalidActiveSetSize), res)
-    }
-
-    #[cfg(test)]
-    mod beginning_mixnode_rewarding {
-        use super::*;
-
-        #[test]
-        fn can_only_be_called_by_specified_validator_address() {
-            let mut deps = helpers::init_contract();
-            let env = mock_env();
-            let current_state = config_read(deps.as_mut().storage).load().unwrap();
-            let rewarding_validator_address = current_state.rewarding_validator_address;
-
-            let res = try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env.clone(),
-                mock_info("not-the-approved-validator", &[]),
-                1,
-            );
-            assert_eq!(Err(ContractError::Unauthorized), res);
-
-            let res = try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env.clone(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                1,
-            );
-            assert!(res.is_ok())
-        }
-
-        #[test]
-        fn cannot_be_called_if_rewarding_is_already_in_progress_with_little_day() {
-            let mut deps = helpers::init_contract();
-            let env = mock_env();
-            let current_state = config_read(deps.as_mut().storage).load().unwrap();
-            let rewarding_validator_address = current_state.rewarding_validator_address;
-
-            try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env.clone(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                1,
-            )
-            .unwrap();
-
-            let res = try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env.clone(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                2,
-            );
-            assert_eq!(Err(ContractError::RewardingInProgress), res);
-        }
-
-        #[test]
-        fn can_be_called_if_rewarding_is_in_progress_if_sufficient_number_of_blocks_elapsed() {
-            let mut deps = helpers::init_contract();
-            let env = mock_env();
-            let current_state = config_read(deps.as_mut().storage).load().unwrap();
-            let rewarding_validator_address = current_state.rewarding_validator_address;
-
-            try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env.clone(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                1,
-            )
-            .unwrap();
-
-            let mut new_env = env.clone();
-
-            new_env.block.height = env.block.height + MAX_REWARDING_DURATION_IN_BLOCKS;
-
-            let res = try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                new_env,
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                2,
-            );
-            assert!(res.is_ok());
-        }
-
-        #[test]
-        fn provided_nonce_must_be_equal_the_current_plus_one() {
-            let mut deps = helpers::init_contract();
-            let env = mock_env();
-            let mut current_state = config_read(deps.as_mut().storage).load().unwrap();
-            current_state.latest_rewarding_interval_nonce = 42;
-            config(deps.as_mut().storage).save(&current_state).unwrap();
-
-            let rewarding_validator_address = current_state.rewarding_validator_address;
-
-            let res = try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env.clone(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                11,
-            );
-            assert_eq!(
-                Err(ContractError::InvalidRewardingIntervalNonce {
-                    received: 11,
-                    expected: 43
-                }),
-                res
-            );
-
-            let res = try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env.clone(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                44,
-            );
-            assert_eq!(
-                Err(ContractError::InvalidRewardingIntervalNonce {
-                    received: 44,
-                    expected: 43
-                }),
-                res
-            );
-
-            let res = try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env.clone(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                42,
-            );
-            assert_eq!(
-                Err(ContractError::InvalidRewardingIntervalNonce {
-                    received: 42,
-                    expected: 43
-                }),
-                res
-            );
-
-            let res = try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env.clone(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                43,
-            );
-            assert!(res.is_ok())
-        }
-
-        #[test]
-        fn updates_contract_state() {
-            let mut deps = helpers::init_contract();
-            let env = mock_env();
-            let start_state = config_read(deps.as_mut().storage).load().unwrap();
-            let rewarding_validator_address = start_state.rewarding_validator_address;
-
-            try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env.clone(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                1,
-            )
-            .unwrap();
-
-            let new_state = config_read(deps.as_mut().storage).load().unwrap();
-            assert!(new_state.rewarding_in_progress);
-            assert_eq!(
-                new_state.rewarding_interval_starting_block,
-                env.block.height
-            );
-            assert_eq!(
-                start_state.latest_rewarding_interval_nonce + 1,
-                new_state.latest_rewarding_interval_nonce
-            );
-        }
-    }
-
-    #[cfg(test)]
-    mod finishing_mixnode_rewarding {
-        use super::*;
-
-        #[test]
-        fn can_only_be_called_by_specified_validator_address() {
-            let mut deps = helpers::init_contract();
-            let env = mock_env();
-            let current_state = config_read(deps.as_mut().storage).load().unwrap();
-            let rewarding_validator_address = current_state.rewarding_validator_address;
-
-            try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env,
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                1,
-            )
-            .unwrap();
-
-            let res = try_finish_mixnode_rewarding(
-                deps.as_mut(),
-                mock_info("not-the-approved-validator", &[]),
-                1,
-            );
-            assert_eq!(Err(ContractError::Unauthorized), res);
-
-            let res = try_finish_mixnode_rewarding(
-                deps.as_mut(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                1,
-            );
-            assert!(res.is_ok())
-        }
-
-        #[test]
-        fn cannot_be_called_if_rewarding_is_not_in_progress() {
-            let mut deps = helpers::init_contract();
-            let current_state = config_read(deps.as_mut().storage).load().unwrap();
-            let rewarding_validator_address = current_state.rewarding_validator_address;
-
-            let res = try_finish_mixnode_rewarding(
-                deps.as_mut(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                0,
-            );
-            assert_eq!(Err(ContractError::RewardingNotInProgress), res);
-        }
-
-        #[test]
-        fn provided_nonce_must_be_equal_the_current_one() {
-            let mut deps = helpers::init_contract();
-            let env = mock_env();
-            let mut current_state = config_read(deps.as_mut().storage).load().unwrap();
-            current_state.latest_rewarding_interval_nonce = 42;
-            config(deps.as_mut().storage).save(&current_state).unwrap();
-
-            let rewarding_validator_address = current_state.rewarding_validator_address;
-
-            try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env,
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                43,
-            )
-            .unwrap();
-
-            let res = try_finish_mixnode_rewarding(
-                deps.as_mut(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                11,
-            );
-            assert_eq!(
-                Err(ContractError::InvalidRewardingIntervalNonce {
-                    received: 11,
-                    expected: 43
-                }),
-                res
-            );
-
-            let res = try_finish_mixnode_rewarding(
-                deps.as_mut(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                44,
-            );
-            assert_eq!(
-                Err(ContractError::InvalidRewardingIntervalNonce {
-                    received: 44,
-                    expected: 43
-                }),
-                res
-            );
-
-            let res = try_finish_mixnode_rewarding(
-                deps.as_mut(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                42,
-            );
-            assert_eq!(
-                Err(ContractError::InvalidRewardingIntervalNonce {
-                    received: 42,
-                    expected: 43
-                }),
-                res
-            );
-
-            let res = try_finish_mixnode_rewarding(
-                deps.as_mut(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                43,
-            );
-            assert!(res.is_ok())
-        }
-
-        #[test]
-        fn updates_contract_state() {
-            let mut deps = helpers::init_contract();
-            let env = mock_env();
-            let current_state = config_read(deps.as_mut().storage).load().unwrap();
-            let rewarding_validator_address = current_state.rewarding_validator_address;
-
-            try_begin_mixnode_rewarding(
-                deps.as_mut(),
-                env,
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                1,
-            )
-            .unwrap();
-
-            try_finish_mixnode_rewarding(
-                deps.as_mut(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
-                1,
-            )
-            .unwrap();
-
-            let new_state = config_read(deps.as_mut().storage).load().unwrap();
-            assert!(!new_state.rewarding_in_progress);
-        }
-    }
-
-    #[test]
-    fn rewarding_mixnode() {
-        let mut deps = helpers::init_contract();
-        let mut env = mock_env();
-        let current_state = config_read(deps.as_mut().storage).load().unwrap();
-        let rewarding_validator_address = current_state.rewarding_validator_address;
-
-        let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity: IdentityKey = "nodeidentity".into();
-
-        // errors out if executed by somebody else than network monitor
-        let info = mock_info("not-the-monitor", &[]);
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info,
-            node_identity.clone(),
-            100,
-            1,
-        );
-        assert_eq!(res, Err(ContractError::Unauthorized));
-
-        // begin rewarding period
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-        // returns bond not found attribute if the target owner hasn't bonded any mixnodes
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info,
-            node_identity.clone(),
-            100,
-            1,
-        )
-        .unwrap();
-        assert_eq!(vec![attr("result", "bond not found")], res.attributes);
-
-        let initial_bond = 100_000000;
-        let initial_delegation = 200_000000;
-        let mixnode_bond = StoredMixnodeBond {
-            bond_amount: coin(initial_bond, DENOM),
-            owner: node_owner.clone(),
-            layer: Layer::One,
-            block_height: env.block.height,
-            mix_node: MixNode {
-                identity_key: node_identity.clone(),
-                ..mix_node_fixture()
-            },
-            profit_margin_percent: Some(10),
-        };
-
-        mixnodes(deps.as_mut().storage)
-            .save(node_identity.as_bytes(), &mixnode_bond)
-            .unwrap();
-        total_delegation(deps.as_mut().storage)
-            .save(node_identity.as_bytes(), &Uint128::new(initial_delegation))
-            .unwrap();
-
-        mix_delegations(&mut deps.storage, &node_identity)
-            .save(
-                b"delegator",
-                &RawDelegationData::new(initial_delegation.into(), env.block.height),
-            )
-            .unwrap();
-
-        env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
-
-        let bond_reward_rate = current_state.mixnode_epoch_bond_reward;
-        let delegation_reward_rate = current_state.mixnode_epoch_delegation_reward;
-        let expected_bond_reward = Uint128(initial_bond) * bond_reward_rate;
-        let expected_delegation_reward = Uint128(initial_delegation) * delegation_reward_rate;
-
-        // the node's bond and delegations are correctly increased and scaled by uptime
-        // if node was 100% up, it will get full epoch reward
-        let expected_bond = expected_bond_reward + Uint128(initial_bond);
-        let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            1,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation,
-            total_delegation_read(deps.as_ref().storage)
-                .load(node_identity.as_bytes())
-                .unwrap()
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_bond_reward),
-                attr("total delegation increase", expected_delegation_reward),
-            ],
-            res.attributes
-        );
-
-        // if node was 20% up, it will get 1/5th of epoch reward
-        let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 20).unwrap();
-        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 20).unwrap();
-        let expected_bond_reward = expected_bond * scaled_bond_reward;
-        let expected_delegation_reward = expected_delegation * scaled_delegation_reward;
-        let expected_bond = expected_bond_reward + expected_bond;
-        let expected_delegation = expected_delegation_reward + expected_delegation;
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info,
-            node_identity.clone(),
-            20,
-            2,
-        )
-        .unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation,
-            total_delegation_read(deps.as_ref().storage)
-                .load(node_identity.as_bytes())
-                .unwrap()
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_bond_reward),
-                attr("total delegation increase", expected_delegation_reward),
-            ],
-            res.attributes
-        );
-    }
-
-    #[test]
-    fn rewarding_mixnodes_outside_rewarding_period() {
-        let mut deps = helpers::init_contract();
-        let env = mock_env();
-        let current_state = config_read(deps.as_mut().storage).load().unwrap();
-        let rewarding_validator_address = current_state.rewarding_validator_address;
-
-        // bond the node
-        let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity: IdentityKey = "nodeidentity".into();
-
-        try_add_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(node_owner.as_ref(), &good_mixnode_bond()),
-            MixNode {
-                identity_key: node_identity.to_string(),
-                ..helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            1,
-        );
-        assert_eq!(Err(ContractError::RewardingNotInProgress), res);
-
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info,
-            node_identity.clone(),
-            100,
-            1,
-        );
-        assert!(res.is_ok())
-    }
-
-    #[test]
-    fn rewarding_mixnodes_with_incorrect_rewarding_nonce() {
-        let mut deps = helpers::init_contract();
-        let env = mock_env();
-        let current_state = config_read(deps.as_mut().storage).load().unwrap();
-        let rewarding_validator_address = current_state.rewarding_validator_address;
-
-        // bond the node
-        let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity: IdentityKey = "nodeidentity".into();
-
-        try_add_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(node_owner.as_ref(), &good_mixnode_bond()),
-            MixNode {
-                identity_key: node_identity.to_string(),
-                ..helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            0,
-        );
-        assert_eq!(
-            Err(ContractError::InvalidRewardingIntervalNonce {
-                received: 0,
-                expected: 1
-            }),
-            res
-        );
-
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            2,
-        );
-        assert_eq!(
-            Err(ContractError::InvalidRewardingIntervalNonce {
-                received: 2,
-                expected: 1
-            }),
-            res
-        );
-
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info,
-            node_identity.clone(),
-            100,
-            1,
-        );
-        assert!(res.is_ok())
-    }
-
-    #[test]
-    fn attempting_rewarding_mixnode_multiple_times_per_interval() {
-        let mut deps = helpers::init_contract();
-        let env = mock_env();
-        let current_state = config_read(deps.as_mut().storage).load().unwrap();
-        let rewarding_validator_address = current_state.rewarding_validator_address;
-
-        // bond the node
-        let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity: IdentityKey = "nodeidentity".into();
-
-        try_add_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(node_owner.as_ref(), &good_mixnode_bond()),
-            MixNode {
-                identity_key: node_identity.to_string(),
-                ..helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-
-        // first reward goes through just fine
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            1,
-        );
-        assert!(res.is_ok());
-
-        // but the other one fails
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            1,
-        );
-        assert_eq!(
-            Err(ContractError::MixnodeAlreadyRewarded {
-                identity: node_identity.clone()
-            }),
-            res
-        );
-
-        // but rewarding the same node in the following interval is fine again
-        try_finish_mixnode_rewarding(deps.as_mut(), info.clone(), 1).unwrap();
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
-
-        let res = try_reward_mixnode(deps.as_mut(), env, info, node_identity.clone(), 100, 2);
-        assert!(res.is_ok());
-    }
-
-    #[test]
-    fn rewarding_mixnode_blockstamp_based() {
-        let mut deps = helpers::init_contract();
-        let mut env = mock_env();
-        let current_state = config_read(deps.as_mut().storage).load().unwrap();
-        let rewarding_validator_address = current_state.rewarding_validator_address;
-
-        let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity: IdentityKey = "nodeidentity".into();
-
-        let initial_bond = 100_000000;
-        let initial_delegation = 200_000000;
-        let mixnode_bond = StoredMixnodeBond {
-            bond_amount: coin(initial_bond, DENOM),
-            owner: node_owner.clone(),
-            layer: Layer::One,
-            block_height: env.block.height,
-            mix_node: MixNode {
-                identity_key: node_identity.clone(),
-                ..mix_node_fixture()
-            },
-            profit_margin_percent: Some(10),
-        };
-
-        mixnodes(deps.as_mut().storage)
-            .save(node_identity.as_bytes(), &mixnode_bond)
-            .unwrap();
-        total_delegation(deps.as_mut().storage)
-            .save(node_identity.as_bytes(), &Uint128::new(initial_delegation))
-            .unwrap();
-
-        // delegation happens later, but not later enough
-        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
-
-        mix_delegations(&mut deps.storage, &node_identity)
-            .save(
-                b"delegator",
-                &RawDelegationData::new(initial_delegation.into(), env.block.height),
-            )
-            .unwrap();
-
-        let bond_reward_rate = current_state.mixnode_epoch_bond_reward;
-        let delegation_reward_rate = current_state.mixnode_epoch_delegation_reward;
-        let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 100).unwrap();
-        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 100).unwrap();
-
-        // no reward is due
-        let expected_bond_reward = Uint128(0);
-        let expected_delegation_reward = Uint128(0);
-        let expected_bond = expected_bond_reward + Uint128(initial_bond);
-        let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            1,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation,
-            total_delegation_read(deps.as_ref().storage)
-                .load(node_identity.as_bytes())
-                .unwrap()
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_bond_reward),
-                attr("total delegation increase", expected_delegation_reward),
-            ],
-            res.attributes
-        );
-
-        // reward can happen now, but only for bonded node
-        env.block.height += 1;
-        let expected_bond_reward = expected_bond * scaled_bond_reward;
-        let expected_delegation_reward = Uint128(0);
-        let expected_bond = expected_bond_reward + expected_bond;
-        let expected_delegation = expected_delegation_reward + expected_delegation;
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            2,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 2).unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation,
-            total_delegation_read(deps.as_ref().storage)
-                .load(node_identity.as_bytes())
-                .unwrap()
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_bond_reward),
-                attr("total delegation increase", expected_delegation_reward),
-            ],
-            res.attributes
-        );
-
-        // reward happens now, both for node owner and delegators
-        env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
-        let expected_bond_reward = expected_bond * scaled_bond_reward;
-        let expected_delegation_reward = expected_delegation * scaled_delegation_reward;
-        let expected_bond = expected_bond_reward + expected_bond;
-        let expected_delegation = expected_delegation_reward + expected_delegation;
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 3).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            100,
-            3,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 3).unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation,
-            total_delegation_read(deps.as_ref().storage)
-                .load(node_identity.as_bytes())
-                .unwrap()
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_bond_reward),
-                attr("total delegation increase", expected_delegation_reward),
-            ],
-            res.attributes
-        );
+        assert_eq!(Err(ContractError::InvalidActiveSetSize), res);
+
+        // error is thrown for 0 size rewarded set
+        let info = mock_info("creator", &[]);
+        let mut new_params = current_state.params.clone();
+        new_params.mixnode_rewarded_set_size = 0;
+        let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
+        assert_eq!(Err(ContractError::ZeroRewardedSet), res);
+
+        // error is thrown for 0 size active set
+        let info = mock_info("creator", &[]);
+        let mut new_params = current_state.params.clone();
+        new_params.mixnode_active_set_size = 0;
+        let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
+        assert_eq!(Err(ContractError::ZeroActiveSet), res);
     }
 
     #[cfg(test)]
@@ -2563,7 +1404,7 @@ pub mod tests {
                     deps.as_mut(),
                     mock_env(),
                     mock_info("sender", &coins(123, DENOM)),
-                    "non-existent-mix-identity".into()
+                    "non-existent-mix-identity".into(),
                 )
             );
         }
@@ -2580,7 +1421,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
-                identity.clone()
+                identity.clone(),
             )
             .is_ok());
 
@@ -2623,7 +1464,7 @@ pub mod tests {
                     deps.as_mut(),
                     mock_env(),
                     mock_info(delegation_owner.as_str(), &coins(123, DENOM)),
-                    identity
+                    identity,
                 )
             );
         }
@@ -2643,7 +1484,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info(delegation_owner.as_str(), &vec![delegation.clone()]),
-                identity.clone()
+                identity.clone(),
             )
             .is_ok());
 
@@ -2697,7 +1538,7 @@ pub mod tests {
             assert_eq!(
                 RawDelegationData::new(
                     delegation1.amount + delegation2.amount,
-                    mock_env().block.height
+                    mock_env().block.height,
                 ),
                 mix_delegations_read(&deps.storage, &identity)
                     .load(delegation_owner.as_bytes())
@@ -2844,7 +1685,7 @@ pub mod tests {
                     deps.as_mut(),
                     mock_env(),
                     mock_info(delegation_owner.as_str(), &coins(50, DENOM)),
-                    identity
+                    identity,
                 )
             );
         }
@@ -2862,7 +1703,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(123, DENOM)),
-                identity1.clone()
+                identity1.clone(),
             )
             .is_ok());
 
@@ -2870,7 +1711,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info(delegation_owner.as_str(), &coins(42, DENOM)),
-                identity2.clone()
+                identity2.clone(),
             )
             .is_ok());
 
@@ -2912,7 +1753,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info("sender1", &vec![delegation1.clone()]),
-                identity.clone()
+                identity.clone(),
             )
             .is_ok());
 
@@ -2920,7 +1761,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info("sender2", &vec![delegation2.clone()]),
-                identity.clone()
+                identity.clone(),
             )
             .is_ok());
 
@@ -3109,7 +1950,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info(delegation_owner1.as_str(), &vec![delegation1.clone()]),
-                identity.clone()
+                identity.clone(),
             )
             .is_ok());
 
@@ -3117,7 +1958,7 @@ pub mod tests {
                 deps.as_mut(),
                 mock_env(),
                 mock_info(delegation_owner2.as_str(), &vec![delegation2.clone()]),
-                identity.clone()
+                identity.clone(),
             )
             .is_ok());
 
@@ -3141,239 +1982,12 @@ pub mod tests {
     }
 
     #[test]
-    fn delegators_on_mix_node_reward_rate() {
-        let mut deps = helpers::init_contract();
-        let mut env = mock_env();
-        let current_state = config_read(deps.as_mut().storage).load().unwrap();
-        let rewarding_validator_address = current_state.rewarding_validator_address;
-
-        let initial_mix_bond = 100_000000;
-        let initial_delegation1 = 50000; // will see single digits rewards
-        let initial_delegation2 = 100; // won't see any rewards due to such a small delegation
-        let initial_delegation3 = 100000_000000; // will see big proper rewards
-
-        let node_owner = "node-owner";
-        let identity = add_mixnode(node_owner, good_mixnode_bond(), deps.as_mut());
-
-        mix_delegations(&mut deps.storage, &identity)
-            .save(
-                b"delegator1",
-                &RawDelegationData::new(initial_delegation1.into(), env.block.height),
-            )
-            .unwrap();
-        mix_delegations(&mut deps.storage, &identity)
-            .save(
-                b"delegator2",
-                &RawDelegationData::new(initial_delegation2.into(), env.block.height),
-            )
-            .unwrap();
-        mix_delegations(&mut deps.storage, &identity)
-            .save(
-                b"delegator3",
-                &RawDelegationData::new(initial_delegation3.into(), env.block.height),
-            )
-            .unwrap();
-
-        env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
-
-        let bond_reward = current_state.mixnode_epoch_bond_reward;
-        let delegation_reward = current_state.mixnode_epoch_delegation_reward;
-
-        // the node's bond and delegations are correctly increased and scaled by uptime
-        // if node was 100% up, it will get full epoch reward
-        let expected_mix_reward = Uint128(initial_mix_bond) * bond_reward;
-        let expected_delegation1_reward = Uint128(initial_delegation1) * delegation_reward;
-        let expected_delegation2_reward = Uint128(initial_delegation2) * delegation_reward;
-        let expected_delegation3_reward = Uint128(initial_delegation3) * delegation_reward;
-
-        let expected_bond = expected_mix_reward + Uint128(initial_mix_bond);
-        let expected_delegation1 = expected_delegation1_reward + Uint128(initial_delegation1);
-        let expected_delegation2 = expected_delegation2_reward + Uint128(initial_delegation2);
-        let expected_delegation3 = expected_delegation3_reward + Uint128(initial_delegation3);
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            identity.clone(),
-            100,
-            1,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond_amount(deps.as_ref().storage, identity.as_bytes()).unwrap()
-        );
-
-        assert_eq!(
-            expected_delegation1,
-            mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator1".as_bytes())
-                .unwrap()
-                .amount
-        );
-
-        assert_eq!(
-            expected_delegation2,
-            mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator2".as_bytes())
-                .unwrap()
-                .amount
-        );
-
-        assert_eq!(
-            expected_delegation3,
-            mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator3".as_bytes())
-                .unwrap()
-                .amount
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_mix_reward),
-                attr(
-                    "total delegation increase",
-                    expected_delegation1_reward
-                        + expected_delegation2_reward
-                        + expected_delegation3_reward
-                ),
-            ],
-            res.attributes
-        );
-
-        // if node was 20% up, it will get 1/5th of epoch reward
-        let scaled_bond_reward = scale_reward_by_uptime(bond_reward, 20).unwrap();
-        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward, 20).unwrap();
-
-        let expected_mix_reward = expected_bond * scaled_bond_reward;
-        let expected_delegation1_reward = expected_delegation1 * scaled_delegation_reward;
-        let expected_delegation2_reward = expected_delegation2 * scaled_delegation_reward;
-        let expected_delegation3_reward = expected_delegation3 * scaled_delegation_reward;
-
-        let expected_bond = expected_mix_reward + expected_bond;
-        let expected_delegation1 = expected_delegation1_reward + expected_delegation1;
-        let expected_delegation2 = expected_delegation2_reward + expected_delegation2;
-        let expected_delegation3 = expected_delegation3_reward + expected_delegation3;
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            identity.clone(),
-            20,
-            2,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 2).unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond_amount(deps.as_ref().storage, identity.as_bytes()).unwrap()
-        );
-
-        assert_eq!(
-            expected_delegation1,
-            mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator1".as_bytes())
-                .unwrap()
-                .amount
-        );
-
-        assert_eq!(
-            expected_delegation2,
-            mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator2".as_bytes())
-                .unwrap()
-                .amount
-        );
-
-        assert_eq!(
-            expected_delegation3,
-            mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator3".as_bytes())
-                .unwrap()
-                .amount
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_mix_reward),
-                attr(
-                    "total delegation increase",
-                    expected_delegation1_reward
-                        + expected_delegation2_reward
-                        + expected_delegation3_reward
-                ),
-            ],
-            res.attributes
-        );
-
-        // if the node was 0% up, nobody will get any rewards
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 3).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            identity.clone(),
-            0,
-            3,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 3).unwrap();
-
-        assert_eq!(
-            expected_bond,
-            read_mixnode_bond_amount(deps.as_ref().storage, identity.as_bytes()).unwrap()
-        );
-
-        assert_eq!(
-            expected_delegation1,
-            mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator1".as_bytes())
-                .unwrap()
-                .amount
-        );
-
-        assert_eq!(
-            expected_delegation2,
-            mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator2".as_bytes())
-                .unwrap()
-                .amount
-        );
-
-        assert_eq!(
-            expected_delegation3,
-            mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator3".as_bytes())
-                .unwrap()
-                .amount
-        );
-
-        assert_eq!(
-            vec![
-                attr("bond increase", Uint128(0)),
-                attr("total delegation increase", Uint128(0)),
-            ],
-            res.attributes
-        );
-    }
-
-    #[test]
     fn multiple_page_delegations() {
         let mut deps = helpers::init_contract();
         let node_identity: IdentityKey = "foo".into();
 
         store_n_mix_delegations(
-            DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+            MIXNODE_DELEGATORS_PAGE_LIMIT as u32 * 10,
             &mut deps.storage,
             &node_identity,
         );
@@ -3381,7 +1995,7 @@ pub mod tests {
         let mix_delegations =
             Delegations::new(mix_bucket).collect::<Vec<UnpackedDelegation<RawDelegationData>>>();
         assert_eq!(
-            DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+            MIXNODE_DELEGATORS_PAGE_LIMIT as u32 * 10,
             mix_delegations.len() as u32
         );
     }
@@ -3408,142 +2022,5 @@ pub mod tests {
         assert_eq!(alice_node.layer, Layer::One);
         assert_eq!(bob_node.mix_node.identity_key, "bob");
         assert_eq!(bob_node.layer, Layer::Two);
-    }
-
-    #[test]
-    fn test_tokenomics_rewarding() {
-        use crate::contract::{EPOCH_REWARD_PERCENT, INITIAL_REWARD_POOL};
-
-        type U128 = fixed::types::U75F53;
-
-        let mut deps = helpers::init_contract();
-        let mut env = mock_env();
-        let current_state = config(deps.as_mut().storage).load().unwrap();
-        let rewarding_validator_address = current_state.rewarding_validator_address;
-        let period_reward_pool = (INITIAL_REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128;
-        assert_eq!(period_reward_pool, 5_000_000_000_000);
-        let k = 200; // Imagining our active set size is 200
-        let circulating_supply = circulating_supply(&deps.storage).u128();
-        assert_eq!(circulating_supply, 750_000_000_000_000u128);
-        // mut_reward_pool(deps.as_mut().storage)
-        //     .save(&Uint128(period_reward_pool))
-        //     .unwrap();
-
-        try_add_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info(
-                "alice",
-                &vec![Coin {
-                    denom: DENOM.to_string(),
-                    amount: Uint128(10000_000_000),
-                }],
-            ),
-            MixNode {
-                identity_key: "alice".to_string(),
-                ..helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
-
-        try_delegate_to_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("d1", &vec![coin(8000_000000, DENOM)]),
-            "alice".to_string(),
-        )
-        .unwrap();
-
-        try_delegate_to_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("d2", &vec![coin(2000_000000, DENOM)]),
-            "alice".to_string(),
-        )
-        .unwrap();
-
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(rewarding_validator_address.as_ref(), &[]),
-            1,
-        )
-        .unwrap();
-
-        env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
-
-        let mix_1 = read_mixnode_bond(&deps.storage, "alice").unwrap().unwrap();
-        let mix_1_uptime = 100;
-
-        let mut params = NodeRewardParams::new(
-            period_reward_pool,
-            k,
-            0,
-            circulating_supply,
-            mix_1_uptime,
-            DEFAULT_SYBIL_RESISTANCE_PERCENT,
-        );
-
-        params.set_reward_blockstamp(env.block.height);
-
-        assert_eq!(params.performance(), 1);
-
-        let mix_1_reward_result = mix_1.reward(&params);
-
-        assert_eq!(
-            mix_1_reward_result.sigma(),
-            U128::from_num(0.0000266666666666)
-        );
-        assert_eq!(
-            mix_1_reward_result.lambda(),
-            U128::from_num(0.0000133333333333)
-        );
-        assert_eq!(mix_1_reward_result.reward().int(), 102646153);
-
-        let mix1_operator_profit = mix_1.operator_reward(&params);
-
-        let mix1_delegator1_reward = mix_1.reward_delegation(Uint128(8000_000000), &params);
-
-        let mix1_delegator2_reward = mix_1.reward_delegation(Uint128(2000_000000), &params);
-
-        assert_eq!(mix1_operator_profit, U128::from_num(74455384));
-        assert_eq!(mix1_delegator1_reward, U128::from_num(22552615));
-        assert_eq!(mix1_delegator2_reward, U128::from_num(5638153));
-
-        let pre_reward_bond = read_mixnode_bond_amount(&deps.storage, b"alice")
-            .unwrap()
-            .u128();
-        assert_eq!(pre_reward_bond, 10000_000_000);
-
-        let pre_reward_delegation = total_delegation_read(&deps.storage)
-            .load(b"alice")
-            .unwrap()
-            .u128();
-        assert_eq!(pre_reward_delegation, 10000_000_000);
-
-        try_reward_mixnode_v2(deps.as_mut(), env, info, "alice".to_string(), params, 1).unwrap();
-
-        assert_eq!(
-            read_mixnode_bond_amount(&deps.storage, b"alice")
-                .unwrap()
-                .u128(),
-            U128::from_num(pre_reward_bond) + U128::from_num(mix1_operator_profit)
-        );
-        assert_eq!(
-            total_delegation_read(&deps.storage)
-                .load(b"alice")
-                .unwrap()
-                .u128(),
-            pre_reward_delegation + mix1_delegator1_reward + mix1_delegator2_reward
-        );
-
-        assert_eq!(
-            reward_pool_value(&deps.storage).u128(),
-            U128::from_num(INITIAL_REWARD_POOL)
-                - (U128::from_num(mix1_operator_profit)
-                    + U128::from_num(mix1_delegator1_reward)
-                    + U128::from_num(mix1_delegator2_reward))
-        )
     }
 }

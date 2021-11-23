@@ -1,10 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::GatewayClientError;
 #[cfg(feature = "coconut")]
 use credentials::coconut::{
-    bandwidth::{obtain_signature, prepare_for_spending},
+    bandwidth::{
+        obtain_signature, prepare_for_spending, BandwidthVoucherAttributes, TOTAL_ATTRIBUTES,
+    },
     utils::obtain_aggregate_verification_key,
 };
 #[cfg(not(feature = "coconut"))]
@@ -12,10 +13,11 @@ use credentials::token::bandwidth::TokenCredential;
 #[cfg(not(feature = "coconut"))]
 use crypto::asymmetric::identity;
 use crypto::asymmetric::identity::PublicKey;
+use network_defaults::BANDWIDTH_VALUE;
 #[cfg(not(feature = "coconut"))]
 use network_defaults::{
-    eth_contract::ETH_JSON_ABI, BANDWIDTH_VALUE, ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS,
-    ETH_MIN_BLOCK_DEPTH, TOKENS_TO_BURN,
+    eth_contract::ETH_JSON_ABI, ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS, ETH_MIN_BLOCK_DEPTH,
+    TOKENS_TO_BURN,
 };
 #[cfg(not(feature = "coconut"))]
 use rand::rngs::OsRng;
@@ -32,6 +34,8 @@ use web3::{
     types::{Address, Bytes, U256, U64},
     Web3,
 };
+
+use crate::error::GatewayClientError;
 
 #[cfg(not(feature = "coconut"))]
 pub fn eth_contract(web3: Web3<Http>) -> Contract<Http> {
@@ -108,15 +112,31 @@ impl BandwidthController {
         &self,
     ) -> Result<coconut_interface::Credential, GatewayClientError> {
         let verification_key = obtain_aggregate_verification_key(&self.validator_endpoints).await?;
+        let params = coconut_interface::Parameters::new(TOTAL_ATTRIBUTES).unwrap();
 
-        let bandwidth_credential =
-            obtain_signature(&self.identity.to_bytes(), &self.validator_endpoints).await?;
+        // TODO: Decide what is the value and additional info associated with the bandwidth voucher
+        let bandwidth_credential_attributes = BandwidthVoucherAttributes {
+            serial_number: params.random_scalar(),
+            binding_number: params.random_scalar(),
+            voucher_value: coconut_interface::hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
+            voucher_info: coconut_interface::hash_to_scalar(
+                String::from("BandwidthVoucher").as_bytes(),
+            ),
+        };
+
+        let bandwidth_credential = obtain_signature(
+            &params,
+            &bandwidth_credential_attributes,
+            &self.validator_endpoints,
+        )
+        .await?;
         // the above would presumably be loaded from a file
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
         Ok(prepare_for_spending(
             &self.identity.to_bytes(),
             &bandwidth_credential,
+            &bandwidth_credential_attributes,
             &verification_key,
         )?)
     }
@@ -203,8 +223,9 @@ impl BandwidthController {
 #[cfg(not(feature = "coconut"))]
 #[cfg(test)]
 mod tests {
-    use super::*;
     use network_defaults::ETH_EVENT_NAME;
+
+    use super::*;
 
     #[test]
     fn parse_contract() {

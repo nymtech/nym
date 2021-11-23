@@ -3,6 +3,7 @@
 
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
+use gateway_client::bandwidth::BandwidthController;
 use gateway_client::GatewayClient;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
@@ -16,8 +17,6 @@ use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use wasm_utils::{console_log, console_warn};
-
-use gateway_client::bandwidth::BandwidthController;
 
 pub(crate) mod received_processor;
 
@@ -250,7 +249,7 @@ impl NymClient {
         let validator_client = validator_client::ApiClient::new(self.validator_server.clone());
 
         let mixnodes = match validator_client.get_cached_active_mixnodes().await {
-            Err(err) => panic!("{}", err),
+            Err(err) => panic!("{:?}", err),
             Ok(mixes) => mixes,
         };
 

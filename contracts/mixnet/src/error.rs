@@ -45,14 +45,14 @@ pub enum ContractError {
     #[error("No coin was sent for the bonding, you must send {}", DENOM)]
     NoBondFound,
 
-    #[error("The bond reward rate for mixnode was set to be lower than 1")]
-    DecreasingMixnodeBondReward,
-
-    #[error("The delegation reward rate for mixnode was set to be lower than 1")]
-    DecreasingMixnodeDelegationReward,
-
     #[error("Provided active set size is bigger than the demanded set")]
     InvalidActiveSetSize,
+
+    #[error("Provided active set size is zero")]
+    ZeroActiveSet,
+
+    #[error("Provided rewarded set size is zero")]
+    ZeroRewardedSet,
 
     #[error("The node had uptime larger than 100%")]
     UnexpectedUptime,
@@ -80,14 +80,9 @@ pub enum ContractError {
         identity: IdentityKey,
         address: Addr,
     },
-    #[error("Overflow error!")]
-    Overflow(#[from] cosmwasm_std::OverflowError),
 
     #[error("We tried to remove more funds then are available in the Reward pool. Wanted to remove {to_remove}, but have only {reward_pool}")]
     OutOfFunds { to_remove: u128, reward_pool: u128 },
-
-    #[error("Invalid ratio")]
-    Ratio(#[from] mixnet_contract::error::MixnetContractError),
 
     #[error("Received invalid rewarding interval nonce. Expected {expected}, received {received}")]
     InvalidRewardingIntervalNonce { received: u32, expected: u32 },
@@ -100,4 +95,10 @@ pub enum ContractError {
 
     #[error("Mixnode {identity} has already been rewarded during the current rewarding interval")]
     MixnodeAlreadyRewarded { identity: IdentityKey },
+
+    #[error("Some of mixnodes {identity} delegators are still pending reward")]
+    DelegatorsPendingReward { identity: IdentityKey },
+
+    #[error("Mixnode's {identity} operator has not been rewarded yet - cannot perform delegator rewarding until that happens")]
+    MixnodeOperatorNotRewarded { identity: IdentityKey },
 }

@@ -70,6 +70,7 @@ export const PageMixnodes: React.FC = () => {
       field: 'identity_key',
       headerName: 'Identity Key',
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
+      headerClassName: 'MuiDataGrid-header-override',
       width: 380,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
@@ -190,7 +191,6 @@ export const PageMixnodes: React.FC = () => {
             sx={{
               padding: 2,
               height: '100%',
-              // border: '1px solid blue',
             }}
           >
             <TableToolbar
@@ -203,7 +203,6 @@ export const PageMixnodes: React.FC = () => {
               pagination
               rows={mixnodeToGridRow(filteredMixnodes)}
               columns={columns}
-              hideFooter={false}
               pageSize={pageSize}
             />
           </Card>

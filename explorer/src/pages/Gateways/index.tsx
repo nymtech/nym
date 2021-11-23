@@ -1,19 +1,18 @@
 import * as React from 'react';
-import { Button, Grid, Typography } from '@mui/material';
+import { Button, Card, Grid, Typography } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { printableCoin } from '@nymproject/nym-validator-client';
 import { SelectChangeEvent } from '@mui/material/Select';
-import {
-  cellStyles,
-  UniversalDataGrid,
-} from 'src/components/Universal-DataGrid';
 import { useMainContext } from 'src/context/main';
 import { gatewayToGridRow } from 'src/utils';
 import { GatewayResponse } from 'src/typeDefs/explorer-api';
 import { TableToolbar } from 'src/components/TableToolbar';
-import { ContentCard } from 'src/components/ContentCard';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 import { Title } from 'src/components/Title';
+import {
+  cellStyles,
+  NewniversalDataGrid,
+} from 'src/components/Newniversal-DataGrid';
 
 export const PageGateways: React.FC = () => {
   const { gateways } = useMainContext();
@@ -49,8 +48,9 @@ export const PageGateways: React.FC = () => {
   const columns: GridColDef[] = [
     {
       field: 'owner',
+      headerName: 'Owner',
       renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
-      width: 200,
+      width: 380,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -61,10 +61,11 @@ export const PageGateways: React.FC = () => {
     },
     {
       field: 'identity_key',
+      headerName: 'Identity Key',
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
-      width: 200,
-      headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
+      width: 380,
+      headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <Typography sx={cellStyles} data-testid="identity-key">
           {params.value}
@@ -73,7 +74,7 @@ export const PageGateways: React.FC = () => {
     },
     {
       field: 'bond',
-      width: 120,
+      width: 150,
       type: 'number',
       renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
       headerClassName: 'MuiDataGrid-header-override',
@@ -93,7 +94,7 @@ export const PageGateways: React.FC = () => {
     {
       field: 'host',
       renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
-      width: 150,
+      width: 110,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -105,7 +106,7 @@ export const PageGateways: React.FC = () => {
     {
       field: 'location',
       renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
-      flex: 1,
+      width: 150,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -128,31 +129,26 @@ export const PageGateways: React.FC = () => {
     return (
       <>
         <Title text="Gateways" />
-        <Grid>
-          <Grid item>
-            <ContentCard>
+        <Grid container>
+          <Grid item xs={12}>
+            <Card
+              sx={{
+                padding: 2,
+                height: '100%',
+              }}
+            >
               <TableToolbar
                 onChangeSearch={handleSearch}
                 onChangePageSize={handlePageSize}
                 pageSize={pageSize}
                 searchTerm={searchTerm}
               />
-              <UniversalDataGrid
-                loading={gateways?.isLoading}
-                columnsData={columns}
+              <NewniversalDataGrid
                 rows={gatewayToGridRow(filteredGateways)}
+                columns={columns}
                 pageSize={pageSize}
-                pagination={gateways?.data?.length >= 12}
-                hideFooter={gateways?.data?.length < 12}
-                data-testid="gateway-data-grid"
-                sortModel={[
-                  {
-                    field: 'bond',
-                    sort: 'desc',
-                  },
-                ]}
               />
-            </ContentCard>
+            </Card>
           </Grid>
         </Grid>
       </>

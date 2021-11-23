@@ -53,15 +53,9 @@ function CustomPagination() {
 
 type DataGridProps = {
   columns: GridColDef[];
-  pagination?: boolean;
-  hideFooter?: boolean | undefined;
+  pagination?: true | undefined;
   pageSize?: string | undefined;
-  rows: {
-    id: number | null;
-    lastName: string | null;
-    firstName: string | null;
-    age: number | null;
-  }[];
+  rows: any;
   loading?: boolean;
 };
 export const NewniversalDataGrid: React.FC<DataGridProps> = ({
@@ -69,14 +63,13 @@ export const NewniversalDataGrid: React.FC<DataGridProps> = ({
   columns,
   loading,
   pagination,
-  hideFooter,
   pageSize,
 }) => {
   if (loading) return <LinearProgress />;
   if (!loading)
     return (
       <DataGrid
-        pagination={pagination ? true : undefined}
+        pagination={pagination}
         rows={rows}
         components={{
           Pagination: CustomPagination,
@@ -86,7 +79,7 @@ export const NewniversalDataGrid: React.FC<DataGridProps> = ({
         rowsPerPageOptions={[5]}
         disableSelectionOnClick
         autoHeight
-        hideFooter={hideFooter}
+        hideFooter={!pagination}
         style={{
           width: '100%',
           border: 'none',
@@ -98,8 +91,6 @@ export const NewniversalDataGrid: React.FC<DataGridProps> = ({
 
 NewniversalDataGrid.defaultProps = {
   loading: false,
-  pagination: false,
-  hideFooter: true,
+  pagination: undefined,
   pageSize: '10',
-  //   sortModel: undefined,
 };

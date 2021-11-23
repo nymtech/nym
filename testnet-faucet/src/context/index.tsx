@@ -70,7 +70,7 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
   }, [])
 
   useEffect(() => {
-    if (validator && tokenTransfer) getBalance()
+    if (validator || tokenTransfer) getBalance()
   }, [validator, tokenTransfer])
 
   const getBalance = async () => {

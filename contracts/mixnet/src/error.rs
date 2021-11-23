@@ -48,6 +48,12 @@ pub enum ContractError {
     #[error("Provided active set size is bigger than the demanded set")]
     InvalidActiveSetSize,
 
+    #[error("Provided active set size is zero")]
+    ZeroActiveSet,
+
+    #[error("Provided rewarded set size is zero")]
+    ZeroRewardedSet,
+
     #[error("The node had uptime larger than 100%")]
     UnexpectedUptime,
 

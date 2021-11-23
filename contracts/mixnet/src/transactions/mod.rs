@@ -314,6 +314,14 @@ pub(crate) fn try_update_state_params(
         return Err(ContractError::Unauthorized);
     }
 
+    if params.mixnode_rewarded_set_size == 0 {
+        return Err(ContractError::ZeroRewardedSet);
+    }
+
+    if params.mixnode_active_set_size == 0 {
+        return Err(ContractError::ZeroActiveSet);
+    }
+
     // note: rewarded_set = active_set + idle_set
     // hence rewarded set must always be bigger than (or equal to) the active set
     if params.mixnode_rewarded_set_size < params.mixnode_active_set_size {
@@ -1322,7 +1330,21 @@ pub mod tests {
         let mut new_params = current_state.params.clone();
         new_params.mixnode_rewarded_set_size = new_params.mixnode_active_set_size - 1;
         let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
-        assert_eq!(Err(ContractError::InvalidActiveSetSize), res)
+        assert_eq!(Err(ContractError::InvalidActiveSetSize), res);
+
+        // error is thrown for 0 size rewarded set
+        let info = mock_info("creator", &[]);
+        let mut new_params = current_state.params.clone();
+        new_params.mixnode_rewarded_set_size = 0;
+        let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
+        assert_eq!(Err(ContractError::ZeroRewardedSet), res);
+
+        // error is thrown for 0 size active set
+        let info = mock_info("creator", &[]);
+        let mut new_params = current_state.params.clone();
+        new_params.mixnode_active_set_size = 0;
+        let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
+        assert_eq!(Err(ContractError::ZeroActiveSet), res);
     }
 
     #[cfg(test)]

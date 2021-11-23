@@ -1,9 +1,11 @@
 import { createContext, useEffect, useState } from 'react'
 import ClientValidator, {
-  Coin,
   nativeToPrintable,
-  printableCoin,
 } from '@nymproject/nym-validator-client'
+
+export const urls = {
+  blockExplorer: 'https://testnet-milhon-blocks.nymtech.net',
+}
 
 type TGlobalContext = {
   getBalance: () => void
@@ -23,13 +25,8 @@ type TGlobalContext = {
 
 export const GlobalContext = createContext({} as TGlobalContext)
 
-const {
-  VALIDATOR_ADDRESS,
-  MNEMONIC,
-  TESTNET_URL_1,
-  TESTNET_URL_2,
-  ACCOUNT_ADDRESS,
-} = process.env
+const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } =
+  process.env
 
 export enum EnumRequestType {
   balance = 'balance',
@@ -65,7 +62,6 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
   useEffect(() => {
     if (loadingState.isLoading) {
       setError(undefined)
-      setBalance(undefined)
       setTokenTransfer(undefined)
     }
   }, [loadingState])
@@ -73,6 +69,10 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
   useEffect(() => {
     getValidator()
   }, [])
+
+  useEffect(() => {
+    if (validator || tokenTransfer) getBalance()
+  }, [validator, tokenTransfer])
 
   const getBalance = async () => {
     setLoadingState({ isLoading: true, requestType: EnumRequestType.balance })

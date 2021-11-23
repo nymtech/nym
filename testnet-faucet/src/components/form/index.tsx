@@ -1,4 +1,4 @@
-  import { useContext } from 'react'
+import { useContext } from 'react'
 import {
   Alert,
   Button,
@@ -12,7 +12,6 @@ import { useForm, SubmitHandler } from 'react-hook-form'
 import { validationSchema } from './validationSchema'
 import { getCoinValue } from '../../utils'
 import { EnumRequestType, GlobalContext } from '../../context'
-import { Balance } from '../balance'
 import { TokenTransfer } from '../token-transfer'
 
 type TFormData = {
@@ -32,14 +31,8 @@ export const Form = () => {
 
   console.log(errors)
 
-  const {
-    getBalance,
-    requestTokens,
-    loadingState,
-    balance,
-    tokenTransfer,
-    error,
-  } = useContext(GlobalContext)
+  const { requestTokens, loadingState, tokenTransfer, error } =
+    useContext(GlobalContext)
 
   const onSubmit: SubmitHandler<TFormData> = async (data) => {
     const upunks = getCoinValue(data.amount)
@@ -65,7 +58,7 @@ export const Form = () => {
         sx={{ mb: 1 }}
         helperText={errors?.address?.message}
         error={!!errors.address}
-        data-testid='address'
+        data-testid="address"
       />
       <TextField
         label="Amount (PUNKS)"
@@ -74,7 +67,7 @@ export const Form = () => {
         sx={{ mb: 1 }}
         helperText={errors?.amount?.message}
         error={!!errors.amount}
-        data-testid={"punk-amounts"}
+        data-testid={'punk-amounts'}
       />
       <Box
         sx={{
@@ -84,24 +77,6 @@ export const Form = () => {
           flexWrap: 'wrap',
         }}
       >
-        <Button
-          size="large"
-          variant="outlined"
-          sx={matches ? { mb: 1 } : { mr: 1 }}
-          fullWidth={matches}
-          endIcon={
-            loadingState.requestType === EnumRequestType.balance && (
-              <CircularProgress size={20} color="inherit" />
-            )
-          }
-          disabled={loadingState.isLoading}
-          onClick={async () => {
-            await getBalance()
-          }}
-          data-testid="check-balance-button"
-        >
-          Check Balance
-        </Button>
         <Button
           size="large"
           variant="contained"
@@ -118,7 +93,6 @@ export const Form = () => {
           Request Tokens
         </Button>
       </Box>
-      {balance && <Balance balance={balance} />}
       {error && <Alert severity="error">{error}</Alert>}
       {tokenTransfer && (
         <TokenTransfer

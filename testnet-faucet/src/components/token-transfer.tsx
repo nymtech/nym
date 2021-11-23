@@ -1,5 +1,5 @@
-import { Card, CardHeader, Typography } from '@mui/material'
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
+import { Card, CardHeader, Link, Typography } from '@mui/material'
+import { urls } from '../context/index'
 
 export const TokenTransfer = ({
   address,
@@ -23,14 +23,15 @@ export const TokenTransfer = ({
             <Typography component="span" variant="h5">
               Successfully transferred {amount} PUNKS to
             </Typography>{' '}
-            <Typography
-              component="span"
-              variant="h5"
-              sx={{ textDecoration: 'underline' }}
+            <Link
+              target="_blank"
+              rel="noopener"
+              href={`${urls.blockExplorer}/account/${address}`}
               data-testid="success-sent-message"
+              variant="h5"
             >
               {address}
-            </Typography>
+            </Link>
           </>
         }
       />

@@ -231,20 +231,27 @@ impl Rewarder {
         let mut unrewarded = Vec::new();
         let mut further_delegators_present = Vec::new();
         for mix in eligible_mixnodes {
-            let rewarding_status = self
+            match self
                 .nymd_client
                 .get_rewarding_status(mix.identity.clone(), current_rewarding_nonce)
                 .await
-                .expect("error handling");
-            match rewarding_status.status {
-                // that case is super weird, it implies the node hasn't been rewarded at all!
-                // maybe the transaction timed out twice or something? In any case, we should attempt
-                // the reward for the final time!
-                None => unrewarded.push(mix.clone()),
-                Some(RewardingStatus::PendingNextDelegatorPage(_)) => {
-                    further_delegators_present.push(mix.clone())
+            {
+                Ok(rewarding_status) => match rewarding_status.status {
+                    // that case is super weird, it implies the node hasn't been rewarded at all!
+                    // maybe the transaction timed out twice or something? In any case, we should attempt
+                    // the reward for the final time!
+                    None => unrewarded.push(mix.clone()),
+                    Some(RewardingStatus::PendingNextDelegatorPage(_)) => {
+                        further_delegators_present.push(mix.clone())
+                    }
+                    Some(RewardingStatus::Complete(_)) => {}
+                },
+                Err(err) => {
+                    error!(
+                        "failed to query rewarding status of {} - {}",
+                        mix.identity, err
+                    )
                 }
-                Some(RewardingStatus::Complete(_)) => {}
             }
         }
         (unrewarded, further_delegators_present)

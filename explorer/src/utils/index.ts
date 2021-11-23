@@ -65,9 +65,7 @@ export function countryDataToGridRow(
   return sorted;
 }
 
-export function mixnodeToGridRow(
-  arrayOfMixnodes: MixNodeResponse,
-): MixnodeRowType[] {
+export function mixnodeToGridRow(arrayOfMixnodes: MixNodeResponse): any {
   return !arrayOfMixnodes
     ? []
     : arrayOfMixnodes.map((mn) => {
@@ -75,16 +73,15 @@ export function mixnodeToGridRow(
         const delegations = Number(mn.total_delegation.amount) || 0;
         const totalBond = pledge + delegations;
         const selfPercentage = ((pledge * 100) / totalBond).toFixed(2);
-
         return {
           id: mn.owner,
           owner: mn.owner,
-          location: mn?.location?.country_name || '',
           identity_key: mn.mix_node.identity_key || '',
           bond: totalBond || 0,
+          location: mn?.location?.country_name || '',
           self_percentage: selfPercentage,
-          host: mn.mix_node.host || '',
-          layer: mn.layer || '',
+          host: mn?.mix_node?.host || '',
+          layer: mn?.layer || '',
         };
       });
 }

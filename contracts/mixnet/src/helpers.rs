@@ -99,6 +99,7 @@ pub struct Delegations<'a, T: Clone + Serialize + DeserializeOwned> {
     last_page: bool,
 }
 
+#[cfg(test)]
 impl<'a, T: Clone + Serialize + DeserializeOwned> Delegations<'a, T> {
     pub fn new(delegations_bucket: ReadonlyBucket<'a, T>) -> Self {
         Delegations {

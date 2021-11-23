@@ -3,8 +3,8 @@
 
 use crate::error::ContractError;
 use crate::storage::{
-    config, config_read, decr_reward_pool, mix_delegations, mixnodes, mixnodes_read,
-    rewarded_mixnodes, rewarded_mixnodes_read,
+    config, config_read, decr_reward_pool, mix_delegations, mixnodes, read_mixnode_bond,
+    rewarded_mixnodes, rewarded_mixnodes_read, total_delegation,
 };
 use crate::transactions::{MAX_REWARDING_DURATION_IN_BLOCKS, MINIMUM_BLOCK_AGE_FOR_REWARDING};
 use cosmwasm_std::{attr, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
@@ -217,13 +217,15 @@ pub(crate) fn try_reward_next_mixnode_delegators_v2(
                 next_page_info.rewarding_params,
             )?;
 
-            // read current bond to update the memoised total delegation field
-            let mut mixnodes = mixnodes(deps.storage);
-            if let Some(mut current_bond) = mixnodes.may_load(mix_identity.as_bytes())? {
-                // if the node unbonded, we don't have to worry about it.
-                current_bond.total_delegation.amount += delegation_rewarding_result.total_rewarded;
-                mixnodes.save(mix_identity.as_bytes(), &current_bond)?;
-            }
+            // update the memoised total delegation field
+            total_delegation(deps.storage).update::<_, ContractError>(
+                mix_identity.as_bytes(),
+                |current_total| {
+                    // unwrap is fine as if the mixnode if this mixnode's delegators are getting rewarded
+                    // it means it MUST HAVE existed at some point in the past
+                    Ok(current_total.unwrap() + delegation_rewarding_result.total_rewarded)
+                },
+            )?;
 
             decr_reward_pool(delegation_rewarding_result.total_rewarded, deps.storage)?;
 
@@ -298,9 +300,9 @@ pub(crate) fn try_reward_mixnode_v2(
     }
 
     // check if the bond even exists
-    let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
-        Ok(bond) => bond,
-        Err(_) => {
+    let current_bond = match read_mixnode_bond(deps.storage, &mix_identity)? {
+        Some(bond) => bond,
+        None => {
             return Ok(Response {
                 attributes: vec![attr("result", "bond not found")],
                 ..Default::default()
@@ -332,9 +334,23 @@ pub(crate) fn try_reward_mixnode_v2(
         let delegation_rewarding_result =
             reward_mix_delegators_v2(deps.storage, &mix_identity, None, delegator_params)?;
 
-        current_bond.bond_amount.amount += operator_reward;
-        current_bond.total_delegation.amount += delegation_rewarding_result.total_rewarded;
-        mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+        total_delegation(deps.storage).update::<_, ContractError>(
+            mix_identity.as_bytes(),
+            |current_total| {
+                // unwrap is fine as if the mixnode itself exists, so must this entry
+                Ok(current_total.unwrap() + delegation_rewarding_result.total_rewarded)
+            },
+        )?;
+        mixnodes(deps.storage).update::<_, ContractError>(
+            mix_identity.as_bytes(),
+            |current_bond| {
+                // unwrap is fine because we just read the entry...
+                let mut unwrapped = current_bond.unwrap();
+                unwrapped.bond_amount.amount += operator_reward;
+                Ok(unwrapped)
+            },
+        )?;
+
         decr_reward_pool(
             operator_reward + delegation_rewarding_result.total_rewarded,
             deps.storage,
@@ -420,8 +436,8 @@ mod tests {
     use super::*;
     use crate::contract::DEFAULT_SYBIL_RESISTANCE_PERCENT;
     use crate::storage::{
-        circulating_supply, mix_delegations_read, read_mixnode_bond, read_mixnode_delegation,
-        reward_pool_value,
+        circulating_supply, mix_delegations_read, read_mixnode_bond, read_mixnode_bond_amount,
+        reward_pool_value, total_delegation_read, StoredMixnodeBond,
     };
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
@@ -431,7 +447,7 @@ mod tests {
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, Addr, Coin, Order};
-    use mixnet_contract::{Layer, MixNode, MixNodeBond, RawDelegationData};
+    use mixnet_contract::{Layer, MixNode, RawDelegationData};
 
     #[cfg(test)]
     mod beginning_mixnode_rewarding {
@@ -934,9 +950,8 @@ mod tests {
 
         let initial_bond = 10000_000000;
         let initial_delegation = 20000_000000;
-        let mixnode_bond = MixNodeBond {
+        let mixnode_bond = StoredMixnodeBond {
             bond_amount: coin(initial_bond, DENOM),
-            total_delegation: coin(initial_delegation, DENOM),
             owner: node_owner.clone(),
             layer: Layer::One,
             block_height: env.block.height,
@@ -949,6 +964,9 @@ mod tests {
 
         mixnodes(deps.as_mut().storage)
             .save(node_identity.as_bytes(), &mixnode_bond)
+            .unwrap();
+        total_delegation(deps.as_mut().storage)
+            .save(node_identity.as_bytes(), &Uint128::new(initial_delegation))
             .unwrap();
 
         // delegation happens later, but not later enough
@@ -977,13 +995,14 @@ mod tests {
 
         assert_eq!(
             initial_bond,
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes())
+            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes())
                 .unwrap()
                 .u128()
         );
         assert_eq!(
             initial_delegation,
-            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes())
+            total_delegation_read(deps.as_ref().storage)
+                .load(node_identity.as_bytes())
                 .unwrap()
                 .u128()
         );
@@ -1010,14 +1029,15 @@ mod tests {
         try_finish_mixnode_rewarding(deps.as_mut(), info, 2).unwrap();
 
         assert!(
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes())
+            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes())
                 .unwrap()
                 .u128()
                 > initial_bond
         );
         assert_eq!(
             initial_delegation,
-            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes())
+            total_delegation_read(deps.as_ref().storage)
+                .load(node_identity.as_bytes())
                 .unwrap()
                 .u128()
         );
@@ -1031,7 +1051,7 @@ mod tests {
         env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
 
         let bond_before_rewarding =
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes())
+            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes())
                 .unwrap()
                 .u128();
 
@@ -1049,13 +1069,14 @@ mod tests {
         try_finish_mixnode_rewarding(deps.as_mut(), info, 3).unwrap();
 
         assert!(
-            read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes())
+            read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes())
                 .unwrap()
                 .u128()
                 > bond_before_rewarding
         );
         assert!(
-            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes())
+            total_delegation_read(deps.as_ref().storage)
+                .load(node_identity.as_bytes())
                 .unwrap()
                 .u128()
                 > initial_delegation
@@ -1130,7 +1151,7 @@ mod tests {
 
         env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
-        let mix_1 = mixnodes_read(&deps.storage).load(b"alice").unwrap();
+        let mix_1 = read_mixnode_bond(&deps.storage, "alice").unwrap().unwrap();
         let mix_1_uptime = 100;
 
         let mut params = NodeRewardParams::new(
@@ -1168,10 +1189,13 @@ mod tests {
         assert_eq!(mix1_delegator1_reward, U128::from_num(22552615));
         assert_eq!(mix1_delegator2_reward, U128::from_num(5638153));
 
-        let pre_reward_bond = read_mixnode_bond(&deps.storage, b"alice").unwrap().u128();
+        let pre_reward_bond = read_mixnode_bond_amount(&deps.storage, b"alice")
+            .unwrap()
+            .u128();
         assert_eq!(pre_reward_bond, 10000_000_000);
 
-        let pre_reward_delegation = read_mixnode_delegation(&deps.storage, b"alice")
+        let pre_reward_delegation = total_delegation_read(&deps.storage)
+            .load(b"alice")
             .unwrap()
             .u128();
         assert_eq!(pre_reward_delegation, 10000_000_000);
@@ -1179,11 +1203,14 @@ mod tests {
         try_reward_mixnode_v2(deps.as_mut(), env, info, "alice".to_string(), params, 1).unwrap();
 
         assert_eq!(
-            read_mixnode_bond(&deps.storage, b"alice").unwrap().u128(),
+            read_mixnode_bond_amount(&deps.storage, b"alice")
+                .unwrap()
+                .u128(),
             U128::from_num(pre_reward_bond) + U128::from_num(mix1_operator_profit)
         );
         assert_eq!(
-            read_mixnode_delegation(&deps.storage, b"alice")
+            total_delegation_read(&deps.storage)
+                .load(b"alice")
                 .unwrap()
                 .u128(),
             pre_reward_delegation + mix1_delegator1_reward + mix1_delegator2_reward
@@ -1485,8 +1512,8 @@ mod tests {
             },
         )
         .unwrap();
-        let bond = mixnodes_read(deps.as_ref().storage)
-            .load(node_identity.as_bytes())
+        let bond = read_mixnode_bond(deps.as_ref().storage, &*node_identity)
+            .unwrap()
             .unwrap();
 
         let base_delegation = 200_000000;
@@ -1540,8 +1567,8 @@ mod tests {
             },
         )
         .unwrap();
-        let bond = mixnodes_read(deps.as_ref().storage)
-            .load(node_identity.as_bytes())
+        let bond = read_mixnode_bond(deps.as_ref().storage, &*node_identity)
+            .unwrap()
             .unwrap();
 
         let base_delegation = 200_000000;

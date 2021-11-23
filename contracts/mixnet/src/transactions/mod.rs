@@ -1,16 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use crate::error::ContractError;
-use crate::helpers::Delegations;
 use crate::queries;
 use crate::storage::*;
 use config::defaults::DENOM;
-use cosmwasm_std::{
-    attr, coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
-};
-use cosmwasm_storage::ReadonlyBucket;
+use cosmwasm_std::{attr, coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::{
-    Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
+    Gateway, GatewayBond, IdentityKey, Layer, MixNode, RawDelegationData, StateParams,
 };
 
 pub(crate) mod rewarding;
@@ -23,14 +19,6 @@ pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
 
 // approximately 30min (assuming 5s per block)
 pub(crate) const MAX_REWARDING_DURATION_IN_BLOCKS: u64 = 360;
-
-fn total_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
-    Ok(Coin::new(
-        Delegations::new(delegations_bucket)
-            .fold(0, |acc, x| acc + x.delegation_data.amount.u128()),
-        DENOM,
-    ))
-}
 
 fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
     // check if anything was put as bond
@@ -100,7 +88,7 @@ pub(crate) fn try_add_mixnode(
     let layer_distribution = queries::query_layer_distribution(deps.as_ref());
     let layer = layer_distribution.choose_with_fewest();
 
-    let mut bond = MixNodeBond::new(
+    let stored_bond = StoredMixnodeBond::new(
         info.funds[0].clone(),
         info.sender.clone(),
         layer,
@@ -109,16 +97,14 @@ pub(crate) fn try_add_mixnode(
         None,
     );
 
-    // this might potentially require more gas if a significant number of delegations was there
-    let delegations_bucket = mix_delegations_read(deps.storage, &bond.mix_node.identity_key);
-    let existing_delegation = total_delegations(delegations_bucket)?;
-    bond.total_delegation = existing_delegation;
+    let identity = stored_bond.identity();
 
-    let identity = bond.identity();
-
-    mixnodes(deps.storage).save(identity.as_bytes(), &bond)?;
+    // technically we don't have to set the total_delegation bucket, but it makes things easier
+    // in different places that we can guarantee that if node exists, so does the data behind the total delegation
+    mixnodes(deps.storage).save(identity.as_bytes(), &stored_bond)?;
     mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
-    increment_layer_count(deps.storage, bond.layer)?;
+    total_delegation(deps.storage).save(identity.as_bytes(), &Uint128::zero())?;
+    increment_layer_count(deps.storage, layer)?;
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
@@ -368,33 +354,41 @@ pub(crate) fn try_delegate_to_mixnode(
     validate_delegation_stake(&info.funds)?;
 
     // check if the target node actually exists
-    let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
-        Ok(bond) => bond,
-        Err(_) => {
-            return Err(ContractError::MixNodeBondNotFound {
-                identity: mix_identity,
-            });
-        }
-    };
-
-    let amount = info.funds[0].amount;
+    if mixnodes_read(deps.storage)
+        .load(mix_identity.as_bytes())
+        .is_err()
+    {
+        return Err(ContractError::MixNodeBondNotFound {
+            identity: mix_identity,
+        });
+    }
 
     // update total_delegation of this node
-    current_bond.total_delegation.amount += info.funds[0].amount;
-    mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+    total_delegation(deps.storage).update::<_, ContractError>(
+        mix_identity.as_bytes(),
+        |total_delegation| {
+            // unwrap is fine as if the mixnode itself exists, so must this entry
+            Ok(total_delegation.unwrap() + info.funds[0].amount)
+        },
+    )?;
 
-    let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
-    let sender_bytes = info.sender.as_bytes();
+    // update delegation of this delegator
+    mix_delegations(deps.storage, &mix_identity).update::<_, ContractError>(
+        info.sender.as_bytes(),
+        |existing_delegation| {
+            let existing_delegation_amount = existing_delegation
+                .map(|existing_delegation| existing_delegation.amount)
+                .unwrap_or_default();
 
-    // write the delegation
-    let new_amount = match delegation_bucket.may_load(sender_bytes)? {
-        Some(existing_delegation) => existing_delegation.amount + amount,
-        None => amount,
-    };
-    // the block height is reset, if it existed
-    let new_delegation = RawDelegationData::new(new_amount, env.block.height);
-    delegation_bucket.save(sender_bytes, &new_delegation)?;
+            // the block height is reset, if it existed
+            Ok(RawDelegationData::new(
+                existing_delegation_amount + info.funds[0].amount,
+                env.block.height,
+            ))
+        },
+    )?;
 
+    // save information about delegations of this sender
     reverse_mix_delegations(deps.storage, &info.sender).save(mix_identity.as_bytes(), &())?;
 
     Ok(Response::default())
@@ -407,44 +401,45 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 ) -> Result<Response, ContractError> {
     let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
     let sender_bytes = info.sender.as_bytes();
-    match delegation_bucket.may_load(sender_bytes)? {
-        Some(delegation) => {
-            // remove delegation from the buckets
-            delegation_bucket.remove(sender_bytes);
-            reverse_mix_delegations(deps.storage, &info.sender).remove(mix_identity.as_bytes());
 
-            // send delegated funds back to the delegation owner
-            let messages = vec![BankMsg::Send {
-                to_address: info.sender.to_string(),
-                amount: coins(delegation.amount.u128(), DENOM),
-            }
-            .into()];
+    if let Some(delegation) = delegation_bucket.may_load(sender_bytes)? {
+        // remove all delegation associated with this delegator
+        delegation_bucket.remove(sender_bytes);
+        reverse_mix_delegations(deps.storage, &info.sender).remove(mix_identity.as_bytes());
 
-            // update total_delegation of this node
-            let mut mixnodes_bucket = mixnodes(deps.storage);
-            // in some rare cases the mixnode bond might no longer exist as the node unbonded
-            // before delegation was removed. that is fine
-            if let Some(mut existing_bond) = mixnodes_bucket.may_load(mix_identity.as_bytes())? {
-                // we should NEVER underflow here, if we do, it means we have some serious error in our logic
-                existing_bond.total_delegation.amount = existing_bond
-                    .total_delegation
-                    .amount
-                    .checked_sub(delegation.amount)
-                    .unwrap();
-                mixnodes_bucket.save(mix_identity.as_bytes(), &existing_bond)?;
-            }
-
-            Ok(Response {
-                submessages: Vec::new(),
-                messages,
-                attributes: Vec::new(),
-                data: None,
-            })
+        // send delegated funds back to the delegation owner
+        let messages = vec![BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: coins(delegation.amount.u128(), DENOM),
         }
-        None => Err(ContractError::NoMixnodeDelegationFound {
+        .into()];
+
+        // update total_delegation of this node
+        total_delegation(deps.storage).update::<_, ContractError>(
+            mix_identity.as_bytes(),
+            |total_delegation| {
+                // the first unwrap is fine because the delegation information MUST exist, otherwise we would
+                // have never gotten here in the first place
+                // the second unwrap is also fine because we should NEVER underflow here,
+                // if we do, it means we have some serious error in our logic
+                Ok(total_delegation
+                    .unwrap()
+                    .checked_sub(delegation.amount)
+                    .unwrap())
+            },
+        )?;
+
+        Ok(Response {
+            submessages: Vec::new(),
+            messages,
+            attributes: Vec::new(),
+            data: None,
+        })
+    } else {
+        Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
             address: info.sender,
-        }),
+        })
     }
 }
 
@@ -452,11 +447,10 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 pub mod tests {
     use super::*;
     use crate::contract::{execute, query, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND};
-    use crate::storage::{layer_distribution_read, mix_delegations_read};
+    use crate::helpers::Delegations;
+    use crate::storage::layer_distribution_read;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{
-        good_gateway_bond, good_mixnode_bond, raw_delegation_fixture,
-    };
+    use crate::support::tests::helpers::{good_gateway_bond, good_mixnode_bond};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
     use mixnet_contract::{
@@ -778,7 +772,7 @@ pub mod tests {
         );
 
         // let's add a node owned by bob
-        helpers::add_mixnode("bob", good_mixnode_bond(), &mut deps);
+        helpers::add_mixnode("bob", good_mixnode_bond(), deps.as_mut());
 
         // attempt to un-register fred's node, which doesn't exist
         let info = mock_info("fred", &[]);
@@ -823,7 +817,7 @@ pub mod tests {
             attr(
                 "mixnode_bond",
                 format!(
-                    "amount: {} {}, owner: fred, identity: fredsmixnode",
+                    "amount: {}{}, owner: fred, identity: fredsmixnode",
                     INITIAL_MIXNODE_BOND, DENOM
                 ),
             ),
@@ -843,7 +837,7 @@ pub mod tests {
             attributes: expected_attributes,
             data: None,
         };
-        assert_eq!(remove_fred, expected);
+        assert_eq!(expected, remove_fred);
 
         // only 1 node now exists, owned by bob:
         let mix_node_bonds = helpers::get_mix_nodes(&mut deps);
@@ -1419,7 +1413,7 @@ pub mod tests {
         fn succeeds_for_existing_node() {
             let mut deps = helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
 
             let delegation = coin(123, DENOM);
@@ -1445,11 +1439,10 @@ pub mod tests {
 
             // node's "total_delegation" is increased
             assert_eq!(
-                delegation,
-                mixnodes_read(&deps.storage)
+                delegation.amount,
+                total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
-                    .total_delegation
             )
         }
 
@@ -1458,7 +1451,7 @@ pub mod tests {
             let mut deps = helpers::init_contract();
 
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
 
             try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
@@ -1481,9 +1474,9 @@ pub mod tests {
             let mut deps = helpers::init_contract();
 
             let mixnode_owner = "bob";
-            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation = coin(123, DENOM);
             let delegation_owner = Addr::unchecked("sender");
 
@@ -1509,11 +1502,10 @@ pub mod tests {
 
             // node's "total_delegation" is increased
             assert_eq!(
-                delegation,
-                mixnodes_read(&deps.storage)
+                delegation.amount,
+                total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
-                    .total_delegation
             )
         }
 
@@ -1521,7 +1513,7 @@ pub mod tests {
         fn is_possible_for_an_already_delegated_node() {
             let mut deps = helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
 
             let delegation1 = coin(100, DENOM);
@@ -1561,11 +1553,9 @@ pub mod tests {
             // node's "total_delegation" is sum of both
             assert_eq!(
                 delegation1.amount + delegation2.amount,
-                mixnodes_read(&deps.storage)
+                total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
-                    .total_delegation
-                    .amount
             )
         }
 
@@ -1573,7 +1563,7 @@ pub mod tests {
         fn block_height_is_updated_on_new_delegation() {
             let mut deps = helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
             let delegation = coin(100, DENOM);
 
@@ -1619,7 +1609,7 @@ pub mod tests {
         fn block_height_is_not_updated_on_different_delegator() {
             let mut deps = helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner1 = Addr::unchecked("sender1");
             let delegation_owner2 = Addr::unchecked("sender2");
             let delegation1 = coin(100, DENOM);
@@ -1674,7 +1664,7 @@ pub mod tests {
             let mut deps = helpers::init_contract();
 
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
 
             try_delegate_to_mixnode(
@@ -1705,8 +1695,8 @@ pub mod tests {
             let mut deps = helpers::init_contract();
             let mixnode_owner1 = "bob";
             let mixnode_owner2 = "fred";
-            let identity1 = add_mixnode(mixnode_owner1, good_mixnode_bond(), &mut deps);
-            let identity2 = add_mixnode(mixnode_owner2, good_mixnode_bond(), &mut deps);
+            let identity1 = add_mixnode(mixnode_owner1, good_mixnode_bond(), deps.as_mut());
+            let identity2 = add_mixnode(mixnode_owner2, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
 
             assert!(try_delegate_to_mixnode(
@@ -1754,7 +1744,7 @@ pub mod tests {
         fn is_allowed_by_multiple_users() {
             let mut deps = helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
 
             let delegation1 = coin(123, DENOM);
             let delegation2 = coin(234, DENOM);
@@ -1778,11 +1768,9 @@ pub mod tests {
             // node's "total_delegation" is sum of both
             assert_eq!(
                 delegation1.amount + delegation2.amount,
-                mixnodes_read(&deps.storage)
+                total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
-                    .total_delegation
-                    .amount
             )
         }
 
@@ -1791,7 +1779,7 @@ pub mod tests {
             let mut deps = helpers::init_contract();
 
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
 
             try_delegate_to_mixnode(
@@ -1829,7 +1817,7 @@ pub mod tests {
             let mut deps = helpers::init_contract();
 
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
 
             assert_eq!(
@@ -1850,7 +1838,7 @@ pub mod tests {
             let mut deps = helpers::init_contract();
 
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
 
             try_delegate_to_mixnode(
@@ -1893,11 +1881,9 @@ pub mod tests {
             // and total delegation is cleared
             assert_eq!(
                 Uint128::zero(),
-                mixnodes_read(&deps.storage)
+                total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
-                    .total_delegation
-                    .amount
             )
         }
 
@@ -1906,7 +1892,7 @@ pub mod tests {
             let mut deps = helpers::init_contract();
 
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
 
             try_delegate_to_mixnode(
@@ -1953,7 +1939,7 @@ pub mod tests {
         fn total_delegation_is_preserved_if_only_some_undelegate() {
             let mut deps = helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner1 = Addr::unchecked("sender1");
             let delegation_owner2 = Addr::unchecked("sender2");
 
@@ -1987,11 +1973,10 @@ pub mod tests {
             // but total delegation should still equal to what sender2 sent
             // node's "total_delegation" is sum of both
             assert_eq!(
-                delegation2,
-                mixnodes_read(&deps.storage)
+                delegation2.amount,
+                total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
-                    .total_delegation
             )
         }
     }
@@ -2013,58 +1998,6 @@ pub mod tests {
             MIXNODE_DELEGATORS_PAGE_LIMIT as u32 * 10,
             mix_delegations.len() as u32
         );
-    }
-
-    #[cfg(test)]
-    mod finding_old_delegations {
-        use super::*;
-
-        #[test]
-        fn when_there_werent_any() {
-            let deps = helpers::init_contract();
-
-            let node_identity: IdentityKey = "nodeidentity".into();
-
-            let read_bucket = mix_delegations_read(&deps.storage, &node_identity);
-            let old_delegations = total_delegations(read_bucket).unwrap();
-
-            assert_eq!(Coin::new(0, DENOM), old_delegations);
-        }
-
-        #[test]
-        fn when_some_existed() {
-            let num_delegations = vec![
-                1,
-                5,
-                OLD_DELEGATIONS_CHUNK_SIZE - 1,
-                OLD_DELEGATIONS_CHUNK_SIZE,
-                OLD_DELEGATIONS_CHUNK_SIZE + 1,
-                OLD_DELEGATIONS_CHUNK_SIZE * 3,
-                OLD_DELEGATIONS_CHUNK_SIZE * 3 + 1,
-            ];
-
-            for delegations in num_delegations {
-                let mut deps = helpers::init_contract();
-
-                let node_identity: IdentityKey = "nodeidentity".into();
-
-                // delegate some stake
-                let mut write_bucket = mix_delegations(&mut deps.storage, &node_identity);
-                for i in 1..=delegations {
-                    let delegator = Addr::unchecked(format!("delegator{}", i));
-                    let delegation = raw_delegation_fixture(i as u128);
-                    write_bucket
-                        .save(delegator.as_bytes(), &delegation)
-                        .unwrap();
-                }
-
-                let read_bucket = mix_delegations_read(&deps.storage, &node_identity);
-                let old_delegations = total_delegations(read_bucket).unwrap();
-
-                let total_delegation = (1..=delegations as u128).into_iter().sum();
-                assert_eq!(Coin::new(total_delegation, DENOM), old_delegations);
-            }
-        }
     }
 
     #[test]

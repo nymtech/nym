@@ -62,7 +62,6 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
   useEffect(() => {
     if (loadingState.isLoading) {
       setError(undefined)
-      setTokenTransfer(undefined)
     }
   }, [loadingState])
 
@@ -71,7 +70,7 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
   }, [])
 
   useEffect(() => {
-    if (validator || tokenTransfer) getBalance()
+    if (validator && tokenTransfer) getBalance()
   }, [validator, tokenTransfer])
 
   const getBalance = async () => {
@@ -96,6 +95,7 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     upunks: string
     punks: string
   }) => {
+    setTokenTransfer(undefined)
     setLoadingState({ isLoading: true, requestType: EnumRequestType.tokens })
     try {
       await validator?.send(ACCOUNT_ADDRESS, address, [

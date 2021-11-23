@@ -280,6 +280,7 @@ pub(crate) fn try_reward_mixnode_v2(
 ) -> Result<Response, ContractError> {
     verify_rewarding_state(deps.storage, info, rewarding_interval_nonce)?;
 
+    // check if the mixnode hasn't been rewarded in this rewarding interval already
     match rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
         .may_load(mix_identity.as_bytes())?
     {
@@ -294,16 +295,6 @@ pub(crate) fn try_reward_mixnode_v2(
                 identity: mix_identity,
             })
         }
-    }
-
-    // check if the mixnode hasn't been rewarded in this rewarding interval already
-    if rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
-        .may_load(mix_identity.as_bytes())?
-        .is_some()
-    {
-        return Err(ContractError::MixnodeAlreadyRewarded {
-            identity: mix_identity,
-        });
     }
 
     // check if the bond even exists
@@ -323,7 +314,10 @@ pub(crate) fn try_reward_mixnode_v2(
     let mut total_delegation_increase = Uint128::zero();
     let mut more_delegators = false;
 
-    if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height {
+    // check if node is old enough for rewarding and if its uptime is non-zero
+    if current_bond.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height
+        && params.uptime() > 0
+    {
         let mut node_reward_params = params;
         node_reward_params.set_reward_blockstamp(env.block.height);
 
@@ -356,16 +350,14 @@ pub(crate) fn try_reward_mixnode_v2(
         if let Some(next_start) = delegation_rewarding_result.start_next {
             more_delegators = true;
 
-            rewarded_mixnodes(deps.storage, rewarding_interval_nonce)
-                .save(
-                    mix_identity.as_bytes(),
-                    &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
-                        running_results: rewarding_results,
-                        next_start,
-                        rewarding_params: delegator_params,
-                    }),
-                )
-                .expect("blows up here");
+            rewarded_mixnodes(deps.storage, rewarding_interval_nonce).save(
+                mix_identity.as_bytes(),
+                &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
+                    running_results: rewarding_results,
+                    next_start,
+                    rewarding_params: delegator_params,
+                }),
+            )?;
         } else {
             rewarded_mixnodes(deps.storage, rewarding_interval_nonce).save(
                 mix_identity.as_bytes(),

@@ -197,20 +197,18 @@ impl Rewarder {
                 )
                 .await?;
 
-            if uptime.u8() > 0 {
-                eligible_nodes.push(MixnodeToReward {
-                    identity: rewarded_node.mix_node.identity_key,
-                    total_delegations,
-                    params: NodeRewardParams::new(
-                        period_reward_pool,
-                        k.into(),
-                        0,
-                        circulating_supply,
-                        uptime.u8().into(),
-                        sybil_resistance_percent,
-                    ),
-                })
-            }
+            eligible_nodes.push(MixnodeToReward {
+                identity: rewarded_node.mix_node.identity_key,
+                total_delegations,
+                params: NodeRewardParams::new(
+                    period_reward_pool,
+                    k.into(),
+                    0,
+                    circulating_supply,
+                    uptime.u8().into(),
+                    sybil_resistance_percent,
+                ),
+            })
         }
 
         Ok(eligible_nodes)
@@ -288,6 +286,13 @@ impl Rewarder {
         // right now put mixes into batches super naively, if it doesn't fit into the current one,
         // create a new one.
         for mix in eligible_mixnodes {
+            // if mixnode has uptime of 0, no rewarding will actually happen regardless of number of delegators,
+            // so we can just batch it with the current batch
+            if mix.params.uptime() == 0 {
+                batch_rewarded[current_batch_i].push(mix.clone());
+                continue;
+            }
+
             if mix.total_delegations > MIXNODE_DELEGATORS_PAGE_LIMIT {
                 individually_rewarded.push(mix)
             } else if current_batch_total + mix.total_delegations < MIXNODE_DELEGATORS_PAGE_LIMIT {

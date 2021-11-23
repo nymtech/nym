@@ -12,9 +12,9 @@ import { BIG_DIPPER } from 'src/api/constants';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 import { Title } from 'src/components/Title';
 import {
-  NewniversalDataGrid,
+  UniversalDataGrid,
   cellStyles,
-} from 'src/components/Newniversal-DataGrid';
+} from 'src/components/Universal-DataGrid';
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes } = useMainContext();
@@ -199,7 +199,7 @@ export const PageMixnodes: React.FC = () => {
               pageSize={pageSize}
               searchTerm={searchTerm}
             />
-            <NewniversalDataGrid
+            <UniversalDataGrid
               pagination
               rows={mixnodeToGridRow(filteredMixnodes)}
               columns={columns}

@@ -7,18 +7,18 @@ import {
   SelectChangeEvent,
   Typography,
 } from '@mui/material';
+import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
+import { ContentCard } from 'src/components/ContentCard';
+import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
+import { TableToolbar } from 'src/components/TableToolbar';
+import { Title } from 'src/components/Title';
+import {
+  UniversalDataGrid,
+  cellStyles,
+} from 'src/components/Universal-DataGrid';
 import { WorldMap } from 'src/components/WorldMap';
 import { useMainContext } from 'src/context/main';
-import {
-  cellStyles,
-  UniversalDataGrid,
-} from 'src/components/Universal-DataGrid';
-import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
-import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { TableToolbar } from 'src/components/TableToolbar';
 import { CountryDataRowType, countryDataToGridRow } from 'src/utils';
-import { Title } from 'src/components/Title';
-import { ContentCard } from '../../components/ContentCard';
 
 export const PageMixnodesMap: React.FC = () => {
   const { countryData } = useMainContext();
@@ -119,11 +119,11 @@ export const PageMixnodesMap: React.FC = () => {
                     searchTerm={searchTerm}
                   />
                   <UniversalDataGrid
+                    pagination
                     loading={countryData?.isLoading}
-                    columnsData={columns}
+                    columns={columns}
                     rows={formattedCountries}
                     pageSize={pageSize}
-                    pagination
                   />
                 </ContentCard>
               </Grid>

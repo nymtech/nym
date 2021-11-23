@@ -11,8 +11,8 @@ import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 import { Title } from 'src/components/Title';
 import {
   cellStyles,
-  NewniversalDataGrid,
-} from 'src/components/Newniversal-DataGrid';
+  UniversalDataGrid,
+} from 'src/components/Universal-DataGrid';
 
 export const PageGateways: React.FC = () => {
   const { gateways } = useMainContext();
@@ -143,7 +143,7 @@ export const PageGateways: React.FC = () => {
                 pageSize={pageSize}
                 searchTerm={searchTerm}
               />
-              <NewniversalDataGrid
+              <UniversalDataGrid
                 rows={gatewayToGridRow(filteredGateways)}
                 columns={columns}
                 pageSize={pageSize}

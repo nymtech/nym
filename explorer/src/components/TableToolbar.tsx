@@ -36,7 +36,6 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
           onChange={onChangePageSize}
           sx={{
             width: matches ? 100 : 200,
-            // marginBottom: matches ? 2 : 0,
           }}
         >
           <MenuItem value={10} data-testid="ten">

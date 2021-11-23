@@ -470,7 +470,7 @@ mod tests {
         }
 
         #[test]
-        fn cannot_be_called_if_rewarding_is_already_in_progress_with_little_day() {
+        fn cannot_be_called_if_rewarding_is_already_in_progress_with_little_delay() {
             let mut deps = helpers::init_contract();
             let env = mock_env();
             let current_state = config_read(deps.as_mut().storage).load().unwrap();

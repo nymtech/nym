@@ -103,7 +103,7 @@ impl NodeUptimes {
         NodeUptimes {
             most_recent: most_recent.try_into().unwrap(),
             last_hour: Uptime::from_uptime_sum(last_hour_sum, last_hour_test_runs).unwrap(),
-            last_day: Uptime::from_uptime_sum(last_day_sum, last_hour_test_runs).unwrap(),
+            last_day: Uptime::from_uptime_sum(last_day_sum, last_day_test_runs).unwrap(),
         }
     }
 }

@@ -1,19 +1,17 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use crate::contract::INITIAL_REWARD_POOL;
+use crate::error::ContractError;
 use crate::state::State;
-use crate::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
-use crate::{error::ContractError, queries};
 use config::defaults::TOTAL_SUPPLY;
-use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
+use cosmwasm_std::{StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
-use mixnet_contract::mixnode::NodeRewardParams;
 use mixnet_contract::{
     Addr, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
-    RawDelegationData, StateParams,
+    RawDelegationData, RewardingStatus, StateParams,
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -185,7 +183,10 @@ pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey
 // we want to treat this bucket as a set so we don't really care about what type of data is being stored.
 // I went with u8 as after serialization it takes only a single byte of space, while if a `()` was used,
 // it would have taken 4 bytes (representation of 'null')
-pub fn rewarded_mixnodes(storage: &mut dyn Storage, rewarding_interval_nonce: u32) -> Bucket<u8> {
+pub(crate) fn rewarded_mixnodes(
+    storage: &mut dyn Storage,
+    rewarding_interval_nonce: u32,
+) -> Bucket<RewardingStatus> {
     Bucket::multilevel(
         storage,
         &[
@@ -195,13 +196,10 @@ pub fn rewarded_mixnodes(storage: &mut dyn Storage, rewarding_interval_nonce: u3
     )
 }
 
-// we want to treat this bucket as a set so we don't really care about what type of data is being stored.
-// I went with u8 as after serialization it takes only a single byte of space, while if a `()` was used,
-// it would have taken 4 bytes (representation of 'null')
-pub fn rewarded_mixnodes_read(
+pub(crate) fn rewarded_mixnodes_read(
     storage: &dyn Storage,
     rewarding_interval_nonce: u32,
-) -> ReadonlyBucket<u8> {
+) -> ReadonlyBucket<RewardingStatus> {
     ReadonlyBucket::multilevel(
         storage,
         &[
@@ -211,105 +209,6 @@ pub fn rewarded_mixnodes_read(
     )
 }
 
-// helpers
-pub(crate) fn increase_mix_delegated_stakes(
-    storage: &mut dyn Storage,
-    mix_identity: IdentityKeyRef,
-    scaled_reward_rate: Decimal,
-    reward_blockstamp: u64,
-) -> StdResult<Uint128> {
-    let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
-
-    let mut total_rewarded = Uint128::zero();
-    let mut chunk_start: Option<Vec<_>> = None;
-    loop {
-        // get `chunk_size` of delegations
-        let delegations_chunk = mix_delegations_read(storage, mix_identity)
-            .range(chunk_start.as_deref(), None, Order::Ascending)
-            .take(chunk_size)
-            .collect::<StdResult<Vec<_>>>()?;
-
-        if delegations_chunk.is_empty() {
-            break;
-        }
-
-        // append 0 byte to the last value to start with whatever is the next succeeding key
-        chunk_start = Some(
-            delegations_chunk
-                .last()
-                .unwrap()
-                .0
-                .iter()
-                .cloned()
-                .chain(std::iter::once(0u8))
-                .collect(),
-        );
-
-        // and for each of them increase the stake proportionally to the reward
-        // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
-        // since they delegated
-        for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
-            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= reward_blockstamp {
-                let reward = delegation.amount * scaled_reward_rate;
-                delegation.amount += reward;
-                total_rewarded += reward;
-                mix_delegations(storage, mix_identity).save(&delegator_address, &delegation)?;
-            }
-        }
-    }
-
-    Ok(total_rewarded)
-}
-
-pub(crate) fn increase_mix_delegated_stakes_v2(
-    storage: &mut dyn Storage,
-    bond: &MixNodeBond,
-    params: &NodeRewardParams,
-) -> Result<Uint128, ContractError> {
-    let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
-
-    let mut total_rewarded = Uint128::zero();
-    let mut chunk_start: Option<Vec<_>> = None;
-    loop {
-        // get `chunk_size` of delegations
-        let delegations_chunk = mix_delegations_read(storage, bond.identity())
-            .range(chunk_start.as_deref(), None, Order::Ascending)
-            .take(chunk_size)
-            .collect::<StdResult<Vec<_>>>()?;
-
-        if delegations_chunk.is_empty() {
-            break;
-        }
-
-        // append 0 byte to the last value to start with whatever is the next succeeding key
-        chunk_start = Some(
-            delegations_chunk
-                .last()
-                .unwrap()
-                .0
-                .iter()
-                .cloned()
-                .chain(std::iter::once(0u8))
-                .collect(),
-        );
-
-        // and for each of them increase the stake proportionally to the reward
-        // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
-        // since they delegated
-        for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
-            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING
-                <= params.reward_blockstamp()
-            {
-                let reward = bond.reward_delegation(delegation.amount, params);
-                delegation.amount += Uint128(reward);
-                total_rewarded += Uint128(reward);
-                mix_delegations(storage, bond.identity()).save(&delegator_address, &delegation)?;
-            }
-        }
-    }
-
-    Ok(total_rewarded)
-}
 // currently not used outside tests
 #[cfg(test)]
 pub(crate) fn read_mixnode_bond(
@@ -401,7 +300,6 @@ mod tests {
     use crate::helpers::identity_and_owner_to_bytes;
     use crate::support::tests::helpers::{
         gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
-        raw_delegation_fixture,
     };
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, MockStorage};
@@ -537,216 +435,6 @@ mod tests {
             .unwrap();
         assert_eq!(raw_delegation1, res1);
         assert_eq!(raw_delegation2, res2);
-    }
-
-    #[cfg(test)]
-    mod increasing_mix_delegated_stakes {
-        use super::*;
-        use crate::queries::query_mixnode_delegations_paged;
-        use cosmwasm_std::testing::mock_dependencies;
-
-        #[test]
-        fn when_there_are_no_delegations() {
-            let mut deps = mock_dependencies(&[]);
-            let node_identity: IdentityKey = "nodeidentity".into();
-
-            // 0.001
-            let reward = Decimal::from_ratio(1u128, 1000u128);
-
-            let total_increase = increase_mix_delegated_stakes(
-                &mut deps.storage,
-                node_identity.as_ref(),
-                reward,
-                42,
-            )
-            .unwrap();
-
-            // there was no increase
-            assert!(total_increase.is_zero());
-
-            // there are no 'new' delegations magically added
-            assert!(
-                query_mixnode_delegations_paged(deps.as_ref(), node_identity, None, None)
-                    .unwrap()
-                    .delegations
-                    .is_empty()
-            )
-        }
-
-        #[test]
-        fn when_there_is_a_single_delegation() {
-            let mut deps = mock_dependencies(&[]);
-            let node_identity: IdentityKey = "nodeidentity".into();
-            let delegation_blockstamp = 42;
-
-            // 0.001
-            let reward = Decimal::from_ratio(1u128, 1000u128);
-
-            let delegator_address = Addr::unchecked("bob");
-            mix_delegations(&mut deps.storage, &node_identity)
-                .save(
-                    delegator_address.as_bytes(),
-                    &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
-                )
-                .unwrap();
-
-            let total_increase = increase_mix_delegated_stakes(
-                &mut deps.storage,
-                node_identity.as_ref(),
-                reward,
-                delegation_blockstamp + 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING,
-            )
-            .unwrap();
-
-            assert_eq!(Uint128(1), total_increase);
-
-            // amount is incremented, block height remains the same
-            assert_eq!(
-                RawDelegationData::new(1001u128.into(), 42),
-                mix_delegations_read(&mut deps.storage, &node_identity)
-                    .load(delegator_address.as_bytes())
-                    .unwrap()
-            )
-        }
-
-        #[test]
-        fn when_there_is_a_single_delegation_depending_on_blockstamp() {
-            let mut deps = mock_dependencies(&[]);
-            let node_identity: IdentityKey = "nodeidentity".into();
-            let delegation_blockstamp = 42;
-
-            // 0.001
-            let reward = Decimal::from_ratio(1u128, 1000u128);
-
-            let delegator_address = Addr::unchecked("bob");
-            mix_delegations(&mut deps.storage, &node_identity)
-                .save(
-                    delegator_address.as_bytes(),
-                    &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
-                )
-                .unwrap();
-
-            let total_increase = increase_mix_delegated_stakes(
-                &mut deps.storage,
-                node_identity.as_ref(),
-                reward,
-                delegation_blockstamp + MINIMUM_BLOCK_AGE_FOR_REWARDING - 1,
-            )
-            .unwrap();
-
-            // there was no increase
-            assert!(total_increase.is_zero());
-
-            // amount is not incremented
-            assert_eq!(
-                RawDelegationData::new(1000u128.into(), delegation_blockstamp),
-                mix_delegations_read(&mut deps.storage, &node_identity)
-                    .load(delegator_address.as_bytes())
-                    .unwrap()
-            );
-
-            let total_increase = increase_mix_delegated_stakes(
-                &mut deps.storage,
-                node_identity.as_ref(),
-                reward,
-                delegation_blockstamp + MINIMUM_BLOCK_AGE_FOR_REWARDING,
-            )
-            .unwrap();
-
-            // there is an increase now, that the lock period has passed
-            assert_eq!(Uint128(1), total_increase);
-
-            // amount is incremented
-            assert_eq!(
-                RawDelegationData::new(1001u128.into(), delegation_blockstamp),
-                mix_delegations_read(&mut deps.storage, &node_identity)
-                    .load(delegator_address.as_bytes())
-                    .unwrap()
-            )
-        }
-
-        #[test]
-        fn when_there_are_multiple_delegations() {
-            let mut deps = mock_dependencies(&[]);
-            let node_identity: IdentityKey = "nodeidentity".into();
-            let delegation_blockstamp = 42;
-
-            // 0.001
-            let reward = Decimal::from_ratio(1u128, 1000u128);
-
-            for i in 0..100 {
-                let delegator_address = Addr::unchecked(format!("address{}", i));
-                mix_delegations(&mut deps.storage, &node_identity)
-                    .save(
-                        delegator_address.as_bytes(),
-                        &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
-                    )
-                    .unwrap();
-            }
-
-            let total_increase = increase_mix_delegated_stakes(
-                &mut deps.storage,
-                node_identity.as_ref(),
-                reward,
-                delegation_blockstamp + 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING,
-            )
-            .unwrap();
-
-            assert_eq!(Uint128(100), total_increase);
-
-            for i in 0..100 {
-                let delegator_address = Addr::unchecked(format!("address{}", i));
-                assert_eq!(
-                    raw_delegation_fixture(1001),
-                    mix_delegations_read(&mut deps.storage, &node_identity)
-                        .load(delegator_address.as_bytes())
-                        .unwrap()
-                )
-            }
-        }
-
-        #[test]
-        fn when_there_are_more_delegations_than_page_size() {
-            let mut deps = mock_dependencies(&[]);
-            let node_identity: IdentityKey = "nodeidentity".into();
-            let delegation_blockstamp = 42;
-
-            // 0.001
-            let reward = Decimal::from_ratio(1u128, 1000u128);
-
-            for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
-                let delegator_address = Addr::unchecked(format!("address{}", i));
-                mix_delegations(&mut deps.storage, &node_identity)
-                    .save(
-                        delegator_address.as_bytes(),
-                        &RawDelegationData::new(1000u128.into(), delegation_blockstamp),
-                    )
-                    .unwrap();
-            }
-
-            let total_increase = increase_mix_delegated_stakes(
-                &mut deps.storage,
-                node_identity.as_ref(),
-                reward,
-                delegation_blockstamp + 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING,
-            )
-            .unwrap();
-
-            assert_eq!(
-                Uint128(queries::DELEGATION_PAGE_MAX_LIMIT as u128 * 10),
-                total_increase
-            );
-
-            for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
-                let delegator_address = Addr::unchecked(format!("address{}", i));
-                assert_eq!(
-                    raw_delegation_fixture(1001),
-                    mix_delegations_read(&mut deps.storage, &node_identity)
-                        .load(delegator_address.as_bytes())
-                        .unwrap()
-                )
-            }
-        }
     }
 
     #[cfg(test)]

@@ -1,10 +1,12 @@
 #[cfg(test)]
 pub mod helpers {
     use super::*;
-    use crate::contract::query;
     use crate::contract::{instantiate, INITIAL_MIXNODE_BOND};
+    use crate::contract::{
+        query, DEFAULT_SYBIL_RESISTANCE_PERCENT, EPOCH_REWARD_PERCENT, INITIAL_REWARD_POOL,
+    };
     use crate::transactions::{try_add_gateway, try_add_mixnode};
-    use config::defaults::DENOM;
+    use config::defaults::{DENOM, TOTAL_SUPPLY};
     use cosmwasm_std::from_binary;
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
@@ -17,6 +19,7 @@ pub mod helpers {
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{coin, Uint128};
     use cosmwasm_std::{Empty, MemoryStorage};
+    use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::{
         Gateway, GatewayBond, InstantiateMsg, Layer, MixNode, MixNodeBond, PagedGatewayResponse,
         PagedMixnodeResponse, QueryMsg, RawDelegationData,
@@ -187,5 +190,17 @@ pub mod helpers {
             denom: DENOM.to_string(),
             amount: INITIAL_MIXNODE_BOND,
         }]
+    }
+
+    // when exact values are irrelevant and what matters is the action of rewarding
+    pub fn node_rewarding_params_fixture(uptime: u128) -> NodeRewardParams {
+        NodeRewardParams::new(
+            (INITIAL_REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128,
+            50 as u128,
+            0,
+            TOTAL_SUPPLY - INITIAL_REWARD_POOL,
+            uptime,
+            DEFAULT_SYBIL_RESISTANCE_PERCENT,
+        )
     }
 }

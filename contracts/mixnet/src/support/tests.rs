@@ -24,8 +24,8 @@ pub mod test_helpers {
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::{
-        Gateway, GatewayBond, IdentityKey, InstantiateMsg, Layer, MixNode, MixNodeBond,
-        PagedGatewayResponse, PagedMixnodeResponse, QueryMsg, RawDelegationData,
+        Gateway, GatewayBond, InstantiateMsg, Layer, MixNode, MixNodeBond, PagedGatewayResponse,
+        PagedMixnodeResponse, QueryMsg, RawDelegationData,
     };
 
     pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
@@ -222,15 +222,6 @@ pub mod test_helpers {
         bytes.append(&mut owner.as_bytes().to_vec());
 
         bytes
-    }
-
-    pub(crate) fn identity_and_owner_serialization() {
-        let identity: IdentityKey = "gateway".into();
-        let owner = Addr::unchecked("bob");
-        assert_eq!(
-            vec![0, 7, 103, 97, 116, 101, 119, 97, 121, 98, 111, 98],
-            identity_and_owner_to_bytes(&identity, &owner)
-        );
     }
 
     // currently not used outside tests

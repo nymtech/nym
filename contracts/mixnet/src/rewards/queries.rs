@@ -30,23 +30,9 @@ pub(crate) fn query_rewarding_status(
 pub(crate) mod tests {
     use super::*;
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-    use crate::rewards::storage as rewards_storage;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{Addr, Storage};
-    use mixnet_contract::{Gateway, MixNode, RawDelegationData};
-
-    pub fn store_n_mix_delegations(n: u32, storage: &mut dyn Storage, node_identity: &IdentityKey) {
-        for i in 0..n {
-            let address = format!("address{}", i);
-            mixnodes_storage::mix_delegations(storage, node_identity)
-                .save(
-                    address.as_bytes(),
-                    &test_helpers::raw_delegation_fixture(42),
-                )
-                .unwrap();
-        }
-    }
+    use mixnet_contract::MixNode;
 
     #[cfg(test)]
     mod querying_for_rewarding_status {

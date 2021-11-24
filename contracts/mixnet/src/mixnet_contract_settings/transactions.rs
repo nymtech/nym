@@ -49,7 +49,6 @@ pub mod tests {
     use crate::mixnet_contract_settings::transactions::try_update_contract_settings;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
-    use cosmwasm_std::Decimal;
     use cosmwasm_std::Response;
     use mixnet_contract::ContractSettingsParams;
 

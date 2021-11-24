@@ -139,12 +139,8 @@ mod tests {
     use super::storage;
     use super::*;
     use crate::mixnodes::delegation_transactions::try_delegate_to_mixnode;
-    use crate::rewards::storage as rewards_storage;
-    use crate::rewards::transactions::{try_begin_mixnode_rewarding, try_finish_mixnode_rewarding};
     use crate::support::tests::test_helpers;
-    use cosmwasm_std::attr;
-    use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{coins, Uint128};
+    use cosmwasm_std::coins;
 
     #[cfg(test)]
     mod delegation_stake_validation {

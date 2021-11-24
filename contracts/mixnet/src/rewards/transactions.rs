@@ -452,7 +452,6 @@ pub mod tests {
     use cosmwasm_std::{coin, Addr, Uint128};
     use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::MixNode;
-    use mixnet_contract::MixNodeBond;
     use mixnet_contract::{IdentityKey, Layer, RawDelegationData};
 
     #[cfg(test)]

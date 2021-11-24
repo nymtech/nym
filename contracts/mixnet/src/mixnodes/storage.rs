@@ -211,16 +211,14 @@ pub fn reverse_mix_delegations_read<'a>(
 mod tests {
     use super::super::storage;
     use super::*;
-    use crate::rewards::storage as rewards_storage;
     use crate::support::tests::test_helpers;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, MockStorage};
     use cosmwasm_std::{coin, Addr, Uint128};
+    use mixnet_contract::IdentityKey;
     use mixnet_contract::Layer;
     use mixnet_contract::MixNode;
-    use mixnet_contract::MixNodeBond;
     use mixnet_contract::RawDelegationData;
-    use mixnet_contract::{Gateway, IdentityKey};
 
     #[test]
     fn mixnode_single_read_retrieval() {

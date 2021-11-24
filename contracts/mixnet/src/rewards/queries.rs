@@ -29,13 +29,9 @@ pub(crate) fn query_rewarding_status(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::state::State;
-    use crate::storage::{config, gateways, mix_delegations};
-    use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{
-        good_gateway_bond, raw_delegation_fixture, test_helpers::good_mixnode_bond,
-    };
-    use crate::transactions;
+    use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+    use crate::rewards::storage as rewards_storage;
+    use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Addr, Storage};
     use mixnet_contract::{Gateway, MixNode, RawDelegationData};
@@ -43,32 +39,41 @@ pub(crate) mod tests {
     pub fn store_n_mix_delegations(n: u32, storage: &mut dyn Storage, node_identity: &IdentityKey) {
         for i in 0..n {
             let address = format!("address{}", i);
-            mix_delegations(storage, node_identity)
-                .save(address.as_bytes(), &raw_delegation_fixture(42))
+            mixnodes_storage::mix_delegations(storage, node_identity)
+                .save(
+                    address.as_bytes(),
+                    &test_helpers::raw_delegation_fixture(42),
+                )
                 .unwrap();
         }
     }
 
     #[cfg(test)]
     mod querying_for_rewarding_status {
+        use super::storage;
         use super::*;
-        use crate::support::tests::helpers::{add_mixnode, node_rewarding_params_fixture};
-        use crate::transactions::{
-            try_add_mixnode, try_begin_mixnode_rewarding, try_delegate_to_mixnode,
-            try_finish_mixnode_rewarding, try_reward_mixnode_v2,
-            try_reward_next_mixnode_delegators_v2, MINIMUM_BLOCK_AGE_FOR_REWARDING,
+        use crate::mixnodes::bonding_transactions::try_add_mixnode;
+        use crate::mixnodes::delegation_transactions::try_delegate_to_mixnode;
+        use crate::rewards::transactions::{
+            try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode_v2,
+            try_reward_next_mixnode_delegators_v2,
         };
+        use config::defaults::DENOM;
+        use cosmwasm_std::coin;
         use mixnet_contract::{RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT};
 
         #[test]
         fn returns_empty_status_for_unrewarded_nodes() {
             let mut deps = test_helpers::init_contract();
             let env = mock_env();
-            let current_state = config_read(deps.as_mut().storage).load().unwrap();
+            let current_state =
+                mixnet_params_storage::contract_settings_read(deps.as_mut().storage)
+                    .load()
+                    .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             let node_identity =
-                add_mixnode("bob", test_helpers::good_mixnode_bond(), deps.as_mut());
+                test_helpers::add_mixnode("bob", test_helpers::good_mixnode_bond(), deps.as_mut());
 
             assert!(
                 query_rewarding_status(deps.as_ref(), node_identity.clone(), 1)
@@ -85,7 +90,7 @@ pub(crate) mod tests {
                 env.clone(),
                 info.clone(),
                 node_identity.clone(),
-                node_rewarding_params_fixture(100),
+                test_helpers::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();
@@ -102,7 +107,10 @@ pub(crate) mod tests {
             // with single page
             let mut deps = test_helpers::init_contract();
             let mut env = mock_env();
-            let current_state = config_read(deps.as_mut().storage).load().unwrap();
+            let current_state =
+                mixnet_params_storage::contract_settings_read(deps.as_mut().storage)
+                    .load()
+                    .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             let node_identity = "bobsnode".to_string();
@@ -112,12 +120,12 @@ pub(crate) mod tests {
                 mock_info("bob", &test_helpers::good_mixnode_bond()),
                 MixNode {
                     identity_key: node_identity.clone(),
-                    ..helpers::mix_node_fixture()
+                    ..test_helpers::mix_node_fixture()
                 },
             )
             .unwrap();
 
-            env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
@@ -126,7 +134,7 @@ pub(crate) mod tests {
                 env.clone(),
                 info.clone(),
                 node_identity.clone(),
-                node_rewarding_params_fixture(100),
+                test_helpers::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();
@@ -158,7 +166,7 @@ pub(crate) mod tests {
                 mock_info("alice", &test_helpers::good_mixnode_bond()),
                 MixNode {
                     identity_key: node_identity.clone(),
-                    ..helpers::mix_node_fixture()
+                    ..test_helpers::mix_node_fixture()
                 },
             )
             .unwrap();
@@ -176,7 +184,7 @@ pub(crate) mod tests {
                 .unwrap();
             }
 
-            env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
@@ -186,7 +194,7 @@ pub(crate) mod tests {
                 env.clone(),
                 info.clone(),
                 node_identity.clone(),
-                node_rewarding_params_fixture(100),
+                test_helpers::node_rewarding_params_fixture(100),
                 2,
             )
             .unwrap();
@@ -222,7 +230,10 @@ pub(crate) mod tests {
         fn returns_pending_next_delegator_page_status_when_there_are_more_delegators_to_reward() {
             let mut deps = test_helpers::init_contract();
             let mut env = mock_env();
-            let current_state = config_read(deps.as_mut().storage).load().unwrap();
+            let current_state =
+                mixnet_params_storage::contract_settings_read(deps.as_mut().storage)
+                    .load()
+                    .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             let node_identity = "bobsnode".to_string();
@@ -232,7 +243,7 @@ pub(crate) mod tests {
                 mock_info("bob", &test_helpers::good_mixnode_bond()),
                 MixNode {
                     identity_key: node_identity.clone(),
-                    ..helpers::mix_node_fixture()
+                    ..test_helpers::mix_node_fixture()
                 },
             )
             .unwrap();
@@ -250,7 +261,7 @@ pub(crate) mod tests {
                 .unwrap();
             }
 
-            env.block.height += MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
@@ -260,7 +271,7 @@ pub(crate) mod tests {
                 env.clone(),
                 info,
                 node_identity.clone(),
-                node_rewarding_params_fixture(100),
+                test_helpers::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();

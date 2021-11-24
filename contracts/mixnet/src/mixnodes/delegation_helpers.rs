@@ -147,6 +147,16 @@ mod tests {
     use mixnet_contract::RawDelegationData;
 
     #[test]
+    fn identity_and_owner_serialization() {
+        let identity: IdentityKey = "gateway".into();
+        let owner = Addr::unchecked("bob");
+        assert_eq!(
+            vec![0, 7, 103, 97, 116, 101, 119, 97, 121, 98, 111, 98],
+            identity_and_owner_to_bytes(&identity, &owner)
+        );
+    }
+
+    #[test]
     fn identity_and_owner_deserialization() {
         assert!(extract_identity_and_owner(vec![]).is_err());
         assert!(extract_identity_and_owner(vec![0]).is_err());
@@ -191,28 +201,6 @@ mod tests {
             delegations.next().unwrap();
         }
         assert!(delegations.next().is_none());
-    }
-
-    #[test]
-    fn identity_and_owner_deserialization() {
-        assert!(extract_identity_and_owner(vec![]).is_err());
-        assert!(extract_identity_and_owner(vec![0]).is_err());
-        let (owner, identity) = extract_identity_and_owner(vec![
-            0, 7, 109, 105, 120, 110, 111, 100, 101, 97, 108, 105, 99, 101,
-        ])
-        .unwrap();
-        assert_eq!(owner, "alice");
-        assert_eq!(identity, "mixnode");
-    }
-
-    #[test]
-    fn identity_and_owner_serialization() {
-        let identity: IdentityKey = "gateway".into();
-        let owner = Addr::unchecked("bob");
-        assert_eq!(
-            vec![0, 7, 103, 97, 116, 101, 119, 97, 121, 98, 111, 98],
-            identity_and_owner_to_bytes(&identity, &owner)
-        );
     }
 
     #[test]

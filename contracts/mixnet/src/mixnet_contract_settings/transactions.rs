@@ -44,10 +44,7 @@ pub(crate) fn try_update_contract_settings(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::{
-        INITIAL_DEFAULT_EPOCH_LENGTH, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND,
-        INITIAL_MIXNODE_BOND_REWARD_RATE, INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
-    };
+    use crate::contract::{INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND};
     use crate::error::ContractError;
     use crate::mixnet_contract_settings::transactions::try_update_contract_settings;
     use crate::support::tests::test_helpers;
@@ -73,6 +70,7 @@ pub mod tests {
             storage::contract_settings_read(deps.as_ref().storage)
                 .load()
                 .unwrap()
+                .params
         );
 
         // cannot be updated from non-owner account

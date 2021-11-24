@@ -139,11 +139,8 @@ mod tests {
     use super::storage;
     use super::*;
     use crate::mixnodes::delegation_transactions::try_delegate_to_mixnode;
-    use crate::rewards::helpers as rewards_helpers;
-    use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
-    use crate::rewards::transactions::{
-        try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
-    };
+    use crate::rewards::storage as rewards_storage;
+    use crate::rewards::transactions::{try_begin_mixnode_rewarding, try_finish_mixnode_rewarding};
     use crate::support::tests::test_helpers;
     use cosmwasm_std::attr;
     use cosmwasm_std::testing::{mock_env, mock_info};
@@ -222,7 +219,8 @@ mod tests {
         fn succeeds_for_existing_node() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity =
+                test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
             let delegation = coin(123, DENOM);
             assert!(try_delegate_to_mixnode(
@@ -245,11 +243,10 @@ mod tests {
             );
             // node's "total_delegation" is increased
             assert_eq!(
-                delegation,
-                storage::mixnodes_read(&deps.storage)
+                delegation.amount,
+                storage::total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
-                    .total_delegation
             )
         }
 
@@ -278,9 +275,10 @@ mod tests {
         fn succeeds_if_node_rebonded() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
-            test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
-            let identity = test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity =
+                test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation = coin(123, DENOM);
             let delegation_owner = Addr::unchecked("sender");
             assert!(try_delegate_to_mixnode(
@@ -303,11 +301,10 @@ mod tests {
             );
             // node's "total_delegation" is increased
             assert_eq!(
-                delegation,
-                storage::mixnodes_read(&deps.storage)
+                delegation.amount,
+                storage::total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
-                    .total_delegation
             )
         }
 
@@ -315,7 +312,8 @@ mod tests {
         fn is_possible_for_an_already_delegated_node() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity =
+                test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
             let delegation1 = coin(100, DENOM);
             let delegation2 = coin(50, DENOM);
@@ -350,18 +348,17 @@ mod tests {
             // node's "total_delegation" is sum of both
             assert_eq!(
                 delegation1.amount + delegation2.amount,
-                storage::mixnodes_read(&deps.storage)
+                storage::total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
-                    .total_delegation
-                    .amount
             )
         }
         #[test]
         fn block_height_is_updated_on_new_delegation() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity =
+                test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
             let delegation = coin(100, DENOM);
             let env1 = mock_env();
@@ -402,7 +399,8 @@ mod tests {
         fn block_height_is_not_updated_on_different_delegator() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity =
+                test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner1 = Addr::unchecked("sender1");
             let delegation_owner2 = Addr::unchecked("sender2");
             let delegation1 = coin(100, DENOM);
@@ -451,7 +449,8 @@ mod tests {
         fn is_disallowed_for_already_delegated_node_if_it_unbonded() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity =
+                test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
             try_delegate_to_mixnode(
                 deps.as_mut(),
@@ -480,9 +479,9 @@ mod tests {
             let mixnode_owner1 = "bob";
             let mixnode_owner2 = "fred";
             let identity1 =
-                test_helpers::add_mixnode(mixnode_owner1, good_mixnode_bond(), &mut deps);
+                test_helpers::add_mixnode(mixnode_owner1, good_mixnode_bond(), deps.as_mut());
             let identity2 =
-                test_helpers::add_mixnode(mixnode_owner2, good_mixnode_bond(), &mut deps);
+                test_helpers::add_mixnode(mixnode_owner2, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
@@ -526,7 +525,8 @@ mod tests {
         fn is_allowed_by_multiple_users() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity =
+                test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation1 = coin(123, DENOM);
             let delegation2 = coin(234, DENOM);
             assert!(try_delegate_to_mixnode(
@@ -546,18 +546,17 @@ mod tests {
             // node's "total_delegation" is sum of both
             assert_eq!(
                 delegation1.amount + delegation2.amount,
-                storage::mixnodes_read(&deps.storage)
+                storage::total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
-                    .total_delegation
-                    .amount
             )
         }
         #[test]
         fn delegation_is_not_removed_if_node_unbonded() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity =
+                test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
             try_delegate_to_mixnode(
                 deps.as_mut(),
@@ -597,7 +596,8 @@ mod tests {
         fn fails_if_delegation_never_existed() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity =
+                test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
             assert_eq!(
                 Err(ContractError::NoMixnodeDelegationFound {
@@ -615,7 +615,8 @@ mod tests {
         fn succeeds_if_delegation_existed() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity =
+                test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
             try_delegate_to_mixnode(
                 deps.as_mut(),
@@ -654,18 +655,17 @@ mod tests {
             // and total delegation is cleared
             assert_eq!(
                 Uint128::zero(),
-                storage::mixnodes_read(&deps.storage)
+                storage::total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
-                    .total_delegation
-                    .amount
             )
         }
         #[test]
         fn succeeds_if_delegation_existed_even_if_node_unbonded() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity =
+                test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner = Addr::unchecked("sender");
             try_delegate_to_mixnode(
                 deps.as_mut(),
@@ -707,7 +707,8 @@ mod tests {
         fn total_delegation_is_preserved_if_only_some_undelegate() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
-            let identity = test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let identity =
+                test_helpers::add_mixnode(mixnode_owner, good_mixnode_bond(), deps.as_mut());
             let delegation_owner1 = Addr::unchecked("sender1");
             let delegation_owner2 = Addr::unchecked("sender2");
             let delegation1 = coin(123, DENOM);
@@ -736,224 +737,18 @@ mod tests {
             // but total delegation should still equal to what sender2 sent
             // node's "total_delegation" is sum of both
             assert_eq!(
-                delegation2,
-                storage::mixnodes_read(&deps.storage)
+                delegation2.amount,
+                storage::total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
-                    .total_delegation
             )
         }
     }
-    #[test]
-    fn delegators_on_mix_node_reward_rate() {
-        use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 
-        let mut deps = test_helpers::init_contract();
-        let mut env = mock_env();
-        let current_state = mixnet_params_storage::contract_settings_read(deps.as_mut().storage)
-            .load()
-            .unwrap();
-        let rewarding_validator_address = current_state.rewarding_validator_address;
-        let initial_mix_bond = 100_000000;
-        let initial_delegation1 = 50000; // will see single digits rewards
-        let initial_delegation2 = 100; // won't see any rewards due to such a small delegation
-        let initial_delegation3 = 100000_000000; // will see big proper rewards
-        let node_owner = "node-owner";
-        let identity = test_helpers::test_helpers::add_mixnode(
-            node_owner,
-            test_helpers::good_mixnode_bond(),
-            &mut deps,
-        );
-        storage::mix_delegations(&mut deps.storage, &identity)
-            .save(
-                b"delegator1",
-                &RawDelegationData::new(initial_delegation1.into(), env.block.height),
-            )
-            .unwrap();
-        storage::mix_delegations(&mut deps.storage, &identity)
-            .save(
-                b"delegator2",
-                &RawDelegationData::new(initial_delegation2.into(), env.block.height),
-            )
-            .unwrap();
-        storage::mix_delegations(&mut deps.storage, &identity)
-            .save(
-                b"delegator3",
-                &RawDelegationData::new(initial_delegation3.into(), env.block.height),
-            )
-            .unwrap();
-        env.block.height += 2 * MINIMUM_BLOCK_AGE_FOR_REWARDING;
-        let bond_reward = current_state.mixnode_epoch_bond_reward;
-        let delegation_reward = current_state.mixnode_epoch_delegation_reward;
-        // the node's bond and delegations are correctly increased and scaled by uptime
-        // if node was 100% up, it will get full epoch reward
-        let expected_mix_reward = Uint128(initial_mix_bond) * bond_reward;
-        let expected_delegation1_reward = Uint128(initial_delegation1) * delegation_reward;
-        let expected_delegation2_reward = Uint128(initial_delegation2) * delegation_reward;
-        let expected_delegation3_reward = Uint128(initial_delegation3) * delegation_reward;
-        let expected_bond = expected_mix_reward + Uint128(initial_mix_bond);
-        let expected_delegation1 = expected_delegation1_reward + Uint128(initial_delegation1);
-        let expected_delegation2 = expected_delegation2_reward + Uint128(initial_delegation2);
-        let expected_delegation3 = expected_delegation3_reward + Uint128(initial_delegation3);
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            identity.clone(),
-            100,
-            1,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
-        assert_eq!(
-            expected_bond,
-            storage::read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation1,
-            storage::mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator1".as_bytes())
-                .unwrap()
-                .amount
-        );
-        assert_eq!(
-            expected_delegation2,
-            storage::mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator2".as_bytes())
-                .unwrap()
-                .amount
-        );
-        assert_eq!(
-            expected_delegation3,
-            storage::mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator3".as_bytes())
-                .unwrap()
-                .amount
-        );
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_mix_reward),
-                attr(
-                    "total delegation increase",
-                    expected_delegation1_reward
-                        + expected_delegation2_reward
-                        + expected_delegation3_reward
-                ),
-            ],
-            res.attributes
-        );
-        // if node was 20% up, it will get 1/5th of epoch reward
-        let scaled_bond_reward = rewards_helpers::scale_reward_by_uptime(bond_reward, 20).unwrap();
-        let scaled_delegation_reward =
-            rewards_helpers::scale_reward_by_uptime(delegation_reward, 20).unwrap();
-        let expected_mix_reward = expected_bond * scaled_bond_reward;
-        let expected_delegation1_reward = expected_delegation1 * scaled_delegation_reward;
-        let expected_delegation2_reward = expected_delegation2 * scaled_delegation_reward;
-        let expected_delegation3_reward = expected_delegation3 * scaled_delegation_reward;
-        let expected_bond = expected_mix_reward + expected_bond;
-        let expected_delegation1 = expected_delegation1_reward + expected_delegation1;
-        let expected_delegation2 = expected_delegation2_reward + expected_delegation2;
-        let expected_delegation3 = expected_delegation3_reward + expected_delegation3;
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            identity.clone(),
-            20,
-            2,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 2).unwrap();
-        assert_eq!(
-            expected_bond,
-            storage::read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation1,
-            storage::mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator1".as_bytes())
-                .unwrap()
-                .amount
-        );
-        assert_eq!(
-            expected_delegation2,
-            storage::mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator2".as_bytes())
-                .unwrap()
-                .amount
-        );
-        assert_eq!(
-            expected_delegation3,
-            storage::mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator3".as_bytes())
-                .unwrap()
-                .amount
-        );
-        assert_eq!(
-            vec![
-                attr("bond increase", expected_mix_reward),
-                attr(
-                    "total delegation increase",
-                    expected_delegation1_reward
-                        + expected_delegation2_reward
-                        + expected_delegation3_reward
-                ),
-            ],
-            res.attributes
-        );
-        // if the node was 0% up, nobody will get any rewards
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 3).unwrap();
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            identity.clone(),
-            0,
-            3,
-        )
-        .unwrap();
-        try_finish_mixnode_rewarding(deps.as_mut(), info, 3).unwrap();
-        assert_eq!(
-            expected_bond,
-            storage::read_mixnode_bond(deps.as_ref().storage, identity.as_bytes()).unwrap()
-        );
-        assert_eq!(
-            expected_delegation1,
-            storage::mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator1".as_bytes())
-                .unwrap()
-                .amount
-        );
-        assert_eq!(
-            expected_delegation2,
-            storage::mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator2".as_bytes())
-                .unwrap()
-                .amount
-        );
-        assert_eq!(
-            expected_delegation3,
-            storage::mix_delegations_read(deps.as_ref().storage, &identity)
-                .load("delegator3".as_bytes())
-                .unwrap()
-                .amount
-        );
-        assert_eq!(
-            vec![
-                attr("bond increase", Uint128(0)),
-                attr("total delegation increase", Uint128(0)),
-            ],
-            res.attributes
-        );
-    }
     #[cfg(test)]
     mod multi_delegations {
         use super::*;
+        use crate::mixnodes::delegation_helpers;
         use crate::mixnodes::delegation_queries::tests::store_n_mix_delegations;
         use crate::support::tests::test_helpers;
         use mixnet_contract::IdentityKey;
@@ -974,50 +769,6 @@ mod tests {
                 storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 mix_delegations.count() as u32
             );
-        }
-    }
-    #[cfg(test)]
-    mod finding_old_delegations {
-        use super::*;
-        use crate::mixnodes::delegation_transactions::total_delegations;
-        use crate::support::tests::test_helpers::raw_delegation_fixture;
-        use cosmwasm_std::Addr;
-        #[test]
-        fn when_there_werent_any() {
-            let deps = test_helpers::init_contract();
-            let node_identity: IdentityKey = "nodeidentity".into();
-            let read_bucket = storage::mix_delegations_read(&deps.storage, &node_identity);
-            let old_delegations = total_delegations(read_bucket).unwrap();
-            assert_eq!(Coin::new(0, DENOM), old_delegations);
-        }
-        #[test]
-        fn when_some_existed() {
-            let num_delegations = vec![
-                1,
-                5,
-                OLD_DELEGATIONS_CHUNK_SIZE - 1,
-                OLD_DELEGATIONS_CHUNK_SIZE,
-                OLD_DELEGATIONS_CHUNK_SIZE + 1,
-                OLD_DELEGATIONS_CHUNK_SIZE * 3,
-                OLD_DELEGATIONS_CHUNK_SIZE * 3 + 1,
-            ];
-            for delegations in num_delegations {
-                let mut deps = test_helpers::init_contract();
-                let node_identity: IdentityKey = "nodeidentity".into();
-                // delegate some stake
-                let mut write_bucket = storage::mix_delegations(&mut deps.storage, &node_identity);
-                for i in 1..=delegations {
-                    let delegator = Addr::unchecked(format!("delegator{}", i));
-                    let delegation = raw_delegation_fixture(i as u128);
-                    write_bucket
-                        .save(delegator.as_bytes(), &delegation)
-                        .unwrap();
-                }
-                let read_bucket = storage::mix_delegations_read(&deps.storage, &node_identity);
-                let old_delegations = total_delegations(read_bucket).unwrap();
-                let total_delegation = (1..=delegations as u128).into_iter().sum();
-                assert_eq!(Coin::new(total_delegation, DENOM), old_delegations);
-            }
         }
     }
 }

@@ -102,7 +102,7 @@ pub(crate) mod tests {
 
     #[test]
     fn mixnodes_paged_retrieval_obeys_limits() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         let limit = 2;
         for n in 0..10000 {
             let key = format!("bond{}", n);
@@ -115,7 +115,7 @@ pub(crate) mod tests {
 
     #[test]
     fn mixnodes_paged_retrieval_has_default_limit() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         for n in 0..100 {
             let key = format!("bond{}", n);
             test_helpers::add_mixnode(&key, test_helpers::good_mixnode_bond(), deps.as_mut());
@@ -130,7 +130,7 @@ pub(crate) mod tests {
 
     #[test]
     fn mixnodes_paged_retrieval_has_max_limit() {
-        let mut deps = helpers::init_contract();
+        let mut deps = test_helpers::init_contract();
         for n in 0..10000 {
             let key = format!("bond{}", n);
             test_helpers::add_mixnode(&key, test_helpers::good_mixnode_bond(), deps.as_mut());

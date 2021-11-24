@@ -7,7 +7,8 @@ pub mod test_helpers {
     };
     use crate::gateways::transactions::try_add_gateway;
     use crate::mixnodes::bonding_transactions::try_add_mixnode;
-    use crate::storage::StoredMixnodeBond;
+    use crate::mixnodes::storage as mixnodes_storage;
+    use crate::mixnodes::storage::StoredMixnodeBond;
     use config::defaults::{DENOM, TOTAL_SUPPLY};
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
@@ -15,11 +16,11 @@ pub mod test_helpers {
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
     use cosmwasm_std::testing::MockStorage;
-    use cosmwasm_std::Addr;
     use cosmwasm_std::Coin;
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{coin, Uint128};
     use cosmwasm_std::{from_binary, DepsMut};
+    use cosmwasm_std::{Addr, StdResult, Storage};
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::{
@@ -138,7 +139,7 @@ pub mod test_helpers {
         )
     }
 
-    pub(crate) fn stored_mixnode_bond_fixture() -> StoredMixnodeBond {
+    pub(crate) fn stored_mixnode_bond_fixture() -> mixnodes_storage::StoredMixnodeBond {
         StoredMixnodeBond::new(
             coin(50, DENOM),
             Addr::unchecked("foo"),
@@ -237,7 +238,7 @@ pub mod test_helpers {
         storage: &dyn Storage,
         identity: &[u8],
     ) -> StdResult<cosmwasm_std::Uint128> {
-        let bucket = mixnodes_read(storage);
+        let bucket = mixnodes_storage::mixnodes_read(storage);
         let node = bucket.load(identity)?;
         Ok(node.bond_amount.amount)
     }

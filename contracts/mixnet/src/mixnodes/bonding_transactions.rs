@@ -448,7 +448,7 @@ pub mod tests {
         );
 
         // let's add a node owned by bob
-        test_helpers::add_mixnode("bob", test_helpers::good_mixnode_bond(), &mut deps);
+        test_helpers::add_mixnode("bob", test_helpers::good_mixnode_bond(), deps.as_mut());
 
         // attempt to un-register fred's node, which doesn't exist
         let info = mock_info("fred", &[]);

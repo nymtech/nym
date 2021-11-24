@@ -9,9 +9,6 @@ use mixnet_contract::UnpackedDelegation;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-// TODO: JS: not entirely sure what's the purpose of this guy just yet.
-pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
-
 pub(crate) fn get_all_delegations_paged<T>(
     bucket: &ReadonlyBucket<T>,
     start_after: &Option<Vec<u8>>,
@@ -83,6 +80,10 @@ fn extract_identity_and_owner(bytes: Vec<u8>) -> StdResult<(Addr, IdentityKey)> 
     Ok((owner, identity))
 }
 
+#[cfg(test)]
+pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
+
+#[cfg(test)]
 pub struct Delegations<'a, T: Clone + Serialize + DeserializeOwned> {
     delegations_bucket: ReadonlyBucket<'a, T>,
     curr_delegations: Vec<UnpackedDelegation<T>>,
@@ -104,6 +105,7 @@ impl<'a, T: Clone + Serialize + DeserializeOwned> Delegations<'a, T> {
     }
 }
 
+#[cfg(test)]
 impl<'a, T: Clone + Serialize + DeserializeOwned> Iterator for Delegations<'a, T> {
     type Item = UnpackedDelegation<T>;
 

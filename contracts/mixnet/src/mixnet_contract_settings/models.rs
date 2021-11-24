@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::Addr;
-use mixnet_contract::StateParams;
+use mixnet_contract::ContractSettingsParams;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct State {
+pub struct ContractSettings {
     pub owner: Addr, // only the owner account can update state
     pub rewarding_validator_address: Addr,
-    pub params: StateParams,
+    pub params: ContractSettingsParams,
 
     // keep track of the changes to the current rewarding interval,
     // i.e. at which block has the latest rewarding occurred

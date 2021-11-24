@@ -158,7 +158,7 @@ impl Rewarder {
         // and the lack of port data / verloc data will eventually be balanced out anyway
         // by people hesitating to delegate to nodes without them and thus those nodes disappearing
         // from the active set (once introduced)
-        let state = self.nymd_client.get_state_params().await?;
+        let state = self.nymd_client.get_contract_settings().await?;
 
         let reward_pool = self.nymd_client.get_reward_pool().await?;
         let circulating_supply = self.nymd_client.get_circulating_supply().await?;

@@ -3,9 +3,9 @@
 
 pub mod contract;
 pub mod error;
-pub(crate) mod helpers;
-pub mod queries;
-pub mod state;
-pub(crate) mod storage;
+pub mod gateways;
+pub mod mixnet_contract_settings;
+pub mod mixnodes;
+pub mod query_support;
+mod rewards;
 pub mod support;
-pub mod transactions;

@@ -1,12 +1,14 @@
 #[cfg(test)]
-pub mod helpers {
+pub mod test_helpers {
     use super::*;
     use crate::contract::{instantiate, INITIAL_MIXNODE_BOND};
     use crate::contract::{
         query, DEFAULT_SYBIL_RESISTANCE_PERCENT, EPOCH_REWARD_PERCENT, INITIAL_REWARD_POOL,
     };
-    use crate::storage::StoredMixnodeBond;
-    use crate::transactions::{try_add_gateway, try_add_mixnode};
+    use crate::gateways::transactions::try_add_gateway;
+    use crate::mixnodes::bonding_transactions::try_add_mixnode;
+    use crate::mixnodes::storage as mixnodes_storage;
+    use crate::mixnodes::storage::StoredMixnodeBond;
     use config::defaults::{DENOM, TOTAL_SUPPLY};
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
@@ -14,11 +16,11 @@ pub mod helpers {
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
     use cosmwasm_std::testing::MockStorage;
-    use cosmwasm_std::Addr;
     use cosmwasm_std::Coin;
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{coin, Uint128};
     use cosmwasm_std::{from_binary, DepsMut};
+    use cosmwasm_std::{Addr, StdResult, Storage};
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::{
@@ -35,7 +37,7 @@ pub mod helpers {
             info,
             MixNode {
                 identity_key: key.clone(),
-                ..helpers::mix_node_fixture()
+                ..test_helpers::mix_node_fixture()
             },
         )
         .unwrap();
@@ -72,7 +74,7 @@ pub mod helpers {
             info,
             Gateway {
                 identity_key: key.clone(),
-                ..helpers::gateway_fixture()
+                ..test_helpers::gateway_fixture()
             },
         )
         .unwrap();
@@ -102,7 +104,7 @@ pub mod helpers {
         let env = mock_env();
         let info = mock_info("creator", &[]);
         instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
-        return deps;
+        deps
     }
 
     pub fn mix_node_fixture() -> MixNode {
@@ -137,7 +139,7 @@ pub mod helpers {
         )
     }
 
-    pub(crate) fn stored_mixnode_bond_fixture() -> StoredMixnodeBond {
+    pub(crate) fn stored_mixnode_bond_fixture() -> mixnodes_storage::StoredMixnodeBond {
         StoredMixnodeBond::new(
             coin(50, DENOM),
             Addr::unchecked("foo"),
@@ -210,5 +212,25 @@ pub mod helpers {
             uptime,
             DEFAULT_SYBIL_RESISTANCE_PERCENT,
         )
+    }
+
+    // Converts the node identity and owner of a delegation into the bytes used as
+    // key in the delegation buckets. Basically a helper function.
+    pub(crate) fn identity_and_owner_to_bytes(identity: &str, owner: &Addr) -> Vec<u8> {
+        let mut bytes = u16::to_be_bytes(identity.len() as u16).to_vec();
+        bytes.append(&mut identity.as_bytes().to_vec());
+        bytes.append(&mut owner.as_bytes().to_vec());
+
+        bytes
+    }
+
+    // currently not used outside tests
+    pub(crate) fn read_mixnode_bond_amount(
+        storage: &dyn Storage,
+        identity: &[u8],
+    ) -> StdResult<cosmwasm_std::Uint128> {
+        let bucket = mixnodes_storage::mixnodes_read(storage);
+        let node = bucket.load(identity)?;
+        Ok(node.bond_amount.amount)
     }
 }

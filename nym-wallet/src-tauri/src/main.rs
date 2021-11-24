@@ -5,7 +5,7 @@
 
 use mixnet_contract::{Gateway, MixNode};
 use std::sync::Arc;
-use tauri::{Menu};
+use tauri::Menu;
 use tokio::sync::RwLock;
 use validator_client::nymd::fee_helpers::Operation;
 
@@ -56,8 +56,8 @@ fn main() {
       send,
       create_new_account,
       get_fee,
-      get_state_params,
-      update_state_params,
+      get_contract_settings,
+      update_contract_settings,
       get_reverse_mix_delegations_paged,
     ])
     .menu(Menu::new().add_default_app_submenu_if_macos())
@@ -78,6 +78,6 @@ mod test {
     crate::Denom => "../src/types/rust/denom.ts",
     crate::DelegationResult => "../src/types/rust/delegationresult.ts",
     crate::Account => "../src/types/rust/account.ts",
-    crate::TauriStateParams => "../src/types/rust/stateparams.ts"
+    crate::TauriContractSettingsParams => "../src/types/rust/stateparams.ts"
   }
 }

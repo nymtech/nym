@@ -4,7 +4,9 @@
 use crate::nymd_client::Client;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;
-use mixnet_contract::{GatewayBond, MixNodeBond, RewardingIntervalResponse, StateParams};
+use mixnet_contract::{
+    ContractSettingsParams, GatewayBond, MixNodeBond, RewardingIntervalResponse,
+};
 use rand::prelude::SliceRandom;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha20Rng;
@@ -93,7 +95,7 @@ impl<C> ValidatorCacheRefresher<C> {
             self.nymd_client.get_gateways(),
         )?;
 
-        let state_params = self.nymd_client.get_state_params().await?;
+        let contract_settings = self.nymd_client.get_contract_settings().await?;
         let current_rewarding_interval = self.nymd_client.get_current_rewarding_interval().await?;
         let rewarding_block_hash = self
             .nymd_client
@@ -112,7 +114,7 @@ impl<C> ValidatorCacheRefresher<C> {
             .update_cache(
                 mixnodes,
                 gateways,
-                state_params,
+                contract_settings,
                 current_rewarding_interval,
                 rewarding_block_hash,
             )
@@ -222,7 +224,7 @@ impl ValidatorCache {
         &self,
         mixnodes: Vec<MixNodeBond>,
         gateways: Vec<GatewayBond>,
-        state: StateParams,
+        state: ContractSettingsParams,
         rewarding_interval: RewardingIntervalResponse,
         rewarding_block_hash: Option<[u8; SHA256_HASH_SIZE]>,
     ) {

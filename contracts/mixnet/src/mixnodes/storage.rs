@@ -211,12 +211,12 @@ pub fn reverse_mix_delegations_read<'a>(
 mod tests {
     use super::super::storage;
     use super::*;
+    use crate::mixnodes::bonding_transactions::try_add_mixnode;
     use crate::support::tests::test_helpers;
     use config::defaults::DENOM;
-    use cosmwasm_std::testing::{mock_dependencies, MockStorage};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockStorage};
     use cosmwasm_std::{coin, Addr, Uint128};
     use mixnet_contract::IdentityKey;
-    use mixnet_contract::Layer;
     use mixnet_contract::MixNode;
     use mixnet_contract::RawDelegationData;
 
@@ -236,36 +236,32 @@ mod tests {
 
     #[test]
     fn reading_mixnode_bond() {
-        let mut storage = MockStorage::new();
+        let mut deps = test_helpers::init_contract();
         let node_owner: Addr = Addr::unchecked("node-owner");
         let node_identity: IdentityKey = "nodeidentity".into();
 
-        // produces an error if target mixnode doesn't exist
-        let res = storage::read_mixnode_bond(&storage, node_owner.as_str());
-        assert!(res.is_err());
+        // produces a None if target mixnode doesn't exist
+        let res = storage::read_mixnode_bond(deps.as_ref().storage, node_owner.as_str()).unwrap();
+        assert!(res.is_none());
 
         // returns appropriate value otherwise
-        let bond_value = 1000;
+        let bond_value = 1000000000;
 
-        let mixnode_bond = StoredMixnodeBond {
-            bond_amount: coin(bond_value, DENOM),
-            owner: node_owner.clone(),
-            layer: Layer::One,
-            block_height: 12_345,
-            mix_node: MixNode {
-                identity_key: node_identity.clone(),
-                ..test_helpers::mix_node_fixture()
-            },
-            profit_margin_percent: Some(10),
+        let mixnode = MixNode {
+            identity_key: node_identity.clone(),
+            ..test_helpers::mix_node_fixture()
         };
 
-        storage::mixnodes(&mut storage)
-            .save(node_identity.as_bytes(), &mixnode_bond)
-            .unwrap();
+        let info = mock_info(node_owner.as_str(), &vec![coin(bond_value, DENOM)]);
+        try_add_mixnode(deps.as_mut(), mock_env(), info, mixnode).unwrap();
 
         assert_eq!(
             Uint128(bond_value),
-            test_helpers::read_mixnode_bond_amount(&storage, node_identity.as_bytes()).unwrap()
+            storage::read_mixnode_bond(deps.as_ref().storage, node_identity.as_str())
+                .unwrap()
+                .unwrap()
+                .bond_amount
+                .amount
         );
     }
 

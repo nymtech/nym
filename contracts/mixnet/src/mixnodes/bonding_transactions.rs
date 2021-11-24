@@ -493,7 +493,7 @@ pub mod tests {
             attr(
                 "mixnode_bond",
                 format!(
-                    "amount: {} {}, owner: fred, identity: fredsmixnode",
+                    "amount: {}{}, owner: fred, identity: fredsmixnode",
                     INITIAL_MIXNODE_BOND, DENOM
                 ),
             ),
@@ -506,7 +506,7 @@ pub mod tests {
         }
         .into()];
 
-        // run the executer and check that we got back the correct results
+        // run the executor and check that we got back the correct results
         let expected = Response {
             submessages: Vec::new(),
             messages: expected_messages,

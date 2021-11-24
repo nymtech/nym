@@ -1,19 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract::INITIAL_REWARD_POOL;
-use crate::error::ContractError;
-use crate::rewards::storage as rewards_storage;
-use config::defaults::{DENOM, TOTAL_SUPPLY};
-use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
-use cosmwasm_storage::{
-    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
-    Singleton,
-};
-use mixnet_contract::mixnode::NodeRewardParams;
+use config::defaults::DENOM;
+use cosmwasm_std::{StdResult, Storage, Uint128};
+use cosmwasm_storage::{bucket, bucket_read, Bucket, ReadonlyBucket};
 use mixnet_contract::{
-    Addr, Coin, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNode,
-    MixNodeBond, RawDelegationData, RewardingStatus,
+    Addr, Coin, IdentityKey, IdentityKeyRef, Layer, MixNode, MixNodeBond, RawDelegationData,
+    RewardingStatus,
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};

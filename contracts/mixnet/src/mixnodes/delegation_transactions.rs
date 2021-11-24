@@ -1,10 +1,10 @@
-use super::delegation_helpers;
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use super::storage;
 use crate::error::ContractError;
-
 use config::defaults::DENOM;
-use cosmwasm_std::{coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, StdResult};
-use cosmwasm_storage::ReadonlyBucket;
+use cosmwasm_std::{coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract::IdentityKey;
 use mixnet_contract::RawDelegationData;
 

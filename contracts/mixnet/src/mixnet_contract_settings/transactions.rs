@@ -1,7 +1,8 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use super::storage;
 use crate::error::ContractError;
-use crate::rewards::helpers::calculate_epoch_reward_rate;
-use cosmwasm_std::Decimal;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;

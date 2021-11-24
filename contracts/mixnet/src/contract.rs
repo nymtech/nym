@@ -15,7 +15,6 @@ use crate::mixnodes::delegation_queries::query_all_mixnode_delegations_paged;
 use crate::mixnodes::delegation_queries::query_mixnode_delegation;
 use crate::mixnodes::delegation_queries::query_reverse_mixnode_delegations_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
-use crate::rewards::helpers as rewards_helpers;
 use crate::rewards::queries::query_reward_pool;
 use crate::rewards::queries::{query_circulating_supply, query_rewarding_status};
 use config::defaults::REWARDING_VALIDATOR_ADDRESS;

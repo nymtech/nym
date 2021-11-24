@@ -1,13 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract::INITIAL_REWARD_POOL;
-use crate::error::ContractError;
 use crate::mixnet_contract_settings::models::ContractSettings;
-use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Storage;
-use cosmwasm_std::Uint128;
 use cosmwasm_storage::singleton;
 use cosmwasm_storage::singleton_read;
 use cosmwasm_storage::ReadonlySingleton;

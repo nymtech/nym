@@ -1,3 +1,6 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use super::storage;
 use crate::error::ContractError;
 use crate::gateways::storage as gateways_storage;
@@ -6,7 +9,7 @@ use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::mixnodes::storage::StoredMixnodeBond;
 use config::defaults::DENOM;
 use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
-use mixnet_contract::{MixNode, MixNodeBond};
+use mixnet_contract::MixNode;
 
 pub(crate) fn try_add_mixnode(
     deps: DepsMut,

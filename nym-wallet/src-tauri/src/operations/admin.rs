@@ -1,22 +1,17 @@
 use crate::format_err;
 use crate::state::State;
-use cosmwasm_std::Decimal;
 use cosmwasm_std::Uint128;
 use mixnet_contract::ContractSettingsParams;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
-use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Serialize, Deserialize)]
 pub struct TauriContractSettingsParams {
-  epoch_length: u32,
   minimum_mixnode_bond: String,
   minimum_gateway_bond: String,
-  mixnode_bond_reward_rate: String,
-  mixnode_delegation_reward_rate: String,
   mixnode_rewarded_set_size: u32,
   mixnode_active_set_size: u32,
 }
@@ -24,11 +19,8 @@ pub struct TauriContractSettingsParams {
 impl From<ContractSettingsParams> for TauriContractSettingsParams {
   fn from(p: ContractSettingsParams) -> TauriContractSettingsParams {
     TauriContractSettingsParams {
-      epoch_length: p.epoch_length,
       minimum_mixnode_bond: p.minimum_mixnode_bond.to_string(),
       minimum_gateway_bond: p.minimum_gateway_bond.to_string(),
-      mixnode_bond_reward_rate: p.mixnode_bond_reward_rate.to_string(),
-      mixnode_delegation_reward_rate: p.mixnode_delegation_reward_rate.to_string(),
       mixnode_rewarded_set_size: p.mixnode_rewarded_set_size,
       mixnode_active_set_size: p.mixnode_active_set_size,
     }
@@ -40,11 +32,8 @@ impl TryFrom<TauriContractSettingsParams> for ContractSettingsParams {
 
   fn try_from(p: TauriContractSettingsParams) -> Result<ContractSettingsParams, Self::Error> {
     Ok(ContractSettingsParams {
-      epoch_length: p.epoch_length,
       minimum_mixnode_bond: Uint128::try_from(p.minimum_mixnode_bond.as_str())?,
       minimum_gateway_bond: Uint128::try_from(p.minimum_gateway_bond.as_str())?,
-      mixnode_bond_reward_rate: Decimal::from_str(p.mixnode_bond_reward_rate.as_str())?,
-      mixnode_delegation_reward_rate: Decimal::from_str(p.mixnode_delegation_reward_rate.as_str())?,
       mixnode_rewarded_set_size: p.mixnode_rewarded_set_size,
       mixnode_active_set_size: p.mixnode_active_set_size,
     })

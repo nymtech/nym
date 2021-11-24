@@ -3,6 +3,7 @@ use crate::error::ContractError;
 use crate::gateways::storage as gateways_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::layer_queries::query_layer_distribution;
+use crate::mixnodes::storage::StoredMixnodeBond;
 use config::defaults::DENOM;
 use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::{MixNode, MixNodeBond};
@@ -52,7 +53,7 @@ pub(crate) fn try_add_mixnode(
     let layer_distribution = query_layer_distribution(deps.as_ref());
     let layer = layer_distribution.choose_with_fewest();
 
-    let mut bond = MixNodeBond::new(
+    let stored_bond = StoredMixnodeBond::new(
         info.funds[0].clone(),
         info.sender.clone(),
         layer,
@@ -61,18 +62,14 @@ pub(crate) fn try_add_mixnode(
         None,
     );
 
-    // this might potentially require more gas if a significant number of delegations was there
-    let delegations_bucket =
-        storage::mix_delegations_read(deps.storage, &bond.mix_node.identity_key);
-    let existing_delegation =
-        crate::mixnodes::delegation_transactions::total_delegations(delegations_bucket)?;
-    bond.total_delegation = existing_delegation;
+    let identity = stored_bond.identity();
 
-    let identity = bond.identity();
-
-    storage::mixnodes(deps.storage).save(identity.as_bytes(), &bond)?;
+    // technically we don't have to set the total_delegation bucket, but it makes things easier
+    // in different places that we can guarantee that if node exists, so does the data behind the total delegation
+    storage::mixnodes(deps.storage).save(identity.as_bytes(), &stored_bond)?;
     storage::mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
-    mixnet_params_storage::increment_layer_count(deps.storage, bond.layer)?;
+    storage::total_delegation(deps.storage).save(identity.as_bytes(), &Uint128::zero())?;
+    mixnet_params_storage::increment_layer_count(deps.storage, stored_bond.layer)?;
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {

@@ -1,14 +1,16 @@
-use crate::mixnodes::delegation_transactions::OLD_DELEGATIONS_CHUNK_SIZE;
-use cosmwasm_std::Addr;
-use cosmwasm_std::Order;
-use cosmwasm_std::StdError;
-use cosmwasm_std::StdResult;
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use cosmwasm_std::{Addr, Order, StdError, StdResult};
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::IdentityKey;
 use mixnet_contract::PagedAllDelegationsResponse;
 use mixnet_contract::UnpackedDelegation;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+
+// TODO: JS: not entirely sure what's the purpose of this guy just yet.
+pub(crate) const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 
 pub(crate) fn get_all_delegations_paged<T>(
     bucket: &ReadonlyBucket<T>,
@@ -89,6 +91,7 @@ pub struct Delegations<'a, T: Clone + Serialize + DeserializeOwned> {
     last_page: bool,
 }
 
+#[cfg(test)]
 impl<'a, T: Clone + Serialize + DeserializeOwned> Delegations<'a, T> {
     pub fn new(delegations_bucket: ReadonlyBucket<'a, T>) -> Self {
         Delegations {
@@ -139,6 +142,7 @@ mod tests {
     use crate::mixnodes::delegation_queries::tests::store_n_mix_delegations;
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::support::tests::test_helpers;
+    use crate::support::tests::test_helpers::identity_and_owner_to_bytes;
     use cosmwasm_std::testing::mock_dependencies;
     use mixnet_contract::RawDelegationData;
 
@@ -187,6 +191,28 @@ mod tests {
             delegations.next().unwrap();
         }
         assert!(delegations.next().is_none());
+    }
+
+    #[test]
+    fn identity_and_owner_deserialization() {
+        assert!(extract_identity_and_owner(vec![]).is_err());
+        assert!(extract_identity_and_owner(vec![0]).is_err());
+        let (owner, identity) = extract_identity_and_owner(vec![
+            0, 7, 109, 105, 120, 110, 111, 100, 101, 97, 108, 105, 99, 101,
+        ])
+        .unwrap();
+        assert_eq!(owner, "alice");
+        assert_eq!(identity, "mixnode");
+    }
+
+    #[test]
+    fn identity_and_owner_serialization() {
+        let identity: IdentityKey = "gateway".into();
+        let owner = Addr::unchecked("bob");
+        assert_eq!(
+            vec![0, 7, 103, 97, 116, 101, 119, 97, 121, 98, 111, 98],
+            identity_and_owner_to_bytes(&identity, &owner)
+        );
     }
 
     #[test]

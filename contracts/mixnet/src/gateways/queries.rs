@@ -102,13 +102,16 @@ pub(crate) mod tests {
 
     #[test]
     fn gateway_pagination_works() {
-        let addr1 = "hal100";
-        let addr2 = "hal101";
-        let addr3 = "hal102";
-        let addr4 = "hal103";
+        let addr1 = "nym100";
+        let addr2 = "nym101";
+        let addr3 = "nym102";
+        let addr4 = "nym103";
 
         let mut deps = test_helpers::init_contract();
         let node = test_helpers::gateway_bond_fixture();
+
+        // TODO: note for JS when doing a deep review for the contract: add a similar test_helper as there is for mixnodes,
+        // i.e. don't interact with storage here, but get the helper to call an actual transaction
         storage::gateways(&mut deps.storage)
             .save(addr1.as_bytes(), &node)
             .unwrap();

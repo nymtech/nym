@@ -1,8 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::mixnode::DelegatorRewardParams;
 use crate::Layer;
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
@@ -35,13 +36,12 @@ pub struct RewardingIntervalResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ContractSettingsParams {
-    pub epoch_length: u32, // length of a rewarding epoch/interval, expressed in hours
-
+    // so currently epoch_length is being unused and validator API performs rewarding
+    // based on its own epoch length config value. I guess that's fine for time being
+    // however, in the future, the contract constant should be controlling it instead.
+    // pub epoch_length: u32, // length of a rewarding epoch/interval, expressed in hours
     pub minimum_mixnode_bond: Uint128, // minimum amount a mixnode must bond to get into the system
     pub minimum_gateway_bond: Uint128, // minimum amount a gateway must bond to get into the system
-
-    pub mixnode_bond_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
-    pub mixnode_delegation_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
 
     // number of mixnode that are going to get rewarded during current rewarding interval (k_m)
     // based on overall demand for private bandwidth-
@@ -55,19 +55,8 @@ pub struct ContractSettingsParams {
 impl Display for ContractSettingsParams {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "Contract state parameters: [ ")?;
-        write!(f, "epoch length: {}; ", self.epoch_length)?;
         write!(f, "minimum mixnode bond: {}; ", self.minimum_mixnode_bond)?;
         write!(f, "minimum gateway bond: {}; ", self.minimum_gateway_bond)?;
-        write!(
-            f,
-            "mixnode bond reward rate: {}; ",
-            self.mixnode_bond_reward_rate
-        )?;
-        write!(
-            f,
-            "mixnode delegation reward rate: {}; ",
-            self.mixnode_delegation_reward_rate
-        )?;
         write!(
             f,
             "mixnode rewarded set size: {}",
@@ -79,6 +68,33 @@ impl Display for ContractSettingsParams {
             self.mixnode_active_set_size
         )
     }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct RewardingResult {
+    pub operator_reward: Uint128,
+    pub total_delegator_reward: Uint128,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PendingDelegatorRewarding {
+    // keep track of the running rewarding results so we'd known how much was the operator and its delegators rewarded
+    pub running_results: RewardingResult,
+
+    pub next_start: String,
+
+    pub rewarding_params: DelegatorRewardParams,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum RewardingStatus {
+    Complete(RewardingResult),
+    PendingNextDelegatorPage(PendingDelegatorRewarding),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MixnodeRewardingStatusResponse {
+    pub status: Option<RewardingStatus>,
 }
 
 // type aliases for better reasoning about available data

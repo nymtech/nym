@@ -1,22 +1,23 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::contract::INITIAL_REWARD_POOL;
 use crate::error::ContractError;
-use crate::rewards::transactions::MINIMUM_BLOCK_AGE_FOR_REWARDING;
-use cosmwasm_std::Addr;
-use cosmwasm_std::Decimal;
-use cosmwasm_std::Order;
-use cosmwasm_std::StdResult;
-use cosmwasm_std::Storage;
-use cosmwasm_std::Uint128;
-use cosmwasm_storage::bucket;
-use cosmwasm_storage::bucket_read;
-use cosmwasm_storage::Bucket;
-use cosmwasm_storage::ReadonlyBucket;
+use crate::rewards::storage as rewards_storage;
+use config::defaults::{DENOM, TOTAL_SUPPLY};
+use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
+use cosmwasm_storage::{
+    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
+    Singleton,
+};
 use mixnet_contract::mixnode::NodeRewardParams;
-use mixnet_contract::IdentityKey;
-use mixnet_contract::IdentityKeyRef;
-use mixnet_contract::MixNodeBond;
-use mixnet_contract::RawDelegationData;
+use mixnet_contract::{
+    Addr, Coin, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNode,
+    MixNodeBond, RawDelegationData, RewardingStatus,
+};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 // storage prefixes
 const PREFIX_MIXNODES: &[u8] = b"mn";
@@ -27,16 +28,83 @@ pub const PREFIX_REWARDED_MIXNODES: &[u8] = b"rm";
 
 // paged retrieval limits for all queries and transactions
 // currently the maximum limit before running into memory issue is somewhere between 1150 and 1200
-pub(crate) const DELEGATION_PAGE_MAX_LIMIT: u32 = 750;
-pub(crate) const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 500;
-pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 100;
+pub(crate) const DELEGATION_PAGE_MAX_LIMIT: u32 = 500;
+pub(crate) const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 250;
+pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;
 pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
-pub fn mixnodes(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
+const PREFIX_TOTAL_DELEGATION: &[u8] = b"td";
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub(crate) struct StoredMixnodeBond {
+    pub bond_amount: Coin,
+    pub owner: Addr,
+    pub layer: Layer,
+    pub block_height: u64,
+    pub mix_node: MixNode,
+    pub profit_margin_percent: Option<u8>,
+}
+
+impl StoredMixnodeBond {
+    pub(crate) fn new(
+        bond_amount: Coin,
+        owner: Addr,
+        layer: Layer,
+        block_height: u64,
+        mix_node: MixNode,
+        profit_margin_percent: Option<u8>,
+    ) -> Self {
+        StoredMixnodeBond {
+            bond_amount,
+            owner,
+            layer,
+            block_height,
+            mix_node,
+            profit_margin_percent,
+        }
+    }
+
+    pub(crate) fn attach_delegation(self, total_delegation: Uint128) -> MixNodeBond {
+        MixNodeBond {
+            total_delegation: Coin {
+                denom: self.bond_amount.denom.clone(),
+                amount: total_delegation,
+            },
+            bond_amount: self.bond_amount,
+            owner: self.owner,
+            layer: self.layer,
+            block_height: self.block_height,
+            mix_node: self.mix_node,
+            profit_margin_percent: self.profit_margin_percent,
+        }
+    }
+
+    pub(crate) fn identity(&self) -> &String {
+        &self.mix_node.identity_key
+    }
+
+    pub(crate) fn bond_amount(&self) -> Coin {
+        self.bond_amount.clone()
+    }
+}
+
+impl Display for StoredMixnodeBond {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "amount: {}, owner: {}, identity: {}",
+            self.bond_amount, self.owner, self.mix_node.identity_key
+        )
+    }
+}
+
+// Mixnode-related stuff
+
+pub(crate) fn mixnodes(storage: &mut dyn Storage) -> Bucket<StoredMixnodeBond> {
     bucket(storage, PREFIX_MIXNODES)
 }
 
-pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
+pub(crate) fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<StoredMixnodeBond> {
     bucket_read(storage, PREFIX_MIXNODES)
 }
 
@@ -49,10 +117,21 @@ pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey
     bucket_read(storage, PREFIX_MIXNODES_OWNERS)
 }
 
+pub fn total_delegation(storage: &mut dyn Storage) -> Bucket<Uint128> {
+    bucket(storage, PREFIX_TOTAL_DELEGATION)
+}
+
+pub fn total_delegation_read(storage: &dyn Storage) -> ReadonlyBucket<Uint128> {
+    bucket_read(storage, PREFIX_TOTAL_DELEGATION)
+}
+
 // we want to treat this bucket as a set so we don't really care about what type of data is being stored.
 // I went with u8 as after serialization it takes only a single byte of space, while if a `()` was used,
 // it would have taken 4 bytes (representation of 'null')
-pub fn rewarded_mixnodes(storage: &mut dyn Storage, rewarding_interval_nonce: u32) -> Bucket<u8> {
+pub(crate) fn rewarded_mixnodes(
+    storage: &mut dyn Storage,
+    rewarding_interval_nonce: u32,
+) -> Bucket<RewardingStatus> {
     Bucket::multilevel(
         storage,
         &[
@@ -62,13 +141,10 @@ pub fn rewarded_mixnodes(storage: &mut dyn Storage, rewarding_interval_nonce: u3
     )
 }
 
-// we want to treat this bucket as a set so we don't really care about what type of data is being stored.
-// I went with u8 as after serialization it takes only a single byte of space, while if a `()` was used,
-// it would have taken 4 bytes (representation of 'null')
-pub fn rewarded_mixnodes_read(
+pub(crate) fn rewarded_mixnodes_read(
     storage: &dyn Storage,
     rewarding_interval_nonce: u32,
-) -> ReadonlyBucket<u8> {
+) -> ReadonlyBucket<RewardingStatus> {
     ReadonlyBucket::multilevel(
         storage,
         &[
@@ -78,125 +154,30 @@ pub fn rewarded_mixnodes_read(
     )
 }
 
-// helpers
-pub(crate) fn increase_mix_delegated_stakes(
-    storage: &mut dyn Storage,
-    mix_identity: IdentityKeyRef,
-    scaled_reward_rate: Decimal,
-    reward_blockstamp: u64,
-) -> StdResult<Uint128> {
-    let chunk_size = DELEGATION_PAGE_MAX_LIMIT as usize;
-
-    let mut total_rewarded = Uint128::zero();
-    let mut chunk_start: Option<Vec<_>> = None;
-    loop {
-        // get `chunk_size` of delegations
-        let delegations_chunk = mix_delegations_read(storage, mix_identity)
-            .range(chunk_start.as_deref(), None, Order::Ascending)
-            .take(chunk_size)
-            .collect::<StdResult<Vec<_>>>()?;
-
-        if delegations_chunk.is_empty() {
-            break;
-        }
-
-        // append 0 byte to the last value to start with whatever is the next succeeding key
-        chunk_start = Some(
-            delegations_chunk
-                .last()
-                .unwrap()
-                .0
-                .iter()
-                .cloned()
-                .chain(std::iter::once(0u8))
-                .collect(),
-        );
-
-        // and for each of them increase the stake proportionally to the reward
-        // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
-        // since they delegated
-        for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
-            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING <= reward_blockstamp {
-                let reward = delegation.amount * scaled_reward_rate;
-                delegation.amount += reward;
-                total_rewarded += reward;
-                mix_delegations(storage, mix_identity).save(&delegator_address, &delegation)?;
-            }
-        }
-    }
-
-    Ok(total_rewarded)
-}
-
-pub(crate) fn increase_mix_delegated_stakes_v2(
-    storage: &mut dyn Storage,
-    bond: &MixNodeBond,
-    params: &NodeRewardParams,
-) -> Result<Uint128, ContractError> {
-    let chunk_size = DELEGATION_PAGE_MAX_LIMIT as usize;
-
-    let mut total_rewarded = Uint128::zero();
-    let mut chunk_start: Option<Vec<_>> = None;
-    loop {
-        // get `chunk_size` of delegations
-        let delegations_chunk = mix_delegations_read(storage, bond.identity())
-            .range(chunk_start.as_deref(), None, Order::Ascending)
-            .take(chunk_size)
-            .collect::<StdResult<Vec<_>>>()?;
-
-        if delegations_chunk.is_empty() {
-            break;
-        }
-
-        // append 0 byte to the last value to start with whatever is the next succeeding key
-        chunk_start = Some(
-            delegations_chunk
-                .last()
-                .unwrap()
-                .0
-                .iter()
-                .cloned()
-                .chain(std::iter::once(0u8))
-                .collect(),
-        );
-
-        // and for each of them increase the stake proportionally to the reward
-        // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
-        // since they delegated
-        for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
-            if delegation.block_height + MINIMUM_BLOCK_AGE_FOR_REWARDING
-                <= params.reward_blockstamp()
-            {
-                let reward = bond.reward_delegation(delegation.amount, params);
-                delegation.amount += Uint128(reward);
-                total_rewarded += Uint128(reward);
-                mix_delegations(storage, bond.identity()).save(&delegator_address, &delegation)?;
-            }
-        }
-    }
-
-    Ok(total_rewarded)
-}
-// currently not used outside tests
-#[cfg(test)]
 pub(crate) fn read_mixnode_bond(
     storage: &dyn Storage,
-    identity: &[u8],
-) -> StdResult<cosmwasm_std::Uint128> {
-    let bucket = mixnodes_read(storage);
-    let node = bucket.load(identity)?;
-    Ok(node.bond_amount.amount)
-}
-
-// currently not used outside tests
-#[cfg(test)]
-pub(crate) fn read_mixnode_delegation(
-    storage: &dyn Storage,
-    identity: &[u8],
-) -> StdResult<cosmwasm_std::Uint128> {
-    let bucket = mixnodes_read(storage);
-    let node = bucket.load(identity)?;
-    Ok(node.total_delegation.amount)
+    mix_identity: IdentityKeyRef,
+) -> StdResult<Option<MixNodeBond>> {
+    let stored_bond = mixnodes_read(storage).may_load(mix_identity.as_bytes())?;
+    match stored_bond {
+        None => Ok(None),
+        Some(stored_bond) => {
+            let total_delegation =
+                total_delegation_read(storage).may_load(mix_identity.as_bytes())?;
+            Ok(Some(MixNodeBond {
+                bond_amount: stored_bond.bond_amount,
+                total_delegation: Coin {
+                    denom: DENOM.to_owned(),
+                    amount: total_delegation.unwrap_or_default(),
+                },
+                owner: stored_bond.owner,
+                layer: stored_bond.layer,
+                block_height: stored_bond.block_height,
+                mix_node: stored_bond.mix_node,
+                profit_margin_percent: stored_bond.profit_margin_percent,
+            }))
+        }
+    }
 }
 
 // delegation related
@@ -221,6 +202,7 @@ pub fn mix_delegations_read<'a>(
     ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
 }
 
+// TODO: note for JS when doing a deep review for the contract. Don't store it as (), instead do it as u8
 pub fn reverse_mix_delegations<'a>(storage: &'a mut dyn Storage, owner: &Addr) -> Bucket<'a, ()> {
     Bucket::multilevel(storage, &[PREFIX_REVERSE_MIX_DELEGATION, owner.as_bytes()])
 }
@@ -236,27 +218,24 @@ pub fn reverse_mix_delegations_read<'a>(
 mod tests {
     use super::super::storage;
     use super::*;
+    use crate::helpers::identity_and_owner_to_bytes;
     use crate::support::tests::test_helpers;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, MockStorage};
     use cosmwasm_std::{coin, Addr, Uint128};
-    use mixnet_contract::IdentityKey;
     use mixnet_contract::Layer;
     use mixnet_contract::MixNode;
     use mixnet_contract::MixNodeBond;
     use mixnet_contract::RawDelegationData;
+    use mixnet_contract::{Gateway, IdentityKey};
 
     #[test]
     fn mixnode_single_read_retrieval() {
         let mut storage = MockStorage::new();
-        let bond1 = test_helpers::mixnode_bond_fixture();
-        let bond2 = test_helpers::mixnode_bond_fixture();
-        storage::mixnodes(&mut storage)
-            .save(b"bond1", &bond1)
-            .unwrap();
-        storage::mixnodes(&mut storage)
-            .save(b"bond2", &bond2)
-            .unwrap();
+        let bond1 = test_helpers::stored_mixnode_bond_fixture();
+        let bond2 = test_helpers::stored_mixnode_bond_fixture();
+        mixnodes(&mut storage).save(b"bond1", &bond1).unwrap();
+        mixnodes(&mut storage).save(b"bond2", &bond2).unwrap();
 
         let res1 = storage::mixnodes_read(&storage).load(b"bond1").unwrap();
         let res2 = storage::mixnodes_read(&storage).load(b"bond2").unwrap();
@@ -277,9 +256,8 @@ mod tests {
         // returns appropriate value otherwise
         let bond_value = 1000;
 
-        let mixnode_bond = MixNodeBond {
+        let mixnode_bond = StoredMixnodeBond {
             bond_amount: coin(bond_value, DENOM),
-            total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
             layer: Layer::One,
             block_height: 12_345,
@@ -296,7 +274,7 @@ mod tests {
 
         assert_eq!(
             Uint128(bond_value),
-            storage::read_mixnode_bond(&storage, node_identity.as_bytes()).unwrap()
+            read_mixnode_bond_amount(&storage, node_identity.as_bytes()).unwrap()
         );
     }
 

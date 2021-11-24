@@ -1,12 +1,14 @@
 #[cfg(test)]
 pub mod test_helpers {
     use super::*;
-    use crate::contract::query;
     use crate::contract::{instantiate, INITIAL_MIXNODE_BOND};
+    use crate::contract::{
+        query, DEFAULT_SYBIL_RESISTANCE_PERCENT, EPOCH_REWARD_PERCENT, INITIAL_REWARD_POOL,
+    };
     use crate::gateways::transactions::try_add_gateway;
     use crate::mixnodes::bonding_transactions::try_add_mixnode;
-    use config::defaults::DENOM;
-    use cosmwasm_std::from_binary;
+    use crate::storage::StoredMixnodeBond;
+    use config::defaults::{DENOM, TOTAL_SUPPLY};
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::mock_info;
@@ -17,21 +19,19 @@ pub mod test_helpers {
     use cosmwasm_std::Coin;
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{coin, Uint128};
+    use cosmwasm_std::{from_binary, DepsMut};
     use cosmwasm_std::{Empty, MemoryStorage};
+    use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::{
-        Gateway, GatewayBond, InstantiateMsg, Layer, MixNode, MixNodeBond, PagedGatewayResponse,
-        PagedMixnodeResponse, QueryMsg, RawDelegationData,
+        Gateway, GatewayBond, IdentityKey, InstantiateMsg, Layer, MixNode, MixNodeBond,
+        PagedGatewayResponse, PagedMixnodeResponse, QueryMsg, RawDelegationData,
     };
 
-    pub fn add_mixnode(
-        sender: &str,
-        stake: Vec<Coin>,
-        deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) -> String {
+    pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
         let info = mock_info(sender, &stake);
         let key = format!("{}mixnode", sender);
         try_add_mixnode(
-            deps.as_mut(),
+            deps,
             mock_env(),
             info,
             MixNode {
@@ -138,6 +138,17 @@ pub mod test_helpers {
         )
     }
 
+    pub(crate) fn stored_mixnode_bond_fixture() -> StoredMixnodeBond {
+        StoredMixnodeBond::new(
+            coin(50, DENOM),
+            Addr::unchecked("foo"),
+            Layer::One,
+            12_345,
+            mix_node_fixture(),
+            None,
+        )
+    }
+
     pub fn gateway_fixture() -> Gateway {
         Gateway {
             host: "1.1.1.1".to_string(),
@@ -190,9 +201,17 @@ pub mod test_helpers {
         }]
     }
 
-    // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
-    // SPDX-License-Identifier: Apache-2.0
-    use mixnet_contract::IdentityKey;
+    // when exact values are irrelevant and what matters is the action of rewarding
+    pub fn node_rewarding_params_fixture(uptime: u128) -> NodeRewardParams {
+        NodeRewardParams::new(
+            (INITIAL_REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128,
+            50 as u128,
+            0,
+            TOTAL_SUPPLY - INITIAL_REWARD_POOL,
+            uptime,
+            DEFAULT_SYBIL_RESISTANCE_PERCENT,
+        )
+    }
 
     // Converts the node identity and owner of a delegation into the bytes used as
     // key in the delegation buckets. Basically a helper function.
@@ -204,13 +223,22 @@ pub mod test_helpers {
         bytes
     }
 
-    #[test]
-    fn identity_and_owner_serialization() {
+    pub(crate) fn identity_and_owner_serialization() {
         let identity: IdentityKey = "gateway".into();
         let owner = Addr::unchecked("bob");
         assert_eq!(
             vec![0, 7, 103, 97, 116, 101, 119, 97, 121, 98, 111, 98],
             identity_and_owner_to_bytes(&identity, &owner)
         );
+    }
+
+    // currently not used outside tests
+    pub(crate) fn read_mixnode_bond_amount(
+        storage: &dyn Storage,
+        identity: &[u8],
+    ) -> StdResult<cosmwasm_std::Uint128> {
+        let bucket = mixnodes_read(storage);
+        let node = bucket.load(identity)?;
+        Ok(node.bond_amount.amount)
     }
 }

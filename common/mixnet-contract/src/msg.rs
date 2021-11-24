@@ -37,15 +37,6 @@ pub enum ExecuteMsg {
         rewarding_interval_nonce: u32,
     },
 
-    RewardMixnode {
-        identity: IdentityKey,
-        // percentage value in range 0-100
-        uptime: u32,
-
-        // nonce of the current rewarding interval
-        rewarding_interval_nonce: u32,
-    },
-
     FinishMixnodeRewarding {
         // nonce of the current rewarding interval
         rewarding_interval_nonce: u32,
@@ -56,6 +47,12 @@ pub enum ExecuteMsg {
         // percentage value in range 0-100
         params: NodeRewardParams,
 
+        // nonce of the current rewarding interval
+        rewarding_interval_nonce: u32,
+    },
+
+    RewardNextMixDelegators {
+        mix_identity: IdentityKey,
         // nonce of the current rewarding interval
         rewarding_interval_nonce: u32,
     },
@@ -103,6 +100,10 @@ pub enum QueryMsg {
     GetCirculatingSupply {},
     GetEpochRewardPercent {},
     GetSybilResistancePercent {},
+    GetRewardingStatus {
+        mix_identity: IdentityKey,
+        rewarding_interval_nonce: u32,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

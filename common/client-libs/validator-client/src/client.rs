@@ -10,7 +10,7 @@ use mixnet_contract::ContractSettingsParams;
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract::{GatewayBond, MixNodeBond, MixnodeRewardingStatusResponse};
 #[cfg(feature = "nymd-client")]
 use mixnet_contract::{RawDelegationData, RewardingIntervalResponse};
 use url::Url;
@@ -181,6 +181,20 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.nymd.get_current_rewarding_interval().await?)
+    }
+
+    pub async fn get_rewarding_status(
+        &self,
+        mix_identity: mixnet_contract::IdentityKey,
+        rewarding_interval_nonce: u32,
+    ) -> Result<MixnodeRewardingStatusResponse, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self
+            .nymd
+            .get_rewarding_status(mix_identity, rewarding_interval_nonce)
+            .await?)
     }
 
     pub async fn get_reward_pool(&self) -> Result<u128, ValidatorClientError>

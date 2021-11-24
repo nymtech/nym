@@ -14,9 +14,10 @@ use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
 use cosmwasm_std::{Coin, Uint128};
 use mixnet_contract::{
     Addr, ContractSettingsParams, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse,
-    IdentityKey, LayerDistribution, MixNode, MixOwnershipResponse, PagedAllDelegationsResponse,
-    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
-    PagedReverseMixDelegationsResponse, QueryMsg, RawDelegationData, RewardingIntervalResponse,
+    IdentityKey, LayerDistribution, MixNode, MixOwnershipResponse, MixnodeRewardingStatusResponse,
+    PagedAllDelegationsResponse, PagedGatewayResponse, PagedMixDelegationsResponse,
+    PagedMixnodeResponse, PagedReverseMixDelegationsResponse, QueryMsg, RawDelegationData,
+    RewardingIntervalResponse,
 };
 use serde::Serialize;
 use std::collections::HashMap;
@@ -224,6 +225,23 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::CurrentRewardingInterval {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_rewarding_status(
+        &self,
+        mix_identity: mixnet_contract::IdentityKey,
+        rewarding_interval_nonce: u32,
+    ) -> Result<MixnodeRewardingStatusResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetRewardingStatus {
+            mix_identity,
+            rewarding_interval_nonce,
+        };
         self.client
             .query_contract_smart(self.contract_address()?, &request)
             .await

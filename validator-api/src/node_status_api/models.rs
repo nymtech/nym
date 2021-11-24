@@ -17,7 +17,7 @@ use time::OffsetDateTime;
 pub struct InvalidUptime;
 
 // value in range 0-100
-#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, Default)]
 pub struct Uptime(u8);
 
 impl Uptime {

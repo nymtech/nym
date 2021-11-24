@@ -1,21 +1,20 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { printableCoin } from '@nymproject/nym-validator-client';
+import { Button, Grid, Link as MuiLink, Card } from '@mui/material';
 import { Link as RRDLink } from 'react-router-dom';
-import { Button, Grid, Link as MuiLink } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
-import {
-  cellStyles,
-  UniversalDataGrid,
-} from 'src/components/Universal-DataGrid';
 import { useMainContext } from 'src/context/main';
 import { mixnodeToGridRow } from 'src/utils';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { MixNodeResponse } from 'src/typeDefs/explorer-api';
 import { BIG_DIPPER } from 'src/api/constants';
-import { ContentCard } from 'src/components/ContentCard';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 import { Title } from 'src/components/Title';
+import {
+  UniversalDataGrid,
+  cellStyles,
+} from 'src/components/Universal-DataGrid';
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes } = useMainContext();
@@ -51,8 +50,9 @@ export const PageMixnodes: React.FC = () => {
   const columns: GridColDef[] = [
     {
       field: 'owner',
+      headerName: 'Owner',
       renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
-      flex: 3,
+      width: 380,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -68,10 +68,11 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'identity_key',
+      headerName: 'Identity Key',
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
-      flex: 3,
-      headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
+      width: 380,
+      headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={cellStyles}
@@ -86,11 +87,11 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'bond',
       headerName: 'Bond',
-      type: 'number',
-      headerAlign: 'left',
-      flex: 1,
-      headerClassName: 'MuiDataGrid-header-override',
       renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
+      type: 'number',
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 150,
+      headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => {
         const bondAsPunk = printableCoin({
           amount: params.value as string,
@@ -108,43 +109,10 @@ export const PageMixnodes: React.FC = () => {
       },
     },
     {
-      field: 'self_percentage',
-      headerName: 'Self %',
-      headerAlign: 'left',
-      type: 'number',
-      width: 99,
-      headerClassName: 'MuiDataGrid-header-override',
-      renderHeader: () => <CustomColumnHeading headingTitle="Self %" />,
-      renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={cellStyles}
-          component={RRDLink}
-          to={`/network-components/mixnodes/${params.row.identity_key}`}
-        >
-          {params.value}%
-        </MuiLink>
-      ),
-    },
-    {
-      field: 'host',
-      renderHeader: () => <CustomColumnHeading headingTitle="Host" />,
-      flex: 1,
-      headerAlign: 'left',
-      headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={cellStyles}
-          component={RRDLink}
-          to={`/network-components/mixnodes/${params.row.identity_key}`}
-        >
-          {params.value}
-        </MuiLink>
-      ),
-    },
-    {
       field: 'location',
+      headerName: 'Location',
       renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
-      flex: 1,
+      width: 150,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -157,12 +125,47 @@ export const PageMixnodes: React.FC = () => {
       ),
     },
     {
-      field: 'layer',
-      headerAlign: 'left',
+      field: 'self_percentage',
+      headerName: 'Self %',
+      width: 110,
       headerClassName: 'MuiDataGrid-header-override',
-      renderHeader: () => <CustomColumnHeading headingTitle="Layer" />,
-      flex: 1,
+      renderHeader: () => <CustomColumnHeading headingTitle="Self %" />,
       type: 'number',
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={cellStyles}
+          component={RRDLink}
+          to={`/network-components/mixnodes/${params.row.identity_key}`}
+        >
+          {params.value}%
+        </MuiLink>
+      ),
+    },
+    {
+      field: 'host',
+      headerName: 'Host',
+      renderHeader: () => <CustomColumnHeading headingTitle="Host" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 110,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={cellStyles}
+          component={RRDLink}
+          to={`/network-components/mixnodes/${params.row.identity_key}`}
+        >
+          {params.value}
+        </MuiLink>
+      ),
+    },
+    {
+      field: 'layer',
+      headerName: 'Layer',
+      renderHeader: () => <CustomColumnHeading headingTitle="Layer" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 110,
+      headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={{ ...cellStyles, textAlign: 'left' }}
@@ -182,9 +185,14 @@ export const PageMixnodes: React.FC = () => {
   return (
     <>
       <Title text="Mixnodes" />
-      <Grid>
-        <Grid item>
-          <ContentCard>
+      <Grid container>
+        <Grid item xs={12}>
+          <Card
+            sx={{
+              padding: 2,
+              height: '100%',
+            }}
+          >
             <TableToolbar
               onChangeSearch={handleSearch}
               onChangePageSize={handlePageSize}
@@ -192,20 +200,12 @@ export const PageMixnodes: React.FC = () => {
               searchTerm={searchTerm}
             />
             <UniversalDataGrid
-              loading={mixnodes?.isLoading}
-              columnsData={columns}
-              rows={mixnodeToGridRow(filteredMixnodes)}
-              pageSize={pageSize}
               pagination
-              hideFooter={false}
-              sortModel={[
-                {
-                  field: 'bond',
-                  sort: 'desc',
-                },
-              ]}
+              rows={mixnodeToGridRow(filteredMixnodes)}
+              columns={columns}
+              pageSize={pageSize}
             />
-          </ContentCard>
+          </Card>
         </Grid>
       </Grid>
     </>

@@ -4,7 +4,7 @@
 the theme declaration in index.tsx or the style prop
 in <DataGrid /> */
 
-.MuiDataGrid-sortIcon {
+.MuiDataGrid-sortIcon, .MuiDataGrid-menuIcon {
     display: none !important;
 }
 

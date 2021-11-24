@@ -25,7 +25,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
           width: '100%',
           marginBottom: 2,
           display: 'flex',
-          flexDirection: matches ? 'column' : 'row',
+          flexDirection: matches ? 'column-reverse' : 'row',
           justifyContent: 'space-between',
         }}
       >
@@ -35,8 +35,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
           value={pageSize}
           onChange={onChangePageSize}
           sx={{
-            width: 200,
-            marginBottom: matches ? 2 : 0,
+            width: matches ? 100 : 200,
           }}
         >
           <MenuItem value={10} data-testid="ten">
@@ -53,7 +52,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
           </MenuItem>
         </Select>
         <TextField
-          sx={{ width: 350 }}
+          sx={{ width: matches ? '100%' : 350, marginBottom: matches ? 2 : 0 }}
           value={searchTerm}
           data-testid="search-box"
           placeholder="search"

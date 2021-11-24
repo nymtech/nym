@@ -17,6 +17,8 @@ export const CustomColumnHeading: React.FC<{ headingTitle: string }> = ({
           fontWeight: 'bold',
           fontSize: 14,
           padding: 0,
+          // border: '1px solid red',
+          // minWidth: 300,
         }}
         data-testid={headingTitle}
       >

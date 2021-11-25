@@ -41,7 +41,10 @@ pub(crate) fn try_delegate_to_mixnode(
     validate_delegation_stake(&info.funds)?;
 
     // check if the target node actually exists
-    if storage::MIXNODES.load(deps.storage, &mix_identity).is_err() {
+    if storage::mixnodes()
+        .load(deps.storage, mix_identity.as_bytes())
+        .is_err()
+    {
         return Err(ContractError::MixNodeBondNotFound {
             identity: mix_identity,
         });

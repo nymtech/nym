@@ -4,7 +4,7 @@
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cosmwasm_storage::{bucket, bucket_read, Bucket, ReadonlyBucket};
-use cw_storage_plus::Map;
+use cw_storage_plus::{Index, IndexList, IndexedMap, UniqueIndex};
 use mixnet_contract::{
     Addr, Coin, IdentityKey, IdentityKeyRef, Layer, MixNode, MixNodeBond, RawDelegationData,
     RewardingStatus,
@@ -15,7 +15,7 @@ use std::fmt::{Display, Formatter};
 
 // storage prefixes
 // const PREFIX_MIXNODES: &[u8] = b"mn";
-const PREFIX_MIXNODES_OWNERS: &[u8] = b"mo";
+// const PREFIX_MIXNODES_OWNERS: &[u8] = b"mo";
 const PREFIX_MIX_DELEGATION: &[u8] = b"md";
 const PREFIX_REVERSE_MIX_DELEGATION: &[u8] = b"dm";
 pub const PREFIX_REWARDED_MIXNODES: &[u8] = b"rm";
@@ -29,9 +29,32 @@ pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 const PREFIX_TOTAL_DELEGATION: &[u8] = b"td";
 
-pub(crate) const MIXNODES: Map<IdentityKeyRef, StoredMixnodeBond> = Map::new("mn");
+pub(crate) struct MixnodeBondIndex<'a> {
+    pub(crate) identity: UniqueIndex<'a, IdentityKey, StoredMixnodeBond>,
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+    // somehow PrimaryKey is not implemented for Addr but is for String?
+    // maybe it's an omission in this version and is fixed in the cosmwasm 1.0 compatible release?
+    pub(crate) owner: UniqueIndex<'a, String, StoredMixnodeBond>,
+}
+
+// IndexList is just boilerplate code for fetching a struct's indexes
+impl<'a> IndexList<StoredMixnodeBond> for MixnodeBondIndex<'a> {
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<StoredMixnodeBond>> + '_> {
+        let v: Vec<&dyn Index<StoredMixnodeBond>> = vec![&self.identity, &self.owner];
+        Box::new(v.into_iter())
+    }
+}
+
+// mixnodes() is the storage access function.
+pub(crate) fn mixnodes<'a>() -> IndexedMap<'a, &'a [u8], StoredMixnodeBond, MixnodeBondIndex<'a>> {
+    let indexes = MixnodeBondIndex {
+        identity: UniqueIndex::new(|d| d.mix_node.identity_key.clone(), "mni"),
+        owner: UniqueIndex::new(|d| d.owner.to_string(), "mno"),
+    };
+    IndexedMap::new("mn", indexes)
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub(crate) struct StoredMixnodeBond {
     pub bond_amount: Coin,
     pub owner: Addr,
@@ -96,15 +119,6 @@ impl Display for StoredMixnodeBond {
 
 // Mixnode-related stuff
 
-// owner address -> node identity
-pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<IdentityKey> {
-    bucket(storage, PREFIX_MIXNODES_OWNERS)
-}
-
-pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey> {
-    bucket_read(storage, PREFIX_MIXNODES_OWNERS)
-}
-
 pub fn total_delegation(storage: &mut dyn Storage) -> Bucket<Uint128> {
     bucket(storage, PREFIX_TOTAL_DELEGATION)
 }
@@ -146,7 +160,7 @@ pub(crate) fn read_mixnode_bond(
     storage: &dyn Storage,
     mix_identity: IdentityKeyRef,
 ) -> StdResult<Option<MixNodeBond>> {
-    let stored_bond = MIXNODES.may_load(storage, mix_identity)?;
+    let stored_bond = mixnodes().may_load(storage, mix_identity.as_bytes())?;
     match stored_bond {
         None => Ok(None),
         Some(stored_bond) => {
@@ -218,13 +232,13 @@ mod tests {
     #[test]
     fn mixnode_single_read_retrieval() {
         let mut storage = MockStorage::new();
-        let bond1 = test_helpers::stored_mixnode_bond_fixture();
-        let bond2 = test_helpers::stored_mixnode_bond_fixture();
-        MIXNODES.save(&mut storage, "bond1", &bond1).unwrap();
-        MIXNODES.save(&mut storage, "bond2", &bond2).unwrap();
+        let bond1 = test_helpers::stored_mixnode_bond_fixture("owner1");
+        let bond2 = test_helpers::stored_mixnode_bond_fixture("owner2");
+        mixnodes().save(&mut storage, b"bond1", &bond1).unwrap();
+        mixnodes().save(&mut storage, b"bond2", &bond2).unwrap();
 
-        let res1 = MIXNODES.load(&storage, "bond1").unwrap();
-        let res2 = MIXNODES.load(&storage, "bond2").unwrap();
+        let res1 = mixnodes().load(&storage, b"bond1").unwrap();
+        let res2 = mixnodes().load(&storage, b"bond2").unwrap();
         assert_eq!(bond1, res1);
         assert_eq!(bond2, res2);
     }

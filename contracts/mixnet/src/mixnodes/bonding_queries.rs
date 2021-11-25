@@ -22,7 +22,7 @@ pub fn query_mixnodes_paged(
 
     let start = start_after.map(Bound::exclusive);
 
-    let nodes = storage::MIXNODES
+    let nodes = storage::mixnodes()
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|res| res.map(|item| item.1))
@@ -43,8 +43,10 @@ pub fn query_mixnodes_paged(
 }
 
 pub fn query_owns_mixnode(deps: Deps, address: Addr) -> StdResult<MixOwnershipResponse> {
-    let has_node = storage::mixnodes_owners_read(deps.storage)
-        .may_load(address.as_bytes())?
+    let has_node = storage::mixnodes()
+        .idx
+        .owner
+        .item(deps.storage, address.to_string())?
         .is_some();
     Ok(MixOwnershipResponse { address, has_node })
 }

@@ -15,8 +15,10 @@ pub(crate) fn try_add_gateway(
     let sender_bytes = info.sender.as_bytes();
 
     // if the client has an active bonded mixnode, don't allow gateway bonding
-    if mixnodes_storage::mixnodes_owners_read(deps.storage)
-        .may_load(sender_bytes)?
+    if mixnodes_storage::mixnodes()
+        .idx
+        .owner
+        .item(deps.storage, info.sender.to_string())?
         .is_some()
     {
         return Err(ContractError::AlreadyOwnsMixnode);

@@ -139,13 +139,16 @@ pub mod test_helpers {
         )
     }
 
-    pub(crate) fn stored_mixnode_bond_fixture() -> mixnodes_storage::StoredMixnodeBond {
+    pub(crate) fn stored_mixnode_bond_fixture(owner: &str) -> mixnodes_storage::StoredMixnodeBond {
         StoredMixnodeBond::new(
             coin(50, DENOM),
-            Addr::unchecked("foo"),
+            Addr::unchecked(owner),
             Layer::One,
             12_345,
-            mix_node_fixture(),
+            MixNode {
+                identity_key: format!("id-{}", owner),
+                ..mix_node_fixture()
+            },
             None,
         )
     }
@@ -229,7 +232,7 @@ pub mod test_helpers {
         storage: &dyn Storage,
         identity: IdentityKeyRef,
     ) -> StdResult<cosmwasm_std::Uint128> {
-        let node = mixnodes_storage::MIXNODES.load(storage, identity)?;
+        let node = mixnodes_storage::mixnodes().load(storage, identity.as_bytes())?;
         Ok(node.bond_amount.amount)
     }
 }

@@ -41,8 +41,10 @@ pub(crate) fn try_add_gateway(
         }
     }
 
-    let minimum_bond =
-        mixnet_params_storage::read_contract_settings_params(deps.storage).minimum_gateway_bond;
+    let minimum_bond = mixnet_params_storage::CONTRACT_SETTINGS
+        .load(deps.storage)?
+        .params
+        .minimum_gateway_bond;
     validate_gateway_bond(&info.funds, minimum_bond)?;
 
     let bond = GatewayBond::new(

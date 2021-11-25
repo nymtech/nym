@@ -46,11 +46,13 @@ pub(crate) fn try_add_mixnode(
         }
     }
 
-    let minimum_bond =
-        mixnet_params_storage::read_contract_settings_params(deps.storage).minimum_mixnode_bond;
+    let minimum_bond = mixnet_params_storage::CONTRACT_SETTINGS
+        .load(deps.storage)?
+        .params
+        .minimum_mixnode_bond;
     validate_mixnode_bond(&info.funds, minimum_bond)?;
 
-    let layer_distribution = query_layer_distribution(deps.as_ref());
+    let layer_distribution = query_layer_distribution(deps.as_ref())?;
     let layer = layer_distribution.choose_with_fewest();
 
     let stored_bond = StoredMixnodeBond::new(
@@ -380,9 +382,7 @@ pub mod tests {
 
         assert_eq!(
             LayerDistribution::default(),
-            mixnet_params_storage::layer_distribution_read(&deps.storage)
-                .load()
-                .unwrap(),
+            mixnet_params_storage::LAYERS.load(&deps.storage).unwrap(),
         );
 
         let info = mock_info("mix-owner", &test_helpers::good_mixnode_bond());
@@ -399,9 +399,7 @@ pub mod tests {
                 layer1: 1,
                 ..Default::default()
             },
-            mixnet_params_storage::layer_distribution_read(&deps.storage)
-                .load()
-                .unwrap()
+            mixnet_params_storage::LAYERS.load(&deps.storage).unwrap()
         );
     }
 

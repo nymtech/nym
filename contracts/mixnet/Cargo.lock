@@ -191,6 +191,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-storage-plus"
+version = "0.6.2"
+source = "git+https://github.com/jstuczyn/cw-plus?branch=feature/0.6.2-cosmwasm-fork#5d3e59c8327d1ab4a748c0be5ad3a376b710bfe5"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "der"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -493,6 +503,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "cw-storage-plus",
  "fixed",
  "mixnet-contract",
  "schemars",

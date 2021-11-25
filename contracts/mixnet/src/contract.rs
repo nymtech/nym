@@ -70,8 +70,8 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let state = default_initial_state(info.sender, env);
 
-    mixnet_params_storage::contract_settings(deps.storage).save(&state)?;
-    mixnet_params_storage::layer_distribution(deps.storage).save(&Default::default())?;
+    mixnet_params_storage::CONTRACT_SETTINGS.save(deps.storage, &state)?;
+    mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     Ok(Response::default())
 }
 
@@ -168,9 +168,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             to_binary(&mixnode_queries::query_owns_mixnode(deps, address)?)
         }
         QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
-        QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)),
-        QueryMsg::CurrentRewardingInterval {} => to_binary(&query_rewarding_interval(deps)),
-        QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)),
+        QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)?),
+        QueryMsg::CurrentRewardingInterval {} => to_binary(&query_rewarding_interval(deps)?),
+        QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)?),
         QueryMsg::GetMixDelegations {
             mix_identity,
             start_after,

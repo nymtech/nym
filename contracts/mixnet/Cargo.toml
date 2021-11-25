@@ -40,6 +40,7 @@ config = { path = "../../common/config"}
 cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-updatedk256", features = ["iterator"] }
 cosmwasm-storage = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-updatedk256", features = ["iterator"] }
 
+cw-storage-plus = { git = "https://github.com/jstuczyn/cw-plus", branch = "feature/0.6.2-cosmwasm-fork", features = ["iterator"] }
 #cosmwasm-std = { version = "0.14.1", features = ["iterator"] }
 #cosmwasm-storage = { version = "0.14.1", features = ["iterator"] }
 

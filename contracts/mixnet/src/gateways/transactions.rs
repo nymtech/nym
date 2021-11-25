@@ -22,15 +22,12 @@ pub(crate) fn try_add_gateway(
         return Err(ContractError::AlreadyOwnsMixnode);
     }
 
-    let mut was_present = false;
-    // if the client has an active gateway with a different identity, don't allow bonding
-    if let Some(existing_node) =
-        storage::gateways_owners_read(deps.storage).may_load(sender_bytes)?
+    // if the client has an active bonded gateway, regardless of its identity, don't allow bonding
+    if storage::gateways_owners_read(deps.storage)
+        .may_load(sender_bytes)?
+        .is_some()
     {
-        if existing_node != gateway.identity_key {
-            return Err(ContractError::AlreadyOwnsGateway);
-        }
-        was_present = true
+        return Err(ContractError::AlreadyOwnsGateway);
     }
 
     // check if somebody else has already bonded a gateway with this identity
@@ -60,13 +57,7 @@ pub(crate) fn try_add_gateway(
     storage::gateways_owners(deps.storage).save(sender_bytes, identity)?;
     mixnet_params_storage::increment_layer_count(deps.storage, Layer::Gateway)?;
 
-    let attributes = vec![attr("overwritten", was_present)];
-    Ok(Response {
-        submessages: Vec::new(),
-        messages: Vec::new(),
-        attributes,
-        data: None,
-    })
+    Ok(Response::new())
 }
 
 pub(crate) fn try_remove_gateway(
@@ -233,8 +224,7 @@ pub mod tests {
             },
         };
 
-        let execute_response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(execute_response.attributes[0], attr("overwritten", false));
+        execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         let info = mock_info("foomper", &test_helpers::good_gateway_bond());
         let msg = ExecuteMsg::BondGateway {
@@ -244,9 +234,9 @@ pub mod tests {
             },
         };
 
-        // we get a log message about it (TODO: does it get back to the user?)
-        let execute_response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(execute_response.attributes[0], attr("overwritten", true));
+        // it fails
+        let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
+        assert_eq!(Err(ContractError::AlreadyOwnsGateway), execute_response);
 
         // bonding fails if the user already owns a mixnode
         let info = mock_info("mixnode-owner", &test_helpers::good_mixnode_bond());
@@ -370,17 +360,8 @@ pub mod tests {
             },
         };
 
-        assert!(execute(deps.as_mut(), mock_env(), info, msg).is_ok());
-
-        // make sure the host information was updated
-        assert_eq!(
-            "2.2.2.2".to_string(),
-            storage::gateways_read(deps.as_ref().storage)
-                .load("myAwesomeGateway".as_bytes())
-                .unwrap()
-                .gateway
-                .host
-        );
+        let res = execute(deps.as_mut(), mock_env(), info, msg);
+        assert_eq!(Err(ContractError::AlreadyOwnsGateway), res);
     }
 
     #[test]

@@ -22,15 +22,12 @@ pub(crate) fn try_add_gateway(
         return Err(ContractError::AlreadyOwnsMixnode);
     }
 
-    let mut was_present = false;
-    // if the client has an active gateway with a different identity, don't allow bonding
-    if let Some(existing_node) =
-        storage::gateways_owners_read(deps.storage).may_load(sender_bytes)?
+    // if the client has an active bonded gateway, regardless of its identity, don't allow bonding
+    if storage::gateways_owners_read(deps.storage)
+        .may_load(sender_bytes)?
+        .is_some()
     {
-        if existing_node != gateway.identity_key {
-            return Err(ContractError::AlreadyOwnsGateway);
-        }
-        was_present = true
+        return Err(ContractError::AlreadyOwnsGateway);
     }
 
     // check if somebody else has already bonded a gateway with this identity
@@ -60,13 +57,7 @@ pub(crate) fn try_add_gateway(
     storage::gateways_owners(deps.storage).save(sender_bytes, identity)?;
     mixnet_params_storage::increment_layer_count(deps.storage, Layer::Gateway)?;
 
-    let attributes = vec![attr("overwritten", was_present)];
-    Ok(Response {
-        submessages: Vec::new(),
-        messages: Vec::new(),
-        attributes,
-        data: None,
-    })
+    Ok(Response::new())
 }
 
 pub(crate) fn try_remove_gateway(

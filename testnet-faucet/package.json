@@ -1,0 +1,27 @@
+{
+  "name": "testnet-faucet",
+  "version": "1.0.0",
+  "description": "testnet faucet for token aquisition",
+  "license": "MIT",
+  "scripts": {
+    "dev": "yarn parcel ./src/index.html",
+    "build": "yarn parcel build ./src/index.html"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.6.0",
+    "@emotion/styled": "^11.6.0",
+    "@hookform/resolvers": "^2.8.3",
+    "@mui/icons-material": "^5.1.1",
+    "@mui/material": "^5.1.1",
+    "@nymproject/nym-validator-client": "^0.18.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-hook-form": "^7.20.1",
+    "yup": "^0.32.11"
+  },
+  "devDependencies": {
+    "@types/react": "^17.0.35",
+    "@types/react-dom": "^17.0.11",
+    "parcel": "^2.0.1"
+  }
+}

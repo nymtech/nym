@@ -9,6 +9,7 @@ type TClientContext = {
   clientDetails?: TClientDetails
   getBalance: TUseGetBalance
   showAdmin: boolean
+  mode: 'light' | 'dark'
   handleShowAdmin: () => void
   logIn: (clientDetails: TSignInWithMnemonic) => void
   logOut: () => void
@@ -23,6 +24,7 @@ export const ClientContextProvider = ({
 }) => {
   const [clientDetails, setClientDetails] = useState<TClientDetails>()
   const [showAdmin, setShowAdmin] = useState(false)
+  const [mode, setMode] = useState<'light' | 'dark'>('dark')
 
   const history = useHistory()
   const getBalance = useGetBalance()
@@ -44,6 +46,7 @@ export const ClientContextProvider = ({
         clientDetails,
         getBalance,
         showAdmin,
+        mode,
         handleShowAdmin,
         logIn,
         logOut,

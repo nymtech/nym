@@ -199,6 +199,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
       setError(e)
     }
   }
+
   return (
     <SignInCard>
       <Typography variant="h4">Create wallet</Typography>

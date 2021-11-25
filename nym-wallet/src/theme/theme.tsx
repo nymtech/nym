@@ -31,7 +31,7 @@ const nymPalette: NymPalette = {
 const darkMode: NymPaletteVariant = {
   mode: 'dark',
   background: {
-    main: '#111826',
+    main: '#121726',
     paper: '#242C3D',
   },
   text: {
@@ -192,7 +192,6 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
       },
     },
-
     palette,
   }
 }

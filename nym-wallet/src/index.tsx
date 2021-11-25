@@ -5,7 +5,7 @@ import { BrowserRouter as Router } from 'react-router-dom'
 import { Routes } from './routes'
 import { ClientContext, ClientContextProvider } from './context/main'
 import { ApplicationLayout } from './layouts'
-import { SignIn } from './routes/sign-in'
+import { SignIn } from './routes/sign-in/'
 import { Admin, ErrorFallback } from './components'
 import { NymWalletTheme } from './theme'
 

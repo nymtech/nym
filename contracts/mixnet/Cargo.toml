@@ -50,3 +50,6 @@ thiserror = { version = "1.0.23" }
 [dev-dependencies]
 cosmwasm-schema = { version = "0.14.0" }
 fixed = "1.1"
+
+[build-dependencies]
+vergen = { version = "5", default-features = false, features = ["build", "git", "rustc"] }

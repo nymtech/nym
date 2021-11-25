@@ -4,6 +4,7 @@
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cosmwasm_storage::{bucket, bucket_read, Bucket, ReadonlyBucket};
+use cw_storage_plus::Map;
 use mixnet_contract::{
     Addr, Coin, IdentityKey, IdentityKeyRef, Layer, MixNode, MixNodeBond, RawDelegationData,
     RewardingStatus,
@@ -13,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 // storage prefixes
-const PREFIX_MIXNODES: &[u8] = b"mn";
+// const PREFIX_MIXNODES: &[u8] = b"mn";
 const PREFIX_MIXNODES_OWNERS: &[u8] = b"mo";
 const PREFIX_MIX_DELEGATION: &[u8] = b"md";
 const PREFIX_REVERSE_MIX_DELEGATION: &[u8] = b"dm";
@@ -27,6 +28,8 @@ pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;
 pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 const PREFIX_TOTAL_DELEGATION: &[u8] = b"td";
+
+pub(crate) const MIXNODES: Map<IdentityKeyRef, StoredMixnodeBond> = Map::new("mn");
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub(crate) struct StoredMixnodeBond {
@@ -93,14 +96,6 @@ impl Display for StoredMixnodeBond {
 
 // Mixnode-related stuff
 
-pub(crate) fn mixnodes(storage: &mut dyn Storage) -> Bucket<StoredMixnodeBond> {
-    bucket(storage, PREFIX_MIXNODES)
-}
-
-pub(crate) fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<StoredMixnodeBond> {
-    bucket_read(storage, PREFIX_MIXNODES)
-}
-
 // owner address -> node identity
 pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<IdentityKey> {
     bucket(storage, PREFIX_MIXNODES_OWNERS)
@@ -151,7 +146,7 @@ pub(crate) fn read_mixnode_bond(
     storage: &dyn Storage,
     mix_identity: IdentityKeyRef,
 ) -> StdResult<Option<MixNodeBond>> {
-    let stored_bond = mixnodes_read(storage).may_load(mix_identity.as_bytes())?;
+    let stored_bond = MIXNODES.may_load(storage, mix_identity)?;
     match stored_bond {
         None => Ok(None),
         Some(stored_bond) => {
@@ -225,11 +220,11 @@ mod tests {
         let mut storage = MockStorage::new();
         let bond1 = test_helpers::stored_mixnode_bond_fixture();
         let bond2 = test_helpers::stored_mixnode_bond_fixture();
-        mixnodes(&mut storage).save(b"bond1", &bond1).unwrap();
-        mixnodes(&mut storage).save(b"bond2", &bond2).unwrap();
+        MIXNODES.save(&mut storage, "bond1", &bond1).unwrap();
+        MIXNODES.save(&mut storage, "bond2", &bond2).unwrap();
 
-        let res1 = storage::mixnodes_read(&storage).load(b"bond1").unwrap();
-        let res2 = storage::mixnodes_read(&storage).load(b"bond2").unwrap();
+        let res1 = MIXNODES.load(&storage, "bond1").unwrap();
+        let res2 = MIXNODES.load(&storage, "bond2").unwrap();
         assert_eq!(bond1, res1);
         assert_eq!(bond2, res2);
     }

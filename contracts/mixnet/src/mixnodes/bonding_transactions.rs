@@ -36,9 +36,7 @@ pub(crate) fn try_add_mixnode(
     }
 
     // check if somebody else has already bonded a mixnode with this identity
-    if let Some(existing_bond) =
-        storage::mixnodes_read(deps.storage).may_load(mix_node.identity_key.as_bytes())?
-    {
+    if let Some(existing_bond) = storage::MIXNODES.may_load(deps.storage, &mix_node.identity_key)? {
         if existing_bond.owner != info.sender {
             return Err(ContractError::DuplicateMixnode {
                 owner: existing_bond.owner,
@@ -68,7 +66,7 @@ pub(crate) fn try_add_mixnode(
 
     // technically we don't have to set the total_delegation bucket, but it makes things easier
     // in different places that we can guarantee that if node exists, so does the data behind the total delegation
-    storage::mixnodes(deps.storage).save(identity.as_bytes(), &stored_bond)?;
+    storage::MIXNODES.save(deps.storage, identity, &stored_bond)?;
     storage::mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
     storage::total_delegation(deps.storage).save(identity.as_bytes(), &Uint128::zero())?;
     mixnet_params_storage::increment_layer_count(deps.storage, stored_bond.layer)?;
@@ -89,7 +87,7 @@ pub(crate) fn try_remove_mixnode(
     };
 
     // get the bond, since we found associated identity, the node MUST exist
-    let mixnode_bond = storage::mixnodes_read(deps.storage).load(mix_identity.as_bytes())?;
+    let mixnode_bond = storage::MIXNODES.load(deps.storage, &mix_identity)?;
 
     // send bonded funds back to the bond owner
     let messages = vec![BankMsg::Send {
@@ -99,7 +97,7 @@ pub(crate) fn try_remove_mixnode(
     .into()];
 
     // remove the bond from the list of bonded mixnodes
-    storage::mixnodes(deps.storage).remove(mix_identity.as_bytes());
+    storage::MIXNODES.remove(deps.storage, &mix_identity);
     // remove the node ownership
     storage::mixnodes_owners(deps.storage).remove(sender_bytes);
     // decrement layer count

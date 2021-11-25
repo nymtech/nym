@@ -24,8 +24,8 @@ pub mod test_helpers {
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::{
-        Gateway, GatewayBond, InstantiateMsg, Layer, MixNode, MixNodeBond, PagedGatewayResponse,
-        PagedMixnodeResponse, QueryMsg, RawDelegationData,
+        Gateway, GatewayBond, IdentityKeyRef, InstantiateMsg, Layer, MixNode, MixNodeBond,
+        PagedGatewayResponse, PagedMixnodeResponse, QueryMsg, RawDelegationData,
     };
 
     pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
@@ -227,10 +227,9 @@ pub mod test_helpers {
     // currently not used outside tests
     pub(crate) fn read_mixnode_bond_amount(
         storage: &dyn Storage,
-        identity: &[u8],
+        identity: IdentityKeyRef,
     ) -> StdResult<cosmwasm_std::Uint128> {
-        let bucket = mixnodes_storage::mixnodes_read(storage);
-        let node = bucket.load(identity)?;
+        let node = mixnodes_storage::MIXNODES.load(storage, identity)?;
         Ok(node.bond_amount.amount)
     }
 }

@@ -5,6 +5,7 @@ use super::storage;
 use crate::query_support::calculate_start_value;
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
+use cw_storage_plus::Bound;
 use mixnet_contract::{
     Delegation, IdentityKey, MixNodeBond, MixOwnershipResponse, PagedMixDelegationsResponse,
     PagedMixnodeResponse,
@@ -18,10 +19,11 @@ pub fn query_mixnodes_paged(
     let limit = limit
         .unwrap_or(storage::BOND_PAGE_DEFAULT_LIMIT)
         .min(storage::BOND_PAGE_MAX_LIMIT) as usize;
-    let start = calculate_start_value(start_after);
 
-    let nodes = storage::mixnodes_read(deps.storage)
-        .range(start.as_deref(), None, Order::Ascending)
+    let start = start_after.map(Bound::exclusive);
+
+    let nodes = storage::MIXNODES
+        .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|res| res.map(|item| item.1))
         .map(|stored_bond| {

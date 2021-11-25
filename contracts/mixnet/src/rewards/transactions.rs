@@ -328,8 +328,9 @@ pub(crate) fn try_reward_mixnode_v2(
                 Ok(current_total.unwrap() + delegation_rewarding_result.total_rewarded)
             },
         )?;
-        mixnodes_storage::mixnodes(deps.storage).update::<_, ContractError>(
-            mix_identity.as_bytes(),
+        mixnodes_storage::MIXNODES.update::<_, ContractError>(
+            deps.storage,
+            &mix_identity,
             |current_bond| {
                 // unwrap is fine because we just read the entry...
                 let mut unwrapped = current_bond.unwrap();
@@ -1013,8 +1014,8 @@ pub mod tests {
             profit_margin_percent: Some(10),
         };
 
-        mixnodes_storage::mixnodes(deps.as_mut().storage)
-            .save(node_identity.as_bytes(), &mixnode_bond)
+        mixnodes_storage::MIXNODES
+            .save(deps.as_mut().storage, &node_identity, &mixnode_bond)
             .unwrap();
         mixnodes_storage::total_delegation(deps.as_mut().storage)
             .save(node_identity.as_bytes(), &Uint128::new(initial_delegation))
@@ -1045,7 +1046,7 @@ pub mod tests {
 
         assert_eq!(
             initial_bond,
-            test_helpers::read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes())
+            test_helpers::read_mixnode_bond_amount(deps.as_ref().storage, &node_identity)
                 .unwrap()
                 .u128()
         );
@@ -1082,7 +1083,7 @@ pub mod tests {
         try_finish_mixnode_rewarding(deps.as_mut(), info, 2).unwrap();
 
         assert!(
-            test_helpers::read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes())
+            test_helpers::read_mixnode_bond_amount(deps.as_ref().storage, &node_identity)
                 .unwrap()
                 .u128()
                 > initial_bond
@@ -1107,7 +1108,7 @@ pub mod tests {
         env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
 
         let bond_before_rewarding =
-            test_helpers::read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes())
+            test_helpers::read_mixnode_bond_amount(deps.as_ref().storage, &node_identity)
                 .unwrap()
                 .u128();
 
@@ -1125,7 +1126,7 @@ pub mod tests {
         try_finish_mixnode_rewarding(deps.as_mut(), info, 3).unwrap();
 
         assert!(
-            test_helpers::read_mixnode_bond_amount(deps.as_ref().storage, node_identity.as_bytes())
+            test_helpers::read_mixnode_bond_amount(deps.as_ref().storage, &node_identity)
                 .unwrap()
                 .u128()
                 > bond_before_rewarding
@@ -1252,7 +1253,7 @@ pub mod tests {
         assert_eq!(mix1_delegator1_reward, U128::from_num(22552615));
         assert_eq!(mix1_delegator2_reward, U128::from_num(5638153));
 
-        let pre_reward_bond = test_helpers::read_mixnode_bond_amount(&deps.storage, b"alice")
+        let pre_reward_bond = test_helpers::read_mixnode_bond_amount(&deps.storage, "alice")
             .unwrap()
             .u128();
         assert_eq!(pre_reward_bond, 10_000_000_000);
@@ -1266,7 +1267,7 @@ pub mod tests {
         try_reward_mixnode_v2(deps.as_mut(), env, info, "alice".to_string(), params, 1).unwrap();
 
         assert_eq!(
-            test_helpers::read_mixnode_bond_amount(&deps.storage, b"alice")
+            test_helpers::read_mixnode_bond_amount(&deps.storage, "alice")
                 .unwrap()
                 .u128(),
             U128::from_num(pre_reward_bond) + U128::from_num(mix1_operator_profit)

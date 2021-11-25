@@ -1,3 +1,6 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use cosmwasm_std::Storage;
 use cosmwasm_storage::bucket;
 use cosmwasm_storage::bucket_read;

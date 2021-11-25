@@ -1,10 +1,8 @@
 import React, { useEffect } from 'react'
-import { Button, CircularProgress, Grid } from '@material-ui/core'
-import { Alert } from '@material-ui/lab'
-import { Refresh } from '@material-ui/icons'
+import { Alert, Button, CircularProgress, Grid } from '@mui/material'
+import { Refresh } from '@mui/icons-material'
 import { NymCard } from '../components'
 import { Layout } from '../layouts'
-import { theme } from '../theme'
 import { useGetBalance } from '../hooks/useGetBalance'
 
 export const Balance = () => {
@@ -24,7 +22,7 @@ export const Balance = () => {
       disableElevation
       startIcon={<Refresh />}
       endIcon={isLoading && <CircularProgress size={20} />}
-      style={{ marginRight: theme.spacing(2) }}
+      sx={{ mr: 2 }}
     >
       Refresh
     </Button>
@@ -40,7 +38,7 @@ export const Balance = () => {
                 severity="error"
                 data-testid="error-refresh"
                 action={<RefreshAction />}
-                style={{ padding: theme.spacing(2) }}
+                sx={{ p: 2 }}
               >
                 {error}
               </Alert>
@@ -49,7 +47,7 @@ export const Balance = () => {
               <Alert
                 severity="success"
                 data-testid="refresh-success"
-                style={{ padding: theme.spacing(2, 3) }}
+                sx={{ p: [2, 3] }}
                 action={<RefreshAction />}
               >
                 {'The current balance is ' + balance?.printable_balance}

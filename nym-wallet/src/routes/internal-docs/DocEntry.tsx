@@ -1,7 +1,6 @@
 import React from 'react'
-import { Button, Card, TextField } from '@material-ui/core'
+import { Button, Card, CardContent, TextField } from '@mui/material'
 import { invoke } from '@tauri-apps/api'
-import CardContent from '@material-ui/core/CardContent'
 
 interface DocEntryProps {
   function: FunctionDef
@@ -24,7 +23,7 @@ function collectArgs(functionName: string, args: ArgDef[]) {
 
   args.forEach((arg) => {
     let elem: HTMLElement | null = document.getElementById(
-      argKey(functionName, arg.name)
+      argKey(functionName, arg.name),
     )
 
     if (arg.type === 'object') {
@@ -44,21 +43,21 @@ export const DocEntry = (props: DocEntryProps) => {
   const onClick = () => {
     invoke(
       props.function.name,
-      collectArgs(props.function.name, props.function.args)
+      collectArgs(props.function.name, props.function.args),
     )
       .then((result) => {
         setCard(
           <Card>
             <CardContent>{JSON.stringify(result, null, 4)}</CardContent>
-          </Card>
+          </Card>,
         )
       })
       .catch((e) =>
         setCard(
           <Card>
             <CardContent>{e}</CardContent>
-          </Card>
-        )
+          </Card>,
+        ),
       )
   }
 

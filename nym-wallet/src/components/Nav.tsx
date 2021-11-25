@@ -1,12 +1,6 @@
 import React, { useContext, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import {
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Theme,
-} from '@material-ui/core'
+import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material'
 import {
   AccountBalanceWalletRounded,
   ArrowBack,
@@ -18,9 +12,8 @@ import {
   MoneyOff,
   Description,
   Settings,
-} from '@material-ui/icons'
-import { makeStyles } from '@material-ui/styles'
-import clsx from 'clsx'
+} from '@mui/icons-material'
+
 import { ADMIN_ADDRESS, ClientContext } from '../context/main'
 
 let routesSchema = [
@@ -61,18 +54,7 @@ let routesSchema = [
   },
 ]
 
-const useStyles = makeStyles((theme: Theme) => ({
-  navItem: {
-    color: '#fff',
-    fontSize: 20,
-  },
-  selected: {
-    color: theme.palette.primary.light,
-  },
-}))
-
 export const Nav = () => {
-  const classes = useStyles()
   const { clientDetails, handleShowAdmin, logOut } = useContext(ClientContext)
   const location = useLocation()
 
@@ -97,49 +79,24 @@ export const Nav = () => {
       <List>
         {routesSchema.map((r, i) => (
           <ListItem button component={Link} to={r.route} key={i}>
-            <ListItemIcon
-              className={clsx([
-                classes.navItem,
-                location.pathname === r.route ? classes.selected : undefined,
-              ])}
-            >
-              {r.Icon}
-            </ListItemIcon>
-            <ListItemText
-              primary={r.label}
-              primaryTypographyProps={{
-                className: clsx([
-                  classes.navItem,
-                  location.pathname === r.route ? classes.selected : undefined,
-                ]),
-              }}
-            />
+            <ListItemIcon>{r.Icon}</ListItemIcon>
+            <ListItemText primary={r.label} />
           </ListItem>
         ))}
         {clientDetails?.client_address === ADMIN_ADDRESS && (
           <ListItem button onClick={handleShowAdmin}>
-            <ListItemIcon className={classes.navItem}>
+            <ListItemIcon>
               <Settings />
             </ListItemIcon>
-            <ListItemText
-              primary="Admin"
-              primaryTypographyProps={{
-                className: classes.navItem,
-              }}
-            />
+            <ListItemText primary="Admin" />
           </ListItem>
         )}
 
         <ListItem button onClick={logOut}>
-          <ListItemIcon data-testid="log-out" className={classes.navItem}>
+          <ListItemIcon data-testid="log-out">
             <ExitToApp />
           </ListItemIcon>
-          <ListItemText
-            primary="Log out"
-            primaryTypographyProps={{
-              className: classes.navItem,
-            }}
-          />
+          <ListItemText primary="Log out" />
         </ListItem>
       </List>
     </div>

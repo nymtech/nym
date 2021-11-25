@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Box, Button, CircularProgress, Theme } from '@material-ui/core'
-import { useTheme } from '@material-ui/styles'
-import { Alert, AlertTitle } from '@material-ui/lab'
+import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
 import { DelegateForm } from './DelegateForm'
 import { Layout } from '../../layouts'
 import { NymCard } from '../../components'
@@ -14,7 +12,7 @@ import { getGasFee } from '../../requests'
 
 export const Delegate = () => {
   const [status, setStatus] = useState<EnumRequestStatus>(
-    EnumRequestStatus.initial
+    EnumRequestStatus.initial,
   )
   const [message, setMessage] = useState<string>()
   const [isLoading, setIsLoading] = useState(true)
@@ -34,7 +32,6 @@ export const Delegate = () => {
     getFees()
   }, [])
 
-  const theme: Theme = useTheme()
   return (
     <Layout>
       <NymCard
@@ -45,10 +42,10 @@ export const Delegate = () => {
       >
         {isLoading && (
           <Box
-            style={{
+            sx={{
               display: 'flex',
               justifyContent: 'center',
-              padding: theme.spacing(3),
+              p: 3,
             }}
           >
             <CircularProgress size={48} />
@@ -76,7 +73,7 @@ export const Delegate = () => {
                   <Alert severity="error" data-testid="delegate-error">
                     <AlertTitle>Delegation failed</AlertTitle>
                     An error occurred with the request:
-                    <Box style={{ wordBreak: 'break-word' }}>{message}</Box>
+                    <Box sx={{ wordBreak: 'break-word' }}>{message}</Box>
                   </Alert>
                 }
                 Success={
@@ -86,14 +83,14 @@ export const Delegate = () => {
                   </Alert>
                 }
               />
-              <div
-                style={{
+              <Box
+                sx={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'flex-end',
-                  borderTop: `1px solid ${theme.palette.grey[200]}`,
-                  background: theme.palette.grey[100],
-                  padding: theme.spacing(2),
+                  borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
+                  background: (theme) => theme.palette.grey[100],
+                  p: 2,
                 }}
               >
                 <Button
@@ -104,7 +101,7 @@ export const Delegate = () => {
                 >
                   Finish
                 </Button>
-              </div>
+              </Box>
             </>
           )}
         </>

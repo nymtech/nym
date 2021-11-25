@@ -1,15 +1,11 @@
 import React from 'react'
-import { Card, Theme, Typography } from '@material-ui/core'
-import { ErrorOutline } from '@material-ui/icons'
-import { Alert } from '@material-ui/lab'
-import { useTheme } from '@material-ui/styles'
+import { Alert, Box, Card, Typography } from '@mui/material'
+import { ErrorOutline } from '@mui/icons-material'
 
 export const SendError = ({ message }: { message?: string }) => {
-  const theme: Theme = useTheme()
-
   return (
-    <div
-      style={{
+    <Box
+      sx={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -18,30 +14,25 @@ export const SendError = ({ message }: { message?: string }) => {
       }}
     >
       <>
-        <div
-          style={{
+        <Box
+          sx={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: theme.spacing(4),
+            mb: 4,
           }}
         >
-          <ErrorOutline
-            style={{ fontSize: 50, color: theme.palette.error.main }}
-          />
+          <ErrorOutline sx={{ fontSize: 50, color: 'error.main' }} />
           <Typography>Transaction failed</Typography>
-        </div>
+        </Box>
 
-        <Card
-          variant="outlined"
-          style={{ width: '100%', padding: theme.spacing(2) }}
-        >
+        <Card variant="outlined" sx={{ width: '100%', p: 2 }}>
           <Alert severity="error" data-testid="transaction-error">
             An error occured during the request {message}
           </Alert>
         </Card>
       </>
-    </div>
+    </Box>
   )
 }

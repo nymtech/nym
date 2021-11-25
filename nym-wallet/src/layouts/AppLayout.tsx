@@ -1,14 +1,9 @@
 import React from 'react'
-import { Divider } from '@material-ui/core'
+import { Box, Divider } from '@mui/material'
 import { AddressCard, BalanceCard, Nav } from '../components'
 import Logo from '../images/logo-background.svg'
-import { theme } from '../theme'
 
-export const ApplicationLayout = ({
-  children,
-}: {
-  children: React.ReactElement
-}) => {
+export const ApplicationLayout: React.FC = ({ children }) => {
   return (
     <div
       style={{
@@ -29,29 +24,16 @@ export const ApplicationLayout = ({
           overflow: 'auto',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginTop: theme.spacing(6),
-          }}
-        >
+        <Box sx={{ display: 'flex', justifyContent: 'center', marginTop: 6 }}>
           <img src={Logo} style={{ width: 75 }} />
-        </div>
+        </Box>
         <Divider
           light
           variant="middle"
-          style={{
-            background: theme.palette.grey[100],
-            marginTop: theme.spacing(6),
-          }}
+          sx={{ bgcolor: (theme) => theme.palette.grey[100], marginTop: 6 }}
         />
-        <div style={{ marginTop: theme.spacing(10) }}>
-          <BalanceCard />
-          <AddressCard />
-        </div>
 
-        <div style={{ marginTop: theme.spacing(7) }}>
+        <div style={{ marginTop: 7 }}>
           <Nav />
         </div>
         <div />

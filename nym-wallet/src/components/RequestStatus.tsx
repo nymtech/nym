@@ -1,6 +1,5 @@
 import React from 'react'
-import { CircularProgress, Theme } from '@material-ui/core'
-import { useTheme } from '@material-ui/styles'
+import { CircularProgress, Box } from '@mui/material'
 
 export enum EnumRequestStatus {
   initial = 'initial',
@@ -18,16 +17,15 @@ export const RequestStatus = ({
   Success: React.ReactNode
   Error: React.ReactNode
 }) => {
-  const theme: Theme = useTheme()
   return (
-    <div style={{ padding: theme.spacing(3, 5) }}>
+    <Box sx={{ padding: [3, 5] }}>
       {status === EnumRequestStatus.loading && (
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
           <CircularProgress size={48} />
-        </div>
+        </Box>
       )}
       {status === EnumRequestStatus.success && Success}
       {status === EnumRequestStatus.error && Error}
-    </div>
+    </Box>
   )
 }

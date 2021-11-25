@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { Button } from '@material-ui/core'
-import { Check } from '@material-ui/icons'
-import { green } from '@material-ui/core/colors'
+import { Button } from '@mui/material'
+import { Check } from '@mui/icons-material'
+import { green } from '@mui/material/colors'
 import { clipboard } from '@tauri-apps/api'
 
 const copy = (text: string): Promise<{ success: boolean; value: string }> => {
@@ -43,7 +43,7 @@ export const CopyToClipboard = ({ text }: { text: string }) => {
       data-testid="copy-button"
       onClick={() => handleCopy({ text, cb: updateCopyStatus })}
       endIcon={copied && <Check />}
-      style={copied ? { background: green[500], color: 'white' } : {}}
+      sx={copied ? { bgcolor: green[500], color: 'white' } : {}}
     >
       {copied ? 'Copied' : 'Copy'}
     </Button>

@@ -1,32 +1,29 @@
 import React, { useContext, useState } from 'react'
 import {
+  Box,
+  Alert,
   TextField,
   CircularProgress,
   Button,
   Typography,
   Grid,
   Link,
-  Theme,
   Card,
   Divider,
-} from '@material-ui/core'
-import { Alert } from '@material-ui/lab'
-import { useTheme } from '@material-ui/styles'
-import { ArrowBack, CheckCircleOutline } from '@material-ui/icons'
+} from '@mui/material'
+import { ArrowBack, CheckCircleOutline } from '@mui/icons-material'
 import logo from '../images/logo-background.svg'
 import logo_alt from '../images/logo.png'
 import { ClientContext } from '../context/main'
-import { theme } from '../theme'
 import { createAccount, signInWithMnemonic } from '../requests'
 import { TCreateAccount } from '../types'
 import { CopyToClipboard } from '../components'
 
 export const SignIn = () => {
-  const theme: Theme = useTheme()
   const [showCreateAccount, setShowCreateAccount] = useState(false)
   return (
-    <div
-      style={{
+    <Box
+      sx={{
         height: '100vh',
         width: '100vw',
         display: 'grid',
@@ -36,8 +33,8 @@ export const SignIn = () => {
         gridRowGap: '0px',
       }}
     >
-      <div
-        style={{
+      <Box
+        sx={{
           gridArea: '1 / 1 / 2 / 2',
           background: '#121726',
           display: 'flex',
@@ -46,14 +43,14 @@ export const SignIn = () => {
         }}
       >
         <img src={logo} style={{ width: 100 }} />
-      </div>
-      <div
-        style={{
+      </Box>
+      <Box
+        sx={{
           gridArea: '1 / 2 / 2 / 3',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: theme.palette.grey[100],
+          bgcolor: 'grey[100]',
         }}
       >
         {showCreateAccount ? (
@@ -63,8 +60,8 @@ export const SignIn = () => {
         ) : (
           <SignInContent showCreateAccount={() => setShowCreateAccount(true)} />
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
@@ -78,9 +75,6 @@ const SignInContent = ({
   const [isLoading, setIsLoading] = useState(false)
 
   const { logIn } = useContext(ClientContext)
-
-  const theme: Theme = useTheme()
-
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
@@ -100,12 +94,13 @@ const SignInContent = ({
   return (
     <SignInCard>
       <>
-        <Typography variant="h4" data-testid="sign-in">Sign in</Typography>
+        <Typography variant="h4" data-testid="sign-in">
+          Sign in
+        </Typography>
         <form noValidate onSubmit={handleSignIn}>
           <Grid container direction="column" spacing={1}>
             <Grid item>
               <TextField
-                style={{ background: 'white' }}
                 value={mnemonic}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setMnemonic(e.target.value)
@@ -132,16 +127,17 @@ const SignInContent = ({
                 disabled={isLoading}
                 endIcon={isLoading && <CircularProgress size={20} />}
                 disableElevation
+                size="large"
               >
                 {!isLoading ? 'Sign In' : 'Signing in'}
               </Button>
             </Grid>
             {inputError && (
-              <Grid item style={{ marginTop: theme.spacing(1) }}>
+              <Grid item sx={{ mt: 1 }}>
                 <Alert severity="error">{inputError}</Alert>
               </Grid>
             )}
-            <Grid item style={{ marginTop: theme.spacing(1) }}>
+            <Grid item sx={{ mt: 1 }}>
               <Typography variant="body2" component="span">
                 Don't have an account?
               </Typography>{' '}
@@ -157,14 +153,12 @@ const SignInContent = ({
 }
 
 const SignInCard: React.FC = ({ children }) => {
-  const theme: Theme = useTheme()
   return (
     <>
       <Card
-        style={{
+        sx={{
           width: 600,
-          padding: theme.spacing(6, 10),
-          borderRadius: theme.shape.borderRadius,
+          p: [6, 10],
           position: 'relative',
           minHeight: 350,
         }}
@@ -211,69 +205,68 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
       <Typography color="textSecondary">
         Create a new wallet to start using the Nym network
       </Typography>
-      <Grid
-        container
-        direction="column"
-        spacing={3}
-        style={{ marginTop: theme.spacing(3) }}
-      >
+      <Grid container direction="column" spacing={3} sx={{ mt: 3 }}>
         <Grid item container justifyContent="center">
           {isLoading && <CircularProgress size={48} />}
           {!isLoading && accountDetails && (
             <>
-              <div
-                style={{
+              <Box
+                sx={{
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginBottom: theme.spacing(4),
+                  mb: 4,
                 }}
               >
                 <CheckCircleOutline
-                  style={{
+                  sx={{
                     fontSize: 50,
-                    color: theme.palette.success.main,
-                    marginBottom: theme.spacing(1),
+                    color: 'success.main',
+                    mb: 1,
                   }}
                 />
                 <Typography>Wallet setup complete</Typography>
-              </div>
-              <Alert severity="info" style={{ marginBottom: theme.spacing(2) }} data-testid="mnemonic-warning">
+              </Box>
+              <Alert
+                severity="info"
+                sx={{ mb: 2 }}
+                data-testid="mnemonic-warning"
+              >
                 Please store your <strong>mnemonic</strong> in a safe place.
                 You'll need it to access your wallet
               </Alert>
               <Card
                 variant="outlined"
-                style={{
+                sx={{
                   width: '100%',
-                  padding: theme.spacing(2),
+                  p: 2,
                 }}
               >
                 <Grid container direction="column" spacing={1}>
                   <Grid item>
-                    <Typography style={{ color: theme.palette.grey[600] }}>
+                    <Typography sx={{ color: 'grey[600]' }}>
                       Mnemonic
                     </Typography>
                   </Grid>
                   <Grid item>
-                    <Typography data-testid="mnemonic-phrase">{accountDetails.mnemonic}</Typography>
-                    <div
-                      style={{ display: 'flex', justifyContent: 'flex-end' }}
-                    >
+                    <Typography data-testid="mnemonic-phrase">
+                      {accountDetails.mnemonic}
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <CopyToClipboard text={accountDetails.mnemonic} />
-                    </div>
+                    </Box>
                   </Grid>
                   <Grid item>
                     <Divider light />
                   </Grid>
                   <Grid item>
-                    <Typography style={{ color: theme.palette.grey[600] }}>
-                      Address
-                    </Typography>
+                    <Typography sx={{ color: 'grey[600]' }}>Address</Typography>
                   </Grid>
                   <Grid item>
-                    <Typography data-testid="wallet-address">{accountDetails.client_address}</Typography>
+                    <Typography data-testid="wallet-address">
+                      {accountDetails.client_address}
+                    </Typography>
                   </Grid>
                 </Grid>
               </Card>
@@ -281,8 +274,10 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
           )}
         </Grid>
         {error && (
-          <Grid item style={{ marginTop: theme.spacing(1) }}>
-            <Alert severity="error" data-testid="error">{error}</Alert>
+          <Grid item sx={{ mt: 1 }}>
+            <Alert severity="error" data-testid="error">
+              {error}
+            </Alert>
           </Grid>
         )}
         <Grid item>
@@ -295,7 +290,7 @@ const CreateAccountContent = ({ showSignIn }: { showSignIn: () => void }) => {
               type="submit"
               data-testid="create-button"
               disableElevation
-              style={{ marginBottom: theme.spacing(1) }}
+              sx={{ mb: 1 }}
               disabled={isLoading}
             >
               Create

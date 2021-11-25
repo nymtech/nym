@@ -1,34 +1,37 @@
 import React, { useContext, useEffect, useState } from 'react'
 import {
+  Alert,
+  Box,
   CardContent,
   CircularProgress,
   IconButton,
   Tooltip,
   Typography,
-  useTheme,
-} from '@material-ui/core'
+} from '@mui/material'
 import { ClientContext } from '../context/main'
-import { CheckCircleOutline, FileCopy, Refresh } from '@material-ui/icons'
+import { CheckCircleOutline, FileCopy, Refresh } from '@mui/icons-material'
 import { NymCard } from './NymCard'
-import { Alert } from '@material-ui/lab'
 import { handleCopy } from './CopyToClipboard'
 import { truncate } from '../utils'
 
 export const BalanceCard = () => {
   const { getBalance } = useContext(ClientContext)
-  const theme = useTheme()
 
   useEffect(getBalance.fetchBalance, [])
 
   return (
-    <div style={{ margin: theme.spacing(3) }}>
+    <Box sx={{ margin: 3 }}>
       <NymCard
         title="Balance"
         subheader="Current wallet balance"
         noPadding
         Action={
           <Tooltip title="Refresh balance">
-            <IconButton data-testid="refresh-balance" onClick={getBalance.fetchBalance} size="small">
+            <IconButton
+              data-testid="refresh-balance"
+              onClick={getBalance.fetchBalance}
+              size="small"
+            >
               <Refresh />
             </IconButton>
           </Tooltip>
@@ -50,7 +53,7 @@ export const BalanceCard = () => {
           </div>
         </CardContent>
       </NymCard>
-    </div>
+    </Box>
   )
 }
 enum EnumCopyState {
@@ -63,10 +66,8 @@ export const AddressCard = () => {
 
   const [copyState, setCopyState] = useState<EnumCopyState>()
 
-  const theme = useTheme()
-
   return (
-    <div style={{ margin: theme.spacing(3) }}>
+    <Box sx={{ margin: 3 }}>
       <NymCard
         title="Address"
         subheader="Wallet payments address"
@@ -95,9 +96,7 @@ export const AddressCard = () => {
                 {copyState === EnumCopyState.copying ? (
                   <CircularProgress size={24} />
                 ) : copyState === EnumCopyState.copySuccess ? (
-                  <CheckCircleOutline
-                    style={{ color: theme.palette.success.main }}
-                  />
+                  <CheckCircleOutline sx={{ color: 'palette.success.main' }} />
                 ) : (
                   <FileCopy />
                 )}
@@ -107,13 +106,14 @@ export const AddressCard = () => {
         }
       >
         <CardContent>
-          <Typography data-testid="wallet-address"
-            style={{ fontWeight: theme.typography.fontWeightRegular }}
+          <Typography
+            data-testid="wallet-address"
+            style={{ fontWeight: 'regular' }}
           >
             {truncate(clientDetails?.client_address!, 35)}
           </Typography>
         </CardContent>
       </NymCard>
-    </div>
+    </Box>
   )
 }

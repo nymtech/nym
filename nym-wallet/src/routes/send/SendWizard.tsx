@@ -1,8 +1,7 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useState } from 'react'
 import { useForm, FormProvider } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
-import { Button, Step, StepLabel, Stepper, Theme } from '@material-ui/core'
-import { useTheme } from '@material-ui/styles'
+import { Box, Button, Step, StepLabel, Stepper } from '@mui/material'
 import { SendForm } from './SendForm'
 import { SendReview } from './SendReview'
 import { SendConfirmation } from './SendConfirmation'
@@ -43,8 +42,6 @@ export const SendWizard = () => {
     },
     resolver: yupResolver(validationSchema),
   })
-
-  const theme: Theme = useTheme()
 
   const handleNextStep = methods.handleSubmit(() => setActiveStep((s) => s + 1))
 
@@ -97,13 +94,13 @@ export const SendWizard = () => {
 
   return (
     <FormProvider {...methods}>
-      <div style={{ paddingTop: theme.spacing(3) }}>
+      <Box sx={{ pt: 3 }}>
         <Stepper
           activeStep={activeStep}
-          style={{
-            background: theme.palette.grey[50],
-            paddingBottom: 0,
-            paddingTop: 0,
+          sx={{
+            bgcolor: 'grey[50]',
+            pb: 0,
+            pt: 0,
           }}
         >
           {steps.map((s, i) => (
@@ -112,13 +109,13 @@ export const SendWizard = () => {
             </Step>
           ))}
         </Stepper>
-        <div
-          style={{
+        <Box
+          sx={{
             minHeight: 300,
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            padding: theme.spacing(0, 3),
+            p: [0, 3],
           }}
         >
           {activeStep === 0 ? (
@@ -132,21 +129,21 @@ export const SendWizard = () => {
               error={requestError}
             />
           )}
-        </div>
-        <div
-          style={{
+        </Box>
+        <Box
+          sx={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
-            borderTop: `1px solid ${theme.palette.grey[200]}`,
-            background: theme.palette.grey[100],
-            padding: theme.spacing(2),
+            borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
+            background: (theme) => theme.palette.grey[100],
+            p: 2,
           }}
         >
           {activeStep === 1 && (
             <Button
               disableElevation
-              style={{ marginRight: theme.spacing(1) }}
+              sx={{ mr: 1 }}
               onClick={handlePreviousStep}
               data-testid="back-button"
             >
@@ -155,7 +152,7 @@ export const SendWizard = () => {
           )}
           <Button
             variant={activeStep > 0 ? 'contained' : 'text'}
-            color={activeStep > 0 ? 'primary' : 'default'}
+            color={activeStep > 0 ? 'primary' : 'inherit'}
             disableElevation
             data-testid="button"
             onClick={
@@ -175,8 +172,8 @@ export const SendWizard = () => {
           >
             {activeStep === 0 ? 'Next' : activeStep === 1 ? 'Send' : 'Finish'}
           </Button>
-        </div>
-      </div>
+        </Box>
+      </Box>
     </FormProvider>
   )
 }

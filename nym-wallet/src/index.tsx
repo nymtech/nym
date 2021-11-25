@@ -1,40 +1,36 @@
 import React, { useContext } from 'react'
 import ReactDOM from 'react-dom'
 import { ErrorBoundary } from 'react-error-boundary'
-import { CssBaseline, ThemeProvider } from '@material-ui/core'
 import { BrowserRouter as Router } from 'react-router-dom'
 import { Routes } from './routes'
-import { theme } from './theme'
 import { ClientContext, ClientContextProvider } from './context/main'
 import { ApplicationLayout } from './layouts'
 import { SignIn } from './routes/sign-in'
 import { Admin, ErrorFallback } from './components'
+import { NymWalletTheme } from './theme'
 
-const AppWrapper = () => {
+const App = () => {
   const { clientDetails } = useContext(ClientContext)
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <NymWalletTheme>
       {!clientDetails ? (
         <SignIn />
       ) : (
         <ApplicationLayout>
-          <>
-            <Admin />
-            <Routes />
-          </>
+          <Admin />
+          <Routes />
         </ApplicationLayout>
       )}
-    </ThemeProvider>
+    </NymWalletTheme>
   )
 }
 
-const App = () => {
+const AppWrapper = () => {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <Router>
         <ClientContextProvider>
-          <AppWrapper />
+          <App />
         </ClientContextProvider>
       </Router>
     </ErrorBoundary>
@@ -43,4 +39,4 @@ const App = () => {
 
 const root = document.getElementById('root')
 
-ReactDOM.render(<App />, root)
+ReactDOM.render(<AppWrapper />, root)

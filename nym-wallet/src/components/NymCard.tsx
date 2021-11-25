@@ -1,5 +1,6 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, useTheme } from '@material-ui/core'
+import { Card, CardContent, CardHeader } from '@mui/material'
+import { styled } from '@mui/styles'
 
 export const NymCard: React.FC<{
   title: string
@@ -7,7 +8,6 @@ export const NymCard: React.FC<{
   Action?: React.ReactNode
   noPadding?: boolean
 }> = ({ title, subheader, Action, noPadding, children }) => {
-  const theme = useTheme()
   return (
     <Card variant="outlined">
       <CardHeader
@@ -17,19 +17,35 @@ export const NymCard: React.FC<{
         titleTypographyProps={{ variant: 'h5' }}
         subheaderTypographyProps={{ variant: 'subtitle1' }}
         action={Action}
-        style={{
-          padding: theme.spacing(2.5),
-          borderBottom: `1px solid ${theme.palette.grey[200]}`,
+        sx={{
+          padding: 2.5,
+          borderBottom: (theme) => `1px solid ${theme.palette.grey[200]}`,
         }}
       />
-      <CardContent
-        style={{
-          background: theme.palette.grey[50],
-          padding: noPadding ? 0 : theme.spacing(2, 5),
-        }}
-      >
-        {children}
-      </CardContent>
+      {noPadding ? (
+        <CardContentNoPadding
+          sx={{
+            background: (theme) => theme.palette.grey[50],
+          }}
+        >
+          {children}
+        </CardContentNoPadding>
+      ) : (
+        <CardContent
+          sx={{
+            background: (theme) => theme.palette.grey[50],
+          }}
+        >
+          {children}
+        </CardContent>
+      )}
     </Card>
   )
 }
+
+const CardContentNoPadding = styled(CardContent)({
+  padding: 0,
+  '&:last-child': {
+    paddingBottom: 0,
+  },
+})

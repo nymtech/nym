@@ -1,7 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react'
-import { Box, Button, CircularProgress, Theme } from '@material-ui/core'
-import { Alert } from '@material-ui/lab'
-import { useTheme } from '@material-ui/styles'
+import { Alert, Box, Button, CircularProgress } from '@mui/material'
 import { BondForm } from './BondForm'
 import { NymCard } from '../../components'
 import {
@@ -22,8 +20,6 @@ export const Bond = () => {
   const { checkOwnership, ownership } = useCheckOwnership()
   const { getBalance } = useContext(ClientContext)
 
-  const theme: Theme = useTheme()
-
   useEffect(() => {
     if (status === EnumRequestStatus.initial) {
       const initialiseForm = async () => {
@@ -43,7 +39,7 @@ export const Bond = () => {
       <NymCard title="Bond" subheader="Bond a node or gateway" noPadding>
         {ownership?.hasOwnership && (
           <Alert
-            severity="warning" 
+            severity="warning"
             action={
               <Button
                 disabled={status === EnumRequestStatus.loading}
@@ -58,17 +54,17 @@ export const Bond = () => {
                 Unbond
               </Button>
             }
-            style={{ margin: theme.spacing(2) }}
+            style={{ margin: 2 }}
           >
             {`Looks like you already have a ${ownership.nodeType} bonded.`}
           </Alert>
         )}
         {status === EnumRequestStatus.loading && (
           <Box
-            style={{
+            sx={{
               display: 'flex',
               justifyContent: 'center',
-              padding: theme.spacing(3),
+              padding: 3,
             }}
           >
             <CircularProgress size={48} />
@@ -94,7 +90,9 @@ export const Bond = () => {
             <RequestStatus
               status={status}
               Success={
-                <Alert severity="success" data-testid="bond-success">Successfully bonded node</Alert>
+                <Alert severity="success" data-testid="bond-success">
+                  Successfully bonded node
+                </Alert>
               }
               Error={
                 <Alert severity="error" data-testid="bond-error">
@@ -102,14 +100,14 @@ export const Bond = () => {
                 </Alert>
               }
             />
-            <div
-              style={{
+            <Box
+              sx={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'flex-end',
-                borderTop: `1px solid ${theme.palette.grey[200]}`,
-                background: theme.palette.grey[100],
-                padding: theme.spacing(2),
+                borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
+                bgcolor: (theme) => theme.palette.grey[100],
+                padding: 2,
               }}
             >
               <Button
@@ -120,7 +118,7 @@ export const Bond = () => {
               >
                 Again?
               </Button>
-            </div>
+            </Box>
           </>
         )}
       </NymCard>

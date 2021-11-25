@@ -1,11 +1,11 @@
+import React from 'react'
 import {
   FormControl,
   FormControlLabel,
   FormLabel,
   Radio,
   RadioGroup,
-} from '@material-ui/core'
-import React from 'react'
+} from '@mui/material'
 import { EnumNodeType } from '../types/global'
 
 export const NodeTypeSelector = ({

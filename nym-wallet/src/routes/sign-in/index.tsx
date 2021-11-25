@@ -13,6 +13,7 @@ export const SignIn = () => {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
+        bgcolor: (theme) => theme.palette.nym.background.dark,
       }}
     >
       <Box

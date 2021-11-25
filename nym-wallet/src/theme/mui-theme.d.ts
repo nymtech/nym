@@ -34,9 +34,9 @@ declare module '@mui/material/styles' {
    */
   interface NymPalette {
     highlight: string
+    background: { light: string; dark: string }
     text: {
-      nav: string
-      footer: string
+      light: string
     }
   }
 

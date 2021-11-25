@@ -79,24 +79,41 @@ export const Nav = () => {
       <List>
         {routesSchema.map((r, i) => (
           <ListItem button component={Link} to={r.route} key={i}>
-            <ListItemIcon>{r.Icon}</ListItemIcon>
-            <ListItemText primary={r.label} />
+            <ListItemIcon
+              sx={{
+                color:
+                  location.pathname === r.route
+                    ? 'primary.main'
+                    : 'common.white',
+              }}
+            >
+              {r.Icon}
+            </ListItemIcon>
+            <ListItemText
+              sx={{
+                color:
+                  location.pathname === r.route
+                    ? 'primary.main'
+                    : 'common.white',
+              }}
+              primary={r.label}
+            />
           </ListItem>
         ))}
         {clientDetails?.client_address === ADMIN_ADDRESS && (
           <ListItem button onClick={handleShowAdmin}>
-            <ListItemIcon>
+            <ListItemIcon sx={{ color: 'common.white' }}>
               <Settings />
             </ListItemIcon>
-            <ListItemText primary="Admin" />
+            <ListItemText primary="Admin" sx={{ color: 'common.white' }} />
           </ListItem>
         )}
 
         <ListItem button onClick={logOut}>
-          <ListItemIcon data-testid="log-out">
+          <ListItemIcon data-testid="log-out" sx={{ color: 'common.white' }}>
             <ExitToApp />
           </ListItemIcon>
-          <ListItemText primary="Log out" />
+          <ListItemText primary="Log out" sx={{ color: 'common.white' }} />
         </ListItem>
       </List>
     </div>

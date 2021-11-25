@@ -46,17 +46,30 @@ export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({
   return (
     <Stack spacing={4} alignItems="center">
       <img src={logo} width={80} />
-      <Typography variant="h4">Congratulations</Typography>
-      <Typography variant="h6">Account setup complete!</Typography>
+      <Typography sx={{ color: 'common.white' }} variant="h4">
+        Congratulations
+      </Typography>
+      <Typography sx={{ color: 'common.white' }} variant="h6">
+        Account setup complete!
+      </Typography>
       <Alert severity="info" variant="outlined">
-        <Box sx={{ textAlign: 'center' }} data-testid="mnemonic-warning">
+        <Box
+          sx={{ textAlign: 'center', color: 'info.light' }}
+          data-testid="mnemonic-warning"
+        >
           Please store your mnemonic in a safe place. You'll need it to access
           your account!
         </Box>
       </Alert>
-      <Card variant="outlined" sx={{ bgcolor: 'transparent', p: 2 }}>
-        <CardHeader title="Mnemonic" />
-        <CardContent data-testid="mnemonic-phrase">
+      <Card
+        variant="outlined"
+        sx={{ bgcolor: 'transparent', p: 2, borderColor: 'common.white' }}
+      >
+        <CardHeader sx={{ color: 'common.white' }} title="Mnemonic" />
+        <CardContent
+          sx={{ color: 'common.white' }}
+          data-testid="mnemonic-phrase"
+        >
           {accountDetails?.mnemonic}
         </CardContent>
         <CardActions sx={{ justifyContent: 'flex-end' }}>
@@ -64,8 +77,10 @@ export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({
         </CardActions>
       </Card>
       <Box sx={{ textAlign: 'center' }}>
-        <Typography variant="body2">Account address:</Typography>
-        <Typography data-testid="wallet-address">
+        <Typography sx={{ color: 'common.white' }} variant="body2">
+          Account address:
+        </Typography>
+        <Typography sx={{ color: 'common.white' }} data-testid="wallet-address">
           {accountDetails?.client_address}
         </Typography>
       </Box>

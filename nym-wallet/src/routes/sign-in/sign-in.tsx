@@ -12,6 +12,7 @@ import {
 import logo from '../../images/logo-background.svg'
 import { signInWithMnemonic } from '../../requests'
 import { ClientContext } from '../../context/main'
+import { styled } from '@mui/styles'
 
 export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({
   showCreateAccount,
@@ -41,10 +42,12 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({
   return (
     <Stack spacing={3} alignItems="center" sx={{ width: '100%' }}>
       <img src={logo} style={{ width: 80 }} />
-      <Typography>Enter Mnemonic and sign in</Typography>
+      <Typography sx={{ color: 'common.white' }}>
+        Enter Mnemonic and sign in
+      </Typography>
       <Grid container direction="column" spacing={1}>
         <Grid item>
-          <TextField
+          <StyledInput
             value={mnemonic}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setMnemonic(e.target.value)
@@ -60,7 +63,6 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({
             autoComplete="mnemonic"
             autoFocus
             disabled={isLoading}
-            sx={{ color: 'red' }}
           />
         </Grid>
         <Grid item>
@@ -79,14 +81,21 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({
         </Grid>
         {inputError && (
           <Grid item sx={{ mt: 1 }}>
-            <Alert severity="error" variant="outlined" data-testid="error">
+            <Alert
+              severity="error"
+              variant="outlined"
+              data-testid="error"
+              sx={{ color: 'error.light' }}
+            >
               {inputError}
             </Alert>
           </Grid>
         )}
       </Grid>
       <div>
-        <Typography component="span">Don't have an account?</Typography>{' '}
+        <Typography sx={{ color: 'common.white' }} component="span">
+          Don't have an account?
+        </Typography>{' '}
         <Link href="#" onClick={showCreateAccount}>
           Create one now
         </Link>
@@ -94,3 +103,25 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({
     </Stack>
   )
 }
+
+const StyledInput = styled((props) => <TextField {...props} />)(
+  ({ theme }) => ({
+    '& input': {
+      color: theme.palette.nym.text.light,
+    },
+    '& label': {
+      color: theme.palette.nym.text.light,
+    },
+    '& label.Mui-focused': {
+      color: theme.palette.primary.main,
+    },
+    '& .MuiOutlinedInput-root': {
+      '& fieldset': {
+        borderColor: theme.palette.common.white,
+      },
+      '&:hover fieldset': {
+        borderColor: theme.palette.primary.main,
+      },
+    },
+  }),
+)

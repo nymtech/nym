@@ -21,10 +21,9 @@ import {
 const nymPalette: NymPalette = {
   /** emphasises important elements */
   highlight: '#FB6E4E',
+  background: { light: '#FAFAFA', dark: '#121726' },
   text: {
-    nav: '#F2F2F2',
-    /** footer text colour */
-    footer: '#666B77',
+    light: '#F2F2F2',
   },
 }
 
@@ -65,7 +64,7 @@ const lightMode: NymPaletteVariant = {
 }
 
 /**
- * Nym palette specific to the Network Explorer
+ * Nym palette specific to the Nym Wallet
  *
  * IMPORTANT: do not export this constant, always use the MUI `useTheme` hook to get the correct
  * colours for dark/light mode.

@@ -24,7 +24,7 @@ export const ClientContextProvider = ({
 }) => {
   const [clientDetails, setClientDetails] = useState<TClientDetails>()
   const [showAdmin, setShowAdmin] = useState(false)
-  const [mode, setMode] = useState<'light' | 'dark'>('dark')
+  const [mode, setMode] = useState<'light' | 'dark'>('light')
 
   const history = useHistory()
   const getBalance = useGetBalance()

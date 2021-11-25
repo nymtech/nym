@@ -5,8 +5,10 @@ use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
 use crate::mixnet_contract_settings::models::ContractSettings;
-use crate::mixnet_contract_settings::queries::query_contract_settings_params;
 use crate::mixnet_contract_settings::queries::query_rewarding_interval;
+use crate::mixnet_contract_settings::queries::{
+    query_contract_settings_params, query_contract_version,
+};
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
@@ -158,6 +160,7 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
+        QueryMsg::GetContractVersion {} => to_binary(&query_contract_version()),
         QueryMsg::GetMixNodes { start_after, limit } => {
             to_binary(&query_mixnodes_paged(deps, start_after, limit)?)
         }

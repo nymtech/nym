@@ -237,8 +237,7 @@ pub mod tests {
             },
         };
 
-        let execute_response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(execute_response.attributes[0], attr("overwritten", false));
+        execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         let info = mock_info("foomper", &test_helpers::good_mixnode_bond());
         let msg = ExecuteMsg::BondMixnode {
@@ -248,9 +247,9 @@ pub mod tests {
             },
         };
 
-        // we get a log message about it (TODO: does it get back to the user?)
-        let execute_response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(execute_response.attributes[0], attr("overwritten", true));
+        // it fails
+        let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
+        assert_eq!(Err(ContractError::AlreadyOwnsMixnode), execute_response);
 
         // bonding fails if the user already owns a gateway
         let info = mock_info("gateway-owner", &test_helpers::good_gateway_bond());
@@ -377,17 +376,8 @@ pub mod tests {
             },
         };
 
-        assert!(execute(deps.as_mut(), mock_env(), info, msg).is_ok());
-
-        // make sure the host information was updated
-        assert_eq!(
-            "2.2.2.2:1789".to_string(),
-            storage::mixnodes_read(deps.as_ref().storage)
-                .load("myAwesomeMixnode".as_bytes())
-                .unwrap()
-                .mix_node
-                .host
-        );
+        let res = execute(deps.as_mut(), mock_env(), info, msg);
+        assert_eq!(Err(ContractError::AlreadyOwnsMixnode), res);
     }
 
     #[test]

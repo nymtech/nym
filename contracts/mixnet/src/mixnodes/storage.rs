@@ -26,9 +26,6 @@ const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
 
 pub(crate) struct MixnodeBondIndex<'a> {
     pub(crate) identity: UniqueIndex<'a, IdentityKey, StoredMixnodeBond>,
-
-    // somehow PrimaryKey is not implemented for Addr but is for String?
-    // maybe it's an omission in this version and is fixed in the cosmwasm 1.0 compatible release?
     pub(crate) owner: UniqueIndex<'a, Addr, StoredMixnodeBond>,
 }
 

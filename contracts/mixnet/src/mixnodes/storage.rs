@@ -25,7 +25,7 @@ pub(crate) struct MixnodeBondIndex<'a> {
 
     // somehow PrimaryKey is not implemented for Addr but is for String?
     // maybe it's an omission in this version and is fixed in the cosmwasm 1.0 compatible release?
-    pub(crate) owner: UniqueIndex<'a, String, StoredMixnodeBond>,
+    pub(crate) owner: UniqueIndex<'a, Addr, StoredMixnodeBond>,
 }
 
 // IndexList is just boilerplate code for fetching a struct's indexes
@@ -40,7 +40,7 @@ impl<'a> IndexList<StoredMixnodeBond> for MixnodeBondIndex<'a> {
 pub(crate) fn mixnodes<'a>() -> IndexedMap<'a, &'a [u8], StoredMixnodeBond, MixnodeBondIndex<'a>> {
     let indexes = MixnodeBondIndex {
         identity: UniqueIndex::new(|d| d.mix_node.identity_key.clone(), "mni"),
-        owner: UniqueIndex::new(|d| d.owner.to_string(), "mno"),
+        owner: UniqueIndex::new(|d| d.owner.clone(), "mno"),
     };
     IndexedMap::new("mn", indexes)
 }

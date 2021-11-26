@@ -18,7 +18,7 @@ pub(crate) fn try_add_gateway(
     if mixnodes_storage::mixnodes()
         .idx
         .owner
-        .item(deps.storage, info.sender.to_string())?
+        .item(deps.storage, info.sender.clone())?
         .is_some()
     {
         return Err(ContractError::AlreadyOwnsMixnode);

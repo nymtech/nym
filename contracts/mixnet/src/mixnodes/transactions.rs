@@ -31,7 +31,7 @@ pub(crate) fn try_add_mixnode(
     if storage::mixnodes()
         .idx
         .owner
-        .item(deps.storage, info.sender.to_string())?
+        .item(deps.storage, info.sender.clone())?
         .is_some()
     {
         return Err(ContractError::AlreadyOwnsMixnode);
@@ -84,7 +84,7 @@ pub(crate) fn try_remove_mixnode(
     let (entry_key, mixnode_bond) = match storage::mixnodes()
         .idx
         .owner
-        .item(deps.storage, info.sender.to_string())?
+        .item(deps.storage, info.sender.clone())?
     {
         Some(node) => (node.0, node.1),
         None => return Err(ContractError::NoAssociatedMixNodeBond { owner: info.sender }),
@@ -300,7 +300,7 @@ pub mod tests {
         assert!(storage::mixnodes()
             .idx
             .owner
-            .item(deps.as_ref().storage, "mix-owner".to_string())
+            .item(deps.as_ref().storage, Addr::unchecked("mix-owner"))
             .unwrap()
             .is_none());
 
@@ -313,7 +313,7 @@ pub mod tests {
             storage::mixnodes()
                 .idx
                 .owner
-                .item(deps.as_ref().storage, "mix-owner".to_string())
+                .item(deps.as_ref().storage, Addr::unchecked("mix-owner"))
                 .unwrap()
                 .unwrap()
                 .1
@@ -514,7 +514,7 @@ pub mod tests {
             storage::mixnodes()
                 .idx
                 .owner
-                .item(deps.as_ref().storage, "mix-owner".to_string())
+                .item(deps.as_ref().storage, Addr::unchecked("mix-owner"))
                 .unwrap()
                 .unwrap()
                 .1
@@ -529,7 +529,7 @@ pub mod tests {
         assert!(storage::mixnodes()
             .idx
             .owner
-            .item(deps.as_ref().storage, "mix-owner".to_string())
+            .item(deps.as_ref().storage, Addr::unchecked("mix-owner"))
             .unwrap()
             .is_none());
 
@@ -548,7 +548,7 @@ pub mod tests {
             storage::mixnodes()
                 .idx
                 .owner
-                .item(deps.as_ref().storage, "mix-owner".to_string())
+                .item(deps.as_ref().storage, Addr::unchecked("mix-owner"))
                 .unwrap()
                 .unwrap()
                 .1

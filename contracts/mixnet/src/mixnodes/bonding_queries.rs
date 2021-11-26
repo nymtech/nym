@@ -41,7 +41,7 @@ pub fn query_owns_mixnode(deps: Deps, address: Addr) -> StdResult<MixOwnershipRe
     let has_node = storage::mixnodes()
         .idx
         .owner
-        .item(deps.storage, address.to_string())?
+        .item(deps.storage, address.clone())?
         .is_some();
     Ok(MixOwnershipResponse { address, has_node })
 }

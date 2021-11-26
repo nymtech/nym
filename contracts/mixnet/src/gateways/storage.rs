@@ -3,8 +3,9 @@ use cosmwasm_storage::bucket;
 use cosmwasm_storage::bucket_read;
 use cosmwasm_storage::Bucket;
 use cosmwasm_storage::ReadonlyBucket;
-use mixnet_contract::GatewayBond;
+use cw_storage_plus::Map;
 use mixnet_contract::IdentityKey;
+use mixnet_contract::{GatewayBond, IdentityKeyRef};
 
 // storage prefixes
 const PREFIX_GATEWAYS: &[u8] = b"gt";

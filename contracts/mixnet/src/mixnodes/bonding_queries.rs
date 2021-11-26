@@ -51,6 +51,7 @@ pub(crate) mod tests {
     use super::*;
 
     use super::storage;
+    use crate::mixnodes::storage::BOND_PAGE_DEFAULT_LIMIT;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
@@ -79,7 +80,7 @@ pub(crate) mod tests {
     #[test]
     fn mixnodes_paged_retrieval_has_default_limit() {
         let mut deps = test_helpers::init_contract();
-        for n in 0..100 {
+        for n in 0..1000 {
             let key = format!("bond{}", n);
             test_helpers::add_mixnode(&key, test_helpers::good_mixnode_bond(), deps.as_mut());
         }
@@ -87,8 +88,7 @@ pub(crate) mod tests {
         // query without explicitly setting a limit
         let page1 = query_mixnodes_paged(deps.as_ref(), None, None).unwrap();
 
-        let expected_limit = 50;
-        assert_eq!(expected_limit, page1.nodes.len() as u32);
+        assert_eq!(BOND_PAGE_DEFAULT_LIMIT, page1.nodes.len() as u32);
     }
 
     #[test]

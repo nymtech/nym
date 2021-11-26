@@ -1,7 +1,7 @@
 use super::storage;
 use crate::delegations::helpers;
 use crate::error::ContractError;
-use crate::query_support::calculate_start_value;
+use crate::support::query_support::calculate_start_value;
 use config::defaults::DENOM;
 use cosmwasm_std::coin;
 use cosmwasm_std::Addr;

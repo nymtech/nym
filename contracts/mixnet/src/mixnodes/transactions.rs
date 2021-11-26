@@ -3,10 +3,10 @@
 
 use super::storage;
 use crate::error::ContractError;
-use crate::gateways::storage as gateways_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::mixnodes::storage::StoredMixnodeBond;
+use crate::support::helpers::ensure_no_existing_bond;
 use config::defaults::DENOM;
 use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, StdError, Uint128};
 use mixnet_contract::{IdentityKey, MixNode};
@@ -17,25 +17,8 @@ pub(crate) fn try_add_mixnode(
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<Response, ContractError> {
-    let sender_bytes = info.sender.as_bytes();
-
-    // if the client has an active bonded gateway, don't allow mixnode bonding
-    if gateways_storage::gateways_owners_read(deps.storage)
-        .may_load(sender_bytes)?
-        .is_some()
-    {
-        return Err(ContractError::AlreadyOwnsGateway);
-    }
-
-    // if the client has an active bonded mixnode, regardless of its identity, don't allow bonding
-    if storage::mixnodes()
-        .idx
-        .owner
-        .item(deps.storage, info.sender.clone())?
-        .is_some()
-    {
-        return Err(ContractError::AlreadyOwnsMixnode);
-    }
+    // if the client has an active bonded mixnode or gateway, don't allow bonding
+    ensure_no_existing_bond(deps.storage, info.sender.clone())?;
 
     // check if somebody else has already bonded a mixnode with this identity
     if let Some(existing_bond) =
@@ -86,7 +69,7 @@ pub(crate) fn try_remove_mixnode(
         .owner
         .item(deps.storage, info.sender.clone())?
     {
-        Some(node) => (node.0, node.1),
+        Some(record) => (record.0, record.1),
         None => return Err(ContractError::NoAssociatedMixNodeBond { owner: info.sender }),
     };
 

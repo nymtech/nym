@@ -61,15 +61,11 @@ pub mod test_helpers {
         page.nodes
     }
 
-    pub fn add_gateway(
-        sender: &str,
-        stake: Vec<Coin>,
-        deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) -> String {
+    pub fn add_gateway(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
         let info = mock_info(sender, &stake);
         let key = format!("{}gateway", sender);
         try_add_gateway(
-            deps.as_mut(),
+            deps,
             mock_env(),
             info,
             Gateway {
@@ -119,26 +115,6 @@ pub mod test_helpers {
         }
     }
 
-    pub fn mixnode_bond_fixture() -> MixNodeBond {
-        let mix_node = MixNode {
-            host: "1.1.1.1".to_string(),
-            mix_port: 1789,
-            verloc_port: 1790,
-            http_api_port: 8000,
-            sphinx_key: "1234".to_string(),
-            identity_key: "aaaa".to_string(),
-            version: "0.10.0".to_string(),
-        };
-        MixNodeBond::new(
-            coin(50, DENOM),
-            Addr::unchecked("foo"),
-            Layer::One,
-            12_345,
-            mix_node,
-            None,
-        )
-    }
-
     pub(crate) fn stored_mixnode_bond_fixture(owner: &str) -> mixnodes_storage::StoredMixnodeBond {
         StoredMixnodeBond::new(
             coin(50, DENOM),
@@ -159,24 +135,18 @@ pub mod test_helpers {
             mix_port: 1789,
             clients_port: 9000,
             location: "Sweden".to_string(),
-
             sphinx_key: "sphinx".to_string(),
             identity_key: "identity".to_string(),
             version: "0.10.0".to_string(),
         }
     }
 
-    pub fn gateway_bond_fixture() -> GatewayBond {
+    pub fn gateway_bond_fixture(owner: &str) -> GatewayBond {
         let gateway = Gateway {
-            host: "1.1.1.1".to_string(),
-            mix_port: 1789,
-            clients_port: 9000,
-            location: "London".to_string(),
-            sphinx_key: "sphinx".to_string(),
-            identity_key: "identity".to_string(),
-            version: "0.10.0".to_string(),
+            identity_key: format!("id-{}", owner),
+            ..gateway_fixture()
         };
-        GatewayBond::new(coin(50, DENOM), Addr::unchecked("foo"), 12_345, gateway)
+        GatewayBond::new(coin(50, DENOM), Addr::unchecked(owner), 12_345, gateway)
     }
 
     pub fn raw_delegation_fixture(amount: u128) -> RawDelegationData {

@@ -4,6 +4,8 @@
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm
 /// to get the succeeding key as the start of the next page.
 // S works for both `String` and `Addr` and that's what we wanted
+// we might be able to get rid of it.
+// #[deprecated]
 pub fn calculate_start_value<S: AsRef<str>>(start_after: Option<S>) -> Option<Vec<u8>> {
     start_after.as_ref().map(|identity| {
         identity

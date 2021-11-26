@@ -203,7 +203,7 @@ mod tests {
         let node_identity: IdentityKey = "nodeidentity".into();
 
         // produces a None if target mixnode doesn't exist
-        let res = storage::read_mixnode_bond(deps.as_ref().storage, node_owner.as_str()).unwrap();
+        let res = storage::read_mixnode_bond(deps.as_ref().storage, &node_identity).unwrap();
         assert!(res.is_none());
 
         // returns appropriate value otherwise

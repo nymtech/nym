@@ -102,11 +102,11 @@ export const PageMixnodesMap: React.FC = () => {
   if (countryData?.data && !countryData.isLoading) {
     return (
       <Box component="main" sx={{ flexGrow: 1 }}>
-        <Grid container spacing={1} sx={{ mb: 4 }}>
-          <Grid item xs={12} data-testid="mixnodes-globe">
-            <Title text="Mixnodes Around the Globe" />
+        <Grid>
+          <Grid item data-testid="mixnodes-globe">
+            <Title text="Overview" />
           </Grid>
-          <Grid item xs={12} lg={9}>
+          <Grid item>
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <ContentCard title="Distribution of nodes">

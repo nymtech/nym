@@ -371,7 +371,7 @@ mod tests {
         fn are_not_allowed() {
             let host = "unknown.com";
             let mut filter = setup();
-            assert_eq!(false, filter.check(&host));
+            assert!(!filter.check(host));
         }
 
         #[test]
@@ -396,7 +396,7 @@ mod tests {
             let (_, base_dir2, unknown_filename) = create_test_storefile();
 
             for allowed_host in allowed {
-                HostsStore::append(&allowed_storefile, &*allowed_host)
+                HostsStore::append(&allowed_storefile, allowed_host)
             }
 
             let allowed = HostsStore::new(base_dir1, allowed_filename);
@@ -409,7 +409,7 @@ mod tests {
             let host = "nymtech.net";
 
             let mut filter = setup(&["nymtech.net"]);
-            assert_eq!(true, filter.check(host));
+            assert!(filter.check(host));
         }
 
         #[test]
@@ -417,7 +417,7 @@ mod tests {
             let host = "foomp.nymtech.net";
 
             let mut filter = setup(&["nymtech.net"]);
-            assert_eq!(true, filter.check(host));
+            assert!(filter.check(host));
         }
 
         #[test]

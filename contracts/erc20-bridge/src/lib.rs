@@ -68,7 +68,7 @@ pub mod tests {
 
     #[test]
     fn initialize_contract() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let env = mock_env();
         let msg = InstantiateMsg {};
         let info = mock_info("creator", &[]);

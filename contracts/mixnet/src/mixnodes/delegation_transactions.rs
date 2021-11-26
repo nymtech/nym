@@ -100,11 +100,10 @@ pub(crate) fn try_remove_delegation_from_mixnode(
             .remove(mix_identity.as_bytes());
 
         // send delegated funds back to the delegation owner
-        let messages = vec![BankMsg::Send {
+        let return_tokens = BankMsg::Send {
             to_address: info.sender.to_string(),
             amount: coins(delegation.amount.u128(), DENOM),
-        }
-        .into()];
+        };
 
         // update total_delegation of this node
         storage::total_delegation(deps.storage).update::<_, ContractError>(
@@ -121,12 +120,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
             },
         )?;
 
-        Ok(Response {
-            submessages: Vec::new(),
-            messages,
-            attributes: Vec::new(),
-            data: None,
-        })
+        Ok(Response::new().add_message(return_tokens))
     } else {
         Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
@@ -622,16 +616,10 @@ mod tests {
             )
             .unwrap();
             assert_eq!(
-                Ok(Response {
-                    submessages: vec![],
-                    messages: vec![BankMsg::Send {
-                        to_address: delegation_owner.clone().into(),
-                        amount: coins(100, DENOM),
-                    }
-                    .into()],
-                    attributes: Vec::new(),
-                    data: None,
-                }),
+                Ok(Response::new().add_message(BankMsg::Send {
+                    to_address: delegation_owner.clone().into(),
+                    amount: coins(100, DENOM),
+                })),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
                     mock_info(delegation_owner.as_str(), &[]),
@@ -672,16 +660,10 @@ mod tests {
             .unwrap();
             try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
             assert_eq!(
-                Ok(Response {
-                    submessages: vec![],
-                    messages: vec![BankMsg::Send {
-                        to_address: delegation_owner.clone().into(),
-                        amount: coins(100, DENOM),
-                    }
-                    .into()],
-                    attributes: Vec::new(),
-                    data: None,
-                }),
+                Ok(Response::new().add_message(BankMsg::Send {
+                    to_address: delegation_owner.clone().into(),
+                    amount: coins(100, DENOM),
+                })),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
                     mock_info(delegation_owner.as_str(), &[]),

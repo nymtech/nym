@@ -256,7 +256,7 @@ mod tests {
         try_add_mixnode(deps.as_mut(), mock_env(), info, mixnode).unwrap();
 
         assert_eq!(
-            Uint128(bond_value),
+            Uint128::new(bond_value),
             storage::read_mixnode_bond(deps.as_ref().storage, node_identity.as_str())
                 .unwrap()
                 .unwrap()
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn all_mixnode_delegations_read_retrieval() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let node_identity1: IdentityKey = "foo1".into();
         let delegation_owner1 = Addr::unchecked("bar1");
         let node_identity2: IdentityKey = "foo2".into();

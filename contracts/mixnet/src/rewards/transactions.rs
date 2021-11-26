@@ -5,7 +5,7 @@ use super::storage;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-use cosmwasm_std::{attr, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
 use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
 use mixnet_contract::{
     IdentityKey, IdentityKeyRef, PendingDelegatorRewarding, RewardingResult, RewardingStatus,
@@ -104,12 +104,10 @@ pub(crate) fn try_begin_mixnode_rewarding(
 
     mixnet_params_storage::contract_settings(deps.storage).save(&state)?;
 
-    let mut response = Response::new();
-    response.add_attribute(
+    Ok(Response::new().add_attribute(
         "rewarding interval nonce",
         rewarding_interval_nonce.to_string(),
-    );
-    Ok(response)
+    ))
 }
 
 fn reward_mix_delegators_v2(
@@ -164,8 +162,8 @@ fn reward_mix_delegators_v2(
                 <= params.node_reward_params().reward_blockstamp()
             {
                 let reward = params.determine_delegation_reward(delegation.amount);
-                delegation.amount += Uint128(reward);
-                total_rewarded += Uint128(reward);
+                delegation.amount += Uint128::new(reward);
+                total_rewarded += Uint128::new(reward);
 
                 rewarded_delegations.push((delegator_address, delegation));
             }
@@ -255,13 +253,7 @@ pub(crate) fn try_reward_next_mixnode_delegators_v2(
                 )?;
             }
 
-            let mut response = Response::new();
-            // it looks kinda ugly now, but the API for this is vastly improved in cosmwasm 1.0
-            for attribute in attributes {
-                response.add_attribute(attribute.0, attribute.1)
-            }
-
-            Ok(response)
+            Ok(Response::new().add_attributes(attributes))
         }
     }
 }
@@ -303,12 +295,7 @@ pub(crate) fn try_reward_mixnode_v2(
     // check if the bond even exists
     let current_bond = match mixnodes_storage::read_mixnode_bond(deps.storage, &mix_identity)? {
         Some(bond) => bond,
-        None => {
-            return Ok(Response {
-                attributes: vec![attr("result", "bond not found")],
-                ..Default::default()
-            });
-        }
+        None => return Ok(Response::new().add_attribute("result", "bond not found")),
     };
 
     // in cosmwasm 1.0 all attributes have to be of type T: Into<String> anyway
@@ -328,7 +315,7 @@ pub(crate) fn try_reward_mixnode_v2(
         node_reward = operator_reward_result.reward().to_string();
 
         // Omitting the price per packet function now, it follows that base operator reward is the node_reward
-        operator_reward = Uint128(current_bond.operator_reward(&node_reward_params));
+        operator_reward = Uint128::new(current_bond.operator_reward(&node_reward_params));
 
         let delegator_params = DelegatorRewardParams::new(&current_bond, node_reward_params);
         let delegation_rewarding_result =
@@ -388,18 +375,13 @@ pub(crate) fn try_reward_mixnode_v2(
         )?;
     }
 
-    Ok(Response {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![
-            attr("node reward", node_reward),
-            attr("operator reward", operator_reward),
-            attr("total delegation increase", total_delegation_increase),
-            attr("more delegators to reward", more_delegators),
-        ],
-        data: None,
-    })
+    Ok(Response::new()
+        .add_attribute("node reward", node_reward)
+        .add_attribute("operator reward", operator_reward)
+        .add_attribute("total delegation increase", total_delegation_increase)
+        .add_attribute("more delegators to reward", more_delegators.to_string()))
 }
+
 pub(crate) fn try_finish_mixnode_rewarding(
     deps: DepsMut,
     info: MessageInfo,
@@ -1063,7 +1045,10 @@ pub mod tests {
         assert_eq!(res.attributes[0], attr("node reward", "0"));
         assert_eq!(res.attributes[1], attr("operator reward", "0"));
         assert_eq!(res.attributes[2], attr("total delegation increase", "0"));
-        assert_eq!(res.attributes[3], attr("more delegators to reward", false));
+        assert_eq!(
+            res.attributes[3],
+            attr("more delegators to reward", false.to_string())
+        );
 
         // reward can happen now, but only for bonded node
         env.block.height += 1;
@@ -1098,7 +1083,10 @@ pub mod tests {
         assert_ne!(res.attributes[0], attr("node reward", "0"));
         assert_ne!(res.attributes[1], attr("operator reward", "0"));
         assert_eq!(res.attributes[2], attr("total delegation increase", "0"));
-        assert_eq!(res.attributes[3], attr("more delegators to reward", false));
+        assert_eq!(
+            res.attributes[3],
+            attr("more delegators to reward", false.to_string())
+        );
 
         // reward happens now, both for node owner and delegators
         env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
@@ -1138,7 +1126,10 @@ pub mod tests {
         assert_ne!(res.attributes[0], attr("node reward", "0"));
         assert_ne!(res.attributes[1], attr("operator reward", "0"));
         assert_ne!(res.attributes[2], attr("total delegation increase", "0"));
-        assert_eq!(res.attributes[3], attr("more delegators to reward", false));
+        assert_eq!(
+            res.attributes[3],
+            attr("more delegators to reward", false.to_string())
+        );
     }
 
     #[test]
@@ -1159,7 +1150,7 @@ pub mod tests {
         let circulating_supply = storage::circulating_supply(&deps.storage).u128();
         assert_eq!(circulating_supply, 750_000_000_000_000u128);
         // mut_reward_pool(deps.as_mut().storage)
-        //     .save(&Uint128(period_reward_pool))
+        //     .save(&Uint128::new(period_reward_pool))
         //     .unwrap();
 
         try_add_mixnode(
@@ -1169,7 +1160,7 @@ pub mod tests {
                 "alice",
                 &[Coin {
                     denom: DENOM.to_string(),
-                    amount: Uint128(10_000_000_000),
+                    amount: Uint128::new(10_000_000_000),
                 }],
             ),
             MixNode {
@@ -1238,9 +1229,9 @@ pub mod tests {
 
         let mix1_operator_profit = mix_1.operator_reward(&params);
 
-        let mix1_delegator1_reward = mix_1.reward_delegation(Uint128(8000_000000), &params);
+        let mix1_delegator1_reward = mix_1.reward_delegation(Uint128::new(8000_000000), &params);
 
-        let mix1_delegator2_reward = mix_1.reward_delegation(Uint128(2000_000000), &params);
+        let mix1_delegator2_reward = mix_1.reward_delegation(Uint128::new(2000_000000), &params);
 
         assert_eq!(mix1_operator_profit, U128::from_num(74455384));
         assert_eq!(mix1_delegator1_reward, U128::from_num(22552615));
@@ -1314,7 +1305,7 @@ pub mod tests {
                     .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
-            let mix_bond = Uint128(10000_000_000);
+            let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
             try_add_mixnode(
                 deps.as_mut(),
@@ -1366,7 +1357,10 @@ pub mod tests {
                 1,
             )
             .unwrap();
-            assert_eq!(res.attributes[3], attr("more delegators to reward", false));
+            assert_eq!(
+                res.attributes[3],
+                attr("more delegators to reward", false.to_string())
+            );
 
             try_finish_mixnode_rewarding(
                 deps.as_mut(),
@@ -1380,7 +1374,7 @@ pub mod tests {
                     mixnodes_storage::mix_delegations_read(deps.as_ref().storage, "10delegators")
                         .load(format!("delegator{}", i).as_bytes())
                         .unwrap();
-                assert!(delegation.amount > Uint128(delegation_value));
+                assert!(delegation.amount > Uint128::new(delegation_value));
             }
         }
 
@@ -1396,7 +1390,7 @@ pub mod tests {
                     .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
-            let mix_bond = Uint128(10000_000_000);
+            let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
             try_add_mixnode(
                 deps.as_mut(),
@@ -1448,7 +1442,10 @@ pub mod tests {
                 1,
             )
             .unwrap();
-            assert_eq!(res.attributes[3], attr("more delegators to reward", false));
+            assert_eq!(
+                res.attributes[3],
+                attr("more delegators to reward", false.to_string())
+            );
 
             try_finish_mixnode_rewarding(
                 deps.as_mut(),
@@ -1464,7 +1461,7 @@ pub mod tests {
                 )
                 .load(format!("delegator{}", i).as_bytes())
                 .unwrap();
-                assert!(delegation.amount > Uint128(delegation_value));
+                assert!(delegation.amount > Uint128::new(delegation_value));
             }
         }
 
@@ -1480,7 +1477,7 @@ pub mod tests {
                     .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
-            let mix_bond = Uint128(10000_000_000);
+            let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
             try_add_mixnode(
                 deps.as_mut(),
@@ -1532,7 +1529,10 @@ pub mod tests {
                 1,
             )
             .unwrap();
-            assert_eq!(res.attributes[3], attr("more delegators to reward", true));
+            assert_eq!(
+                res.attributes[3],
+                attr("more delegators to reward", true.to_string())
+            );
 
             try_finish_mixnode_rewarding(
                 deps.as_mut(),
@@ -1548,7 +1548,7 @@ pub mod tests {
                 )
                 .load(format!("delegator{:04}", i).as_bytes())
                 .unwrap();
-                assert!(delegation.amount > Uint128(delegation_value));
+                assert!(delegation.amount > Uint128::new(delegation_value));
             }
 
             // and the one on the next page should have been unrewarded
@@ -1558,7 +1558,7 @@ pub mod tests {
             )
             .load(format!("delegator{:04}", MIXNODE_DELEGATORS_PAGE_LIMIT).as_bytes())
             .unwrap();
-            assert_eq!(delegation.amount, Uint128(delegation_value));
+            assert_eq!(delegation.amount, Uint128::new(delegation_value));
         }
     }
 
@@ -1614,7 +1614,7 @@ pub mod tests {
         )
         .range(None, None, Order::Ascending)
         {
-            actual_reward += Uint128(delegation.unwrap().1.amount.u128() - base_delegation);
+            actual_reward += Uint128::new(delegation.unwrap().1.amount.u128() - base_delegation);
         }
 
         // sanity check to make sure we actually gave out any rewards
@@ -1671,7 +1671,7 @@ pub mod tests {
         .range(None, None, Order::Ascending)
         {
             let (delegator, delegation) = delegation.unwrap();
-            let delegator_reward = Uint128(delegation.amount.u128() - base_delegation);
+            let delegator_reward = Uint128::new(delegation.amount.u128() - base_delegation);
             actual_reward += delegator_reward;
 
             let delegator = String::from_utf8(delegator).unwrap();
@@ -1709,7 +1709,7 @@ pub mod tests {
         )
         .range(Some(start_bytes), None, Order::Ascending)
         {
-            actual_reward += Uint128(delegation.unwrap().1.amount.u128() - base_delegation);
+            actual_reward += Uint128::new(delegation.unwrap().1.amount.u128() - base_delegation);
         }
 
         assert_eq!(actual_reward, res2.total_rewarded);
@@ -1803,7 +1803,7 @@ pub mod tests {
                     "alice",
                     &vec![Coin {
                         denom: DENOM.to_string(),
-                        amount: Uint128(10000_000_000),
+                        amount: Uint128::new(10000_000_000),
                     }],
                 ),
                 MixNode {
@@ -1862,7 +1862,7 @@ pub mod tests {
                     "bob",
                     &vec![Coin {
                         denom: DENOM.to_string(),
-                        amount: Uint128(10000_000_000),
+                        amount: Uint128::new(10000_000_000),
                     }],
                 ),
                 MixNode {
@@ -1948,7 +1948,7 @@ pub mod tests {
                     .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
-            let mix_bond = Uint128(10000_000_000);
+            let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
 
             let total_delegators = 2 * MIXNODE_DELEGATORS_PAGE_LIMIT + 123;
@@ -2031,7 +2031,7 @@ pub mod tests {
                     mixnodes_storage::mix_delegations_read(deps.as_ref().storage, "alice")
                         .load(format!("delegator{:04}", i).as_bytes())
                         .unwrap();
-                assert!(delegation.amount > Uint128(delegation_value));
+                assert!(delegation.amount > Uint128::new(delegation_value));
                 assert_eq!(expected, delegation.amount)
             }
         }
@@ -2047,7 +2047,7 @@ pub mod tests {
                     .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
-            let mix_bond = Uint128(10000_000_000);
+            let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
 
             let total_delegators = MIXNODE_DELEGATORS_PAGE_LIMIT + 123;
@@ -2147,9 +2147,9 @@ pub mod tests {
                         .unwrap();
 
                 if i == 123 || i == 123 + MIXNODE_DELEGATORS_PAGE_LIMIT {
-                    assert_eq!(delegation.amount, Uint128(2 * delegation_value))
+                    assert_eq!(delegation.amount, Uint128::new(2 * delegation_value))
                 } else {
-                    assert!(delegation.amount > Uint128(delegation_value));
+                    assert!(delegation.amount > Uint128::new(delegation_value));
                     assert_eq!(expected, delegation.amount)
                 }
             }

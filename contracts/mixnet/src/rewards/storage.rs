@@ -26,7 +26,7 @@ pub fn mut_reward_pool(storage: &mut dyn Storage) -> Singleton<Uint128> {
 pub fn reward_pool_value(storage: &dyn Storage) -> Uint128 {
     match reward_pool(storage).load() {
         Ok(value) => value,
-        Err(_e) => Uint128(INITIAL_REWARD_POOL),
+        Err(_e) => Uint128::new(INITIAL_REWARD_POOL),
     }
 }
 
@@ -59,5 +59,5 @@ pub fn decr_reward_pool(
 
 pub fn circulating_supply(storage: &dyn Storage) -> Uint128 {
     let reward_pool = reward_pool_value(storage).u128();
-    Uint128(TOTAL_SUPPLY - reward_pool)
+    Uint128::new(TOTAL_SUPPLY - reward_pool)
 }

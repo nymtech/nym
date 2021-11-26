@@ -27,10 +27,10 @@ use mixnet_contract::{ContractSettingsParams, ExecuteMsg, InstantiateMsg, Migrat
 use std::u128;
 
 /// Constant specifying minimum of coin required to bond a gateway
-pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128(100_000_000);
+pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128::new(100_000_000);
 
 /// Constant specifying minimum of coin required to bond a mixnode
-pub const INITIAL_MIXNODE_BOND: Uint128 = Uint128(100_000_000);
+pub const INITIAL_MIXNODE_BOND: Uint128 = Uint128::new(100_000_000);
 
 pub const INITIAL_MIXNODE_REWARDED_SET_SIZE: u32 = 200;
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
@@ -233,7 +233,7 @@ pub mod tests {
 
     #[test]
     fn initialize_contract() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let env = mock_env();
         let msg = InstantiateMsg {};
         let info = mock_info("creator", &[]);

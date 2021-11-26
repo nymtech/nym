@@ -98,7 +98,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            Uint128(bond_value),
+            Uint128::new(bond_value),
             read_gateway_bond(&mock_storage, node_identity.as_bytes()).unwrap()
         );
     }

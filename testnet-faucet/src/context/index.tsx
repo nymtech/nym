@@ -25,8 +25,7 @@ type TGlobalContext = {
 
 export const GlobalContext = createContext({} as TGlobalContext)
 
-const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } =
-  process.env
+const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } = process.env
 
 export enum EnumRequestType {
   balance = 'balance',

@@ -6,9 +6,9 @@ pub mod test_helpers {
         query, DEFAULT_SYBIL_RESISTANCE_PERCENT, EPOCH_REWARD_PERCENT, INITIAL_REWARD_POOL,
     };
     use crate::gateways::transactions::try_add_gateway;
-    use crate::mixnodes::bonding_transactions::try_add_mixnode;
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::storage::StoredMixnodeBond;
+    use crate::mixnodes::transactions::try_add_mixnode;
     use config::defaults::{DENOM, TOTAL_SUPPLY};
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;

@@ -3,6 +3,7 @@
 
 use super::storage;
 use crate::error::ContractError;
+use crate::mixnodes::storage as mixnodes_storage;
 use config::defaults::DENOM;
 use cosmwasm_std::{coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract::IdentityKey;
@@ -41,7 +42,7 @@ pub(crate) fn try_delegate_to_mixnode(
     validate_delegation_stake(&info.funds)?;
 
     // check if the target node actually exists
-    if storage::mixnodes()
+    if mixnodes_storage::mixnodes()
         .load(deps.storage, mix_identity.as_bytes())
         .is_err()
     {
@@ -68,7 +69,7 @@ pub(crate) fn try_delegate_to_mixnode(
     )?;
 
     // update total_delegation of this node
-    storage::total_delegation(deps.storage).update::<_, ContractError>(
+    mixnodes_storage::total_delegation(deps.storage).update::<_, ContractError>(
         mix_identity.as_bytes(),
         |total_delegation| {
             // since we know that the target node exists and because the total_delegation bucket
@@ -106,7 +107,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
         };
 
         // update total_delegation of this node
-        storage::total_delegation(deps.storage).update::<_, ContractError>(
+        mixnodes_storage::total_delegation(deps.storage).update::<_, ContractError>(
             mix_identity.as_bytes(),
             |total_delegation| {
                 // the first unwrap is fine because the delegation information MUST exist, otherwise we would
@@ -132,15 +133,14 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 mod tests {
     use super::storage;
     use super::*;
-    use crate::mixnodes::delegation_transactions::try_delegate_to_mixnode;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::coins;
 
     #[cfg(test)]
     mod delegation_stake_validation {
         use super::*;
-        use crate::mixnodes::delegation_transactions::validate_delegation_stake;
         use cosmwasm_std::coin;
+
         #[test]
         fn stake_cant_be_empty() {
             assert_eq!(
@@ -182,7 +182,7 @@ mod tests {
     mod mix_stake_delegation {
         use super::storage;
         use super::*;
-        use crate::mixnodes::bonding_transactions::try_remove_mixnode;
+        use crate::mixnodes::transactions::try_remove_mixnode;
         use crate::support::tests::test_helpers::good_mixnode_bond;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::mock_env;
@@ -234,7 +234,7 @@ mod tests {
             // node's "total_delegation" is increased
             assert_eq!(
                 delegation.amount,
-                storage::total_delegation_read(&deps.storage)
+                mixnodes_storage::total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
             )
@@ -292,7 +292,7 @@ mod tests {
             // node's "total_delegation" is increased
             assert_eq!(
                 delegation.amount,
-                storage::total_delegation_read(&deps.storage)
+                mixnodes_storage::total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
             )
@@ -338,7 +338,7 @@ mod tests {
             // node's "total_delegation" is sum of both
             assert_eq!(
                 delegation1.amount + delegation2.amount,
-                storage::total_delegation_read(&deps.storage)
+                mixnodes_storage::total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
             )
@@ -536,7 +536,7 @@ mod tests {
             // node's "total_delegation" is sum of both
             assert_eq!(
                 delegation1.amount + delegation2.amount,
-                storage::total_delegation_read(&deps.storage)
+                mixnodes_storage::total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
             )
@@ -574,7 +574,7 @@ mod tests {
     mod removing_mix_stake_delegation {
         use super::storage;
         use super::*;
-        use crate::mixnodes::bonding_transactions::try_remove_mixnode;
+        use crate::mixnodes::transactions::try_remove_mixnode;
         use crate::support::tests::test_helpers::good_mixnode_bond;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::mock_env;
@@ -639,7 +639,7 @@ mod tests {
             // and total delegation is cleared
             assert_eq!(
                 Uint128::zero(),
-                storage::total_delegation_read(&deps.storage)
+                mixnodes_storage::total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
             )
@@ -716,7 +716,7 @@ mod tests {
             // node's "total_delegation" is sum of both
             assert_eq!(
                 delegation2.amount,
-                storage::total_delegation_read(&deps.storage)
+                mixnodes_storage::total_delegation_read(&deps.storage)
                     .load(identity.as_bytes())
                     .unwrap()
             )
@@ -726,8 +726,8 @@ mod tests {
     #[cfg(test)]
     mod multi_delegations {
         use super::*;
-        use crate::mixnodes::delegation_helpers;
-        use crate::mixnodes::delegation_queries::tests::store_n_mix_delegations;
+        use crate::delegations::helpers;
+        use crate::delegations::queries::tests::store_n_mix_delegations;
         use crate::support::tests::test_helpers;
         use mixnet_contract::IdentityKey;
         use mixnet_contract::RawDelegationData;
@@ -742,7 +742,7 @@ mod tests {
                 &node_identity,
             );
             let mix_bucket = storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
-            let mix_delegations = delegation_helpers::Delegations::new(mix_bucket);
+            let mix_delegations = helpers::Delegations::new(mix_bucket);
             assert_eq!(
                 storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 mix_delegations.count() as u32

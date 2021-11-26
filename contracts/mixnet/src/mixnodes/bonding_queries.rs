@@ -2,14 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::query_support::calculate_start_value;
-use config::defaults::DENOM;
-use cosmwasm_std::{coin, Addr, Deps, Order, StdResult};
+use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use cw_storage_plus::Bound;
-use mixnet_contract::{
-    Delegation, IdentityKey, MixNodeBond, MixOwnershipResponse, PagedMixDelegationsResponse,
-    PagedMixnodeResponse,
-};
+use mixnet_contract::{IdentityKey, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse};
 
 pub fn query_mixnodes_paged(
     deps: Deps,
@@ -49,42 +44,6 @@ pub fn query_owns_mixnode(deps: Deps, address: Addr) -> StdResult<MixOwnershipRe
         .item(deps.storage, address.to_string())?
         .is_some();
     Ok(MixOwnershipResponse { address, has_node })
-}
-
-pub(crate) fn query_mixnode_delegations_paged(
-    deps: Deps,
-    mix_identity: IdentityKey,
-    start_after: Option<Addr>,
-    limit: Option<u32>,
-) -> StdResult<PagedMixDelegationsResponse> {
-    let limit = limit
-        .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
-        .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
-    let start = calculate_start_value(start_after);
-
-    let delegations = storage::mix_delegations_read(deps.storage, &mix_identity)
-        .range(start.as_deref(), None, Order::Ascending)
-        .take(limit)
-        .map(|res| {
-            res.map(|entry| {
-                Delegation::new(
-                    Addr::unchecked(String::from_utf8(entry.0).expect(
-                        "Non-UTF8 address used as key in bucket. The storage is corrupted!",
-                    )),
-                    coin(entry.1.amount.u128(), DENOM),
-                    entry.1.block_height,
-                )
-            })
-        })
-        .collect::<StdResult<Vec<Delegation>>>()?;
-
-    let start_next_after = delegations.last().map(|delegation| delegation.owner());
-
-    Ok(PagedMixDelegationsResponse::new(
-        mix_identity,
-        delegations,
-        start_next_after,
-    ))
 }
 
 #[cfg(test)]
@@ -220,7 +179,7 @@ pub(crate) mod tests {
             identity_key: "bobsnode".into(),
             ..test_helpers::mix_node_fixture()
         };
-        crate::mixnodes::bonding_transactions::try_add_mixnode(
+        crate::mixnodes::transactions::try_add_mixnode(
             deps.as_mut(),
             mock_env(),
             mock_info("bob", &test_helpers::good_mixnode_bond()),
@@ -236,7 +195,7 @@ pub(crate) mod tests {
             identity_key: "fredsnode".into(),
             ..test_helpers::mix_node_fixture()
         };
-        crate::mixnodes::bonding_transactions::try_add_mixnode(
+        crate::mixnodes::transactions::try_add_mixnode(
             deps.as_mut(),
             mock_env(),
             mock_info("fred", &test_helpers::good_mixnode_bond()),
@@ -248,11 +207,8 @@ pub(crate) mod tests {
         assert!(res.has_node);
 
         // but after unbonding it, he doesn't own one anymore
-        crate::mixnodes::bonding_transactions::try_remove_mixnode(
-            deps.as_mut(),
-            mock_info("fred", &[]),
-        )
-        .unwrap();
+        crate::mixnodes::transactions::try_remove_mixnode(deps.as_mut(), mock_info("fred", &[]))
+            .unwrap();
 
         let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(!res.has_node);

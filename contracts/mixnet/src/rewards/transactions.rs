@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::delegations::storage as delegations_storage;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
@@ -121,7 +122,7 @@ fn reward_mix_delegators_v2(
     let chunk_size = MIXNODE_DELEGATORS_PAGE_LIMIT;
     let start_value = start.as_ref().map(|addr| addr.as_bytes());
 
-    let mut delegations = mixnodes_storage::mix_delegations(storage, mix_identity);
+    let mut delegations = delegations_storage::mix_delegations(storage, mix_identity);
 
     let mut total_rewarded = Uint128::zero();
     let mut items = 0;
@@ -440,12 +441,12 @@ pub(crate) fn try_finish_mixnode_rewarding(
 pub mod tests {
     use super::*;
     use crate::contract::DEFAULT_SYBIL_RESISTANCE_PERCENT;
+    use crate::delegations::transactions::try_delegate_to_mixnode;
     use crate::error::ContractError;
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-    use crate::mixnodes::bonding_transactions::try_add_mixnode;
-    use crate::mixnodes::delegation_transactions::try_delegate_to_mixnode;
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::storage::StoredMixnodeBond;
+    use crate::mixnodes::transactions::try_add_mixnode;
     use crate::rewards::transactions::{
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode_v2,
     };
@@ -1028,7 +1029,7 @@ pub mod tests {
         // delegation happens later, but not later enough
         env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
 
-        mixnodes_storage::mix_delegations(&mut deps.storage, &node_identity)
+        delegations_storage::mix_delegations(&mut deps.storage, &node_identity)
             .save(
                 b"delegator",
                 &RawDelegationData::new(initial_delegation.into(), env.block.height),
@@ -1389,10 +1390,12 @@ pub mod tests {
             .unwrap();
 
             for i in 0..10 {
-                let delegation =
-                    mixnodes_storage::mix_delegations_read(deps.as_ref().storage, "10delegators")
-                        .load(format!("delegator{}", i).as_bytes())
-                        .unwrap();
+                let delegation = delegations_storage::mix_delegations_read(
+                    deps.as_ref().storage,
+                    "10delegators",
+                )
+                .load(format!("delegator{}", i).as_bytes())
+                .unwrap();
                 assert!(delegation.amount > Uint128::new(delegation_value));
             }
         }
@@ -1473,7 +1476,7 @@ pub mod tests {
             .unwrap();
 
             for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT {
-                let delegation = mixnodes_storage::mix_delegations_read(
+                let delegation = delegations_storage::mix_delegations_read(
                     deps.as_ref().storage,
                     "MIXNODE_DELEGATORS_PAGE_LIMIT_delegators",
                 )
@@ -1559,7 +1562,7 @@ pub mod tests {
             .unwrap();
 
             for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT {
-                let delegation = mixnodes_storage::mix_delegations_read(
+                let delegation = delegations_storage::mix_delegations_read(
                     deps.as_ref().storage,
                     "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators",
                 )
@@ -1569,7 +1572,7 @@ pub mod tests {
             }
 
             // and the one on the next page should have been unrewarded
-            let delegation = mixnodes_storage::mix_delegations_read(
+            let delegation = delegations_storage::mix_delegations_read(
                 deps.as_ref().storage,
                 "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators",
             )
@@ -1625,7 +1628,7 @@ pub mod tests {
             reward_mix_delegators_v2(deps.as_mut().storage, &node_identity, None, params).unwrap();
 
         let mut actual_reward = Uint128::new(0);
-        for delegation in mixnodes_storage::mix_delegations_read(
+        for delegation in delegations_storage::mix_delegations_read(
             deps.as_ref().storage,
             &node_identity,
         )
@@ -1681,7 +1684,7 @@ pub mod tests {
             reward_mix_delegators_v2(deps.as_mut().storage, &node_identity, None, params).unwrap();
 
         let mut actual_reward = Uint128::new(0);
-        for delegation in mixnodes_storage::mix_delegations_read(
+        for delegation in delegations_storage::mix_delegations_read(
             deps.as_ref().storage,
             &node_identity,
         )
@@ -1720,7 +1723,7 @@ pub mod tests {
         let start = res.start_next.unwrap();
         let start_bytes = start.as_bytes();
         let mut actual_reward = Uint128::new(0);
-        for delegation in mixnodes_storage::mix_delegations_read(
+        for delegation in delegations_storage::mix_delegations_read(
             deps.as_ref().storage,
             &node_identity,
         )
@@ -2033,15 +2036,16 @@ pub mod tests {
             )
             .unwrap();
 
-            let expected = mixnodes_storage::mix_delegations_read(deps.as_ref().storage, "alice")
-                .load("delegator0001".as_bytes())
-                .unwrap()
-                .amount;
+            let expected =
+                delegations_storage::mix_delegations_read(deps.as_ref().storage, "alice")
+                    .load("delegator0001".as_bytes())
+                    .unwrap()
+                    .amount;
 
             for i in 0..total_delegators {
                 // everyone was rewarded (and the same amount, because they all delegated the same amount)
                 let delegation =
-                    mixnodes_storage::mix_delegations_read(deps.as_ref().storage, "alice")
+                    delegations_storage::mix_delegations_read(deps.as_ref().storage, "alice")
                         .load(format!("delegator{:04}", i).as_bytes())
                         .unwrap();
                 assert!(delegation.amount > Uint128::new(delegation_value));
@@ -2146,15 +2150,16 @@ pub mod tests {
             )
             .unwrap();
 
-            let expected = mixnodes_storage::mix_delegations_read(deps.as_ref().storage, "alice")
-                .load("delegator0001".as_bytes())
-                .unwrap()
-                .amount;
+            let expected =
+                delegations_storage::mix_delegations_read(deps.as_ref().storage, "alice")
+                    .load("delegator0001".as_bytes())
+                    .unwrap()
+                    .amount;
 
             for i in 0..total_delegators {
                 // everyone was rewarded (and the same amount, because they all delegated the same amount)
                 let delegation =
-                    mixnodes_storage::mix_delegations_read(deps.as_ref().storage, "alice")
+                    delegations_storage::mix_delegations_read(deps.as_ref().storage, "alice")
                         .load(format!("delegator{:04}", i).as_bytes())
                         .unwrap();
 

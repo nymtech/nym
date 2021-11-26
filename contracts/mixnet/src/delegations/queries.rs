@@ -1,5 +1,5 @@
-use super::delegation_helpers;
 use super::storage;
+use crate::delegations::helpers;
 use crate::error::ContractError;
 use crate::query_support::calculate_start_value;
 use config::defaults::DENOM;
@@ -8,11 +8,11 @@ use cosmwasm_std::Addr;
 use cosmwasm_std::Deps;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
-use mixnet_contract::Delegation;
 use mixnet_contract::IdentityKey;
 use mixnet_contract::PagedAllDelegationsResponse;
 use mixnet_contract::PagedReverseMixDelegationsResponse;
 use mixnet_contract::RawDelegationData;
+use mixnet_contract::{Delegation, PagedMixDelegationsResponse};
 
 pub(crate) fn query_all_mixnode_delegations_paged(
     deps: Deps,
@@ -28,7 +28,7 @@ pub(crate) fn query_all_mixnode_delegations_paged(
         v.push(0);
         v
     });
-    delegation_helpers::get_all_delegations_paged::<RawDelegationData>(&bucket, &start, limit)
+    helpers::get_all_delegations_paged::<RawDelegationData>(&bucket, &start, limit)
 }
 
 pub(crate) fn query_reverse_mixnode_delegations_paged(
@@ -81,6 +81,42 @@ pub(crate) fn query_mixnode_delegation(
     }
 }
 
+pub(crate) fn query_mixnode_delegations_paged(
+    deps: Deps,
+    mix_identity: IdentityKey,
+    start_after: Option<Addr>,
+    limit: Option<u32>,
+) -> StdResult<PagedMixDelegationsResponse> {
+    let limit = limit
+        .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
+        .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
+    let start = calculate_start_value(start_after);
+
+    let delegations = storage::mix_delegations_read(deps.storage, &mix_identity)
+        .range(start.as_deref(), None, Order::Ascending)
+        .take(limit)
+        .map(|res| {
+            res.map(|entry| {
+                Delegation::new(
+                    Addr::unchecked(String::from_utf8(entry.0).expect(
+                        "Non-UTF8 address used as key in bucket. The storage is corrupted!",
+                    )),
+                    coin(entry.1.amount.u128(), DENOM),
+                    entry.1.block_height,
+                )
+            })
+        })
+        .collect::<StdResult<Vec<Delegation>>>()?;
+
+    let start_next_after = delegations.last().map(|delegation| delegation.owner());
+
+    Ok(PagedMixDelegationsResponse::new(
+        mix_identity,
+        delegations,
+        start_next_after,
+    ))
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -103,7 +139,6 @@ pub(crate) mod tests {
     #[cfg(test)]
     mod querying_for_mixnode_delegations_paged {
         use super::*;
-        use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
         use mixnet_contract::IdentityKey;
 
         #[test]
@@ -457,7 +492,6 @@ pub(crate) mod tests {
     #[cfg(test)]
     mod querying_for_reverse_mixnode_delegations_paged {
         use super::*;
-        use crate::mixnodes::delegation_queries::query_reverse_mixnode_delegations_paged;
         use storage::reverse_mix_delegations;
 
         fn store_n_reverse_delegations(n: u32, storage: &mut dyn Storage, delegation_owner: &Addr) {

@@ -38,8 +38,8 @@ pub(crate) mod tests {
     mod querying_for_rewarding_status {
         use super::storage;
         use super::*;
-        use crate::mixnodes::bonding_transactions::try_add_mixnode;
-        use crate::mixnodes::delegation_transactions::try_delegate_to_mixnode;
+        use crate::delegations::transactions::try_delegate_to_mixnode;
+        use crate::mixnodes::transactions::try_add_mixnode;
         use crate::rewards::transactions::{
             try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode_v2,
             try_reward_next_mixnode_delegators_v2,

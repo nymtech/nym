@@ -139,8 +139,8 @@ pub mod tests {
     use super::*;
     use crate::contract::{execute, query, INITIAL_MIXNODE_BOND};
     use crate::error::ContractError;
-    use crate::mixnodes::bonding_transactions::try_add_mixnode;
-    use crate::mixnodes::bonding_transactions::validate_mixnode_bond;
+    use crate::mixnodes::transactions::try_add_mixnode;
+    use crate::mixnodes::transactions::validate_mixnode_bond;
     use crate::support::tests::test_helpers;
     use config::defaults::DENOM;
     use cosmwasm_std::attr;

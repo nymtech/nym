@@ -1,6 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::delegations::queries::query_all_mixnode_delegations_paged;
+use crate::delegations::queries::query_mixnode_delegation;
+use crate::delegations::queries::query_mixnode_delegations_paged;
+use crate::delegations::queries::query_reverse_mixnode_delegations_paged;
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
@@ -11,11 +15,7 @@ use crate::mixnet_contract_settings::queries::{
 };
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries as mixnode_queries;
-use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
 use crate::mixnodes::bonding_queries::query_mixnodes_paged;
-use crate::mixnodes::delegation_queries::query_all_mixnode_delegations_paged;
-use crate::mixnodes::delegation_queries::query_mixnode_delegation;
-use crate::mixnodes::delegation_queries::query_reverse_mixnode_delegations_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::rewards::queries::query_reward_pool;
 use crate::rewards::queries::{query_circulating_supply, query_rewarding_status};
@@ -87,10 +87,10 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::BondMixnode { mix_node } => {
-            crate::mixnodes::bonding_transactions::try_add_mixnode(deps, env, info, mix_node)
+            crate::mixnodes::transactions::try_add_mixnode(deps, env, info, mix_node)
         }
         ExecuteMsg::UnbondMixnode {} => {
-            crate::mixnodes::bonding_transactions::try_remove_mixnode(deps, info)
+            crate::mixnodes::transactions::try_remove_mixnode(deps, info)
         }
         ExecuteMsg::BondGateway { gateway } => {
             crate::gateways::transactions::try_add_gateway(deps, env, info, gateway)
@@ -116,15 +116,10 @@ pub fn execute(
             rewarding_interval_nonce,
         ),
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
-            crate::mixnodes::delegation_transactions::try_delegate_to_mixnode(
-                deps,
-                env,
-                info,
-                mix_identity,
-            )
+            crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
-            crate::mixnodes::delegation_transactions::try_remove_delegation_from_mixnode(
+            crate::delegations::transactions::try_remove_delegation_from_mixnode(
                 deps,
                 info,
                 mix_identity,

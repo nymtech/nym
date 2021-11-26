@@ -37,32 +37,6 @@ pub(crate) fn try_update_contract_settings(
     state.params = params;
     storage::CONTRACT_SETTINGS.save(deps.storage, &state)?;
 
-    // alternative:
-
-    // storage::CONTRACT_SETTINGS.update(deps.storage, |mut state| {
-    //     // check if this is executed by the owner, if not reject the transaction
-    //     if info.sender != state.owner {
-    //         return Err(ContractError::Unauthorized);
-    //     }
-    //
-    //     if params.mixnode_rewarded_set_size == 0 {
-    //         return Err(ContractError::ZeroRewardedSet);
-    //     }
-    //
-    //     if params.mixnode_active_set_size == 0 {
-    //         return Err(ContractError::ZeroActiveSet);
-    //     }
-    //
-    //     // note: rewarded_set = active_set + idle_set
-    //     // hence rewarded set must always be bigger than (or equal to) the active set
-    //     if params.mixnode_rewarded_set_size < params.mixnode_active_set_size {
-    //         return Err(ContractError::InvalidActiveSetSize);
-    //     }
-    //
-    //     state.params = params;
-    //     Ok(state)
-    // });
-
     Ok(Response::default())
 }
 

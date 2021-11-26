@@ -141,8 +141,8 @@ impl<'a, T: Clone + Serialize + DeserializeOwned> Iterator for Delegations<'a, T
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mixnodes::delegation_queries::tests::store_n_mix_delegations;
-    use crate::mixnodes::storage as mixnodes_storage;
+    use crate::delegations::queries::tests::store_n_mix_delegations;
+    use crate::delegations::storage;
     use crate::support::tests::test_helpers;
     use crate::support::tests::test_helpers::identity_and_owner_to_bytes;
     use cosmwasm_std::testing::mock_dependencies;
@@ -180,8 +180,7 @@ mod tests {
             &mut deps.storage,
             &node_identity,
         );
-        let mix_bucket =
-            mixnodes_storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
+        let mix_bucket = storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
         let mut delegations = Delegations::new(mix_bucket);
         assert!(delegations.curr_delegations.is_empty());
         assert_eq!(delegations.curr_index, OLD_DELEGATIONS_CHUNK_SIZE);
@@ -215,11 +214,11 @@ mod tests {
         let raw_delegation = RawDelegationData::new(1000u128.into(), 42);
         let mut start_after = None;
 
-        mixnodes_storage::mix_delegations(&mut deps.storage, &node_identity1)
+        storage::mix_delegations(&mut deps.storage, &node_identity1)
             .save(delegation_owner1.as_bytes(), &raw_delegation)
             .unwrap();
 
-        let bucket = mixnodes_storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
+        let bucket = storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
         let response =
             get_all_delegations_paged::<RawDelegationData>(&bucket, &start_after, 10).unwrap();
         start_after = response.start_next_after;
@@ -234,11 +233,11 @@ mod tests {
             )
         );
 
-        mixnodes_storage::mix_delegations(&mut deps.storage, &node_identity2)
+        storage::mix_delegations(&mut deps.storage, &node_identity2)
             .save(delegation_owner2.as_bytes(), &raw_delegation)
             .unwrap();
 
-        let bucket = mixnodes_storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
+        let bucket = storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
         let response =
             get_all_delegations_paged::<RawDelegationData>(&bucket, &start_after, 10).unwrap();
         start_after = response.start_next_after;
@@ -253,10 +252,10 @@ mod tests {
             )
         );
 
-        mixnodes_storage::mix_delegations(&mut deps.storage, &node_identity1)
+        storage::mix_delegations(&mut deps.storage, &node_identity1)
             .remove(delegation_owner1.as_bytes());
 
-        let bucket = mixnodes_storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
+        let bucket = storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage);
         let response =
             get_all_delegations_paged::<RawDelegationData>(&bucket, &start_after, 10).unwrap();
         let delegations = response.delegations;

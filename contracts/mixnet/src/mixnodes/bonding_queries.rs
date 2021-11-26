@@ -24,8 +24,8 @@ pub fn query_mixnodes_paged(
         .map(|stored_bond| {
             // I really don't like this additional read per entry, but I don't see an obvious way to remove it
             stored_bond.map(|stored_bond| {
-                let total_delegation = storage::total_delegation_read(deps.storage)
-                    .load(stored_bond.identity().as_bytes());
+                let total_delegation =
+                    storage::TOTAL_DELEGATION.load(deps.storage, stored_bond.identity());
                 total_delegation
                     .map(|total_delegation| stored_bond.attach_delegation(total_delegation))
             })

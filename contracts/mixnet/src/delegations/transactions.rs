@@ -69,8 +69,9 @@ pub(crate) fn try_delegate_to_mixnode(
     )?;
 
     // update total_delegation of this node
-    mixnodes_storage::total_delegation(deps.storage).update::<_, ContractError>(
-        mix_identity.as_bytes(),
+    mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+        deps.storage,
+        &mix_identity,
         |total_delegation| {
             // since we know that the target node exists and because the total_delegation bucket
             // entry is created whenever the node itself is added, the unwrap here is fine
@@ -107,8 +108,9 @@ pub(crate) fn try_remove_delegation_from_mixnode(
         };
 
         // update total_delegation of this node
-        mixnodes_storage::total_delegation(deps.storage).update::<_, ContractError>(
-            mix_identity.as_bytes(),
+        mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+            deps.storage,
+            &mix_identity,
             |total_delegation| {
                 // the first unwrap is fine because the delegation information MUST exist, otherwise we would
                 // have never gotten here in the first place
@@ -234,8 +236,8 @@ mod tests {
             // node's "total_delegation" is increased
             assert_eq!(
                 delegation.amount,
-                mixnodes_storage::total_delegation_read(&deps.storage)
-                    .load(identity.as_bytes())
+                mixnodes_storage::TOTAL_DELEGATION
+                    .load(&deps.storage, &identity)
                     .unwrap()
             )
         }
@@ -292,8 +294,8 @@ mod tests {
             // node's "total_delegation" is increased
             assert_eq!(
                 delegation.amount,
-                mixnodes_storage::total_delegation_read(&deps.storage)
-                    .load(identity.as_bytes())
+                mixnodes_storage::TOTAL_DELEGATION
+                    .load(&deps.storage, &identity)
                     .unwrap()
             )
         }
@@ -338,8 +340,8 @@ mod tests {
             // node's "total_delegation" is sum of both
             assert_eq!(
                 delegation1.amount + delegation2.amount,
-                mixnodes_storage::total_delegation_read(&deps.storage)
-                    .load(identity.as_bytes())
+                mixnodes_storage::TOTAL_DELEGATION
+                    .load(&deps.storage, &identity)
                     .unwrap()
             )
         }
@@ -536,8 +538,8 @@ mod tests {
             // node's "total_delegation" is sum of both
             assert_eq!(
                 delegation1.amount + delegation2.amount,
-                mixnodes_storage::total_delegation_read(&deps.storage)
-                    .load(identity.as_bytes())
+                mixnodes_storage::TOTAL_DELEGATION
+                    .load(&deps.storage, &identity)
                     .unwrap()
             )
         }
@@ -639,8 +641,8 @@ mod tests {
             // and total delegation is cleared
             assert_eq!(
                 Uint128::zero(),
-                mixnodes_storage::total_delegation_read(&deps.storage)
-                    .load(identity.as_bytes())
+                mixnodes_storage::TOTAL_DELEGATION
+                    .load(&deps.storage, &identity)
                     .unwrap()
             )
         }
@@ -716,8 +718,8 @@ mod tests {
             // node's "total_delegation" is sum of both
             assert_eq!(
                 delegation2.amount,
-                mixnodes_storage::total_delegation_read(&deps.storage)
-                    .load(identity.as_bytes())
+                mixnodes_storage::TOTAL_DELEGATION
+                    .load(&deps.storage, &identity)
                     .unwrap()
             )
         }

@@ -215,8 +215,9 @@ pub(crate) fn try_reward_next_mixnode_delegators_v2(
             )?;
 
             // update the memoised total delegation field
-            mixnodes_storage::total_delegation(deps.storage).update::<_, ContractError>(
-                mix_identity.as_bytes(),
+            mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+                deps.storage,
+                &mix_identity,
                 |current_total| {
                     // unwrap is fine as if the mixnode if this mixnode's delegators are getting rewarded
                     // it means it MUST HAVE existed at some point in the past
@@ -322,8 +323,9 @@ pub(crate) fn try_reward_mixnode_v2(
         let delegation_rewarding_result =
             reward_mix_delegators_v2(deps.storage, &mix_identity, None, delegator_params)?;
 
-        mixnodes_storage::total_delegation(deps.storage).update::<_, ContractError>(
-            mix_identity.as_bytes(),
+        mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+            deps.storage,
+            &mix_identity,
             |current_total| {
                 // unwrap is fine as if the mixnode itself exists, so must this entry
                 Ok(current_total.unwrap() + delegation_rewarding_result.total_rewarded)
@@ -1018,8 +1020,12 @@ pub mod tests {
         mixnodes_storage::mixnodes()
             .save(deps.as_mut().storage, &node_identity, &mixnode_bond)
             .unwrap();
-        mixnodes_storage::total_delegation(deps.as_mut().storage)
-            .save(node_identity.as_bytes(), &Uint128::new(initial_delegation))
+        mixnodes_storage::TOTAL_DELEGATION
+            .save(
+                deps.as_mut().storage,
+                &node_identity,
+                &Uint128::new(initial_delegation),
+            )
             .unwrap();
 
         // delegation happens later, but not later enough
@@ -1053,8 +1059,8 @@ pub mod tests {
         );
         assert_eq!(
             initial_delegation,
-            mixnodes_storage::total_delegation_read(deps.as_ref().storage)
-                .load(node_identity.as_bytes())
+            mixnodes_storage::TOTAL_DELEGATION
+                .load(deps.as_ref().storage, &node_identity)
                 .unwrap()
                 .u128()
         );
@@ -1091,8 +1097,8 @@ pub mod tests {
         );
         assert_eq!(
             initial_delegation,
-            mixnodes_storage::total_delegation_read(deps.as_ref().storage)
-                .load(node_identity.as_bytes())
+            mixnodes_storage::TOTAL_DELEGATION
+                .load(deps.as_ref().storage, &node_identity)
                 .unwrap()
                 .u128()
         );
@@ -1133,8 +1139,8 @@ pub mod tests {
                 > bond_before_rewarding
         );
         assert!(
-            mixnodes_storage::total_delegation_read(deps.as_ref().storage)
-                .load(node_identity.as_bytes())
+            mixnodes_storage::TOTAL_DELEGATION
+                .load(deps.as_ref().storage, &node_identity)
                 .unwrap()
                 .u128()
                 > initial_delegation
@@ -1259,8 +1265,8 @@ pub mod tests {
             .u128();
         assert_eq!(pre_reward_bond, 10_000_000_000);
 
-        let pre_reward_delegation = mixnodes_storage::total_delegation_read(&deps.storage)
-            .load(b"alice")
+        let pre_reward_delegation = mixnodes_storage::TOTAL_DELEGATION
+            .load(&deps.storage, "alice")
             .unwrap()
             .u128();
         assert_eq!(pre_reward_delegation, 10_000_000_000);
@@ -1274,8 +1280,8 @@ pub mod tests {
             U128::from_num(pre_reward_bond) + U128::from_num(mix1_operator_profit)
         );
         assert_eq!(
-            mixnodes_storage::total_delegation_read(&deps.storage)
-                .load(b"alice")
+            mixnodes_storage::TOTAL_DELEGATION
+                .load(&deps.storage, "alice")
                 .unwrap()
                 .u128(),
             pre_reward_delegation + mix1_delegator1_reward + mix1_delegator2_reward

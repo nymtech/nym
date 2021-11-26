@@ -3,29 +3,32 @@
 
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
-use cosmwasm_storage::{bucket, bucket_read, Bucket, ReadonlyBucket};
-use cw_storage_plus::{Index, IndexList, IndexedMap, UniqueIndex};
+use cosmwasm_storage::{Bucket, ReadonlyBucket};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Map, UniqueIndex};
 use mixnet_contract::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond, RewardingStatus};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 // storage prefixes
+const TOTAL_DELEGATION_NAMESPACE: &str = "td";
+const MIXNODES_PK_NAMESPACE: &str = "mn";
+const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
+
 pub const PREFIX_REWARDED_MIXNODES: &[u8] = b"rm";
 
 // paged retrieval limits for all queries and transactions
 pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;
 pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
-const PREFIX_TOTAL_DELEGATION: &[u8] = b"td";
-
-const MIXNODES_PK_NAMESPACE: &str = "mn";
-const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
+pub(crate) const TOTAL_DELEGATION: Map<IdentityKeyRef, Uint128> =
+    Map::new(TOTAL_DELEGATION_NAMESPACE);
 
 pub(crate) struct MixnodeBondIndex<'a> {
     pub(crate) owner: UniqueIndex<'a, Addr, StoredMixnodeBond>,
 }
 
 // IndexList is just boilerplate code for fetching a struct's indexes
+// note that from my understanding this will be converted into a macro at some point in the future
 impl<'a> IndexList<StoredMixnodeBond> for MixnodeBondIndex<'a> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<StoredMixnodeBond>> + '_> {
         let v: Vec<&dyn Index<StoredMixnodeBond>> = vec![&self.owner];
@@ -105,16 +108,6 @@ impl Display for StoredMixnodeBond {
     }
 }
 
-// Mixnode-related stuff
-
-pub fn total_delegation(storage: &mut dyn Storage) -> Bucket<Uint128> {
-    bucket(storage, PREFIX_TOTAL_DELEGATION)
-}
-
-pub fn total_delegation_read(storage: &dyn Storage) -> ReadonlyBucket<Uint128> {
-    bucket_read(storage, PREFIX_TOTAL_DELEGATION)
-}
-
 // we want to treat this bucket as a set so we don't really care about what type of data is being stored.
 // I went with u8 as after serialization it takes only a single byte of space, while if a `()` was used,
 // it would have taken 4 bytes (representation of 'null')
@@ -152,8 +145,7 @@ pub(crate) fn read_mixnode_bond(
     match stored_bond {
         None => Ok(None),
         Some(stored_bond) => {
-            let total_delegation =
-                total_delegation_read(storage).may_load(mix_identity.as_bytes())?;
+            let total_delegation = TOTAL_DELEGATION.may_load(storage, mix_identity)?;
             Ok(Some(MixNodeBond {
                 bond_amount: stored_bond.bond_amount,
                 total_delegation: Coin {

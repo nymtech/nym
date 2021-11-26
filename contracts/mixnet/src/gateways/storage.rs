@@ -14,6 +14,7 @@ pub(crate) struct GatewayBondIndex<'a> {
 }
 
 // IndexList is just boilerplate code for fetching a struct's indexes
+// note that from my understanding this will be converted into a macro at some point in the future
 impl<'a> IndexList<GatewayBond> for GatewayBondIndex<'a> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<GatewayBond>> + '_> {
         let v: Vec<&dyn Index<GatewayBond>> = vec![&self.owner];

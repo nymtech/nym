@@ -55,7 +55,7 @@ export function countryDataToGridRow(
     const updatedCountryRecord: CountryDataRowType = {
       ...each,
       id: index,
-      countryName: getName(each.ISO3, 'en', { select: 'official' }),
+      countryName: getName(each.ISO3, 'en', { select: 'alias' }),
       percentage: ((each.nodes * 100) / totalNodes).toFixed(1),
     };
     return updatedCountryRecord;

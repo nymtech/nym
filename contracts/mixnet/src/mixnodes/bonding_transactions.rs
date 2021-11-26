@@ -8,7 +8,7 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::mixnodes::storage::StoredMixnodeBond;
 use config::defaults::DENOM;
-use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract::MixNode;
 
 pub(crate) fn try_add_mixnode(
@@ -90,11 +90,10 @@ pub(crate) fn try_remove_mixnode(
     let mixnode_bond = storage::mixnodes_read(deps.storage).load(mix_identity.as_bytes())?;
 
     // send bonded funds back to the bond owner
-    let messages = vec![BankMsg::Send {
+    let return_tokens = BankMsg::Send {
         to_address: info.sender.as_str().to_owned(),
         amount: vec![mixnode_bond.bond_amount()],
-    }
-    .into()];
+    };
 
     // remove the bond from the list of bonded mixnodes
     storage::mixnodes(deps.storage).remove(mix_identity.as_bytes());
@@ -103,15 +102,10 @@ pub(crate) fn try_remove_mixnode(
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
 
-    // log our actions
-    let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
-
-    Ok(Response {
-        submessages: Vec::new(),
-        messages,
-        attributes,
-        data: None,
-    })
+    Ok(Response::new()
+        .add_message(return_tokens)
+        .add_attribute("action", "unbond")
+        .add_attribute("mixnode_bond", mixnode_bond.to_string()))
 }
 
 fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
@@ -481,19 +475,16 @@ pub mod tests {
         ];
 
         // we should see a funds transfer from the contract back to fred
-        let expected_messages = vec![BankMsg::Send {
+        let expected_message = BankMsg::Send {
             to_address: String::from(info.sender),
             amount: test_helpers::good_mixnode_bond(),
-        }
-        .into()];
+        };
 
         // run the executor and check that we got back the correct results
-        let expected = Response {
-            submessages: Vec::new(),
-            messages: expected_messages,
-            attributes: expected_attributes,
-            data: None,
-        };
+        let expected = Response::new()
+            .add_attributes(expected_attributes)
+            .add_message(expected_message);
+
         assert_eq!(remove_fred, expected);
 
         // only 1 node now exists, owned by bob:
@@ -558,7 +549,7 @@ pub mod tests {
 
         // you must send at least 100 coins...
         let mut bond = test_helpers::good_mixnode_bond();
-        bond[0].amount = INITIAL_MIXNODE_BOND.checked_sub(Uint128(1)).unwrap();
+        bond[0].amount = INITIAL_MIXNODE_BOND.checked_sub(Uint128::new(1)).unwrap();
         let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
         assert_eq!(
             result,
@@ -570,7 +561,7 @@ pub mod tests {
 
         // more than that is still fine
         let mut bond = test_helpers::good_mixnode_bond();
-        bond[0].amount = INITIAL_MIXNODE_BOND + Uint128(1);
+        bond[0].amount = INITIAL_MIXNODE_BOND + Uint128::new(1);
         let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
         assert!(result.is_ok());
 

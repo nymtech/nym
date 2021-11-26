@@ -20,6 +20,10 @@ pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 const PREFIX_TOTAL_DELEGATION: &[u8] = b"td";
 
+const MIXNODES_PK_NAMESPACE: &str = "mn";
+const MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "mni";
+const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
+
 pub(crate) struct MixnodeBondIndex<'a> {
     pub(crate) identity: UniqueIndex<'a, IdentityKey, StoredMixnodeBond>,
 
@@ -39,10 +43,13 @@ impl<'a> IndexList<StoredMixnodeBond> for MixnodeBondIndex<'a> {
 // mixnodes() is the storage access function.
 pub(crate) fn mixnodes<'a>() -> IndexedMap<'a, &'a [u8], StoredMixnodeBond, MixnodeBondIndex<'a>> {
     let indexes = MixnodeBondIndex {
-        identity: UniqueIndex::new(|d| d.mix_node.identity_key.clone(), "mni"),
-        owner: UniqueIndex::new(|d| d.owner.clone(), "mno"),
+        identity: UniqueIndex::new(
+            |d| d.mix_node.identity_key.clone(),
+            MIXNODES_IDENTITY_IDX_NAMESPACE,
+        ),
+        owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
     };
-    IndexedMap::new("mn", indexes)
+    IndexedMap::new(MIXNODES_PK_NAMESPACE, indexes)
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]

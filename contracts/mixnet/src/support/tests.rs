@@ -232,7 +232,7 @@ pub mod test_helpers {
         storage: &dyn Storage,
         identity: IdentityKeyRef,
     ) -> StdResult<cosmwasm_std::Uint128> {
-        let node = mixnodes_storage::mixnodes().load(storage, identity.as_bytes())?;
+        let node = mixnodes_storage::mixnodes().load(storage, identity)?;
         Ok(node.bond_amount.amount)
     }
 }

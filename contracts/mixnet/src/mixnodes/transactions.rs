@@ -8,8 +8,8 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::mixnodes::storage::StoredMixnodeBond;
 use config::defaults::DENOM;
-use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
-use mixnet_contract::MixNode;
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, StdError, Uint128};
+use mixnet_contract::{IdentityKey, MixNode};
 
 pub(crate) fn try_add_mixnode(
     deps: DepsMut,
@@ -39,7 +39,7 @@ pub(crate) fn try_add_mixnode(
 
     // check if somebody else has already bonded a mixnode with this identity
     if let Some(existing_bond) =
-        storage::mixnodes().may_load(deps.storage, mix_node.identity_key.as_bytes())?
+        storage::mixnodes().may_load(deps.storage, &mix_node.identity_key)?
     {
         if existing_bond.owner != info.sender {
             return Err(ContractError::DuplicateMixnode {
@@ -68,9 +68,9 @@ pub(crate) fn try_add_mixnode(
 
     // technically we don't have to set the total_delegation bucket, but it makes things easier
     // in different places that we can guarantee that if node exists, so does the data behind the total delegation
-    let identity = stored_bond.identity().as_bytes();
+    let identity = stored_bond.identity();
     storage::mixnodes().save(deps.storage, identity, &stored_bond)?;
-    storage::total_delegation(deps.storage).save(identity, &Uint128::zero())?;
+    storage::total_delegation(deps.storage).save(identity.as_bytes(), &Uint128::zero())?;
     mixnet_params_storage::increment_layer_count(deps.storage, stored_bond.layer)?;
 
     Ok(Response::new())
@@ -81,7 +81,7 @@ pub(crate) fn try_remove_mixnode(
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
     // try to find the node of the sender
-    let (entry_key, mixnode_bond) = match storage::mixnodes()
+    let (raw_identity, mixnode_bond) = match storage::mixnodes()
         .idx
         .owner
         .item(deps.storage, info.sender.clone())?
@@ -96,8 +96,13 @@ pub(crate) fn try_remove_mixnode(
         amount: vec![mixnode_bond.bond_amount()],
     };
 
+    // Given that this Vec<u8> came directly from the storage and originated from a valid String before
+    // if this error is ever thrown it implies the entire storage got corrupted.
+    let mix_identity = IdentityKey::from_utf8(raw_identity)
+        .map_err(|_| StdError::parse_err("IdentityKey", "Storage got corrupted"))?;
+
     // remove the bond
-    storage::mixnodes().remove(deps.storage, &entry_key)?;
+    storage::mixnodes().remove(deps.storage, &mix_identity)?;
 
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;

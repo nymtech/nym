@@ -331,7 +331,7 @@ pub(crate) fn try_reward_mixnode_v2(
         )?;
         mixnodes_storage::mixnodes().update::<_, ContractError>(
             deps.storage,
-            mix_identity.as_bytes(),
+            &mix_identity,
             |current_bond| {
                 // unwrap is fine because we just read the entry...
                 let mut unwrapped = current_bond.unwrap();
@@ -1016,11 +1016,7 @@ pub mod tests {
         };
 
         mixnodes_storage::mixnodes()
-            .save(
-                deps.as_mut().storage,
-                node_identity.as_bytes(),
-                &mixnode_bond,
-            )
+            .save(deps.as_mut().storage, &node_identity, &mixnode_bond)
             .unwrap();
         mixnodes_storage::total_delegation(deps.as_mut().storage)
             .save(node_identity.as_bytes(), &Uint128::new(initial_delegation))

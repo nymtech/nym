@@ -5,9 +5,7 @@ use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cosmwasm_storage::{bucket, bucket_read, Bucket, ReadonlyBucket};
 use cw_storage_plus::{Index, IndexList, IndexedMap, UniqueIndex};
-use mixnet_contract::{
-    Addr, Coin, IdentityKey, IdentityKeyRef, Layer, MixNode, MixNodeBond, RewardingStatus,
-};
+use mixnet_contract::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond, RewardingStatus};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -21,29 +19,24 @@ pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 const PREFIX_TOTAL_DELEGATION: &[u8] = b"td";
 
 const MIXNODES_PK_NAMESPACE: &str = "mn";
-const MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "mni";
 const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
 
 pub(crate) struct MixnodeBondIndex<'a> {
-    pub(crate) identity: UniqueIndex<'a, IdentityKey, StoredMixnodeBond>,
     pub(crate) owner: UniqueIndex<'a, Addr, StoredMixnodeBond>,
 }
 
 // IndexList is just boilerplate code for fetching a struct's indexes
 impl<'a> IndexList<StoredMixnodeBond> for MixnodeBondIndex<'a> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<StoredMixnodeBond>> + '_> {
-        let v: Vec<&dyn Index<StoredMixnodeBond>> = vec![&self.identity, &self.owner];
+        let v: Vec<&dyn Index<StoredMixnodeBond>> = vec![&self.owner];
         Box::new(v.into_iter())
     }
 }
 
 // mixnodes() is the storage access function.
-pub(crate) fn mixnodes<'a>() -> IndexedMap<'a, &'a [u8], StoredMixnodeBond, MixnodeBondIndex<'a>> {
+pub(crate) fn mixnodes<'a>(
+) -> IndexedMap<'a, IdentityKeyRef<'a>, StoredMixnodeBond, MixnodeBondIndex<'a>> {
     let indexes = MixnodeBondIndex {
-        identity: UniqueIndex::new(
-            |d| d.mix_node.identity_key.clone(),
-            MIXNODES_IDENTITY_IDX_NAMESPACE,
-        ),
         owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
     };
     IndexedMap::new(MIXNODES_PK_NAMESPACE, indexes)
@@ -155,7 +148,7 @@ pub(crate) fn read_mixnode_bond(
     storage: &dyn Storage,
     mix_identity: IdentityKeyRef,
 ) -> StdResult<Option<MixNodeBond>> {
-    let stored_bond = mixnodes().may_load(storage, mix_identity.as_bytes())?;
+    let stored_bond = mixnodes().may_load(storage, mix_identity)?;
     match stored_bond {
         None => Ok(None),
         Some(stored_bond) => {
@@ -194,11 +187,11 @@ mod tests {
         let mut storage = MockStorage::new();
         let bond1 = test_helpers::stored_mixnode_bond_fixture("owner1");
         let bond2 = test_helpers::stored_mixnode_bond_fixture("owner2");
-        mixnodes().save(&mut storage, b"bond1", &bond1).unwrap();
-        mixnodes().save(&mut storage, b"bond2", &bond2).unwrap();
+        mixnodes().save(&mut storage, "bond1", &bond1).unwrap();
+        mixnodes().save(&mut storage, "bond2", &bond2).unwrap();
 
-        let res1 = mixnodes().load(&storage, b"bond1").unwrap();
-        let res2 = mixnodes().load(&storage, b"bond2").unwrap();
+        let res1 = mixnodes().load(&storage, "bond1").unwrap();
+        let res2 = mixnodes().load(&storage, "bond2").unwrap();
         assert_eq!(bond1, res1);
         assert_eq!(bond2, res2);
     }

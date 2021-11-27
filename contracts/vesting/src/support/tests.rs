@@ -20,7 +20,7 @@ pub mod helpers {
     use cosmwasm_std::{Empty, Env, MemoryStorage, Storage};
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let msg = InitMsg {};
         let env = mock_env();
         let info = mock_info("creator", &[]);
@@ -35,7 +35,7 @@ pub mod helpers {
         PeriodicVestingAccount::new(
             Addr::unchecked("fixture"),
             Coin {
-                amount: Uint128(1_000_000_000_000),
+                amount: Uint128::new(1_000_000_000_000),
                 denom: DENOM.to_string(),
             },
             start_time,

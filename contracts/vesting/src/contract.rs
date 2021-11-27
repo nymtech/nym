@@ -16,6 +16,9 @@ pub const NUM_VESTING_PERIODS: usize = 8;
 pub const VESTING_PERIOD: u64 = 3 * 30 * 86400;
 pub const ADMIN_ADDRESS: &str = "admin";
 
+// TODO: Validate vesting/vested withdraw mathematics
+// TODO: Try and get to the bottom of multilevel bucket vs vector and performance of the whole storage thing
+
 /// Instantiate the contract.
 ///
 /// `deps` contains Storage, API and Querier
@@ -120,27 +123,21 @@ pub fn try_withdraw_vested_coins(
         if amount.amount < spendable_coins.amount {
             if let Some(balance) = get_account_balance(deps.storage, &address) {
                 let new_balance = balance.u128().saturating_sub(amount.amount.u128());
-                set_account_balance(deps.storage, &address, Uint128(new_balance))?;
+                set_account_balance(deps.storage, &address, Uint128::new(new_balance))?;
             } else {
                 return Err(ContractError::NoBalanceForAddress(
                     address.as_str().to_string(),
                 ));
             }
 
-            let messages = vec![BankMsg::Send {
+            let send_tokens = BankMsg::Send {
                 to_address: address.as_str().to_string(),
                 amount: vec![amount],
-            }
-            .into()];
+            };
 
-            let attributes = vec![attr("action", "withdraw")];
-
-            Ok(Response {
-                submessages: Vec::new(),
-                messages,
-                attributes,
-                data: None,
-            })
+            Ok(Response::new()
+                .add_attribute("action", "whitdraw")
+                .add_message(send_tokens))
         } else {
             Err(ContractError::InsufficientSpendable(
                 address.as_str().to_string(),

@@ -7,7 +7,6 @@ import {
   ArrowForward,
   AttachMoney,
   Cancel,
-  ExitToApp,
   HowToVote,
   MoneyOff,
   Description,
@@ -108,13 +107,6 @@ export const Nav = () => {
             <ListItemText primary="Admin" sx={{ color: 'common.white' }} />
           </ListItem>
         )}
-
-        <ListItem button onClick={logOut}>
-          <ListItemIcon data-testid="log-out" sx={{ color: 'common.white' }}>
-            <ExitToApp />
-          </ListItemIcon>
-          <ListItemText primary="Log out" sx={{ color: 'common.white' }} />
-        </ListItem>
       </List>
     </div>
   )

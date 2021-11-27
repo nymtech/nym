@@ -1,57 +1,49 @@
-import React, { useEffect } from 'react'
-import { Alert, Button, CircularProgress, Grid } from '@mui/material'
+import React, { useContext } from 'react'
+import {
+  Alert,
+  Button,
+  CircularProgress,
+  Grid,
+  IconButton,
+} from '@mui/material'
+import { Box } from '@mui/system'
 import { Refresh } from '@mui/icons-material'
 import { NymCard } from '../components'
 import { Layout } from '../layouts'
-import { useGetBalance } from '../hooks/useGetBalance'
+
+import { ClientContext } from '../context/main'
 
 export const Balance = () => {
-  const { balance, isLoading, error, fetchBalance } = useGetBalance()
-
-  useEffect(fetchBalance, [])
+  const { userBalance } = useContext(ClientContext)
 
   const RefreshAction = () => (
-    <Button
-      variant="contained"
-      size="small"
-      color="primary"
-      type="submit"
-      data-testid="refresh-button"
-      onClick={fetchBalance}
-      disabled={isLoading}
-      disableElevation
-      startIcon={<Refresh />}
-      endIcon={isLoading && <CircularProgress size={20} />}
-      sx={{ mr: 2 }}
+    <IconButton
+      disabled={userBalance.isLoading}
+      onClick={userBalance.fetchBalance}
     >
-      Refresh
-    </Button>
+      {userBalance.isLoading ? <CircularProgress size={20} /> : <Refresh />}
+    </IconButton>
   )
 
   return (
     <Layout>
-      <NymCard title="Check Balance" data-testid="check-balance">
+      <NymCard
+        title="Balance"
+        data-testid="check-balance"
+        Action={<RefreshAction />}
+      >
         <Grid container direction="column" spacing={2}>
           <Grid item>
-            {error && (
-              <Alert
-                severity="error"
-                data-testid="error-refresh"
-                action={<RefreshAction />}
-                sx={{ p: 2 }}
-              >
-                {error}
+            {userBalance.error && (
+              <Alert severity="error" data-testid="error-refresh" sx={{ p: 2 }}>
+                {userBalance.error}
               </Alert>
             )}
-            {!error && (
-              <Alert
-                severity="success"
-                data-testid="refresh-success"
-                sx={{ p: [2, 3] }}
-                action={<RefreshAction />}
-              >
-                {'The current balance is ' + balance?.printable_balance}
-              </Alert>
+            {!userBalance.error && (
+              <Box data-testid="refresh-success" sx={{ p: [2, 3] }}>
+                {'The current balance is ' +
+                  userBalance.balance?.printable_balance}
+              </Box>
             )}
           </Grid>
         </Grid>

@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
-import { Button } from '@mui/material'
-import { Check } from '@mui/icons-material'
+import React, { useEffect, useState } from 'react'
+import { IconButton, Tooltip } from '@mui/material'
+import { Check, ContentCopy } from '@mui/icons-material'
 import { clipboard } from '@tauri-apps/api'
 
-export const CopyToClipboard = ({ text }: { text: string }) => {
+export const CopyToClipboard = ({ text = '' }: { text?: string }) => {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async (text: string) => {
@@ -15,17 +15,18 @@ export const CopyToClipboard = ({ text }: { text: string }) => {
     }
   }
 
+  useEffect(() => {
+    if (copied) {
+      setTimeout(() => {
+        setCopied(false)
+      }, 1000)
+    }
+  }, [copied])
   return (
-    <Button
-      size="small"
-      variant="outlined"
-      color={copied ? 'success' : 'inherit'}
-      aria-label="save"
-      data-testid="copy-button"
-      onClick={() => handleCopy(text)}
-      endIcon={copied && <Check />}
-    >
-      {copied ? 'Copied' : 'Copy'}
-    </Button>
+    <Tooltip title={!copied ? 'Copy' : 'Copied!'}>
+      <IconButton onClick={() => handleCopy(text)} size="small">
+        {!copied ? <ContentCopy fontSize="small" /> : <Check color="success" />}
+      </IconButton>
+    </Tooltip>
   )
 }

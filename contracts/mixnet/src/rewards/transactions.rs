@@ -1008,6 +1008,7 @@ pub mod tests {
                 ..mix_node_fixture()
             },
             profit_margin_percent: Some(10),
+            proxy: None,
         };
 
         mixnodes_storage::mixnodes()

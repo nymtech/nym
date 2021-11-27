@@ -628,7 +628,9 @@ pub(crate) mod tests {
             assert_eq!(1, page2.delegations.len());
 
             // save another one
-            test_helpers::save_dummy_delegation(&mut deps.storage, "400", &delegation_owner);
+            reverse_mix_delegations(&mut deps.storage, &delegation_owner)
+                .save("4".as_bytes(), &())
+                .unwrap();
 
             let start_after = String::from("2");
             let page2 = query_delegator_delegations_paged(

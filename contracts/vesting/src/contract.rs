@@ -7,7 +7,7 @@ use crate::vesting::{
 };
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo,
+    entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo,
     QueryResponse, Response, Timestamp, Uint128,
 };
 use mixnet_contract::{IdentityKey, MixNode};

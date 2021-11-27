@@ -5,7 +5,7 @@ use crate::storage::{
     set_account_balance, set_account_bond, set_account_delegations,
 };
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
-use cosmwasm_std::{attr, wasm_execute, Addr, Coin, Env, Response, Storage, Timestamp, Uint128};
+use cosmwasm_std::{wasm_execute, Addr, Coin, Env, Response, Storage, Timestamp, Uint128};
 use mixnet_contract::IdentityKey;
 use mixnet_contract::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 use schemars::JsonSchema;
@@ -237,7 +237,7 @@ impl PeriodicVestingAccount {
     }
 
     fn get_balance(&self, storage: &dyn Storage) -> Uint128 {
-        get_account_balance(storage, &self.address).unwrap_or(Uint128::new(0))
+        get_account_balance(storage, &self.address).unwrap_or_else(|| Uint128::new(0))
     }
 }
 
@@ -255,8 +255,7 @@ impl DelegationAccount for PeriodicVestingAccount {
                 delegate: self.address.clone(),
             };
             let delegate_to_mixnode =
-                wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![coin.clone()])?.into();
-            let attributes = vec![attr("action", "delegate to mixnode on behalf")];
+                wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![coin.clone()])?;
             self.track_delegation(env.block.time, mix_identity, coin, storage)?;
 
             Ok(Response::new()
@@ -286,8 +285,6 @@ impl DelegationAccount for PeriodicVestingAccount {
                 denom: DENOM.to_string(),
             }],
         )?;
-
-        let attributes = vec![attr("action", "undelegate to mixnode on behalf")];
 
         Ok(Response::new()
             .add_attribute("action", "undelegate to mixnode on behalf")
@@ -374,7 +371,6 @@ impl BondingAccount for PeriodicVestingAccount {
             };
             let bond_mixnode =
                 wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![bond.clone()])?;
-            let attributes = vec![attr("action", "bond mixnode on behalf")];
             self.track_bond(env.block.time, bond, storage)?;
 
             Ok(Response::new()
@@ -430,8 +426,6 @@ impl BondingAccount for PeriodicVestingAccount {
                 denom: DENOM.to_string(),
             }],
         )?;
-
-        let attributes = vec![attr("action", "unbond mixnode on behalf")];
 
         Ok(Response::new()
             .add_attribute("action", "unbond mixnode on behalf")
@@ -647,7 +641,9 @@ mod tests {
         let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
         assert_eq!(
             vested_coins.amount,
-            Uint128::new(account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128)
+            Uint128::new(
+                account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128
+            )
         );
         assert_eq!(
             vesting_coins.amount,
@@ -665,7 +661,9 @@ mod tests {
         let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
         assert_eq!(
             vested_coins.amount,
-            Uint128::new(5 * account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128)
+            Uint128::new(
+                5 * account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128
+            )
         );
         assert_eq!(
             vesting_coins.amount,

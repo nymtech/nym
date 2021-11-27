@@ -43,6 +43,8 @@ pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
 // We'll be assuming a few more things, profit margin and cost function. Since we don't have reliable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
 pub const DEFAULT_COST_PER_EPOCH: u32 = 40_000_000;
 
+pub const VESTING_CONTRACT_ADDR: &str = "";
+
 fn default_initial_state(owner: Addr, env: Env) -> ContractSettings {
     ContractSettings {
         owner,
@@ -150,11 +152,12 @@ pub fn execute(
             deps,
             info,
             mix_identity,
-            rewarding_interval_nonce,),
+            rewarding_interval_nonce,
+        ),
         ExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_identity,
             delegate,
-        } => transactions::try_delegate_to_mixnode_on_behalf(
+        } => crate::mixnodes::delegation_transactions::try_delegate_to_mixnode_on_behalf(
             deps,
             env,
             info,
@@ -164,17 +167,21 @@ pub fn execute(
         ExecuteMsg::UndelegateFromMixnodeOnBehalf {
             mix_identity,
             delegate,
-        } => transactions::try_remove_delegation_from_mixnode_on_behalf(
-            deps,
-            info,
-            mix_identity,
-            delegate,
-        ),
+        } => {
+            crate::mixnodes::delegation_transactions::try_remove_delegation_from_mixnode_on_behalf(
+                deps,
+                info,
+                mix_identity,
+                delegate,
+            )
+        }
         ExecuteMsg::BondMixnodeOnBehalf { mix_node, owner } => {
-            transactions::try_add_mixnode_on_behalf(deps, env, info, mix_node, owner)
+            crate::mixnodes::bonding_transactions::try_add_mixnode_on_behalf(
+                deps, env, info, mix_node, owner,
+            )
         }
         ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
-            transactions::try_remove_mixnode_on_behalf(deps, info, owner)
+            crate::mixnodes::bonding_transactions::try_remove_mixnode_on_behalf(deps, info, owner)
         }
     }
 }

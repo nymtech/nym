@@ -50,6 +50,7 @@ pub(crate) struct StoredMixnodeBond {
     pub block_height: u64,
     pub mix_node: MixNode,
     pub profit_margin_percent: Option<u8>,
+    pub proxy: Option<Addr>,
 }
 
 impl StoredMixnodeBond {
@@ -60,6 +61,7 @@ impl StoredMixnodeBond {
         block_height: u64,
         mix_node: MixNode,
         profit_margin_percent: Option<u8>,
+        proxy: Option<Addr>,
     ) -> Self {
         StoredMixnodeBond {
             bond_amount,
@@ -68,6 +70,7 @@ impl StoredMixnodeBond {
             block_height,
             mix_node,
             profit_margin_percent,
+            proxy,
         }
     }
 
@@ -83,6 +86,7 @@ impl StoredMixnodeBond {
             block_height: self.block_height,
             mix_node: self.mix_node,
             profit_margin_percent: self.profit_margin_percent,
+            proxy: self.proxy,
         }
     }
 
@@ -105,6 +109,75 @@ impl Display for StoredMixnodeBond {
     }
 }
 
+pub fn generate_storage_key(address: &Addr, proxy: Option<&Addr>) -> Vec<u8> {
+    if let Some(proxy) = &proxy {
+        address
+            .as_bytes()
+            .iter()
+            .zip(proxy.as_bytes())
+            .map(|(x, y)| x ^ y)
+            .collect()
+    } else {
+        address.as_bytes().to_vec()
+    }
+}
+
+// Mixnode-related stuff
+
+pub(crate) fn mixnodes(storage: &mut dyn Storage) -> Bucket<StoredMixnodeBond> {
+    bucket(storage, PREFIX_MIXNODES)
+}
+
+pub(crate) fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<StoredMixnodeBond> {
+    bucket_read(storage, PREFIX_MIXNODES)
+}
+
+// owner address -> node identity
+pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<IdentityKey> {
+    bucket(storage, PREFIX_MIXNODES_OWNERS)
+}
+
+pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey> {
+    bucket_read(storage, PREFIX_MIXNODES_OWNERS)
+}
+
+pub fn total_delegation(storage: &mut dyn Storage) -> Bucket<Uint128> {
+    bucket(storage, PREFIX_TOTAL_DELEGATION)
+}
+
+pub fn total_delegation_read(storage: &dyn Storage) -> ReadonlyBucket<Uint128> {
+    bucket_read(storage, PREFIX_TOTAL_DELEGATION)
+}
+
+// we want to treat this bucket as a set so we don't really care about what type of data is being stored.
+// I went with u8 as after serialization it takes only a single byte of space, while if a `()` was used,
+// it would have taken 4 bytes (representation of 'null')
+pub(crate) fn rewarded_mixnodes(
+    storage: &mut dyn Storage,
+    rewarding_interval_nonce: u32,
+) -> Bucket<RewardingStatus> {
+    Bucket::multilevel(
+        storage,
+        &[
+            rewarding_interval_nonce.to_be_bytes().as_ref(),
+            PREFIX_REWARDED_MIXNODES,
+        ],
+    )
+}
+
+pub(crate) fn rewarded_mixnodes_read(
+    storage: &dyn Storage,
+    rewarding_interval_nonce: u32,
+) -> ReadonlyBucket<RewardingStatus> {
+    ReadonlyBucket::multilevel(
+        storage,
+        &[
+            rewarding_interval_nonce.to_be_bytes().as_ref(),
+            PREFIX_REWARDED_MIXNODES,
+        ],
+    )
+}
+
 pub(crate) fn read_mixnode_bond(
     storage: &dyn Storage,
     mix_identity: IdentityKeyRef,
@@ -125,6 +198,7 @@ pub(crate) fn read_mixnode_bond(
                 block_height: stored_bond.block_height,
                 mix_node: stored_bond.mix_node,
                 profit_margin_percent: stored_bond.profit_margin_percent,
+                proxy: stored_bond.proxy,
             }))
         }
     }

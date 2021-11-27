@@ -253,7 +253,7 @@ version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3b8b840947313c1a1cccf056836cd79a60b4526bdcd6582995be37dc97be4ae"
 dependencies = [
- "cosmwasm-std 1.0.0-beta2",
+ "cosmwasm-std",
  "schemars",
  "serde",
 ]
@@ -645,9 +645,9 @@ version = "0.1.0"
 dependencies = [
  "config",
  "cosmwasm-schema",
- "cw-storage-plus",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "cw-storage-plus",
  "fixed",
  "mixnet-contract",
  "schemars",

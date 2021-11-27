@@ -87,7 +87,8 @@ pub fn get_account_bond(storage: &dyn Storage, address: &Addr) -> Option<BondDat
 }
 
 pub fn drop_account_bond(storage: &mut dyn Storage, address: &Addr) -> StdResult<()> {
-    Ok(account_bond_mut(storage).remove(address.as_bytes()))
+    account_bond_mut(storage).remove(address.as_bytes());
+    Ok(())
 }
 
 pub fn set_account_bond(

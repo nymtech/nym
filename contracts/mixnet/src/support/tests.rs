@@ -128,6 +128,7 @@ pub mod test_helpers {
                 ..mix_node_fixture()
             },
             None,
+            None
         )
     }
 

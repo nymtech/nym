@@ -1,14 +1,17 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 use cw_storage_plus::PrimaryKey;
+use crate::contract::VESTING_CONTRACT_ADDR;
 
 use config::defaults::DENOM;
 use mixnet_contract::{Delegation, IdentityKey};
 
 use crate::error::ContractError;
 use crate::mixnodes::storage as mixnodes_storage;
+use mixnet_contract::IdentityKey;
+use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 use super::storage;
 
@@ -44,6 +47,43 @@ pub(crate) fn try_delegate_to_mixnode(
     // check if the delegation contains any funds of the appropriate denomination
     validate_delegation_stake(&info.funds)?;
 
+    let delegate_addr = info.sender.clone();
+    let amount = info.funds[0].amount;
+
+    _try_delegate_to_mixnode(deps, env, mix_identity, &delegate_addr, amount, None)
+}
+
+pub(crate) fn try_delegate_to_mixnode_on_behalf(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    mix_identity: IdentityKey,
+    delegate: Addr,
+) -> Result<Response, ContractError> {
+    // check if the delegation contains any funds of the appropriate denomination
+    validate_delegation_stake(&info.funds)?;
+    let amount = info.funds[0].amount;
+
+    let proxy = info.sender;
+
+    if proxy != VESTING_CONTRACT_ADDR {
+        return Err(ContractError::Unauthorized);
+    }
+
+    _try_delegate_to_mixnode(deps, env, mix_identity, &delegate, amount, Some(proxy))
+}
+
+pub(crate) fn _try_delegate_to_mixnode(
+    deps: DepsMut,
+    env: Env,
+    mix_identity: IdentityKey,
+    delegate: &Addr,
+    amount: Uint128,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
+    // check if the delegation contains any funds of the appropriate denomination
+    validate_delegation_stake(&info.funds)?;
+
     // check if the target node actually exists
     if mixnodes_storage::mixnodes()
         .may_load(deps.storage, &mix_identity)?
@@ -54,7 +94,8 @@ pub(crate) fn try_delegate_to_mixnode(
         });
     }
 
-    let storage_key = (mix_identity.clone(), info.sender.clone()).joined_key();
+    let maybe_proxy_storage = storage::generate_storage_key(delegate, proxy.as_ref());
+    let storage_key = (maybe_proxy_storage, info.sender.clone()).joined_key();
 
     // update total_delegation of this node
     mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
@@ -64,7 +105,7 @@ pub(crate) fn try_delegate_to_mixnode(
             // since we know that the target node exists and because the total_delegation bucket
             // entry is created whenever the node itself is added, the unwrap here is fine
             // as the entry MUST exist
-            Ok(total_delegation.unwrap() + info.funds[0].amount)
+            Ok(total_delegation.unwrap() + amount)
         },
     )?;
 
@@ -84,6 +125,7 @@ pub(crate) fn try_delegate_to_mixnode(
                     mix_identity,
                     info.funds[0].clone(),
                     env.block.height,
+                    proxy
                 ),
             })
         },
@@ -97,6 +139,30 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     info: MessageInfo,
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
+    let sender = info.sender;
+    _try_remove_delegation_from_mixnode(deps, mix_identity, &sender, None)
+}
+
+pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
+    deps: DepsMut,
+    info: MessageInfo,
+    mix_identity: IdentityKey,
+    delegate: Addr,
+) -> Result<Response, ContractError> {
+    if info.sender != VESTING_CONTRACT_ADDR {
+        return Err(ContractError::Unauthorized);
+    }
+
+    let proxy = info.sender;
+
+    _try_remove_delegation_from_mixnode(deps, mix_identity, &delegate, Some(proxy))
+}
+
+pub(crate) fn _try_remove_delegation_from_mixnode(
+    deps: DepsMut,
+    info: MessageInfo,
+    mix_identity: IdentityKey,
+) -> Result<Response, ContractError> {
     let storage_key = (mix_identity.clone(), info.sender.clone()).joined_key();
     let delegation_map = storage::delegations();
     match delegation_map.may_load(deps.storage, storage_key.clone())? {
@@ -106,31 +172,53 @@ pub(crate) fn try_remove_delegation_from_mixnode(
         }),
         Some(old_delegation) => {
             // send delegated funds back to the delegation owner
-            let return_tokens = BankMsg::Send {
-                to_address: info.sender.to_string(),
-                amount: vec![old_delegation.amount.clone()],
-            };
 
-            // remove old delegation data from the store
-            delegation_map.replace(deps.storage, storage_key, None, Some(&old_delegation))?;
+            if proxy == delegation.proxy {
+                let return_tokens = BankMsg::Send {
+                    to_address: info.sender.to_string(),
+                    amount: vec![old_delegation.amount.clone()],
+                };
 
-            // update total_delegation of this node
-            mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
-                deps.storage,
-                &mix_identity,
-                |total_delegation| {
-                    // the first unwrap is fine because the delegation information MUST exist, otherwise we would
-                    // have never gotten here in the first place
-                    // the second unwrap is also fine because we should NEVER underflow here,
-                    // if we do, it means we have some serious error in our logic
-                    Ok(total_delegation
-                        .unwrap()
-                        .checked_sub(old_delegation.amount.amount)
-                        .unwrap())
-                },
-            )?;
+                // remove old delegation data from the store
+                delegation_map.replace(deps.storage, storage_key, None, Some(&old_delegation))?;
 
-            Ok(Response::new().add_message(return_tokens))
+                // update total_delegation of this node
+                mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+                    deps.storage,
+                    &mix_identity,
+                    |total_delegation| {
+                        // the first unwrap is fine because the delegation information MUST exist, otherwise we would
+                        // have never gotten here in the first place
+                        // the second unwrap is also fine because we should NEVER underflow here,
+                        // if we do, it means we have some serious error in our logic
+                        Ok(total_delegation
+                            .unwrap()
+                            .checked_sub(old_delegation.amount.amount)
+                            .unwrap())
+                    },
+                )?;
+
+                let mut response = Response::new().add_message(return_tokens);
+
+                if let Some(proxy) = &proxy {
+                    let msg = Some(VestingContractExecuteMsg::TrackUndelegation {
+                        owner: delegate.to_owned(),
+                        mix_identity: mix_identity.clone(),
+                        amount: coins(delegation.amount.u128(), DENOM)[0].clone(),
+                    });
+
+                    response = response.add_message(wasm_execute(proxy, &msg, coins(0, DENOM))?);
+                }
+
+                Ok(response)
+            } else {
+                Err(ContractError::ProxyMismatch {
+                    existing: delegation
+                        .proxy
+                        .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+                    incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+                })
+            }
         }
     }
 }

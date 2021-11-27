@@ -35,7 +35,7 @@ pub struct RewardingIntervalResponse {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct StateParams {
+pub struct ContractSettingsParams {
     // so currently epoch_length is being unused and validator API performs rewarding
     // based on its own epoch length config value. I guess that's fine for time being
     // however, in the future, the contract constant should be controlling it instead.
@@ -52,7 +52,7 @@ pub struct StateParams {
     pub mixnode_active_set_size: u32,
 }
 
-impl Display for StateParams {
+impl Display for ContractSettingsParams {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "Contract state parameters: [ ")?;
         write!(f, "minimum mixnode bond: {}; ", self.minimum_mixnode_bond)?;
@@ -95,6 +95,27 @@ pub enum RewardingStatus {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MixnodeRewardingStatusResponse {
     pub status: Option<RewardingStatus>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MixnetContractVersion {
+    // VERGEN_BUILD_TIMESTAMP
+    pub build_timestamp: String,
+
+    // VERGEN_BUILD_SEMVER
+    pub build_version: String,
+
+    // VERGEN_GIT_SHA
+    pub commit_sha: String,
+
+    // VERGEN_GIT_COMMIT_TIMESTAMP
+    pub commit_timestamp: String,
+
+    // VERGEN_GIT_BRANCH
+    pub commit_branch: String,
+
+    // VERGEN_RUSTC_SEMVER
+    pub rustc_version: String,
 }
 
 // type aliases for better reasoning about available data

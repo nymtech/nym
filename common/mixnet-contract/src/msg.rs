@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mixnode::NodeRewardParams;
-use crate::StateParams;
+use crate::ContractSettingsParams;
 use crate::{Gateway, IdentityKey, MixNode};
 use cosmwasm_std::Addr;
 use schemars::JsonSchema;
@@ -22,7 +22,7 @@ pub enum ExecuteMsg {
         gateway: Gateway,
     },
     UnbondGateway {},
-    UpdateStateParams(StateParams),
+    UpdateContractSettings(ContractSettingsParams),
 
     DelegateToMixnode {
         mix_identity: IdentityKey,
@@ -61,6 +61,7 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    GetContractVersion {},
     GetMixNodes {
         limit: Option<u32>,
         start_after: Option<IdentityKey>,

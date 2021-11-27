@@ -6,13 +6,16 @@ use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
 #[cfg(feature = "nymd-client")]
-use mixnet_contract::StateParams;
+use mixnet_contract::ContractSettingsParams;
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-use mixnet_contract::{GatewayBond, MixNodeBond, MixnodeRewardingStatusResponse};
+use mixnet_contract::{GatewayBond, MixNodeBond};
 #[cfg(feature = "nymd-client")]
-use mixnet_contract::{RawDelegationData, RewardingIntervalResponse};
+use mixnet_contract::{
+    MixnetContractVersion, MixnodeRewardingStatusResponse, RawDelegationData,
+    RewardingIntervalResponse,
+};
 use url::Url;
 
 #[cfg(feature = "nymd-client")]
@@ -165,11 +168,20 @@ impl<C> Client<C> {
         Ok(self.validator_api.get_gateways().await?)
     }
 
-    pub async fn get_state_params(&self) -> Result<StateParams, ValidatorClientError>
+    pub async fn get_contract_settings(
+        &self,
+    ) -> Result<ContractSettingsParams, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.nymd.get_state_params().await?)
+        Ok(self.nymd.get_contract_settings().await?)
+    }
+
+    pub async fn get_mixnet_contract_version(&self) -> Result<MixnetContractVersion, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_mixnet_contract_version().await?)
     }
 
     pub async fn get_current_rewarding_interval(

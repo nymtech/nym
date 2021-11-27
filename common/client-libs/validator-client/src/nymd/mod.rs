@@ -13,11 +13,11 @@ use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
 use cosmwasm_std::{Coin, Uint128};
 use mixnet_contract::{
-    Addr, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
-    LayerDistribution, MixNode, MixOwnershipResponse, MixnodeRewardingStatusResponse,
-    PagedAllDelegationsResponse, PagedGatewayResponse, PagedMixDelegationsResponse,
-    PagedMixnodeResponse, PagedReverseMixDelegationsResponse, QueryMsg, RawDelegationData,
-    RewardingIntervalResponse, StateParams,
+    Addr, ContractSettingsParams, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse,
+    IdentityKey, LayerDistribution, MixNode, MixOwnershipResponse, MixnetContractVersion,
+    MixnodeRewardingStatusResponse, PagedAllDelegationsResponse, PagedGatewayResponse,
+    PagedMixDelegationsResponse, PagedMixnodeResponse, PagedReverseMixDelegationsResponse,
+    QueryMsg, RawDelegationData, RewardingIntervalResponse,
 };
 use serde::Serialize;
 use std::collections::HashMap;
@@ -208,11 +208,21 @@ impl<C> NymdClient<C> {
         self.client.get_balance(address, self.denom()?).await
     }
 
-    pub async fn get_state_params(&self) -> Result<StateParams, NymdError>
+    pub async fn get_contract_settings(&self) -> Result<ContractSettingsParams, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::StateParams {};
+        self.client
+            .query_contract_smart(self.contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_mixnet_contract_version(&self) -> Result<MixnetContractVersion, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetContractVersion {};
         self.client
             .query_contract_smart(self.contract_address()?, &request)
             .await
@@ -707,16 +717,16 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn update_state_params(
+    pub async fn update_contract_settings(
         &self,
-        new_params: StateParams,
+        new_params: ContractSettingsParams,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
         let fee = self.get_fee(Operation::UpdateStateParams);
 
-        let req = ExecuteMsg::UpdateStateParams(new_params);
+        let req = ExecuteMsg::UpdateContractSettings(new_params);
         self.client
             .execute(
                 self.address(),

@@ -2,30 +2,19 @@ import * as React from 'react';
 import { makeStyles } from '@mui/styles';
 import {
   DataGrid,
-  GridColumns,
-  GridRowModel,
-  GridSortModel,
+  GridColDef,
   useGridApiContext,
   useGridState,
 } from '@mui/x-data-grid';
 import Pagination from '@mui/material/Pagination';
 import { SxProps } from '@mui/system';
+import { LinearProgress } from '@mui/material';
 
 const useStyles = makeStyles({
   root: {
     display: 'flex',
   },
 });
-
-type DataGridProps = {
-  loading?: boolean;
-  rows: GridRowModel[];
-  columnsData: GridColumns;
-  pageSize?: string;
-  pagination?: boolean;
-  hideFooter?: boolean;
-  sortModel?: GridSortModel;
-};
 
 export const cellStyles: SxProps = {
   width: '100%',
@@ -50,6 +39,7 @@ function CustomPagination() {
   return (
     <Pagination
       className={classes.root}
+      sx={{ mt: 2 }}
       color="primary"
       count={state.pagination.pageCount}
       page={state.pagination.page + 1}
@@ -58,53 +48,46 @@ function CustomPagination() {
   );
 }
 
+type DataGridProps = {
+  columns: GridColDef[];
+  pagination?: true | undefined;
+  pageSize?: string | undefined;
+  rows: any;
+  loading?: boolean;
+};
 export const UniversalDataGrid: React.FC<DataGridProps> = ({
-  loading,
   rows,
-  columnsData,
-  pageSize,
+  columns,
+  loading,
   pagination,
-  hideFooter,
-  sortModel,
+  pageSize,
 }) => {
-  const [sortModelState, setSortModelState] = React.useState<
-    GridSortModel | undefined
-  >(sortModel);
-  if (columnsData && rows) {
+  if (loading) return <LinearProgress />;
+  if (!loading)
     return (
       <DataGrid
-        pagination
+        pagination={pagination}
+        rows={rows}
         components={{
           Pagination: CustomPagination,
         }}
-        loading={loading}
-        columns={columnsData}
-        rows={rows}
+        columns={columns}
         pageSize={Number(pageSize)}
         rowsPerPageOptions={[5]}
-        hideFooterPagination={!pagination}
-        disableColumnFilter
-        disableColumnMenu
         disableSelectionOnClick
-        columnBuffer={0}
         autoHeight
-        hideFooter={hideFooter}
-        sortModel={sortModelState}
-        onSortModelChange={setSortModelState}
+        hideFooter={!pagination}
         style={{
           width: '100%',
           border: 'none',
         }}
       />
     );
-  }
   return null;
 };
 
 UniversalDataGrid.defaultProps = {
   loading: false,
-  pageSize: undefined,
-  pagination: false,
-  hideFooter: true,
-  sortModel: undefined,
+  pagination: undefined,
+  pageSize: '10',
 };

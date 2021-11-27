@@ -2,6 +2,7 @@ import React from 'react'
 import { Box, Divider } from '@mui/material'
 import { Nav } from '../components'
 import Logo from '../images/logo-background.svg'
+import { AppBar } from '../components/AppBar'
 
 export const ApplicationLayout: React.FC = ({ children }) => {
   return (
@@ -12,14 +13,11 @@ export const ApplicationLayout: React.FC = ({ children }) => {
         display: 'grid',
         gridTemplateColumns: '240px auto',
         gridTemplateRows: '100%',
-        gridColumnGap: '8px',
-        gridRowGap: '0px',
         overflow: 'hidden',
       }}
     >
       <Box
         sx={{
-          gridArea: '1 / 1 / 2 / 2',
           background: '#121726',
           overflow: 'auto',
         }}
@@ -40,12 +38,13 @@ export const ApplicationLayout: React.FC = ({ children }) => {
       </Box>
       <Box
         sx={{
-          gridArea: '1 / 2 / 2 / 3',
+          bgcolor: 'nym.background.light',
+          overflow: 'auto',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          flexDirection: 'column',
         }}
       >
+        <AppBar />
         {children}
       </Box>
     </Box>

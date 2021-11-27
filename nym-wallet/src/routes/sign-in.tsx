@@ -50,7 +50,6 @@ export const SignIn = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          bgcolor: 'grey[100]',
         }}
       >
         {showCreateAccount ? (

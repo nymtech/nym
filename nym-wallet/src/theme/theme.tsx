@@ -21,7 +21,7 @@ import {
 const nymPalette: NymPalette = {
   /** emphasises important elements */
   highlight: '#FB6E4E',
-  background: { light: '#FAFAFA', dark: '#121726' },
+  background: { light: '#F4F6F8', dark: '#121726' },
   text: {
     light: '#F2F2F2',
   },

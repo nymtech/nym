@@ -203,7 +203,7 @@ impl PeriodicVestingAccount {
         let period = self.get_current_vesting_period(block_time);
         if period == 0 {
             return Coin {
-                amount: Uint128(0),
+                amount: Uint128::new(0),
                 denom: DENOM.to_string(),
             };
         }
@@ -220,7 +220,7 @@ impl PeriodicVestingAccount {
                 .filter(|d| op(d.block_time.seconds(), end_time))
                 .fold(
                     Coin {
-                        amount: Uint128(0),
+                        amount: Uint128::new(0),
                         denom: DENOM.to_string(),
                     },
                     |mut acc, d| {
@@ -230,14 +230,14 @@ impl PeriodicVestingAccount {
                 )
         } else {
             Coin {
-                amount: Uint128(0),
+                amount: Uint128::new(0),
                 denom: DENOM.to_string(),
             }
         }
     }
 
     fn get_balance(&self, storage: &dyn Storage) -> Uint128 {
-        get_account_balance(storage, &self.address).unwrap_or(Uint128(0))
+        get_account_balance(storage, &self.address).unwrap_or(Uint128::new(0))
     }
 }
 
@@ -254,19 +254,14 @@ impl DelegationAccount for PeriodicVestingAccount {
                 mix_identity: mix_identity.clone(),
                 delegate: self.address.clone(),
             };
-            let messages =
-                vec![
-                    wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![coin.clone()])?.into(),
-                ];
+            let delegate_to_mixnode =
+                wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![coin.clone()])?.into();
             let attributes = vec![attr("action", "delegate to mixnode on behalf")];
             self.track_delegation(env.block.time, mix_identity, coin, storage)?;
 
-            Ok(Response {
-                submessages: Vec::new(),
-                messages,
-                attributes,
-                data: None,
-            })
+            Ok(Response::new()
+                .add_attribute("action", "delegate to mixnode on behalf")
+                .add_message(delegate_to_mixnode))
         } else {
             Err(ContractError::InsufficientBalance(
                 self.address.as_str().to_string(),
@@ -283,24 +278,20 @@ impl DelegationAccount for PeriodicVestingAccount {
             mix_identity,
             delegate: self.address.clone(),
         };
-        let messages = vec![wasm_execute(
+        let undelegate_from_mixnode = wasm_execute(
             DEFAULT_MIXNET_CONTRACT_ADDRESS,
             &msg,
             vec![Coin {
-                amount: Uint128(0),
+                amount: Uint128::new(0),
                 denom: DENOM.to_string(),
             }],
-        )?
-        .into()];
+        )?;
 
-        let attributes = vec![attr("action", "delegate to mixnode on behalf")];
+        let attributes = vec![attr("action", "undelegate to mixnode on behalf")];
 
-        Ok(Response {
-            submessages: Vec::new(),
-            messages,
-            attributes,
-            data: None,
-        })
+        Ok(Response::new()
+            .add_attribute("action", "undelegate to mixnode on behalf")
+            .add_message(undelegate_from_mixnode))
     }
 
     fn track_delegation(
@@ -324,7 +315,7 @@ impl DelegationAccount for PeriodicVestingAccount {
 
         let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
             // We've checked that delegation < balance in the caller function
-            Uint128(balance.u128() - delegation.amount.u128())
+            Uint128::new(balance.u128() - delegation.amount.u128())
         } else {
             return Err(ContractError::NoBalanceForAddress(
                 self.address.as_str().to_string(),
@@ -351,7 +342,7 @@ impl DelegationAccount for PeriodicVestingAccount {
             .collect();
 
         let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
-            Uint128(balance.u128() + amount.amount.u128())
+            Uint128::new(balance.u128() + amount.amount.u128())
         } else {
             return Err(ContractError::NoBalanceForAddress(
                 self.address.as_str().to_string(),
@@ -381,19 +372,14 @@ impl BondingAccount for PeriodicVestingAccount {
                 mix_node,
                 owner: self.address.clone(),
             };
-            let messages =
-                vec![
-                    wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![bond.clone()])?.into(),
-                ];
+            let bond_mixnode =
+                wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![bond.clone()])?;
             let attributes = vec![attr("action", "bond mixnode on behalf")];
             self.track_bond(env.block.time, bond, storage)?;
 
-            Ok(Response {
-                submessages: Vec::new(),
-                messages,
-                attributes,
-                data: None,
-            })
+            Ok(Response::new()
+                .add_attribute("action", "bond mixnode on behalf")
+                .add_message(bond_mixnode))
         } else {
             Err(ContractError::InsufficientBalance(
                 self.address.as_str().to_string(),
@@ -421,7 +407,7 @@ impl BondingAccount for PeriodicVestingAccount {
 
         let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
             // We've checked that bond.amount < balance in the caller function
-            Uint128(balance.u128() - bond.amount.u128())
+            Uint128::new(balance.u128() - bond.amount.u128())
         } else {
             return Err(ContractError::NoBalanceForAddress(
                 self.address.as_str().to_string(),
@@ -436,29 +422,25 @@ impl BondingAccount for PeriodicVestingAccount {
         let msg = MixnetExecuteMsg::UnbondMixnodeOnBehalf {
             owner: self.address.clone(),
         };
-        let messages = vec![wasm_execute(
+        let unbond_mixnode = wasm_execute(
             DEFAULT_MIXNET_CONTRACT_ADDRESS,
             &msg,
             vec![Coin {
-                amount: Uint128(0),
+                amount: Uint128::new(0),
                 denom: DENOM.to_string(),
             }],
-        )?
-        .into()];
+        )?;
 
         let attributes = vec![attr("action", "unbond mixnode on behalf")];
 
-        Ok(Response {
-            submessages: Vec::new(),
-            messages,
-            attributes,
-            data: None,
-        })
+        Ok(Response::new()
+            .add_attribute("action", "unbond mixnode on behalf")
+            .add_message(unbond_mixnode))
     }
 
     fn track_unbond(&self, amount: Coin, storage: &mut dyn Storage) -> Result<(), ContractError> {
         let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
-            Uint128(balance.u128() + amount.amount.u128())
+            Uint128::new(balance.u128() + amount.amount.u128())
         } else {
             return Err(ContractError::NoBalanceForAddress(
                 self.address.as_str().to_string(),
@@ -480,7 +462,7 @@ impl VestingAccount for PeriodicVestingAccount {
     ) -> Result<Coin, ContractError> {
         // Returns 0 in case of underflow.
         Ok(Coin {
-            amount: Uint128(
+            amount: Uint128::new(
                 self.get_vesting_coins(block_time, env)?
                     .amount
                     .u128()
@@ -501,7 +483,7 @@ impl VestingAccount for PeriodicVestingAccount {
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError> {
         Ok(Coin {
-            amount: Uint128(
+            amount: Uint128::new(
                 self.get_balance(storage)
                     .u128()
                     .saturating_sub(self.locked_coins(block_time, env, storage)?.amount.u128()),
@@ -521,12 +503,12 @@ impl VestingAccount for PeriodicVestingAccount {
         let amount = match period {
             // We're in the first period, or the vesting has not started yet.
             0 => Coin {
-                amount: Uint128(0),
+                amount: Uint128::new(0),
                 denom: DENOM.to_string(),
             },
             // We always have 8 vesting periods, so periods 1-7 are special
             1..=7 => Coin {
-                amount: Uint128(self.tokens_per_period()? * period as u128),
+                amount: Uint128::new(self.tokens_per_period()? * period as u128),
                 denom: DENOM.to_string(),
             },
             _ => Coin {
@@ -543,7 +525,7 @@ impl VestingAccount for PeriodicVestingAccount {
         env: &Env,
     ) -> Result<Coin, ContractError> {
         Ok(Coin {
-            amount: Uint128(
+            amount: Uint128::new(
                 self.get_original_vesting().amount.u128()
                     - self.get_vested_coins(block_time, env)?.amount.u128(),
             ),
@@ -637,11 +619,11 @@ mod tests {
         assert_eq!(Some(&account), created_account_test.as_ref());
         assert_eq!(
             get_account_balance(&deps.storage, &account.address),
-            Some(Uint128(1_000_000_000_000))
+            Some(Uint128::new(1_000_000_000_000))
         );
         assert_eq!(
             account.get_balance(&deps.storage),
-            Uint128(1_000_000_000_000)
+            Uint128::new(1_000_000_000_000)
         )
     }
 
@@ -665,11 +647,11 @@ mod tests {
         let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
         assert_eq!(
             vested_coins.amount,
-            Uint128(account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128)
+            Uint128::new(account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128)
         );
         assert_eq!(
             vesting_coins.amount,
-            Uint128(
+            Uint128::new(
                 account.get_original_vesting().amount.u128()
                     - account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128
             )
@@ -683,11 +665,11 @@ mod tests {
         let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
         assert_eq!(
             vested_coins.amount,
-            Uint128(5 * account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128)
+            Uint128::new(5 * account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128)
         );
         assert_eq!(
             vesting_coins.amount,
-            Uint128(
+            Uint128::new(
                 account.get_original_vesting().amount.u128()
                     - 5 * account.get_original_vesting().amount.u128()
                         / NUM_VESTING_PERIODS as u128
@@ -706,7 +688,7 @@ mod tests {
         let err = account.try_delegate_to_mixnode(
             "alice".to_string(),
             Coin {
-                amount: Uint128(1_000_000_000_001),
+                amount: Uint128::new(1_000_000_000_001),
                 denom: DENOM.to_string(),
             },
             &env,
@@ -717,7 +699,7 @@ mod tests {
         let ok = account.try_delegate_to_mixnode(
             "alice".to_string(),
             Coin {
-                amount: Uint128(100_000_000_000),
+                amount: Uint128::new(100_000_000_000),
                 denom: DENOM.to_string(),
             },
             &env,
@@ -730,7 +712,7 @@ mod tests {
             DelegationData {
                 mix_identity: "alice".to_string(),
                 block_time: env.block.time,
-                amount: Uint128(100_000_000_000)
+                amount: Uint128::new(100_000_000_000)
             },
             delegations[0]
         );

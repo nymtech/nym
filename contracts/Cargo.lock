@@ -131,23 +131,11 @@ name = "cosmos_contract"
 version = "0.1.0"
 dependencies = [
  "config",
- "cosmwasm-std 1.0.0-beta2",
- "cosmwasm-storage 1.0.0-beta2",
+ "cosmwasm-std",
+ "cosmwasm-storage",
  "erc20-bridge-contract",
  "schemars",
  "serde",
- "thiserror",
-]
-
-[[package]]
-name = "cosmwasm-crypto"
-version = "0.14.1"
-source = "git+https://github.com/jstuczyn/cosmwasm?branch=0.14.1-updatedk256#308781cd5f33b0e996176c6b500793d3648c0f7b"
-dependencies = [
- "digest 0.9.0",
- "ed25519-zebra",
- "k256",
- "rand_core 0.5.1",
  "thiserror",
 ]
 
@@ -162,14 +150,6 @@ dependencies = [
  "k256",
  "rand_core 0.5.1",
  "thiserror",
-]
-
-[[package]]
-name = "cosmwasm-derive"
-version = "0.14.1"
-source = "git+https://github.com/jstuczyn/cosmwasm?branch=0.14.1-updatedk256#308781cd5f33b0e996176c6b500793d3648c0f7b"
-dependencies = [
- "syn",
 ]
 
 [[package]]
@@ -193,42 +173,18 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-std"
-version = "0.14.1"
-source = "git+https://github.com/jstuczyn/cosmwasm?branch=0.14.1-updatedk256#308781cd5f33b0e996176c6b500793d3648c0f7b"
-dependencies = [
- "base64",
- "cosmwasm-crypto 0.14.1",
- "cosmwasm-derive 0.14.1",
- "schemars",
- "serde",
- "serde-json-wasm",
- "thiserror",
- "uint",
-]
-
-[[package]]
-name = "cosmwasm-std"
 version = "1.0.0-beta2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1660ee3d5734672e1eb4f0ceda403e2d83345e15143a48845f340f3252ce99a6"
 dependencies = [
  "base64",
- "cosmwasm-crypto 1.0.0-beta2",
- "cosmwasm-derive 1.0.0-beta2",
+ "cosmwasm-crypto",
+ "cosmwasm-derive",
  "schemars",
  "serde",
  "serde-json-wasm",
  "thiserror",
  "uint",
-]
-
-[[package]]
-name = "cosmwasm-storage"
-version = "0.14.1"
-source = "git+https://github.com/jstuczyn/cosmwasm?branch=0.14.1-updatedk256#308781cd5f33b0e996176c6b500793d3648c0f7b"
-dependencies = [
- "cosmwasm-std 0.14.1",
- "serde",
 ]
 
 [[package]]
@@ -237,7 +193,7 @@ version = "1.0.0-beta2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf3b4efe3b4f86df668520a02e9a29c23eea99b64dfcacb0e59b98346418af7f"
 dependencies = [
- "cosmwasm-std 1.0.0-beta2",
+ "cosmwasm-std",
  "serde",
 ]
 
@@ -673,7 +629,7 @@ name = "mixnet-contract"
 version = "0.1.0"
 dependencies = [
  "az",
- "cosmwasm-std 1.0.0-beta2",
+ "cosmwasm-std",
  "fixed",
  "log",
  "network-defaults",
@@ -689,9 +645,9 @@ version = "0.1.0"
 dependencies = [
  "config",
  "cosmwasm-schema",
- "cosmwasm-std 1.0.0-beta2",
- "cosmwasm-storage 1.0.0-beta2",
  "cw-storage-plus",
+ "cosmwasm-std",
+ "cosmwasm-storage",
  "fixed",
  "mixnet-contract",
  "schemars",
@@ -1214,8 +1170,8 @@ name = "vesting-contract"
 version = "0.1.0"
 dependencies = [
  "config",
- "cosmwasm-std 0.14.1",
- "cosmwasm-storage 0.14.1",
+ "cosmwasm-std",
+ "cosmwasm-storage",
  "mixnet-contract",
  "schemars",
  "serde",

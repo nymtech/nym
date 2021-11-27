@@ -36,11 +36,11 @@ fn account_delegations(storage: &dyn Storage) -> ReadonlyBucket<Vec<DelegationDa
 }
 
 fn account_bond_mut(storage: &mut dyn Storage) -> Bucket<BondData> {
-    bucket(storage, PREFIX_ACCOUNT_DELEGATIONS)
+    bucket(storage, PREFIX_ACCOUNT_MIXBOND)
 }
 
 fn account_bond(storage: &dyn Storage) -> ReadonlyBucket<BondData> {
-    bucket_read(storage, PREFIX_ACCOUNT_DELEGATIONS)
+    bucket_read(storage, PREFIX_ACCOUNT_MIXBOND)
 }
 
 fn account_balance(storage: &dyn Storage) -> ReadonlyBucket<Uint128> {

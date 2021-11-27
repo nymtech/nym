@@ -23,7 +23,7 @@ export const CopyToClipboard = ({ text = '' }: { text?: string }) => {
     }
   }, [copied])
   return (
-    <Tooltip title={!copied ? 'Copy' : 'Copied!'}>
+    <Tooltip title={!copied ? 'Copy' : 'Copied!'} leaveDelay={500}>
       <IconButton onClick={() => handleCopy(text)} size="small">
         {!copied ? <ContentCopy fontSize="small" /> : <Check color="success" />}
       </IconButton>

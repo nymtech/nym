@@ -18,7 +18,7 @@ export const Bond = () => {
   const [fees, setFees] = useState<TFee>()
 
   const { checkOwnership, ownership } = useCheckOwnership()
-  const { getBalance } = useContext(ClientContext)
+  const { userBalance } = useContext(ClientContext)
 
   useEffect(() => {
     if (status === EnumRequestStatus.initial) {
@@ -46,7 +46,7 @@ export const Bond = () => {
                 onClick={async () => {
                   setStatus(EnumRequestStatus.loading)
                   await unbond(ownership.nodeType!)
-                  getBalance.fetchBalance()
+                  userBalance.fetchBalance()
                   setStatus(EnumRequestStatus.initial)
                 }}
                 data-testid="unBond"

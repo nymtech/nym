@@ -53,7 +53,7 @@ export const DelegateForm = ({
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
 
-  const { getBalance } = useContext(ClientContext)
+  const { userBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TDelegateForm) => {
     const hasEnoughFunds = await checkHasEnoughFunds(data.amount)
@@ -74,7 +74,7 @@ export const DelegateForm = ({
         onSuccess(
           `Successfully delegated ${data.amount} punk to ${res.target_address}`,
         )
-        getBalance.fetchBalance()
+        userBalance.fetchBalance()
       })
       .catch((e) => {
         console.log(e)

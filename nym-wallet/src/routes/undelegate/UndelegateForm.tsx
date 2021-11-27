@@ -54,7 +54,7 @@ export const UndelegateForm = ({
     setValue('identity', '')
   }, [watchNodeType])
 
-  const { getBalance } = useContext(ClientContext)
+  const { userBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TFormData) => {
     await undelegate({
@@ -63,7 +63,7 @@ export const UndelegateForm = ({
     })
       .then(async (res) => {
         onSuccess(`Successfully undelegated from ${res.target_address}`)
-        getBalance.fetchBalance()
+        userBalance.fetchBalance()
       })
       .catch((e) => onError(e))
   }

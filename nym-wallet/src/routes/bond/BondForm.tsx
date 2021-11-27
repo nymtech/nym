@@ -94,7 +94,7 @@ export const BondForm = ({
     defaultValues,
   })
 
-  const { getBalance } = useContext(ClientContext)
+  const { userBalance } = useContext(ClientContext)
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
   const watchAdvancedOptions = watch(
@@ -113,7 +113,7 @@ export const BondForm = ({
 
     await bond({ type: data.nodeType, data: formattedData, amount })
       .then(() => {
-        getBalance.fetchBalance()
+        userBalance.fetchBalance()
         onSuccess(`Successfully bonded to ${data.identityKey}`)
       })
       .catch((e) => {

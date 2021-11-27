@@ -18,26 +18,15 @@ export const NymCard: React.FC<{
         subheaderTypographyProps={{ variant: 'subtitle1' }}
         action={Action}
         sx={{
+          color: 'nym.background.dark',
           padding: 2.5,
           borderBottom: (theme) => `1px solid ${theme.palette.grey[200]}`,
         }}
       />
       {noPadding ? (
-        <CardContentNoPadding
-          sx={{
-            background: (theme) => theme.palette.grey[50],
-          }}
-        >
-          {children}
-        </CardContentNoPadding>
+        <CardContentNoPadding>{children}</CardContentNoPadding>
       ) : (
-        <CardContent
-          sx={{
-            background: (theme) => theme.palette.grey[50],
-          }}
-        >
-          {children}
-        </CardContent>
+        <CardContent>{children}</CardContent>
       )}
     </Card>
   )

@@ -30,7 +30,7 @@ export const AppBar = () => {
           alignItems="center"
           flexWrap="nowrap"
         >
-          <Grid container item>
+          <Grid container item alignItems="center">
             <Grid item>
               <AppBarItem
                 primaryText="Balance"

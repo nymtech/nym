@@ -54,8 +54,7 @@
         "title": "nym-wallet",
         "width": 1268,
         "height": 768,
-        "resizable": true,
-        "fullscreen": false
+        "resizable": true
       }
     ],
     "security": {

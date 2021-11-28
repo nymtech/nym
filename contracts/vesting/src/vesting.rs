@@ -1,11 +1,12 @@
 use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD};
 use crate::errors::ContractError;
 use crate::storage::{
-    drop_account_bond, get_account_balance, get_account_bond, get_account_delegations, set_account,
-    set_account_balance, set_account_bond, set_account_delegations,
+    account_delegations_map, drop_account_bond, get_account_balance, get_account_bond, set_account,
+    set_account_balance, set_account_bond,
 };
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
-use cosmwasm_std::{wasm_execute, Addr, Coin, Env, Response, Storage, Timestamp, Uint128};
+use cosmwasm_std::{wasm_execute, Addr, Coin, Env, Order, Response, Storage, Timestamp, Uint128};
+use cw_storage_plus::Map;
 use mixnet_contract::IdentityKey;
 use mixnet_contract::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 use schemars::JsonSchema;
@@ -53,13 +54,13 @@ pub trait VestingAccount {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Coin;
+    ) -> Result<Coin, ContractError>;
     fn get_delegated_vesting(
         &self,
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Coin;
+    ) -> Result<Coin, ContractError>;
 }
 
 pub trait DelegationAccount {
@@ -194,18 +195,18 @@ impl PeriodicVestingAccount {
 
     fn get_delegated_with_op(
         &self,
-        op: &dyn Fn(u64, u64) -> bool,
+        op: &dyn Fn(&u64, &u64) -> bool,
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Coin {
+    ) -> Result<Coin, ContractError> {
         let block_time = block_time.unwrap_or(env.block.time);
         let period = self.get_current_vesting_period(block_time);
         if period == 0 {
-            return Coin {
+            return Ok(Coin {
                 amount: Uint128::new(0),
                 denom: DENOM.to_string(),
-            };
+            });
         }
 
         let end_time = if period >= NUM_VESTING_PERIODS as usize {
@@ -214,30 +215,75 @@ impl PeriodicVestingAccount {
             self.periods[period].end_time().seconds()
         };
 
-        if let Some(delegations) = get_account_delegations(storage, &self.address) {
-            delegations
-                .iter()
-                .filter(|d| op(d.block_time.seconds(), end_time))
-                .fold(
-                    Coin {
-                        amount: Uint128::new(0),
-                        denom: DENOM.to_string(),
-                    },
-                    |mut acc, d| {
-                        acc.amount += d.amount;
-                        acc
-                    },
-                )
-        } else {
-            Coin {
-                amount: Uint128::new(0),
-                denom: DENOM.to_string(),
-            }
+        let delegations_keys = self
+            .delegations_map()
+            .keys_de(storage, None, None, Order::Ascending)
+            .scan((), |_, x| x.ok())
+            .filter(|(_mix, block_time)| op(block_time, &end_time))
+            .collect::<Vec<(String, u64)>>();
+
+        let mut amount = Uint128::zero();
+
+        for key in delegations_keys {
+            amount += self.delegations_map().load(storage, key)?
         }
+
+        Ok(Coin {
+            amount,
+            denom: DENOM.to_string(),
+        })
     }
 
     fn get_balance(&self, storage: &dyn Storage) -> Uint128 {
         get_account_balance(storage, &self.address).unwrap_or_else(|| Uint128::new(0))
+    }
+
+    #[allow(clippy::needless_lifetimes)] // Needs a lifetime here to compile
+    fn delegations_map<'a>(&'a self) -> Map<'a, (IdentityKey, u64), Uint128> {
+        account_delegations_map(self.address.as_ref())
+    }
+
+    pub fn delegation_keys_for_mix(
+        &self,
+        mix: IdentityKey,
+        storage: &dyn Storage,
+    ) -> Vec<(IdentityKey, u64)> {
+        self.delegations_map()
+            .prefix_de(mix.clone())
+            .keys_de(storage, None, None, Order::Ascending)
+            // Scan will blow up on first error
+            .scan((), |_, x| x.ok())
+            .map(|t| (mix.clone(), t))
+            .collect::<Vec<(IdentityKey, u64)>>()
+    }
+
+    #[allow(dead_code)]
+    pub fn delegations_for_mix(
+        &self,
+        mix: IdentityKey,
+        storage: &dyn Storage,
+    ) -> Result<Vec<Uint128>, ContractError> {
+        let keys = self.delegation_keys_for_mix(mix, storage);
+
+        let mut delegation_amounts = Vec::new();
+
+        for key in keys {
+            delegation_amounts.push(self.delegations_map().load(storage, key)?)
+        }
+
+        Ok(delegation_amounts)
+    }
+
+    #[allow(dead_code)]
+    pub fn total_delegations_for_mix(
+        &self,
+        mix: IdentityKey,
+        storage: &dyn Storage,
+    ) -> Result<Uint128, ContractError> {
+        Ok(self
+            .delegations_for_mix(mix, storage)?
+            .iter()
+            .fold(Uint128::zero(), |acc, x| acc + *x))
     }
 }
 
@@ -298,17 +344,19 @@ impl DelegationAccount for PeriodicVestingAccount {
         delegation: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        let mut delegations =
-            if let Some(delegations) = get_account_delegations(storage, &self.address) {
-                delegations
-            } else {
-                Vec::new()
-            };
-        delegations.push(DelegationData {
-            mix_identity,
-            amount: delegation.amount,
-            block_time,
-        });
+        let delegation_key = (mix_identity, block_time.seconds());
+
+        let new_delegation = if let Some(existing_delegation) = self
+            .delegations_map()
+            .may_load(storage, delegation_key.clone())?
+        {
+            existing_delegation + delegation.amount
+        } else {
+            delegation.amount
+        };
+
+        self.delegations_map()
+            .save(storage, delegation_key, &new_delegation)?;
 
         let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
             // We've checked that delegation < balance in the caller function
@@ -318,8 +366,6 @@ impl DelegationAccount for PeriodicVestingAccount {
                 self.address.as_str().to_string(),
             ));
         };
-
-        set_account_delegations(storage, &self.address, delegations)?;
         set_account_balance(storage, &self.address, new_balance)?;
 
         Ok(())
@@ -331,12 +377,19 @@ impl DelegationAccount for PeriodicVestingAccount {
         amount: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        // This has to exist in storage at this point.
-        let delegations = get_account_delegations(storage, &self.address)
-            .unwrap()
-            .into_iter()
-            .filter(|d| d.mix_identity != mix_identity)
-            .collect();
+        // Iterate over keys matching the prefix and remove them from the map
+        let block_times = self
+            .delegations_map()
+            .prefix_de(mix_identity.clone())
+            .keys_de(storage, None, None, Order::Ascending)
+            // Scan will blow up on first error
+            .scan((), |_, x| x.ok())
+            .collect::<Vec<u64>>();
+
+        for t in block_times {
+            self.delegations_map()
+                .remove(storage, (mix_identity.clone(), t))
+        }
 
         let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
             Uint128::new(balance.u128() + amount.amount.u128())
@@ -348,11 +401,7 @@ impl DelegationAccount for PeriodicVestingAccount {
 
         set_account_balance(storage, &self.address, new_balance)?;
 
-        Ok(set_account_delegations(
-            storage,
-            &self.address,
-            delegations,
-        )?)
+        Ok(())
     }
 }
 
@@ -461,7 +510,7 @@ impl VestingAccount for PeriodicVestingAccount {
                     .amount
                     .u128()
                     .saturating_sub(
-                        self.get_delegated_vesting(block_time, env, storage)
+                        self.get_delegated_vesting(block_time, env, storage)?
                             .amount
                             .u128(),
                     ),
@@ -544,7 +593,7 @@ impl VestingAccount for PeriodicVestingAccount {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Coin {
+    ) -> Result<Coin, ContractError> {
         self.get_delegated_with_op(&lt, block_time, env, storage)
     }
 
@@ -553,16 +602,9 @@ impl VestingAccount for PeriodicVestingAccount {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Coin {
+    ) -> Result<Coin, ContractError> {
         self.get_delegated_with_op(&ge, block_time, env, storage)
     }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct DelegationData {
-    mix_identity: IdentityKey,
-    amount: Uint128,
-    block_time: Timestamp,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -571,11 +613,11 @@ pub struct BondData {
     block_time: Timestamp,
 }
 
-fn lt(x: u64, y: u64) -> bool {
+fn lt(x: &u64, y: &u64) -> bool {
     x < y
 }
 
-fn ge(x: u64, y: u64) -> bool {
+fn ge(x: &u64, y: &u64) -> bool {
     x >= y
 }
 
@@ -593,9 +635,9 @@ pub fn populate_vesting_periods(start_time: u64, n: usize) -> Vec<VestingPeriod>
 #[cfg(test)]
 mod tests {
     use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD};
-    use crate::storage::{get_account, get_account_balance, get_account_delegations};
+    use crate::storage::{get_account, get_account_balance};
     use crate::support::tests::helpers::{init_contract, vesting_account_fixture};
-    use crate::vesting::{DelegationData, VestingAccount};
+    use crate::vesting::VestingAccount;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
@@ -705,14 +747,10 @@ mod tests {
         );
         assert!(ok.is_ok());
 
-        let delegations = get_account_delegations(&mut deps.storage, &account.address).unwrap();
-        assert_eq!(
-            DelegationData {
-                mix_identity: "alice".to_string(),
-                block_time: env.block.time,
-                amount: Uint128::new(100_000_000_000)
-            },
-            delegations[0]
-        );
+        let delegations = account
+            .delegations_for_mix("alice".to_string(), &deps.storage)
+            .unwrap();
+
+        assert_eq!(Uint128::new(100_000_000_000), delegations[0]);
     }
 }

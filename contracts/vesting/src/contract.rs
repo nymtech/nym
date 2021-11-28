@@ -5,10 +5,10 @@ use crate::vesting::{
     populate_vesting_periods, BondingAccount, DelegationAccount, PeriodicVestingAccount,
     VestingAccount,
 };
-use config::defaults::DENOM;
+use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo,
-    QueryResponse, Response, Timestamp, Uint128,
+    entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    Response, Timestamp, Uint128,
 };
 use mixnet_contract::{IdentityKey, MixNode};
 
@@ -60,7 +60,7 @@ pub fn execute(
             owner,
             mix_identity,
             amount,
-        } => try_track_undelegation(owner, mix_identity, amount, deps),
+        } => try_track_undelegation(owner, mix_identity, amount, info, deps),
         ExecuteMsg::BondMixnode { mix_node } => try_bond_mixnode(mix_node, info, env, deps),
         ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
         ExecuteMsg::TrackUnbond { owner, amount } => try_track_unbond(owner, amount, deps),
@@ -155,8 +155,12 @@ fn try_track_undelegation(
     address: Addr,
     mix_identity: IdentityKey,
     amount: Coin,
+    info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
+    if info.sender != DEFAULT_MIXNET_CONTRACT_ADDRESS {
+        return Err(ContractError::NotMixnetContract(info.sender));
+    }
     let adddress = deps.api.addr_validate(address.as_str())?;
     if let Some(account) = get_account(deps.storage, &adddress) {
         account.track_undelegation(mix_identity, amount, deps.storage)?;
@@ -397,7 +401,7 @@ pub fn try_get_delegated_free(
 ) -> Result<Coin, ContractError> {
     let address = deps.api.addr_validate(&vesting_account_address)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        Ok(account.get_delegated_free(block_time, &env, deps.storage))
+        Ok(account.get_delegated_free(block_time, &env, deps.storage)?)
     } else {
         Err(ContractError::NoAccountForAddress(vesting_account_address))
     }
@@ -411,7 +415,7 @@ pub fn try_get_delegated_vesting(
 ) -> Result<Coin, ContractError> {
     let address = deps.api.addr_validate(&vesting_account_address)?;
     if let Some(account) = get_account(deps.storage, &address) {
-        Ok(account.get_delegated_vesting(block_time, &env, deps.storage))
+        Ok(account.get_delegated_vesting(block_time, &env, deps.storage)?)
     } else {
         Err(ContractError::NoAccountForAddress(vesting_account_address))
     }

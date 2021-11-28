@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 use cosmwasm_std::{Addr, StdResult, Storage, Uint128};
 use cosmwasm_storage::{bucket, bucket_read, Bucket, ReadonlyBucket};
+use cw_storage_plus::Map;
+use mixnet_contract::IdentityKey;
 
 use crate::{
     errors::ContractError,
-    vesting::{BondData, DelegationData, PeriodicVestingAccount},
+    vesting::{BondData, PeriodicVestingAccount},
 };
 // storage prefixes
 // all of them must be unique and presumably not be a prefix of a different one
@@ -14,9 +16,13 @@ use crate::{
 
 // buckets
 const PREFIX_ACCOUNTS: &[u8] = b"ac";
-const PREFIX_ACCOUNT_DELEGATIONS: &[u8] = b"ad";
 const PREFIX_ACCOUNT_BALANCE: &[u8] = b"ab";
 const PREFIX_ACCOUNT_MIXBOND: &[u8] = b"am";
+
+#[allow(clippy::needless_lifetimes)] // Needs a lifetime here to compile
+pub fn account_delegations_map<'a>(ns: &'a str) -> Map<'a, (IdentityKey, u64), Uint128> {
+    Map::new(ns)
+}
 // Contract-level stuff
 
 fn accounts_mut(storage: &mut dyn Storage) -> Bucket<PeriodicVestingAccount> {
@@ -25,14 +31,6 @@ fn accounts_mut(storage: &mut dyn Storage) -> Bucket<PeriodicVestingAccount> {
 
 fn accounts(storage: &dyn Storage) -> ReadonlyBucket<PeriodicVestingAccount> {
     bucket_read(storage, PREFIX_ACCOUNTS)
-}
-
-fn account_delegations_mut(storage: &mut dyn Storage) -> Bucket<Vec<DelegationData>> {
-    bucket(storage, PREFIX_ACCOUNT_DELEGATIONS)
-}
-
-fn account_delegations(storage: &dyn Storage) -> ReadonlyBucket<Vec<DelegationData>> {
-    bucket_read(storage, PREFIX_ACCOUNT_DELEGATIONS)
 }
 
 fn account_bond_mut(storage: &mut dyn Storage) -> Bucket<BondData> {
@@ -61,24 +59,6 @@ pub fn set_account(
     account: PeriodicVestingAccount,
 ) -> Result<(), ContractError> {
     Ok(accounts_mut(storage).save(account.address().as_bytes(), &account)?)
-}
-
-pub fn get_account_delegations(
-    storage: &dyn Storage,
-    address: &Addr,
-) -> Option<Vec<DelegationData>> {
-    // Due to using may_load this should be safe to unwrap
-    account_delegations(storage)
-        .may_load(address.as_bytes())
-        .unwrap()
-}
-
-pub fn set_account_delegations(
-    storage: &mut dyn Storage,
-    address: &Addr,
-    delegations: Vec<DelegationData>,
-) -> StdResult<()> {
-    account_delegations_mut(storage).save(address.as_bytes(), &delegations)
 }
 
 pub fn get_account_bond(storage: &dyn Storage, address: &Addr) -> Option<BondData> {

@@ -1,4 +1,5 @@
-use cosmwasm_std::StdError;
+use cosmwasm_std::{Addr, StdError};
+use mixnet_contract::IdentityKey;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -29,4 +30,8 @@ pub enum ContractError {
     WrongDenom(String, String),
     #[error("Recieved multiple denoms, expected 1")]
     MultipleDenoms,
+    #[error("No delegations found for account {0}, mix_identity {1}")]
+    NoSuchDelegation(Addr, IdentityKey),
+    #[error("Only mixnet contract can perform this operation, got {0}")]
+    NotMixnetContract(Addr),
 }

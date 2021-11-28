@@ -1172,6 +1172,7 @@ dependencies = [
  "config",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "cw-storage-plus",
  "mixnet-contract",
  "schemars",
  "serde",

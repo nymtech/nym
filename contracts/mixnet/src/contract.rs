@@ -19,6 +19,7 @@ use crate::mixnodes::bonding_queries::query_mixnodes_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::rewards::queries::query_reward_pool;
 use crate::rewards::queries::{query_circulating_supply, query_rewarding_status};
+use crate::rewards::storage as rewards_storage;
 use config::defaults::REWARDING_VALIDATOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
@@ -74,6 +75,8 @@ pub fn instantiate(
 
     mixnet_params_storage::CONTRACT_SETTINGS.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
+    rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
+
     Ok(Response::default())
 }
 
@@ -196,8 +199,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             mix_identity,
             delegator,
         } => to_binary(&query_mixnode_delegation(deps, mix_identity, delegator)?),
-        QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)),
-        QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)),
+        QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
+        QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
         QueryMsg::GetEpochRewardPercent {} => to_binary(&EPOCH_REWARD_PERCENT),
         QueryMsg::GetSybilResistancePercent {} => to_binary(&DEFAULT_SYBIL_RESISTANCE_PERCENT),
         QueryMsg::GetRewardingStatus {

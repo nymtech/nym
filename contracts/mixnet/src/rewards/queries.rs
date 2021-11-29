@@ -6,11 +6,11 @@ use cosmwasm_std::Uint128;
 use cosmwasm_std::{Deps, StdResult};
 use mixnet_contract::{IdentityKey, MixnodeRewardingStatusResponse};
 
-pub(crate) fn query_reward_pool(deps: Deps) -> Uint128 {
-    storage::reward_pool_value(deps.storage)
+pub(crate) fn query_reward_pool(deps: Deps) -> StdResult<Uint128> {
+    storage::REWARD_POOL.load(deps.storage)
 }
 
-pub(crate) fn query_circulating_supply(deps: Deps) -> Uint128 {
+pub(crate) fn query_circulating_supply(deps: Deps) -> StdResult<Uint128> {
     storage::circulating_supply(deps.storage)
 }
 

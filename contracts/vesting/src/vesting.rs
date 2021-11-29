@@ -1,5 +1,6 @@
-use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD, save_account};
+use crate::contract::{save_account, NUM_VESTING_PERIODS, VESTING_PERIOD};
 use crate::errors::ContractError;
+use crate::traits::{BondingAccount, DelegatingAccount, VestingAccount};
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{wasm_execute, Addr, Coin, Env, Order, Response, Storage, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
@@ -7,114 +8,6 @@ use mixnet_contract::IdentityKey;
 use mixnet_contract::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-pub trait VestingAccount {
-    // locked_coins returns the set of coins that are not spendable (can still be delegated tough) (i.e. locked),
-    // defined as the vesting coins that are not delegated.
-    //
-    // To get spendable coins of a vesting account, first the total balance must
-    // be retrieved and the locked tokens can be subtracted from the total balance.
-    // Note, the spendable balance can be negative.
-    fn locked_coins(
-        &self,
-        block_time: Option<Timestamp>,
-        env: &Env,
-        storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
-
-    // Calculates the total spendable balance that can be sent to other accounts.
-    fn spendable_coins(
-        &self,
-        block_time: Option<Timestamp>,
-        env: &Env,
-        storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
-
-    fn get_vested_coins(
-        &self,
-        block_time: Option<Timestamp>,
-        env: &Env,
-    ) -> Result<Coin, ContractError>;
-    fn get_vesting_coins(
-        &self,
-        block_time: Option<Timestamp>,
-        env: &Env,
-    ) -> Result<Coin, ContractError>;
-
-    fn get_start_time(&self) -> Timestamp;
-    fn get_end_time(&self) -> Timestamp;
-
-    fn get_original_vesting(&self) -> Coin;
-    fn get_delegated_free(
-        &self,
-        block_time: Option<Timestamp>,
-        env: &Env,
-        storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
-    fn get_delegated_vesting(
-        &self,
-        block_time: Option<Timestamp>,
-        env: &Env,
-        storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
-}
-
-pub trait DelegationAccount {
-    fn try_delegate_to_mixnode(
-        &self,
-        mix_identity: IdentityKey,
-        amount: Coin,
-        env: &Env,
-        storage: &mut dyn Storage,
-    ) -> Result<Response, ContractError>;
-
-    fn try_undelegate_from_mixnode(
-        &self,
-        mix_identity: IdentityKey,
-    ) -> Result<Response, ContractError>;
-
-    // track_delegation performs internal vesting accounting necessary when
-    // delegating from a vesting account. It accepts the current block time, the
-    // delegation amount and balance of all coins whose denomination exists in
-    // the account's original vesting balance.
-    fn track_delegation(
-        &self,
-        block_time: Timestamp,
-        mix_identity: IdentityKey,
-        delegation: Coin,
-        storage: &mut dyn Storage,
-    ) -> Result<(), ContractError>;
-    // track_undelegation performs internal vesting accounting necessary when a
-    // vesting account performs an undelegation.
-    fn track_undelegation(
-        &self,
-        mix_identity: IdentityKey,
-        amount: Coin,
-        storage: &mut dyn Storage,
-    ) -> Result<(), ContractError>;
-}
-
-pub trait BondingAccount {
-    fn try_bond_mixnode(
-        &self,
-        mix_node: MixNode,
-        amount: Coin,
-        env: &Env,
-        storage: &mut dyn Storage,
-    ) -> Result<Response, ContractError>;
-
-    fn try_unbond_mixnode(&self) -> Result<Response, ContractError>;
-
-    fn track_bond(
-        &self,
-        block_time: Timestamp,
-        bond: Coin,
-        storage: &mut dyn Storage,
-    ) -> Result<(), ContractError>;
-
-    fn track_unbond(&self, amount: Coin, storage: &mut dyn Storage) -> Result<(), ContractError>;
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct VestingPeriod {
     pub start_time: u64,
@@ -199,47 +92,6 @@ impl PeriodicVestingAccount {
         }
     }
 
-    fn get_delegated_with_op(
-        &self,
-        op: &dyn Fn(&u64, &u64) -> bool,
-        block_time: Option<Timestamp>,
-        env: &Env,
-        storage: &dyn Storage,
-    ) -> Result<Coin, ContractError> {
-        let block_time = block_time.unwrap_or(env.block.time);
-        let period = self.get_current_vesting_period(block_time);
-        if period == 0 {
-            return Ok(Coin {
-                amount: Uint128::new(0),
-                denom: DENOM.to_string(),
-            });
-        }
-
-        let end_time = if period >= NUM_VESTING_PERIODS as usize {
-            u64::MAX
-        } else {
-            self.periods[period].end_time().seconds()
-        };
-
-        let delegations_keys = self
-            .delegations()
-            .keys_de(storage, None, None, Order::Ascending)
-            .scan((), |_, x| x.ok())
-            .filter(|(_mix, block_time)| op(block_time, &end_time))
-            .collect::<Vec<(String, u64)>>();
-
-        let mut amount = Uint128::zero();
-
-        for key in delegations_keys {
-            amount += self.delegations().load(storage, key)?
-        }
-
-        Ok(Coin {
-            amount,
-            denom: DENOM.to_string(),
-        })
-    }
-
     pub fn load_balance(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
         Ok(self
             .balance()
@@ -247,7 +99,11 @@ impl PeriodicVestingAccount {
             .unwrap_or_else(Uint128::zero))
     }
 
-    pub fn save_balance(&self, amount: Uint128, storage: &mut dyn Storage) -> Result<(), ContractError> {
+    pub fn save_balance(
+        &self,
+        amount: Uint128,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
         Ok(self.balance().save(storage, &amount)?)
     }
 
@@ -259,7 +115,11 @@ impl PeriodicVestingAccount {
         Ok(self.bond().may_load(storage)?)
     }
 
-    pub fn save_bond(&self, bond: BondData, storage: &mut dyn Storage) -> Result<(), ContractError> {
+    pub fn save_bond(
+        &self,
+        bond: BondData,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
         Ok(self.bond().save(storage, &bond)?)
     }
 
@@ -318,9 +178,18 @@ impl PeriodicVestingAccount {
             .iter()
             .fold(Uint128::zero(), |acc, x| acc + *x))
     }
+
+    #[allow(dead_code)]
+    pub fn total_delegations(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
+        Ok(self
+            .delegations()
+            .range(storage, None, None, Order::Ascending)
+            .scan((), |_, x| x.ok())
+            .fold(Uint128::zero(), |acc, (_, x)| acc + x))
+    }
 }
 
-impl DelegationAccount for PeriodicVestingAccount {
+impl DelegatingAccount for PeriodicVestingAccount {
     fn try_delegate_to_mixnode(
         &self,
         mix_identity: IdentityKey,
@@ -523,6 +392,11 @@ impl VestingAccount for PeriodicVestingAccount {
                         self.get_delegated_vesting(block_time, env, storage)?
                             .amount
                             .u128(),
+                    )
+                    .saturating_sub(
+                        self.get_bonded_vesting(block_time, env, storage)?
+                            .amount
+                            .u128(),
                     ),
             ),
             denom: DENOM.to_string(),
@@ -604,7 +478,57 @@ impl VestingAccount for PeriodicVestingAccount {
         env: &Env,
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError> {
-        self.get_delegated_with_op(&lt, block_time, env, storage)
+        let block_time = block_time.unwrap_or(env.block.time);
+        let period = self.get_current_vesting_period(block_time);
+        let max_vested = self.tokens_per_period()? * period as u128;
+        let start_time = self.periods[period].start_time;
+
+        let delegations_keys = self
+            .delegations()
+            .keys_de(storage, None, None, Order::Ascending)
+            .scan((), |_, x| x.ok())
+            .filter(|(_mix, block_time)| block_time < &start_time)
+            .collect::<Vec<(String, u64)>>();
+
+        let mut amount = Uint128::zero();
+        for key in delegations_keys {
+            amount += self.delegations().load(storage, key)?
+        }
+        amount = Uint128::new(amount.u128().min(max_vested));
+
+        Ok(Coin {
+            amount,
+            denom: DENOM.to_string(),
+        })
+    }
+
+    fn get_bonded_free(
+        &self,
+        block_time: Option<Timestamp>,
+        env: &Env,
+        storage: &dyn Storage,
+    ) -> Result<Coin, ContractError> {
+        let block_time = block_time.unwrap_or(env.block.time);
+        let period = self.get_current_vesting_period(block_time);
+        let max_vested = self.tokens_per_period()? * period as u128;
+        let start_time = self.periods[period].start_time;
+
+        let amount = if let Some(bond) = self.load_bond(storage)? {
+            if bond.block_time.seconds() < start_time {
+                bond.amount
+            } else {
+                Uint128::zero()
+            }
+        } else {
+            Uint128::zero()
+        };
+
+        let amount = Uint128::new(amount.u128().min(max_vested));
+
+        Ok(Coin {
+            amount,
+            denom: DENOM.to_string(),
+        })
     }
 
     fn get_delegated_vesting(
@@ -613,7 +537,39 @@ impl VestingAccount for PeriodicVestingAccount {
         env: &Env,
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError> {
-        self.get_delegated_with_op(&ge, block_time, env, storage)
+        let block_time = block_time.unwrap_or(env.block.time);
+        let delegated_free = self.get_delegated_free(Some(block_time), env, storage)?;
+        let total_delegations = self.total_delegations(storage)?;
+
+        let amount = total_delegations - delegated_free.amount;
+
+        Ok(Coin {
+            amount,
+            denom: DENOM.to_string(),
+        })
+    }
+
+    fn get_bonded_vesting(
+        &self,
+        block_time: Option<Timestamp>,
+        env: &Env,
+        storage: &dyn Storage,
+    ) -> Result<Coin, ContractError> {
+        let block_time = block_time.unwrap_or(env.block.time);
+        let bonded_free = self.get_bonded_free(Some(block_time), env, storage)?;
+
+        if let Some(bond) = self.load_bond(storage)? {
+            let amount = bond.amount - bonded_free.amount;
+            Ok(Coin {
+                amount,
+                denom: DENOM.to_string(),
+            })
+        } else {
+            Ok(Coin {
+                amount: Uint128::zero(),
+                denom: DENOM.to_string(),
+            })
+        }
     }
 }
 
@@ -621,14 +577,6 @@ impl VestingAccount for PeriodicVestingAccount {
 pub struct BondData {
     amount: Uint128,
     block_time: Timestamp,
-}
-
-fn lt(x: &u64, y: &u64) -> bool {
-    x < y
-}
-
-fn ge(x: &u64, y: &u64) -> bool {
-    x >= y
 }
 
 pub fn populate_vesting_periods(start_time: u64, n: usize) -> Vec<VestingPeriod> {
@@ -644,14 +592,15 @@ pub fn populate_vesting_periods(start_time: u64, n: usize) -> Vec<VestingPeriod>
 
 #[cfg(test)]
 mod tests {
-    use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD};
+    use super::DelegatingAccount;
+    use crate::contract::{load_account, NUM_VESTING_PERIODS, VESTING_PERIOD};
     use crate::support::tests::helpers::{init_contract, vesting_account_fixture};
-    use crate::vesting::{VestingAccount, load_account, save_account};
+    use crate::traits::BondingAccount;
+    use crate::vesting::VestingAccount;
     use config::defaults::DENOM;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
-
-    use super::DelegationAccount;
+    use mixnet_contract::MixNode;
 
     #[test]
     fn test_account_creation() {
@@ -659,7 +608,8 @@ mod tests {
         let env = mock_env();
         let account = vesting_account_fixture(&mut deps.storage, &env);
         let created_account = load_account(&account.address, &deps.storage).unwrap();
-        let created_account_test = load_account(&Addr::unchecked("fixture"), &deps.storage).unwrap();
+        let created_account_test =
+            load_account(&Addr::unchecked("fixture"), &deps.storage).unwrap();
         assert_eq!(Some(&account), created_account.as_ref());
         assert_eq!(Some(&account), created_account_test.as_ref());
         assert_eq!(
@@ -748,7 +698,7 @@ mod tests {
         let ok = account.try_delegate_to_mixnode(
             "alice".to_string(),
             Coin {
-                amount: Uint128::new(100_000_000_000),
+                amount: Uint128::new(500_000_000_000),
                 denom: DENOM.to_string(),
             },
             &env,
@@ -756,10 +706,191 @@ mod tests {
         );
         assert!(ok.is_ok());
 
-        let delegations = account
-            .delegations_for_mix("alice".to_string(), &deps.storage)
-            .unwrap();
+        // Try delegating too much again
+        let err = account.try_delegate_to_mixnode(
+            "alice".to_string(),
+            Coin {
+                amount: Uint128::new(500_000_000_001),
+                denom: DENOM.to_string(),
+            },
+            &env,
+            &mut deps.storage,
+        );
+        assert!(err.is_err());
 
-        assert_eq!(Uint128::new(100_000_000_000), delegations[0]);
+        let total_delegations = account
+            .total_delegations_for_mix("alice".to_string(), &deps.storage)
+            .unwrap();
+        assert_eq!(Uint128::new(500_000_000_000), total_delegations);
+
+        // Current period -> block_time: None
+        let delegated_free = account
+            .get_delegated_free(None, &env, &deps.storage)
+            .unwrap();
+        assert_eq!(Uint128::new(0), delegated_free.amount);
+
+        let delegated_vesting = account
+            .get_delegated_vesting(None, &env, &deps.storage)
+            .unwrap();
+        assert_eq!(
+            account.total_delegations(&deps.storage).unwrap() - delegated_free.amount,
+            delegated_vesting.amount
+        );
+
+        // All periods
+        for (i, period) in account.periods.iter().enumerate() {
+            println!("period: {}", i);
+
+            let delegated_free = account
+                .get_delegated_free(
+                    Some(Timestamp::from_seconds(period.start_time + 1)),
+                    &env,
+                    &deps.storage,
+                )
+                .unwrap();
+            assert_eq!(
+                (account.tokens_per_period().unwrap() * i as u128)
+                    .min(account.total_delegations(&deps.storage).unwrap().u128()),
+                delegated_free.amount.u128()
+            );
+
+            let delegated_vesting = account
+                .get_delegated_vesting(
+                    Some(Timestamp::from_seconds(period.start_time + 1)),
+                    &env,
+                    &deps.storage,
+                )
+                .unwrap();
+            assert_eq!(
+                account.total_delegations(&deps.storage).unwrap() - delegated_free.amount,
+                delegated_vesting.amount
+            );
+        }
+
+        let delegated_free = account
+            .get_delegated_free(
+                Some(Timestamp::from_seconds(1764416964)),
+                &env,
+                &deps.storage,
+            )
+            .unwrap();
+        assert_eq!(total_delegations, delegated_free.amount);
+
+        let delegated_free = account
+            .get_delegated_vesting(
+                Some(Timestamp::from_seconds(1764416964)),
+                &env,
+                &deps.storage,
+            )
+            .unwrap();
+        assert_eq!(Uint128::zero(), delegated_free.amount);
+    }
+
+    #[test]
+    fn test_bonds() {
+        let mut deps = init_contract();
+        let env = mock_env();
+
+        let account = vesting_account_fixture(&mut deps.storage, &env);
+
+        let mix_node = MixNode {
+            host: "mix.node.org".to_string(),
+            mix_port: 1789,
+            verloc_port: 1790,
+            http_api_port: 8000,
+            sphinx_key: "sphinx".to_string(),
+            identity_key: "identity".to_string(),
+            version: "0.10.0".to_string(),
+        };
+        // Try delegating too much
+        let err = account.try_bond_mixnode(
+            mix_node.clone(),
+            Coin {
+                amount: Uint128::new(1_000_000_000_001),
+                denom: DENOM.to_string(),
+            },
+            &env,
+            &mut deps.storage,
+        );
+        assert!(err.is_err());
+
+        let ok = account.try_bond_mixnode(
+            mix_node.clone(),
+            Coin {
+                amount: Uint128::new(500_000_000_000),
+                denom: DENOM.to_string(),
+            },
+            &env,
+            &mut deps.storage,
+        );
+        assert!(ok.is_ok());
+
+        // Try delegating too much again
+        let err = account.try_bond_mixnode(
+            mix_node,
+            Coin {
+                amount: Uint128::new(500_000_000_001),
+                denom: DENOM.to_string(),
+            },
+            &env,
+            &mut deps.storage,
+        );
+        assert!(err.is_err());
+
+        let bond = account.load_bond(&deps.storage).unwrap().unwrap();
+        assert_eq!(Uint128::new(500_000_000_000), bond.amount);
+
+        // Current period -> block_time: None
+        let bonded_free = account.get_bonded_free(None, &env, &deps.storage).unwrap();
+        assert_eq!(Uint128::new(0), bonded_free.amount);
+
+        let bonded_vesting = account
+            .get_bonded_vesting(None, &env, &deps.storage)
+            .unwrap();
+        assert_eq!(bond.amount - bonded_free.amount, bonded_vesting.amount);
+
+        // All periods
+        for (i, period) in account.periods.iter().enumerate() {
+            println!("period: {}", i);
+
+            let bonded_free = account
+                .get_bonded_free(
+                    Some(Timestamp::from_seconds(period.start_time + 1)),
+                    &env,
+                    &deps.storage,
+                )
+                .unwrap();
+            assert_eq!(
+                (account.tokens_per_period().unwrap() * i as u128).min(bond.amount.u128()),
+                bonded_free.amount.u128()
+            );
+
+            let bonded_vesting = account
+                .get_bonded_vesting(
+                    Some(Timestamp::from_seconds(period.start_time + 1)),
+                    &env,
+                    &deps.storage,
+                )
+                .unwrap();
+            assert_eq!(bond.amount - bonded_free.amount, bonded_vesting.amount);
+        }
+
+        let bonded_free = account
+            .get_bonded_free(
+                Some(Timestamp::from_seconds(1764416964)),
+                &env,
+                &deps.storage,
+            )
+            .unwrap();
+        assert_eq!(bond.amount, bonded_free.amount);
+
+        let bonded_vesting = account
+            .get_bonded_vesting(
+                Some(Timestamp::from_seconds(1764416964)),
+                &env,
+                &deps.storage,
+            )
+            .unwrap();
+        assert_eq!(Uint128::zero(), bonded_vesting.amount);
     }
 }

@@ -2,7 +2,6 @@
 pub mod helpers {
     use crate::contract::{instantiate, NUM_VESTING_PERIODS, VESTING_PERIOD};
     use crate::messages::InitMsg;
-    use crate::storage;
     use crate::vesting::populate_vesting_periods;
     use crate::vesting::PeriodicVestingAccount;
     use crate::vesting::VestingPeriod;

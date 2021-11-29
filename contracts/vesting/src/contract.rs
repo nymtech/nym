@@ -1,9 +1,7 @@
 use crate::errors::ContractError;
 use crate::messages::{ExecuteMsg, InitMsg, QueryMsg};
-use crate::vesting::{
-    populate_vesting_periods, BondingAccount, DelegationAccount, PeriodicVestingAccount,
-    VestingAccount,
-};
+use crate::traits::{BondingAccount, DelegatingAccount, VestingAccount};
+use crate::vesting::{populate_vesting_periods, PeriodicVestingAccount};
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{
     entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
@@ -137,7 +135,10 @@ pub fn try_withdraw_vested_coins(
     if let Some(account) = load_account(&address, deps.storage)? {
         let spendable_coins = account.spendable_coins(None, &env, deps.storage)?;
         if amount.amount < spendable_coins.amount {
-            let new_balance = account.load_balance(deps.storage)?.u128().saturating_sub(amount.amount.u128());
+            let new_balance = account
+                .load_balance(deps.storage)?
+                .u128()
+                .saturating_sub(amount.amount.u128());
             account.save_balance(Uint128::new(new_balance), deps.storage)?;
 
             let send_tokens = BankMsg::Send {

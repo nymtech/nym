@@ -1,53 +1,63 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::Storage;
-use cosmwasm_storage::{bucket_read, Bucket, ReadonlyBucket};
-use mixnet_contract::{Addr, IdentityKeyRef, RawDelegationData};
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
+use mixnet_contract::{Addr, IdentityKey, _Delegation};
 
 // storage prefixes
-const PREFIX_MIX_DELEGATION: &[u8] = b"md";
-const PREFIX_REVERSE_MIX_DELEGATION: &[u8] = b"dm";
+const DELEGATION_PK_NAMESPACE: &str = "dl";
+const DELEGATION_OWNER_IDX_NAMESPACE: &str = "dlo";
+const DELEGATION_MIXNODE_IDX_NAMESPACE: &str = "dlm";
 
 // paged retrieval limits for all queries and transactions
-// currently the maximum limit before running into memory issue is somewhere between 1150 and 1200
 pub(crate) const DELEGATION_PAGE_MAX_LIMIT: u32 = 500;
 pub(crate) const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 250;
 
-// delegation related
-pub fn all_mix_delegations_read<T>(storage: &dyn Storage) -> ReadonlyBucket<T>
-where
-    T: Serialize + DeserializeOwned,
-{
-    bucket_read(storage, PREFIX_MIX_DELEGATION)
+// It's a composite key on node's identity and delegator address
+type PrimaryKey = Vec<u8>;
+
+pub(crate) struct DelegationIndex<'a> {
+    pub(crate) owner: MultiIndex<'a, (Addr, PrimaryKey), _Delegation>,
+
+    pub(crate) mixnode: MultiIndex<'a, (IdentityKey, PrimaryKey), _Delegation>,
 }
 
-pub fn mix_delegations<'a>(
-    storage: &'a mut dyn Storage,
-    mix_identity: IdentityKeyRef,
-) -> Bucket<'a, RawDelegationData> {
-    Bucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
+impl<'a> IndexList<_Delegation> for DelegationIndex<'a> {
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<_Delegation>> + '_> {
+        let v: Vec<&dyn Index<_Delegation>> = vec![&self.owner, &self.mixnode];
+        Box::new(v.into_iter())
+    }
 }
 
-pub fn mix_delegations_read<'a>(
-    storage: &'a dyn Storage,
-    mix_identity: IdentityKeyRef,
-) -> ReadonlyBucket<'a, RawDelegationData> {
-    ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
-}
+// I was really going back and forth about the data stored on the disk vs primary key duplication.
+// It was basically between convenience and bloat, but in the end I decided the convenience wins.
+//
+// Basically I had 2 approaches. a) store delegator address and mixnode identity only as primary key of delegation or
+// b) store it both as primary key AND inside delegation data.
+// For the longest time I was in favour of a), since that removed any data duplication. However...,
+// that also required that during index creation I recovered delegator address and mixnode identity
+// from the Vec<u8>. That doesn't sound that terrible. However, even though I'm 99.99% certain that
+// conversion would be impossible to fail, I'd still have to call an `unwrap` here due to required
+// type signature and I didn't feel super comfortable doing that in our smart contract...
+// So to get rid of this uncertainty I went with the b) approach. Even though each stored delegation
+// takes over ~250B (since the key has to be duplicated), in the grand blockchain scheme of things
+// it's not that terrible. Say we had 100_000_000 delegations -> that's still only 25GB of data
+// and as a nice by-product it cleans up code a little bit by only having a single Delegation type.
+pub(crate) fn delegations<'a>() -> IndexedMap<'a, PrimaryKey, _Delegation, DelegationIndex<'a>> {
+    let indexes = DelegationIndex {
+        owner: MultiIndex::new(
+            |d, pk| (d.owner.clone(), pk),
+            DELEGATION_PK_NAMESPACE,
+            DELEGATION_OWNER_IDX_NAMESPACE,
+        ),
+        mixnode: MultiIndex::new(
+            |d, pk| (d.node_identity.clone(), pk),
+            DELEGATION_PK_NAMESPACE,
+            DELEGATION_MIXNODE_IDX_NAMESPACE,
+        ),
+    };
 
-// TODO: note for JS when doing a deep review for the contract. Don't store it as (), instead do it as u8
-pub fn reverse_mix_delegations<'a>(storage: &'a mut dyn Storage, owner: &Addr) -> Bucket<'a, ()> {
-    Bucket::multilevel(storage, &[PREFIX_REVERSE_MIX_DELEGATION, owner.as_bytes()])
-}
-
-pub fn reverse_mix_delegations_read<'a>(
-    storage: &'a dyn Storage,
-    owner: &Addr,
-) -> ReadonlyBucket<'a, ()> {
-    ReadonlyBucket::multilevel(storage, &[PREFIX_REVERSE_MIX_DELEGATION, owner.as_bytes()])
+    IndexedMap::new(DELEGATION_PK_NAMESPACE, indexes)
 }
 
 #[cfg(test)]

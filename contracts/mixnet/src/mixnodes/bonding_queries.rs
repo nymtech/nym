@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use cosmwasm_std::{Addr, Deps, Order, StdResult};
+use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use mixnet_contract::{IdentityKey, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse};
 
@@ -37,13 +37,17 @@ pub fn query_mixnodes_paged(
     Ok(PagedMixnodeResponse::new(nodes, limit, start_next_after))
 }
 
-pub fn query_owns_mixnode(deps: Deps, address: Addr) -> StdResult<MixOwnershipResponse> {
+pub fn query_owns_mixnode(deps: Deps, address: String) -> StdResult<MixOwnershipResponse> {
+    let validated_addr = deps.api.addr_validate(&address)?;
     let has_node = storage::mixnodes()
         .idx
         .owner
-        .item(deps.storage, address.clone())?
+        .item(deps.storage, validated_addr.clone())?
         .is_some();
-    Ok(MixOwnershipResponse { address, has_node })
+    Ok(MixOwnershipResponse {
+        address: validated_addr,
+        has_node,
+    })
 }
 
 #[cfg(test)]

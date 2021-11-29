@@ -6,17 +6,18 @@ use crate::delegations::storage as delegations_storage;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
+use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
+use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
 use mixnet_contract::{
-    IdentityKey, IdentityKeyRef, PendingDelegatorRewarding, RewardingResult, RewardingStatus,
+    IdentityKey, PendingDelegatorRewarding, RewardingResult, RewardingStatus,
     MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 
 #[derive(Debug)]
 struct MixDelegationRewardingResult {
     total_rewarded: Uint128,
-    start_next: Option<String>,
+    start_next: Option<Addr>,
 }
 
 /// Checks whether under the current context, any rewarding-related functionalities can be called.
@@ -111,18 +112,21 @@ pub(crate) fn try_begin_mixnode_rewarding(
     ))
 }
 
+// TODO: change it to start_after
 fn reward_mix_delegators_v2(
     storage: &mut dyn Storage,
-    mix_identity: IdentityKeyRef,
-    start: Option<String>,
+    mix_identity: IdentityKey,
+    start: Option<Addr>,
     params: DelegatorRewardParams,
 ) -> StdResult<MixDelegationRewardingResult> {
     // TODO: some checks to make sure stuff is not TOO stale.
 
     let chunk_size = MIXNODE_DELEGATORS_PAGE_LIMIT;
-    let start_value = start.as_ref().map(|addr| addr.as_bytes());
 
-    let mut delegations = delegations_storage::mix_delegations(storage, mix_identity);
+    //  TODO: change it to exclusive bound for simpler logic and consistency
+    let start_value = start.map(|start| Bound::inclusive(start.as_str()));
+
+    let delegations = delegations_storage::delegations();
 
     let mut total_rewarded = Uint128::zero();
     let mut items = 0;
@@ -144,16 +148,19 @@ fn reward_mix_delegators_v2(
     // Note: we can't just return last key of `chunk_size` with appended 0 byte as that
     // would not be a valid utf8 string
     for delegation in delegations
-        .range(start_value, None, cosmwasm_std::Order::Ascending)
+        .idx
+        .mixnode
+        .prefix(mix_identity)
+        .range(storage, start_value, None, cosmwasm_std::Order::Ascending)
         .take(chunk_size + 1)
     {
         items += 1;
 
-        let (delegator_address, mut delegation) = delegation?;
+        let (_pk, mut delegation) = delegation?;
 
         if items == chunk_size + 1 {
             // we shouldn't process this data, it's for the next call
-            start_next = Some(String::from_utf8(delegator_address)?);
+            start_next = Some(delegation.owner());
             break;
         } else {
             // and for each of them increase the stake proportionally to the reward
@@ -162,18 +169,19 @@ fn reward_mix_delegators_v2(
             if delegation.block_height + storage::MINIMUM_BLOCK_AGE_FOR_REWARDING
                 <= params.node_reward_params().reward_blockstamp()
             {
-                let reward = params.determine_delegation_reward(delegation.amount);
-                delegation.amount += Uint128::new(reward);
+                let reward = params.determine_delegation_reward(delegation.amount.amount);
+                delegation.increment_amount(Uint128::new(reward), None);
                 total_rewarded += Uint128::new(reward);
 
-                rewarded_delegations.push((delegator_address, delegation));
+                rewarded_delegations.push(delegation);
             }
         }
     }
 
-    // finally save all delegation data back into the bucket
+    // finally save all delegation data back into the storage
     for rewarded_delegation in rewarded_delegations {
-        delegations.save(&rewarded_delegation.0, &rewarded_delegation.1)?;
+        let storage_key = rewarded_delegation.storage_key().joined_key();
+        delegations.save(storage, storage_key, &rewarded_delegation)?;
     }
 
     Ok(MixDelegationRewardingResult {
@@ -209,7 +217,7 @@ pub(crate) fn try_reward_next_mixnode_delegators_v2(
         Some(RewardingStatus::PendingNextDelegatorPage(next_page_info)) => {
             let delegation_rewarding_result = reward_mix_delegators_v2(
                 deps.storage,
-                &mix_identity,
+                mix_identity.clone(),
                 Some(next_page_info.next_start),
                 next_page_info.rewarding_params,
             )?;
@@ -321,7 +329,7 @@ pub(crate) fn try_reward_mixnode_v2(
 
         let delegator_params = DelegatorRewardParams::new(&current_bond, node_reward_params);
         let delegation_rewarding_result =
-            reward_mix_delegators_v2(deps.storage, &mix_identity, None, delegator_params)?;
+            reward_mix_delegators_v2(deps.storage, mix_identity.clone(), None, delegator_params)?;
 
         mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
             deps.storage,
@@ -1627,7 +1635,7 @@ pub mod tests {
 
         let params = DelegatorRewardParams::new(&bond, node_rewarding_params);
         let res =
-            reward_mix_delegators_v2(deps.as_mut().storage, &node_identity, None, params).unwrap();
+            reward_mix_delegators_v2(deps.as_mut().storage, node_identity, None, params).unwrap();
 
         let mut actual_reward = Uint128::new(0);
         for delegation in delegations_storage::mix_delegations_read(
@@ -1683,7 +1691,7 @@ pub mod tests {
 
         let params = DelegatorRewardParams::new(&bond, node_rewarding_params);
         let res =
-            reward_mix_delegators_v2(deps.as_mut().storage, &node_identity, None, params).unwrap();
+            reward_mix_delegators_v2(deps.as_mut().storage, node_identity, None, params).unwrap();
 
         let mut actual_reward = Uint128::new(0);
         for delegation in delegations_storage::mix_delegations_read(
@@ -1716,7 +1724,7 @@ pub mod tests {
 
         let res2 = reward_mix_delegators_v2(
             deps.as_mut().storage,
-            &node_identity,
+            node_identity.clone(),
             res.start_next.clone(),
             params,
         )

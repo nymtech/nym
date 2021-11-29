@@ -16,7 +16,7 @@ use mixnet_contract::{
     Addr, ContractSettingsParams, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse,
     IdentityKey, LayerDistribution, MixNode, MixOwnershipResponse, MixnetContractVersion,
     MixnodeRewardingStatusResponse, PagedAllDelegationsResponse, PagedGatewayResponse,
-    PagedMixDelegationsResponse, PagedMixnodeResponse, PagedReverseMixDelegationsResponse,
+    PagedMixDelegationsResponse, PagedMixnodeResponse, PagedDelegatorDelegationsResponse,
     QueryMsg, RawDelegationData, RewardingIntervalResponse,
 };
 use serde::Serialize;
@@ -382,7 +382,7 @@ impl<C> NymdClient<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetMixDelegations {
+        let request = QueryMsg::GetMixnodeDelegations {
             mix_identity: mix_identity.to_owned(),
             start_after,
             limit: page_limit,
@@ -402,7 +402,7 @@ impl<C> NymdClient<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetAllMixDelegations {
+        let request = QueryMsg::GetAllNetworkDelegations {
             start_after,
             limit: page_limit,
         };
@@ -417,12 +417,12 @@ impl<C> NymdClient<C> {
         delegation_owner: Addr,
         start_after: Option<IdentityKey>,
         page_limit: Option<u32>,
-    ) -> Result<PagedReverseMixDelegationsResponse, NymdError>
+    ) -> Result<PagedDelegatorDelegationsResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetReverseMixDelegations {
-            delegation_owner,
+        let request = QueryMsg::GetDelegatorDelegations {
+            delegator: delegation_owner,
             start_after,
             limit: page_limit,
         };
@@ -440,7 +440,7 @@ impl<C> NymdClient<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetMixDelegation {
+        let request = QueryMsg::GetDelegationDetails {
             mix_identity,
             address: Addr::unchecked(delegator.as_ref()),
         };

@@ -1,6 +1,9 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use super::storage;
 use crate::mixnodes::storage::{BOND_PAGE_DEFAULT_LIMIT, BOND_PAGE_MAX_LIMIT}; // Keeps gateway and mixnode retrieval in sync by re-using the constant. Could be split into its own constant.
-use cosmwasm_std::{Addr, Deps, Order, StdResult};
+use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use mixnet_contract::{GatewayBond, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse};
 
@@ -25,14 +28,19 @@ pub(crate) fn query_gateways_paged(
     Ok(PagedGatewayResponse::new(nodes, limit, start_next_after))
 }
 
-pub(crate) fn query_owns_gateway(deps: Deps, address: Addr) -> StdResult<GatewayOwnershipResponse> {
+pub(crate) fn query_owns_gateway(
+    deps: Deps,
+    address: String,
+) -> StdResult<GatewayOwnershipResponse> {
+    let validated_addr = deps.api.addr_validate(&address)?;
+
     let has_gateway = storage::gateways()
         .idx
         .owner
-        .item(deps.storage, address.clone())?
+        .item(deps.storage, validated_addr.clone())?
         .is_some();
     Ok(GatewayOwnershipResponse {
-        address,
+        address: validated_addr,
         has_gateway,
     })
 }

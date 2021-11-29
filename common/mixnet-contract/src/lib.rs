@@ -13,7 +13,7 @@ pub const MIXNODE_DELEGATORS_PAGE_LIMIT: usize = 250;
 pub use cosmwasm_std::{Addr, Coin};
 pub use delegation::{
     Delegation, PagedAllDelegationsResponse, PagedMixDelegationsResponse,
-    PagedReverseMixDelegationsResponse, RawDelegationData, UnpackedDelegation,
+    PagedDelegatorDelegationsResponse, RawDelegationData, UnpackedDelegation, _Delegation
 };
 pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayResponse};
 pub use mixnode::{Layer, MixNode, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse};

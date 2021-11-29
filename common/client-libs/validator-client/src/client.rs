@@ -358,7 +358,7 @@ impl<C> Client<C> {
                     self.mixnode_delegations_page_limit,
                 )
                 .await?;
-            delegations.append(&mut paged_response.delegated_nodes);
+            delegations.append(&mut paged_response.delegations);
 
             if let Some(start_after_res) = paged_response.start_next_after {
                 start_after = Some(start_after_res)

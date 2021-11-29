@@ -5,9 +5,9 @@ use super::storage;
 use crate::error::ContractError;
 use crate::mixnodes::storage as mixnodes_storage;
 use config::defaults::DENOM;
-use cosmwasm_std::{coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
-use mixnet_contract::IdentityKey;
-use mixnet_contract::RawDelegationData;
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
+use cw_storage_plus::PrimaryKey;
+use mixnet_contract::{IdentityKey, _Delegation};
 
 fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {
     // check if anything was put as delegation
@@ -43,30 +43,15 @@ pub(crate) fn try_delegate_to_mixnode(
 
     // check if the target node actually exists
     if mixnodes_storage::mixnodes()
-        .load(deps.storage, &mix_identity)
-        .is_err()
+        .may_load(deps.storage, &mix_identity)?
+        .is_none()
     {
         return Err(ContractError::MixNodeBondNotFound {
             identity: mix_identity,
         });
     }
 
-    // update delegation of this delegator
-    storage::mix_delegations(deps.storage, &mix_identity).update::<_, ContractError>(
-        info.sender.as_bytes(),
-        |existing_delegation| {
-            // if no delegation existed, use default, i.e. 0
-            let existing_delegation_amount = existing_delegation
-                .map(|existing_delegation| existing_delegation.amount)
-                .unwrap_or_default();
-
-            // the block height is reset, if it existed
-            Ok(RawDelegationData::new(
-                existing_delegation_amount + info.funds[0].amount,
-                env.block.height,
-            ))
-        },
-    )?;
+    let storage_key = (mix_identity.clone(), info.sender.clone()).joined_key();
 
     // update total_delegation of this node
     mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
@@ -80,9 +65,26 @@ pub(crate) fn try_delegate_to_mixnode(
         },
     )?;
 
-    // save information about delegations of this sender
-    storage::reverse_mix_delegations(deps.storage, &info.sender)
-        .save(mix_identity.as_bytes(), &())?;
+    // update [or create new] delegation of this delegator
+    storage::delegations().update::<_, ContractError>(
+        deps.storage,
+        storage_key,
+        |existing_delegation| {
+            Ok(match existing_delegation {
+                Some(mut existing_delegation) => {
+                    existing_delegation
+                        .increment_amount(info.funds[0].amount, Some(env.block.height));
+                    existing_delegation
+                }
+                None => _Delegation::new(
+                    info.sender,
+                    mix_identity,
+                    info.funds[0].clone(),
+                    env.block.height,
+                ),
+            })
+        },
+    )?;
 
     Ok(Response::default())
 }
@@ -92,43 +94,41 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     info: MessageInfo,
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
-    let mut delegation_bucket = storage::mix_delegations(deps.storage, &mix_identity);
-    let sender_bytes = info.sender.as_bytes();
-
-    if let Some(delegation) = delegation_bucket.may_load(sender_bytes)? {
-        // remove all delegation associated with this delegator
-        delegation_bucket.remove(sender_bytes);
-        storage::reverse_mix_delegations(deps.storage, &info.sender)
-            .remove(mix_identity.as_bytes());
-
-        // send delegated funds back to the delegation owner
-        let return_tokens = BankMsg::Send {
-            to_address: info.sender.to_string(),
-            amount: coins(delegation.amount.u128(), DENOM),
-        };
-
-        // update total_delegation of this node
-        mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
-            deps.storage,
-            &mix_identity,
-            |total_delegation| {
-                // the first unwrap is fine because the delegation information MUST exist, otherwise we would
-                // have never gotten here in the first place
-                // the second unwrap is also fine because we should NEVER underflow here,
-                // if we do, it means we have some serious error in our logic
-                Ok(total_delegation
-                    .unwrap()
-                    .checked_sub(delegation.amount)
-                    .unwrap())
-            },
-        )?;
-
-        Ok(Response::new().add_message(return_tokens))
-    } else {
-        Err(ContractError::NoMixnodeDelegationFound {
+    let storage_key = (mix_identity.clone(), info.sender.clone()).joined_key();
+    let delegation_map = storage::delegations();
+    match delegation_map.may_load(deps.storage, storage_key.clone())? {
+        None => Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
             address: info.sender,
-        })
+        }),
+        Some(old_delegation) => {
+            // send delegated funds back to the delegation owner
+            let return_tokens = BankMsg::Send {
+                to_address: info.sender.to_string(),
+                amount: vec![old_delegation.amount.clone()],
+            };
+
+            // remove old delegation data from the store
+            delegation_map.replace(deps.storage, storage_key, None, Some(&old_delegation))?;
+
+            // update total_delegation of this node
+            mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+                deps.storage,
+                &mix_identity,
+                |total_delegation| {
+                    // the first unwrap is fine because the delegation information MUST exist, otherwise we would
+                    // have never gotten here in the first place
+                    // the second unwrap is also fine because we should NEVER underflow here,
+                    // if we do, it means we have some serious error in our logic
+                    Ok(total_delegation
+                        .unwrap()
+                        .checked_sub(old_delegation.amount.amount)
+                        .unwrap())
+                },
+            )?;
+
+            Ok(Response::new().add_message(return_tokens))
+        }
     }
 }
 #[cfg(test)]

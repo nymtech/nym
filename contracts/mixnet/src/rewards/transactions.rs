@@ -199,9 +199,10 @@ pub(crate) fn try_reward_next_mixnode_delegators_v2(
 ) -> Result<Response, ContractError> {
     verify_rewarding_state(deps.storage, info, rewarding_interval_nonce)?;
 
-    match storage::rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
-        .may_load(mix_identity.as_bytes())?
-    {
+    match storage::REWARDING_STATUS.may_load(
+        deps.storage,
+        (rewarding_interval_nonce.into(), mix_identity.clone()),
+    )? {
         None => {
             // we haven't called 'regular' try_reward_mixnode, i.e. the operator itself
             // was not rewarded yet
@@ -247,8 +248,9 @@ pub(crate) fn try_reward_next_mixnode_delegators_v2(
             if let Some(next_start) = delegation_rewarding_result.start_next {
                 attributes.push(("more delegators to reward", "true".to_owned()));
 
-                storage::rewarded_mixnodes(deps.storage, rewarding_interval_nonce).save(
-                    mix_identity.as_bytes(),
+                storage::REWARDING_STATUS.save(
+                    deps.storage,
+                    (rewarding_interval_nonce.into(), mix_identity),
                     &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
                         running_results: rewarding_results,
                         next_start,
@@ -258,8 +260,9 @@ pub(crate) fn try_reward_next_mixnode_delegators_v2(
             } else {
                 attributes.push(("more delegators to reward", "false".to_owned()));
 
-                storage::rewarded_mixnodes(deps.storage, rewarding_interval_nonce).save(
-                    mix_identity.as_bytes(),
+                storage::REWARDING_STATUS.save(
+                    deps.storage,
+                    (rewarding_interval_nonce.into(), mix_identity),
                     &RewardingStatus::Complete(rewarding_results),
                 )?;
             }
@@ -284,9 +287,10 @@ pub(crate) fn try_reward_mixnode_v2(
     verify_rewarding_state(deps.storage, info, rewarding_interval_nonce)?;
 
     // check if the mixnode hasn't been rewarded in this rewarding interval already
-    match storage::rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
-        .may_load(mix_identity.as_bytes())?
-    {
+    match storage::REWARDING_STATUS.may_load(
+        deps.storage,
+        (rewarding_interval_nonce.into(), mix_identity.clone()),
+    )? {
         None => (),
         Some(RewardingStatus::Complete(_)) => {
             return Err(ContractError::MixnodeAlreadyRewarded {
@@ -366,8 +370,9 @@ pub(crate) fn try_reward_mixnode_v2(
         if let Some(next_start) = delegation_rewarding_result.start_next {
             more_delegators = true;
 
-            storage::rewarded_mixnodes(deps.storage, rewarding_interval_nonce).save(
-                mix_identity.as_bytes(),
+            storage::REWARDING_STATUS.save(
+                deps.storage,
+                (rewarding_interval_nonce.into(), mix_identity),
                 &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
                     running_results: rewarding_results,
                     next_start,
@@ -375,15 +380,17 @@ pub(crate) fn try_reward_mixnode_v2(
                 }),
             )?;
         } else {
-            storage::rewarded_mixnodes(deps.storage, rewarding_interval_nonce).save(
-                mix_identity.as_bytes(),
+            storage::REWARDING_STATUS.save(
+                deps.storage,
+                (rewarding_interval_nonce.into(), mix_identity),
                 &RewardingStatus::Complete(rewarding_results),
             )?;
         }
     } else {
         // node is not eligible for rewarding, so we're done immediately
-        storage::rewarded_mixnodes(deps.storage, rewarding_interval_nonce).save(
-            mix_identity.as_bytes(),
+        storage::REWARDING_STATUS.save(
+            deps.storage,
+            (rewarding_interval_nonce.into(), mix_identity),
             &RewardingStatus::Complete(Default::default()),
         )?;
     }
@@ -1288,8 +1295,8 @@ pub mod tests {
         );
 
         // it's all correctly saved
-        match storage::rewarded_mixnodes_read(&deps.storage, 1)
-            .load(b"alice")
+        match storage::REWARDING_STATUS
+            .load(deps.as_ref().storage, (1.into(), "alice".into()))
             .unwrap()
         {
             RewardingStatus::Complete(result) => assert_eq!(

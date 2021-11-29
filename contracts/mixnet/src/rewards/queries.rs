@@ -19,8 +19,10 @@ pub(crate) fn query_rewarding_status(
     mix_identity: IdentityKey,
     rewarding_interval_nonce: u32,
 ) -> StdResult<MixnodeRewardingStatusResponse> {
-    let status = storage::rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
-        .may_load(mix_identity.as_bytes())?;
+    let status = storage::REWARDING_STATUS.may_load(
+        deps.storage,
+        (rewarding_interval_nonce.into(), mix_identity),
+    )?;
 
     Ok(MixnodeRewardingStatusResponse { status })
 }

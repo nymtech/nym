@@ -69,14 +69,14 @@ impl Display for Delegation {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedMixDelegationsResponse {
     pub delegations: Vec<Delegation>,
-    pub start_next_after: Option<Addr>,
+    pub start_next_after: Option<String>,
 }
 
 impl PagedMixDelegationsResponse {
     pub fn new(delegations: Vec<Delegation>, start_next_after: Option<Addr>) -> Self {
         PagedMixDelegationsResponse {
             delegations,
-            start_next_after,
+            start_next_after: start_next_after.map(|s| s.to_string()),
         }
     }
 }
@@ -99,7 +99,7 @@ impl PagedDelegatorDelegationsResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedAllDelegationsResponse {
     pub delegations: Vec<Delegation>,
-    pub start_next_after: Option<(IdentityKey, Addr)>,
+    pub start_next_after: Option<(IdentityKey, String)>,
 }
 
 impl PagedAllDelegationsResponse {
@@ -109,7 +109,7 @@ impl PagedAllDelegationsResponse {
     ) -> Self {
         PagedAllDelegationsResponse {
             delegations,
-            start_next_after,
+            start_next_after: start_next_after.map(|(id, addr)| (id, addr.to_string())),
         }
     }
 }

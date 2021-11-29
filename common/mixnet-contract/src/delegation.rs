@@ -28,6 +28,7 @@ impl Delegation {
         }
     }
 
+    // TODO: change that to use .joined_key() and return Vec<u8>
     pub fn storage_key(&self) -> (IdentityKey, Addr) {
         (self.node_identity(), self.owner())
     }

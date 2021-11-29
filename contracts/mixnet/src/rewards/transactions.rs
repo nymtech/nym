@@ -124,7 +124,8 @@ fn reward_mix_delegators_v2(
     let chunk_size = MIXNODE_DELEGATORS_PAGE_LIMIT;
 
     //  TODO: change it to exclusive bound for simpler logic and consistency
-    let start_value = start.map(|start| Bound::inclusive(start.as_str()));
+    let start_value =
+        start.map(|start| Bound::Inclusive((mix_identity.clone(), start).joined_key()));
 
     let delegations = delegations_storage::delegations();
 
@@ -421,29 +422,6 @@ pub(crate) fn try_finish_mixnode_rewarding(
     state.rewarding_in_progress = false;
     mixnet_params_storage::CONTRACT_SETTINGS.save(deps.storage, &state)?;
 
-    // // alternative:
-    // mixnet_params_storage::CONTRACT_SETTINGS.update(storage, |mut state| {
-    //     // check if this is executed by the permitted validator, if not reject the transaction
-    //     if info.sender != state.rewarding_validator_address {
-    //         return Err(ContractError::Unauthorized);
-    //     }
-    //
-    //     if !state.rewarding_in_progress {
-    //         return Err(ContractError::RewardingNotInProgress);
-    //     }
-    //
-    //     // make sure the validator is in sync with the contract state
-    //     if rewarding_interval_nonce != state.latest_rewarding_interval_nonce {
-    //         return Err(ContractError::InvalidRewardingIntervalNonce {
-    //             received: rewarding_interval_nonce,
-    //             expected: state.latest_rewarding_interval_nonce,
-    //         });
-    //     }
-    //
-    //     state.rewarding_in_progress = false;
-    //     Ok(state)
-    // })?;
-
     Ok(Response::new())
 }
 
@@ -468,8 +446,8 @@ pub mod tests {
     use cosmwasm_std::{attr, Order};
     use cosmwasm_std::{coin, Addr, Uint128};
     use mixnet_contract::mixnode::NodeRewardParams;
-    use mixnet_contract::MixNode;
-    use mixnet_contract::{IdentityKey, Layer, RawDelegationData};
+    use mixnet_contract::{Delegation, MixNode};
+    use mixnet_contract::{IdentityKey, Layer};
 
     #[cfg(test)]
     mod beginning_mixnode_rewarding {
@@ -1039,10 +1017,16 @@ pub mod tests {
         // delegation happens later, but not later enough
         env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
 
-        delegations_storage::mix_delegations(&mut deps.storage, &node_identity)
+        delegations_storage::delegations()
             .save(
-                b"delegator",
-                &RawDelegationData::new(initial_delegation.into(), env.block.height),
+                deps.as_mut().storage,
+                (node_identity.clone(), "delegator").joined_key(),
+                &Delegation::new(
+                    Addr::unchecked("delegator"),
+                    node_identity.clone(),
+                    coin(initial_delegation, DENOM),
+                    env.block.height,
+                ),
             )
             .unwrap();
 
@@ -1400,13 +1384,14 @@ pub mod tests {
             .unwrap();
 
             for i in 0..10 {
-                let delegation = delegations_storage::mix_delegations_read(
-                    deps.as_ref().storage,
+                let delegation = test_helpers::read_delegation(
+                    &deps.storage,
                     "10delegators",
+                    format!("delegator{}", i),
                 )
-                .load(format!("delegator{}", i).as_bytes())
                 .unwrap();
-                assert!(delegation.amount > Uint128::new(delegation_value));
+
+                assert!(delegation.amount.amount > Uint128::new(delegation_value));
             }
         }
 
@@ -1486,13 +1471,14 @@ pub mod tests {
             .unwrap();
 
             for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT {
-                let delegation = delegations_storage::mix_delegations_read(
-                    deps.as_ref().storage,
+                let delegation = test_helpers::read_delegation(
+                    &deps.storage,
                     "MIXNODE_DELEGATORS_PAGE_LIMIT_delegators",
+                    format!("delegator{}", i),
                 )
-                .load(format!("delegator{}", i).as_bytes())
                 .unwrap();
-                assert!(delegation.amount > Uint128::new(delegation_value));
+
+                assert!(delegation.amount.amount > Uint128::new(delegation_value));
             }
         }
 
@@ -1572,23 +1558,24 @@ pub mod tests {
             .unwrap();
 
             for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT {
-                let delegation = delegations_storage::mix_delegations_read(
-                    deps.as_ref().storage,
+                let delegation = test_helpers::read_delegation(
+                    &deps.storage,
                     "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators",
+                    format!("delegator{:04}", i),
                 )
-                .load(format!("delegator{:04}", i).as_bytes())
                 .unwrap();
-                assert!(delegation.amount > Uint128::new(delegation_value));
+
+                assert!(delegation.amount.amount > Uint128::new(delegation_value));
             }
 
-            // and the one on the next page should have been unrewarded
-            let delegation = delegations_storage::mix_delegations_read(
-                deps.as_ref().storage,
+            let delegation = test_helpers::read_delegation(
+                &deps.storage,
                 "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators",
+                format!("delegator{:04}", MIXNODE_DELEGATORS_PAGE_LIMIT),
             )
-            .load(format!("delegator{:04}", MIXNODE_DELEGATORS_PAGE_LIMIT).as_bytes())
             .unwrap();
-            assert_eq!(delegation.amount, Uint128::new(delegation_value));
+
+            assert_eq!(delegation.amount.amount, Uint128::new(delegation_value));
         }
     }
 
@@ -1635,16 +1622,18 @@ pub mod tests {
 
         let params = DelegatorRewardParams::new(&bond, node_rewarding_params);
         let res =
-            reward_mix_delegators_v2(deps.as_mut().storage, node_identity, None, params).unwrap();
+            reward_mix_delegators_v2(deps.as_mut().storage, node_identity.clone(), None, params)
+                .unwrap();
 
         let mut actual_reward = Uint128::new(0);
-        for delegation in delegations_storage::mix_delegations_read(
-            deps.as_ref().storage,
-            &node_identity,
-        )
-        .range(None, None, Order::Ascending)
+        for delegation in delegations_storage::delegations()
+            .idx
+            .mixnode
+            .prefix(node_identity.clone())
+            .range(deps.as_ref().storage, None, None, Order::Ascending)
         {
-            actual_reward += Uint128::new(delegation.unwrap().1.amount.u128() - base_delegation);
+            actual_reward +=
+                Uint128::new(delegation.unwrap().1.amount.amount.u128() - base_delegation);
         }
 
         // sanity check to make sure we actually gave out any rewards
@@ -1691,21 +1680,27 @@ pub mod tests {
 
         let params = DelegatorRewardParams::new(&bond, node_rewarding_params);
         let res =
-            reward_mix_delegators_v2(deps.as_mut().storage, node_identity, None, params).unwrap();
+            reward_mix_delegators_v2(deps.as_mut().storage, node_identity.clone(), None, params)
+                .unwrap();
 
         let mut actual_reward = Uint128::new(0);
-        for delegation in delegations_storage::mix_delegations_read(
-            deps.as_ref().storage,
-            &node_identity,
-        )
-        .range(None, None, Order::Ascending)
+        for delegation in delegations_storage::delegations()
+            .idx
+            .mixnode
+            .prefix(node_identity.clone())
+            .range(deps.as_ref().storage, None, None, Order::Ascending)
         {
-            let (delegator, delegation) = delegation.unwrap();
-            let delegator_reward = Uint128::new(delegation.amount.u128() - base_delegation);
+            let (primary_key, delegation) = delegation.unwrap();
+            let delegator_reward = Uint128::new(delegation.amount.amount.u128() - base_delegation);
             actual_reward += delegator_reward;
 
-            let delegator = String::from_utf8(delegator).unwrap();
-            let delegator_id: usize = delegator
+            // we start from index 2 as first 2 bytes are used to indicate length of first part
+            // of the composite key
+            let id_delegator = String::from_utf8_lossy(&primary_key[2..]);
+
+            let delegator_id: usize = id_delegator
+                .strip_prefix(&node_identity)
+                .unwrap()
                 .strip_prefix("delegator")
                 .unwrap()
                 .parse()
@@ -1731,15 +1726,17 @@ pub mod tests {
         .unwrap();
 
         let start = res.start_next.unwrap();
-        let start_bytes = start.as_bytes();
         let mut actual_reward = Uint128::new(0);
-        for delegation in delegations_storage::mix_delegations_read(
-            deps.as_ref().storage,
-            &node_identity,
-        )
-        .range(Some(start_bytes), None, Order::Ascending)
+
+        let start = Bound::Inclusive((node_identity.clone(), start).joined_key());
+        for delegation in delegations_storage::delegations()
+            .idx
+            .mixnode
+            .prefix(node_identity.clone())
+            .range(deps.as_ref().storage, Some(start), None, Order::Ascending)
         {
-            actual_reward += Uint128::new(delegation.unwrap().1.amount.u128() - base_delegation);
+            actual_reward +=
+                Uint128::new(delegation.unwrap().1.amount.amount.u128() - base_delegation);
         }
 
         assert_eq!(actual_reward, res2.total_rewarded);
@@ -2046,19 +2043,24 @@ pub mod tests {
             )
             .unwrap();
 
-            let expected =
-                delegations_storage::mix_delegations_read(deps.as_ref().storage, "alice")
-                    .load("delegator0001".as_bytes())
-                    .unwrap()
-                    .amount;
+            let expected = delegations_storage::delegations()
+                .load(
+                    deps.as_ref().storage,
+                    ("alice", "delegator0001").joined_key(),
+                )
+                .unwrap()
+                .amount;
 
             for i in 0..total_delegators {
                 // everyone was rewarded (and the same amount, because they all delegated the same amount)
-                let delegation =
-                    delegations_storage::mix_delegations_read(deps.as_ref().storage, "alice")
-                        .load(format!("delegator{:04}", i).as_bytes())
-                        .unwrap();
-                assert!(delegation.amount > Uint128::new(delegation_value));
+                let delegation = test_helpers::read_delegation(
+                    &deps.storage,
+                    "alice",
+                    format!("delegator{:04}", i),
+                )
+                .unwrap();
+
+                assert!(delegation.amount.amount > Uint128::new(delegation_value));
                 assert_eq!(expected, delegation.amount)
             }
         }
@@ -2160,23 +2162,23 @@ pub mod tests {
             )
             .unwrap();
 
-            let expected =
-                delegations_storage::mix_delegations_read(deps.as_ref().storage, "alice")
-                    .load("delegator0001".as_bytes())
-                    .unwrap()
-                    .amount;
+            let expected = test_helpers::read_delegation(&deps.storage, "alice", "delegator0001")
+                .unwrap()
+                .amount;
 
             for i in 0..total_delegators {
                 // everyone was rewarded (and the same amount, because they all delegated the same amount)
-                let delegation =
-                    delegations_storage::mix_delegations_read(deps.as_ref().storage, "alice")
-                        .load(format!("delegator{:04}", i).as_bytes())
-                        .unwrap();
+                let delegation = test_helpers::read_delegation(
+                    &deps.storage,
+                    "alice",
+                    format!("delegator{:04}", i),
+                )
+                .unwrap();
 
                 if i == 123 || i == 123 + MIXNODE_DELEGATORS_PAGE_LIMIT {
-                    assert_eq!(delegation.amount, Uint128::new(2 * delegation_value))
+                    assert_eq!(delegation.amount.amount, Uint128::new(2 * delegation_value))
                 } else {
-                    assert!(delegation.amount > Uint128::new(delegation_value));
+                    assert!(delegation.amount.amount > Uint128::new(delegation_value));
                     assert_eq!(expected, delegation.amount)
                 }
             }

@@ -5,11 +5,13 @@ pub mod test_helpers {
     use crate::contract::{
         query, DEFAULT_SYBIL_RESISTANCE_PERCENT, EPOCH_REWARD_PERCENT, INITIAL_REWARD_POOL,
     };
+    use crate::delegations::storage as delegations_storage;
     use crate::gateways::transactions::try_add_gateway;
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::storage::StoredMixnodeBond;
     use crate::mixnodes::transactions::try_add_mixnode;
     use config::defaults::{DENOM, TOTAL_SUPPLY};
+    use cosmwasm_std::coin;
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::mock_info;
@@ -18,14 +20,14 @@ pub mod test_helpers {
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::Coin;
     use cosmwasm_std::OwnedDeps;
-    use cosmwasm_std::{coin, Uint128};
     use cosmwasm_std::{from_binary, DepsMut};
     use cosmwasm_std::{Addr, StdResult, Storage};
     use cosmwasm_std::{Empty, MemoryStorage};
+    use cw_storage_plus::PrimaryKey;
     use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::{
-        Gateway, GatewayBond, IdentityKeyRef, InstantiateMsg, Layer, MixNode, MixNodeBond,
-        PagedGatewayResponse, PagedMixnodeResponse, QueryMsg, RawDelegationData,
+        Delegation, Gateway, GatewayBond, IdentityKeyRef, InstantiateMsg, Layer, MixNode,
+        MixNodeBond, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
     };
 
     pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
@@ -149,10 +151,6 @@ pub mod test_helpers {
         GatewayBond::new(coin(50, DENOM), Addr::unchecked(owner), 12_345, gateway)
     }
 
-    pub fn raw_delegation_fixture(amount: u128) -> RawDelegationData {
-        RawDelegationData::new(Uint128::new(amount), 42)
-    }
-
     pub fn query_contract_balance(
         address: Addr,
         deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
@@ -187,16 +185,6 @@ pub mod test_helpers {
         )
     }
 
-    // Converts the node identity and owner of a delegation into the bytes used as
-    // key in the delegation buckets. Basically a helper function.
-    pub(crate) fn identity_and_owner_to_bytes(identity: &str, owner: &Addr) -> Vec<u8> {
-        let mut bytes = u16::to_be_bytes(identity.len() as u16).to_vec();
-        bytes.append(&mut identity.as_bytes().to_vec());
-        bytes.append(&mut owner.as_bytes().to_vec());
-
-        bytes
-    }
-
     // currently not used outside tests
     pub(crate) fn read_mixnode_bond_amount(
         storage: &dyn Storage,
@@ -204,5 +192,32 @@ pub mod test_helpers {
     ) -> StdResult<cosmwasm_std::Uint128> {
         let node = mixnodes_storage::mixnodes().load(storage, identity)?;
         Ok(node.bond_amount.amount)
+    }
+
+    pub(crate) fn save_dummy_delegation(
+        storage: &mut dyn Storage,
+        mix: impl Into<String>,
+        owner: impl Into<String>,
+    ) {
+        let delegation = Delegation {
+            owner: Addr::unchecked(owner.into()),
+            node_identity: mix.into(),
+            amount: coin(12345, DENOM),
+            block_height: 12345,
+        };
+
+        delegations_storage::delegations()
+            .save(storage, delegation.storage_key().joined_key(), &delegation)
+            .unwrap();
+    }
+
+    pub(crate) fn read_delegation(
+        storage: &dyn Storage,
+        mix: impl Into<String>,
+        owner: impl Into<String>,
+    ) -> Option<Delegation> {
+        delegations_storage::delegations()
+            .may_load(storage, (mix.into(), owner.into()).joined_key())
+            .unwrap()
     }
 }

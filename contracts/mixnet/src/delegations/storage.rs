@@ -63,67 +63,51 @@ pub(crate) fn delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, Delega
 #[cfg(test)]
 mod tests {
     use crate::delegations::storage;
-    use crate::support::tests::test_helpers;
-    use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::Addr;
     use mixnet_contract::IdentityKey;
-    use mixnet_contract::RawDelegationData;
-
-    #[test]
-    fn all_mixnode_delegations_read_retrieval() {
-        let mut deps = mock_dependencies();
-        let node_identity1: IdentityKey = "foo1".into();
-        let delegation_owner1 = Addr::unchecked("bar1");
-        let node_identity2: IdentityKey = "foo2".into();
-        let delegation_owner2 = Addr::unchecked("bar2");
-        let raw_delegation1 = RawDelegationData::new(1u128.into(), 1000);
-        let raw_delegation2 = RawDelegationData::new(2u128.into(), 2000);
-
-        storage::mix_delegations(&mut deps.storage, &node_identity1)
-            .save(delegation_owner1.as_bytes(), &raw_delegation1)
-            .unwrap();
-        storage::mix_delegations(&mut deps.storage, &node_identity2)
-            .save(delegation_owner2.as_bytes(), &raw_delegation2)
-            .unwrap();
-
-        let res1 = storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage)
-            .load(&*test_helpers::identity_and_owner_to_bytes(
-                &node_identity1,
-                &delegation_owner1,
-            ))
-            .unwrap();
-        let res2 = storage::all_mix_delegations_read::<RawDelegationData>(&deps.storage)
-            .load(&*test_helpers::identity_and_owner_to_bytes(
-                &node_identity2,
-                &delegation_owner2,
-            ))
-            .unwrap();
-        assert_eq!(raw_delegation1, res1);
-        assert_eq!(raw_delegation2, res2);
-    }
 
     #[cfg(test)]
     mod reverse_mix_delegations {
         use super::*;
         use crate::support::tests::test_helpers;
+        use config::defaults::DENOM;
+        use cosmwasm_std::testing::mock_env;
+        use cosmwasm_std::{coin, Order};
+        use cw_storage_plus::PrimaryKey;
+        use mixnet_contract::Delegation;
 
         #[test]
         fn reverse_mix_delegation_exists() {
             let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
             let delegation_owner = Addr::unchecked("bar");
+            let delegation = coin(12345, DENOM);
 
-            storage::reverse_mix_delegations(&mut deps.storage, &delegation_owner)
-                .save(node_identity.as_bytes(), &())
+            let dummy_data = Delegation::new(
+                delegation_owner.clone(),
+                node_identity.clone(),
+                delegation,
+                mock_env().block.height,
+            );
+
+            storage::delegations()
+                .save(
+                    &mut deps.storage,
+                    (node_identity.clone(), delegation_owner.clone()).joined_key(),
+                    &dummy_data,
+                )
                 .unwrap();
 
-            assert!(storage::reverse_mix_delegations_read(
-                deps.as_ref().storage,
-                &delegation_owner
-            )
-            .may_load(node_identity.as_bytes())
-            .unwrap()
-            .is_some(),);
+            let read = storage::delegations()
+                .idx
+                .owner
+                .prefix(delegation_owner)
+                .range(&deps.storage, None, None, Order::Ascending)
+                .map(|record| record.unwrap().1)
+                .collect::<Vec<_>>();
+
+            assert_eq!(1, read.len());
+            assert_eq!(dummy_data, read[0]);
         }
 
         #[test]
@@ -134,40 +118,60 @@ mod tests {
             let node_identity2: IdentityKey = "foo2".into();
             let delegation_owner1 = Addr::unchecked("bar");
             let delegation_owner2 = Addr::unchecked("bar2");
+            let delegation = coin(12345, DENOM);
 
-            assert!(storage::reverse_mix_delegations_read(
+            assert!(test_helpers::read_delegation(
                 deps.as_ref().storage,
+                &node_identity1,
                 &delegation_owner1
             )
-            .may_load(node_identity1.as_bytes())
-            .unwrap()
             .is_none());
 
             // add delegation for a different node
-            storage::reverse_mix_delegations(&mut deps.storage, &delegation_owner1)
-                .save(node_identity2.as_bytes(), &())
+            let dummy_data = Delegation::new(
+                delegation_owner1.clone(),
+                node_identity2.clone(),
+                delegation.clone(),
+                mock_env().block.height,
+            );
+            storage::delegations()
+                .save(
+                    &mut deps.storage,
+                    (node_identity1.clone(), delegation_owner1.clone()).joined_key(),
+                    &dummy_data,
+                )
                 .unwrap();
 
-            assert!(storage::reverse_mix_delegations_read(
-                deps.as_ref().storage,
-                &delegation_owner1
-            )
-            .may_load(node_identity1.as_bytes())
-            .unwrap()
-            .is_none());
+            storage::delegations()
+                .idx
+                .owner
+                .prefix(delegation_owner1.clone())
+                .range(&deps.storage, None, None, Order::Ascending)
+                .map(|record| record.unwrap().1)
+                .for_each(|delegation| assert_ne!(delegation.node_identity, node_identity1));
 
             // add delegation from a different owner
-            storage::reverse_mix_delegations(&mut deps.storage, &delegation_owner2)
-                .save(node_identity1.as_bytes(), &())
+            let dummy_data = Delegation::new(
+                delegation_owner2.clone(),
+                node_identity1.clone(),
+                delegation.clone(),
+                mock_env().block.height,
+            );
+            storage::delegations()
+                .save(
+                    &mut deps.storage,
+                    (node_identity1.clone(), delegation_owner2.clone()).joined_key(),
+                    &dummy_data,
+                )
                 .unwrap();
 
-            assert!(storage::reverse_mix_delegations_read(
-                deps.as_ref().storage,
-                &delegation_owner1
-            )
-            .may_load(node_identity1.as_bytes())
-            .unwrap()
-            .is_none());
+            storage::delegations()
+                .idx
+                .owner
+                .prefix(delegation_owner1.clone())
+                .range(&deps.storage, None, None, Order::Ascending)
+                .map(|record| record.unwrap().1)
+                .for_each(|delegation| assert_ne!(delegation.node_identity, node_identity1));
         }
     }
 }

@@ -52,13 +52,11 @@ pub fn query_owns_mixnode(deps: Deps, address: String) -> StdResult<MixOwnership
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::*;
-
     use super::storage;
+    use super::*;
     use crate::mixnodes::storage::BOND_PAGE_DEFAULT_LIMIT;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::Addr;
     use mixnet_contract::MixNode;
 
     #[test]
@@ -175,7 +173,7 @@ pub(crate) mod tests {
         let mut deps = test_helpers::init_contract();
 
         // "fred" does not own a mixnode if there are no mixnodes
-        let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
+        let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(!res.has_node);
 
         // mixnode was added to "bob", "fred" still does not own one
@@ -191,7 +189,7 @@ pub(crate) mod tests {
         )
         .unwrap();
 
-        let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
+        let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(!res.has_node);
 
         // "fred" now owns a mixnode!
@@ -207,14 +205,14 @@ pub(crate) mod tests {
         )
         .unwrap();
 
-        let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
+        let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.has_node);
 
         // but after unbonding it, he doesn't own one anymore
         crate::mixnodes::transactions::try_remove_mixnode(deps.as_mut(), mock_info("fred", &[]))
             .unwrap();
 
-        let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
+        let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(!res.has_node);
     }
 }

@@ -50,7 +50,6 @@ pub(crate) mod tests {
     use super::*;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::Addr;
     use mixnet_contract::Gateway;
 
     #[test]
@@ -168,7 +167,7 @@ pub(crate) mod tests {
         let mut deps = test_helpers::init_contract();
 
         // "fred" does not own a mixnode if there are no mixnodes
-        let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
+        let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(!res.has_gateway);
 
         // mixnode was added to "bob", "fred" still does not own one
@@ -184,7 +183,7 @@ pub(crate) mod tests {
         )
         .unwrap();
 
-        let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
+        let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(!res.has_gateway);
 
         // "fred" now owns a gateway!
@@ -200,14 +199,14 @@ pub(crate) mod tests {
         )
         .unwrap();
 
-        let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
+        let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.has_gateway);
 
         // but after unbonding it, he doesn't own one anymore
         crate::gateways::transactions::try_remove_gateway(deps.as_mut(), mock_info("fred", &[]))
             .unwrap();
 
-        let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
+        let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(!res.has_gateway);
     }
 }

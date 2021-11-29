@@ -3,9 +3,8 @@
 
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
-use cosmwasm_storage::{Bucket, ReadonlyBucket};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Map, UniqueIndex};
-use mixnet_contract::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond, RewardingStatus};
+use mixnet_contract::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -13,8 +12,6 @@ use std::fmt::{Display, Formatter};
 const TOTAL_DELEGATION_NAMESPACE: &str = "td";
 const MIXNODES_PK_NAMESPACE: &str = "mn";
 const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
-
-pub const PREFIX_REWARDED_MIXNODES: &[u8] = b"rm";
 
 // paged retrieval limits for all queries and transactions
 pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;
@@ -106,35 +103,6 @@ impl Display for StoredMixnodeBond {
             self.bond_amount, self.owner, self.mix_node.identity_key
         )
     }
-}
-
-// we want to treat this bucket as a set so we don't really care about what type of data is being stored.
-// I went with u8 as after serialization it takes only a single byte of space, while if a `()` was used,
-// it would have taken 4 bytes (representation of 'null')
-pub(crate) fn rewarded_mixnodes(
-    storage: &mut dyn Storage,
-    rewarding_interval_nonce: u32,
-) -> Bucket<RewardingStatus> {
-    Bucket::multilevel(
-        storage,
-        &[
-            rewarding_interval_nonce.to_be_bytes().as_ref(),
-            PREFIX_REWARDED_MIXNODES,
-        ],
-    )
-}
-
-pub(crate) fn rewarded_mixnodes_read(
-    storage: &dyn Storage,
-    rewarding_interval_nonce: u32,
-) -> ReadonlyBucket<RewardingStatus> {
-    ReadonlyBucket::multilevel(
-        storage,
-        &[
-            rewarding_interval_nonce.to_be_bytes().as_ref(),
-            PREFIX_REWARDED_MIXNODES,
-        ],
-    )
 }
 
 pub(crate) fn read_mixnode_bond(

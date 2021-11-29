@@ -5,9 +5,42 @@ use crate::contract::INITIAL_REWARD_POOL;
 use crate::error::ContractError;
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::{Storage, Uint128};
-use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
+use cosmwasm_storage::{
+    singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton, Singleton,
+};
+use mixnet_contract::RewardingStatus;
 
 const REWARD_POOL_PREFIX: &[u8] = b"pool";
+pub const PREFIX_REWARDED_MIXNODES: &[u8] = b"rm";
+
+// we want to treat this bucket as a set so we don't really care about what type of data is being stored.
+// I went with u8 as after serialization it takes only a single byte of space, while if a `()` was used,
+// it would have taken 4 bytes (representation of 'null')
+pub(crate) fn rewarded_mixnodes(
+    storage: &mut dyn Storage,
+    rewarding_interval_nonce: u32,
+) -> Bucket<RewardingStatus> {
+    Bucket::multilevel(
+        storage,
+        &[
+            rewarding_interval_nonce.to_be_bytes().as_ref(),
+            PREFIX_REWARDED_MIXNODES,
+        ],
+    )
+}
+
+pub(crate) fn rewarded_mixnodes_read(
+    storage: &dyn Storage,
+    rewarding_interval_nonce: u32,
+) -> ReadonlyBucket<RewardingStatus> {
+    ReadonlyBucket::multilevel(
+        storage,
+        &[
+            rewarding_interval_nonce.to_be_bytes().as_ref(),
+            PREFIX_REWARDED_MIXNODES,
+        ],
+    )
+}
 
 // approximately 1 day (assuming 5s per block)
 pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;

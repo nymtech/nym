@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::Uint128;
 use cosmwasm_std::{Deps, StdResult};
 use mixnet_contract::{IdentityKey, MixnodeRewardingStatusResponse};
@@ -20,7 +19,7 @@ pub(crate) fn query_rewarding_status(
     mix_identity: IdentityKey,
     rewarding_interval_nonce: u32,
 ) -> StdResult<MixnodeRewardingStatusResponse> {
-    let status = mixnodes_storage::rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
+    let status = storage::rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
         .may_load(mix_identity.as_bytes())?;
 
     Ok(MixnodeRewardingStatusResponse { status })

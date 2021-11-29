@@ -3,7 +3,13 @@ import { IconButton, Tooltip } from '@mui/material'
 import { Check, ContentCopy } from '@mui/icons-material'
 import { clipboard } from '@tauri-apps/api'
 
-export const CopyToClipboard = ({ text = '' }: { text?: string }) => {
+export const CopyToClipboard = ({
+  text = '',
+  light,
+}: {
+  text?: string
+  light?: boolean
+}) => {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async (text: string) => {
@@ -24,7 +30,14 @@ export const CopyToClipboard = ({ text = '' }: { text?: string }) => {
   }, [copied])
   return (
     <Tooltip title={!copied ? 'Copy' : 'Copied!'} leaveDelay={500}>
-      <IconButton onClick={() => handleCopy(text)} size="small">
+      <IconButton
+        onClick={() => handleCopy(text)}
+        size="small"
+        sx={{
+          color: (theme) =>
+            light ? theme.palette.common.white : theme.palette.grey[600],
+        }}
+      >
         {!copied ? <ContentCopy fontSize="small" /> : <Check color="success" />}
       </IconButton>
     </Tooltip>

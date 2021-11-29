@@ -73,7 +73,7 @@ export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({
           {accountDetails?.mnemonic}
         </CardContent>
         <CardActions sx={{ justifyContent: 'flex-end' }}>
-          <CopyToClipboard text={accountDetails?.mnemonic || ''} />
+          <CopyToClipboard text={accountDetails?.mnemonic || ''} light />
         </CardActions>
       </Card>
       <Box sx={{ textAlign: 'center' }}>

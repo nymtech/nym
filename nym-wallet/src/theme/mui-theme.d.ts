@@ -52,10 +52,6 @@ declare module '@mui/material/styles' {
     topNav: {
       background: string
     }
-    nav: {
-      background: string
-      hover: string
-    }
   }
 
   /**

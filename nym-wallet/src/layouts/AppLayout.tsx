@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Divider } from '@mui/material'
+import { Box } from '@mui/material'
 import { Nav } from '../components'
 import Logo from '../images/logo-background.svg'
 import { AppBar } from '../components/AppBar'
@@ -20,21 +20,14 @@ export const ApplicationLayout: React.FC = ({ children }) => {
         sx={{
           background: '#121726',
           overflow: 'auto',
+          p: [4, 5],
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'center', marginTop: 6 }}>
+        <Box sx={{ mb: 3 }}>
           <img src={Logo} style={{ width: 45 }} />
         </Box>
-        <Divider
-          light
-          variant="middle"
-          sx={{ bgcolor: (theme) => theme.palette.grey[100], marginTop: 6 }}
-        />
 
-        <Box sx={{ marginTop: 7 }}>
-          <Nav />
-        </Box>
-        <Box />
+        <Nav />
       </Box>
       <Box
         sx={{

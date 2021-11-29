@@ -13,6 +13,7 @@ export const SignIn = () => {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'auto',
         bgcolor: (theme) => theme.palette.nym.background.dark,
       }}
     >
@@ -21,6 +22,7 @@ export const SignIn = () => {
           width: 500,
           display: 'flex',
           justifyContent: 'center',
+          margin: 'auto',
         }}
       >
         {showCreateAccount ? (

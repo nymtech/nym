@@ -9,10 +9,10 @@ import {
   Typography,
   Alert,
 } from '@mui/material'
+import { styled } from '@mui/styles'
 import logo from '../../images/logo-background.svg'
 import { signInWithMnemonic } from '../../requests'
 import { ClientContext } from '../../context/main'
-import { styled } from '@mui/styles'
 
 export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({
   showCreateAccount,
@@ -40,13 +40,13 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({
   }
 
   return (
-    <Stack spacing={3} alignItems="center" sx={{ width: '100%' }}>
+    <Stack spacing={3} alignItems="center" sx={{ width: '80%' }}>
       <img src={logo} style={{ width: 80 }} />
       <Typography sx={{ color: 'common.white' }}>
         Enter Mnemonic and sign in
       </Typography>
-      <Grid container direction="column" spacing={1}>
-        <Grid item>
+      <Grid container direction="column" spacing={3}>
+        <Grid item style={{ paddingTop: 0 }}>
           <StyledInput
             value={mnemonic}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -63,6 +63,7 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({
             autoComplete="mnemonic"
             autoFocus
             disabled={isLoading}
+            sx={{ m: 0 }}
           />
         </Grid>
         <Grid item>

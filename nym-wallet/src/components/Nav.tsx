@@ -2,59 +2,58 @@ import React, { useContext, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material'
 import {
-  AccountBalanceWalletRounded,
+  AccountBalanceWalletOutlined,
   ArrowBack,
   ArrowForward,
   AttachMoney,
-  Cancel,
-  HowToVote,
+  CancelOutlined,
+  HowToVoteOutlined,
   MoneyOff,
   Description,
   Settings,
 } from '@mui/icons-material'
-
 import { ADMIN_ADDRESS, ClientContext } from '../context/main'
 
 let routesSchema = [
   {
     label: 'Balance',
     route: '/balance',
-    Icon: <AccountBalanceWalletRounded />,
+    Icon: AccountBalanceWalletOutlined,
   },
   {
     label: 'Send',
     route: '/send',
-    Icon: <ArrowForward />,
+    Icon: ArrowForward,
   },
   {
     label: 'Receive',
     route: '/receive',
-    Icon: <ArrowBack />,
+    Icon: ArrowBack,
   },
   {
     label: 'Bond',
     route: '/bond',
-    Icon: <AttachMoney />,
+    Icon: AttachMoney,
   },
   {
     label: 'Unbond',
     route: '/unbond',
-    Icon: <MoneyOff />,
+    Icon: MoneyOff,
   },
   {
     label: 'Delegate',
     route: '/delegate',
-    Icon: <HowToVote />,
+    Icon: HowToVoteOutlined,
   },
   {
     label: 'Undelegate',
     route: '/undelegate',
-    Icon: <Cancel />,
+    Icon: CancelOutlined,
   },
 ]
 
 export const Nav = () => {
-  const { clientDetails, handleShowAdmin, logOut } = useContext(ClientContext)
+  const { clientDetails, handleShowAdmin } = useContext(ClientContext)
   const location = useLocation()
 
   useEffect(() => {
@@ -62,7 +61,7 @@ export const Nav = () => {
       routesSchema.push({
         label: 'Docs',
         route: '/docs',
-        Icon: <Description />,
+        Icon: Description,
       })
     }
   }, [])
@@ -72,30 +71,27 @@ export const Nav = () => {
       style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
       }}
     >
-      <List>
-        {routesSchema.map((r, i) => (
-          <ListItem button component={Link} to={r.route} key={i}>
+      <List disablePadding>
+        {routesSchema.map(({ Icon, route, label }, i) => (
+          <ListItem disableGutters component={Link} to={route} key={i}>
             <ListItemIcon
               sx={{
+                minWidth: 30,
                 color:
-                  location.pathname === r.route
-                    ? 'primary.main'
-                    : 'common.white',
+                  location.pathname === route ? 'primary.main' : 'common.white',
               }}
             >
-              {r.Icon}
+              <Icon sx={{ fontSize: 20 }} />
             </ListItemIcon>
             <ListItemText
               sx={{
                 color:
-                  location.pathname === r.route
-                    ? 'primary.main'
-                    : 'common.white',
+                  location.pathname === route ? 'primary.main' : 'common.white',
               }}
-              primary={r.label}
+              primary={label}
             />
           </ListItem>
         ))}

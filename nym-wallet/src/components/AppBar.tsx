@@ -1,22 +1,21 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect } from 'react'
 import {
   AppBar as MuiAppBar,
   Divider,
   Grid,
   IconButton,
-  List,
-  ListItem,
-  ListItemText,
   Toolbar,
   Typography,
+  useMediaQuery,
 } from '@mui/material'
-import { ExitToApp } from '@mui/icons-material'
-import { ClientContext } from '../context/main'
 import { Box } from '@mui/system'
+import { Logout } from '@mui/icons-material'
+import { ClientContext } from '../context/main'
 import { CopyToClipboard } from '.'
 
 export const AppBar = () => {
   const { userBalance, logOut, clientDetails } = useContext(ClientContext)
+  const matches = useMediaQuery('(min-width: 769px)')
 
   return (
     <MuiAppBar
@@ -37,20 +36,33 @@ export const AppBar = () => {
                 secondaryText={userBalance.balance?.printable_balance}
               />
             </Grid>
-            <Divider orientation="vertical" variant="middle" flexItem />
-            <Grid item>
-              <AppBarItem
-                primaryText="Address"
-                secondaryText={clientDetails?.client_address}
-                Action={
-                  <CopyToClipboard text={clientDetails?.client_address} />
-                }
-              />
-            </Grid>
+            {matches && (
+              <>
+                <Divider
+                  orientation="vertical"
+                  variant="middle"
+                  flexItem
+                  sx={{ mr: 1 }}
+                />
+
+                <Grid item>
+                  <AppBarItem
+                    primaryText="Address"
+                    secondaryText={clientDetails?.client_address}
+                    Action={
+                      <CopyToClipboard
+                        text={clientDetails?.client_address}
+                        iconButton
+                      />
+                    }
+                  />
+                </Grid>
+              </>
+            )}
           </Grid>
           <Grid item>
             <IconButton onClick={logOut} sx={{ color: 'nym.background.dark' }}>
-              <ExitToApp />
+              <Logout />
             </IconButton>
           </Grid>
         </Grid>
@@ -65,11 +77,16 @@ const AppBarItem: React.FC<{
   Action?: React.ReactNode
 }> = ({ primaryText, secondaryText = '', Action }) => {
   return (
-    <Box sx={{ p: 1 }}>
+    <Box sx={{ p: 1, mr: 1 }}>
       <Typography variant="body2" component="span" sx={{ color: 'grey.600' }}>
         {primaryText}:
       </Typography>{' '}
-      <Typography variant="body2" component="span" color="nym.background.dark">
+      <Typography
+        variant="body2"
+        component="span"
+        color="nym.background.dark"
+        sx={{ mr: 1 }}
+      >
         {secondaryText}
       </Typography>
       {Action}

@@ -164,7 +164,11 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         'Helvetica Neue',
       ].join(','),
       fontSize: 14,
-      fontWeightRegular: 600,
+      fontWeightRegular: 500,
+      button: {
+        textTransform: 'none',
+        fontWeight: '600',
+      },
     },
     shape: {
       borderRadius: 8,

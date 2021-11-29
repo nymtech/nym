@@ -11,6 +11,7 @@ import {
   Typography,
 } from '@mui/material'
 import { Box } from '@mui/system'
+import { ArrowBack } from '@mui/icons-material'
 import { createAccount } from '../../requests'
 import { TCreateAccount } from '../../types'
 import logo from '../../images/logo-background.svg'
@@ -52,14 +53,16 @@ export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({
       <Typography sx={{ color: 'common.white' }} variant="h6">
         Account setup complete!
       </Typography>
-      <Alert severity="info" variant="outlined">
-        <Box
-          sx={{ textAlign: 'center', color: 'info.light' }}
-          data-testid="mnemonic-warning"
-        >
+      <Alert
+        severity="info"
+        variant="outlined"
+        sx={{ color: 'info.light' }}
+        data-testid="mnemonic-warning"
+      >
+        <Typography>
           Please store your mnemonic in a safe place. You'll need it to access
           your account!
-        </Box>
+        </Typography>
       </Alert>
       <Card
         variant="outlined"
@@ -77,9 +80,7 @@ export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({
         </CardActions>
       </Card>
       <Box sx={{ textAlign: 'center' }}>
-        <Typography sx={{ color: 'common.white' }} variant="body2">
-          Account address:
-        </Typography>
+        <Typography sx={{ color: 'common.white' }}>Address:</Typography>
         <Typography sx={{ color: 'common.white' }} data-testid="wallet-address">
           {accountDetails?.client_address}
         </Typography>
@@ -93,8 +94,11 @@ export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({
         variant="contained"
         onClick={showSignIn}
         data-testid="sign-in-button"
+        startIcon={<ArrowBack />}
+        size="large"
+        sx={{ width: 360 }}
       >
-        Back to sign in
+        Back to Sign in
       </Button>
     </Stack>
   )

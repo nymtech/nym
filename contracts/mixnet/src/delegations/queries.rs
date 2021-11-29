@@ -10,7 +10,7 @@ use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract::PagedAllDelegationsResponse;
 use mixnet_contract::PagedDelegatorDelegationsResponse;
 use mixnet_contract::PagedMixDelegationsResponse;
-use mixnet_contract::{IdentityKey, _Delegation};
+use mixnet_contract::{Delegation, IdentityKey};
 
 pub(crate) fn query_all_network_delegations_paged(
     deps: Deps,
@@ -78,7 +78,7 @@ pub(crate) fn query_mixnode_delegation(
     deps: Deps,
     mix_identity: IdentityKey,
     delegator: String,
-) -> Result<_Delegation, ContractError> {
+) -> Result<Delegation, ContractError> {
     let validated_delegator = deps.api.addr_validate(&delegator)?;
     let storage_key = (mix_identity.clone(), validated_delegator.clone()).joined_key();
 

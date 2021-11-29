@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
-use mixnet_contract::{Addr, IdentityKey, _Delegation};
+use mixnet_contract::{Addr, Delegation, IdentityKey};
 
 // storage prefixes
 const DELEGATION_PK_NAMESPACE: &str = "dl";
@@ -17,14 +17,14 @@ pub(crate) const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 250;
 type PrimaryKey = Vec<u8>;
 
 pub(crate) struct DelegationIndex<'a> {
-    pub(crate) owner: MultiIndex<'a, (Addr, PrimaryKey), _Delegation>,
+    pub(crate) owner: MultiIndex<'a, (Addr, PrimaryKey), Delegation>,
 
-    pub(crate) mixnode: MultiIndex<'a, (IdentityKey, PrimaryKey), _Delegation>,
+    pub(crate) mixnode: MultiIndex<'a, (IdentityKey, PrimaryKey), Delegation>,
 }
 
-impl<'a> IndexList<_Delegation> for DelegationIndex<'a> {
-    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<_Delegation>> + '_> {
-        let v: Vec<&dyn Index<_Delegation>> = vec![&self.owner, &self.mixnode];
+impl<'a> IndexList<Delegation> for DelegationIndex<'a> {
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Delegation>> + '_> {
+        let v: Vec<&dyn Index<Delegation>> = vec![&self.owner, &self.mixnode];
         Box::new(v.into_iter())
     }
 }
@@ -43,7 +43,7 @@ impl<'a> IndexList<_Delegation> for DelegationIndex<'a> {
 // takes over ~250B (since the key has to be duplicated), in the grand blockchain scheme of things
 // it's not that terrible. Say we had 100_000_000 delegations -> that's still only 25GB of data
 // and as a nice by-product it cleans up code a little bit by only having a single Delegation type.
-pub(crate) fn delegations<'a>() -> IndexedMap<'a, PrimaryKey, _Delegation, DelegationIndex<'a>> {
+pub(crate) fn delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, DelegationIndex<'a>> {
     let indexes = DelegationIndex {
         owner: MultiIndex::new(
             |d, pk| (d.owner.clone(), pk),

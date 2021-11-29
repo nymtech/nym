@@ -11,16 +11,16 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
-pub struct _Delegation {
+pub struct Delegation {
     pub owner: Addr,
     pub node_identity: IdentityKey,
     pub amount: Coin,
     pub block_height: u64,
 }
 
-impl _Delegation {
+impl Delegation {
     pub fn new(owner: Addr, node_identity: IdentityKey, amount: Coin, block_height: u64) -> Self {
-        _Delegation {
+        Delegation {
             owner,
             node_identity,
             amount,
@@ -56,85 +56,24 @@ impl _Delegation {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct UnpackedDelegation<T> {
-    pub owner: Addr,
-    pub node_identity: IdentityKey,
-    pub delegation_data: T,
-}
-
-impl<T> UnpackedDelegation<T> {
-    pub fn new(owner: Addr, node_identity: IdentityKey, delegation_data: T) -> Self {
-        UnpackedDelegation {
-            owner,
-            node_identity,
-            delegation_data,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct RawDelegationData {
-    pub amount: Uint128,
-    pub block_height: u64,
-}
-
-impl RawDelegationData {
-    pub fn new(amount: Uint128, block_height: u64) -> Self {
-        RawDelegationData {
-            amount,
-            block_height,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct Delegation {
-    owner: Addr,
-    amount: Coin,
-    block_height: u64,
-}
-
-impl Delegation {
-    pub fn new(owner: Addr, amount: Coin, block_height: u64) -> Self {
-        Delegation {
-            owner,
-            amount,
-            block_height,
-        }
-    }
-
-    pub fn amount(&self) -> &Coin {
-        &self.amount
-    }
-
-    pub fn owner(&self) -> Addr {
-        self.owner.clone()
-    }
-
-    pub fn block_height(&self) -> u64 {
-        self.block_height
-    }
-}
-
 impl Display for Delegation {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{} {} delegated by {} at block {}",
-            self.amount.amount, self.amount.denom, self.owner, self.block_height
+            "{} delegated towards {} by {} at block {}",
+            self.amount, self.node_identity, self.owner, self.block_height
         )
     }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedMixDelegationsResponse {
-    pub delegations: Vec<_Delegation>,
+    pub delegations: Vec<Delegation>,
     pub start_next_after: Option<Addr>,
 }
 
 impl PagedMixDelegationsResponse {
-    pub fn new(delegations: Vec<_Delegation>, start_next_after: Option<Addr>) -> Self {
+    pub fn new(delegations: Vec<Delegation>, start_next_after: Option<Addr>) -> Self {
         PagedMixDelegationsResponse {
             delegations,
             start_next_after,
@@ -144,12 +83,12 @@ impl PagedMixDelegationsResponse {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedDelegatorDelegationsResponse {
-    pub delegations: Vec<_Delegation>,
+    pub delegations: Vec<Delegation>,
     pub start_next_after: Option<IdentityKey>,
 }
 
 impl PagedDelegatorDelegationsResponse {
-    pub fn new(delegations: Vec<_Delegation>, start_next_after: Option<IdentityKey>) -> Self {
+    pub fn new(delegations: Vec<Delegation>, start_next_after: Option<IdentityKey>) -> Self {
         PagedDelegatorDelegationsResponse {
             delegations,
             start_next_after,
@@ -159,13 +98,13 @@ impl PagedDelegatorDelegationsResponse {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedAllDelegationsResponse {
-    pub delegations: Vec<_Delegation>,
+    pub delegations: Vec<Delegation>,
     pub start_next_after: Option<(IdentityKey, Addr)>,
 }
 
 impl PagedAllDelegationsResponse {
     pub fn new(
-        delegations: Vec<_Delegation>,
+        delegations: Vec<Delegation>,
         start_next_after: Option<(IdentityKey, Addr)>,
     ) -> Self {
         PagedAllDelegationsResponse {

@@ -7,7 +7,7 @@ use crate::mixnodes::storage as mixnodes_storage;
 use config::defaults::DENOM;
 use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
 use cw_storage_plus::PrimaryKey;
-use mixnet_contract::{IdentityKey, _Delegation};
+use mixnet_contract::{Delegation, IdentityKey};
 
 fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {
     // check if anything was put as delegation
@@ -76,7 +76,7 @@ pub(crate) fn try_delegate_to_mixnode(
                         .increment_amount(info.funds[0].amount, Some(env.block.height));
                     existing_delegation
                 }
-                None => _Delegation::new(
+                None => Delegation::new(
                     info.sender,
                     mix_identity,
                     info.funds[0].clone(),

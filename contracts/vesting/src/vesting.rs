@@ -1,12 +1,8 @@
-use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD};
+use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD, save_account};
 use crate::errors::ContractError;
-use crate::storage::{
-    account_delegations_map, drop_account_bond, get_account_balance, get_account_bond, set_account,
-    set_account_balance, set_account_bond,
-};
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{wasm_execute, Addr, Coin, Env, Order, Response, Storage, Timestamp, Uint128};
-use cw_storage_plus::Map;
+use cw_storage_plus::{Item, Map};
 use mixnet_contract::IdentityKey;
 use mixnet_contract::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 use schemars::JsonSchema;
@@ -130,12 +126,19 @@ impl VestingPeriod {
     }
 }
 
+const DELEGATIONS_SUFFIX: &str = "de";
+const BALANCE_SUFFIX: &str = "ba";
+const BOND_SUFFIX: &str = "bo";
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PeriodicVestingAccount {
     address: Addr,
     start_time: Timestamp,
     periods: Vec<VestingPeriod>,
     coin: Coin,
+    delegations_key: String,
+    balance_key: String,
+    bond_key: String,
 }
 
 impl PeriodicVestingAccount {
@@ -148,13 +151,16 @@ impl PeriodicVestingAccount {
     ) -> Result<Self, ContractError> {
         let amount = coin.amount;
         let account = PeriodicVestingAccount {
-            address,
+            address: address.clone(),
             start_time,
             periods,
             coin,
+            delegations_key: format!("{}_{}", address.to_string(), DELEGATIONS_SUFFIX),
+            balance_key: format!("{}_{}", address.to_string(), BALANCE_SUFFIX),
+            bond_key: format!("{}_{}", address.to_string(), BOND_SUFFIX),
         };
-        set_account(storage, account.clone())?;
-        set_account_balance(storage, &account.address, amount)?;
+        save_account(&account, storage)?;
+        account.save_balance(amount, storage)?;
         Ok(account)
     }
 
@@ -216,7 +222,7 @@ impl PeriodicVestingAccount {
         };
 
         let delegations_keys = self
-            .delegations_map()
+            .delegations()
             .keys_de(storage, None, None, Order::Ascending)
             .scan((), |_, x| x.ok())
             .filter(|(_mix, block_time)| op(block_time, &end_time))
@@ -225,7 +231,7 @@ impl PeriodicVestingAccount {
         let mut amount = Uint128::zero();
 
         for key in delegations_keys {
-            amount += self.delegations_map().load(storage, key)?
+            amount += self.delegations().load(storage, key)?
         }
 
         Ok(Coin {
@@ -234,13 +240,40 @@ impl PeriodicVestingAccount {
         })
     }
 
-    fn get_balance(&self, storage: &dyn Storage) -> Uint128 {
-        get_account_balance(storage, &self.address).unwrap_or_else(|| Uint128::new(0))
+    pub fn load_balance(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
+        Ok(self
+            .balance()
+            .may_load(storage)?
+            .unwrap_or_else(Uint128::zero))
     }
 
-    #[allow(clippy::needless_lifetimes)] // Needs a lifetime here to compile
-    fn delegations_map<'a>(&'a self) -> Map<'a, (IdentityKey, u64), Uint128> {
-        account_delegations_map(self.address.as_ref())
+    pub fn save_balance(&self, amount: Uint128, storage: &mut dyn Storage) -> Result<(), ContractError> {
+        Ok(self.balance().save(storage, &amount)?)
+    }
+
+    fn balance(&self) -> Item<Uint128> {
+        Item::new(self.balance_key.as_ref())
+    }
+
+    pub fn load_bond(&self, storage: &dyn Storage) -> Result<Option<BondData>, ContractError> {
+        Ok(self.bond().may_load(storage)?)
+    }
+
+    pub fn save_bond(&self, bond: BondData, storage: &mut dyn Storage) -> Result<(), ContractError> {
+        Ok(self.bond().save(storage, &bond)?)
+    }
+
+    pub fn remove_bond(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
+        self.bond().remove(storage);
+        Ok(())
+    }
+
+    fn bond(&self) -> Item<BondData> {
+        Item::new(self.bond_key.as_ref())
+    }
+
+    fn delegations(&self) -> Map<(IdentityKey, u64), Uint128> {
+        Map::new(self.delegations_key.as_ref())
     }
 
     pub fn delegation_keys_for_mix(
@@ -248,7 +281,7 @@ impl PeriodicVestingAccount {
         mix: IdentityKey,
         storage: &dyn Storage,
     ) -> Vec<(IdentityKey, u64)> {
-        self.delegations_map()
+        self.delegations()
             .prefix_de(mix.clone())
             .keys_de(storage, None, None, Order::Ascending)
             // Scan will blow up on first error
@@ -268,7 +301,7 @@ impl PeriodicVestingAccount {
         let mut delegation_amounts = Vec::new();
 
         for key in keys {
-            delegation_amounts.push(self.delegations_map().load(storage, key)?)
+            delegation_amounts.push(self.delegations().load(storage, key)?)
         }
 
         Ok(delegation_amounts)
@@ -295,7 +328,7 @@ impl DelegationAccount for PeriodicVestingAccount {
         env: &Env,
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError> {
-        if coin.amount < self.get_balance(storage) {
+        if coin.amount < self.load_balance(storage)? {
             let msg = MixnetExecuteMsg::DelegateToMixnodeOnBehalf {
                 mix_identity: mix_identity.clone(),
                 delegate: self.address.clone(),
@@ -310,7 +343,7 @@ impl DelegationAccount for PeriodicVestingAccount {
         } else {
             Err(ContractError::InsufficientBalance(
                 self.address.as_str().to_string(),
-                self.get_balance(storage).u128(),
+                self.load_balance(storage)?.u128(),
             ))
         }
     }
@@ -347,7 +380,7 @@ impl DelegationAccount for PeriodicVestingAccount {
         let delegation_key = (mix_identity, block_time.seconds());
 
         let new_delegation = if let Some(existing_delegation) = self
-            .delegations_map()
+            .delegations()
             .may_load(storage, delegation_key.clone())?
         {
             existing_delegation + delegation.amount
@@ -355,18 +388,13 @@ impl DelegationAccount for PeriodicVestingAccount {
             delegation.amount
         };
 
-        self.delegations_map()
+        self.delegations()
             .save(storage, delegation_key, &new_delegation)?;
 
-        let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
-            // We've checked that delegation < balance in the caller function
-            Uint128::new(balance.u128() - delegation.amount.u128())
-        } else {
-            return Err(ContractError::NoBalanceForAddress(
-                self.address.as_str().to_string(),
-            ));
-        };
-        set_account_balance(storage, &self.address, new_balance)?;
+        let new_balance =
+            Uint128::new(self.load_balance(storage)?.u128() - delegation.amount.u128());
+
+        self.save_balance(new_balance, storage)?;
 
         Ok(())
     }
@@ -379,7 +407,7 @@ impl DelegationAccount for PeriodicVestingAccount {
     ) -> Result<(), ContractError> {
         // Iterate over keys matching the prefix and remove them from the map
         let block_times = self
-            .delegations_map()
+            .delegations()
             .prefix_de(mix_identity.clone())
             .keys_de(storage, None, None, Order::Ascending)
             // Scan will blow up on first error
@@ -387,19 +415,13 @@ impl DelegationAccount for PeriodicVestingAccount {
             .collect::<Vec<u64>>();
 
         for t in block_times {
-            self.delegations_map()
+            self.delegations()
                 .remove(storage, (mix_identity.clone(), t))
         }
 
-        let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
-            Uint128::new(balance.u128() + amount.amount.u128())
-        } else {
-            return Err(ContractError::NoBalanceForAddress(
-                self.address.as_str().to_string(),
-            ));
-        };
+        let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());
 
-        set_account_balance(storage, &self.address, new_balance)?;
+        self.save_balance(new_balance, storage)?;
 
         Ok(())
     }
@@ -413,7 +435,7 @@ impl BondingAccount for PeriodicVestingAccount {
         env: &Env,
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError> {
-        if bond.amount < self.get_balance(storage) {
+        if bond.amount < self.load_balance(storage)? {
             let msg = MixnetExecuteMsg::BondMixnodeOnBehalf {
                 mix_node,
                 owner: self.address.clone(),
@@ -428,7 +450,7 @@ impl BondingAccount for PeriodicVestingAccount {
         } else {
             Err(ContractError::InsufficientBalance(
                 self.address.as_str().to_string(),
-                self.get_balance(storage).u128(),
+                self.load_balance(storage)?.u128(),
             ))
         }
     }
@@ -439,7 +461,7 @@ impl BondingAccount for PeriodicVestingAccount {
         bond: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        let bond = if let Some(_bond) = get_account_bond(storage, &self.address) {
+        let bond = if let Some(_bond) = self.load_bond(storage)? {
             return Err(ContractError::AlreadyBonded(
                 self.address.as_str().to_string(),
             ));
@@ -450,17 +472,11 @@ impl BondingAccount for PeriodicVestingAccount {
             }
         };
 
-        let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
-            // We've checked that bond.amount < balance in the caller function
-            Uint128::new(balance.u128() - bond.amount.u128())
-        } else {
-            return Err(ContractError::NoBalanceForAddress(
-                self.address.as_str().to_string(),
-            ));
-        };
+        let new_balance = Uint128::new(self.load_balance(storage)?.u128() - bond.amount.u128());
 
-        set_account_balance(storage, &self.address, new_balance)?;
-        Ok(set_account_bond(storage, &self.address, bond)?)
+        self.save_balance(new_balance, storage)?;
+        self.save_bond(bond, storage)?;
+        Ok(())
     }
 
     fn try_unbond_mixnode(&self) -> Result<Response, ContractError> {
@@ -482,16 +498,10 @@ impl BondingAccount for PeriodicVestingAccount {
     }
 
     fn track_unbond(&self, amount: Coin, storage: &mut dyn Storage) -> Result<(), ContractError> {
-        let new_balance = if let Some(balance) = get_account_balance(storage, &self.address) {
-            Uint128::new(balance.u128() + amount.amount.u128())
-        } else {
-            return Err(ContractError::NoBalanceForAddress(
-                self.address.as_str().to_string(),
-            ));
-        };
+        let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());
+        self.save_balance(new_balance, storage)?;
 
-        set_account_balance(storage, &self.address, new_balance)?;
-        drop_account_bond(storage, &self.address)?;
+        self.remove_bond(storage)?;
         Ok(())
     }
 }
@@ -527,7 +537,7 @@ impl VestingAccount for PeriodicVestingAccount {
     ) -> Result<Coin, ContractError> {
         Ok(Coin {
             amount: Uint128::new(
-                self.get_balance(storage)
+                self.load_balance(storage)?
                     .u128()
                     .saturating_sub(self.locked_coins(block_time, env, storage)?.amount.u128()),
             ),
@@ -635,9 +645,8 @@ pub fn populate_vesting_periods(start_time: u64, n: usize) -> Vec<VestingPeriod>
 #[cfg(test)]
 mod tests {
     use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD};
-    use crate::storage::{get_account, get_account_balance};
     use crate::support::tests::helpers::{init_contract, vesting_account_fixture};
-    use crate::vesting::VestingAccount;
+    use crate::vesting::{VestingAccount, load_account, save_account};
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
@@ -649,16 +658,16 @@ mod tests {
         let mut deps = init_contract();
         let env = mock_env();
         let account = vesting_account_fixture(&mut deps.storage, &env);
-        let created_account = get_account(&deps.storage, &account.address);
-        let created_account_test = get_account(&deps.storage, &Addr::unchecked("fixture"));
+        let created_account = load_account(&account.address, &deps.storage).unwrap();
+        let created_account_test = load_account(&Addr::unchecked("fixture"), &deps.storage).unwrap();
         assert_eq!(Some(&account), created_account.as_ref());
         assert_eq!(Some(&account), created_account_test.as_ref());
         assert_eq!(
-            get_account_balance(&deps.storage, &account.address),
-            Some(Uint128::new(1_000_000_000_000))
+            account.load_balance(&deps.storage).unwrap(),
+            Uint128::new(1_000_000_000_000)
         );
         assert_eq!(
-            account.get_balance(&deps.storage),
+            account.load_balance(&deps.storage).unwrap(),
             Uint128::new(1_000_000_000_000)
         )
     }

@@ -1171,7 +1171,6 @@ version = "0.1.0"
 dependencies = [
  "config",
  "cosmwasm-std",
- "cosmwasm-storage",
  "cw-storage-plus",
  "mixnet-contract",
  "schemars",

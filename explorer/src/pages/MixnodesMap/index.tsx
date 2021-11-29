@@ -104,7 +104,7 @@ export const PageMixnodesMap: React.FC = () => {
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Grid>
           <Grid item data-testid="mixnodes-globe">
-            <Title text="Overview" />
+            <Title text="Mixnodes Around the Globe" />
           </Grid>
           <Grid item>
             <Grid container spacing={2}>

@@ -1,5 +1,5 @@
 use crate::errors::ContractError;
-use cosmwasm_std::{Coin, Env, Response, Storage, Timestamp};
+use cosmwasm_std::{Coin, Env, Response, Storage, Timestamp, Uint128};
 use mixnet_contract::IdentityKey;
 
 pub trait DelegatingAccount {
@@ -24,6 +24,8 @@ pub trait DelegatingAccount {
         &self,
         block_time: Timestamp,
         mix_identity: IdentityKey,
+        // Save some gas by passing it in
+        current_balance: Uint128,
         delegation: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError>;

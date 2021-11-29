@@ -49,7 +49,14 @@ pub fn try_add_mixnode_on_behalf(
         mixnet_params_storage::read_contract_settings_params(deps.storage).minimum_mixnode_bond;
     validate_mixnode_bond(&info.funds, minimum_bond)?;
 
-    _try_add_mixnode(deps, env, mix_node, info.funds[0].clone(), owner, None)
+    _try_add_mixnode(
+        deps,
+        env,
+        mix_node,
+        info.funds[0].clone(),
+        owner,
+        Some(proxy),
+    )
 }
 
 fn _try_add_mixnode(

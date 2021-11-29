@@ -207,8 +207,10 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
                         amount: coins(delegation.amount.u128(), DENOM)[0].clone(),
                     });
 
-                    response = response.add_message(wasm_execute(proxy, &msg, coins(0, DENOM))?);
-                }
+                let track_undelegation_msg = wasm_execute(proxy, &msg, coins(0, DENOM))?;
+
+                response = response.add_message(track_undelegation_msg);
+            }
 
                 Ok(response)
             } else {

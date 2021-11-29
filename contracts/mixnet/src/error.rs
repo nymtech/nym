@@ -103,5 +103,5 @@ pub enum ContractError {
     MixnodeOperatorNotRewarded { identity: IdentityKey },
 
     #[error("Proxy address mismatch, expected {existing}, got {incoming}")]
-    ProxyMismatch{existing: String, incoming: String}
+    ProxyMismatch { existing: String, incoming: String },
 }

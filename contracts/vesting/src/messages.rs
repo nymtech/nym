@@ -5,6 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct InitMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -16,7 +17,7 @@ pub enum ExecuteMsg {
     UndelegateFromMixnode {
         mix_identity: IdentityKey,
     },
-    CreatePeriodicVestingAccount {
+    CreateAccount {
         address: String,
         start_time: Option<u64>,
     },
@@ -42,36 +43,36 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     LockedCoins {
-        vesting_account_address: String,
+        vesting_account_address: Addr,
         block_time: Option<Timestamp>,
     },
     SpendableCoins {
-        vesting_account_address: String,
+        vesting_account_address: Addr,
         block_time: Option<Timestamp>,
     },
     GetVestedCoins {
-        vesting_account_address: String,
+        vesting_account_address: Addr,
         block_time: Option<Timestamp>,
     },
     GetVestingCoins {
-        vesting_account_address: String,
+        vesting_account_address: Addr,
         block_time: Option<Timestamp>,
     },
     GetStartTime {
-        vesting_account_address: String,
+        vesting_account_address: Addr,
     },
     GetEndTime {
-        vesting_account_address: String,
+        vesting_account_address: Addr,
     },
     GetOriginalVesting {
-        vesting_account_address: String,
+        vesting_account_address: Addr,
     },
     GetDelegatedFree {
         block_time: Option<Timestamp>,
-        vesting_account_address: String,
+        vesting_account_address: Addr,
     },
     GetDelegatedVesting {
         block_time: Option<Timestamp>,
-        vesting_account_address: String,
+        vesting_account_address: Addr,
     },
 }

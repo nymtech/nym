@@ -13,7 +13,7 @@ pub struct Delegation {
     pub node_identity: IdentityKey,
     pub amount: Coin,
     pub block_height: u64,
-    pub proxy: Option<Addr> // proxy address used to delegate the funds on behalf of anouther address
+    pub proxy: Option<Addr>, // proxy address used to delegate the funds on behalf of anouther address
 }
 
 impl Delegation {
@@ -23,7 +23,7 @@ impl Delegation {
             node_identity,
             amount,
             block_height,
-            proxy
+            proxy,
         }
     }
 

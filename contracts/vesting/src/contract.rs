@@ -1,43 +1,23 @@
 use crate::errors::ContractError;
 use crate::messages::{ExecuteMsg, InitMsg, QueryMsg};
+use crate::storage::{account_from_address, validate_account};
 use crate::traits::{BondingAccount, DelegatingAccount, VestingAccount};
-use crate::vesting::{populate_vesting_periods, PeriodicVestingAccount};
+use crate::vesting::{populate_vesting_periods, Account};
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{
     entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Storage, Timestamp, Uint128,
+    Response, Timestamp, Uint128,
 };
-use cw_storage_plus::Map;
 use mixnet_contract::{IdentityKey, MixNode};
 
+// We're using a 24 month vesting period with 3 months sub-periods.
+// There are 8 three month periods in two years
+// and duration of a single period is 30 days.
 pub const NUM_VESTING_PERIODS: usize = 8;
 pub const VESTING_PERIOD: u64 = 3 * 30 * 86400;
+// Address of the account set to be contract admin
 pub const ADMIN_ADDRESS: &str = "admin";
 
-const ACCOUNTS: Map<Addr, PeriodicVestingAccount> = Map::new("acc");
-
-pub fn save_account(
-    account: &PeriodicVestingAccount,
-    storage: &mut dyn Storage,
-) -> Result<(), ContractError> {
-    Ok(ACCOUNTS.save(storage, account.address(), account)?)
-}
-
-pub fn load_account(
-    address: &Addr,
-    storage: &dyn Storage,
-) -> Result<Option<PeriodicVestingAccount>, ContractError> {
-    Ok(ACCOUNTS.may_load(storage, address.to_owned())?)
-}
-
-// TODO: Validate vesting/vested withdraw mathematics
-// TODO: Try and get to the bottom of multilevel bucket vs vector and performance of the whole storage thing
-
-/// Instantiate the contract.
-///
-/// `deps` contains Storage, API and Querier
-/// `env` contains block, message and contract info
-/// `msg` is the contract initialization message, sort of like a constructor call.
 #[entry_point]
 pub fn instantiate(
     _deps: DepsMut,
@@ -48,7 +28,6 @@ pub fn instantiate(
     Ok(Response::default())
 }
 
-/// Handle an incoming message
 #[entry_point]
 pub fn execute(
     deps: DepsMut,
@@ -63,7 +42,7 @@ pub fn execute(
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
             try_undelegate_from_mixnode(mix_identity, info, deps)
         }
-        ExecuteMsg::CreatePeriodicVestingAccount {
+        ExecuteMsg::CreateAccount {
             address,
             start_time,
         } => try_create_periodic_vesting_account(address, start_time, info, env, deps),
@@ -87,26 +66,14 @@ pub fn try_bond_mixnode(
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let owner = deps.api.addr_validate(info.sender.as_str())?;
     let bond = validate_funds(&info.funds)?;
-    if let Some(account) = load_account(&owner, deps.storage)? {
-        account.try_bond_mixnode(mix_node, bond, &env, deps.storage)
-    } else {
-        Err(ContractError::NoAccountForAddress(
-            owner.as_str().to_string(),
-        ))
-    }
+    let account = account_from_address(&info.sender, deps.storage, deps.api)?;
+    account.try_bond_mixnode(mix_node, bond, &env, deps.storage)
 }
 
 pub fn try_unbond_mixnode(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
-    let owner = deps.api.addr_validate(info.sender.as_str())?;
-    if let Some(account) = load_account(&owner, deps.storage)? {
-        account.try_unbond_mixnode()
-    } else {
-        Err(ContractError::NoAccountForAddress(
-            owner.as_str().to_string(),
-        ))
-    }
+    let account = account_from_address(&info.sender, deps.storage, deps.api)?;
+    account.try_unbond_mixnode()
 }
 
 pub fn try_track_unbond(
@@ -114,15 +81,9 @@ pub fn try_track_unbond(
     amount: Coin,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let owner = deps.api.addr_validate(owner.as_str())?;
-    if let Some(account) = load_account(&owner, deps.storage)? {
-        account.track_unbond(amount, deps.storage)?;
-        Ok(Response::default())
-    } else {
-        Err(ContractError::NoAccountForAddress(
-            owner.as_str().to_string(),
-        ))
-    }
+    let account = account_from_address(&owner, deps.storage, deps.api)?;
+    account.track_unbond(amount, deps.storage)?;
+    Ok(Response::default())
 }
 
 pub fn try_withdraw_vested_coins(
@@ -131,34 +92,29 @@ pub fn try_withdraw_vested_coins(
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let address = info.sender;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        let spendable_coins = account.spendable_coins(None, &env, deps.storage)?;
-        if amount.amount < spendable_coins.amount {
-            let new_balance = account
-                .load_balance(deps.storage)?
-                .u128()
-                .saturating_sub(amount.amount.u128());
-            account.save_balance(Uint128::new(new_balance), deps.storage)?;
+    let address = info.sender.clone();
+    let account = account_from_address(&info.sender, deps.storage, deps.api)?;
+    let spendable_coins = account.spendable_coins(None, &env, deps.storage)?;
+    if amount.amount <= spendable_coins.amount {
+        let new_balance = account
+            .load_balance(deps.storage)?
+            .u128()
+            .saturating_sub(amount.amount.u128());
+        account.save_balance(Uint128::new(new_balance), deps.storage)?;
 
-            let send_tokens = BankMsg::Send {
-                to_address: address.as_str().to_string(),
-                amount: vec![amount],
-            };
+        let send_tokens = BankMsg::Send {
+            to_address: address.as_str().to_string(),
+            amount: vec![amount],
+        };
 
-            Ok(Response::new()
-                .add_attribute("action", "whitdraw")
-                .add_message(send_tokens))
-        } else {
-            Err(ContractError::InsufficientSpendable(
-                address.as_str().to_string(),
-                spendable_coins.amount.u128(),
-            ))
-        }
+        Ok(Response::new()
+            .add_attribute("action", "whitdraw")
+            .add_message(send_tokens))
     } else {
-        return Err(ContractError::NoAccountForAddress(
+        Err(ContractError::InsufficientSpendable(
             address.as_str().to_string(),
-        ));
+            spendable_coins.amount.u128(),
+        ))
     }
 }
 
@@ -172,15 +128,9 @@ fn try_track_undelegation(
     if info.sender != DEFAULT_MIXNET_CONTRACT_ADDRESS {
         return Err(ContractError::NotMixnetContract(info.sender));
     }
-    let address = deps.api.addr_validate(address.as_str())?;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        account.track_undelegation(mix_identity, amount, deps.storage)?;
-        Ok(Response::default())
-    } else {
-        Err(ContractError::NoAccountForAddress(
-            address.as_str().to_string(),
-        ))
-    }
+    let account = account_from_address(&address, deps.storage, deps.api)?;
+    account.track_undelegation(mix_identity, amount, deps.storage)?;
+    Ok(Response::default())
 }
 
 fn try_delegate_to_mixnode(
@@ -189,16 +139,9 @@ fn try_delegate_to_mixnode(
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let delegate_addr = info.sender;
     let amount = validate_funds(&info.funds)?;
-    let address = deps.api.addr_validate(delegate_addr.as_str())?;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
-    } else {
-        Err(ContractError::NoAccountForAddress(
-            address.as_str().to_string(),
-        ))
-    }
+    let account = account_from_address(&info.sender, deps.storage, deps.api)?;
+    account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
 }
 
 fn try_undelegate_from_mixnode(
@@ -206,15 +149,8 @@ fn try_undelegate_from_mixnode(
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let delegate_addr = info.sender;
-    let address = deps.api.addr_validate(delegate_addr.as_str())?;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        account.try_undelegate_from_mixnode(mix_identity)
-    } else {
-        Err(ContractError::NoAccountForAddress(
-            address.as_str().to_string(),
-        ))
-    }
+    let account = account_from_address(&info.sender, deps.storage, deps.api)?;
+    account.try_undelegate_from_mixnode(mix_identity)
 }
 
 fn try_create_periodic_vesting_account(
@@ -231,7 +167,7 @@ fn try_create_periodic_vesting_account(
     let address = deps.api.addr_validate(&address)?;
     let start_time = start_time.unwrap_or_else(|| env.block.time.seconds());
     let periods = populate_vesting_periods(start_time, NUM_VESTING_PERIODS);
-    PeriodicVestingAccount::new(
+    Account::new(
         address,
         coin,
         Timestamp::from_seconds(start_time),
@@ -313,123 +249,87 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
 }
 
 pub fn try_get_locked_coins(
-    vesting_account_address: String,
+    vesting_account_address: Addr,
     block_time: Option<Timestamp>,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let address = deps.api.addr_validate(&vesting_account_address)?;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        Ok(account.locked_coins(block_time, &env, deps.storage)?)
-    } else {
-        Err(ContractError::NoAccountForAddress(vesting_account_address))
-    }
+    let account = validate_account(&vesting_account_address, deps.storage)?;
+    account.locked_coins(block_time, &env, deps.storage)
 }
 
 pub fn try_get_spendable_coins(
-    vesting_account_address: String,
+    vesting_account_address: Addr,
     block_time: Option<Timestamp>,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let address = deps.api.addr_validate(&vesting_account_address)?;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        Ok(account.spendable_coins(block_time, &env, deps.storage)?)
-    } else {
-        Err(ContractError::NoAccountForAddress(vesting_account_address))
-    }
+    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    account.spendable_coins(block_time, &env, deps.storage)
 }
 
 pub fn try_get_vested_coins(
-    vesting_account_address: String,
+    vesting_account_address: Addr,
     block_time: Option<Timestamp>,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let address = deps.api.addr_validate(&vesting_account_address)?;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        Ok(account.get_vested_coins(block_time, &env)?)
-    } else {
-        Err(ContractError::NoAccountForAddress(vesting_account_address))
-    }
+    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    account.get_vested_coins(block_time, &env)
 }
 
 pub fn try_get_vesting_coins(
-    vesting_account_address: String,
+    vesting_account_address: Addr,
     block_time: Option<Timestamp>,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let address = deps.api.addr_validate(&vesting_account_address)?;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        Ok(account.get_vesting_coins(block_time, &env)?)
-    } else {
-        Err(ContractError::NoAccountForAddress(vesting_account_address))
-    }
+    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    account.get_vesting_coins(block_time, &env)
 }
 
 pub fn try_get_start_time(
-    vesting_account_address: String,
+    vesting_account_address: Addr,
     deps: Deps,
 ) -> Result<Timestamp, ContractError> {
-    let address = deps.api.addr_validate(&vesting_account_address)?;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        Ok(account.get_start_time())
-    } else {
-        Err(ContractError::NoAccountForAddress(vesting_account_address))
-    }
+    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    Ok(account.get_start_time())
 }
 
 pub fn try_get_end_time(
-    vesting_account_address: String,
+    vesting_account_address: Addr,
     deps: Deps,
 ) -> Result<Timestamp, ContractError> {
-    let address = deps.api.addr_validate(&vesting_account_address)?;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        Ok(account.get_end_time())
-    } else {
-        Err(ContractError::NoAccountForAddress(vesting_account_address))
-    }
+    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    Ok(account.get_end_time())
 }
 
 pub fn try_get_original_vesting(
-    vesting_account_address: String,
+    vesting_account_address: Addr,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let address = deps.api.addr_validate(&vesting_account_address)?;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        Ok(account.get_original_vesting())
-    } else {
-        Err(ContractError::NoAccountForAddress(vesting_account_address))
-    }
+    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    Ok(account.get_original_vesting())
 }
 
 pub fn try_get_delegated_free(
     block_time: Option<Timestamp>,
-    vesting_account_address: String,
+    vesting_account_address: Addr,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let address = deps.api.addr_validate(&vesting_account_address)?;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        Ok(account.get_delegated_free(block_time, &env, deps.storage)?)
-    } else {
-        Err(ContractError::NoAccountForAddress(vesting_account_address))
-    }
+    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    account.get_delegated_free(block_time, &env, deps.storage)
 }
 
 pub fn try_get_delegated_vesting(
     block_time: Option<Timestamp>,
-    vesting_account_address: String,
+    vesting_account_address: Addr,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let address = deps.api.addr_validate(&vesting_account_address)?;
-    if let Some(account) = load_account(&address, deps.storage)? {
-        Ok(account.get_delegated_vesting(block_time, &env, deps.storage)?)
-    } else {
-        Err(ContractError::NoAccountForAddress(vesting_account_address))
-    }
+    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    account.get_delegated_vesting(block_time, &env, deps.storage)
 }
 
 fn validate_funds(funds: &[Coin]) -> Result<Coin, ContractError> {

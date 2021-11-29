@@ -109,7 +109,7 @@ export const Undelegate = () => {
                   alignItems: 'center',
                   justifyContent: 'flex-end',
                   borderTop: '1px solid grey[200]',
-                  bgcolor: 'grey[100]',
+                  bgcolor: 'grey[50]',
                   p: 2,
                 }}
               >

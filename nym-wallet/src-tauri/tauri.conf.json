@@ -48,7 +48,11 @@
     "updater": {
       "active": false
     },
-    "allowlist": {},
+    "allowlist": {
+      "shell": {
+        "open": true
+      }
+    },
     "windows": [
       {
         "title": "nym-wallet",

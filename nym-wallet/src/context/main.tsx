@@ -4,6 +4,9 @@ import { TClientDetails, TSignInWithMnemonic } from '../types'
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance'
 
 export const ADMIN_ADDRESS = 'punk1h3w4nj7kny5dfyjw2le4vm74z03v9vd4dstpu0'
+export const urls = {
+  blockExplorer: 'https://testnet-milhon-blocks.nymtech.net',
+}
 
 type TClientContext = {
   clientDetails?: TClientDetails

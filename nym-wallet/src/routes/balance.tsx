@@ -1,13 +1,14 @@
 import React, { useContext } from 'react'
-import { Alert, Grid } from '@mui/material'
+import { Alert, Button, Grid, Link } from '@mui/material'
 import { Box } from '@mui/system'
+import { OpenInNew } from '@mui/icons-material'
 import { NymCard } from '../components'
 import { Layout } from '../layouts'
 
-import { ClientContext } from '../context/main'
+import { ClientContext, urls } from '../context/main'
 
 export const Balance = () => {
-  const { userBalance } = useContext(ClientContext)
+  const { userBalance, clientDetails } = useContext(ClientContext)
 
   return (
     <Layout>
@@ -20,11 +21,20 @@ export const Balance = () => {
               </Alert>
             )}
             {!userBalance.error && (
-              <Box data-testid="refresh-success" sx={{ p: [2, 3] }}>
+              <Box data-testid="refresh-success" sx={{ p: 2 }}>
                 {'The current balance is ' +
                   userBalance.balance?.printable_balance}
               </Box>
             )}
+          </Grid>
+          <Grid item>
+            <Link
+              sx={{ pl: 1 }}
+              href={`${urls.blockExplorer}/account/${clientDetails?.client_address}`}
+              target="_blank"
+            >
+              <Button endIcon={<OpenInNew />}>Last transactions</Button>
+            </Link>
           </Grid>
         </Grid>
       </NymCard>

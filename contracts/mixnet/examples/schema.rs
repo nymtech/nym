@@ -5,7 +5,6 @@ extern crate mixnet_contract;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 use mixnet_contract::{ExecuteMsg, InstantiateMsg, MixNodeBond, QueryMsg};
-use mixnet_contracts::mixnet_contract_settings::models::ContractSettings;
 use std::env::current_dir;
 use std::fs::create_dir_all;
 
@@ -18,6 +17,5 @@ fn main() {
     export_schema(&schema_for!(InstantiateMsg), &out_dir);
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
-    export_schema(&schema_for!(ContractSettings), &out_dir);
     export_schema(&schema_for!(MixNodeBond), &out_dir);
 }

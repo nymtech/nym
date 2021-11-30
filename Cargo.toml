@@ -62,6 +62,7 @@ default-members = [
     "service-providers/network-requester",
     "mixnode",
     "validator-api",
+    "explorer-api",
 ]
 
 exclude = ["explorer", "contracts", "tokenomics-py"]

@@ -3,7 +3,7 @@ use rocket::serde::json::Json;
 use rocket::{Route, State};
 use serde::Serialize;
 
-use mixnet_contract::{Addr, Coin, Layer, MixNode, RawDelegationData};
+use mixnet_contract::{Addr, Coin, Delegation, Layer, MixNode};
 
 use crate::mix_node::models::{NodeDescription, NodeStats};
 use crate::mix_nodes::{get_mixnode_delegations, get_single_mixnode_delegations, Location};
@@ -39,14 +39,13 @@ pub(crate) async fn list(
 
 #[openapi(tag = "mix_node")]
 #[get("/<pubkey>/delegations")]
-pub(crate) async fn get_delegations(pubkey: &str) -> Json<Vec<mixnet_contract::Delegation>> {
+pub(crate) async fn get_delegations(pubkey: &str) -> Json<Vec<Delegation>> {
     Json(get_single_mixnode_delegations(pubkey).await)
 }
 
 #[openapi(tag = "mix_node")]
 #[get("/all_mix_delegations")]
-pub(crate) async fn get_all_delegations(
-) -> Json<Vec<mixnet_contract::UnpackedDelegation<RawDelegationData>>> {
+pub(crate) async fn get_all_delegations() -> Json<Vec<Delegation>> {
     Json(get_mixnode_delegations().await)
 }
 

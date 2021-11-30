@@ -1,0 +1,34 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::error::ContractError;
+use crate::gateways::storage as gateways_storage;
+use crate::mixnodes::storage as mixnodes_storage;
+use cosmwasm_std::{Addr, Storage};
+
+// check if the target address has already bonded a mixnode or gateway,
+// in either case, return an appropriate error
+pub(crate) fn ensure_no_existing_bond(
+    storage: &dyn Storage,
+    sender: Addr,
+) -> Result<(), ContractError> {
+    if mixnodes_storage::mixnodes()
+        .idx
+        .owner
+        .item(storage, sender.clone())?
+        .is_some()
+    {
+        return Err(ContractError::AlreadyOwnsMixnode);
+    }
+
+    if gateways_storage::gateways()
+        .idx
+        .owner
+        .item(storage, sender)?
+        .is_some()
+    {
+        return Err(ContractError::AlreadyOwnsGateway);
+    }
+
+    Ok(())
+}

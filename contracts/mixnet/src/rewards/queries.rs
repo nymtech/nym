@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::Uint128;
 use cosmwasm_std::{Deps, StdResult};
 use mixnet_contract::{IdentityKey, MixnodeRewardingStatusResponse};
 
-pub(crate) fn query_reward_pool(deps: Deps) -> Uint128 {
-    storage::reward_pool_value(deps.storage)
+pub(crate) fn query_reward_pool(deps: Deps) -> StdResult<Uint128> {
+    storage::REWARD_POOL.load(deps.storage)
 }
 
-pub(crate) fn query_circulating_supply(deps: Deps) -> Uint128 {
+pub(crate) fn query_circulating_supply(deps: Deps) -> StdResult<Uint128> {
     storage::circulating_supply(deps.storage)
 }
 
@@ -20,8 +19,10 @@ pub(crate) fn query_rewarding_status(
     mix_identity: IdentityKey,
     rewarding_interval_nonce: u32,
 ) -> StdResult<MixnodeRewardingStatusResponse> {
-    let status = mixnodes_storage::rewarded_mixnodes_read(deps.storage, rewarding_interval_nonce)
-        .may_load(mix_identity.as_bytes())?;
+    let status = storage::REWARDING_STATUS.may_load(
+        deps.storage,
+        (rewarding_interval_nonce.into(), mix_identity),
+    )?;
 
     Ok(MixnodeRewardingStatusResponse { status })
 }
@@ -38,8 +39,8 @@ pub(crate) mod tests {
     mod querying_for_rewarding_status {
         use super::storage;
         use super::*;
-        use crate::mixnodes::bonding_transactions::try_add_mixnode;
-        use crate::mixnodes::delegation_transactions::try_delegate_to_mixnode;
+        use crate::delegations::transactions::try_delegate_to_mixnode;
+        use crate::mixnodes::transactions::try_add_mixnode;
         use crate::rewards::transactions::{
             try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode_v2,
             try_reward_next_mixnode_delegators_v2,
@@ -52,10 +53,9 @@ pub(crate) mod tests {
         fn returns_empty_status_for_unrewarded_nodes() {
             let mut deps = test_helpers::init_contract();
             let env = mock_env();
-            let current_state =
-                mixnet_params_storage::contract_settings_read(deps.as_mut().storage)
-                    .load()
-                    .unwrap();
+            let current_state = mixnet_params_storage::CONTRACT_SETTINGS
+                .load(deps.as_mut().storage)
+                .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             let node_identity =
@@ -93,10 +93,9 @@ pub(crate) mod tests {
             // with single page
             let mut deps = test_helpers::init_contract();
             let mut env = mock_env();
-            let current_state =
-                mixnet_params_storage::contract_settings_read(deps.as_mut().storage)
-                    .load()
-                    .unwrap();
+            let current_state = mixnet_params_storage::CONTRACT_SETTINGS
+                .load(deps.as_mut().storage)
+                .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             let node_identity = "bobsnode".to_string();
@@ -216,10 +215,9 @@ pub(crate) mod tests {
         fn returns_pending_next_delegator_page_status_when_there_are_more_delegators_to_reward() {
             let mut deps = test_helpers::init_contract();
             let mut env = mock_env();
-            let current_state =
-                mixnet_params_storage::contract_settings_read(deps.as_mut().storage)
-                    .load()
-                    .unwrap();
+            let current_state = mixnet_params_storage::CONTRACT_SETTINGS
+                .load(deps.as_mut().storage)
+                .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             let node_identity = "bobsnode".to_string();

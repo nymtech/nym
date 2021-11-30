@@ -1,6 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::delegations::queries::query_all_network_delegations_paged;
+use crate::delegations::queries::query_delegator_delegations_paged;
+use crate::delegations::queries::query_mixnode_delegation;
+use crate::delegations::queries::query_mixnode_delegations_paged;
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
@@ -11,14 +15,11 @@ use crate::mixnet_contract_settings::queries::{
 };
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries as mixnode_queries;
-use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
 use crate::mixnodes::bonding_queries::query_mixnodes_paged;
-use crate::mixnodes::delegation_queries::query_all_mixnode_delegations_paged;
-use crate::mixnodes::delegation_queries::query_mixnode_delegation;
-use crate::mixnodes::delegation_queries::query_reverse_mixnode_delegations_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::rewards::queries::query_reward_pool;
 use crate::rewards::queries::{query_circulating_supply, query_rewarding_status};
+use crate::rewards::storage as rewards_storage;
 use config::defaults::REWARDING_VALIDATOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
@@ -72,8 +73,10 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let state = default_initial_state(info.sender, env);
 
-    mixnet_params_storage::contract_settings(deps.storage).save(&state)?;
-    mixnet_params_storage::layer_distribution(deps.storage).save(&Default::default())?;
+    mixnet_params_storage::CONTRACT_SETTINGS.save(deps.storage, &state)?;
+    mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
+    rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
+
     Ok(Response::default())
 }
 
@@ -87,10 +90,10 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::BondMixnode { mix_node } => {
-            crate::mixnodes::bonding_transactions::try_add_mixnode(deps, env, info, mix_node)
+            crate::mixnodes::transactions::try_add_mixnode(deps, env, info, mix_node)
         }
         ExecuteMsg::UnbondMixnode {} => {
-            crate::mixnodes::bonding_transactions::try_remove_mixnode(deps, info)
+            crate::mixnodes::transactions::try_remove_mixnode(deps, info)
         }
         ExecuteMsg::BondGateway { gateway } => {
             crate::gateways::transactions::try_add_gateway(deps, env, info, gateway)
@@ -116,15 +119,10 @@ pub fn execute(
             rewarding_interval_nonce,
         ),
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
-            crate::mixnodes::delegation_transactions::try_delegate_to_mixnode(
-                deps,
-                env,
-                info,
-                mix_identity,
-            )
+            crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
-            crate::mixnodes::delegation_transactions::try_remove_delegation_from_mixnode(
+            crate::delegations::transactions::try_remove_delegation_from_mixnode(
                 deps,
                 info,
                 mix_identity,
@@ -171,10 +169,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             to_binary(&mixnode_queries::query_owns_mixnode(deps, address)?)
         }
         QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
-        QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)),
-        QueryMsg::CurrentRewardingInterval {} => to_binary(&query_rewarding_interval(deps)),
-        QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)),
-        QueryMsg::GetMixDelegations {
+        QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)?),
+        QueryMsg::CurrentRewardingInterval {} => to_binary(&query_rewarding_interval(deps)?),
+        QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)?),
+        QueryMsg::GetMixnodeDelegations {
             mix_identity,
             start_after,
             limit,
@@ -184,25 +182,25 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             start_after,
             limit,
         )?),
-        QueryMsg::GetAllMixDelegations { start_after, limit } => to_binary(
-            &query_all_mixnode_delegations_paged(deps, start_after, limit)?,
+        QueryMsg::GetAllNetworkDelegations { start_after, limit } => to_binary(
+            &query_all_network_delegations_paged(deps, start_after, limit)?,
         ),
-        QueryMsg::GetReverseMixDelegations {
-            delegation_owner,
+        QueryMsg::GetDelegatorDelegations {
+            delegator: delegation_owner,
             start_after,
             limit,
-        } => to_binary(&query_reverse_mixnode_delegations_paged(
+        } => to_binary(&query_delegator_delegations_paged(
             deps,
             delegation_owner,
             start_after,
             limit,
         )?),
-        QueryMsg::GetMixDelegation {
+        QueryMsg::GetDelegationDetails {
             mix_identity,
-            address,
-        } => to_binary(&query_mixnode_delegation(deps, mix_identity, address)?),
-        QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)),
-        QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)),
+            delegator,
+        } => to_binary(&query_mixnode_delegation(deps, mix_identity, delegator)?),
+        QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
+        QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
         QueryMsg::GetEpochRewardPercent {} => to_binary(&EPOCH_REWARD_PERCENT),
         QueryMsg::GetSybilResistancePercent {} => to_binary(&DEFAULT_SYBIL_RESISTANCE_PERCENT),
         QueryMsg::GetRewardingStatus {

@@ -101,7 +101,9 @@ pub mod test_helpers {
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();
-        let msg = InstantiateMsg {};
+        let msg = InstantiateMsg {
+            rewarding_validator_address: config::defaults::REWARDING_VALIDATOR_ADDRESS.to_string(),
+        };
         let env = mock_env();
         let info = mock_info("creator", &[]);
         instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();

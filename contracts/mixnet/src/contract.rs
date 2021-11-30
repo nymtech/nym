@@ -20,12 +20,10 @@ use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::rewards::queries::query_reward_pool;
 use crate::rewards::queries::{query_circulating_supply, query_rewarding_status};
 use crate::rewards::storage as rewards_storage;
-use config::defaults::REWARDING_VALIDATOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
 use mixnet_contract::{ContractSettingsParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use std::u128;
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128::new(100_000_000);
@@ -45,10 +43,14 @@ pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
 #[allow(dead_code)]
 pub const DEFAULT_COST_PER_EPOCH: u32 = 40_000_000;
 
-fn default_initial_state(owner: Addr, env: Env) -> ContractSettings {
+fn default_initial_state(
+    owner: Addr,
+    rewarding_validator_address: Addr,
+    env: Env,
+) -> ContractSettings {
     ContractSettings {
         owner,
-        rewarding_validator_address: Addr::unchecked(REWARDING_VALIDATOR_ADDRESS), // we trust our hardcoded value
+        rewarding_validator_address,
         params: ContractSettingsParams {
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
@@ -71,9 +73,10 @@ pub fn instantiate(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    _msg: InstantiateMsg,
+    msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    let state = default_initial_state(info.sender, env);
+    let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
+    let state = default_initial_state(info.sender, rewarding_validator_address, env);
 
     mixnet_params_storage::CONTRACT_SETTINGS.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
@@ -235,7 +238,9 @@ pub mod tests {
     fn initialize_contract() {
         let mut deps = mock_dependencies();
         let env = mock_env();
-        let msg = InstantiateMsg {};
+        let msg = InstantiateMsg {
+            rewarding_validator_address: config::defaults::REWARDING_VALIDATOR_ADDRESS.to_string(),
+        };
         let info = mock_info("creator", &[]);
 
         let res = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();

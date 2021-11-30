@@ -365,7 +365,6 @@ export const BondForm = ({
           variant="contained"
           color="primary"
           type="submit"
-          size="large"
           data-testid="submit-button"
           disableElevation
           onClick={handleSubmit(onSubmit)}

@@ -187,6 +187,15 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
       },
     },
+    components: {
+      MuiButton: {
+        styleOverrides: {
+          sizeLarge: {
+            height: 55,
+          },
+        },
+      },
+    },
     palette,
   }
 }

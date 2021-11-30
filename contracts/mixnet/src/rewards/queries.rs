@@ -42,8 +42,8 @@ pub(crate) mod tests {
         use crate::delegations::transactions::try_delegate_to_mixnode;
         use crate::mixnodes::transactions::try_add_mixnode;
         use crate::rewards::transactions::{
-            try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode_v2,
-            try_reward_next_mixnode_delegators_v2,
+            try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
+            try_reward_next_mixnode_delegators,
         };
         use config::defaults::DENOM;
         use cosmwasm_std::coin;
@@ -71,7 +71,7 @@ pub(crate) mod tests {
             // node was rewarded but for different epoch
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-            try_reward_mixnode_v2(
+            try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
                 info.clone(),
@@ -114,7 +114,7 @@ pub(crate) mod tests {
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-            try_reward_mixnode_v2(
+            try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
                 info.clone(),
@@ -174,7 +174,7 @@ pub(crate) mod tests {
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
 
-            try_reward_mixnode_v2(
+            try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
                 info.clone(),
@@ -185,7 +185,7 @@ pub(crate) mod tests {
             .unwrap();
 
             // rewards all pending
-            try_reward_next_mixnode_delegators_v2(
+            try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 info.clone(),
                 node_identity.to_string(),
@@ -250,7 +250,7 @@ pub(crate) mod tests {
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
 
-            try_reward_mixnode_v2(
+            try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
                 info,

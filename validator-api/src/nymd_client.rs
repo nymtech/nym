@@ -270,10 +270,7 @@ impl<C> Client<C> {
         let fee = self
             .estimate_mixnode_reward_fees(1, MIXNODE_DELEGATORS_PAGE_LIMIT)
             .await;
-        let msgs = vec![(
-            node.to_reward_execute_msg_v2(rewarding_interval_nonce),
-            vec![],
-        )];
+        let msgs = vec![(node.to_reward_execute_msg(rewarding_interval_nonce), vec![])];
         let memo = format!(
             "operator + {} delegators rewarding",
             MIXNODE_DELEGATORS_PAGE_LIMIT
@@ -283,7 +280,7 @@ impl<C> Client<C> {
         // reward rest of delegators
         let mut remaining_delegators = node.total_delegations - MIXNODE_DELEGATORS_PAGE_LIMIT;
         let delegator_rewarding_msg = (
-            node.to_next_delegator_reward_execute_msg_v2(rewarding_interval_nonce),
+            node.to_next_delegator_reward_execute_msg(rewarding_interval_nonce),
             vec![],
         );
         for _ in 0..further_calls {
@@ -315,7 +312,7 @@ impl<C> Client<C> {
             .estimate_mixnode_reward_fees(1, MIXNODE_DELEGATORS_PAGE_LIMIT)
             .await;
         let delegator_rewarding_msg = (
-            node.to_next_delegator_reward_execute_msg_v2(rewarding_interval_nonce),
+            node.to_next_delegator_reward_execute_msg(rewarding_interval_nonce),
             vec![],
         );
 
@@ -338,7 +335,7 @@ impl<C> Client<C> {
             .await;
         let msgs: Vec<(ExecuteMsg, _)> = nodes
             .iter()
-            .map(|node| node.to_reward_execute_msg_v2(rewarding_interval_nonce))
+            .map(|node| node.to_reward_execute_msg(rewarding_interval_nonce))
             .zip(std::iter::repeat(Vec::new()))
             .collect();
 

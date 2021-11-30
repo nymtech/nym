@@ -108,11 +108,11 @@ pub fn execute(
                 deps, info, params,
             )
         }
-        ExecuteMsg::RewardMixnodeV2 {
+        ExecuteMsg::RewardMixnode {
             identity,
             params,
             rewarding_interval_nonce,
-        } => crate::rewards::transactions::try_reward_mixnode_v2(
+        } => crate::rewards::transactions::try_reward_mixnode(
             deps,
             env,
             info,
@@ -148,7 +148,7 @@ pub fn execute(
         ExecuteMsg::RewardNextMixDelegators {
             mix_identity,
             rewarding_interval_nonce,
-        } => crate::rewards::transactions::try_reward_next_mixnode_delegators_v2(
+        } => crate::rewards::transactions::try_reward_next_mixnode_delegators(
             deps,
             info,
             mix_identity,

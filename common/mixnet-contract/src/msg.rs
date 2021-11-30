@@ -41,7 +41,7 @@ pub enum ExecuteMsg {
         rewarding_interval_nonce: u32,
     },
 
-    RewardMixnodeV2 {
+    RewardMixnode {
         identity: IdentityKey,
         // percentage value in range 0-100
         params: NodeRewardParams,

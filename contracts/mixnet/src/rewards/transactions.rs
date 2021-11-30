@@ -113,7 +113,7 @@ pub(crate) fn try_begin_mixnode_rewarding(
 }
 
 // TODO: change it to start_after
-fn reward_mix_delegators_v2(
+fn reward_mix_delegators(
     storage: &mut dyn Storage,
     mix_identity: IdentityKey,
     start: Option<Addr>,
@@ -191,7 +191,7 @@ fn reward_mix_delegators_v2(
     })
 }
 
-pub(crate) fn try_reward_next_mixnode_delegators_v2(
+pub(crate) fn try_reward_next_mixnode_delegators(
     deps: DepsMut,
     info: MessageInfo,
     mix_identity: IdentityKey,
@@ -217,7 +217,7 @@ pub(crate) fn try_reward_next_mixnode_delegators_v2(
             })
         }
         Some(RewardingStatus::PendingNextDelegatorPage(next_page_info)) => {
-            let delegation_rewarding_result = reward_mix_delegators_v2(
+            let delegation_rewarding_result = reward_mix_delegators(
                 deps.storage,
                 mix_identity.clone(),
                 Some(next_page_info.next_start),
@@ -276,7 +276,7 @@ pub(crate) fn try_reward_next_mixnode_delegators_v2(
 // for example delegation reward distribution, the gas limits must be retested and both
 // validator-api/src/rewarding/mod.rs::{MIXNODE_REWARD_OP_BASE_GAS_LIMIT, PER_MIXNODE_DELEGATION_GAS_INCREASE}
 // must be updated appropriately.
-pub(crate) fn try_reward_mixnode_v2(
+pub(crate) fn try_reward_mixnode(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -334,7 +334,7 @@ pub(crate) fn try_reward_mixnode_v2(
 
         let delegator_params = DelegatorRewardParams::new(&current_bond, node_reward_params);
         let delegation_rewarding_result =
-            reward_mix_delegators_v2(deps.storage, mix_identity.clone(), None, delegator_params)?;
+            reward_mix_delegators(deps.storage, mix_identity.clone(), None, delegator_params)?;
 
         mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
             deps.storage,
@@ -443,7 +443,7 @@ pub mod tests {
     use crate::mixnodes::storage::StoredMixnodeBond;
     use crate::mixnodes::transactions::try_add_mixnode;
     use crate::rewards::transactions::{
-        try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode_v2,
+        try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
     };
     use crate::support::tests::test_helpers;
     use crate::support::tests::test_helpers::{good_mixnode_bond, mix_node_fixture};
@@ -823,7 +823,7 @@ pub mod tests {
         .unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        let res = try_reward_mixnode_v2(
+        let res = try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
             info.clone(),
@@ -835,7 +835,7 @@ pub mod tests {
 
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
 
-        let res = try_reward_mixnode_v2(
+        let res = try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
             info,
@@ -872,7 +872,7 @@ pub mod tests {
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-        let res = try_reward_mixnode_v2(
+        let res = try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
             info.clone(),
@@ -888,7 +888,7 @@ pub mod tests {
             res
         );
 
-        let res = try_reward_mixnode_v2(
+        let res = try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
             info.clone(),
@@ -904,7 +904,7 @@ pub mod tests {
             res
         );
 
-        let res = try_reward_mixnode_v2(
+        let res = try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
             info,
@@ -943,7 +943,7 @@ pub mod tests {
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
 
         // first reward goes through just fine
-        let res = try_reward_mixnode_v2(
+        let res = try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
             info.clone(),
@@ -954,7 +954,7 @@ pub mod tests {
         assert!(res.is_ok());
 
         // but the other one fails
-        let res = try_reward_mixnode_v2(
+        let res = try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
             info.clone(),
@@ -973,7 +973,7 @@ pub mod tests {
         try_finish_mixnode_rewarding(deps.as_mut(), info.clone(), 1).unwrap();
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
 
-        let res = try_reward_mixnode_v2(
+        let res = try_reward_mixnode(
             deps.as_mut(),
             env,
             info,
@@ -1039,7 +1039,7 @@ pub mod tests {
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
-        let res = try_reward_mixnode_v2(
+        let res = try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
             info.clone(),
@@ -1077,7 +1077,7 @@ pub mod tests {
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
-        let res = try_reward_mixnode_v2(
+        let res = try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
             info.clone(),
@@ -1120,7 +1120,7 @@ pub mod tests {
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 3).unwrap();
-        let res = try_reward_mixnode_v2(
+        let res = try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
             info.clone(),
@@ -1270,7 +1270,7 @@ pub mod tests {
             .u128();
         assert_eq!(pre_reward_delegation, 10_000_000_000);
 
-        try_reward_mixnode_v2(deps.as_mut(), env, info, "alice".to_string(), params, 1).unwrap();
+        try_reward_mixnode(deps.as_mut(), env, info, "alice".to_string(), params, 1).unwrap();
 
         assert_eq!(
             test_helpers::read_mixnode_bond_amount(&deps.storage, "alice")
@@ -1369,7 +1369,7 @@ pub mod tests {
             )
             .unwrap();
 
-            let res = try_reward_mixnode_v2(
+            let res = try_reward_mixnode(
                 deps.as_mut(),
                 env,
                 info,
@@ -1456,7 +1456,7 @@ pub mod tests {
             )
             .unwrap();
 
-            let res = try_reward_mixnode_v2(
+            let res = try_reward_mixnode(
                 deps.as_mut(),
                 env,
                 info,
@@ -1543,7 +1543,7 @@ pub mod tests {
             )
             .unwrap();
 
-            let res = try_reward_mixnode_v2(
+            let res = try_reward_mixnode(
                 deps.as_mut(),
                 env,
                 info,
@@ -1628,9 +1628,8 @@ pub mod tests {
         node_rewarding_params.set_reward_blockstamp(env.block.height);
 
         let params = DelegatorRewardParams::new(&bond, node_rewarding_params);
-        let res =
-            reward_mix_delegators_v2(deps.as_mut().storage, node_identity.clone(), None, params)
-                .unwrap();
+        let res = reward_mix_delegators(deps.as_mut().storage, node_identity.clone(), None, params)
+            .unwrap();
 
         let mut actual_reward = Uint128::new(0);
         for delegation in delegations_storage::delegations()
@@ -1686,9 +1685,8 @@ pub mod tests {
         node_rewarding_params.set_reward_blockstamp(env.block.height);
 
         let params = DelegatorRewardParams::new(&bond, node_rewarding_params);
-        let res =
-            reward_mix_delegators_v2(deps.as_mut().storage, node_identity.clone(), None, params)
-                .unwrap();
+        let res = reward_mix_delegators(deps.as_mut().storage, node_identity.clone(), None, params)
+            .unwrap();
 
         let mut actual_reward = Uint128::new(0);
         for delegation in delegations_storage::delegations()
@@ -1724,7 +1722,7 @@ pub mod tests {
         let expected_next_page_start = format!("delegator{:04}", MIXNODE_DELEGATORS_PAGE_LIMIT);
         assert_eq!(expected_next_page_start, res.start_next.clone().unwrap());
 
-        let res2 = reward_mix_delegators_v2(
+        let res2 = reward_mix_delegators(
             deps.as_mut().storage,
             node_identity.clone(),
             res.start_next.clone(),
@@ -1758,7 +1756,7 @@ pub mod tests {
         fn can_only_be_called_by_specified_validator_address() {
             let mut deps = test_helpers::init_contract();
 
-            let res = try_reward_next_mixnode_delegators_v2(
+            let res = try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info("not-the-approved-validator", &[]),
                 "alice's mixnode".to_string(),
@@ -1775,7 +1773,7 @@ pub mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
-            let res = try_reward_next_mixnode_delegators_v2(
+            let res = try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 "alice's mixnode".to_string(),
@@ -1802,7 +1800,7 @@ pub mod tests {
             )
             .unwrap();
 
-            let res = try_reward_next_mixnode_delegators_v2(
+            let res = try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 "alice's mixnode".to_string(),
@@ -1854,7 +1852,7 @@ pub mod tests {
             )
             .unwrap();
 
-            try_reward_mixnode_v2(
+            try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
@@ -1864,7 +1862,7 @@ pub mod tests {
             )
             .unwrap();
 
-            let res = try_reward_next_mixnode_delegators_v2(
+            let res = try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 "alice".to_string(),
@@ -1927,7 +1925,7 @@ pub mod tests {
             )
             .unwrap();
 
-            try_reward_mixnode_v2(
+            try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
                 info,
@@ -1938,7 +1936,7 @@ pub mod tests {
             .unwrap();
 
             // rewards all pending
-            try_reward_next_mixnode_delegators_v2(
+            try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 "bob".to_string(),
@@ -1946,7 +1944,7 @@ pub mod tests {
             )
             .unwrap();
 
-            let res = try_reward_next_mixnode_delegators_v2(
+            let res = try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 "bob".to_string(),
@@ -2024,7 +2022,7 @@ pub mod tests {
             )
             .unwrap();
 
-            try_reward_mixnode_v2(
+            try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
                 info,
@@ -2035,14 +2033,14 @@ pub mod tests {
             .unwrap();
 
             // we have 3 pages in total, so we have to call this twice
-            try_reward_next_mixnode_delegators_v2(
+            try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 "alice".to_string(),
                 1,
             )
             .unwrap();
-            try_reward_next_mixnode_delegators_v2(
+            try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 "alice".to_string(),
@@ -2150,7 +2148,7 @@ pub mod tests {
             )
             .unwrap();
 
-            try_reward_mixnode_v2(
+            try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
                 info,
@@ -2161,7 +2159,7 @@ pub mod tests {
             .unwrap();
 
             // we have 3 pages in total, so we have to call this twice
-            try_reward_next_mixnode_delegators_v2(
+            try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 "alice".to_string(),

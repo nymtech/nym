@@ -22,7 +22,7 @@ pub async fn owns_mixnode(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result
   let r_state = state.read().await;
   let client = r_state.client()?;
   match client.owns_mixnode(client.address()).await {
-    Ok(o) => Ok(o),
+    Ok(o) => Ok(o.is_some()),
     Err(e) => Err(format_err!(e)),
   }
 }
@@ -32,7 +32,7 @@ pub async fn owns_gateway(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result
   let r_state = state.read().await;
   let client = r_state.client()?;
   match client.owns_gateway(client.address()).await {
-    Ok(o) => Ok(o),
+    Ok(o) => Ok(o.is_some()),
     Err(e) => Err(format_err!(e)),
   }
 }

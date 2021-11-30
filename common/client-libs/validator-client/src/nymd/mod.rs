@@ -13,11 +13,11 @@ use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
 use cosmwasm_std::{Coin, Uint128};
 use mixnet_contract::{
-    ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
-    LayerDistribution, MixNode, MixOwnershipResponse, MixnetContractVersion,
-    MixnodeRewardingStatusResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse, QueryMsg,
-    RewardingIntervalResponse,
+    ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
+    IdentityKey, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
+    MixnetContractVersion, MixnodeRewardingStatusResponse, PagedAllDelegationsResponse,
+    PagedDelegatorDelegationsResponse, PagedGatewayResponse, PagedMixDelegationsResponse,
+    PagedMixnodeResponse, QueryMsg, RewardingIntervalResponse,
 };
 use serde::Serialize;
 use std::collections::HashMap;
@@ -308,7 +308,7 @@ impl<C> NymdClient<C> {
     }
 
     /// Checks whether there is a bonded mixnode associated with the provided client's address
-    pub async fn owns_mixnode(&self, address: &AccountId) -> Result<bool, NymdError>
+    pub async fn owns_mixnode(&self, address: &AccountId) -> Result<Option<MixNodeBond>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -319,11 +319,11 @@ impl<C> NymdClient<C> {
             .client
             .query_contract_smart(self.contract_address()?, &request)
             .await?;
-        Ok(response.has_node)
+        Ok(response.mixnode)
     }
 
     /// Checks whether there is a bonded gateway associated with the provided client's address
-    pub async fn owns_gateway(&self, address: &AccountId) -> Result<bool, NymdError>
+    pub async fn owns_gateway(&self, address: &AccountId) -> Result<Option<GatewayBond>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -334,7 +334,7 @@ impl<C> NymdClient<C> {
             .client
             .query_contract_smart(self.contract_address()?, &request)
             .await?;
-        Ok(response.has_gateway)
+        Ok(response.gateway)
     }
 
     pub async fn get_mixnodes_paged(

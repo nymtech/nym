@@ -96,9 +96,13 @@ export const Nav = () => {
           </ListItem>
         ))}
         {clientDetails?.client_address === ADMIN_ADDRESS && (
-          <ListItem button onClick={handleShowAdmin}>
-            <ListItemIcon sx={{ color: 'common.white' }}>
-              <Settings />
+          <ListItem disableGutters onClick={handleShowAdmin}>
+            <ListItemIcon
+              sx={{
+                minWidth: 30,
+              }}
+            >
+              <Settings sx={{ fontSize: 20, color: 'white' }} />
             </ListItemIcon>
             <ListItemText primary="Admin" sx={{ color: 'common.white' }} />
           </ListItem>

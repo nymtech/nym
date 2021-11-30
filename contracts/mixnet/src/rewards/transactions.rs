@@ -10,7 +10,7 @@ use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, StdResult, Storage
 use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
 use mixnet_contract::{
-    IdentityKey, PendingDelegatorRewarding, RewardingResult, RewardingStatus,
+    IdentityKey, IdentityKeyRef, PendingDelegatorRewarding, RewardingResult, RewardingStatus,
     MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 
@@ -189,6 +189,49 @@ fn reward_mix_delegators(
     })
 }
 
+fn update_post_rewarding_storage(
+    storage: &mut dyn Storage,
+    mix_identity: IdentityKeyRef,
+    operator_reward: Uint128,
+    delegators_reward: Uint128,
+) -> Result<(), ContractError> {
+    if operator_reward == Uint128::zero() && delegators_reward == Uint128::zero() {
+        return Ok(());
+    }
+
+    // update bond
+    if operator_reward > Uint128::zero() {
+        mixnodes_storage::mixnodes().update(storage, &mix_identity, |current_bond| {
+            match current_bond {
+                None => Err(ContractError::MixNodeBondNotFound {
+                    identity: mix_identity.to_string(),
+                }),
+                Some(mut mixnode_bond) => {
+                    mixnode_bond.bond_amount.amount += operator_reward;
+                    Ok(mixnode_bond)
+                }
+            }
+        })?;
+    }
+
+    // update total_delegation
+    if delegators_reward > Uint128::zero() {
+        mixnodes_storage::TOTAL_DELEGATION.update(storage, &mix_identity, |current_total| {
+            match current_total {
+                None => Err(ContractError::MixNodeBondNotFound {
+                    identity: mix_identity.to_string(),
+                }),
+                Some(current_total) => Ok(current_total + delegators_reward),
+            }
+        })?;
+    }
+
+    // update reward pool
+    storage::decr_reward_pool(operator_reward + delegators_reward, storage)?;
+
+    Ok(())
+}
+
 pub(crate) fn try_reward_next_mixnode_delegators(
     deps: DepsMut,
     info: MessageInfo,
@@ -222,18 +265,12 @@ pub(crate) fn try_reward_next_mixnode_delegators(
                 next_page_info.rewarding_params,
             )?;
 
-            // update the memoised total delegation field
-            mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+            update_post_rewarding_storage(
                 deps.storage,
                 &mix_identity,
-                |current_total| {
-                    // unwrap is fine as if the mixnode if this mixnode's delegators are getting rewarded
-                    // it means it MUST HAVE existed at some point in the past
-                    Ok(current_total.unwrap() + delegation_rewarding_result.total_rewarded)
-                },
+                Uint128::zero(),
+                delegation_rewarding_result.total_rewarded,
             )?;
-
-            storage::decr_reward_pool(delegation_rewarding_result.total_rewarded, deps.storage)?;
 
             let mut rewarding_results = next_page_info.running_results;
             rewarding_results.total_delegator_reward += delegation_rewarding_result.total_rewarded;
@@ -332,28 +369,11 @@ pub(crate) fn try_reward_mixnode(
         let delegation_rewarding_result =
             reward_mix_delegators(deps.storage, mix_identity.clone(), None, delegator_params)?;
 
-        mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+        update_post_rewarding_storage(
             deps.storage,
             &mix_identity,
-            |current_total| {
-                // unwrap is fine as if the mixnode itself exists, so must this entry
-                Ok(current_total.unwrap() + delegation_rewarding_result.total_rewarded)
-            },
-        )?;
-        mixnodes_storage::mixnodes().update::<_, ContractError>(
-            deps.storage,
-            &mix_identity,
-            |current_bond| {
-                // unwrap is fine because we just read the entry...
-                let mut unwrapped = current_bond.unwrap();
-                unwrapped.bond_amount.amount += operator_reward;
-                Ok(unwrapped)
-            },
-        )?;
-
-        storage::decr_reward_pool(
-            operator_reward + delegation_rewarding_result.total_rewarded,
-            deps.storage,
+            operator_reward,
+            delegation_rewarding_result.total_rewarded,
         )?;
 
         let rewarding_results = RewardingResult {

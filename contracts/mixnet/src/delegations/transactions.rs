@@ -1,16 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
-use cw_storage_plus::PrimaryKey;
-
-use config::defaults::DENOM;
-use mixnet_contract::{Delegation, IdentityKey};
-
+use super::storage;
 use crate::error::ContractError;
 use crate::mixnodes::storage as mixnodes_storage;
-
-use super::storage;
+use config::defaults::DENOM;
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
+use cw_storage_plus::PrimaryKey;
+use mixnet_contract::{Delegation, IdentityKey};
 
 fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {
     // check if anything was put as delegation

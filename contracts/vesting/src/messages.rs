@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Coin, Timestamp};
+use cosmwasm_std::{Coin, Timestamp};
 use mixnet_contract::IdentityKey;
 use mixnet_contract::MixNode;
 use schemars::JsonSchema;
@@ -25,7 +25,7 @@ pub enum ExecuteMsg {
         amount: Coin,
     },
     TrackUndelegation {
-        owner: Addr,
+        owner: String,
         mix_identity: IdentityKey,
         amount: Coin,
     },
@@ -34,7 +34,7 @@ pub enum ExecuteMsg {
     },
     UnbondMixnode {},
     TrackUnbond {
-        owner: Addr,
+        owner: String,
         amount: Coin,
     },
 }
@@ -43,36 +43,36 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     LockedCoins {
-        vesting_account_address: Addr,
+        vesting_account_address: String,
         block_time: Option<Timestamp>,
     },
     SpendableCoins {
-        vesting_account_address: Addr,
+        vesting_account_address: String,
         block_time: Option<Timestamp>,
     },
     GetVestedCoins {
-        vesting_account_address: Addr,
+        vesting_account_address: String,
         block_time: Option<Timestamp>,
     },
     GetVestingCoins {
-        vesting_account_address: Addr,
+        vesting_account_address: String,
         block_time: Option<Timestamp>,
     },
     GetStartTime {
-        vesting_account_address: Addr,
+        vesting_account_address: String,
     },
     GetEndTime {
-        vesting_account_address: Addr,
+        vesting_account_address: String,
     },
     GetOriginalVesting {
-        vesting_account_address: Addr,
+        vesting_account_address: String,
     },
     GetDelegatedFree {
         block_time: Option<Timestamp>,
-        vesting_account_address: Addr,
+        vesting_account_address: String,
     },
     GetDelegatedVesting {
         block_time: Option<Timestamp>,
-        vesting_account_address: Addr,
+        vesting_account_address: String,
     },
 }

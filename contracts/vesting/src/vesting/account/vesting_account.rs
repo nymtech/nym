@@ -118,13 +118,13 @@ impl VestingAccount for Account {
             .delegations()
             .keys_de(storage, None, None, Order::Ascending)
             .scan((), |_, x| x.ok())
-            .filter(|(_mix, block_time)| block_time < &start_time)
+            .filter(|(_mix, block_time)| *block_time < start_time)
             .map(|(mix, block_time)| (mix, block_time))
             .collect::<Vec<(Vec<u8>, u64)>>();
 
         let mut amount = Uint128::zero();
-        for (b, t) in delegations_keys {
-            amount += self.delegations().load(storage, (&b, t))?
+        for (mix, block_time) in delegations_keys {
+            amount += self.delegations().load(storage, (&mix, block_time))?
         }
         amount = Uint128::new(amount.u128().min(max_vested));
 

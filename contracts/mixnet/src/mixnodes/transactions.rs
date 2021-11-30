@@ -144,48 +144,43 @@ pub(crate) fn _try_remove_mixnode(
         None => return Err(ContractError::NoAssociatedMixNodeBond { owner: info.sender }),
     };
 
-    // send bonded funds back to the bond owner
-    if proxy == mixnode_bond.proxy {
-        let return_tokens = BankMsg::Send {
-            to_address: info.sender.as_str().to_owned(),
-            amount: vec![mixnode_bond.bond_amount()],
-        };
+    // get the bond, since we found associated identity, the node MUST exist
+    let mixnode_bond = storage::mixnodes_read(deps.storage).load(mix_identity.as_bytes())?;
 
-        // Given that this Vec<u8> came directly from the storage and originated from a valid String before
-        // if this error is ever thrown it implies the entire storage got corrupted.
-        let mix_identity = IdentityKey::from_utf8(raw_identity)
-            .map_err(|_| StdError::parse_err("IdentityKey", "Storage got corrupted"))?;
-
-        // remove the bond
-        storage::mixnodes().remove(deps.storage, &mix_identity)?;
-
-        // decrement layer count
-        mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
-
-        let mut response = Response::new()
-            .add_message(return_tokens)
-            .add_attribute("action", "unbond")
-            .add_attribute("mixnode_bond", mixnode_bond.to_string());
-
-        if let Some(proxy) = &proxy {
-            let msg = VestingContractExecuteMsg::TrackUnbond {
-                owner,
-                amount: coins(mixnode_bond.bond_amount.amount.u128(), DENOM)[0].clone(),
-            };
-
-            let track_unbond_message = wasm_execute(proxy, &msg, coins(0, DENOM))?;
-            response = response.add_message(track_unbond_message);
-        }
-
-        Ok(response)
-    } else {
-        Err(ContractError::ProxyMismatch {
+    if proxy != mixnode_bond.proxy {
+        return Err(ContractError::ProxyMismatch {
             existing: mixnode_bond
                 .proxy
                 .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
             incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
-        })
+        });
     }
+    // send bonded funds back to the bond owner
+    let return_tokens = BankMsg::Send {
+        to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
+        amount: vec![mixnode_bond.bond_amount()],
+    };
+    // remove the bond from the list of bonded mixnodes
+    storage::mixnodes().remove(deps.storage, &mix_identity)?;
+    // decrement layer count
+    mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
+
+    let mut response = Response::new()
+        .add_message(return_tokens)
+        .add_attribute("action", "unbond")
+        .add_attribute("mixnode_bond", mixnode_bond.to_string());
+
+    if let Some(proxy) = &proxy {
+        let msg = VestingContractExecuteMsg::TrackUnbond {
+            owner: owner.as_str().to_string(),
+            amount: mixnode_bond.bond_amount,
+        };
+
+        let track_unbond_message = wasm_execute(proxy, &msg, coins(0, DENOM))?;
+        response = response.add_message(track_unbond_message);
+    }
+
+    Ok(response)
 }
 
 fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {

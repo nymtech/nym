@@ -16,15 +16,15 @@ pub fn load_account(
     Ok(ACCOUNTS.may_load(storage, address.to_owned())?)
 }
 
-pub fn validate_account(address: &Addr, storage: &dyn Storage) -> Result<Account, ContractError> {
+fn validate_account(address: &Addr, storage: &dyn Storage) -> Result<Account, ContractError> {
     load_account(address, storage)?
         .ok_or_else(|| ContractError::NoAccountForAddress(address.as_str().to_string()))
 }
 
 pub fn account_from_address(
-    address: &Addr,
+    address: &str,
     storage: &dyn Storage,
     api: &dyn Api,
 ) -> Result<Account, ContractError> {
-    validate_account(&api.addr_validate(address.as_str())?, storage)
+    validate_account(&api.addr_validate(address)?, storage)
 }

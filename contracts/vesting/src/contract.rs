@@ -1,11 +1,11 @@
 use crate::errors::ContractError;
 use crate::messages::{ExecuteMsg, InitMsg, QueryMsg};
-use crate::storage::{account_from_address, validate_account};
+use crate::storage::account_from_address;
 use crate::traits::{BondingAccount, DelegatingAccount, VestingAccount};
 use crate::vesting::{populate_vesting_periods, Account};
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Timestamp, Uint128,
 };
 use mixnet_contract::{IdentityKey, MixNode};
@@ -45,7 +45,7 @@ pub fn execute(
         ExecuteMsg::CreateAccount {
             address,
             start_time,
-        } => try_create_periodic_vesting_account(address, start_time, info, env, deps),
+        } => try_create_periodic_vesting_account(&address, start_time, info, env, deps),
         ExecuteMsg::WithdrawVestedCoins { amount } => {
             try_withdraw_vested_coins(amount, env, info, deps)
         }
@@ -53,10 +53,10 @@ pub fn execute(
             owner,
             mix_identity,
             amount,
-        } => try_track_undelegation(owner, mix_identity, amount, info, deps),
+        } => try_track_undelegation(&owner, mix_identity, amount, info, deps),
         ExecuteMsg::BondMixnode { mix_node } => try_bond_mixnode(mix_node, info, env, deps),
         ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
-        ExecuteMsg::TrackUnbond { owner, amount } => try_track_unbond(owner, amount, deps),
+        ExecuteMsg::TrackUnbond { owner, amount } => try_track_unbond(&owner, amount, deps),
     }
 }
 
@@ -67,21 +67,21 @@ pub fn try_bond_mixnode(
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
     let bond = validate_funds(&info.funds)?;
-    let account = account_from_address(&info.sender, deps.storage, deps.api)?;
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_bond_mixnode(mix_node, bond, &env, deps.storage)
 }
 
 pub fn try_unbond_mixnode(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
-    let account = account_from_address(&info.sender, deps.storage, deps.api)?;
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_unbond_mixnode()
 }
 
 pub fn try_track_unbond(
-    owner: Addr,
+    owner: &str,
     amount: Coin,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let account = account_from_address(&owner, deps.storage, deps.api)?;
+    let account = account_from_address(owner, deps.storage, deps.api)?;
     account.track_unbond(amount, deps.storage)?;
     Ok(Response::default())
 }
@@ -93,7 +93,7 @@ pub fn try_withdraw_vested_coins(
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
     let address = info.sender.clone();
-    let account = account_from_address(&info.sender, deps.storage, deps.api)?;
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     let spendable_coins = account.spendable_coins(None, &env, deps.storage)?;
     if amount.amount <= spendable_coins.amount {
         let new_balance = account
@@ -119,7 +119,7 @@ pub fn try_withdraw_vested_coins(
 }
 
 fn try_track_undelegation(
-    address: Addr,
+    address: &str,
     mix_identity: IdentityKey,
     amount: Coin,
     info: MessageInfo,
@@ -128,7 +128,7 @@ fn try_track_undelegation(
     if info.sender != DEFAULT_MIXNET_CONTRACT_ADDRESS {
         return Err(ContractError::NotMixnetContract(info.sender));
     }
-    let account = account_from_address(&address, deps.storage, deps.api)?;
+    let account = account_from_address(address, deps.storage, deps.api)?;
     account.track_undelegation(mix_identity, amount, deps.storage)?;
     Ok(Response::default())
 }
@@ -140,7 +140,7 @@ fn try_delegate_to_mixnode(
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
     let amount = validate_funds(&info.funds)?;
-    let account = account_from_address(&info.sender, deps.storage, deps.api)?;
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
 }
 
@@ -149,12 +149,12 @@ fn try_undelegate_from_mixnode(
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let account = account_from_address(&info.sender, deps.storage, deps.api)?;
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_undelegate_from_mixnode(mix_identity)
 }
 
 fn try_create_periodic_vesting_account(
-    address: String,
+    address: &str,
     start_time: Option<u64>,
     info: MessageInfo,
     env: Env,
@@ -164,7 +164,7 @@ fn try_create_periodic_vesting_account(
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
     let coin = validate_funds(&info.funds)?;
-    let address = deps.api.addr_validate(&address)?;
+    let address = deps.api.addr_validate(address)?;
     let start_time = start_time.unwrap_or_else(|| env.block.time.seconds());
     let periods = populate_vesting_periods(start_time, NUM_VESTING_PERIODS);
     Account::new(
@@ -184,7 +184,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             vesting_account_address,
             block_time,
         } => to_binary(&try_get_locked_coins(
-            vesting_account_address,
+            &vesting_account_address,
             block_time,
             env,
             deps,
@@ -193,7 +193,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             vesting_account_address,
             block_time,
         } => to_binary(&try_get_spendable_coins(
-            vesting_account_address,
+            &vesting_account_address,
             block_time,
             env,
             deps,
@@ -202,7 +202,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             vesting_account_address,
             block_time,
         } => to_binary(&try_get_vested_coins(
-            vesting_account_address,
+            &vesting_account_address,
             block_time,
             env,
             deps,
@@ -211,26 +211,26 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             vesting_account_address,
             block_time,
         } => to_binary(&try_get_vesting_coins(
-            vesting_account_address,
+            &vesting_account_address,
             block_time,
             env,
             deps,
         )?),
         QueryMsg::GetStartTime {
             vesting_account_address,
-        } => to_binary(&try_get_start_time(vesting_account_address, deps)?),
+        } => to_binary(&try_get_start_time(&vesting_account_address, deps)?),
         QueryMsg::GetEndTime {
             vesting_account_address,
-        } => to_binary(&try_get_end_time(vesting_account_address, deps)?),
+        } => to_binary(&try_get_end_time(&vesting_account_address, deps)?),
         QueryMsg::GetOriginalVesting {
             vesting_account_address,
-        } => to_binary(&try_get_original_vesting(vesting_account_address, deps)?),
+        } => to_binary(&try_get_original_vesting(&vesting_account_address, deps)?),
         QueryMsg::GetDelegatedFree {
             block_time,
             vesting_account_address,
         } => to_binary(&try_get_delegated_free(
             block_time,
-            vesting_account_address,
+            &vesting_account_address,
             env,
             deps,
         )?),
@@ -239,7 +239,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             vesting_account_address,
         } => to_binary(&try_get_delegated_vesting(
             block_time,
-            vesting_account_address,
+            &vesting_account_address,
             env,
             deps,
         )?),
@@ -249,86 +249,86 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
 }
 
 pub fn try_get_locked_coins(
-    vesting_account_address: Addr,
+    vesting_account_address: &str,
     block_time: Option<Timestamp>,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let account = validate_account(&vesting_account_address, deps.storage)?;
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.locked_coins(block_time, &env, deps.storage)
 }
 
 pub fn try_get_spendable_coins(
-    vesting_account_address: Addr,
+    vesting_account_address: &str,
     block_time: Option<Timestamp>,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.spendable_coins(block_time, &env, deps.storage)
 }
 
 pub fn try_get_vested_coins(
-    vesting_account_address: Addr,
+    vesting_account_address: &str,
     block_time: Option<Timestamp>,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_vested_coins(block_time, &env)
 }
 
 pub fn try_get_vesting_coins(
-    vesting_account_address: Addr,
+    vesting_account_address: &str,
     block_time: Option<Timestamp>,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_vesting_coins(block_time, &env)
 }
 
 pub fn try_get_start_time(
-    vesting_account_address: Addr,
+    vesting_account_address: &str,
     deps: Deps,
 ) -> Result<Timestamp, ContractError> {
-    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     Ok(account.get_start_time())
 }
 
 pub fn try_get_end_time(
-    vesting_account_address: Addr,
+    vesting_account_address: &str,
     deps: Deps,
 ) -> Result<Timestamp, ContractError> {
-    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     Ok(account.get_end_time())
 }
 
 pub fn try_get_original_vesting(
-    vesting_account_address: Addr,
+    vesting_account_address: &str,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     Ok(account.get_original_vesting())
 }
 
 pub fn try_get_delegated_free(
     block_time: Option<Timestamp>,
-    vesting_account_address: Addr,
+    vesting_account_address: &str,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_delegated_free(block_time, &env, deps.storage)
 }
 
 pub fn try_get_delegated_vesting(
     block_time: Option<Timestamp>,
-    vesting_account_address: Addr,
+    vesting_account_address: &str,
     env: Env,
     deps: Deps,
 ) -> Result<Coin, ContractError> {
-    let account = account_from_address(&vesting_account_address, deps.storage, deps.api)?;
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_delegated_vesting(block_time, &env, deps.storage)
 }
 

@@ -227,7 +227,7 @@ fn update_post_rewarding_storage(
     }
 
     // update reward pool
-    storage::decr_reward_pool(operator_reward + delegators_reward, storage)?;
+    storage::decr_reward_pool(storage, operator_reward + delegators_reward)?;
 
     Ok(())
 }

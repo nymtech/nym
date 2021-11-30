@@ -28,8 +28,8 @@ pub fn incr_reward_pool(
 }
 
 pub fn decr_reward_pool(
-    amount: Uint128,
     storage: &mut dyn Storage,
+    amount: Uint128,
 ) -> Result<Uint128, ContractError> {
     REWARD_POOL.update(storage, |current_pool| {
         let stake = current_pool

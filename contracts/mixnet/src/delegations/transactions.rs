@@ -54,8 +54,6 @@ pub(crate) fn try_delegate_to_mixnode(
         });
     }
 
-    let storage_key = (mix_identity.clone(), info.sender.clone()).joined_key();
-
     // update total_delegation of this node
     mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
         deps.storage,
@@ -67,6 +65,8 @@ pub(crate) fn try_delegate_to_mixnode(
             Ok(total_delegation.unwrap() + info.funds[0].amount)
         },
     )?;
+
+    let storage_key = (mix_identity.clone(), info.sender.clone()).joined_key();
 
     // update [or create new] delegation of this delegator
     storage::delegations().update::<_, ContractError>(
@@ -112,6 +112,8 @@ pub(crate) fn try_remove_delegation_from_mixnode(
             };
 
             // remove old delegation data from the store
+            // note for reviewers: I'm using `replace` as `remove` is just `may_load` followed by `replace`
+            // and we've already performed `may_load` and have access to pre-existing data
             delegation_map.replace(deps.storage, storage_key, None, Some(&old_delegation))?;
 
             // update total_delegation of this node

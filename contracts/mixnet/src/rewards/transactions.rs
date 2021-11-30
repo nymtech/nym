@@ -112,7 +112,6 @@ pub(crate) fn try_begin_mixnode_rewarding(
     ))
 }
 
-// TODO: change it to start_after
 fn reward_mix_delegators(
     storage: &mut dyn Storage,
     mix_identity: IdentityKey,
@@ -123,7 +122,6 @@ fn reward_mix_delegators(
 
     let chunk_size = MIXNODE_DELEGATORS_PAGE_LIMIT;
 
-    //  TODO: change it to exclusive bound for simpler logic and consistency
     let start_value =
         start.map(|start| Bound::Inclusive((mix_identity.clone(), start).joined_key()));
 
@@ -245,6 +243,7 @@ pub(crate) fn try_reward_next_mixnode_delegators(
                 delegation_rewarding_result.total_rewarded.to_string(),
             )];
 
+            // there are even more delegators to reward
             if let Some(next_start) = delegation_rewarding_result.start_next {
                 attributes.push(("more delegators to reward", "true".to_owned()));
 
@@ -304,16 +303,13 @@ pub(crate) fn try_reward_mixnode(
         }
     }
 
-    // TODO: note for JS when doing a deep review for the contract: look at the reading/writing
-    // of MixNodeBond and StoredMixnodeBond, because it kinda looks like some of that may be redundant
-
     // check if the bond even exists
-    let current_bond = match mixnodes_storage::read_mixnode_bond(deps.storage, &mix_identity)? {
+    let current_bond = match mixnodes_storage::read_full_mixnode_bond(deps.storage, &mix_identity)?
+    {
         Some(bond) => bond,
         None => return Ok(Response::new().add_attribute("result", "bond not found")),
     };
 
-    // in cosmwasm 1.0 all attributes have to be of type T: Into<String> anyway
     let mut node_reward = "0".to_string();
     let mut operator_reward = Uint128::zero();
     let mut total_delegation_increase = Uint128::zero();
@@ -1219,7 +1215,7 @@ pub mod tests {
 
         env.block.height += 2 * storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
-        let mix_1 = mixnodes_storage::read_mixnode_bond(&deps.storage, "alice")
+        let mix_1 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, "alice")
             .unwrap()
             .unwrap();
         let mix_1_uptime = 100;
@@ -1603,7 +1599,7 @@ pub mod tests {
             },
         )
         .unwrap();
-        let bond = mixnodes_storage::read_mixnode_bond(deps.as_ref().storage, &*node_identity)
+        let bond = mixnodes_storage::read_full_mixnode_bond(deps.as_ref().storage, &*node_identity)
             .unwrap()
             .unwrap();
 
@@ -1660,7 +1656,7 @@ pub mod tests {
             },
         )
         .unwrap();
-        let bond = mixnodes_storage::read_mixnode_bond(deps.as_ref().storage, &*node_identity)
+        let bond = mixnodes_storage::read_full_mixnode_bond(deps.as_ref().storage, &*node_identity)
             .unwrap()
             .unwrap();
 

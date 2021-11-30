@@ -8,8 +8,8 @@ use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::mixnodes::storage::StoredMixnodeBond;
 use crate::support::helpers::ensure_no_existing_bond;
 use config::defaults::DENOM;
-use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, StdError, Uint128};
-use mixnet_contract::{IdentityKey, MixNode};
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
+use mixnet_contract::MixNode;
 
 pub(crate) fn try_add_mixnode(
     deps: DepsMut,
@@ -64,12 +64,12 @@ pub(crate) fn try_remove_mixnode(
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
     // try to find the node of the sender
-    let (raw_identity, mixnode_bond) = match storage::mixnodes()
+    let mixnode_bond = match storage::mixnodes()
         .idx
         .owner
         .item(deps.storage, info.sender.clone())?
     {
-        Some(record) => (record.0, record.1),
+        Some(record) => record.1,
         None => return Err(ContractError::NoAssociatedMixNodeBond { owner: info.sender }),
     };
 
@@ -79,13 +79,8 @@ pub(crate) fn try_remove_mixnode(
         amount: vec![mixnode_bond.bond_amount()],
     };
 
-    // Given that this Vec<u8> came directly from the storage and originated from a valid String before
-    // if this error is ever thrown it implies the entire storage got corrupted.
-    let mix_identity = IdentityKey::from_utf8(raw_identity)
-        .map_err(|_| StdError::parse_err("IdentityKey", "Storage got corrupted"))?;
-
     // remove the bond
-    storage::mixnodes().remove(deps.storage, &mix_identity)?;
+    storage::mixnodes().remove(deps.storage, mixnode_bond.identity())?;
 
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;

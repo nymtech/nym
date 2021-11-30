@@ -82,9 +82,7 @@ pub mod tests {
         assert_eq!(res, Ok(Response::default()));
 
         // and the state is actually updated
-        let current_state = storage::CONTRACT_STATE
-            .load(deps.as_ref().storage)
-            .unwrap();
+        let current_state = storage::CONTRACT_STATE.load(deps.as_ref().storage).unwrap();
         assert_eq!(current_state.params, new_params);
 
         // error is thrown if rewarded set is smaller than the active set

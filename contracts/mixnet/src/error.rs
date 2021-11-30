@@ -24,9 +24,6 @@ pub enum ContractError {
     #[error("Not enough funds sent for gateway bond. (received {received}, minimum {minimum})")]
     InsufficientGatewayBond { received: u128, minimum: u128 },
 
-    #[error("Gateway ({identity}) does not exist")]
-    GatewayBondNotFound { identity: IdentityKey },
-
     #[error("{owner} does not seem to own any mixnodes")]
     NoAssociatedMixNodeBond { owner: Addr },
 
@@ -54,9 +51,6 @@ pub enum ContractError {
     #[error("Provided rewarded set size is zero")]
     ZeroRewardedSet,
 
-    #[error("The node had uptime larger than 100%")]
-    UnexpectedUptime,
-
     #[error("This address has already bonded a mixnode")]
     AlreadyOwnsMixnode,
 
@@ -71,9 +65,6 @@ pub enum ContractError {
 
     #[error("No funds were provided for the delegation")]
     EmptyDelegation,
-
-    #[error("Request did not come from the node owner ({owner})")]
-    InvalidSender { owner: Addr },
 
     #[error("Could not find any delegation information associated with mixnode {identity} for {address}")]
     NoMixnodeDelegationFound {

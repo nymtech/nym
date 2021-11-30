@@ -53,7 +53,7 @@ pub(crate) mod tests {
         fn returns_empty_status_for_unrewarded_nodes() {
             let mut deps = test_helpers::init_contract();
             let env = mock_env();
-            let current_state = mixnet_params_storage::CONTRACT_SETTINGS
+            let current_state = mixnet_params_storage::CONTRACT_STATE
                 .load(deps.as_mut().storage)
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
@@ -93,7 +93,7 @@ pub(crate) mod tests {
             // with single page
             let mut deps = test_helpers::init_contract();
             let mut env = mock_env();
-            let current_state = mixnet_params_storage::CONTRACT_SETTINGS
+            let current_state = mixnet_params_storage::CONTRACT_STATE
                 .load(deps.as_mut().storage)
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
@@ -215,7 +215,7 @@ pub(crate) mod tests {
         fn returns_pending_next_delegator_page_status_when_there_are_more_delegators_to_reward() {
             let mut deps = test_helpers::init_contract();
             let mut env = mock_env();
-            let current_state = mixnet_params_storage::CONTRACT_SETTINGS
+            let current_state = mixnet_params_storage::CONTRACT_STATE
                 .load(deps.as_mut().storage)
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;

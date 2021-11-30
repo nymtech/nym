@@ -8,7 +8,7 @@ use crate::rewarding::{
 };
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract::{
-    ContractSettingsParams, Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond,
+    ContractStateParams, Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond,
     MixnodeRewardingStatusResponse, RewardingIntervalResponse, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 use serde::Serialize;
@@ -143,7 +143,7 @@ impl<C> Client<C> {
 
     pub(crate) async fn get_contract_settings(
         &self,
-    ) -> Result<ContractSettingsParams, ValidatorClientError>
+    ) -> Result<ContractStateParams, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {

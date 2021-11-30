@@ -8,7 +8,7 @@ use crate::delegations::queries::query_mixnode_delegations_paged;
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
-use crate::mixnet_contract_settings::models::ContractSettings;
+use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::query_rewarding_interval;
 use crate::mixnet_contract_settings::queries::{
     query_contract_settings_params, query_contract_version,
@@ -23,7 +23,7 @@ use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
-use mixnet_contract::{ContractSettingsParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use mixnet_contract::{ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128::new(100_000_000);
@@ -47,11 +47,11 @@ fn default_initial_state(
     owner: Addr,
     rewarding_validator_address: Addr,
     env: Env,
-) -> ContractSettings {
-    ContractSettings {
+) -> ContractState {
+    ContractState {
         owner,
         rewarding_validator_address,
-        params: ContractSettingsParams {
+        params: ContractStateParams {
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
@@ -78,7 +78,7 @@ pub fn instantiate(
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let state = default_initial_state(info.sender, rewarding_validator_address, env);
 
-    mixnet_params_storage::CONTRACT_SETTINGS.save(deps.storage, &state)?;
+    mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
 
@@ -106,7 +106,7 @@ pub fn execute(
         ExecuteMsg::UnbondGateway {} => {
             crate::gateways::transactions::try_remove_gateway(deps, info)
         }
-        ExecuteMsg::UpdateContractSettings(params) => {
+        ExecuteMsg::UpdateContractStateParams(params) => {
             crate::mixnet_contract_settings::transactions::try_update_contract_settings(
                 deps, info, params,
             )

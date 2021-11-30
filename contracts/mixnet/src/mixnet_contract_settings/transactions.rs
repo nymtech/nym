@@ -6,14 +6,14 @@ use crate::error::ContractError;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;
-use mixnet_contract::ContractSettingsParams;
+use mixnet_contract::ContractStateParams;
 
 pub(crate) fn try_update_contract_settings(
     deps: DepsMut,
     info: MessageInfo,
-    params: ContractSettingsParams,
+    params: ContractStateParams,
 ) -> Result<Response, ContractError> {
-    let mut state = storage::CONTRACT_SETTINGS.load(deps.storage)?;
+    let mut state = storage::CONTRACT_STATE.load(deps.storage)?;
 
     // check if this is executed by the owner, if not reject the transaction
     if info.sender != state.owner {
@@ -35,7 +35,7 @@ pub(crate) fn try_update_contract_settings(
     }
 
     state.params = params;
-    storage::CONTRACT_SETTINGS.save(deps.storage, &state)?;
+    storage::CONTRACT_STATE.save(deps.storage, &state)?;
 
     Ok(Response::default())
 }
@@ -49,13 +49,13 @@ pub mod tests {
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::Response;
-    use mixnet_contract::ContractSettingsParams;
+    use mixnet_contract::ContractStateParams;
 
     #[test]
     fn updating_contract_settings() {
         let mut deps = test_helpers::init_contract();
 
-        let new_params = ContractSettingsParams {
+        let new_params = ContractStateParams {
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
             mixnode_rewarded_set_size: 100,
@@ -65,7 +65,7 @@ pub mod tests {
         // sanity check to ensure new_params are different than the default ones
         assert_ne!(
             new_params,
-            storage::CONTRACT_SETTINGS
+            storage::CONTRACT_STATE
                 .load(deps.as_ref().storage)
                 .unwrap()
                 .params
@@ -82,7 +82,7 @@ pub mod tests {
         assert_eq!(res, Ok(Response::default()));
 
         // and the state is actually updated
-        let current_state = storage::CONTRACT_SETTINGS
+        let current_state = storage::CONTRACT_STATE
             .load(deps.as_ref().storage)
             .unwrap();
         assert_eq!(current_state.params, new_params);

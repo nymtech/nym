@@ -13,7 +13,7 @@ use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
 use cosmwasm_std::{Coin, Uint128};
 use mixnet_contract::{
-    ContractSettingsParams, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
+    ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
     LayerDistribution, MixNode, MixOwnershipResponse, MixnetContractVersion,
     MixnodeRewardingStatusResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse, QueryMsg,
@@ -208,7 +208,7 @@ impl<C> NymdClient<C> {
         self.client.get_balance(address, self.denom()?).await
     }
 
-    pub async fn get_contract_settings(&self) -> Result<ContractSettingsParams, NymdError>
+    pub async fn get_contract_settings(&self) -> Result<ContractStateParams, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -717,14 +717,14 @@ impl<C> NymdClient<C> {
 
     pub async fn update_contract_settings(
         &self,
-        new_params: ContractSettingsParams,
+        new_params: ContractStateParams,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
         let fee = self.get_fee(Operation::UpdateStateParams);
 
-        let req = ExecuteMsg::UpdateContractSettings(new_params);
+        let req = ExecuteMsg::UpdateContractStateParams(new_params);
         self.client
             .execute(
                 self.address(),

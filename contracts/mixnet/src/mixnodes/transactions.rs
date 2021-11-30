@@ -31,7 +31,7 @@ pub(crate) fn try_add_mixnode(
         }
     }
 
-    let minimum_bond = mixnet_params_storage::CONTRACT_SETTINGS
+    let minimum_bond = mixnet_params_storage::CONTRACT_STATE
         .load(deps.storage)?
         .params
         .minimum_mixnode_bond;

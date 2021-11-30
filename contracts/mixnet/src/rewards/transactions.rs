@@ -6,12 +6,12 @@ use crate::delegations::storage as delegations_storage;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
+use crate::rewards::helpers;
 use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
 use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
 use mixnet_contract::{
-    IdentityKey, IdentityKeyRef, PendingDelegatorRewarding, RewardingResult, RewardingStatus,
-    MIXNODE_DELEGATORS_PAGE_LIMIT,
+    IdentityKey, RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 
 #[derive(Debug)]
@@ -189,49 +189,6 @@ fn reward_mix_delegators(
     })
 }
 
-fn update_post_rewarding_storage(
-    storage: &mut dyn Storage,
-    mix_identity: IdentityKeyRef,
-    operator_reward: Uint128,
-    delegators_reward: Uint128,
-) -> Result<(), ContractError> {
-    if operator_reward == Uint128::zero() && delegators_reward == Uint128::zero() {
-        return Ok(());
-    }
-
-    // update bond
-    if operator_reward > Uint128::zero() {
-        mixnodes_storage::mixnodes().update(storage, &mix_identity, |current_bond| {
-            match current_bond {
-                None => Err(ContractError::MixNodeBondNotFound {
-                    identity: mix_identity.to_string(),
-                }),
-                Some(mut mixnode_bond) => {
-                    mixnode_bond.bond_amount.amount += operator_reward;
-                    Ok(mixnode_bond)
-                }
-            }
-        })?;
-    }
-
-    // update total_delegation
-    if delegators_reward > Uint128::zero() {
-        mixnodes_storage::TOTAL_DELEGATION.update(storage, &mix_identity, |current_total| {
-            match current_total {
-                None => Err(ContractError::MixNodeBondNotFound {
-                    identity: mix_identity.to_string(),
-                }),
-                Some(current_total) => Ok(current_total + delegators_reward),
-            }
-        })?;
-    }
-
-    // update reward pool
-    storage::decr_reward_pool(storage, operator_reward + delegators_reward)?;
-
-    Ok(())
-}
-
 pub(crate) fn try_reward_next_mixnode_delegators(
     deps: DepsMut,
     info: MessageInfo,
@@ -265,7 +222,7 @@ pub(crate) fn try_reward_next_mixnode_delegators(
                 next_page_info.rewarding_params,
             )?;
 
-            update_post_rewarding_storage(
+            helpers::update_post_rewarding_storage(
                 deps.storage,
                 &mix_identity,
                 Uint128::zero(),
@@ -275,35 +232,21 @@ pub(crate) fn try_reward_next_mixnode_delegators(
             let mut rewarding_results = next_page_info.running_results;
             rewarding_results.total_delegator_reward += delegation_rewarding_result.total_rewarded;
 
-            let mut attributes = vec![(
-                "current round delegation increase",
-                delegation_rewarding_result.total_rewarded.to_string(),
-            )];
+            let round_increase = delegation_rewarding_result.total_rewarded.to_string();
+            let more_delegators = delegation_rewarding_result.start_next.is_some();
 
-            // there are even more delegators to reward
-            if let Some(next_start) = delegation_rewarding_result.start_next {
-                attributes.push(("more delegators to reward", "true".to_owned()));
+            helpers::update_rewarding_status(
+                deps.storage,
+                rewarding_interval_nonce,
+                mix_identity,
+                rewarding_results,
+                delegation_rewarding_result.start_next,
+                next_page_info.rewarding_params,
+            )?;
 
-                storage::REWARDING_STATUS.save(
-                    deps.storage,
-                    (rewarding_interval_nonce.into(), mix_identity),
-                    &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
-                        running_results: rewarding_results,
-                        next_start,
-                        rewarding_params: next_page_info.rewarding_params,
-                    }),
-                )?;
-            } else {
-                attributes.push(("more delegators to reward", "false".to_owned()));
-
-                storage::REWARDING_STATUS.save(
-                    deps.storage,
-                    (rewarding_interval_nonce.into(), mix_identity),
-                    &RewardingStatus::Complete(rewarding_results),
-                )?;
-            }
-
-            Ok(Response::new().add_attributes(attributes))
+            Ok(Response::new()
+                .add_attribute("current round delegation increase", round_increase)
+                .add_attribute("more delegators to reward", more_delegators.to_string()))
         }
     }
 }
@@ -369,7 +312,7 @@ pub(crate) fn try_reward_mixnode(
         let delegation_rewarding_result =
             reward_mix_delegators(deps.storage, mix_identity.clone(), None, delegator_params)?;
 
-        update_post_rewarding_storage(
+        helpers::update_post_rewarding_storage(
             deps.storage,
             &mix_identity,
             operator_reward,
@@ -382,26 +325,16 @@ pub(crate) fn try_reward_mixnode(
         };
 
         total_delegation_increase = rewarding_results.total_delegator_reward;
+        more_delegators = delegation_rewarding_result.start_next.is_some();
 
-        if let Some(next_start) = delegation_rewarding_result.start_next {
-            more_delegators = true;
-
-            storage::REWARDING_STATUS.save(
-                deps.storage,
-                (rewarding_interval_nonce.into(), mix_identity),
-                &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
-                    running_results: rewarding_results,
-                    next_start,
-                    rewarding_params: delegator_params,
-                }),
-            )?;
-        } else {
-            storage::REWARDING_STATUS.save(
-                deps.storage,
-                (rewarding_interval_nonce.into(), mix_identity),
-                &RewardingStatus::Complete(rewarding_results),
-            )?;
-        }
+        helpers::update_rewarding_status(
+            deps.storage,
+            rewarding_interval_nonce,
+            mix_identity,
+            rewarding_results,
+            delegation_rewarding_result.start_next,
+            delegator_params,
+        )?;
     } else {
         // node is not eligible for rewarding, so we're done immediately
         storage::REWARDING_STATUS.save(

@@ -24,7 +24,7 @@ pub(crate) fn ensure_no_existing_bond(
     if gateways_storage::gateways()
         .idx
         .owner
-        .item(storage, sender.clone())?
+        .item(storage, sender)?
         .is_some()
     {
         return Err(ContractError::AlreadyOwnsGateway);

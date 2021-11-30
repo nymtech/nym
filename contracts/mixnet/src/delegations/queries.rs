@@ -85,7 +85,7 @@ pub(crate) fn query_mixnode_delegation(
 
     storage::delegations()
         .may_load(deps.storage, storage_key)?
-        .ok_or_else(|| ContractError::NoMixnodeDelegationFound {
+        .ok_or(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
             address: validated_delegator,
         })

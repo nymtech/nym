@@ -11,6 +11,7 @@ use tokio::sync::RwLock;
 pub async fn bond_gateway(
   gateway: Gateway,
   bond: Coin,
+  owner_signature: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), String> {
   let r_state = state.read().await;
@@ -19,7 +20,7 @@ pub async fn bond_gateway(
     Err(e) => return Err(format_err!(e)),
   };
   let client = r_state.client()?;
-  match client.bond_gateway(gateway, bond).await {
+  match client.bond_gateway(gateway, owner_signature, bond).await {
     Ok(_result) => Ok(()),
     Err(e) => Err(format_err!(e)),
   }
@@ -48,6 +49,7 @@ pub async fn unbond_mixnode(state: tauri::State<'_, Arc<RwLock<State>>>) -> Resu
 #[tauri::command]
 pub async fn bond_mixnode(
   mixnode: MixNode,
+  owner_signature: String,
   bond: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), String> {
@@ -57,7 +59,7 @@ pub async fn bond_mixnode(
     Err(e) => return Err(format_err!(e)),
   };
   let client = r_state.client()?;
-  match client.bond_mixnode(mixnode, bond).await {
+  match client.bond_mixnode(mixnode, owner_signature, bond).await {
     Ok(_result) => Ok(()),
     Err(e) => Err(format_err!(e)),
   }

@@ -44,7 +44,7 @@ pub mod wallet;
 #[derive(Debug)]
 pub struct NymdClient<C> {
     client: C,
-    contract_address: Option<AccountId>,
+    mixnet_contract_address: Option<AccountId>,
     client_address: Option<Vec<AccountId>>,
     gas_price: GasPrice,
     custom_gas_limits: HashMap<Operation, Gas>,
@@ -53,14 +53,14 @@ pub struct NymdClient<C> {
 impl NymdClient<QueryNymdClient> {
     pub fn connect<U>(
         endpoint: U,
-        contract_address: AccountId,
+        mixnet_contract_address: AccountId,
     ) -> Result<NymdClient<QueryNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         Ok(NymdClient {
             client: QueryNymdClient::new(endpoint)?,
-            contract_address: Some(contract_address),
+            mixnet_contract_address: Some(mixnet_contract_address),
             client_address: None,
             gas_price: Default::default(),
             custom_gas_limits: Default::default(),
@@ -72,7 +72,7 @@ impl NymdClient<SigningNymdClient> {
     // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
     pub fn connect_with_signer<U>(
         endpoint: U,
-        contract_address: Option<AccountId>,
+        mixnet_contract_address: Option<AccountId>,
         signer: DirectSecp256k1HdWallet,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
     where
@@ -86,7 +86,7 @@ impl NymdClient<SigningNymdClient> {
 
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, signer)?,
-            contract_address,
+            mixnet_contract_address,
             client_address: Some(client_address),
             gas_price: Default::default(),
             custom_gas_limits: Default::default(),
@@ -95,7 +95,7 @@ impl NymdClient<SigningNymdClient> {
 
     pub fn connect_with_mnemonic<U>(
         endpoint: U,
-        contract_address: Option<AccountId>,
+        mixnet_contract_address: Option<AccountId>,
         mnemonic: bip39::Mnemonic,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
     where
@@ -110,7 +110,7 @@ impl NymdClient<SigningNymdClient> {
 
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, wallet)?,
-            contract_address,
+            mixnet_contract_address,
             client_address: Some(client_address),
             gas_price: Default::default(),
             custom_gas_limits: Default::default(),
@@ -135,15 +135,15 @@ impl<C> NymdClient<C> {
         self.custom_gas_limits.clone()
     }
 
-    pub fn contract_address(&self) -> Result<&AccountId, NymdError> {
-        self.contract_address
+    pub fn mixnet_contract_address(&self) -> Result<&AccountId, NymdError> {
+        self.mixnet_contract_address
             .as_ref()
             .ok_or(NymdError::NoContractAddressAvailable)
     }
 
     // now the question is as follows: will denom always be in the format of `u{prefix}`?
     pub fn denom(&self) -> Result<Denom, NymdError> {
-        Ok(format!("u{}", self.contract_address()?.prefix())
+        Ok(format!("u{}", self.mixnet_contract_address()?.prefix())
             .parse()
             .unwrap())
     }
@@ -214,7 +214,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::StateParams {};
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -224,7 +224,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetContractVersion {};
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -236,7 +236,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::CurrentRewardingInterval {};
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -253,7 +253,7 @@ impl<C> NymdClient<C> {
             rewarding_interval_nonce,
         };
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -263,7 +263,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::LayerDistribution {};
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -273,7 +273,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetRewardPool {};
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -283,7 +283,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetCirculatingSupply {};
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -293,7 +293,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetSybilResistancePercent {};
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -303,7 +303,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetEpochRewardPercent {};
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -317,7 +317,7 @@ impl<C> NymdClient<C> {
         };
         let response: MixOwnershipResponse = self
             .client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await?;
         Ok(response.mixnode)
     }
@@ -332,7 +332,7 @@ impl<C> NymdClient<C> {
         };
         let response: GatewayOwnershipResponse = self
             .client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await?;
         Ok(response.gateway)
     }
@@ -350,7 +350,7 @@ impl<C> NymdClient<C> {
             limit: page_limit,
         };
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -367,7 +367,7 @@ impl<C> NymdClient<C> {
             limit: page_limit,
         };
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -387,7 +387,7 @@ impl<C> NymdClient<C> {
             limit: page_limit,
         };
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -405,7 +405,7 @@ impl<C> NymdClient<C> {
             limit: page_limit,
         };
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -425,7 +425,7 @@ impl<C> NymdClient<C> {
             limit: page_limit,
         };
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -443,7 +443,7 @@ impl<C> NymdClient<C> {
             delegator: delegator.to_string(),
         };
         self.client
-            .query_contract_smart(self.contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
     }
 
@@ -591,7 +591,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.contract_address()?,
+                self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Bonding mixnode from rust!",
@@ -611,7 +611,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.contract_address()?,
+                self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Unbonding mixnode from rust!",
@@ -637,7 +637,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.contract_address()?,
+                self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Delegating to mixnode from rust!",
@@ -662,7 +662,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.contract_address()?,
+                self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Removing mixnode delegation from rust!",
@@ -686,7 +686,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.contract_address()?,
+                self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Bonding gateway from rust!",
@@ -706,7 +706,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.contract_address()?,
+                self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Unbonding gateway from rust!",
@@ -728,7 +728,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.contract_address()?,
+                self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Updating contract state from rust!",
@@ -752,7 +752,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.contract_address()?,
+                self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Beginning mixnode rewarding procedure",
@@ -776,7 +776,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.contract_address()?,
+                self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Finishing mixnode rewarding procedure",

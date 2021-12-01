@@ -100,7 +100,7 @@ impl ERC20Bridge {
         credential: &TokenCredential,
     ) -> Result<(), RequestHandlingError> {
         // It's ok to unwrap here, as the cosmos contract and denom are set correctly
-        let contract_address = self.nymd_client.contract_address().unwrap();
+        let contract_address = self.nymd_client.mixnet_contract_address().unwrap();
         let coin = CosmosCoin {
             denom: Denom::from_str(DENOM).unwrap(),
             amount: Decimal::from(100000u64),

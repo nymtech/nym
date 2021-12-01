@@ -1197,7 +1197,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("d1", &[coin(8000_000000, DENOM)]),
+            mock_info("alice_d1", &[coin(8000_000000, DENOM)]),
             "alice".to_string(),
         )
         .unwrap();
@@ -1205,7 +1205,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("d2", &[coin(2000_000000, DENOM)]),
+            mock_info("alice_d2", &[coin(2000_000000, DENOM)]),
             "alice".to_string(),
         )
         .unwrap();

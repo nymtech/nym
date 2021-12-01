@@ -10,7 +10,7 @@
     "tauri:dev": "yarn tauri dev",
     "tauri:build": "yarn tauri build",
     "dev": "yarn run-s webpack:dev tauri:dev",
-    "build:prod": "run-s webpack:prodbuild tauri:build"
+    "build:prod": "run-s webpack:prod tauri:build"
   },
   "dependencies": {
     "@babel/preset-typescript": "^7.15.0",

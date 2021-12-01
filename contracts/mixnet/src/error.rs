@@ -104,4 +104,13 @@ pub enum ContractError {
 
     #[error("Proxy address mismatch, expected {existing}, got {incoming}")]
     ProxyMismatch { existing: String, incoming: String },
+
+    #[error("Failed to recover ed25519 public key from its base58 representation - {0}")]
+    MalformedEd25519IdentityKey(String),
+
+    #[error("Failed to recover ed25519 signature from its base58 representation - {0}")]
+    MalformedEd25519Signature(String),
+
+    #[error("Provided ed25519 signature did not verify correctly")]
+    InvalidEd25519Signature,
 }

@@ -15,6 +15,7 @@ pub struct InstantiateMsg {}
 pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
+        address_signature: String,
     },
     UnbondMixnode {},
     BondGateway {

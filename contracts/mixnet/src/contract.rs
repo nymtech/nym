@@ -89,9 +89,16 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::BondMixnode { mix_node } => {
-            crate::mixnodes::transactions::try_add_mixnode(deps, env, info, mix_node)
-        }
+        ExecuteMsg::BondMixnode {
+            mix_node,
+            address_signature,
+        } => crate::mixnodes::transactions::try_add_mixnode(
+            deps,
+            env,
+            info,
+            mix_node,
+            address_signature,
+        ),
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, info)
         }

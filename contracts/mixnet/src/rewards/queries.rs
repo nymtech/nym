@@ -33,20 +33,18 @@ pub(crate) mod tests {
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use mixnet_contract::MixNode;
 
     #[cfg(test)]
     mod querying_for_rewarding_status {
         use super::storage;
         use super::*;
         use crate::delegations::transactions::try_delegate_to_mixnode;
-        use crate::mixnodes::transactions::try_add_mixnode;
         use crate::rewards::transactions::{
             try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode_v2,
             try_reward_next_mixnode_delegators_v2,
         };
         use config::defaults::DENOM;
-        use cosmwasm_std::coin;
+        use cosmwasm_std::{coin, Addr};
         use mixnet_contract::{RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT};
 
         #[test]
@@ -98,17 +96,12 @@ pub(crate) mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
-            let node_identity = "bobsnode".to_string();
-            try_add_mixnode(
+            let node_owner: Addr = Addr::unchecked("bob");
+            let node_identity = test_helpers::add_mixnode(
+                node_owner.as_str(),
+                test_helpers::good_mixnode_bond(),
                 deps.as_mut(),
-                env.clone(),
-                mock_info("bob", &test_helpers::good_mixnode_bond()),
-                MixNode {
-                    identity_key: node_identity.clone(),
-                    ..test_helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
+            );
 
             env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
@@ -143,18 +136,12 @@ pub(crate) mod tests {
             }
 
             // with multiple pages
-
-            let node_identity = "alicesnode".to_string();
-            try_add_mixnode(
+            let node_owner: Addr = Addr::unchecked("alice");
+            let node_identity = test_helpers::add_mixnode(
+                node_owner.as_str(),
+                test_helpers::good_mixnode_bond(),
                 deps.as_mut(),
-                env.clone(),
-                mock_info("alice", &test_helpers::good_mixnode_bond()),
-                MixNode {
-                    identity_key: node_identity.clone(),
-                    ..test_helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
+            );
 
             for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT + 123 {
                 try_delegate_to_mixnode(
@@ -220,17 +207,12 @@ pub(crate) mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
-            let node_identity = "bobsnode".to_string();
-            try_add_mixnode(
+            let node_owner: Addr = Addr::unchecked("bob");
+            let node_identity = test_helpers::add_mixnode(
+                node_owner.as_str(),
+                test_helpers::good_mixnode_bond(),
                 deps.as_mut(),
-                env.clone(),
-                mock_info("bob", &test_helpers::good_mixnode_bond()),
-                MixNode {
-                    identity_key: node_identity.clone(),
-                    ..test_helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
+            );
 
             for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT + 123 {
                 try_delegate_to_mixnode(

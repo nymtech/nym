@@ -139,10 +139,9 @@ pub(crate) fn read_mixnode_bond(
 mod tests {
     use super::super::storage;
     use super::*;
-    use crate::mixnodes::transactions::try_add_mixnode;
     use crate::support::tests::test_helpers;
     use config::defaults::DENOM;
-    use cosmwasm_std::testing::{mock_env, mock_info, MockStorage};
+    use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::{coin, Addr, Uint128};
     use mixnet_contract::IdentityKey;
     use mixnet_contract::MixNode;
@@ -163,28 +162,36 @@ mod tests {
 
     #[test]
     fn reading_mixnode_bond() {
-        let mut deps = test_helpers::init_contract();
+        let mut mock_storage = MockStorage::new();
         let node_owner: Addr = Addr::unchecked("node-owner");
         let node_identity: IdentityKey = "nodeidentity".into();
 
         // produces a None if target mixnode doesn't exist
-        let res = storage::read_mixnode_bond(deps.as_ref().storage, &node_identity).unwrap();
+        let res = storage::read_mixnode_bond(&mock_storage, &node_identity).unwrap();
         assert!(res.is_none());
 
         // returns appropriate value otherwise
         let bond_value = 1000000000;
 
-        let mixnode = MixNode {
-            identity_key: node_identity.clone(),
-            ..test_helpers::mix_node_fixture()
+        let mixnode_bond = StoredMixnodeBond {
+            bond_amount: coin(bond_value, DENOM),
+            owner: node_owner.clone(),
+            layer: Layer::One,
+            block_height: 12_345,
+            mix_node: MixNode {
+                identity_key: node_identity.clone(),
+                ..test_helpers::mix_node_fixture()
+            },
+            profit_margin_percent: None,
         };
 
-        let info = mock_info(node_owner.as_str(), &vec![coin(bond_value, DENOM)]);
-        try_add_mixnode(deps.as_mut(), mock_env(), info, mixnode).unwrap();
+        storage::mixnodes()
+            .save(&mut mock_storage, &node_identity, &mixnode_bond)
+            .unwrap();
 
         assert_eq!(
             Uint128::new(bond_value),
-            storage::read_mixnode_bond(deps.as_ref().storage, node_identity.as_str())
+            storage::read_mixnode_bond(&mock_storage, node_identity.as_str())
                 .unwrap()
                 .unwrap()
                 .bond_amount

@@ -134,7 +134,6 @@ pub mod tests {
     use cosmwasm_std::{coins, BankMsg, Response};
     use cosmwasm_std::{from_binary, Addr, Uint128};
     use mixnet_contract::Gateway;
-    use mixnet_contract::MixNode;
     use mixnet_contract::{ExecuteMsg, PagedGatewayResponse, QueryMsg};
 
     #[test]
@@ -210,14 +209,11 @@ pub mod tests {
         assert_eq!(Err(ContractError::AlreadyOwnsGateway), execute_response);
 
         // bonding fails if the user already owns a mixnode
-        let info = mock_info("mixnode-owner", &test_helpers::good_mixnode_bond());
-        let msg = ExecuteMsg::BondMixnode {
-            mix_node: MixNode {
-                identity_key: "ownersmix".into(),
-                ..test_helpers::mix_node_fixture()
-            },
-        };
-        execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        test_helpers::add_mixnode(
+            "mixnode-owner",
+            test_helpers::good_mixnode_bond(),
+            deps.as_mut(),
+        );
 
         let info = mock_info("mixnode-owner", &test_helpers::good_gateway_bond());
         let (msg, _) = test_helpers::valid_bond_gateway_msg("mixnode-owner");
@@ -316,7 +312,7 @@ pub mod tests {
         );
 
         let info = mock_info("gateway-owner", &test_helpers::good_gateway_bond());
-        let (msg, _) = test_helpers::valid_bond_gateway_msg("mixnode-owner");
+        let (msg, _) = test_helpers::valid_bond_gateway_msg("gateway-owner");
 
         let res = execute(deps.as_mut(), mock_env(), info, msg);
         assert_eq!(Err(ContractError::AlreadyOwnsGateway), res);

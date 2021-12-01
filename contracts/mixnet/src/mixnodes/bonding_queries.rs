@@ -54,10 +54,10 @@ pub fn query_owns_mixnode(deps: Deps, address: String) -> StdResult<MixOwnership
 pub(crate) mod tests {
     use super::storage;
     use super::*;
+    use crate::contract::execute;
     use crate::mixnodes::storage::BOND_PAGE_DEFAULT_LIMIT;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use mixnet_contract::MixNode;
 
     #[test]
     fn mixnodes_empty_on_init() {
@@ -112,14 +112,25 @@ pub(crate) mod tests {
 
     #[test]
     fn pagination_works() {
-        let addr1 = "nym100";
-        let addr2 = "nym101";
-        let addr3 = "nym102";
-        let addr4 = "nym103";
+        // prepare 4 messages and identities that are sorted by the generated identities
+        // (because we query them in an ascended manner)
+        let mut exec_data = (0..4)
+            .map(|i| {
+                let sender = format!("nym-addr{}", i);
+                let (msg, identity) = test_helpers::valid_bond_mixnode_msg(&sender);
+                (msg, (sender, identity))
+            })
+            .collect::<Vec<_>>();
+        exec_data.sort_by(|(_, (_, id1)), (_, (_, id2))| id1.cmp(id2));
+        let (messages, sender_identities): (Vec<_>, Vec<_>) = exec_data.into_iter().unzip();
 
         let mut deps = test_helpers::init_contract();
-        let _identity1 =
-            test_helpers::add_mixnode(&addr1, test_helpers::good_mixnode_bond(), deps.as_mut());
+
+        let info = mock_info(
+            &sender_identities[0].0.clone(),
+            &test_helpers::good_mixnode_bond(),
+        );
+        execute(deps.as_mut(), mock_env(), info, messages[0].clone()).unwrap();
 
         let per_page = 2;
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
@@ -128,25 +139,31 @@ pub(crate) mod tests {
         assert_eq!(1, page1.nodes.len());
 
         // save another
-        let identity2 =
-            test_helpers::add_mixnode(&addr2, test_helpers::good_mixnode_bond(), deps.as_mut());
+        let info = mock_info(
+            &sender_identities[1].0.clone(),
+            &test_helpers::good_mixnode_bond(),
+        );
+        execute(deps.as_mut(), mock_env(), info, messages[1].clone()).unwrap();
 
         // page1 should have 2 results on it
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.nodes.len());
 
-        let _identity3 =
-            test_helpers::add_mixnode(&addr3, test_helpers::good_mixnode_bond(), deps.as_mut());
+        let info = mock_info(
+            &sender_identities[2].0.clone(),
+            &test_helpers::good_mixnode_bond(),
+        );
+        execute(deps.as_mut(), mock_env(), info, messages[2].clone()).unwrap();
 
         // page1 still has 2 results
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.nodes.len());
 
         // retrieving the next page should start after the last key on this page
-        let start_after = identity2.clone();
+        let start_after = page1.start_next_after.unwrap();
         let page2 = query_mixnodes_paged(
             deps.as_ref(),
-            Option::from(start_after),
+            Option::from(start_after.clone()),
             Option::from(per_page),
         )
         .unwrap();
@@ -154,9 +171,12 @@ pub(crate) mod tests {
         assert_eq!(1, page2.nodes.len());
 
         // save another one
-        test_helpers::add_mixnode(&addr4, test_helpers::good_mixnode_bond(), deps.as_mut());
+        let info = mock_info(
+            &sender_identities[3].0.clone(),
+            &test_helpers::good_mixnode_bond(),
+        );
+        execute(deps.as_mut(), mock_env(), info, messages[3].clone()).unwrap();
 
-        let start_after = identity2;
         let page2 = query_mixnodes_paged(
             deps.as_ref(),
             Option::from(start_after),
@@ -177,33 +197,13 @@ pub(crate) mod tests {
         assert!(!res.has_node);
 
         // mixnode was added to "bob", "fred" still does not own one
-        let node = MixNode {
-            identity_key: "bobsnode".into(),
-            ..test_helpers::mix_node_fixture()
-        };
-        crate::mixnodes::transactions::try_add_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("bob", &test_helpers::good_mixnode_bond()),
-            node,
-        )
-        .unwrap();
+        test_helpers::add_mixnode("bob", test_helpers::good_mixnode_bond(), deps.as_mut());
 
         let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(!res.has_node);
 
         // "fred" now owns a mixnode!
-        let node = MixNode {
-            identity_key: "fredsnode".into(),
-            ..test_helpers::mix_node_fixture()
-        };
-        crate::mixnodes::transactions::try_add_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("fred", &test_helpers::good_mixnode_bond()),
-            node,
-        )
-        .unwrap();
+        test_helpers::add_mixnode("fred", test_helpers::good_mixnode_bond(), deps.as_mut());
 
         let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.has_node);

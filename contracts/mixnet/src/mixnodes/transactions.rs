@@ -597,8 +597,17 @@ pub mod tests {
             test_helpers::add_mixnode("bob", test_helpers::good_mixnode_bond(), deps.as_mut());
 
         let bonded_mix_nodes = test_helpers::get_mix_nodes(&mut deps);
-        let alice_node = bonded_mix_nodes.get(0).unwrap().clone();
-        let bob_node = bonded_mix_nodes.get(1).unwrap().clone();
+        let alice_node = bonded_mix_nodes
+            .iter()
+            .find(|m| m.owner == "alice")
+            .cloned()
+            .unwrap();
+        let bob_node = bonded_mix_nodes
+            .iter()
+            .find(|m| m.owner == "bob")
+            .cloned()
+            .unwrap();
+
         assert_eq!(alice_node.mix_node.identity_key, alice_identity);
         assert_eq!(alice_node.layer, Layer::One);
         assert_eq!(bob_node.mix_node.identity_key, bob_identity);

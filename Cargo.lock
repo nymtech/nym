@@ -3623,6 +3623,7 @@ dependencies = [
  "rocket",
  "serde",
  "serial_test",
+ "subtle-encoding",
  "tokio",
  "tokio-util",
  "toml",

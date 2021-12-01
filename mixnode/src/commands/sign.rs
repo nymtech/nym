@@ -1,14 +1,16 @@
 use crate::commands::*;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
 use clap::{App, Arg, ArgMatches};
-use colored::*;
+use colored::Colorize;
 use config::defaults::BECH32_PREFIX;
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
 use std::process;
+use subtle_encoding::bech32;
 
 const SIGN_TEXT_ARG_NAME: &str = "text";
+const SIGN_ADDRESS_ARG_NAME: &str = "address";
 
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("sign")
@@ -21,11 +23,18 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
                 .required(true),
         )
         .arg(
+            Arg::with_name(SIGN_ADDRESS_ARG_NAME)
+                .long(SIGN_ADDRESS_ARG_NAME)
+                .help("Signs your blockchain address with your identity key")
+                .takes_value(true)
+                .conflicts_with(SIGN_TEXT_ARG_NAME),
+        )
+        .arg(
             Arg::with_name(SIGN_TEXT_ARG_NAME)
                 .long(SIGN_TEXT_ARG_NAME)
-                .help("The text to sign")
+                .help("Signs an arbitrary piece of text with your identity key")
                 .takes_value(true)
-                .required(true),
+                .conflicts_with(SIGN_ADDRESS_ARG_NAME),
         )
 }
 
@@ -38,9 +47,55 @@ fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
     identity_keypair
 }
 
+// we do tiny bit of sanity check validation
+fn sign_address(private_key: &identity::PrivateKey, raw_address: &str) {
+    let trimmed = raw_address.trim();
+
+    // try to decode the address (to make sure it's a valid bech32 encoding)
+    let (prefix, _) = match bech32::decode(trimmed) {
+        Ok(decoded) => decoded,
+        Err(err) => {
+            let error_message =
+                format!("Your wallet address failed to get decoded! Are you sure you copied it correctly?  The error was: {}", err).red();
+            println!("{}", error_message);
+            process::exit(1);
+        }
+    };
+
+    if prefix != BECH32_PREFIX {
+        let error_message =
+            format!("Your wallet address must start with a '{}'", BECH32_PREFIX).red();
+        println!("{}", error_message);
+        process::exit(1);
+    }
+
+    let signature_bytes = private_key.sign(trimmed.as_ref()).to_bytes();
+    let signature = bs58::encode(signature_bytes).into_string();
+
+    println!(
+        "The base58-encoded signature on '{}' is: {}",
+        trimmed, signature
+    )
+}
+
+// we just sign whatever the user has provided
+fn sign_text(private_key: &identity::PrivateKey, text: &str) {
+    println!(
+        "Signing the text {:?} using your mixnode's Ed25519 identity key...",
+        text
+    );
+
+    let signature_bytes = private_key.sign(text.as_ref()).to_bytes();
+    let signature = bs58::encode(signature_bytes).into_string();
+
+    println!(
+        "The base58-encoded signature on '{}' is: {}",
+        text, signature
+    )
+}
+
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of(ID_ARG_NAME).unwrap();
-    let text = matches.value_of(SIGN_TEXT_ARG_NAME).unwrap();
 
     let config = match Config::load_from_file(Some(id)) {
         Ok(cfg) => cfg,
@@ -51,48 +106,17 @@ pub fn execute(matches: &ArgMatches) {
     };
     let pathfinder = MixNodePathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);
-    let signature_bytes = identity_keypair
-        .private_key()
-        .sign(text.as_ref())
-        .to_bytes();
 
-    let signature = bs58::encode(signature_bytes).into_string();
-
-    let channel_name = "https://t.me/nympunkbot".bright_cyan();
-
-    // the text should consists of two parts, telegram handle and wallet address - we can perform some very basic validation here already
-    let split = text.split(' ').collect::<Vec<_>>();
-    if split.len() != 2 {
-        let error_message = format!(r#"You haven't provided correct sign arguments. You need to provide --text "@your_telegram_handle your_{}_wallet_address" with the quotes and space in between"#, BECH32_PREFIX).red();
+    if let Some(text) = matches.value_of(SIGN_TEXT_ARG_NAME) {
+        sign_text(identity_keypair.private_key(), text)
+    } else if let Some(address) = matches.value_of(SIGN_ADDRESS_ARG_NAME) {
+        sign_address(identity_keypair.private_key(), address)
+    } else {
+        let error_message = format!(
+            "You must specify either '--{}' or '--{}' argument!",
+            SIGN_TEXT_ARG_NAME, SIGN_ADDRESS_ARG_NAME
+        )
+        .red();
         println!("{}", error_message);
-        process::exit(1);
     }
-
-    if !split[0].starts_with('@') {
-        let error_message = "Your telegram handle should start with a '@'!".red();
-        println!("{}", error_message);
-        process::exit(1);
-    }
-
-    if !split[1].starts_with(BECH32_PREFIX) {
-        let error_message =
-            format!("Your wallet address must start with a '{}'", BECH32_PREFIX).red();
-        println!("{}", error_message);
-        process::exit(1);
-    }
-
-    println!(
-        "Signing the text {:?} using your mixnode's Ed25519 identity key...",
-        text
-    );
-    println!();
-    println!("Signature is: {}", signature);
-    println!();
-    println!("You can claim your mixnode in Telegram by talking to our bot. To do so:");
-    println!();
-    println!("* go to the '{}' channel", channel_name);
-    println!("* copy the following line of text, and paste it into the channel");
-    println!();
-    println!("/transfer {} {}", split[1], signature);
-    println!();
 }

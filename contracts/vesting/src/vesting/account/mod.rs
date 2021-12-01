@@ -149,6 +149,10 @@ impl Account {
             .collect::<Vec<u64>>()
     }
 
+    pub fn any_delegation_for_mix(&self, mix: &str, storage: &dyn Storage) -> bool {
+        !self.delegation_keys_for_mix(mix, storage).is_empty()
+    }
+
     pub fn delegations_for_mix(
         &self,
         mix: IdentityKey,

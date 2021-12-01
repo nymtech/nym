@@ -4,7 +4,6 @@
 use crate::mixnode::NodeRewardParams;
 use crate::ContractSettingsParams;
 use crate::{Gateway, IdentityKey, MixNode};
-use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -57,18 +56,18 @@ pub enum ExecuteMsg {
     },
     DelegateToMixnodeOnBehalf {
         mix_identity: IdentityKey,
-        delegate: Addr,
+        delegate: String,
     },
     UndelegateFromMixnodeOnBehalf {
         mix_identity: IdentityKey,
-        delegate: Addr,
+        delegate: String,
     },
     BondMixnodeOnBehalf {
         mix_node: MixNode,
-        owner: Addr,
+        owner: String,
     },
     UnbondMixnodeOnBehalf {
-        owner: Addr,
+        owner: String,
     },
 }
 

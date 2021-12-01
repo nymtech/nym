@@ -14,6 +14,7 @@ pub trait DelegatingAccount {
     fn try_undelegate_from_mixnode(
         &self,
         mix_identity: IdentityKey,
+        storage: &dyn Storage,
     ) -> Result<Response, ContractError>;
 
     // track_delegation performs internal vesting accounting necessary when

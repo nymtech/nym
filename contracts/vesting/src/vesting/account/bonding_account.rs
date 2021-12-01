@@ -1,7 +1,7 @@
 use super::BondData;
 use crate::errors::ContractError;
 use crate::traits::BondingAccount;
-use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
+use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS};
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 
@@ -37,7 +37,7 @@ impl BondingAccount for Account {
 
         let msg = MixnetExecuteMsg::BondMixnodeOnBehalf {
             mix_node,
-            owner: self.address(),
+            owner: self.address().into_string(),
         };
 
         let new_balance = Uint128::new(current_balance.u128() - bond.amount.u128());
@@ -52,22 +52,22 @@ impl BondingAccount for Account {
             .add_message(bond_mixnode_mag))
     }
 
-    fn try_unbond_mixnode(&self) -> Result<Response, ContractError> {
+    fn try_unbond_mixnode(&self, storage: &dyn Storage) -> Result<Response, ContractError> {
         let msg = MixnetExecuteMsg::UnbondMixnodeOnBehalf {
-            owner: self.address(),
+            owner: self.address().into_string(),
         };
-        let unbond_mixnode = wasm_execute(
-            DEFAULT_MIXNET_CONTRACT_ADDRESS,
-            &msg,
-            vec![Coin {
-                amount: Uint128::new(0),
-                denom: DENOM.to_string(),
-            }],
-        )?;
 
-        Ok(Response::new()
-            .add_attribute("action", "unbond mixnode on behalf")
-            .add_message(unbond_mixnode))
+        if let Some(_bond) = self.load_bond(storage)? {
+            let unbond_msg = wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![])?;
+
+            Ok(Response::new()
+                .add_attribute("action", "unbond mixnode on behalf")
+                .add_message(unbond_msg))
+        } else {
+            Err(ContractError::NoBondFound(
+                self.address.as_str().to_string(),
+            ))
+        }
     }
 
     fn track_unbond(&self, amount: Coin, storage: &mut dyn Storage) -> Result<(), ContractError> {

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::contract::VESTING_CONTRACT_ADDR;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::layer_queries::query_layer_distribution;
@@ -22,9 +21,7 @@ pub fn try_add_mixnode(
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<Response, ContractError> {
-    let owner = info.sender.to_owned();
-
-    _try_add_mixnode(deps, env, mix_node, info.funds[0].clone(), owner, None)
+    _try_add_mixnode(deps, env, mix_node, info.funds[0].clone(), info.sender.as_str(), None)
 }
 
 pub fn try_add_mixnode_on_behalf(
@@ -32,20 +29,15 @@ pub fn try_add_mixnode_on_behalf(
     env: Env,
     info: MessageInfo,
     mix_node: MixNode,
-    owner: Addr,
+    owner: String,
 ) -> Result<Response, ContractError> {
     let proxy = info.sender.to_owned();
-
-    if proxy != VESTING_CONTRACT_ADDR {
-        return Err(ContractError::Unauthorized);
-    }
-
     _try_add_mixnode(
         deps,
         env,
         mix_node,
         info.funds[0].clone(),
-        owner,
+        &owner,
         Some(proxy),
     )
 }
@@ -55,9 +47,10 @@ fn _try_add_mixnode(
     env: Env,
     mix_node: MixNode,
     bond_amount: Coin,
-    owner: Addr,
+    owner: &str,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(owner)?;
     // if the client has an active bonded mixnode or gateway, don't allow bonding
     ensure_no_existing_bond(deps.storage, &owner)?;
 
@@ -104,26 +97,22 @@ fn _try_add_mixnode(
 pub fn try_remove_mixnode_on_behalf(
     deps: DepsMut,
     info: MessageInfo,
-    owner: Addr,
+    owner: String,
 ) -> Result<Response, ContractError> {
     let proxy = info.sender;
-
-    if proxy != VESTING_CONTRACT_ADDR {
-        Err(ContractError::Unauthorized)
-    } else {
-        _try_remove_mixnode(deps, owner, Some(proxy))
-    }
+    _try_remove_mixnode(deps, &owner, Some(proxy))
 }
 
 pub fn try_remove_mixnode(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
-    _try_remove_mixnode(deps, info.sender, None)
+    _try_remove_mixnode(deps, info.sender.as_ref(), None)
 }
 
 pub(crate) fn _try_remove_mixnode(
     deps: DepsMut,
-    owner: Addr,
+    owner: &str,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(owner)?;
     // try to find the node of the sender
     let (raw_identity, mixnode_bond) = match storage::mixnodes()
         .idx

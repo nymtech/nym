@@ -34,4 +34,8 @@ pub enum ContractError {
     NoSuchDelegation(Addr, IdentityKey),
     #[error("Only mixnet contract can perform this operation, got {0}")]
     NotMixnetContract(Addr),
+    #[error("Calculation underflowed")]
+    Underflow,
+    #[error("No bond found for account {0}")]
+    NoBondFound(String)
 }

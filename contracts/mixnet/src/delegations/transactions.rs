@@ -1,7 +1,5 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use crate::contract::VESTING_CONTRACT_ADDR;
 use cosmwasm_std::{
     coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
 };
@@ -51,7 +49,7 @@ pub(crate) fn try_delegate_to_mixnode(
 
     let amount = info.funds[0].amount;
 
-    _try_delegate_to_mixnode(deps, env, mix_identity, &info.sender, amount, None)
+    _try_delegate_to_mixnode(deps, env, mix_identity, info.sender.as_str(), amount, None)
 }
 
 pub(crate) fn try_delegate_to_mixnode_on_behalf(
@@ -59,12 +57,8 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     env: Env,
     info: MessageInfo,
     mix_identity: IdentityKey,
-    delegate: Addr,
+    delegate: String,
 ) -> Result<Response, ContractError> {
-    if info.sender != VESTING_CONTRACT_ADDR {
-        return Err(ContractError::Unauthorized);
-    }
-
     // check if the delegation contains any funds of the appropriate denomination
     validate_delegation_stake(&info.funds)?;
     let amount = info.funds[0].amount;
@@ -83,10 +77,11 @@ pub(crate) fn _try_delegate_to_mixnode(
     deps: DepsMut,
     env: Env,
     mix_identity: IdentityKey,
-    delegate: &Addr,
+    delegate: &str,
     amount: Uint128,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
+    let delegate = deps.api.addr_validate(delegate)?;
     // check if the target node actually exists
     if mixnodes_storage::mixnodes()
         .may_load(deps.storage, &mix_identity)?
@@ -97,7 +92,7 @@ pub(crate) fn _try_delegate_to_mixnode(
         });
     }
 
-    let maybe_proxy_storage = generate_storage_key(delegate, proxy.as_ref());
+    let maybe_proxy_storage = generate_storage_key(&delegate, proxy.as_ref());
     let storage_key = (mix_identity.clone(), maybe_proxy_storage).joined_key();
 
     // update total_delegation of this node
@@ -144,30 +139,27 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     info: MessageInfo,
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
-    _try_remove_delegation_from_mixnode(deps, mix_identity, &info.sender, None)
+    _try_remove_delegation_from_mixnode(deps, mix_identity, info.sender.as_str(), None)
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
     deps: DepsMut,
     info: MessageInfo,
     mix_identity: IdentityKey,
-    delegate: Addr,
+    delegate: String,
 ) -> Result<Response, ContractError> {
-    if info.sender != VESTING_CONTRACT_ADDR {
-        return Err(ContractError::Unauthorized);
-    }
-
     _try_remove_delegation_from_mixnode(deps, mix_identity, &delegate, Some(info.sender))
 }
 
 pub(crate) fn _try_remove_delegation_from_mixnode(
     deps: DepsMut,
     mix_identity: IdentityKey,
-    delegate: &Addr,
+    delegate: &str,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
+    let delegate = deps.api.addr_validate(delegate)?;
     let delegation_map = storage::delegations();
-    let maybe_proxy_storage = generate_storage_key(delegate, proxy.as_ref());
+    let maybe_proxy_storage = generate_storage_key(&delegate, proxy.as_ref());
     let storage_key = (mix_identity.clone(), maybe_proxy_storage).joined_key();
 
     if let Some(old_delegation) = delegation_map.may_load(deps.storage, storage_key.clone())? {
@@ -185,7 +177,7 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
 
         // send delegated funds back to the delegation owner
         let return_tokens = BankMsg::Send {
-            to_address: proxy.as_ref().unwrap_or(delegate).to_string(),
+            to_address: proxy.as_ref().unwrap_or(&delegate).to_string(),
             amount: coins(
                 old_delegation.amount.amount.u128(),
                 old_delegation.amount.denom.clone(),
@@ -225,7 +217,7 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
     } else {
         Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
-            address: delegate.clone(),
+            address: delegate,
         })
     }
 }

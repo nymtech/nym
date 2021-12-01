@@ -580,6 +580,7 @@ impl<C> NymdClient<C> {
     pub async fn bond_mixnode(
         &self,
         mixnode: MixNode,
+        owner_signature: String,
         bond: Coin,
     ) -> Result<ExecuteResult, NymdError>
     where
@@ -587,7 +588,10 @@ impl<C> NymdClient<C> {
     {
         let fee = self.get_fee(Operation::BondMixnode);
 
-        let req = ExecuteMsg::BondMixnode { mix_node: mixnode };
+        let req = ExecuteMsg::BondMixnode {
+            mix_node: mixnode,
+            owner_signature,
+        };
         self.client
             .execute(
                 self.address(),
@@ -675,6 +679,7 @@ impl<C> NymdClient<C> {
     pub async fn bond_gateway(
         &self,
         gateway: Gateway,
+        owner_signature: String,
         bond: Coin,
     ) -> Result<ExecuteResult, NymdError>
     where
@@ -682,7 +687,10 @@ impl<C> NymdClient<C> {
     {
         let fee = self.get_fee(Operation::BondGateway);
 
-        let req = ExecuteMsg::BondGateway { gateway };
+        let req = ExecuteMsg::BondGateway {
+            gateway,
+            owner_signature,
+        };
         self.client
             .execute(
                 self.address(),

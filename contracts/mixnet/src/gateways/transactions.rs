@@ -1,10 +1,13 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use super::storage;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::mixnodes::storage as mixnodes_storage;
+use crate::support::helpers::ensure_no_existing_bond;
 use config::defaults::DENOM;
-use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
-use mixnet_contract::{Gateway, GatewayBond, Layer};
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, StdError, Uint128};
+use mixnet_contract::{Gateway, GatewayBond, IdentityKey, Layer};
 
 pub(crate) fn try_add_gateway(
     deps: DepsMut,
@@ -12,27 +15,12 @@ pub(crate) fn try_add_gateway(
     info: MessageInfo,
     gateway: Gateway,
 ) -> Result<Response, ContractError> {
-    let sender_bytes = info.sender.as_bytes();
-
-    // if the client has an active bonded mixnode, don't allow gateway bonding
-    if mixnodes_storage::mixnodes_owners_read(deps.storage)
-        .may_load(sender_bytes)?
-        .is_some()
-    {
-        return Err(ContractError::AlreadyOwnsMixnode);
-    }
-
-    // if the client has an active bonded gateway, regardless of its identity, don't allow bonding
-    if storage::gateways_owners_read(deps.storage)
-        .may_load(sender_bytes)?
-        .is_some()
-    {
-        return Err(ContractError::AlreadyOwnsGateway);
-    }
+    // if the client has an active bonded mixnode or gateway, don't allow bonding
+    ensure_no_existing_bond(deps.storage, &info.sender)?;
 
     // check if somebody else has already bonded a gateway with this identity
     if let Some(existing_bond) =
-        storage::gateways_read(deps.storage).may_load(gateway.identity_key.as_bytes())?
+        storage::gateways().may_load(deps.storage, &gateway.identity_key)?
     {
         if existing_bond.owner != info.sender {
             return Err(ContractError::DuplicateGateway {
@@ -41,8 +29,10 @@ pub(crate) fn try_add_gateway(
         }
     }
 
-    let minimum_bond =
-        mixnet_params_storage::read_contract_settings_params(deps.storage).minimum_gateway_bond;
+    let minimum_bond = mixnet_params_storage::CONTRACT_SETTINGS
+        .load(deps.storage)?
+        .params
+        .minimum_gateway_bond;
     validate_gateway_bond(&info.funds, minimum_bond)?;
 
     let bond = GatewayBond::new(
@@ -52,9 +42,7 @@ pub(crate) fn try_add_gateway(
         gateway,
     );
 
-    let identity = bond.identity();
-    storage::gateways(deps.storage).save(identity.as_bytes(), &bond)?;
-    storage::gateways_owners(deps.storage).save(sender_bytes, identity)?;
+    storage::gateways().save(deps.storage, bond.identity(), &bond)?;
     mixnet_params_storage::increment_layer_count(deps.storage, Layer::Gateway)?;
 
     Ok(Response::new())
@@ -64,45 +52,38 @@ pub(crate) fn try_remove_gateway(
     deps: DepsMut,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    let sender_bytes = info.sender.as_str().as_bytes();
-
-    // try to find the identity of the sender's node
-    let gateway_identity =
-        match storage::gateways_owners_read(deps.storage).may_load(sender_bytes)? {
-            Some(identity) => identity,
-            None => return Err(ContractError::NoAssociatedGatewayBond { owner: info.sender }),
-        };
-
-    // get the bond, since we found associated identity, the node MUST exist
-    let gateway_bond = storage::gateways_read(deps.storage).load(gateway_identity.as_bytes())?;
+    // try to find the node of the sender
+    let (raw_identity, gateway_bond) = match storage::gateways()
+        .idx
+        .owner
+        .item(deps.storage, info.sender.clone())?
+    {
+        Some(record) => (record.0, record.1),
+        None => return Err(ContractError::NoAssociatedGatewayBond { owner: info.sender }),
+    };
 
     // send bonded funds back to the bond owner
-    let messages = vec![BankMsg::Send {
+    let return_tokens = BankMsg::Send {
         to_address: info.sender.as_str().to_owned(),
         amount: vec![gateway_bond.bond_amount()],
-    }
-    .into()];
+    };
 
-    // remove the bond from the list of bonded gateways
-    storage::gateways(deps.storage).remove(gateway_identity.as_bytes());
-    // remove the node ownership
-    storage::gateways_owners(deps.storage).remove(sender_bytes);
+    // Given that this Vec<u8> came directly from the storage and originated from a valid String before
+    // if this error is ever thrown it implies the entire storage got corrupted.
+    let gateway_identity = IdentityKey::from_utf8(raw_identity)
+        .map_err(|_| StdError::parse_err("IdentityKey", "Storage got corrupted"))?;
+
+    // remove the bond
+    storage::gateways().remove(deps.storage, &gateway_identity)?;
+
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, Layer::Gateway)?;
 
-    // log our actions
-    let attributes = vec![
-        attr("action", "unbond"),
-        attr("address", info.sender),
-        attr("gateway_bond", gateway_bond),
-    ];
-
-    Ok(Response {
-        submessages: Vec::new(),
-        messages,
-        attributes,
-        data: None,
-    })
+    Ok(Response::new()
+        .add_message(return_tokens)
+        .add_attribute("action", "unbond")
+        .add_attribute("address", info.sender)
+        .add_attribute("gateway_bond", gateway_bond.to_string()))
 }
 
 fn validate_gateway_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
@@ -284,8 +265,8 @@ pub mod tests {
         };
 
         // before the execution the node had no associated owner
-        assert!(storage::gateways_owners_read(deps.as_ref().storage)
-            .may_load("gateway-owner".as_bytes())
+        assert!(storage::gateways()
+            .may_load(deps.as_ref().storage, "gateway-owner")
             .unwrap()
             .is_none());
 
@@ -295,9 +276,14 @@ pub mod tests {
 
         assert_eq!(
             "myAwesomeGateway",
-            storage::gateways_owners_read(deps.as_ref().storage)
-                .load("gateway-owner".as_bytes())
+            storage::gateways()
+                .idx
+                .owner
+                .item(deps.as_ref().storage, Addr::unchecked("gateway-owner"))
                 .unwrap()
+                .unwrap()
+                .1
+                .identity()
         );
     }
 
@@ -382,7 +368,7 @@ pub mod tests {
         );
 
         // let's add a node owned by bob
-        test_helpers::add_gateway("bob", test_helpers::good_gateway_bond(), &mut deps);
+        test_helpers::add_gateway("bob", test_helpers::good_gateway_bond(), deps.as_mut());
 
         // attempt to unbond fred's node, which doesn't exist
         let info = mock_info("fred", &[]);
@@ -437,19 +423,16 @@ pub mod tests {
         ];
 
         // we should see a funds transfer from the contract back to fred
-        let expected_messages = vec![BankMsg::Send {
+        let expected_message = BankMsg::Send {
             to_address: String::from(info.sender),
             amount: test_helpers::good_gateway_bond(),
-        }
-        .into()];
-
-        // run the executer and check that we got back the correct results
-        let expected = Response {
-            submessages: Vec::new(),
-            messages: expected_messages,
-            attributes: expected_attributes,
-            data: None,
         };
+
+        // run the executor and check that we got back the correct results
+        let expected = Response::new()
+            .add_attributes(expected_attributes)
+            .add_message(expected_message);
+
         assert_eq!(remove_fred, expected);
 
         // only 1 node now exists, owned by bob:
@@ -473,9 +456,14 @@ pub mod tests {
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(
             "myAwesomeGateway",
-            storage::gateways_owners_read(deps.as_ref().storage)
-                .load("gateway-owner".as_bytes())
+            storage::gateways()
+                .idx
+                .owner
+                .item(deps.as_ref().storage, Addr::unchecked("gateway-owner"))
                 .unwrap()
+                .unwrap()
+                .1
+                .identity()
         );
 
         let info = mock_info("gateway-owner", &[]);
@@ -483,8 +471,10 @@ pub mod tests {
 
         assert!(execute(deps.as_mut(), mock_env(), info, msg).is_ok());
 
-        assert!(storage::gateways_owners_read(deps.as_ref().storage)
-            .may_load("gateway-owner".as_bytes())
+        assert!(storage::gateways()
+            .idx
+            .owner
+            .item(deps.as_ref().storage, Addr::unchecked("gateway-owner"))
             .unwrap()
             .is_none());
 
@@ -500,9 +490,14 @@ pub mod tests {
         assert!(execute(deps.as_mut(), mock_env(), info, msg).is_ok());
         assert_eq!(
             "myAwesomeGateway",
-            storage::gateways_owners_read(deps.as_ref().storage)
-                .load("gateway-owner".as_bytes())
+            storage::gateways()
+                .idx
+                .owner
+                .item(deps.as_ref().storage, Addr::unchecked("gateway-owner"))
                 .unwrap()
+                .unwrap()
+                .1
+                .identity()
         );
     }
 
@@ -514,7 +509,7 @@ pub mod tests {
 
         // you must send at least 100 coins...
         let mut bond = test_helpers::good_gateway_bond();
-        bond[0].amount = INITIAL_GATEWAY_BOND.checked_sub(Uint128(1)).unwrap();
+        bond[0].amount = INITIAL_GATEWAY_BOND.checked_sub(Uint128::new(1)).unwrap();
         let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
         assert_eq!(
             result,
@@ -526,7 +521,7 @@ pub mod tests {
 
         // more than that is still fine
         let mut bond = test_helpers::good_gateway_bond();
-        bond[0].amount = INITIAL_GATEWAY_BOND + Uint128(1);
+        bond[0].amount = INITIAL_GATEWAY_BOND + Uint128::new(1);
         let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
         assert!(result.is_ok());
 

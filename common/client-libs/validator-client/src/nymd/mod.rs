@@ -13,11 +13,11 @@ use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
 use cosmwasm_std::{Coin, Uint128};
 use mixnet_contract::{
-    Addr, ContractSettingsParams, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse,
-    IdentityKey, LayerDistribution, MixNode, MixOwnershipResponse, MixnetContractVersion,
-    MixnodeRewardingStatusResponse, PagedAllDelegationsResponse, PagedGatewayResponse,
-    PagedMixDelegationsResponse, PagedMixnodeResponse, PagedReverseMixDelegationsResponse,
-    QueryMsg, RawDelegationData, RewardingIntervalResponse,
+    ContractSettingsParams, Delegation, ExecuteMsg, Gateway, GatewayOwnershipResponse, IdentityKey,
+    LayerDistribution, MixNode, MixOwnershipResponse, MixnetContractVersion,
+    MixnodeRewardingStatusResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse, QueryMsg,
+    RewardingIntervalResponse,
 };
 use serde::Serialize;
 use std::collections::HashMap;
@@ -313,7 +313,7 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::OwnsMixnode {
-            address: Addr::unchecked(address.as_ref()),
+            address: address.to_string(),
         };
         let response: MixOwnershipResponse = self
             .client
@@ -328,7 +328,7 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::OwnsGateway {
-            address: Addr::unchecked(address.as_ref()),
+            address: address.to_string(),
         };
         let response: GatewayOwnershipResponse = self
             .client
@@ -375,14 +375,13 @@ impl<C> NymdClient<C> {
     pub async fn get_mix_delegations_paged(
         &self,
         mix_identity: IdentityKey,
-        // I really hate mixing cosmwasm and cosmos-sdk types here...
-        start_after: Option<Addr>,
+        start_after: Option<String>,
         page_limit: Option<u32>,
     ) -> Result<PagedMixDelegationsResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetMixDelegations {
+        let request = QueryMsg::GetMixnodeDelegations {
             mix_identity: mix_identity.to_owned(),
             start_after,
             limit: page_limit,
@@ -393,16 +392,15 @@ impl<C> NymdClient<C> {
     }
 
     /// Gets list of all mixnode delegations on particular page.
-    pub async fn get_all_mix_delegations_paged(
+    pub async fn get_all_network_delegations_paged(
         &self,
-        // I really hate mixing cosmwasm and cosmos-sdk types here...
-        start_after: Option<Vec<u8>>,
+        start_after: Option<(IdentityKey, String)>,
         page_limit: Option<u32>,
-    ) -> Result<PagedAllDelegationsResponse<RawDelegationData>, NymdError>
+    ) -> Result<PagedAllDelegationsResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetAllMixDelegations {
+        let request = QueryMsg::GetAllNetworkDelegations {
             start_after,
             limit: page_limit,
         };
@@ -412,17 +410,17 @@ impl<C> NymdClient<C> {
     }
 
     /// Gets list of all the mixnodes on which a particular address delegated.
-    pub async fn get_reverse_mix_delegations_paged(
+    pub async fn get_delegator_delegations_paged(
         &self,
-        delegation_owner: Addr,
+        delegator: String,
         start_after: Option<IdentityKey>,
         page_limit: Option<u32>,
-    ) -> Result<PagedReverseMixDelegationsResponse, NymdError>
+    ) -> Result<PagedDelegatorDelegationsResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetReverseMixDelegations {
-            delegation_owner,
+        let request = QueryMsg::GetDelegatorDelegations {
+            delegator,
             start_after,
             limit: page_limit,
         };
@@ -432,7 +430,7 @@ impl<C> NymdClient<C> {
     }
 
     /// Checks value of delegation of given client towards particular mixnode.
-    pub async fn get_mix_delegation(
+    pub async fn get_delegation_details(
         &self,
         mix_identity: IdentityKey,
         delegator: &AccountId,
@@ -440,9 +438,9 @@ impl<C> NymdClient<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetMixDelegation {
+        let request = QueryMsg::GetDelegationDetails {
             mix_identity,
-            address: Addr::unchecked(delegator.as_ref()),
+            delegator: delegator.to_string(),
         };
         self.client
             .query_contract_smart(self.contract_address()?, &request)

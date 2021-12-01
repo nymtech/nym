@@ -1,0 +1,13 @@
+[workspace]
+members = ["erc20-bridge", "mixnet", "vesting"]
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true

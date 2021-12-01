@@ -3,7 +3,7 @@
 
 use crate::mixnode::DelegatorRewardParams;
 use crate::Layer;
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Addr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
@@ -81,7 +81,7 @@ pub struct PendingDelegatorRewarding {
     // keep track of the running rewarding results so we'd known how much was the operator and its delegators rewarded
     pub running_results: RewardingResult,
 
-    pub next_start: String,
+    pub next_start: Addr,
 
     pub rewarding_params: DelegatorRewardParams,
 }

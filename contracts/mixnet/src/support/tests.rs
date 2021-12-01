@@ -5,11 +5,13 @@ pub mod test_helpers {
     use crate::contract::{
         query, DEFAULT_SYBIL_RESISTANCE_PERCENT, EPOCH_REWARD_PERCENT, INITIAL_REWARD_POOL,
     };
+    use crate::delegations::storage as delegations_storage;
     use crate::gateways::transactions::try_add_gateway;
-    use crate::mixnodes::bonding_transactions::try_add_mixnode;
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::storage::StoredMixnodeBond;
+    use crate::mixnodes::transactions::try_add_mixnode;
     use config::defaults::{DENOM, TOTAL_SUPPLY};
+    use cosmwasm_std::coin;
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::mock_info;
@@ -18,14 +20,14 @@ pub mod test_helpers {
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::Coin;
     use cosmwasm_std::OwnedDeps;
-    use cosmwasm_std::{coin, Uint128};
     use cosmwasm_std::{from_binary, DepsMut};
     use cosmwasm_std::{Addr, StdResult, Storage};
     use cosmwasm_std::{Empty, MemoryStorage};
+    use cw_storage_plus::PrimaryKey;
     use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::{
-        Gateway, GatewayBond, InstantiateMsg, Layer, MixNode, MixNodeBond, PagedGatewayResponse,
-        PagedMixnodeResponse, QueryMsg, RawDelegationData,
+        Delegation, Gateway, GatewayBond, IdentityKeyRef, InstantiateMsg, Layer, MixNode,
+        MixNodeBond, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
     };
 
     pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
@@ -61,15 +63,11 @@ pub mod test_helpers {
         page.nodes
     }
 
-    pub fn add_gateway(
-        sender: &str,
-        stake: Vec<Coin>,
-        deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) -> String {
+    pub fn add_gateway(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
         let info = mock_info(sender, &stake);
         let key = format!("{}gateway", sender);
         try_add_gateway(
-            deps.as_mut(),
+            deps,
             mock_env(),
             info,
             Gateway {
@@ -99,7 +97,7 @@ pub mod test_helpers {
     }
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let msg = InstantiateMsg {};
         let env = mock_env();
         let info = mock_info("creator", &[]);
@@ -119,33 +117,17 @@ pub mod test_helpers {
         }
     }
 
-    pub fn mixnode_bond_fixture() -> MixNodeBond {
-        let mix_node = MixNode {
-            host: "1.1.1.1".to_string(),
-            mix_port: 1789,
-            verloc_port: 1790,
-            http_api_port: 8000,
-            sphinx_key: "1234".to_string(),
-            identity_key: "aaaa".to_string(),
-            version: "0.10.0".to_string(),
-        };
-        MixNodeBond::new(
-            coin(50, DENOM),
-            Addr::unchecked("foo"),
-            Layer::One,
-            12_345,
-            mix_node,
-            None,
-        )
-    }
-
-    pub(crate) fn stored_mixnode_bond_fixture() -> mixnodes_storage::StoredMixnodeBond {
+    pub(crate) fn stored_mixnode_bond_fixture(owner: &str) -> mixnodes_storage::StoredMixnodeBond {
         StoredMixnodeBond::new(
             coin(50, DENOM),
-            Addr::unchecked("foo"),
+            Addr::unchecked(owner),
             Layer::One,
             12_345,
-            mix_node_fixture(),
+            MixNode {
+                identity_key: format!("id-{}", owner),
+                ..mix_node_fixture()
+            },
+            None,
             None,
         )
     }
@@ -156,28 +138,18 @@ pub mod test_helpers {
             mix_port: 1789,
             clients_port: 9000,
             location: "Sweden".to_string(),
-
             sphinx_key: "sphinx".to_string(),
             identity_key: "identity".to_string(),
             version: "0.10.0".to_string(),
         }
     }
 
-    pub fn gateway_bond_fixture() -> GatewayBond {
+    pub fn gateway_bond_fixture(owner: &str) -> GatewayBond {
         let gateway = Gateway {
-            host: "1.1.1.1".to_string(),
-            mix_port: 1789,
-            clients_port: 9000,
-            location: "London".to_string(),
-            sphinx_key: "sphinx".to_string(),
-            identity_key: "identity".to_string(),
-            version: "0.10.0".to_string(),
+            identity_key: format!("id-{}", owner),
+            ..gateway_fixture()
         };
-        GatewayBond::new(coin(50, DENOM), Addr::unchecked("foo"), 12_345, gateway)
-    }
-
-    pub fn raw_delegation_fixture(amount: u128) -> RawDelegationData {
-        RawDelegationData::new(Uint128(amount), 42)
+        GatewayBond::new(coin(50, DENOM), Addr::unchecked(owner), 12_345, gateway)
     }
 
     pub fn query_contract_balance(
@@ -214,23 +186,40 @@ pub mod test_helpers {
         )
     }
 
-    // Converts the node identity and owner of a delegation into the bytes used as
-    // key in the delegation buckets. Basically a helper function.
-    pub(crate) fn identity_and_owner_to_bytes(identity: &str, owner: &Addr) -> Vec<u8> {
-        let mut bytes = u16::to_be_bytes(identity.len() as u16).to_vec();
-        bytes.append(&mut identity.as_bytes().to_vec());
-        bytes.append(&mut owner.as_bytes().to_vec());
-
-        bytes
-    }
-
     // currently not used outside tests
     pub(crate) fn read_mixnode_bond_amount(
         storage: &dyn Storage,
-        identity: &[u8],
+        identity: IdentityKeyRef,
     ) -> StdResult<cosmwasm_std::Uint128> {
-        let bucket = mixnodes_storage::mixnodes_read(storage);
-        let node = bucket.load(identity)?;
+        let node = mixnodes_storage::mixnodes().load(storage, identity)?;
         Ok(node.bond_amount.amount)
+    }
+
+    pub(crate) fn save_dummy_delegation(
+        storage: &mut dyn Storage,
+        mix: impl Into<String>,
+        owner: impl Into<String>,
+    ) {
+        let delegation = Delegation {
+            owner: Addr::unchecked(owner.into()),
+            node_identity: mix.into(),
+            amount: coin(12345, DENOM),
+            block_height: 12345,
+            proxy: None,
+        };
+
+        delegations_storage::delegations()
+            .save(storage, delegation.storage_key().joined_key(), &delegation)
+            .unwrap();
+    }
+
+    pub(crate) fn read_delegation(
+        storage: &dyn Storage,
+        mix: impl Into<String>,
+        owner: impl Into<String>,
+    ) -> Option<Delegation> {
+        delegations_storage::delegations()
+            .may_load(storage, (mix.into(), owner.into()).joined_key())
+            .unwrap()
     }
 }

@@ -4,7 +4,6 @@
 use crate::mixnode::NodeRewardParams;
 use crate::ContractSettingsParams;
 use crate::{Gateway, IdentityKey, MixNode};
-use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -50,11 +49,25 @@ pub enum ExecuteMsg {
         // nonce of the current rewarding interval
         rewarding_interval_nonce: u32,
     },
-
     RewardNextMixDelegators {
         mix_identity: IdentityKey,
         // nonce of the current rewarding interval
         rewarding_interval_nonce: u32,
+    },
+    DelegateToMixnodeOnBehalf {
+        mix_identity: IdentityKey,
+        delegate: String,
+    },
+    UndelegateFromMixnodeOnBehalf {
+        mix_identity: IdentityKey,
+        delegate: String,
+    },
+    BondMixnodeOnBehalf {
+        mix_node: MixNode,
+        owner: String,
+    },
+    UnbondMixnodeOnBehalf {
+        owner: String,
     },
 }
 
@@ -71,30 +84,39 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
     OwnsMixnode {
-        address: Addr,
+        address: String,
     },
     OwnsGateway {
-        address: Addr,
+        address: String,
     },
     StateParams {},
     CurrentRewardingInterval {},
-    GetMixDelegations {
+    // gets all [paged] delegations in the entire network
+    // TODO: do we even want that?
+    GetAllNetworkDelegations {
+        start_after: Option<(IdentityKey, String)>,
+        limit: Option<u32>,
+    },
+    // gets all [paged] delegations associated with particular mixnode
+    GetMixnodeDelegations {
         mix_identity: IdentityKey,
-        start_after: Option<Addr>,
+        // since `start_after` is user-provided input, we can't use `Addr` as we
+        // can't guarantee it's validated.
+        start_after: Option<String>,
         limit: Option<u32>,
     },
-    GetAllMixDelegations {
-        start_after: Option<Vec<u8>>,
-        limit: Option<u32>,
-    },
-    GetReverseMixDelegations {
-        delegation_owner: Addr,
+    // gets all [paged] delegations associated with particular delegator
+    GetDelegatorDelegations {
+        // since `delegator` is user-provided input, we can't use `Addr` as we
+        // can't guarantee it's validated.
+        delegator: String,
         start_after: Option<IdentityKey>,
         limit: Option<u32>,
     },
-    GetMixDelegation {
+    // gets delegation associated with particular mixnode, delegator pair
+    GetDelegationDetails {
         mix_identity: IdentityKey,
-        address: Addr,
+        delegator: String,
     },
     LayerDistribution {},
     GetRewardPool {},

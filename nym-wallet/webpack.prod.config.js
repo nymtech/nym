@@ -7,13 +7,13 @@ module.exports = {
   node: {
     __dirname: false
   },
-  entry: path.resolve(__dirname, '/src/index'),
+  entry: path.resolve(__dirname, './src/index'),
   plugins: [
     new HtmlWebpackPlugin({
-      template: path.resolve(__dirname, 'public/index.html'),
+      template: path.resolve(__dirname, './public/index.html'),
       filename: 'index.html',
     }),
-    new FaviconsWebpackPlugin(path.resolve(__dirname, 'public/favicon.png')),
+    new FaviconsWebpackPlugin(path.resolve(__dirname, './public/favicon.png')),
   ],
   module: {
     rules: [

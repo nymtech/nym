@@ -1,3 +1,5 @@
+use tauri::Menu;
+#[cfg(target_os = "macos")]
 use tauri::{Menu, MenuItem, Submenu};
 
 pub trait AddDefaultSubmenus {

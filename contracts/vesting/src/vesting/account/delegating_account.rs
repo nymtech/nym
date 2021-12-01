@@ -42,7 +42,6 @@ impl DelegatingAccount for Account {
         mix_identity: IdentityKey,
         storage: &dyn Storage,
     ) -> Result<Response, ContractError> {
-
         if !self.any_delegation_for_mix(&mix_identity, storage) {
             return Err(ContractError::NoSuchDelegation(
                 self.address(),

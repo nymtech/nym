@@ -37,5 +37,5 @@ pub enum ContractError {
     #[error("Calculation underflowed")]
     Underflow,
     #[error("No bond found for account {0}")]
-    NoBondFound(String)
+    NoBondFound(String),
 }

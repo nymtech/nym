@@ -21,7 +21,14 @@ pub fn try_add_mixnode(
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<Response, ContractError> {
-    _try_add_mixnode(deps, env, mix_node, info.funds[0].clone(), info.sender.as_str(), None)
+    _try_add_mixnode(
+        deps,
+        env,
+        mix_node,
+        info.funds[0].clone(),
+        info.sender.as_str(),
+        None,
+    )
 }
 
 pub fn try_add_mixnode_on_behalf(

@@ -5,15 +5,13 @@ use crate::error::ContractError;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::support::helpers::generate_storage_key;
 use config::defaults::DENOM;
-use cosmwasm_std::{
-    coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
-};
+use cosmwasm_std::{coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
 use cw_storage_plus::PrimaryKey;
 use mixnet_contract::Delegation;
 use mixnet_contract::IdentityKey;
 use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
 
-fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {
+fn validate_delegation_stake(mut delegation: Vec<Coin>) -> Result<Coin, ContractError> {
     // check if anything was put as delegation
     if delegation.is_empty() {
         return Err(ContractError::EmptyDelegation);
@@ -33,7 +31,7 @@ fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {
         return Err(ContractError::EmptyDelegation);
     }
 
-    Ok(())
+    Ok(delegation.pop().unwrap())
 }
 
 pub(crate) fn try_delegate_to_mixnode(
@@ -43,9 +41,7 @@ pub(crate) fn try_delegate_to_mixnode(
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
     // check if the delegation contains any funds of the appropriate denomination
-    validate_delegation_stake(&info.funds)?;
-
-    let amount = info.funds[0].amount;
+    let amount = validate_delegation_stake(info.funds)?;
 
     _try_delegate_to_mixnode(deps, env, mix_identity, info.sender.as_str(), amount, None)
 }
@@ -58,8 +54,7 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     delegate: String,
 ) -> Result<Response, ContractError> {
     // check if the delegation contains any funds of the appropriate denomination
-    validate_delegation_stake(&info.funds)?;
-    let amount = info.funds[0].amount;
+    let amount = validate_delegation_stake(info.funds)?;
 
     _try_delegate_to_mixnode(
         deps,
@@ -76,10 +71,11 @@ pub(crate) fn _try_delegate_to_mixnode(
     env: Env,
     mix_identity: IdentityKey,
     delegate: &str,
-    amount: Uint128,
+    amount: Coin,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
     let delegate = deps.api.addr_validate(delegate)?;
+
     // check if the target node actually exists
     if mixnodes_storage::mixnodes()
         .may_load(deps.storage, &mix_identity)?
@@ -101,7 +97,7 @@ pub(crate) fn _try_delegate_to_mixnode(
             // since we know that the target node exists and because the total_delegation bucket
             // entry is created whenever the node itself is added, the unwrap here is fine
             // as the entry MUST exist
-            Ok(total_delegation.unwrap() + amount)
+            Ok(total_delegation.unwrap() + amount.amount)
         },
     )?;
 
@@ -112,16 +108,13 @@ pub(crate) fn _try_delegate_to_mixnode(
         |existing_delegation| {
             Ok(match existing_delegation {
                 Some(mut existing_delegation) => {
-                    existing_delegation.increment_amount(amount, Some(env.block.height));
+                    existing_delegation.increment_amount(amount.amount, Some(env.block.height));
                     existing_delegation
                 }
                 None => Delegation::new(
                     delegate.to_owned(),
                     mix_identity,
-                    Coin {
-                        amount,
-                        denom: DENOM.to_string(),
-                    },
+                    amount,
                     env.block.height,
                     proxy,
                 ),
@@ -171,8 +164,8 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
                 return Err(ContractError::ProxyMismatch {
                     existing: old_delegation
                         .proxy
-                        .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
-                    incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+                        .map_or_else(|| "None".to_string(), |a| a.to_string()),
+                    incoming: proxy.map_or_else(|| "None".to_string(), |a| a.to_string()),
                 });
             }
             // remove old delegation data from the store
@@ -242,7 +235,7 @@ mod tests {
         fn stake_cant_be_empty() {
             assert_eq!(
                 Err(ContractError::EmptyDelegation),
-                validate_delegation_stake(&[])
+                validate_delegation_stake(vec![])
             )
         }
 
@@ -250,7 +243,11 @@ mod tests {
         fn stake_must_have_single_coin_type() {
             assert_eq!(
                 Err(ContractError::MultipleDenoms),
-                validate_delegation_stake(&[coin(123, DENOM), coin(123, "BTC"), coin(123, "DOGE")])
+                validate_delegation_stake(vec![
+                    coin(123, DENOM),
+                    coin(123, "BTC"),
+                    coin(123, "DOGE")
+                ])
             )
         }
 
@@ -258,7 +255,7 @@ mod tests {
         fn stake_coin_must_be_of_correct_type() {
             assert_eq!(
                 Err(ContractError::WrongDenom {}),
-                validate_delegation_stake(&[coin(123, "DOGE")])
+                validate_delegation_stake(coins(123, "DOGE"))
             )
         }
 
@@ -266,16 +263,16 @@ mod tests {
         fn stake_coin_must_have_value_greater_than_zero() {
             assert_eq!(
                 Err(ContractError::EmptyDelegation),
-                validate_delegation_stake(&[coin(0, DENOM)])
+                validate_delegation_stake(coins(0, DENOM))
             )
         }
 
         #[test]
         fn stake_can_have_any_positive_value() {
             // this might change in the future, but right now an arbitrary (positive) value can be delegated
-            assert!(validate_delegation_stake(&[coin(1, DENOM)]).is_ok());
-            assert!(validate_delegation_stake(&[coin(123, DENOM)]).is_ok());
-            assert!(validate_delegation_stake(&[coin(10000000000, DENOM)]).is_ok());
+            assert!(validate_delegation_stake(coins(1, DENOM)).is_ok());
+            assert!(validate_delegation_stake(coins(123, DENOM)).is_ok());
+            assert!(validate_delegation_stake(coins(10000000000, DENOM)).is_ok());
         }
     }
 

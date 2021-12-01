@@ -20,14 +20,14 @@ pub fn try_add_mixnode(
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<Response, ContractError> {
-    _try_add_mixnode(
-        deps,
-        env,
-        mix_node,
-        info.funds[0].clone(),
-        info.sender.as_str(),
-        None,
-    )
+    // check if the bond contains any funds of the appropriate denomination
+    let minimum_bond = mixnet_params_storage::CONTRACT_STATE
+        .load(deps.storage)?
+        .params
+        .minimum_mixnode_bond;
+    let bond = validate_mixnode_bond(info.funds, minimum_bond)?;
+
+    _try_add_mixnode(deps, env, mix_node, bond, info.sender.as_str(), None)
 }
 
 pub fn try_add_mixnode_on_behalf(
@@ -37,15 +37,15 @@ pub fn try_add_mixnode_on_behalf(
     mix_node: MixNode,
     owner: String,
 ) -> Result<Response, ContractError> {
+    // check if the bond contains any funds of the appropriate denomination
+    let minimum_bond = mixnet_params_storage::CONTRACT_STATE
+        .load(deps.storage)?
+        .params
+        .minimum_mixnode_bond;
+    let bond = validate_mixnode_bond(info.funds, minimum_bond)?;
+
     let proxy = info.sender.to_owned();
-    _try_add_mixnode(
-        deps,
-        env,
-        mix_node,
-        info.funds[0].clone(),
-        &owner,
-        Some(proxy),
-    )
+    _try_add_mixnode(deps, env, mix_node, bond, &owner, Some(proxy))
 }
 
 fn _try_add_mixnode(
@@ -70,12 +70,6 @@ fn _try_add_mixnode(
             });
         }
     }
-
-    let minimum_bond = mixnet_params_storage::CONTRACT_STATE
-        .load(deps.storage)?
-        .params
-        .minimum_mixnode_bond;
-    let bond_amount = validate_mixnode_bond(&[bond_amount], minimum_bond)?;
 
     let layer_distribution = query_layer_distribution(deps.as_ref())?;
     let layer = layer_distribution.choose_with_fewest();
@@ -168,7 +162,10 @@ pub(crate) fn _try_remove_mixnode(
     Ok(response)
 }
 
-fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<Coin, ContractError> {
+fn validate_mixnode_bond(
+    mut bond: Vec<Coin>,
+    minimum_bond: Uint128,
+) -> Result<Coin, ContractError> {
     // check if anything was put as bond
     if bond.is_empty() {
         return Err(ContractError::NoBondFound);
@@ -191,7 +188,7 @@ fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<Coin, C
         });
     }
 
-    Ok(bond[0].clone())
+    Ok(bond.pop().unwrap())
 }
 
 #[cfg(test)]
@@ -619,13 +616,13 @@ pub mod tests {
     #[test]
     fn validating_mixnode_bond() {
         // you must send SOME funds
-        let result = validate_mixnode_bond(&[], INITIAL_MIXNODE_BOND);
+        let result = validate_mixnode_bond(Vec::new(), INITIAL_MIXNODE_BOND);
         assert_eq!(result, Err(ContractError::NoBondFound));
 
         // you must send at least 100 coins...
         let mut bond = test_helpers::good_mixnode_bond();
         bond[0].amount = INITIAL_MIXNODE_BOND.checked_sub(Uint128::new(1)).unwrap();
-        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
+        let result = validate_mixnode_bond(bond.clone(), INITIAL_MIXNODE_BOND);
         assert_eq!(
             result,
             Err(ContractError::InsufficientMixNodeBond {
@@ -637,18 +634,18 @@ pub mod tests {
         // more than that is still fine
         let mut bond = test_helpers::good_mixnode_bond();
         bond[0].amount = INITIAL_MIXNODE_BOND + Uint128::new(1);
-        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
+        let result = validate_mixnode_bond(bond.clone(), INITIAL_MIXNODE_BOND);
         assert!(result.is_ok());
 
         // it must be sent in the defined denom!
         let mut bond = test_helpers::good_mixnode_bond();
         bond[0].denom = "baddenom".to_string();
-        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
+        let result = validate_mixnode_bond(bond.clone(), INITIAL_MIXNODE_BOND);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
 
         let mut bond = test_helpers::good_mixnode_bond();
         bond[0].denom = "foomp".to_string();
-        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
+        let result = validate_mixnode_bond(bond.clone(), INITIAL_MIXNODE_BOND);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
     }
 

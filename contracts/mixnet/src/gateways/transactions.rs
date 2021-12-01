@@ -33,14 +33,9 @@ pub(crate) fn try_add_gateway(
         .load(deps.storage)?
         .params
         .minimum_gateway_bond;
-    validate_gateway_bond(&info.funds, minimum_bond)?;
+    let bond_amount = validate_gateway_bond(info.funds, minimum_bond)?;
 
-    let bond = GatewayBond::new(
-        info.funds[0].clone(),
-        info.sender.clone(),
-        env.block.height,
-        gateway,
-    );
+    let bond = GatewayBond::new(bond_amount, info.sender.clone(), env.block.height, gateway);
 
     storage::gateways().save(deps.storage, bond.identity(), &bond)?;
     mixnet_params_storage::increment_layer_count(deps.storage, Layer::Gateway)?;
@@ -81,7 +76,10 @@ pub(crate) fn try_remove_gateway(
         .add_attribute("gateway_bond", gateway_bond.to_string()))
 }
 
-fn validate_gateway_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
+fn validate_gateway_bond(
+    mut bond: Vec<Coin>,
+    minimum_bond: Uint128,
+) -> Result<Coin, ContractError> {
     // check if anything was put as bond
     if bond.is_empty() {
         return Err(ContractError::NoBondFound);
@@ -104,7 +102,7 @@ fn validate_gateway_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
         });
     }
 
-    Ok(())
+    Ok(bond.pop().unwrap())
 }
 
 #[cfg(test)]
@@ -499,13 +497,13 @@ pub mod tests {
     #[test]
     fn validating_gateway_bond() {
         // you must send SOME funds
-        let result = validate_gateway_bond(&[], INITIAL_GATEWAY_BOND);
+        let result = validate_gateway_bond(Vec::new(), INITIAL_GATEWAY_BOND);
         assert_eq!(result, Err(ContractError::NoBondFound));
 
         // you must send at least 100 coins...
         let mut bond = test_helpers::good_gateway_bond();
         bond[0].amount = INITIAL_GATEWAY_BOND.checked_sub(Uint128::new(1)).unwrap();
-        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
+        let result = validate_gateway_bond(bond.clone(), INITIAL_GATEWAY_BOND);
         assert_eq!(
             result,
             Err(ContractError::InsufficientGatewayBond {
@@ -517,18 +515,18 @@ pub mod tests {
         // more than that is still fine
         let mut bond = test_helpers::good_gateway_bond();
         bond[0].amount = INITIAL_GATEWAY_BOND + Uint128::new(1);
-        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
+        let result = validate_gateway_bond(bond.clone(), INITIAL_GATEWAY_BOND);
         assert!(result.is_ok());
 
         // it must be sent in the defined denom!
         let mut bond = test_helpers::good_gateway_bond();
         bond[0].denom = "baddenom".to_string();
-        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
+        let result = validate_gateway_bond(bond.clone(), INITIAL_GATEWAY_BOND);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
 
         let mut bond = test_helpers::good_gateway_bond();
         bond[0].denom = "foomp".to_string();
-        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
+        let result = validate_gateway_bond(bond.clone(), INITIAL_GATEWAY_BOND);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
     }
 }

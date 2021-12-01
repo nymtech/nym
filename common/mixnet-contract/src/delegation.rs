@@ -17,7 +17,13 @@ pub struct Delegation {
 }
 
 impl Delegation {
-    pub fn new(owner: Addr, node_identity: IdentityKey, amount: Coin, block_height: u64, proxy: Option<Addr>) -> Self {
+    pub fn new(
+        owner: Addr,
+        node_identity: IdentityKey,
+        amount: Coin,
+        block_height: u64,
+        proxy: Option<Addr>,
+    ) -> Self {
         Delegation {
             owner,
             node_identity,

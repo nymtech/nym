@@ -1034,6 +1034,7 @@ pub mod tests {
                     node_identity.clone(),
                     coin(initial_delegation, DENOM),
                     env.block.height,
+                    None,
                 ),
             )
             .unwrap();

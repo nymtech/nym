@@ -205,6 +205,7 @@ pub mod test_helpers {
             node_identity: mix.into(),
             amount: coin(12345, DENOM),
             block_height: 12345,
+            proxy: None,
         };
 
         delegations_storage::delegations()

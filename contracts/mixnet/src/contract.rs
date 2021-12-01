@@ -157,7 +157,7 @@ pub fn execute(
         ExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_identity,
             delegate,
-        } => crate::mixnodes::delegation_transactions::try_delegate_to_mixnode_on_behalf(
+        } => crate::delegations::transactions::try_delegate_to_mixnode_on_behalf(
             deps,
             env,
             info,
@@ -167,21 +167,19 @@ pub fn execute(
         ExecuteMsg::UndelegateFromMixnodeOnBehalf {
             mix_identity,
             delegate,
-        } => {
-            crate::mixnodes::delegation_transactions::try_remove_delegation_from_mixnode_on_behalf(
-                deps,
-                info,
-                mix_identity,
-                delegate,
-            )
-        }
+        } => crate::delegations::transactions::try_remove_delegation_from_mixnode_on_behalf(
+            deps,
+            info,
+            mix_identity,
+            delegate,
+        ),
         ExecuteMsg::BondMixnodeOnBehalf { mix_node, owner } => {
-            crate::mixnodes::bonding_transactions::try_add_mixnode_on_behalf(
+            crate::mixnodes::transactions::try_add_mixnode_on_behalf(
                 deps, env, info, mix_node, owner,
             )
         }
         ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
-            crate::mixnodes::bonding_transactions::try_remove_mixnode_on_behalf(deps, info, owner)
+            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, info, owner)
         }
     }
 }

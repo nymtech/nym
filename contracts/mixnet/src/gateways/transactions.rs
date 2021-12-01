@@ -16,7 +16,7 @@ pub(crate) fn try_add_gateway(
     gateway: Gateway,
 ) -> Result<Response, ContractError> {
     // if the client has an active bonded mixnode or gateway, don't allow bonding
-    ensure_no_existing_bond(deps.storage, info.sender.clone())?;
+    ensure_no_existing_bond(deps.storage, &info.sender)?;
 
     // check if somebody else has already bonded a gateway with this identity
     if let Some(existing_bond) =

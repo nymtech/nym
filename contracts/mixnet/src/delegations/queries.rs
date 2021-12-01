@@ -404,6 +404,7 @@ pub(crate) mod tests {
             node_identity.clone(),
             coin(1234, DENOM),
             1234,
+            None,
         );
 
         storage::delegations()
@@ -447,6 +448,7 @@ pub(crate) mod tests {
             node_identity1.clone(),
             coin(1234, DENOM),
             1234,
+            None,
         );
 
         storage::delegations()
@@ -475,6 +477,7 @@ pub(crate) mod tests {
             node_identity2.clone(),
             coin(1234, DENOM),
             1234,
+            None,
         );
 
         storage::delegations()
@@ -626,11 +629,6 @@ pub(crate) mod tests {
             .unwrap();
 
             assert_eq!(1, page2.delegations.len());
-
-            // save another one
-            reverse_mix_delegations(&mut deps.storage, &delegation_owner)
-                .save("4".as_bytes(), &())
-                .unwrap();
 
             let start_after = String::from("2");
             let page2 = query_delegator_delegations_paged(

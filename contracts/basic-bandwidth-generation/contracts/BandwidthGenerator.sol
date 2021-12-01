@@ -18,7 +18,8 @@ contract BandwidthGenerator {
     event BBCredentialPurchased(
         uint256 Bandwidth,
         uint256 indexed VerificationKey,
-        bytes   SignedVerificationKey
+        bytes   SignedVerificationKey, 
+        bytes32 CosmosRecipient
     );
     
     constructor(CosmosERC20 _erc20, Gravity _gravityBridge) public {
@@ -43,7 +44,12 @@ contract BandwidthGenerator {
 		    amount
 	    );
         uint256 bandwidth = bandwidthFromToken(amount);
-        emit BBCredentialPurchased(bandwidth, verificationKey, signedVerificationKey);
+        emit BBCredentialPurchased(
+            bandwidth, 
+            verificationKey, 
+            signedVerificationKey,
+            cosmosRecipient
+        );
     }
 }
  

@@ -91,7 +91,8 @@ contract('BandwidthGenerator', (accounts) => {
       await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'BBCredentialPurchased', {
         Bandwidth: ((1024 * 1024 * 1024) * 45).toString(),
         VerificationKey: (15).toString(),
-        SignedVerificationKey: '0x39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba' 
+        SignedVerificationKey: '0x39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba',
+        CosmosRecipient: constants.ZERO_BYTES32 
       });
 
       expect((await erc20token.balanceOf(bandwidthGenerator.address)).toString()).to.equal('0');

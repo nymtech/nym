@@ -833,6 +833,7 @@ dependencies = [
  "cw-storage-plus",
  "fixed",
  "mixnet-contract",
+ "rand",
  "rand_chacha",
  "schemars",
  "serde",

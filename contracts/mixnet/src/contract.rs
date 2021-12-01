@@ -95,9 +95,16 @@ pub fn execute(
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, info)
         }
-        ExecuteMsg::BondGateway { gateway } => {
-            crate::gateways::transactions::try_add_gateway(deps, env, info, gateway)
-        }
+        ExecuteMsg::BondGateway {
+            gateway,
+            address_signature,
+        } => crate::gateways::transactions::try_add_gateway(
+            deps,
+            env,
+            info,
+            gateway,
+            address_signature,
+        ),
         ExecuteMsg::UnbondGateway {} => {
             crate::gateways::transactions::try_remove_gateway(deps, info)
         }

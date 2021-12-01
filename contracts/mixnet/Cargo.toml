@@ -37,6 +37,7 @@ thiserror = { version = "1.0.23" }
 cosmwasm-schema = "1.0.0-beta2"
 fixed = "1.1"
 rand_chacha = "0.2"
+rand = "0.7"
 crypto = { path = "../../common/crypto" }
 
 [build-dependencies]

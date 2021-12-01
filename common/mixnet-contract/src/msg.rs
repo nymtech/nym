@@ -19,6 +19,7 @@ pub enum ExecuteMsg {
     UnbondMixnode {},
     BondGateway {
         gateway: Gateway,
+        address_signature: String,
     },
     UnbondGateway {},
     UpdateContractSettings(ContractSettingsParams),

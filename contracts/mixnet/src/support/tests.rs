@@ -26,9 +26,10 @@ pub mod test_helpers {
     use cw_storage_plus::PrimaryKey;
     use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::{
-        Delegation, Gateway, GatewayBond, IdentityKeyRef, InstantiateMsg, Layer, MixNode,
-        MixNodeBond, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
+        Delegation, ExecuteMsg, Gateway, GatewayBond, IdentityKey, IdentityKeyRef, InstantiateMsg,
+        Layer, MixNode, MixNodeBond, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
     };
+    use rand::thread_rng;
 
     pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
         let info = mock_info(sender, &stake);
@@ -63,9 +64,35 @@ pub mod test_helpers {
         page.nodes
     }
 
+    pub(crate) fn valid_bond_gateway_msg(sender: &str) -> (ExecuteMsg, IdentityKey) {
+        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+        let address_signature = keypair
+            .private_key()
+            .sign(sender.as_bytes())
+            .to_base58_string();
+
+        let identity_key = keypair.public_key().to_base58_string();
+        (
+            ExecuteMsg::BondGateway {
+                gateway: Gateway {
+                    identity_key: identity_key.clone(),
+                    ..test_helpers::gateway_fixture()
+                },
+                address_signature,
+            },
+            identity_key,
+        )
+    }
+
     pub fn add_gateway(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
+        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+        let address_signature = keypair
+            .private_key()
+            .sign(sender.as_bytes())
+            .to_base58_string();
+
         let info = mock_info(sender, &stake);
-        let key = format!("{}gateway", sender);
+        let key = keypair.public_key().to_base58_string();
         try_add_gateway(
             deps,
             mock_env(),
@@ -74,6 +101,7 @@ pub mod test_helpers {
                 identity_key: key.clone(),
                 ..test_helpers::gateway_fixture()
             },
+            address_signature,
         )
         .unwrap();
         key

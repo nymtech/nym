@@ -88,6 +88,7 @@ mod tests {
                 node_identity.clone(),
                 delegation,
                 mock_env().block.height,
+                None,
             );
 
             storage::delegations()
@@ -133,6 +134,7 @@ mod tests {
                 node_identity2.clone(),
                 delegation.clone(),
                 mock_env().block.height,
+                None,
             );
             storage::delegations()
                 .save(
@@ -156,6 +158,7 @@ mod tests {
                 node_identity1.clone(),
                 delegation.clone(),
                 mock_env().block.height,
+                None,
             );
             storage::delegations()
                 .save(

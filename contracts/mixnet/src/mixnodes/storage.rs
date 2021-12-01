@@ -50,6 +50,7 @@ pub(crate) struct StoredMixnodeBond {
     pub block_height: u64,
     pub mix_node: MixNode,
     pub profit_margin_percent: Option<u8>,
+    pub proxy: Option<Addr>,
 }
 
 impl StoredMixnodeBond {
@@ -60,6 +61,7 @@ impl StoredMixnodeBond {
         block_height: u64,
         mix_node: MixNode,
         profit_margin_percent: Option<u8>,
+        proxy: Option<Addr>,
     ) -> Self {
         StoredMixnodeBond {
             bond_amount,
@@ -68,6 +70,7 @@ impl StoredMixnodeBond {
             block_height,
             mix_node,
             profit_margin_percent,
+            proxy,
         }
     }
 
@@ -83,6 +86,7 @@ impl StoredMixnodeBond {
             block_height: self.block_height,
             mix_node: self.mix_node,
             profit_margin_percent: self.profit_margin_percent,
+            proxy: self.proxy,
         }
     }
 
@@ -125,6 +129,7 @@ pub(crate) fn read_full_mixnode_bond(
                 block_height: stored_bond.block_height,
                 mix_node: stored_bond.mix_node,
                 profit_margin_percent: stored_bond.profit_margin_percent,
+                proxy: stored_bond.proxy,
             }))
         }
     }

@@ -92,4 +92,7 @@ pub enum ContractError {
 
     #[error("Mixnode's {identity} operator has not been rewarded yet - cannot perform delegator rewarding until that happens")]
     MixnodeOperatorNotRewarded { identity: IdentityKey },
+
+    #[error("Proxy address mismatch, expected {existing}, got {incoming}")]
+    ProxyMismatch { existing: String, incoming: String },
 }

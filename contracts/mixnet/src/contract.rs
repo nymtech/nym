@@ -157,6 +157,33 @@ pub fn execute(
             mix_identity,
             rewarding_interval_nonce,
         ),
+        ExecuteMsg::DelegateToMixnodeOnBehalf {
+            mix_identity,
+            delegate,
+        } => crate::delegations::transactions::try_delegate_to_mixnode_on_behalf(
+            deps,
+            env,
+            info,
+            mix_identity,
+            delegate,
+        ),
+        ExecuteMsg::UndelegateFromMixnodeOnBehalf {
+            mix_identity,
+            delegate,
+        } => crate::delegations::transactions::try_remove_delegation_from_mixnode_on_behalf(
+            deps,
+            info,
+            mix_identity,
+            delegate,
+        ),
+        ExecuteMsg::BondMixnodeOnBehalf { mix_node, owner } => {
+            crate::mixnodes::transactions::try_add_mixnode_on_behalf(
+                deps, env, info, mix_node, owner,
+            )
+        }
+        ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
+            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, info, owner)
+        }
     }
 }
 

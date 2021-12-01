@@ -404,6 +404,7 @@ pub(crate) mod tests {
             node_identity.clone(),
             coin(1234, DENOM),
             1234,
+            None,
         );
 
         storage::delegations()
@@ -447,6 +448,7 @@ pub(crate) mod tests {
             node_identity1.clone(),
             coin(1234, DENOM),
             1234,
+            None,
         );
 
         storage::delegations()
@@ -475,6 +477,7 @@ pub(crate) mod tests {
             node_identity2.clone(),
             coin(1234, DENOM),
             1234,
+            None,
         );
 
         storage::delegations()

@@ -8,23 +8,63 @@ use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::mixnodes::storage::StoredMixnodeBond;
 use crate::support::helpers::ensure_no_existing_bond;
 use config::defaults::DENOM;
-use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{
+    coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
+};
 use mixnet_contract::MixNode;
+use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
 
-pub(crate) fn try_add_mixnode(
+pub fn try_add_mixnode(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<Response, ContractError> {
+    _try_add_mixnode(
+        deps,
+        env,
+        mix_node,
+        info.funds[0].clone(),
+        info.sender.as_str(),
+        None,
+    )
+}
+
+pub fn try_add_mixnode_on_behalf(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    mix_node: MixNode,
+    owner: String,
+) -> Result<Response, ContractError> {
+    let proxy = info.sender.to_owned();
+    _try_add_mixnode(
+        deps,
+        env,
+        mix_node,
+        info.funds[0].clone(),
+        &owner,
+        Some(proxy),
+    )
+}
+
+fn _try_add_mixnode(
+    deps: DepsMut,
+    env: Env,
+    mix_node: MixNode,
+    bond_amount: Coin,
+    owner: &str,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(owner)?;
     // if the client has an active bonded mixnode or gateway, don't allow bonding
-    ensure_no_existing_bond(deps.storage, info.sender.clone())?;
+    ensure_no_existing_bond(deps.storage, &owner)?;
 
     // check if somebody else has already bonded a mixnode with this identity
     if let Some(existing_bond) =
         storage::mixnodes().may_load(deps.storage, &mix_node.identity_key)?
     {
-        if existing_bond.owner != info.sender {
+        if existing_bond.owner != owner {
             return Err(ContractError::DuplicateMixnode {
                 owner: existing_bond.owner,
             });
@@ -35,18 +75,19 @@ pub(crate) fn try_add_mixnode(
         .load(deps.storage)?
         .params
         .minimum_mixnode_bond;
-    validate_mixnode_bond(&info.funds, minimum_bond)?;
+    let bond_amount = validate_mixnode_bond(&[bond_amount], minimum_bond)?;
 
     let layer_distribution = query_layer_distribution(deps.as_ref())?;
     let layer = layer_distribution.choose_with_fewest();
 
     let stored_bond = StoredMixnodeBond::new(
-        info.funds[0].clone(),
-        info.sender.clone(),
+        bond_amount,
+        owner,
         layer,
         env.block.height,
         mix_node,
         None,
+        proxy,
     );
 
     // technically we don't have to set the total_delegation bucket, but it makes things easier
@@ -59,23 +100,47 @@ pub(crate) fn try_add_mixnode(
     Ok(Response::new())
 }
 
-pub(crate) fn try_remove_mixnode(
+pub fn try_remove_mixnode_on_behalf(
     deps: DepsMut,
     info: MessageInfo,
+    owner: String,
 ) -> Result<Response, ContractError> {
+    let proxy = info.sender;
+    _try_remove_mixnode(deps, &owner, Some(proxy))
+}
+
+pub fn try_remove_mixnode(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    _try_remove_mixnode(deps, info.sender.as_ref(), None)
+}
+
+pub(crate) fn _try_remove_mixnode(
+    deps: DepsMut,
+    owner: &str,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(owner)?;
+
     // try to find the node of the sender
     let mixnode_bond = match storage::mixnodes()
         .idx
         .owner
-        .item(deps.storage, info.sender.clone())?
+        .item(deps.storage, owner.clone())?
     {
         Some(record) => record.1,
-        None => return Err(ContractError::NoAssociatedMixNodeBond { owner: info.sender }),
+        None => return Err(ContractError::NoAssociatedMixNodeBond { owner }),
     };
 
+    if proxy != mixnode_bond.proxy {
+        return Err(ContractError::ProxyMismatch {
+            existing: mixnode_bond
+                .proxy
+                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+            incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+        });
+    }
     // send bonded funds back to the bond owner
     let return_tokens = BankMsg::Send {
-        to_address: info.sender.as_str().to_owned(),
+        to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
         amount: vec![mixnode_bond.bond_amount()],
     };
 
@@ -85,13 +150,25 @@ pub(crate) fn try_remove_mixnode(
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
 
-    Ok(Response::new()
+    let mut response = Response::new()
         .add_message(return_tokens)
         .add_attribute("action", "unbond")
-        .add_attribute("mixnode_bond", mixnode_bond.to_string()))
+        .add_attribute("mixnode_bond", mixnode_bond.to_string());
+
+    if let Some(proxy) = &proxy {
+        let msg = VestingContractExecuteMsg::TrackUnbond {
+            owner: owner.as_str().to_string(),
+            amount: mixnode_bond.bond_amount,
+        };
+
+        let track_unbond_message = wasm_execute(proxy, &msg, coins(0, DENOM))?;
+        response = response.add_message(track_unbond_message);
+    }
+
+    Ok(response)
 }
 
-fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
+fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<Coin, ContractError> {
     // check if anything was put as bond
     if bond.is_empty() {
         return Err(ContractError::NoBondFound);
@@ -114,7 +191,7 @@ fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
         });
     }
 
-    Ok(())
+    Ok(bond[0].clone())
 }
 
 #[cfg(test)]

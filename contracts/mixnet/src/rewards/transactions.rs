@@ -957,6 +957,7 @@ pub mod tests {
                 ..mix_node_fixture()
             },
             profit_margin_percent: Some(10),
+            proxy: None,
         };
 
         mixnodes_storage::mixnodes()
@@ -982,6 +983,7 @@ pub mod tests {
                     node_identity.clone(),
                     coin(initial_delegation, DENOM),
                     env.block.height,
+                    None,
                 ),
             )
             .unwrap();
@@ -1144,7 +1146,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("d1", &[coin(8000_000000, DENOM)]),
+            mock_info("alice_d1", &[coin(8000_000000, DENOM)]),
             "alice".to_string(),
         )
         .unwrap();
@@ -1152,7 +1154,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("d2", &[coin(2000_000000, DENOM)]),
+            mock_info("alice_d2", &[coin(2000_000000, DENOM)]),
             "alice".to_string(),
         )
         .unwrap();

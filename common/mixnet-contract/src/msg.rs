@@ -49,11 +49,25 @@ pub enum ExecuteMsg {
         // nonce of the current rewarding interval
         rewarding_interval_nonce: u32,
     },
-
     RewardNextMixDelegators {
         mix_identity: IdentityKey,
         // nonce of the current rewarding interval
         rewarding_interval_nonce: u32,
+    },
+    DelegateToMixnodeOnBehalf {
+        mix_identity: IdentityKey,
+        delegate: String,
+    },
+    UndelegateFromMixnodeOnBehalf {
+        mix_identity: IdentityKey,
+        delegate: String,
+    },
+    BondMixnodeOnBehalf {
+        mix_node: MixNode,
+        owner: String,
+    },
+    UnbondMixnodeOnBehalf {
+        owner: String,
     },
 }
 

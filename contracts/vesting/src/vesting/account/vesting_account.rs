@@ -19,16 +19,18 @@ impl VestingAccount for Account {
                 self.get_vesting_coins(block_time, env)?
                     .amount
                     .u128()
-                    .saturating_sub(
+                    .checked_sub(
                         self.get_delegated_vesting(block_time, env, storage)?
                             .amount
                             .u128(),
                     )
-                    .saturating_sub(
+                    .ok_or(ContractError::Underflow)?
+                    .checked_sub(
                         self.get_bonded_vesting(block_time, env, storage)?
                             .amount
                             .u128(),
-                    ),
+                    )
+                    .ok_or(ContractError::Underflow)?,
             ),
             denom: DENOM.to_string(),
         })
@@ -83,10 +85,8 @@ impl VestingAccount for Account {
         env: &Env,
     ) -> Result<Coin, ContractError> {
         Ok(Coin {
-            amount: Uint128::new(
-                self.get_original_vesting().amount.u128()
-                    - self.get_vested_coins(block_time, env)?.amount.u128(),
-            ),
+            amount: self.get_original_vesting().amount
+                - self.get_vested_coins(block_time, env)?.amount,
             denom: DENOM.to_string(),
         })
     }

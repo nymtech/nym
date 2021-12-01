@@ -43,8 +43,8 @@ pub(crate) enum TestPacketError {
     InvalidOwner(Utf8Error),
 }
 
-impl From<identity::KeyRecoveryError> for TestPacketError {
-    fn from(_: identity::KeyRecoveryError) -> Self {
+impl From<identity::Ed25519RecoveryError> for TestPacketError {
+    fn from(_: identity::Ed25519RecoveryError) -> Self {
         TestPacketError::InvalidNodeKey
     }
 }

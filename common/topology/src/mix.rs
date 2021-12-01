@@ -13,7 +13,7 @@ use std::net::SocketAddr;
 
 #[derive(Debug)]
 pub enum MixnodeConversionError {
-    InvalidIdentityKey(identity::KeyRecoveryError),
+    InvalidIdentityKey(identity::Ed25519RecoveryError),
     InvalidSphinxKey(encryption::KeyRecoveryError),
     InvalidAddress(String, io::Error),
     InvalidStake,
@@ -26,8 +26,8 @@ impl From<encryption::KeyRecoveryError> for MixnodeConversionError {
     }
 }
 
-impl From<identity::KeyRecoveryError> for MixnodeConversionError {
-    fn from(err: identity::KeyRecoveryError) -> Self {
+impl From<identity::Ed25519RecoveryError> for MixnodeConversionError {
+    fn from(err: identity::Ed25519RecoveryError) -> Self {
         MixnodeConversionError::InvalidIdentityKey(err)
     }
 }

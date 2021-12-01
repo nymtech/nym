@@ -13,7 +13,7 @@ use std::net::SocketAddr;
 
 #[derive(Debug)]
 pub enum GatewayConversionError {
-    InvalidIdentityKey(identity::KeyRecoveryError),
+    InvalidIdentityKey(identity::Ed25519RecoveryError),
     InvalidSphinxKey(encryption::KeyRecoveryError),
     InvalidAddress(String, io::Error),
     InvalidStake,
@@ -26,8 +26,8 @@ impl From<encryption::KeyRecoveryError> for GatewayConversionError {
     }
 }
 
-impl From<identity::KeyRecoveryError> for GatewayConversionError {
-    fn from(err: identity::KeyRecoveryError) -> Self {
+impl From<identity::Ed25519RecoveryError> for GatewayConversionError {
+    fn from(err: identity::Ed25519RecoveryError) -> Self {
         GatewayConversionError::InvalidIdentityKey(err)
     }
 }

@@ -49,11 +49,11 @@ pub(crate) fn ensure_no_existing_bond(
 
 pub(crate) fn validate_node_identity_signature(
     deps: Deps,
-    sender: &Addr,
+    owner: &Addr,
     signature: String,
     identity: IdentityKeyRef,
 ) -> Result<(), ContractError> {
-    let sender_bytes = sender.as_bytes();
+    let owner_bytes = owner.as_bytes();
 
     let mut identity_bytes = [0u8; 32];
     let mut signature_bytes = [0u8; 64];
@@ -79,7 +79,7 @@ pub(crate) fn validate_node_identity_signature(
 
     let res = deps
         .api
-        .ed25519_verify(sender_bytes, &signature_bytes, &identity_bytes)
+        .ed25519_verify(owner_bytes, &signature_bytes, &identity_bytes)
         .map_err(cosmwasm_std::StdError::verification_err)?;
     if !res {
         Err(ContractError::InvalidEd25519Signature)

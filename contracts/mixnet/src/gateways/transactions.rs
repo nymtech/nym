@@ -14,7 +14,7 @@ pub(crate) fn try_add_gateway(
     env: Env,
     info: MessageInfo,
     gateway: Gateway,
-    address_signature: String,
+    owner_signature: String,
 ) -> Result<Response, ContractError> {
     // if the client has an active bonded mixnode or gateway, don't allow bonding
     ensure_no_existing_bond(deps.storage, &info.sender)?;
@@ -34,7 +34,7 @@ pub(crate) fn try_add_gateway(
     validate_node_identity_signature(
         deps.as_ref(),
         &info.sender,
-        address_signature,
+        owner_signature,
         &gateway.identity_key,
     )?;
 
@@ -289,7 +289,7 @@ pub mod tests {
                 identity_key: identity,
                 ..test_helpers::gateway_fixture()
             },
-            address_signature: "foomp".to_string(),
+            owner_signature: "foomp".to_string(),
         };
 
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);

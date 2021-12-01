@@ -54,7 +54,10 @@ pub fn execute(
             mix_identity,
             amount,
         } => try_track_undelegation(&owner, mix_identity, amount, info, deps),
-        ExecuteMsg::BondMixnode { mix_node } => try_bond_mixnode(mix_node, info, env, deps),
+        ExecuteMsg::BondMixnode {
+            mix_node,
+            owner_signature,
+        } => try_bond_mixnode(mix_node, owner_signature, info, env, deps),
         ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
         ExecuteMsg::TrackUnbond { owner, amount } => try_track_unbond(&owner, amount, info, deps),
     }
@@ -62,13 +65,14 @@ pub fn execute(
 
 pub fn try_bond_mixnode(
     mix_node: MixNode,
+    owner_signature: String,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
     let bond = validate_funds(&info.funds)?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_bond_mixnode(mix_node, bond, &env, deps.storage)
+    account.try_bond_mixnode(mix_node, owner_signature, bond, &env, deps.storage)
 }
 
 pub fn try_unbond_mixnode(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {

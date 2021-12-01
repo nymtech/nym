@@ -183,6 +183,7 @@ mod tests {
                 ..test_helpers::mix_node_fixture()
             },
             profit_margin_percent: None,
+            proxy: None,
         };
 
         storage::mixnodes()

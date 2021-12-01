@@ -25,7 +25,6 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
 use mixnet_contract::{ContractSettingsParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use std::u128;
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128::new(100_000_000);
@@ -91,26 +90,26 @@ pub fn execute(
     match msg {
         ExecuteMsg::BondMixnode {
             mix_node,
-            address_signature,
+            owner_signature,
         } => crate::mixnodes::transactions::try_add_mixnode(
             deps,
             env,
             info,
             mix_node,
-            address_signature,
+            owner_signature,
         ),
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, info)
         }
         ExecuteMsg::BondGateway {
             gateway,
-            address_signature,
+            owner_signature,
         } => crate::gateways::transactions::try_add_gateway(
             deps,
             env,
             info,
             gateway,
-            address_signature,
+            owner_signature,
         ),
         ExecuteMsg::UnbondGateway {} => {
             crate::gateways::transactions::try_remove_gateway(deps, info)
@@ -185,11 +184,18 @@ pub fn execute(
             mix_identity,
             delegate,
         ),
-        ExecuteMsg::BondMixnodeOnBehalf { mix_node, owner } => {
-            crate::mixnodes::transactions::try_add_mixnode_on_behalf(
-                deps, env, info, mix_node, owner,
-            )
-        }
+        ExecuteMsg::BondMixnodeOnBehalf {
+            mix_node,
+            owner,
+            owner_signature,
+        } => crate::mixnodes::transactions::try_add_mixnode_on_behalf(
+            deps,
+            env,
+            info,
+            mix_node,
+            owner,
+            owner_signature,
+        ),
         ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
             crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, info, owner)
         }

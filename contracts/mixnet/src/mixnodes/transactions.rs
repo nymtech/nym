@@ -20,7 +20,7 @@ pub fn try_add_mixnode(
     env: Env,
     info: MessageInfo,
     mix_node: MixNode,
-    address_signature: String,
+    owner_signature: String,
 ) -> Result<Response, ContractError> {
     _try_add_mixnode(
         deps,
@@ -28,6 +28,7 @@ pub fn try_add_mixnode(
         mix_node,
         info.funds[0].clone(),
         info.sender.as_str(),
+        owner_signature,
         None,
     )
 }
@@ -38,6 +39,7 @@ pub fn try_add_mixnode_on_behalf(
     info: MessageInfo,
     mix_node: MixNode,
     owner: String,
+    owner_signature: String,
 ) -> Result<Response, ContractError> {
     let proxy = info.sender.to_owned();
     _try_add_mixnode(
@@ -46,6 +48,7 @@ pub fn try_add_mixnode_on_behalf(
         mix_node,
         info.funds[0].clone(),
         &owner,
+        owner_signature,
         Some(proxy),
     )
 }
@@ -56,6 +59,7 @@ fn _try_add_mixnode(
     mix_node: MixNode,
     bond_amount: Coin,
     owner: &str,
+    owner_signature: String,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
     let owner = deps.api.addr_validate(owner)?;
@@ -76,8 +80,8 @@ fn _try_add_mixnode(
     // check if this sender actually owns the mixnode by checking the signature
     validate_node_identity_signature(
         deps.as_ref(),
-        &info.sender,
-        address_signature,
+        &owner,
+        owner_signature,
         &mix_node.identity_key,
     )?;
 
@@ -371,7 +375,7 @@ pub mod tests {
                 identity_key: identity,
                 ..test_helpers::mix_node_fixture()
             },
-            address_signature: "foomp".to_string(),
+            owner_signature: "foomp".to_string(),
         };
 
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);

@@ -6,6 +6,7 @@ pub trait BondingAccount {
     fn try_bond_mixnode(
         &self,
         mix_node: MixNode,
+        owner_signature: String,
         amount: Coin,
         env: &Env,
         storage: &mut dyn Storage,

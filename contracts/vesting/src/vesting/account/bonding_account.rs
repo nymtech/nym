@@ -11,6 +11,7 @@ impl BondingAccount for Account {
     fn try_bond_mixnode(
         &self,
         mix_node: MixNode,
+        owner_signature: String,
         bond: Coin,
         env: &Env,
         storage: &mut dyn Storage,
@@ -38,6 +39,7 @@ impl BondingAccount for Account {
         let msg = MixnetExecuteMsg::BondMixnodeOnBehalf {
             mix_node,
             owner: self.address().into_string(),
+            owner_signature,
         };
 
         let new_balance = Uint128::new(current_balance.u128() - bond.amount.u128());

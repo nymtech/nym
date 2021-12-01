@@ -33,7 +33,7 @@ pub mod test_helpers {
 
     pub(crate) fn valid_bond_mixnode_msg(sender: &str) -> (ExecuteMsg, IdentityKey) {
         let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
-        let address_signature = keypair
+        let owner_signature = keypair
             .private_key()
             .sign(sender.as_bytes())
             .to_base58_string();
@@ -45,7 +45,7 @@ pub mod test_helpers {
                     identity_key: identity_key.clone(),
                     ..test_helpers::mix_node_fixture()
                 },
-                address_signature,
+                owner_signature,
             },
             identity_key,
         )
@@ -53,7 +53,7 @@ pub mod test_helpers {
 
     pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
         let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
-        let address_signature = keypair
+        let owner_signature = keypair
             .private_key()
             .sign(sender.as_bytes())
             .to_base58_string();
@@ -69,7 +69,7 @@ pub mod test_helpers {
                 identity_key: key.clone(),
                 ..test_helpers::mix_node_fixture()
             },
-            address_signature,
+            owner_signature,
         )
         .unwrap();
         key
@@ -94,7 +94,7 @@ pub mod test_helpers {
 
     pub(crate) fn valid_bond_gateway_msg(sender: &str) -> (ExecuteMsg, IdentityKey) {
         let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
-        let address_signature = keypair
+        let owner_signature = keypair
             .private_key()
             .sign(sender.as_bytes())
             .to_base58_string();
@@ -106,7 +106,7 @@ pub mod test_helpers {
                     identity_key: identity_key.clone(),
                     ..test_helpers::gateway_fixture()
                 },
-                address_signature,
+                owner_signature,
             },
             identity_key,
         )
@@ -114,7 +114,7 @@ pub mod test_helpers {
 
     pub fn add_gateway(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
         let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
-        let address_signature = keypair
+        let owner_signature = keypair
             .private_key()
             .sign(sender.as_bytes())
             .to_base58_string();
@@ -129,7 +129,7 @@ pub mod test_helpers {
                 identity_key: key.clone(),
                 ..test_helpers::gateway_fixture()
             },
-            address_signature,
+            owner_signature,
         )
         .unwrap();
         key

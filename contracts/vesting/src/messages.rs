@@ -31,6 +31,7 @@ pub enum ExecuteMsg {
     },
     BondMixnode {
         mix_node: MixNode,
+        owner_signature: String,
     },
     UnbondMixnode {},
     TrackUnbond {

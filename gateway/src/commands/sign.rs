@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::*;
-use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
+use crate::config::{persistence::pathfinder::GatewayPathfinder, Config};
 use clap::{App, Arg, ArgMatches};
 use colored::Colorize;
 use config::defaults::BECH32_PREFIX;
@@ -41,7 +41,7 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         )
 }
 
-fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
+fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
     let identity_keypair: identity::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
         pathfinder.private_identity_key().to_owned(),
         pathfinder.public_identity_key().to_owned(),
@@ -107,7 +107,7 @@ pub fn execute(matches: &ArgMatches) {
             return;
         }
     };
-    let pathfinder = MixNodePathfinder::new_from_config(&config);
+    let pathfinder = GatewayPathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);
 
     if let Some(text) = matches.value_of(SIGN_TEXT_ARG_NAME) {

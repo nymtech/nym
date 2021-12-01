@@ -19,6 +19,7 @@ async fn main() {
         .about("Implementation of the Nym Mixnet Gateway")
         .subcommand(commands::init::command_args())
         .subcommand(commands::run::command_args())
+        .subcommand(commands::sign::command_args())
         .subcommand(commands::upgrade::command_args())
         .get_matches();
 
@@ -30,6 +31,7 @@ async fn execute(matches: ArgMatches<'static>) {
         ("init", Some(m)) => commands::init::execute(m.clone()).await,
         ("run", Some(m)) => commands::run::execute(m.clone()).await,
         ("upgrade", Some(m)) => commands::upgrade::execute(m.clone()).await,
+        ("sign", Some(m)) => commands::sign::execute(m),
         _ => println!("{}", usage()),
     }
 }

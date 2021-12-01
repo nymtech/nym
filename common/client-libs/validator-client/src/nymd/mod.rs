@@ -613,6 +613,34 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    /// Announce a mixnode on behalf of the owner, paying a fee.
+    pub async fn bond_mixnode_on_behalf(
+        &self,
+        mixnode: MixNode,
+        owner: String,
+        bond: Coin,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee(Operation::BondMixnode);
+
+        let req = ExecuteMsg::BondMixnodeOnBehalf {
+            mix_node: mixnode,
+            owner,
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Bonding mixnode on behalf from rust!",
+                vec![cosmwasm_coin_to_cosmos_coin(bond)],
+            )
+            .await
+    }
+
     /// Unbond a mixnode, removing it from the network and reclaiming staked coins
     pub async fn unbond_mixnode(&self) -> Result<ExecuteResult, NymdError>
     where
@@ -654,6 +682,35 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Delegating to mixnode from rust!",
+                vec![cosmwasm_coin_ptr_to_cosmos_coin(amount)],
+            )
+            .await
+    }
+
+    /// Delegates specified amount of stake to particular mixnode on
+    /// behalf of a particular delegator.
+    pub async fn delegate_to_mixnode_on_behalf(
+        &self,
+        mix_identity: &str,
+        delegate: &str,
+        amount: &Coin,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee(Operation::DelegateToMixnode);
+
+        let req = ExecuteMsg::DelegateToMixnodeOnBehalf {
+            mix_identity: mix_identity.to_string(),
+            delegate: delegate.to_string(),
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Delegating to mixnode on behalf from rust!",
                 vec![cosmwasm_coin_ptr_to_cosmos_coin(amount)],
             )
             .await

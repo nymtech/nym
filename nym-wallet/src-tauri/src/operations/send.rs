@@ -12,31 +12,31 @@ use validator_client::nymd::{AccountId, CosmosCoin};
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Deserialize, Serialize)]
 pub struct TauriTxResult {
-  code: u32,
-  gas_wanted: u64,
-  gas_used: u64,
   block_height: u64,
+  code: u32,
   details: TransactionDetails,
+  gas_used: u64,
+  gas_wanted: u64,
   tx_hash: String,
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Deserialize, Serialize)]
 pub struct TransactionDetails {
+  amount: Coin,
   from_address: String,
   to_address: String,
-  amount: Coin,
 }
 
 impl TauriTxResult {
   fn new(t: Response, details: TransactionDetails) -> TauriTxResult {
     TauriTxResult {
-      code: t.check_tx.code.value(),
-      gas_wanted: t.check_tx.gas_wanted.value(),
-      gas_used: t.check_tx.gas_used.value(),
       block_height: t.height.value(),
-      tx_hash: t.hash.to_string(),
+      code: t.check_tx.code.value(),
       details,
+      gas_used: t.check_tx.gas_used.value(),
+      gas_wanted: t.check_tx.gas_wanted.value(),
+      tx_hash: t.hash.to_string(),
     }
   }
 }

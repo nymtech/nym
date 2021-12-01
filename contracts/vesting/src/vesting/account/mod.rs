@@ -41,9 +41,9 @@ impl Account {
             start_time,
             periods,
             coin,
-            delegations_key: format!("{}_{}", address.to_string(), DELEGATIONS_SUFFIX),
-            balance_key: format!("{}_{}", address.to_string(), BALANCE_SUFFIX),
-            bond_key: format!("{}_{}", address.to_string(), BOND_SUFFIX),
+            delegations_key: format!("{}_{}", address, DELEGATIONS_SUFFIX),
+            balance_key: format!("{}_{}", address, BALANCE_SUFFIX),
+            bond_key: format!("{}_{}", address, BOND_SUFFIX),
         };
         save_account(&account, storage)?;
         account.save_balance(amount, storage)?;

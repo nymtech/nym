@@ -45,6 +45,7 @@ pub mod wallet;
 pub struct NymdClient<C> {
     client: C,
     mixnet_contract_address: Option<AccountId>,
+    vesting_contract_address: Option<AccountId>,
     client_address: Option<Vec<AccountId>>,
     gas_price: GasPrice,
     custom_gas_limits: HashMap<Operation, Gas>,
@@ -54,6 +55,7 @@ impl NymdClient<QueryNymdClient> {
     pub fn connect<U>(
         endpoint: U,
         mixnet_contract_address: AccountId,
+        vesting_contract_address: AccountId,
     ) -> Result<NymdClient<QueryNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
@@ -61,6 +63,7 @@ impl NymdClient<QueryNymdClient> {
         Ok(NymdClient {
             client: QueryNymdClient::new(endpoint)?,
             mixnet_contract_address: Some(mixnet_contract_address),
+            vesting_contract_address: Some(vesting_contract_address),
             client_address: None,
             gas_price: Default::default(),
             custom_gas_limits: Default::default(),
@@ -73,6 +76,7 @@ impl NymdClient<SigningNymdClient> {
     pub fn connect_with_signer<U>(
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
+        vesting_contract_address: Option<AccountId>,
         signer: DirectSecp256k1HdWallet,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
     where
@@ -87,6 +91,7 @@ impl NymdClient<SigningNymdClient> {
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, signer)?,
             mixnet_contract_address,
+            vesting_contract_address,
             client_address: Some(client_address),
             gas_price: Default::default(),
             custom_gas_limits: Default::default(),
@@ -96,6 +101,7 @@ impl NymdClient<SigningNymdClient> {
     pub fn connect_with_mnemonic<U>(
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
+        vesting_contract_address: Option<AccountId>,
         mnemonic: bip39::Mnemonic,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
     where
@@ -111,6 +117,7 @@ impl NymdClient<SigningNymdClient> {
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, wallet)?,
             mixnet_contract_address,
+            vesting_contract_address,
             client_address: Some(client_address),
             gas_price: Default::default(),
             custom_gas_limits: Default::default(),
@@ -137,6 +144,12 @@ impl<C> NymdClient<C> {
 
     pub fn mixnet_contract_address(&self) -> Result<&AccountId, NymdError> {
         self.mixnet_contract_address
+            .as_ref()
+            .ok_or(NymdError::NoContractAddressAvailable)
+    }
+
+    pub fn vesting_contract_address(&self) -> Result<&AccountId, NymdError> {
+        self.vesting_contract_address
             .as_ref()
             .ok_or(NymdError::NoContractAddressAvailable)
     }

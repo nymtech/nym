@@ -224,8 +224,12 @@ fn new_nymd_client() -> validator_client::Client<QueryNymdClient> {
     let nymd_url = default_nymd_endpoints()[0].clone();
     let api_url = default_api_endpoints()[0].clone();
 
-    let client_config =
-        validator_client::Config::new(nymd_url, api_url, Some(mixnet_contract.parse().unwrap()));
+    let client_config = validator_client::Config::new(
+        nymd_url,
+        api_url,
+        Some(mixnet_contract.parse().unwrap()),
+        None,
+    );
 
     validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!")
 }

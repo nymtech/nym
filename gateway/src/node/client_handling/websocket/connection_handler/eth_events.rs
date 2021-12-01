@@ -43,6 +43,7 @@ impl ERC20Bridge {
         let nymd_client = NymdClient::connect_with_mnemonic(
             nymd_url.as_ref(),
             AccountId::from_str(COSMOS_CONTRACT_ADDRESS).ok(),
+            None,
             mnemonic,
         )
         .expect("Could not create nymd client");

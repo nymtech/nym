@@ -5,11 +5,10 @@
   "license": "MIT",
   "scripts": {
     "webpack:dev": "yarn webpack serve",
-    "webpack:build": "yarn webpack",
     "webpack:prod": "yarn webpack --progress --config webpack.prod.config.js",
     "tauri:dev": "yarn tauri dev",
     "tauri:build": "yarn tauri build",
-    "dev": "yarn run-s webpack:dev tauri:dev",
+    "dev": "yarn run webpack:dev & yarn run tauri:dev",
     "build:prod": "run-s webpack:prod tauri:build"
   },
   "dependencies": {

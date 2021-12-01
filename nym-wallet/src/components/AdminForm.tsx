@@ -10,9 +10,8 @@ import {
   Paper,
   Slide,
   TextField,
-  Theme,
-} from '@material-ui/core'
-import { useTheme } from '@material-ui/styles'
+} from '@mui/material'
+
 import { ClientContext } from '../context/main'
 import { NymCard } from '.'
 import { getContractParams, setContractParams } from '../requests'
@@ -77,13 +76,9 @@ const AdminForm: React.FC<{
     onCancel()
   }
 
-  const theme: Theme = useTheme()
-
   return (
     <FormControl fullWidth>
-      <div
-        style={{ padding: theme.spacing(3, 5), maxWidth: 700, minWidth: 400 }}
-      >
+      <Box sx={{ padding: [3, 5], maxWidth: 700, minWidth: 400 }}>
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <TextField
@@ -190,15 +185,15 @@ const AdminForm: React.FC<{
             />
           </Grid>
         </Grid>
-      </div>
+      </Box>
       <Grid
         container
         spacing={1}
         justifyContent="flex-end"
-        style={{
-          borderTop: `1px solid ${theme.palette.grey[200]}`,
-          background: theme.palette.grey[100],
-          padding: theme.spacing(2),
+        sx={{
+          borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
+          background: (theme) => theme.palette.grey[100],
+          padding: 2,
         }}
       >
         <Grid item>

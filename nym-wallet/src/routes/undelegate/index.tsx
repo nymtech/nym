@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import { Alert, AlertTitle } from '@material-ui/lab'
-import { useTheme } from '@material-ui/styles'
 import { NymCard } from '../../components'
 import { UndelegateForm } from './UndelegateForm'
 import { Layout } from '../../layouts'
@@ -8,12 +6,8 @@ import {
   EnumRequestStatus,
   RequestStatus,
 } from '../../components/RequestStatus'
-import { Box, Button, CircularProgress, Theme } from '@material-ui/core'
-import {
-  getGasFee,
-  getReverseGatewayDelegations,
-  getReverseMixDelegations,
-} from '../../requests'
+import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
+import { getGasFee, getReverseMixDelegations } from '../../requests'
 import { TFee, TDelegation } from '../../types'
 
 export type TDelegations = {
@@ -23,7 +17,7 @@ export type TDelegations = {
 export const Undelegate = () => {
   const [message, setMessage] = useState<string>()
   const [status, setStatus] = useState<EnumRequestStatus>(
-    EnumRequestStatus.initial
+    EnumRequestStatus.initial,
   )
   const [isLoading, setIsLoading] = useState(true)
   const [fees, setFees] = useState<TFee>()
@@ -57,8 +51,6 @@ export const Undelegate = () => {
     setIsLoading(false)
   }
 
-  const theme: Theme = useTheme()
-
   return (
     <Layout>
       <NymCard
@@ -68,10 +60,10 @@ export const Undelegate = () => {
       >
         {isLoading && (
           <Box
-            style={{
+            sx={{
               display: 'flex',
               justifyContent: 'center',
-              padding: theme.spacing(3),
+              p: 3,
             }}
           >
             <CircularProgress size={48} />
@@ -111,14 +103,14 @@ export const Undelegate = () => {
                   </Alert>
                 }
               />
-              <div
-                style={{
+              <Box
+                sx={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'flex-end',
-                  borderTop: `1px solid ${theme.palette.grey[200]}`,
-                  background: theme.palette.grey[100],
-                  padding: theme.spacing(2),
+                  borderTop: '1px solid grey[200]',
+                  bgcolor: 'grey[50]',
+                  p: 2,
                 }}
               >
                 <Button
@@ -130,7 +122,7 @@ export const Undelegate = () => {
                 >
                   Finish
                 </Button>
-              </div>
+              </Box>
             </>
           )}
         </>

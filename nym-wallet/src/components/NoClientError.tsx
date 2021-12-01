@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Alert, AlertTitle } from '@material-ui/lab'
+import { Alert, AlertTitle } from '@mui/material'
 
 export const NoClientError = () => {
   return (

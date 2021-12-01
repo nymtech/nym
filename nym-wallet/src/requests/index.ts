@@ -18,7 +18,7 @@ export const createAccount = async (): Promise<TCreateAccount> =>
   await invoke('create_new_account')
 
 export const signInWithMnemonic = async (
-  mnemonic: string
+  mnemonic: string,
 ): Promise<TSignInWithMnemonic> =>
   await invoke('connect_with_mnemonic', { mnemonic })
 
@@ -75,15 +75,17 @@ export const bond = async ({
 export const unbond = async (type: EnumNodeType) =>
   await invoke(`unbond_${type}`)
 
-export const getBalance = async (): Promise<Balance> =>
+export const userBalance = async (): Promise<Balance> =>
   await invoke('get_balance')
 
-export const getContractParams = async (): Promise<TauriContractSettingsParams> =>
-  await invoke('get_contract_settings')
+export const getContractParams =
+  async (): Promise<TauriContractSettingsParams> =>
+    await invoke('get_contract_settings')
 
 export const setContractParams = async (
-  params: TauriContractSettingsParams
-): Promise<TauriContractSettingsParams> => await invoke('update_contract_settings', { params })
+  params: TauriContractSettingsParams,
+): Promise<TauriContractSettingsParams> =>
+  await invoke('update_contract_settings', { params })
 
 export const getReverseMixDelegations = async (): Promise<TDelegation> =>
   await invoke('get_reverse_mix_delegations_paged')

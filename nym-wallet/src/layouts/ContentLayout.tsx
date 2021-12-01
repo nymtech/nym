@@ -1,19 +1,16 @@
 import React from 'react'
-import { Grid, Theme, useTheme } from '@material-ui/core'
+import { Box, Grid } from '@mui/material'
 
 export const Layout = ({ children }: { children: React.ReactElement }) => {
-  const theme: Theme = useTheme()
-
   return (
-    <div
-      style={{
-        padding: theme.spacing(5),
+    <Box
+      sx={{
+        padding: 5,
         width: '100%',
         height: '100%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'auto',
       }}
     >
       <Grid container justifyContent="center" style={{ margin: 'auto' }}>
@@ -21,6 +18,6 @@ export const Layout = ({ children }: { children: React.ReactElement }) => {
           {children}
         </Grid>
       </Grid>
-    </div>
+    </Box>
   )
 }

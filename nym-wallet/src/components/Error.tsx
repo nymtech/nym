@@ -1,7 +1,6 @@
 import React from 'react'
 import { FallbackProps } from 'react-error-boundary'
-import { Alert, AlertTitle } from '@material-ui/lab'
-import { Button } from '@material-ui/core'
+import { Alert, AlertTitle, Button } from '@mui/material'
 
 export const ErrorFallback = ({ error, resetErrorBoundary }: FallbackProps) => {
   return (

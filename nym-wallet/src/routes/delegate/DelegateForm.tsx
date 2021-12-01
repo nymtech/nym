@@ -1,5 +1,7 @@
 import React, { useContext } from 'react'
 import {
+  Alert,
+  Box,
   Button,
   CircularProgress,
   FormControl,
@@ -8,12 +10,11 @@ import {
   TextField,
   Theme,
   useTheme,
-} from '@material-ui/core'
+} from '@mui/material'
 import { useForm } from 'react-hook-form'
 import { EnumNodeType, TFee } from '../../types'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
-import { Alert } from '@material-ui/lab'
 import { ClientContext } from '../../context/main'
 import { delegate, majorToMinor } from '../../requests'
 import { checkHasEnoughFunds } from '../../utils'
@@ -39,7 +40,6 @@ export const DelegateForm = ({
   onError: (message?: string) => void
   onSuccess: (message?: string) => void
 }) => {
-  const theme = useTheme<Theme>()
   const {
     register,
     watch,
@@ -53,7 +53,7 @@ export const DelegateForm = ({
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
 
-  const { getBalance } = useContext(ClientContext)
+  const { userBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TDelegateForm) => {
     const hasEnoughFunds = await checkHasEnoughFunds(data.amount)
@@ -72,9 +72,9 @@ export const DelegateForm = ({
     })
       .then((res) => {
         onSuccess(
-          `Successfully delegated ${data.amount} punk to ${res.target_address}`
+          `Successfully delegated ${data.amount} punk to ${res.target_address}`,
         )
-        getBalance.fetchBalance()
+        userBalance.fetchBalance()
       })
       .catch((e) => {
         console.log(e)
@@ -84,7 +84,7 @@ export const DelegateForm = ({
 
   return (
     <FormControl fullWidth>
-      <div style={{ padding: theme.spacing(3, 5) }}>
+      <Box sx={{ padding: [3, 5] }}>
         <Grid container spacing={3}>
           <Grid container item xs={12} justifyContent="space-between">
             <Grid item>
@@ -126,15 +126,15 @@ export const DelegateForm = ({
             />
           </Grid>
         </Grid>
-      </div>
-      <div
-        style={{
+      </Box>
+      <Box
+        sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          borderTop: `1px solid ${theme.palette.grey[200]}`,
-          background: theme.palette.grey[100],
-          padding: theme.spacing(2),
+          borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
+          background: (theme) => theme.palette.grey[50],
+          padding: 2,
         }}
       >
         <Button
@@ -149,7 +149,7 @@ export const DelegateForm = ({
         >
           Delegate stake
         </Button>
-      </div>
+      </Box>
     </FormControl>
   )
 }

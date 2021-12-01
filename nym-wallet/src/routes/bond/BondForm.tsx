@@ -1,5 +1,7 @@
 import React, { useContext } from 'react'
 import {
+  Alert,
+  Box,
   Button,
   Checkbox,
   CircularProgress,
@@ -8,10 +10,7 @@ import {
   Grid,
   InputAdornment,
   TextField,
-  Theme,
-} from '@material-ui/core'
-import { useTheme } from '@material-ui/styles'
-import { Alert } from '@material-ui/lab'
+} from '@mui/material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
 import { EnumNodeType } from '../../types/global'
@@ -79,7 +78,7 @@ export const BondForm = ({
   onSuccess,
 }: {
   disabled: boolean
-  fees?: { [key in EnumNodeType]: Coin }
+  fees?: { [EnumNodeType.mixnode]: Coin; [EnumNodeType.gateway]?: Coin }
   onError: (message?: string) => void
   onSuccess: (message?: string) => void
 }) => {
@@ -95,12 +94,12 @@ export const BondForm = ({
     defaultValues,
   })
 
-  const { getBalance } = useContext(ClientContext)
+  const { userBalance } = useContext(ClientContext)
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
   const watchAdvancedOptions = watch(
     'withAdvancedOptions',
-    defaultValues.withAdvancedOptions
+    defaultValues.withAdvancedOptions,
   )
 
   const onSubmit = async (data: TBondFormFields) => {
@@ -114,7 +113,7 @@ export const BondForm = ({
 
     await bond({ type: data.nodeType, data: formattedData, amount })
       .then(() => {
-        getBalance.fetchBalance()
+        userBalance.fetchBalance()
         onSuccess(`Successfully bonded to ${data.identityKey}`)
       })
       .catch((e) => {
@@ -122,11 +121,9 @@ export const BondForm = ({
       })
   }
 
-  const theme: Theme = useTheme()
-
   return (
     <FormControl fullWidth>
-      <div style={{ padding: theme.spacing(3, 5) }}>
+      <Box sx={{ padding: [3, 5] }}>
         <Grid container spacing={3}>
           <Grid container item justifyContent="space-between">
             <Grid item>
@@ -146,7 +143,7 @@ export const BondForm = ({
                   {`A fee of ${
                     watchNodeType === EnumNodeType.mixnode
                       ? fees.mixnode.amount
-                      : fees.gateway.amount
+                      : fees?.gateway?.amount
                   } PUNK will apply to this transaction`}
                 </Alert>
               </Grid>
@@ -352,15 +349,15 @@ export const BondForm = ({
             </>
           )}
         </Grid>
-      </div>
-      <div
-        style={{
+      </Box>
+      <Box
+        sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          borderTop: `1px solid ${theme.palette.grey[200]}`,
-          background: theme.palette.grey[100],
-          padding: theme.spacing(2),
+          borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
+          bgcolor: (theme) => theme.palette.grey[50],
+          padding: 2,
         }}
       >
         <Button
@@ -368,7 +365,6 @@ export const BondForm = ({
           variant="contained"
           color="primary"
           type="submit"
-          size="large"
           data-testid="submit-button"
           disableElevation
           onClick={handleSubmit(onSubmit)}
@@ -376,7 +372,7 @@ export const BondForm = ({
         >
           Bond
         </Button>
-      </div>
+      </Box>
     </FormControl>
   )
 }

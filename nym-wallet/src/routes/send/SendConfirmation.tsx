@@ -1,7 +1,6 @@
 import React from 'react'
-import { Card, CircularProgress, Theme, Typography } from '@material-ui/core'
-import { CheckCircleOutline } from '@material-ui/icons'
-import { useTheme } from '@material-ui/styles'
+import { Box, Card, CircularProgress, Typography } from '@mui/material'
+import { CheckCircleOutline } from '@mui/icons-material'
 import { SendError } from './SendError'
 import { TauriTxResult } from '../../types/rust/tauritxresult'
 
@@ -14,11 +13,9 @@ export const SendConfirmation = ({
   error?: string
   isLoading: boolean
 }) => {
-  const theme: Theme = useTheme()
-
   return (
-    <div
-      style={{
+    <Box
+      sx={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -30,52 +27,55 @@ export const SendConfirmation = ({
       {!isLoading && !!error && <SendError message={error} />}
       {!isLoading && data && (
         <>
-          <div
-            style={{
+          <Box
+            sx={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: theme.spacing(4),
+              mb: 4,
             }}
           >
             <CheckCircleOutline
-              style={{
+              sx={{
                 fontSize: 50,
-                color: theme.palette.success.main,
-                marginBottom: theme.spacing(1),
+                color: 'success.main',
+                mb: 1,
               }}
             />
-            <Typography data-testid="transaction-complete">Transaction complete</Typography>
-          </div>
+            <Typography data-testid="transaction-complete">
+              Transaction complete
+            </Typography>
+          </Box>
 
-          <Card
-            variant="outlined"
-            style={{ width: '100%', padding: theme.spacing(2) }}
-          >
-            <div style={{ display: 'flex', marginBottom: theme.spacing(2) }}>
-              <div style={{ width: '33%' }}>
-                <Typography style={{ color: theme.palette.grey[600] }}>
+          <Card variant="outlined" sx={{ width: '100%', p: 2 }}>
+            <Box sx={{ display: 'flex', mb: 2 }}>
+              <Box sx={{ width: '1/3' }}>
+                <Typography sx={{ color: (theme) => theme.palette.grey[600] }}>
                   Recipient
                 </Typography>
-              </div>
-              <div style={{ wordBreak: 'break-all' }}>
-                <Typography data-testid="to-address">{data.to_address}</Typography>
-              </div>
-            </div>
-            <div style={{ display: 'flex' }}>
-              <div style={{ width: '33%' }}>
-                <Typography style={{ color: theme.palette.grey[600] }}>
+              </Box>
+              <Box sx={{ wordBreak: 'break-all' }}>
+                <Typography data-testid="to-address">
+                  {data.to_address}
+                </Typography>
+              </Box>
+            </Box>
+            <Box sx={{ display: 'flex' }}>
+              <Box sx={{ width: '33%' }}>
+                <Typography sx={{ color: (theme) => theme.palette.grey[600] }}>
                   Amount
                 </Typography>
-              </div>
-              <div>
-                <Typography data-testid="send-amount">{data.amount.amount + ' punks'}</Typography>
-              </div>
-            </div>
+              </Box>
+              <Box>
+                <Typography data-testid="send-amount">
+                  {data.amount.amount + ' punks'}
+                </Typography>
+              </Box>
+            </Box>
           </Card>
         </>
       )}
-    </div>
+    </Box>
   )
 }

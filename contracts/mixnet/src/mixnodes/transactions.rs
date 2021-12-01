@@ -44,7 +44,7 @@ pub fn try_add_mixnode_on_behalf(
         .minimum_mixnode_bond;
     let bond = validate_mixnode_bond(info.funds, minimum_bond)?;
 
-    let proxy = info.sender.to_owned();
+    let proxy = info.sender;
     _try_add_mixnode(deps, env, mix_node, bond, &owner, Some(proxy))
 }
 

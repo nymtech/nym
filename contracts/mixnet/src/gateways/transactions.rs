@@ -35,7 +35,7 @@ pub(crate) fn try_add_gateway(
         .minimum_gateway_bond;
     let bond_amount = validate_gateway_bond(info.funds, minimum_bond)?;
 
-    let bond = GatewayBond::new(bond_amount, info.sender.clone(), env.block.height, gateway);
+    let bond = GatewayBond::new(bond_amount, info.sender, env.block.height, gateway);
 
     storage::gateways().save(deps.storage, bond.identity(), &bond)?;
     mixnet_params_storage::increment_layer_count(deps.storage, Layer::Gateway)?;

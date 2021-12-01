@@ -22,7 +22,7 @@ pub(crate) fn update_post_rewarding_storage(
 
     // update bond
     if operator_reward > Uint128::zero() {
-        mixnodes_storage::mixnodes().update(storage, &mix_identity, |current_bond| {
+        mixnodes_storage::mixnodes().update(storage, mix_identity, |current_bond| {
             match current_bond {
                 None => Err(ContractError::MixNodeBondNotFound {
                     identity: mix_identity.to_string(),
@@ -37,7 +37,7 @@ pub(crate) fn update_post_rewarding_storage(
 
     // update total_delegation
     if delegators_reward > Uint128::zero() {
-        mixnodes_storage::TOTAL_DELEGATION.update(storage, &mix_identity, |current_total| {
+        mixnodes_storage::TOTAL_DELEGATION.update(storage, mix_identity, |current_total| {
             match current_total {
                 None => Err(ContractError::MixNodeBondNotFound {
                     identity: mix_identity.to_string(),

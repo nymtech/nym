@@ -17,6 +17,7 @@ pub struct TauriTxResult {
   gas_used: u64,
   block_height: u64,
   details: TransactionDetails,
+  tx_hash: String,
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -34,6 +35,7 @@ impl TauriTxResult {
       gas_wanted: t.check_tx.gas_wanted.value(),
       gas_used: t.check_tx.gas_used.value(),
       block_height: t.height.value(),
+      tx_hash: t.hash.to_string(),
       details,
     }
   }

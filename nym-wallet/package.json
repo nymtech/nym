@@ -13,11 +13,12 @@
   },
   "dependencies": {
     "@babel/preset-typescript": "^7.15.0",
+    "@emotion/react": "^11.7.0",
+    "@emotion/styled": "^11.6.0",
     "@hookform/resolvers": "^2.8.0",
-    "@material-ui/core": "^4.12.3",
-    "@material-ui/icons": "^4.11.2",
-    "@material-ui/lab": "^4.0.0-alpha.60",
-    "@material-ui/styles": "^4.11.4",
+    "@mui/icons-material": "^5.2.0",
+    "@mui/material": "^5.2.2",
+    "@mui/styles": "^5.2.2",
     "@types/react-dom": "^17.0.9",
     "bs58": "^4.0.1",
     "clsx": "^1.1.1",
@@ -48,8 +49,8 @@
     "html-webpack-plugin": "^5.3.2",
     "style-loader": "^3.2.1",
     "url-loader": "^4.1.1",
-    "webpack": "^5.50.0",
+    "webpack": "^5.64.3",
     "webpack-cli": "^4.8.0",
-    "webpack-dev-server": "^4.1.0"
+    "webpack-dev-server": "^4.5.0"
   }
 }

@@ -1,62 +1,74 @@
-use super::delegation_helpers;
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use super::storage;
 use crate::error::ContractError;
-use crate::query_support::calculate_start_value;
-use config::defaults::DENOM;
-use cosmwasm_std::coin;
-use cosmwasm_std::Addr;
 use cosmwasm_std::Deps;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
-use mixnet_contract::Delegation;
-use mixnet_contract::IdentityKey;
+use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract::PagedAllDelegationsResponse;
-use mixnet_contract::PagedReverseMixDelegationsResponse;
-use mixnet_contract::RawDelegationData;
+use mixnet_contract::PagedDelegatorDelegationsResponse;
+use mixnet_contract::PagedMixDelegationsResponse;
+use mixnet_contract::{Delegation, IdentityKey};
 
-pub(crate) fn query_all_mixnode_delegations_paged(
+pub(crate) fn query_all_network_delegations_paged(
     deps: Deps,
-    start_after: Option<Vec<u8>>,
+    start_after: Option<(IdentityKey, String)>,
     limit: Option<u32>,
-) -> StdResult<PagedAllDelegationsResponse<RawDelegationData>> {
+) -> StdResult<PagedAllDelegationsResponse> {
     let limit = limit
         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
 
-    let bucket = storage::all_mix_delegations_read::<RawDelegationData>(deps.storage);
-    let start = start_after.map(|mut v| {
-        v.push(0);
-        v
-    });
-    delegation_helpers::get_all_delegations_paged::<RawDelegationData>(&bucket, &start, limit)
+    let start = start_after
+        .map(|start| start.joined_key())
+        .map(Bound::exclusive);
+
+    let delegations = storage::delegations()
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|record| record.map(|r| r.1))
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = delegations
+        .last()
+        .map(|delegation| delegation.storage_key());
+
+    Ok(PagedAllDelegationsResponse::new(
+        delegations,
+        start_next_after,
+    ))
 }
 
-pub(crate) fn query_reverse_mixnode_delegations_paged(
+pub(crate) fn query_delegator_delegations_paged(
     deps: Deps,
-    delegation_owner: Addr,
+    delegation_owner: String,
     start_after: Option<IdentityKey>,
     limit: Option<u32>,
-) -> StdResult<PagedReverseMixDelegationsResponse> {
+) -> StdResult<PagedDelegatorDelegationsResponse> {
+    let validated_owner = deps.api.addr_validate(&delegation_owner)?;
+
     let limit = limit
         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
-    let start = calculate_start_value(start_after);
+    let start = start_after
+        .map(|mix_identity| Bound::Exclusive((mix_identity, validated_owner.clone()).joined_key()));
 
-    let delegations = storage::reverse_mix_delegations_read(deps.storage, &delegation_owner)
-        .range(start.as_deref(), None, Order::Ascending)
+    let delegations = storage::delegations()
+        .idx
+        .owner
+        .prefix(validated_owner)
+        .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
-        .map(|res| {
-            res.map(|entry| {
-                String::from_utf8(entry.0)
-                    .expect("Non-UTF8 address used as key in bucket. The storage is corrupted!")
-            })
-        })
-        .collect::<StdResult<Vec<IdentityKey>>>()?;
+        .map(|record| record.map(|r| r.1))
+        .collect::<StdResult<Vec<_>>>()?;
 
-    let start_next_after = delegations.last().cloned();
+    let start_next_after = delegations
+        .last()
+        .map(|delegation| delegation.node_identity());
 
-    Ok(PagedReverseMixDelegationsResponse::new(
-        delegation_owner,
+    Ok(PagedDelegatorDelegationsResponse::new(
         delegations,
         start_next_after,
     ))
@@ -66,44 +78,68 @@ pub(crate) fn query_reverse_mixnode_delegations_paged(
 pub(crate) fn query_mixnode_delegation(
     deps: Deps,
     mix_identity: IdentityKey,
-    address: Addr,
+    delegator: String,
 ) -> Result<Delegation, ContractError> {
-    match storage::mix_delegations_read(deps.storage, &mix_identity).may_load(address.as_bytes())? {
-        Some(delegation_value) => Ok(Delegation::new(
-            address,
-            coin(delegation_value.amount.u128(), DENOM),
-            delegation_value.block_height,
-        )),
-        None => Err(ContractError::NoMixnodeDelegationFound {
+    let validated_delegator = deps.api.addr_validate(&delegator)?;
+    let storage_key = (mix_identity.clone(), validated_delegator.clone()).joined_key();
+
+    storage::delegations()
+        .may_load(deps.storage, storage_key)?
+        .ok_or(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
-            address,
-        }),
-    }
+            address: validated_delegator,
+        })
+}
+
+pub(crate) fn query_mixnode_delegations_paged(
+    deps: Deps,
+    mix_identity: IdentityKey,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<PagedMixDelegationsResponse> {
+    let limit = limit
+        .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
+        .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
+
+    let start = start_after
+        .map(|addr| deps.api.addr_validate(&addr))
+        .transpose()?
+        .map(|addr| Bound::Exclusive((mix_identity.clone(), addr).joined_key()));
+
+    let delegations = storage::delegations()
+        .idx
+        .mixnode
+        .prefix(mix_identity)
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|record| record.map(|r| r.1))
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = delegations.last().map(|delegation| delegation.owner());
+
+    Ok(PagedMixDelegationsResponse::new(
+        delegations,
+        start_next_after,
+    ))
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
     use crate::support::tests::test_helpers;
-    use cosmwasm_std::{Addr, Storage};
-    use storage::mix_delegations;
+    use config::defaults::DENOM;
+    use cosmwasm_std::{coin, Addr, Storage};
 
     pub fn store_n_mix_delegations(n: u32, storage: &mut dyn Storage, node_identity: &str) {
         for i in 0..n {
             let address = format!("address{}", i);
-            mix_delegations(storage, node_identity)
-                .save(
-                    address.as_bytes(),
-                    &test_helpers::raw_delegation_fixture(42),
-                )
-                .unwrap();
+            test_helpers::save_dummy_delegation(storage, node_identity, address);
         }
     }
 
     #[cfg(test)]
     mod querying_for_mixnode_delegations_paged {
         use super::*;
-        use crate::mixnodes::bonding_queries::query_mixnode_delegations_paged;
         use mixnet_contract::IdentityKey;
 
         #[test]
@@ -172,9 +208,7 @@ pub(crate) mod tests {
             let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
 
-            mix_delegations(&mut deps.storage, &node_identity)
-                .save("1".as_bytes(), &test_helpers::raw_delegation_fixture(42))
-                .unwrap();
+            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "100");
 
             let per_page = 2;
             let page1 = query_mixnode_delegations_paged(
@@ -189,9 +223,7 @@ pub(crate) mod tests {
             assert_eq!(1, page1.delegations.len());
 
             // save another
-            mix_delegations(&mut deps.storage, &node_identity)
-                .save("2".as_bytes(), &test_helpers::raw_delegation_fixture(42))
-                .unwrap();
+            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "200");
 
             // page1 should have 2 results on it
             let page1 = query_mixnode_delegations_paged(
@@ -203,9 +235,7 @@ pub(crate) mod tests {
             .unwrap();
             assert_eq!(2, page1.delegations.len());
 
-            mix_delegations(&mut deps.storage, &node_identity)
-                .save("3".as_bytes(), &test_helpers::raw_delegation_fixture(42))
-                .unwrap();
+            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "300");
 
             // page1 still has 2 results
             let page1 = query_mixnode_delegations_paged(
@@ -216,9 +246,10 @@ pub(crate) mod tests {
             )
             .unwrap();
             assert_eq!(2, page1.delegations.len());
+            assert_eq!("200".to_string(), page1.start_next_after.unwrap());
 
             // retrieving the next page should start after the last key on this page
-            let start_after = Addr::unchecked("2");
+            let start_after = "200".to_string();
             let page2 = query_mixnode_delegations_paged(
                 deps.as_ref(),
                 node_identity.clone(),
@@ -230,11 +261,9 @@ pub(crate) mod tests {
             assert_eq!(1, page2.delegations.len());
 
             // save another one
-            mix_delegations(&mut deps.storage, &node_identity)
-                .save("4".as_bytes(), &test_helpers::raw_delegation_fixture(42))
-                .unwrap();
+            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "400");
 
-            let start_after = Addr::unchecked("2");
+            let start_after = "200".to_string();
             let page2 = query_mixnode_delegations_paged(
                 deps.as_ref(),
                 node_identity,
@@ -262,7 +291,7 @@ pub(crate) mod tests {
             store_n_mix_delegations(100, &mut deps.storage, &node_identity);
 
             let page1 =
-                query_all_mixnode_delegations_paged(deps.as_ref(), None, Option::from(limit))
+                query_all_network_delegations_paged(deps.as_ref(), None, Option::from(limit))
                     .unwrap();
             assert_eq!(limit, page1.delegations.len() as u32);
         }
@@ -278,7 +307,7 @@ pub(crate) mod tests {
             );
 
             // query without explicitly setting a limit
-            let page1 = query_all_mixnode_delegations_paged(deps.as_ref(), None, None).unwrap();
+            let page1 = query_all_network_delegations_paged(deps.as_ref(), None, None).unwrap();
             assert_eq!(
                 storage::DELEGATION_PAGE_DEFAULT_LIMIT,
                 page1.delegations.len() as u32
@@ -298,7 +327,7 @@ pub(crate) mod tests {
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000 * storage::DELEGATION_PAGE_DEFAULT_LIMIT;
             let page1 =
-                query_all_mixnode_delegations_paged(deps.as_ref(), None, Option::from(crazy_limit))
+                query_all_network_delegations_paged(deps.as_ref(), None, Option::from(crazy_limit))
                     .unwrap();
 
             // we default to a decent sized upper bound instead
@@ -311,43 +340,36 @@ pub(crate) mod tests {
             let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
 
-            mix_delegations(&mut deps.storage, &node_identity)
-                .save("1".as_bytes(), &test_helpers::raw_delegation_fixture(42))
-                .unwrap();
+            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "100");
 
             let per_page = 2;
             let page1 =
-                query_all_mixnode_delegations_paged(deps.as_ref(), None, Option::from(per_page))
+                query_all_network_delegations_paged(deps.as_ref(), None, Option::from(per_page))
                     .unwrap();
 
             // page should have 1 result on it
             assert_eq!(1, page1.delegations.len());
 
             // save another
-            mix_delegations(&mut deps.storage, &node_identity)
-                .save("2".as_bytes(), &test_helpers::raw_delegation_fixture(42))
-                .unwrap();
+            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "200");
 
             // page1 should have 2 results on it
             let page1 =
-                query_all_mixnode_delegations_paged(deps.as_ref(), None, Option::from(per_page))
+                query_all_network_delegations_paged(deps.as_ref(), None, Option::from(per_page))
                     .unwrap();
             assert_eq!(2, page1.delegations.len());
 
-            mix_delegations(&mut deps.storage, &node_identity)
-                .save("3".as_bytes(), &test_helpers::raw_delegation_fixture(42))
-                .unwrap();
+            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "300");
 
             // page1 still has 2 results
             let page1 =
-                query_all_mixnode_delegations_paged(deps.as_ref(), None, Option::from(per_page))
+                query_all_network_delegations_paged(deps.as_ref(), None, Option::from(per_page))
                     .unwrap();
             assert_eq!(2, page1.delegations.len());
 
             // retrieving the next page should start after the last key on this page
-            let start_after =
-                test_helpers::identity_and_owner_to_bytes(&node_identity, &Addr::unchecked("2"));
-            let page2 = query_all_mixnode_delegations_paged(
+            let start_after = page1.start_next_after.unwrap();
+            let page2 = query_all_network_delegations_paged(
                 deps.as_ref(),
                 Option::from(start_after.clone()),
                 Option::from(per_page),
@@ -357,11 +379,9 @@ pub(crate) mod tests {
             assert_eq!(1, page2.delegations.len());
 
             // save another one
-            mix_delegations(&mut deps.storage, &node_identity)
-                .save("4".as_bytes(), &test_helpers::raw_delegation_fixture(42))
-                .unwrap();
+            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "400");
 
-            let page2 = query_all_mixnode_delegations_paged(
+            let page2 = query_all_network_delegations_paged(
                 deps.as_ref(),
                 Option::from(start_after),
                 Option::from(per_page),
@@ -379,20 +399,25 @@ pub(crate) mod tests {
         let node_identity: IdentityKey = "foo".into();
         let delegation_owner = Addr::unchecked("bar");
 
-        mix_delegations(&mut deps.storage, &node_identity)
+        let delegation = Delegation::new(
+            delegation_owner.clone(),
+            node_identity.clone(),
+            coin(1234, DENOM),
+            1234,
+            None,
+        );
+
+        storage::delegations()
             .save(
-                delegation_owner.as_bytes(),
-                &RawDelegationData::new(42u128.into(), 12_345),
+                deps.as_mut().storage,
+                delegation.storage_key().joined_key(),
+                &delegation,
             )
             .unwrap();
 
         assert_eq!(
-            Ok(Delegation::new(
-                delegation_owner.clone(),
-                coin(42, DENOM),
-                12_345
-            )),
-            query_mixnode_delegation(deps.as_ref(), node_identity, delegation_owner)
+            Ok(delegation),
+            query_mixnode_delegation(deps.as_ref(), node_identity, delegation_owner.to_string())
         )
     }
 
@@ -413,15 +438,24 @@ pub(crate) mod tests {
             query_mixnode_delegation(
                 deps.as_ref(),
                 node_identity1.clone(),
-                delegation_owner1.clone()
+                delegation_owner1.to_string()
             )
         );
 
         // add delegation from a different address
-        mix_delegations(&mut deps.storage, &node_identity1)
+        let delegation = Delegation::new(
+            delegation_owner2.clone(),
+            node_identity1.clone(),
+            coin(1234, DENOM),
+            1234,
+            None,
+        );
+
+        storage::delegations()
             .save(
-                delegation_owner2.as_bytes(),
-                &test_helpers::raw_delegation_fixture(42),
+                deps.as_mut().storage,
+                delegation.storage_key().joined_key(),
+                &delegation,
             )
             .unwrap();
 
@@ -433,39 +467,48 @@ pub(crate) mod tests {
             query_mixnode_delegation(
                 deps.as_ref(),
                 node_identity1.clone(),
-                delegation_owner1.clone()
+                delegation_owner1.to_string()
             )
         );
 
         // add delegation for a different node
-        mix_delegations(&mut deps.storage, &node_identity2)
+        let delegation = Delegation::new(
+            delegation_owner1.clone(),
+            node_identity2.clone(),
+            coin(1234, DENOM),
+            1234,
+            None,
+        );
+
+        storage::delegations()
             .save(
-                delegation_owner1.as_bytes(),
-                &test_helpers::raw_delegation_fixture(42),
+                deps.as_mut().storage,
+                delegation.storage_key().joined_key(),
+                &delegation,
             )
             .unwrap();
 
         assert_eq!(
             Err(ContractError::NoMixnodeDelegationFound {
                 identity: node_identity1.clone(),
-                address: delegation_owner1.clone()
+                address: Addr::unchecked(delegation_owner1.clone())
             }),
-            query_mixnode_delegation(deps.as_ref(), node_identity1.clone(), delegation_owner1)
+            query_mixnode_delegation(
+                deps.as_ref(),
+                node_identity1.clone(),
+                delegation_owner1.to_string()
+            )
         )
     }
 
     #[cfg(test)]
     mod querying_for_reverse_mixnode_delegations_paged {
         use super::*;
-        use crate::mixnodes::delegation_queries::query_reverse_mixnode_delegations_paged;
-        use storage::reverse_mix_delegations;
 
-        fn store_n_reverse_delegations(n: u32, storage: &mut dyn Storage, delegation_owner: &Addr) {
+        fn store_n_reverse_delegations(n: u32, storage: &mut dyn Storage, delegation_owner: &str) {
             for i in 0..n {
                 let node_identity = format!("node{}", i);
-                reverse_mix_delegations(storage, delegation_owner)
-                    .save(node_identity.as_bytes(), &())
-                    .unwrap();
+                test_helpers::save_dummy_delegation(storage, node_identity, delegation_owner);
             }
         }
 
@@ -473,23 +516,23 @@ pub(crate) mod tests {
         fn retrieval_obeys_limits() {
             let mut deps = test_helpers::init_contract();
             let limit = 2;
-            let delegation_owner = Addr::unchecked("foo");
+            let delegation_owner = "foo".to_string();
             store_n_reverse_delegations(100, &mut deps.storage, &delegation_owner);
 
-            let page1 = query_reverse_mixnode_delegations_paged(
+            let page1 = query_delegator_delegations_paged(
                 deps.as_ref(),
                 delegation_owner,
                 None,
                 Option::from(limit),
             )
             .unwrap();
-            assert_eq!(limit, page1.delegated_nodes.len() as u32);
+            assert_eq!(limit, page1.delegations.len() as u32);
         }
 
         #[test]
         fn retrieval_has_default_limit() {
             let mut deps = test_helpers::init_contract();
-            let delegation_owner = Addr::unchecked("foo");
+            let delegation_owner = "foo".to_string();
             store_n_reverse_delegations(
                 storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
@@ -497,23 +540,19 @@ pub(crate) mod tests {
             );
 
             // query without explicitly setting a limit
-            let page1 = query_reverse_mixnode_delegations_paged(
-                deps.as_ref(),
-                delegation_owner,
-                None,
-                None,
-            )
-            .unwrap();
+            let page1 =
+                query_delegator_delegations_paged(deps.as_ref(), delegation_owner, None, None)
+                    .unwrap();
             assert_eq!(
                 storage::DELEGATION_PAGE_DEFAULT_LIMIT,
-                page1.delegated_nodes.len() as u32
+                page1.delegations.len() as u32
             );
         }
 
         #[test]
         fn retrieval_has_max_limit() {
             let mut deps = test_helpers::init_contract();
-            let delegation_owner = Addr::unchecked("foo");
+            let delegation_owner = "foo".to_string();
             store_n_reverse_delegations(
                 storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
@@ -522,7 +561,7 @@ pub(crate) mod tests {
 
             // query with a crazy high limit in an attempt to use too many resources
             let crazy_limit = 1000 * storage::DELEGATION_PAGE_DEFAULT_LIMIT;
-            let page1 = query_reverse_mixnode_delegations_paged(
+            let page1 = query_delegator_delegations_paged(
                 deps.as_ref(),
                 delegation_owner,
                 None,
@@ -532,20 +571,18 @@ pub(crate) mod tests {
 
             // we default to a decent sized upper bound instead
             let expected_limit = storage::DELEGATION_PAGE_MAX_LIMIT;
-            assert_eq!(expected_limit, page1.delegated_nodes.len() as u32);
+            assert_eq!(expected_limit, page1.delegations.len() as u32);
         }
 
         #[test]
         fn pagination_works() {
             let mut deps = test_helpers::init_contract();
-            let delegation_owner = Addr::unchecked("bar");
+            let delegation_owner = "bar".to_string();
 
-            reverse_mix_delegations(&mut deps.storage, &delegation_owner)
-                .save("1".as_bytes(), &())
-                .unwrap();
+            test_helpers::save_dummy_delegation(&mut deps.storage, "100", &delegation_owner);
 
             let per_page = 2;
-            let page1 = query_reverse_mixnode_delegations_paged(
+            let page1 = query_delegator_delegations_paged(
                 deps.as_ref(),
                 delegation_owner.clone(),
                 None,
@@ -554,40 +591,36 @@ pub(crate) mod tests {
             .unwrap();
 
             // page should have 1 result on it
-            assert_eq!(1, page1.delegated_nodes.len());
+            assert_eq!(1, page1.delegations.len());
 
             // save another
-            reverse_mix_delegations(&mut deps.storage, &delegation_owner)
-                .save("2".as_bytes(), &())
-                .unwrap();
+            test_helpers::save_dummy_delegation(&mut deps.storage, "200", &delegation_owner);
 
             // page1 should have 2 results on it
-            let page1 = query_reverse_mixnode_delegations_paged(
+            let page1 = query_delegator_delegations_paged(
                 deps.as_ref(),
                 delegation_owner.clone(),
                 None,
                 Option::from(per_page),
             )
             .unwrap();
-            assert_eq!(2, page1.delegated_nodes.len());
+            assert_eq!(2, page1.delegations.len());
 
-            reverse_mix_delegations(&mut deps.storage, &delegation_owner)
-                .save("3".as_bytes(), &())
-                .unwrap();
+            test_helpers::save_dummy_delegation(&mut deps.storage, "300", &delegation_owner);
 
             // page1 still has 2 results
-            let page1 = query_reverse_mixnode_delegations_paged(
+            let page1 = query_delegator_delegations_paged(
                 deps.as_ref(),
                 delegation_owner.clone(),
                 None,
                 Option::from(per_page),
             )
             .unwrap();
-            assert_eq!(2, page1.delegated_nodes.len());
+            assert_eq!(2, page1.delegations.len());
 
             // retrieving the next page should start after the last key on this page
-            let start_after: IdentityKey = String::from("2");
-            let page2 = query_reverse_mixnode_delegations_paged(
+            let start_after: IdentityKey = page1.start_next_after.unwrap();
+            let page2 = query_delegator_delegations_paged(
                 deps.as_ref(),
                 delegation_owner.clone(),
                 Option::from(start_after),
@@ -595,15 +628,10 @@ pub(crate) mod tests {
             )
             .unwrap();
 
-            assert_eq!(1, page2.delegated_nodes.len());
-
-            // save another one
-            reverse_mix_delegations(&mut deps.storage, &delegation_owner)
-                .save("4".as_bytes(), &())
-                .unwrap();
+            assert_eq!(1, page2.delegations.len());
 
             let start_after = String::from("2");
-            let page2 = query_reverse_mixnode_delegations_paged(
+            let page2 = query_delegator_delegations_paged(
                 deps.as_ref(),
                 delegation_owner,
                 Option::from(start_after),
@@ -612,7 +640,7 @@ pub(crate) mod tests {
             .unwrap();
 
             // now we have 2 pages, with 2 results on the second page
-            assert_eq!(2, page2.delegated_nodes.len());
+            assert_eq!(2, page2.delegations.len());
         }
     }
 }

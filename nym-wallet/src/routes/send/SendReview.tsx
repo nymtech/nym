@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Card,
   CircularProgress,
@@ -6,10 +6,8 @@ import {
   Grid,
   Theme,
   Typography,
-} from '@material-ui/core'
-import { useTheme } from '@material-ui/styles'
+} from '@mui/material'
 import { useFormContext } from 'react-hook-form'
-import { ClientContext } from '../../context/main'
 import { getGasFee } from '../../requests'
 
 export const SendReview = () => {
@@ -18,8 +16,6 @@ export const SendReview = () => {
   const [isLoadingFee, setIsLoadingFee] = useState(true)
 
   const values = getValues()
-
-  const theme: Theme = useTheme()
 
   useEffect(() => {
     const getFee = async () => {
@@ -33,10 +29,10 @@ export const SendReview = () => {
   return (
     <Card
       variant="outlined"
-      style={{
+      sx={{
         width: '100%',
-        padding: theme.spacing(2),
-        margin: theme.spacing(3, 0),
+        p: 2,
+        m: [3, 0],
       }}
     >
       {isLoadingFee ? (
@@ -44,7 +40,7 @@ export const SendReview = () => {
       ) : (
         <Grid container spacing={2}>
           <Grid item xs={12}>
-            <SendReviewField title="From" subtitle={values.from}/>
+            <SendReviewField title="From" subtitle={values.from} />
           </Grid>
           <Grid item xs={12}>
             <Divider light />
@@ -80,13 +76,12 @@ export const SendReviewField = ({
   title: string
   subtitle?: string
 }) => {
-  const theme: Theme = useTheme()
   return (
     <>
-      <Typography style={{ color: theme.palette.grey[600] }}>
-        {title}
+      <Typography style={{ color: 'grey[600]' }}>{title}</Typography>
+      <Typography data-testid={title} style={{ wordBreak: 'break-all' }}>
+        {subtitle}
       </Typography>
-      <Typography data-testid={title} style={{ wordBreak: 'break-all' }}>{subtitle}</Typography>
     </>
   )
 }

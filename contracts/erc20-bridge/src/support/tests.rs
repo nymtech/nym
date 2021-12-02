@@ -11,7 +11,7 @@ pub mod helpers {
     use erc20_bridge_contract::payment::Payment;
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let msg = InstantiateMsg {};
         let env = mock_env();
         let info = mock_info("creator", &[]);

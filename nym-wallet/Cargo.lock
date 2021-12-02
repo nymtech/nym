@@ -698,8 +698,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-crypto"
-version = "0.14.1"
-source = "git+https://github.com/jstuczyn/cosmwasm?branch=0.14.1-updatedk256#308781cd5f33b0e996176c6b500793d3648c0f7b"
+version = "1.0.0-beta2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c16b255449b3f5cd7fa4b79acd5225b5185655261087a3d8aaac44f88a0e23e9"
 dependencies = [
  "digest 0.9.0",
  "ed25519-zebra",
@@ -710,16 +711,18 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
-version = "0.14.1"
-source = "git+https://github.com/jstuczyn/cosmwasm?branch=0.14.1-updatedk256#308781cd5f33b0e996176c6b500793d3648c0f7b"
+version = "1.0.0-beta2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abad1a6ff427a2f66890a4dce6354b4563cd07cee91a942300e011c921c09ed2"
 dependencies = [
  "syn",
 ]
 
 [[package]]
 name = "cosmwasm-std"
-version = "0.14.1"
-source = "git+https://github.com/jstuczyn/cosmwasm?branch=0.14.1-updatedk256#308781cd5f33b0e996176c6b500793d3648c0f7b"
+version = "1.0.0-beta2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1660ee3d5734672e1eb4f0ceda403e2d83345e15143a48845f340f3252ce99a6"
 dependencies = [
  "base64",
  "cosmwasm-crypto",
@@ -2784,6 +2787,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
+name = "open"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b46b233de7d83bc167fe43ae2dda3b5b84e80e09cceba581e4decb958a4896bf"
+dependencies = [
+ "pathdiff",
+ "winapi",
+]
+
+[[package]]
 name = "openssl"
 version = "0.10.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2895,6 +2908,12 @@ name = "paste"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0744126afe1a6dd7f394cb50a716dbe086cb06e255e53d8d0185d82828358fb5"
+
+[[package]]
+name = "pathdiff"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
 
 [[package]]
 name = "pbkdf2"
@@ -4521,6 +4540,7 @@ dependencies = [
  "http",
  "ignore",
  "once_cell",
+ "open",
  "percent-encoding",
  "rand 0.8.4",
  "raw-window-handle",

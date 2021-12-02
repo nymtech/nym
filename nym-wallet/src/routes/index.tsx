@@ -6,16 +6,12 @@ import { Bond } from './bond'
 import { Delegate } from './delegate'
 import { Receive } from './receive'
 import { Send } from './send'
-import { SignIn } from './sign-in'
 import { Unbond } from './unbond'
 import { Undelegate } from './undelegate'
 import { InternalDocs } from './internal-docs'
 
 export const Routes = () => (
   <Switch>
-    <Route path="/signin">
-      <SignIn />
-    </Route>
     <Route path="/balance">
       <Balance />
     </Route>

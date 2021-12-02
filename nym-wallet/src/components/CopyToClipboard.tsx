@@ -1,51 +1,82 @@
-import React, { useState } from 'react'
-import { Button } from '@material-ui/core'
-import { Check } from '@material-ui/icons'
-import { green } from '@material-ui/core/colors'
+import React, { useEffect, useState } from 'react'
+import { Button, IconButton, Tooltip } from '@mui/material'
+import { Check, ContentCopy } from '@mui/icons-material'
 import { clipboard } from '@tauri-apps/api'
 
-const copy = (text: string): Promise<{ success: boolean; value: string }> => {
-  return new Promise((resolve, reject) => {
-    clipboard
-      .writeText(text)
-      .then(() => resolve({ success: true, value: text }))
-      .catch((e) => reject({ success: false, value: 'Failed to copy: ' + e }))
-  })
-}
-
-export const handleCopy = async ({
-  text,
-  cb,
+export const CopyToClipboard = ({
+  text = '',
+  light,
+  iconButton,
 }: {
-  text: string
-  cb: (success: boolean) => void
+  text?: string
+  light?: boolean
+  iconButton?: boolean
 }) => {
-  const res = await copy(text)
-  if (res.success) {
-    setTimeout(() => {
-      cb(true)
-    }, 750)
-  } else {
-    console.log(res.value)
-  }
-}
-
-export const CopyToClipboard = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false)
 
-  const updateCopyStatus = (isCopied: boolean) => setCopied(isCopied)
+  const handleCopy = async (text: string) => {
+    try {
+      await clipboard.writeText(text)
+      setCopied(true)
+    } catch (e) {
+      console.log('failed to copy: ' + e)
+    }
+  }
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout
+    if (copied) {
+      timer = setTimeout(() => {
+        setCopied(false)
+      }, 2000)
+    }
+    return () => clearTimeout(timer)
+  }, [copied])
+
+  if (iconButton)
+    return (
+      <Tooltip title={!copied ? 'Copy' : 'Copied!'} leaveDelay={500}>
+        <IconButton
+          onClick={() => handleCopy(text)}
+          size="small"
+          sx={{
+            color: (theme) =>
+              light
+                ? theme.palette.common.white
+                : theme.palette.nym.background.dark,
+          }}
+        >
+          {!copied ? (
+            <ContentCopy fontSize="small" />
+          ) : (
+            <Check color="success" />
+          )}
+        </IconButton>
+      </Tooltip>
+    )
 
   return (
     <Button
-      size="small"
-      variant={copied ? 'text' : 'outlined'}
-      aria-label="save"
-      data-testid="copy-button"
-      onClick={() => handleCopy({ text, cb: updateCopyStatus })}
-      endIcon={copied && <Check />}
-      style={copied ? { background: green[500], color: 'white' } : {}}
+      variant="outlined"
+      color="inherit"
+      sx={{
+        color: (theme) =>
+          light
+            ? theme.palette.common.white
+            : theme.palette.nym.background.dark,
+        borderColor: (theme) =>
+          light
+            ? theme.palette.common.white
+            : theme.palette.nym.background.dark,
+      }}
+      onClick={() => handleCopy(text)}
+      endIcon={
+        copied && (
+          <Check sx={{ color: (theme) => theme.palette.success.light }} />
+        )
+      }
     >
-      {copied ? 'Copied' : 'Copy'}
+      {!copied ? 'Copy' : 'Copied'}
     </Button>
   )
 }

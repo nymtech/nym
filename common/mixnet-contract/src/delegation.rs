@@ -7,56 +7,50 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct UnpackedDelegation<T> {
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
+pub struct Delegation {
     pub owner: Addr,
     pub node_identity: IdentityKey,
-    pub delegation_data: T,
-}
-
-impl<T> UnpackedDelegation<T> {
-    pub fn new(owner: Addr, node_identity: IdentityKey, delegation_data: T) -> Self {
-        UnpackedDelegation {
-            owner,
-            node_identity,
-            delegation_data,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct RawDelegationData {
-    pub amount: Uint128,
+    pub amount: Coin,
     pub block_height: u64,
-}
-
-impl RawDelegationData {
-    pub fn new(amount: Uint128, block_height: u64) -> Self {
-        RawDelegationData {
-            amount,
-            block_height,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct Delegation {
-    owner: Addr,
-    amount: Coin,
-    block_height: u64,
+    pub proxy: Option<Addr>, // proxy address used to delegate the funds on behalf of anouther address
 }
 
 impl Delegation {
-    pub fn new(owner: Addr, amount: Coin, block_height: u64) -> Self {
+    pub fn new(
+        owner: Addr,
+        node_identity: IdentityKey,
+        amount: Coin,
+        block_height: u64,
+        proxy: Option<Addr>,
+    ) -> Self {
         Delegation {
             owner,
+            node_identity,
             amount,
             block_height,
+            proxy,
+        }
+    }
+
+    // TODO: change that to use .joined_key() and return Vec<u8>
+    pub fn storage_key(&self) -> (IdentityKey, Addr) {
+        (self.node_identity(), self.owner())
+    }
+
+    pub fn increment_amount(&mut self, amount: Uint128, at_height: Option<u64>) {
+        self.amount.amount += amount;
+        if let Some(at_height) = at_height {
+            self.block_height = at_height;
         }
     }
 
     pub fn amount(&self) -> &Coin {
         &self.amount
+    }
+
+    pub fn node_identity(&self) -> IdentityKey {
+        self.node_identity.clone()
     }
 
     pub fn owner(&self) -> Addr {
@@ -72,65 +66,56 @@ impl Display for Delegation {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{} {} delegated by {} at block {}",
-            self.amount.amount, self.amount.denom, self.owner, self.block_height
+            "{} delegated towards {} by {} at block {}",
+            self.amount, self.node_identity, self.owner, self.block_height
         )
     }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedMixDelegationsResponse {
-    pub node_identity: IdentityKey,
     pub delegations: Vec<Delegation>,
-    pub start_next_after: Option<Addr>,
+    pub start_next_after: Option<String>,
 }
 
 impl PagedMixDelegationsResponse {
-    pub fn new(
-        node_identity: IdentityKey,
-        delegations: Vec<Delegation>,
-        start_next_after: Option<Addr>,
-    ) -> Self {
+    pub fn new(delegations: Vec<Delegation>, start_next_after: Option<Addr>) -> Self {
         PagedMixDelegationsResponse {
-            node_identity,
             delegations,
-            start_next_after,
+            start_next_after: start_next_after.map(|s| s.to_string()),
         }
     }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct PagedReverseMixDelegationsResponse {
-    pub delegation_owner: Addr,
-    pub delegated_nodes: Vec<IdentityKey>,
+pub struct PagedDelegatorDelegationsResponse {
+    pub delegations: Vec<Delegation>,
     pub start_next_after: Option<IdentityKey>,
 }
 
-impl PagedReverseMixDelegationsResponse {
-    pub fn new(
-        delegation_owner: Addr,
-        delegated_nodes: Vec<IdentityKey>,
-        start_next_after: Option<IdentityKey>,
-    ) -> Self {
-        PagedReverseMixDelegationsResponse {
-            delegation_owner,
-            delegated_nodes,
+impl PagedDelegatorDelegationsResponse {
+    pub fn new(delegations: Vec<Delegation>, start_next_after: Option<IdentityKey>) -> Self {
+        PagedDelegatorDelegationsResponse {
+            delegations,
             start_next_after,
         }
     }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct PagedAllDelegationsResponse<T> {
-    pub delegations: Vec<UnpackedDelegation<T>>,
-    pub start_next_after: Option<Vec<u8>>,
+pub struct PagedAllDelegationsResponse {
+    pub delegations: Vec<Delegation>,
+    pub start_next_after: Option<(IdentityKey, String)>,
 }
 
-impl<T> PagedAllDelegationsResponse<T> {
-    pub fn new(delegations: Vec<UnpackedDelegation<T>>, start_next_after: Option<Vec<u8>>) -> Self {
+impl PagedAllDelegationsResponse {
+    pub fn new(
+        delegations: Vec<Delegation>,
+        start_next_after: Option<(IdentityKey, Addr)>,
+    ) -> Self {
         PagedAllDelegationsResponse {
             delegations,
-            start_next_after,
+            start_next_after: start_next_after.map(|(id, addr)| (id, addr.to_string())),
         }
     }
 }

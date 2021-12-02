@@ -1,11 +1,15 @@
 import React, { useContext } from 'react'
 import QRCode from 'qrcode.react'
-import { Box, Card, Grid, Typography } from '@material-ui/core'
-import { Alert } from '@material-ui/lab'
-import { useMediaQuery } from '@material-ui/core'
+import {
+  Alert,
+  Box,
+  Card,
+  Grid,
+  Typography,
+  useMediaQuery,
+} from '@mui/material'
 import { CopyToClipboard, NymCard } from '../components'
 import { Layout } from '../layouts'
-import { theme } from '../theme'
 import { ClientContext } from '../context/main'
 
 export const Receive = () => {
@@ -23,12 +27,12 @@ export const Receive = () => {
           </Grid>
           <Grid item>
             <Card
-              style={{
-                margin: theme.spacing(1, 0),
+              sx={{
+                m: [1, 0],
                 display: 'flex',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                padding: theme.spacing(3),
+                p: 3,
               }}
               variant="outlined"
             >
@@ -42,9 +46,9 @@ export const Receive = () => {
                   <Typography
                     data-testid="client-address"
                     variant={matches ? 'h5' : 'subtitle1'}
-                    style={{
+                    sx={{
                       wordBreak: 'break-word',
-                      marginRight: theme.spacing(1),
+                      mr: 1,
                     }}
                     component="span"
                   >
@@ -54,15 +58,18 @@ export const Receive = () => {
                 </Grid>
                 <Grid item>
                   <Box
-                    style={{
+                    sx={{
                       display: 'flex',
                       justifyContent: 'center',
-                      marginBottom: theme.spacing(2),
+                      mb: 2,
                     }}
                     component="div"
                   >
                     {clientDetails && (
-                      <QRCode data-testid="qr-code" value={clientDetails.client_address} />
+                      <QRCode
+                        data-testid="qr-code"
+                        value={clientDetails.client_address}
+                      />
                     )}
                   </Box>
                 </Grid>

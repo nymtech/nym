@@ -1,79 +1,59 @@
 import React, { useContext, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material'
 import {
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Theme,
-} from '@material-ui/core'
-import {
-  AccountBalanceWalletRounded,
+  AccountBalanceWalletOutlined,
   ArrowBack,
   ArrowForward,
   AttachMoney,
-  Cancel,
-  ExitToApp,
-  HowToVote,
+  CancelOutlined,
+  HowToVoteOutlined,
   MoneyOff,
   Description,
   Settings,
-} from '@material-ui/icons'
-import { makeStyles } from '@material-ui/styles'
-import clsx from 'clsx'
+} from '@mui/icons-material'
 import { ADMIN_ADDRESS, ClientContext } from '../context/main'
 
 let routesSchema = [
   {
     label: 'Balance',
     route: '/balance',
-    Icon: <AccountBalanceWalletRounded />,
+    Icon: AccountBalanceWalletOutlined,
   },
   {
     label: 'Send',
     route: '/send',
-    Icon: <ArrowForward />,
+    Icon: ArrowForward,
   },
   {
     label: 'Receive',
     route: '/receive',
-    Icon: <ArrowBack />,
+    Icon: ArrowBack,
   },
   {
     label: 'Bond',
     route: '/bond',
-    Icon: <AttachMoney />,
+    Icon: AttachMoney,
   },
   {
     label: 'Unbond',
     route: '/unbond',
-    Icon: <MoneyOff />,
+    Icon: MoneyOff,
   },
   {
     label: 'Delegate',
     route: '/delegate',
-    Icon: <HowToVote />,
+    Icon: HowToVoteOutlined,
   },
   {
     label: 'Undelegate',
     route: '/undelegate',
-    Icon: <Cancel />,
+    Icon: CancelOutlined,
   },
 ]
 
-const useStyles = makeStyles((theme: Theme) => ({
-  navItem: {
-    color: '#fff',
-    fontSize: 20,
-  },
-  selected: {
-    color: theme.palette.primary.light,
-  },
-}))
-
 export const Nav = () => {
-  const classes = useStyles()
-  const { clientDetails, handleShowAdmin, logOut } = useContext(ClientContext)
+  const { clientDetails, handleShowAdmin } = useContext(ClientContext)
   const location = useLocation()
 
   useEffect(() => {
@@ -81,7 +61,7 @@ export const Nav = () => {
       routesSchema.push({
         label: 'Docs',
         route: '/docs',
-        Icon: <Description />,
+        Icon: Description,
       })
     }
   }, [])
@@ -91,56 +71,42 @@ export const Nav = () => {
       style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
       }}
     >
-      <List>
-        {routesSchema.map((r, i) => (
-          <ListItem button component={Link} to={r.route} key={i}>
+      <List disablePadding>
+        {routesSchema.map(({ Icon, route, label }, i) => (
+          <ListItem disableGutters component={Link} to={route} key={i}>
             <ListItemIcon
-              className={clsx([
-                classes.navItem,
-                location.pathname === r.route ? classes.selected : undefined,
-              ])}
+              sx={{
+                minWidth: 30,
+                color:
+                  location.pathname === route ? 'primary.main' : 'common.white',
+              }}
             >
-              {r.Icon}
+              <Icon sx={{ fontSize: 20 }} />
             </ListItemIcon>
             <ListItemText
-              primary={r.label}
-              primaryTypographyProps={{
-                className: clsx([
-                  classes.navItem,
-                  location.pathname === r.route ? classes.selected : undefined,
-                ]),
+              sx={{
+                color:
+                  location.pathname === route ? 'primary.main' : 'common.white',
               }}
+              primary={label}
             />
           </ListItem>
         ))}
         {clientDetails?.client_address === ADMIN_ADDRESS && (
-          <ListItem button onClick={handleShowAdmin}>
-            <ListItemIcon className={classes.navItem}>
-              <Settings />
-            </ListItemIcon>
-            <ListItemText
-              primary="Admin"
-              primaryTypographyProps={{
-                className: classes.navItem,
+          <ListItem disableGutters onClick={handleShowAdmin}>
+            <ListItemIcon
+              sx={{
+                minWidth: 30,
               }}
-            />
+            >
+              <Settings sx={{ fontSize: 20, color: 'white' }} />
+            </ListItemIcon>
+            <ListItemText primary="Admin" sx={{ color: 'common.white' }} />
           </ListItem>
         )}
-
-        <ListItem button onClick={logOut}>
-          <ListItemIcon data-testid="log-out" className={classes.navItem}>
-            <ExitToApp />
-          </ListItemIcon>
-          <ListItemText
-            primary="Log out"
-            primaryTypographyProps={{
-              className: classes.navItem,
-            }}
-          />
-        </ListItem>
       </List>
     </div>
   )

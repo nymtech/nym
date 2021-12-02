@@ -45,7 +45,7 @@ contract BandwidthGenerator is Ownable {
     }
 
     /**
-     * @param _newMBPerTokenAmount  Amount of MB credential is worth per erc20NYM token
+     * @param _newMBPerTokenAmount  Amount of MB BBC is worth per erc20NYM token
      */    
     function changeRatio(uint256 _newMBPerTokenAmount) public onlyOwner { 
         require(_newMBPerTokenAmount != 0, "BandwidthGenerator: price cannot be 0"); 

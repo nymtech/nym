@@ -18,6 +18,7 @@ contract('BandwidthGenerator', (accounts) => {
   let tokenAmount = web3.utils.toWei('100'); // this is converting 100 tokens to their representation in wei: 100000000000000000000
   let halfTokenAmount = web3.utils.toWei('50');
   let unevenTokenAmount = web3.utils.toWei('11.1');
+  let oneToken = web3.utils.toWei('1');
 
   before('deploy contracts', async () => {
 
@@ -123,8 +124,38 @@ contract('BandwidthGenerator', (accounts) => {
       expect((await erc20token.balanceOf(user)).toString()).to.equal(halfTokenAmount.toString());
     });
 
-    it.skip("TODO it transfers for uneven token amounts", async () => {
-      // swap 11.1 NYM for bandwidth
+    // check over maths for this... 
+    it("it transfers for uneven token amounts", async () => {
+      let tx = await bandwidthGenerator.generateBasicBandwidthCredential(
+        unevenTokenAmount,
+        15,
+        [0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba,
+          0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba],
+        constants.ZERO_BYTES32,  
+        { from: user }
+      );
+
+      let newexpectedBandwidthInMB = ((unevenTokenAmount/10**18)*initialRatio); 
+      console.log(newexpectedBandwidthInMB)
+
+      await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'BBCredentialPurchased', {
+        Bandwidth: newexpectedBandwidthInMB.toString(), 
+        VerificationKey: '15',
+        SignedVerificationKey: '0x39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba',
+        CosmosRecipient: constants.ZERO_BYTES32 
+      });
+
+      await expectEvent.inTransaction(tx.tx, erc20token, 'Transfer', {
+        from: user,
+        to: bandwidthGenerator.address,
+      });
+
+      await expectEvent.inTransaction(tx.tx, gravity, 'SendToCosmosEvent', {
+        _tokenContract: erc20token.address,
+        _sender: bandwidthGenerator.address,
+        _destination: constants.ZERO_BYTES32,
+        _amount: unevenTokenAmount
+      });
     });
 
     it("reverts when signed verification key !=64 bytes", async () => {
@@ -168,15 +199,43 @@ contract('BandwidthGenerator', (accounts) => {
         "Ownable: caller is not the owner"
       );
     });
-    it("admin can change ratio, emits event", async () => {
+    it("admin can change ratio, emits 'RatioChanged' event", async () => {
         let tx = await bandwidthGenerator.changeRatio(newRatio, {from: owner});
         await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'RatioChanged', {
           NewMBPerToken: newRatio.toString()
         });
         expect((await bandwidthGenerator.MBPerToken()).toString()).to.equal((newRatio).toString());
     });
-    it("BBCredential represents new ratio after change", async () => {
-        //
+    it("BBCredential represents new ratio after change: 1 erc20NYM = 10GB of bandwidth", async () => {
+      let tx = await bandwidthGenerator.generateBasicBandwidthCredential(
+        oneToken,
+        15,
+        [0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba,
+          0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba],
+        constants.ZERO_BYTES32,  
+        { from: user }
+      );
+
+      let expectedBandwidthInMB = ((oneToken/10**18)*newRatio); // 50 * 1024MB = 51200MB = 50GB of bandwidth
+
+      await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'BBCredentialPurchased', {
+        Bandwidth: expectedBandwidthInMB.toString(), 
+        VerificationKey: '15',
+        SignedVerificationKey: '0x39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba',
+        CosmosRecipient: constants.ZERO_BYTES32 
+      });
+
+      await expectEvent.inTransaction(tx.tx, erc20token, 'Transfer', {
+        from: user,
+        to: bandwidthGenerator.address,
+      });
+
+      await expectEvent.inTransaction(tx.tx, gravity, 'SendToCosmosEvent', {
+        _tokenContract: erc20token.address,
+        _sender: bandwidthGenerator.address,
+        _destination: constants.ZERO_BYTES32,
+        _amount: oneToken
+      });       
     });
   });  
 

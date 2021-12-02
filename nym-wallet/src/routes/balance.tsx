@@ -1,60 +1,40 @@
-import React, { useEffect } from 'react'
-import { Button, CircularProgress, Grid } from '@material-ui/core'
-import { Alert } from '@material-ui/lab'
-import { Refresh } from '@material-ui/icons'
+import React, { useContext } from 'react'
+import { Alert, Button, Grid, Link } from '@mui/material'
+import { Box } from '@mui/system'
+import { OpenInNew } from '@mui/icons-material'
 import { NymCard } from '../components'
 import { Layout } from '../layouts'
-import { theme } from '../theme'
-import { useGetBalance } from '../hooks/useGetBalance'
+
+import { ClientContext, urls } from '../context/main'
 
 export const Balance = () => {
-  const { balance, isLoading, error, fetchBalance } = useGetBalance()
-
-  useEffect(fetchBalance, [])
-
-  const RefreshAction = () => (
-    <Button
-      variant="contained"
-      size="small"
-      color="primary"
-      type="submit"
-      data-testid="refresh-button"
-      onClick={fetchBalance}
-      disabled={isLoading}
-      disableElevation
-      startIcon={<Refresh />}
-      endIcon={isLoading && <CircularProgress size={20} />}
-      style={{ marginRight: theme.spacing(2) }}
-    >
-      Refresh
-    </Button>
-  )
+  const { userBalance, clientDetails } = useContext(ClientContext)
 
   return (
     <Layout>
-      <NymCard title="Check Balance" data-testid="check-balance">
+      <NymCard title="Balance" data-testid="check-balance">
         <Grid container direction="column" spacing={2}>
           <Grid item>
-            {error && (
-              <Alert
-                severity="error"
-                data-testid="error-refresh"
-                action={<RefreshAction />}
-                style={{ padding: theme.spacing(2) }}
-              >
-                {error}
+            {userBalance.error && (
+              <Alert severity="error" data-testid="error-refresh" sx={{ p: 2 }}>
+                {userBalance.error}
               </Alert>
             )}
-            {!error && (
-              <Alert
-                severity="success"
-                data-testid="refresh-success"
-                style={{ padding: theme.spacing(2, 3) }}
-                action={<RefreshAction />}
-              >
-                {'The current balance is ' + balance?.printable_balance}
-              </Alert>
+            {!userBalance.error && (
+              <Box data-testid="refresh-success" sx={{ p: 2 }}>
+                {'The current balance is ' +
+                  userBalance.balance?.printable_balance}
+              </Box>
             )}
+          </Grid>
+          <Grid item>
+            <Link
+              sx={{ pl: 1 }}
+              href={`${urls.blockExplorer}/account/${clientDetails?.client_address}`}
+              target="_blank"
+            >
+              <Button endIcon={<OpenInNew />}>Last transactions</Button>
+            </Link>
           </Grid>
         </Grid>
       </NymCard>

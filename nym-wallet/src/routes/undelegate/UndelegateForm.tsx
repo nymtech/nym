@@ -1,18 +1,17 @@
 import React, { useContext, useEffect } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import {
+  Box,
+  Alert,
+  Autocomplete,
   Button,
   CircularProgress,
   FormControl,
   Grid,
   TextField,
-  Theme,
-} from '@material-ui/core'
-import { Alert, Autocomplete } from '@material-ui/lab'
-import { useTheme } from '@material-ui/styles'
+} from '@mui/material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
-import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { EnumNodeType, TFee } from '../../types'
 import { ClientContext } from '../../context/main'
 import { undelegate } from '../../requests'
@@ -55,9 +54,7 @@ export const UndelegateForm = ({
     setValue('identity', '')
   }, [watchNodeType])
 
-  const { getBalance } = useContext(ClientContext)
-
-  const theme: Theme = useTheme()
+  const { userBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TFormData) => {
     await undelegate({
@@ -66,14 +63,14 @@ export const UndelegateForm = ({
     })
       .then(async (res) => {
         onSuccess(`Successfully undelegated from ${res.target_address}`)
-        getBalance.fetchBalance()
+        userBalance.fetchBalance()
       })
       .catch((e) => onError(e))
   }
 
   return (
     <FormControl fullWidth>
-      <div style={{ padding: theme.spacing(3, 5) }}>
+      <Box sx={{ p: [3, 5] }}>
         <Grid container spacing={3} direction="column">
           <Grid container item xs={12} justifyContent="space-between">
             <Grid item>
@@ -113,15 +110,15 @@ export const UndelegateForm = ({
             />
           </Grid>
         </Grid>
-      </div>
-      <div
-        style={{
+      </Box>
+      <Box
+        sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          borderTop: `1px solid ${theme.palette.grey[200]}`,
-          background: theme.palette.grey[100],
-          padding: theme.spacing(2),
+          borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
+          background: (theme) => theme.palette.grey[50],
+          p: 2,
         }}
       >
         <Button
@@ -136,7 +133,7 @@ export const UndelegateForm = ({
         >
           Undelegate stake
         </Button>
-      </div>
+      </Box>
     </FormControl>
   )
 }

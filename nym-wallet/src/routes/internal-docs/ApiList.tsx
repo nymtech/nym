@@ -1,5 +1,5 @@
 import React from 'react'
-import { List, ListItem } from '@material-ui/core'
+import { List, ListItem } from '@mui/material'
 import { DocEntry } from './DocEntry'
 
 export const ApiList = () => {

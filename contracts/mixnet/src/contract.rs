@@ -8,7 +8,7 @@ use crate::delegations::queries::query_mixnode_delegations_paged;
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
-use crate::mixnet_contract_settings::models::ContractSettings;
+use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::query_rewarding_interval;
 use crate::mixnet_contract_settings::queries::{
     query_contract_settings_params, query_contract_version,
@@ -20,11 +20,10 @@ use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::rewards::queries::query_reward_pool;
 use crate::rewards::queries::{query_circulating_supply, query_rewarding_status};
 use crate::rewards::storage as rewards_storage;
-use config::defaults::REWARDING_VALIDATOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
-use mixnet_contract::{ContractSettingsParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use mixnet_contract::{ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128::new(100_000_000);
@@ -40,13 +39,19 @@ pub const EPOCH_REWARD_PERCENT: u8 = 2; // Used to calculate epoch reward pool
 pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
 
 // We'll be assuming a few more things, profit margin and cost function. Since we don't have reliable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
+// question to @durch: where do we need it (if at all)?
+#[allow(dead_code)]
 pub const DEFAULT_COST_PER_EPOCH: u32 = 40_000_000;
 
-fn default_initial_state(owner: Addr, env: Env) -> ContractSettings {
-    ContractSettings {
+fn default_initial_state(
+    owner: Addr,
+    rewarding_validator_address: Addr,
+    env: Env,
+) -> ContractState {
+    ContractState {
         owner,
-        rewarding_validator_address: Addr::unchecked(REWARDING_VALIDATOR_ADDRESS), // we trust our hardcoded value
-        params: ContractSettingsParams {
+        rewarding_validator_address,
+        params: ContractStateParams {
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
@@ -68,11 +73,12 @@ pub fn instantiate(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    _msg: InstantiateMsg,
+    msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    let state = default_initial_state(info.sender, env);
+    let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
+    let state = default_initial_state(info.sender, rewarding_validator_address, env);
 
-    mixnet_params_storage::CONTRACT_SETTINGS.save(deps.storage, &state)?;
+    mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
 
@@ -114,16 +120,16 @@ pub fn execute(
         ExecuteMsg::UnbondGateway {} => {
             crate::gateways::transactions::try_remove_gateway(deps, info)
         }
-        ExecuteMsg::UpdateContractSettings(params) => {
+        ExecuteMsg::UpdateContractStateParams(params) => {
             crate::mixnet_contract_settings::transactions::try_update_contract_settings(
                 deps, info, params,
             )
         }
-        ExecuteMsg::RewardMixnodeV2 {
+        ExecuteMsg::RewardMixnode {
             identity,
             params,
             rewarding_interval_nonce,
-        } => crate::rewards::transactions::try_reward_mixnode_v2(
+        } => crate::rewards::transactions::try_reward_mixnode(
             deps,
             env,
             info,
@@ -159,7 +165,7 @@ pub fn execute(
         ExecuteMsg::RewardNextMixDelegators {
             mix_identity,
             rewarding_interval_nonce,
-        } => crate::rewards::transactions::try_reward_next_mixnode_delegators_v2(
+        } => crate::rewards::transactions::try_reward_next_mixnode_delegators(
             deps,
             info,
             mix_identity,
@@ -280,7 +286,9 @@ pub mod tests {
     fn initialize_contract() {
         let mut deps = mock_dependencies();
         let env = mock_env();
-        let msg = InstantiateMsg {};
+        let msg = InstantiateMsg {
+            rewarding_validator_address: config::defaults::REWARDING_VALIDATOR_ADDRESS.to_string(),
+        };
         let info = mock_info("creator", &[]);
 
         let res = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();

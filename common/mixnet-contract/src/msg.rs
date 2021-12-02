@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mixnode::NodeRewardParams;
-use crate::ContractSettingsParams;
+use crate::ContractStateParams;
 use crate::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InstantiateMsg {}
+pub struct InstantiateMsg {
+    pub rewarding_validator_address: String,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -23,7 +25,7 @@ pub enum ExecuteMsg {
         owner_signature: String,
     },
     UnbondGateway {},
-    UpdateContractSettings(ContractSettingsParams),
+    UpdateContractStateParams(ContractStateParams),
 
     DelegateToMixnode {
         mix_identity: IdentityKey,
@@ -43,7 +45,7 @@ pub enum ExecuteMsg {
         rewarding_interval_nonce: u32,
     },
 
-    RewardMixnodeV2 {
+    RewardMixnode {
         identity: IdentityKey,
         // percentage value in range 0-100
         params: NodeRewardParams,

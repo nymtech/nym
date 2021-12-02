@@ -1,20 +1,15 @@
 import React, { useContext, useEffect, useState } from 'react'
+import { Alert, Box, Button, CircularProgress, Theme } from '@mui/material'
 import { NymCard } from '../../components'
-import { UnbondForm } from './UnbondForm'
 import { Layout } from '../../layouts'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
-import { Alert } from '@material-ui/lab'
-import { Box, Button, CircularProgress, Theme } from '@material-ui/core'
 import { ClientContext } from '../../context/main'
 import { unbond } from '../../requests'
-import { useTheme } from '@material-ui/styles'
 
 export const Unbond = () => {
   const [isLoading, setIsLoading] = useState(false)
   const { checkOwnership, ownership } = useCheckOwnership()
-  const { getBalance } = useContext(ClientContext)
-
-  const theme: Theme = useTheme()
+  const { userBalance } = useContext(ClientContext)
 
   useEffect(() => {
     const initialiseForm = async () => {
@@ -37,29 +32,29 @@ export const Unbond = () => {
                 onClick={async () => {
                   setIsLoading(true)
                   await unbond(ownership.nodeType!)
-                  getBalance.fetchBalance()
+                  userBalance.fetchBalance()
                   setIsLoading(false)
                 }}
               >
                 Unbond
               </Button>
             }
-            style={{ margin: theme.spacing(2) }}
+            sx={{ m: 2 }}
           >
             {`Looks like you already have a ${ownership.nodeType} bonded.`}
           </Alert>
         )}
         {!ownership.hasOwnership && (
-          <Alert severity="info" style={{ margin: theme.spacing(3) }} data-testid="no-bond">
+          <Alert severity="info" sx={{ m: 3 }} data-testid="no-bond">
             You don't currently have a bonded node
           </Alert>
         )}
         {isLoading && (
           <Box
-            style={{
+            sx={{
               display: 'flex',
               justifyContent: 'center',
-              padding: theme.spacing(3),
+              p: 3,
             }}
           >
             <CircularProgress size={48} />

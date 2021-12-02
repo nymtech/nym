@@ -57,15 +57,15 @@ impl MixnodeToReward {
 }
 
 impl MixnodeToReward {
-    pub(crate) fn to_reward_execute_msg_v2(&self, rewarding_interval_nonce: u32) -> ExecuteMsg {
-        ExecuteMsg::RewardMixnodeV2 {
+    pub(crate) fn to_reward_execute_msg(&self, rewarding_interval_nonce: u32) -> ExecuteMsg {
+        ExecuteMsg::RewardMixnode {
             identity: self.identity.clone(),
             params: self.params(),
             rewarding_interval_nonce,
         }
     }
 
-    pub(crate) fn to_next_delegator_reward_execute_msg_v2(
+    pub(crate) fn to_next_delegator_reward_execute_msg(
         &self,
         rewarding_interval_nonce: u32,
     ) -> ExecuteMsg {

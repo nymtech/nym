@@ -1,5 +1,5 @@
 import React from 'react'
-import { Grid, InputAdornment, TextField } from '@material-ui/core'
+import { Grid, InputAdornment, TextField } from '@mui/material'
 import { useFormContext } from 'react-hook-form'
 
 export const SendForm = () => {

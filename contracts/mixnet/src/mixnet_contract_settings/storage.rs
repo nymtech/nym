@@ -1,14 +1,14 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mixnet_contract_settings::models::ContractSettings;
+use crate::mixnet_contract_settings::models::ContractState;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Storage;
 use cw_storage_plus::Item;
 use mixnet_contract::Layer;
 use mixnet_contract::LayerDistribution;
 
-pub(crate) const CONTRACT_SETTINGS: Item<ContractSettings> = Item::new("config");
+pub(crate) const CONTRACT_STATE: Item<ContractState> = Item::new("config");
 pub(crate) const LAYERS: Item<LayerDistribution> = Item::new("layers");
 
 pub fn increment_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {

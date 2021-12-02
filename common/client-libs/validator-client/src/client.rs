@@ -125,14 +125,14 @@ impl Client<QueryNymdClient> {
         let validator_api_client = validator_api::Client::new(config.api_url.clone());
         let nymd_client = NymdClient::connect(
             config.nymd_url.as_str(),
-            config.mixnet_contract_address.clone().unwrap_or(
+            config.mixnet_contract_address.clone().unwrap_or_else(|| {
                 cosmrs::AccountId::from_str(network_defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS)
-                    .unwrap(),
-            ),
-            config.vesting_contract_address.clone().unwrap_or(
+                    .unwrap()
+            }),
+            config.vesting_contract_address.clone().unwrap_or_else(|| {
                 cosmrs::AccountId::from_str(network_defaults::DEFAULT_VESTING_CONTRACT_ADDRESS)
-                    .unwrap(),
-            ),
+                    .unwrap()
+            }),
         )?;
 
         Ok(Client {

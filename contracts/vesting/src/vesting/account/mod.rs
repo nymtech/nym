@@ -8,13 +8,15 @@ use mixnet_contract::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-mod bonding_account;
 mod delegating_account;
+mod gateway_bonding_account;
+mod mixnode_bonding_account;
 mod vesting_account;
 
 const DELEGATIONS_SUFFIX: &str = "de";
 const BALANCE_SUFFIX: &str = "ba";
 const BOND_SUFFIX: &str = "bo";
+const GATEWAY_SUFFIX: &str = "ga";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Account {
@@ -24,7 +26,8 @@ pub struct Account {
     coin: Coin,
     delegations_key: String,
     balance_key: String,
-    bond_key: String,
+    mixnode_bond_key: String,
+    gateway_bond_key: String,
 }
 
 impl Account {
@@ -43,7 +46,8 @@ impl Account {
             coin,
             delegations_key: format!("{}_{}", address, DELEGATIONS_SUFFIX),
             balance_key: format!("{}_{}", address, BALANCE_SUFFIX),
-            bond_key: format!("{}_{}", address, BOND_SUFFIX),
+            mixnode_bond_key: format!("{}_{}", address, BOND_SUFFIX),
+            gateway_bond_key: format!("{}_{}", address, GATEWAY_SUFFIX),
         };
         save_account(&account, storage)?;
         account.save_balance(amount, storage)?;
@@ -114,25 +118,52 @@ impl Account {
         Item::new(self.balance_key.as_ref())
     }
 
-    pub fn load_bond(&self, storage: &dyn Storage) -> Result<Option<BondData>, ContractError> {
-        Ok(self.bond().may_load(storage)?)
+    pub fn load_mixnode_bond(
+        &self,
+        storage: &dyn Storage,
+    ) -> Result<Option<BondData>, ContractError> {
+        Ok(self.mixnode_bond().may_load(storage)?)
     }
 
-    pub fn save_bond(
+    pub fn save_mixnode_bond(
         &self,
         bond: BondData,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        Ok(self.bond().save(storage, &bond)?)
+        Ok(self.mixnode_bond().save(storage, &bond)?)
     }
 
-    pub fn remove_bond(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
-        self.bond().remove(storage);
+    pub fn remove_mixnode_bond(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
+        self.mixnode_bond().remove(storage);
         Ok(())
     }
 
-    fn bond(&self) -> Item<BondData> {
-        Item::new(self.bond_key.as_ref())
+    fn mixnode_bond(&self) -> Item<BondData> {
+        Item::new(self.mixnode_bond_key.as_ref())
+    }
+
+    pub fn load_gateway_bond(
+        &self,
+        storage: &dyn Storage,
+    ) -> Result<Option<BondData>, ContractError> {
+        Ok(self.gateway_bond().may_load(storage)?)
+    }
+
+    pub fn save_gateway_bond(
+        &self,
+        bond: BondData,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
+        Ok(self.gateway_bond().save(storage, &bond)?)
+    }
+
+    pub fn remove_gateway_bond(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
+        self.gateway_bond().remove(storage);
+        Ok(())
+    }
+
+    fn gateway_bond(&self) -> Item<BondData> {
+        Item::new(self.gateway_bond_key.as_ref())
     }
 
     fn delegations(&self) -> Map<(&[u8], u64), Uint128> {

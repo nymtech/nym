@@ -93,6 +93,7 @@ mod tests {
                 identity_key: node_identity.clone(),
                 ..test_helpers::gateway_fixture()
             },
+            proxy: None,
         };
 
         storage::gateways()

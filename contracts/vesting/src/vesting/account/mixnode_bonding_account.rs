@@ -1,13 +1,13 @@
 use super::BondData;
 use crate::errors::ContractError;
-use crate::traits::BondingAccount;
+use crate::traits::MixnodeBondingAccount;
 use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 
 use super::Account;
 
-impl BondingAccount for Account {
+impl MixnodeBondingAccount for Account {
     fn try_bond_mixnode(
         &self,
         mix_node: MixNode,
@@ -24,7 +24,7 @@ impl BondingAccount for Account {
             ));
         }
 
-        let bond_data = if let Some(_bond) = self.load_bond(storage)? {
+        let bond_data = if let Some(_bond) = self.load_mixnode_bond(storage)? {
             return Err(ContractError::AlreadyBonded(
                 self.address.as_str().to_string(),
             ));
@@ -45,7 +45,7 @@ impl BondingAccount for Account {
         let bond_mixnode_mag = wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![bond])?;
 
         self.save_balance(new_balance, storage)?;
-        self.save_bond(bond_data, storage)?;
+        self.save_mixnode_bond(bond_data, storage)?;
 
         Ok(Response::new()
             .add_attribute("action", "bond mixnode on behalf")
@@ -57,7 +57,7 @@ impl BondingAccount for Account {
             owner: self.address().into_string(),
         };
 
-        if let Some(_bond) = self.load_bond(storage)? {
+        if let Some(_bond) = self.load_mixnode_bond(storage)? {
             let unbond_msg = wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![])?;
 
             Ok(Response::new()
@@ -70,11 +70,15 @@ impl BondingAccount for Account {
         }
     }
 
-    fn track_unbond(&self, amount: Coin, storage: &mut dyn Storage) -> Result<(), ContractError> {
+    fn try_track_unbond_mixnode(
+        &self,
+        amount: Coin,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
         let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());
         self.save_balance(new_balance, storage)?;
 
-        self.remove_bond(storage)?;
+        self.remove_mixnode_bond(storage)?;
         Ok(())
     }
 }

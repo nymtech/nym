@@ -163,7 +163,10 @@ impl VestingAccount for Account {
         let max_vested = self.tokens_per_period()? * period as u128;
         let start_time = self.periods[period].start_time;
 
-        let amount = if let Some(bond) = self.load_bond(storage)? {
+        let amount = if let Some(bond) = self
+            .load_mixnode_bond(storage)?
+            .or(self.load_gateway_bond(storage)?)
+        {
             if bond.block_time.seconds() < start_time {
                 bond.amount
             } else {
@@ -190,7 +193,10 @@ impl VestingAccount for Account {
         let block_time = block_time.unwrap_or(env.block.time);
         let bonded_free = self.get_bonded_free(Some(block_time), env, storage)?;
 
-        if let Some(bond) = self.load_bond(storage)? {
+        if let Some(bond) = self
+            .load_mixnode_bond(storage)?
+            .or(self.load_gateway_bond(storage)?)
+        {
             let amount = bond.amount - bonded_free.amount;
             Ok(Coin {
                 amount,

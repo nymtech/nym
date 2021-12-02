@@ -184,6 +184,14 @@ pub fn execute(
         ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
             crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, info, owner)
         }
+        ExecuteMsg::BondGatewayOnBehalf { gateway, owner } => {
+            crate::gateways::transactions::try_add_gateway_on_behalf(
+                deps, env, info, gateway, owner,
+            )
+        }
+        ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
+            crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
+        }
     }
 }
 

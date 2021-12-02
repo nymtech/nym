@@ -150,7 +150,7 @@ pub(crate) fn _try_remove_mixnode(
         .add_attribute("mixnode_bond", mixnode_bond.to_string());
 
     if let Some(proxy) = &proxy {
-        let msg = VestingContractExecuteMsg::TrackUnbond {
+        let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
             owner: owner.as_str().to_string(),
             amount: mixnode_bond.bond_amount,
         };

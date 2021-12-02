@@ -1,14 +1,16 @@
 use crate::errors::ContractError;
 use crate::messages::{ExecuteMsg, InitMsg, QueryMsg};
 use crate::storage::account_from_address;
-use crate::traits::{BondingAccount, DelegatingAccount, VestingAccount};
+use crate::traits::{
+    DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
+};
 use crate::vesting::{populate_vesting_periods, Account};
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{
     entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Timestamp, Uint128,
 };
-use mixnet_contract::{IdentityKey, MixNode};
+use mixnet_contract::{Gateway, IdentityKey, MixNode};
 
 // We're using a 24 month vesting period with 3 months sub-periods.
 // There are 8 three month periods in two years
@@ -56,8 +58,45 @@ pub fn execute(
         } => try_track_undelegation(&owner, mix_identity, amount, info, deps),
         ExecuteMsg::BondMixnode { mix_node } => try_bond_mixnode(mix_node, info, env, deps),
         ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
-        ExecuteMsg::TrackUnbond { owner, amount } => try_track_unbond(&owner, amount, info, deps),
+        ExecuteMsg::TrackUnbondMixnode { owner, amount } => {
+            try_track_unbond_mixnode(&owner, amount, info, deps)
+        }
+        ExecuteMsg::BondGateway { gateway } => try_bond_gateway(gateway, info, env, deps),
+        ExecuteMsg::UnbondGateway {} => try_unbond_gateway(info, deps),
+        ExecuteMsg::TrackUnbondGateway { owner, amount } => {
+            try_track_unbond_gateway(&owner, amount, info, deps)
+        }
     }
+}
+
+pub fn try_bond_gateway(
+    gateway: Gateway,
+    info: MessageInfo,
+    env: Env,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
+    let bond = validate_funds(&info.funds)?;
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    account.try_bond_gateway(gateway, bond, &env, deps.storage)
+}
+
+pub fn try_unbond_gateway(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    account.try_unbond_gateway(deps.storage)
+}
+
+pub fn try_track_unbond_gateway(
+    owner: &str,
+    amount: Coin,
+    info: MessageInfo,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
+    if info.sender != DEFAULT_MIXNET_CONTRACT_ADDRESS {
+        return Err(ContractError::NotMixnetContract(info.sender));
+    }
+    let account = account_from_address(owner, deps.storage, deps.api)?;
+    account.try_track_unbond_gateway(amount, deps.storage)?;
+    Ok(Response::default())
 }
 
 pub fn try_bond_mixnode(
@@ -76,7 +115,7 @@ pub fn try_unbond_mixnode(info: MessageInfo, deps: DepsMut) -> Result<Response, 
     account.try_unbond_mixnode(deps.storage)
 }
 
-pub fn try_track_unbond(
+pub fn try_track_unbond_mixnode(
     owner: &str,
     amount: Coin,
     info: MessageInfo,
@@ -86,7 +125,7 @@ pub fn try_track_unbond(
         return Err(ContractError::NotMixnetContract(info.sender));
     }
     let account = account_from_address(owner, deps.storage, deps.api)?;
-    account.track_unbond(amount, deps.storage)?;
+    account.try_track_unbond_mixnode(amount, deps.storage)?;
     Ok(Response::default())
 }
 

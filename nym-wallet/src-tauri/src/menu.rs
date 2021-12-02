@@ -1,4 +1,6 @@
 use tauri::Menu;
+#[cfg(target_os = "macos")]
+use tauri::{MenuItem, Submenu};
 
 pub trait AddDefaultSubmenus {
   fn add_default_app_submenu_if_macos(self) -> Self;

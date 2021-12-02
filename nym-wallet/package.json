@@ -5,11 +5,11 @@
   "license": "MIT",
   "scripts": {
     "webpack:dev": "yarn webpack serve",
-    "webpack:build": "yarn webpack",
+    "webpack:prod": "yarn webpack --progress --config webpack.prod.config.js",
     "tauri:dev": "yarn tauri dev",
     "tauri:build": "yarn tauri build",
     "dev": "yarn run webpack:dev & yarn run tauri:dev",
-    "build": "yarn run webpack:build & yarn run tauri:build"
+    "build:prod": "run-s webpack:prod tauri:build"
   },
   "dependencies": {
     "@babel/preset-typescript": "^7.15.0",
@@ -44,9 +44,11 @@
     "@types/semver": "^7.3.8",
     "babel-loader": "^8.2.2",
     "css-loader": "^6.2.0",
+    "favicons": "^6.2.2",
     "favicons-webpack-plugin": "^5.0.2",
     "file-loader": "^6.2.0",
     "html-webpack-plugin": "^5.3.2",
+    "npm-run-all": "^4.1.5",
     "style-loader": "^3.2.1",
     "url-loader": "^4.1.1",
     "webpack": "^5.64.3",

@@ -172,7 +172,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
         });
       }
     } else {
-      // 2. if mixnode data DOESNT already exist, fetch this specific ID's information.
+      // 2. if mixnode data DOESN'T already exist, fetch this specific ID's information.
       try {
         const data = await Api.fetchMixnodeByID(id);
         // a) fetches from cache^, then API, then filters down then dumps in `mixnodes` context.

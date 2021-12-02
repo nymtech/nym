@@ -1,15 +1,18 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use super::storage;
 use cosmwasm_std::{Deps, StdResult};
-use mixnet_contract::{ContractSettingsParams, MixnetContractVersion, RewardingIntervalResponse};
+use mixnet_contract::{ContractStateParams, MixnetContractVersion, RewardingIntervalResponse};
 
-pub(crate) fn query_contract_settings_params(deps: Deps) -> StdResult<ContractSettingsParams> {
-    storage::CONTRACT_SETTINGS
+pub(crate) fn query_contract_settings_params(deps: Deps) -> StdResult<ContractStateParams> {
+    storage::CONTRACT_STATE
         .load(deps.storage)
         .map(|settings| settings.params)
 }
 
 pub(crate) fn query_rewarding_interval(deps: Deps) -> StdResult<RewardingIntervalResponse> {
-    let state = storage::CONTRACT_SETTINGS.load(deps.storage)?;
+    let state = storage::CONTRACT_STATE.load(deps.storage)?;
 
     Ok(RewardingIntervalResponse {
         current_rewarding_interval_starting_block: state.rewarding_interval_starting_block,
@@ -35,7 +38,7 @@ pub(crate) fn query_contract_version() -> MixnetContractVersion {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::mixnet_contract_settings::models::ContractSettings;
+    use crate::mixnet_contract_settings::models::ContractState;
     use crate::support::tests::test_helpers;
 
     use cosmwasm_std::Addr;
@@ -44,10 +47,10 @@ pub(crate) mod tests {
     fn query_for_contract_settings_works() {
         let mut deps = test_helpers::init_contract();
 
-        let dummy_state = ContractSettings {
+        let dummy_state = ContractState {
             owner: Addr::unchecked("someowner"),
             rewarding_validator_address: Addr::unchecked("monitor"),
-            params: ContractSettingsParams {
+            params: ContractStateParams {
                 minimum_mixnode_bond: 123u128.into(),
                 minimum_gateway_bond: 456u128.into(),
                 mixnode_rewarded_set_size: 1000,
@@ -58,7 +61,7 @@ pub(crate) mod tests {
             rewarding_in_progress: false,
         };
 
-        storage::CONTRACT_SETTINGS
+        storage::CONTRACT_STATE
             .save(deps.as_mut().storage, &dummy_state)
             .unwrap();
 

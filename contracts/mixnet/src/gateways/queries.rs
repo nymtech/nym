@@ -34,14 +34,15 @@ pub(crate) fn query_owns_gateway(
 ) -> StdResult<GatewayOwnershipResponse> {
     let validated_addr = deps.api.addr_validate(&address)?;
 
-    let has_gateway = storage::gateways()
+    let gateway = storage::gateways()
         .idx
         .owner
         .item(deps.storage, validated_addr.clone())?
-        .is_some();
+        .map(|record| record.1);
+
     Ok(GatewayOwnershipResponse {
         address: validated_addr,
-        has_gateway,
+        gateway,
     })
 }
 
@@ -168,7 +169,7 @@ pub(crate) mod tests {
 
         // "fred" does not own a mixnode if there are no mixnodes
         let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
-        assert!(!res.has_gateway);
+        assert!(res.gateway.is_none());
 
         // mixnode was added to "bob", "fred" still does not own one
         let node = Gateway {
@@ -184,7 +185,7 @@ pub(crate) mod tests {
         .unwrap();
 
         let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
-        assert!(!res.has_gateway);
+        assert!(res.gateway.is_none());
 
         // "fred" now owns a gateway!
         let node = Gateway {
@@ -200,13 +201,13 @@ pub(crate) mod tests {
         .unwrap();
 
         let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
-        assert!(res.has_gateway);
+        assert!(res.gateway.is_some());
 
         // but after unbonding it, he doesn't own one anymore
         crate::gateways::transactions::try_remove_gateway(deps.as_mut(), mock_info("fred", &[]))
             .unwrap();
 
         let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
-        assert!(!res.has_gateway);
+        assert!(res.gateway.is_none());
     }
 }

@@ -109,7 +109,7 @@ impl Display for StoredMixnodeBond {
     }
 }
 
-pub(crate) fn read_mixnode_bond(
+pub(crate) fn read_full_mixnode_bond(
     storage: &dyn Storage,
     mix_identity: IdentityKeyRef,
 ) -> StdResult<Option<MixNodeBond>> {
@@ -168,7 +168,7 @@ mod tests {
         let node_identity: IdentityKey = "nodeidentity".into();
 
         // produces a None if target mixnode doesn't exist
-        let res = storage::read_mixnode_bond(deps.as_ref().storage, &node_identity).unwrap();
+        let res = storage::read_full_mixnode_bond(deps.as_ref().storage, &node_identity).unwrap();
         assert!(res.is_none());
 
         // returns appropriate value otherwise
@@ -184,7 +184,7 @@ mod tests {
 
         assert_eq!(
             Uint128::new(bond_value),
-            storage::read_mixnode_bond(deps.as_ref().storage, node_identity.as_str())
+            storage::read_full_mixnode_bond(deps.as_ref().storage, node_identity.as_str())
                 .unwrap()
                 .unwrap()
                 .bond_amount

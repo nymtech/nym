@@ -35,7 +35,7 @@ pub struct RewardingIntervalResponse {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct ContractSettingsParams {
+pub struct ContractStateParams {
     // so currently epoch_length is being unused and validator API performs rewarding
     // based on its own epoch length config value. I guess that's fine for time being
     // however, in the future, the contract constant should be controlling it instead.
@@ -52,7 +52,7 @@ pub struct ContractSettingsParams {
     pub mixnode_active_set_size: u32,
 }
 
-impl Display for ContractSettingsParams {
+impl Display for ContractStateParams {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "Contract state parameters: [ ")?;
         write!(f, "minimum mixnode bond: {}; ", self.minimum_mixnode_bond)?;

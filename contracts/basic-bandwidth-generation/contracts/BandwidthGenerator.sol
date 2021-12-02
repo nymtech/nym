@@ -31,6 +31,10 @@ contract BandwidthGenerator is Ownable {
         uint256 indexed NewMBPerToken
     );
     
+    /**
+     * @param _erc20          Address of the erc20NYM deployed through the Gravity Bridge
+     * @param _gravityBridge  Address of the deployed Gravity Bridge 
+     */
     constructor(CosmosERC20 _erc20, Gravity _gravityBridge) public {
         require(address(_erc20) != address(0),         "BandwidthGenerator: erc20 address cannot be null"); 
         require(address(_gravityBridge) != address(0), "BandwidthGenerator: gravity bridge address cannot be null"); 
@@ -39,12 +43,22 @@ contract BandwidthGenerator is Ownable {
         MBPerToken = 1024; // default amount set at deployment 
     }
 
+    /**
+     * @param _newMBPerTokenAmount  Amount of MB credential is worth per erc20NYM token
+     */    
     function changeRatio(uint256 _newMBPerTokenAmount) public onlyOwner { 
         require(_newMBPerTokenAmount != 0, "BandwidthGenerator: price cannot be 0"); 
         MBPerToken = _newMBPerTokenAmount;  
         emit RatioChanged(_newMBPerTokenAmount);
     }
     
+    // amount in wei 
+    /**
+     * @param _amount                 Amount of erc20NYM tokens to spend on Basic Bandwidth Credential denominated in wei 
+     * @param _verificationKey        todo
+     * @param _signedVerificationKey  todo
+     * @param _cosmosRecipient        Address of the recipient on Nym Cosmos Blockchain
+     */    
     function generateBasicBandwidthCredential(uint256 _amount, uint256 _verificationKey, bytes memory _signedVerificationKey, bytes32 _cosmosRecipient) public {
         require(_signedVerificationKey.length == 64, "BandwidthGenerator: Signature doesn't have 64 bytes");
         require(_cosmosRecipient.length == 32,       "BandwidthGenerator: Cosmos address doesn't have 32 bytes");

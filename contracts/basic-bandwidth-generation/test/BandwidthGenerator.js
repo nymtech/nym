@@ -17,7 +17,7 @@ contract('BandwidthGenerator', (accounts) => {
   let newRatio; 
   let tokenAmount = web3.utils.toWei('100'); // this is converting 100 tokens to their representation in wei: 100000000000000000000
   let halfTokenAmount = web3.utils.toWei('50');
-  let tinyTokenAmount = web3.utils.toWei('0.5');
+  let unevenTokenAmount = web3.utils.toWei('11.1');
 
   before('deploy contracts', async () => {
 
@@ -121,6 +121,10 @@ contract('BandwidthGenerator', (accounts) => {
 
       expect((await erc20token.balanceOf(bandwidthGenerator.address)).toString()).to.equal('0');
       expect((await erc20token.balanceOf(user)).toString()).to.equal(halfTokenAmount.toString());
+    });
+
+    it.skip("TODO it transfers for uneven token amounts", async () => {
+      // swap 11.1 NYM for bandwidth
     });
 
     it("reverts when signed verification key !=64 bytes", async () => {

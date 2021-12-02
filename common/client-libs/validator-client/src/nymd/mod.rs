@@ -661,6 +661,26 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    /// Unbond a mixnode on behalf of the owner, removing it from the network and reclaiming staked coins
+    pub async fn unbond_mixnode_on_behalf(&self, owner: String) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee(Operation::UnbondMixnode);
+
+        let req = ExecuteMsg::UnbondMixnodeOnBehalf { owner };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Unbonding mixnode on behalf from rust!",
+                Vec::new(),
+            )
+            .await
+    }
+
     /// Delegates specified amount of stake to particular mixnode.
     pub async fn delegate_to_mixnode(
         &self,
@@ -736,6 +756,33 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Removing mixnode delegation from rust!",
+                Vec::new(),
+            )
+            .await
+    }
+
+    /// Removes stake delegation from a particular mixnode on behalf of a particular delegator.
+    pub async fn remove_mixnode_delegation_on_behalf(
+        &self,
+        mix_identity: &str,
+        delegate: &str,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee(Operation::UndelegateFromMixnode);
+
+        let req = ExecuteMsg::UndelegateFromMixnodeOnBehalf {
+            mix_identity: mix_identity.to_string(),
+            delegate: delegate.to_string(),
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Removing mixnode delegation on behalf from rust!",
                 Vec::new(),
             )
             .await

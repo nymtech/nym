@@ -57,7 +57,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         // the reason I think unwrap here is fine is that if the transaction succeeded and those
         // fields do not exist or code_id is not a number, there's no way we can recover, we're probably connected
         // to wrong validator or something
-        let code_id = logs::find_attribute(&logs, "message", "code_id")
+        let code_id = logs::find_attribute(&logs, "store_code", "code_id")
             .unwrap()
             .value
             .parse()
@@ -119,7 +119,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         // the reason I think unwrap here is fine is that if the transaction succeeded and those
         // fields do not exist or address is malformed, there's no way we can recover, we're probably connected
         // to wrong validator or something
-        let contract_address = logs::find_attribute(&logs, "message", "contract_address")
+        let contract_address = logs::find_attribute(&logs, "instantiate", "_contract_address")
             .unwrap()
             .value
             .parse()

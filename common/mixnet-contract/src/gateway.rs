@@ -27,15 +27,23 @@ pub struct GatewayBond {
     pub owner: Addr,
     pub block_height: u64,
     pub gateway: Gateway,
+    pub proxy: Option<Addr>,
 }
 
 impl GatewayBond {
-    pub fn new(bond_amount: Coin, owner: Addr, block_height: u64, gateway: Gateway) -> Self {
+    pub fn new(
+        bond_amount: Coin,
+        owner: Addr,
+        block_height: u64,
+        gateway: Gateway,
+        proxy: Option<Addr>,
+    ) -> Self {
         GatewayBond {
             bond_amount,
             owner,
             block_height,
             gateway,
+            proxy,
         }
     }
 
@@ -154,6 +162,7 @@ mod tests {
             owner: Addr::unchecked("foo1"),
             block_height: 100,
             gateway: gateway_fixture(),
+            proxy: None,
         };
 
         let gate2 = GatewayBond {
@@ -161,6 +170,7 @@ mod tests {
             owner: Addr::unchecked("foo2"),
             block_height: 120,
             gateway: gateway_fixture(),
+            proxy: None,
         };
 
         let gate3 = GatewayBond {
@@ -168,6 +178,7 @@ mod tests {
             owner: Addr::unchecked("foo3"),
             block_height: 120,
             gateway: gateway_fixture(),
+            proxy: None,
         };
 
         let gate4 = GatewayBond {
@@ -175,6 +186,7 @@ mod tests {
             owner: Addr::unchecked("foo4"),
             block_height: 120,
             gateway: gateway_fixture(),
+            proxy: None,
         };
 
         let gate5 = GatewayBond {
@@ -182,6 +194,7 @@ mod tests {
             owner: Addr::unchecked("foo5"),
             block_height: 120,
             gateway: gateway_fixture(),
+            proxy: None,
         };
 
         // summary:

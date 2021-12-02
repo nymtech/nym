@@ -11,7 +11,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *        
  *        Credentials represent a certain amount of bandwidth which can be sent through the Nym Mixnet. 
  *        By default 1 NYM = 1 GB of bandwidth. The `MBPerToken` amount can be adjusted by the contract owner. 
- *        The final amount of bandwidth is calculated according to the following formula: 
+ * 
+ *        The amount of bandwidth bought is calculated according to the following formula: 
  *        `(Token amount in 'wei' / 10**18) * MBPerToken`
  */ 
 contract BandwidthGenerator is Ownable {
@@ -40,7 +41,7 @@ contract BandwidthGenerator is Ownable {
         require(address(_gravityBridge) != address(0), "BandwidthGenerator: gravity bridge address cannot be null"); 
         erc20 = _erc20;
         gravityBridge = _gravityBridge; 
-        MBPerToken = 1024; // default amount set at deployment 
+        MBPerToken = 1024; // default amount set at deployment: 1 erc20NYM = 1024MB = 1GB
     }
 
     /**
@@ -52,9 +53,8 @@ contract BandwidthGenerator is Ownable {
         emit RatioChanged(_newMBPerTokenAmount);
     }
     
-    // amount in wei 
     /**
-     * @param _amount                 Amount of erc20NYM tokens to spend on Basic Bandwidth Credential denominated in wei 
+     * @param _amount                 Amount of erc20NYM tokens to spend on Basic Bandwidth Credential - denominated in wei 
      * @param _verificationKey        todo
      * @param _signedVerificationKey  todo
      * @param _cosmosRecipient        Address of the recipient on Nym Cosmos Blockchain

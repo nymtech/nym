@@ -6,10 +6,10 @@ import "./Gravity.sol";
 /** 
  * @title BandwidthGenerator
  * @dev   Contract for generating basic bandwidth credentials on the Nym cosmos blockchain, 
- *        using ERC20 representations of CW20 NYM as payment. 
+ *        using ERC20 representations of NYM as payment. 
  * 
  *        Utilises the Gravity Bridge for cross-chain payment. 
- */
+ */ 
 contract BandwidthGenerator {
     
     CosmosERC20 public erc20;

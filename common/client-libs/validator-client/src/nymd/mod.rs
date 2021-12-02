@@ -4,7 +4,7 @@
 use crate::nymd::cosmwasm_client::signing_client;
 use crate::nymd::cosmwasm_client::types::{
     ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
-    MigrateResult, SequenceResponse, UploadMeta, UploadResult,
+    MigrateResult, SequenceResponse, UploadResult,
 };
 use crate::nymd::error::NymdError;
 use crate::nymd::fee_helpers::Operation;
@@ -501,14 +501,13 @@ impl<C> NymdClient<C> {
         &self,
         wasm_code: Vec<u8>,
         memo: impl Into<String> + Send + 'static,
-        meta: Option<UploadMeta>,
     ) -> Result<UploadResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
         let fee = self.get_fee(Operation::Upload);
         self.client
-            .upload(self.address(), wasm_code, fee, memo, meta)
+            .upload(self.address(), wasm_code, fee, memo)
             .await
     }
 

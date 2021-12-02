@@ -31,7 +31,6 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         wasm_code: Vec<u8>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-        mut meta: Option<UploadMeta>,
     ) -> Result<UploadResult, NymdError> {
         let compressed = compress_wasm_code(&wasm_code)?;
         let compressed_size = compressed.len();
@@ -42,14 +41,6 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let upload_msg = cosmwasm::MsgStoreCode {
             sender: sender_address.clone(),
             wasm_byte_code: compressed,
-            source: meta
-                .as_mut()
-                .map(|meta| meta.source.take())
-                .unwrap_or_default(),
-            builder: meta
-                .as_mut()
-                .map(|meta| meta.builder.take())
-                .unwrap_or_default(),
             instantiate_permission: Default::default(),
         }
         .to_any()
@@ -111,7 +102,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             // now this is a weird one. the protobuf files say this field is optional,
             // but if you omit it, the initialisation will fail CheckTx
             label: Some(label),
-            init_msg: serde_json::to_vec(msg)?,
+            msg: serde_json::to_vec(msg)?,
             funds: options.map(|options| options.funds).unwrap_or_default(),
         }
         .to_any()
@@ -209,7 +200,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             sender: sender_address.clone(),
             contract: contract_address.clone(),
             code_id,
-            migrate_msg: serde_json::to_vec(msg)?,
+            msg: serde_json::to_vec(msg)?,
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgMigrateContract".to_owned()))?;

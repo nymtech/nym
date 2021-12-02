@@ -6,4 +6,5 @@ export interface TauriTxResult {
   gas_used: bigint;
   block_height: bigint;
   details: TransactionDetails;
+  tx_hash: string;
 }

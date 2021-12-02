@@ -78,6 +78,6 @@ mod test {
     crate::Denom => "../src/types/rust/denom.ts",
     crate::DelegationResult => "../src/types/rust/delegationresult.ts",
     crate::Account => "../src/types/rust/account.ts",
-    crate::TauriContractSettingsParams => "../src/types/rust/stateparams.ts"
+    crate::TauriContractStateParams => "../src/types/rust/stateparams.ts"
   }
 }

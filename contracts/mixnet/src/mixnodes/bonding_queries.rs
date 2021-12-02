@@ -39,14 +39,24 @@ pub fn query_mixnodes_paged(
 
 pub fn query_owns_mixnode(deps: Deps, address: String) -> StdResult<MixOwnershipResponse> {
     let validated_addr = deps.api.addr_validate(&address)?;
-    let has_node = storage::mixnodes()
+    let stored_bond = storage::mixnodes()
         .idx
         .owner
         .item(deps.storage, validated_addr.clone())?
-        .is_some();
+        .map(|record| record.1);
+
+    let mixnode = match stored_bond {
+        None => None,
+        Some(bond) => {
+            let total_delegation =
+                storage::TOTAL_DELEGATION.may_load(deps.storage, bond.identity())?;
+            Some(bond.attach_delegation(total_delegation.unwrap_or_default()))
+        }
+    };
+
     Ok(MixOwnershipResponse {
         address: validated_addr,
-        has_node,
+        mixnode,
     })
 }
 
@@ -174,7 +184,7 @@ pub(crate) mod tests {
 
         // "fred" does not own a mixnode if there are no mixnodes
         let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
-        assert!(!res.has_node);
+        assert!(res.mixnode.is_none());
 
         // mixnode was added to "bob", "fred" still does not own one
         let node = MixNode {
@@ -190,7 +200,7 @@ pub(crate) mod tests {
         .unwrap();
 
         let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
-        assert!(!res.has_node);
+        assert!(res.mixnode.is_none());
 
         // "fred" now owns a mixnode!
         let node = MixNode {
@@ -206,13 +216,13 @@ pub(crate) mod tests {
         .unwrap();
 
         let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
-        assert!(res.has_node);
+        assert!(res.mixnode.is_some());
 
         // but after unbonding it, he doesn't own one anymore
         crate::mixnodes::transactions::try_remove_mixnode(deps.as_mut(), mock_info("fred", &[]))
             .unwrap();
 
         let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
-        assert!(!res.has_node);
+        assert!(res.mixnode.is_none());
     }
 }

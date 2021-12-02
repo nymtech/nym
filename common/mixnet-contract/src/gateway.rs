@@ -123,7 +123,7 @@ impl PagedGatewayResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayOwnershipResponse {
     pub address: Addr,
-    pub has_gateway: bool,
+    pub gateway: Option<GatewayBond>,
 }
 
 #[cfg(test)]

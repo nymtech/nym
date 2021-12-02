@@ -481,7 +481,7 @@ impl PagedMixnodeResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixOwnershipResponse {
     pub address: Addr,
-    pub has_node: bool,
+    pub mixnode: Option<MixNodeBond>,
 }
 
 #[cfg(test)]

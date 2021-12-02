@@ -1,6 +1,7 @@
 require("@nomiclabs/hardhat-etherscan");
 require("@nomiclabs/hardhat-truffle5");
-require("solidity-coverage");
+require("@nomiclabs/hardhat-web3");
+// require("solidity-coverage");
 require('dotenv').config({ path: require('find-config')('.env') });
 
 /**

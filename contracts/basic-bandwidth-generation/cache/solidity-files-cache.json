@@ -110,47 +110,6 @@
         "Ownable"
       ]
     },
-    "/home/mx/dev/nym/erc20_burner_bridge/smart_contracts/contracts/Gravity.sol": {
-      "lastModificationDate": 1638273209729,
-      "contentHash": "eaa1cd71cea24d419ef5f67a66dc672e",
-      "sourceName": "contracts/Gravity.sol",
-      "solcConfig": {
-        "version": "0.6.6",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/math/SafeMath.sol",
-        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-        "@openzeppelin/contracts/token/ERC20/SafeERC20.sol",
-        "@openzeppelin/contracts/utils/Address.sol",
-        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
-        "./CosmosToken.sol"
-      ],
-      "versionPragmas": [
-        "^0.6.6"
-      ],
-      "artifacts": [
-        "Gravity"
-      ]
-    },
     "/home/mx/dev/nym/erc20_burner_bridge/smart_contracts/contracts/BandwidthGenerator.sol": {
       "lastModificationDate": 1638294877212,
       "contentHash": "f3a593e558e9a42b6d24c04c52c9f99d",
@@ -471,8 +430,8 @@
       ]
     },
     "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/contracts/BandwidthGenerator.sol": {
-      "lastModificationDate": 1638302615681,
-      "contentHash": "11da464b4e6fce033221b1b62036b0cd",
+      "lastModificationDate": 1638467493397,
+      "contentHash": "bac01daf7c38f4d722a9fa1837187883",
       "sourceName": "contracts/BandwidthGenerator.sol",
       "solcConfig": {
         "version": "0.6.6",
@@ -498,7 +457,8 @@
       },
       "imports": [
         "./CosmosToken.sol",
-        "./Gravity.sol"
+        "./Gravity.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
       ],
       "versionPragmas": [
         "0.6.6"
@@ -508,8 +468,8 @@
       ]
     },
     "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/contracts/CosmosToken.sol": {
-      "lastModificationDate": 1638296474528,
-      "contentHash": "ddff85a4ca862ff7add04c67c697a052",
+      "lastModificationDate": 1638446900563,
+      "contentHash": "0f05f96ee3c1151b6cd4b699aa3167e9",
       "sourceName": "contracts/CosmosToken.sol",
       "solcConfig": {
         "version": "0.6.6",
@@ -544,7 +504,7 @@
       ]
     },
     "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/contracts/Gravity.sol": {
-      "lastModificationDate": 1638296474528,
+      "lastModificationDate": 1638438947833,
       "contentHash": "eaa1cd71cea24d419ef5f67a66dc672e",
       "sourceName": "contracts/Gravity.sol",
       "solcConfig": {
@@ -585,7 +545,7 @@
       ]
     },
     "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol": {
-      "lastModificationDate": 1638296475515,
+      "lastModificationDate": 1638353108973,
       "contentHash": "8065b340476f61365c076897199425f1",
       "sourceName": "@openzeppelin/contracts/token/ERC20/ERC20.sol",
       "solcConfig": {
@@ -623,7 +583,7 @@
       ]
     },
     "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/utils/Context.sol": {
-      "lastModificationDate": 1638296475518,
+      "lastModificationDate": 1638353108973,
       "contentHash": "2adbd82f6d055a4751566d4671512b03",
       "sourceName": "@openzeppelin/contracts/utils/Context.sol",
       "solcConfig": {
@@ -657,7 +617,7 @@
       ]
     },
     "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol": {
-      "lastModificationDate": 1638296475515,
+      "lastModificationDate": 1638353108973,
       "contentHash": "e0a41531d159d3a32f84b7a3ecf9fabb",
       "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
       "solcConfig": {
@@ -691,7 +651,7 @@
       ]
     },
     "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/math/SafeMath.sol": {
-      "lastModificationDate": 1638296475508,
+      "lastModificationDate": 1638353108970,
       "contentHash": "e03e12206057e809eb76c5f681170c32",
       "sourceName": "@openzeppelin/contracts/math/SafeMath.sol",
       "solcConfig": {
@@ -725,7 +685,7 @@
       ]
     },
     "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol": {
-      "lastModificationDate": 1638296475515,
+      "lastModificationDate": 1638353108973,
       "contentHash": "33e22842646d746e5c4124c2fdc051aa",
       "sourceName": "@openzeppelin/contracts/token/ERC20/SafeERC20.sol",
       "solcConfig": {
@@ -763,7 +723,7 @@
       ]
     },
     "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/utils/Address.sol": {
-      "lastModificationDate": 1638296475518,
+      "lastModificationDate": 1638353108973,
       "contentHash": "7aa46886ff5abe7515496208a5e2ce5a",
       "sourceName": "@openzeppelin/contracts/utils/Address.sol",
       "solcConfig": {
@@ -797,7 +757,7 @@
       ]
     },
     "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol": {
-      "lastModificationDate": 1638296475518,
+      "lastModificationDate": 1638353108973,
       "contentHash": "1c60f58cee45c61469e1aea31e4dd879",
       "sourceName": "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
       "solcConfig": {
@@ -828,6 +788,42 @@
       ],
       "artifacts": [
         "ReentrancyGuard"
+      ]
+    },
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/access/Ownable.sol": {
+      "lastModificationDate": 1638353108970,
+      "contentHash": "6748815a5b45c4aeeda56819f41190e0",
+      "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
+      "solcConfig": {
+        "version": "0.6.6",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../utils/Context.sol"
+      ],
+      "versionPragmas": [
+        ">=0.6.0 <0.8.0"
+      ],
+      "artifacts": [
+        "Ownable"
       ]
     }
   }

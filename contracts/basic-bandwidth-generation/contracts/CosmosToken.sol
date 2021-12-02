@@ -15,7 +15,7 @@ contract CosmosERC20 is ERC20 {
 	// uint256 MAX_UINT = 2**256 - 1;
 
 	/* unit testing amount */
-	uint256 MAX_UINT = 2**256 - 100;
+	uint256 HALF_MAX_UINT = 2**256 / 2;
 
 	constructor(
 		address _gravityAddress,
@@ -24,7 +24,7 @@ contract CosmosERC20 is ERC20 {
 		uint8 _decimals
 	) public ERC20(_name, _symbol) {
 		_setupDecimals(_decimals);
-		_mint(_gravityAddress, MAX_UINT);
+		_mint(_gravityAddress, HALF_MAX_UINT);
 	}
 
 	function mintForUnitTesting(address _to, uint _amount) public {

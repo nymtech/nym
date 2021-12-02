@@ -1,6 +1,7 @@
 const { expect } = require("chai");
 const { constants, expectRevert, expectEvent } = require('@openzeppelin/test-helpers');
-const { artifacts } = require("hardhat");
+const { artifacts, web3 } = require("hardhat");
+const BN = require('bn.js');
 const BandwidthGenerator = artifacts.require('BandwidthGenerator');
 const Gravity = artifacts.require('Gravity');   
 const CosmosToken = artifacts.require('CosmosERC20');
@@ -9,12 +10,17 @@ const CosmosToken = artifacts.require('CosmosERC20');
 contract('BandwidthGenerator', (accounts) => {
   let bandwidthGenerator; 
   let gravity; 
-  let erc20Asset;
   let erc20token; 
   let owner = accounts[0];
   let user = accounts[1];
+  let initialRatio = 1024;
+  let newRatio; 
+  let tokenAmount = web3.utils.toWei('100'); // this is converting 100 tokens to their representation in wei: 100000000000000000000
+  let halfTokenAmount = web3.utils.toWei('50');
+  let tinyTokenAmount = web3.utils.toWei('0.5');
 
   before('deploy contracts', async () => {
+
     // deploy gravity bridge with test data
     gravity = await Gravity.new(
       constants.ZERO_BYTES32, 
@@ -28,7 +34,7 @@ contract('BandwidthGenerator', (accounts) => {
       'eNYM',
       'NYMERC20',
       'NYM',
-      6
+      18
     ); 
 
     // grab event args for getting token address
@@ -37,19 +43,25 @@ contract('BandwidthGenerator', (accounts) => {
       toBlock: "latest",
     });
 
-    console.log(logs[0].args._tokenContract);
-    erc20Asset = logs[0].args._tokenContract; 
+    // create contract abstraction of deployed erc20NYM with address from event args
+    erc20token = await CosmosToken.at(logs[0].args._tokenContract);
     
-    // deploy bandwidthGenerator contract with contract address of erc20 asset & address of gravity bridge
-    bandwidthGenerator = await BandwidthGenerator.new(erc20Asset, gravity.address); 
+    // deploy bandwidthGenerator contract with contract address of erc20NYM & address of gravity bridge
+    bandwidthGenerator = await BandwidthGenerator.new(erc20token.address, gravity.address); 
   });
   
   context(">> deployment parameters are valid", () => {
     it("returns the correct erc20 address", async () => {
-        expect((await bandwidthGenerator.erc20()).toString()).to.equal((erc20Asset).toString());
+        expect((await bandwidthGenerator.erc20()).toString()).to.equal((erc20token.address).toString());
     });
     it("returns the correct gravity address", async () => {
         expect((await bandwidthGenerator.gravityBridge()).toString()).to.equal((gravity.address).toString());
+    });
+    it("returns the correct initial MBPerToken ratio", async () => {
+        expect((await bandwidthGenerator.MBPerToken()).toString()).to.equal((initialRatio).toString());
+    });
+    it("returns the correct contract admin", async () => {
+      expect((await bandwidthGenerator.owner()).toString()).to.equal((owner).toString());
     });
   });
 
@@ -62,7 +74,7 @@ contract('BandwidthGenerator', (accounts) => {
     });
     it("cannot be deployed with invalid gravity bridge address (zero address)", async () => {
       expectRevert(
-        BandwidthGenerator.new(erc20Asset, constants.ZERO_ADDRESS), 
+        BandwidthGenerator.new(erc20token.address, constants.ZERO_ADDRESS), 
         "BandwidthGenerator: gravity bridge address cannot be null"
       )
     });
@@ -70,17 +82,15 @@ contract('BandwidthGenerator', (accounts) => {
 
   context(">> generateBasicBandwidthCredential()", () => {
     before("", async () => {
-      // create contract abstraction of erc20 asset 
-      erc20token = await CosmosToken.at(erc20Asset);
-      // transfer tokens to account which will create a BBBC 
-      await erc20token.mintForUnitTesting(user, 90); 
+      // transfer tokens to account which will create a BBCredential 
+      await erc20token.mintForUnitTesting(user, tokenAmount); 
       // approve transfer to contract
-      await erc20token.approve(bandwidthGenerator.address,45,{ from: user }); 
+      await erc20token.approve(bandwidthGenerator.address,(tokenAmount),{ from: user }); 
     });
 
-    it("transfers tokens to self and emits an event with the correct values", async () => {
+    it("transfers tokens to bridge and emits an event with the correct values: 50 erc20NYM = 50GB of bandwidth", async () => {
       let tx = await bandwidthGenerator.generateBasicBandwidthCredential(
-            45,
+            halfTokenAmount,
             15,
             [0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba,
               0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba],
@@ -88,19 +98,33 @@ contract('BandwidthGenerator', (accounts) => {
             { from: user }
       );
 
+      let expectedBandwidthInMB = ((halfTokenAmount/10**18)*initialRatio); // 50 * 1024MB = 51200MB = 50GB of bandwidth
+
       await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'BBCredentialPurchased', {
-        Bandwidth: ((1024 * 1024 * 1024) * 45).toString(),
-        VerificationKey: (15).toString(),
+        Bandwidth: expectedBandwidthInMB.toString(), 
+        VerificationKey: '15',
         SignedVerificationKey: '0x39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba',
         CosmosRecipient: constants.ZERO_BYTES32 
       });
 
+      await expectEvent.inTransaction(tx.tx, erc20token, 'Transfer', {
+        from: user,
+        to: bandwidthGenerator.address,
+      });
+
+      await expectEvent.inTransaction(tx.tx, gravity, 'SendToCosmosEvent', {
+        _tokenContract: erc20token.address,
+        _sender: bandwidthGenerator.address,
+        _destination: constants.ZERO_BYTES32,
+        _amount: halfTokenAmount
+      });
+
       expect((await erc20token.balanceOf(bandwidthGenerator.address)).toString()).to.equal('0');
-      expect((await erc20token.balanceOf(user)).toString()).to.equal('45');
+      expect((await erc20token.balanceOf(user)).toString()).to.equal(halfTokenAmount.toString());
     });
 
     it("reverts when signed verification key !=64 bytes", async () => {
-      await erc20token.approve(bandwidthGenerator.address,45,{ from: user }); 
+      await erc20token.approve(bandwidthGenerator.address,(halfTokenAmount),{ from: user }); 
 
       await expectRevert(
         bandwidthGenerator.generateBasicBandwidthCredential(
@@ -114,7 +138,43 @@ contract('BandwidthGenerator', (accounts) => {
       );
     });
 
+    // seems to be a bug with hardhat at the moment re: expectRevert .. looking into finding a way around this
+    it.skip("reverts when cosmos address !=32 bytes", async () => {
+      let badBytes = constants.ZERO_BYTES32.slice(0,-1); 
+      console.log(badBytes.length);
+
+      await expectRevert(
+        bandwidthGenerator.generateBasicBandwidthCredential(
+          1,
+          16,
+          [0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba,
+            0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba],
+          badBytes,
+          { from: user }
+        ), "Cosmos address doesn't have 32 bytes"
+      );
+    });
   });
+
+  context(">> changeRatio()", () => {
+    it("only admin can change token to MB ratio", async () => {
+      newRatio = 10 * initialRatio; // 10GB of bandwidth per 1 erc20NYM
+      await expectRevert(
+        bandwidthGenerator.changeRatio(newRatio, {from: user}), 
+        "Ownable: caller is not the owner"
+      );
+    });
+    it("admin can change ratio, emits event", async () => {
+        let tx = await bandwidthGenerator.changeRatio(newRatio, {from: owner});
+        await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'RatioChanged', {
+          NewMBPerToken: newRatio.toString()
+        });
+        expect((await bandwidthGenerator.MBPerToken()).toString()).to.equal((newRatio).toString());
+    });
+    it("BBCredential represents new ratio after change", async () => {
+        //
+    });
+  });  
 
 }); 
 

@@ -17,9 +17,13 @@ pub enum Operation {
     Send,
 
     BondMixnode,
+    BondOnBehalfMixnode,
     UnbondMixnode,
+    UnbondOnBehalfMixnode,
     DelegateToMixnode,
+    DelegateOnBehalfToMixnode,
     UndelegateFromMixnode,
+    UndelegateOnBehalfFromMixnode,
 
     BondGateway,
     UnbondGateway,
@@ -43,11 +47,17 @@ impl fmt::Display for Operation {
             Operation::ChangeAdmin => f.write_str("ChangeAdmin"),
             Operation::Send => f.write_str("Send"),
             Operation::BondMixnode => f.write_str("BondMixnode"),
+            Operation::BondOnBehalfMixnode => f.write_str("BondOnBehalfMixnode"),
             Operation::UnbondMixnode => f.write_str("UnbondMixnode"),
+            Operation::UnbondOnBehalfMixnode => f.write_str("UnbondOnBehalfMixnode"),
             Operation::BondGateway => f.write_str("BondGateway"),
             Operation::UnbondGateway => f.write_str("UnbondGateway"),
             Operation::DelegateToMixnode => f.write_str("DelegateToMixnode"),
+            Operation::DelegateOnBehalfToMixnode => f.write_str("DelegateOnBehalfToMixnode"),
             Operation::UndelegateFromMixnode => f.write_str("UndelegateFromMixnode"),
+            Operation::UndelegateOnBehalfFromMixnode => {
+                f.write_str("UndelegateOnBehalfFromMixnode")
+            }
             Operation::UpdateStateParams => f.write_str("UpdateStateParams"),
             Operation::BeginMixnodeRewarding => f.write_str("BeginMixnodeRewarding"),
             Operation::FinishMixnodeRewarding => f.write_str("FinishMixnodeRewarding"),
@@ -66,9 +76,13 @@ impl Operation {
             Operation::Send => 80_000u64.into(),
 
             Operation::BondMixnode => 175_000u64.into(),
+            Operation::BondOnBehalfMixnode => 175_000u64.into(),
             Operation::UnbondMixnode => 175_000u64.into(),
+            Operation::UnbondOnBehalfMixnode => 175_000u64.into(),
             Operation::DelegateToMixnode => 175_000u64.into(),
+            Operation::DelegateOnBehalfToMixnode => 175_000u64.into(),
             Operation::UndelegateFromMixnode => 175_000u64.into(),
+            Operation::UndelegateOnBehalfFromMixnode => 175_000u64.into(),
 
             Operation::BondGateway => 175_000u64.into(),
             Operation::UnbondGateway => 175_000u64.into(),

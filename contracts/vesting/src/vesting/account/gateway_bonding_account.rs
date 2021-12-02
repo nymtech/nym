@@ -48,7 +48,7 @@ impl GatewayBondingAccount for Account {
         self.save_gateway_bond(bond_data, storage)?;
 
         Ok(Response::new()
-            .add_attribute("action", "bond mixnode on behalf")
+            .add_attribute("action", "bond gateway on behalf")
             .add_message(bond_mixnode_mag))
     }
 
@@ -61,7 +61,7 @@ impl GatewayBondingAccount for Account {
             let unbond_msg = wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![])?;
 
             Ok(Response::new()
-                .add_attribute("action", "unbond mixnode on behalf")
+                .add_attribute("action", "unbond gateway on behalf")
                 .add_message(unbond_msg))
         } else {
             Err(ContractError::NoBondFound(

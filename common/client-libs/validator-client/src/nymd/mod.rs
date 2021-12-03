@@ -623,7 +623,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.get_fee(Operation::BondMixnode);
+        let fee = self.get_fee(Operation::BondMixnodeOnBehalf);
 
         let req = ExecuteMsg::BondMixnodeOnBehalf {
             mix_node: mixnode,
@@ -666,7 +666,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.get_fee(Operation::UnbondMixnode);
+        let fee = self.get_fee(Operation::UnbondMixnodeOnBehalf);
 
         let req = ExecuteMsg::UnbondMixnodeOnBehalf { owner };
         self.client
@@ -718,7 +718,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.get_fee(Operation::DelegateToMixnode);
+        let fee = self.get_fee(Operation::DelegateToMixnodeOnBehalf);
 
         let req = ExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_identity: mix_identity.to_string(),
@@ -770,7 +770,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.get_fee(Operation::UndelegateFromMixnode);
+        let fee = self.get_fee(Operation::UndelegateFromMixnodeOnBehalf);
 
         let req = ExecuteMsg::UndelegateFromMixnodeOnBehalf {
             mix_identity: mix_identity.to_string(),

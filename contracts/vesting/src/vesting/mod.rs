@@ -39,13 +39,13 @@ mod tests {
     use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD};
     use crate::storage::load_account;
     use crate::support::tests::helpers::{init_contract, vesting_account_fixture};
-    use crate::traits::BondingAccount;
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
+    use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
     use config::defaults::DENOM;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
-    use mixnet_contract::MixNode;
+    use mixnet_contract::{Gateway, MixNode};
 
     #[test]
     fn test_account_creation() {
@@ -234,7 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bonds() {
+    fn test_mixnode_bonds() {
         let mut deps = init_contract();
         let env = mock_env();
 
@@ -287,7 +287,117 @@ mod tests {
         );
         assert!(err.is_err());
 
-        let bond = account.load_bond(&deps.storage).unwrap().unwrap();
+        let bond = account.load_mixnode_bond(&deps.storage).unwrap().unwrap();
+        assert_eq!(Uint128::new(500_000_000_000), bond.amount);
+
+        // Current period -> block_time: None
+        let bonded_free = account.get_bonded_free(None, &env, &deps.storage).unwrap();
+        assert_eq!(Uint128::new(0), bonded_free.amount);
+
+        let bonded_vesting = account
+            .get_bonded_vesting(None, &env, &deps.storage)
+            .unwrap();
+        assert_eq!(bond.amount - bonded_free.amount, bonded_vesting.amount);
+
+        // All periods
+        for (i, period) in account.periods().iter().enumerate() {
+            let bonded_free = account
+                .get_bonded_free(
+                    Some(Timestamp::from_seconds(period.start_time + 1)),
+                    &env,
+                    &deps.storage,
+                )
+                .unwrap();
+            assert_eq!(
+                (account.tokens_per_period().unwrap() * i as u128).min(bond.amount.u128()),
+                bonded_free.amount.u128()
+            );
+
+            let bonded_vesting = account
+                .get_bonded_vesting(
+                    Some(Timestamp::from_seconds(period.start_time + 1)),
+                    &env,
+                    &deps.storage,
+                )
+                .unwrap();
+            assert_eq!(bond.amount - bonded_free.amount, bonded_vesting.amount);
+        }
+
+        let bonded_free = account
+            .get_bonded_free(
+                Some(Timestamp::from_seconds(1764416964)),
+                &env,
+                &deps.storage,
+            )
+            .unwrap();
+        assert_eq!(bond.amount, bonded_free.amount);
+
+        let bonded_vesting = account
+            .get_bonded_vesting(
+                Some(Timestamp::from_seconds(1764416964)),
+                &env,
+                &deps.storage,
+            )
+            .unwrap();
+        assert_eq!(Uint128::zero(), bonded_vesting.amount);
+    }
+
+    #[test]
+    fn test_gateway_bonds() {
+        let mut deps = init_contract();
+        let env = mock_env();
+
+        let account = vesting_account_fixture(&mut deps.storage, &env);
+
+        let gateway = Gateway {
+            host: "1.1.1.1".to_string(),
+            mix_port: 1789,
+            clients_port: 9000,
+            location: "Sweden".to_string(),
+            sphinx_key: "sphinx".to_string(),
+            identity_key: "identity".to_string(),
+            version: "0.10.0".to_string(),
+        };
+
+        // Try delegating too much
+        let err = account.try_bond_gateway(
+            gateway.clone(),
+            Coin {
+                amount: Uint128::new(1_000_000_000_001),
+                denom: DENOM.to_string(),
+            },
+            &env,
+            &mut deps.storage,
+        );
+        assert!(err.is_err());
+
+        let ok = account.try_bond_gateway(
+            gateway.clone(),
+            Coin {
+                amount: Uint128::new(500_000_000_000),
+                denom: DENOM.to_string(),
+            },
+            &env,
+            &mut deps.storage,
+        );
+        assert!(ok.is_ok());
+
+        let balance = account.load_balance(&deps.storage).unwrap();
+        assert_eq!(balance, Uint128::new(500_000_000_000));
+
+        // Try delegating too much again
+        let err = account.try_bond_gateway(
+            gateway,
+            Coin {
+                amount: Uint128::new(500_000_000_001),
+                denom: DENOM.to_string(),
+            },
+            &env,
+            &mut deps.storage,
+        );
+        assert!(err.is_err());
+
+        let bond = account.load_gateway_bond(&deps.storage).unwrap().unwrap();
         assert_eq!(Uint128::new(500_000_000_000), bond.amount);
 
         // Current period -> block_time: None

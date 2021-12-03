@@ -154,7 +154,13 @@ pub mod test_helpers {
             identity_key: format!("id-{}", owner),
             ..gateway_fixture()
         };
-        GatewayBond::new(coin(50, DENOM), Addr::unchecked(owner), 12_345, gateway)
+        GatewayBond::new(
+            coin(50, DENOM),
+            Addr::unchecked(owner),
+            12_345,
+            gateway,
+            None,
+        )
     }
 
     pub fn query_contract_balance(

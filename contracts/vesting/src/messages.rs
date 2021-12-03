@@ -1,6 +1,6 @@
 use cosmwasm_std::{Coin, Timestamp};
 use mixnet_contract::IdentityKey;
-use mixnet_contract::MixNode;
+use mixnet_contract::{Gateway, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -33,7 +33,15 @@ pub enum ExecuteMsg {
         mix_node: MixNode,
     },
     UnbondMixnode {},
-    TrackUnbond {
+    TrackUnbondMixnode {
+        owner: String,
+        amount: Coin,
+    },
+    BondGateway {
+        gateway: Gateway,
+    },
+    UnbondGateway {},
+    TrackUnbondGateway {
         owner: String,
         amount: Coin,
     },

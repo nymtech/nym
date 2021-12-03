@@ -6,36 +6,71 @@ use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::support::helpers::ensure_no_existing_bond;
 use config::defaults::DENOM;
-use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{
+    coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
+};
 use mixnet_contract::{Gateway, GatewayBond, Layer};
+use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
 
-pub(crate) fn try_add_gateway(
+pub fn try_add_gateway(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     gateway: Gateway,
 ) -> Result<Response, ContractError> {
+    // check if the bond contains any funds of the appropriate denomination
+    let minimum_bond = mixnet_params_storage::CONTRACT_STATE
+        .load(deps.storage)?
+        .params
+        .minimum_mixnode_bond;
+    let bond = validate_gateway_bond(info.funds, minimum_bond)?;
+
+    _try_add_gateway(deps, env, gateway, bond, info.sender.as_str(), None)
+}
+
+pub fn try_add_gateway_on_behalf(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    gateway: Gateway,
+    owner: String,
+) -> Result<Response, ContractError> {
+    // check if the bond contains any funds of the appropriate denomination
+    let minimum_bond = mixnet_params_storage::CONTRACT_STATE
+        .load(deps.storage)?
+        .params
+        .minimum_mixnode_bond;
+    let bond = validate_gateway_bond(info.funds, minimum_bond)?;
+
+    let proxy = info.sender;
+    _try_add_gateway(deps, env, gateway, bond, &owner, Some(proxy))
+}
+
+pub(crate) fn _try_add_gateway(
+    deps: DepsMut,
+    env: Env,
+    gateway: Gateway,
+    bond: Coin,
+    owner: &str,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(owner)?;
+
     // if the client has an active bonded mixnode or gateway, don't allow bonding
-    ensure_no_existing_bond(deps.storage, &info.sender)?;
+    ensure_no_existing_bond(deps.storage, &owner)?;
 
     // check if somebody else has already bonded a gateway with this identity
     if let Some(existing_bond) =
         storage::gateways().may_load(deps.storage, &gateway.identity_key)?
     {
-        if existing_bond.owner != info.sender {
+        if existing_bond.owner != owner {
             return Err(ContractError::DuplicateGateway {
                 owner: existing_bond.owner,
             });
         }
     }
 
-    let minimum_bond = mixnet_params_storage::CONTRACT_STATE
-        .load(deps.storage)?
-        .params
-        .minimum_gateway_bond;
-    let bond_amount = validate_gateway_bond(info.funds, minimum_bond)?;
-
-    let bond = GatewayBond::new(bond_amount, info.sender, env.block.height, gateway);
+    let bond = GatewayBond::new(bond, owner, env.block.height, gateway, proxy);
 
     storage::gateways().save(deps.storage, bond.identity(), &bond)?;
     mixnet_params_storage::increment_layer_count(deps.storage, Layer::Gateway)?;
@@ -43,23 +78,47 @@ pub(crate) fn try_add_gateway(
     Ok(Response::new())
 }
 
-pub(crate) fn try_remove_gateway(
+pub fn try_remove_gateway_on_behalf(
     deps: DepsMut,
     info: MessageInfo,
+    owner: String,
 ) -> Result<Response, ContractError> {
+    let proxy = info.sender;
+    _try_remove_gateway(deps, &owner, Some(proxy))
+}
+
+pub fn try_remove_gateway(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    _try_remove_gateway(deps, info.sender.as_ref(), None)
+}
+
+pub(crate) fn _try_remove_gateway(
+    deps: DepsMut,
+    owner: &str,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(owner)?;
     // try to find the node of the sender
     let gateway_bond = match storage::gateways()
         .idx
         .owner
-        .item(deps.storage, info.sender.clone())?
+        .item(deps.storage, owner.clone())?
     {
         Some(record) => record.1,
-        None => return Err(ContractError::NoAssociatedGatewayBond { owner: info.sender }),
+        None => return Err(ContractError::NoAssociatedGatewayBond { owner }),
     };
+
+    if proxy != gateway_bond.proxy {
+        return Err(ContractError::ProxyMismatch {
+            existing: gateway_bond
+                .proxy
+                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+            incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+        });
+    }
 
     // send bonded funds back to the bond owner
     let return_tokens = BankMsg::Send {
-        to_address: info.sender.as_str().to_owned(),
+        to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
         amount: vec![gateway_bond.bond_amount()],
     };
 
@@ -69,11 +128,23 @@ pub(crate) fn try_remove_gateway(
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, Layer::Gateway)?;
 
-    Ok(Response::new()
+    let mut response = Response::new()
         .add_message(return_tokens)
         .add_attribute("action", "unbond")
-        .add_attribute("address", info.sender)
-        .add_attribute("gateway_bond", gateway_bond.to_string()))
+        .add_attribute("address", owner.clone())
+        .add_attribute("gateway_bond", gateway_bond.to_string());
+
+    if let Some(proxy) = &proxy {
+        let msg = VestingContractExecuteMsg::TrackUnbondGateway {
+            owner: owner.as_str().to_string(),
+            amount: gateway_bond.bond_amount,
+        };
+
+        let track_unbond_message = wasm_execute(proxy, &msg, coins(0, DENOM))?;
+        response = response.add_message(track_unbond_message);
+    }
+
+    Ok(response)
 }
 
 fn validate_gateway_bond(

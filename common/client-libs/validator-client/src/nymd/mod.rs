@@ -654,14 +654,14 @@ impl<C> NymdClient<C> {
     /// Announce multiple mixnodes on behalf of other owners, paying a fee.
     pub async fn bond_multiple_mixnodes_on_behalf(
         &self,
-        mixnode_bond: Vec<MixNodeBond>,
+        mixnode_bonds: Vec<MixNodeBond>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.get_fee_multiple(Operation::BondMixnodeOnBehalf, mixnode_bond.len() as u64);
+        let fee = self.get_fee_multiple(Operation::BondMixnodeOnBehalf, mixnode_bonds.len() as u64);
 
-        let reqs: Vec<(ExecuteMsg, Vec<CosmosCoin>)> = mixnode_bond
+        let reqs: Vec<(ExecuteMsg, Vec<CosmosCoin>)> = mixnode_bonds
             .into_iter()
             .map(|bond| {
                 (
@@ -856,6 +856,65 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    /// Announce a gateway on behalf of the owner, paying a fee.
+    pub async fn bond_gateway_on_behalf(
+        &self,
+        gateway: Gateway,
+        owner: String,
+        bond: Coin,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee(Operation::BondGatewayOnBehalf);
+
+        let req = ExecuteMsg::BondGatewayOnBehalf { gateway, owner };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Bonding gateway on behalf from rust!",
+                vec![cosmwasm_coin_to_cosmos_coin(bond)],
+            )
+            .await
+    }
+
+    /// Announce multiple gateways on behalf of other owners, paying a fee.
+    pub async fn bond_multiple_gateways_on_behalf(
+        &self,
+        gateway_bonds: Vec<GatewayBond>,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee_multiple(Operation::BondGatewayOnBehalf, gateway_bonds.len() as u64);
+
+        let reqs: Vec<(ExecuteMsg, Vec<CosmosCoin>)> = gateway_bonds
+            .into_iter()
+            .map(|bond| {
+                (
+                    ExecuteMsg::BondGatewayOnBehalf {
+                        gateway: bond.gateway,
+                        owner: bond.owner.to_string(),
+                    },
+                    vec![cosmwasm_coin_to_cosmos_coin(bond.bond_amount)],
+                )
+            })
+            .collect();
+
+        self.client
+            .execute_multiple(
+                self.address(),
+                self.mixnet_contract_address()?,
+                reqs,
+                fee,
+                "Bonding multiple gateways on behalf from rust!",
+            )
+            .await
+    }
+
     /// Unbond a gateway, removing it from the network and reclaiming staked coins
     pub async fn unbond_gateway(&self) -> Result<ExecuteResult, NymdError>
     where
@@ -871,6 +930,27 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Unbonding gateway from rust!",
+                Vec::new(),
+            )
+            .await
+    }
+
+    /// Unbond a gateway on behalf of the owner, removing it from the
+    /// network and reclaiming staked coins
+    pub async fn unbond_gateway_on_behalf(&self, owner: String) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee(Operation::UnbondGatewayOnBehalf);
+
+        let req = ExecuteMsg::UnbondGatewayOnBehalf { owner };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Unbonding gateway on behalf from rust!",
                 Vec::new(),
             )
             .await

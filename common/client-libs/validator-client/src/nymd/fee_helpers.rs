@@ -26,7 +26,9 @@ pub enum Operation {
     UndelegateFromMixnodeOnBehalf,
 
     BondGateway,
+    BondGatewayOnBehalf,
     UnbondGateway,
+    UnbondGatewayOnBehalf,
 
     UpdateStateParams,
 
@@ -51,7 +53,9 @@ impl fmt::Display for Operation {
             Operation::UnbondMixnode => f.write_str("UnbondMixnode"),
             Operation::UnbondMixnodeOnBehalf => f.write_str("UnbondMixnodeOnBehalf"),
             Operation::BondGateway => f.write_str("BondGateway"),
+            Operation::BondGatewayOnBehalf => f.write_str("BondGatewayOnBehalf"),
             Operation::UnbondGateway => f.write_str("UnbondGateway"),
+            Operation::UnbondGatewayOnBehalf => f.write_str("UnbondGatewayOnBehalf"),
             Operation::DelegateToMixnode => f.write_str("DelegateToMixnode"),
             Operation::DelegateToMixnodeOnBehalf => f.write_str("DelegateToMixnodeOnBehalf"),
             Operation::UndelegateFromMixnode => f.write_str("UndelegateFromMixnode"),
@@ -85,7 +89,9 @@ impl Operation {
             Operation::UndelegateFromMixnodeOnBehalf => 175_000u64.into(),
 
             Operation::BondGateway => 175_000u64.into(),
+            Operation::BondGatewayOnBehalf => 200_000u64.into(),
             Operation::UnbondGateway => 175_000u64.into(),
+            Operation::UnbondGatewayOnBehalf => 200_000u64.into(),
 
             Operation::UpdateStateParams => 175_000u64.into(),
             Operation::BeginMixnodeRewarding => 175_000u64.into(),

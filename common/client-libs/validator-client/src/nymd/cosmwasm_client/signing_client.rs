@@ -319,6 +319,33 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await
     }
 
+    async fn send_tokens_multiple<I>(
+        &self,
+        sender_address: &AccountId,
+        msgs: I,
+        fee: Fee,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<broadcast::tx_commit::Response, NymdError>
+    where
+        I: IntoIterator<Item = (AccountId, Vec<Coin>)> + Send,
+    {
+        let messages = msgs
+            .into_iter()
+            .map(|(to_address, amount)| {
+                MsgSend {
+                    from_address: sender_address.clone(),
+                    to_address,
+                    amount,
+                }
+                .to_any()
+                .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))
+            })
+            .collect::<Result<_, _>>()?;
+
+        self.sign_and_broadcast_commit(sender_address, messages, fee, memo)
+            .await
+    }
+
     async fn delegate_tokens(
         &self,
         delegator_address: &AccountId,

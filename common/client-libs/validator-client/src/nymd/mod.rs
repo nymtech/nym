@@ -486,6 +486,21 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    /// Send funds from one address to multiple others
+    pub async fn send_multiple(
+        &self,
+        msgs: Vec<(AccountId, Vec<CosmosCoin>)>,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<broadcast::tx_commit::Response, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee_multiple(Operation::Send, msgs.len() as u64);
+        self.client
+            .send_tokens_multiple(self.address(), msgs, fee, memo)
+            .await
+    }
+
     pub async fn execute<M>(
         &self,
         contract_address: &AccountId,

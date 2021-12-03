@@ -10,26 +10,26 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *        using ERC20 representations of NYM as payment. Utilises the Gravity Bridge for cross-chain payment. 
  *        
  *        Credentials represent a certain amount of bandwidth which can be sent through the Nym Mixnet. 
- *        By default 1 NYM = 1 GB of bandwidth. The `MBPerToken` amount can be adjusted by the contract owner. 
+ *        By default 1 NYM = 1 GB of bandwidth. The `BytesPerToken` amount can be adjusted by the contract owner. 
  * 
  *        The amount of bandwidth bought is calculated according to the following formula: 
- *        `(Token amount in 'wei' / 10**18) * MBPerToken`
+ *        `(Token amount in 'wei' / 10**18) * BytesPerToken`
  */ 
 contract BandwidthGenerator is Ownable {
     
     CosmosERC20 public erc20;
     Gravity     public gravityBridge; 
-    uint256     public MBPerToken; 
+    uint256     public BytesPerToken; 
     
     event BBCredentialPurchased(
-        uint256 indexed Bandwidth,
+        uint256 Bandwidth,
         uint256 indexed VerificationKey,
         bytes   SignedVerificationKey, 
         bytes32 indexed CosmosRecipient
     );
 
     event RatioChanged(
-        uint256 indexed NewMBPerToken
+        uint256 indexed NewBytesPerToken
     );
     
     /**
@@ -41,23 +41,22 @@ contract BandwidthGenerator is Ownable {
         require(address(_gravityBridge) != address(0), "BandwidthGenerator: gravity bridge address cannot be null"); 
         erc20 = _erc20;
         gravityBridge = _gravityBridge; 
-        MBPerToken = 1024; // default amount set at deployment: 1 erc20NYM = 1024MB = 1GB
+        BytesPerToken = (1024 * 1024 * 1024); // default amount set at deployment: 1 erc20NYM = 1073741824 Bytes = 1024MB = 1GB
     }
 
     /**
-     * @dev   Changes amount of MB each erc20NYM is tradable for. Can only be 
-     *        called by Owner. 
-     * @param _newMBPerTokenAmount  Amount of MB BBC is worth per erc20NYM token.
+     * @dev                            Changes amount of Bytes each erc20NYM is tradable for. Can only be called by Owner. 
+     * @param _newBytesPerTokenAmount  Amount of Bytes BBC is worth per 1 erc20NYM token.
      */    
-    function changeRatio(uint256 _newMBPerTokenAmount) public onlyOwner { 
-        require(_newMBPerTokenAmount != 0, "BandwidthGenerator: price cannot be 0"); 
-        MBPerToken = _newMBPerTokenAmount;  
-        emit RatioChanged(_newMBPerTokenAmount);
+    function changeRatio(uint256 _newBytesPerTokenAmount) public onlyOwner { 
+        require(_newBytesPerTokenAmount != 0, "BandwidthGenerator: price cannot be 0"); 
+        BytesPerToken = _newBytesPerTokenAmount;  
+        emit RatioChanged(_newBytesPerTokenAmount);
     }
     
     /**
-     * @dev   Function to create a BBC for account owning the verification key on the Nym Cosmos Blockchain
-     *        by transfering erc20NYM via the Gravity Bridge. 
+     * @dev                           Function to create a BBC for account owning the verification key on the Nym Cosmos Blockchain
+     *                                by transfering erc20NYM via the Gravity Bridge. 
      * @param _amount                 Amount of erc20NYM tokens to spend on BBC - denominated in wei. 
      * @param _verificationKey        Verification key of account on Nym blockchain who is purchasing BBC.
      * @param _signedVerificationKey  Number of erc20NYMs to spend signed by _verificationKey for auth on Cosmos Blockchain.
@@ -83,7 +82,7 @@ contract BandwidthGenerator is Ownable {
     }
 
     function bandwidthFromToken(uint256 _amount) public view returns (uint256) {
-        return (_amount/10**18) * MBPerToken;
+        return (_amount/10**18) * BytesPerToken;
     }
 
 }

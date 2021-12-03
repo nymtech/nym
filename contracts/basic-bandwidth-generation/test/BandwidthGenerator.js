@@ -13,7 +13,7 @@ contract('BandwidthGenerator', (accounts) => {
   let erc20token; 
   let owner = accounts[0];
   let user = accounts[1];
-  let initialRatio = 1024;
+  let initialRatio = (1024*1024*1024); // 1073741824 bytes = 1GB
   let newRatio; 
   let tokenAmount = web3.utils.toWei('100'); // this is converting 100 tokens to their representation in wei: 100000000000000000000
   let halfTokenAmount = web3.utils.toWei('50');
@@ -58,8 +58,8 @@ contract('BandwidthGenerator', (accounts) => {
     it("returns the correct gravity address", async () => {
         expect((await bandwidthGenerator.gravityBridge()).toString()).to.equal((gravity.address).toString());
     });
-    it("returns the correct initial MBPerToken ratio", async () => {
-        expect((await bandwidthGenerator.MBPerToken()).toString()).to.equal((initialRatio).toString());
+    it("returns the correct initial BytesPerToken ratio", async () => {
+        expect((await bandwidthGenerator.BytesPerToken()).toString()).to.equal((initialRatio).toString());
     });
     it("returns the correct contract admin", async () => {
       expect((await bandwidthGenerator.owner()).toString()).to.equal((owner).toString());
@@ -99,7 +99,7 @@ contract('BandwidthGenerator', (accounts) => {
             { from: user }
       );
 
-      let expectedBandwidthInMB = ((halfTokenAmount/10**18)*initialRatio); // 50 * 1024MB = 51200MB = 50GB of bandwidth
+      let expectedBandwidthInMB = ((halfTokenAmount/10**18)*initialRatio); // 50 * (1024*1024*1024) bytes = 51200MB = 50GB of bandwidth
 
       await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'BBCredentialPurchased', {
         Bandwidth: expectedBandwidthInMB.toString(), 
@@ -202,9 +202,9 @@ contract('BandwidthGenerator', (accounts) => {
     it("admin can change ratio, emits 'RatioChanged' event", async () => {
         let tx = await bandwidthGenerator.changeRatio(newRatio, {from: owner});
         await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'RatioChanged', {
-          NewMBPerToken: newRatio.toString()
+          NewBytesPerToken: newRatio.toString()
         });
-        expect((await bandwidthGenerator.MBPerToken()).toString()).to.equal((newRatio).toString());
+        expect((await bandwidthGenerator.BytesPerToken()).toString()).to.equal((newRatio).toString());
     });
     it("BBCredential represents new ratio after change: 1 erc20NYM = 10GB of bandwidth", async () => {
       let tx = await bandwidthGenerator.generateBasicBandwidthCredential(
@@ -216,7 +216,7 @@ contract('BandwidthGenerator', (accounts) => {
         { from: user }
       );
 
-      let expectedBandwidthInMB = ((oneToken/10**18)*newRatio); // 50 * 1024MB = 51200MB = 50GB of bandwidth
+      let expectedBandwidthInMB = ((oneToken/10**18)*newRatio); 
 
       await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'BBCredentialPurchased', {
         Bandwidth: expectedBandwidthInMB.toString(), 

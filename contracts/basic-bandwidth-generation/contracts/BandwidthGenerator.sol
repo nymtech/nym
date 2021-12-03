@@ -33,8 +33,8 @@ contract BandwidthGenerator is Ownable {
     );
     
     /**
-     * @param _erc20          Address of the erc20NYM deployed through the Gravity Bridge
-     * @param _gravityBridge  Address of the deployed Gravity Bridge 
+     * @param _erc20          Address of the erc20NYM deployed through the Gravity Bridge.
+     * @param _gravityBridge  Address of the deployed Gravity Bridge. 
      */
     constructor(CosmosERC20 _erc20, Gravity _gravityBridge) public {
         require(address(_erc20) != address(0),         "BandwidthGenerator: erc20 address cannot be null"); 
@@ -45,7 +45,9 @@ contract BandwidthGenerator is Ownable {
     }
 
     /**
-     * @param _newMBPerTokenAmount  Amount of MB BBC is worth per erc20NYM token
+     * @dev   Changes amount of MB each erc20NYM is tradable for. Can only be 
+     *        called by Owner. 
+     * @param _newMBPerTokenAmount  Amount of MB BBC is worth per erc20NYM token.
      */    
     function changeRatio(uint256 _newMBPerTokenAmount) public onlyOwner { 
         require(_newMBPerTokenAmount != 0, "BandwidthGenerator: price cannot be 0"); 
@@ -54,10 +56,12 @@ contract BandwidthGenerator is Ownable {
     }
     
     /**
-     * @param _amount                 Amount of erc20NYM tokens to spend on Basic Bandwidth Credential - denominated in wei 
-     * @param _verificationKey        todo
-     * @param _signedVerificationKey  todo
-     * @param _cosmosRecipient        Address of the recipient on Nym Cosmos Blockchain
+     * @dev   Function to create a BBC for account owning the verification key on the Nym Cosmos Blockchain
+     *        by transfering erc20NYM via the Gravity Bridge. 
+     * @param _amount                 Amount of erc20NYM tokens to spend on BBC - denominated in wei. 
+     * @param _verificationKey        Verification key of account on Nym blockchain who is purchasing BBC.
+     * @param _signedVerificationKey  Number of erc20NYMs to spend signed by _verificationKey for auth on Cosmos Blockchain.
+     * @param _cosmosRecipient        Address of the recipient of payment on Nym Cosmos Blockchain.
      */    
     function generateBasicBandwidthCredential(uint256 _amount, uint256 _verificationKey, bytes memory _signedVerificationKey, bytes32 _cosmosRecipient) public {
         require(_signedVerificationKey.length == 64, "BandwidthGenerator: Signature doesn't have 64 bytes");

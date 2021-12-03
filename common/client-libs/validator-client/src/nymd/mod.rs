@@ -181,6 +181,16 @@ impl<C> NymdClient<C> {
         operation.determine_fee(&self.gas_price, gas_limit)
     }
 
+    pub fn get_fee_multiple(&self, operation: Operation, times: u64) -> Fee {
+        let default_gas_limit = operation.default_gas_limit();
+        let gas_limit_unit = self
+            .custom_gas_limits
+            .get(&operation)
+            .unwrap_or(&default_gas_limit);
+        let gas_limit = Gas::from(gas_limit_unit.value() * times);
+        Operation::determine_custom_fee(&self.gas_price, gas_limit)
+    }
+
     pub fn calculate_custom_fee(&self, gas_limit: impl Into<Gas>) -> Fee {
         Operation::determine_custom_fee(&self.gas_price, gas_limit.into())
     }
@@ -637,6 +647,40 @@ impl<C> NymdClient<C> {
                 fee,
                 "Bonding mixnode on behalf from rust!",
                 vec![cosmwasm_coin_to_cosmos_coin(bond)],
+            )
+            .await
+    }
+
+    /// Announce multiple mixnodes on behalf of other owners, paying a fee.
+    pub async fn bond_multiple_mixnodes_on_behalf(
+        &self,
+        mixnode_bond: Vec<MixNodeBond>,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee_multiple(Operation::BondMixnodeOnBehalf, mixnode_bond.len() as u64);
+
+        let reqs: Vec<(ExecuteMsg, Vec<CosmosCoin>)> = mixnode_bond
+            .into_iter()
+            .map(|bond| {
+                (
+                    ExecuteMsg::BondMixnodeOnBehalf {
+                        mix_node: bond.mix_node,
+                        owner: bond.owner.to_string(),
+                    },
+                    vec![cosmwasm_coin_to_cosmos_coin(bond.bond_amount)],
+                )
+            })
+            .collect();
+
+        self.client
+            .execute_multiple(
+                self.address(),
+                self.mixnet_contract_address()?,
+                reqs,
+                fee,
+                "Bonding multiple mixnodes on behalf from rust!",
             )
             .await
     }

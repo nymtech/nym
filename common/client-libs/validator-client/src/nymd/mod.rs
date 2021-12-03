@@ -780,6 +780,43 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    /// Delegates specified amount of stake to multiple mixnodes on behalf of multiple delegators.
+    pub async fn delegate_to_multiple_mixnodes_on_behalf(
+        &self,
+        mixnode_delegations: Vec<Delegation>,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.get_fee_multiple(
+            Operation::DelegateToMixnodeOnBehalf,
+            mixnode_delegations.len() as u64,
+        );
+
+        let reqs: Vec<(ExecuteMsg, Vec<CosmosCoin>)> = mixnode_delegations
+            .into_iter()
+            .map(|delegation| {
+                (
+                    ExecuteMsg::DelegateToMixnodeOnBehalf {
+                        mix_identity: delegation.node_identity(),
+                        delegate: delegation.owner().to_string(),
+                    },
+                    vec![cosmwasm_coin_to_cosmos_coin(delegation.amount().clone())],
+                )
+            })
+            .collect();
+
+        self.client
+            .execute_multiple(
+                self.address(),
+                self.mixnet_contract_address()?,
+                reqs,
+                fee,
+                "Delegating to multiple mixnodes on behalf from rust!",
+            )
+            .await
+    }
+
     /// Removes stake delegation from a particular mixnode.
     pub async fn remove_mixnode_delegation(
         &self,

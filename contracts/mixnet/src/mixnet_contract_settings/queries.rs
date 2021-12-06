@@ -51,8 +51,8 @@ pub(crate) mod tests {
             owner: Addr::unchecked("someowner"),
             rewarding_validator_address: Addr::unchecked("monitor"),
             params: ContractStateParams {
-                minimum_mixnode_bond: 123u128.into(),
-                minimum_gateway_bond: 456u128.into(),
+                minimum_mixnode_pledge: 123u128.into(),
+                minimum_gateway_pledge: 456u128.into(),
                 mixnode_rewarded_set_size: 1000,
                 mixnode_active_set_size: 500,
             },

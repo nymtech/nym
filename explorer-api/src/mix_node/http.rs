@@ -22,7 +22,7 @@ pub fn mix_node_make_default_routes() -> Vec<Route> {
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub(crate) struct PrettyMixNodeBondWithLocation {
     pub location: Option<Location>,
-    pub bond_amount: Coin,
+    pub pledge_amount: Coin,
     pub total_delegation: Coin,
     pub owner: Addr,
     pub layer: Layer,

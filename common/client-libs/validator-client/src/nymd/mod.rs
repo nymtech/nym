@@ -617,7 +617,7 @@ impl<C> NymdClient<C> {
     pub async fn bond_mixnode(
         &self,
         mixnode: MixNode,
-        bond: Coin,
+        pledge: Coin,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -632,7 +632,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Bonding mixnode from rust!",
-                vec![cosmwasm_coin_to_cosmos_coin(bond)],
+                vec![cosmwasm_coin_to_cosmos_coin(pledge)],
             )
             .await
     }
@@ -642,7 +642,7 @@ impl<C> NymdClient<C> {
         &self,
         mixnode: MixNode,
         owner: String,
-        bond: Coin,
+        pledge: Coin,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -660,7 +660,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Bonding mixnode on behalf from rust!",
-                vec![cosmwasm_coin_to_cosmos_coin(bond)],
+                vec![cosmwasm_coin_to_cosmos_coin(pledge)],
             )
             .await
     }
@@ -683,7 +683,7 @@ impl<C> NymdClient<C> {
                         mix_node: bond.mix_node,
                         owner: bond.owner.to_string(),
                     },
-                    vec![cosmwasm_coin_to_cosmos_coin(bond.bond_amount)],
+                    vec![cosmwasm_coin_to_cosmos_coin(bond.pledge_amount)],
                 )
             })
             .collect();
@@ -887,7 +887,7 @@ impl<C> NymdClient<C> {
     pub async fn bond_gateway(
         &self,
         gateway: Gateway,
-        bond: Coin,
+        pledge: Coin,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -902,7 +902,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Bonding gateway from rust!",
-                vec![cosmwasm_coin_to_cosmos_coin(bond)],
+                vec![cosmwasm_coin_to_cosmos_coin(pledge)],
             )
             .await
     }
@@ -912,7 +912,7 @@ impl<C> NymdClient<C> {
         &self,
         gateway: Gateway,
         owner: String,
-        bond: Coin,
+        pledge: Coin,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -927,7 +927,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Bonding gateway on behalf from rust!",
-                vec![cosmwasm_coin_to_cosmos_coin(bond)],
+                vec![cosmwasm_coin_to_cosmos_coin(pledge)],
             )
             .await
     }
@@ -950,7 +950,7 @@ impl<C> NymdClient<C> {
                         gateway: bond.gateway,
                         owner: bond.owner.to_string(),
                     },
-                    vec![cosmwasm_coin_to_cosmos_coin(bond.bond_amount)],
+                    vec![cosmwasm_coin_to_cosmos_coin(bond.pledge_amount)],
                 )
             })
             .collect();

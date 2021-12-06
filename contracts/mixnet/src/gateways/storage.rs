@@ -46,12 +46,12 @@ mod tests {
     use mixnet_contract::{Gateway, IdentityKeyRef};
 
     // currently this is only used in tests but may become useful later on
-    pub(crate) fn read_gateway_bond_amount(
+    pub(crate) fn read_gateway_pledge_amount(
         storage: &dyn Storage,
         identity: IdentityKeyRef,
     ) -> StdResult<cosmwasm_std::Uint128> {
         let node = storage::gateways().load(storage, identity)?;
-        Ok(node.bond_amount.amount)
+        Ok(node.pledge_amount.amount)
     }
 
     #[test]
@@ -79,14 +79,14 @@ mod tests {
         let node_identity: IdentityKey = "nodeidentity".into();
 
         // produces an error if target gateway doesn't exist
-        let res = read_gateway_bond_amount(&mock_storage, &node_identity);
+        let res = read_gateway_pledge_amount(&mock_storage, &node_identity);
         assert!(res.is_err());
 
         // returns appropriate value otherwise
-        let bond_value = 1000;
+        let pledge_amount = 1000;
 
         let gateway_bond = GatewayBond {
-            bond_amount: coin(bond_value, DENOM),
+            pledge_amount: coin(pledge_amount, DENOM),
             owner: node_owner.clone(),
             block_height: 12_345,
             gateway: Gateway {
@@ -101,8 +101,8 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            Uint128::new(bond_value),
-            read_gateway_bond_amount(&mock_storage, &node_identity).unwrap()
+            Uint128::new(pledge_amount),
+            read_gateway_pledge_amount(&mock_storage, &node_identity).unwrap()
         );
     }
 }

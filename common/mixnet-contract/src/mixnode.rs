@@ -229,7 +229,7 @@ impl NodeRewardResult {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
-    pub bond_amount: Coin,
+    pub pledge_amount: Coin,
     pub total_delegation: Coin,
     pub owner: Addr,
     pub layer: Layer,
@@ -241,7 +241,7 @@ pub struct MixNodeBond {
 
 impl MixNodeBond {
     pub fn new(
-        bond_amount: Coin,
+        pledge_amount: Coin,
         owner: Addr,
         layer: Layer,
         block_height: u64,
@@ -250,8 +250,8 @@ impl MixNodeBond {
         proxy: Option<Addr>,
     ) -> Self {
         MixNodeBond {
-            total_delegation: coin(0, &bond_amount.denom),
-            bond_amount,
+            total_delegation: coin(0, &pledge_amount.denom),
+            pledge_amount,
             owner,
             layer,
             block_height,
@@ -270,8 +270,8 @@ impl MixNodeBond {
         &self.mix_node.identity_key
     }
 
-    pub fn bond_amount(&self) -> Coin {
-        self.bond_amount.clone()
+    pub fn pledge_amount(&self) -> Coin {
+        self.pledge_amount.clone()
     }
 
     pub fn owner(&self) -> &Addr {
@@ -283,10 +283,10 @@ impl MixNodeBond {
     }
 
     pub fn total_stake(&self) -> Option<u128> {
-        if self.bond_amount.denom != self.total_delegation.denom {
+        if self.pledge_amount.denom != self.total_delegation.denom {
             None
         } else {
-            Some(self.bond_amount.amount.u128() + self.total_delegation.amount.u128())
+            Some(self.pledge_amount.amount.u128() + self.total_delegation.amount.u128())
         }
     }
 
@@ -294,27 +294,27 @@ impl MixNodeBond {
         self.total_delegation.clone()
     }
 
-    pub fn bond_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
-        U128::from_num(self.bond_amount().amount.u128()) / U128::from_num(circulating_supply)
+    pub fn pledge_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
+        U128::from_num(self.pledge_amount().amount.u128()) / U128::from_num(circulating_supply)
     }
 
-    pub fn total_stake_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
-        U128::from_num(self.bond_amount().amount.u128() + self.total_delegation().amount.u128())
+    pub fn total_bond_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
+        U128::from_num(self.pledge_amount().amount.u128() + self.total_delegation().amount.u128())
             / U128::from_num(circulating_supply)
     }
 
     pub fn lambda(&self, params: &NodeRewardParams) -> U128 {
         // Ratio of a bond to the token circulating supply
-        let bond_to_circulating_supply_ratio =
-            self.bond_to_circulating_supply(params.circulating_supply());
-        bond_to_circulating_supply_ratio.min(params.one_over_k())
+        let pledge_to_circulating_supply_ratio =
+            self.pledge_to_circulating_supply(params.circulating_supply());
+        pledge_to_circulating_supply_ratio.min(params.one_over_k())
     }
 
     pub fn sigma(&self, params: &NodeRewardParams) -> U128 {
         // Ratio of a delegation to the the token circulating supply
-        let total_stake_to_circulating_supply_ratio =
-            self.total_stake_to_circulating_supply(params.circulating_supply());
-        total_stake_to_circulating_supply_ratio.min(params.one_over_k())
+        let total_bond_to_circulating_supply_ratio =
+            self.total_bond_to_circulating_supply(params.circulating_supply());
+        total_bond_to_circulating_supply_ratio.min(params.one_over_k())
     }
 
     pub fn reward(&self, params: &NodeRewardParams) -> NodeRewardResult {
@@ -370,9 +370,9 @@ impl MixNodeBond {
     }
 
     pub fn sigma_ratio(&self, params: &NodeRewardParams) -> U128 {
-        if self.total_stake_to_circulating_supply(params.circulating_supply()) < params.one_over_k()
+        if self.total_bond_to_circulating_supply(params.circulating_supply()) < params.one_over_k()
         {
-            self.total_stake_to_circulating_supply(params.circulating_supply())
+            self.total_bond_to_circulating_supply(params.circulating_supply())
         } else {
             params.one_over_k()
         }
@@ -387,33 +387,33 @@ impl MixNodeBond {
 impl PartialOrd for MixNodeBond {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         // first remove invalid cases
-        if self.bond_amount.denom != self.total_delegation.denom {
+        if self.pledge_amount.denom != self.total_delegation.denom {
             return None;
         }
 
-        if other.bond_amount.denom != other.total_delegation.denom {
+        if other.pledge_amount.denom != other.total_delegation.denom {
             return None;
         }
 
-        if self.bond_amount.denom != other.bond_amount.denom {
+        if self.pledge_amount.denom != other.pledge_amount.denom {
             return None;
         }
 
         // try to order by total bond + delegation
-        let total_cmp = (self.bond_amount.amount + self.total_delegation.amount)
-            .partial_cmp(&(self.bond_amount.amount + self.total_delegation.amount))?;
+        let total_cmp = (self.pledge_amount.amount + self.total_delegation.amount)
+            .partial_cmp(&(self.pledge_amount.amount + self.total_delegation.amount))?;
 
         if total_cmp != Ordering::Equal {
             return Some(total_cmp);
         }
 
         // then if those are equal, prefer higher bond over delegation
-        let bond_cmp = self
-            .bond_amount
+        let pledge_cmp = self
+            .pledge_amount
             .amount
-            .partial_cmp(&other.bond_amount.amount)?;
-        if bond_cmp != Ordering::Equal {
-            return Some(bond_cmp);
+            .partial_cmp(&other.pledge_amount.amount)?;
+        if pledge_cmp != Ordering::Equal {
+            return Some(pledge_cmp);
         }
 
         // then look at delegation (I'm not sure we can get here, but better safe than sorry)
@@ -452,7 +452,10 @@ impl Display for MixNodeBond {
         write!(
             f,
             "amount: {} {}, owner: {}, identity: {}",
-            self.bond_amount.amount, self.bond_amount.denom, self.owner, self.mix_node.identity_key
+            self.pledge_amount.amount,
+            self.pledge_amount.denom,
+            self.owner,
+            self.mix_node.identity_key
         )
     }
 }
@@ -507,7 +510,7 @@ mod tests {
         let _0foos = Coin::new(0, "foo");
 
         let mix1 = MixNodeBond {
-            bond_amount: _150foos.clone(),
+            pledge_amount: _150foos.clone(),
             total_delegation: _50foos.clone(),
             owner: Addr::unchecked("foo1"),
             layer: Layer::One,
@@ -518,7 +521,7 @@ mod tests {
         };
 
         let mix2 = MixNodeBond {
-            bond_amount: _150foos.clone(),
+            pledge_amount: _150foos.clone(),
             total_delegation: _50foos.clone(),
             owner: Addr::unchecked("foo2"),
             layer: Layer::One,
@@ -529,7 +532,7 @@ mod tests {
         };
 
         let mix3 = MixNodeBond {
-            bond_amount: _50foos,
+            pledge_amount: _50foos,
             total_delegation: _150foos.clone(),
             owner: Addr::unchecked("foo3"),
             layer: Layer::One,
@@ -540,7 +543,7 @@ mod tests {
         };
 
         let mix4 = MixNodeBond {
-            bond_amount: _150foos.clone(),
+            pledge_amount: _150foos.clone(),
             total_delegation: _0foos.clone(),
             owner: Addr::unchecked("foo4"),
             layer: Layer::One,
@@ -551,7 +554,7 @@ mod tests {
         };
 
         let mix5 = MixNodeBond {
-            bond_amount: _0foos,
+            pledge_amount: _0foos,
             total_delegation: _150foos,
             owner: Addr::unchecked("foo5"),
             layer: Layer::One,

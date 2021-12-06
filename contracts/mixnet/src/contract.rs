@@ -26,10 +26,10 @@ use cosmwasm_std::{
 use mixnet_contract::{ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 /// Constant specifying minimum of coin required to bond a gateway
-pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128::new(100_000_000);
+pub const INITIAL_GATEWAY_PLEDGE: Uint128 = Uint128::new(100_000_000);
 
 /// Constant specifying minimum of coin required to bond a mixnode
-pub const INITIAL_MIXNODE_BOND: Uint128 = Uint128::new(100_000_000);
+pub const INITIAL_MIXNODE_PLEDGE: Uint128 = Uint128::new(100_000_000);
 
 pub const INITIAL_MIXNODE_REWARDED_SET_SIZE: u32 = 200;
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
@@ -52,8 +52,8 @@ fn default_initial_state(
         owner,
         rewarding_validator_address,
         params: ContractStateParams {
-            minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
-            minimum_gateway_bond: INITIAL_GATEWAY_BOND,
+            minimum_mixnode_pledge: INITIAL_MIXNODE_PLEDGE,
+            minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
         },

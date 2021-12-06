@@ -151,7 +151,7 @@ impl ThreadsafeMixNodesResult {
                 let copy = bond.clone();
                 PrettyMixNodeBondWithLocation {
                     location: location.and_then(|l| l.location.clone()),
-                    bond_amount: copy.bond_amount,
+                    pledge_amount: copy.pledge_amount,
                     total_delegation: copy.total_delegation,
                     owner: copy.owner,
                     layer: copy.layer,

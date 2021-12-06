@@ -88,7 +88,15 @@ fn _try_add_mixnode(
     // in different places that we can guarantee that if node exists, so does the data behind the total delegation
     let identity = stored_bond.identity();
     storage::mixnodes().save(deps.storage, identity, &stored_bond)?;
-    storage::TOTAL_DELEGATION.save(deps.storage, identity, &Uint128::zero())?;
+
+    // if this is a fresh mixnode - write 0 total delegation, otherwise, don't touch it since the node has just rebonded
+    if storage::TOTAL_DELEGATION
+        .may_load(deps.storage, identity)?
+        .is_none()
+    {
+        storage::TOTAL_DELEGATION.save(deps.storage, identity, &Uint128::zero())?;
+    }
+
     mixnet_params_storage::increment_layer_count(deps.storage, stored_bond.layer)?;
 
     Ok(Response::new())

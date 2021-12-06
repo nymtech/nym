@@ -3,8 +3,8 @@
 
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Map, UniqueIndex};
-use mixnet_contract::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Map, SnapshotMap, Strategy, UniqueIndex};
+use mixnet_contract::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond, MixNodeBondValues};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -13,12 +13,25 @@ const TOTAL_DELEGATION_NAMESPACE: &str = "td";
 const MIXNODES_PK_NAMESPACE: &str = "mn";
 const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
 
+const TOTAL_BOND_KEY: &str = "tb";
+const TOTAL_BOND_CHECKPOINTS: &str = "tbcp";
+const TOTAL_BOND_CHANGELOG: &str = "tbcl";
+
 // paged retrieval limits for all queries and transactions
 pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;
 pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 pub(crate) const TOTAL_DELEGATION: Map<IdentityKeyRef, Uint128> =
     Map::new(TOTAL_DELEGATION_NAMESPACE);
+
+// Note: this is named according to the new terminology where bond = [operator] pledge + delegations
+pub(crate) const TOTAL_BOND: SnapshotMap<IdentityKeyRef, Option<MixNodeBondValues>> =
+    SnapshotMap::new(
+        TOTAL_BOND_KEY,
+        TOTAL_BOND_CHECKPOINTS,
+        TOTAL_BOND_CHANGELOG,
+        Strategy::EveryBlock,
+    );
 
 pub(crate) struct MixnodeBondIndex<'a> {
     pub(crate) owner: UniqueIndex<'a, Addr, StoredMixnodeBond>,

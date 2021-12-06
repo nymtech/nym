@@ -457,6 +457,19 @@ impl Display for MixNodeBond {
     }
 }
 
+// Note: this is named according to the new terminology where bond = [operator] pledge + delegations
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct MixNodeBondValues {
+    pub pledge: Uint128,
+    pub delegations: Uint128,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct MixNodeBondValuesResponse {
+    pub height: u64,
+    pub bond_values: Option<MixNodeBondValues>,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedMixnodeResponse {
     pub nodes: Vec<MixNodeBond>,

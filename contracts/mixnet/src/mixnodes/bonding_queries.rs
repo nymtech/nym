@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::mixnodes::storage::TOTAL_BOND;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
-use mixnet_contract::{IdentityKey, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse};
+use mixnet_contract::mixnode::MixNodeBondValuesResponse;
+use mixnet_contract::{
+    IdentityKey, IdentityKeyRef, MixNodeBond, MixNodeBondValues, MixOwnershipResponse,
+    PagedMixnodeResponse,
+};
 
 pub fn query_mixnodes_paged(
     deps: Deps,
@@ -57,6 +62,21 @@ pub fn query_owns_mixnode(deps: Deps, address: String) -> StdResult<MixOwnership
     Ok(MixOwnershipResponse {
         address: validated_addr,
         mixnode,
+    })
+}
+
+pub fn query_mixnode_total_bond_at_height(
+    deps: Deps,
+    mix_identity: IdentityKeyRef,
+    height: u64,
+) -> StdResult<MixNodeBondValuesResponse> {
+    let bond_values = TOTAL_BOND
+        .may_load_at_height(deps.storage, mix_identity, height)?
+        .flatten();
+
+    Ok(MixNodeBondValuesResponse {
+        height,
+        bond_values,
     })
 }
 

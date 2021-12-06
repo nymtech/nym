@@ -95,19 +95,25 @@ fn _try_add_mixnode(
 }
 
 pub fn try_remove_mixnode_on_behalf(
+    env: Env,
     deps: DepsMut,
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, ContractError> {
     let proxy = info.sender;
-    _try_remove_mixnode(deps, &owner, Some(proxy))
+    _try_remove_mixnode(env, deps, &owner, Some(proxy))
 }
 
-pub fn try_remove_mixnode(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
-    _try_remove_mixnode(deps, info.sender.as_ref(), None)
+pub fn try_remove_mixnode(
+    env: Env,
+    deps: DepsMut,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    _try_remove_mixnode(env, deps, info.sender.as_ref(), None)
 }
 
 pub(crate) fn _try_remove_mixnode(
+    env: Env,
     deps: DepsMut,
     owner: &str,
     proxy: Option<Addr>,
@@ -143,6 +149,9 @@ pub(crate) fn _try_remove_mixnode(
 
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
+
+    // update snapshot data
+    storage::TOTAL_BOND.remove(deps.storage, mixnode_bond.identity(), env.block.height)?;
 
     let mut response = Response::new()
         .add_message(return_tokens)

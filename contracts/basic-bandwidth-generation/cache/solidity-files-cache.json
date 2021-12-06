@@ -430,8 +430,8 @@
       ]
     },
     "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/contracts/BandwidthGenerator.sol": {
-      "lastModificationDate": 1638802444155,
-      "contentHash": "83f21abc8641b69a8cb60c2ae854313e",
+      "lastModificationDate": 1638810726782,
+      "contentHash": "172205ae0bf20c93647f352e86a4effc",
       "sourceName": "contracts/BandwidthGenerator.sol",
       "solcConfig": {
         "version": "0.6.6",

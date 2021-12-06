@@ -85,9 +85,8 @@ contract BandwidthGenerator is Ownable {
     }
 
     function bandwidthFromToken(uint256 _amount) public view returns (uint256) {
-        // return _amount.div(10**18).mul(BytesPerToken);
-        uint256 a = _amount.mul(BytesPerToken);
-        return a.div(10**18); 
+        uint256 amountMulBytes = _amount.mul(BytesPerToken);
+        return amountMulBytes.div(10**18); 
     }
 
 }

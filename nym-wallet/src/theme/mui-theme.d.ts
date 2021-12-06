@@ -1,10 +1,5 @@
 /* eslint-disable no-shadow,@typescript-eslint/no-unused-vars,@typescript-eslint/no-empty-interface */
-import {
-  Theme,
-  ThemeOptions,
-  Palette,
-  PaletteOptions,
-} from '@mui/material/styles'
+import { Theme, ThemeOptions, Palette, PaletteOptions } from '@mui/material/styles'
 import { PaletteMode } from '@mui/material'
 
 /**
@@ -34,9 +29,12 @@ declare module '@mui/material/styles' {
    */
   interface NymPalette {
     highlight: string
+    success: string
+    info: string
     background: { light: string; dark: string }
     text: {
       light: string
+      dark: string
     }
   }
 
@@ -65,8 +63,7 @@ declare module '@mui/material/styles' {
     nym: NymPalette & NymWalletPalette
   }
 
-  type NymPaletteAndNymWalletPaletteOptions =
-    Partial<NymPaletteAndNymWalletPalette>
+  type NymPaletteAndNymWalletPaletteOptions = Partial<NymPaletteAndNymWalletPalette>
 
   /**
    * Add anything not palette related to the theme here

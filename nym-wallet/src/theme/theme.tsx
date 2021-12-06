@@ -21,9 +21,12 @@ import {
 const nymPalette: NymPalette = {
   /** emphasises important elements */
   highlight: '#FB6E4E',
+  success: '#21D073',
+  info: '#967FF0',
   background: { light: '#F4F6F8', dark: '#121726' },
   text: {
     light: '#F2F2F2',
+    dark: '#121726',
   },
 }
 
@@ -48,7 +51,7 @@ const lightMode: NymPaletteVariant = {
     paper: '#FFFFFF',
   },
   text: {
-    main: '#666666',
+    main: '#121726',
   },
   topNav: {
     background: '#111826',
@@ -79,6 +82,9 @@ const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
   primary: {
     main: nymPalette.highlight,
     contrastText: '#fff',
+  },
+  success: {
+    main: nymPalette.success,
   },
   background: {
     default: variant.background.main,
@@ -145,9 +151,7 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
   const { palette } = createTheme({
     palette: {
       mode,
-      ...(mode === 'light'
-        ? createLightModePalette()
-        : createDarkModePalette()),
+      ...(mode === 'light' ? createLightModePalette() : createDarkModePalette()),
     },
   })
 
@@ -192,6 +196,18 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         styleOverrides: {
           sizeLarge: {
             height: 55,
+          },
+        },
+      },
+      MuiStepIcon: {
+        styleOverrides: {
+          root: {
+            '&.Mui-completed': {
+              color: nymPalette.success,
+            },
+            '&.Mui-active': {
+              color: nymPalette.background.dark,
+            },
           },
         },
       },

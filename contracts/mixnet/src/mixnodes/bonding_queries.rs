@@ -7,8 +7,7 @@ use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use mixnet_contract::mixnode::MixNodeBondValuesResponse;
 use mixnet_contract::{
-    IdentityKey, IdentityKeyRef, MixNodeBond, MixNodeBondValues, MixOwnershipResponse,
-    PagedMixnodeResponse,
+    IdentityKey, IdentityKeyRef, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse,
 };
 
 pub fn query_mixnodes_paged(

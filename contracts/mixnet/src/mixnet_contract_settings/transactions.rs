@@ -43,7 +43,7 @@ pub(crate) fn try_update_contract_settings(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::{INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND};
+    use crate::contract::{INITIAL_GATEWAY_PLEDGE, INITIAL_MIXNODE_PLEDGE};
     use crate::error::ContractError;
     use crate::mixnet_contract_settings::transactions::try_update_contract_settings;
     use crate::support::tests::test_helpers;
@@ -56,8 +56,8 @@ pub mod tests {
         let mut deps = test_helpers::init_contract();
 
         let new_params = ContractStateParams {
-            minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
-            minimum_gateway_bond: INITIAL_GATEWAY_BOND,
+            minimum_mixnode_pledge: INITIAL_MIXNODE_PLEDGE,
+            minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: 100,
             mixnode_active_set_size: 50,
         };

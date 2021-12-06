@@ -75,9 +75,9 @@ pub fn try_bond_gateway(
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let bond = validate_funds(&info.funds)?;
+    let pledge = validate_funds(&info.funds)?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_bond_gateway(gateway, bond, &env, deps.storage)
+    account.try_bond_gateway(gateway, pledge, &env, deps.storage)
 }
 
 pub fn try_unbond_gateway(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
@@ -105,9 +105,9 @@ pub fn try_bond_mixnode(
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let bond = validate_funds(&info.funds)?;
+    let pledge = validate_funds(&info.funds)?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_bond_mixnode(mix_node, bond, &env, deps.storage)
+    account.try_bond_mixnode(mix_node, pledge, &env, deps.storage)
 }
 
 pub fn try_unbond_mixnode(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {

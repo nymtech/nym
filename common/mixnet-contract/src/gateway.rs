@@ -23,7 +23,7 @@ pub struct Gateway {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayBond {
-    pub bond_amount: Coin,
+    pub pledge_amount: Coin,
     pub owner: Addr,
     pub block_height: u64,
     pub gateway: Gateway,
@@ -32,14 +32,14 @@ pub struct GatewayBond {
 
 impl GatewayBond {
     pub fn new(
-        bond_amount: Coin,
+        pledge_amount: Coin,
         owner: Addr,
         block_height: u64,
         gateway: Gateway,
         proxy: Option<Addr>,
     ) -> Self {
         GatewayBond {
-            bond_amount,
+            pledge_amount,
             owner,
             block_height,
             gateway,
@@ -51,8 +51,8 @@ impl GatewayBond {
         &self.gateway.identity_key
     }
 
-    pub fn bond_amount(&self) -> Coin {
-        self.bond_amount.clone()
+    pub fn pledge_amount(&self) -> Coin {
+        self.pledge_amount.clone()
     }
 
     pub fn owner(&self) -> &Addr {
@@ -67,17 +67,17 @@ impl GatewayBond {
 impl PartialOrd for GatewayBond {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         // first remove invalid cases
-        if self.bond_amount.denom != other.bond_amount.denom {
+        if self.pledge_amount.denom != other.pledge_amount.denom {
             return None;
         }
 
-        // try to order by total bond
-        let bond_cmp = self
-            .bond_amount
+        // try to order by total pledge
+        let pledge_cmp = self
+            .pledge_amount
             .amount
-            .partial_cmp(&other.bond_amount.amount)?;
-        if bond_cmp != Ordering::Equal {
-            return Some(bond_cmp);
+            .partial_cmp(&other.pledge_amount.amount)?;
+        if pledge_cmp != Ordering::Equal {
+            return Some(pledge_cmp);
         }
 
         // then check block height
@@ -102,7 +102,10 @@ impl Display for GatewayBond {
         write!(
             f,
             "amount: {} {}, owner: {}, identity: {}",
-            self.bond_amount.amount, self.bond_amount.denom, self.owner, self.gateway.identity_key
+            self.pledge_amount.amount,
+            self.pledge_amount.denom,
+            self.owner,
+            self.gateway.identity_key
         )
     }
 }
@@ -158,7 +161,7 @@ mod tests {
         let _0foos = Coin::new(0, "foo");
 
         let gate1 = GatewayBond {
-            bond_amount: _150foos.clone(),
+            pledge_amount: _150foos.clone(),
             owner: Addr::unchecked("foo1"),
             block_height: 100,
             gateway: gateway_fixture(),
@@ -166,7 +169,7 @@ mod tests {
         };
 
         let gate2 = GatewayBond {
-            bond_amount: _150foos,
+            pledge_amount: _150foos,
             owner: Addr::unchecked("foo2"),
             block_height: 120,
             gateway: gateway_fixture(),
@@ -174,7 +177,7 @@ mod tests {
         };
 
         let gate3 = GatewayBond {
-            bond_amount: _50foos,
+            pledge_amount: _50foos,
             owner: Addr::unchecked("foo3"),
             block_height: 120,
             gateway: gateway_fixture(),
@@ -182,7 +185,7 @@ mod tests {
         };
 
         let gate4 = GatewayBond {
-            bond_amount: _140foos,
+            pledge_amount: _140foos,
             owner: Addr::unchecked("foo4"),
             block_height: 120,
             gateway: gateway_fixture(),
@@ -190,7 +193,7 @@ mod tests {
         };
 
         let gate5 = GatewayBond {
-            bond_amount: _0foos,
+            pledge_amount: _0foos,
             owner: Addr::unchecked("foo5"),
             block_height: 120,
             gateway: gateway_fixture(),

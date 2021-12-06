@@ -10,8 +10,8 @@ use tokio::sync::RwLock;
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Serialize, Deserialize)]
 pub struct TauriContractStateParams {
-  minimum_mixnode_bond: String,
-  minimum_gateway_bond: String,
+  minimum_mixnode_pledge: String,
+  minimum_gateway_pledge: String,
   mixnode_rewarded_set_size: u32,
   mixnode_active_set_size: u32,
 }
@@ -19,8 +19,8 @@ pub struct TauriContractStateParams {
 impl From<ContractStateParams> for TauriContractStateParams {
   fn from(p: ContractStateParams) -> TauriContractStateParams {
     TauriContractStateParams {
-      minimum_mixnode_bond: p.minimum_mixnode_bond.to_string(),
-      minimum_gateway_bond: p.minimum_gateway_bond.to_string(),
+      minimum_mixnode_pledge: p.minimum_mixnode_pledge.to_string(),
+      minimum_gateway_pledge: p.minimum_gateway_pledge.to_string(),
       mixnode_rewarded_set_size: p.mixnode_rewarded_set_size,
       mixnode_active_set_size: p.mixnode_active_set_size,
     }
@@ -32,8 +32,8 @@ impl TryFrom<TauriContractStateParams> for ContractStateParams {
 
   fn try_from(p: TauriContractStateParams) -> Result<ContractStateParams, Self::Error> {
     Ok(ContractStateParams {
-      minimum_mixnode_bond: Uint128::try_from(p.minimum_mixnode_bond.as_str())?,
-      minimum_gateway_bond: Uint128::try_from(p.minimum_gateway_bond.as_str())?,
+      minimum_mixnode_pledge: Uint128::try_from(p.minimum_mixnode_pledge.as_str())?,
+      minimum_gateway_pledge: Uint128::try_from(p.minimum_gateway_pledge.as_str())?,
       mixnode_rewarded_set_size: p.mixnode_rewarded_set_size,
       mixnode_active_set_size: p.mixnode_active_set_size,
     })

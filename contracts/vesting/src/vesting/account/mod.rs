@@ -1,4 +1,4 @@
-use super::{BondData, VestingPeriod};
+use super::{PledgeData, VestingPeriod};
 use crate::contract::NUM_VESTING_PERIODS;
 use crate::errors::ContractError;
 use crate::storage::save_account;
@@ -15,7 +15,7 @@ mod vesting_account;
 
 const DELEGATIONS_SUFFIX: &str = "de";
 const BALANCE_SUFFIX: &str = "ba";
-const BOND_SUFFIX: &str = "bo";
+const PLEDGE_SUFFIX: &str = "bo";
 const GATEWAY_SUFFIX: &str = "ga";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -26,8 +26,8 @@ pub struct Account {
     coin: Coin,
     delegations_key: String,
     balance_key: String,
-    mixnode_bond_key: String,
-    gateway_bond_key: String,
+    mixnode_pledge_key: String,
+    gateway_pledge_key: String,
 }
 
 impl Account {
@@ -46,8 +46,8 @@ impl Account {
             coin,
             delegations_key: format!("{}_{}", address, DELEGATIONS_SUFFIX),
             balance_key: format!("{}_{}", address, BALANCE_SUFFIX),
-            mixnode_bond_key: format!("{}_{}", address, BOND_SUFFIX),
-            gateway_bond_key: format!("{}_{}", address, GATEWAY_SUFFIX),
+            mixnode_pledge_key: format!("{}_{}", address, PLEDGE_SUFFIX),
+            gateway_pledge_key: format!("{}_{}", address, GATEWAY_SUFFIX),
         };
         save_account(&account, storage)?;
         account.save_balance(amount, storage)?;
@@ -118,52 +118,52 @@ impl Account {
         Item::new(self.balance_key.as_ref())
     }
 
-    pub fn load_mixnode_bond(
+    pub fn load_mixnode_pledge(
         &self,
         storage: &dyn Storage,
-    ) -> Result<Option<BondData>, ContractError> {
-        Ok(self.mixnode_bond().may_load(storage)?)
+    ) -> Result<Option<PledgeData>, ContractError> {
+        Ok(self.mixnode_pledge().may_load(storage)?)
     }
 
-    pub fn save_mixnode_bond(
+    pub fn save_mixnode_pledge(
         &self,
-        bond: BondData,
+        pledge: PledgeData,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        Ok(self.mixnode_bond().save(storage, &bond)?)
+        Ok(self.mixnode_pledge().save(storage, &pledge)?)
     }
 
     pub fn remove_mixnode_bond(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
-        self.mixnode_bond().remove(storage);
+        self.mixnode_pledge().remove(storage);
         Ok(())
     }
 
-    fn mixnode_bond(&self) -> Item<BondData> {
-        Item::new(self.mixnode_bond_key.as_ref())
+    fn mixnode_pledge(&self) -> Item<PledgeData> {
+        Item::new(self.mixnode_pledge_key.as_ref())
     }
 
-    pub fn load_gateway_bond(
+    pub fn load_gateway_pledge(
         &self,
         storage: &dyn Storage,
-    ) -> Result<Option<BondData>, ContractError> {
-        Ok(self.gateway_bond().may_load(storage)?)
+    ) -> Result<Option<PledgeData>, ContractError> {
+        Ok(self.gateway_pledge().may_load(storage)?)
     }
 
-    pub fn save_gateway_bond(
+    pub fn save_gateway_pledge(
         &self,
-        bond: BondData,
+        pledge: PledgeData,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        Ok(self.gateway_bond().save(storage, &bond)?)
+        Ok(self.gateway_pledge().save(storage, &pledge)?)
     }
 
     pub fn remove_gateway_bond(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
-        self.gateway_bond().remove(storage);
+        self.gateway_pledge().remove(storage);
         Ok(())
     }
 
-    fn gateway_bond(&self) -> Item<BondData> {
-        Item::new(self.gateway_bond_key.as_ref())
+    fn gateway_pledge(&self) -> Item<PledgeData> {
+        Item::new(self.gateway_pledge_key.as_ref())
     }
 
     fn delegations(&self) -> Map<(&[u8], u64), Uint128> {

@@ -125,7 +125,7 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
 
         Ok(Node {
             owner: bond.owner.as_str().to_owned(),
-            stake: bond.bond_amount.amount.into(),
+            stake: bond.pledge_amount.amount.into(),
             location: bond.gateway.location.clone(),
             host,
             mix_host,

@@ -3,7 +3,7 @@ use cosmwasm_std::{Coin, Env, Storage, Timestamp};
 
 pub trait VestingAccount {
     // locked_coins returns the set of coins that are not spendable (can still be delegated tough) (i.e. locked),
-    // defined as the vesting coins that are not delegated or bonded.
+    // defined as the vesting coins that are not delegated or pledged.
     //
     // To get spendable coins of a vesting account, first the total balance must
     // be retrieved and the locked tokens can be subtracted from the total balance.
@@ -50,13 +50,13 @@ pub trait VestingAccount {
         env: &Env,
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError>;
-    fn get_bonded_free(
+    fn get_pledged_free(
         &self,
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError>;
-    fn get_bonded_vesting(
+    fn get_pledged_vesting(
         &self,
         block_time: Option<Timestamp>,
         env: &Env,

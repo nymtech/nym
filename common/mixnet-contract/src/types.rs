@@ -40,8 +40,8 @@ pub struct ContractStateParams {
     // based on its own epoch length config value. I guess that's fine for time being
     // however, in the future, the contract constant should be controlling it instead.
     // pub epoch_length: u32, // length of a rewarding epoch/interval, expressed in hours
-    pub minimum_mixnode_bond: Uint128, // minimum amount a mixnode must bond to get into the system
-    pub minimum_gateway_bond: Uint128, // minimum amount a gateway must bond to get into the system
+    pub minimum_mixnode_pledge: Uint128, // minimum amount a mixnode must pledge to get into the system
+    pub minimum_gateway_pledge: Uint128, // minimum amount a gateway must pledge to get into the system
 
     // number of mixnode that are going to get rewarded during current rewarding interval (k_m)
     // based on overall demand for private bandwidth-
@@ -55,8 +55,16 @@ pub struct ContractStateParams {
 impl Display for ContractStateParams {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "Contract state parameters: [ ")?;
-        write!(f, "minimum mixnode bond: {}; ", self.minimum_mixnode_bond)?;
-        write!(f, "minimum gateway bond: {}; ", self.minimum_gateway_bond)?;
+        write!(
+            f,
+            "minimum mixnode pledge: {}; ",
+            self.minimum_mixnode_pledge
+        )?;
+        write!(
+            f,
+            "minimum gateway pledge: {}; ",
+            self.minimum_gateway_pledge
+        )?;
         write!(
             f,
             "mixnode rewarded set size: {}",

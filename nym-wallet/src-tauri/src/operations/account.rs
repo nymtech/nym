@@ -41,7 +41,7 @@ pub async fn connect_with_mnemonic(
     client = _connect_with_mnemonic(mnemonic, &r_state.config());
   }
 
-  let contract_address = match client.contract_address() {
+  let contract_address = match client.mixnet_contract_address() {
     Ok(address) => address.to_string(),
     Err(e) => return Err(format_err!(e)),
   };
@@ -106,6 +106,7 @@ fn _connect_with_mnemonic(mnemonic: Mnemonic, config: &Config) -> NymdClient<Sig
   match NymdClient::connect_with_mnemonic(
     config.get_nymd_validator_url().unwrap(),
     Some(AccountId::from_str(&config.get_mixnet_contract_address()).unwrap()),
+    None,
     mnemonic,
   ) {
     Ok(client) => client,

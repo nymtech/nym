@@ -45,7 +45,8 @@ impl Client<QueryNymdClient> {
             .parse()
             .expect("the mixnet contract address is invalid!");
 
-        let client_config = validator_client::Config::new(nymd_url, api_url, Some(mixnet_contract));
+        let client_config =
+            validator_client::Config::new(nymd_url, api_url, Some(mixnet_contract), None);
         let inner =
             validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!");
 
@@ -71,7 +72,8 @@ impl Client<SigningNymdClient> {
             .parse()
             .expect("the mnemonic is invalid!");
 
-        let client_config = validator_client::Config::new(nymd_url, api_url, Some(mixnet_contract));
+        let client_config =
+            validator_client::Config::new(nymd_url, api_url, Some(mixnet_contract), None);
         let inner = validator_client::Client::new_signing(client_config, mnemonic)
             .expect("Failed to connect to nymd!");
 

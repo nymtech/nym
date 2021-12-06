@@ -1,18 +1,9 @@
 import React, { useContext, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material'
-import {
-  AccountBalanceWalletOutlined,
-  ArrowBack,
-  ArrowForward,
-  AttachMoney,
-  CancelOutlined,
-  HowToVoteOutlined,
-  MoneyOff,
-  Description,
-  Settings,
-} from '@mui/icons-material'
+import { AccountBalanceWalletOutlined, ArrowBack, ArrowForward, Description, Settings } from '@mui/icons-material'
 import { ADMIN_ADDRESS, ClientContext } from '../context/main'
+import { Bond, Delegate, Unbond, Undelegate } from '../svg-icons'
 
 let routesSchema = [
   {
@@ -33,22 +24,22 @@ let routesSchema = [
   {
     label: 'Bond',
     route: '/bond',
-    Icon: AttachMoney,
+    Icon: Bond,
   },
   {
     label: 'Unbond',
     route: '/unbond',
-    Icon: MoneyOff,
+    Icon: Unbond,
   },
   {
     label: 'Delegate',
     route: '/delegate',
-    Icon: HowToVoteOutlined,
+    Icon: Delegate,
   },
   {
     label: 'Undelegate',
     route: '/undelegate',
-    Icon: CancelOutlined,
+    Icon: Undelegate,
   },
 ]
 
@@ -80,16 +71,14 @@ export const Nav = () => {
             <ListItemIcon
               sx={{
                 minWidth: 30,
-                color:
-                  location.pathname === route ? 'primary.main' : 'common.white',
+                color: location.pathname === route ? 'primary.main' : 'common.white',
               }}
             >
               <Icon sx={{ fontSize: 20 }} />
             </ListItemIcon>
             <ListItemText
               sx={{
-                color:
-                  location.pathname === route ? 'primary.main' : 'common.white',
+                color: location.pathname === route ? 'primary.main' : 'common.white',
               }}
               primary={label}
             />

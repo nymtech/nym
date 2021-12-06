@@ -430,8 +430,8 @@
       ]
     },
     "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/contracts/BandwidthGenerator.sol": {
-      "lastModificationDate": 1638532334524,
-      "contentHash": "793eaaec9ac51b619b29010a4ec2f32e",
+      "lastModificationDate": 1638802444155,
+      "contentHash": "83f21abc8641b69a8cb60c2ae854313e",
       "sourceName": "contracts/BandwidthGenerator.sol",
       "solcConfig": {
         "version": "0.6.6",
@@ -458,7 +458,8 @@
       "imports": [
         "./CosmosToken.sol",
         "./Gravity.sol",
-        "@openzeppelin/contracts/access/Ownable.sol"
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/math/SafeMath.sol"
       ],
       "versionPragmas": [
         "0.6.6"

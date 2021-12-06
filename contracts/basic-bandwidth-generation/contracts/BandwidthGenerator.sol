@@ -3,6 +3,7 @@ pragma solidity 0.6.6;
 import "./CosmosToken.sol";
 import "./Gravity.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
 
 /** 
  * @title BandwidthGenerator
@@ -16,7 +17,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *        `(Token amount in 'wei' / 10**18) * BytesPerToken`
  */ 
 contract BandwidthGenerator is Ownable {
-    
+
+    using SafeMath for uint256; 
+
     CosmosERC20 public erc20;
     Gravity     public gravityBridge; 
     uint256     public BytesPerToken; 
@@ -41,7 +44,7 @@ contract BandwidthGenerator is Ownable {
         require(address(_gravityBridge) != address(0), "BandwidthGenerator: gravity bridge address cannot be null"); 
         erc20 = _erc20;
         gravityBridge = _gravityBridge; 
-        BytesPerToken = (1024 * 1024 * 1024); // default amount set at deployment: 1 erc20NYM = 1073741824 Bytes = 1024MB = 1GB
+        BytesPerToken = 1073741824; // default amount set at deployment: 1 erc20NYM = 1073741824 Bytes = 1GB
     }
 
     /**
@@ -82,7 +85,9 @@ contract BandwidthGenerator is Ownable {
     }
 
     function bandwidthFromToken(uint256 _amount) public view returns (uint256) {
-        return (_amount/10**18) * BytesPerToken;
+        // return _amount.div(10**18).mul(BytesPerToken);
+        uint256 a = _amount.mul(BytesPerToken);
+        return a.div(10**18); 
     }
 
 }

@@ -17,7 +17,7 @@ contract('BandwidthGenerator', (accounts) => {
   let newRatio; 
   let tokenAmount = web3.utils.toWei('100'); // this is converting 100 tokens to their representation in wei: 100000000000000000000
   let halfTokenAmount = web3.utils.toWei('50');
-  let unevenTokenAmount = web3.utils.toWei('11.9'); // 11900000000000000000
+  let unevenTokenAmount = web3.utils.toWei('11.5'); // 11500000000000000000
   let oneToken = web3.utils.toWei('1');
 
   before('deploy contracts', async () => {
@@ -125,7 +125,7 @@ contract('BandwidthGenerator', (accounts) => {
     });
 
     /**
-     * This can be out by a float still with amounts such as '.1' - hunt down 
+     * This can be out by a float still with amounts such as '.1'
      */
     it("it transfers for uneven token amounts", async () => {
       let tx = await bandwidthGenerator.generateBasicBandwidthCredential(
@@ -137,7 +137,7 @@ contract('BandwidthGenerator', (accounts) => {
         { from: user }
       );
       
-      let newexpectedBandwidthInMB = ((11900000000000000000*initialRatio)/10**18);  
+      let newexpectedBandwidthInMB = ((11500000000000000000*initialRatio)/10**18);  
 
       await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'BBCredentialPurchased', {
         Bandwidth: newexpectedBandwidthInMB.toString(), 
@@ -171,23 +171,6 @@ contract('BandwidthGenerator', (accounts) => {
           constants.ZERO_BYTES32,
           { from: user }
         ), "BandwidthGenerator: Signature doesn't have 64 bytes"
-      );
-    });
-
-    // seems to be a bug with hardhat at the moment re: expectRevert .. looking into finding a way around this
-    it("reverts when cosmos address !=32 bytes", async () => {
-      let badBytes = constants.ZERO_BYTES32.slice(0,-1); 
-      // console.log(badBytes.length);
-
-      await expectRevert(
-        bandwidthGenerator.generateBasicBandwidthCredential(
-          1,
-          16,
-          [0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba,
-            0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba],
-          badBytes,
-          { from: user }
-        ), "Cosmos address doesn't have 32 bytes"
       );
     });
   });

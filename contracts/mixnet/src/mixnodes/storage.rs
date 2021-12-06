@@ -25,13 +25,12 @@ pub(crate) const TOTAL_DELEGATION: Map<IdentityKeyRef, Uint128> =
     Map::new(TOTAL_DELEGATION_NAMESPACE);
 
 // Note: this is named according to the new terminology where bond = [operator] pledge + delegations
-pub(crate) const TOTAL_BOND: SnapshotMap<IdentityKeyRef, Option<MixNodeBondValues>> =
-    SnapshotMap::new(
-        TOTAL_BOND_KEY,
-        TOTAL_BOND_CHECKPOINTS,
-        TOTAL_BOND_CHANGELOG,
-        Strategy::EveryBlock,
-    );
+pub(crate) const TOTAL_BOND: SnapshotMap<IdentityKeyRef, MixNodeBondValues> = SnapshotMap::new(
+    TOTAL_BOND_KEY,
+    TOTAL_BOND_CHECKPOINTS,
+    TOTAL_BOND_CHANGELOG,
+    Strategy::EveryBlock,
+);
 
 pub(crate) struct MixnodeBondIndex<'a> {
     pub(crate) owner: UniqueIndex<'a, Addr, StoredMixnodeBond>,

@@ -70,9 +70,7 @@ pub fn query_mixnode_bond_values_at_height(
     mix_identity: IdentityKeyRef,
     height: u64,
 ) -> StdResult<MixNodeBondValuesResponse> {
-    let bond_values = TOTAL_BOND
-        .may_load_at_height(deps.storage, mix_identity, height)?
-        .flatten();
+    let bond_values = TOTAL_BOND.may_load_at_height(deps.storage, mix_identity, height)?;
 
     Ok(MixNodeBondValuesResponse {
         height,

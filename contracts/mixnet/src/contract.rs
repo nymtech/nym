@@ -214,7 +214,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             height,
         } => to_binary(&query_mixnode_bond_values_at_height(
             deps,
-            mix_identity,
+            &mix_identity,
             height,
         )?),
         QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)?),

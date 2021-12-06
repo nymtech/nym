@@ -307,7 +307,8 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         .map_err(|_| NymdError::SerializationError("MsgSend".to_owned()))?;
 
         self.sign_and_broadcast_commit(sender_address, vec![send_msg], fee, memo)
-            .await
+            .await?
+            .check_response()
     }
 
     async fn send_tokens_multiple<I>(
@@ -354,7 +355,8 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         .map_err(|_| NymdError::SerializationError("MsgDelegate".to_owned()))?;
 
         self.sign_and_broadcast_commit(delegator_address, vec![delegate_msg], fee, memo)
-            .await
+            .await?
+            .check_response()
     }
 
     async fn undelegate_tokens(
@@ -374,7 +376,8 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         .map_err(|_| NymdError::SerializationError("MsgUndelegate".to_owned()))?;
 
         self.sign_and_broadcast_commit(delegator_address, vec![undelegate_msg], fee, memo)
-            .await
+            .await?
+            .check_response()
     }
 
     async fn withdraw_rewards(
@@ -392,7 +395,8 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         .map_err(|_| NymdError::SerializationError("MsgWithdrawDelegatorReward".to_owned()))?;
 
         self.sign_and_broadcast_commit(delegator_address, vec![withdraw_msg], fee, memo)
-            .await
+            .await?
+            .check_response()
     }
 
     /// Broadcast a transaction, returning immediately.

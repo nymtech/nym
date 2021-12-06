@@ -1,6 +1,5 @@
 import React, { useContext } from 'react'
-import { Alert, Button, Grid, Link } from '@mui/material'
-import { Box } from '@mui/system'
+import { Alert, Button, Grid, Link, Typography } from '@mui/material'
 import { OpenInNew } from '@mui/icons-material'
 import { NymCard } from '../components'
 import { Layout } from '../layouts'
@@ -21,10 +20,14 @@ export const Balance = () => {
               </Alert>
             )}
             {!userBalance.error && (
-              <Box data-testid="refresh-success" sx={{ p: 2 }}>
-                {'The current balance is ' +
-                  userBalance.balance?.printable_balance}
-              </Box>
+              <Typography
+                data-testid="refresh-success"
+                sx={{ p: 2, color: 'nym.background.dark' }}
+                variant="h5"
+                fontWeight="700"
+              >
+                {userBalance.balance?.printable_balance}
+              </Typography>
             )}
           </Grid>
           <Grid item>

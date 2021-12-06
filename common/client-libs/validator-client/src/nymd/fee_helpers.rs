@@ -59,7 +59,7 @@ impl Operation {
     // TODO: some value tweaking
     pub fn default_gas_limit(&self) -> Gas {
         match self {
-            Operation::Upload => 2_500_000u64.into(),
+            Operation::Upload => 3_000_000u64.into(),
             Operation::Init => 500_000u64.into(),
             Operation::Migrate => 200_000u64.into(),
             Operation::ChangeAdmin => 80_000u64.into(),

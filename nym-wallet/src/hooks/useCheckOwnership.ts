@@ -19,7 +19,7 @@ export const useCheckOwnership = () => {
       const ownsMixnode = await checkMixnodeOwnership()
       const ownsGateway = await checkGatewayOwnership()
 
-      if (true) {
+      if (ownsMixnode) {
         status.hasOwnership = true
         status.nodeType = EnumNodeType.mixnode
       }

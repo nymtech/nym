@@ -48,7 +48,7 @@ export const BondNodeForm = ({
             onChange={manageForm.handleAmountChange}
             id="amount"
             name="amount"
-            label={`Amount to bond ${
+            label={`Amount to pledge ${
               matches
                 ? '(minimum ' + nativeToPrintable(minimumBond.amount) + ')'
                 : ''
@@ -56,7 +56,7 @@ export const BondNodeForm = ({
             error={manageForm.formData.amount.isValid === false}
             helperText={
               manageForm.formData.amount.isValid === false
-                ? `Enter a valid bond amount (minimum ${nativeToPrintable(
+                ? `Enter a valid pledge amount (minimum ${nativeToPrintable(
                     minimumBond.amount
                   )})`
                 : ''

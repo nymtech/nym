@@ -76,7 +76,7 @@ export const PageGateways: React.FC = () => {
       field: 'bond',
       width: 150,
       type: 'number',
-      renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
+      renderHeader: () => <CustomColumnHeading headingTitle="Pledge" />,
       headerClassName: 'MuiDataGrid-header-override',
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => {
@@ -85,7 +85,7 @@ export const PageGateways: React.FC = () => {
           denom: 'upunk',
         });
         return (
-          <Typography sx={cellStyles} data-testid="bond-amount">
+          <Typography sx={cellStyles} data-testid="pledge-amount">
             {bondAsPunk}
           </Typography>
         );

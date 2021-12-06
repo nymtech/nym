@@ -24,7 +24,7 @@ export const ApplicationLayout: React.FC = ({ children }) => {
         }}
       >
         <Box sx={{ mb: 3 }}>
-          <img src={Logo} style={{ width: 45 }} />
+          <Logo width={45} />
         </Box>
 
         <Nav />

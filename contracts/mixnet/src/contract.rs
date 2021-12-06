@@ -15,7 +15,7 @@ use crate::mixnet_contract_settings::queries::{
 };
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries as mixnode_queries;
-use crate::mixnodes::bonding_queries::query_mixnodes_paged;
+use crate::mixnodes::bonding_queries::{query_mixnode_bond_values_at_height, query_mixnodes_paged};
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::rewards::queries::query_reward_pool;
 use crate::rewards::queries::{query_circulating_supply, query_rewarding_status};
@@ -209,6 +209,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             to_binary(&mixnode_queries::query_owns_mixnode(deps, address)?)
         }
         QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
+        QueryMsg::MixnodeBondAtHeight {
+            mix_identity,
+            height,
+        } => to_binary(&query_mixnode_bond_values_at_height(
+            deps,
+            mix_identity,
+            height,
+        )?),
         QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)?),
         QueryMsg::CurrentRewardingInterval {} => to_binary(&query_rewarding_interval(deps)?),
         QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)?),

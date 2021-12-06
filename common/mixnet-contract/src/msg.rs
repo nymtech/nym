@@ -98,6 +98,10 @@ pub enum QueryMsg {
     OwnsGateway {
         address: String,
     },
+    MixnodeBondAtHeight {
+        mix_identity: IdentityKey,
+        height: u64,
+    },
     StateParams {},
     CurrentRewardingInterval {},
     // gets all [paged] delegations in the entire network

@@ -65,7 +65,7 @@ pub fn query_owns_mixnode(deps: Deps, address: String) -> StdResult<MixOwnership
     })
 }
 
-pub fn query_mixnode_total_bond_at_height(
+pub fn query_mixnode_bond_values_at_height(
     deps: Deps,
     mix_identity: IdentityKeyRef,
     height: u64,

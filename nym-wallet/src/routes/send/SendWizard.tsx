@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react'
+import React, { useEffect, useContext, useState } from 'react'
 import { useForm, FormProvider } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { Box, Button, Step, StepLabel, Stepper } from '@mui/material'
@@ -8,7 +8,7 @@ import { SendConfirmation } from './SendConfirmation'
 import { ClientContext } from '../../context/main'
 import { validationSchema } from './validationSchema'
 import { TauriTxResult } from '../../types'
-import { majorToMinor, send } from '../../requests'
+import { getGasFee, majorToMinor, send } from '../../requests'
 import { checkHasEnoughFunds } from '../../utils'
 
 const defaultValues = {
@@ -21,24 +21,30 @@ export type TFormData = {
   amount: string
   memo: string
   to: string
-  from: string
 }
 
 export const SendWizard = () => {
   const [activeStep, setActiveStep] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [requestError, setRequestError] = useState<string>()
+  const [transferFee, setTransferFee] = useState<string>()
   const [confirmedData, setConfirmedData] = useState<TauriTxResult['details']>()
 
   const { userBalance } = useContext(ClientContext)
 
+  useEffect(() => {
+    const getFee = async () => {
+      const fee = await getGasFee('Send')
+      setTransferFee(fee.amount)
+    }
+    getFee()
+  }, [])
+
   const steps = ['Enter address', 'Review and send', 'Await confirmation']
 
-  const { clientDetails } = useContext(ClientContext)
   const methods = useForm<TFormData>({
     defaultValues: {
       ...defaultValues,
-      from: clientDetails?.client_address!,
     },
     resolver: yupResolver(validationSchema),
   })
@@ -98,9 +104,7 @@ export const SendWizard = () => {
         <Stepper
           activeStep={activeStep}
           sx={{
-            bgcolor: 'grey[50]',
-            pb: 0,
-            pt: 0,
+            p: 2,
           }}
         >
           {steps.map((s, i) => (
@@ -119,15 +123,11 @@ export const SendWizard = () => {
           }}
         >
           {activeStep === 0 ? (
-            <SendForm />
+            <SendForm transferFee={transferFee} />
           ) : activeStep === 1 ? (
-            <SendReview />
+            <SendReview transferFee={transferFee} />
           ) : (
-            <SendConfirmation
-              data={confirmedData}
-              isLoading={isLoading}
-              error={requestError}
-            />
+            <SendConfirmation data={confirmedData} isLoading={isLoading} error={requestError} />
           )}
         </Box>
         <Box
@@ -141,12 +141,7 @@ export const SendWizard = () => {
           }}
         >
           {activeStep === 1 && (
-            <Button
-              disableElevation
-              sx={{ mr: 1 }}
-              onClick={handlePreviousStep}
-              data-testid="back-button"
-            >
+            <Button disableElevation sx={{ mr: 1 }} onClick={handlePreviousStep} data-testid="back-button">
               Back
             </Button>
           )}
@@ -155,20 +150,8 @@ export const SendWizard = () => {
             color={activeStep > 0 ? 'primary' : 'inherit'}
             disableElevation
             data-testid="button"
-            onClick={
-              activeStep === 0
-                ? handleNextStep
-                : activeStep === 1
-                ? handleSend
-                : handleFinish
-            }
-            disabled={
-              !!(
-                methods.formState.errors.amount ||
-                methods.formState.errors.to ||
-                isLoading
-              )
-            }
+            onClick={activeStep === 0 ? handleNextStep : activeStep === 1 ? handleSend : handleFinish}
+            disabled={!!(methods.formState.errors.amount || methods.formState.errors.to || isLoading)}
           >
             {activeStep === 0 ? 'Next' : activeStep === 1 ? 'Send' : 'Finish'}
           </Button>

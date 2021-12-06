@@ -20,11 +20,7 @@ type TClientContext = {
 
 export const ClientContext = createContext({} as TClientContext)
 
-export const ClientContextProvider = ({
-  children,
-}: {
-  children: React.ReactNode
-}) => {
+export const ClientContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [clientDetails, setClientDetails] = useState<TClientDetails>()
   const [showAdmin, setShowAdmin] = useState(false)
   const [mode, setMode] = useState<'light' | 'dark'>('light')
@@ -41,8 +37,7 @@ export const ClientContextProvider = ({
     }
   }, [clientDetails, userBalance.fetchBalance])
 
-  const logIn = async (clientDetails: TSignInWithMnemonic) =>
-    setClientDetails(clientDetails)
+  const logIn = async (clientDetails: TSignInWithMnemonic) => setClientDetails(clientDetails)
 
   const logOut = () => {
     setClientDetails(undefined)

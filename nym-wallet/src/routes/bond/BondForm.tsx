@@ -10,6 +10,7 @@ import {
   Grid,
   InputAdornment,
   TextField,
+  Typography,
 } from '@mui/material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
@@ -97,10 +98,7 @@ export const BondForm = ({
   const { userBalance } = useContext(ClientContext)
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
-  const watchAdvancedOptions = watch(
-    'withAdvancedOptions',
-    defaultValues.withAdvancedOptions,
-  )
+  const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions)
 
   const onSubmit = async (data: TBondFormFields) => {
     const hasEnoughFunds = await checkHasEnoughFunds(data.amount)
@@ -131,23 +129,11 @@ export const BondForm = ({
                 nodeType={watchNodeType}
                 setNodeType={(nodeType) => {
                   setValue('nodeType', nodeType)
-                  if (nodeType === EnumNodeType.mixnode)
-                    setValue('location', undefined)
+                  if (nodeType === EnumNodeType.mixnode) setValue('location', undefined)
                 }}
                 disabled={disabled}
               />
             </Grid>
-            {fees && (
-              <Grid item>
-                <Alert severity="info" data-testid="fee-amount">
-                  {`A fee of ${
-                    watchNodeType === EnumNodeType.mixnode
-                      ? fees.mixnode.amount
-                      : fees?.gateway?.amount
-                  } PUNK will apply to this transaction`}
-                </Alert>
-              </Grid>
-            )}
           </Grid>
           <Grid item xs={12}>
             <TextField
@@ -189,9 +175,7 @@ export const BondForm = ({
               error={!!errors.amount}
               helperText={errors.amount?.message}
               InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">punks</InputAdornment>
-                ),
+                endAdornment: <InputAdornment position="end">punks</InputAdornment>,
               }}
               disabled={disabled}
             />
@@ -286,9 +270,7 @@ export const BondForm = ({
                   label="Mix Port"
                   fullWidth
                   error={!!errors.mixPort}
-                  helperText={
-                    errors.mixPort?.message && 'A valid port value is required'
-                  }
+                  helperText={errors.mixPort?.message && 'A valid port value is required'}
                   disabled={disabled}
                 />
               </Grid>
@@ -303,10 +285,7 @@ export const BondForm = ({
                       label="Verloc Port"
                       fullWidth
                       error={!!errors.verlocPort}
-                      helperText={
-                        errors.verlocPort?.message &&
-                        'A valid port value is required'
-                      }
+                      helperText={errors.verlocPort?.message && 'A valid port value is required'}
                       disabled={disabled}
                     />
                   </Grid>
@@ -320,10 +299,7 @@ export const BondForm = ({
                       label="HTTP API Port"
                       fullWidth
                       error={!!errors.httpApiPort}
-                      helperText={
-                        errors.httpApiPort?.message &&
-                        'A valid port value is required'
-                      }
+                      helperText={errors.httpApiPort?.message && 'A valid port value is required'}
                       disabled={disabled}
                     />
                   </Grid>
@@ -338,15 +314,22 @@ export const BondForm = ({
                     label="client WS API Port"
                     fullWidth
                     error={!!errors.clientsPort}
-                    helperText={
-                      errors.clientsPort?.message &&
-                      'A valid port value is required'
-                    }
+                    helperText={errors.clientsPort?.message && 'A valid port value is required'}
                     disabled={disabled}
                   />
                 </Grid>
               )}
             </>
+          )}
+          {fees && (
+            <Grid item xs={12}>
+              <Typography sx={{ color: 'nym.info' }}>
+                {' '}
+                {`A bonding fee: ${
+                  watchNodeType === EnumNodeType.mixnode ? fees.mixnode.amount : fees?.gateway?.amount
+                }`}
+              </Typography>
+            </Grid>
           )}
         </Grid>
       </Box>

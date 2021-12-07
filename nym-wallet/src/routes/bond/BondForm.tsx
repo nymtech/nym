@@ -41,6 +41,7 @@ const defaultValues = {
   withAdvancedOptions: false,
   nodeType: EnumNodeType.mixnode,
   identityKey: '',
+  ownerSignature: '',
   sphinxKey: '',
   amount: '',
   host: '',
@@ -56,8 +57,10 @@ const formatData = (data: TBondFormFields) => {
   const payload: { [key: string]: any } = {
     identity_key: data.identityKey,
     sphinx_key: data.sphinxKey,
+    ownerSignature: data.ownerSignature,
     host: data.host,
     version: data.version,
+    owner_signature: data.ownerSignature,
     mix_port: data.mixPort,
   }
 
@@ -112,7 +115,7 @@ export const BondForm = ({
     const formattedData = formatData(data)
     const amount = await majorToMinor(data.amount)
 
-    await bond({ type: data.nodeType, data: formattedData, amount })
+    await bond({ type: data.nodeType, data: formattedData, ownerSignature: data.ownerSignature, amount })
       .then(() => {
         userBalance.fetchBalance()
         onSuccess(`Successfully bonded to ${data.identityKey}`)

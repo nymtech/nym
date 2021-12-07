@@ -74,10 +74,13 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         &self,
         gateway: Gateway,
         pledge: Coin,
-        owner_signature: &str
+        owner_signature: &str,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.get_fee(Operation::BondGateway);
-        let req = VestingExecuteMsg::BondGateway { gateway, owner_signature: owner_signature.to_string() };
+        let req = VestingExecuteMsg::BondGateway {
+            gateway,
+            owner_signature: owner_signature.to_string(),
+        };
         self.client
             .execute(
                 self.address(),
@@ -131,10 +134,13 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         &self,
         mix_node: MixNode,
         pledge: Coin,
-        owner_signature: &str
+        owner_signature: &str,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.get_fee(Operation::BondMixnode);
-        let req = VestingExecuteMsg::BondMixnode { mix_node, owner_signature: owner_signature.to_string() };
+        let req = VestingExecuteMsg::BondMixnode {
+            mix_node,
+            owner_signature: owner_signature.to_string(),
+        };
         self.client
             .execute(
                 self.address(),

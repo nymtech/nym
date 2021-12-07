@@ -1,4 +1,4 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect } from 'react'
 import { Alert, Button, Grid, Link, Typography } from '@mui/material'
 import { OpenInNew } from '@mui/icons-material'
 import { NymCard } from '../components'
@@ -8,6 +8,10 @@ import { ClientContext, urls } from '../context/main'
 
 export const Balance = () => {
   const { userBalance, clientDetails } = useContext(ClientContext)
+
+  useEffect(() => {
+    userBalance.fetchBalance()
+  }, [])
 
   return (
     <Layout>

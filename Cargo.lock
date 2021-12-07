@@ -868,8 +868,7 @@ dependencies = [
 [[package]]
 name = "cosmos-sdk-proto"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edb5204c6ddc4352c74297638b5561f2929d6334866c156e5f3c75e1e1a1436a"
+source = "git+https://github.com/jstuczyn/cosmos-rust/?branch=jstuczyn/wasmd-021-update#d8b23881ca833bf9b3284142c4f90b588afc56e3"
 dependencies = [
  "prost",
  "prost-types",
@@ -879,8 +878,7 @@ dependencies = [
 [[package]]
 name = "cosmrs"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d31147fe89e547e74e2692e4bec35387e1ea406fe8cfb14c0ea177b58fd2a8a9"
+source = "git+https://github.com/jstuczyn/cosmos-rust/?branch=jstuczyn/wasmd-021-update#d8b23881ca833bf9b3284142c4f90b588afc56e3"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto",

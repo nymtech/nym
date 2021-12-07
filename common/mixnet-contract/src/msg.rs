@@ -74,6 +74,14 @@ pub enum ExecuteMsg {
     UnbondMixnodeOnBehalf {
         owner: String,
     },
+    BondGatewayOnBehalf {
+        gateway: Gateway,
+        owner: String,
+        owner_signature: String,
+    },
+    UnbondGatewayOnBehalf {
+        owner: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

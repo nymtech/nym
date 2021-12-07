@@ -28,8 +28,8 @@ const columns: ColumnsType[] = [
   },
 
   {
-    field: 'bond',
-    title: 'Bond',
+    field: 'pledge',
+    title: 'Pledge',
     flex: 1,
     headerAlign: 'left',
   },

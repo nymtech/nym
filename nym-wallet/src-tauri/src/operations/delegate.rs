@@ -23,16 +23,16 @@ pub async fn delegate_to_mixnode(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationResult, String> {
   let r_state = state.read().await;
-  let bond: CosmWasmCoin = match amount.try_into() {
+  let delegation: CosmWasmCoin = match amount.try_into() {
     Ok(b) => b,
     Err(e) => return Err(format_err!(e)),
   };
   let client = r_state.client()?;
-  match client.delegate_to_mixnode(identity, &bond).await {
+  match client.delegate_to_mixnode(identity, &delegation).await {
     Ok(_result) => Ok(DelegationResult {
       source_address: client.address().to_string(),
       target_address: identity.to_string(),
-      amount: Some(bond.into()),
+      amount: Some(delegation.into()),
     }),
     Err(e) => Err(format_err!(e)),
   }

@@ -20,7 +20,7 @@ pub(crate) fn update_post_rewarding_storage(
         return Ok(());
     }
 
-    // update bond
+    // update pledge
     if operator_reward > Uint128::zero() {
         mixnodes_storage::mixnodes().update(storage, mix_identity, |current_bond| {
             match current_bond {
@@ -28,7 +28,7 @@ pub(crate) fn update_post_rewarding_storage(
                     identity: mix_identity.to_string(),
                 }),
                 Some(mut mixnode_bond) => {
-                    mixnode_bond.bond_amount.amount += operator_reward;
+                    mixnode_bond.pledge_amount.amount += operator_reward;
                     Ok(mixnode_bond)
                 }
             }

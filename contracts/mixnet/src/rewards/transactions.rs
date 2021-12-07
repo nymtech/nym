@@ -917,7 +917,7 @@ pub mod tests {
         let initial_bond = 10000_000000;
         let initial_delegation = 20000_000000;
         let mixnode_bond = StoredMixnodeBond {
-            bond_amount: coin(initial_bond, DENOM),
+            pledge_amount: coin(initial_bond, DENOM),
             owner: node_owner.clone(),
             layer: Layer::One,
             block_height: env.block.height,
@@ -972,7 +972,7 @@ pub mod tests {
 
         assert_eq!(
             initial_bond,
-            test_helpers::read_mixnode_bond_amount(deps.as_ref().storage, &node_identity)
+            test_helpers::read_mixnode_pledge_amount(deps.as_ref().storage, &node_identity)
                 .unwrap()
                 .u128()
         );
@@ -1009,7 +1009,7 @@ pub mod tests {
         try_finish_mixnode_rewarding(deps.as_mut(), info, 2).unwrap();
 
         assert!(
-            test_helpers::read_mixnode_bond_amount(deps.as_ref().storage, &node_identity)
+            test_helpers::read_mixnode_pledge_amount(deps.as_ref().storage, &node_identity)
                 .unwrap()
                 .u128()
                 > initial_bond
@@ -1033,8 +1033,8 @@ pub mod tests {
         // reward happens now, both for node owner and delegators
         env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
 
-        let bond_before_rewarding =
-            test_helpers::read_mixnode_bond_amount(deps.as_ref().storage, &node_identity)
+        let pledge_before_rewarding =
+            test_helpers::read_mixnode_pledge_amount(deps.as_ref().storage, &node_identity)
                 .unwrap()
                 .u128();
 
@@ -1052,10 +1052,10 @@ pub mod tests {
         try_finish_mixnode_rewarding(deps.as_mut(), info, 3).unwrap();
 
         assert!(
-            test_helpers::read_mixnode_bond_amount(deps.as_ref().storage, &node_identity)
+            test_helpers::read_mixnode_pledge_amount(deps.as_ref().storage, &node_identity)
                 .unwrap()
                 .u128()
-                > bond_before_rewarding
+                > pledge_before_rewarding
         );
         assert!(
             mixnodes_storage::TOTAL_DELEGATION
@@ -1169,9 +1169,10 @@ pub mod tests {
         assert_eq!(mix1_delegator1_reward, U128::from_num(22552615));
         assert_eq!(mix1_delegator2_reward, U128::from_num(5638153));
 
-        let pre_reward_bond = test_helpers::read_mixnode_bond_amount(&deps.storage, &node_identity)
-            .unwrap()
-            .u128();
+        let pre_reward_bond =
+            test_helpers::read_mixnode_pledge_amount(&deps.storage, &node_identity)
+                .unwrap()
+                .u128();
         assert_eq!(pre_reward_bond, 10_000_000_000);
 
         let pre_reward_delegation = mixnodes_storage::TOTAL_DELEGATION
@@ -1183,7 +1184,7 @@ pub mod tests {
         try_reward_mixnode(deps.as_mut(), env, info, node_identity.clone(), params, 1).unwrap();
 
         assert_eq!(
-            test_helpers::read_mixnode_bond_amount(&deps.storage, &node_identity)
+            test_helpers::read_mixnode_pledge_amount(&deps.storage, &node_identity)
                 .unwrap()
                 .u128(),
             U128::from_num(pre_reward_bond) + U128::from_num(mix1_operator_profit)

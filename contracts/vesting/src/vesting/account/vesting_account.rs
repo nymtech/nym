@@ -26,7 +26,7 @@ impl VestingAccount for Account {
                     )
                     .ok_or(ContractError::Underflow)?
                     .checked_sub(
-                        self.get_bonded_vesting(block_time, env, storage)?
+                        self.get_pledged_vesting(block_time, env, storage)?
                             .amount
                             .u128(),
                     )
@@ -152,7 +152,7 @@ impl VestingAccount for Account {
         })
     }
 
-    fn get_bonded_free(
+    fn get_pledged_free(
         &self,
         block_time: Option<Timestamp>,
         env: &Env,
@@ -163,7 +163,10 @@ impl VestingAccount for Account {
         let max_vested = self.tokens_per_period()? * period as u128;
         let start_time = self.periods[period].start_time;
 
-        let amount = if let Some(bond) = self.load_bond(storage)? {
+        let amount = if let Some(bond) = self
+            .load_mixnode_pledge(storage)?
+            .or(self.load_gateway_pledge(storage)?)
+        {
             if bond.block_time.seconds() < start_time {
                 bond.amount
             } else {
@@ -181,16 +184,19 @@ impl VestingAccount for Account {
         })
     }
 
-    fn get_bonded_vesting(
+    fn get_pledged_vesting(
         &self,
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError> {
         let block_time = block_time.unwrap_or(env.block.time);
-        let bonded_free = self.get_bonded_free(Some(block_time), env, storage)?;
+        let bonded_free = self.get_pledged_free(Some(block_time), env, storage)?;
 
-        if let Some(bond) = self.load_bond(storage)? {
+        if let Some(bond) = self
+            .load_mixnode_pledge(storage)?
+            .or(self.load_gateway_pledge(storage)?)
+        {
             let amount = bond.amount - bonded_free.amount;
             Ok(Coin {
                 amount,

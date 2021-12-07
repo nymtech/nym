@@ -44,7 +44,7 @@ pub(crate) fn mixnodes<'a>(
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub(crate) struct StoredMixnodeBond {
-    pub bond_amount: Coin,
+    pub pledge_amount: Coin,
     pub owner: Addr,
     pub layer: Layer,
     pub block_height: u64,
@@ -55,7 +55,7 @@ pub(crate) struct StoredMixnodeBond {
 
 impl StoredMixnodeBond {
     pub(crate) fn new(
-        bond_amount: Coin,
+        pledge_amount: Coin,
         owner: Addr,
         layer: Layer,
         block_height: u64,
@@ -64,7 +64,7 @@ impl StoredMixnodeBond {
         proxy: Option<Addr>,
     ) -> Self {
         StoredMixnodeBond {
-            bond_amount,
+            pledge_amount,
             owner,
             layer,
             block_height,
@@ -77,10 +77,10 @@ impl StoredMixnodeBond {
     pub(crate) fn attach_delegation(self, total_delegation: Uint128) -> MixNodeBond {
         MixNodeBond {
             total_delegation: Coin {
-                denom: self.bond_amount.denom.clone(),
+                denom: self.pledge_amount.denom.clone(),
                 amount: total_delegation,
             },
-            bond_amount: self.bond_amount,
+            pledge_amount: self.pledge_amount,
             owner: self.owner,
             layer: self.layer,
             block_height: self.block_height,
@@ -94,8 +94,8 @@ impl StoredMixnodeBond {
         &self.mix_node.identity_key
     }
 
-    pub(crate) fn bond_amount(&self) -> Coin {
-        self.bond_amount.clone()
+    pub(crate) fn pledge_amount(&self) -> Coin {
+        self.pledge_amount.clone()
     }
 }
 
@@ -104,7 +104,7 @@ impl Display for StoredMixnodeBond {
         write!(
             f,
             "amount: {}, owner: {}, identity: {}",
-            self.bond_amount, self.owner, self.mix_node.identity_key
+            self.pledge_amount, self.owner, self.mix_node.identity_key
         )
     }
 }
@@ -119,7 +119,7 @@ pub(crate) fn read_full_mixnode_bond(
         Some(stored_bond) => {
             let total_delegation = TOTAL_DELEGATION.may_load(storage, mix_identity)?;
             Ok(Some(MixNodeBond {
-                bond_amount: stored_bond.bond_amount,
+                pledge_amount: stored_bond.pledge_amount,
                 total_delegation: Coin {
                     denom: DENOM.to_owned(),
                     amount: total_delegation.unwrap_or_default(),
@@ -171,10 +171,10 @@ mod tests {
         assert!(res.is_none());
 
         // returns appropriate value otherwise
-        let bond_value = 1000000000;
+        let pledge_value = 1000000000;
 
         let mixnode_bond = StoredMixnodeBond {
-            bond_amount: coin(bond_value, DENOM),
+            pledge_amount: coin(pledge_value, DENOM),
             owner: node_owner.clone(),
             layer: Layer::One,
             block_height: 12_345,
@@ -191,11 +191,11 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            Uint128::new(bond_value),
+            Uint128::new(pledge_value),
             storage::read_full_mixnode_bond(&mock_storage, node_identity.as_str())
                 .unwrap()
                 .unwrap()
-                .bond_amount
+                .pledge_amount
                 .amount
         );
     }

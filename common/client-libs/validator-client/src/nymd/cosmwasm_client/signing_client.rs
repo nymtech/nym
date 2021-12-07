@@ -31,7 +31,6 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         wasm_code: Vec<u8>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-        mut meta: Option<UploadMeta>,
     ) -> Result<UploadResult, NymdError> {
         let compressed = compress_wasm_code(&wasm_code)?;
         let compressed_size = compressed.len();
@@ -42,14 +41,6 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let upload_msg = cosmwasm::MsgStoreCode {
             sender: sender_address.clone(),
             wasm_byte_code: compressed,
-            source: meta
-                .as_mut()
-                .map(|meta| meta.source.take())
-                .unwrap_or_default(),
-            builder: meta
-                .as_mut()
-                .map(|meta| meta.builder.take())
-                .unwrap_or_default(),
             instantiate_permission: Default::default(),
         }
         .to_any()
@@ -66,7 +57,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         // the reason I think unwrap here is fine is that if the transaction succeeded and those
         // fields do not exist or code_id is not a number, there's no way we can recover, we're probably connected
         // to wrong validator or something
-        let code_id = logs::find_attribute(&logs, "message", "code_id")
+        let code_id = logs::find_attribute(&logs, "store_code", "code_id")
             .unwrap()
             .value
             .parse()
@@ -111,7 +102,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             // now this is a weird one. the protobuf files say this field is optional,
             // but if you omit it, the initialisation will fail CheckTx
             label: Some(label),
-            init_msg: serde_json::to_vec(msg)?,
+            msg: serde_json::to_vec(msg)?,
             funds: options.map(|options| options.funds).unwrap_or_default(),
         }
         .to_any()
@@ -128,7 +119,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         // the reason I think unwrap here is fine is that if the transaction succeeded and those
         // fields do not exist or address is malformed, there's no way we can recover, we're probably connected
         // to wrong validator or something
-        let contract_address = logs::find_attribute(&logs, "message", "contract_address")
+        let contract_address = logs::find_attribute(&logs, "instantiate", "_contract_address")
             .unwrap()
             .value
             .parse()
@@ -209,7 +200,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             sender: sender_address.clone(),
             contract: contract_address.clone(),
             code_id,
-            migrate_msg: serde_json::to_vec(msg)?,
+            msg: serde_json::to_vec(msg)?,
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgMigrateContract".to_owned()))?;
@@ -316,6 +307,34 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         .map_err(|_| NymdError::SerializationError("MsgSend".to_owned()))?;
 
         self.sign_and_broadcast_commit(sender_address, vec![send_msg], fee, memo)
+            .await?
+            .check_response()
+    }
+
+    async fn send_tokens_multiple<I>(
+        &self,
+        sender_address: &AccountId,
+        msgs: I,
+        fee: Fee,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<broadcast::tx_commit::Response, NymdError>
+    where
+        I: IntoIterator<Item = (AccountId, Vec<Coin>)> + Send,
+    {
+        let messages = msgs
+            .into_iter()
+            .map(|(to_address, amount)| {
+                MsgSend {
+                    from_address: sender_address.clone(),
+                    to_address,
+                    amount,
+                }
+                .to_any()
+                .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))
+            })
+            .collect::<Result<_, _>>()?;
+
+        self.sign_and_broadcast_commit(sender_address, messages, fee, memo)
             .await
     }
 
@@ -336,7 +355,8 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         .map_err(|_| NymdError::SerializationError("MsgDelegate".to_owned()))?;
 
         self.sign_and_broadcast_commit(delegator_address, vec![delegate_msg], fee, memo)
-            .await
+            .await?
+            .check_response()
     }
 
     async fn undelegate_tokens(
@@ -356,7 +376,8 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         .map_err(|_| NymdError::SerializationError("MsgUndelegate".to_owned()))?;
 
         self.sign_and_broadcast_commit(delegator_address, vec![undelegate_msg], fee, memo)
-            .await
+            .await?
+            .check_response()
     }
 
     async fn withdraw_rewards(
@@ -374,7 +395,8 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         .map_err(|_| NymdError::SerializationError("MsgWithdrawDelegatorReward".to_owned()))?;
 
         self.sign_and_broadcast_commit(delegator_address, vec![withdraw_msg], fee, memo)
-            .await
+            .await?
+            .check_response()
     }
 
     /// Broadcast a transaction, returning immediately.

@@ -185,7 +185,7 @@ export const BondForm = ({
               required
               id="amount"
               name="amount"
-              label="Amount to bond"
+              label="Amount to pledge"
               fullWidth
               error={!!errors.amount}
               helperText={errors.amount?.message}

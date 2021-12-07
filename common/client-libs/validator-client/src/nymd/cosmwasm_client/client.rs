@@ -14,7 +14,7 @@ use cosmrs::proto::cosmos::auth::v1beta1::{
 use cosmrs::proto::cosmos::bank::v1beta1::{
     QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
 };
-use cosmrs::proto::cosmwasm::wasm::v1beta1::*;
+use cosmrs::proto::cosmwasm::wasm::v1::*;
 use cosmrs::rpc::endpoint::block::Response as BlockResponse;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::endpoint::tx::Response as TxResponse;
@@ -213,7 +213,7 @@ pub trait CosmWasmClient: rpc::Client {
     }
 
     async fn get_codes(&self) -> Result<Vec<Code>, NymdError> {
-        let path = Some("/cosmwasm.wasm.v1beta1.Query/Codes".parse().unwrap());
+        let path = Some("/cosmwasm.wasm.v1.Query/Codes".parse().unwrap());
 
         let mut raw_codes = Vec::new();
         let mut pagination = None;
@@ -240,7 +240,7 @@ pub trait CosmWasmClient: rpc::Client {
     }
 
     async fn get_code_details(&self, code_id: ContractCodeId) -> Result<CodeDetails, NymdError> {
-        let path = Some("/cosmwasm.wasm.v1beta1.Query/Code".parse().unwrap());
+        let path = Some("/cosmwasm.wasm.v1.Query/Code".parse().unwrap());
 
         let req = QueryCodeRequest { code_id };
 
@@ -255,11 +255,7 @@ pub trait CosmWasmClient: rpc::Client {
         }
     }
     async fn get_contracts(&self, code_id: ContractCodeId) -> Result<Vec<AccountId>, NymdError> {
-        let path = Some(
-            "/cosmwasm.wasm.v1beta1.Query/ContractsByCode"
-                .parse()
-                .unwrap(),
-        );
+        let path = Some("/cosmwasm.wasm.v1.Query/ContractsByCode".parse().unwrap());
 
         let mut raw_contracts = Vec::new();
         let mut pagination = None;
@@ -290,7 +286,7 @@ pub trait CosmWasmClient: rpc::Client {
     }
 
     async fn get_contract(&self, address: &AccountId) -> Result<Contract, NymdError> {
-        let path = Some("/cosmwasm.wasm.v1beta1.Query/ContractInfo".parse().unwrap());
+        let path = Some("/cosmwasm.wasm.v1.Query/ContractInfo".parse().unwrap());
 
         let req = QueryContractInfoRequest {
             address: address.to_string(),
@@ -315,11 +311,7 @@ pub trait CosmWasmClient: rpc::Client {
         &self,
         address: &AccountId,
     ) -> Result<Vec<ContractCodeHistoryEntry>, NymdError> {
-        let path = Some(
-            "/cosmwasm.wasm.v1beta1.Query/ContractHistory"
-                .parse()
-                .unwrap(),
-        );
+        let path = Some("/cosmwasm.wasm.v1.Query/ContractHistory".parse().unwrap());
 
         let mut raw_entries = Vec::new();
         let mut pagination = None;
@@ -353,11 +345,7 @@ pub trait CosmWasmClient: rpc::Client {
         address: &AccountId,
         query_data: Vec<u8>,
     ) -> Result<Vec<u8>, NymdError> {
-        let path = Some(
-            "/cosmwasm.wasm.v1beta1.Query/RawContractState"
-                .parse()
-                .unwrap(),
-        );
+        let path = Some("/cosmwasm.wasm.v1.Query/RawContractState".parse().unwrap());
 
         let req = QueryRawContractStateRequest {
             address: address.to_string(),
@@ -381,7 +369,7 @@ pub trait CosmWasmClient: rpc::Client {
         for<'a> T: Deserialize<'a>,
     {
         let path = Some(
-            "/cosmwasm.wasm.v1beta1.Query/SmartContractState"
+            "/cosmwasm.wasm.v1.Query/SmartContractState"
                 .parse()
                 .unwrap(),
         );

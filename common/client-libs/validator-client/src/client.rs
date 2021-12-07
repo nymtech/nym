@@ -6,7 +6,7 @@ use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
 #[cfg(feature = "nymd-client")]
-use mixnet_contract::ContractStateParams;
+use mixnet_contract::{ContractStateParams, GatewayBond, MixNodeBond};
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
@@ -14,7 +14,9 @@ use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, Verifica
 use mixnet_contract::{
     Delegation, MixnetContractVersion, MixnodeRewardingStatusResponse, RewardingIntervalResponse,
 };
-use mixnet_contract::{GatewayBond, MixNodeBond};
+
+#[cfg(feature = "nymd-client")]
+use std::str::FromStr;
 use url::Url;
 
 #[cfg(feature = "nymd-client")]
@@ -22,6 +24,7 @@ pub struct Config {
     api_url: Url,
     nymd_url: Url,
     mixnet_contract_address: Option<cosmrs::AccountId>,
+    vesting_contract_address: Option<cosmrs::AccountId>,
 
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
@@ -34,10 +37,12 @@ impl Config {
         nymd_url: Url,
         api_url: Url,
         mixnet_contract_address: Option<cosmrs::AccountId>,
+        vesting_contract_address: Option<cosmrs::AccountId>,
     ) -> Self {
         Config {
             nymd_url,
             mixnet_contract_address,
+            vesting_contract_address,
             api_url,
             mixnode_page_limit: None,
             gateway_page_limit: None,
@@ -64,6 +69,7 @@ impl Config {
 #[cfg(feature = "nymd-client")]
 pub struct Client<C> {
     mixnet_contract_address: Option<cosmrs::AccountId>,
+    vesting_contract_address: Option<cosmrs::AccountId>,
     mnemonic: Option<bip39::Mnemonic>,
 
     mixnode_page_limit: Option<u32>,
@@ -85,11 +91,13 @@ impl Client<SigningNymdClient> {
         let nymd_client = NymdClient::connect_with_mnemonic(
             config.nymd_url.as_str(),
             config.mixnet_contract_address.clone(),
+            config.vesting_contract_address.clone(),
             mnemonic.clone(),
         )?;
 
         Ok(Client {
             mixnet_contract_address: config.mixnet_contract_address,
+            vesting_contract_address: config.vesting_contract_address,
             mnemonic: Some(mnemonic),
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
@@ -103,6 +111,7 @@ impl Client<SigningNymdClient> {
         self.nymd = NymdClient::connect_with_mnemonic(
             new_endpoint.as_ref(),
             self.mixnet_contract_address.clone(),
+            self.vesting_contract_address.clone(),
             self.mnemonic.clone().unwrap(),
         )?;
         Ok(())
@@ -115,16 +124,19 @@ impl Client<QueryNymdClient> {
         let validator_api_client = validator_api::Client::new(config.api_url.clone());
         let nymd_client = NymdClient::connect(
             config.nymd_url.as_str(),
-            config
-                .mixnet_contract_address
-                .clone()
-                .ok_or(ValidatorClientError::NymdError(
-                    NymdError::NoContractAddressAvailable,
-                ))?,
+            config.mixnet_contract_address.clone().unwrap_or_else(|| {
+                cosmrs::AccountId::from_str(network_defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS)
+                    .unwrap()
+            }),
+            config.vesting_contract_address.clone().unwrap_or_else(|| {
+                cosmrs::AccountId::from_str(network_defaults::DEFAULT_VESTING_CONTRACT_ADDRESS)
+                    .unwrap()
+            }),
         )?;
 
         Ok(Client {
             mixnet_contract_address: config.mixnet_contract_address,
+            vesting_contract_address: config.vesting_contract_address,
             mnemonic: None,
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
@@ -138,6 +150,7 @@ impl Client<QueryNymdClient> {
         self.nymd = NymdClient::connect(
             new_endpoint.as_ref(),
             self.mixnet_contract_address.clone().unwrap(),
+            self.vesting_contract_address.clone().unwrap(),
         )?;
         Ok(())
     }

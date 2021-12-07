@@ -4,7 +4,7 @@
 #[cfg(test)]
 pub mod test_helpers {
     use super::*;
-    use crate::contract::{instantiate, INITIAL_MIXNODE_BOND};
+    use crate::contract::{instantiate, INITIAL_MIXNODE_PLEDGE};
     use crate::contract::{
         query, DEFAULT_SYBIL_RESISTANCE_PERCENT, EPOCH_REWARD_PERCENT, INITIAL_REWARD_POOL,
     };
@@ -210,7 +210,13 @@ pub mod test_helpers {
             identity_key: format!("id-{}", owner),
             ..gateway_fixture()
         };
-        GatewayBond::new(coin(50, DENOM), Addr::unchecked(owner), 12_345, gateway)
+        GatewayBond::new(
+            coin(50, DENOM),
+            Addr::unchecked(owner),
+            12_345,
+            gateway,
+            None,
+        )
     }
 
     pub fn query_contract_balance(
@@ -224,14 +230,14 @@ pub mod test_helpers {
     pub fn good_mixnode_bond() -> Vec<Coin> {
         vec![Coin {
             denom: DENOM.to_string(),
-            amount: INITIAL_MIXNODE_BOND,
+            amount: INITIAL_MIXNODE_PLEDGE,
         }]
     }
 
     pub fn good_gateway_bond() -> Vec<Coin> {
         vec![Coin {
             denom: DENOM.to_string(),
-            amount: INITIAL_MIXNODE_BOND,
+            amount: INITIAL_MIXNODE_PLEDGE,
         }]
     }
 
@@ -248,12 +254,12 @@ pub mod test_helpers {
     }
 
     // currently not used outside tests
-    pub(crate) fn read_mixnode_bond_amount(
+    pub(crate) fn read_mixnode_pledge_amount(
         storage: &dyn Storage,
         identity: IdentityKeyRef,
     ) -> StdResult<cosmwasm_std::Uint128> {
         let node = mixnodes_storage::mixnodes().load(storage, identity)?;
-        Ok(node.bond_amount.amount)
+        Ok(node.pledge_amount.amount)
     }
 
     pub(crate) fn save_dummy_delegation(

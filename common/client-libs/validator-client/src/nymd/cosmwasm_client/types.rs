@@ -7,7 +7,7 @@ use crate::nymd::cosmwasm_client::logs::Log;
 use crate::nymd::error::NymdError;
 use cosmrs::crypto::PublicKey;
 use cosmrs::proto::cosmos::auth::v1beta1::BaseAccount;
-use cosmrs::proto::cosmwasm::wasm::v1beta1::{
+use cosmrs::proto::cosmwasm::wasm::v1::{
     CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
     ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo,
 };
@@ -70,18 +70,6 @@ pub struct Code {
 
     /// sha256 hash of the code stored
     pub data_hash: Vec<u8>,
-
-    /// An URL to a .tar.gz archive of the source code of the contract,
-    /// which can be used to reproducibly build the Wasm bytecode.
-    ///
-    /// @see https://github.com/CosmWasm/cosmwasm-verify
-    pub source: Option<String>,
-
-    /// A docker image (including version) to reproducibly build the Wasm bytecode from the source code.
-    ///
-    /// @example ```cosmwasm/rust-optimizer:0.8.0```
-    /// @see https://github.com/CosmWasm/cosmwasm-verify
-    pub builder: Option<String>,
 }
 
 impl TryFrom<CodeInfoResponse> for Code {
@@ -92,31 +80,16 @@ impl TryFrom<CodeInfoResponse> for Code {
             code_id,
             creator,
             data_hash,
-            source,
-            builder,
         } = value;
 
         let creator = creator
             .parse()
             .map_err(|_| NymdError::MalformedAccountAddress(creator))?;
 
-        let source = if source.is_empty() {
-            None
-        } else {
-            Some(source)
-        };
-        let builder = if builder.is_empty() {
-            None
-        } else {
-            Some(builder)
-        };
-
         Ok(Code {
             code_id,
             creator,
             data_hash,
-            source,
-            builder,
         })
     }
 }
@@ -252,21 +225,6 @@ pub struct SignerData {
     pub account_number: AccountNumber,
     pub sequence: SequenceNumber,
     pub chain_id: chain::Id,
-}
-
-#[derive(Debug)]
-pub struct UploadMeta {
-    /// An URL to a .tar.gz archive of the source code of the contract,
-    /// which can be used to reproducibly build the Wasm bytecode.
-    ///
-    /// @see https://github.com/CosmWasm/cosmwasm-verify
-    pub source: Option<String>,
-
-    /// A docker image (including version) to reproducibly build the Wasm bytecode from the source code.
-    ///
-    /// @example ```cosmwasm/rust-optimizer:0.8.0```
-    /// @see https://github.com/CosmWasm/cosmwasm-verify
-    pub builder: Option<String>,
 }
 
 #[derive(Debug)]

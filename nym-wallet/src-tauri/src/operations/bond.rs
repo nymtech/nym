@@ -10,17 +10,17 @@ use tokio::sync::RwLock;
 #[tauri::command]
 pub async fn bond_gateway(
   gateway: Gateway,
-  bond: Coin,
+  pledge: Coin,
   owner_signature: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), String> {
   let r_state = state.read().await;
-  let bond: CosmWasmCoin = match bond.try_into() {
+  let pledge: CosmWasmCoin = match pledge.try_into() {
     Ok(b) => b,
     Err(e) => return Err(format_err!(e)),
   };
   let client = r_state.client()?;
-  match client.bond_gateway(gateway, owner_signature, bond).await {
+  match client.bond_gateway(gateway, owner_signature, pledge).await {
     Ok(_result) => Ok(()),
     Err(e) => Err(format_err!(e)),
   }
@@ -50,16 +50,16 @@ pub async fn unbond_mixnode(state: tauri::State<'_, Arc<RwLock<State>>>) -> Resu
 pub async fn bond_mixnode(
   mixnode: MixNode,
   owner_signature: String,
-  bond: Coin,
+  pledge: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), String> {
   let r_state = state.read().await;
-  let bond: CosmWasmCoin = match bond.try_into() {
+  let pledge: CosmWasmCoin = match pledge.try_into() {
     Ok(b) => b,
     Err(e) => return Err(format_err!(e)),
   };
   let client = r_state.client()?;
-  match client.bond_mixnode(mixnode, owner_signature, bond).await {
+  match client.bond_mixnode(mixnode, owner_signature, pledge).await {
     Ok(_result) => Ok(()),
     Err(e) => Err(format_err!(e)),
   }

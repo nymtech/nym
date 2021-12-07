@@ -85,13 +85,13 @@ export const BondBreakdownTable: React.FC = () => {
   };
   const calcBondPercentage = (num: number) => {
     if (mixnodeDetailInfo?.data !== undefined && mixnodeDetailInfo?.data[0]) {
-      const rawDeligationAmount = Number(
+      const rawDelegationAmount = Number(
         mixnodeDetailInfo.data[0].total_delegation.amount,
       );
       const rawPledgeAmount = Number(
         mixnodeDetailInfo.data[0].bond_amount.amount,
       );
-      const rawTotalBondsAmount = rawDeligationAmount + rawPledgeAmount;
+      const rawTotalBondsAmount = rawDelegationAmount + rawPledgeAmount;
       return ((num * 100) / rawTotalBondsAmount).toFixed(1);
     }
     return 0;

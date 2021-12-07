@@ -17,6 +17,7 @@ pub trait VestingSigningClient {
         &self,
         gateway: Gateway,
         pledge: Coin,
+        owner_signature: &str,
     ) -> Result<ExecuteResult, NymdError>;
     async fn vesting_unbond_gateway(&self) -> Result<ExecuteResult, NymdError>;
 
@@ -30,6 +31,7 @@ pub trait VestingSigningClient {
         &self,
         mix_node: MixNode,
         pledge: Coin,
+        owner_signature: &str,
     ) -> Result<ExecuteResult, NymdError>;
     async fn vesting_unbond_mixnode(&self) -> Result<ExecuteResult, NymdError>;
 
@@ -72,9 +74,10 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         &self,
         gateway: Gateway,
         pledge: Coin,
+        owner_signature: &str
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.get_fee(Operation::BondGateway);
-        let req = VestingExecuteMsg::BondGateway { gateway };
+        let req = VestingExecuteMsg::BondGateway { gateway, owner_signature: owner_signature.to_string() };
         self.client
             .execute(
                 self.address(),
@@ -128,9 +131,10 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         &self,
         mix_node: MixNode,
         pledge: Coin,
+        owner_signature: &str
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.get_fee(Operation::BondMixnode);
-        let req = VestingExecuteMsg::BondMixnode { mix_node };
+        let req = VestingExecuteMsg::BondMixnode { mix_node, owner_signature: owner_signature.to_string() };
         self.client
             .execute(
                 self.address(),

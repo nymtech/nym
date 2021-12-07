@@ -44,7 +44,7 @@ services:
                         - ".:/nym"
         vesting_contract:
                 build: docker/vesting_contract
-                image: contract:latest
+                image: vesting_contract:latest
                 volumes:
                 - ".:/nym"
         contract_uploader:

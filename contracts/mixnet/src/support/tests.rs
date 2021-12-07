@@ -175,6 +175,7 @@ pub mod test_helpers {
             sphinx_key: "sphinx".to_string(),
             identity_key: "identity".to_string(),
             version: "0.10.0".to_string(),
+            profit_margin_percent: 10,
         }
     }
 

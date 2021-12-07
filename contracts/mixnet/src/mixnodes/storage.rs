@@ -85,7 +85,6 @@ impl StoredMixnodeBond {
             layer: self.layer,
             block_height: self.block_height,
             mix_node: self.mix_node,
-            profit_margin_percent: self.profit_margin_percent,
             proxy: self.proxy,
         }
     }
@@ -128,7 +127,6 @@ pub(crate) fn read_full_mixnode_bond(
                 layer: stored_bond.layer,
                 block_height: stored_bond.block_height,
                 mix_node: stored_bond.mix_node,
-                profit_margin_percent: stored_bond.profit_margin_percent,
                 proxy: stored_bond.proxy,
             }))
         }

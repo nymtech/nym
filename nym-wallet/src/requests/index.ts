@@ -65,12 +65,14 @@ export const checkGatewayOwnership = async (): Promise<boolean> =>
 export const bond = async ({
   type,
   data,
+  ownerSignature,
   amount,
 }: {
   type: EnumNodeType
   data: MixNode | Gateway
+  ownerSignature: String
   amount: Coin
-}): Promise<any> => await invoke(`bond_${type}`, { [type]: data, bond: amount })
+}): Promise<any> => await invoke(`bond_${type}`, { [type]: data, sign: ownerSignature, bond: amount })
 
 export const unbond = async (type: EnumNodeType) =>
   await invoke(`unbond_${type}`)

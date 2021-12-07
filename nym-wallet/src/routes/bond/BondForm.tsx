@@ -57,7 +57,6 @@ const formatData = (data: TBondFormFields) => {
   const payload: { [key: string]: any } = {
     identity_key: data.identityKey,
     sphinx_key: data.sphinxKey,
-    ownerSignature: data.ownerSignature,
     host: data.host,
     version: data.version,
     owner_signature: data.ownerSignature,

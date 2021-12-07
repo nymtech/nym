@@ -2,7 +2,7 @@ version: '3.7'
 x-bech32-prefix: &BECH32_PREFIX
         punk
 x-wasmd-version: &WASMD_VERSION
-        v0.17.0
+        v0.21.0
 
 services:
         genesis_validator:

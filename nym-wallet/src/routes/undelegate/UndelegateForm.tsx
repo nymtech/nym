@@ -1,6 +1,16 @@
 import React, { useContext, useEffect } from 'react'
 import { useForm, Controller } from 'react-hook-form'
-import { Box, Alert, Autocomplete, Button, CircularProgress, FormControl, Grid, TextField } from '@mui/material'
+import {
+  Box,
+  Alert,
+  Autocomplete,
+  Button,
+  CircularProgress,
+  FormControl,
+  Grid,
+  TextField,
+  Typography,
+} from '@mui/material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { EnumNodeType, TFee } from '../../types'
@@ -63,13 +73,6 @@ export const UndelegateForm = ({
     <FormControl fullWidth>
       <Box sx={{ p: [3, 5] }}>
         <Grid container spacing={3} direction="column">
-          <Grid container item xs={12} justifyContent="space-between">
-            <Grid item>
-              <Alert severity="info" data-testid="fee-amount">
-                {`A fee of ${fees.mixnode.amount} punk will apply to this transaction`}
-              </Alert>
-            </Grid>
-          </Grid>
           <Grid item xs={12}>
             <Controller
               control={control}
@@ -95,6 +98,9 @@ export const UndelegateForm = ({
                 />
               )}
             />
+          </Grid>
+          <Grid item xs={12}>
+            <Typography sx={{ color: 'nym.info' }}>Fee for this transaction: {fees.mixnode.amount} punk</Typography>
           </Grid>
         </Grid>
       </Box>

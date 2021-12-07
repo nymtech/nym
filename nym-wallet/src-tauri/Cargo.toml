@@ -28,7 +28,7 @@ url = "2.0"
 rand = "0.6.5"
 
 
-cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust/", branch="jstuczyn/wasmd-021-update", features = ["rpc", "bip32", "cosmwasm"] }
+cosmrs = { git = "https://github.com/cosmos/cosmos-rust", rev="e5a1872083abb3d88fa62dda966e7f5408deba58", features = ["rpc", "bip32", "cosmwasm"] }
 cosmwasm-std = "1.0.0-beta2"
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [

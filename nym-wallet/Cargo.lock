@@ -665,7 +665,7 @@ dependencies = [
 [[package]]
 name = "cosmos-sdk-proto"
 version = "0.8.0"
-source = "git+https://github.com/jstuczyn/cosmos-rust/?branch=jstuczyn/wasmd-021-update#a3dbc2b28fc0c117c894df478799dea9f7fbd186"
+source = "git+https://github.com/cosmos/cosmos-rust?rev=e5a1872083abb3d88fa62dda966e7f5408deba58#e5a1872083abb3d88fa62dda966e7f5408deba58"
 dependencies = [
  "prost",
  "prost-types",
@@ -675,7 +675,7 @@ dependencies = [
 [[package]]
 name = "cosmrs"
 version = "0.3.0"
-source = "git+https://github.com/jstuczyn/cosmos-rust/?branch=jstuczyn/wasmd-021-update#a3dbc2b28fc0c117c894df478799dea9f7fbd186"
+source = "git+https://github.com/cosmos/cosmos-rust?rev=e5a1872083abb3d88fa62dda966e7f5408deba58#e5a1872083abb3d88fa62dda966e7f5408deba58"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto",

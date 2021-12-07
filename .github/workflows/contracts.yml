@@ -1,4 +1,4 @@
-name: Mixnet Contract
+name: Contracts
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
         with:
           inputFile: '.github/workflows/contract_matrix_includes.json'
           filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
-  mixnet-contract:
+  contracts:
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
     runs-on: ubuntu-latest

@@ -10,11 +10,11 @@ use mixnet_contract::ContractStateParams;
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-use mixnet_contract::{Delegation, GatewayBond, MixNodeBond};
 #[cfg(feature = "nymd-client")]
 use mixnet_contract::{
-    MixnetContractVersion, MixnodeRewardingStatusResponse, RewardingIntervalResponse,
+    Delegation, MixnetContractVersion, MixnodeRewardingStatusResponse, RewardingIntervalResponse,
 };
+use mixnet_contract::{GatewayBond, MixNodeBond};
 
 #[cfg(feature = "nymd-client")]
 use std::str::FromStr;

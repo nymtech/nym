@@ -11,6 +11,7 @@ impl GatewayBondingAccount for Account {
     fn try_bond_gateway(
         &self,
         gateway: Gateway,
+        owner_signature: String,
         pledge: Coin,
         env: &Env,
         storage: &mut dyn Storage,
@@ -38,18 +39,19 @@ impl GatewayBondingAccount for Account {
         let msg = MixnetExecuteMsg::BondGatewayOnBehalf {
             gateway,
             owner: self.address().into_string(),
+            owner_signature,
         };
 
         let new_balance = Uint128::new(current_balance.u128() - pledge.amount.u128());
 
-        let bond_mixnode_mag = wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![pledge])?;
+        let bond_gateway_msg = wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![pledge])?;
 
         self.save_balance(new_balance, storage)?;
         self.save_gateway_pledge(pledge_data, storage)?;
 
         Ok(Response::new()
             .add_attribute("action", "bond gateway on behalf")
-            .add_message(bond_mixnode_mag))
+            .add_message(bond_gateway_msg))
     }
 
     fn try_unbond_gateway(&self, storage: &dyn Storage) -> Result<Response, ContractError> {

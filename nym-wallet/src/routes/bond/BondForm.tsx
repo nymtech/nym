@@ -24,6 +24,7 @@ import { checkHasEnoughFunds } from '../../utils'
 type TBondFormFields = {
   withAdvancedOptions: boolean
   nodeType: EnumNodeType
+  ownerSignature: string,
   identityKey: string
   sphinxKey: string
   amount: string
@@ -242,6 +243,22 @@ export const BondForm = ({
               error={!!errors.version}
               helperText={errors.version?.message}
               disabled={disabled}
+            />
+          </Grid>
+
+
+          <Grid item xs={12} sm={12}>
+            <TextField
+                {...register('ownerSignature')}
+                variant="outlined"
+                required
+                id="ownerSignature"
+                name="ownerSignature"
+                label="Signature on your address"
+                fullWidth
+                error={!!errors.ownerSignature}
+                helperText={errors.ownerSignature?.message}
+                disabled={disabled}
             />
           </Grid>
 

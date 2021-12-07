@@ -11,8 +11,10 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bs58 = "0.4.0"
 bip39 = "1.0.1"
 clap = "2.33.0"
+colored = "2.0"
 dirs = "3.0"
 dashmap = "4.0"
 dotenv = "0.15.0"
@@ -22,6 +24,7 @@ log = "0.4"
 pretty_env_logger = "0.4"
 rand = "0.7"
 serde = { version = "1.0.104", features = ["derive"] }
+subtle-encoding = { version = "0.5", features =  ["bech32-preview"]}
 thiserror = "1"
 tokio = { version = "1.4", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
 tokio-util = { version = "0.6", features = [ "codec" ] }

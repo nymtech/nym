@@ -17,10 +17,12 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
+        owner_signature: String,
     },
     UnbondMixnode {},
     BondGateway {
         gateway: Gateway,
+        owner_signature: String,
     },
     UnbondGateway {},
     UpdateContractStateParams(ContractStateParams),
@@ -67,6 +69,7 @@ pub enum ExecuteMsg {
     BondMixnodeOnBehalf {
         mix_node: MixNode,
         owner: String,
+        owner_signature: String,
     },
     UnbondMixnodeOnBehalf {
         owner: String,
@@ -74,6 +77,7 @@ pub enum ExecuteMsg {
     BondGatewayOnBehalf {
         gateway: Gateway,
         owner: String,
+        owner_signature: String,
     },
     UnbondGatewayOnBehalf {
         owner: String,

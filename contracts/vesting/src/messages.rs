@@ -31,6 +31,7 @@ pub enum ExecuteMsg {
     },
     BondMixnode {
         mix_node: MixNode,
+        owner_signature: String,
     },
     UnbondMixnode {},
     TrackUnbondMixnode {
@@ -39,6 +40,7 @@ pub enum ExecuteMsg {
     },
     BondGateway {
         gateway: Gateway,
+        owner_signature: String,
     },
     UnbondGateway {},
     TrackUnbondGateway {

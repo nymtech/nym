@@ -10,33 +10,33 @@ use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
-pub enum KeyRecoveryError {
+pub enum Ed25519RecoveryError {
     MalformedBytes(SignatureError),
     MalformedString(bs58::decode::Error),
 }
 
-impl From<SignatureError> for KeyRecoveryError {
+impl From<SignatureError> for Ed25519RecoveryError {
     fn from(err: SignatureError) -> Self {
-        KeyRecoveryError::MalformedBytes(err)
+        Ed25519RecoveryError::MalformedBytes(err)
     }
 }
 
-impl From<bs58::decode::Error> for KeyRecoveryError {
+impl From<bs58::decode::Error> for Ed25519RecoveryError {
     fn from(err: bs58::decode::Error) -> Self {
-        KeyRecoveryError::MalformedString(err)
+        Ed25519RecoveryError::MalformedString(err)
     }
 }
 
-impl fmt::Display for KeyRecoveryError {
+impl fmt::Display for Ed25519RecoveryError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            KeyRecoveryError::MalformedBytes(err) => write!(f, "malformed bytes - {}", err),
-            KeyRecoveryError::MalformedString(err) => write!(f, "malformed string - {}", err),
+            Ed25519RecoveryError::MalformedBytes(err) => write!(f, "malformed bytes - {}", err),
+            Ed25519RecoveryError::MalformedString(err) => write!(f, "malformed string - {}", err),
         }
     }
 }
 
-impl std::error::Error for KeyRecoveryError {}
+impl std::error::Error for Ed25519RecoveryError {}
 
 /// Keypair for usage in ed25519 EdDSA.
 pub struct KeyPair {
@@ -62,7 +62,7 @@ impl KeyPair {
         &self.public_key
     }
 
-    pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, KeyRecoveryError> {
+    pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, Ed25519RecoveryError> {
         Ok(KeyPair {
             private_key: PrivateKey::from_bytes(priv_bytes)?,
             public_key: PublicKey::from_bytes(pub_bytes)?,
@@ -115,7 +115,7 @@ impl PublicKey {
         self.0.to_bytes()
     }
 
-    pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
+    pub fn from_bytes(b: &[u8]) -> Result<Self, Ed25519RecoveryError> {
         Ok(PublicKey(ed25519_dalek::PublicKey::from_bytes(b)?))
     }
 
@@ -123,7 +123,7 @@ impl PublicKey {
         bs58::encode(self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, KeyRecoveryError> {
+    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, Ed25519RecoveryError> {
         let bytes = bs58::decode(val).into_vec()?;
         Self::from_bytes(&bytes)
     }
@@ -134,7 +134,7 @@ impl PublicKey {
 }
 
 impl PemStorableKey for PublicKey {
-    type Error = KeyRecoveryError;
+    type Error = Ed25519RecoveryError;
 
     fn pem_type() -> &'static str {
         "ED25519 PUBLIC KEY"
@@ -170,7 +170,7 @@ impl PrivateKey {
         self.0.to_bytes()
     }
 
-    pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
+    pub fn from_bytes(b: &[u8]) -> Result<Self, Ed25519RecoveryError> {
         Ok(PrivateKey(ed25519_dalek::SecretKey::from_bytes(b)?))
     }
 
@@ -178,7 +178,7 @@ impl PrivateKey {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, KeyRecoveryError> {
+    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, Ed25519RecoveryError> {
         let bytes = bs58::decode(val).into_vec()?;
         Self::from_bytes(&bytes)
     }
@@ -192,7 +192,7 @@ impl PrivateKey {
 }
 
 impl PemStorableKey for PrivateKey {
-    type Error = KeyRecoveryError;
+    type Error = Ed25519RecoveryError;
 
     fn pem_type() -> &'static str {
         "ED25519 PRIVATE KEY"
@@ -211,11 +211,20 @@ impl PemStorableKey for PrivateKey {
 pub struct Signature(ed25519_dalek::Signature);
 
 impl Signature {
+    pub fn to_base58_string(&self) -> String {
+        bs58::encode(&self.to_bytes()).into_string()
+    }
+
+    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, Ed25519RecoveryError> {
+        let bytes = bs58::decode(val).into_vec()?;
+        Self::from_bytes(&bytes)
+    }
+
     pub fn to_bytes(&self) -> [u8; SIGNATURE_LENGTH] {
         self.0.to_bytes()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, SignatureError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Ed25519RecoveryError> {
         Ok(Signature(ed25519_dalek::Signature::from_bytes(bytes)?))
     }
 }

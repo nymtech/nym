@@ -3563,8 +3563,10 @@ name = "nym-gateway"
 version = "0.11.0"
 dependencies = [
  "bip39",
+ "bs58",
  "clap",
  "coconut-interface",
+ "colored",
  "config",
  "credentials",
  "crypto",
@@ -3586,6 +3588,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "sqlx",
+ "subtle-encoding",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -3621,6 +3624,7 @@ dependencies = [
  "rocket",
  "serde",
  "serial_test",
+ "subtle-encoding",
  "tokio",
  "tokio-util",
  "toml",

@@ -22,9 +22,9 @@ const CLIENT_IDENTITY_SIZE: usize = identity::PUBLIC_KEY_LENGTH;
 #[derive(Debug)]
 pub enum RecipientFormattingError {
     MalformedRecipientError,
-    MalformedIdentityError(identity::KeyRecoveryError),
+    MalformedIdentityError(identity::Ed25519RecoveryError),
     MalformedEncryptionKeyError(encryption::KeyRecoveryError),
-    MalformedGatewayError(identity::KeyRecoveryError),
+    MalformedGatewayError(identity::Ed25519RecoveryError),
 }
 
 impl fmt::Display for RecipientFormattingError {

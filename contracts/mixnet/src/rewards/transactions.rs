@@ -390,7 +390,6 @@ pub mod tests {
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::storage::StoredMixnodeBond;
-    use crate::mixnodes::transactions::try_add_mixnode;
     use crate::rewards::transactions::{
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
     };
@@ -400,7 +399,7 @@ pub mod tests {
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Coin;
     use cosmwasm_std::{attr, Order};
-    use cosmwasm_std::{coin, Addr, Uint128};
+    use cosmwasm_std::{coin, coins, Addr, Uint128};
     use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::{Delegation, MixNode};
     use mixnet_contract::{IdentityKey, Layer};
@@ -758,18 +757,8 @@ pub mod tests {
 
         // bond the node
         let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity: IdentityKey = "nodeidentity".into();
-
-        try_add_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(node_owner.as_ref(), &good_mixnode_bond()),
-            MixNode {
-                identity_key: node_identity.to_string(),
-                ..test_helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
+        let node_identity =
+            test_helpers::add_mixnode(node_owner.as_str(), good_mixnode_bond(), deps.as_mut());
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         let res = try_reward_mixnode(
@@ -806,18 +795,8 @@ pub mod tests {
 
         // bond the node
         let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity: IdentityKey = "nodeidentity".into();
-
-        try_add_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(node_owner.as_ref(), &good_mixnode_bond()),
-            MixNode {
-                identity_key: node_identity.to_string(),
-                ..test_helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
+        let node_identity =
+            test_helpers::add_mixnode(node_owner.as_str(), good_mixnode_bond(), deps.as_mut());
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
@@ -875,18 +854,8 @@ pub mod tests {
 
         // bond the node
         let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity: IdentityKey = "nodeidentity".into();
-
-        try_add_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(node_owner.as_ref(), &good_mixnode_bond()),
-            MixNode {
-                identity_key: node_identity.to_string(),
-                ..test_helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
+        let node_identity =
+            test_helpers::add_mixnode(node_owner.as_str(), good_mixnode_bond(), deps.as_mut());
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
@@ -1126,28 +1095,18 @@ pub mod tests {
         //     .save(&Uint128::new(period_reward_pool))
         //     .unwrap();
 
-        try_add_mixnode(
+        let node_owner: Addr = Addr::unchecked("alice");
+        let node_identity = test_helpers::add_mixnode(
+            node_owner.as_str(),
+            coins(10_000_000_000, DENOM),
             deps.as_mut(),
-            mock_env(),
-            mock_info(
-                "alice",
-                &[Coin {
-                    denom: DENOM.to_string(),
-                    amount: Uint128::new(10_000_000_000),
-                }],
-            ),
-            MixNode {
-                identity_key: "alice".to_string(),
-                ..test_helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
+        );
 
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
             mock_info("alice_d1", &[coin(8000_000000, DENOM)]),
-            "alice".to_string(),
+            node_identity.clone(),
         )
         .unwrap();
 
@@ -1155,7 +1114,7 @@ pub mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("alice_d2", &[coin(2000_000000, DENOM)]),
-            "alice".to_string(),
+            node_identity.clone(),
         )
         .unwrap();
 
@@ -1170,7 +1129,7 @@ pub mod tests {
 
         env.block.height += 2 * storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
-        let mix_1 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, "alice")
+        let mix_1 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, &node_identity)
             .unwrap()
             .unwrap();
         let mix_1_uptime = 100;
@@ -1210,28 +1169,29 @@ pub mod tests {
         assert_eq!(mix1_delegator1_reward, U128::from_num(22552615));
         assert_eq!(mix1_delegator2_reward, U128::from_num(5638153));
 
-        let pre_reward_bond = test_helpers::read_mixnode_pledge_amount(&deps.storage, "alice")
-            .unwrap()
-            .u128();
+        let pre_reward_bond =
+            test_helpers::read_mixnode_pledge_amount(&deps.storage, &node_identity)
+                .unwrap()
+                .u128();
         assert_eq!(pre_reward_bond, 10_000_000_000);
 
         let pre_reward_delegation = mixnodes_storage::TOTAL_DELEGATION
-            .load(&deps.storage, "alice")
+            .load(&deps.storage, &node_identity)
             .unwrap()
             .u128();
         assert_eq!(pre_reward_delegation, 10_000_000_000);
 
-        try_reward_mixnode(deps.as_mut(), env, info, "alice".to_string(), params, 1).unwrap();
+        try_reward_mixnode(deps.as_mut(), env, info, node_identity.clone(), params, 1).unwrap();
 
         assert_eq!(
-            test_helpers::read_mixnode_pledge_amount(&deps.storage, "alice")
+            test_helpers::read_mixnode_pledge_amount(&deps.storage, &node_identity)
                 .unwrap()
                 .u128(),
             U128::from_num(pre_reward_bond) + U128::from_num(mix1_operator_profit)
         );
         assert_eq!(
             mixnodes_storage::TOTAL_DELEGATION
-                .load(&deps.storage, "alice")
+                .load(&deps.storage, &node_identity.clone())
                 .unwrap()
                 .u128(),
             pre_reward_delegation + mix1_delegator1_reward + mix1_delegator2_reward
@@ -1247,7 +1207,7 @@ pub mod tests {
 
         // it's all correctly saved
         match storage::REWARDING_STATUS
-            .load(deps.as_ref().storage, (1.into(), "alice".into()))
+            .load(deps.as_ref().storage, (1.into(), node_identity.clone()))
             .unwrap()
         {
             RewardingStatus::Complete(result) => assert_eq!(
@@ -1279,22 +1239,16 @@ pub mod tests {
 
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
-            try_add_mixnode(
+
+            let node_owner: Addr = Addr::unchecked("10delegators");
+            let node_identity = test_helpers::add_mixnode(
+                node_owner.as_str(),
+                vec![Coin {
+                    denom: DENOM.to_string(),
+                    amount: mix_bond,
+                }],
                 deps.as_mut(),
-                env.clone(),
-                mock_info(
-                    "10delegators",
-                    &vec![Coin {
-                        denom: DENOM.to_string(),
-                        amount: mix_bond,
-                    }],
-                ),
-                MixNode {
-                    identity_key: "10delegators".to_string(),
-                    ..test_helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
+            );
 
             for i in 0..10 {
                 try_delegate_to_mixnode(
@@ -1304,7 +1258,7 @@ pub mod tests {
                         &*format!("delegator{}", i),
                         &vec![coin(delegation_value, DENOM)],
                     ),
-                    "10delegators".to_string(),
+                    node_identity.clone(),
                 )
                 .unwrap();
             }
@@ -1324,7 +1278,7 @@ pub mod tests {
                 deps.as_mut(),
                 env,
                 info,
-                "10delegators".to_string(),
+                node_identity.clone(),
                 test_helpers::node_rewarding_params_fixture(100),
                 1,
             )
@@ -1344,7 +1298,7 @@ pub mod tests {
             for i in 0..10 {
                 let delegation = test_helpers::read_delegation(
                     &deps.storage,
-                    "10delegators",
+                    node_identity.clone(),
                     format!("delegator{}", i),
                 )
                 .unwrap();
@@ -1366,22 +1320,16 @@ pub mod tests {
 
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
-            try_add_mixnode(
+
+            let node_owner: Addr = Addr::unchecked("MIXNODE_DELEGATORS_PAGE_LIMIT_delegators");
+            let node_identity = test_helpers::add_mixnode(
+                node_owner.as_str(),
+                vec![Coin {
+                    denom: DENOM.to_string(),
+                    amount: mix_bond,
+                }],
                 deps.as_mut(),
-                env.clone(),
-                mock_info(
-                    "MIXNODE_DELEGATORS_PAGE_LIMIT_delegators",
-                    &vec![Coin {
-                        denom: DENOM.to_string(),
-                        amount: mix_bond,
-                    }],
-                ),
-                MixNode {
-                    identity_key: "MIXNODE_DELEGATORS_PAGE_LIMIT_delegators".to_string(),
-                    ..test_helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
+            );
 
             for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT {
                 try_delegate_to_mixnode(
@@ -1391,7 +1339,7 @@ pub mod tests {
                         &*format!("delegator{}", i),
                         &vec![coin(delegation_value, DENOM)],
                     ),
-                    "MIXNODE_DELEGATORS_PAGE_LIMIT_delegators".to_string(),
+                    node_identity.clone(),
                 )
                 .unwrap();
             }
@@ -1411,7 +1359,7 @@ pub mod tests {
                 deps.as_mut(),
                 env,
                 info,
-                "MIXNODE_DELEGATORS_PAGE_LIMIT_delegators".to_string(),
+                node_identity.clone(),
                 test_helpers::node_rewarding_params_fixture(100),
                 1,
             )
@@ -1431,7 +1379,7 @@ pub mod tests {
             for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT {
                 let delegation = test_helpers::read_delegation(
                     &deps.storage,
-                    "MIXNODE_DELEGATORS_PAGE_LIMIT_delegators",
+                    node_identity.clone(),
                     format!("delegator{}", i),
                 )
                 .unwrap();
@@ -1453,22 +1401,16 @@ pub mod tests {
 
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
-            try_add_mixnode(
+
+            let node_owner: Addr = Addr::unchecked("MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators");
+            let node_identity = test_helpers::add_mixnode(
+                node_owner.as_str(),
+                vec![Coin {
+                    denom: DENOM.to_string(),
+                    amount: mix_bond,
+                }],
                 deps.as_mut(),
-                env.clone(),
-                mock_info(
-                    "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators",
-                    &vec![Coin {
-                        denom: DENOM.to_string(),
-                        amount: mix_bond,
-                    }],
-                ),
-                MixNode {
-                    identity_key: "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators".to_string(),
-                    ..test_helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
+            );
 
             for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT + 1 {
                 try_delegate_to_mixnode(
@@ -1478,7 +1420,7 @@ pub mod tests {
                         &*format!("delegator{:04}", i),
                         &vec![coin(delegation_value, DENOM)],
                     ),
-                    "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators".to_string(),
+                    node_identity.clone(),
                 )
                 .unwrap();
             }
@@ -1498,7 +1440,7 @@ pub mod tests {
                 deps.as_mut(),
                 env,
                 info,
-                "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators".to_string(),
+                node_identity.clone(),
                 test_helpers::node_rewarding_params_fixture(100),
                 1,
             )
@@ -1518,7 +1460,7 @@ pub mod tests {
             for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT {
                 let delegation = test_helpers::read_delegation(
                     &deps.storage,
-                    "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators",
+                    node_identity.clone(),
                     format!("delegator{:04}", i),
                 )
                 .unwrap();
@@ -1528,7 +1470,7 @@ pub mod tests {
 
             let delegation = test_helpers::read_delegation(
                 &deps.storage,
-                "MIXNODE_DELEGATORS_PAGE_LIMIT+1_delegators",
+                node_identity.clone(),
                 format!("delegator{:04}", MIXNODE_DELEGATORS_PAGE_LIMIT),
             )
             .unwrap();
@@ -1543,17 +1485,13 @@ pub mod tests {
         let mut deps = test_helpers::init_contract();
         let mut env = mock_env();
 
-        let node_identity = "bobsnode".to_string();
-        try_add_mixnode(
+        let node_owner: Addr = Addr::unchecked("bob");
+        let node_identity = test_helpers::add_mixnode(
+            node_owner.as_str(),
+            coins(10000_000_000, DENOM),
             deps.as_mut(),
-            env.clone(),
-            mock_info("bob", &[coin(10000_000_000, DENOM)]),
-            MixNode {
-                identity_key: node_identity.clone(),
-                ..test_helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
+        );
+
         let bond = mixnodes_storage::read_full_mixnode_bond(deps.as_ref().storage, &*node_identity)
             .unwrap()
             .unwrap();
@@ -1600,17 +1538,13 @@ pub mod tests {
         assert!(res.start_next.is_none());
 
         // with paging
-        let node_identity = "alicesnode".to_string();
-        try_add_mixnode(
+        let node_owner: Addr = Addr::unchecked("alice");
+        let node_identity = test_helpers::add_mixnode(
+            node_owner.as_str(),
+            coins(10000_000_000, DENOM),
             deps.as_mut(),
-            env.clone(),
-            mock_info("alice", &[coin(10000_000_000, DENOM)]),
-            MixNode {
-                identity_key: node_identity.clone(),
-                ..test_helpers::mix_node_fixture()
-            },
-        )
-        .unwrap();
+        );
+
         let bond = mixnodes_storage::read_full_mixnode_bond(deps.as_ref().storage, &*node_identity)
             .unwrap()
             .unwrap();
@@ -1776,22 +1710,12 @@ pub mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
-            try_add_mixnode(
+            let node_owner: Addr = Addr::unchecked("alice");
+            let node_identity = test_helpers::add_mixnode(
+                node_owner.as_str(),
+                coins(10000_000_000, DENOM),
                 deps.as_mut(),
-                mock_env(),
-                mock_info(
-                    "alice",
-                    &vec![Coin {
-                        denom: DENOM.to_string(),
-                        amount: Uint128::new(10000_000_000),
-                    }],
-                ),
-                MixNode {
-                    identity_key: "alice".to_string(),
-                    ..test_helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
+            );
 
             env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
@@ -1807,7 +1731,7 @@ pub mod tests {
                 deps.as_mut(),
                 env.clone(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
-                "alice".to_string(),
+                node_identity.clone(),
                 test_helpers::node_rewarding_params_fixture(100),
                 1,
             )
@@ -1816,13 +1740,13 @@ pub mod tests {
             let res = try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
-                "alice".to_string(),
+                node_identity.clone(),
                 1,
             );
 
             assert_eq!(
                 Err(ContractError::MixnodeAlreadyRewarded {
-                    identity: "alice".to_string()
+                    identity: node_identity.clone()
                 }),
                 res
             );
@@ -1835,22 +1759,12 @@ pub mod tests {
             .unwrap();
 
             // there was another page of delegators, but they were already dealt with
-            try_add_mixnode(
+            let node_owner: Addr = Addr::unchecked("bob");
+            let node_identity = test_helpers::add_mixnode(
+                node_owner.as_str(),
+                coins(10000_000_000, DENOM),
                 deps.as_mut(),
-                env.clone(),
-                mock_info(
-                    "bob",
-                    &vec![Coin {
-                        denom: DENOM.to_string(),
-                        amount: Uint128::new(10000_000_000),
-                    }],
-                ),
-                MixNode {
-                    identity_key: "bob".to_string(),
-                    ..test_helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
+            );
 
             for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT + 1 {
                 try_delegate_to_mixnode(
@@ -1860,7 +1774,7 @@ pub mod tests {
                         &*format!("delegator{:04}", i),
                         &vec![coin(2000_000000, DENOM)],
                     ),
-                    "bob".to_string(),
+                    node_identity.clone(),
                 )
                 .unwrap();
             }
@@ -1880,7 +1794,7 @@ pub mod tests {
                 deps.as_mut(),
                 env.clone(),
                 info,
-                "bob".to_string(),
+                node_identity.clone(),
                 test_helpers::node_rewarding_params_fixture(100),
                 2,
             )
@@ -1890,7 +1804,7 @@ pub mod tests {
             try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
-                "bob".to_string(),
+                node_identity.clone(),
                 2,
             )
             .unwrap();
@@ -1898,13 +1812,13 @@ pub mod tests {
             let res = try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
-                "bob".to_string(),
+                node_identity.clone(),
                 2,
             );
 
             assert_eq!(
                 Err(ContractError::MixnodeAlreadyRewarded {
-                    identity: "bob".to_string()
+                    identity: node_identity.clone()
                 }),
                 res
             );
@@ -1932,22 +1846,15 @@ pub mod tests {
 
             let total_delegators = 2 * MIXNODE_DELEGATORS_PAGE_LIMIT + 123;
 
-            try_add_mixnode(
+            let node_owner: Addr = Addr::unchecked("alice");
+            let node_identity = test_helpers::add_mixnode(
+                node_owner.as_str(),
+                vec![Coin {
+                    denom: DENOM.to_string(),
+                    amount: mix_bond,
+                }],
                 deps.as_mut(),
-                env.clone(),
-                mock_info(
-                    "alice",
-                    &vec![Coin {
-                        denom: DENOM.to_string(),
-                        amount: mix_bond,
-                    }],
-                ),
-                MixNode {
-                    identity_key: "alice".to_string(),
-                    ..test_helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
+            );
 
             for i in 0..total_delegators {
                 try_delegate_to_mixnode(
@@ -1957,7 +1864,7 @@ pub mod tests {
                         &*format!("delegator{:04}", i),
                         &vec![coin(delegation_value, DENOM)],
                     ),
-                    "alice".to_string(),
+                    node_identity.clone(),
                 )
                 .unwrap();
             }
@@ -1977,7 +1884,7 @@ pub mod tests {
                 deps.as_mut(),
                 env.clone(),
                 info,
-                "alice".to_string(),
+                node_identity.clone(),
                 test_helpers::node_rewarding_params_fixture(100),
                 1,
             )
@@ -1987,14 +1894,14 @@ pub mod tests {
             try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
-                "alice".to_string(),
+                node_identity.clone(),
                 1,
             )
             .unwrap();
             try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
-                "alice".to_string(),
+                node_identity.clone(),
                 1,
             )
             .unwrap();
@@ -2002,7 +1909,7 @@ pub mod tests {
             let expected = delegations_storage::delegations()
                 .load(
                     deps.as_ref().storage,
-                    ("alice", "delegator0001").joined_key(),
+                    (node_identity.clone(), "delegator0001").joined_key(),
                 )
                 .unwrap()
                 .amount;
@@ -2011,7 +1918,7 @@ pub mod tests {
                 // everyone was rewarded (and the same amount, because they all delegated the same amount)
                 let delegation = test_helpers::read_delegation(
                     &deps.storage,
-                    "alice",
+                    node_identity.clone(),
                     format!("delegator{:04}", i),
                 )
                 .unwrap();
@@ -2036,22 +1943,15 @@ pub mod tests {
 
             let total_delegators = MIXNODE_DELEGATORS_PAGE_LIMIT + 123;
 
-            try_add_mixnode(
+            let node_owner: Addr = Addr::unchecked("alice");
+            let node_identity = test_helpers::add_mixnode(
+                node_owner.as_str(),
+                vec![Coin {
+                    denom: DENOM.to_string(),
+                    amount: mix_bond,
+                }],
                 deps.as_mut(),
-                env.clone(),
-                mock_info(
-                    "alice",
-                    &vec![Coin {
-                        denom: DENOM.to_string(),
-                        amount: mix_bond,
-                    }],
-                ),
-                MixNode {
-                    identity_key: "alice".to_string(),
-                    ..test_helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
+            );
 
             for i in 0..total_delegators {
                 try_delegate_to_mixnode(
@@ -2061,7 +1961,7 @@ pub mod tests {
                         &*format!("delegator{:04}", i),
                         &vec![coin(delegation_value, DENOM)],
                     ),
-                    "alice".to_string(),
+                    node_identity.clone(),
                 )
                 .unwrap();
             }
@@ -2073,7 +1973,7 @@ pub mod tests {
                 deps.as_mut(),
                 env.clone(),
                 mock_info("delegator0123", &vec![coin(delegation_value, DENOM)]),
-                "alice".to_string(),
+                node_identity.clone(),
             )
             .unwrap();
 
@@ -2084,7 +1984,7 @@ pub mod tests {
                     &*format!("delegator{:04}", 123 + MIXNODE_DELEGATORS_PAGE_LIMIT),
                     &vec![coin(delegation_value, DENOM)],
                 ),
-                "alice".to_string(),
+                node_identity.clone(),
             )
             .unwrap();
 
@@ -2103,7 +2003,7 @@ pub mod tests {
                 deps.as_mut(),
                 env.clone(),
                 info,
-                "alice".to_string(),
+                node_identity.clone(),
                 test_helpers::node_rewarding_params_fixture(100),
                 1,
             )
@@ -2113,20 +2013,24 @@ pub mod tests {
             try_reward_next_mixnode_delegators(
                 deps.as_mut(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
-                "alice".to_string(),
+                node_identity.clone(),
                 1,
             )
             .unwrap();
 
-            let expected = test_helpers::read_delegation(&deps.storage, "alice", "delegator0001")
-                .unwrap()
-                .amount;
+            let expected = test_helpers::read_delegation(
+                &deps.storage,
+                node_identity.clone(),
+                "delegator0001",
+            )
+            .unwrap()
+            .amount;
 
             for i in 0..total_delegators {
                 // everyone was rewarded (and the same amount, because they all delegated the same amount)
                 let delegation = test_helpers::read_delegation(
                     &deps.storage,
-                    "alice",
+                    node_identity.clone(),
                     format!("delegator{:04}", i),
                 )
                 .unwrap();

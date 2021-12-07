@@ -56,12 +56,18 @@ pub fn execute(
             mix_identity,
             amount,
         } => try_track_undelegation(&owner, mix_identity, amount, info, deps),
-        ExecuteMsg::BondMixnode { mix_node } => try_bond_mixnode(mix_node, info, env, deps),
+        ExecuteMsg::BondMixnode {
+            mix_node,
+            owner_signature,
+        } => try_bond_mixnode(mix_node, owner_signature, info, env, deps),
         ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
         ExecuteMsg::TrackUnbondMixnode { owner, amount } => {
             try_track_unbond_mixnode(&owner, amount, info, deps)
         }
-        ExecuteMsg::BondGateway { gateway } => try_bond_gateway(gateway, info, env, deps),
+        ExecuteMsg::BondGateway {
+            gateway,
+            owner_signature,
+        } => try_bond_gateway(gateway, owner_signature, info, env, deps),
         ExecuteMsg::UnbondGateway {} => try_unbond_gateway(info, deps),
         ExecuteMsg::TrackUnbondGateway { owner, amount } => {
             try_track_unbond_gateway(&owner, amount, info, deps)
@@ -71,13 +77,14 @@ pub fn execute(
 
 pub fn try_bond_gateway(
     gateway: Gateway,
+    owner_signature: String,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
     let pledge = validate_funds(&info.funds)?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_bond_gateway(gateway, pledge, &env, deps.storage)
+    account.try_bond_gateway(gateway, owner_signature, pledge, &env, deps.storage)
 }
 
 pub fn try_unbond_gateway(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
@@ -101,13 +108,14 @@ pub fn try_track_unbond_gateway(
 
 pub fn try_bond_mixnode(
     mix_node: MixNode,
+    owner_signature: String,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
     let pledge = validate_funds(&info.funds)?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_bond_mixnode(mix_node, pledge, &env, deps.storage)
+    account.try_bond_mixnode(mix_node, owner_signature, pledge, &env, deps.storage)
 }
 
 pub fn try_unbond_mixnode(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {

@@ -6,7 +6,8 @@ pub trait MixnodeBondingAccount {
     fn try_bond_mixnode(
         &self,
         mix_node: MixNode,
-        amount: Coin,
+        owner_signature: String,
+        pledge: Coin,
         env: &Env,
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError>;
@@ -24,7 +25,8 @@ pub trait GatewayBondingAccount {
     fn try_bond_gateway(
         &self,
         gateway: Gateway,
-        amount: Coin,
+        owner_signature: String,
+        pledge: Coin,
         env: &Env,
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError>;

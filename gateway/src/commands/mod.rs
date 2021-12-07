@@ -7,6 +7,7 @@ use url::Url;
 
 pub(crate) mod init;
 pub(crate) mod run;
+pub(crate) mod sign;
 pub(crate) mod upgrade;
 
 pub(crate) const ID_ARG_NAME: &str = "id";

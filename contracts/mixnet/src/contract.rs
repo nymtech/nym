@@ -94,15 +94,29 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::BondMixnode { mix_node } => {
-            crate::mixnodes::transactions::try_add_mixnode(deps, env, info, mix_node)
-        }
+        ExecuteMsg::BondMixnode {
+            mix_node,
+            owner_signature,
+        } => crate::mixnodes::transactions::try_add_mixnode(
+            deps,
+            env,
+            info,
+            mix_node,
+            owner_signature,
+        ),
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, info)
         }
-        ExecuteMsg::BondGateway { gateway } => {
-            crate::gateways::transactions::try_add_gateway(deps, env, info, gateway)
-        }
+        ExecuteMsg::BondGateway {
+            gateway,
+            owner_signature,
+        } => crate::gateways::transactions::try_add_gateway(
+            deps,
+            env,
+            info,
+            gateway,
+            owner_signature,
+        ),
         ExecuteMsg::UnbondGateway {} => {
             crate::gateways::transactions::try_remove_gateway(deps, info)
         }
@@ -176,19 +190,33 @@ pub fn execute(
             mix_identity,
             delegate,
         ),
-        ExecuteMsg::BondMixnodeOnBehalf { mix_node, owner } => {
-            crate::mixnodes::transactions::try_add_mixnode_on_behalf(
-                deps, env, info, mix_node, owner,
-            )
-        }
+        ExecuteMsg::BondMixnodeOnBehalf {
+            mix_node,
+            owner,
+            owner_signature,
+        } => crate::mixnodes::transactions::try_add_mixnode_on_behalf(
+            deps,
+            env,
+            info,
+            mix_node,
+            owner,
+            owner_signature,
+        ),
         ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
             crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, info, owner)
         }
-        ExecuteMsg::BondGatewayOnBehalf { gateway, owner } => {
-            crate::gateways::transactions::try_add_gateway_on_behalf(
-                deps, env, info, gateway, owner,
-            )
-        }
+        ExecuteMsg::BondGatewayOnBehalf {
+            gateway,
+            owner,
+            owner_signature,
+        } => crate::gateways::transactions::try_add_gateway_on_behalf(
+            deps,
+            env,
+            info,
+            gateway,
+            owner,
+            owner_signature,
+        ),
         ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
             crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
         }

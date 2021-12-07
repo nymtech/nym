@@ -1209,6 +1209,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-storage-plus"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3b8b840947313c1a1cccf056836cd79a60b4526bdcd6582995be37dc97be4ae"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "darling"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7134,6 +7145,7 @@ dependencies = [
  "thiserror",
  "ts-rs",
  "url",
+ "vesting-contract",
 ]
 
 [[package]]
@@ -7172,6 +7184,19 @@ name = "version_check"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
+
+[[package]]
+name = "vesting-contract"
+version = "0.1.0"
+dependencies = [
+ "config",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "mixnet-contract",
+ "schemars",
+ "serde",
+ "thiserror",
+]
 
 [[package]]
 name = "waker-fn"

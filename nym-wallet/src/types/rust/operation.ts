@@ -18,4 +18,9 @@ export type Operation =
   | "UnbondGatewayOnBehalf"
   | "UpdateStateParams"
   | "BeginMixnodeRewarding"
-  | "FinishMixnodeRewarding";
+  | "FinishMixnodeRewarding"
+  | "TrackUnbondGateway"
+  | "TrackUnbondMixnode"
+  | "WithdrawVestedCoins"
+  | "TrackUndelegation"
+  | "CreatePeriodicVestingAccount";

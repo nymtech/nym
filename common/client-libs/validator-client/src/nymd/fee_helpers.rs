@@ -34,6 +34,12 @@ pub enum Operation {
 
     BeginMixnodeRewarding,
     FinishMixnodeRewarding,
+
+    TrackUnbondGateway,
+    TrackUnbondMixnode,
+    WithdrawVestedCoins,
+    TrackUndelegation,
+    CreatePeriodicVestingAccount,
 }
 
 pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
@@ -65,6 +71,11 @@ impl fmt::Display for Operation {
             Operation::UpdateStateParams => f.write_str("UpdateStateParams"),
             Operation::BeginMixnodeRewarding => f.write_str("BeginMixnodeRewarding"),
             Operation::FinishMixnodeRewarding => f.write_str("FinishMixnodeRewarding"),
+            Operation::TrackUnbondGateway => f.write_str("TrackUnbondGateway"),
+            Operation::TrackUnbondMixnode => f.write_str("TrackUnbondMixnode"),
+            Operation::WithdrawVestedCoins => f.write_str("WithdrawVestedCoins"),
+            Operation::TrackUndelegation => f.write_str("TrackUndelegation"),
+            Operation::CreatePeriodicVestingAccount => f.write_str("CreatePeriodicVestingAccount"),
         }
     }
 }
@@ -96,6 +107,11 @@ impl Operation {
             Operation::UpdateStateParams => 175_000u64.into(),
             Operation::BeginMixnodeRewarding => 175_000u64.into(),
             Operation::FinishMixnodeRewarding => 175_000u64.into(),
+            Operation::TrackUnbondGateway => 175_000u64.into(),
+            Operation::TrackUnbondMixnode => 175_000u64.into(),
+            Operation::WithdrawVestedCoins => 175_000u64.into(),
+            Operation::TrackUndelegation => 175_000u64.into(),
+            Operation::CreatePeriodicVestingAccount => 175_000u64.into(),
         }
     }
 

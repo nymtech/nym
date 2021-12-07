@@ -39,7 +39,10 @@ pub mod cosmwasm_client;
 pub mod error;
 pub mod fee_helpers;
 pub mod gas_price;
+pub mod traits;
 pub mod wallet;
+
+pub use traits::{VestingQueryClient, VestingSigningClient};
 
 #[derive(Debug)]
 pub struct NymdClient<C> {

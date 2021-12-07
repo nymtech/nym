@@ -10,7 +10,7 @@ go build \
     -X github.com/cosmos/cosmos-sdk/version.AppName=nymd \
     -X github.com/CosmWasm/wasmd/app.NodeDir=.nymd \
     -X github.com/cosmos/cosmos-sdk/version.Version=${WASMD_VERSION} \
-    -X github.com/cosmos/cosmos-sdk/version.Commit=1920f80d181adbeaedac1eeea1c1c6e1704d3e49 \
+    -X github.com/cosmos/cosmos-sdk/version.Commit=1d436638af7cacb5aeeb7248b57b085c64f3ae35 \
     -X github.com/CosmWasm/wasmd/app.Bech32Prefix=${BECH32_PREFIX} \
     -X 'github.com/cosmos/cosmos-sdk/version.BuildTags=netgo,ledger'" \
     -trimpath ./cmd/wasmd

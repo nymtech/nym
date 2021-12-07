@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react'
 import { Button, CircularProgress, Grid, Stack, Link, TextField, Typography, Alert, SvgIcon } from '@mui/material'
-import { styled } from '@mui/styles'
+import { styled } from '@mui/material/styles'
 import Logo from '../../images/logo-background.svg'
 import { signInWithMnemonic } from '../../requests'
 import { ClientContext } from '../../context/main'

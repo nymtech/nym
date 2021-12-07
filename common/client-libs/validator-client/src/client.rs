@@ -6,7 +6,7 @@ use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
 #[cfg(feature = "nymd-client")]
-use mixnet_contract::{ContractStateParams, GatewayBond, MixNodeBond};
+use mixnet_contract::ContractStateParams;
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
@@ -14,6 +14,7 @@ use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, Verifica
 use mixnet_contract::{
     Delegation, MixnetContractVersion, MixnodeRewardingStatusResponse, RewardingIntervalResponse,
 };
+use mixnet_contract::{GatewayBond, MixNodeBond};
 
 #[cfg(feature = "nymd-client")]
 use std::str::FromStr;

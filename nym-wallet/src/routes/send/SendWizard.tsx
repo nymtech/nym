@@ -7,7 +7,7 @@ import { SendReview } from './SendReview'
 import { SendConfirmation } from './SendConfirmation'
 import { ClientContext } from '../../context/main'
 import { validationSchema } from './validationSchema'
-import { TauriTxResult } from '../../types'
+import { TauriTxResult, TransactionDetails } from '../../types'
 import { getGasFee, majorToMinor, send } from '../../requests'
 import { checkHasEnoughFunds } from '../../utils'
 
@@ -28,7 +28,7 @@ export const SendWizard = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [requestError, setRequestError] = useState<string>()
   const [transferFee, setTransferFee] = useState<string>()
-  const [confirmedData, setConfirmedData] = useState<TauriTxResult['details']>()
+  const [confirmedData, setConfirmedData] = useState<TransactionDetails & { tx_hash: string }>()
 
   const { userBalance } = useContext(ClientContext)
 
@@ -80,12 +80,14 @@ export const SendWizard = () => {
         address: formState.to,
         memo: formState.memo,
       })
-        .then((res: any) => {
-          const { details } = res as TauriTxResult
+        .then((res: TauriTxResult) => {
+          const { details, tx_hash } = res
+
           setActiveStep((s) => s + 1)
           setConfirmedData({
             ...details,
             amount: { denom: 'Major', amount: formState.amount },
+            tx_hash,
           })
           setIsLoading(false)
           userBalance.fetchBalance()
@@ -119,7 +121,8 @@ export const SendWizard = () => {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            p: [0, 3],
+            py: 0,
+            px: 3,
           }}
         >
           {activeStep === 0 ? (

@@ -1,17 +1,17 @@
 import React, { useContext } from 'react'
-import { Grid, Box, Card, CircularProgress, Link, Typography } from '@mui/material'
+import { Box, CircularProgress, Link, Typography } from '@mui/material'
 import { SendError } from './SendError'
-import { TauriTxResult } from '../../types/rust/tauritxresult'
 import { ClientContext, urls } from '../../context/main'
 import { SuccessReponse } from '../../components'
 import { TransactionDetails } from '../../components/TransactionDetails'
+import { TransactionDetails as TTransactionDetails } from '../../types'
 
 export const SendConfirmation = ({
   data,
   error,
   isLoading,
 }: {
-  data?: TauriTxResult['details']
+  data?: TTransactionDetails & { tx_hash: string }
   error?: string
   isLoading: boolean
 }) => {
@@ -35,7 +35,7 @@ export const SendConfirmation = ({
             subtitle={
               <>
                 Check the transaction hash{' '}
-                <Link href={`${urls.blockExplorer}/account/${clientDetails?.client_address}`} target="_blank">
+                <Link href={`${urls.blockExplorer}/transactions/${data.tx_hash}`} target="_blank">
                   here
                 </Link>
               </>

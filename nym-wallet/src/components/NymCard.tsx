@@ -19,7 +19,8 @@ export const NymCard: React.FC<{
         action={Action}
         sx={{
           color: 'nym.background.dark',
-          padding: 2.5,
+          py: 2.5,
+          px: 4,
           borderBottom: (theme) => `1px solid ${theme.palette.grey[200]}`,
         }}
       />

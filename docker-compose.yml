@@ -22,80 +22,80 @@ services:
                         BECH32_PREFIX: *BECH32_PREFIX
                         WASMD_VERSION: *WASMD_VERSION
                 command: ["genesis"]
-        # secondary_validator:
-        #         build:
-        #                 context: docker/validator
-        #                 args:
-        #                         BECH32_PREFIX: *BECH32_PREFIX
-        #                         WASMD_VERSION: *WASMD_VERSION
-        #         image: validator:latest
-        #         volumes:
-        #                 - "genesis_volume:/genesis_volume:ro"
-        #         environment:
-        #                 BECH32_PREFIX: *BECH32_PREFIX
-        #                 WASMD_VERSION: *WASMD_VERSION
-        #         depends_on:
-        #                 - "genesis_validator"
-        #         command: ["secondary"]
-        # mixnet_contract:
-        #         build: docker/mixnet_contract
-        #         image: contract:latest
-        #         volumes:
-        #                 - ".:/nym"
+        secondary_validator:
+                build:
+                        context: docker/validator
+                        args:
+                                BECH32_PREFIX: *BECH32_PREFIX
+                                WASMD_VERSION: *WASMD_VERSION
+                image: validator:latest
+                volumes:
+                        - "genesis_volume:/genesis_volume:ro"
+                environment:
+                        BECH32_PREFIX: *BECH32_PREFIX
+                        WASMD_VERSION: *WASMD_VERSION
+                depends_on:
+                        - "genesis_validator"
+                command: ["secondary"]
+        mixnet_contract:
+                build: docker/mixnet_contract
+                image: contract:latest
+                volumes:
+                        - ".:/nym"
         vesting_contract:
                 build: docker/vesting_contract
                 image: contract:latest
                 volumes:
                 - ".:/nym"
-        # contract_uploader:
-        #         build: docker/typescript_client
-        #         image: contract_uploader:typescript
-        #         volumes:
-        #                 - "genesis_volume:/genesis_volume:ro"
-        #                 - "contract_volume:/contract_volume"
-        #                 - ".:/nym"
-        #         depends_on:
-        #                 - "genesis_validator"
-        #                 - "secondary_validator"
-        #                 - "mixnet_contract"
-        #         environment:
-        #                 BECH32_PREFIX: *BECH32_PREFIX
-        # mnemonic_echo:
-        #         build: docker/mnemonic_echo
-        #         image: mnemonic_echo:latest
-        #         volumes:
-        #                 - "genesis_volume:/genesis_volume:ro"
-        #         depends_on:
-        #                 - "genesis_validator"
+        contract_uploader:
+                build: docker/typescript_client
+                image: contract_uploader:typescript
+                volumes:
+                        - "genesis_volume:/genesis_volume:ro"
+                        - "contract_volume:/contract_volume"
+                        - ".:/nym"
+                depends_on:
+                        - "genesis_validator"
+                        - "secondary_validator"
+                        - "mixnet_contract"
+                environment:
+                        BECH32_PREFIX: *BECH32_PREFIX
+        mnemonic_echo:
+                build: docker/mnemonic_echo
+                image: mnemonic_echo:latest
+                volumes:
+                        - "genesis_volume:/genesis_volume:ro"
+                depends_on:
+                        - "genesis_validator"
 
-        # mongo:
-        #         image: mongo:latest
-        #         command:
-        #                 - --storageEngine=wiredTiger
-        #         volumes:
-        #                 - mongo_data:/data/db
-        # block_explorer:
-        #         build:
-        #                 context: https://github.com/forbole/big-dipper.git#v0.41.x-7
-        #         image: block_explorer:v0.41.x-7
-        #         ports:
-        #                 - "3080:3000"
-        #         depends_on:
-        #                 - "mongo"
-        #         environment:
-        #                 ROOT_URL: ${APP_ROOT_URL:-http://localhost}
-        #                 MONGO_URL: mongodb://mongo:27017/meteor
-        #                 PORT: 3000
-        #                 METEOR_SETTINGS: ${METEOR_SETTINGS}
+        mongo:
+                image: mongo:latest
+                command:
+                        - --storageEngine=wiredTiger
+                volumes:
+                        - mongo_data:/data/db
+        block_explorer:
+                build:
+                        context: https://github.com/forbole/big-dipper.git#v0.41.x-7
+                image: block_explorer:v0.41.x-7
+                ports:
+                        - "3080:3000"
+                depends_on:
+                        - "mongo"
+                environment:
+                        ROOT_URL: ${APP_ROOT_URL:-http://localhost}
+                        MONGO_URL: mongodb://mongo:27017/meteor
+                        PORT: 3000
+                        METEOR_SETTINGS: ${METEOR_SETTINGS}
         explorer:
                 build:
                         context: docker/explorer
                 image: explorer:latest
                 ports:
                         - "3040:3000"
-                # depends_on:
-                        # - "genesis_validator"
-                        # - "block_explorer"
+                depends_on:
+                        - "genesis_validator"
+                        - "block_explorer"
 
 volumes:
         genesis_volume:

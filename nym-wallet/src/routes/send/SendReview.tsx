@@ -12,8 +12,10 @@ export const SendReview = ({ transferFee }: { transferFee?: string }) => {
       variant="outlined"
       sx={{
         width: '100%',
-        p: [3, 2],
-        m: [3, 0],
+        py: 3,
+        px: 2,
+        my: 3,
+        mx: 0,
       }}
     >
       <Grid container spacing={2}>
@@ -30,7 +32,7 @@ export const SendReview = ({ transferFee }: { transferFee?: string }) => {
           <Divider light />
         </Grid>
         <Grid item xs={12}>
-          <SendReviewField title="Amount" subtitle={values.amount} />
+          <SendReviewField title="Amount" subtitle={values.amount + ' punk'} />
         </Grid>
         <Grid item xs={12}>
           <Divider light />

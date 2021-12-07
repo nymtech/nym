@@ -71,7 +71,7 @@ export const UndelegateForm = ({
 
   return (
     <FormControl fullWidth>
-      <Box sx={{ p: [3, 5] }}>
+      <Box sx={{ p: 4 }}>
         <Grid container spacing={3} direction="column">
           <Grid item xs={12}>
             <Controller

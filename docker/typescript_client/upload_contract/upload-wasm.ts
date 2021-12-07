@@ -1,6 +1,6 @@
 // npx ts-node upload-wasm.ts
 
-import ValidatorClient from "nym-validator-client";
+import ValidatorClient from "@nymproject/nym-validator-client";
 import * as fs from 'fs';
 
 async function newClient(): Promise<ValidatorClient> {
@@ -23,6 +23,9 @@ async function main() {
 
     // dave can upload (note: nobody else can)
     const uploadResult = await admin.upload(admin.address, wasm, undefined, "mixnet contract");//.then((uploadResult) => console.log("Upload from dave succeeded, codeId is: " + uploadResult.codeId)).catch((err) => console.log(err));
+
+    //todo 
+    //add vesting contract?
 
     // Instantiate the copy of the option contract
     const { codeId } = uploadResult;

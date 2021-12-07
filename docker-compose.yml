@@ -2,7 +2,9 @@ version: '3.7'
 x-bech32-prefix: &BECH32_PREFIX
         punk
 x-wasmd-version: &WASMD_VERSION
-        v0.17.0
+        v0.21.0
+x-wasmd-commit-hash: &WASMD_COMMIT_HASH
+        1d436638af7cacb5aeeb7248b57b085c64f3ae35
 
 services:
         genesis_validator:
@@ -11,6 +13,7 @@ services:
                         args:
                                 BECH32_PREFIX: *BECH32_PREFIX
                                 WASMD_VERSION: *WASMD_VERSION
+                                WASMD_COMMIT_HASH: *WASMD_COMMIT_HASH
                 image: validator:latest
                 ports:
                         - "26657:26657"
@@ -42,6 +45,11 @@ services:
                 image: contract:latest
                 volumes:
                         - ".:/nym"
+        vesting_contract:
+                build: docker/vesting_contract
+                image: vesting_contract:latest
+                volumes:
+                - ".:/nym"
         contract_uploader:
                 build: docker/typescript_client
                 image: contract_uploader:typescript
@@ -55,16 +63,6 @@ services:
                         - "mixnet_contract"
                 environment:
                         BECH32_PREFIX: *BECH32_PREFIX
-        wallet:
-                build: docker/wallet-web
-                image: wallet:latest
-                ports:
-                        - "3000:3000"
-                volumes:
-                        - "contract_volume:/contract_volume"
-                        - "./wallet-web:/wallet-web:ro"
-                depends_on:
-                        - "contract_uploader"
         mnemonic_echo:
                 build: docker/mnemonic_echo
                 image: mnemonic_echo:latest
@@ -79,7 +77,6 @@ services:
                         - --storageEngine=wiredTiger
                 volumes:
                         - mongo_data:/data/db
-
         block_explorer:
                 build:
                         context: https://github.com/forbole/big-dipper.git#v0.41.x-7
@@ -93,13 +90,10 @@ services:
                         MONGO_URL: mongodb://mongo:27017/meteor
                         PORT: 3000
                         METEOR_SETTINGS: ${METEOR_SETTINGS}
-
-        network_explorer:
+        explorer:
                 build:
-                        context: docker/network_explorer
-                        args:
-                                PERSONAL_TOKEN: ${PERSONAL_TOKEN}
-                image: network_explorer:latest
+                        context: docker/explorer
+                image: explorer:latest
                 ports:
                         - "3040:3000"
                 depends_on:

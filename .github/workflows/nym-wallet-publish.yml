@@ -1,4 +1,4 @@
-name: Publish Tauri Wallet
+name: Publish Nym Wallet
 on:
   push:
     tags:

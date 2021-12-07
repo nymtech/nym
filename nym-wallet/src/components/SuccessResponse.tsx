@@ -11,7 +11,7 @@ export const SuccessReponse: React.FC<{
       <Typography variant="h5" fontWeight="600" data-testid="transaction-complete" color="success.main">
         {title}
       </Typography>
-      <Typography>{subtitle}</Typography>
+      <Typography fontWeight="600">{subtitle}</Typography>
       <Typography>{caption}</Typography>
     </Stack>
   )

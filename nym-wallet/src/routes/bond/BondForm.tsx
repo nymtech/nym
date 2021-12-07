@@ -82,7 +82,7 @@ export const BondForm = ({
   disabled: boolean
   fees?: { [EnumNodeType.mixnode]: Coin; [EnumNodeType.gateway]?: Coin }
   onError: (message?: string) => void
-  onSuccess: (message?: string) => void
+  onSuccess: (details: { address: string; amount: string }) => void
 }) => {
   const {
     register,
@@ -113,7 +113,7 @@ export const BondForm = ({
     await bond({ type: data.nodeType, data: formattedData, amount })
       .then(() => {
         userBalance.fetchBalance()
-        onSuccess(`Successfully bonded to ${data.identityKey}`)
+        onSuccess({ address: data.identityKey, amount: data.amount })
       })
       .catch((e) => {
         onError(e)

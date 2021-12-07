@@ -1,11 +1,5 @@
 import React from 'react'
-import {
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  Radio,
-  RadioGroup,
-} from '@mui/material'
+import { FormControl, FormControlLabel, FormLabel, Radio, RadioGroup } from '@mui/material'
 import { EnumNodeType } from '../types/global'
 
 export const NodeTypeSelector = ({
@@ -17,8 +11,7 @@ export const NodeTypeSelector = ({
   nodeType: EnumNodeType
   setNodeType: (nodeType: EnumNodeType) => void
 }) => {
-  const handleNodeTypeChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setNodeType(e.target.value as EnumNodeType)
+  const handleNodeTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => setNodeType(e.target.value as EnumNodeType)
 
   return (
     <FormControl component="fieldset">
@@ -32,14 +25,14 @@ export const NodeTypeSelector = ({
       >
         <FormControlLabel
           value={EnumNodeType.mixnode}
-          control={<Radio />}
+          control={<Radio color="default" />}
           label="Mixnode"
           data-testid="mix-node"
           disabled={disabled}
         />
         <FormControlLabel
           value={EnumNodeType.gateway}
-          control={<Radio />}
+          control={<Radio color="default" />}
           data-testid="gate-way"
           label="Gateway"
           disabled={disabled}

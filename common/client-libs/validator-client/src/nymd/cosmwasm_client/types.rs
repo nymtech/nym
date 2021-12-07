@@ -7,15 +7,19 @@ use crate::nymd::cosmwasm_client::logs::Log;
 use crate::nymd::error::NymdError;
 use cosmrs::crypto::PublicKey;
 use cosmrs::proto::cosmos::auth::v1beta1::BaseAccount;
+use cosmrs::proto::cosmos::base::abci::v1beta1::{
+    GasInfo as ProtoGasInfo, Result as ProtoAbciResult,
+};
+use cosmrs::proto::cosmos::tx::v1beta1::SimulateResponse as ProtoSimulateResponse;
 use cosmrs::proto::cosmwasm::wasm::v1::{
     CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
     ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo,
 };
-use cosmrs::tendermint::chain;
+use cosmrs::tendermint::{abci, chain};
 use cosmrs::tx::{AccountNumber, SequenceNumber};
 use cosmrs::{tx, AccountId, Coin};
 use serde::Serialize;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 pub type ContractCodeId = u64;
 
@@ -211,6 +215,103 @@ impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
             code_id: value.code_id,
             msg_json: String::from_utf8(value.msg)
                 .map_err(|_| NymdError::DeserializationError("Contract history msg".to_owned()))?,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct GasInfo {
+    /// GasWanted is the maximum units of work we allow this tx to perform.
+    pub gas_wanted: u64,
+
+    /// GasUsed is the amount of gas actually consumed.
+    pub gas_used: u64,
+}
+
+impl From<ProtoGasInfo> for GasInfo {
+    fn from(value: ProtoGasInfo) -> Self {
+        GasInfo {
+            gas_wanted: value.gas_wanted,
+            gas_used: value.gas_used,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct AbciResult {
+    /// Data is any data returned from message or handler execution. It MUST be
+    /// length prefixed in order to separate data from multiple message executions.
+    pub data: Vec<u8>,
+
+    /// Log contains the log information from message or handler execution.
+    // todo: try to parse into Log?
+    pub log: String,
+
+    /// Events contains a slice of Event objects that were emitted during message
+    /// or handler execution.
+    pub events: Vec<abci::Event>,
+}
+
+impl TryFrom<ProtoAbciResult> for AbciResult {
+    type Error = NymdError;
+
+    fn try_from(value: ProtoAbciResult) -> Result<Self, Self::Error> {
+        // annoyingly parsing of the event could not be moved to a separate function as protobuf
+        // representation of the event is not exposed by the existing libraries
+
+        AbciResult {
+            data: value.data,
+            log: value.log,
+            events: value
+                .events
+                .into_iter()
+                .map(|proto_event| abci::Event {
+                    type_str: proto_event.r#type,
+                    attributes: proto_event
+                        .attributes
+                        .into_iter()
+                        .map(|proto_attribute| {
+                            println!("raw: {:?}", proto_attribute);
+                            let key = String::from_utf8(proto_attribute.key)
+                                .map_err(|_| {
+                                    NymdError::DeserializationError("EventAttributeKey".to_owned())
+                                })
+                                .expect("todo");
+                            let value = String::from_utf8(proto_attribute.value)
+                                .map_err(|_| {
+                                    NymdError::DeserializationError(
+                                        "EventAttributeValue".to_owned(),
+                                    )
+                                })
+                                .expect("todo");
+
+                            abci::tag::Tag {
+                                key: key.parse().unwrap(),
+                                value: value.parse().unwrap(),
+                            }
+                        })
+                        .collect(),
+                })
+                .collect(),
+        };
+
+        todo!()
+    }
+}
+
+#[derive(Debug)]
+pub struct SimulateResponse {
+    gas_info: Option<GasInfo>,
+    result: Option<AbciResult>,
+}
+
+impl TryFrom<ProtoSimulateResponse> for SimulateResponse {
+    type Error = NymdError;
+
+    fn try_from(value: ProtoSimulateResponse) -> Result<Self, Self::Error> {
+        Ok(SimulateResponse {
+            gas_info: value.gas_info.map(|gas_info| gas_info.into()),
+            result: value.result.map(|result| result.try_into()).transpose()?,
         })
     }
 }

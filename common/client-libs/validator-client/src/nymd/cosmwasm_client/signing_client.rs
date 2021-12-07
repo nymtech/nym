@@ -7,6 +7,7 @@ use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
+use crate::nymd::CosmosCoin;
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
@@ -504,6 +505,41 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         };
 
         self.sign_direct(signer_address, messages, fee, memo, signer_data)
+    }
+
+    async fn simulate<I, M>(
+        &self,
+        signer_address: &AccountId,
+        msgs: I,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<SimulateResponse, NymdError>
+    where
+        I: IntoIterator<Item = M> + Send,
+        M: Msg,
+    {
+        let messages = msgs
+            .into_iter()
+            .map(|msg| {
+                msg.to_any()
+                    .map_err(|_| NymdError::SerializationError("Msg".to_owned()))
+            })
+            .collect::<Result<_, _>>()?;
+
+        // we don't care about the fee here
+        let fee = Fee::from_amount_and_gas(
+            CosmosCoin {
+                denom: "".parse().unwrap(),
+                amount: 0u64.into(),
+            },
+            0,
+        );
+
+        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_bytes = tx_raw
+            .to_bytes()
+            .map_err(|_| NymdError::SerializationError("Tx".to_owned()))?;
+
+        self.query_simulate(tx_bytes).await
     }
 }
 

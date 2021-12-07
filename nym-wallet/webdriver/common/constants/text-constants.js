@@ -5,7 +5,7 @@ module.exports = {
   receivePageHeaderText: "Receive Nym",
 
   //sendPage
-  sendPunk: "Send PUNK",
+  sendPunk: "Send punk",
 
   //homePage
   homePageErrorMnemonic: "Error parsing bip39 mnemonic",

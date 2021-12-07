@@ -3,43 +3,32 @@ import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
 import { DelegateForm } from './DelegateForm'
 import { Layout } from '../../layouts'
 import { NymCard } from '../../components'
-import {
-  EnumRequestStatus,
-  RequestStatus,
-} from '../../components/RequestStatus'
+import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
 import { TFee } from '../../types'
 import { getGasFee } from '../../requests'
+import { SuccessView } from './SuccessView'
 
 export const Delegate = () => {
-  const [status, setStatus] = useState<EnumRequestStatus>(
-    EnumRequestStatus.initial,
-  )
-  const [message, setMessage] = useState<string>()
+  const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial)
+  const [error, setError] = useState<string>()
+  const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>()
   const [isLoading, setIsLoading] = useState(true)
   const [fees, setFees] = useState<TFee>()
 
   useEffect(() => {
     const getFees = async () => {
       const mixnode = await getGasFee('DelegateToMixnode')
-
       setFees({
         mixnode: mixnode,
       })
-
       setIsLoading(false)
     }
-
     getFees()
   }, [])
 
   return (
     <Layout>
-      <NymCard
-        title="Delegate"
-        subheader="Delegate to mixnode"
-        noPadding
-        data-testid="delegateCard"
-      >
+      <NymCard title="Delegate" subheader="Delegate to mixnode" noPadding data-testid="delegateCard">
         {isLoading && (
           <Box
             sx={{
@@ -57,11 +46,11 @@ export const Delegate = () => {
               fees={fees}
               onError={(message?: string) => {
                 setStatus(EnumRequestStatus.error)
-                setMessage(message)
+                setError(message)
               }}
-              onSuccess={(message?: string) => {
+              onSuccess={(details) => {
                 setStatus(EnumRequestStatus.success)
-                setMessage(message)
+                setSuccessDetails(details)
               }}
             />
           )}
@@ -73,15 +62,10 @@ export const Delegate = () => {
                   <Alert severity="error" data-testid="delegate-error">
                     <AlertTitle>Delegation failed</AlertTitle>
                     An error occurred with the request:
-                    <Box sx={{ wordBreak: 'break-word' }}>{message}</Box>
+                    <Box sx={{ wordBreak: 'break-word' }}>{error}</Box>
                   </Alert>
                 }
-                Success={
-                  <Alert severity="success" data-testid="delegate-success">
-                    <AlertTitle>Delegation complete</AlertTitle>
-                    <Box style={{ wordBreak: 'break-word' }}>{message}</Box>
-                  </Alert>
-                }
+                Success={<SuccessView details={successDetails} />}
               />
               <Box
                 sx={{

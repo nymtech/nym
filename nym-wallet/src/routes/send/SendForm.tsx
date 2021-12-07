@@ -43,12 +43,12 @@ export const SendForm = ({ transferFee }: { transferFee?: string }) => {
           error={!!errors.amount}
           helperText={errors.amount?.message}
           InputProps={{
-            endAdornment: <InputAdornment position="end">punks</InputAdornment>,
+            endAdornment: <InputAdornment position="end">punk</InputAdornment>,
           }}
         />
       </Grid>
       <Grid item xs={12}>
-        <Typography sx={{ color: 'nym.info' }}>Fee for this transaction: {transferFee} PUNK</Typography>
+        <Typography sx={{ color: 'nym.info' }}>Fee for this transaction: {transferFee} punk</Typography>
       </Grid>
     </Grid>
   )

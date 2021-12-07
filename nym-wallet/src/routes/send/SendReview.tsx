@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react'
-import { Card, CircularProgress, Divider, Grid, Theme, Typography } from '@mui/material'
+import React from 'react'
+import { Card, Divider, Grid, Typography } from '@mui/material'
 import { useFormContext } from 'react-hook-form'
-import { getGasFee } from '../../requests'
 
 export const SendReview = ({ transferFee }: { transferFee?: string }) => {
   const { getValues } = useFormContext()
@@ -37,7 +36,7 @@ export const SendReview = ({ transferFee }: { transferFee?: string }) => {
           <Divider light />
         </Grid>
         <Grid item xs={12}>
-          <SendReviewField title="Transfer fee" subtitle={transferFee + ' PUNK'} info />
+          <SendReviewField title="Transfer fee" subtitle={transferFee + ' punk'} info />
         </Grid>
       </Grid>
     </Card>

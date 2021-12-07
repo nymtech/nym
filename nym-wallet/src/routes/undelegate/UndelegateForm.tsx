@@ -1,15 +1,6 @@
 import React, { useContext, useEffect } from 'react'
 import { useForm, Controller } from 'react-hook-form'
-import {
-  Box,
-  Alert,
-  Autocomplete,
-  Button,
-  CircularProgress,
-  FormControl,
-  Grid,
-  TextField,
-} from '@mui/material'
+import { Box, Alert, Autocomplete, Button, CircularProgress, FormControl, Grid, TextField } from '@mui/material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { EnumNodeType, TFee } from '../../types'
@@ -75,7 +66,7 @@ export const UndelegateForm = ({
           <Grid container item xs={12} justifyContent="space-between">
             <Grid item>
               <Alert severity="info" data-testid="fee-amount">
-                {`A fee of ${fees.mixnode.amount} PUNK will apply to this transaction`}
+                {`A fee of ${fees.mixnode.amount} punk will apply to this transaction`}
               </Alert>
             </Grid>
           </Grid>
@@ -87,11 +78,7 @@ export const UndelegateForm = ({
                 <Autocomplete
                   value={field.value}
                   onChange={(_, value) => setValue('identity', value || '')}
-                  options={
-                    watchNodeType === EnumNodeType.mixnode
-                      ? delegations.mixnodes.delegated_nodes
-                      : []
-                  }
+                  options={watchNodeType === EnumNodeType.mixnode ? delegations.mixnodes.delegated_nodes : []}
                   renderInput={(params) => (
                     <TextField
                       {...params}

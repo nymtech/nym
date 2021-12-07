@@ -176,7 +176,7 @@ export const BondForm = ({
               error={!!errors.amount}
               helperText={errors.amount?.message}
               InputProps={{
-                endAdornment: <InputAdornment position="end">punks</InputAdornment>,
+                endAdornment: <InputAdornment position="end">punk</InputAdornment>,
               }}
               disabled={disabled}
             />

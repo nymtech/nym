@@ -70,6 +70,18 @@ export const isValidHostname = (value: string) => {
   return hostnameRegex.test(value)
 }
 
+export const validateOwnerSignature = (value: string) => {
+  try {
+    //better validation required here
+    const signature = value.trim()
+    if(typeof signature === 'string')
+    return true
+  } catch (e) {
+    console.log(e)
+    return false
+  }
+}
+
 export const validateVersion = (version: string): boolean => {
   try {
     const minorVersion = minor(version)

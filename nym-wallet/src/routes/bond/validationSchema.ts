@@ -6,6 +6,7 @@ import {
   validateLocation,
   validateRawPort,
   validateVersion,
+  validateOwnerSignature
 } from '../../utils'
 
 export const validationSchema = Yup.object().shape({
@@ -58,11 +59,17 @@ export const validationSchema = Yup.object().shape({
     }
     return Yup.mixed().notRequired()
   }),
+
   mixPort: Yup.number()
     .required('A mixport is required')
     .test('valid-mixport', 'A valid mixport is required', function (value) {
       return !!value ? validateRawPort(value) : false
     }),
+  ownerSignature: Yup.string()
+  .required('The owners signature is required')
+  .test('valid-version', 'The owners signature is required', function (value) {
+    return !!value ? validateOwnerSignature(value) : false
+  }),
   verlocPort: Yup.number()
     .required('A verloc port is required')
     .test('valid-verloc', 'A valid verloc port is required', function (value) {

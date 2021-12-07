@@ -114,7 +114,7 @@ export const DelegateForm = ({
           alignItems: 'center',
           justifyContent: 'flex-end',
           borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-          background: (theme) => theme.palette.grey[50],
+          bgcolor: 'grey.100',
           padding: 2,
         }}
       >

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader } from '@mui/material'
-import { styled } from '@mui/styles'
+import { styled } from '@mui/material/styles'
 
 export const NymCard: React.FC<{
   title: string
@@ -20,21 +20,18 @@ export const NymCard: React.FC<{
         sx={{
           color: 'nym.background.dark',
           padding: 2.5,
-          borderBottom: (theme) => `1px solid ${theme.palette.grey[100]}`,
+          borderBottom: (theme) => `1px solid ${theme.palette.grey[200]}`,
         }}
       />
-      {noPadding ? (
-        <CardContentNoPadding>{children}</CardContentNoPadding>
-      ) : (
-        <CardContent>{children}</CardContent>
-      )}
+      {noPadding ? <CardContentNoPadding>{children}</CardContentNoPadding> : <CardContent>{children}</CardContent>}
     </Card>
   )
 }
 
-const CardContentNoPadding = styled(CardContent)({
+const CardContentNoPadding = styled(CardContent)(({ theme }) => ({
+  background: theme.palette.grey[50],
   padding: 0,
   '&:last-child': {
     paddingBottom: 0,
   },
-})
+}))

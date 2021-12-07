@@ -3,6 +3,8 @@ x-bech32-prefix: &BECH32_PREFIX
         punk
 x-wasmd-version: &WASMD_VERSION
         v0.21.0
+x-wasmd-commit-hash: &WASMD_COMMIT_HASH
+        1d436638af7cacb5aeeb7248b57b085c64f3ae35
 
 services:
         genesis_validator:
@@ -11,6 +13,7 @@ services:
                         args:
                                 BECH32_PREFIX: *BECH32_PREFIX
                                 WASMD_VERSION: *WASMD_VERSION
+                                WASMD_COMMIT_HASH: *WASMD_COMMIT_HASH
                 image: validator:latest
                 ports:
                         - "26657:26657"

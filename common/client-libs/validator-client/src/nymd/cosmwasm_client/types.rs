@@ -258,44 +258,49 @@ impl TryFrom<ProtoAbciResult> for AbciResult {
     fn try_from(value: ProtoAbciResult) -> Result<Self, Self::Error> {
         // annoyingly parsing of the event could not be moved to a separate function as protobuf
         // representation of the event is not exposed by the existing libraries
-
-        AbciResult {
+        Ok(AbciResult {
             data: value.data,
             log: value.log,
             events: value
                 .events
                 .into_iter()
-                .map(|proto_event| abci::Event {
-                    type_str: proto_event.r#type,
-                    attributes: proto_event
+                .map(|proto_event| {
+                    let type_str = proto_event.r#type;
+                    let parsed_attributes = proto_event
                         .attributes
                         .into_iter()
                         .map(|proto_attribute| {
-                            println!("raw: {:?}", proto_attribute);
-                            let key = String::from_utf8(proto_attribute.key)
+                            let raw_key = proto_attribute.key;
+                            let raw_value = proto_attribute.value;
+
+                            String::from_utf8(raw_key)
                                 .map_err(|_| {
                                     NymdError::DeserializationError("EventAttributeKey".to_owned())
                                 })
-                                .expect("todo");
-                            let value = String::from_utf8(proto_attribute.value)
-                                .map_err(|_| {
-                                    NymdError::DeserializationError(
-                                        "EventAttributeValue".to_owned(),
-                                    )
+                                .map(|stringified_ked| {
+                                    String::from_utf8(raw_value)
+                                        .map_err(|_| {
+                                            NymdError::DeserializationError(
+                                                "EventAttributeValue".to_owned(),
+                                            )
+                                        })
+                                        .map(|stringified_value| abci::tag::Tag {
+                                            key: stringified_ked.parse().unwrap(),
+                                            value: stringified_value.parse().unwrap(),
+                                        })
                                 })
-                                .expect("todo");
-
-                            abci::tag::Tag {
-                                key: key.parse().unwrap(),
-                                value: value.parse().unwrap(),
-                            }
                         })
-                        .collect(),
-                })
-                .collect(),
-        };
+                        .collect::<Result<Result<Vec<_>, _>, _>>();
 
-        todo!()
+                    parsed_attributes.map(|attributes| {
+                        attributes.map(|attributes| abci::Event {
+                            type_str,
+                            attributes,
+                        })
+                    })
+                })
+                .collect::<Result<Result<Vec<_>, _>, _>>()??,
+        })
     }
 }
 

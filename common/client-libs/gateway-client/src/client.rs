@@ -43,6 +43,7 @@ pub struct GatewayClient {
     bandwidth_remaining: i64,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
+    gateway_owner: String,
     local_identity: Arc<identity::KeyPair>,
     shared_key: Option<Arc<SharedKeys>>,
     connection: SocketState,
@@ -67,6 +68,7 @@ impl GatewayClient {
         gateway_address: String,
         local_identity: Arc<identity::KeyPair>,
         gateway_identity: identity::PublicKey,
+        gateway_owner: String,
         shared_key: Option<Arc<SharedKeys>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
@@ -78,6 +80,7 @@ impl GatewayClient {
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
+            gateway_owner,
             local_identity,
             shared_key,
             connection: SocketState::NotConnected,
@@ -106,6 +109,7 @@ impl GatewayClient {
     pub fn new_init(
         gateway_address: String,
         gateway_identity: identity::PublicKey,
+        gateway_owner: String,
         local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
     ) -> Self {
@@ -122,6 +126,7 @@ impl GatewayClient {
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
+            gateway_owner,
             local_identity,
             shared_key: None,
             connection: SocketState::NotConnected,
@@ -538,7 +543,7 @@ impl GatewayClient {
             .bandwidth_controller
             .as_ref()
             .unwrap()
-            .prepare_token_credential(self.gateway_identity)
+            .prepare_token_credential(self.gateway_identity, self.gateway_owner.clone())
             .await?;
 
         #[cfg(feature = "coconut")]

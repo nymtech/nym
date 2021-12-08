@@ -119,6 +119,7 @@ impl NymClient {
             gateway.clients_address(),
             Arc::clone(&client.identity),
             gateway.identity_key,
+            gateway.owner,
             None,
             mixnet_messages_sender,
             ack_sender,

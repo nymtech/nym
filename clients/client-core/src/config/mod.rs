@@ -117,12 +117,16 @@ impl<T: NymConfig> Config<T> {
         self.client.id = id;
     }
 
-    pub fn with_gateway_id<S: Into<String>>(&mut self, id: S) {
-        self.client.gateway_id = id.into();
+    pub fn with_gateway_endpoint<S: Into<String>>(&mut self, id: S, owner: S, listener: S) {
+        self.client.gateway_endpoint = GatewayEndpoint {
+            gateway_id: id.into(),
+            gateway_owner: owner.into(),
+            gateway_listener: listener.into(),
+        };
     }
 
-    pub fn with_gateway_listener<S: Into<String>>(&mut self, gateway_listener: S) {
-        self.client.gateway_listener = gateway_listener.into();
+    pub fn with_gateway_id<S: Into<String>>(&mut self, id: S) {
+        self.client.gateway_endpoint.gateway_id = id.into();
     }
 
     #[cfg(not(feature = "coconut"))]
@@ -190,11 +194,15 @@ impl<T: NymConfig> Config<T> {
     }
 
     pub fn get_gateway_id(&self) -> String {
-        self.client.gateway_id.clone()
+        self.client.gateway_endpoint.gateway_id.clone()
+    }
+
+    pub fn get_gateway_owner(&self) -> String {
+        self.client.gateway_endpoint.gateway_owner.clone()
     }
 
     pub fn get_gateway_listener(&self) -> String {
-        self.client.gateway_listener.clone()
+        self.client.gateway_endpoint.gateway_listener.clone()
     }
 
     #[cfg(not(feature = "coconut"))]
@@ -265,6 +273,29 @@ impl<T: NymConfig> Default for Config<T> {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
+struct GatewayEndpoint {
+    /// gateway_id specifies ID of the gateway to which the client should send messages.
+    /// If initially omitted, a random gateway will be chosen from the available topology.
+    gateway_id: String,
+
+    /// Address of the gateway owner to which the client should send messages.
+    gateway_owner: String,
+
+    /// Address of the gateway listener to which all client requests should be sent.
+    gateway_listener: String,
+}
+
+impl Default for GatewayEndpoint {
+    fn default() -> Self {
+        GatewayEndpoint {
+            gateway_id: Default::default(),
+            gateway_owner: Default::default(),
+            gateway_listener: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Client<T> {
     /// Version of the client for which this configuration was created.
     #[serde(default = "missing_string_value")]
@@ -300,12 +331,8 @@ pub struct Client<T> {
     /// sent but not received back.
     reply_encryption_key_store_path: PathBuf,
 
-    /// gateway_id specifies ID of the gateway to which the client should send messages.
-    /// If initially omitted, a random gateway will be chosen from the available topology.
-    gateway_id: String,
-
-    /// Address of the gateway listener to which all client requests should be sent.
-    gateway_listener: String,
+    /// Information regarding how the client should send data to gateway.
+    gateway_endpoint: GatewayEndpoint,
 
     /// Path to directory containing public/private keys used for bandwidth token purchase.
     /// Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
@@ -343,8 +370,7 @@ impl<T: NymConfig> Default for Client<T> {
             gateway_shared_key_file: Default::default(),
             ack_key_file: Default::default(),
             reply_encryption_key_store_path: Default::default(),
-            gateway_id: "".to_string(),
-            gateway_listener: "".to_string(),
+            gateway_endpoint: Default::default(),
             #[cfg(not(feature = "coconut"))]
             backup_bandwidth_token_keys_dir: Default::default(),
             #[cfg(not(feature = "coconut"))]

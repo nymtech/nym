@@ -31,7 +31,7 @@ use std::str::FromStr;
 use web3::{
     contract::{Contract, Options},
     transports::Http,
-    types::{Address, Bytes, U256, U64},
+    types::{Address, Bytes, H256, U256, U64},
     Web3,
 };
 
@@ -145,6 +145,7 @@ impl BandwidthController {
     pub async fn prepare_token_credential(
         &self,
         gateway_identity: PublicKey,
+        gateway_owner: String,
     ) -> Result<TokenCredential, GatewayClientError> {
         let mut rng = OsRng;
 
@@ -153,7 +154,7 @@ impl BandwidthController {
 
         let verification_key = *kp.public_key();
         let signed_verification_key = kp.private_key().sign(&verification_key.to_bytes());
-        self.buy_token_credential(verification_key, signed_verification_key)
+        self.buy_token_credential(verification_key, signed_verification_key, gateway_owner)
             .await?;
 
         let message: Vec<u8> = verification_key
@@ -177,8 +178,8 @@ impl BandwidthController {
         &self,
         verification_key: PublicKey,
         signed_verification_key: identity::Signature,
+        gateway_owner: String,
     ) -> Result<(), GatewayClientError> {
-        // 0 means a transaction failure, 1 means success
         let confirmations = if cfg!(debug_assertions) {
             1
         } else {
@@ -197,12 +198,14 @@ impl BandwidthController {
                     U256::from(TOKENS_TO_BURN),
                     U256::from(&verification_key.to_bytes()),
                     Bytes(signed_verification_key.to_bytes().to_vec()),
+                    H256::from([0; 32]),
                 ),
                 Options::default(),
                 confirmations,
                 &self.eth_private_key,
             )
             .await?;
+        // 0 means a transaction failure, 1 means success
         if Some(U64::from(0)) == recipt.status {
             Err(GatewayClientError::BurnTokenError(
                 web3::Error::InvalidResponse(format!(

@@ -80,8 +80,8 @@ pub const ETH_MIN_BLOCK_DEPTH: usize = 7;
 pub const COSMOS_CONTRACT_ADDRESS: &str = "punk1jld76tqw4wnpfenmay2xkv86nr3j0w426eka82";
 // Name of the event triggered by the eth contract. If the event name is changed,
 // this would also need to be changed; It is currently tested against the json abi
-pub const ETH_EVENT_NAME: &str = "Burned";
-pub const ETH_BURN_FUNCTION_NAME: &str = "burnTokenForAccessCode";
+pub const ETH_EVENT_NAME: &str = "BBCredentialPurchased";
+pub const ETH_BURN_FUNCTION_NAME: &str = "generateBasicBandwidthCredential";
 
 /// Defaults Cosmos Hub/ATOM path
 pub const COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";

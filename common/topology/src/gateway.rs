@@ -123,6 +123,7 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
             GatewayConversionError::InvalidAddress(bond.gateway.host.clone(), err)
         })?[0];
 
+        println!("Owner: {}", bond.owner.as_str());
         Ok(Node {
             owner: bond.owner.as_str().to_owned(),
             stake: bond.pledge_amount.amount.into(),

@@ -174,6 +174,10 @@ impl NymClient {
         if gateway_id.is_empty() {
             panic!("The identity of the gateway is unknown - did you run `nym-client` init?")
         }
+        let gateway_owner = self.config.get_base().get_gateway_owner();
+        if gateway_owner.is_empty() {
+            panic!("The owner of the gateway is unknown - did you run `nym-client` init?")
+        }
         let gateway_address = self.config.get_base().get_gateway_listener();
         if gateway_address.is_empty() {
             panic!("The address of the gateway is unknown - did you run `nym-client` init?")
@@ -200,6 +204,7 @@ impl NymClient {
                 gateway_address,
                 self.key_manager.identity_keypair(),
                 gateway_identity,
+                gateway_owner,
                 Some(self.key_manager.gateway_shared_key()),
                 mixnet_message_sender,
                 ack_sender,

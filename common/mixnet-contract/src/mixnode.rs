@@ -18,6 +18,10 @@ fixed::const_fixed_from_int! {
     const ONE: U128 = 1;
 }
 
+fixed::const_fixed_from_int! {
+    const ZERO: U128 = 0;
+}
+
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct MixNode {
@@ -61,6 +65,7 @@ pub struct NodeRewardParams {
     circulating_supply: Uint128,
     uptime: Uint128,
     sybil_resistance_percent: u8,
+    in_active_set: bool,
 }
 
 impl NodeRewardParams {
@@ -71,6 +76,7 @@ impl NodeRewardParams {
         circulating_supply: u128,
         uptime: u128,
         sybil_resistance_percent: u8,
+        in_active_set: bool,
     ) -> NodeRewardParams {
         NodeRewardParams {
             period_reward_pool: Uint128::new(period_reward_pool),
@@ -79,7 +85,12 @@ impl NodeRewardParams {
             circulating_supply: Uint128::new(circulating_supply),
             uptime: Uint128::new(uptime),
             sybil_resistance_percent,
+            in_active_set,
         }
+    }
+
+    pub fn in_active_set(&self) -> bool {
+        self.in_active_set
     }
 
     pub fn performance(&self) -> U128 {
@@ -314,15 +325,22 @@ impl MixNodeBond {
         total_bond_to_circulating_supply_ratio.min(params.one_over_k())
     }
 
+    pub fn omega(&self, params: &NodeRewardParams) -> U128 {
+        // Assuming uniform work distribution across the network this is one_over_k * k for nodes in the active set and 0 for others
+        if params.in_active_set {
+            ONE
+        } else {
+            ZERO
+        }
+    }
+
     pub fn reward(&self, params: &NodeRewardParams) -> NodeRewardResult {
-        // Assuming uniform work distribution across the network this is one_over_k * k
-        let omega_k = ONE;
         let lambda = self.lambda(params);
         let sigma = self.sigma(params);
 
         let reward = params.performance()
             * params.period_reward_pool()
-            * (sigma * omega_k + params.alpha() * lambda * sigma * params.k())
+            * (sigma * self.omega(params) + params.alpha() * lambda * sigma * params.k())
             / (ONE + params.alpha());
 
         NodeRewardResult {

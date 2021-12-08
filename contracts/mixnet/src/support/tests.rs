@@ -251,6 +251,7 @@ pub mod test_helpers {
             TOTAL_SUPPLY - INITIAL_REWARD_POOL,
             uptime,
             DEFAULT_SYBIL_RESISTANCE_PERCENT,
+            true,
         )
     }
 

@@ -1091,9 +1091,6 @@ pub mod tests {
         let k = 200; // Imagining our reward set size is 200
         let circulating_supply = storage::circulating_supply(&deps.storage).unwrap().u128();
         assert_eq!(circulating_supply, 750_000_000_000_000u128);
-        // mut_reward_pool(deps.as_mut().storage)
-        //     .save(&Uint128::new(period_reward_pool))
-        //     .unwrap();
 
         let node_owner: Addr = Addr::unchecked("alice");
         let node_identity = test_helpers::add_mixnode(
@@ -1141,6 +1138,7 @@ pub mod tests {
             circulating_supply,
             mix_1_uptime,
             DEFAULT_SYBIL_RESISTANCE_PERCENT,
+            true,
         );
 
         params.set_reward_blockstamp(env.block.height);

@@ -39,13 +39,10 @@ impl ValidatorDetails {
 }
 
 pub fn default_validators() -> Vec<ValidatorDetails> {
-    vec![
-        ValidatorDetails::new(
-            "https://testnet-milhon-validator1.nymtech.net",
-            Some("https://testnet-milhon-validator1.nymtech.net/api"),
-        ),
-        ValidatorDetails::new("https://testnet-milhon-validator2.nymtech.net", None),
-    ]
+    vec![ValidatorDetails::new(
+        "https://sandbox-validator.nymtech.net",
+        Some("https://sandbox-validator.nymtech.net/api"),
+    )]
 }
 
 pub fn default_nymd_endpoints() -> Vec<Url> {
@@ -62,9 +59,9 @@ pub fn default_api_endpoints() -> Vec<Url> {
         .collect()
 }
 
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
-pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = "";
-pub const REWARDING_VALIDATOR_ADDRESS: &str = "punk1v9qauwdq5terag6uvfsdytcs2d0sdmfdy7hgk3";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "tnym14hj2tavq8fpesdwxxcu44rty3hh90vhu5ksfyn";
+pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = "tnym17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9epkgzu";
+pub const REWARDING_VALIDATOR_ADDRESS: &str = "tnym1y2hv6t02f99jws8u6esyhen8jy4x4vq703eqkh";
 
 /// How much bandwidth (in bytes) one token can buy
 const BYTES_PER_TOKEN: u64 = 1024 * 1024 * 1024;
@@ -77,7 +74,7 @@ pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
 pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("9fEE3e28c17dbB87310A51F13C4fbf4331A6f102");
 pub const ETH_MIN_BLOCK_DEPTH: usize = 7;
-pub const COSMOS_CONTRACT_ADDRESS: &str = "punk1jld76tqw4wnpfenmay2xkv86nr3j0w426eka82";
+pub const COSMOS_CONTRACT_ADDRESS: &str = "tnym1nc5tatafv6eyq7llkr2gv50ff9e22mnf3r3jqq";
 // Name of the event triggered by the eth contract. If the event name is changed,
 // this would also need to be changed; It is currently tested against the json abi
 pub const ETH_EVENT_NAME: &str = "Burned";
@@ -85,8 +82,8 @@ pub const ETH_BURN_FUNCTION_NAME: &str = "burnTokenForAccessCode";
 
 /// Defaults Cosmos Hub/ATOM path
 pub const COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
-pub const BECH32_PREFIX: &str = "punk";
-pub const DENOM: &str = "upunk";
+pub const BECH32_PREFIX: &str = "nymt";
+pub const DENOM: &str = "unymt";
 // as set by validators in their configs
 // (note that the 'amount' postfix is relevant here as the full gas price also includes denom)
 pub const GAS_PRICE_AMOUNT: f64 = 0.025;

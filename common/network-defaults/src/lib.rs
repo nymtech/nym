@@ -39,13 +39,10 @@ impl ValidatorDetails {
 }
 
 pub fn default_validators() -> Vec<ValidatorDetails> {
-    vec![
-        ValidatorDetails::new(
-            "https://testnet-milhon-validator1.nymtech.net",
-            Some("https://testnet-milhon-validator1.nymtech.net/api"),
-        ),
-        ValidatorDetails::new("https://testnet-milhon-validator2.nymtech.net", None),
-    ]
+    vec![ValidatorDetails::new(
+        "https://nova-validator.nymtech.net",
+        Some("https://nova-validator.nymtech.net/api"),
+    )]
 }
 
 pub fn default_nymd_endpoints() -> Vec<Url> {
@@ -62,7 +59,7 @@ pub fn default_api_endpoints() -> Vec<Url> {
         .collect()
 }
 
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "tnym14hj2tavq8fpesdwxxcu44rty3hh90vhu5ksfyn";
 pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = "";
 pub const REWARDING_VALIDATOR_ADDRESS: &str = "punk1v9qauwdq5terag6uvfsdytcs2d0sdmfdy7hgk3";
 
@@ -85,8 +82,8 @@ pub const ETH_BURN_FUNCTION_NAME: &str = "burnTokenForAccessCode";
 
 /// Defaults Cosmos Hub/ATOM path
 pub const COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
-pub const BECH32_PREFIX: &str = "punk";
-pub const DENOM: &str = "upunk";
+pub const BECH32_PREFIX: &str = "tnym";
+pub const DENOM: &str = "utnym";
 // as set by validators in their configs
 // (note that the 'amount' postfix is relevant here as the full gas price also includes denom)
 pub const GAS_PRICE_AMOUNT: f64 = 0.025;

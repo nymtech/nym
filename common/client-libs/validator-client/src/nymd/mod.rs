@@ -34,10 +34,12 @@ pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{AccountId, Decimal, Denom};
 pub use signing_client::Client as SigningNymdClient;
+pub use traits::{VestingQueryClient, VestingSigningClient};
 
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
+pub mod traits;
 pub mod wallet;
 
 #[derive(Debug)]

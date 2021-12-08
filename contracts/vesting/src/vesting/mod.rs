@@ -252,6 +252,7 @@ mod tests {
         // Try delegating too much
         let err = account.try_bond_mixnode(
             mix_node.clone(),
+            "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
                 denom: DENOM.to_string(),
@@ -263,6 +264,7 @@ mod tests {
 
         let ok = account.try_bond_mixnode(
             mix_node.clone(),
+            "alice".to_string(),
             Coin {
                 amount: Uint128::new(500_000_000_000),
                 denom: DENOM.to_string(),
@@ -278,6 +280,7 @@ mod tests {
         // Try delegating too much again
         let err = account.try_bond_mixnode(
             mix_node,
+            "alice".to_string(),
             Coin {
                 amount: Uint128::new(500_000_000_001),
                 denom: DENOM.to_string(),
@@ -362,6 +365,7 @@ mod tests {
         // Try delegating too much
         let err = account.try_bond_gateway(
             gateway.clone(),
+            "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
                 denom: DENOM.to_string(),
@@ -373,6 +377,7 @@ mod tests {
 
         let ok = account.try_bond_gateway(
             gateway.clone(),
+            "alice".to_string(),
             Coin {
                 amount: Uint128::new(500_000_000_000),
                 denom: DENOM.to_string(),
@@ -388,6 +393,7 @@ mod tests {
         // Try delegating too much again
         let err = account.try_bond_gateway(
             gateway,
+            "alice".to_string(),
             Coin {
                 amount: Uint128::new(500_000_000_001),
                 denom: DENOM.to_string(),

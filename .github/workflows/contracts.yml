@@ -1,6 +1,12 @@
-name: ERC20 Bridge Contract
+name: Contracts
 
-on: [ push, pull_request ]
+on:
+  push:
+    paths-ignore:
+      - 'explorer/**'
+  pull_request:
+    paths-ignore:
+      - 'explorer/**'
 
 jobs:
   matrix_prep:
@@ -15,14 +21,14 @@ jobs:
         with:
           inputFile: '.github/workflows/contract_matrix_includes.json'
           filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
-  erc20-bridge-contract:
-    needs: matrix_prep
-    strategy:
-      matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
+  contracts:
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.rust == 'nightly' }}
+    needs: matrix_prep
+    strategy:
+      matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
     steps:
       - uses: actions/checkout@v2
 
@@ -39,20 +45,20 @@ jobs:
           RUSTFLAGS: '-C link-arg=-s'
         with:
           command: build
-          args: --manifest-path contracts/erc20-bridge/Cargo.toml --target wasm32-unknown-unknown
+          args: --manifest-path contracts/Cargo.toml --target wasm32-unknown-unknown
 
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path contracts/erc20-bridge/Cargo.toml
+          args: --manifest-path contracts/Cargo.toml
 
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path contracts/erc20-bridge/Cargo.toml -- --check
+          args: --manifest-path contracts/Cargo.toml -- --check
 
       - uses: actions-rs/cargo@v1
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --manifest-path contracts/erc20-bridge/Cargo.toml -- -D warnings
+          args: --manifest-path contracts/Cargo.toml -- -D warnings

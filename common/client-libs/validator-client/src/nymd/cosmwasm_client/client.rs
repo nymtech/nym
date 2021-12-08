@@ -394,17 +394,18 @@ pub trait CosmWasmClient: rpc::Client {
 
     // deprecation warning is due to the fact the protobuf files built were based on cosmos-sdk 0.44,
     // where they prefer using tx_bytes directly. However, in 0.42, which we are using at the time
-    // of writing this, the option did not exist...?
+    // of writing this, the option does not work
     #[allow(deprecated)]
-    async fn query_simulate(&self, tx_bytes: Vec<u8>) -> Result<SimulateResponse, NymdError> {
+    async fn query_simulate(
+        &self,
+        tx: Option<Tx>,
+        tx_bytes: Vec<u8>,
+    ) -> Result<SimulateResponse, NymdError> {
         let path = Some("/cosmos.tx.v1beta1.Service/Simulate".parse().unwrap());
 
-        // note: once nymd/wasmd updates from being cosmos-sdk 0.42 based to 0.44+
-        // we'll be able to use tx_bytes directly without the intermediate conversion into proper Tx
-        let tx = Tx::from_bytes(&tx_bytes).unwrap();
         let req = SimulateRequest {
-            tx: Some(tx.into()),
-            tx_bytes: vec![],
+            tx: tx.map(Into::into),
+            tx_bytes,
         };
 
         let res = self

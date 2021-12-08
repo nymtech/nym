@@ -1,6 +1,22 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::convert::TryInto;
+
+use async_trait::async_trait;
+use cosmrs::bank::MsgSend;
+use cosmrs::distribution::MsgWithdrawDelegatorReward;
+use cosmrs::proto::cosmos::tx::signing::v1beta1::SignMode;
+use cosmrs::rpc::endpoint::broadcast;
+use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
+use cosmrs::staking::{MsgDelegate, MsgUndelegate};
+use cosmrs::tx::{Fee, Msg, SignDoc, SignerInfo};
+use cosmrs::{cosmwasm, rpc, tx, AccountId, Any, Coin, Tx};
+use log::debug;
+use serde::Serialize;
+use sha2::Digest;
+use sha2::Sha256;
+
 use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 use crate::nymd::cosmwasm_client::helpers::{compress_wasm_code, CheckResponse};
 use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
@@ -8,23 +24,67 @@ use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use crate::nymd::CosmosCoin;
-use async_trait::async_trait;
-use cosmrs::bank::MsgSend;
-use cosmrs::distribution::MsgWithdrawDelegatorReward;
-use cosmrs::rpc::endpoint::broadcast;
-use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
-use cosmrs::staking::{MsgDelegate, MsgUndelegate};
-use cosmrs::tx::{Fee, Msg, SignDoc, SignerInfo};
-use cosmrs::{cosmwasm, rpc, tx, AccountId, Any, Coin};
-use log::debug;
-use serde::Serialize;
-use sha2::Digest;
-use sha2::Sha256;
-use std::convert::TryInto;
+
+// we need to have **a** valid secp256k1 signature for simulation purposes.
+// it doesn't matter what it is as long as it parses correctly
+const DUMMY_SECP256K1_SIGNATURE: &[u8] = &[
+    54, 167, 169, 61, 100, 173, 231, 87, 1, 113, 179, 49, 102, 141, 67, 22, 170, 153, 52, 88, 178,
+    159, 200, 11, 37, 138, 76, 221, 187, 70, 104, 123, 98, 216, 190, 249, 149, 81, 1, 158, 0, 220,
+    32, 147, 101, 60, 64, 77, 44, 83, 221, 119, 170, 124, 109, 177, 73, 116, 46, 57, 102, 181, 98,
+    91,
+];
 
 #[async_trait]
 pub trait SigningCosmWasmClient: CosmWasmClient {
     fn signer(&self) -> &DirectSecp256k1HdWallet;
+
+    fn signer_public_key(&self, signer_address: &AccountId) -> Option<tx::SignerPublicKey> {
+        let signer_accounts = self.signer().try_derive_accounts().ok()?;
+        let account_from_signer = signer_accounts
+            .iter()
+            .find(|account| &account.address == signer_address)?;
+        let public_key = account_from_signer.public_key;
+        Some(public_key.into())
+    }
+
+    async fn simulate(
+        &self,
+        signer_address: &AccountId,
+        messages: Vec<Any>,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<SimulateResponse, NymdError> {
+        let public_key = self.signer_public_key(signer_address);
+        let sequence_response = self.get_sequence(signer_address).await?;
+
+        let partial_tx = Tx {
+            body: tx::Body {
+                messages,
+                memo: memo.into(),
+                timeout_height: 0u32.into(),
+                extension_options: vec![],
+                non_critical_extension_options: vec![],
+            },
+            auth_info: tx::AuthInfo {
+                signer_infos: vec![tx::SignerInfo {
+                    public_key,
+                    mode_info: tx::ModeInfo::Single(tx::mode_info::Single {
+                        mode: SignMode::Unspecified,
+                    }),
+                    sequence: sequence_response.sequence,
+                }],
+                fee: Fee::from_amount_and_gas(
+                    CosmosCoin {
+                        denom: "".parse().unwrap(),
+                        amount: 0u64.into(),
+                    },
+                    0,
+                ),
+            },
+            signatures: vec![DUMMY_SECP256K1_SIGNATURE.try_into().unwrap()],
+        };
+
+        self.query_simulate(Some(partial_tx), Vec::new()).await
+    }
 
     async fn upload(
         &self,
@@ -505,41 +565,6 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         };
 
         self.sign_direct(signer_address, messages, fee, memo, signer_data)
-    }
-
-    async fn simulate<I, M>(
-        &self,
-        signer_address: &AccountId,
-        msgs: I,
-        memo: impl Into<String> + Send + 'static,
-    ) -> Result<SimulateResponse, NymdError>
-    where
-        I: IntoIterator<Item = M> + Send,
-        M: Msg,
-    {
-        let messages = msgs
-            .into_iter()
-            .map(|msg| {
-                msg.to_any()
-                    .map_err(|_| NymdError::SerializationError("Msg".to_owned()))
-            })
-            .collect::<Result<_, _>>()?;
-
-        // we don't care about the fee here
-        let fee = Fee::from_amount_and_gas(
-            CosmosCoin {
-                denom: "".parse().unwrap(),
-                amount: 0u64.into(),
-            },
-            0,
-        );
-
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
-        let tx_bytes = tx_raw
-            .to_bytes()
-            .map_err(|_| NymdError::SerializationError("Tx".to_owned()))?;
-
-        self.query_simulate(tx_bytes).await
     }
 }
 

@@ -411,7 +411,6 @@ pub trait CosmWasmClient: rpc::Client {
         let res = self
             .make_abci_query::<_, ProtoSimulateResponse>(path, req)
             .await?;
-        println!("raw res: {:?}", res);
 
         res.try_into()
     }

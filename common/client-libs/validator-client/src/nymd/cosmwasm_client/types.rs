@@ -16,7 +16,7 @@ use cosmrs::proto::cosmwasm::wasm::v1::{
     ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo,
 };
 use cosmrs::tendermint::{abci, chain};
-use cosmrs::tx::{AccountNumber, SequenceNumber};
+use cosmrs::tx::{AccountNumber, Gas, SequenceNumber};
 use cosmrs::{tx, AccountId, Coin};
 use serde::Serialize;
 use std::convert::{TryFrom, TryInto};
@@ -222,17 +222,26 @@ impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
 #[derive(Debug)]
 pub struct GasInfo {
     /// GasWanted is the maximum units of work we allow this tx to perform.
-    pub gas_wanted: u64,
+    pub gas_wanted: Gas,
 
     /// GasUsed is the amount of gas actually consumed.
-    pub gas_used: u64,
+    pub gas_used: Gas,
 }
 
 impl From<ProtoGasInfo> for GasInfo {
     fn from(value: ProtoGasInfo) -> Self {
         GasInfo {
-            gas_wanted: value.gas_wanted,
-            gas_used: value.gas_used,
+            gas_wanted: value.gas_wanted.into(),
+            gas_used: value.gas_used.into(),
+        }
+    }
+}
+
+impl GasInfo {
+    pub fn new(gas_wanted: Gas, gas_used: Gas) -> Self {
+        GasInfo {
+            gas_wanted,
+            gas_used,
         }
     }
 }
@@ -306,8 +315,8 @@ impl TryFrom<ProtoAbciResult> for AbciResult {
 
 #[derive(Debug)]
 pub struct SimulateResponse {
-    gas_info: Option<GasInfo>,
-    result: Option<AbciResult>,
+    pub gas_info: Option<GasInfo>,
+    pub result: Option<AbciResult>,
 }
 
 impl TryFrom<ProtoSimulateResponse> for SimulateResponse {
@@ -354,6 +363,8 @@ pub struct UploadResult {
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: tx::Hash,
+
+    pub gas_info: GasInfo,
 }
 
 #[derive(Debug)]
@@ -380,6 +391,8 @@ pub struct InstantiateResult {
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: tx::Hash,
+
+    pub gas_info: GasInfo,
 }
 
 #[derive(Debug)]
@@ -388,6 +401,8 @@ pub struct ChangeAdminResult {
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: tx::Hash,
+
+    pub gas_info: GasInfo,
 }
 
 #[derive(Debug)]
@@ -396,6 +411,8 @@ pub struct MigrateResult {
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: tx::Hash,
+
+    pub gas_info: GasInfo,
 }
 
 #[derive(Debug)]
@@ -404,4 +421,6 @@ pub struct ExecuteResult {
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: tx::Hash,
+
+    pub gas_info: GasInfo,
 }

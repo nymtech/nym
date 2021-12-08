@@ -160,20 +160,6 @@ impl<C> NymdClient<C> {
         self.client.get_sequence(self.address()).await
     }
 
-    // pub fn get_default_fee_multiple(&self, operation: Operation, times: u64) -> Fee {
-    //     let default_gas_limit = operation.default_gas_limit();
-    //     let gas_limit_unit = self
-    //         .custom_gas_limits
-    //         .get(&operation)
-    //         .unwrap_or(&default_gas_limit);
-    //     let gas_limit = Gas::from(gas_limit_unit.value() * times);
-    //     Operation::determine_custom_fee(&self.gas_price, gas_limit).into()
-    // }
-
-    // pub fn calculate_custom_fee(&self, gas_limit: impl Into<Gas>) -> Fee {
-    //     Operation::determine_custom_fee(&self.gas_price, gas_limit.into()).into()
-    // }
-
     pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NymdError>
     where
         C: CosmWasmClient + Sync,

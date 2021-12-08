@@ -21,7 +21,7 @@ use erc20_bridge_contract::payment::LinkPaymentData;
 use gateway_client::bandwidth::eth_contract;
 use network_defaults::{COSMOS_CONTRACT_ADDRESS, DENOM, ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
 use validator_client::nymd::{
-    AccountId, CosmosCoin, Decimal, Denom, Fee, Gas, NymdClient, SigningNymdClient,
+    AccountId, CosmosCoin, Decimal, Denom, NymdClient, SigningNymdClient,
 };
 
 pub(crate) struct ERC20Bridge {
@@ -45,6 +45,7 @@ impl ERC20Bridge {
             AccountId::from_str(COSMOS_CONTRACT_ADDRESS).ok(),
             None,
             mnemonic,
+            None,
         )
         .expect("Could not create nymd client");
 
@@ -106,7 +107,6 @@ impl ERC20Bridge {
             denom: Denom::from_str(DENOM).unwrap(),
             amount: Decimal::from(100000u64),
         };
-        let fee = Fee::from_amount_and_gas(coin.clone(), Gas::from(500000));
         let req = ExecuteMsg::LinkPayment {
             data: LinkPaymentData::new(
                 credential.verification_key().to_bytes(),
@@ -120,7 +120,7 @@ impl ERC20Bridge {
                 // it's ok to unwrap here, as the address is
                 contract_address,
                 &req,
-                fee,
+                Default::default(),
                 "Linking payment",
                 vec![coin],
             )

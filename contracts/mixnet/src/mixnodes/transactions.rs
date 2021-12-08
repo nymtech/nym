@@ -79,6 +79,13 @@ fn _try_add_mixnode(
     // if the client has an active bonded mixnode or gateway, don't allow bonding
     ensure_no_existing_bond(deps.storage, &owner)?;
 
+    // We don't have to check lower bound as its an u8
+    if mix_node.profit_margin_percent > 100 {
+        return Err(ContractError::InvalidProfitMarginPercent(
+            mix_node.profit_margin_percent,
+        ));
+    }
+
     // check if somebody else has already bonded a mixnode with this identity
     if let Some(existing_bond) =
         storage::mixnodes().may_load(deps.storage, &mix_node.identity_key)?

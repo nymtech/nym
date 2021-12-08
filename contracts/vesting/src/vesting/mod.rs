@@ -248,6 +248,7 @@ mod tests {
             sphinx_key: "sphinx".to_string(),
             identity_key: "identity".to_string(),
             version: "0.10.0".to_string(),
+            profit_margin_percent: 10,
         };
         // Try delegating too much
         let err = account.try_bond_mixnode(

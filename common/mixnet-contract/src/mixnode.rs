@@ -5,7 +5,7 @@ use crate::{IdentityKey, SphinxKey};
 use az::CheckedCast;
 use cosmwasm_std::{coin, Addr, Coin, Uint128};
 use log::error;
-use network_defaults::{DEFAULT_OPERATOR_EPOCH_COST, DEFAULT_PROFIT_MARGIN};
+use network_defaults::DEFAULT_OPERATOR_EPOCH_COST;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -29,6 +29,7 @@ pub struct MixNode {
     /// Base58 encoded ed25519 EdDSA public key.
     pub identity_key: IdentityKey,
     pub version: String,
+    pub profit_margin_percent: u8,
 }
 
 #[derive(
@@ -235,7 +236,6 @@ pub struct MixNodeBond {
     pub layer: Layer,
     pub block_height: u64,
     pub mix_node: MixNode,
-    pub profit_margin_percent: Option<u8>,
     pub proxy: Option<Addr>,
 }
 
@@ -246,7 +246,6 @@ impl MixNodeBond {
         layer: Layer,
         block_height: u64,
         mix_node: MixNode,
-        profit_margin_percent: Option<u8>,
         proxy: Option<Addr>,
     ) -> Self {
         MixNodeBond {
@@ -256,14 +255,12 @@ impl MixNodeBond {
             layer,
             block_height,
             mix_node,
-            profit_margin_percent,
             proxy,
         }
     }
 
     pub fn profit_margin(&self) -> U128 {
-        U128::from_num(self.profit_margin_percent.unwrap_or(DEFAULT_PROFIT_MARGIN))
-            / U128::from_num(100)
+        U128::from_num(self.mix_node.profit_margin_percent) / U128::from_num(100)
     }
 
     pub fn identity(&self) -> &String {
@@ -500,6 +497,7 @@ mod tests {
             sphinx_key: "sphinxkey".to_string(),
             identity_key: "identitykey".to_string(),
             version: "0.11.0".to_string(),
+            profit_margin_percent: 10,
         }
     }
 
@@ -516,7 +514,6 @@ mod tests {
             layer: Layer::One,
             block_height: 100,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: Some(10),
             proxy: None,
         };
 
@@ -527,7 +524,6 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: Some(10),
             proxy: None,
         };
 
@@ -538,7 +534,6 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: Some(10),
             proxy: None,
         };
 
@@ -549,7 +544,6 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: Some(10),
             proxy: None,
         };
 
@@ -560,7 +554,6 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: Some(10),
             proxy: None,
         };
 

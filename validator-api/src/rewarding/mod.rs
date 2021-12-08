@@ -50,7 +50,6 @@ pub(crate) struct MixnodeToReward {
 }
 
 impl MixnodeToReward {
-    /// Somewhat clumsy way of feature gatting tokenomics payments. In a tokenomics scenario this will never be None at reward time. We leverage that to Into a different ExecuteMsg variant
     fn params(&self) -> NodeRewardParams {
         self.params
     }
@@ -166,7 +165,7 @@ impl Rewarder {
         let epoch_reward_percent = self.nymd_client.get_epoch_reward_percent().await?;
 
         // TODO: question to @durch: is k active set or 'rewarded' set?
-        let k = state.mixnode_active_set_size;
+        let k = state.mixnode_rewarded_set_size;
         let period_reward_pool = (reward_pool / 100) * epoch_reward_percent as u128;
 
         info!("Rewarding pool stats");

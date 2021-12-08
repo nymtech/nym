@@ -7,7 +7,6 @@ use crate::nymd::cosmwasm_client::types::{
     MigrateResult, SequenceResponse, UploadResult,
 };
 use crate::nymd::error::NymdError;
-use crate::nymd::fee::Fee;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
@@ -26,6 +25,7 @@ use std::convert::TryInto;
 
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
+pub use crate::nymd::fee::Fee;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
 pub use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::hash;
@@ -73,6 +73,7 @@ impl NymdClient<SigningNymdClient> {
         mixnet_contract_address: Option<AccountId>,
         vesting_contract_address: Option<AccountId>,
         signer: DirectSecp256k1HdWallet,
+        gas_price: Option<GasPrice>,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
@@ -84,7 +85,7 @@ impl NymdClient<SigningNymdClient> {
             .collect();
 
         Ok(NymdClient {
-            client: SigningNymdClient::connect_with_signer(endpoint, signer, None)?,
+            client: SigningNymdClient::connect_with_signer(endpoint, signer, gas_price)?,
             mixnet_contract_address,
             vesting_contract_address,
             client_address: Some(client_address),
@@ -96,6 +97,7 @@ impl NymdClient<SigningNymdClient> {
         mixnet_contract_address: Option<AccountId>,
         vesting_contract_address: Option<AccountId>,
         mnemonic: bip39::Mnemonic,
+        gas_price: Option<GasPrice>,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
@@ -108,7 +110,7 @@ impl NymdClient<SigningNymdClient> {
             .collect();
 
         Ok(NymdClient {
-            client: SigningNymdClient::connect_with_signer(endpoint, wallet, None)?,
+            client: SigningNymdClient::connect_with_signer(endpoint, wallet, gas_price)?,
             mixnet_contract_address,
             vesting_contract_address,
             client_address: Some(client_address),
@@ -590,10 +592,6 @@ impl<C> NymdClient<C> {
         self.client
             .migrate(self.address(), contract_address, code_id, fee, msg, memo)
             .await
-    }
-
-    pub async fn simulate_contract_execution(&self) {
-        //
     }
 
     /// Announce a mixnode, paying a fee.

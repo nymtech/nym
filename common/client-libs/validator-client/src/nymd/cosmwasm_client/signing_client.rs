@@ -23,7 +23,7 @@ use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::error::NymdError;
 use crate::nymd::fee::helpers::Operation;
-use crate::nymd::fee::Fee;
+use crate::nymd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use crate::nymd::{CosmosCoin, GasPrice};
 use std::collections::HashMap;
@@ -36,8 +36,6 @@ const DUMMY_SECP256K1_SIGNATURE: &[u8] = &[
     32, 147, 101, 60, 64, 77, 44, 83, 221, 119, 170, 124, 109, 177, 73, 116, 46, 57, 102, 181, 98,
     91,
 ];
-
-const DEFAULT_SIMULATED_GAS_MULTIPLIER: f32 = 1.3;
 
 #[async_trait]
 pub trait SigningCosmWasmClient: CosmWasmClient {

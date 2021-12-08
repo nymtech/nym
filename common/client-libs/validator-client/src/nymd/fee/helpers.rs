@@ -30,7 +30,7 @@ pub enum Operation {
     UnbondGateway,
     UnbondGatewayOnBehalf,
 
-    UpdateStateParams,
+    UpdateContractSettings,
 
     BeginMixnodeRewarding,
     FinishMixnodeRewarding,
@@ -62,7 +62,7 @@ impl fmt::Display for Operation {
             Operation::UndelegateFromMixnodeOnBehalf => {
                 f.write_str("UndelegateFromMixnodeOnBehalf")
             }
-            Operation::UpdateStateParams => f.write_str("UpdateStateParams"),
+            Operation::UpdateContractSettings => f.write_str("UpdateContractSettings"),
             Operation::BeginMixnodeRewarding => f.write_str("BeginMixnodeRewarding"),
             Operation::FinishMixnodeRewarding => f.write_str("FinishMixnodeRewarding"),
         }
@@ -93,7 +93,7 @@ impl Operation {
             Operation::UnbondGateway => 175_000u64.into(),
             Operation::UnbondGatewayOnBehalf => 200_000u64.into(),
 
-            Operation::UpdateStateParams => 175_000u64.into(),
+            Operation::UpdateContractSettings => 175_000u64.into(),
             Operation::BeginMixnodeRewarding => 175_000u64.into(),
             Operation::FinishMixnodeRewarding => 175_000u64.into(),
         }
@@ -107,11 +107,6 @@ impl Operation {
         // - fees
         let fee = calculate_fee(gas_price, gas_limit);
         Fee::from_amount_and_gas(fee, gas_limit)
-    }
-
-    pub(crate) fn determine_fee(&self, gas_price: &GasPrice, gas_limit: Option<Gas>) -> Fee {
-        let gas_limit = gas_limit.unwrap_or_else(|| self.default_gas_limit());
-        Self::determine_custom_fee(gas_price, gas_limit)
     }
 }
 

@@ -20,6 +20,8 @@ where
 }
 
 // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
+// temporarily putting deprecation so I'd remember to adjust gas price argument here
+#[deprecated]
 pub fn connect_with_signer<U>(
     endpoint: U,
     signer: DirectSecp256k1HdWallet,
@@ -27,5 +29,5 @@ pub fn connect_with_signer<U>(
 where
     U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
 {
-    signing_client::Client::connect_with_signer(endpoint, signer)
+    signing_client::Client::connect_with_signer(endpoint, signer, None)
 }

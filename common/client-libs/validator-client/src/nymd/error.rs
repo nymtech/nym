@@ -102,6 +102,9 @@ pub enum NymdError {
 
     #[error("The provided gas price is malformed")]
     MalformedGasPrice,
+
+    #[error("Failed to estimate gas price for the transaction")]
+    GasEstimationFailure,
 }
 
 impl NymdError {

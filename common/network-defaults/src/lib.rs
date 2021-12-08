@@ -6,11 +6,15 @@ use time::OffsetDateTime;
 use url::Url;
 
 pub mod eth_contract;
-#[cfg(network = "testnet")]
-pub mod testnet;
+#[cfg(network = "milhon")]
+pub mod milhon;
+#[cfg(network = "sandbox")]
+pub mod sandbox;
 
-#[cfg(network = "testnet")]
-pub use testnet::*;
+#[cfg(network = "milhon")]
+pub use milhon::*;
+#[cfg(network = "sandbox")]
+pub use sandbox::*;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ValidatorDetails {
@@ -43,7 +47,7 @@ impl ValidatorDetails {
     }
 }
 
-#[cfg(network = "testnet")]
+#[cfg(network = "milhon")]
 pub fn default_validators() -> Vec<ValidatorDetails> {
     vec![
         ValidatorDetails::new(
@@ -52,6 +56,14 @@ pub fn default_validators() -> Vec<ValidatorDetails> {
         ),
         ValidatorDetails::new("https://testnet-milhon-validator2.nymtech.net", None),
     ]
+}
+
+#[cfg(network = "sandbox")]
+pub fn default_validators() -> Vec<ValidatorDetails> {
+    vec![ValidatorDetails::new(
+        "https://sandbox-validator.nymtech.net",
+        Some("https://sandbox-validator.nymtech.net/api"),
+    )]
 }
 
 pub fn default_nymd_endpoints() -> Vec<Url> {

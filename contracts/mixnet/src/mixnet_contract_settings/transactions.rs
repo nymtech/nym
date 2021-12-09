@@ -60,6 +60,7 @@ pub mod tests {
             minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: 100,
             mixnode_active_set_size: 50,
+            active_set_work_factor: 10,
         };
 
         // sanity check to ensure new_params are different than the default ones

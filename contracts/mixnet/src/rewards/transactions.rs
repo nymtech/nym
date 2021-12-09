@@ -1088,7 +1088,9 @@ pub mod tests {
         let rewarding_validator_address = current_state.rewarding_validator_address;
         let period_reward_pool = (INITIAL_REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128;
         assert_eq!(period_reward_pool, 5_000_000_000_000);
-        let k = 200; // Imagining our reward set size is 200
+        let rewarded_set_size = 200; // Imagining our reward set size is 200
+        let active_set_size = 100;
+        let active_set_work_factor = 10;
         let circulating_supply = storage::circulating_supply(&deps.storage).unwrap().u128();
         assert_eq!(circulating_supply, 750_000_000_000_000u128);
 
@@ -1133,12 +1135,14 @@ pub mod tests {
 
         let mut params = NodeRewardParams::new(
             period_reward_pool,
-            k,
+            rewarded_set_size,
+            active_set_size,
             0,
             circulating_supply,
             mix_1_uptime,
             DEFAULT_SYBIL_RESISTANCE_PERCENT,
             true,
+            active_set_work_factor,
         );
 
         params.set_reward_blockstamp(env.block.height);
@@ -1155,7 +1159,7 @@ pub mod tests {
             mix_1_reward_result.lambda(),
             U128::from_num(0.0000133333333333)
         );
-        assert_eq!(mix_1_reward_result.reward().int(), 102646153);
+        assert_eq!(mix_1_reward_result.reward().int(), 186562237);
 
         let mix1_operator_profit = mix_1.operator_reward(&params);
 
@@ -1163,9 +1167,9 @@ pub mod tests {
 
         let mix1_delegator2_reward = mix_1.reward_delegation(Uint128::new(2000_000000), &params);
 
-        assert_eq!(mix1_operator_profit, U128::from_num(74455384));
-        assert_eq!(mix1_delegator1_reward, U128::from_num(22552615));
-        assert_eq!(mix1_delegator2_reward, U128::from_num(5638153));
+        assert_eq!(mix1_operator_profit, U128::from_num(120609230));
+        assert_eq!(mix1_delegator1_reward, U128::from_num(52762405));
+        assert_eq!(mix1_delegator2_reward, U128::from_num(13190601));
 
         let pre_reward_bond =
             test_helpers::read_mixnode_pledge_amount(&deps.storage, &node_identity)

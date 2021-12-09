@@ -14,6 +14,7 @@ pub struct TauriContractStateParams {
   minimum_gateway_pledge: String,
   mixnode_rewarded_set_size: u32,
   mixnode_active_set_size: u32,
+  active_set_work_factor: u8,
 }
 
 impl From<ContractStateParams> for TauriContractStateParams {
@@ -23,6 +24,7 @@ impl From<ContractStateParams> for TauriContractStateParams {
       minimum_gateway_pledge: p.minimum_gateway_pledge.to_string(),
       mixnode_rewarded_set_size: p.mixnode_rewarded_set_size,
       mixnode_active_set_size: p.mixnode_active_set_size,
+      active_set_work_factor: p.active_set_work_factor,
     }
   }
 }
@@ -36,6 +38,7 @@ impl TryFrom<TauriContractStateParams> for ContractStateParams {
       minimum_gateway_pledge: Uint128::try_from(p.minimum_gateway_pledge.as_str())?,
       mixnode_rewarded_set_size: p.mixnode_rewarded_set_size,
       mixnode_active_set_size: p.mixnode_active_set_size,
+      active_set_work_factor: p.active_set_work_factor,
     })
   }
 }

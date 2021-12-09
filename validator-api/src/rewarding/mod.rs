@@ -45,6 +45,7 @@ struct EpochRewardParams {
     rewarded_set_size: u32,
     active_set_size: u32,
     period_reward_pool: u128,
+    active_set_work_factor: u8,
 }
 
 #[derive(Debug, Clone)]
@@ -143,6 +144,7 @@ impl Rewarder {
             rewarded_set_size: state.mixnode_rewarded_set_size,
             active_set_size: state.mixnode_active_set_size,
             period_reward_pool: (reward_pool / 100) * epoch_reward_percent as u128,
+            active_set_work_factor: state.active_set_work_factor,
         };
 
         Ok(epoch_reward_params)
@@ -227,12 +229,14 @@ impl Rewarder {
                 params: NodeRewardParams::new(
                     epoch_reward_params.period_reward_pool,
                     epoch_reward_params.rewarded_set_size.into(),
+                    epoch_reward_params.active_set_size.into(),
                     // Reward blockstamp gets set in the contract call
                     0,
                     epoch_reward_params.circulating_supply,
                     uptime.u8().into(),
                     epoch_reward_params.sybil_resistance_percent,
                     i < epoch_reward_params.active_set_size as usize,
+                    epoch_reward_params.active_set_work_factor,
                 ),
             })
         }

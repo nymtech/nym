@@ -372,6 +372,9 @@ impl Rewarder {
 
         // then we move onto the chunks
         for mix_chunk in batch_rewarded {
+            if mix_chunk.is_empty() {
+                continue;
+            }
             if let Err(err) = self
                 .nymd_client
                 .reward_mixnodes_with_single_page_of_delegators(

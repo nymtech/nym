@@ -335,7 +335,8 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .collect::<Result<_, _>>()?;
 
         self.sign_and_broadcast_commit(sender_address, messages, fee, memo)
-            .await
+            .await?
+            .check_response()
     }
 
     async fn delegate_tokens(

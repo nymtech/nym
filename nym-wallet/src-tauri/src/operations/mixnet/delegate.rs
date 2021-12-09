@@ -1,12 +1,12 @@
 use crate::coin::Coin;
 use crate::error::BackendError;
 use crate::state::State;
+use crate::utils::DelegationResult;
 use cosmwasm_std::Coin as CosmWasmCoin;
 use mixnet_contract::PagedDelegatorDelegationsResponse;
 use std::convert::TryInto;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::utils::DelegationResult;
 
 #[tauri::command]
 pub async fn delegate_to_mixnode(

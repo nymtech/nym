@@ -1,5 +1,6 @@
 // This should be moved out of the wallet, and used as a primary coin type throughout the codebase
 
+use crate::error::BackendError;
 use ::config::defaults::DENOM;
 use cosmrs::Decimal;
 use cosmrs::Denom as CosmosDenom;
@@ -11,7 +12,6 @@ use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 use validator_client::nymd::{CosmosCoin, GasPrice};
-use crate::error::BackendError;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -179,7 +179,6 @@ impl TryFrom<Coin> for CosmosCoin {
   type Error = BackendError;
 
   fn try_from(coin: Coin) -> Result<CosmosCoin, BackendError> {
-
     match Decimal::from_str(&coin.amount) {
       Ok(d) => Ok(CosmosCoin {
         amount: d,

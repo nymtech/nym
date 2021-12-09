@@ -54,7 +54,9 @@ pub async fn connect_with_mnemonic(
 }
 
 #[tauri::command]
-pub async fn get_balance(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<Balance, BackendError> {
+pub async fn get_balance(
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Balance, BackendError> {
   let client = state.read().await.client()?;
   match client.get_balance(client.address()).await {
     Ok(Some(coin)) => {

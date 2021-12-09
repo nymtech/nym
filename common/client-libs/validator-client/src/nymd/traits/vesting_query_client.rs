@@ -52,8 +52,8 @@ pub trait VestingQueryClient {
 
     async fn delegated_vesting(
         &self,
-        block_time: Option<Timestamp>,
         vesting_account_address: &str,
+        block_time: Option<Timestamp>,
     ) -> Result<Coin, NymdError>;
 }
 
@@ -162,8 +162,8 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
 
     async fn delegated_vesting(
         &self,
-        block_time: Option<Timestamp>,
         vesting_account_address: &str,
+        block_time: Option<Timestamp>,
     ) -> Result<Coin, NymdError> {
         let request = VestingQueryMsg::GetDelegatedVesting {
             vesting_account_address: vesting_account_address.to_string(),

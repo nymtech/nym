@@ -2,9 +2,9 @@ use crate::coin::{Coin, Denom};
 use crate::error::BackendError;
 use crate::state::State;
 use crate::Operation;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use serde::{Deserialize, Serialize};
 
 #[tauri::command]
 pub fn major_to_minor(amount: &str) -> Coin {
@@ -27,7 +27,9 @@ pub async fn owns_mixnode(
 }
 
 #[tauri::command]
-pub async fn owns_gateway(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<bool, BackendError> {
+pub async fn owns_gateway(
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<bool, BackendError> {
   let client = state.read().await.client()?;
   Ok(client.owns_gateway(client.address()).await?.is_some())
 }
@@ -58,11 +60,7 @@ pub struct DelegationResult {
 }
 
 impl DelegationResult {
-  pub fn new(
-    source_address: &str,
-    target_address: &str,
-    amount: Option<Coin>,
-  ) -> DelegationResult {
+  pub fn new(source_address: &str, target_address: &str, amount: Option<Coin>) -> DelegationResult {
     DelegationResult {
       source_address: source_address.to_string(),
       target_address: target_address.to_string(),

@@ -51,6 +51,15 @@ fn main() {
       vesting::bond::vesting_unbond_mixnode,
       vesting::delegate::vesting_delegate_to_mixnode,
       vesting::delegate::vesting_undelegate_from_mixnode,
+      vesting::queries::locked_coins,
+      vesting::queries::spendable_coins,
+      vesting::queries::vesting_coins,
+      vesting::queries::vested_coins,
+      vesting::queries::vesting_start_time,
+      vesting::queries::vesting_end_time,
+      vesting::queries::original_vesting,
+      vesting::queries::delegated_free,
+      vesting::queries::delegated_vesting,
     ])
     .menu(Menu::new().add_default_app_submenu_if_macos())
     .run(tauri::generate_context!())
@@ -62,14 +71,14 @@ mod test {
   ts_rs::export! {
     mixnet_contract::MixNode => "../src/types/rust/mixnode.ts",
     crate::coin::Coin => "../src/types/rust/coin.ts",
-    crate::account::Balance => "../src/types/rust/balance.ts",
+    crate::mixnet::account::Balance => "../src/types/rust/balance.ts",
     mixnet_contract::Gateway => "../src/types/rust/gateway.ts",
-    crate::send::TauriTxResult => "../src/types/rust/tauritxresult.ts",
-    crate::send::TransactionDetails => "../src/types/rust/transactiondetails.ts",
+    crate::mixnet::send::TauriTxResult => "../src/types/rust/tauritxresult.ts",
+    crate::mixnet::send::TransactionDetails => "../src/types/rust/transactiondetails.ts",
     validator_client::nymd::fee_helpers::Operation => "../src/types/rust/operation.ts",
     crate::coin::Denom => "../src/types/rust/denom.ts",
-    crate::delegate::DelegationResult => "../src/types/rust/delegationresult.ts",
-    crate::account::Account => "../src/types/rust/account.ts",
-    crate::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts"
+    crate::utils::DelegationResult => "../src/types/rust/delegationresult.ts",
+    crate::mixnet::account::Account => "../src/types/rust/account.ts",
+    crate::mixnet::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts"
   }
 }

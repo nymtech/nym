@@ -1,7 +1,6 @@
 use crate::coin::{Coin, Denom};
 use crate::config::Config;
 use crate::error::BackendError;
-use crate::format_err;
 use crate::state::State;
 use bip39::{Language, Mnemonic};
 use serde::{Deserialize, Serialize};
@@ -30,26 +29,16 @@ pub struct Balance {
 pub async fn connect_with_mnemonic(
   mnemonic: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<Account, String> {
-  let mnemonic = match Mnemonic::from_str(&mnemonic) {
-    Ok(mnemonic) => mnemonic,
-    Err(e) => return Err(BackendError::from(e).to_string()),
-  };
-  let client;
-  {
+) -> Result<Account, BackendError> {
+  let mnemonic = Mnemonic::from_str(&mnemonic)?;
+  let client = {
     let r_state = state.read().await;
-    client = _connect_with_mnemonic(mnemonic, &r_state.config());
-  }
+    _connect_with_mnemonic(mnemonic, &r_state.config())
+  };
 
-  let contract_address = match client.mixnet_contract_address() {
-    Ok(address) => address.to_string(),
-    Err(e) => return Err(format_err!(e)),
-  };
+  let contract_address = client.mixnet_contract_address()?.to_string();
   let client_address = client.address().to_string();
-  let denom = match client.denom() {
-    Ok(denom) => denom,
-    Err(e) => return Err(format_err!(e)),
-  };
+  let denom = client.denom()?;
 
   let account = Account {
     contract_address,
@@ -65,9 +54,8 @@ pub async fn connect_with_mnemonic(
 }
 
 #[tauri::command]
-pub async fn get_balance(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<Balance, String> {
-  let r_state = state.read().await;
-  let client = r_state.client()?;
+pub async fn get_balance(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<Balance, BackendError> {
+  let client = state.read().await.client()?;
   match client.get_balance(client.address()).await {
     Ok(Some(coin)) => {
       let coin = Coin::new(
@@ -79,18 +67,15 @@ pub async fn get_balance(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<
         printable_balance: coin.to_major().to_string(),
       })
     }
-    Ok(None) => Err(format!(
-      "No balance available for address {}",
-      client.address()
-    )),
-    Err(e) => Err(BackendError::from(e).to_string()),
+    Ok(None) => Err(BackendError::NoBalance(client.address().to_string())),
+    Err(e) => Err(BackendError::from(e)),
   }
 }
 
 #[tauri::command]
 pub async fn create_new_account(
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<Account, String> {
+) -> Result<Account, BackendError> {
   let rand_mnemonic = random_mnemonic();
   let mut client = connect_with_mnemonic(rand_mnemonic.to_string(), state).await?;
   client.mnemonic = Some(rand_mnemonic.to_string());

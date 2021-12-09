@@ -1,5 +1,7 @@
 use crate::config::Config;
 use validator_client::nymd::{NymdClient, SigningNymdClient};
+use crate::error::BackendError;
+
 
 #[derive(Default)]
 pub struct State {
@@ -8,10 +10,8 @@ pub struct State {
 }
 
 impl State {
-  pub fn client(&self) -> Result<&NymdClient<SigningNymdClient>, String> {
-    self.signing_client.as_ref().ok_or_else(|| {
-      "Client has not been initialized yet, connect with mnemonic to initialize".to_string()
-    })
+  pub fn client(&self) -> Result<NymdClient<SigningNymdClient>, BackendError> {
+    self.signing_client.clone().ok_or(BackendError::ClientNotInitialized)
   }
 
   pub fn config(&self) -> Config {

@@ -37,6 +37,8 @@ pub async fn owns_gateway(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result
   }
 }
 
+// NOTE: this uses OUTDATED defaults that might have no resemblance with the reality
+// as for the actual transaction, the gas cost is being simulated beforehand
 #[tauri::command]
 pub async fn get_approximate_fee(
   operation: Operation,

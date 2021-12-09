@@ -74,7 +74,7 @@ mod test {
     mixnet_contract::Gateway => "../src/types/rust/gateway.ts",
     crate::TauriTxResult => "../src/types/rust/tauritxresult.ts",
     crate::TransactionDetails => "../src/types/rust/transactiondetails.ts",
-    validator_client::nymd::fee_helpers::Operation => "../src/types/rust/operation.ts",
+    validator_client::nymd::fee::helpers::Operation => "../src/types/rust/operation.ts",
     crate::Denom => "../src/types/rust/denom.ts",
     crate::DelegationResult => "../src/types/rust/delegationresult.ts",
     crate::Account => "../src/types/rust/account.ts",

@@ -7,7 +7,7 @@ use mixnet_contract::{Gateway, MixNode};
 use std::sync::Arc;
 use tauri::Menu;
 use tokio::sync::RwLock;
-use validator_client::nymd::fee_helpers::Operation;
+use validator_client::nymd::fee::helpers::Operation;
 
 mod coin;
 mod config;
@@ -55,7 +55,7 @@ fn main() {
       undelegate_from_mixnode,
       send,
       create_new_account,
-      get_fee,
+      get_approximate_fee,
       get_contract_settings,
       update_contract_settings,
       get_reverse_mix_delegations_paged,

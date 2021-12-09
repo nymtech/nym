@@ -158,6 +158,13 @@ impl<C> NymdClient<C> {
         &self.client_address.as_ref().unwrap()[0]
     }
 
+    pub fn gas_price(&self) -> &GasPrice
+    where
+        C: SigningCosmWasmClient,
+    {
+        self.client.gas_price()
+    }
+
     pub fn set_custom_gas_limit(&mut self, operation: Operation, limit: Gas)
     where
         C: SigningCosmWasmClient + Sync,
@@ -165,7 +172,7 @@ impl<C> NymdClient<C> {
         self.custom_gas_limits.insert(operation, limit);
     }
 
-    fn operation_fee(&self, operation: Operation) -> Fee
+    pub fn operation_fee(&self, operation: Operation) -> Fee
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -176,7 +183,7 @@ impl<C> NymdClient<C> {
         }
     }
 
-    fn repeated_operation_fee(&self, operation: Operation, count: u64) -> Fee
+    pub fn repeated_operation_fee(&self, operation: Operation, count: u64) -> Fee
     where
         C: SigningCosmWasmClient + Sync,
     {

@@ -124,6 +124,10 @@ impl Operation {
         let fee = calculate_fee(gas_price, gas_limit);
         Fee::from_amount_and_gas(fee, gas_limit)
     }
+
+    pub fn default_fee(&self, gas_price: &GasPrice) -> Fee {
+        Self::determine_custom_fee(gas_price, self.default_gas_limit())
+    }
 }
 
 #[cfg(test)]

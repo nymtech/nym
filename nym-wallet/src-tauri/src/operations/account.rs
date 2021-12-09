@@ -108,6 +108,7 @@ fn _connect_with_mnemonic(mnemonic: Mnemonic, config: &Config) -> NymdClient<Sig
     Some(AccountId::from_str(&config.get_mixnet_contract_address()).unwrap()),
     None,
     mnemonic,
+    None,
   ) {
     Ok(client) => client,
     Err(e) => panic!("{}", e),

@@ -1,5 +1,5 @@
 import { assert } from "chai";
-import INetClient from "../../src/net-client";
+import INetClient from "../../src/signing-client";
 import { Fixtures } from "../fixtures"
 import { Mock, Times } from "moq.ts";
 import GatewaysCache from "../../src/caches/gateways";

@@ -1,5 +1,5 @@
 import {MixNodeBond, PagedMixnodeResponse} from "../types";
-import { INetClient } from "../net-client"
+import { ISigningClient } from "../signing-client"
 import {IQueryClient} from "../query-client";
 import {VALIDATOR_API_MIXNODES, VALIDATOR_API_PORT} from "../index";
 import axios from "axios";
@@ -14,10 +14,10 @@ export { MixnodesCache };
  *  */
 export default class MixnodesCache {
     mixNodes: MixNodeBond[]
-    client: INetClient | IQueryClient
+    client: ISigningClient | IQueryClient
     perPage: number
 
-    constructor(client: INetClient | IQueryClient, perPage: number) {
+    constructor(client: ISigningClient | IQueryClient, perPage: number) {
         this.client = client;
         this.mixNodes = [];
         this.perPage = perPage;

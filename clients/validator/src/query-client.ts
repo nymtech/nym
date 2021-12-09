@@ -28,7 +28,7 @@ export interface IQueryClient {
 
     ownsGateway(contractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
 
-    getStateParams(contractAddress: string): Promise<ContractSettingsParams>;
+    getContractSettingsParams(contractAddress: string): Promise<ContractSettingsParams>;
 
     changeValidator(newUrl: string): Promise<void>
 }
@@ -141,7 +141,7 @@ export default class QueryClient implements IQueryClient {
         return this.cosmClient.getBalance(address, stakeDenom);
     }
 
-    public getStateParams(contractAddress: string): Promise<ContractSettingsParams> {
+    public getContractSettingsParams(contractAddress: string): Promise<ContractSettingsParams> {
         return this.cosmClient.queryContractSmart(contractAddress, { contract_settings_params: {} });
     }
 }

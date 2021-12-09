@@ -1,4 +1,4 @@
-import NetClient, { INetClient } from "./net-client";
+import SigningClient, { ISigningClient } from "./signing-client";
 import {
     ContractSettingsParams,
     Delegation,
@@ -13,13 +13,12 @@ import {
 import { Bip39, Random } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
-import { buildFeeTable, coin, Coin, coins, StdFee } from "@cosmjs/stargate";
+import { coin, Coin, coins, StdFee } from "@cosmjs/stargate";
 import {
     ExecuteResult,
     InstantiateOptions,
     InstantiateResult,
     MigrateResult,
-    UploadMeta,
     UploadResult
 } from "@cosmjs/cosmwasm-stargate";
 import {
@@ -33,8 +32,8 @@ import {
 } from "./currency";
 import GatewaysCache from "./caches/gateways";
 import QueryClient, { IQueryClient } from "./query-client";
-import { nymGasLimits, nymGasPrice } from "./stargate-helper";
-import { BroadcastTxSuccess, isBroadcastTxFailure } from "@cosmjs/stargate";
+import { nymGasPrice } from "./stargate-helper";
+import { DeliverTxResponse, isDeliverTxFailure } from "@cosmjs/stargate";
 import { makeBankMsgSend } from "./utils";
 
 export const VALIDATOR_API_PORT = "8080";
@@ -52,20 +51,20 @@ export {
     MappedCoin,
     CoinMap
 }
-export { nymGasLimits, nymGasPrice }
+export { nymGasPrice }
 
 export default class ValidatorClient {
-    private readonly client: INetClient | IQueryClient
+    private readonly client: ISigningClient | IQueryClient
     private readonly contractAddress: string;
     private readonly denom: string;
-    private failedRequests: number = 0;
+    private failedRequests = 0;
     private gatewayCache: GatewaysCache
     private mixNodesCache: MixnodesCache;
     private readonly prefix: string;
     urls: string[];
 
 
-    private constructor(urls: string[], client: INetClient | IQueryClient, contractAddress: string, prefix: string) {
+    private constructor(urls: string[], client: ISigningClient | IQueryClient, contractAddress: string, prefix: string) {
         this.urls = urls;
         this.client = client;
         this.mixNodesCache = new MixnodesCache(client, 100);
@@ -84,14 +83,14 @@ export default class ValidatorClient {
         if (validatorUrls.length > 1) {
             for (let i = 0; i < validatorUrls.length; i++) {
                 console.log("Attempting initial connection to", validatorUrls[0])
-                const netClient = await NetClient.connect(wallet, validatorUrls[0], prefix).catch((_) => ValidatorClient.moveArrayHeadToBack(validatorUrls))
+                const netClient = await SigningClient.connect(wallet, validatorUrls[0], prefix).catch((_) => ValidatorClient.moveArrayHeadToBack(validatorUrls))
                 if (netClient !== undefined) {
                     return new ValidatorClient(validatorUrls, netClient, contractAddress, prefix);
                 }
                 console.log("Initial connection to", validatorUrls[0], "failed")
             }
         } else {
-            const netClient = await NetClient.connect(wallet, validatorUrls[0], prefix)
+            const netClient = await SigningClient.connect(wallet, validatorUrls[0], prefix)
             return new ValidatorClient(validatorUrls, netClient, contractAddress, prefix);
         }
 
@@ -186,7 +185,7 @@ export default class ValidatorClient {
     }
 
     public get address(): string {
-        if (this.client instanceof NetClient) {
+        if (this.client instanceof SigningClient) {
             return this.client.clientAddress
         } else {
             return ""
@@ -240,7 +239,7 @@ export default class ValidatorClient {
     }
 
     async getStateParams(): Promise<ContractSettingsParams> {
-        return this.client.getStateParams(this.contractAddress).catch((err) => this.handleRequestFailure(err))
+        return this.client.getContractSettingsParams(this.contractAddress).catch((err) => this.handleRequestFailure(err))
     }
 
 
@@ -292,8 +291,8 @@ export default class ValidatorClient {
      *  Announce a mixnode, paying a fee.
      */
     async bondMixnode(mixNode: MixNode, bond: Coin): Promise<ExecuteResult> {
-        if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "adding mixnode", [bond]).catch((err) => this.handleRequestFailure(err));
+        if (this.client instanceof SigningClient) {
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "auto","adding mixnode", [bond]).catch((err) => this.handleRequestFailure(err));
             console.log(`account ${this.client.clientAddress} added mixnode with ${mixNode.host}`);
             return result;
         } else {
@@ -306,8 +305,8 @@ export default class ValidatorClient {
      * Unbond a mixnode, removing it from the network and reclaiming staked coins
      */
     async unbondMixnode(): Promise<ExecuteResult> {
-        if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { unbond_mixnode: {} }).catch((err) => this.handleRequestFailure(err))
+        if (this.client instanceof SigningClient) {
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { unbond_mixnode: {} }, "auto").catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} unbonded mixnode`);
             return result;
         } else {
@@ -323,8 +322,8 @@ export default class ValidatorClient {
      */
     // requires coin type to ensure correct denomination (
     async delegateToMixnode(mixIdentity: string, amount: Coin): Promise<ExecuteResult> {
-        if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { delegate_to_mixnode: { mix_identity: mixIdentity } }, `delegating to ${mixIdentity}`, [amount]).catch((err) => this.handleRequestFailure(err))
+        if (this.client instanceof SigningClient) {
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { delegate_to_mixnode: { mix_identity: mixIdentity } }, "auto", `delegating to ${mixIdentity}`, [amount]).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} delegated ${amount} to mixnode ${mixIdentity}`);
             return result;
         } else {
@@ -338,8 +337,8 @@ export default class ValidatorClient {
      * @param mixIdentity identity of the node from which the delegation should get removed
      */
     async removeMixnodeDelegation(mixIdentity: string): Promise<ExecuteResult> {
-        if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { undelegate_from_mixnode: { mix_identity: mixIdentity } }).catch((err) => this.handleRequestFailure(err))
+        if (this.client instanceof SigningClient) {
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { undelegate_from_mixnode: { mix_identity: mixIdentity } }, "auto").catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} removed delegation from mixnode ${mixIdentity}`);
             return result;
         } else {
@@ -355,8 +354,8 @@ export default class ValidatorClient {
      */
     // requires coin type to ensure correct denomination (
     async delegateToGateway(gatewayIdentity: string, amount: Coin): Promise<ExecuteResult> {
-        if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { delegate_to_gateway: { gateway_identity: gatewayIdentity } }, `delegating to ${gatewayIdentity}`, [amount]).catch((err) => this.handleRequestFailure(err))
+        if (this.client instanceof SigningClient) {
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { delegate_to_gateway: { gateway_identity: gatewayIdentity } }, "auto", `delegating to ${gatewayIdentity}`, [amount]).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} delegated ${amount} to gateway ${gatewayIdentity}`);
             return result;
         } else {
@@ -370,8 +369,8 @@ export default class ValidatorClient {
      * @param gatewayIdentity identity of the gateway from which the delegation should get removed
      */
     async removeGatewayDelegation(gatewayIdentity: string): Promise<ExecuteResult> {
-        if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { undelegate_from_gateway: { gateway_identity: gatewayIdentity } }).catch((err) => this.handleRequestFailure(err))
+        if (this.client instanceof SigningClient) {
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { undelegate_from_gateway: { gateway_identity: gatewayIdentity } }, "auto",).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} removed delegation from gateway ${gatewayIdentity}`);
             return result;
         } else {
@@ -383,7 +382,7 @@ export default class ValidatorClient {
      * Checks whether there is already a bonded mixnode associated with this client's address
      */
     async ownsMixNode(): Promise<boolean> {
-        if (this.client instanceof NetClient) {
+        if (this.client instanceof SigningClient) {
             const result = await this.client.ownsMixNode(this.contractAddress, this.client.clientAddress).catch((err) => this.handleRequestFailure(err))
             return result.has_node
         } else {
@@ -395,7 +394,7 @@ export default class ValidatorClient {
      * Checks whether there is already a bonded gateway associated with this client's address
      */
     async ownsGateway(): Promise<boolean> {
-        if (this.client instanceof NetClient) {
+        if (this.client instanceof SigningClient) {
             const result = await this.client.ownsGateway(this.contractAddress, this.client.clientAddress).catch((err) => this.handleRequestFailure(err))
             return result.has_gateway
         } else {
@@ -449,8 +448,8 @@ export default class ValidatorClient {
      *  Announce a gateway, paying a fee.
      */
     async bondGateway(gateway: Gateway, bond: Coin): Promise<ExecuteResult> {
-        if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_gateway: { gateway: gateway } }, "adding gateway", [bond]).catch((err) => this.handleRequestFailure(err));
+        if (this.client instanceof SigningClient) {
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { bond_gateway: { gateway: gateway } }, "auto","adding gateway", [bond]).catch((err) => this.handleRequestFailure(err));
             console.log(`account ${this.client.clientAddress} added gateway with ${gateway.host}`);
             return result;
         } else {
@@ -462,8 +461,8 @@ export default class ValidatorClient {
      * Unbond a gateway, removing it from the network and reclaiming staked coins
      */
     async unbondGateway(): Promise<ExecuteResult> {
-        if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { unbond_gateway: {} }).catch((err) => this.handleRequestFailure(err))
+        if (this.client instanceof SigningClient) {
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { unbond_gateway: {} }, "auto",).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} unbonded gateway`);
             return result;
         } else {
@@ -472,8 +471,8 @@ export default class ValidatorClient {
     }
 
     async updateStateParams(newParams: ContractSettingsParams): Promise<ExecuteResult> {
-        if (this.client instanceof NetClient) {
-            return await this.client.executeContract(this.client.clientAddress, this.contractAddress, { update_contract_settings: newParams }, "updating contract settings").catch((err) => this.handleRequestFailure(err));
+        if (this.client instanceof SigningClient) {
+            return await this.client.execute(this.client.clientAddress, this.contractAddress, { update_contract_settings: newParams }, "auto", "updating contract settings").catch((err) => this.handleRequestFailure(err));
         } else {
             throw new Error("Tried to update state params with a query client")
         }
@@ -555,10 +554,10 @@ export default class ValidatorClient {
     /**
      * Send funds from one address to another.
      */
-    async send(senderAddress: string, recipientAddress: string, coins: readonly Coin[], memo?: string): Promise<BroadcastTxSuccess> {
-        if (this.client instanceof NetClient) {
-            const result = await this.client.sendTokens(senderAddress, recipientAddress, coins, memo).catch((err) => this.handleRequestFailure(err));
-            if (isBroadcastTxFailure(result)) {
+    async send(senderAddress: string, recipientAddress: string, coins: readonly Coin[], memo?: string): Promise<DeliverTxResponse> {
+        if (this.client instanceof SigningClient) {
+            const result = await this.client.sendTokens(senderAddress, recipientAddress, coins, "auto", memo).catch((err) => this.handleRequestFailure(err));
+            if (isDeliverTxFailure(result)) {
                 throw new Error(`Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`)
             }
             return result
@@ -570,20 +569,16 @@ export default class ValidatorClient {
     /**
      * Send funds multiple times from one address to another in a single block.
      */
-    async sendMultiple(senderAddress: string, data: SendRequest[], memo?: string): Promise<BroadcastTxSuccess> {
-        if (this.client instanceof NetClient) {
+    async sendMultiple(senderAddress: string, data: SendRequest[], memo?: string): Promise<DeliverTxResponse> {
+        if (this.client instanceof SigningClient) {
             if (data.length === 1) {
                 return this.send(data[0].senderAddress, data[0].recipientAddress, data[0].transferAmount, memo)
             }
 
             const encoded = data.map(req => makeBankMsgSend(req.senderAddress, req.recipientAddress, req.transferAmount));
 
-            // the function to calculate fee for a single entry is not exposed...
-            console.log(`this.denom is ${this.denom}`);
-            const table = buildFeeTable(nymGasPrice(this.prefix), { sendMultiple: nymGasLimits.send * data.length }, { sendMultiple: nymGasLimits.send * data.length })
-            const fee = table.sendMultiple
-            const result = await this.client.signAndBroadcast(senderAddress, encoded, fee, memo)
-            if (isBroadcastTxFailure(result)) {
+            const result = await this.client.signAndBroadcast(senderAddress, encoded, "auto", memo)
+            if (isDeliverTxFailure(result)) {
                 throw new Error(`Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`)
             }
             return result
@@ -592,10 +587,10 @@ export default class ValidatorClient {
         }
     }
 
-    public async executeCustom(signerAddress: string, messages: readonly EncodeObject[], customFee: StdFee, memo?: string): Promise<BroadcastTxSuccess> {
-        if (this.client instanceof NetClient) {
+    public async executeCustom(signerAddress: string, messages: readonly EncodeObject[], customFee: StdFee, memo?: string): Promise<DeliverTxResponse> {
+        if (this.client instanceof SigningClient) {
             const result = await this.client.signAndBroadcast(signerAddress, messages, customFee, memo);
-            if (isBroadcastTxFailure(result)) {
+            if (isDeliverTxFailure(result)) {
                 throw new Error(`Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`)
             }
             return result
@@ -604,25 +599,25 @@ export default class ValidatorClient {
         }
     }
 
-    async upload(senderAddress: string, wasmCode: Uint8Array, meta?: UploadMeta, memo?: string): Promise<UploadResult> {
-        if (this.client instanceof NetClient) {
-            return this.client.upload(senderAddress, wasmCode, meta, memo).catch((err) => this.handleRequestFailure(err));
+    async upload(senderAddress: string, wasmCode: Uint8Array, memo?: string): Promise<UploadResult> {
+        if (this.client instanceof SigningClient) {
+            return this.client.upload(senderAddress, wasmCode, "auto", memo).catch((err) => this.handleRequestFailure(err));
         } else {
             throw new Error("Tried to upload with a query client");
         }
     }
 
     public instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult> {
-        if (this.client instanceof NetClient) {
-            return this.client.instantiate(senderAddress, codeId, initMsg, label, options).catch((err) => this.handleRequestFailure(err));
+        if (this.client instanceof SigningClient) {
+            return this.client.instantiate(senderAddress, codeId, initMsg, label, "auto", options).catch((err) => this.handleRequestFailure(err));
         } else {
             throw new Error("Tried to instantiate with a query client");
         }
     }
 
     public migrate(senderAddress: string, contractAddress: string, codeId: number, migrateMsg: Record<string, unknown>, memo?: string): Promise<MigrateResult> {
-        if (this.client instanceof NetClient) {
-            return this.client.migrate(senderAddress, contractAddress, codeId, migrateMsg, memo).catch((err) => this.handleRequestFailure(err))
+        if (this.client instanceof SigningClient) {
+            return this.client.migrate(senderAddress, contractAddress, codeId, migrateMsg, "auto", memo).catch((err) => this.handleRequestFailure(err))
         } else {
             throw new Error("Tried to migrate with a query client");
         }

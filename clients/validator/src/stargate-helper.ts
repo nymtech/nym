@@ -1,16 +1,5 @@
 import axios from "axios";
-import { GasLimits, GasPrice } from "@cosmjs/stargate";
-import { CosmWasmFeeTable, defaultGasLimits } from "@cosmjs/cosmwasm-stargate";
-
-export const nymGasLimits: GasLimits<CosmWasmFeeTable> = {
-    ...defaultGasLimits,
-    upload: 2_500_000,
-    init: 500_000,
-    migrate: 200_000,
-    exec: 250_000,
-    send: 80_000,
-    changeAdmin: 80_000,
-};
+import { GasPrice } from "@cosmjs/stargate";
 
 export function nymGasPrice(prefix: string): GasPrice {
     return GasPrice.fromString(`0.025u${prefix}`); // TODO: ideally this ugly conversion shouldn't be hardcoded here.

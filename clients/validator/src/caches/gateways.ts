@@ -1,5 +1,5 @@
 import {GatewayBond, PagedGatewayResponse} from "../types";
-import {INetClient} from "../net-client"
+import {ISigningClient} from "../signing-client"
 import {IQueryClient} from "../query-client";
 import {VALIDATOR_API_GATEWAYS, VALIDATOR_API_PORT} from "../index";
 import axios from "axios";
@@ -13,10 +13,10 @@ import axios from "axios";
  **/
 export default class GatewaysCache {
     gateways: GatewayBond[]
-    client: INetClient | IQueryClient
+    client: ISigningClient | IQueryClient
     perPage: number
 
-    constructor(client: INetClient | IQueryClient, perPage: number) {
+    constructor(client: ISigningClient | IQueryClient, perPage: number) {
         this.client = client;
         this.gateways = [];
         this.perPage = perPage;

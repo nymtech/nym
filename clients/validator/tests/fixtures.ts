@@ -1,5 +1,5 @@
 import { coins } from "@cosmjs/launchpad";
-import {PagedGatewayResponse, PagedMixnodeResponse} from "../src/net-client";
+import {PagedGatewayResponse, PagedMixnodeResponse} from "../src/signing-client";
 import {GatewayBond, MixNodeBond} from "../src/types"
 
 export namespace Fixtures {

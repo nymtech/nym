@@ -1,19 +1,19 @@
-import SigningClient, { ISigningClient } from "./signing-client";
+import SigningClient, {ISigningClient} from "./signing-client";
 import {
     ContractSettingsParams,
     Delegation,
-    PagedMixDelegationsResponse,
-    PagedGatewayDelegationsResponse,
-    MixNodeBond,
-    MixNode,
-    GatewayBond,
     Gateway,
+    GatewayBond,
+    MixNode,
+    MixNodeBond,
+    PagedGatewayDelegationsResponse,
+    PagedMixDelegationsResponse,
     SendRequest
 } from "./types";
-import { Bip39, Random } from "@cosmjs/crypto";
-import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
+import {Bip39, Random} from "@cosmjs/crypto";
+import {DirectSecp256k1HdWallet, EncodeObject} from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
-import { coin, Coin, coins, StdFee } from "@cosmjs/stargate";
+import {coin, Coin, coins, DeliverTxResponse, isDeliverTxFailure, StdFee} from "@cosmjs/stargate";
 import {
     ExecuteResult,
     InstantiateOptions,
@@ -26,22 +26,21 @@ import {
     displayAmountToNative,
     MappedCoin,
     nativeCoinToDisplay,
+    nativeToPrintable,
     printableBalance,
-    printableCoin,
-    nativeToPrintable
+    printableCoin
 } from "./currency";
 import GatewaysCache from "./caches/gateways";
-import QueryClient, { IQueryClient } from "./query-client";
-import { nymGasPrice } from "./stargate-helper";
-import { DeliverTxResponse, isDeliverTxFailure } from "@cosmjs/stargate";
-import { makeBankMsgSend } from "./utils";
+import QueryClient, {IQueryClient} from "./query-client";
+import {nymGasPrice} from "./stargate-helper";
+import {makeBankMsgSend} from "./utils";
 
 export const VALIDATOR_API_PORT = "8080";
 export const VALIDATOR_API_GATEWAYS = "v1/gateways";
 export const VALIDATOR_API_MIXNODES = "v1/mixnodes";
 
-export { coins, coin };
-export { Coin };
+export {coins, coin};
+export {Coin};
 export {
     displayAmountToNative,
     nativeCoinToDisplay,
@@ -51,7 +50,7 @@ export {
     MappedCoin,
     CoinMap
 }
-export { nymGasPrice }
+export {nymGasPrice}
 
 export default class ValidatorClient {
     private readonly client: ISigningClient | IQueryClient
@@ -99,6 +98,12 @@ export default class ValidatorClient {
         }
     }
 
+    private assertSigning() {
+        if (this.client instanceof QueryClient) {
+            throw new Error("Tried to perform signing action with a query client!")
+        }
+    }
+
     /**
      * TODO: re-enable this once we move back to client-side wallets running on people's machines
      * instead of the web wallet.
@@ -133,12 +138,12 @@ export default class ValidatorClient {
      */
     static async mnemonicToAddress(mnemonic: string, prefix: string): Promise<string> {
         const wallet = await ValidatorClient.buildWallet(mnemonic, prefix);
-        const [{ address }] = await wallet.getAccounts()
+        const [{address}] = await wallet.getAccounts()
         return address
     }
 
     static async buildWallet(mnemonic: string, prefix: string): Promise<DirectSecp256k1HdWallet> {
-        const signerOptions = { prefix: prefix };
+        const signerOptions = {prefix: prefix};
         return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, signerOptions);
     }
 
@@ -199,13 +204,11 @@ export default class ValidatorClient {
      *  Announce a mixnode, paying a fee.
      */
     async bondMixnode(mixNode: MixNode, bond: Coin): Promise<ExecuteResult> {
-        if (this.client instanceof SigningClient) {
-            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "auto","adding mixnode", [bond]);
-            console.log(`account ${this.client.clientAddress} added mixnode with ${mixNode.host}`);
-            return result;
-        } else {
-            throw new Error("Tried to bond with a query client")
-        }
+        this.assertSigning()
+        const result = await this.client.execute(this.client.clientAddress, this.contractAddress, {bond_mixnode: {mix_node: mixNode}}, "auto", "adding mixnode", [bond]);
+        console.log(`account ${this.client.clientAddress} added mixnode with ${mixNode.host}`);
+        return result;
+
 
     }
 
@@ -214,7 +217,7 @@ export default class ValidatorClient {
      */
     async unbondMixnode(): Promise<ExecuteResult> {
         if (this.client instanceof SigningClient) {
-            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { unbond_mixnode: {} }, "auto")
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, {unbond_mixnode: {}}, "auto")
             console.log(`account ${this.client.clientAddress} unbonded mixnode`);
             return result;
         } else {
@@ -231,7 +234,7 @@ export default class ValidatorClient {
     // requires coin type to ensure correct denomination (
     async delegateToMixnode(mixIdentity: string, amount: Coin): Promise<ExecuteResult> {
         if (this.client instanceof SigningClient) {
-            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { delegate_to_mixnode: { mix_identity: mixIdentity } }, "auto", `delegating to ${mixIdentity}`, [amount])
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, {delegate_to_mixnode: {mix_identity: mixIdentity}}, "auto", `delegating to ${mixIdentity}`, [amount])
             console.log(`account ${this.client.clientAddress} delegated ${amount} to mixnode ${mixIdentity}`);
             return result;
         } else {
@@ -246,7 +249,7 @@ export default class ValidatorClient {
      */
     async removeMixnodeDelegation(mixIdentity: string): Promise<ExecuteResult> {
         if (this.client instanceof SigningClient) {
-            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { undelegate_from_mixnode: { mix_identity: mixIdentity } }, "auto")
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, {undelegate_from_mixnode: {mix_identity: mixIdentity}}, "auto")
             console.log(`account ${this.client.clientAddress} removed delegation from mixnode ${mixIdentity}`);
             return result;
         } else {
@@ -263,7 +266,7 @@ export default class ValidatorClient {
     // requires coin type to ensure correct denomination (
     async delegateToGateway(gatewayIdentity: string, amount: Coin): Promise<ExecuteResult> {
         if (this.client instanceof SigningClient) {
-            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { delegate_to_gateway: { gateway_identity: gatewayIdentity } }, "auto", `delegating to ${gatewayIdentity}`, [amount])
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, {delegate_to_gateway: {gateway_identity: gatewayIdentity}}, "auto", `delegating to ${gatewayIdentity}`, [amount])
             console.log(`account ${this.client.clientAddress} delegated ${amount} to gateway ${gatewayIdentity}`);
             return result;
         } else {
@@ -278,7 +281,7 @@ export default class ValidatorClient {
      */
     async removeGatewayDelegation(gatewayIdentity: string): Promise<ExecuteResult> {
         if (this.client instanceof SigningClient) {
-            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { undelegate_from_gateway: { gateway_identity: gatewayIdentity } }, "auto",)
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, {undelegate_from_gateway: {gateway_identity: gatewayIdentity}}, "auto",)
             console.log(`account ${this.client.clientAddress} removed delegation from gateway ${gatewayIdentity}`);
             return result;
         } else {
@@ -357,7 +360,7 @@ export default class ValidatorClient {
      */
     async bondGateway(gateway: Gateway, bond: Coin): Promise<ExecuteResult> {
         if (this.client instanceof SigningClient) {
-            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { bond_gateway: { gateway: gateway } }, "auto","adding gateway", [bond]);
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, {bond_gateway: {gateway: gateway}}, "auto", "adding gateway", [bond]);
             console.log(`account ${this.client.clientAddress} added gateway with ${gateway.host}`);
             return result;
         } else {
@@ -370,7 +373,7 @@ export default class ValidatorClient {
      */
     async unbondGateway(): Promise<ExecuteResult> {
         if (this.client instanceof SigningClient) {
-            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, { unbond_gateway: {} }, "auto",)
+            const result = await this.client.execute(this.client.clientAddress, this.contractAddress, {unbond_gateway: {}}, "auto",)
             console.log(`account ${this.client.clientAddress} unbonded gateway`);
             return result;
         } else {
@@ -380,7 +383,7 @@ export default class ValidatorClient {
 
     async updateStateParams(newParams: ContractSettingsParams): Promise<ExecuteResult> {
         if (this.client instanceof SigningClient) {
-            return await this.client.execute(this.client.clientAddress, this.contractAddress, { update_contract_settings: newParams }, "auto", "updating contract settings");
+            return await this.client.execute(this.client.clientAddress, this.contractAddress, {update_contract_settings: newParams}, "auto", "updating contract settings");
         } else {
             throw new Error("Tried to update state params with a query client")
         }

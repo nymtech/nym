@@ -265,50 +265,34 @@ impl TryFrom<ProtoAbciResult> for AbciResult {
     type Error = NymdError;
 
     fn try_from(value: ProtoAbciResult) -> Result<Self, Self::Error> {
-        // annoyingly parsing of the event could not be moved to a separate function as protobuf
-        // representation of the event is not exposed by the existing libraries
+        let mut events = Vec::with_capacity(value.events.len());
+
+        for proto_event in value.events.into_iter() {
+            let type_str = proto_event.r#type;
+
+            let mut attributes = Vec::with_capacity(proto_event.attributes.len());
+            for proto_attribute in proto_event.attributes.into_iter() {
+                let stringified_ked = String::from_utf8(proto_attribute.key)
+                    .map_err(|_| NymdError::DeserializationError("EventAttributeKey".to_owned()))?;
+                let stringified_value = String::from_utf8(proto_attribute.value)
+                    .map_err(|_| NymdError::DeserializationError("EventAttributeKey".to_owned()))?;
+
+                attributes.push(abci::tag::Tag {
+                    key: stringified_ked.parse().unwrap(),
+                    value: stringified_value.parse().unwrap(),
+                })
+            }
+
+            events.push(abci::Event {
+                type_str,
+                attributes,
+            })
+        }
+
         Ok(AbciResult {
             data: value.data,
             log: value.log,
-            events: value
-                .events
-                .into_iter()
-                .map(|proto_event| {
-                    let type_str = proto_event.r#type;
-                    let parsed_attributes = proto_event
-                        .attributes
-                        .into_iter()
-                        .map(|proto_attribute| {
-                            let raw_key = proto_attribute.key;
-                            let raw_value = proto_attribute.value;
-
-                            String::from_utf8(raw_key)
-                                .map_err(|_| {
-                                    NymdError::DeserializationError("EventAttributeKey".to_owned())
-                                })
-                                .map(|stringified_ked| {
-                                    String::from_utf8(raw_value)
-                                        .map_err(|_| {
-                                            NymdError::DeserializationError(
-                                                "EventAttributeValue".to_owned(),
-                                            )
-                                        })
-                                        .map(|stringified_value| abci::tag::Tag {
-                                            key: stringified_ked.parse().unwrap(),
-                                            value: stringified_value.parse().unwrap(),
-                                        })
-                                })
-                        })
-                        .collect::<Result<Result<Vec<_>, _>, _>>();
-
-                    parsed_attributes.map(|attributes| {
-                        attributes.map(|attributes| abci::Event {
-                            type_str,
-                            attributes,
-                        })
-                    })
-                })
-                .collect::<Result<Result<Vec<_>, _>, _>>()??,
+            events,
         })
     }
 }

@@ -10,7 +10,7 @@ use cosmrs::proto::cosmos::tx::signing::v1beta1::SignMode;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
-use cosmrs::tx::{self, Gas, Msg, SignDoc, SignerInfo};
+use cosmrs::tx::{self, Msg, SignDoc, SignerInfo};
 use cosmrs::{cosmwasm, rpc, AccountId, Any, Coin, Tx};
 use log::debug;
 use serde::Serialize;
@@ -22,11 +22,9 @@ use crate::nymd::cosmwasm_client::helpers::{compress_wasm_code, CheckResponse};
 use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::error::NymdError;
-use crate::nymd::fee::helpers::Operation;
 use crate::nymd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use crate::nymd::{CosmosCoin, GasPrice};
-use std::collections::HashMap;
 
 // we need to have **a** valid secp256k1 signature for simulation purposes.
 // it doesn't matter what it is as long as it parses correctly
@@ -42,12 +40,6 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
     fn signer(&self) -> &DirectSecp256k1HdWallet;
 
     fn gas_price(&self) -> &GasPrice;
-
-    fn set_custom_gas_limit(&mut self, operation: Operation, limit: Gas);
-
-    fn operation_fee(&self, operation: Operation) -> Fee;
-
-    fn repeated_operation_fee(&self, operation: Operation, count: u64) -> Fee;
 
     fn signer_public_key(&self, signer_address: &AccountId) -> Option<tx::SignerPublicKey> {
         let signer_accounts = self.signer().try_derive_accounts().ok()?;
@@ -648,8 +640,6 @@ pub struct Client {
     rpc_client: HttpClient,
     signer: DirectSecp256k1HdWallet,
     gas_price: GasPrice,
-    custom_gas_limits: HashMap<Operation, Gas>,
-    simulated_gas_multiplier: f32,
 }
 
 impl Client {
@@ -666,8 +656,6 @@ impl Client {
             rpc_client,
             signer,
             gas_price: gas_price.unwrap_or_default(),
-            custom_gas_limits: Default::default(),
-            simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
     }
 }
@@ -693,26 +681,5 @@ impl SigningCosmWasmClient for Client {
 
     fn gas_price(&self) -> &GasPrice {
         &self.gas_price
-    }
-
-    fn set_custom_gas_limit(&mut self, operation: Operation, limit: Gas) {
-        self.custom_gas_limits.insert(operation, limit);
-    }
-
-    fn operation_fee(&self, operation: Operation) -> Fee {
-        if let Some(&gas_limit) = self.custom_gas_limits.get(&operation) {
-            Operation::determine_custom_fee(self.gas_price(), gas_limit).into()
-        } else {
-            Fee::Auto(Some(self.simulated_gas_multiplier))
-        }
-    }
-
-    fn repeated_operation_fee(&self, operation: Operation, count: u64) -> Fee {
-        if let Some(&gas_limit) = self.custom_gas_limits.get(&operation) {
-            Operation::determine_custom_fee(self.gas_price(), (gas_limit.value() * count).into())
-                .into()
-        } else {
-            Fee::Auto(Some(self.simulated_gas_multiplier))
-        }
     }
 }

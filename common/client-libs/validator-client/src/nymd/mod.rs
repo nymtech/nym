@@ -26,6 +26,7 @@ use std::convert::TryInto;
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::fee::Fee;
+use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
 pub use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::hash;
@@ -34,6 +35,7 @@ pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{AccountId, Decimal, Denom};
 pub use signing_client::Client as SigningNymdClient;
+use std::collections::HashMap;
 pub use traits::{VestingQueryClient, VestingSigningClient};
 
 pub mod cosmwasm_client;
@@ -48,6 +50,8 @@ pub struct NymdClient<C> {
     mixnet_contract_address: Option<AccountId>,
     vesting_contract_address: Option<AccountId>,
     client_address: Option<Vec<AccountId>>,
+    custom_gas_limits: HashMap<Operation, Gas>,
+    simulated_gas_multiplier: f32,
 }
 
 impl NymdClient<QueryNymdClient> {
@@ -64,6 +68,8 @@ impl NymdClient<QueryNymdClient> {
             mixnet_contract_address: Some(mixnet_contract_address),
             vesting_contract_address: Some(vesting_contract_address),
             client_address: None,
+            custom_gas_limits: Default::default(),
+            simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
     }
 }
@@ -91,6 +97,8 @@ impl NymdClient<SigningNymdClient> {
             mixnet_contract_address,
             vesting_contract_address,
             client_address: Some(client_address),
+            custom_gas_limits: Default::default(),
+            simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
     }
 
@@ -116,6 +124,8 @@ impl NymdClient<SigningNymdClient> {
             mixnet_contract_address,
             vesting_contract_address,
             client_address: Some(client_address),
+            custom_gas_limits: Default::default(),
+            simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
     }
 }
@@ -152,7 +162,33 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        self.client.set_custom_gas_limit(operation, limit);
+        self.custom_gas_limits.insert(operation, limit);
+    }
+
+    fn operation_fee(&self, operation: Operation) -> Fee
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        if let Some(&gas_limit) = self.custom_gas_limits.get(&operation) {
+            Operation::determine_custom_fee(self.client.gas_price(), gas_limit).into()
+        } else {
+            Fee::Auto(Some(self.simulated_gas_multiplier))
+        }
+    }
+
+    fn repeated_operation_fee(&self, operation: Operation, count: u64) -> Fee
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        if let Some(&gas_limit) = self.custom_gas_limits.get(&operation) {
+            Operation::determine_custom_fee(
+                self.client.gas_price(),
+                (gas_limit.value() * count).into(),
+            )
+            .into()
+        } else {
+            Fee::Auto(Some(self.simulated_gas_multiplier))
+        }
     }
 
     pub async fn account_sequence(&self) -> Result<SequenceResponse, NymdError>
@@ -447,7 +483,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::Send);
+        let fee = self.operation_fee(Operation::Send);
         self.client
             .send_tokens(self.address(), recipient, amount, fee, memo)
             .await
@@ -462,9 +498,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self
-            .client
-            .repeated_operation_fee(Operation::Send, msgs.len() as u64);
+        let fee = self.repeated_operation_fee(Operation::Send, msgs.len() as u64);
         self.client
             .send_tokens_multiple(self.address(), msgs, fee, memo)
             .await
@@ -512,7 +546,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::Upload);
+        let fee = self.operation_fee(Operation::Upload);
         self.client
             .upload(self.address(), wasm_code, fee, memo)
             .await
@@ -530,7 +564,7 @@ impl<C> NymdClient<C> {
         C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
     {
-        let fee = self.client.operation_fee(Operation::Init);
+        let fee = self.operation_fee(Operation::Init);
         self.client
             .instantiate(self.address(), code_id, msg, label, fee, memo, options)
             .await
@@ -545,7 +579,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::ChangeAdmin);
+        let fee = self.operation_fee(Operation::ChangeAdmin);
         self.client
             .update_admin(self.address(), contract_address, new_admin, fee, memo)
             .await
@@ -559,7 +593,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::ChangeAdmin);
+        let fee = self.operation_fee(Operation::ChangeAdmin);
         self.client
             .clear_admin(self.address(), contract_address, fee, memo)
             .await
@@ -576,7 +610,7 @@ impl<C> NymdClient<C> {
         C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
     {
-        let fee = self.client.operation_fee(Operation::Migrate);
+        let fee = self.operation_fee(Operation::Migrate);
         self.client
             .migrate(self.address(), contract_address, code_id, fee, msg, memo)
             .await
@@ -592,7 +626,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::BondMixnode);
+        let fee = self.operation_fee(Operation::BondMixnode);
 
         let req = ExecuteMsg::BondMixnode {
             mix_node: mixnode,
@@ -621,7 +655,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::BondMixnodeOnBehalf);
+        let fee = self.operation_fee(Operation::BondMixnodeOnBehalf);
 
         let req = ExecuteMsg::BondMixnodeOnBehalf {
             mix_node: mixnode,
@@ -648,7 +682,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.repeated_operation_fee(
+        let fee = self.repeated_operation_fee(
             Operation::BondMixnodeOnBehalf,
             mixnode_bonds_with_sigs.len() as u64,
         );
@@ -683,7 +717,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::UnbondMixnode);
+        let fee = self.operation_fee(Operation::UnbondMixnode);
 
         let req = ExecuteMsg::UnbondMixnode {};
         self.client
@@ -703,7 +737,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::UnbondMixnodeOnBehalf);
+        let fee = self.operation_fee(Operation::UnbondMixnodeOnBehalf);
 
         let req = ExecuteMsg::UnbondMixnodeOnBehalf { owner };
         self.client
@@ -727,7 +761,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::DelegateToMixnode);
+        let fee = self.operation_fee(Operation::DelegateToMixnode);
 
         let req = ExecuteMsg::DelegateToMixnode {
             mix_identity: mix_identity.to_string(),
@@ -755,9 +789,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self
-            .client
-            .operation_fee(Operation::DelegateToMixnodeOnBehalf);
+        let fee = self.operation_fee(Operation::DelegateToMixnodeOnBehalf);
 
         let req = ExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_identity: mix_identity.to_string(),
@@ -783,7 +815,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.repeated_operation_fee(
+        let fee = self.repeated_operation_fee(
             Operation::DelegateToMixnodeOnBehalf,
             mixnode_delegations.len() as u64,
         );
@@ -820,7 +852,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::UndelegateFromMixnode);
+        let fee = self.operation_fee(Operation::UndelegateFromMixnode);
 
         let req = ExecuteMsg::UndelegateFromMixnode {
             mix_identity: mix_identity.to_string(),
@@ -846,9 +878,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self
-            .client
-            .operation_fee(Operation::UndelegateFromMixnodeOnBehalf);
+        let fee = self.operation_fee(Operation::UndelegateFromMixnodeOnBehalf);
 
         let req = ExecuteMsg::UndelegateFromMixnodeOnBehalf {
             mix_identity: mix_identity.to_string(),
@@ -876,7 +906,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::BondGateway);
+        let fee = self.operation_fee(Operation::BondGateway);
 
         let req = ExecuteMsg::BondGateway {
             gateway,
@@ -905,7 +935,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::BondGatewayOnBehalf);
+        let fee = self.operation_fee(Operation::BondGatewayOnBehalf);
 
         let req = ExecuteMsg::BondGatewayOnBehalf {
             gateway,
@@ -932,7 +962,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.repeated_operation_fee(
+        let fee = self.repeated_operation_fee(
             Operation::BondGatewayOnBehalf,
             gateway_bonds_with_sigs.len() as u64,
         );
@@ -967,7 +997,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::UnbondGateway);
+        let fee = self.operation_fee(Operation::UnbondGateway);
 
         let req = ExecuteMsg::UnbondGateway {};
         self.client
@@ -988,7 +1018,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::UnbondGatewayOnBehalf);
+        let fee = self.operation_fee(Operation::UnbondGatewayOnBehalf);
 
         let req = ExecuteMsg::UnbondGatewayOnBehalf { owner };
         self.client
@@ -1010,7 +1040,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::UpdateContractSettings);
+        let fee = self.operation_fee(Operation::UpdateContractSettings);
 
         let req = ExecuteMsg::UpdateContractStateParams(new_params);
         self.client
@@ -1032,7 +1062,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::BeginMixnodeRewarding);
+        let fee = self.operation_fee(Operation::BeginMixnodeRewarding);
 
         let req = ExecuteMsg::BeginMixnodeRewarding {
             rewarding_interval_nonce,
@@ -1056,7 +1086,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.client.operation_fee(Operation::FinishMixnodeRewarding);
+        let fee = self.operation_fee(Operation::FinishMixnodeRewarding);
 
         let req = ExecuteMsg::FinishMixnodeRewarding {
             rewarding_interval_nonce,

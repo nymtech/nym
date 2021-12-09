@@ -18,10 +18,6 @@ fixed::const_fixed_from_int! {
     const ONE: U128 = 1;
 }
 
-fixed::const_fixed_from_int! {
-    const ZERO: U128 = 0;
-}
-
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct MixNode {

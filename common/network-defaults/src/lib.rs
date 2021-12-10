@@ -61,7 +61,7 @@ pub fn default_api_endpoints() -> Vec<Url> {
 
 pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "tnym14hj2tavq8fpesdwxxcu44rty3hh90vhu5ksfyn";
 pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = "";
-pub const REWARDING_VALIDATOR_ADDRESS: &str = "punk1v9qauwdq5terag6uvfsdytcs2d0sdmfdy7hgk3";
+pub const REWARDING_VALIDATOR_ADDRESS: &str = "tnym1xwwst7fd30czjqlve0ww50t7x8mycs2sau5y85";
 
 /// How much bandwidth (in bytes) one token can buy
 const BYTES_PER_TOKEN: u64 = 1024 * 1024 * 1024;

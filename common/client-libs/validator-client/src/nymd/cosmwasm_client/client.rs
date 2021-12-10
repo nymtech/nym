@@ -23,6 +23,7 @@ use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 use cosmrs::rpc::query::Query;
 use cosmrs::rpc::{self, HttpClient, Order};
+use cosmrs::tendermint::abci::Code as AbciCode;
 use cosmrs::tendermint::abci::Transaction;
 use cosmrs::tendermint::{abci, block, chain};
 use cosmrs::{tx, AccountId, Coin, Denom, Tx};
@@ -51,6 +52,11 @@ pub trait CosmWasmClient: rpc::Client {
         req.encode(&mut buf)?;
 
         let res = self.abci_query(path, buf, None, false).await?;
+
+        match res.code {
+            AbciCode::Err(code) => return Err(NymdError::AbciError(code, res.log)),
+            AbciCode::Ok => (),
+        }
 
         Ok(Res::decode(res.value.as_ref())?)
     }

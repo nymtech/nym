@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::cosmwasm_client::types::ContractCodeId;
-use cosmrs::tendermint::block;
+use cosmrs::tendermint::{abci, block};
 use cosmrs::{bip32, tx, AccountId};
 use std::io;
 use thiserror::Error;
@@ -105,6 +105,9 @@ pub enum NymdError {
 
     #[error("Failed to estimate gas price for the transaction")]
     GasEstimationFailure,
+
+    #[error("Abci query failed with code {0} - {1}")]
+    AbciError(u32, abci::Log),
 }
 
 impl NymdError {

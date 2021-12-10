@@ -11,29 +11,56 @@ import {
     ContractSettingsParams,
     Delegation,
     GatewayOwnershipResponse,
+    MixnetContractVersion,
     MixOwnershipResponse,
-    PagedGatewayDelegationsResponse,
     PagedGatewayResponse,
     PagedMixDelegationsResponse,
     PagedMixnodeResponse
 } from "./types";
 import {DirectSecp256k1HdWallet, EncodeObject} from "@cosmjs/proto-signing";
-import {Coin, DeliverTxResponse, StdFee} from "@cosmjs/stargate";
+import {Coin, DeliverTxResponse, SignerData, StdFee} from "@cosmjs/stargate";
 import {nymGasPrice} from "./stargate-helper"
 import {IQueryClient} from "./query-client";
+import {Tendermint34Client} from "@cosmjs/tendermint-rpc";
+import NymQuerier from "./nym-querier";
+import {ChangeAdminResult} from "@cosmjs/cosmwasm-stargate/build/signingcosmwasmclient";
+import {TxRaw} from "cosmjs-types/cosmos/tx/v1beta1/tx";
+import {NymClient} from "./index";
 
-export interface ISigningClient extends IQueryClient {
-    clientAddress: string;
+export interface CosmWasmSigning {
+    // methods exposed by `SigningCosmWasmClient`
+    simulate(signerAddress: string, messages: readonly EncodeObject[], memo: string | undefined): Promise<number>;
 
-    signAndBroadcast(signerAddress: string, messages: readonly EncodeObject[], fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse>;
-
-    execute(senderAddress: string, contractAddress: string, msg: Record<string, unknown>, fee: StdFee | "auto" | number, memo?: string, funds?: readonly Coin[]): Promise<ExecuteResult>;
+    upload(senderAddress: string, wasmCode: Uint8Array, fee: StdFee | "auto" | number, memo?: string): Promise<UploadResult>;
 
     instantiate(senderAddress: string, codeId: number, msg: Record<string, unknown>, label: string, fee: StdFee | "auto" | number, options?: InstantiateOptions): Promise<InstantiateResult>;
 
+    updateAdmin(senderAddress: string, contractAddress: string, newAdmin: string, fee: StdFee | "auto" | number, memo?: string): Promise<ChangeAdminResult>;
+
+    clearAdmin(senderAddress: string, contractAddress: string, fee: StdFee | "auto" | number, memo?: string): Promise<ChangeAdminResult>;
+
+    migrate(senderAddress: string, contractAddress: string, codeId: number, migrateMsg: Record<string, unknown>, fee: StdFee | "auto" | number, memo?: string): Promise<MigrateResult>;
+
+    execute(senderAddress: string, contractAddress: string, msg: Record<string, unknown>, fee: StdFee | "auto" | number, memo?: string, funds?: readonly Coin[]): Promise<ExecuteResult>;
+
     sendTokens(senderAddress: string, recipientAddress: string, amount: readonly Coin[], fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse>;
 
-    upload(senderAddress: string, wasmCode: Uint8Array, fee: StdFee | "auto" | number, memo?: string): Promise<UploadResult>;
+    delegateTokens(delegatorAddress: string, validatorAddress: string, amount: Coin, fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse>;
+
+    undelegateTokens(delegatorAddress: string, validatorAddress: string, amount: Coin, fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse>;
+
+    withdrawRewards(delegatorAddress: string, validatorAddress: string, fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse>;
+
+    signAndBroadcast(signerAddress: string, messages: readonly EncodeObject[], fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse>;
+
+    sign(signerAddress: string, messages: readonly EncodeObject[], fee: StdFee, memo: string, explicitSignerData?: SignerData): Promise<TxRaw>;
+}
+
+export interface NymSigning {
+    clientAddress: string;
+}
+
+export interface ISigningClient extends IQueryClient, NymSigning {
 }
 
 /**
@@ -44,143 +71,69 @@ export interface ISigningClient extends IQueryClient {
  * Wraps several methods from CosmWasmSigningClient so we can mock them for
  * unit testing.
  */
-export default class SigningClient implements ISigningClient {
+export default class SigningClient extends SigningCosmWasmClient implements ISigningClient {
+    private querier: NymQuerier;
     clientAddress: string;
-    private cosmClient: SigningCosmWasmClient;
 
-    // helpers for changing validators without having to remake the wallet
-    private readonly wallet: DirectSecp256k1HdWallet;
-    private readonly signerOptions: SigningCosmWasmClientOptions;
-
-    private constructor(clientAddress: string, cosmClient: SigningCosmWasmClient, wallet: DirectSecp256k1HdWallet, signerOptions: SigningCosmWasmClientOptions) {
-        this.clientAddress = clientAddress;
-        this.cosmClient = cosmClient;
-        this.wallet = wallet;
-        this.signerOptions = signerOptions;
+    private constructor(
+        clientAddress: string,
+        tmClient: Tendermint34Client,
+        wallet: DirectSecp256k1HdWallet,
+        signerOptions: SigningCosmWasmClientOptions,
+    ) {
+        super(tmClient, wallet, signerOptions)
+        this.clientAddress = clientAddress
+        this.querier = new NymQuerier(this)
     }
 
-    public static async connect(wallet: DirectSecp256k1HdWallet, url: string, prefix: string): Promise<ISigningClient> {
+    public static async connectWithNymSigner(
+        wallet: DirectSecp256k1HdWallet,
+        url: string,
+        prefix: string,
+    ): Promise<SigningClient> {
         const [{address}] = await wallet.getAccounts();
         const signerOptions: SigningCosmWasmClientOptions = {
             gasPrice: nymGasPrice(prefix),
         };
-        const client = await SigningCosmWasmClient.connectWithSigner(url, wallet, signerOptions);
-        return new SigningClient(address, client, wallet, signerOptions);
+        const tmClient = await Tendermint34Client.connect(url);
+        return new SigningClient(address, tmClient, wallet, signerOptions);
     }
 
-    async changeValidator(url: string): Promise<void> {
-        this.cosmClient = await SigningCosmWasmClient.connectWithSigner(url, this.wallet, this.signerOptions);
+    // query related:
+
+    getContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion> {
+        return this.querier.getContractVersion(mixnetContractAddress)
     }
 
-    public getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedMixnodeResponse> {
-        if (start_after == undefined) { // TODO: check if we can take this out, I'm not sure what will happen if we send an "undefined" so I'm playing it safe here.
-            return this.cosmClient.queryContractSmart(contractAddress, {get_mix_nodes: {limit}});
-        } else {
-            return this.cosmClient.queryContractSmart(contractAddress, {get_mix_nodes: {limit, start_after}});
-        }
-    }
+    // public getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedMixnodeResponse> {
+    //     return this.querier.getMixNodes(contractAddress, limit, start_after);
+    // }
+    //
+    // public getGateways(contractAddress: string, limit: number, start_after?: string): Promise<PagedGatewayResponse> {
+    //     return this.querier.getGateways(contractAddress, limit, start_after)
+    // }
+    //
+    // public getMixDelegations(contractAddress: string, mixIdentity: string, limit: number, start_after?: string): Promise<PagedMixDelegationsResponse> {
+    //     return this.querier.getMixDelegations(contractAddress, mixIdentity, limit, start_after);
+    // }
+    //
+    // public getMixDelegation(contractAddress: string, mixIdentity: string, delegatorAddress: string): Promise<Delegation> {
+    //     return this.querier.getMixDelegation(contractAddress, mixIdentity, delegatorAddress);
+    // }
+    //
+    // public ownsMixNode(contractAddress: string, address: string): Promise<MixOwnershipResponse> {
+    //     return this.querier.ownsMixNode(contractAddress, address);
+    // }
+    //
+    // public ownsGateway(contractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
+    //     return this.querier.ownsGateway(contractAddress, address);
+    // }
+    //
+    // public getContractSettingsParams(contractAddress: string): Promise<ContractSettingsParams> {
+    //     return this.querier.getContractSettingsParams(contractAddress);
+    // }
 
-    public getGateways(contractAddress: string, limit: number, start_after?: string): Promise<PagedGatewayResponse> {
-        if (start_after == undefined) { // TODO: check if we can take this out, I'm not sure what will happen if we send an "undefined" so I'm playing it safe here.
-            return this.cosmClient.queryContractSmart(contractAddress, {get_gateways: {limit}});
-        } else {
-            return this.cosmClient.queryContractSmart(contractAddress, {get_gateways: {limit, start_after}});
-        }
-    }
+    // signing related:
 
-    public getMixDelegations(contractAddress: string, mixIdentity: string, limit: number, start_after?: string): Promise<PagedMixDelegationsResponse> {
-        if (start_after == undefined) { // TODO: check if we can take this out, I'm not sure what will happen if we send an "undefined" so I'm playing it safe here.
-            return this.cosmClient.queryContractSmart(contractAddress, {
-                get_mix_delegations: {
-                    mix_identity: mixIdentity,
-                    limit
-                }
-            });
-        } else {
-            return this.cosmClient.queryContractSmart(contractAddress, {
-                get_mix_delegations: {
-                    mix_identity: mixIdentity,
-                    limit,
-                    start_after
-                }
-            });
-        }
-    }
 
-    public getMixDelegation(contractAddress: string, mixIdentity: string, delegatorAddress: string): Promise<Delegation> {
-        return this.cosmClient.queryContractSmart(contractAddress, {
-            get_mix_delegation: {
-                mix_identity: mixIdentity,
-                address: delegatorAddress
-            }
-        });
-    }
-
-    public getGatewayDelegations(contractAddress: string, gatewayIdentity: string, limit: number, start_after?: string): Promise<PagedGatewayDelegationsResponse> {
-        if (start_after == undefined) { // TODO: check if we can take this out, I'm not sure what will happen if we send an "undefined" so I'm playing it safe here.
-            return this.cosmClient.queryContractSmart(contractAddress, {
-                get_gateway_delegations: {
-                    gateway_identity: gatewayIdentity,
-                    limit
-                }
-            });
-        } else {
-            return this.cosmClient.queryContractSmart(contractAddress, {
-                get_gateway_delegations: {
-                    gateway_identity: gatewayIdentity,
-                    limit,
-                    start_after
-                }
-            });
-        }
-    }
-
-    public getGatewayDelegation(contractAddress: string, gatewayIdentity: string, delegatorAddress: string): Promise<Delegation> {
-        return this.cosmClient.queryContractSmart(contractAddress, {
-            get_gateway_delegation: {
-                gateway_identity: gatewayIdentity,
-                address: delegatorAddress
-            }
-        });
-    }
-
-    public ownsMixNode(contractAddress: string, address: string): Promise<MixOwnershipResponse> {
-        return this.cosmClient.queryContractSmart(contractAddress, {owns_mixnode: {address}});
-    }
-
-    public ownsGateway(contractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
-        return this.cosmClient.queryContractSmart(contractAddress, {owns_gateway: {address}});
-    }
-
-    public getBalance(address: string, denom: string): Promise<Coin | null> {
-        return this.cosmClient.getBalance(address, denom);
-    }
-
-    public getContractSettingsParams(contractAddress: string): Promise<ContractSettingsParams> {
-        return this.cosmClient.queryContractSmart(contractAddress, {contract_settings_params: {}});
-    }
-
-    public execute(senderAddress: string, contractAddress: string, msg: Record<string, unknown>, fee: StdFee | "auto" | number, memo?: string, funds?: readonly Coin[]): Promise<ExecuteResult> {
-        return this.cosmClient.execute(senderAddress, contractAddress, msg, fee, memo);
-    }
-
-    public signAndBroadcast(signerAddress: string, messages: readonly EncodeObject[], fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse> {
-        return this.cosmClient.signAndBroadcast(signerAddress, messages, fee, memo)
-    }
-
-    public sendTokens(senderAddress: string, recipientAddress: string, amount: readonly Coin[], fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse> {
-        return this.cosmClient.sendTokens(senderAddress, recipientAddress, amount, fee, memo);
-    }
-
-    public upload(senderAddress: string, wasmCode: Uint8Array, fee: StdFee | "auto" | number, memo?: string): Promise<UploadResult> {
-        return this.cosmClient.upload(senderAddress, wasmCode, fee, memo);
-    }
-
-    public instantiate(senderAddress: string, codeId: number, msg: Record<string, unknown>, label: string, fee: StdFee | "auto" | number, options?: InstantiateOptions): Promise<InstantiateResult> {
-        return this.cosmClient.instantiate(senderAddress, codeId, msg, label, fee, options);
-    }
-
-    public migrate(senderAddress: string, contractAddress: string, codeId: number, migrateMsg: Record<string, unknown>, fee: StdFee | "auto" | number, memo?: string): Promise<MigrateResult> {
-        return this.cosmClient.migrate(senderAddress, contractAddress, codeId, migrateMsg, fee, memo)
-    }
 }

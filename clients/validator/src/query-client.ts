@@ -1,8 +1,8 @@
 import {CosmWasmClient} from "@cosmjs/cosmwasm-stargate";
 import {
     ContractStateParams,
-    Delegation,
-    GatewayOwnershipResponse, LayerDistribution, MixnetContractVersion,
+    Delegation, GatewayBond,
+    GatewayOwnershipResponse, LayerDistribution, MixnetContractVersion, MixNodeBond,
     MixOwnershipResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedGatewayResponse,
     PagedMixDelegationsResponse,
@@ -22,7 +22,7 @@ import {
 } from "@cosmjs/stargate";
 import {JsonObject} from "@cosmjs/cosmwasm-stargate/build/queries";
 import {Code, CodeDetails, Contract, ContractCodeHistoryEntry} from "@cosmjs/cosmwasm-stargate/build/cosmwasmclient";
-import {IValidatorApiQuery} from "./validator-api-querier";
+import ValidatorApiQuerier, {IValidatorApiQuery, VALIDATOR_API_GATEWAYS_PATH} from "./validator-api-querier";
 
 export interface ICosmWasmQuery {
     // methods exposed by `CosmWasmClient`
@@ -80,15 +80,14 @@ export interface IQueryClient extends ICosmWasmQuery, INymdQuery, IValidatorApiQ
  * unit testing.
  */
 export default class QueryClient extends CosmWasmClient implements IQueryClient {
-    private querier: NymdQuerier;
-    validatorApiUrl: string;
+    private nymdQuerier: NymdQuerier;
+    private validatorApiQuerier: ValidatorApiQuerier;
 
     private constructor(tmClient: Tendermint34Client, validatorApiUrl: string,) {
         super(tmClient)
-        this.querier = new NymdQuerier(this)
-        this.validatorApiUrl = validatorApiUrl
+        this.nymdQuerier = new NymdQuerier(this)
+        this.validatorApiQuerier = new ValidatorApiQuerier(validatorApiUrl)
     }
-
 
     public static async connectWithNym(nymdUrl: string, validatorApiUrl: string,): Promise<QueryClient> {
         const tmClient = await Tendermint34Client.connect(nymdUrl);
@@ -96,57 +95,73 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
     }
 
     getContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion> {
-        return this.querier.getContractVersion(mixnetContractAddress)
+        return this.nymdQuerier.getContractVersion(mixnetContractAddress)
     }
 
     getMixNodesPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
-        return this.querier.getMixNodesPaged(mixnetContractAddress, limit, startAfter)
+        return this.nymdQuerier.getMixNodesPaged(mixnetContractAddress, limit, startAfter)
     }
     getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
-        return this.querier.getGatewaysPaged(mixnetContractAddress, limit, startAfter)
+        return this.nymdQuerier.getGatewaysPaged(mixnetContractAddress, limit, startAfter)
     }
     ownsMixNode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse> {
-        return this.querier.ownsMixNode(mixnetContractAddress, address)
+        return this.nymdQuerier.ownsMixNode(mixnetContractAddress, address)
     }
     ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
-        return this.querier.ownsGateway(mixnetContractAddress, address)
+        return this.nymdQuerier.ownsGateway(mixnetContractAddress, address)
     }
     getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
-        return this.querier.getStateParams(mixnetContractAddress)
+        return this.nymdQuerier.getStateParams(mixnetContractAddress)
     }
     getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse> {
-        return this.querier.getCurrentRewardingInterval(mixnetContractAddress)
+        return this.nymdQuerier.getCurrentRewardingInterval(mixnetContractAddress)
     }
 
     getAllNetworkDelegationsPaged(mixnetContractAddress: string, limit?: number, startAfter?: [string, string]): Promise<PagedAllDelegationsResponse> {
-        return this.querier.getAllNetworkDelegationsPaged(mixnetContractAddress, limit, startAfter)
+        return this.nymdQuerier.getAllNetworkDelegationsPaged(mixnetContractAddress, limit, startAfter)
     }
     getMixNodeDelegationsPaged(mixnetContractAddress: string, mixIdentity: string, limit?: number, startAfter?: string): Promise<PagedMixDelegationsResponse> {
-        return this.querier.getMixNodeDelegationsPaged(mixnetContractAddress, mixIdentity, limit, startAfter)
+        return this.nymdQuerier.getMixNodeDelegationsPaged(mixnetContractAddress, mixIdentity, limit, startAfter)
     }
     getDelegatorDelegationsPaged(mixnetContractAddress: string, delegator: string, limit?: number, startAfter?: string): Promise<PagedDelegatorDelegationsResponse> {
-        return this.querier.getDelegatorDelegationsPaged(mixnetContractAddress, delegator, limit, startAfter)
+        return this.nymdQuerier.getDelegatorDelegationsPaged(mixnetContractAddress, delegator, limit, startAfter)
     }
     getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation> {
-        return this.querier.getDelegationDetails(mixnetContractAddress, mixIdentity, delegator)
+        return this.nymdQuerier.getDelegationDetails(mixnetContractAddress, mixIdentity, delegator)
     }
 
     getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution> {
-        return this.querier.getLayerDistribution(mixnetContractAddress)
+        return this.nymdQuerier.getLayerDistribution(mixnetContractAddress)
     }
     getRewardPool(mixnetContractAddress: string): Promise<string> {
-        return this.querier.getRewardPool(mixnetContractAddress)
+        return this.nymdQuerier.getRewardPool(mixnetContractAddress)
     }
     getCirculatingSupply(mixnetContractAddress: string): Promise<string> {
-        return this.querier.getCirculatingSupply(mixnetContractAddress)
+        return this.nymdQuerier.getCirculatingSupply(mixnetContractAddress)
     }
     getEpochRewardPercent(mixnetContractAddress: string): Promise<number> {
-        return this.querier.getEpochRewardPercent(mixnetContractAddress)
+        return this.nymdQuerier.getEpochRewardPercent(mixnetContractAddress)
     }
     getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {
-        return this.querier.getSybilResistancePercent(mixnetContractAddress)
+        return this.nymdQuerier.getSybilResistancePercent(mixnetContractAddress)
     }
     getRewardingStatus(mixnetContractAddress: string, mixIdentity: string, rewardingIntervalNonce: number): Promise<RewardingStatus> {
-        return this.querier.getRewardingStatus(mixnetContractAddress, mixIdentity, rewardingIntervalNonce)
+        return this.nymdQuerier.getRewardingStatus(mixnetContractAddress, mixIdentity, rewardingIntervalNonce)
+    }
+
+    getCachedGateways(): Promise<GatewayBond[]> {
+        return this.validatorApiQuerier.getCachedGateways()
+    }
+
+    getCachedMixnodes(): Promise<MixNodeBond[]> {
+        return this.validatorApiQuerier.getCachedMixnodes()
+    }
+
+    getActiveMixnodes(): Promise<MixNodeBond[]> {
+        return this.validatorApiQuerier.getActiveMixnodes()
+    }
+
+    getRewardedMixnodes(): Promise<MixNodeBond[]> {
+        return this.validatorApiQuerier.getRewardedMixnodes()
     }
 }

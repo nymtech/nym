@@ -10,7 +10,6 @@ import {
     PagedGatewayResponse,
     PagedMixDelegationsResponse,
     PagedMixnodeResponse,
-    RewardingStatus
 } from "./types";
 import {Bip39, Random} from "@cosmjs/crypto";
 import {DirectSecp256k1HdWallet} from "@cosmjs/proto-signing";
@@ -26,10 +25,6 @@ import {
 } from "./currency";
 import QueryClient from "./query-client";
 import {nymGasPrice} from "./stargate-helper";
-
-export const VALIDATOR_API_PORT = "8080";
-export const VALIDATOR_API_GATEWAYS = "v1/gateways";
-export const VALIDATOR_API_MIXNODES = "v1/mixnodes";
 
 export {coins, coin};
 export {Coin};
@@ -169,16 +164,20 @@ export default class ValidatorClient implements INymClient {
         return this.client.getBalance(address, this.denom);
     }
 
-    // NOT YET MANUALLY TESTED
-    public async getCachedMixNodes(): Promise<MixNodeBond[]> {
-        // todo: call validator api here
-        return []
+    async getCachedGateways(): Promise<GatewayBond[]> {
+        return this.client.getCachedGateways()
     }
 
-    // NOT YET MANUALLY TESTED
-    public async getCachedGateways(): Promise<GatewayBond[]> {
-        // todo: call validator api here
-        return []
+    async getCachedMixnodes(): Promise<MixNodeBond[]> {
+        return this.client.getCachedMixnodes()
+    }
+
+    async getActiveMixnodes(): Promise<MixNodeBond[]> {
+        return this.client.getActiveMixnodes()
+    }
+
+    async getRewardedMixnodes(): Promise<MixNodeBond[]> {
+        return this.client.getRewardedMixnodes()
     }
 
     public async getMixnetContractSettings(): Promise<ContractStateParams> {
@@ -319,7 +318,6 @@ export default class ValidatorClient implements INymClient {
         // we trust the contract to return a valid number
         return coin(stateParams.minimum_gateway_pledge, this.prefix)
     }
-
 
 
     // // TODO: if we just keep a reference to the SigningCosmWasmClient somewhere we can probably go direct

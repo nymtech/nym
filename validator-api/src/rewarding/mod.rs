@@ -10,6 +10,7 @@ use crate::storage::models::{
     FailedMixnodeRewardChunk, PossiblyUnrewardedMixnode, RewardingReport,
 };
 use crate::storage::ValidatorApiStorage;
+use config::defaults::DENOM;
 use log::{error, info};
 use mixnet_contract::mixnode::NodeRewardParams;
 use mixnet_contract::{ExecuteMsg, IdentityKey, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT};
@@ -188,14 +189,17 @@ impl Rewarder {
         let epoch_reward_params = self.epoch_reward_params().await?;
 
         info!("Rewarding pool stats");
-        info!("-- Reward pool: {} unym", epoch_reward_params.reward_pool);
         info!(
-            "---- Epoch reward pool: {} unym",
-            epoch_reward_params.period_reward_pool
+            "-- Reward pool: {} {}",
+            epoch_reward_params.reward_pool, DENOM
         );
         info!(
-            "-- Circulating supply: {} unym",
-            epoch_reward_params.circulating_supply
+            "---- Epoch reward pool: {} {}",
+            epoch_reward_params.period_reward_pool, DENOM
+        );
+        info!(
+            "-- Circulating supply: {} {}",
+            epoch_reward_params.circulating_supply, DENOM
         );
 
         // 1. get list of 'rewarded' nodes

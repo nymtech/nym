@@ -4,8 +4,8 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "webpack:dev": "yarn webpack serve",
-    "webpack:prod": "yarn webpack --progress --config webpack.prod.config.js",
+    "webpack:dev": "yarn webpack serve --config webpack.dev.js",
+    "webpack:prod": "yarn webpack --progress --config webpack.prod.js",
     "tauri:dev": "yarn tauri dev",
     "tauri:build": "yarn tauri build",
     "dev": "yarn run webpack:dev & yarn run tauri:dev",
@@ -45,6 +45,7 @@
     "@types/semver": "^7.3.8",
     "babel-loader": "^8.2.2",
     "css-loader": "^6.2.0",
+    "dotenv-webpack": "^7.0.3",
     "favicons": "^6.2.2",
     "favicons-webpack-plugin": "^5.0.2",
     "file-loader": "^6.2.0",
@@ -54,6 +55,7 @@
     "url-loader": "^4.1.1",
     "webpack": "^5.64.3",
     "webpack-cli": "^4.8.0",
-    "webpack-dev-server": "^4.5.0"
+    "webpack-dev-server": "^4.5.0",
+    "webpack-merge": "^5.8.0"
   }
 }

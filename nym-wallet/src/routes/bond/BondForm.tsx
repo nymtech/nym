@@ -27,6 +27,7 @@ type TBondFormFields = {
   ownerSignature: string
   identityKey: string
   sphinxKey: string
+  profitPercentage: number
   amount: string
   host: string
   version: string
@@ -45,6 +46,7 @@ const defaultValues = {
   amount: '',
   host: '',
   version: '',
+  profitPercentage: 0,
   location: undefined,
   mixPort: 1789,
   verlocPort: 1790,
@@ -179,7 +181,7 @@ export const BondForm = ({
             />
           </Grid>
 
-          <Grid item xs={12} sm={9}>
+          <Grid item xs={12} sm={6}>
             <TextField
               {...register('amount')}
               variant="outlined"
@@ -193,6 +195,21 @@ export const BondForm = ({
               InputProps={{
                 endAdornment: <InputAdornment position="end">{MAJOR_CURRENCY}</InputAdornment>,
               }}
+              disabled={disabled}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <TextField
+              {...register('profitPercentage')}
+              variant="outlined"
+              required
+              id="profitPercentage"
+              name="profitPercentage"
+              label="Profit percentage"
+              fullWidth
+              error={!!errors.profitPercentage}
+              helperText={errors.profitPercentage?.message}
               disabled={disabled}
             />
           </Grid>

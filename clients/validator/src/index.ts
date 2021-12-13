@@ -1,12 +1,10 @@
 import SigningClient, {ISigningClient} from "./signing-client";
 import {
-    ContractSettingsParams,
     Delegation,
     Gateway,
     GatewayBond, MixnetContractVersion,
     MixNode,
     MixNodeBond,
-    PagedGatewayDelegationsResponse,
     PagedMixDelegationsResponse,
     SendRequest
 } from "./types";

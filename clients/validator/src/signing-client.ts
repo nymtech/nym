@@ -8,14 +8,14 @@ import {
     UploadResult
 } from "@cosmjs/cosmwasm-stargate";
 import {
-    ContractSettingsParams,
+    ContractStateParams,
     Delegation,
-    GatewayOwnershipResponse,
+    GatewayOwnershipResponse, LayerDistribution,
     MixnetContractVersion,
-    MixOwnershipResponse,
+    MixOwnershipResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedGatewayResponse,
     PagedMixDelegationsResponse,
-    PagedMixnodeResponse
+    PagedMixnodeResponse, RewardingIntervalResponse, RewardingStatus
 } from "./types";
 import {DirectSecp256k1HdWallet, EncodeObject} from "@cosmjs/proto-signing";
 import {Coin, DeliverTxResponse, SignerData, StdFee} from "@cosmjs/stargate";
@@ -105,33 +105,56 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
         return this.querier.getContractVersion(mixnetContractAddress)
     }
 
-    // public getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedMixnodeResponse> {
-    //     return this.querier.getMixNodes(contractAddress, limit, start_after);
-    // }
-    //
-    // public getGateways(contractAddress: string, limit: number, start_after?: string): Promise<PagedGatewayResponse> {
-    //     return this.querier.getGateways(contractAddress, limit, start_after)
-    // }
-    //
-    // public getMixDelegations(contractAddress: string, mixIdentity: string, limit: number, start_after?: string): Promise<PagedMixDelegationsResponse> {
-    //     return this.querier.getMixDelegations(contractAddress, mixIdentity, limit, start_after);
-    // }
-    //
-    // public getMixDelegation(contractAddress: string, mixIdentity: string, delegatorAddress: string): Promise<Delegation> {
-    //     return this.querier.getMixDelegation(contractAddress, mixIdentity, delegatorAddress);
-    // }
-    //
-    // public ownsMixNode(contractAddress: string, address: string): Promise<MixOwnershipResponse> {
-    //     return this.querier.ownsMixNode(contractAddress, address);
-    // }
-    //
-    // public ownsGateway(contractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
-    //     return this.querier.ownsGateway(contractAddress, address);
-    // }
-    //
-    // public getContractSettingsParams(contractAddress: string): Promise<ContractSettingsParams> {
-    //     return this.querier.getContractSettingsParams(contractAddress);
-    // }
+    getMixNodes(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
+        return this.querier.getMixNodes(mixnetContractAddress, limit, startAfter)
+    }
+    getGateways(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
+        return this.querier.getGateways(mixnetContractAddress, limit, startAfter)
+    }
+    ownsMixNode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse> {
+        return this.querier.ownsMixNode(mixnetContractAddress, address)
+    }
+    ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
+        return this.querier.ownsGateway(mixnetContractAddress, address)
+    }
+    getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
+        return this.querier.getStateParams(mixnetContractAddress)
+    }
+    getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse> {
+        return this.querier.getCurrentRewardingInterval(mixnetContractAddress)
+    }
+
+    getAllNetworkDelegations(mixnetContractAddress: string, limit?: number, startAfter?: [string, string]): Promise<PagedAllDelegationsResponse> {
+        return this.querier.getAllNetworkDelegations(mixnetContractAddress, limit, startAfter)
+    }
+    getMixNodeDelegations(mixnetContractAddress: string, mixIdentity: string, limit?: number, startAfter?: string): Promise<PagedMixDelegationsResponse> {
+        return this.querier.getMixNodeDelegations(mixnetContractAddress, mixIdentity, limit, startAfter)
+    }
+    getDelegatorDelegations(mixnetContractAddress: string,  delegator: string, limit?: number, startAfter?: string): Promise<PagedDelegatorDelegationsResponse> {
+        return this.querier.getDelegatorDelegations(mixnetContractAddress, delegator, limit, startAfter)
+    }
+    getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation> {
+        return this.querier.getDelegationDetails(mixnetContractAddress, mixIdentity, delegator)
+    }
+
+    getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution> {
+        return this.querier.getLayerDistribution(mixnetContractAddress)
+    }
+    getRewardPool(mixnetContractAddress: string): Promise<string> {
+        return this.querier.getRewardPool(mixnetContractAddress)
+    }
+    getCirculatingSupply(mixnetContractAddress: string): Promise<string> {
+        return this.querier.getCirculatingSupply(mixnetContractAddress)
+    }
+    getEpochRewardPercent(mixnetContractAddress: string): Promise<number> {
+        return this.querier.getEpochRewardPercent(mixnetContractAddress)
+    }
+    getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {
+        return this.querier.getSybilResistancePercent(mixnetContractAddress)
+    }
+    getRewardingStatus(mixnetContractAddress: string, mixIdentity: string, rewardingIntervalNonce: number): Promise<RewardingStatus> {
+        return this.querier.getRewardingStatus(mixnetContractAddress, mixIdentity, rewardingIntervalNonce)
+    }
 
     // signing related:
 

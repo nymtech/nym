@@ -14,7 +14,7 @@ export const SignIn = () => {
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'auto',
-        bgcolor: (theme) => theme.palette.nym.background.dark,
+        bgcolor: 'nym.background.dark',
       }}
     >
       <Box
@@ -26,9 +26,7 @@ export const SignIn = () => {
         }}
       >
         {showCreateAccount ? (
-          <CreateAccountContent
-            showSignIn={() => setShowCreateAccount(false)}
-          />
+          <CreateAccountContent showSignIn={() => setShowCreateAccount(false)} />
         ) : (
           <SignInContent showCreateAccount={() => setShowCreateAccount(true)} />
         )}

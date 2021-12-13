@@ -1,6 +1,5 @@
-import React, { useContext } from 'react'
-import { Alert, Button, Grid, Link } from '@mui/material'
-import { Box } from '@mui/system'
+import React, { useContext, useEffect } from 'react'
+import { Alert, Button, Grid, Link, Typography } from '@mui/material'
 import { OpenInNew } from '@mui/icons-material'
 import { NymCard } from '../components'
 import { Layout } from '../layouts'
@@ -9,6 +8,10 @@ import { ClientContext, urls } from '../context/main'
 
 export const Balance = () => {
   const { userBalance, clientDetails } = useContext(ClientContext)
+
+  useEffect(() => {
+    userBalance.fetchBalance()
+  }, [])
 
   return (
     <Layout>
@@ -21,10 +24,14 @@ export const Balance = () => {
               </Alert>
             )}
             {!userBalance.error && (
-              <Box data-testid="refresh-success" sx={{ p: 2 }}>
-                {'The current balance is ' +
-                  userBalance.balance?.printable_balance}
-              </Box>
+              <Typography
+                data-testid="refresh-success"
+                sx={{ p: 2, color: 'nym.background.dark' }}
+                variant="h5"
+                fontWeight="700"
+              >
+                {userBalance.balance?.printable_balance}
+              </Typography>
             )}
           </Grid>
           <Grid item>

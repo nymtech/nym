@@ -20,11 +20,12 @@ export const ApplicationLayout: React.FC = ({ children }) => {
         sx={{
           background: '#121726',
           overflow: 'auto',
-          p: [4, 5],
+          py: 4,
+          px: 5,
         }}
       >
         <Box sx={{ mb: 3 }}>
-          <img src={Logo} style={{ width: 45 }} />
+          <Logo width={45} />
         </Box>
 
         <Nav />

@@ -1,16 +1,5 @@
 import React, { useContext } from 'react'
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  FormControl,
-  Grid,
-  InputAdornment,
-  TextField,
-  Theme,
-  useTheme,
-} from '@mui/material'
+import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField, Typography } from '@mui/material'
 import { useForm } from 'react-hook-form'
 import { EnumNodeType, TFee } from '../../types'
 import { yupResolver } from '@hookform/resolvers/yup'
@@ -38,7 +27,7 @@ export const DelegateForm = ({
 }: {
   fees: TFee
   onError: (message?: string) => void
-  onSuccess: (message?: string) => void
+  onSuccess: (details: { amount: string; address: string }) => void
 }) => {
   const {
     register,
@@ -71,9 +60,7 @@ export const DelegateForm = ({
       amount,
     })
       .then((res) => {
-        onSuccess(
-          `Successfully delegated ${data.amount} punk to ${res.target_address}`,
-        )
+        onSuccess({ amount: data.amount, address: res.target_address })
         userBalance.fetchBalance()
       })
       .catch((e) => {
@@ -86,13 +73,6 @@ export const DelegateForm = ({
     <FormControl fullWidth>
       <Box sx={{ padding: [3, 5] }}>
         <Grid container spacing={3}>
-          <Grid container item xs={12} justifyContent="space-between">
-            <Grid item>
-              <Alert severity="info" data-testid="fee-amount">
-                {`A fee of ${fees.mixnode.amount} PUNK will apply to this transaction`}
-              </Alert>
-            </Grid>
-          </Grid>
           <Grid item xs={12}>
             <TextField
               {...register('identity')}
@@ -119,11 +99,12 @@ export const DelegateForm = ({
               error={!!errors.amount}
               helperText={errors?.amount?.message}
               InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">punks</InputAdornment>
-                ),
+                endAdornment: <InputAdornment position="end">punk</InputAdornment>,
               }}
             />
+          </Grid>
+          <Grid item xs={12}>
+            <Typography sx={{ color: 'nym.info' }}>Fee for this transaction: {fees.mixnode.amount} punk</Typography>
           </Grid>
         </Grid>
       </Box>
@@ -133,7 +114,7 @@ export const DelegateForm = ({
           alignItems: 'center',
           justifyContent: 'flex-end',
           borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-          background: (theme) => theme.palette.grey[50],
+          bgcolor: 'grey.100',
           padding: 2,
         }}
       >

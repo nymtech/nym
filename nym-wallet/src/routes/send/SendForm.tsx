@@ -1,7 +1,7 @@
 import React, { useContext } from 'react'
 import { Grid, InputAdornment, TextField, Typography } from '@mui/material'
 import { useFormContext } from 'react-hook-form'
-import { ClientContext } from '../../context/main'
+import { ClientContext, env_vars } from '../../context/main'
 
 export const SendForm = ({ transferFee }: { transferFee?: string }) => {
   const {
@@ -43,12 +43,14 @@ export const SendForm = ({ transferFee }: { transferFee?: string }) => {
           error={!!errors.amount}
           helperText={errors.amount?.message}
           InputProps={{
-            endAdornment: <InputAdornment position="end">punk</InputAdornment>,
+            endAdornment: <InputAdornment position="end">{env_vars.MAJOR_CURRENCY}</InputAdornment>,
           }}
         />
       </Grid>
       <Grid item xs={12}>
-        <Typography sx={{ color: 'nym.info' }}>Fee for this transaction: {transferFee} punk</Typography>
+        <Typography sx={{ color: 'nym.info' }}>
+          Fee for this transaction: {`${transferFee} ${env_vars.MAJOR_CURRENCY}`}
+        </Typography>
       </Grid>
     </Grid>
   )

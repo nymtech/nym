@@ -19,13 +19,13 @@ import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { bond, majorToMinor } from '../../requests'
 import { validationSchema } from './validationSchema'
 import { Coin, Gateway, MixNode } from '../../types'
-import { ClientContext } from '../../context/main'
+import { ClientContext, env_vars } from '../../context/main'
 import { checkHasEnoughFunds } from '../../utils'
 
 type TBondFormFields = {
   withAdvancedOptions: boolean
   nodeType: EnumNodeType
-  ownerSignature: string,
+  ownerSignature: string
   identityKey: string
   sphinxKey: string
   amount: string
@@ -164,6 +164,22 @@ export const BondForm = ({
               disabled={disabled}
             />
           </Grid>
+
+          <Grid item xs={12} sm={12}>
+            <TextField
+              {...register('ownerSignature')}
+              variant="outlined"
+              required
+              id="ownerSignature"
+              name="ownerSignature"
+              label="Signature on your address"
+              fullWidth
+              error={!!errors.ownerSignature}
+              helperText={errors.ownerSignature?.message}
+              disabled={disabled}
+            />
+          </Grid>
+
           <Grid item xs={12} sm={9}>
             <TextField
               {...register('amount')}
@@ -176,7 +192,7 @@ export const BondForm = ({
               error={!!errors.amount}
               helperText={errors.amount?.message}
               InputProps={{
-                endAdornment: <InputAdornment position="end">punk</InputAdornment>,
+                endAdornment: <InputAdornment position="end">{env_vars.MAJOR_CURRENCY}</InputAdornment>,
               }}
               disabled={disabled}
             />
@@ -227,22 +243,6 @@ export const BondForm = ({
               error={!!errors.version}
               helperText={errors.version?.message}
               disabled={disabled}
-            />
-          </Grid>
-
-
-          <Grid item xs={12} sm={12}>
-            <TextField
-                {...register('ownerSignature')}
-                variant="outlined"
-                required
-                id="ownerSignature"
-                name="ownerSignature"
-                label="Signature on your address"
-                fullWidth
-                error={!!errors.ownerSignature}
-                helperText={errors.ownerSignature?.message}
-                disabled={disabled}
             />
           </Grid>
 
@@ -344,7 +344,7 @@ export const BondForm = ({
                 {' '}
                 {`A bonding fee: ${
                   watchNodeType === EnumNodeType.mixnode ? fees.mixnode.amount : fees?.gateway?.amount
-                }`}
+                } ${env_vars.MAJOR_CURRENCY}`}
               </Typography>
             </Grid>
           )}

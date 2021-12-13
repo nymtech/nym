@@ -14,7 +14,7 @@ import {
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { EnumNodeType, TFee } from '../../types'
-import { ClientContext } from '../../context/main'
+import { ClientContext, env_vars } from '../../context/main'
 import { undelegate } from '../../requests'
 import { TDelegations } from '.'
 
@@ -100,7 +100,9 @@ export const UndelegateForm = ({
             />
           </Grid>
           <Grid item xs={12}>
-            <Typography sx={{ color: 'nym.info' }}>Fee for this transaction: {fees.mixnode.amount} punk</Typography>
+            <Typography sx={{ color: 'nym.info' }}>
+              Fee for this transaction: {`${fees.mixnode.amount} ${env_vars.MAJOR_CURRENCY}`}{' '}
+            </Typography>
           </Grid>
         </Grid>
       </Box>

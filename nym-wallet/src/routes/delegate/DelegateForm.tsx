@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import { EnumNodeType, TFee } from '../../types'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
-import { ClientContext, env_vars } from '../../context/main'
+import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 import { delegate, majorToMinor } from '../../requests'
 import { checkHasEnoughFunds } from '../../utils'
 
@@ -99,13 +99,13 @@ export const DelegateForm = ({
               error={!!errors.amount}
               helperText={errors?.amount?.message}
               InputProps={{
-                endAdornment: <InputAdornment position="end">{env_vars.MAJOR_CURRENCY}</InputAdornment>,
+                endAdornment: <InputAdornment position="end">{MAJOR_CURRENCY}</InputAdornment>,
               }}
             />
           </Grid>
           <Grid item xs={12}>
             <Typography sx={{ color: 'nym.info' }}>
-              Fee for this transaction: {`${fees.mixnode.amount}  ${env_vars.MAJOR_CURRENCY}`}
+              Fee for this transaction: {`${fees.mixnode.amount}  ${MAJOR_CURRENCY}`}
             </Typography>
           </Grid>
         </Grid>

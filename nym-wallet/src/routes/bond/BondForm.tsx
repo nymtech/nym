@@ -1,6 +1,5 @@
 import React, { useContext } from 'react'
 import {
-  Alert,
   Box,
   Button,
   Checkbox,
@@ -19,7 +18,7 @@ import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { bond, majorToMinor } from '../../requests'
 import { validationSchema } from './validationSchema'
 import { Coin, Gateway, MixNode } from '../../types'
-import { ClientContext, env_vars } from '../../context/main'
+import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 import { checkHasEnoughFunds } from '../../utils'
 
 type TBondFormFields = {
@@ -192,7 +191,7 @@ export const BondForm = ({
               error={!!errors.amount}
               helperText={errors.amount?.message}
               InputProps={{
-                endAdornment: <InputAdornment position="end">{env_vars.MAJOR_CURRENCY}</InputAdornment>,
+                endAdornment: <InputAdornment position="end">{MAJOR_CURRENCY}</InputAdornment>,
               }}
               disabled={disabled}
             />
@@ -344,7 +343,7 @@ export const BondForm = ({
                 {' '}
                 {`A bonding fee: ${
                   watchNodeType === EnumNodeType.mixnode ? fees.mixnode.amount : fees?.gateway?.amount
-                } ${env_vars.MAJOR_CURRENCY}`}
+                } ${MAJOR_CURRENCY}`}
               </Typography>
             </Grid>
           )}

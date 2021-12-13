@@ -2,12 +2,13 @@ import React, { createContext, useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import { TClientDetails, TSignInWithMnemonic } from '../types'
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance'
+import { config } from '../../config'
 
-export const ADMIN_ADDRESS = 'punk1h3w4nj7kny5dfyjw2le4vm74z03v9vd4dstpu0'
+export const { MAJOR_CURRENCY, MINOR_CURRENCY, ADMIN_ADDRESS, NETWORK_NAME } = config
+
 export const urls = {
-  blockExplorer: 'https://testnet-milhon-blocks.nymtech.net',
+  blockExplorer: `https://${NETWORK_NAME}-blocks.nymtech.net`,
 }
-export const env_vars = { MAJOR_CURRENCY: process.env.MAJOR_CURRENCY, MINOR_CURRENCY: process.env.MINOR_CURRENCY }
 
 type TClientContext = {
   clientDetails?: TClientDetails

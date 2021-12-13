@@ -1,5 +1,5 @@
 import * as Yup from 'yup'
-import { env_vars } from '../../context/main'
+import { MAJOR_CURRENCY } from '../../context/main'
 import {
   isValidHostname,
   validateAmount,
@@ -27,7 +27,7 @@ export const validationSchema = Yup.object().shape({
     }),
   amount: Yup.string()
     .required('An amount is required')
-    .test('valid-amount', `A valid amount is required (min 100 ${env_vars.MAJOR_CURRENCY})`, function (value) {
+    .test('valid-amount', `A valid amount is required (min 100 ${MAJOR_CURRENCY})`, function (value) {
       return validateAmount(value || '', '100000000')
       // minimum amount needs to come from the backend - replace when available
     }),

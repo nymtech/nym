@@ -9,10 +9,14 @@ import {
 } from "@cosmjs/cosmwasm-stargate";
 import {
     ContractStateParams,
-    Delegation, GatewayBond,
+    Delegation,
+    Gateway,
+    GatewayBond,
     GatewayOwnershipResponse,
     LayerDistribution,
-    MixnetContractVersion, MixNodeBond,
+    MixnetContractVersion,
+    MixNode,
+    MixNodeBond,
     MixOwnershipResponse,
     PagedAllDelegationsResponse,
     PagedDelegatorDelegationsResponse,
@@ -30,7 +34,7 @@ import {Tendermint34Client} from "@cosmjs/tendermint-rpc";
 import NymdQuerier from "./nymd-querier";
 import {ChangeAdminResult} from "@cosmjs/cosmwasm-stargate/build/signingcosmwasmclient";
 import {TxRaw} from "cosmjs-types/cosmos/tx/v1beta1/tx";
-import ValidatorApiQuerier, {VALIDATOR_API_GATEWAYS_PATH} from "./validator-api-querier";
+import ValidatorApiQuerier from "./validator-api-querier";
 
 // methods exposed by `SigningCosmWasmClient`
 export interface ICosmWasmSigning {
@@ -66,16 +70,25 @@ export interface INymSigning {
 }
 
 export interface ISigningClient extends IQueryClient, ICosmWasmSigning, INymSigning {
+    bondMixNode(mixnetContractAddress: string, mixNode: MixNode, ownerSignature: string, pledge: Coin, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+
+    unbondMixNode(mixnetContractAddress: string, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+
+    bondGateway(mixnetContractAddress: string, gateway: Gateway, ownerSignature: string, pledge: Coin, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+
+    unbondGateway(mixnetContractAddress: string, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+
+    delegateToMixNode(mixnetContractAddress: string, mixIdentity: string, amount: Coin, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+
+    undelegateFromMixNode(mixnetContractAddress: string, mixIdentity: string, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+
+    updateContractStateParams(mixnetContractAddress: string, newParams: ContractStateParams, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+
+    // I don't see any point in exposing rewarding / vesting-related (INSIDE mixnet contract, like "BondMixnodeOnBehalf")
+    // functionalities in our typescript client. However, if for some reason, we find we need them
+    // they're rather trivial to add.
 }
 
-/**
- * Takes care of network communication between this code and the validator.
- * Depends on `SigningCosmWasClient`, which signs all requests using keypairs
- * derived from on bech32 mnemonics.
- *
- * Wraps several methods from CosmWasmSigningClient so we can mock them for
- * unit testing.
- */
 export default class SigningClient extends SigningCosmWasmClient implements ISigningClient {
     private nymdQuerier: NymdQuerier;
     private validatorApiQuerier: ValidatorApiQuerier;
@@ -197,5 +210,98 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
     // signing related:
 
+    bondMixNode(mixnetContractAddress: string, mixNode: MixNode, ownerSignature: string, pledge: Coin, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult> {
+        if (!fee) {
+            fee = "auto"
+        }
+        if (!memo) {
+            memo = "Default MixNode Bonding from Typescript"
+        }
+        return this.execute(this.clientAddress, mixnetContractAddress, {
+            bond_mixnode: {
+                mix_node: mixNode,
+                owner_signature: ownerSignature,
+            }
+        }, fee, memo, [pledge])
+    }
+
+    unbondMixNode(mixnetContractAddress: string, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult> {
+        if (!fee) {
+            fee = "auto"
+        }
+        if (!memo) {
+            memo = "Default MixNode Unbonding from Typescript"
+        }
+        return this.execute(this.clientAddress, mixnetContractAddress, {
+            unbond_mixnode: {}
+        }, fee, memo)
+    }
+
+    bondGateway(mixnetContractAddress: string, gateway: Gateway, ownerSignature: string, pledge: Coin, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult> {
+        if (!fee) {
+            fee = "auto"
+        }
+        if (!memo) {
+            memo = "Default Gateway Bonding from Typescript"
+        }
+        return this.execute(this.clientAddress, mixnetContractAddress, {
+            bond_gateway: {
+                gateway: gateway,
+                owner_signature: ownerSignature,
+            }
+        }, fee, memo, [pledge])
+    }
+
+    unbondGateway(mixnetContractAddress: string, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult> {
+        if (!fee) {
+            fee = "auto"
+        }
+        if (!memo) {
+            memo = "Default Gateway Unbonding from Typescript"
+        }
+        return this.execute(this.clientAddress, mixnetContractAddress, {
+            unbond_gateway: {}
+        }, fee, memo)
+    }
+
+    delegateToMixNode(mixnetContractAddress: string, mixIdentity: string, amount: Coin, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult> {
+        if (!fee) {
+            fee = "auto"
+        }
+        if (!memo) {
+            memo = "Default MixNode Delegation from Typescript"
+        }
+        return this.execute(this.clientAddress, mixnetContractAddress, {
+            delegate_to_mixnode: {
+                mix_identity: mixIdentity
+            }
+        }, fee, memo, [amount])
+    }
+
+    undelegateFromMixNode(mixnetContractAddress: string, mixIdentity: string, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult> {
+        if (!fee) {
+            fee = "auto"
+        }
+        if (!memo) {
+            memo = "Default MixNode Undelegation from Typescript"
+        }
+        return this.execute(this.clientAddress, mixnetContractAddress, {
+            undelegate_from_mixnode: {
+                mix_identity: mixIdentity
+            }
+        }, fee, memo)
+    }
+
+    updateContractStateParams(mixnetContractAddress: string, newParams: ContractStateParams, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult> {
+        if (!fee) {
+            fee = "auto"
+        }
+        if (!memo) {
+            memo = "Default Contract State Params Update from Typescript"
+        }
+        return this.execute(this.clientAddress, mixnetContractAddress, {
+            update_contract_state_params: newParams
+        }, fee, memo)
+    }
 
 }

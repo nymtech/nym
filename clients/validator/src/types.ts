@@ -18,7 +18,6 @@ export type PagedMixnodeResponse = {
     start_next_after?: string,
 }
 
-
 export type PagedGatewayResponse = {
     nodes: GatewayBond[],
     per_page: number,
@@ -81,17 +80,38 @@ export type PagedAllDelegationsResponse = {
     start_next_after?: [string, string],
 }
 
-export type RewardingStatus ={
-    /*
-        Complete(RewardingResult),
-        PendingNextDelegatorPage(PendingDelegatorRewarding),
-     */
+export type RewardingResult = {
+    operator_reward: string,
+    total_delegator_reward: string,
 }
+
+export type NodeRewardParams = {
+    period_reward_pool: string,
+    k: string,
+    reward_blockstamp: number,
+    circulating_supply: string,
+    uptime: string,
+    sybil_resistance_percent: number,
+}
+
+export type DelegatorRewardParams = {
+    node_reward_params: NodeRewardParams,
+    sigma: number,
+    profit_margin: number,
+    node_profit: number,
+}
+
+export type PendingDelegatorRewarding = {
+    running_results: RewardingResult,
+    next_start: string,
+    rewarding_params: DelegatorRewardParams,
+}
+
+export type RewardingStatus = { Complete: RewardingResult } | { PendingNextDelegatorPage: PendingDelegatorRewarding };
 
 export type MixnodeRewardingStatusResponse = {
-   status?: RewardingStatus
+    status?: RewardingStatus
 }
-
 
 export enum Layer {
     Gateway,
@@ -100,9 +120,9 @@ export enum Layer {
     Three,
 }
 
-export type MixNodeBond = { // TODO: change name to MixNodeBond
+export type MixNodeBond = {
     owner: string,
-    mix_node: MixNode,    // TODO: camelCase this later once everything else works
+    mix_node: MixNode,
     layer: Layer,
     bond_amount: Coin,
     total_delegation: Coin,
@@ -113,7 +133,7 @@ export type MixNode = {
     mix_port: number,
     verloc_port: number,
     http_api_port: number,
-    sphinx_key: string, // TODO: camelCase this later once everything else works
+    sphinx_key: string,
     identity_key: string,
     version: string,
 }

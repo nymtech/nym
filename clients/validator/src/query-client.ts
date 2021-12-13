@@ -22,7 +22,7 @@ import {
 } from "@cosmjs/stargate";
 import {JsonObject} from "@cosmjs/cosmwasm-stargate/build/queries";
 import {Code, CodeDetails, Contract, ContractCodeHistoryEntry} from "@cosmjs/cosmwasm-stargate/build/cosmwasmclient";
-import ValidatorApiQuerier, {IValidatorApiQuery, VALIDATOR_API_GATEWAYS_PATH} from "./validator-api-querier";
+import ValidatorApiQuerier, {IValidatorApiQuery} from "./validator-api-querier";
 
 export interface ICosmWasmQuery {
     // methods exposed by `CosmWasmClient`
@@ -71,14 +71,6 @@ export interface INymdQuery {
 
 export interface IQueryClient extends ICosmWasmQuery, INymdQuery, IValidatorApiQuery {}
 
-/**
- * Takes care of network communication between this code and the validator.
- * Depends on `SigningCosmWasClient`, which signs all requests using keypairs
- * derived from on bech32 mnemonics.
- *
- * Wraps several methods from CosmWasmSigningClient so we can mock them for
- * unit testing.
- */
 export default class QueryClient extends CosmWasmClient implements IQueryClient {
     private nymdQuerier: NymdQuerier;
     private validatorApiQuerier: ValidatorApiQuerier;

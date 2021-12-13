@@ -9,7 +9,7 @@ import {
     PagedMixnodeResponse, RewardingIntervalResponse, RewardingStatus
 } from "./types";
 import {Tendermint34Client} from "@cosmjs/tendermint-rpc";
-import NymQuerier from "./nym-querier";
+import NymdQuerier from "./nymd-querier";
 import {
     Account,
     Block,
@@ -22,8 +22,9 @@ import {
 } from "@cosmjs/stargate";
 import {JsonObject} from "@cosmjs/cosmwasm-stargate/build/queries";
 import {Code, CodeDetails, Contract, ContractCodeHistoryEntry} from "@cosmjs/cosmwasm-stargate/build/cosmwasmclient";
+import {IValidatorApiQuery} from "./validator-api-querier";
 
-export interface CosmWasmQuery {
+export interface ICosmWasmQuery {
     // methods exposed by `CosmWasmClient`
     getChainId(): Promise<string>;
     getHeight(): Promise<number>;
@@ -44,20 +45,20 @@ export interface CosmWasmQuery {
     queryContractSmart(address: string, queryMsg: Record<string, unknown>): Promise<JsonObject>;
 }
 
-export interface NymQuery {
+export interface INymdQuery {
     // nym-specific implemented inside NymQuerier
     getContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion>;
 
-    getMixNodes(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse>;
-    getGateways(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse>;
+    getMixNodesPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse>;
+    getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse>;
     ownsMixNode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse>;
     ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
     getStateParams(mixnetContractAddress: string): Promise<ContractStateParams>;
     getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse>;
 
-    getAllNetworkDelegations(mixnetContractAddress: string, limit?: number, startAfter?: [string, string]): Promise<PagedAllDelegationsResponse>;
-    getMixNodeDelegations(mixnetContractAddress: string,  mixIdentity: string, limit?: number, startAfter?: string): Promise<PagedMixDelegationsResponse>
-    getDelegatorDelegations(mixnetContractAddress: string,  delegator: string, limit?: number, startAfter?: string): Promise<PagedDelegatorDelegationsResponse>
+    getAllNetworkDelegationsPaged(mixnetContractAddress: string, limit?: number, startAfter?: [string, string]): Promise<PagedAllDelegationsResponse>;
+    getMixNodeDelegationsPaged(mixnetContractAddress: string, mixIdentity: string, limit?: number, startAfter?: string): Promise<PagedMixDelegationsResponse>
+    getDelegatorDelegationsPaged(mixnetContractAddress: string, delegator: string, limit?: number, startAfter?: string): Promise<PagedDelegatorDelegationsResponse>
     getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation>;
 
     getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution>;
@@ -68,7 +69,7 @@ export interface NymQuery {
     getRewardingStatus(mixnetContractAddress: string, mixIdentity: string, rewardingIntervalNonce: number): Promise<RewardingStatus>;
 }
 
-export interface IQueryClient extends CosmWasmQuery, NymQuery{}
+export interface IQueryClient extends ICosmWasmQuery, INymdQuery, IValidatorApiQuery {}
 
 /**
  * Takes care of network communication between this code and the validator.
@@ -79,27 +80,30 @@ export interface IQueryClient extends CosmWasmQuery, NymQuery{}
  * unit testing.
  */
 export default class QueryClient extends CosmWasmClient implements IQueryClient {
-    private querier: NymQuerier;
+    private querier: NymdQuerier;
+    validatorApiUrl: string;
 
-    private constructor(tmClient: Tendermint34Client) {
+    private constructor(tmClient: Tendermint34Client, validatorApiUrl: string,) {
         super(tmClient)
-        this.querier = new NymQuerier(this)
+        this.querier = new NymdQuerier(this)
+        this.validatorApiUrl = validatorApiUrl
     }
 
-    public static async connectWithNym(url: string): Promise<QueryClient> {
-        const tmClient = await Tendermint34Client.connect(url);
-        return new QueryClient(tmClient)
+
+    public static async connectWithNym(nymdUrl: string, validatorApiUrl: string,): Promise<QueryClient> {
+        const tmClient = await Tendermint34Client.connect(nymdUrl);
+        return new QueryClient(tmClient, validatorApiUrl)
     }
 
     getContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion> {
         return this.querier.getContractVersion(mixnetContractAddress)
     }
 
-    getMixNodes(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
-        return this.querier.getMixNodes(mixnetContractAddress, limit, startAfter)
+    getMixNodesPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
+        return this.querier.getMixNodesPaged(mixnetContractAddress, limit, startAfter)
     }
-    getGateways(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
-        return this.querier.getGateways(mixnetContractAddress, limit, startAfter)
+    getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
+        return this.querier.getGatewaysPaged(mixnetContractAddress, limit, startAfter)
     }
     ownsMixNode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse> {
         return this.querier.ownsMixNode(mixnetContractAddress, address)
@@ -114,14 +118,14 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
         return this.querier.getCurrentRewardingInterval(mixnetContractAddress)
     }
 
-    getAllNetworkDelegations(mixnetContractAddress: string, limit?: number, startAfter?: [string, string]): Promise<PagedAllDelegationsResponse> {
-        return this.querier.getAllNetworkDelegations(mixnetContractAddress, limit, startAfter)
+    getAllNetworkDelegationsPaged(mixnetContractAddress: string, limit?: number, startAfter?: [string, string]): Promise<PagedAllDelegationsResponse> {
+        return this.querier.getAllNetworkDelegationsPaged(mixnetContractAddress, limit, startAfter)
     }
-    getMixNodeDelegations(mixnetContractAddress: string, mixIdentity: string, limit?: number, startAfter?: string): Promise<PagedMixDelegationsResponse> {
-        return this.querier.getMixNodeDelegations(mixnetContractAddress, mixIdentity, limit, startAfter)
+    getMixNodeDelegationsPaged(mixnetContractAddress: string, mixIdentity: string, limit?: number, startAfter?: string): Promise<PagedMixDelegationsResponse> {
+        return this.querier.getMixNodeDelegationsPaged(mixnetContractAddress, mixIdentity, limit, startAfter)
     }
-    getDelegatorDelegations(mixnetContractAddress: string,  delegator: string, limit?: number, startAfter?: string): Promise<PagedDelegatorDelegationsResponse> {
-        return this.querier.getDelegatorDelegations(mixnetContractAddress, delegator, limit, startAfter)
+    getDelegatorDelegationsPaged(mixnetContractAddress: string, delegator: string, limit?: number, startAfter?: string): Promise<PagedDelegatorDelegationsResponse> {
+        return this.querier.getDelegatorDelegationsPaged(mixnetContractAddress, delegator, limit, startAfter)
     }
     getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation> {
         return this.querier.getDelegationDetails(mixnetContractAddress, mixIdentity, delegator)

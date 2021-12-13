@@ -31,7 +31,7 @@ export default class MixnodesCache {
         let response: PagedMixnodeResponse;
         let next: string | undefined = undefined;
         for (;;) {
-            response = await this.client.getMixNodes(contractAddress, this.perPage, next);
+            response = await this.client.getMixNodesPaged(contractAddress, this.perPage, next);
             newMixnodes = newMixnodes.concat(response.nodes)
             next = response.start_next_after;
             // if `start_next_after` is not set, we're done

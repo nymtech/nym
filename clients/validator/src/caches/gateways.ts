@@ -30,7 +30,7 @@ export default class GatewaysCache {
         let response: PagedGatewayResponse;
         let next: string | undefined = undefined;
         for (;;) {
-            response = await this.client.getGateways(contractAddress, this.perPage, next);
+            response = await this.client.getGatewaysPaged(contractAddress, this.perPage, next);
             newGateways = newGateways.concat(response.nodes)
             next = response.start_next_after;
             // if `start_next_after` is not set, we're done

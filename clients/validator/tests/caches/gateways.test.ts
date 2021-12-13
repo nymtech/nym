@@ -10,12 +10,12 @@ describe("Caching gateways: when the validator returns", () => {
             const perPage = 100;
             const contractAddress = "mockContractAddress";
             const emptyPromise = Promise.resolve(Fixtures.GatewaysResp.empty());
-            const mockClient = new Mock<INetClient>().setup(netClient => netClient.getGateways(contractAddress, perPage, undefined)).returns(emptyPromise);
+            const mockClient = new Mock<INetClient>().setup(netClient => netClient.getGatewaysPaged(contractAddress, perPage, undefined)).returns(emptyPromise);
             const cache = new GatewaysCache(mockClient.object(), perPage);
 
             await cache.refreshGateways(contractAddress);
 
-            mockClient.verify(netClient => netClient.getGateways(contractAddress, perPage, undefined), Times.Exactly(1));
+            mockClient.verify(netClient => netClient.getGatewaysPaged(contractAddress, perPage, undefined), Times.Exactly(1));
             assert.deepEqual([], cache.gateways);
         });
     })
@@ -25,12 +25,12 @@ describe("Caching gateways: when the validator returns", () => {
             const perPage = 2;
             const contractAddress = "mockContractAddress";
             const onePagePromise = Promise.resolve(Fixtures.GatewaysResp.onePage());
-            const mockClient = new Mock<INetClient>().setup(netClient => netClient.getGateways(contractAddress, perPage, undefined)).returns(onePagePromise);
+            const mockClient = new Mock<INetClient>().setup(netClient => netClient.getGatewaysPaged(contractAddress, perPage, undefined)).returns(onePagePromise);
             const cache = new GatewaysCache(mockClient.object(), perPage);
 
             await cache.refreshGateways(contractAddress);
 
-            mockClient.verify(netClient => netClient.getGateways(contractAddress, perPage, undefined), Times.Exactly(1));
+            mockClient.verify(netClient => netClient.getGatewaysPaged(contractAddress, perPage, undefined), Times.Exactly(1));
             assert.deepEqual(Fixtures.Gateways.list2(), cache.gateways);
         })
     })
@@ -42,13 +42,13 @@ describe("Caching gateways: when the validator returns", () => {
             const fullPageResult = Fixtures.GatewaysResp.page1of2();
             const halfPageResult = Fixtures.GatewaysResp.halfPage2of2();
             const mockClient = new Mock<INetClient>()
-            mockClient.setup(instance => instance.getGateways(contractAddress, perPage, undefined)).returns(Promise.resolve(fullPageResult));
-            mockClient.setup(instance => instance.getGateways(contractAddress, perPage, fullPageResult.start_next_after)).returns(Promise.resolve(halfPageResult));
+            mockClient.setup(instance => instance.getGatewaysPaged(contractAddress, perPage, undefined)).returns(Promise.resolve(fullPageResult));
+            mockClient.setup(instance => instance.getGatewaysPaged(contractAddress, perPage, fullPageResult.start_next_after)).returns(Promise.resolve(halfPageResult));
             const cache = new GatewaysCache(mockClient.object(), perPage);
 
             await cache.refreshGateways(contractAddress); // should make multiple paginated requests because there are two pages in the response fixture
-            mockClient.verify(instance => instance.getGateways(contractAddress, perPage, undefined), Times.Exactly(1));
-            mockClient.verify(instance => instance.getGateways(contractAddress, perPage, fullPageResult.start_next_after), Times.Exactly(1));
+            mockClient.verify(instance => instance.getGatewaysPaged(contractAddress, perPage, undefined), Times.Exactly(1));
+            mockClient.verify(instance => instance.getGatewaysPaged(contractAddress, perPage, fullPageResult.start_next_after), Times.Exactly(1));
 
             assert.deepEqual(Fixtures.Gateways.list3(), cache.gateways); // there are a total of 3 nodes in the validator lists, we get them all back
         })
@@ -61,14 +61,14 @@ describe("Caching gateways: when the validator returns", () => {
             const fullPageResult1 = Fixtures.GatewaysResp.page1of2();
             const fullPageResult2 = Fixtures.GatewaysResp.fullPage2of2();
             const mockClient = new Mock<INetClient>()
-            mockClient.setup(netClient => netClient.getGateways(contractAddress, perPage, undefined)).returns(Promise.resolve(fullPageResult1));
-            mockClient.setup(netClient => netClient.getGateways(contractAddress, perPage, fullPageResult1.start_next_after)).returns(Promise.resolve(fullPageResult2));
+            mockClient.setup(netClient => netClient.getGatewaysPaged(contractAddress, perPage, undefined)).returns(Promise.resolve(fullPageResult1));
+            mockClient.setup(netClient => netClient.getGatewaysPaged(contractAddress, perPage, fullPageResult1.start_next_after)).returns(Promise.resolve(fullPageResult2));
 
             const cache = new GatewaysCache(mockClient.object(), perPage);
 
             await cache.refreshGateways(contractAddress); // should make multiple paginated requests because there are two pages in the response fixture
-            mockClient.verify(netClient => netClient.getGateways(contractAddress, perPage, undefined), Times.Exactly(1));
-            mockClient.verify(netClient => netClient.getGateways(contractAddress, perPage, fullPageResult1.start_next_after), Times.Exactly(1));
+            mockClient.verify(netClient => netClient.getGatewaysPaged(contractAddress, perPage, undefined), Times.Exactly(1));
+            mockClient.verify(netClient => netClient.getGatewaysPaged(contractAddress, perPage, fullPageResult1.start_next_after), Times.Exactly(1));
 
             assert.deepEqual(Fixtures.Gateways.list4(), cache.gateways); // there are a total of 3 nodes in the validator lists, we get them all back
         })
@@ -81,18 +81,18 @@ describe("Caching gateways: when the validator returns", () => {
             const fullPageResult1 = Fixtures.GatewaysResp.page1of2();
             const fullPageResult2 = Fixtures.GatewaysResp.fullPage2of2();
             const mockClient = new Mock<INetClient>()
-            mockClient.setup(netClient => netClient.getGateways(contractAddress, perPage, undefined)).returns(Promise.resolve(fullPageResult1));
-            mockClient.setup(netClient => netClient.getGateways(contractAddress, perPage, fullPageResult1.start_next_after)).returns(Promise.resolve(fullPageResult2));
+            mockClient.setup(netClient => netClient.getGatewaysPaged(contractAddress, perPage, undefined)).returns(Promise.resolve(fullPageResult1));
+            mockClient.setup(netClient => netClient.getGatewaysPaged(contractAddress, perPage, fullPageResult1.start_next_after)).returns(Promise.resolve(fullPageResult2));
 
             const cache = new GatewaysCache(mockClient.object(), perPage);
 
             await cache.refreshGateways(contractAddress); // should make multiple paginated requests because there are two pages in the response fixture
-            mockClient.verify(netClient => netClient.getGateways(contractAddress, perPage, undefined), Times.Exactly(1));
-            mockClient.verify(netClient => netClient.getGateways(contractAddress, perPage, fullPageResult1.start_next_after), Times.Exactly(1));
+            mockClient.verify(netClient => netClient.getGatewaysPaged(contractAddress, perPage, undefined), Times.Exactly(1));
+            mockClient.verify(netClient => netClient.getGatewaysPaged(contractAddress, perPage, fullPageResult1.start_next_after), Times.Exactly(1));
 
             await cache.refreshGateways(contractAddress);
-            mockClient.verify(netClient => netClient.getGateways(contractAddress, perPage, undefined), Times.Exactly(2));
-            mockClient.verify(netClient => netClient.getGateways(contractAddress, perPage, fullPageResult1.start_next_after), Times.Exactly(2));
+            mockClient.verify(netClient => netClient.getGatewaysPaged(contractAddress, perPage, undefined), Times.Exactly(2));
+            mockClient.verify(netClient => netClient.getGatewaysPaged(contractAddress, perPage, fullPageResult1.start_next_after), Times.Exactly(2));
 
             assert.deepEqual(Fixtures.Gateways.list4(), cache.gateways); // there are a total of 3 nodes in the validator lists, we get them all back
         })

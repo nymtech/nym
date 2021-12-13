@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {NymQuery} from "./query-client";
+import {INymdQuery} from "./query-client";
 import {
     ContractStateParams, Delegation,
     GatewayOwnershipResponse, LayerDistribution,
@@ -20,7 +20,7 @@ interface SmartContractQuery {
     queryContractSmart(address: string, queryMsg: Record<string, unknown>): Promise<JsonObject>;
 }
 
-export default class NymQuerier implements NymQuery {
+export default class NymdQuerier implements INymdQuery {
     client: SmartContractQuery
     constructor(client: SmartContractQuery) {
         this.client = client
@@ -33,7 +33,7 @@ export default class NymQuerier implements NymQuery {
         });
     }
 
-    getMixNodes(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
+    getMixNodesPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
         return this.client.queryContractSmart(mixnetContractAddress, {
             get_mix_nodes: {
                 limit: limit,
@@ -42,7 +42,7 @@ export default class NymQuerier implements NymQuery {
         })
     }
 
-    getGateways(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
+    getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
         return this.client.queryContractSmart(mixnetContractAddress, {
             get_gateways: {
                 limit: limit,
@@ -75,7 +75,7 @@ export default class NymQuerier implements NymQuery {
         })
     }
 
-    getAllNetworkDelegations(mixnetContractAddress: string, limit?: number, startAfter?: [string, string]): Promise<PagedAllDelegationsResponse> {
+    getAllNetworkDelegationsPaged(mixnetContractAddress: string, limit?: number, startAfter?: [string, string]): Promise<PagedAllDelegationsResponse> {
         return this.client.queryContractSmart(mixnetContractAddress, {
             get_all_network_delegations: {
                 start_after: startAfter,
@@ -83,7 +83,7 @@ export default class NymQuerier implements NymQuery {
             }
         });
     }
-    getMixNodeDelegations(mixnetContractAddress: string, mixIdentity: string, limit?: number, startAfter?: string): Promise<PagedMixDelegationsResponse> {
+    getMixNodeDelegationsPaged(mixnetContractAddress: string, mixIdentity: string, limit?: number, startAfter?: string): Promise<PagedMixDelegationsResponse> {
         return this.client.queryContractSmart(mixnetContractAddress, {
             get_mixnode_delegations: {
                 mix_identity: mixIdentity,
@@ -92,7 +92,7 @@ export default class NymQuerier implements NymQuery {
             }
         });
     }
-    getDelegatorDelegations(mixnetContractAddress: string, delegator: string, limit?: number, startAfter?: string): Promise<PagedDelegatorDelegationsResponse> {
+    getDelegatorDelegationsPaged(mixnetContractAddress: string, delegator: string, limit?: number, startAfter?: string): Promise<PagedDelegatorDelegationsResponse> {
         return this.client.queryContractSmart(mixnetContractAddress, {
             get_delegator_delegations: {
                 delegator: delegator,

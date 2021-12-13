@@ -54,16 +54,8 @@ pub fn try_add_mixnode_on_behalf(
         .minimum_mixnode_pledge;
     let pledge = validate_mixnode_pledge(info.funds, minimum_pledge)?;
 
-    let proxy = info.sender;
-    _try_add_mixnode(
-        deps,
-        env,
-        mix_node,
-        pledge,
-        &owner,
-        owner_signature,
-        Some(proxy),
-    )
+    let _proxy = info.sender;
+    _try_add_mixnode(deps, env, mix_node, pledge, &owner, owner_signature, None)
 }
 
 fn _try_add_mixnode(

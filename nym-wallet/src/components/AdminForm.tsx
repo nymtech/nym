@@ -1,26 +1,16 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import {
-  Backdrop,
-  Box,
-  Button,
-  CircularProgress,
-  FormControl,
-  Grid,
-  Paper,
-  Slide,
-  TextField,
-} from '@mui/material'
+import { Backdrop, Box, Button, CircularProgress, FormControl, Grid, Paper, Slide, TextField } from '@mui/material'
 
 import { ClientContext } from '../context/main'
 import { NymCard } from '.'
 import { getContractParams, setContractParams } from '../requests'
-import { TauriStateParams } from '../types'
+import { TauriContractStateParams } from '../types'
 
 export const Admin: React.FC = () => {
   const { showAdmin, handleShowAdmin } = useContext(ClientContext)
   const [isLoading, setIsLoading] = useState(false)
-  const [params, setParams] = useState<TauriStateParams>()
+  const [params, setParams] = useState<TauriContractStateParams>()
 
   const onCancel = () => {
     setParams(undefined)
@@ -50,9 +40,7 @@ export const Admin: React.FC = () => {
                 <CircularProgress size={48} />
               </Box>
             )}
-            {!isLoading && params && (
-              <AdminForm onCancel={onCancel} params={params} />
-            )}
+            {!isLoading && params && <AdminForm onCancel={onCancel} params={params} />}
           </NymCard>
         </Paper>
       </Slide>
@@ -61,7 +49,7 @@ export const Admin: React.FC = () => {
 }
 
 const AdminForm: React.FC<{
-  params: TauriStateParams
+  params: TauriContractStateParams
   onCancel: () => void
 }> = ({ params, onCancel }) => {
   const {
@@ -70,7 +58,7 @@ const AdminForm: React.FC<{
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues: { ...params } })
 
-  const onSubmit = async (data: TauriStateParams) => {
+  const onSubmit = async (data: TauriContractStateParams) => {
     await setContractParams(data)
     console.log(data)
     onCancel()

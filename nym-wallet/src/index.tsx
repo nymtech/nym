@@ -6,7 +6,7 @@ import { Routes } from './routes'
 import { ClientContext, ClientContextProvider } from './context/main'
 import { ApplicationLayout } from './layouts'
 import { SignIn } from './routes/sign-in/'
-import { Admin, ErrorFallback } from './components'
+import { Admin, ErrorFallback, Settings } from './components'
 import { NymWalletTheme } from './theme'
 
 const App = () => {
@@ -17,6 +17,7 @@ const App = () => {
         <SignIn />
       ) : (
         <ApplicationLayout>
+          <Settings />
           <Admin />
           <Routes />
         </ApplicationLayout>

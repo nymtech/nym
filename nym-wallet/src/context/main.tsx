@@ -9,10 +9,12 @@ export const urls = {
 }
 
 type TClientContext = {
+  mode: 'light' | 'dark'
   clientDetails?: TClientDetails
   userBalance: TUseuserBalance
   showAdmin: boolean
-  mode: 'light' | 'dark'
+  showSettings: boolean
+  handleShowSettings: () => void
   handleShowAdmin: () => void
   logIn: (clientDetails: TSignInWithMnemonic) => void
   logOut: () => void
@@ -23,6 +25,7 @@ export const ClientContext = createContext({} as TClientContext)
 export const ClientContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [clientDetails, setClientDetails] = useState<TClientDetails>()
   const [showAdmin, setShowAdmin] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [mode, setMode] = useState<'light' | 'dark'>('light')
 
   const history = useHistory()
@@ -45,14 +48,17 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   }
 
   const handleShowAdmin = () => setShowAdmin((show) => !show)
+  const handleShowSettings = () => setShowSettings((show) => !show)
 
   return (
     <ClientContext.Provider
       value={{
+        mode,
         clientDetails,
         userBalance,
         showAdmin,
-        mode,
+        showSettings,
+        handleShowSettings,
         handleShowAdmin,
         logIn,
         logOut,

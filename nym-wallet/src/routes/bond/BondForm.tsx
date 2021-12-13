@@ -27,7 +27,7 @@ type TBondFormFields = {
   ownerSignature: string
   identityKey: string
   sphinxKey: string
-  profitPercentage: number
+  profitMarginPercent: number
   amount: string
   host: string
   version: string
@@ -43,10 +43,11 @@ const defaultValues = {
   nodeType: EnumNodeType.mixnode,
   identityKey: '',
   sphinxKey: '',
+  ownerSignature: '',
   amount: '',
   host: '',
   version: '',
-  profitPercentage: 0,
+  profitMarginPercent: 10,
   location: undefined,
   mixPort: 1789,
   verlocPort: 1790,
@@ -61,6 +62,7 @@ const formatData = (data: TBondFormFields) => {
     host: data.host,
     version: data.version,
     mix_port: data.mixPort,
+    profit_margin_percent: data.profitMarginPercent,
   }
 
   if (data.nodeType === EnumNodeType.mixnode) {
@@ -109,9 +111,9 @@ export const BondForm = ({
     }
 
     const formattedData = formatData(data)
-    const amount = await majorToMinor(data.amount)
+    const pledge = await majorToMinor(data.amount)
 
-    await bond({ type: data.nodeType, data: formattedData, amount })
+    await bond({ type: data.nodeType, ownerSignature: data.ownerSignature, data: formattedData, pledge })
       .then(() => {
         userBalance.fetchBalance()
         onSuccess({ address: data.identityKey, amount: data.amount })
@@ -201,15 +203,15 @@ export const BondForm = ({
 
           <Grid item xs={12} sm={6}>
             <TextField
-              {...register('profitPercentage')}
+              {...register('profitMarginPercent')}
               variant="outlined"
               required
-              id="profitPercentage"
-              name="profitPercentage"
+              id="profitMarginPercent"
+              name="profitMarginPercent"
               label="Profit percentage"
               fullWidth
-              error={!!errors.profitPercentage}
-              helperText={errors.profitPercentage?.message}
+              error={!!errors.profitMarginPercent}
+              helperText={errors.profitMarginPercent?.message}
               disabled={disabled}
             />
           </Grid>

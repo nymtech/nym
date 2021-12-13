@@ -25,7 +25,7 @@ export const validationSchema = Yup.object().shape({
     .test('valid-signature', 'A valid signature is required', function (value) {
       return validateKey(value || '', 64)
     }),
-  profitPercentage: Yup.string().required('Profit Percentage is required').min(1).max(100),
+  profitMarginPercent: Yup.number().required('Profit Percentage is required').min(1).max(100),
   amount: Yup.string()
     .required('An amount is required')
     .test('valid-amount', `A valid amount is required (min 100 ${MAJOR_CURRENCY})`, function (value) {

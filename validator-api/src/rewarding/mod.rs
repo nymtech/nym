@@ -257,6 +257,23 @@ impl Rewarder {
         (unrewarded, further_delegators_present)
     }
 
+    // Utility function to print to the stdout rewarding progress
+    fn print_rewarding_progress(&self, total_rewarded: usize, out_of: usize, is_retry: bool) {
+        let percentage = total_rewarded as f32 * 100.0 / out_of as f32;
+
+        if is_retry {
+            info!(
+                "Resent rewarding transaction for {} / {} mixnodes\t{:.2}%",
+                total_rewarded, out_of, percentage
+            );
+        } else {
+            info!(
+                "Sent rewarding transaction for {} / {} mixnodes\t{:.2}%",
+                total_rewarded, out_of, percentage
+            );
+        }
+    }
+
     /// Using the list of mixnodes eligible for rewards, chunks it into pre-defined sized-chunks
     /// and gives out the rewards by calling the smart contract.
     ///
@@ -271,12 +288,26 @@ impl Rewarder {
     /// # Arguments
     ///
     /// * `eligible_mixnodes`: list of the nodes that are eligible to receive rewards.
-    /// * `rewarding_interval_nonce`: nonce associated with the current rewarding interval
+    /// * `rewarding_interval_nonce`: nonce associated with the current rewarding interval.
+    /// * `retry`: flag to indicate whether this is a retry attempt for rewarding particular nodes.
     async fn distribute_rewards_to_mixnodes(
         &self,
         eligible_mixnodes: &[MixnodeToReward],
         rewarding_interval_nonce: u32,
+        retry: bool,
     ) -> Option<Vec<FailedMixnodeRewardChunkDetails>> {
+        if retry {
+            info!(
+                "Attempting to retry rewarding {} mixnodes...",
+                eligible_mixnodes.len()
+            )
+        } else {
+            info!(
+                "Attempting to reward {} mixnodes...",
+                eligible_mixnodes.len()
+            )
+        }
+
         let mut failed_chunks = Vec::new();
 
         // construct chunks such that we reward at most MIXNODE_DELEGATORS_PAGE_LIMIT delegators per block
@@ -336,17 +367,14 @@ impl Rewarder {
             }
 
             total_rewarded += 1;
-            let percentage = total_rewarded as f32 * 100.0 / eligible_mixnodes.len() as f32;
-            info!(
-                "Rewarded {} / {} mixnodes\t{:.2}%",
-                total_rewarded,
-                eligible_mixnodes.len(),
-                percentage
-            );
+            self.print_rewarding_progress(total_rewarded, eligible_mixnodes.len(), retry);
         }
 
         // then we move onto the chunks
         for mix_chunk in batch_rewarded {
+            if mix_chunk.is_empty() {
+                continue;
+            }
             if let Err(err) = self
                 .nymd_client
                 .reward_mixnodes_with_single_page_of_delegators(
@@ -369,13 +397,7 @@ impl Rewarder {
             }
 
             total_rewarded += mix_chunk.len();
-            let percentage = total_rewarded as f32 * 100.0 / eligible_mixnodes.len() as f32;
-            info!(
-                "Rewarded {} / {} mixnodes\t{:.2}%",
-                total_rewarded,
-                eligible_mixnodes.len(),
-                percentage
-            );
+            self.print_rewarding_progress(total_rewarded, eligible_mixnodes.len(), retry);
         }
 
         if failed_chunks.is_empty() {
@@ -399,7 +421,15 @@ impl Rewarder {
         nodes: &[MixnodeToReward],
         rewarding_interval_nonce: u32,
     ) {
+        let mut total_resent = 0;
         for missed_node in nodes {
+            total_resent += 1;
+            info!(
+                "Sending rewarding transaction for missed delegators ({} / {} mixnodes re-checked)",
+                total_resent,
+                nodes.len()
+            );
+
             if let Err(err) = self
                 .nymd_client
                 .reward_mix_delegators(missed_node, rewarding_interval_nonce)
@@ -442,7 +472,7 @@ impl Rewarder {
             .begin_mixnode_rewarding(current_rewarding_nonce + 1)
             .await?;
         failure_data.mixnodes = self
-            .distribute_rewards_to_mixnodes(&eligible_mixnodes, current_rewarding_nonce + 1)
+            .distribute_rewards_to_mixnodes(&eligible_mixnodes, current_rewarding_nonce + 1, false)
             .await;
 
         let mut nodes_to_verify = eligible_mixnodes;
@@ -463,7 +493,7 @@ impl Rewarder {
 
             if !unrewarded.is_empty() {
                 // no need to save failure data as we already know about those from the very first run
-                self.distribute_rewards_to_mixnodes(&unrewarded, current_rewarding_nonce + 1)
+                self.distribute_rewards_to_mixnodes(&unrewarded, current_rewarding_nonce + 1, true)
                     .await;
             }
 

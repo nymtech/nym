@@ -1,10 +1,10 @@
 import React, { useContext, useState } from 'react'
 import { Box, Dialog, Slide, Tab, Tabs, Typography } from '@mui/material'
 import { SettingsOutlined } from '@mui/icons-material'
-import { NymCard } from '.'
-import { ClientContext } from '../context/main'
+import { NymCard } from '../../components'
+import { ClientContext } from '../../context/main'
 
-const tabs = ['Profile', 'System variable', 'Node stats']
+const tabs = ['Profile', 'System variables', 'Node stats']
 
 export const Settings = () => {
   const { showSettings, handleShowSettings } = useContext(ClientContext)

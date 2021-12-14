@@ -1,14 +1,7 @@
 import React from 'react'
 import { Switch, Route } from 'react-router-dom'
-import { NotFound } from './404'
-import { Balance } from './balance'
-import { Bond } from './bond'
-import { Delegate } from './delegate'
-import { Receive } from './receive'
-import { Send } from './send'
-import { Unbond } from './unbond'
-import { Undelegate } from './undelegate'
-import { InternalDocs } from './internal-docs'
+import { Balance } from '../pages/balance'
+import { Bond, Delegate, InternalDocs, Receive, Send, Unbond, Undelegate } from '../pages'
 
 export const Routes = () => (
   <Switch>
@@ -35,9 +28,6 @@ export const Routes = () => (
     </Route>
     <Route path="/docs">
       <InternalDocs />
-    </Route>
-    <Route path="*">
-      <NotFound />
     </Route>
   </Switch>
 )

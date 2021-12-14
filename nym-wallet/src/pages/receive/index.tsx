@@ -1,16 +1,9 @@
 import React, { useContext } from 'react'
 import QRCode from 'qrcode.react'
-import {
-  Alert,
-  Box,
-  Card,
-  Grid,
-  Typography,
-  useMediaQuery,
-} from '@mui/material'
-import { CopyToClipboard, NymCard } from '../components'
-import { Layout } from '../layouts'
-import { ClientContext } from '../context/main'
+import { Alert, Box, Card, Grid, Typography, useMediaQuery } from '@mui/material'
+import { CopyToClipboard, NymCard } from '../../components'
+import { Layout } from '../../layouts'
+import { ClientContext } from '../../context/main'
 
 export const Receive = () => {
   const { clientDetails } = useContext(ClientContext)
@@ -36,12 +29,7 @@ export const Receive = () => {
               }}
               variant="outlined"
             >
-              <Grid
-                container
-                direction="column"
-                spacing={4}
-                alignItems="center"
-              >
+              <Grid container direction="column" spacing={4} alignItems="center">
                 <Grid item>
                   <Typography
                     data-testid="client-address"
@@ -65,12 +53,7 @@ export const Receive = () => {
                     }}
                     component="div"
                   >
-                    {clientDetails && (
-                      <QRCode
-                        data-testid="qr-code"
-                        value={clientDetails.client_address}
-                      />
-                    )}
+                    {clientDetails && <QRCode data-testid="qr-code" value={clientDetails.client_address} />}
                   </Box>
                 </Grid>
               </Grid>

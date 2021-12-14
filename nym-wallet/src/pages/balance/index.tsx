@@ -1,10 +1,10 @@
 import React, { useContext, useEffect } from 'react'
 import { Alert, Button, Grid, Link, Typography } from '@mui/material'
 import { OpenInNew } from '@mui/icons-material'
-import { NymCard } from '../components'
-import { Layout } from '../layouts'
+import { NymCard } from '../../components'
+import { Layout } from '../../layouts'
 
-import { ClientContext, urls } from '../context/main'
+import { ClientContext, urls } from '../../context/main'
 
 export const Balance = () => {
   const { userBalance, clientDetails } = useContext(ClientContext)

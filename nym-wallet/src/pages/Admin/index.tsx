@@ -2,10 +2,10 @@ import React, { useContext, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Backdrop, Box, Button, CircularProgress, FormControl, Grid, Paper, Slide, TextField } from '@mui/material'
 
-import { ClientContext } from '../context/main'
-import { NymCard } from '.'
-import { getContractParams, setContractParams } from '../requests'
-import { TauriContractStateParams } from '../types'
+import { ClientContext } from '../../context/main'
+import { NymCard } from '../../components'
+import { getContractParams, setContractParams } from '../../requests'
+import { TauriContractStateParams } from '../../types'
 
 export const Admin: React.FC = () => {
   const { showAdmin, handleShowAdmin } = useContext(ClientContext)

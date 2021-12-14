@@ -1,3 +1,4 @@
+use crate::client;
 use crate::coin::Coin;
 use crate::error::BackendError;
 use crate::state::State;
@@ -14,8 +15,7 @@ pub async fn vesting_bond_gateway(
   owner_signature: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  let client = state.read().await.client()?;
-  client
+  client!(state)
     .vesting_bond_gateway(gateway, &owner_signature, pledge.try_into()?)
     .await?;
   Ok(())
@@ -25,8 +25,7 @@ pub async fn vesting_bond_gateway(
 pub async fn vesting_unbond_gateway(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  let client = state.read().await.client()?;
-  client.vesting_unbond_gateway().await?;
+  client!(state).vesting_unbond_gateway().await?;
   Ok(())
 }
 
@@ -34,8 +33,7 @@ pub async fn vesting_unbond_gateway(
 pub async fn vesting_unbond_mixnode(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  let client = state.read().await.client()?;
-  client.vesting_unbond_mixnode().await?;
+  client!(state).vesting_unbond_mixnode().await?;
   Ok(())
 }
 
@@ -46,8 +44,7 @@ pub async fn vesting_bond_mixnode(
   pledge: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  let client = state.read().await.client()?;
-  client
+  client!(state)
     .vesting_bond_mixnode(mixnode, &owner_signature, pledge.try_into()?)
     .await?;
   Ok(())

@@ -1,3 +1,4 @@
+use crate::client;
 use crate::coin::Coin;
 use crate::error::BackendError;
 use crate::state::State;
@@ -12,9 +13,8 @@ pub async fn locked_coins(
   block_time: Option<u64>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
-  let client = state.read().await.client()?;
   Ok(
-    client
+    client!(state)
       .locked_coins(address, block_time.map(Timestamp::from_seconds))
       .await?
       .into(),
@@ -27,9 +27,8 @@ pub async fn spendable_coins(
   block_time: Option<u64>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
-  let client = state.read().await.client()?;
   Ok(
-    client
+    client!(state)
       .spendable_coins(
         vesting_account_address,
         block_time.map(Timestamp::from_seconds),
@@ -45,9 +44,8 @@ pub async fn vested_coins(
   block_time: Option<u64>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
-  let client = state.read().await.client()?;
   Ok(
-    client
+    client!(state)
       .vested_coins(
         vesting_account_address,
         block_time.map(Timestamp::from_seconds),
@@ -63,9 +61,8 @@ pub async fn vesting_coins(
   block_time: Option<u64>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
-  let client = state.read().await.client()?;
   Ok(
-    client
+    client!(state)
       .vesting_coins(
         vesting_account_address,
         block_time.map(Timestamp::from_seconds),
@@ -80,9 +77,8 @@ pub async fn vesting_start_time(
   vesting_account_address: &str,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<u64, BackendError> {
-  let client = state.read().await.client()?;
   Ok(
-    client
+    client!(state)
       .vesting_start_time(vesting_account_address)
       .await?
       .seconds(),
@@ -94,9 +90,8 @@ pub async fn vesting_end_time(
   vesting_account_address: &str,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<u64, BackendError> {
-  let client = state.read().await.client()?;
   Ok(
-    client
+    client!(state)
       .vesting_end_time(vesting_account_address)
       .await?
       .seconds(),
@@ -108,9 +103,8 @@ pub async fn original_vesting(
   vesting_account_address: &str,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
-  let client = state.read().await.client()?;
   Ok(
-    client
+    client!(state)
       .original_vesting(vesting_account_address)
       .await?
       .into(),
@@ -123,9 +117,8 @@ pub async fn delegated_free(
   block_time: Option<u64>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
-  let client = state.read().await.client()?;
   Ok(
-    client
+    client!(state)
       .delegated_free(
         vesting_account_address,
         block_time.map(Timestamp::from_seconds),
@@ -141,9 +134,8 @@ pub async fn delegated_vesting(
   vesting_account_address: &str,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
-  let client = state.read().await.client()?;
   Ok(
-    client
+    client!(state)
       .delegated_vesting(
         vesting_account_address,
         block_time.map(Timestamp::from_seconds),

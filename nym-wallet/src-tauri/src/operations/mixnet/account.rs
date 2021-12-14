@@ -1,3 +1,4 @@
+use crate::client;
 use crate::coin::{Coin, Denom};
 use crate::config::Config;
 use crate::error::BackendError;
@@ -57,8 +58,7 @@ pub async fn connect_with_mnemonic(
 pub async fn get_balance(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Balance, BackendError> {
-  let client = state.read().await.client()?;
-  match client.get_balance(client.address()).await {
+  match client!(state).get_balance(client!(state).address()).await {
     Ok(Some(coin)) => {
       let coin = Coin::new(
         &coin.amount.to_string(),
@@ -69,7 +69,9 @@ pub async fn get_balance(
         printable_balance: coin.to_major().to_string(),
       })
     }
-    Ok(None) => Err(BackendError::NoBalance(client.address().to_string())),
+    Ok(None) => Err(BackendError::NoBalance(
+      client!(state).address().to_string(),
+    )),
     Err(e) => Err(BackendError::from(e)),
   }
 }

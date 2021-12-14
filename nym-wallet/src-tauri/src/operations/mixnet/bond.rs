@@ -1,3 +1,4 @@
+use crate::client;
 use crate::coin::Coin;
 use crate::error::BackendError;
 use crate::state::State;
@@ -13,8 +14,7 @@ pub async fn bond_gateway(
   owner_signature: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  let client = state.read().await.client()?;
-  client
+  client!(state)
     .bond_gateway(gateway, owner_signature, pledge.try_into()?)
     .await?;
   Ok(())
@@ -24,8 +24,7 @@ pub async fn bond_gateway(
 pub async fn unbond_gateway(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  let client = state.read().await.client()?;
-  client.unbond_gateway().await?;
+  client!(state).unbond_gateway().await?;
   Ok(())
 }
 
@@ -33,8 +32,7 @@ pub async fn unbond_gateway(
 pub async fn unbond_mixnode(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  let client = state.read().await.client()?;
-  client.unbond_mixnode().await?;
+  client!(state).unbond_mixnode().await?;
   Ok(())
 }
 
@@ -45,8 +43,7 @@ pub async fn bond_mixnode(
   pledge: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  let client = state.read().await.client()?;
-  client
+  client!(state)
     .bond_mixnode(mixnode, owner_signature, pledge.try_into()?)
     .await?;
   Ok(())

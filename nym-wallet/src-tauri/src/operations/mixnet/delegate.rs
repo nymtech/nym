@@ -1,3 +1,4 @@
+use crate::client;
 use crate::coin::Coin;
 use crate::error::BackendError;
 use crate::state::State;
@@ -14,11 +15,12 @@ pub async fn delegate_to_mixnode(
   amount: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationResult, BackendError> {
-  let client = state.read().await.client()?;
   let delegation: CosmWasmCoin = amount.try_into()?;
-  client.delegate_to_mixnode(identity, &delegation).await?;
+  client!(state)
+    .delegate_to_mixnode(identity, &delegation)
+    .await?;
   Ok(DelegationResult::new(
-    &client.address().to_string(),
+    &client!(state).address().to_string(),
     identity,
     Some(delegation.into()),
   ))
@@ -29,10 +31,9 @@ pub async fn undelegate_from_mixnode(
   identity: &str,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationResult, BackendError> {
-  let client = state.read().await.client()?;
-  client.remove_mixnode_delegation(identity).await?;
+  client!(state).remove_mixnode_delegation(identity).await?;
   Ok(DelegationResult::new(
-    &client.address().to_string(),
+    &client!(state).address().to_string(),
     identity,
     None,
   ))
@@ -42,10 +43,9 @@ pub async fn undelegate_from_mixnode(
 pub async fn get_reverse_mix_delegations_paged(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<PagedDelegatorDelegationsResponse, BackendError> {
-  let client = state.read().await.client()?;
   Ok(
-    client
-      .get_delegator_delegations_paged(client.address().to_string(), None, None)
+    client!(state)
+      .get_delegator_delegations_paged(client!(state).address().to_string(), None, None)
       .await?,
   )
 }

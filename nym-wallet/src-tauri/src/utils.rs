@@ -1,3 +1,4 @@
+use crate::client;
 use crate::coin::{Coin, Denom};
 use crate::error::BackendError;
 use crate::state::State;
@@ -22,16 +23,24 @@ pub fn minor_to_major(amount: &str) -> Coin {
 pub async fn owns_mixnode(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<bool, BackendError> {
-  let client = state.read().await.client()?;
-  Ok(client.owns_mixnode(client.address()).await?.is_some())
+  Ok(
+    client!(state)
+      .owns_mixnode(client!(state).address())
+      .await?
+      .is_some(),
+  )
 }
 
 #[tauri::command]
 pub async fn owns_gateway(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<bool, BackendError> {
-  let client = state.read().await.client()?;
-  Ok(client.owns_gateway(client.address()).await?.is_some())
+  Ok(
+    client!(state)
+      .owns_gateway(client!(state).address())
+      .await?
+      .is_some(),
+  )
 }
 
 // NOTE: this uses OUTDATED defaults that might have no resemblance with the reality
@@ -40,10 +49,8 @@ pub async fn owns_gateway(
 pub async fn get_approximate_fee(
   operation: Operation,
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<Coin, String> {
-  let r_state = state.read().await;
-  let client = r_state.client()?;
-  let approximate_fee = operation.default_fee(client.gas_price());
+) -> Result<Coin, BackendError> {
+  let approximate_fee = operation.default_fee(client!(state).gas_price());
   let mut coin = Coin::new("0", &Denom::Major);
   for f in approximate_fee.amount {
     coin = coin + f.into();

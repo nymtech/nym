@@ -9,10 +9,10 @@ pub struct State {
 }
 
 impl State {
-  pub fn client(&self) -> Result<NymdClient<SigningNymdClient>, BackendError> {
+  pub fn client(&self) -> Result<&NymdClient<SigningNymdClient>, BackendError> {
     self
       .signing_client
-      .clone()
+      .as_ref()
       .ok_or(BackendError::ClientNotInitialized)
   }
 
@@ -23,4 +23,11 @@ impl State {
   pub fn set_client(&mut self, signing_client: NymdClient<SigningNymdClient>) {
     self.signing_client = Some(signing_client)
   }
+}
+
+#[macro_export]
+macro_rules! client {
+  ($state:ident) => {
+    $state.read().await.client()?
+  };
 }

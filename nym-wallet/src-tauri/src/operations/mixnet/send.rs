@@ -1,3 +1,4 @@
+use crate::client;
 use crate::coin::Coin;
 use crate::error::BackendError;
 use crate::state::State;
@@ -48,14 +49,15 @@ pub async fn send(
   memo: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TauriTxResult, BackendError> {
-  let client = state.read().await.client()?;
   let address = AccountId::from_str(address)?;
   let cosmos_amount: CosmosCoin = amount.clone().try_into()?;
-  let result = client.send(&address, vec![cosmos_amount], memo).await?;
+  let result = client!(state)
+    .send(&address, vec![cosmos_amount], memo)
+    .await?;
   Ok(TauriTxResult::new(
     result,
     TransactionDetails {
-      from_address: client.address().to_string(),
+      from_address: client!(state).address().to_string(),
       to_address: address.to_string(),
       amount,
     },

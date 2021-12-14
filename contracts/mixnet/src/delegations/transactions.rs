@@ -56,7 +56,14 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     // check if the delegation contains any funds of the appropriate denomination
     let amount = validate_delegation_stake(info.funds)?;
 
-    _try_delegate_to_mixnode(deps, env, mix_identity, &delegate, amount, None)
+    _try_delegate_to_mixnode(
+        deps,
+        env,
+        mix_identity,
+        &delegate,
+        amount,
+        Some(info.sender),
+    )
 }
 
 pub(crate) fn _try_delegate_to_mixnode(

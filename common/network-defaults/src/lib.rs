@@ -59,9 +59,9 @@ pub fn default_api_endpoints() -> Vec<Url> {
         .collect()
 }
 
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "tnym14hj2tavq8fpesdwxxcu44rty3hh90vhu5ksfyn";
-pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = "tnym17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9epkgzu";
-pub const REWARDING_VALIDATOR_ADDRESS: &str = "tnym1y2hv6t02f99jws8u6esyhen8jy4x4vq703eqkh";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "nymt14hj2tavq8fpesdwxxcu44rty3hh90vhuysqrsr";
+pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = "nymt1nc5tatafv6eyq7llkr2gv50ff9e22mnfp9pc5s";
+pub const REWARDING_VALIDATOR_ADDRESS: &str = "nymt17zujduc46wvkwvp6f062mm5xhr7jc3fewvqu9e";
 
 /// How much bandwidth (in bytes) one token can buy
 const BYTES_PER_TOKEN: u64 = 1024 * 1024 * 1024;
@@ -74,7 +74,7 @@ pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
 pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("9fEE3e28c17dbB87310A51F13C4fbf4331A6f102");
 pub const ETH_MIN_BLOCK_DEPTH: usize = 7;
-pub const COSMOS_CONTRACT_ADDRESS: &str = "tnym1nc5tatafv6eyq7llkr2gv50ff9e22mnf3r3jqq";
+pub const COSMOS_CONTRACT_ADDRESS: &str = "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
 // Name of the event triggered by the eth contract. If the event name is changed,
 // this would also need to be changed; It is currently tested against the json abi
 pub const ETH_EVENT_NAME: &str = "Burned";

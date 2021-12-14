@@ -29,7 +29,3 @@ fmt-contracts:
 
 fmt-wallet:
 	cargo fmt --manifest-path nym-wallet/Cargo.toml --all
-
-
-
-

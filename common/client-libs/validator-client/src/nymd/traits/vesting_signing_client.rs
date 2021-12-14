@@ -8,7 +8,7 @@ use crate::nymd::fee::helpers::Operation;
 use crate::nymd::{cosmwasm_coin_to_cosmos_coin, NymdClient};
 use async_trait::async_trait;
 use cosmwasm_std::Coin;
-use mixnet_contract::{Gateway, IdentityKey, MixNode};
+use mixnet_contract::{Gateway, IdentityKey, IdentityKeyRef, MixNode};
 use vesting_contract::messages::ExecuteMsg as VestingExecuteMsg;
 
 #[async_trait]
@@ -16,8 +16,8 @@ pub trait VestingSigningClient {
     async fn vesting_bond_gateway(
         &self,
         gateway: Gateway,
-        pledge: Coin,
         owner_signature: &str,
+        pledge: Coin,
     ) -> Result<ExecuteResult, NymdError>;
 
     async fn vesting_unbond_gateway(&self) -> Result<ExecuteResult, NymdError>;
@@ -31,8 +31,8 @@ pub trait VestingSigningClient {
     async fn vesting_bond_mixnode(
         &self,
         mix_node: MixNode,
-        pledge: Coin,
         owner_signature: &str,
+        pledge: Coin,
     ) -> Result<ExecuteResult, NymdError>;
     async fn vesting_unbond_mixnode(&self) -> Result<ExecuteResult, NymdError>;
 
@@ -51,15 +51,15 @@ pub trait VestingSigningClient {
         amount: Coin,
     ) -> Result<ExecuteResult, NymdError>;
 
-    async fn vesting_delegate_to_mixnode(
+    async fn vesting_delegate_to_mixnode<'a>(
         &self,
-        mix_identity: IdentityKey,
-        amount: Coin,
+        mix_identity: IdentityKeyRef<'a>,
+        amount: &Coin,
     ) -> Result<ExecuteResult, NymdError>;
 
-    async fn vesting_undelegate_from_mixnode(
+    async fn vesting_undelegate_from_mixnode<'a>(
         &self,
-        mix_identity: IdentityKey,
+        mix_identity: IdentityKeyRef<'a>,
     ) -> Result<ExecuteResult, NymdError>;
 
     async fn create_periodic_vesting_account(
@@ -75,8 +75,8 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
     async fn vesting_bond_gateway(
         &self,
         gateway: Gateway,
-        pledge: Coin,
         owner_signature: &str,
+        pledge: Coin,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.operation_fee(Operation::BondGateway);
         let req = VestingExecuteMsg::BondGateway {
@@ -135,8 +135,8 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
     async fn vesting_bond_mixnode(
         &self,
         mix_node: MixNode,
-        pledge: Coin,
         owner_signature: &str,
+        pledge: Coin,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.operation_fee(Operation::BondMixnode);
         let req = VestingExecuteMsg::BondMixnode {
@@ -230,13 +230,15 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
             )
             .await
     }
-    async fn vesting_delegate_to_mixnode(
+    async fn vesting_delegate_to_mixnode<'a>(
         &self,
-        mix_identity: IdentityKey,
-        amount: Coin,
+        mix_identity: IdentityKeyRef<'a>,
+        amount: &Coin,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.operation_fee(Operation::DelegateToMixnode);
-        let req = VestingExecuteMsg::DelegateToMixnode { mix_identity };
+        let req = VestingExecuteMsg::DelegateToMixnode {
+            mix_identity: mix_identity.into(),
+        };
         self.client
             .execute(
                 self.address(),
@@ -244,16 +246,18 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 &req,
                 fee,
                 "VestingContract::DeledateToMixnode",
-                vec![cosmwasm_coin_to_cosmos_coin(amount)],
+                vec![cosmwasm_coin_to_cosmos_coin(amount.to_owned())],
             )
             .await
     }
-    async fn vesting_undelegate_from_mixnode(
+    async fn vesting_undelegate_from_mixnode<'a>(
         &self,
-        mix_identity: IdentityKey,
+        mix_identity: IdentityKeyRef<'a>,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.operation_fee(Operation::UndelegateFromMixnode);
-        let req = VestingExecuteMsg::UndelegateFromMixnode { mix_identity };
+        let req = VestingExecuteMsg::UndelegateFromMixnode {
+            mix_identity: mix_identity.into(),
+        };
         self.client
             .execute(
                 self.address(),

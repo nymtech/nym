@@ -1,8 +1,9 @@
 use crate::contract::NUM_VESTING_PERIODS;
 use crate::errors::ContractError;
+use crate::storage::{delete_account, save_account};
 use crate::traits::VestingAccount;
 use config::defaults::DENOM;
-use cosmwasm_std::{Coin, Env, Order, Storage, Timestamp, Uint128};
+use cosmwasm_std::{Addr, Coin, Env, Order, Storage, Timestamp, Uint128};
 
 use super::Account;
 
@@ -208,5 +209,30 @@ impl VestingAccount for Account {
                 denom: DENOM.to_string(),
             })
         }
+    }
+
+    fn transfer_ownership(
+        &mut self,
+        to_address: &Addr,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
+        delete_account(&self.owner_address(), storage)?;
+        self.owner_address = to_address.clone();
+
+        save_account(self, storage)?;
+        Ok(())
+    }
+
+    fn update_staking_address(
+        &mut self,
+        to_address: Option<Addr>,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
+        if let Some(staking_address) = self.staking_address() {
+            delete_account(staking_address, storage)?;
+        }
+        self.staking_address = to_address;
+        save_account(self, storage)?;
+        Ok(())
     }
 }

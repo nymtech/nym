@@ -36,14 +36,15 @@ pub fn populate_vesting_periods(start_time: u64, n: usize) -> Vec<VestingPeriod>
 
 #[cfg(test)]
 mod tests {
-    use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD};
+    use crate::contract::{execute, NUM_VESTING_PERIODS, VESTING_PERIOD};
+    use crate::messages::ExecuteMsg;
     use crate::storage::load_account;
     use crate::support::tests::helpers::{init_contract, vesting_account_fixture};
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
     use config::defaults::DENOM;
-    use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
     use mixnet_contract::{Gateway, MixNode};
 
@@ -52,11 +53,13 @@ mod tests {
         let mut deps = init_contract();
         let env = mock_env();
         let account = vesting_account_fixture(&mut deps.storage, &env);
-        let created_account = load_account(&account.address(), &deps.storage).unwrap();
-        let created_account_test =
-            load_account(&Addr::unchecked("fixture"), &deps.storage).unwrap();
+        let created_account = load_account(&account.owner_address(), &deps.storage).unwrap();
+        let created_account_test = load_account(&Addr::unchecked("owner"), &deps.storage).unwrap();
+        let created_account_test_by_staking =
+            load_account(&Addr::unchecked("staking"), &deps.storage).unwrap();
         assert_eq!(Some(&account), created_account.as_ref());
         assert_eq!(Some(&account), created_account_test.as_ref());
+        assert_eq!(created_account_test_by_staking, created_account_test);
         assert_eq!(
             account.load_balance(&deps.storage).unwrap(),
             Uint128::new(1_000_000_000_000)
@@ -65,6 +68,26 @@ mod tests {
             account.load_balance(&deps.storage).unwrap(),
             Uint128::new(1_000_000_000_000)
         )
+    }
+
+    #[test]
+    fn test_ownership_transfer() {
+        let mut deps = init_contract();
+        let env = mock_env();
+        let info = mock_info("owner", &[]);
+        let account = vesting_account_fixture(&mut deps.storage, &env);
+        let msg = ExecuteMsg::TransferOwnership {
+            to_address: "new_owner".to_string(),
+        };
+        let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+        let new_owner_account = load_account(&Addr::unchecked("new_owner"), &deps.storage).unwrap().unwrap();
+        assert_eq!(new_owner_account.load_balance(&deps.storage), account.load_balance(&deps.storage));
+        // Check old account is gone
+        let old_owner_account = load_account(&Addr::unchecked("owner"), &deps.storage).unwrap();
+        assert!(old_owner_account.is_none());
+        // Not the owner
+        let response = execute(deps.as_mut(), env, info, msg);
+        assert!(response.is_err())
     }
 
     #[test]

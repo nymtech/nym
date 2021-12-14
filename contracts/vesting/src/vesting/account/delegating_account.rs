@@ -19,14 +19,14 @@ impl DelegatingAccount for Account {
 
         if current_balance < coin.amount {
             return Err(ContractError::InsufficientBalance(
-                self.address.as_str().to_string(),
+                self.owner_address().as_str().to_string(),
                 current_balance.u128(),
             ));
         }
 
         let msg = MixnetExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_identity: mix_identity.clone(),
-            delegate: self.address().into_string(),
+            delegate: self.owner_address().into_string(),
         };
         let delegate_to_mixnode =
             wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![coin.clone()])?;
@@ -44,14 +44,14 @@ impl DelegatingAccount for Account {
     ) -> Result<Response, ContractError> {
         if !self.any_delegation_for_mix(&mix_identity, storage) {
             return Err(ContractError::NoSuchDelegation(
-                self.address(),
+                self.owner_address(),
                 mix_identity,
             ));
         }
 
         let msg = MixnetExecuteMsg::UndelegateFromMixnodeOnBehalf {
             mix_identity,
-            delegate: self.address().into_string(),
+            delegate: self.owner_address().into_string(),
         };
         let undelegate_from_mixnode = wasm_execute(
             DEFAULT_MIXNET_CONTRACT_ADDRESS,

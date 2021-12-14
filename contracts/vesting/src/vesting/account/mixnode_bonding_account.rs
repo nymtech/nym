@@ -20,14 +20,14 @@ impl MixnodeBondingAccount for Account {
 
         if current_balance < pledge.amount {
             return Err(ContractError::InsufficientBalance(
-                self.address.as_str().to_string(),
+                self.owner_address().as_str().to_string(),
                 current_balance.u128(),
             ));
         }
 
         let pledge_data = if self.load_mixnode_pledge(storage)?.is_some() {
             return Err(ContractError::AlreadyBonded(
-                self.address.as_str().to_string(),
+                self.owner_address().as_str().to_string(),
             ));
         } else {
             PledgeData {
@@ -38,7 +38,7 @@ impl MixnodeBondingAccount for Account {
 
         let msg = MixnetExecuteMsg::BondMixnodeOnBehalf {
             mix_node,
-            owner: self.address().into_string(),
+            owner: self.owner_address().into_string(),
             owner_signature,
         };
 
@@ -56,7 +56,7 @@ impl MixnodeBondingAccount for Account {
 
     fn try_unbond_mixnode(&self, storage: &dyn Storage) -> Result<Response, ContractError> {
         let msg = MixnetExecuteMsg::UnbondMixnodeOnBehalf {
-            owner: self.address().into_string(),
+            owner: self.owner_address().into_string(),
         };
 
         if self.load_mixnode_pledge(storage)?.is_some() {
@@ -67,7 +67,7 @@ impl MixnodeBondingAccount for Account {
                 .add_message(unbond_msg))
         } else {
             Err(ContractError::NoBondFound(
-                self.address.as_str().to_string(),
+                self.owner_address().as_str().to_string(),
             ))
         }
     }

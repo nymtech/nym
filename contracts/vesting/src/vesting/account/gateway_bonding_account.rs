@@ -20,14 +20,14 @@ impl GatewayBondingAccount for Account {
 
         if current_balance < pledge.amount {
             return Err(ContractError::InsufficientBalance(
-                self.address.as_str().to_string(),
+                self.owner_address().as_str().to_string(),
                 current_balance.u128(),
             ));
         }
 
         let pledge_data = if self.load_gateway_pledge(storage)?.is_some() {
             return Err(ContractError::AlreadyBonded(
-                self.address.as_str().to_string(),
+                self.owner_address().as_str().to_string(),
             ));
         } else {
             PledgeData {
@@ -38,7 +38,7 @@ impl GatewayBondingAccount for Account {
 
         let msg = MixnetExecuteMsg::BondGatewayOnBehalf {
             gateway,
-            owner: self.address().into_string(),
+            owner: self.owner_address().into_string(),
             owner_signature,
         };
 
@@ -56,7 +56,7 @@ impl GatewayBondingAccount for Account {
 
     fn try_unbond_gateway(&self, storage: &dyn Storage) -> Result<Response, ContractError> {
         let msg = MixnetExecuteMsg::UnbondGatewayOnBehalf {
-            owner: self.address().into_string(),
+            owner: self.owner_address().into_string(),
         };
 
         if let Some(_bond) = self.load_gateway_pledge(storage)? {
@@ -67,7 +67,7 @@ impl GatewayBondingAccount for Account {
                 .add_message(unbond_msg))
         } else {
             Err(ContractError::NoBondFound(
-                self.address.as_str().to_string(),
+                self.owner_address().as_str().to_string(),
             ))
         }
     }

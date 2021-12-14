@@ -18,9 +18,26 @@ const BALANCE_SUFFIX: &str = "ba";
 const PLEDGE_SUFFIX: &str = "bo";
 const GATEWAY_SUFFIX: &str = "ga";
 
+fn build_delegations_key(address: &Addr) -> String {
+    format!("{}{}", address, DELEGATIONS_SUFFIX)
+}
+
+fn build_balance_key(address: &Addr) -> String {
+    format!("{}{}", address, BALANCE_SUFFIX)
+}
+
+fn build_mixnode_pledge_key(address: &Addr) -> String {
+    format!("{}{}", address, PLEDGE_SUFFIX)
+}
+
+fn build_gateway_pledge_key(address: &Addr) -> String {
+    format!("{}{}", address, GATEWAY_SUFFIX)
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Account {
-    address: Addr,
+    owner_address: Addr,
+    staking_address: Option<Addr>,
     start_time: Timestamp,
     periods: Vec<VestingPeriod>,
     coin: Coin,
@@ -32,7 +49,8 @@ pub struct Account {
 
 impl Account {
     pub fn new(
-        address: Addr,
+        owner_address: Addr,
+        staking_address: Option<Addr>,
         coin: Coin,
         start_time: Timestamp,
         periods: Vec<VestingPeriod>,
@@ -40,22 +58,55 @@ impl Account {
     ) -> Result<Self, ContractError> {
         let amount = coin.amount;
         let account = Account {
-            address: address.to_owned(),
+            owner_address: owner_address.to_owned(),
+            staking_address,
             start_time,
             periods,
             coin,
-            delegations_key: format!("{}_{}", address, DELEGATIONS_SUFFIX),
-            balance_key: format!("{}_{}", address, BALANCE_SUFFIX),
-            mixnode_pledge_key: format!("{}_{}", address, PLEDGE_SUFFIX),
-            gateway_pledge_key: format!("{}_{}", address, GATEWAY_SUFFIX),
+            delegations_key: build_delegations_key(&owner_address),
+            balance_key: build_balance_key(&owner_address),
+            mixnode_pledge_key: build_mixnode_pledge_key(&owner_address),
+            gateway_pledge_key: build_gateway_pledge_key(&owner_address),
         };
         save_account(&account, storage)?;
         account.save_balance(amount, storage)?;
         Ok(account)
     }
 
-    pub fn address(&self) -> Addr {
-        self.address.clone()
+    fn update_delegations_key(&mut self) {
+        self.delegations_key = build_delegations_key(&self.owner_address);
+    }
+
+    fn update_balance_key(&mut self) {
+        self.balance_key = build_balance_key(&self.owner_address);
+    }
+
+    fn update_mixnode_pledge_key(&mut self) {
+        self.mixnode_pledge_key = build_mixnode_pledge_key(&self.owner_address);
+    }
+
+    fn update_gateway_pledge_key(&mut self) {
+        self.gateway_pledge_key = build_gateway_pledge_key(&self.owner_address);
+    }
+
+    fn move_delegations(&self, old_owner_address: &Addr) {
+        let delegations_key = build_delegations_key(old_owner_address);
+        let old_delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_key);
+        // TODO: Continue here
+    }
+
+    fn move_balance(&self, old_owner_address: &Addr) {}
+
+    fn move_mixnode_pledge(&self, old_owner_address: &Addr) {}
+
+    fn move_gateway_pledge(&self, old_owner_address: &Addr) {}
+
+    pub fn owner_address(&self) -> Addr {
+        self.owner_address.clone()
+    }
+
+    pub fn staking_address(&self) -> Option<&Addr> {
+        self.staking_address.as_ref()
     }
 
     #[allow(dead_code)]

@@ -94,6 +94,7 @@ impl Client<SigningNymdClient> {
             config.mixnet_contract_address.clone(),
             config.vesting_contract_address.clone(),
             mnemonic.clone(),
+            None,
         )?;
 
         Ok(Client {
@@ -114,6 +115,7 @@ impl Client<SigningNymdClient> {
             self.mixnet_contract_address.clone(),
             self.vesting_contract_address.clone(),
             self.mnemonic.clone().unwrap(),
+            None,
         )?;
         Ok(())
     }

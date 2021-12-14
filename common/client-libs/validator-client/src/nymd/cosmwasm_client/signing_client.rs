@@ -1,29 +1,93 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::convert::TryInto;
+
+use async_trait::async_trait;
+use cosmrs::bank::MsgSend;
+use cosmrs::distribution::MsgWithdrawDelegatorReward;
+use cosmrs::proto::cosmos::tx::signing::v1beta1::SignMode;
+use cosmrs::rpc::endpoint::broadcast;
+use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
+use cosmrs::staking::{MsgDelegate, MsgUndelegate};
+use cosmrs::tx::{self, Msg, SignDoc, SignerInfo};
+use cosmrs::{cosmwasm, rpc, AccountId, Any, Coin, Tx};
+use log::debug;
+use serde::Serialize;
+use sha2::Digest;
+use sha2::Sha256;
+
 use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 use crate::nymd::cosmwasm_client::helpers::{compress_wasm_code, CheckResponse};
 use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::error::NymdError;
+use crate::nymd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use async_trait::async_trait;
-use cosmrs::bank::MsgSend;
-use cosmrs::distribution::MsgWithdrawDelegatorReward;
-use cosmrs::rpc::endpoint::broadcast;
-use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
-use cosmrs::staking::{MsgDelegate, MsgUndelegate};
-use cosmrs::tx::{Fee, Msg, SignDoc, SignerInfo};
-use cosmrs::{cosmwasm, rpc, tx, AccountId, Any, Coin};
-use log::debug;
-use serde::Serialize;
-use sha2::Digest;
-use sha2::Sha256;
-use std::convert::TryInto;
+use crate::nymd::{CosmosCoin, GasPrice};
+
+// we need to have **a** valid secp256k1 signature for simulation purposes.
+// it doesn't matter what it is as long as it parses correctly
+const DUMMY_SECP256K1_SIGNATURE: &[u8] = &[
+    54, 167, 169, 61, 100, 173, 231, 87, 1, 113, 179, 49, 102, 141, 67, 22, 170, 153, 52, 88, 178,
+    159, 200, 11, 37, 138, 76, 221, 187, 70, 104, 123, 98, 216, 190, 249, 149, 81, 1, 158, 0, 220,
+    32, 147, 101, 60, 64, 77, 44, 83, 221, 119, 170, 124, 109, 177, 73, 116, 46, 57, 102, 181, 98,
+    91,
+];
 
 #[async_trait]
 pub trait SigningCosmWasmClient: CosmWasmClient {
     fn signer(&self) -> &DirectSecp256k1HdWallet;
+
+    fn gas_price(&self) -> &GasPrice;
+
+    fn signer_public_key(&self, signer_address: &AccountId) -> Option<tx::SignerPublicKey> {
+        let signer_accounts = self.signer().try_derive_accounts().ok()?;
+        let account_from_signer = signer_accounts
+            .iter()
+            .find(|account| &account.address == signer_address)?;
+        let public_key = account_from_signer.public_key;
+        Some(public_key.into())
+    }
+
+    async fn simulate(
+        &self,
+        signer_address: &AccountId,
+        messages: Vec<Any>,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<SimulateResponse, NymdError> {
+        let public_key = self.signer_public_key(signer_address);
+        let sequence_response = self.get_sequence(signer_address).await?;
+
+        let partial_tx = Tx {
+            body: tx::Body {
+                messages,
+                memo: memo.into(),
+                timeout_height: 0u32.into(),
+                extension_options: vec![],
+                non_critical_extension_options: vec![],
+            },
+            auth_info: tx::AuthInfo {
+                signer_infos: vec![tx::SignerInfo {
+                    public_key,
+                    mode_info: tx::ModeInfo::Single(tx::mode_info::Single {
+                        mode: SignMode::Unspecified,
+                    }),
+                    sequence: sequence_response.sequence,
+                }],
+                fee: tx::Fee::from_amount_and_gas(
+                    CosmosCoin {
+                        denom: "".parse().unwrap(),
+                        amount: 0u64.into(),
+                    },
+                    0,
+                ),
+            },
+            signatures: vec![DUMMY_SECP256K1_SIGNATURE.try_into().unwrap()],
+        };
+
+        self.query_simulate(Some(partial_tx), Vec::new()).await
+    }
 
     async fn upload(
         &self,
@@ -52,6 +116,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()?;
 
         let logs = parse_raw_logs(tx_res.deliver_tx.log)?;
+        let gas_info = GasInfo::new(tx_res.deliver_tx.gas_wanted, tx_res.deliver_tx.gas_used);
 
         // TODO: should those strings be extracted into some constants?
         // the reason I think unwrap here is fine is that if the transaction succeeded and those
@@ -71,6 +136,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             code_id,
             logs,
             transaction_hash: tx_res.hash,
+            gas_info,
         })
     }
 
@@ -114,6 +180,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()?;
 
         let logs = parse_raw_logs(tx_res.deliver_tx.log)?;
+        let gas_info = GasInfo::new(tx_res.deliver_tx.gas_wanted, tx_res.deliver_tx.gas_used);
 
         // TODO: should those strings be extracted into some constants?
         // the reason I think unwrap here is fine is that if the transaction succeeded and those
@@ -129,6 +196,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             contract_address,
             logs,
             transaction_hash: tx_res.hash,
+            gas_info,
         })
     }
 
@@ -153,9 +221,12 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await?
             .check_response()?;
 
+        let gas_info = GasInfo::new(tx_res.deliver_tx.gas_wanted, tx_res.deliver_tx.gas_used);
+
         Ok(ChangeAdminResult {
             logs: parse_raw_logs(tx_res.deliver_tx.log)?,
             transaction_hash: tx_res.hash,
+            gas_info,
         })
     }
 
@@ -178,9 +249,12 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await?
             .check_response()?;
 
+        let gas_info = GasInfo::new(tx_res.deliver_tx.gas_wanted, tx_res.deliver_tx.gas_used);
+
         Ok(ChangeAdminResult {
             logs: parse_raw_logs(tx_res.deliver_tx.log)?,
             transaction_hash: tx_res.hash,
+            gas_info,
         })
     }
 
@@ -210,9 +284,12 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await?
             .check_response()?;
 
+        let gas_info = GasInfo::new(tx_res.deliver_tx.gas_wanted, tx_res.deliver_tx.gas_used);
+
         Ok(MigrateResult {
             logs: parse_raw_logs(tx_res.deliver_tx.log)?,
             transaction_hash: tx_res.hash,
+            gas_info,
         })
     }
 
@@ -242,9 +319,12 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await?
             .check_response()?;
 
+        let gas_info = GasInfo::new(tx_res.deliver_tx.gas_wanted, tx_res.deliver_tx.gas_used);
+
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.deliver_tx.log)?,
             transaction_hash: tx_res.hash,
+            gas_info,
         })
     }
 
@@ -279,14 +359,12 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await?
             .check_response()?;
 
-        debug!(
-            "gas wanted: {:?}, gas used: {:?}",
-            tx_res.deliver_tx.gas_wanted, tx_res.deliver_tx.gas_used
-        );
+        let gas_info = GasInfo::new(tx_res.deliver_tx.gas_wanted, tx_res.deliver_tx.gas_used);
 
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.deliver_tx.log)?,
             transaction_hash: tx_res.hash,
+            gas_info,
         })
     }
 
@@ -400,6 +478,43 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()
     }
 
+    // in this particular case we cannot generalise the argument to `&str` due to lifetime constraints
+    #[allow(clippy::ptr_arg)]
+    async fn determine_transaction_fee(
+        &self,
+        signer_address: &AccountId,
+        messages: &[Any],
+        fee: Fee,
+        memo: &String,
+    ) -> Result<tx::Fee, NymdError> {
+        let fee = match fee {
+            Fee::Manual(fee) => fee,
+            Fee::Auto(multiplier) => {
+                debug!("Trying to simulate gas costs...");
+                // from what I've seen in manual testing, gas estimation does not exist if transaction
+                // fails to get executed (for example if you send 'BondMixnode" with invalid signature)
+                let gas_estimation = self
+                    .simulate(signer_address, messages.to_vec(), memo.clone())
+                    .await?
+                    .gas_info
+                    .ok_or(NymdError::GasEstimationFailure)?
+                    .gas_used;
+
+                let multiplier = multiplier.unwrap_or(DEFAULT_SIMULATED_GAS_MULTIPLIER);
+                let gas = ((gas_estimation.value() as f32 * multiplier) as u64).into();
+
+                debug!("Gas estimation: {}", gas_estimation);
+                debug!("Multiplying the estimation by {}", multiplier);
+                debug!("Final gas limit used: {}", gas);
+
+                let fee = self.gas_price() * gas;
+                tx::Fee::from_amount_and_gas(fee, gas)
+            }
+        };
+        debug!("Fee used for the transaction: {:?}", fee);
+        Ok(fee)
+    }
+
     /// Broadcast a transaction, returning immediately.
     async fn sign_and_broadcast_async(
         &self,
@@ -408,6 +523,10 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_async::Response, NymdError> {
+        let memo = memo.into();
+        let fee = self
+            .determine_transaction_fee(signer_address, &messages, fee, &memo)
+            .await?;
         let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
@@ -424,6 +543,10 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_sync::Response, NymdError> {
+        let memo = memo.into();
+        let fee = self
+            .determine_transaction_fee(signer_address, &messages, fee, &memo)
+            .await?;
         let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
@@ -440,6 +563,11 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_commit::Response, NymdError> {
+        let memo = memo.into();
+        let fee = self
+            .determine_transaction_fee(signer_address, &messages, fee, &memo)
+            .await?;
+
         let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
@@ -452,7 +580,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         &self,
         signer_address: &AccountId,
         messages: Vec<Any>,
-        fee: Fee,
+        fee: tx::Fee,
         memo: impl Into<String> + Send + 'static,
         signer_data: SignerData,
     ) -> Result<tx::Raw, NymdError> {
@@ -490,7 +618,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         &self,
         signer_address: &AccountId,
         messages: Vec<Any>,
-        fee: Fee,
+        fee: tx::Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<tx::Raw, NymdError> {
         // TODO: Future optimisation: rather than grabbing current account_number and sequence
@@ -512,18 +640,24 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
 pub struct Client {
     rpc_client: HttpClient,
     signer: DirectSecp256k1HdWallet,
+    gas_price: GasPrice,
 }
 
 impl Client {
     pub fn connect_with_signer<U>(
         endpoint: U,
         signer: DirectSecp256k1HdWallet,
+        gas_price: Option<GasPrice>,
     ) -> Result<Self, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         let rpc_client = HttpClient::new(endpoint)?;
-        Ok(Client { rpc_client, signer })
+        Ok(Client {
+            rpc_client,
+            signer,
+            gas_price: gas_price.unwrap_or_default(),
+        })
     }
 }
 
@@ -544,5 +678,9 @@ impl CosmWasmClient for Client {}
 impl SigningCosmWasmClient for Client {
     fn signer(&self) -> &DirectSecp256k1HdWallet {
         &self.signer
+    }
+
+    fn gas_price(&self) -> &GasPrice {
+        &self.gas_price
     }
 }

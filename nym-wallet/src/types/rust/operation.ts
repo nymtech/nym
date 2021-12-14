@@ -16,7 +16,7 @@ export type Operation =
   | "BondGatewayOnBehalf"
   | "UnbondGateway"
   | "UnbondGatewayOnBehalf"
-  | "UpdateStateParams"
+  | "UpdateContractSettings"
   | "BeginMixnodeRewarding"
   | "FinishMixnodeRewarding"
   | "TrackUnbondGateway"

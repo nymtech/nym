@@ -28,8 +28,10 @@ export const minorToMajor = async (amount: string): Promise<Coin> =>
 export const majorToMinor = async (amount: string): Promise<Coin> =>
   await invoke('major_to_minor', { amount })
 
+// NOTE: this uses OUTDATED defaults that might have no resemblance with the reality
+// as for the actual transaction, the gas cost is being simulated beforehand
 export const getGasFee = async (operation: Operation): Promise<Coin> =>
-  await invoke('get_fee', { operation })
+  await invoke('get_approximate_fee', { operation })
 
 export const delegate = async ({
   type,

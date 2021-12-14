@@ -37,16 +37,18 @@ pub async fn owns_gateway(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result
   }
 }
 
+// NOTE: this uses OUTDATED defaults that might have no resemblance with the reality
+// as for the actual transaction, the gas cost is being simulated beforehand
 #[tauri::command]
-pub async fn get_fee(
+pub async fn get_approximate_fee(
   operation: Operation,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, String> {
   let r_state = state.read().await;
   let client = r_state.client()?;
-  let fee = client.get_fee(operation);
+  let approximate_fee = operation.default_fee(client.gas_price());
   let mut coin = Coin::new("0", &Denom::Major);
-  for f in fee.amount {
+  for f in approximate_fee.amount {
     coin = coin + f.into();
   }
 

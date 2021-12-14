@@ -7,7 +7,7 @@ use mixnet_contract::{Gateway, MixNode};
 use std::sync::Arc;
 use tauri::Menu;
 use tokio::sync::RwLock;
-use validator_client::nymd::fee_helpers::Operation;
+use validator_client::nymd::fee::helpers::Operation;
 
 mod coin;
 mod config;
@@ -55,7 +55,7 @@ fn main() {
       undelegate_from_mixnode,
       send,
       create_new_account,
-      get_fee,
+      get_approximate_fee,
       get_contract_settings,
       update_contract_settings,
       get_reverse_mix_delegations_paged,
@@ -74,7 +74,7 @@ mod test {
     mixnet_contract::Gateway => "../src/types/rust/gateway.ts",
     crate::TauriTxResult => "../src/types/rust/tauritxresult.ts",
     crate::TransactionDetails => "../src/types/rust/transactiondetails.ts",
-    validator_client::nymd::fee_helpers::Operation => "../src/types/rust/operation.ts",
+    validator_client::nymd::fee::helpers::Operation => "../src/types/rust/operation.ts",
     crate::Denom => "../src/types/rust/denom.ts",
     crate::DelegationResult => "../src/types/rust/delegationresult.ts",
     crate::Account => "../src/types/rust/account.ts",

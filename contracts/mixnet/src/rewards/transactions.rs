@@ -251,10 +251,6 @@ pub(crate) fn try_reward_next_mixnode_delegators(
     }
 }
 
-// Note: if any changes are made to this function or anything it is calling down the stack,
-// for example delegation reward distribution, the gas limits must be retested and both
-// validator-api/src/rewarding/mod.rs::{MIXNODE_REWARD_OP_BASE_GAS_LIMIT, PER_MIXNODE_DELEGATION_GAS_INCREASE}
-// must be updated appropriately.
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut,
     env: Env,

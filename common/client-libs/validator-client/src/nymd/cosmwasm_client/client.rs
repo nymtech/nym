@@ -4,7 +4,7 @@
 use crate::nymd::cosmwasm_client::helpers::create_pagination;
 use crate::nymd::cosmwasm_client::types::{
     Account, Code, CodeDetails, Contract, ContractCodeHistoryEntry, ContractCodeId,
-    SequenceResponse,
+    SequenceResponse, SimulateResponse,
 };
 use crate::nymd::error::NymdError;
 use async_trait::async_trait;
@@ -14,15 +14,19 @@ use cosmrs::proto::cosmos::auth::v1beta1::{
 use cosmrs::proto::cosmos::bank::v1beta1::{
     QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
 };
+use cosmrs::proto::cosmos::tx::v1beta1::{
+    SimulateRequest, SimulateResponse as ProtoSimulateResponse,
+};
 use cosmrs::proto::cosmwasm::wasm::v1::*;
 use cosmrs::rpc::endpoint::block::Response as BlockResponse;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 use cosmrs::rpc::query::Query;
 use cosmrs::rpc::{self, HttpClient, Order};
+use cosmrs::tendermint::abci::Code as AbciCode;
 use cosmrs::tendermint::abci::Transaction;
 use cosmrs::tendermint::{abci, block, chain};
-use cosmrs::{tx, AccountId, Coin, Denom};
+use cosmrs::{tx, AccountId, Coin, Denom, Tx};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
@@ -48,6 +52,11 @@ pub trait CosmWasmClient: rpc::Client {
         req.encode(&mut buf)?;
 
         let res = self.abci_query(path, buf, None, false).await?;
+
+        match res.code {
+            AbciCode::Err(code) => return Err(NymdError::AbciError(code, res.log)),
+            AbciCode::Ok => (),
+        }
 
         Ok(Res::decode(res.value.as_ref())?)
     }
@@ -387,5 +396,28 @@ pub trait CosmWasmClient: rpc::Client {
             .await?;
 
         Ok(serde_json::from_slice(&res.data)?)
+    }
+
+    // deprecation warning is due to the fact the protobuf files built were based on cosmos-sdk 0.44,
+    // where they prefer using tx_bytes directly. However, in 0.42, which we are using at the time
+    // of writing this, the option does not work
+    #[allow(deprecated)]
+    async fn query_simulate(
+        &self,
+        tx: Option<Tx>,
+        tx_bytes: Vec<u8>,
+    ) -> Result<SimulateResponse, NymdError> {
+        let path = Some("/cosmos.tx.v1beta1.Service/Simulate".parse().unwrap());
+
+        let req = SimulateRequest {
+            tx: tx.map(Into::into),
+            tx_bytes,
+        };
+
+        let res = self
+            .make_abci_query::<_, ProtoSimulateResponse>(path, req)
+            .await?;
+
+        res.try_into()
     }
 }

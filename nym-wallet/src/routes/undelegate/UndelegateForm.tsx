@@ -9,6 +9,7 @@ import {
   FormControl,
   Grid,
   TextField,
+  Typography,
 } from '@mui/material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
@@ -70,15 +71,8 @@ export const UndelegateForm = ({
 
   return (
     <FormControl fullWidth>
-      <Box sx={{ p: [3, 5] }}>
+      <Box sx={{ p: 4 }}>
         <Grid container spacing={3} direction="column">
-          <Grid container item xs={12} justifyContent="space-between">
-            <Grid item>
-              <Alert severity="info" data-testid="fee-amount">
-                {`A fee of ${fees.mixnode.amount} PUNK will apply to this transaction`}
-              </Alert>
-            </Grid>
-          </Grid>
           <Grid item xs={12}>
             <Controller
               control={control}
@@ -87,11 +81,7 @@ export const UndelegateForm = ({
                 <Autocomplete
                   value={field.value}
                   onChange={(_, value) => setValue('identity', value || '')}
-                  options={
-                    watchNodeType === EnumNodeType.mixnode
-                      ? delegations.mixnodes.delegated_nodes
-                      : []
-                  }
+                  options={watchNodeType === EnumNodeType.mixnode ? delegations.mixnodes.delegated_nodes : []}
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -109,6 +99,9 @@ export const UndelegateForm = ({
               )}
             />
           </Grid>
+          <Grid item xs={12}>
+            <Typography sx={{ color: 'nym.info' }}>Fee for this transaction: {fees.mixnode.amount} punk</Typography>
+          </Grid>
         </Grid>
       </Box>
       <Box
@@ -117,7 +110,7 @@ export const UndelegateForm = ({
           alignItems: 'center',
           justifyContent: 'flex-end',
           borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-          background: (theme) => theme.palette.grey[50],
+          bgcolor: 'grey.100',
           p: 2,
         }}
       >

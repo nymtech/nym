@@ -2,10 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { NymCard } from '../../components'
 import { UndelegateForm } from './UndelegateForm'
 import { Layout } from '../../layouts'
-import {
-  EnumRequestStatus,
-  RequestStatus,
-} from '../../components/RequestStatus'
+import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
 import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
 import { getGasFee, getReverseMixDelegations } from '../../requests'
 import { TFee, TDelegation } from '../../types'
@@ -16,9 +13,7 @@ export type TDelegations = {
 
 export const Undelegate = () => {
   const [message, setMessage] = useState<string>()
-  const [status, setStatus] = useState<EnumRequestStatus>(
-    EnumRequestStatus.initial,
-  )
+  const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial)
   const [isLoading, setIsLoading] = useState(true)
   const [fees, setFees] = useState<TFee>()
   const [delegations, setDelegations] = useState<TDelegations>()
@@ -53,11 +48,7 @@ export const Undelegate = () => {
 
   return (
     <Layout>
-      <NymCard
-        title="Undelegate"
-        subheader="Undelegate from a mixnode"
-        noPadding
-      >
+      <NymCard title="Undelegate" subheader="Undelegate from a mixnode" noPadding>
         {isLoading && (
           <Box
             sx={{
@@ -96,9 +87,7 @@ export const Undelegate = () => {
                 Success={
                   <Alert severity="success">
                     {' '}
-                    <AlertTitle data-testid="undelegate-success">
-                      Undelegation complete
-                    </AlertTitle>
+                    <AlertTitle data-testid="undelegate-success">Undelegation complete</AlertTitle>
                     {message}
                   </Alert>
                 }
@@ -109,12 +98,14 @@ export const Undelegate = () => {
                   alignItems: 'center',
                   justifyContent: 'flex-end',
                   borderTop: '1px solid grey[200]',
-                  bgcolor: 'grey[50]',
+                  bgcolor: 'grey.100',
                   p: 2,
                 }}
               >
                 <Button
                   data-testid="finish-button"
+                  variant="contained"
+                  disableElevation
                   onClick={() => {
                     setStatus(EnumRequestStatus.initial)
                     initialize()

@@ -37,11 +37,7 @@ pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 pub const INITIAL_REWARD_POOL: u128 = 250_000_000_000_000;
 pub const EPOCH_REWARD_PERCENT: u8 = 2; // Used to calculate epoch reward pool
 pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
-
-// We'll be assuming a few more things, profit margin and cost function. Since we don't have reliable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
-// question to @durch: where do we need it (if at all)?
-#[allow(dead_code)]
-pub const DEFAULT_COST_PER_EPOCH: u32 = 40_000_000;
+pub const DEFAULT_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 
 fn default_initial_state(
     owner: Addr,
@@ -56,6 +52,7 @@ fn default_initial_state(
             minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+            active_set_work_factor: DEFAULT_ACTIVE_SET_WORK_FACTOR,
         },
         rewarding_interval_starting_block: env.block.height,
         latest_rewarding_interval_nonce: 0,
@@ -285,7 +282,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 #[entry_point]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    Ok(Default::default())
+    todo!("ACTIVE_STATE_WORK_FACTOR to State");
+    // Ok(Default::default())
 }
 
 #[cfg(test)]

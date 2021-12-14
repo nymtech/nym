@@ -1,26 +1,20 @@
-import React from 'react'
-import { Grid, InputAdornment, TextField } from '@mui/material'
+import React, { useContext } from 'react'
+import { Grid, InputAdornment, TextField, Typography } from '@mui/material'
 import { useFormContext } from 'react-hook-form'
+import { ClientContext } from '../../context/main'
 
-export const SendForm = () => {
+export const SendForm = ({ transferFee }: { transferFee?: string }) => {
   const {
     register,
     formState: { errors },
   } = useFormContext()
+  const { clientDetails } = useContext(ClientContext)
 
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <TextField
-          {...register('from')}
-          required
-          variant="outlined"
-          id="from"
-          name="from"
-          label="From"
-          fullWidth
-          disabled={true}
-        />
+        <Typography variant="caption">Your address</Typography>
+        <Typography>{clientDetails?.client_address}</Typography>
       </Grid>
 
       <Grid item xs={12}>
@@ -37,7 +31,7 @@ export const SendForm = () => {
           helperText={errors.to?.message}
         />
       </Grid>
-      <Grid item xs={12} sm={6}>
+      <Grid item xs={12}>
         <TextField
           {...register('amount')}
           required
@@ -49,9 +43,12 @@ export const SendForm = () => {
           error={!!errors.amount}
           helperText={errors.amount?.message}
           InputProps={{
-            endAdornment: <InputAdornment position="end">punks</InputAdornment>,
+            endAdornment: <InputAdornment position="end">punk</InputAdornment>,
           }}
         />
+      </Grid>
+      <Grid item xs={12}>
+        <Typography sx={{ color: 'nym.info' }}>Fee for this transaction: {transferFee} punk</Typography>
       </Grid>
     </Grid>
   )

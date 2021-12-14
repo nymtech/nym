@@ -16,23 +16,15 @@ export const validationSchema = Yup.object().shape({
     }),
   sphinxKey: Yup.string()
     .required('A sphinx key is required')
-    .test(
-      'valid-sphinx-key',
-      'A valid sphinx key is required',
-      function (value) {
-        return validateKey(value || '')
-      }
-    ),
+    .test('valid-sphinx-key', 'A valid sphinx key is required', function (value) {
+      return validateKey(value || '')
+    }),
   amount: Yup.string()
     .required('An amount is required')
-    .test(
-      'valid-amount',
-      'A valid amount is required (min 100 punks)',
-      function (value) {
-        return validateAmount(value || '', '100000000')
-        // minimum amount needs to come from the backend - replace when available
-      }
-    ),
+    .test('valid-amount', 'A valid amount is required (min 100 punk)', function (value) {
+      return validateAmount(value || '', '100000000')
+      // minimum amount needs to come from the backend - replace when available
+    }),
 
   host: Yup.string()
     .required('A host is required')
@@ -48,13 +40,9 @@ export const validationSchema = Yup.object().shape({
     if (!!value) {
       return Yup.string()
         .required('A location is required')
-        .test(
-          'valid-location',
-          'A valid version is required',
-          function (value) {
-            return !!value ? validateLocation(value) : false
-          }
-        )
+        .test('valid-location', 'A valid version is required', function (value) {
+          return !!value ? validateLocation(value) : false
+        })
     }
     return Yup.mixed().notRequired()
   }),
@@ -75,11 +63,7 @@ export const validationSchema = Yup.object().shape({
     }),
   clientsPort: Yup.number()
     .required('A clients port is required')
-    .test(
-      'valid-clients',
-      'A valid clients port is required',
-      function (value) {
-        return !!value ? validateRawPort(value) : false
-      }
-    ),
+    .test('valid-clients', 'A valid clients port is required', function (value) {
+      return !!value ? validateRawPort(value) : false
+    }),
 })

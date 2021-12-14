@@ -55,6 +55,7 @@ pub(crate) mod tests {
                 minimum_gateway_pledge: 456u128.into(),
                 mixnode_rewarded_set_size: 1000,
                 mixnode_active_set_size: 500,
+                active_set_work_factor: 10,
             },
             rewarding_interval_starting_block: 123,
             latest_rewarding_interval_nonce: 0,

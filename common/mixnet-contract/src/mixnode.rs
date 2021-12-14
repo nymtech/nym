@@ -5,7 +5,7 @@ use crate::{IdentityKey, SphinxKey};
 use az::CheckedCast;
 use cosmwasm_std::{coin, Addr, Coin, Uint128};
 use log::error;
-use network_defaults::{DEFAULT_OPERATOR_EPOCH_COST, DEFAULT_PROFIT_MARGIN};
+use network_defaults::DEFAULT_OPERATOR_EPOCH_COST;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -29,6 +29,7 @@ pub struct MixNode {
     /// Base58 encoded ed25519 EdDSA public key.
     pub identity_key: IdentityKey,
     pub version: String,
+    pub profit_margin_percent: u8,
 }
 
 #[derive(
@@ -55,30 +56,66 @@ pub enum Layer {
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct NodeRewardParams {
     period_reward_pool: Uint128,
-    k: Uint128,
+    rewarded_set_size: Uint128,
+    active_set_size: Uint128,
     reward_blockstamp: u64,
     circulating_supply: Uint128,
     uptime: Uint128,
     sybil_resistance_percent: u8,
+    in_active_set: bool,
+    active_set_work_factor: u8,
 }
 
 impl NodeRewardParams {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         period_reward_pool: u128,
-        k: u128,
+        rewarded_set_size: u128,
+        active_set_size: u128,
         reward_blockstamp: u64,
         circulating_supply: u128,
         uptime: u128,
         sybil_resistance_percent: u8,
+        in_active_set: bool,
+        active_set_work_factor: u8,
     ) -> NodeRewardParams {
         NodeRewardParams {
             period_reward_pool: Uint128::new(period_reward_pool),
-            k: Uint128::new(k),
+            rewarded_set_size: Uint128::new(rewarded_set_size),
+            active_set_size: Uint128::new(active_set_size),
             reward_blockstamp,
             circulating_supply: Uint128::new(circulating_supply),
             uptime: Uint128::new(uptime),
             sybil_resistance_percent,
+            in_active_set,
+            active_set_work_factor,
         }
+    }
+
+    pub fn omega(&self) -> U128 {
+        // As per keybase://chat/nymtech#tokeneconomics/1179
+        let denom = self.active_set_work_factor() * U128::from_num(self.rewarded_set_size())
+            - (self.active_set_work_factor() - ONE) * U128::from_num(self.idle_nodes().u128());
+
+        if self.in_active_set() {
+            // work_active = factor / (factor * self.network.k[month] - (factor - 1) * idle_nodes)
+            self.active_set_work_factor() / denom * self.rewarded_set_size()
+        } else {
+            // work_idle = 1 / (factor * self.network.k[month] - (factor - 1) * idle_nodes)
+            ONE / denom * self.rewarded_set_size()
+        }
+    }
+
+    pub fn idle_nodes(&self) -> Uint128 {
+        self.rewarded_set_size - self.active_set_size
+    }
+
+    pub fn active_set_work_factor(&self) -> U128 {
+        U128::from_num(self.active_set_work_factor)
+    }
+
+    pub fn in_active_set(&self) -> bool {
+        self.in_active_set
     }
 
     pub fn performance(&self) -> U128 {
@@ -97,8 +134,8 @@ impl NodeRewardParams {
         self.period_reward_pool.u128()
     }
 
-    pub fn k(&self) -> u128 {
-        self.k.u128()
+    pub fn rewarded_set_size(&self) -> u128 {
+        self.rewarded_set_size.u128()
     }
 
     pub fn circulating_supply(&self) -> u128 {
@@ -114,7 +151,7 @@ impl NodeRewardParams {
     }
 
     pub fn one_over_k(&self) -> U128 {
-        ONE / U128::from_num(self.k.u128())
+        ONE / U128::from_num(self.rewarded_set_size.u128())
     }
 
     pub fn alpha(&self) -> U128 {
@@ -235,7 +272,6 @@ pub struct MixNodeBond {
     pub layer: Layer,
     pub block_height: u64,
     pub mix_node: MixNode,
-    pub profit_margin_percent: Option<u8>,
     pub proxy: Option<Addr>,
 }
 
@@ -246,7 +282,6 @@ impl MixNodeBond {
         layer: Layer,
         block_height: u64,
         mix_node: MixNode,
-        profit_margin_percent: Option<u8>,
         proxy: Option<Addr>,
     ) -> Self {
         MixNodeBond {
@@ -256,14 +291,12 @@ impl MixNodeBond {
             layer,
             block_height,
             mix_node,
-            profit_margin_percent,
             proxy,
         }
     }
 
     pub fn profit_margin(&self) -> U128 {
-        U128::from_num(self.profit_margin_percent.unwrap_or(DEFAULT_PROFIT_MARGIN))
-            / U128::from_num(100)
+        U128::from_num(self.mix_node.profit_margin_percent) / U128::from_num(100)
     }
 
     pub fn identity(&self) -> &String {
@@ -318,14 +351,13 @@ impl MixNodeBond {
     }
 
     pub fn reward(&self, params: &NodeRewardParams) -> NodeRewardResult {
-        // Assuming uniform work distribution across the network this is one_over_k * k
-        let omega_k = ONE;
         let lambda = self.lambda(params);
         let sigma = self.sigma(params);
 
         let reward = params.performance()
             * params.period_reward_pool()
-            * (sigma * omega_k + params.alpha() * lambda * sigma * params.k())
+            * (sigma * params.omega()
+                + params.alpha() * lambda * sigma * params.rewarded_set_size())
             / (ONE + params.alpha());
 
         NodeRewardResult {
@@ -500,6 +532,7 @@ mod tests {
             sphinx_key: "sphinxkey".to_string(),
             identity_key: "identitykey".to_string(),
             version: "0.11.0".to_string(),
+            profit_margin_percent: 10,
         }
     }
 
@@ -516,7 +549,6 @@ mod tests {
             layer: Layer::One,
             block_height: 100,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: Some(10),
             proxy: None,
         };
 
@@ -527,7 +559,6 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: Some(10),
             proxy: None,
         };
 
@@ -538,7 +569,6 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: Some(10),
             proxy: None,
         };
 
@@ -549,7 +579,6 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: Some(10),
             proxy: None,
         };
 
@@ -560,7 +589,6 @@ mod tests {
             layer: Layer::One,
             block_height: 120,
             mix_node: mixnode_fixture(),
-            profit_margin_percent: Some(10),
             proxy: None,
         };
 

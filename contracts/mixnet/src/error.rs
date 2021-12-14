@@ -104,4 +104,7 @@ pub enum ContractError {
 
     #[error("Provided ed25519 signature did not verify correctly")]
     InvalidEd25519Signature,
+
+    #[error("Profit margin percent needs to be an integer in range [0, 100], recieved {0}")]
+    InvalidProfitMarginPercent(u8),
 }

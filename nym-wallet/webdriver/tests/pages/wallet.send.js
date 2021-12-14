@@ -12,7 +12,7 @@ class WalletSend {
     return $("[data-testid='button");
   }
   get sendHeader() {
-    return $("[data-testid='Send PUNK']");
+    return $("[data-testid='Send punk']");
   }
   get accountBalance() {
     return $("[data-testid='account-balance']");

@@ -2,19 +2,18 @@ import React, { useContext, useEffect, useState } from 'react'
 import { Alert, Box, Button, CircularProgress } from '@mui/material'
 import { BondForm } from './BondForm'
 import { NymCard } from '../../components'
-import {
-  EnumRequestStatus,
-  RequestStatus,
-} from '../../components/RequestStatus'
+import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
 import { Layout } from '../../layouts'
 import { getGasFee, unbond } from '../../requests'
 import { TFee } from '../../types'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { ClientContext } from '../../context/main'
+import { SuccessView } from './SuccessView'
 
 export const Bond = () => {
   const [status, setStatus] = useState(EnumRequestStatus.initial)
-  const [message, setMessage] = useState<string>()
+  const [error, setError] = useState<string>()
+  const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>()
   const [fees, setFees] = useState<TFee>()
 
   const { checkOwnership, ownership } = useCheckOwnership()
@@ -74,29 +73,24 @@ export const Bond = () => {
           <BondForm
             fees={!ownership.hasOwnership ? fees : undefined}
             onError={(e?: string) => {
-              setMessage(e)
+              setError(e)
               setStatus(EnumRequestStatus.error)
             }}
-            onSuccess={(message?: string) => {
-              setMessage(message)
+            onSuccess={(details) => {
+              setSuccessDetails(details)
               setStatus(EnumRequestStatus.success)
             }}
             disabled={ownership?.hasOwnership}
           />
         )}
-        {(status === EnumRequestStatus.error ||
-          status === EnumRequestStatus.success) && (
+        {(status === EnumRequestStatus.error || status === EnumRequestStatus.success) && (
           <>
             <RequestStatus
               status={status}
-              Success={
-                <Alert severity="success" data-testid="bond-success">
-                  Successfully bonded node
-                </Alert>
-              }
+              Success={<SuccessView details={successDetails} />}
               Error={
                 <Alert severity="error" data-testid="bond-error">
-                  An error occurred with the request: {message}
+                  An error occurred with the request: {error}
                 </Alert>
               }
             />
@@ -106,7 +100,7 @@ export const Bond = () => {
                 alignItems: 'center',
                 justifyContent: 'flex-end',
                 borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-                bgcolor: (theme) => theme.palette.grey[50],
+                bgcolor: 'grey.100',
                 padding: 2,
               }}
             >

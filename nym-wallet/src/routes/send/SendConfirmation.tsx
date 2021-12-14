@@ -1,18 +1,21 @@
-import React from 'react'
-import { Box, Card, CircularProgress, Typography } from '@mui/material'
-import { CheckCircleOutline } from '@mui/icons-material'
+import React, { useContext } from 'react'
+import { Box, CircularProgress, Link, Typography } from '@mui/material'
 import { SendError } from './SendError'
-import { TauriTxResult } from '../../types/rust/tauritxresult'
+import { ClientContext, urls } from '../../context/main'
+import { SuccessReponse } from '../../components'
+import { TransactionDetails } from '../../components/TransactionDetails'
+import { TransactionDetails as TTransactionDetails } from '../../types'
 
 export const SendConfirmation = ({
   data,
   error,
   isLoading,
 }: {
-  data?: TauriTxResult['details']
+  data?: TTransactionDetails & { tx_hash: string }
   error?: string
   isLoading: boolean
 }) => {
+  const { userBalance, clientDetails } = useContext(ClientContext)
   return (
     <Box
       sx={{
@@ -27,53 +30,28 @@ export const SendConfirmation = ({
       {!isLoading && !!error && <SendError message={error} />}
       {!isLoading && data && (
         <>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mb: 4,
-            }}
-          >
-            <CheckCircleOutline
-              sx={{
-                fontSize: 50,
-                color: 'success.main',
-                mb: 1,
-              }}
-            />
-            <Typography data-testid="transaction-complete">
-              Transaction complete
-            </Typography>
-          </Box>
-
-          <Card variant="outlined" sx={{ width: '100%', p: 2 }}>
-            <Box sx={{ display: 'flex', mb: 2 }}>
-              <Box sx={{ width: '1/3' }}>
-                <Typography sx={{ color: (theme) => theme.palette.grey[600] }}>
-                  Recipient
-                </Typography>
-              </Box>
-              <Box sx={{ wordBreak: 'break-all' }}>
-                <Typography data-testid="to-address">
-                  {data.to_address}
-                </Typography>
-              </Box>
-            </Box>
-            <Box sx={{ display: 'flex' }}>
-              <Box sx={{ width: '33%' }}>
-                <Typography sx={{ color: (theme) => theme.palette.grey[600] }}>
-                  Amount
-                </Typography>
-              </Box>
-              <Box>
-                <Typography data-testid="send-amount">
-                  {data.amount.amount + ' punks'}
-                </Typography>
-              </Box>
-            </Box>
-          </Card>
+          <SuccessReponse
+            title="Transaction Complete"
+            subtitle={
+              <>
+                Check the transaction hash{' '}
+                <Link href={`${urls.blockExplorer}/transactions/${data.tx_hash}`} target="_blank">
+                  here
+                </Link>
+              </>
+            }
+            caption={
+              userBalance.balance && (
+                <Typography>Your current balance is: {userBalance.balance.printable_balance}</Typography>
+              )
+            }
+          />
+          <TransactionDetails
+            details={[
+              { primary: 'Recipient', secondary: data.to_address },
+              { primary: 'Amount', secondary: data.amount.amount + ' punk' },
+            ]}
+          />
         </>
       )}
     </Box>

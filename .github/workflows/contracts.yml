@@ -45,7 +45,7 @@ jobs:
           RUSTFLAGS: '-C link-arg=-s'
         with:
           command: build
-          args: --manifest-path contracts/Cargo.toml --target wasm32-unknown-unknown
+          args: --manifest-path contracts/Cargo.toml --all --target wasm32-unknown-unknown
 
       - uses: actions-rs/cargo@v1
         with:
@@ -55,10 +55,10 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path contracts/Cargo.toml -- --check
+          args: --manifest-path contracts/Cargo.toml --all -- --check
 
       - uses: actions-rs/cargo@v1
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --manifest-path contracts/Cargo.toml -- -D warnings
+          args: --manifest-path contracts/Cargo.toml --all -- -D warnings

@@ -5,6 +5,7 @@ const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const WebpackFavicons = require('webpack-favicons');
+const Dotenv = require('dotenv-webpack');
 
 module.exports = {
   entry: './src/index.tsx',
@@ -78,6 +79,8 @@ module.exports = {
     new WebpackFavicons({
       src: 'src/logo.svg',
     }),
+
+    new Dotenv(),
   ],
   output: {
     path: path.resolve(__dirname, 'dist'),

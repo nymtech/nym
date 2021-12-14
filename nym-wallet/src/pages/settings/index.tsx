@@ -1,8 +1,12 @@
 import React, { useContext, useState } from 'react'
-import { Box, Dialog, Slide, Tab, Tabs, Typography } from '@mui/material'
+import { Box, Dialog, Typography } from '@mui/material'
 import { SettingsOutlined } from '@mui/icons-material'
 import { NymCard } from '../../components'
 import { ClientContext } from '../../context/main'
+import { TabPanel, Tabs } from './tabs'
+import { Profile } from './profile'
+import { SystemVariables } from './system-variables'
+import { NodeStats } from './node-stats'
 
 const tabs = ['Profile', 'System variables', 'Node stats']
 
@@ -26,17 +30,12 @@ export const Settings = () => {
           <Typography variant="h5" sx={{ py: 2, px: 4 }}>
             Node settings
           </Typography>
-          <Tabs
-            value={selectedTab}
-            onChange={handleTabChange}
-            aria-label="basic tabs example"
-            sx={{ bgcolor: 'grey.200', borderTop: '1px solid', borderBottom: '1px solid', borderColor: 'grey.300' }}
-            textColor="inherit"
-          >
-            {tabs.map((tabName, index) => (
-              <Tab key={index} label={tabName} sx={{ textTransform: 'capitalize' }} />
-            ))}
-          </Tabs>
+          <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} />
+          <TabPanel>
+            {selectedTab === 0 && <Profile />}
+            {selectedTab === 1 && <SystemVariables />}
+            {selectedTab === 2 && <NodeStats />}
+          </TabPanel>
         </>
       </NymCard>
     </Dialog>

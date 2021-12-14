@@ -1,4 +1,4 @@
-export * from './admin'
+export * from './Admin'
 export * from './balance'
 export * from './bond'
 export * from './delegate'

@@ -47,15 +47,12 @@ pub(crate) fn ensure_no_existing_bond(
     Ok(())
 }
 
-#[allow(unreachable_code)]
-#[allow(unused_variables)]
 pub(crate) fn validate_node_identity_signature(
     deps: Deps,
     owner: &Addr,
     signature: String,
     identity: IdentityKeyRef,
 ) -> Result<(), ContractError> {
-    return Ok(());
     let owner_bytes = owner.as_bytes();
 
     let mut identity_bytes = [0u8; 32];
@@ -99,7 +96,6 @@ mod tests {
     use rand_chacha::rand_core::SeedableRng;
 
     #[test]
-    #[ignore]
     fn validating_node_signature() {
         let deps = mock_dependencies();
 

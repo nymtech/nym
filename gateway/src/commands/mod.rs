@@ -95,5 +95,9 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_eth_endpoint(String::from(eth_endpoint));
     }
 
-    config.with_testnet_mode(matches.is_present(TESTNET_MODE_ARG_NAME))
+    if matches.is_present(TESTNET_MODE_ARG_NAME) {
+        config.with_testnet_mode(true)
+    } else {
+        config
+    }
 }

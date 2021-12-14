@@ -293,6 +293,7 @@ pub struct Gateway {
 
     /// Indicates whether this gateway is running in a testnet mode, thus allowing clients
     /// to claim bandwidth without presenting bandwidth credentials.
+    #[serde(default)]
     testnet_mode: bool,
 
     /// Address to which this mixnode will bind to and will be listening for packets.

@@ -282,8 +282,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 #[entry_point]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    todo!("ACTIVE_STATE_WORK_FACTOR to State");
-    // Ok(Default::default())
+    Ok(Default::default())
 }
 
 #[cfg(test)]

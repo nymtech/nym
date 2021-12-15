@@ -36,6 +36,8 @@ fn main() {
       mixnet::bond::bond_mixnode,
       mixnet::bond::unbond_gateway,
       mixnet::bond::unbond_mixnode,
+      mixnet::bond::mixnode_bond_details,
+      mixnet::bond::gateway_bond_details,
       mixnet::delegate::delegate_to_mixnode,
       mixnet::delegate::get_reverse_mix_delegations_paged,
       mixnet::delegate::undelegate_from_mixnode,

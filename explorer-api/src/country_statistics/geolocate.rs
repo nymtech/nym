@@ -15,6 +15,13 @@ impl GeoLocateTask {
     }
 
     pub(crate) fn start(mut self) {
+        if ::std::env::var("GEO_IP_SERVICE_API_KEY").is_err() {
+            error!(
+                "Env var GEO_IP_SERVICE_API_KEY is not set. Geolocation tasks will not be started."
+            );
+            return;
+        }
+
         info!("Spawning mix node locator task runner...");
         tokio::spawn(async move {
             let mut interval_timer = tokio::time::interval(std::time::Duration::from_millis(50));

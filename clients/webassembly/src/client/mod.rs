@@ -27,6 +27,7 @@ const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 #[wasm_bindgen]
 pub struct NymClient {
     validator_server: Url,
+    testnet_mode: bool,
 
     // TODO: technically this doesn't need to be an Arc since wasm is run on a single thread
     // however, once we eventually combine this code with the native-client's, it will make things
@@ -72,6 +73,7 @@ impl NymClient {
 
             on_message: None,
             on_gateway_connect: None,
+            testnet_mode: false,
         }
     }
 
@@ -82,6 +84,11 @@ impl NymClient {
     pub fn set_on_gateway_connect(&mut self, on_connect: js_sys::Function) {
         console_log!("setting on connect...");
         self.on_gateway_connect = Some(on_connect)
+    }
+
+    pub fn set_testnet_mode(&mut self, testnet_mode: bool) {
+        console_log!("Setting testnet mode to {}", testnet_mode);
+        self.testnet_mode = testnet_mode;
     }
 
     fn self_recipient(&self) -> Recipient {
@@ -125,6 +132,10 @@ impl NymClient {
             DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             bandwidth_controller,
         );
+
+        if self.testnet_mode {
+            gateway_client.set_testnet_mode(true)
+        }
 
         gateway_client
             .authenticate_and_start()

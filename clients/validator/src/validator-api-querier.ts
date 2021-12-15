@@ -14,8 +14,11 @@ export const VALIDATOR_API_REWARDED_MIXNODES_PATH = VALIDATOR_API_VERSION + "/mi
 
 export interface IValidatorApiQuery {
     getCachedMixnodes(): Promise<MixNodeBond[]>
+
     getCachedGateways(): Promise<GatewayBond[]>
+
     getActiveMixnodes(): Promise<MixNodeBond[]>
+
     getRewardedMixnodes(): Promise<MixNodeBond[]>
 }
 
@@ -33,9 +36,9 @@ export default class ValidatorApiQuerier implements IValidatorApiQuery {
         const response = await axios.get(url.toString())
         if (response.status == 200) {
             return response.data;
-        } else {
-            throw new Error("None of the provided validator APIs seem to be alive")
         }
+        throw new Error("None of the provided validator APIs seem to be alive")
+
     }
 
     async getCachedGateways(): Promise<GatewayBond[]> {
@@ -45,9 +48,9 @@ export default class ValidatorApiQuerier implements IValidatorApiQuery {
         const response = await axios.get(url.toString())
         if (response.status == 200) {
             return response.data;
-        } else {
-            throw new Error("None of the provided validator APIs seem to be alive")
         }
+        throw new Error("None of the provided validator APIs seem to be alive")
+
     }
 
     async getActiveMixnodes(): Promise<MixNodeBond[]> {
@@ -57,9 +60,9 @@ export default class ValidatorApiQuerier implements IValidatorApiQuery {
         const response = await axios.get(url.toString())
         if (response.status == 200) {
             return response.data;
-        } else {
-            throw new Error("None of the provided validator APIs seem to be alive")
         }
+        throw new Error("None of the provided validator APIs seem to be alive")
+
     }
 
     async getRewardedMixnodes(): Promise<MixNodeBond[]> {
@@ -69,8 +72,8 @@ export default class ValidatorApiQuerier implements IValidatorApiQuery {
         const response = await axios.get(url.toString())
         if (response.status == 200) {
             return response.data;
-        } else {
-            throw new Error("None of the provided validator APIs seem to be alive")
         }
+        throw new Error("None of the provided validator APIs seem to be alive")
+
     }
 }

@@ -5192,6 +5192,7 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+ "uuid",
 ]
 
 [[package]]

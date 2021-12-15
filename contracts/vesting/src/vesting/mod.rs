@@ -73,21 +73,80 @@ mod tests {
     #[test]
     fn test_ownership_transfer() {
         let mut deps = init_contract();
-        let env = mock_env();
+        let mut env = mock_env();
         let info = mock_info("owner", &[]);
         let account = vesting_account_fixture(&mut deps.storage, &env);
         let msg = ExecuteMsg::TransferOwnership {
             to_address: "new_owner".to_string(),
         };
         let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
-        let new_owner_account = load_account(&Addr::unchecked("new_owner"), &deps.storage).unwrap().unwrap();
-        assert_eq!(new_owner_account.load_balance(&deps.storage), account.load_balance(&deps.storage));
+        let new_owner_account = load_account(&Addr::unchecked("new_owner"), &deps.storage)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            new_owner_account.load_balance(&deps.storage),
+            account.load_balance(&deps.storage)
+        );
+
         // Check old account is gone
         let old_owner_account = load_account(&Addr::unchecked("owner"), &deps.storage).unwrap();
         assert!(old_owner_account.is_none());
+
         // Not the owner
-        let response = execute(deps.as_mut(), env, info, msg);
-        assert!(response.is_err())
+        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg);
+        assert!(response.is_err());
+
+        let info = mock_info("new_owner", &[]);
+        let msg = ExecuteMsg::UpdateStakingAddress {
+            to_address: Some("new_staking".to_string()),
+        };
+        let _response = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+        let new_staking_account = load_account(&Addr::unchecked("new_staking"), &deps.storage)
+            .unwrap()
+            .unwrap();
+        assert_eq!(new_staking_account.owner_address(), "new_owner".to_string());
+
+        let old_staking_account = load_account(&Addr::unchecked("staking"), &deps.storage).unwrap();
+        assert!(old_staking_account.is_none());
+
+        let msg = ExecuteMsg::WithdrawVestedCoins {
+            amount: Coin {
+                amount: Uint128::new(1),
+                denom: "nym".to_string(),
+            },
+        };
+        let info = mock_info("new_owner", &[]);
+        env.block.time = Timestamp::from_nanos(env.block.time.nanos() + 100_000_000_000_000_000);
+        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        assert!(response.is_ok());
+
+        let info = mock_info("owner", &[]);
+        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        assert!(response.is_err());
+    }
+
+    #[test]
+    fn test_staking_account() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+        let info = mock_info("staking", &[]);
+        let msg = ExecuteMsg::TransferOwnership {
+            to_address: "new_owner".to_string(),
+        };
+        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+        // Only owner can transfer
+        assert!(response.is_err());
+
+        let msg = ExecuteMsg::WithdrawVestedCoins {
+            amount: Coin {
+                amount: Uint128::new(1),
+                denom: "nym".to_string(),
+            },
+        };
+        env.block.time = Timestamp::from_nanos(env.block.time.nanos() + 100_000_000_000_000_000);
+        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        // Only owner can withdraw
+        assert!(response.is_err());
     }
 
     #[test]

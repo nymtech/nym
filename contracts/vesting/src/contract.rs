@@ -89,6 +89,42 @@ pub fn execute(
     }
 }
 
+// Only owner
+pub fn try_withdraw_vested_coins(
+    amount: Coin,
+    env: Env,
+    info: MessageInfo,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
+    let address = info.sender.clone();
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    if address != account.owner_address() {
+        return Err(ContractError::NotOwner(account.owner_address().to_string()));
+    }
+    let spendable_coins = account.spendable_coins(None, &env, deps.storage)?;
+    if amount.amount <= spendable_coins.amount {
+        let new_balance = account
+            .load_balance(deps.storage)?
+            .u128()
+            .saturating_sub(amount.amount.u128());
+        account.save_balance(Uint128::new(new_balance), deps.storage)?;
+
+        let send_tokens = BankMsg::Send {
+            to_address: account.owner_address().as_str().to_string(),
+            amount: vec![amount],
+        };
+
+        Ok(Response::new()
+            .add_attribute("action", "whitdraw")
+            .add_message(send_tokens))
+    } else {
+        Err(ContractError::InsufficientSpendable(
+            account.owner_address().as_str().to_string(),
+            spendable_coins.amount.u128(),
+        ))
+    }
+}
+
 fn try_transfer_ownership(
     to_address: String,
     info: MessageInfo,
@@ -97,7 +133,6 @@ fn try_transfer_ownership(
     let address = info.sender.clone();
     let to_address = deps.api.addr_validate(&to_address)?;
     let mut account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    println!("{}", address);
     if address == account.owner_address() {
         account.transfer_ownership(&to_address, deps.storage)?;
         Ok(Response::default())
@@ -122,6 +157,7 @@ fn try_update_staking_address(
     }
 }
 
+// Owner or staking
 pub fn try_bond_gateway(
     gateway: Gateway,
     owner_signature: String,
@@ -182,41 +218,6 @@ pub fn try_track_unbond_mixnode(
     let account = account_from_address(owner, deps.storage, deps.api)?;
     account.try_track_unbond_mixnode(amount, deps.storage)?;
     Ok(Response::default())
-}
-
-pub fn try_withdraw_vested_coins(
-    amount: Coin,
-    env: Env,
-    info: MessageInfo,
-    deps: DepsMut,
-) -> Result<Response, ContractError> {
-    let address = info.sender.clone();
-    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    if address != account.owner_address() {
-        return Err(ContractError::NotOwner(account.owner_address().to_string()));
-    }
-    let spendable_coins = account.spendable_coins(None, &env, deps.storage)?;
-    if amount.amount <= spendable_coins.amount {
-        let new_balance = account
-            .load_balance(deps.storage)?
-            .u128()
-            .saturating_sub(amount.amount.u128());
-        account.save_balance(Uint128::new(new_balance), deps.storage)?;
-
-        let send_tokens = BankMsg::Send {
-            to_address: account.owner_address().as_str().to_string(),
-            amount: vec![amount],
-        };
-
-        Ok(Response::new()
-            .add_attribute("action", "whitdraw")
-            .add_message(send_tokens))
-    } else {
-        Err(ContractError::InsufficientSpendable(
-            account.owner_address().as_str().to_string(),
-            spendable_coins.amount.u128(),
-        ))
-    }
 }
 
 fn try_track_undelegation(

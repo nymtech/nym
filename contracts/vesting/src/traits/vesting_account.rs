@@ -1,5 +1,5 @@
 use crate::errors::ContractError;
-use cosmwasm_std::{Coin, Env, Storage, Timestamp, Addr};
+use cosmwasm_std::{Addr, Coin, Env, Storage, Timestamp};
 
 pub trait VestingAccount {
     // locked_coins returns the set of coins that are not spendable (can still be delegated tough) (i.e. locked),

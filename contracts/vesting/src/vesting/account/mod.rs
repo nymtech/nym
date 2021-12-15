@@ -7,6 +7,7 @@ use cw_storage_plus::{Item, Map};
 use mixnet_contract::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 mod delegating_account;
 mod gateway_bonding_account;
@@ -18,22 +19,6 @@ const BALANCE_SUFFIX: &str = "ba";
 const PLEDGE_SUFFIX: &str = "bo";
 const GATEWAY_SUFFIX: &str = "ga";
 
-fn build_delegations_key(address: &Addr) -> String {
-    format!("{}{}", address, DELEGATIONS_SUFFIX)
-}
-
-fn build_balance_key(address: &Addr) -> String {
-    format!("{}{}", address, BALANCE_SUFFIX)
-}
-
-fn build_mixnode_pledge_key(address: &Addr) -> String {
-    format!("{}{}", address, PLEDGE_SUFFIX)
-}
-
-fn build_gateway_pledge_key(address: &Addr) -> String {
-    format!("{}{}", address, GATEWAY_SUFFIX)
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Account {
     owner_address: Addr,
@@ -41,10 +26,7 @@ pub struct Account {
     start_time: Timestamp,
     periods: Vec<VestingPeriod>,
     coin: Coin,
-    delegations_key: String,
-    balance_key: String,
-    mixnode_pledge_key: String,
-    gateway_pledge_key: String,
+    storage_key: String,
 }
 
 impl Account {
@@ -58,48 +40,33 @@ impl Account {
     ) -> Result<Self, ContractError> {
         let amount = coin.amount;
         let account = Account {
-            owner_address: owner_address.to_owned(),
+            owner_address,
             staking_address,
             start_time,
             periods,
             coin,
-            delegations_key: build_delegations_key(&owner_address),
-            balance_key: build_balance_key(&owner_address),
-            mixnode_pledge_key: build_mixnode_pledge_key(&owner_address),
-            gateway_pledge_key: build_gateway_pledge_key(&owner_address),
+            storage_key: Uuid::new_v4().to_string(),
         };
         save_account(&account, storage)?;
         account.save_balance(amount, storage)?;
         Ok(account)
     }
 
-    fn update_delegations_key(&mut self) {
-        self.delegations_key = build_delegations_key(&self.owner_address);
+    pub fn delegations_key(&self) -> String {
+        format!("{}{}", self.storage_key, DELEGATIONS_SUFFIX)
     }
 
-    fn update_balance_key(&mut self) {
-        self.balance_key = build_balance_key(&self.owner_address);
+    pub fn balance_key(&self) -> String {
+        format!("{}{}", self.storage_key, BALANCE_SUFFIX)
     }
 
-    fn update_mixnode_pledge_key(&mut self) {
-        self.mixnode_pledge_key = build_mixnode_pledge_key(&self.owner_address);
+    pub fn mixnode_pledge_key(&self) -> String {
+        format!("{}{}", self.storage_key, PLEDGE_SUFFIX)
     }
 
-    fn update_gateway_pledge_key(&mut self) {
-        self.gateway_pledge_key = build_gateway_pledge_key(&self.owner_address);
+    pub fn gateway_pledge_key(&self) -> String {
+        format!("{}{}", self.storage_key, GATEWAY_SUFFIX)
     }
-
-    fn move_delegations(&self, old_owner_address: &Addr) {
-        let delegations_key = build_delegations_key(old_owner_address);
-        let old_delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_key);
-        // TODO: Continue here
-    }
-
-    fn move_balance(&self, old_owner_address: &Addr) {}
-
-    fn move_mixnode_pledge(&self, old_owner_address: &Addr) {}
-
-    fn move_gateway_pledge(&self, old_owner_address: &Addr) {}
 
     pub fn owner_address(&self) -> Addr {
         self.owner_address.clone()
@@ -151,10 +118,9 @@ impl Account {
     }
 
     pub fn load_balance(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
-        Ok(self
-            .balance()
-            .may_load(storage)?
-            .unwrap_or_else(Uint128::zero))
+        let key = self.balance_key();
+        let balance = Item::new(&key);
+        Ok(balance.may_load(storage)?.unwrap_or_else(Uint128::zero))
     }
 
     pub fn save_balance(
@@ -162,18 +128,25 @@ impl Account {
         amount: Uint128,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        Ok(self.balance().save(storage, &amount)?)
+        let key = self.balance_key();
+        let balance = Item::new(&key);
+        Ok(balance.save(storage, &amount)?)
     }
 
-    fn balance(&self) -> Item<Uint128> {
-        Item::new(self.balance_key.as_ref())
+    pub fn remove_balance(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
+        let key = self.balance_key();
+        let balance: Item<PledgeData> = Item::new(&key);
+        balance.remove(storage);
+        Ok(())
     }
 
     pub fn load_mixnode_pledge(
         &self,
         storage: &dyn Storage,
     ) -> Result<Option<PledgeData>, ContractError> {
-        Ok(self.mixnode_pledge().may_load(storage)?)
+        let key = self.mixnode_pledge_key();
+        let mixnode_pledge = Item::new(&key);
+        Ok(mixnode_pledge.may_load(storage)?)
     }
 
     pub fn save_mixnode_pledge(
@@ -181,23 +154,25 @@ impl Account {
         pledge: PledgeData,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        Ok(self.mixnode_pledge().save(storage, &pledge)?)
+        let key = self.mixnode_pledge_key();
+        let mixnode_pledge = Item::new(&key);
+        Ok(mixnode_pledge.save(storage, &pledge)?)
     }
 
-    pub fn remove_mixnode_bond(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
-        self.mixnode_pledge().remove(storage);
+    pub fn remove_mixnode_pledge(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
+        let key = self.mixnode_pledge_key();
+        let mixnode_pledge: Item<PledgeData> = Item::new(&key);
+        mixnode_pledge.remove(storage);
         Ok(())
-    }
-
-    fn mixnode_pledge(&self) -> Item<PledgeData> {
-        Item::new(self.mixnode_pledge_key.as_ref())
     }
 
     pub fn load_gateway_pledge(
         &self,
         storage: &dyn Storage,
     ) -> Result<Option<PledgeData>, ContractError> {
-        Ok(self.gateway_pledge().may_load(storage)?)
+        let key = self.gateway_pledge_key();
+        let gateway_pledge = Item::new(&key);
+        Ok(gateway_pledge.may_load(storage)?)
     }
 
     pub fn save_gateway_pledge(
@@ -205,25 +180,23 @@ impl Account {
         pledge: PledgeData,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        Ok(self.gateway_pledge().save(storage, &pledge)?)
+        let key = self.gateway_pledge_key();
+        let gateway_pledge = Item::new(&key);
+        Ok(gateway_pledge.save(storage, &pledge)?)
     }
 
-    pub fn remove_gateway_bond(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
-        self.gateway_pledge().remove(storage);
+    pub fn remove_gateway_pledge(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
+        let key = self.gateway_pledge_key();
+        let gateway_pledge: Item<PledgeData> = Item::new(&key);
+        gateway_pledge.remove(storage);
         Ok(())
-    }
-
-    fn gateway_pledge(&self) -> Item<PledgeData> {
-        Item::new(self.gateway_pledge_key.as_ref())
-    }
-
-    fn delegations(&self) -> Map<(&[u8], u64), Uint128> {
-        Map::new(self.delegations_key.as_ref())
     }
 
     // Returns block_time part of the delegation key
     pub fn delegation_keys_for_mix(&self, mix: &str, storage: &dyn Storage) -> Vec<u64> {
-        self.delegations()
+        let key = self.delegations_key();
+        let delegations: Map<(&[u8], u64), Uint128> = Map::new(&key);
+        delegations
             .prefix_de(mix.as_bytes())
             .keys_de(storage, None, None, Order::Ascending)
             // Scan will blow up on first error
@@ -242,10 +215,12 @@ impl Account {
     ) -> Result<Vec<Uint128>, ContractError> {
         let mix_bytes = mix.as_bytes();
         let keys = self.delegation_keys_for_mix(&mix, storage);
+        let delegations_key = self.delegations_key();
+        let delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_key);
 
         let mut delegation_amounts = Vec::new();
         for key in keys {
-            delegation_amounts.push(self.delegations().load(storage, (mix_bytes, key))?)
+            delegation_amounts.push(delegations.load(storage, (mix_bytes, key))?)
         }
 
         Ok(delegation_amounts)
@@ -264,8 +239,9 @@ impl Account {
     }
 
     pub fn total_delegations(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
-        Ok(self
-            .delegations()
+        let delegations_key = self.delegations_key();
+        let delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_key);
+        Ok(delegations
             .range(storage, None, None, Order::Ascending)
             .scan((), |_, x| x.ok())
             .fold(Uint128::zero(), |acc, (_, x)| acc + x))

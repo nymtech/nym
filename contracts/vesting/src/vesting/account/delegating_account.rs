@@ -2,6 +2,7 @@ use crate::errors::ContractError;
 use crate::traits::DelegatingAccount;
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{wasm_execute, Coin, Env, Order, Response, Storage, Timestamp, Uint128};
+use cw_storage_plus::Map;
 use mixnet_contract::ExecuteMsg as MixnetExecuteMsg;
 use mixnet_contract::IdentityKey;
 
@@ -76,17 +77,17 @@ impl DelegatingAccount for Account {
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
         let delegation_key = (mix_identity.as_bytes(), block_time.seconds());
+        let delegations_storage_key = self.delegations_key();
+        let delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_storage_key);
 
-        let new_delegation = if let Some(existing_delegation) =
-            self.delegations().may_load(storage, delegation_key)?
-        {
-            existing_delegation + delegation.amount
-        } else {
-            delegation.amount
-        };
+        let new_delegation =
+            if let Some(existing_delegation) = delegations.may_load(storage, delegation_key)? {
+                existing_delegation + delegation.amount
+            } else {
+                delegation.amount
+            };
 
-        self.delegations()
-            .save(storage, delegation_key, &new_delegation)?;
+        delegations.save(storage, delegation_key, &new_delegation)?;
 
         let new_balance = Uint128::new(current_balance.u128() - delegation.amount.u128());
 
@@ -102,10 +103,11 @@ impl DelegatingAccount for Account {
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
         let mix_bytes = mix_identity.as_bytes();
+        let delegations_key = self.delegations_key();
+        let delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_key);
 
         // Iterate over keys matching the prefix and remove them from the map
-        let block_times = self
-            .delegations()
+        let block_times = delegations
             .prefix_de(mix_bytes)
             .keys_de(storage, None, None, Order::Ascending)
             // Scan will blow up on first error
@@ -113,7 +115,7 @@ impl DelegatingAccount for Account {
             .collect::<Vec<u64>>();
 
         for t in block_times {
-            self.delegations().remove(storage, (mix_bytes, t))
+            delegations.remove(storage, (mix_bytes, t))
         }
 
         let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());

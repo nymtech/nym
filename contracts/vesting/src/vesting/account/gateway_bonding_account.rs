@@ -80,7 +80,7 @@ impl GatewayBondingAccount for Account {
         let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());
         self.save_balance(new_balance, storage)?;
 
-        self.remove_gateway_bond(storage)?;
+        self.remove_gateway_pledge(storage)?;
         Ok(())
     }
 }

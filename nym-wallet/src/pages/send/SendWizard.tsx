@@ -139,7 +139,7 @@ export const SendWizard = () => {
             alignItems: 'center',
             justifyContent: 'flex-end',
             borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-            bgcolor: 'grey.50',
+            bgcolor: 'grey.100',
             p: 2,
           }}
         >

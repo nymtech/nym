@@ -189,7 +189,7 @@ impl PacketPreparer {
 
             if gateways.into_inner().len() < minimum_full_routes {
                 info!(
-                    "Minimal topology is still not offline. Going to check again in {:?}",
+                    "Minimal topology is still not online. Going to check again in {:?}",
                     initialisation_backoff
                 );
                 tokio::time::sleep(initialisation_backoff).await;
@@ -217,7 +217,7 @@ impl PacketPreparer {
             }
 
             info!(
-                "Minimal topology is still not offline. Going to check again in {:?}",
+                "Minimal topology is still not online. Going to check again in {:?}",
                 initialisation_backoff
             );
             tokio::time::sleep(initialisation_backoff).await;

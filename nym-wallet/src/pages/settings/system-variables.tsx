@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { ChangeEvent, useState } from 'react'
 import { Box, Button, Divider, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material'
 import { InfoTooltip } from '../../components/InfoToolTip'
 
-export const SystemVariables = () => {
+export const SystemVariables = ({ profitMargin }: { profitMargin: number }) => {
+  const [profitMarginPercent, setProfirMarginPercent] = useState(profitMargin)
   return (
     <>
       <Box sx={{ p: 4 }}>
@@ -10,6 +11,8 @@ export const SystemVariables = () => {
           <TextField
             label="Profit margin"
             helperText="The percentage of your delegators' rewards that you as the node operator will take"
+            value={profitMarginPercent}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setProfirMarginPercent(+e.target.value)}
           />
           <Divider />
           <DataField

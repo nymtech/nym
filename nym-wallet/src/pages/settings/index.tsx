@@ -21,8 +21,8 @@ export const Settings = () => {
   useEffect(() => {
     const getBondDetails = async () => {
       const details = await getMixnodeBondDetails()
-      setMixnodeDetails(details)
       console.log(details)
+      setMixnodeDetails(details)
     }
     if (showSettings) getBondDetails()
   }, [showSettings])
@@ -43,11 +43,18 @@ export const Settings = () => {
           <Typography variant="h5" sx={{ py: 2, px: 4 }}>
             Node settings
           </Typography>
-          <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} />
+          <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} disabled={!mixnodeDetails} />
           <Overview details={mixnodeDetails} />
-          {selectedTab === 0 && <Profile />}
-          {selectedTab === 1 && <SystemVariables />}
-          {selectedTab === 2 && <NodeStats mixnodeId={mixnodeDetails?.mix_node.identity_key} />}
+          {!mixnodeDetails && (
+            <Alert severity="info" sx={{ m: 4 }}>
+              You don't currently have a node running
+            </Alert>
+          )}
+          {selectedTab === 0 && mixnodeDetails && <Profile />}
+          {selectedTab === 1 && mixnodeDetails && (
+            <SystemVariables profitMargin={mixnodeDetails.mix_node.profit_margin_percent} />
+          )}
+          {selectedTab === 2 && mixnodeDetails && <NodeStats mixnodeId={mixnodeDetails.mix_node.identity_key} />}
         </>
       </NymCard>
     </Dialog>

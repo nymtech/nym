@@ -13,7 +13,7 @@ export const Overview = ({
   details?: TMixnodeBondDetails | null
 }) => (
   <Stack spacing={3} sx={{ p: 4, pb: 0 }}>
-    <Typography sx={{ color: 'grey.600' }}>Node identity {details?.mix_node.identity_key}</Typography>
+    <Typography sx={{ color: 'grey.600' }}>Node identity {details?.mix_node.identity_key || 'n/a'}</Typography>
     {mixnodeStatus === 'active' && <ActiveMessage />}
     {mixnodeStatus === 'inactive' && <InActiveMessage />}
     {mixnodeStatus === 'standby' && <StandbyMessage />}

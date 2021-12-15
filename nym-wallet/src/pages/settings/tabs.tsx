@@ -5,8 +5,9 @@ import { Tab, Tabs as MuiTabs } from '@mui/material'
 export const Tabs: React.FC<{
   tabs: string[]
   selectedTab: number
+  disabled: boolean
   onChange: (event: React.SyntheticEvent, tab: number) => void
-}> = ({ tabs, selectedTab, onChange }) => (
+}> = ({ tabs, selectedTab, disabled, onChange }) => (
   <MuiTabs
     value={selectedTab}
     onChange={onChange}
@@ -14,7 +15,7 @@ export const Tabs: React.FC<{
     textColor="inherit"
   >
     {tabs.map((tabName, index) => (
-      <Tab key={index} label={tabName} sx={{ textTransform: 'capitalize' }} />
+      <Tab key={index} label={tabName} sx={{ textTransform: 'capitalize' }} disabled={disabled} />
     ))}
   </MuiTabs>
 )

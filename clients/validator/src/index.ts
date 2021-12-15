@@ -297,11 +297,8 @@ export default class ValidatorClient implements INymClient {
         return coin(stateParams.minimum_gateway_pledge, this.prefix)
     }
 
-    public async send(recipientAddress: string, coins: readonly Coin[], fee?: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse> {
+    public async send(recipientAddress: string, coins: readonly Coin[], fee: StdFee | "auto" | number = "auto", memo?: string): Promise<DeliverTxResponse> {
         this.assertSigning()
-        if (!fee) {
-            fee = "auto"
-        }
 
         const result = await (this.client as ISigningClient).sendTokens(this.address, recipientAddress, coins, fee, memo);
         if (isDeliverTxFailure(result)) {
@@ -311,11 +308,8 @@ export default class ValidatorClient implements INymClient {
 
     }
 
-    public async executeCustom(signerAddress: string, messages: readonly EncodeObject[], fee?: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse> {
+    public async executeCustom(signerAddress: string, messages: readonly EncodeObject[], fee: StdFee | "auto" | number = "auto", memo?: string): Promise<DeliverTxResponse> {
         this.assertSigning()
-        if (!fee) {
-            fee = "auto"
-        }
 
         const result = await (this.client as ISigningClient).signAndBroadcast(signerAddress, messages, fee, memo);
         if (isDeliverTxFailure(result)) {
@@ -325,27 +319,18 @@ export default class ValidatorClient implements INymClient {
 
     }
 
-    public async upload(senderAddress: string, wasmCode: Uint8Array, fee?: StdFee | "auto" | number, memo?: string): Promise<UploadResult> {
+    public async upload(senderAddress: string, wasmCode: Uint8Array, fee: StdFee | "auto" | number = "auto", memo?: string): Promise<UploadResult> {
         this.assertSigning()
-        if (!fee) {
-            fee = "auto"
-        }
         return (this.client as ISigningClient).upload(senderAddress, wasmCode, fee, memo);
     }
 
-    public async instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, fee?: StdFee | "auto" | number, options?: InstantiateOptions): Promise<InstantiateResult> {
+    public async instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, fee: StdFee | "auto" | number = "auto", options?: InstantiateOptions): Promise<InstantiateResult> {
         this.assertSigning()
-        if (!fee) {
-            fee = "auto"
-        }
         return (this.client as ISigningClient).instantiate(senderAddress, codeId, initMsg, label, fee, options);
     }
 
-    public async migrate(senderAddress: string, contractAddress: string, codeId: number, migrateMsg: Record<string, unknown>, fee?: StdFee | "auto" | number, memo?: string): Promise<MigrateResult> {
+    public async migrate(senderAddress: string, contractAddress: string, codeId: number, migrateMsg: Record<string, unknown>, fee: StdFee | "auto" | number = "auto", memo?: string): Promise<MigrateResult> {
         this.assertSigning()
-        if (!fee) {
-            fee = "auto"
-        }
         return (this.client as ISigningClient).migrate(senderAddress, contractAddress, codeId, migrateMsg, fee, memo)
     }
 

@@ -40,6 +40,7 @@ const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
 pub struct GatewayClient {
     authenticated: bool,
+    testnet_mode: bool,
     bandwidth_remaining: i64,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
@@ -75,6 +76,7 @@ impl GatewayClient {
     ) -> Self {
         GatewayClient {
             authenticated: false,
+            testnet_mode: false,
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
@@ -88,6 +90,10 @@ impl GatewayClient {
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
         }
+    }
+
+    pub fn set_testnet_mode(&mut self, testnet_mode: bool) {
+        self.testnet_mode = testnet_mode
     }
 
     // TODO: later convert into proper builder methods
@@ -119,6 +125,7 @@ impl GatewayClient {
 
         GatewayClient {
             authenticated: false,
+            testnet_mode: false,
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
@@ -513,6 +520,17 @@ impl GatewayClient {
         Ok(())
     }
 
+    async fn try_claim_testnet_bandwidth(&mut self) -> Result<(), GatewayClientError> {
+        let msg = ClientControlRequest::ClaimFreeTestnetBandwidth.into();
+        self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
+            ServerResponse::Bandwidth { available_total } => Ok(available_total),
+            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+            _ => Err(GatewayClientError::UnexpectedResponse),
+        }?;
+
+        Ok(())
+    }
+
     pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
@@ -525,6 +543,10 @@ impl GatewayClient {
         }
 
         warn!("Not enough bandwidth. Trying to get more bandwidth, this might take a while");
+        if self.testnet_mode {
+            info!("The client is running in testnet mode - attempting to claim bandwidth without a credential");
+            return self.try_claim_testnet_bandwidth().await;
+        }
 
         #[cfg(feature = "coconut")]
         let credential = self

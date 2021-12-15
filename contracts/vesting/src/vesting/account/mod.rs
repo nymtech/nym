@@ -5,9 +5,10 @@ use crate::storage::save_account;
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
 use mixnet_contract::IdentityKey;
+use rand::rngs::StdRng;
+use rand::{RngCore, SeedableRng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 mod delegating_account;
 mod gateway_bonding_account;
@@ -18,6 +19,19 @@ const DELEGATIONS_SUFFIX: &str = "de";
 const BALANCE_SUFFIX: &str = "ba";
 const PLEDGE_SUFFIX: &str = "bo";
 const GATEWAY_SUFFIX: &str = "ga";
+
+fn generate_storage_key(b: &[u8], storage: &dyn Storage) -> Result<String, ContractError> {
+    let mut rng = StdRng::seed_from_u64(b.iter().fold(0, |acc, x| acc + *x as u64));
+    // Be paranoid and check for collisions
+    loop {
+        let key = rng.next_u64().to_string();
+        let balance_key = format!("{}{}", key, BALANCE_SUFFIX);
+        let balance: Item<Uint128> = Item::new(&balance_key);
+        if balance.may_load(storage)?.is_none() {
+            return Ok(key);
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Account {
@@ -38,6 +52,7 @@ impl Account {
         periods: Vec<VestingPeriod>,
         storage: &mut dyn Storage,
     ) -> Result<Self, ContractError> {
+        let storage_key = generate_storage_key(owner_address.as_bytes(), storage)?;
         let amount = coin.amount;
         let account = Account {
             owner_address,
@@ -45,7 +60,7 @@ impl Account {
             start_time,
             periods,
             coin,
-            storage_key: Uuid::new_v4().to_string(),
+            storage_key,
         };
         save_account(&account, storage)?;
         account.save_balance(amount, storage)?;
@@ -131,13 +146,6 @@ impl Account {
         let key = self.balance_key();
         let balance = Item::new(&key);
         Ok(balance.save(storage, &amount)?)
-    }
-
-    pub fn remove_balance(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
-        let key = self.balance_key();
-        let balance: Item<PledgeData> = Item::new(&key);
-        balance.remove(storage);
-        Ok(())
     }
 
     pub fn load_mixnode_pledge(

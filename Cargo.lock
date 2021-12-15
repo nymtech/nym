@@ -7275,11 +7275,12 @@ dependencies = [
  "config",
  "cosmwasm-std",
  "cw-storage-plus",
+ "getrandom 0.2.3",
  "mixnet-contract",
+ "rand 0.8.4",
  "schemars",
  "serde",
  "thiserror",
- "uuid",
 ]
 
 [[package]]

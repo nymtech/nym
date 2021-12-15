@@ -1,4 +1,4 @@
-all: clippy test fmt
+all: clippy test wasm fmt
 clippy: clippy-main clippy-contracts clippy-wallet
 test: test-main test-contracts test-wallet
 fmt: fmt-main fmt-contracts fmt-wallet
@@ -29,3 +29,6 @@ fmt-contracts:
 
 fmt-wallet:
 	cargo fmt --manifest-path nym-wallet/Cargo.toml --all
+
+wasm:
+	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown

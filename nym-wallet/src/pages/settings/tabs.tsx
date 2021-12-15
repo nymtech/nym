@@ -1,7 +1,6 @@
 import React from 'react'
 import { Box } from '@mui/system'
 import { Tab, Tabs as MuiTabs } from '@mui/material'
-import { Overview } from './overview'
 
 export const Tabs: React.FC<{
   tabs: string[]
@@ -20,9 +19,4 @@ export const Tabs: React.FC<{
   </MuiTabs>
 )
 
-export const TabPanel: React.FC = ({ children }) => (
-  <Box sx={{ p: 4 }}>
-    <Overview />
-    {children}
-  </Box>
-)
+export const TabPanel: React.FC = ({ children }) => <Box sx={{ p: 4 }}>{children}</Box>

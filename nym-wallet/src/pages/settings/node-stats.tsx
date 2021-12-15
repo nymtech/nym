@@ -1,5 +1,24 @@
-import React from 'react'
+import { OpenInNew } from '@mui/icons-material'
+import { Button, Link, Stack, Typography } from '@mui/material'
+import React, { useEffect } from 'react'
+import { urls } from '../../context/main'
+import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 
 export const NodeStats = () => {
-  return <h1>Node Stats</h1>
+  const { error, ownership, checkOwnership } = useCheckOwnership()
+  useEffect(() => {
+    checkOwnership()
+  }, [])
+
+  return (
+    <Stack spacing={2}>
+      <Typography>All your node stats are available on the link below</Typography>
+      <Link
+        href={`${urls.networkExplorer}/network-components/mixnodes/5fDCi3xjYbcV8HHMpBvpbrm6ypx4qnsWG9YobQJxgPHP`}
+        target="_blank"
+      >
+        <Button endIcon={<OpenInNew />}>Network Explorer</Button>
+      </Link>
+    </Stack>
+  )
 }

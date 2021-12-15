@@ -48,7 +48,7 @@ export const SendForm = ({ transferFee }: { transferFee?: string }) => {
         />
       </Grid>
       <Grid item xs={12}>
-        <Typography sx={{ color: 'nym.info' }}>Fee for this transaction: {transferFee} punk</Typography>
+        <Typography sx={{ color: 'nym.fee' }}>Fee for this transaction: {transferFee} punk</Typography>
       </Grid>
     </Grid>
   )

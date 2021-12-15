@@ -25,7 +25,7 @@ import { checkHasEnoughFunds } from '../../utils'
 type TBondFormFields = {
   withAdvancedOptions: boolean
   nodeType: EnumNodeType
-  ownerSignature: string,
+  ownerSignature: string
   identityKey: string
   sphinxKey: string
   amount: string
@@ -230,19 +230,18 @@ export const BondForm = ({
             />
           </Grid>
 
-
           <Grid item xs={12} sm={12}>
             <TextField
-                {...register('ownerSignature')}
-                variant="outlined"
-                required
-                id="ownerSignature"
-                name="ownerSignature"
-                label="Signature on your address"
-                fullWidth
-                error={!!errors.ownerSignature}
-                helperText={errors.ownerSignature?.message}
-                disabled={disabled}
+              {...register('ownerSignature')}
+              variant="outlined"
+              required
+              id="ownerSignature"
+              name="ownerSignature"
+              label="Signature on your address"
+              fullWidth
+              error={!!errors.ownerSignature}
+              helperText={errors.ownerSignature?.message}
+              disabled={disabled}
             />
           </Grid>
 
@@ -340,7 +339,7 @@ export const BondForm = ({
           )}
           {fees && (
             <Grid item xs={12}>
-              <Typography sx={{ color: 'nym.info' }}>
+              <Typography sx={{ color: 'nym.fee' }}>
                 {' '}
                 {`A bonding fee: ${
                   watchNodeType === EnumNodeType.mixnode ? fees.mixnode.amount : fees?.gateway?.amount

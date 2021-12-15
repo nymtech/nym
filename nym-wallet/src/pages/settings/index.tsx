@@ -7,6 +7,7 @@ import { TabPanel, Tabs } from './tabs'
 import { Profile } from './profile'
 import { SystemVariables } from './system-variables'
 import { NodeStats } from './node-stats'
+import { Overview } from './overview'
 
 const tabs = ['Profile', 'System variables', 'Node stats']
 
@@ -32,6 +33,7 @@ export const Settings = () => {
           </Typography>
           <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} />
           <TabPanel>
+            <Overview mixnodeStatus="standby" />
             {selectedTab === 0 && <Profile />}
             {selectedTab === 1 && <SystemVariables />}
             {selectedTab === 2 && <NodeStats />}

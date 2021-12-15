@@ -48,8 +48,8 @@ export const SendReview = ({ transferFee }: { transferFee?: string }) => {
 export const SendReviewField = ({ title, subtitle, info }: { title: string; subtitle?: string; info?: boolean }) => {
   return (
     <>
-      <Typography sx={{ color: info ? 'nym.info' : '' }}>{title}</Typography>
-      <Typography data-testid={title} sx={{ color: info ? 'nym.info' : '', wordBreak: 'break-all' }}>
+      <Typography sx={{ color: info ? 'nym.fee' : '' }}>{title}</Typography>
+      <Typography data-testid={title} sx={{ color: info ? 'nym.fee' : '', wordBreak: 'break-all' }}>
         {subtitle}
       </Typography>
     </>

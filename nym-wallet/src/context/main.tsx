@@ -6,6 +6,7 @@ import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance'
 export const ADMIN_ADDRESS = 'punk1h3w4nj7kny5dfyjw2le4vm74z03v9vd4dstpu0'
 export const urls = {
   blockExplorer: 'https://testnet-milhon-blocks.nymtech.net',
+  networkExplorer: 'https://testnet-milhon-explorer.nymtech.net',
 }
 
 type TClientContext = {

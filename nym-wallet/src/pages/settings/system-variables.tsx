@@ -1,9 +1,10 @@
 import React, { ChangeEvent, useState } from 'react'
-import { Box, Button, Divider, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material'
+import { Box, Button, Chip, Divider, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material'
+import { AccessTimeOutlined, PercentOutlined } from '@mui/icons-material'
 import { InfoTooltip } from '../../components/InfoToolTip'
 
 export const SystemVariables = ({ profitMargin }: { profitMargin: number }) => {
-  const [profitMarginPercent, setProfirMarginPercent] = useState(profitMargin)
+  const [profitMarginPercent, setProfirMarginPercent] = useState<string>(profitMargin.toString())
   return (
     <>
       <Box sx={{ p: 4 }}>
@@ -12,7 +13,8 @@ export const SystemVariables = ({ profitMargin }: { profitMargin: number }) => {
             label="Profit margin"
             helperText="The percentage of your delegators' rewards that you as the node operator will take"
             value={profitMarginPercent}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setProfirMarginPercent(+e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setProfirMarginPercent(e.target.value)}
+            InputProps={{ endAdornment: <PercentOutlined fontSize="small" sx={{ color: 'grey.500' }} /> }}
           />
           <Divider />
           <DataField
@@ -36,7 +38,7 @@ export const SystemVariables = ({ profitMargin }: { profitMargin: number }) => {
           <DataField
             title="Node stake saturation"
             info="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 1 million NYM, computed as S/K where S is the total amount of tokens available to stakeholders and K is the number of nodes in the reward set."
-            Indicator={<PercentIndicator value={75} />}
+            Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
           />
         </Stack>
       </Box>

@@ -32,7 +32,7 @@ export const Settings = () => {
             Node settings
           </Typography>
           <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} />
-          <Overview mixnodeStatus="standby" />
+          <Overview />
           {selectedTab === 0 && <Profile />}
           {selectedTab === 1 && <SystemVariables />}
           {selectedTab === 2 && <NodeStats />}

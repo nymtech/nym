@@ -1,6 +1,7 @@
 import { Button, Stack, TextField } from '@mui/material'
 import { Box } from '@mui/system'
 import React from 'react'
+import { InfoTooltip } from '../../components/InfoToolTip'
 
 export const Profile = () => {
   return (

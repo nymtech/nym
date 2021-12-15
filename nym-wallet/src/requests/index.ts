@@ -11,6 +11,7 @@ import {
   TauriTxResult,
   TCreateAccount,
   TDelegation,
+  TMixnodeBondDetails,
   TSignInWithMnemonic,
 } from '../types'
 
@@ -76,3 +77,6 @@ export const getReverseMixDelegations = async (): Promise<TDelegation> =>
 
 export const getReverseGatewayDelegations = async (): Promise<TDelegation> =>
   await invoke('get_reverse_gateway_delegations_paged')
+
+export const getMixnodeBondDetails = async (): Promise<TMixnodeBondDetails | null> =>
+  await invoke('mixnode_bond_details')

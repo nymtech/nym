@@ -1,4 +1,4 @@
-import { Coin } from '.'
+import { Coin, MixNode } from '.'
 
 export enum EnumNodeType {
   mixnode = 'mixnode',
@@ -32,4 +32,14 @@ export type TDelegation = {
   delegated_nodes: string[]
   delegation_owner: string
   start_next_after: string
+}
+
+export type TMixnodeBondDetails = {
+  pledge_amount: Coin
+  total_delegation: Coin
+  owner: string
+  layer: string
+  block_height: number
+  mix_node: MixNode
+  proxy: any
 }

@@ -8,12 +8,21 @@ import { Profile } from './profile'
 import { SystemVariables } from './system-variables'
 import { NodeStats } from './node-stats'
 import { Overview } from './overview'
+import { getMixnodeBondDetails } from '../../requests'
 
 const tabs = ['Profile', 'System variables', 'Node stats']
 
 export const Settings = () => {
   const { showSettings, handleShowSettings } = useContext(ClientContext)
   const [selectedTab, setSelectedTab] = useState(0)
+
+  useEffect(() => {
+    const getBondDetails = async () => {
+      const details = await getMixnodeBondDetails()
+      console.log(details)
+    }
+    if (showSettings) getBondDetails()
+  }, [showSettings])
 
   const handleTabChange = (event: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab)
 

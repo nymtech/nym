@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react'
-import { Box, Dialog, Typography } from '@mui/material'
+import { Alert, Box, Dialog, Typography } from '@mui/material'
 import { SettingsOutlined } from '@mui/icons-material'
 import { NymCard } from '../../components'
 import { ClientContext } from '../../context/main'
@@ -9,16 +9,19 @@ import { SystemVariables } from './system-variables'
 import { NodeStats } from './node-stats'
 import { Overview } from './overview'
 import { getMixnodeBondDetails } from '../../requests'
+import { TMixnodeBondDetails } from '../../types'
 
 const tabs = ['Profile', 'System variables', 'Node stats']
 
 export const Settings = () => {
   const { showSettings, handleShowSettings } = useContext(ClientContext)
   const [selectedTab, setSelectedTab] = useState(0)
+  const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>()
 
   useEffect(() => {
     const getBondDetails = async () => {
       const details = await getMixnodeBondDetails()
+      setMixnodeDetails(details)
       console.log(details)
     }
     if (showSettings) getBondDetails()
@@ -41,10 +44,10 @@ export const Settings = () => {
             Node settings
           </Typography>
           <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} />
-          <Overview />
+          <Overview details={mixnodeDetails} />
           {selectedTab === 0 && <Profile />}
           {selectedTab === 1 && <SystemVariables />}
-          {selectedTab === 2 && <NodeStats />}
+          {selectedTab === 2 && <NodeStats mixnodeId={mixnodeDetails?.mix_node.identity_key} />}
         </>
       </NymCard>
     </Dialog>

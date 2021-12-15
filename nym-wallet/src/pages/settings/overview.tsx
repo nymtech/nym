@@ -1,12 +1,19 @@
 import React from 'react'
 import { Divider, Stack, Typography } from '@mui/material'
 import { CheckCircleOutline, CircleOutlined, PauseCircleOutlined } from '@mui/icons-material'
+import { TMixnodeBondDetails } from '../../types'
 
 type TMixnodeStatus = 'active' | 'inactive' | 'standby'
 
-export const Overview = ({ mixnodeStatus }: { mixnodeStatus?: TMixnodeStatus }) => (
+export const Overview = ({
+  mixnodeStatus,
+  details,
+}: {
+  mixnodeStatus?: TMixnodeStatus
+  details?: TMixnodeBondDetails | null
+}) => (
   <Stack spacing={3} sx={{ p: 4, pb: 0 }}>
-    <Typography sx={{ color: 'grey.600' }}>Node identity 94oh6aU4myLjDusK6QeTWEPUc3nm4vYPCsKkdcjYhRLd</Typography>
+    <Typography sx={{ color: 'grey.600' }}>Node identity {details?.mix_node.identity_key}</Typography>
     {mixnodeStatus === 'active' && <ActiveMessage />}
     {mixnodeStatus === 'inactive' && <InActiveMessage />}
     {mixnodeStatus === 'standby' && <StandbyMessage />}

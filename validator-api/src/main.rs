@@ -51,6 +51,7 @@ const MNEMONIC_ARG: &str = "mnemonic";
 const WRITE_CONFIG_ARG: &str = "save-config";
 const NYMD_VALIDATOR_ARG: &str = "nymd-validator";
 const API_VALIDATORS_ARG: &str = "api-validators";
+const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
 
 #[cfg(feature = "coconut")]
 const KEYPAIR_ARG: &str = "keypair";
@@ -149,6 +150,11 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
                 .requires(REWARDING_ENABLED)
+        )
+        .arg(
+            Arg::with_name(TESTNET_MODE_ARG_NAME)
+                .long(TESTNET_MODE_ARG_NAME)
+                .help("Set this validator api to work in a testnet mode that would attempt to use gateway without bandwidth credential requirement")
         );
 
     #[cfg(feature = "coconut")]
@@ -286,6 +292,10 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     #[cfg(not(feature = "coconut"))]
     if let Some(eth_endpoint) = matches.value_of("eth_endpoint") {
         config = config.with_eth_endpoint(String::from(eth_endpoint));
+    }
+
+    if matches.is_present(TESTNET_MODE_ARG_NAME) {
+        config = config.with_testnet_mode(true)
     }
 
     if matches.is_present(WRITE_CONFIG_ARG) {

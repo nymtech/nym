@@ -11,7 +11,7 @@ export const NodeStats = () => {
   }, [])
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} sx={{ p: 4 }}>
       <Typography>All your node stats are available on the link below</Typography>
       <Link
         href={`${urls.networkExplorer}/network-components/mixnodes/5fDCi3xjYbcV8HHMpBvpbrm6ypx4qnsWG9YobQJxgPHP`}

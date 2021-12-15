@@ -5,7 +5,7 @@ import { CheckCircleOutline, CircleOutlined, PauseCircleOutlined } from '@mui/ic
 type TMixnodeStatus = 'active' | 'inactive' | 'standby'
 
 export const Overview = ({ mixnodeStatus }: { mixnodeStatus: TMixnodeStatus }) => (
-  <Stack spacing={3} sx={{ mb: 3 }}>
+  <Stack spacing={3} sx={{ p: 4, pb: 0 }}>
     <Typography sx={{ color: 'grey.600' }}>Node identity 94oh6aU4myLjDusK6QeTWEPUc3nm4vYPCsKkdcjYhRLd</Typography>
     {mixnodeStatus === 'active' && <ActiveMessage />}
     {mixnodeStatus === 'inactive' && <InActiveMessage />}

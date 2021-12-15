@@ -32,12 +32,10 @@ export const Settings = () => {
             Node settings
           </Typography>
           <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} />
-          <TabPanel>
-            <Overview mixnodeStatus="standby" />
-            {selectedTab === 0 && <Profile />}
-            {selectedTab === 1 && <SystemVariables />}
-            {selectedTab === 2 && <NodeStats />}
-          </TabPanel>
+          <Overview mixnodeStatus="standby" />
+          {selectedTab === 0 && <Profile />}
+          {selectedTab === 1 && <SystemVariables />}
+          {selectedTab === 2 && <NodeStats />}
         </>
       </NymCard>
     </Dialog>

@@ -69,7 +69,7 @@ export function mixnodeToGridRow(arrayOfMixnodes: MixNodeResponse): any {
   return !arrayOfMixnodes
     ? []
     : arrayOfMixnodes.map((mn) => {
-        const pledge = Number(mn.bond_amount.amount) || 0;
+        const pledge = Number(mn.pledge_amount.amount) || 0;
         const delegations = Number(mn.total_delegation.amount) || 0;
         const totalBond = pledge + delegations;
         const selfPercentage = ((pledge * 100) / totalBond).toFixed(2);
@@ -96,7 +96,7 @@ export function gatewayToGridRow(
         owner: gw.owner,
         identity_key: gw.gateway.identity_key || '',
         location: gw?.gateway?.location || '',
-        bond: gw.bond_amount.amount || 0,
+        bond: gw.pledge_amount.amount || 0,
         host: gw.gateway.host || '',
       }));
 }

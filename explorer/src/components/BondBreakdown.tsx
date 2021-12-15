@@ -1,6 +1,5 @@
 import * as React from 'react';
-import { printableCoin } from '@nymproject/nym-validator-client';
-import { Alert, CircularProgress, useMediaQuery, Box } from '@mui/material';
+import { Alert, Box, CircularProgress, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -11,6 +10,7 @@ import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import { useMainContext } from 'src/context/main';
 import { ExpandMore } from '@mui/icons-material';
+import { currencyToString } from '../utils/currency';
 
 export const BondBreakdownTable: React.FC = () => {
   const { mixnodeDetailInfo, delegations } = useMainContext();
@@ -34,24 +34,23 @@ export const BondBreakdownTable: React.FC = () => {
       const thisMixnode = mixnodeDetailInfo?.data[0];
 
       // delegations
-      const decimalisedDelegations = printableCoin({
-        amount: thisMixnode.total_delegation.amount.toString(),
-        denom: thisMixnode.total_delegation.denom,
-      });
+      const decimalisedDelegations = currencyToString(
+        thisMixnode.total_delegation.amount.toString(),
+        thisMixnode.total_delegation.denom,
+      );
 
       // pledges
-      const decimalisedPledges = printableCoin({
-        amount: thisMixnode.bond_amount.amount.toString(),
-        denom: thisMixnode.bond_amount.denom,
-      });
+      const decimalisedPledges = currencyToString(
+        thisMixnode.pledge_amount.amount.toString(),
+        thisMixnode.pledge_amount.denom,
+      );
 
       // bonds total (del + pledges)
-      const pledgesSum = Number(thisMixnode.bond_amount.amount);
+      const pledgesSum = Number(thisMixnode.pledge_amount.amount);
       const delegationsSum = Number(thisMixnode.total_delegation.amount);
-      const bondsTotal = printableCoin({
-        amount: (delegationsSum + pledgesSum).toString(),
-        denom: 'upunk',
-      });
+      const bondsTotal = currencyToString(
+        (delegationsSum + pledgesSum).toString(),
+      );
 
       setBonds({
         delegations: decimalisedDelegations,
@@ -89,7 +88,7 @@ export const BondBreakdownTable: React.FC = () => {
         mixnodeDetailInfo.data[0].total_delegation.amount,
       );
       const rawPledgeAmount = Number(
-        mixnodeDetailInfo.data[0].bond_amount.amount,
+        mixnodeDetailInfo.data[0].pledge_amount.amount,
       );
       const rawTotalBondsAmount = rawDelegationAmount + rawPledgeAmount;
       return ((num * 100) / rawTotalBondsAmount).toFixed(1);
@@ -203,7 +202,7 @@ export const BondBreakdownTable: React.FC = () => {
                           {owner}
                         </TableCell>
                         <TableCell align="left">
-                          {printableCoin({ amount: amount.toString(), denom })}
+                          {currencyToString(amount.toString(), denom)}
                         </TableCell>
                         <TableCell align="left">
                           {calcBondPercentage(amount)}%

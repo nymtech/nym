@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { printableCoin } from '@nymproject/nym-validator-client';
 import { Button, Grid, Link as MuiLink, Card } from '@mui/material';
 import { Link as RRDLink } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
@@ -15,6 +14,7 @@ import {
   UniversalDataGrid,
   cellStyles,
 } from 'src/components/Universal-DataGrid';
+import { currencyToString } from '../../utils/currency';
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes } = useMainContext();
@@ -92,21 +92,15 @@ export const PageMixnodes: React.FC = () => {
       headerClassName: 'MuiDataGrid-header-override',
       width: 150,
       headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => {
-        const bondAsPunk = printableCoin({
-          amount: params.value as string,
-          denom: 'upunk',
-        });
-        return (
-          <MuiLink
-            sx={cellStyles}
-            component={RRDLink}
-            to={`/network-components/mixnodes/${params.row.identity_key}`}
-          >
-            {bondAsPunk}
-          </MuiLink>
-        );
-      },
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={cellStyles}
+          component={RRDLink}
+          to={`/network-components/mixnodes/${params.row.identity_key}`}
+        >
+          {currencyToString(params.value)}
+        </MuiLink>
+      ),
     },
     {
       field: 'location',

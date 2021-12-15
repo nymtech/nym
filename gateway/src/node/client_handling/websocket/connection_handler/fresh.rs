@@ -90,6 +90,9 @@ where
 {
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
+    // also at this point I'm not entirely sure how to deal with this warning without
+    // some considerable refactoring
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         rng: R,
         conn: S,

@@ -139,6 +139,9 @@ pub(crate) struct PacketSender {
 }
 
 impl PacketSender {
+    // at this point I'm not entirely sure how to deal with this warning without
+    // some considerable refactoring
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         gateways_status_updater: GatewayClientUpdateSender,
         local_identity: Arc<identity::KeyPair>,

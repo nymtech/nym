@@ -358,7 +358,7 @@ export const BondForm = ({
           )}
           {fees && (
             <Grid item xs={12}>
-              <Typography sx={{ color: 'nym.info' }}>
+              <Typography sx={{ color: 'nym.fee' }}>
                 {' '}
                 {`Bonding fee: ${
                   watchNodeType === EnumNodeType.mixnode ? fees.mixnode.amount : fees?.gateway?.amount

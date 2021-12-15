@@ -3,13 +3,13 @@ import { Tooltip, TooltipProps } from '@mui/material'
 import React from 'react'
 
 export const InfoTooltip = ({
-  text,
+  title,
   placement = 'bottom',
 }: {
-  text: string
+  title: string
   placement?: TooltipProps['placement']
 }) => (
-  <Tooltip title={text} arrow placement={placement}>
+  <Tooltip title={title} arrow placement={placement}>
     <InfoOutlined fontSize="small" />
   </Tooltip>
 )

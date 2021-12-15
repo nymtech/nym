@@ -9,7 +9,7 @@ export const NymCard: React.FC<{
   noPadding?: boolean
 }> = ({ title, subheader, Action, noPadding, children }) => {
   return (
-    <Card variant="outlined">
+    <Card variant="outlined" sx={{ overflow: 'auto' }}>
       <CardHeader
         title={title}
         subheader={subheader}

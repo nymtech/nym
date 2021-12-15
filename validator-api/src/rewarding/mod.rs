@@ -23,22 +23,6 @@ use validator_client::nymd::SigningNymdClient;
 pub(crate) mod epoch;
 pub(crate) mod error;
 
-// the actual base cost is around 125_000, but let's give ourselves a bit of safety net in case
-// we introduce some tiny contract changes that would bump that value up
-pub(crate) const MIXNODE_REWARD_OP_BASE_GAS_LIMIT: u64 = 150_000;
-
-// For each delegation reward we perform a read and a write is being executed,
-// which are the most costly parts involved in process. Both of them are ~1000 sdk gas in cost.
-// However, experimentally it looks like first delegation adds total of additional ~3000 of sdk gas
-// cost and each subsequent about ~2500.
-// Therefore, since base cost is not tuned to the bare minimum, let's treat all of delegations as extra
-// 2750 of sdk gas.
-pub(crate) const PER_MIXNODE_DELEGATION_GAS_INCREASE: u64 = 2750;
-
-// Another safety net in case of contract changes,
-// the calculated total gas limit is going to get multiplied by that value.
-pub(crate) const REWARDING_GAS_LIMIT_MULTIPLIER: f64 = 1.05;
-
 struct EpochRewardParams {
     reward_pool: u128,
     circulating_supply: u128,

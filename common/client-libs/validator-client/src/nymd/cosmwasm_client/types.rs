@@ -7,15 +7,19 @@ use crate::nymd::cosmwasm_client::logs::Log;
 use crate::nymd::error::NymdError;
 use cosmrs::crypto::PublicKey;
 use cosmrs::proto::cosmos::auth::v1beta1::BaseAccount;
+use cosmrs::proto::cosmos::base::abci::v1beta1::{
+    GasInfo as ProtoGasInfo, Result as ProtoAbciResult,
+};
+use cosmrs::proto::cosmos::tx::v1beta1::SimulateResponse as ProtoSimulateResponse;
 use cosmrs::proto::cosmwasm::wasm::v1::{
     CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
     ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo,
 };
-use cosmrs::tendermint::chain;
-use cosmrs::tx::{AccountNumber, SequenceNumber};
+use cosmrs::tendermint::{abci, chain};
+use cosmrs::tx::{AccountNumber, Gas, SequenceNumber};
 use cosmrs::{tx, AccountId, Coin};
 use serde::Serialize;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 pub type ContractCodeId = u64;
 
@@ -215,6 +219,101 @@ impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
     }
 }
 
+#[derive(Debug)]
+pub struct GasInfo {
+    /// GasWanted is the maximum units of work we allow this tx to perform.
+    pub gas_wanted: Gas,
+
+    /// GasUsed is the amount of gas actually consumed.
+    pub gas_used: Gas,
+}
+
+impl From<ProtoGasInfo> for GasInfo {
+    fn from(value: ProtoGasInfo) -> Self {
+        GasInfo {
+            gas_wanted: value.gas_wanted.into(),
+            gas_used: value.gas_used.into(),
+        }
+    }
+}
+
+impl GasInfo {
+    pub fn new(gas_wanted: Gas, gas_used: Gas) -> Self {
+        GasInfo {
+            gas_wanted,
+            gas_used,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct AbciResult {
+    /// Data is any data returned from message or handler execution. It MUST be
+    /// length prefixed in order to separate data from multiple message executions.
+    pub data: Vec<u8>,
+
+    /// Log contains the log information from message or handler execution.
+    // todo: try to parse into Log?
+    pub log: String,
+
+    /// Events contains a slice of Event objects that were emitted during message
+    /// or handler execution.
+    pub events: Vec<abci::Event>,
+}
+
+impl TryFrom<ProtoAbciResult> for AbciResult {
+    type Error = NymdError;
+
+    fn try_from(value: ProtoAbciResult) -> Result<Self, Self::Error> {
+        let mut events = Vec::with_capacity(value.events.len());
+
+        for proto_event in value.events.into_iter() {
+            let type_str = proto_event.r#type;
+
+            let mut attributes = Vec::with_capacity(proto_event.attributes.len());
+            for proto_attribute in proto_event.attributes.into_iter() {
+                let stringified_ked = String::from_utf8(proto_attribute.key)
+                    .map_err(|_| NymdError::DeserializationError("EventAttributeKey".to_owned()))?;
+                let stringified_value = String::from_utf8(proto_attribute.value)
+                    .map_err(|_| NymdError::DeserializationError("EventAttributeKey".to_owned()))?;
+
+                attributes.push(abci::tag::Tag {
+                    key: stringified_ked.parse().unwrap(),
+                    value: stringified_value.parse().unwrap(),
+                })
+            }
+
+            events.push(abci::Event {
+                type_str,
+                attributes,
+            })
+        }
+
+        Ok(AbciResult {
+            data: value.data,
+            log: value.log,
+            events,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct SimulateResponse {
+    pub gas_info: Option<GasInfo>,
+    pub result: Option<AbciResult>,
+}
+
+impl TryFrom<ProtoSimulateResponse> for SimulateResponse {
+    type Error = NymdError;
+
+    fn try_from(value: ProtoSimulateResponse) -> Result<Self, Self::Error> {
+        Ok(SimulateResponse {
+            gas_info: value.gas_info.map(|gas_info| gas_info.into()),
+            result: value.result.map(|result| result.try_into()).transpose()?,
+        })
+    }
+}
+
 // ##############################################################################
 // types specific to the signing client (perhaps they should go to separate file)
 // ##############################################################################
@@ -248,6 +347,8 @@ pub struct UploadResult {
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: tx::Hash,
+
+    pub gas_info: GasInfo,
 }
 
 #[derive(Debug)]
@@ -274,6 +375,8 @@ pub struct InstantiateResult {
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: tx::Hash,
+
+    pub gas_info: GasInfo,
 }
 
 #[derive(Debug)]
@@ -282,6 +385,8 @@ pub struct ChangeAdminResult {
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: tx::Hash,
+
+    pub gas_info: GasInfo,
 }
 
 #[derive(Debug)]
@@ -290,6 +395,8 @@ pub struct MigrateResult {
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: tx::Hash,
+
+    pub gas_info: GasInfo,
 }
 
 #[derive(Debug)]
@@ -298,4 +405,6 @@ pub struct ExecuteResult {
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: tx::Hash,
+
+    pub gas_info: GasInfo,
 }

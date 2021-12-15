@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::rewarding::{
-    error::RewardingError, MixnodeToReward, MIXNODE_REWARD_OP_BASE_GAS_LIMIT,
-    PER_MIXNODE_DELEGATION_GAS_INCREASE, REWARDING_GAS_LIMIT_MULTIPLIER,
-};
+use crate::rewarding::{error::RewardingError, MixnodeToReward};
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract::{
     ContractStateParams, Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond,
@@ -211,19 +208,6 @@ impl<C> Client<C> {
             .await
     }
 
-    async fn estimate_mixnode_reward_fees(&self, nodes: usize, total_delegations: usize) -> Fee {
-        let base_gas_limit = MIXNODE_REWARD_OP_BASE_GAS_LIMIT * nodes as u64
-            + PER_MIXNODE_DELEGATION_GAS_INCREASE * total_delegations as u64;
-
-        let total_gas_limit = (base_gas_limit as f64 * REWARDING_GAS_LIMIT_MULTIPLIER) as u64;
-
-        self.0
-            .read()
-            .await
-            .nymd
-            .calculate_custom_fee(total_gas_limit)
-    }
-
     pub(crate) async fn begin_mixnode_rewarding(
         &self,
         rewarding_interval_nonce: u32,
@@ -269,15 +253,13 @@ impl<C> Client<C> {
         let further_calls = node.total_delegations / MIXNODE_DELEGATORS_PAGE_LIMIT;
 
         // start with the base call to reward operator and first page of delegators
-        let fee = self
-            .estimate_mixnode_reward_fees(1, MIXNODE_DELEGATORS_PAGE_LIMIT)
-            .await;
         let msgs = vec![(node.to_reward_execute_msg(rewarding_interval_nonce), vec![])];
         let memo = format!(
             "operator + {} delegators rewarding",
             MIXNODE_DELEGATORS_PAGE_LIMIT
         );
-        self.execute_multiple_with_retry(msgs, fee, memo).await?;
+        self.execute_multiple_with_retry(msgs, Default::default(), memo)
+            .await?;
 
         // reward rest of delegators
         let mut remaining_delegators = node.total_delegations - MIXNODE_DELEGATORS_PAGE_LIMIT;
@@ -287,12 +269,10 @@ impl<C> Client<C> {
         );
         for _ in 0..further_calls {
             let delegators_in_call = remaining_delegators.min(MIXNODE_DELEGATORS_PAGE_LIMIT);
-            let fee = self
-                .estimate_mixnode_reward_fees(1, delegators_in_call)
-                .await;
             let msgs = vec![delegator_rewarding_msg.clone()];
             let memo = format!("rewarding another {} delegators", delegators_in_call);
-            self.execute_multiple_with_retry(msgs, fee, memo).await?;
+            self.execute_multiple_with_retry(msgs, Default::default(), memo)
+                .await?;
 
             remaining_delegators -= MIXNODE_DELEGATORS_PAGE_LIMIT;
         }
@@ -310,16 +290,13 @@ impl<C> Client<C> {
     {
         // the fee is a tricky subject here because we don't know exactly how many delegators we missed,
         // let's aim for the worst case scenario and assume it was the entire page
-        let fee = self
-            .estimate_mixnode_reward_fees(1, MIXNODE_DELEGATORS_PAGE_LIMIT)
-            .await;
         let delegator_rewarding_msg = (
             node.to_next_delegator_reward_execute_msg(rewarding_interval_nonce),
             vec![],
         );
 
         let memo = "rewarding delegators".to_string();
-        self.execute_multiple_with_retry(vec![delegator_rewarding_msg], fee, memo)
+        self.execute_multiple_with_retry(vec![delegator_rewarding_msg], Default::default(), memo)
             .await
     }
 
@@ -331,10 +308,6 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let total_delegations = nodes.iter().map(|node| node.total_delegations).sum();
-        let fee = self
-            .estimate_mixnode_reward_fees(nodes.len(), total_delegations)
-            .await;
         let msgs: Vec<(ExecuteMsg, _)> = nodes
             .iter()
             .map(|node| node.to_reward_execute_msg(rewarding_interval_nonce))
@@ -343,7 +316,8 @@ impl<C> Client<C> {
 
         let memo = format!("rewarding {} mixnodes", msgs.len());
 
-        self.execute_multiple_with_retry(msgs, fee, memo).await
+        self.execute_multiple_with_retry(msgs, Default::default(), memo)
+            .await
     }
 
     async fn execute_multiple_with_retry<M>(

@@ -22,6 +22,8 @@ jobs:
         node-version: '14'
     - run: npm install
       continue-on-error: true
+    - name: Set environment from the example
+      run: cp .env.prod .env
     - run: npm run test
       continue-on-error: true
     - run: npm run build

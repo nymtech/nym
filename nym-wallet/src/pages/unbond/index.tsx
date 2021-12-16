@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react'
-import { Alert, Box, Button, CircularProgress, Theme } from '@mui/material'
+import { Alert, Box, Button, CircularProgress } from '@mui/material'
 import { NymCard } from '../../components'
 import { Layout } from '../../layouts'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
@@ -31,8 +31,9 @@ export const Unbond = () => {
                 disabled={isLoading}
                 onClick={async () => {
                   setIsLoading(true)
-                  await unbond(ownership.nodeType!)
-                  userBalance.fetchBalance()
+                  await unbond(ownership.nodeType)
+                  await userBalance.fetchBalance()
+                  await checkOwnership()
                   setIsLoading(false)
                 }}
               >

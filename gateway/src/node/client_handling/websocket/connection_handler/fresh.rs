@@ -113,6 +113,14 @@ where
         }
     }
 
+    /// Check that the local identity matches a given identity.
+    pub(crate) fn check_local_identity(
+        &self,
+        identity: &crypto::asymmetric::identity::PublicKey,
+    ) -> bool {
+        self.local_identity.public_key().eq(identity)
+    }
+
     /// Attempts to perform websocket handshake with the remote and upgrades the raw TCP socket
     /// to the framed WebSocket.
     pub(crate) async fn perform_websocket_handshake(&mut self) -> Result<(), WsError>

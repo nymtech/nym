@@ -229,15 +229,23 @@ where
             &self.client.shared_keys,
             iv,
         )?;
+        debug!("Received bandwidth increase request.");
+        debug!("Verifying the credential refers to this gateway");
+        if !self
+            .inner
+            .check_local_identity(&credential.gateway_identity())
+        {
+            return Err(RequestHandlingError::InvalidBandwidthCredential);
+        }
 
-        debug!("Received bandwidth increase request. Verifying signature");
+        debug!("Verifying signature");
         if !credential.verify_signature() {
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
         debug!("Verifying Ethereum for token burn...");
         self.inner
             .erc20_bridge
-            .verify_eth_events(credential.verification_key())
+            .verify_eth_events(credential.verification_key(), self.inner.lo)
             .await?;
         debug!("Claim the token on Cosmos, to make sure it's not spent twice...");
         self.inner.erc20_bridge.claim_token(&credential).await?;

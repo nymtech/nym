@@ -56,3 +56,4 @@ coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coco
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }

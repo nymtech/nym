@@ -15,7 +15,7 @@ use crate::storage::ValidatorApiStorage;
 use ::config::NymConfig;
 use anyhow::Result;
 use cache::ValidatorCache;
-use clap::{App, Arg, ArgMatches};
+use clap::{crate_version, App, Arg, ArgMatches};
 use log::{info, warn};
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
@@ -78,13 +78,46 @@ fn parse_validators(raw: &str) -> Vec<Url> {
         .collect()
 }
 
+fn long_version() -> String {
+    format!(
+        r#"
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+"#,
+        "Build Timestamp:",
+        env!("VERGEN_BUILD_TIMESTAMP"),
+        "Build Version:",
+        env!("VERGEN_BUILD_SEMVER"),
+        "Commit SHA:",
+        env!("VERGEN_GIT_SHA"),
+        "Commit Date:",
+        env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
+        "Commit Branch:",
+        env!("VERGEN_GIT_BRANCH"),
+        "rustc Version:",
+        env!("VERGEN_RUSTC_SEMVER"),
+        "rustc Channel:",
+        env!("VERGEN_RUSTC_CHANNEL"),
+        "cargo Profile:",
+        env!("VERGEN_CARGO_PROFILE"),
+    )
+}
+
 fn parse_args<'a>() -> ArgMatches<'a> {
     #[cfg(feature = "coconut")]
     let monitor_reqs = &[];
     #[cfg(not(feature = "coconut"))]
     let monitor_reqs = &[ETH_ENDPOINT, ETH_PRIVATE_KEY];
-
+    let build_details = long_version();
     let base_app = App::new("Nym Validator API")
+        .version(crate_version!())
+        .long_version(&*build_details)
         .author("Nymtech")
         .arg(
             Arg::with_name(MONITORING_ENABLED)
@@ -407,12 +440,8 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    setup_logging();
+async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     let system_version = env!("CARGO_PKG_VERSION");
-
-    println!("Starting validator api...");
 
     // try to load config from the file, if it doesn't exist, use default values
     let config = match Config::load_from_file(None) {
@@ -429,8 +458,6 @@ async fn main() -> Result<()> {
             Config::new()
         }
     };
-
-    let matches = parse_args();
 
     let config = override_config(config, &matches);
     // if we just wanted to write data to the config, exit
@@ -516,4 +543,13 @@ async fn main() -> Result<()> {
     shutdown_handle.notify();
 
     Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    println!("Starting validator api...");
+
+    setup_logging();
+    let args = parse_args();
+    run_validator_api(args).await
 }

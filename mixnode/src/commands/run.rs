@@ -112,7 +112,7 @@ fn version_check(cfg: &Config) -> bool {
     }
 }
 
-pub fn execute(matches: &ArgMatches) {
+pub async fn execute(matches: ArgMatches<'static>) {
     let id = matches.value_of(ID_ARG_NAME).unwrap();
 
     println!("Starting mixnode {}...", id);
@@ -125,7 +125,7 @@ pub fn execute(matches: &ArgMatches) {
         }
     };
 
-    config = override_config(config, matches);
+    config = override_config(config, &matches);
 
     if !version_check(&config) {
         error!("failed the local version check");
@@ -168,5 +168,7 @@ pub fn execute(matches: &ArgMatches) {
         config.get_announce_address(),
         config.get_version(),
     );
-    MixNode::new(config, description, identity_keypair, sphinx_keypair).run();
+    MixNode::new(config, description, identity_keypair, sphinx_keypair)
+        .run()
+        .await;
 }

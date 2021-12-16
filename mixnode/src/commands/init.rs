@@ -7,7 +7,6 @@ use crate::config::Config;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
-use tokio::runtime::Runtime;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -99,59 +98,56 @@ fn show_bonding_info(config: &Config) {
     );
 }
 
-pub fn execute(matches: &ArgMatches) {
+pub async fn execute(matches: ArgMatches<'static>) {
     // TODO: this should probably be made implicit by slapping `#[tokio::main]` on our main method
     // and then removing runtime from mixnode itself in `run`
-    let rt = Runtime::new().unwrap();
-    rt.block_on(async {
-        let id = matches.value_of(ID_ARG_NAME).unwrap();
-        println!("Initialising mixnode {}...", id);
+    let id = matches.value_of(ID_ARG_NAME).unwrap();
+    println!("Initialising mixnode {}...", id);
 
-        let already_init = if Config::default_config_file_path(Some(id)).exists() {
-            println!("Mixnode \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
-            true
-        } else {
-            false
-        };
+    let already_init = if Config::default_config_file_path(Some(id)).exists() {
+        println!("Mixnode \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
+        true
+    } else {
+        false
+    };
 
-        let mut config = Config::new(id);
-        config = override_config(config, matches);
+    let mut config = Config::new(id);
+    config = override_config(config, &matches);
 
-        // if node was already initialised, don't generate new keys
-        if !already_init {
-            let mut rng = rand::rngs::OsRng;
+    // if node was already initialised, don't generate new keys
+    if !already_init {
+        let mut rng = rand::rngs::OsRng;
 
-            let identity_keys = identity::KeyPair::new(&mut rng);
-            let sphinx_keys = encryption::KeyPair::new(&mut rng);
-            let pathfinder = MixNodePathfinder::new_from_config(&config);
-            pemstore::store_keypair(
-                &identity_keys,
-                &pemstore::KeyPairPath::new(
-                    pathfinder.private_identity_key().to_owned(),
-                    pathfinder.public_identity_key().to_owned(),
-                ),
-            )
-                .expect("Failed to save identity keys");
+        let identity_keys = identity::KeyPair::new(&mut rng);
+        let sphinx_keys = encryption::KeyPair::new(&mut rng);
+        let pathfinder = MixNodePathfinder::new_from_config(&config);
+        pemstore::store_keypair(
+            &identity_keys,
+            &pemstore::KeyPairPath::new(
+                pathfinder.private_identity_key().to_owned(),
+                pathfinder.public_identity_key().to_owned(),
+            ),
+        )
+        .expect("Failed to save identity keys");
 
-            pemstore::store_keypair(
-                &sphinx_keys,
-                &pemstore::KeyPairPath::new(
-                    pathfinder.private_encryption_key().to_owned(),
-                    pathfinder.public_encryption_key().to_owned(),
-                ),
-            )
-                .expect("Failed to save sphinx keys");
+        pemstore::store_keypair(
+            &sphinx_keys,
+            &pemstore::KeyPairPath::new(
+                pathfinder.private_encryption_key().to_owned(),
+                pathfinder.public_encryption_key().to_owned(),
+            ),
+        )
+        .expect("Failed to save sphinx keys");
 
-            println!("Saved mixnet identity and sphinx keypairs");
-        }
+        println!("Saved mixnet identity and sphinx keypairs");
+    }
 
-        let config_save_location = config.get_config_file_save_location();
-        config
-            .save_to_file(None)
-            .expect("Failed to save the config file");
-        println!("Saved configuration file to {:?}", config_save_location);
-        println!("Mixnode configuration completed.\n\n\n");
+    let config_save_location = config.get_config_file_save_location();
+    config
+        .save_to_file(None)
+        .expect("Failed to save the config file");
+    println!("Saved configuration file to {:?}", config_save_location);
+    println!("Mixnode configuration completed.\n\n\n");
 
-        show_bonding_info(&config)
-    })
+    show_bonding_info(&config)
 }

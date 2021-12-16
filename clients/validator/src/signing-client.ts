@@ -1,265 +1,467 @@
 import {
-    ExecuteResult,
-    InstantiateOptions,
-    InstantiateResult,
-    MigrateResult,
-    SigningCosmWasmClient,
-    SigningCosmWasmClientOptions,
-    UploadResult
-} from "@cosmjs/cosmwasm-stargate";
+  ExecuteResult,
+  InstantiateOptions,
+  InstantiateResult,
+  MigrateResult,
+  SigningCosmWasmClient,
+  SigningCosmWasmClientOptions,
+  UploadResult,
+} from '@cosmjs/cosmwasm-stargate';
+import { DirectSecp256k1HdWallet, EncodeObject } from '@cosmjs/proto-signing';
+import { Coin, DeliverTxResponse, SignerData, StdFee } from '@cosmjs/stargate';
+import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
+import { ChangeAdminResult } from '@cosmjs/cosmwasm-stargate/build/signingcosmwasmclient';
+import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
+import { nymGasPrice } from './stargate-helper';
+import { IQueryClient } from './query-client';
+import NymdQuerier from './nymd-querier';
 import {
-    ContractStateParams,
-    Delegation,
-    Gateway,
-    GatewayBond,
-    GatewayOwnershipResponse,
-    LayerDistribution,
-    MixnetContractVersion,
-    MixNode,
-    MixNodeBond,
-    MixOwnershipResponse,
-    PagedAllDelegationsResponse,
-    PagedDelegatorDelegationsResponse,
-    PagedGatewayResponse,
-    PagedMixDelegationsResponse,
-    PagedMixnodeResponse,
-    RewardingIntervalResponse,
-    RewardingStatus
-} from "./types";
-import {DirectSecp256k1HdWallet, EncodeObject} from "@cosmjs/proto-signing";
-import {Coin, DeliverTxResponse, SignerData, StdFee} from "@cosmjs/stargate";
-import {nymGasPrice} from "./stargate-helper"
-import {IQueryClient} from "./query-client";
-import {Tendermint34Client} from "@cosmjs/tendermint-rpc";
-import NymdQuerier from "./nymd-querier";
-import {ChangeAdminResult} from "@cosmjs/cosmwasm-stargate/build/signingcosmwasmclient";
-import {TxRaw} from "cosmjs-types/cosmos/tx/v1beta1/tx";
-import ValidatorApiQuerier from "./validator-api-querier";
+  ContractStateParams,
+  Delegation,
+  Gateway,
+  GatewayBond,
+  GatewayOwnershipResponse,
+  LayerDistribution,
+  MixnetContractVersion,
+  MixNode,
+  MixNodeBond,
+  MixOwnershipResponse,
+  PagedAllDelegationsResponse,
+  PagedDelegatorDelegationsResponse,
+  PagedGatewayResponse,
+  PagedMixDelegationsResponse,
+  PagedMixnodeResponse,
+  RewardingIntervalResponse,
+  RewardingStatus,
+} from './types';
+import ValidatorApiQuerier from './validator-api-querier';
 
 // methods exposed by `SigningCosmWasmClient`
 export interface ICosmWasmSigning {
-    simulate(signerAddress: string, messages: readonly EncodeObject[], memo: string | undefined): Promise<number>;
+  simulate(signerAddress: string, messages: readonly EncodeObject[], memo: string | undefined): Promise<number>;
 
-    upload(senderAddress: string, wasmCode: Uint8Array, fee: StdFee | "auto" | number, memo?: string): Promise<UploadResult>;
+  upload(
+    senderAddress: string,
+    wasmCode: Uint8Array,
+    fee: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<UploadResult>;
 
-    instantiate(senderAddress: string, codeId: number, msg: Record<string, unknown>, label: string, fee: StdFee | "auto" | number, options?: InstantiateOptions): Promise<InstantiateResult>;
+  instantiate(
+    senderAddress: string,
+    codeId: number,
+    msg: Record<string, unknown>,
+    label: string,
+    fee: StdFee | 'auto' | number,
+    options?: InstantiateOptions,
+  ): Promise<InstantiateResult>;
 
-    updateAdmin(senderAddress: string, contractAddress: string, newAdmin: string, fee: StdFee | "auto" | number, memo?: string): Promise<ChangeAdminResult>;
+  updateAdmin(
+    senderAddress: string,
+    contractAddress: string,
+    newAdmin: string,
+    fee: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<ChangeAdminResult>;
 
-    clearAdmin(senderAddress: string, contractAddress: string, fee: StdFee | "auto" | number, memo?: string): Promise<ChangeAdminResult>;
+  clearAdmin(
+    senderAddress: string,
+    contractAddress: string,
+    fee: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<ChangeAdminResult>;
 
-    migrate(senderAddress: string, contractAddress: string, codeId: number, migrateMsg: Record<string, unknown>, fee: StdFee | "auto" | number, memo?: string): Promise<MigrateResult>;
+  migrate(
+    senderAddress: string,
+    contractAddress: string,
+    codeId: number,
+    migrateMsg: Record<string, unknown>,
+    fee: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<MigrateResult>;
 
-    execute(senderAddress: string, contractAddress: string, msg: Record<string, unknown>, fee: StdFee | "auto" | number, memo?: string, funds?: readonly Coin[]): Promise<ExecuteResult>;
+  execute(
+    senderAddress: string,
+    contractAddress: string,
+    msg: Record<string, unknown>,
+    fee: StdFee | 'auto' | number,
+    memo?: string,
+    funds?: readonly Coin[],
+  ): Promise<ExecuteResult>;
 
-    sendTokens(senderAddress: string, recipientAddress: string, amount: readonly Coin[], fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse>;
+  sendTokens(
+    senderAddress: string,
+    recipientAddress: string,
+    amount: readonly Coin[],
+    fee: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<DeliverTxResponse>;
 
-    delegateTokens(delegatorAddress: string, validatorAddress: string, amount: Coin, fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse>;
+  delegateTokens(
+    delegatorAddress: string,
+    validatorAddress: string,
+    amount: Coin,
+    fee: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<DeliverTxResponse>;
 
-    undelegateTokens(delegatorAddress: string, validatorAddress: string, amount: Coin, fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse>;
+  undelegateTokens(
+    delegatorAddress: string,
+    validatorAddress: string,
+    amount: Coin,
+    fee: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<DeliverTxResponse>;
 
-    withdrawRewards(delegatorAddress: string, validatorAddress: string, fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse>;
+  withdrawRewards(
+    delegatorAddress: string,
+    validatorAddress: string,
+    fee: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<DeliverTxResponse>;
 
-    signAndBroadcast(signerAddress: string, messages: readonly EncodeObject[], fee: StdFee | "auto" | number, memo?: string): Promise<DeliverTxResponse>;
+  signAndBroadcast(
+    signerAddress: string,
+    messages: readonly EncodeObject[],
+    fee: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<DeliverTxResponse>;
 
-    sign(signerAddress: string, messages: readonly EncodeObject[], fee: StdFee, memo: string, explicitSignerData?: SignerData): Promise<TxRaw>;
+  sign(
+    signerAddress: string,
+    messages: readonly EncodeObject[],
+    fee: StdFee,
+    memo: string,
+    explicitSignerData?: SignerData,
+  ): Promise<TxRaw>;
 }
 
 export interface INymSigning {
-    clientAddress: string;
+  clientAddress: string;
 }
 
 export interface ISigningClient extends IQueryClient, ICosmWasmSigning, INymSigning {
-    bondMixNode(mixnetContractAddress: string, mixNode: MixNode, ownerSignature: string, pledge: Coin, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+  bondMixNode(
+    mixnetContractAddress: string,
+    mixNode: MixNode,
+    ownerSignature: string,
+    pledge: Coin,
+    fee?: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<ExecuteResult>;
 
-    unbondMixNode(mixnetContractAddress: string, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+  unbondMixNode(mixnetContractAddress: string, fee?: StdFee | 'auto' | number, memo?: string): Promise<ExecuteResult>;
 
-    bondGateway(mixnetContractAddress: string, gateway: Gateway, ownerSignature: string, pledge: Coin, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+  bondGateway(
+    mixnetContractAddress: string,
+    gateway: Gateway,
+    ownerSignature: string,
+    pledge: Coin,
+    fee?: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<ExecuteResult>;
 
-    unbondGateway(mixnetContractAddress: string, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+  unbondGateway(mixnetContractAddress: string, fee?: StdFee | 'auto' | number, memo?: string): Promise<ExecuteResult>;
 
-    delegateToMixNode(mixnetContractAddress: string, mixIdentity: string, amount: Coin, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+  delegateToMixNode(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    amount: Coin,
+    fee?: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<ExecuteResult>;
 
-    undelegateFromMixNode(mixnetContractAddress: string, mixIdentity: string, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+  undelegateFromMixNode(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    fee?: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<ExecuteResult>;
 
-    updateContractStateParams(mixnetContractAddress: string, newParams: ContractStateParams, fee?: StdFee | "auto" | number, memo?: string): Promise<ExecuteResult>;
+  updateContractStateParams(
+    mixnetContractAddress: string,
+    newParams: ContractStateParams,
+    fee?: StdFee | 'auto' | number,
+    memo?: string,
+  ): Promise<ExecuteResult>;
 
-    // I don't see any point in exposing rewarding / vesting-related (INSIDE mixnet contract, like "BondMixnodeOnBehalf")
-    // functionalities in our typescript client. However, if for some reason, we find we need them
-    // they're rather trivial to add.
+  // I don't see any point in exposing rewarding / vesting-related (INSIDE mixnet contract, like "BondMixnodeOnBehalf")
+  // functionalities in our typescript client. However, if for some reason, we find we need them
+  // they're rather trivial to add.
 }
 
 export default class SigningClient extends SigningCosmWasmClient implements ISigningClient {
-    private nymdQuerier: NymdQuerier;
-    private validatorApiQuerier: ValidatorApiQuerier;
-    clientAddress: string;
+  private nymdQuerier: NymdQuerier;
 
-    private constructor(
-        clientAddress: string,
-        validatorApiUrl: string,
-        tmClient: Tendermint34Client,
-        wallet: DirectSecp256k1HdWallet,
-        signerOptions: SigningCosmWasmClientOptions,
-    ) {
-        super(tmClient, wallet, signerOptions)
-        this.clientAddress = clientAddress
-        this.nymdQuerier = new NymdQuerier(this)
-        this.validatorApiQuerier = new ValidatorApiQuerier(validatorApiUrl)
-    }
+  private validatorApiQuerier: ValidatorApiQuerier;
 
+  clientAddress: string;
 
-    public static async connectWithNymSigner(
-        wallet: DirectSecp256k1HdWallet,
-        nymdUrl: string,
-        validatorApiUrl: string,
-        prefix: string,
-    ): Promise<SigningClient> {
-        const [{address}] = await wallet.getAccounts();
-        const signerOptions: SigningCosmWasmClientOptions = {
-            gasPrice: nymGasPrice(prefix),
-        };
-        const tmClient = await Tendermint34Client.connect(nymdUrl);
-        return new SigningClient(address, validatorApiUrl, tmClient, wallet, signerOptions);
-    }
+  private constructor(
+    clientAddress: string,
+    validatorApiUrl: string,
+    tmClient: Tendermint34Client,
+    wallet: DirectSecp256k1HdWallet,
+    signerOptions: SigningCosmWasmClientOptions,
+  ) {
+    super(tmClient, wallet, signerOptions);
+    this.clientAddress = clientAddress;
+    this.nymdQuerier = new NymdQuerier(this);
+    this.validatorApiQuerier = new ValidatorApiQuerier(validatorApiUrl);
+  }
 
-    // query related:
+  public static async connectWithNymSigner(
+    wallet: DirectSecp256k1HdWallet,
+    nymdUrl: string,
+    validatorApiUrl: string,
+    prefix: string,
+  ): Promise<SigningClient> {
+    const [{ address }] = await wallet.getAccounts();
+    const signerOptions: SigningCosmWasmClientOptions = {
+      gasPrice: nymGasPrice(prefix),
+    };
+    const tmClient = await Tendermint34Client.connect(nymdUrl);
+    return new SigningClient(address, validatorApiUrl, tmClient, wallet, signerOptions);
+  }
 
-    getContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion> {
-        return this.nymdQuerier.getContractVersion(mixnetContractAddress)
-    }
+  // query related:
 
-    getMixNodesPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
-        return this.nymdQuerier.getMixNodesPaged(mixnetContractAddress, limit, startAfter)
-    }
+  getContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion> {
+    return this.nymdQuerier.getContractVersion(mixnetContractAddress);
+  }
 
-    getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
-        return this.nymdQuerier.getGatewaysPaged(mixnetContractAddress, limit, startAfter)
-    }
+  getMixNodesPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
+    return this.nymdQuerier.getMixNodesPaged(mixnetContractAddress, limit, startAfter);
+  }
 
-    ownsMixNode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse> {
-        return this.nymdQuerier.ownsMixNode(mixnetContractAddress, address)
-    }
+  getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
+    return this.nymdQuerier.getGatewaysPaged(mixnetContractAddress, limit, startAfter);
+  }
 
-    ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
-        return this.nymdQuerier.ownsGateway(mixnetContractAddress, address)
-    }
+  ownsMixNode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse> {
+    return this.nymdQuerier.ownsMixNode(mixnetContractAddress, address);
+  }
 
-    getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
-        return this.nymdQuerier.getStateParams(mixnetContractAddress)
-    }
+  ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
+    return this.nymdQuerier.ownsGateway(mixnetContractAddress, address);
+  }
 
-    getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse> {
-        return this.nymdQuerier.getCurrentRewardingInterval(mixnetContractAddress)
-    }
+  getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
+    return this.nymdQuerier.getStateParams(mixnetContractAddress);
+  }
 
-    getAllNetworkDelegationsPaged(mixnetContractAddress: string, limit?: number, startAfter?: [string, string]): Promise<PagedAllDelegationsResponse> {
-        return this.nymdQuerier.getAllNetworkDelegationsPaged(mixnetContractAddress, limit, startAfter)
-    }
+  getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse> {
+    return this.nymdQuerier.getCurrentRewardingInterval(mixnetContractAddress);
+  }
 
-    getMixNodeDelegationsPaged(mixnetContractAddress: string, mixIdentity: string, limit?: number, startAfter?: string): Promise<PagedMixDelegationsResponse> {
-        return this.nymdQuerier.getMixNodeDelegationsPaged(mixnetContractAddress, mixIdentity, limit, startAfter)
-    }
+  getAllNetworkDelegationsPaged(
+    mixnetContractAddress: string,
+    limit?: number,
+    startAfter?: [string, string],
+  ): Promise<PagedAllDelegationsResponse> {
+    return this.nymdQuerier.getAllNetworkDelegationsPaged(mixnetContractAddress, limit, startAfter);
+  }
 
-    getDelegatorDelegationsPaged(mixnetContractAddress: string, delegator: string, limit?: number, startAfter?: string): Promise<PagedDelegatorDelegationsResponse> {
-        return this.nymdQuerier.getDelegatorDelegationsPaged(mixnetContractAddress, delegator, limit, startAfter)
-    }
+  getMixNodeDelegationsPaged(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedMixDelegationsResponse> {
+    return this.nymdQuerier.getMixNodeDelegationsPaged(mixnetContractAddress, mixIdentity, limit, startAfter);
+  }
 
-    getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation> {
-        return this.nymdQuerier.getDelegationDetails(mixnetContractAddress, mixIdentity, delegator)
-    }
+  getDelegatorDelegationsPaged(
+    mixnetContractAddress: string,
+    delegator: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedDelegatorDelegationsResponse> {
+    return this.nymdQuerier.getDelegatorDelegationsPaged(mixnetContractAddress, delegator, limit, startAfter);
+  }
 
-    getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution> {
-        return this.nymdQuerier.getLayerDistribution(mixnetContractAddress)
-    }
+  getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation> {
+    return this.nymdQuerier.getDelegationDetails(mixnetContractAddress, mixIdentity, delegator);
+  }
 
-    getRewardPool(mixnetContractAddress: string): Promise<string> {
-        return this.nymdQuerier.getRewardPool(mixnetContractAddress)
-    }
+  getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution> {
+    return this.nymdQuerier.getLayerDistribution(mixnetContractAddress);
+  }
 
-    getCirculatingSupply(mixnetContractAddress: string): Promise<string> {
-        return this.nymdQuerier.getCirculatingSupply(mixnetContractAddress)
-    }
+  getRewardPool(mixnetContractAddress: string): Promise<string> {
+    return this.nymdQuerier.getRewardPool(mixnetContractAddress);
+  }
 
-    getEpochRewardPercent(mixnetContractAddress: string): Promise<number> {
-        return this.nymdQuerier.getEpochRewardPercent(mixnetContractAddress)
-    }
+  getCirculatingSupply(mixnetContractAddress: string): Promise<string> {
+    return this.nymdQuerier.getCirculatingSupply(mixnetContractAddress);
+  }
 
-    getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {
-        return this.nymdQuerier.getSybilResistancePercent(mixnetContractAddress)
-    }
+  getEpochRewardPercent(mixnetContractAddress: string): Promise<number> {
+    return this.nymdQuerier.getEpochRewardPercent(mixnetContractAddress);
+  }
 
-    getRewardingStatus(mixnetContractAddress: string, mixIdentity: string, rewardingIntervalNonce: number): Promise<RewardingStatus> {
-        return this.nymdQuerier.getRewardingStatus(mixnetContractAddress, mixIdentity, rewardingIntervalNonce)
-    }
+  getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {
+    return this.nymdQuerier.getSybilResistancePercent(mixnetContractAddress);
+  }
 
-    getCachedGateways(): Promise<GatewayBond[]> {
-        return this.validatorApiQuerier.getCachedGateways()
-    }
+  getRewardingStatus(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    rewardingIntervalNonce: number,
+  ): Promise<RewardingStatus> {
+    return this.nymdQuerier.getRewardingStatus(mixnetContractAddress, mixIdentity, rewardingIntervalNonce);
+  }
 
-    getCachedMixnodes(): Promise<MixNodeBond[]> {
-        return this.validatorApiQuerier.getCachedMixnodes()
-    }
+  getCachedGateways(): Promise<GatewayBond[]> {
+    return this.validatorApiQuerier.getCachedGateways();
+  }
 
-    getActiveMixnodes(): Promise<MixNodeBond[]> {
-        return this.validatorApiQuerier.getActiveMixnodes()
-    }
+  getCachedMixnodes(): Promise<MixNodeBond[]> {
+    return this.validatorApiQuerier.getCachedMixnodes();
+  }
 
-    getRewardedMixnodes(): Promise<MixNodeBond[]> {
-        return this.validatorApiQuerier.getRewardedMixnodes()
-    }
+  getActiveMixnodes(): Promise<MixNodeBond[]> {
+    return this.validatorApiQuerier.getActiveMixnodes();
+  }
 
-    // signing related:
+  getRewardedMixnodes(): Promise<MixNodeBond[]> {
+    return this.validatorApiQuerier.getRewardedMixnodes();
+  }
 
-    bondMixNode(mixnetContractAddress: string, mixNode: MixNode, ownerSignature: string, pledge: Coin, fee: StdFee | "auto" | number = "auto", memo = "Default MixNode Bonding from Typescript"): Promise<ExecuteResult> {
-        return this.execute(this.clientAddress, mixnetContractAddress, {
-            bond_mixnode: {
-                mix_node: mixNode,
-                owner_signature: ownerSignature,
-            }
-        }, fee, memo, [pledge])
-    }
+  // signing related:
 
-    unbondMixNode(mixnetContractAddress: string, fee: StdFee | "auto" | number = "auto", memo = "Default MixNode Unbonding from Typescript"): Promise<ExecuteResult> {
-        return this.execute(this.clientAddress, mixnetContractAddress, {
-            unbond_mixnode: {}
-        }, fee, memo)
-    }
+  bondMixNode(
+    mixnetContractAddress: string,
+    mixNode: MixNode,
+    ownerSignature: string,
+    pledge: Coin,
+    fee: StdFee | 'auto' | number = 'auto',
+    memo = 'Default MixNode Bonding from Typescript',
+  ): Promise<ExecuteResult> {
+    return this.execute(
+      this.clientAddress,
+      mixnetContractAddress,
+      {
+        bond_mixnode: {
+          mix_node: mixNode,
+          owner_signature: ownerSignature,
+        },
+      },
+      fee,
+      memo,
+      [pledge],
+    );
+  }
 
-    bondGateway(mixnetContractAddress: string, gateway: Gateway, ownerSignature: string, pledge: Coin, fee: StdFee | "auto" | number = "auto", memo = "Default Gateway Bonding from Typescript"): Promise<ExecuteResult> {
-        return this.execute(this.clientAddress, mixnetContractAddress, {
-            bond_gateway: {
-                gateway: gateway,
-                owner_signature: ownerSignature,
-            }
-        }, fee, memo, [pledge])
-    }
+  unbondMixNode(
+    mixnetContractAddress: string,
+    fee: StdFee | 'auto' | number = 'auto',
+    memo = 'Default MixNode Unbonding from Typescript',
+  ): Promise<ExecuteResult> {
+    return this.execute(
+      this.clientAddress,
+      mixnetContractAddress,
+      {
+        unbond_mixnode: {},
+      },
+      fee,
+      memo,
+    );
+  }
 
-    unbondGateway(mixnetContractAddress: string, fee: StdFee | "auto" | number = "auto", memo = "Default Gateway Unbonding from Typescript"): Promise<ExecuteResult> {
-        return this.execute(this.clientAddress, mixnetContractAddress, {
-            unbond_gateway: {}
-        }, fee, memo)
-    }
+  bondGateway(
+    mixnetContractAddress: string,
+    gateway: Gateway,
+    ownerSignature: string,
+    pledge: Coin,
+    fee: StdFee | 'auto' | number = 'auto',
+    memo = 'Default Gateway Bonding from Typescript',
+  ): Promise<ExecuteResult> {
+    return this.execute(
+      this.clientAddress,
+      mixnetContractAddress,
+      {
+        bond_gateway: {
+          gateway,
+          owner_signature: ownerSignature,
+        },
+      },
+      fee,
+      memo,
+      [pledge],
+    );
+  }
 
-    delegateToMixNode(mixnetContractAddress: string, mixIdentity: string, amount: Coin, fee: StdFee | "auto" | number = "auto", memo = "Default MixNode Delegation from Typescript"): Promise<ExecuteResult> {
-        return this.execute(this.clientAddress, mixnetContractAddress, {
-            delegate_to_mixnode: {
-                mix_identity: mixIdentity
-            }
-        }, fee, memo, [amount])
-    }
+  unbondGateway(
+    mixnetContractAddress: string,
+    fee: StdFee | 'auto' | number = 'auto',
+    memo = 'Default Gateway Unbonding from Typescript',
+  ): Promise<ExecuteResult> {
+    return this.execute(
+      this.clientAddress,
+      mixnetContractAddress,
+      {
+        unbond_gateway: {},
+      },
+      fee,
+      memo,
+    );
+  }
 
-    undelegateFromMixNode(mixnetContractAddress: string, mixIdentity: string, fee: StdFee | "auto" | number = "auto", memo = "Default MixNode Undelegation from Typescript"): Promise<ExecuteResult> {
-        return this.execute(this.clientAddress, mixnetContractAddress, {
-            undelegate_from_mixnode: {
-                mix_identity: mixIdentity
-            }
-        }, fee, memo)
-    }
+  delegateToMixNode(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    amount: Coin,
+    fee: StdFee | 'auto' | number = 'auto',
+    memo = 'Default MixNode Delegation from Typescript',
+  ): Promise<ExecuteResult> {
+    return this.execute(
+      this.clientAddress,
+      mixnetContractAddress,
+      {
+        delegate_to_mixnode: {
+          mix_identity: mixIdentity,
+        },
+      },
+      fee,
+      memo,
+      [amount],
+    );
+  }
 
-    updateContractStateParams(mixnetContractAddress: string, newParams: ContractStateParams, fee: StdFee | "auto" | number = "auto", memo = "Default Contract State Params Update from Typescript"): Promise<ExecuteResult> {
-        return this.execute(this.clientAddress, mixnetContractAddress, {
-            update_contract_state_params: newParams
-        }, fee, memo)
-    }
+  undelegateFromMixNode(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    fee: StdFee | 'auto' | number = 'auto',
+    memo = 'Default MixNode Undelegation from Typescript',
+  ): Promise<ExecuteResult> {
+    return this.execute(
+      this.clientAddress,
+      mixnetContractAddress,
+      {
+        undelegate_from_mixnode: {
+          mix_identity: mixIdentity,
+        },
+      },
+      fee,
+      memo,
+    );
+  }
 
+  updateContractStateParams(
+    mixnetContractAddress: string,
+    newParams: ContractStateParams,
+    fee: StdFee | 'auto' | number = 'auto',
+    memo = 'Default Contract State Params Update from Typescript',
+  ): Promise<ExecuteResult> {
+    return this.execute(
+      this.clientAddress,
+      mixnetContractAddress,
+      {
+        update_contract_state_params: newParams,
+      },
+      fee,
+      memo,
+    );
+  }
 }

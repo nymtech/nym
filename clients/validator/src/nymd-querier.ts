@@ -3,144 +3,179 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {INymdQuery} from "./query-client";
+import { JsonObject } from '@cosmjs/cosmwasm-stargate/build/queries';
+import { INymdQuery } from './query-client';
 import {
-    ContractStateParams, Delegation,
-    GatewayOwnershipResponse, LayerDistribution,
-    MixnetContractVersion,
-    MixOwnershipResponse,
-    PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedGatewayResponse, PagedMixDelegationsResponse,
-    PagedMixnodeResponse,
-    RewardingIntervalResponse, RewardingStatus
-} from "./types";
-import {JsonObject} from "@cosmjs/cosmwasm-stargate/build/queries";
+  ContractStateParams,
+  Delegation,
+  GatewayOwnershipResponse,
+  LayerDistribution,
+  MixnetContractVersion,
+  MixOwnershipResponse,
+  PagedAllDelegationsResponse,
+  PagedDelegatorDelegationsResponse,
+  PagedGatewayResponse,
+  PagedMixDelegationsResponse,
+  PagedMixnodeResponse,
+  RewardingIntervalResponse,
+  RewardingStatus,
+} from './types';
 
 interface SmartContractQuery {
-    queryContractSmart(address: string, queryMsg: Record<string, unknown>): Promise<JsonObject>;
+  queryContractSmart(address: string, queryMsg: Record<string, unknown>): Promise<JsonObject>;
 }
 
 export default class NymdQuerier implements INymdQuery {
-    client: SmartContractQuery
-    constructor(client: SmartContractQuery) {
-        this.client = client
-    }
+  client: SmartContractQuery;
 
+  constructor(client: SmartContractQuery) {
+    this.client = client;
+  }
 
-    getContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            get_contract_version: {  }
-        });
-    }
+  getContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_contract_version: {},
+    });
+  }
 
-    getMixNodesPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            get_mix_nodes: {
-                limit: limit,
-                start_after: startAfter
-            }
-        })
-    }
+  getMixNodesPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_mix_nodes: {
+        limit,
+        start_after: startAfter,
+      },
+    });
+  }
 
-    getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            get_gateways: {
-                limit: limit,
-                start_after: startAfter
-            }
-        })
-    }
-    ownsMixNode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            owns_mixnode: {
-                address: address,
-            }
-        })
-    }
-    ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            owns_gateway: {
-                address: address,
-            }
-        })
-    }
-    getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            state_params: {},
-        });
-    }
-    getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            current_rewarding_interval: {},
-        })
-    }
+  getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_gateways: {
+        limit,
+        start_after: startAfter,
+      },
+    });
+  }
 
-    getAllNetworkDelegationsPaged(mixnetContractAddress: string, limit?: number, startAfter?: [string, string]): Promise<PagedAllDelegationsResponse> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            get_all_network_delegations: {
-                start_after: startAfter,
-                limit: limit
-            }
-        });
-    }
-    getMixNodeDelegationsPaged(mixnetContractAddress: string, mixIdentity: string, limit?: number, startAfter?: string): Promise<PagedMixDelegationsResponse> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            get_mixnode_delegations: {
-                mix_identity: mixIdentity,
-                start_after: startAfter,
-                limit: limit
-            }
-        });
-    }
-    getDelegatorDelegationsPaged(mixnetContractAddress: string, delegator: string, limit?: number, startAfter?: string): Promise<PagedDelegatorDelegationsResponse> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            get_delegator_delegations: {
-                delegator: delegator,
-                start_after: startAfter,
-                limit: limit
-            }
-        });
-    }
-    getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            get_delegation_details: {
-                mix_identity: mixIdentity,
-                delegator: delegator
-            }
-        });
-    }
+  ownsMixNode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      owns_mixnode: {
+        address,
+      },
+    });
+  }
 
-    getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            layer_distribution: {  }
-        });
-    }
-    getRewardPool(mixnetContractAddress: string): Promise<string> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            get_reward_pool: {  }
-        });
-    }
-    getCirculatingSupply(mixnetContractAddress: string): Promise<string> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            get_circulating_supply: {  }
-        });
-    }
-    getEpochRewardPercent(mixnetContractAddress: string): Promise<number> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            get_epoch_reward_percent: {  }
-        });
-    }
-    getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            get_sybil_resistance_percent: {  }
-        });
-    }
-    getRewardingStatus(mixnetContractAddress: string, mixIdentity: string, rewardingIntervalNonce: number): Promise<RewardingStatus> {
-        return this.client.queryContractSmart(mixnetContractAddress, {
-            get_rewarding_status: {
-                mix_identity: mixIdentity,
-                rewarding_interval_nonce: rewardingIntervalNonce
-            }
-        });
-    }
+  ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      owns_gateway: {
+        address,
+      },
+    });
+  }
+
+  getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      state_params: {},
+    });
+  }
+
+  getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      current_rewarding_interval: {},
+    });
+  }
+
+  getAllNetworkDelegationsPaged(
+    mixnetContractAddress: string,
+    limit?: number,
+    startAfter?: [string, string],
+  ): Promise<PagedAllDelegationsResponse> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_all_network_delegations: {
+        start_after: startAfter,
+        limit,
+      },
+    });
+  }
+
+  getMixNodeDelegationsPaged(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedMixDelegationsResponse> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_mixnode_delegations: {
+        mix_identity: mixIdentity,
+        start_after: startAfter,
+        limit,
+      },
+    });
+  }
+
+  getDelegatorDelegationsPaged(
+    mixnetContractAddress: string,
+    delegator: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedDelegatorDelegationsResponse> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_delegator_delegations: {
+        delegator,
+        start_after: startAfter,
+        limit,
+      },
+    });
+  }
+
+  getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_delegation_details: {
+        mix_identity: mixIdentity,
+        delegator,
+      },
+    });
+  }
+
+  getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      layer_distribution: {},
+    });
+  }
+
+  getRewardPool(mixnetContractAddress: string): Promise<string> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_reward_pool: {},
+    });
+  }
+
+  getCirculatingSupply(mixnetContractAddress: string): Promise<string> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_circulating_supply: {},
+    });
+  }
+
+  getEpochRewardPercent(mixnetContractAddress: string): Promise<number> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_epoch_reward_percent: {},
+    });
+  }
+
+  getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_sybil_resistance_percent: {},
+    });
+  }
+
+  getRewardingStatus(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    rewardingIntervalNonce: number,
+  ): Promise<RewardingStatus> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_rewarding_status: {
+        mix_identity: mixIdentity,
+        rewarding_interval_nonce: rewardingIntervalNonce,
+      },
+    });
+  }
 }

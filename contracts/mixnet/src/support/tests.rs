@@ -247,10 +247,13 @@ pub mod test_helpers {
         NodeRewardParams::new(
             (INITIAL_REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128,
             50 as u128,
+            25 as u128,
             0,
             TOTAL_SUPPLY - INITIAL_REWARD_POOL,
             uptime,
             DEFAULT_SYBIL_RESISTANCE_PERCENT,
+            true,
+            10,
         )
     }
 

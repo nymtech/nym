@@ -3,6 +3,7 @@
 
 use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
+use crate::nymd::GasPrice;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl};
 use std::convert::TryInto;
 
@@ -23,9 +24,10 @@ where
 pub fn connect_with_signer<U>(
     endpoint: U,
     signer: DirectSecp256k1HdWallet,
+    gas_price: Option<GasPrice>,
 ) -> Result<signing_client::Client, NymdError>
 where
     U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
 {
-    signing_client::Client::connect_with_signer(endpoint, signer)
+    signing_client::Client::connect_with_signer(endpoint, signer, gas_price)
 }

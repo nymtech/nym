@@ -139,7 +139,7 @@ export const ApiList = () => {
       <ListItem>
         <DocEntry
           function={{
-            name: 'get_fee',
+            name: 'get_approximate_fee',
             args: [{ name: 'operation', type: 'str' }],
           }}
         />

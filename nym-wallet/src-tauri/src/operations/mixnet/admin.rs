@@ -1,4 +1,5 @@
-use crate::format_err;
+use crate::client;
+use crate::error::BackendError;
 use crate::state::State;
 use cosmwasm_std::Uint128;
 use mixnet_contract::ContractStateParams;
@@ -14,6 +15,7 @@ pub struct TauriContractStateParams {
   minimum_gateway_pledge: String,
   mixnode_rewarded_set_size: u32,
   mixnode_active_set_size: u32,
+  active_set_work_factor: u8,
 }
 
 impl From<ContractStateParams> for TauriContractStateParams {
@@ -23,12 +25,13 @@ impl From<ContractStateParams> for TauriContractStateParams {
       minimum_gateway_pledge: p.minimum_gateway_pledge.to_string(),
       mixnode_rewarded_set_size: p.mixnode_rewarded_set_size,
       mixnode_active_set_size: p.mixnode_active_set_size,
+      active_set_work_factor: p.active_set_work_factor,
     }
   }
 }
 
 impl TryFrom<TauriContractStateParams> for ContractStateParams {
-  type Error = Box<dyn std::error::Error>;
+  type Error = BackendError;
 
   fn try_from(p: TauriContractStateParams) -> Result<ContractStateParams, Self::Error> {
     Ok(ContractStateParams {
@@ -36,6 +39,7 @@ impl TryFrom<TauriContractStateParams> for ContractStateParams {
       minimum_gateway_pledge: Uint128::try_from(p.minimum_gateway_pledge.as_str())?,
       mixnode_rewarded_set_size: p.mixnode_rewarded_set_size,
       mixnode_active_set_size: p.mixnode_active_set_size,
+      active_set_work_factor: p.active_set_work_factor,
     })
   }
 }
@@ -43,31 +47,18 @@ impl TryFrom<TauriContractStateParams> for ContractStateParams {
 #[tauri::command]
 pub async fn get_contract_settings(
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<TauriContractStateParams, String> {
-  let r_state = state.read().await;
-  let client = r_state.client()?;
-  match client.get_contract_settings().await {
-    Ok(params) => Ok(params.into()),
-    Err(e) => Err(format_err!(e)),
-  }
+) -> Result<TauriContractStateParams, BackendError> {
+  Ok(client!(state).get_contract_settings().await?.into())
 }
 
 #[tauri::command]
 pub async fn update_contract_settings(
   params: TauriContractStateParams,
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<TauriContractStateParams, String> {
-  let r_state = state.read().await;
-  let client = r_state.client()?;
-  let mixnet_contract_settings_params: ContractStateParams = match params.try_into() {
-    Ok(mixnet_contract_settings_params) => mixnet_contract_settings_params,
-    Err(e) => return Err(format_err!(e)),
-  };
-  match client
+) -> Result<TauriContractStateParams, BackendError> {
+  let mixnet_contract_settings_params: ContractStateParams = params.try_into()?;
+  client!(state)
     .update_contract_settings(mixnet_contract_settings_params.clone())
-    .await
-  {
-    Ok(_) => Ok(mixnet_contract_settings_params.into()),
-    Err(e) => Err(format_err!(e)),
-  }
+    .await?;
+  Ok(mixnet_contract_settings_params.into())
 }

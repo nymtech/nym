@@ -1,5 +1,6 @@
 // This should be moved out of the wallet, and used as a primary coin type throughout the codebase
 
+use crate::error::BackendError;
 use ::config::defaults::DENOM;
 use cosmrs::Decimal;
 use cosmrs::Denom as CosmosDenom;
@@ -11,8 +12,6 @@ use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 use validator_client::nymd::{CosmosCoin, GasPrice};
-
-use crate::format_err;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -33,19 +32,16 @@ impl fmt::Display for Denom {
 }
 
 impl FromStr for Denom {
-  type Err = String;
+  type Err = BackendError;
 
-  fn from_str(s: &str) -> Result<Denom, String> {
+  fn from_str(s: &str) -> Result<Denom, BackendError> {
     let s = s.to_lowercase();
     if s == DENOM.to_lowercase() || s == "minor" {
       Ok(Denom::Minor)
     } else if s == DENOM[1..].to_lowercase() || s == "major" {
       Ok(Denom::Major)
     } else {
-      Err(format_err!(format!(
-        "{} is not a valid denomination string",
-        s
-      )))
+      Err(BackendError::InvalidDenom(s))
     }
   }
 }
@@ -169,9 +165,9 @@ impl Coin {
 }
 
 impl TryFrom<Coin> for CosmWasmCoin {
-  type Error = String;
+  type Error = BackendError;
 
-  fn try_from(coin: Coin) -> Result<CosmWasmCoin, String> {
+  fn try_from(coin: Coin) -> Result<CosmWasmCoin, Self::Error> {
     Ok(CosmWasmCoin::new(
       Uint128::try_from(coin.amount.as_str()).unwrap().u128(),
       coin.denom.to_string(),
@@ -180,15 +176,15 @@ impl TryFrom<Coin> for CosmWasmCoin {
 }
 
 impl TryFrom<Coin> for CosmosCoin {
-  type Error = String;
+  type Error = BackendError;
 
-  fn try_from(coin: Coin) -> Result<CosmosCoin, String> {
+  fn try_from(coin: Coin) -> Result<CosmosCoin, BackendError> {
     match Decimal::from_str(&coin.amount) {
       Ok(d) => Ok(CosmosCoin {
         amount: d,
-        denom: CosmosDenom::from_str(&coin.denom.to_string()).unwrap(),
+        denom: CosmosDenom::from_str(&coin.denom.to_string())?,
       }),
-      Err(e) => Err(format_err!(e)),
+      Err(e) => Err(e.into()),
     }
   }
 }

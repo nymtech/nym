@@ -157,8 +157,7 @@ export type StatusResponse = {
 
 export type UptimeTime = {
   date: string;
-  ipv4_uptime: number;
-  ipv6_uptime: number;
+  uptime: number;
 };
 
 export type UptimeStoryResponse = {

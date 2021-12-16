@@ -31,7 +31,7 @@ use std::str::FromStr;
 use web3::{
     contract::{Contract, Options},
     transports::Http,
-    types::{Address, Bytes, H256, U256, U64},
+    types::{Address, Bytes, U256, U64},
     Web3,
 };
 
@@ -198,7 +198,7 @@ impl BandwidthController {
                     U256::from(TOKENS_TO_BURN),
                     U256::from(&verification_key.to_bytes()),
                     Bytes(signed_verification_key.to_bytes().to_vec()),
-                    H256::from([0; 32]),
+                    Bytes(gateway_owner.into_bytes()),
                 ),
                 Options::default(),
                 confirmations,

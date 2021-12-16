@@ -21,6 +21,7 @@ async fn main() {
         .subcommand(commands::run::command_args())
         .subcommand(commands::sign::command_args())
         .subcommand(commands::upgrade::command_args())
+        .subcommand(commands::node_details::command_args())
         .get_matches();
 
     execute(arg_matches).await;
@@ -32,6 +33,7 @@ async fn execute(matches: ArgMatches<'static>) {
         ("run", Some(m)) => commands::run::execute(m.clone()).await,
         ("upgrade", Some(m)) => commands::upgrade::execute(m.clone()).await,
         ("sign", Some(m)) => commands::sign::execute(m),
+        ("node-details", Some(m)) => commands::node_details::execute(m.clone()).await,
         _ => println!("{}", usage()),
     }
 }

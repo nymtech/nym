@@ -6,6 +6,7 @@ use clap::ArgMatches;
 use url::Url;
 
 pub(crate) mod init;
+pub(crate) mod node_details;
 pub(crate) mod run;
 pub(crate) mod sign;
 pub(crate) mod upgrade;

@@ -67,7 +67,6 @@ contract BandwidthGenerator is Ownable {
      */    
     function generateBasicBandwidthCredential(uint256 _amount, uint256 _verificationKey, bytes memory _signedVerificationKey, bytes32 _cosmosRecipient) public {
         require(_signedVerificationKey.length == 64, "BandwidthGenerator: Signature doesn't have 64 bytes");
-        require(_cosmosRecipient.length == 32,       "BandwidthGenerator: Cosmos address doesn't have 32 bytes");
         erc20.transferFrom(msg.sender, address(this), _amount);
         erc20.approve(address(gravityBridge), _amount); 
         gravityBridge.sendToCosmos(

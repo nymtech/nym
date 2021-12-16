@@ -8,9 +8,9 @@ export const Profile = () => {
     <>
       <Box sx={{ p: 4 }}>
         <Stack spacing={3}>
-          <TextField label="Mixnode name" />
-          <TextField multiline label="Mixnode description" rows={3} />
-          <TextField label="Link" />
+          <TextField label="Mixnode name" disabled />
+          <TextField multiline label="Mixnode description" rows={3} disabled />
+          <TextField label="Link" disabled />
         </Stack>
       </Box>
       <Box

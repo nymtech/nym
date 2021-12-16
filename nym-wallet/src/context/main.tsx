@@ -8,7 +8,7 @@ export const { MAJOR_CURRENCY, MINOR_CURRENCY, ADMIN_ADDRESS, NETWORK_NAME } = c
 
 export const urls = {
   blockExplorer: `https://${NETWORK_NAME}-blocks.nymtech.net`,
-  networkExplorer: `https://${NETWORK_NAME}}-explorer.nymtech.net`,
+  networkExplorer: `https://${NETWORK_NAME}-explorer.nymtech.net`,
 }
 
 type TClientContext = {

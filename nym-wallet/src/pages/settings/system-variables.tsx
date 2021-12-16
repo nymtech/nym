@@ -20,7 +20,7 @@ export const SystemVariables = ({ profitMargin }: { profitMargin: number }) => {
           <DataField
             title="Estimated reward"
             info="Estimated reward per epoch for this profit margin if your node is selected in the active set."
-            Indicator={<Typography sx={{ color: 'nym.fee' }}>~ 152,140,028 punk</Typography>}
+            Indicator={<Typography sx={{ color: 'nym.fee', fontWeight: 600 }}>~ 152,140,028 punk</Typography>}
           />
           <Divider />
           <DataField
@@ -77,11 +77,15 @@ const DataField = ({ title, info, Indicator }: { title: string; info: string; In
 
 const PercentIndicator = ({ value }: { value: number }) => {
   return (
-    <Box>
-      <LinearProgress color="inherit" sx={{ color: 'nym.fee' }} variant="determinate" value={value} />
-      <Typography component="span" sx={{ color: 'nym.fee' }}>
-        {value} %
-      </Typography>
-    </Box>
+    <Grid container alignItems="center">
+      <Grid item xs={2}>
+        <Typography component="span" sx={{ color: 'nym.fee', fontWeight: 600 }}>
+          {value}%
+        </Typography>
+      </Grid>
+      <Grid item xs={10}>
+        <LinearProgress color="inherit" sx={{ color: 'nym.fee' }} variant="determinate" value={value} />
+      </Grid>
+    </Grid>
   )
 }

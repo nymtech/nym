@@ -4,6 +4,7 @@
 use crate::commands::*;
 use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
+use crate::node::MixNode;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
@@ -56,47 +57,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         )
-}
-
-fn show_bonding_info(config: &Config) {
-    fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
-        let identity_keypair: identity::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
-                pathfinder.private_identity_key().to_owned(),
-                pathfinder.public_identity_key().to_owned(),
-            ))
-            .expect("Failed to read stored identity key files");
-        identity_keypair
-    }
-
-    fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
-        let sphinx_keypair: encryption::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
-                pathfinder.private_encryption_key().to_owned(),
-                pathfinder.public_encryption_key().to_owned(),
-            ))
-            .expect("Failed to read stored sphinx key files");
-        sphinx_keypair
-    }
-
-    let pathfinder = MixNodePathfinder::new_from_config(config);
-    let identity_keypair = load_identity_keys(&pathfinder);
-    let sphinx_keypair = load_sphinx_keys(&pathfinder);
-
-    println!(
-        "\nTo bond your mixnode you will need to provide the following:
-    Identity key: {}
-    Sphinx key: {}
-    Address: {}
-    Mix port: {}
-    Version: {}
-    ",
-        identity_keypair.public_key().to_base58_string(),
-        sphinx_keypair.public_key().to_base58_string(),
-        config.get_announce_address(),
-        config.get_mix_port(),
-        config.get_version(),
-    );
 }
 
 pub fn execute(matches: &ArgMatches) {
@@ -152,6 +112,6 @@ pub fn execute(matches: &ArgMatches) {
         println!("Saved configuration file to {:?}", config_save_location);
         println!("Mixnode configuration completed.\n\n\n");
 
-        show_bonding_info(&config)
+        MixNode::new(config).print_node_details()
     })
 }

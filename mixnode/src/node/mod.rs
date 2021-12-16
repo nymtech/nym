@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::http::{
     description::description,
@@ -14,6 +15,7 @@ use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::NodeStatsWrapper;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
+use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
@@ -41,18 +43,57 @@ pub struct MixNode {
 }
 
 impl MixNode {
-    pub fn new(
-        config: Config,
-        descriptor: NodeDescription,
-        identity_keypair: identity::KeyPair,
-        sphinx_keypair: encryption::KeyPair,
-    ) -> Self {
+    pub fn new(config: Config) -> Self {
+        let pathfinder = MixNodePathfinder::new_from_config(&config);
+
         MixNode {
+            descriptor: Self::load_node_description(&config),
+            identity_keypair: Arc::new(Self::load_identity_keys(&pathfinder)),
+            sphinx_keypair: Arc::new(Self::load_sphinx_keys(&pathfinder)),
             config,
-            descriptor,
-            identity_keypair: Arc::new(identity_keypair),
-            sphinx_keypair: Arc::new(sphinx_keypair),
         }
+    }
+
+    fn load_node_description(config: &Config) -> NodeDescription {
+        NodeDescription::load_from_file(Config::default_config_directory(Some(&config.get_id())))
+            .unwrap_or_default()
+    }
+
+    fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
+        let identity_keypair: identity::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_identity_key().to_owned(),
+                pathfinder.public_identity_key().to_owned(),
+            ))
+            .expect("Failed to read stored identity key files");
+        identity_keypair
+    }
+
+    fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
+        let sphinx_keypair: encryption::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_encryption_key().to_owned(),
+                pathfinder.public_encryption_key().to_owned(),
+            ))
+            .expect("Failed to read stored sphinx key files");
+        sphinx_keypair
+    }
+
+    pub(crate) fn print_node_details(&self) {
+        println!(
+            "Identity Key: {}",
+            self.identity_keypair.public_key().to_base58_string()
+        );
+        println!(
+            "Sphinx Key: {}",
+            self.sphinx_keypair.public_key().to_base58_string()
+        );
+        println!(
+            "Host: {} (bind address: {})",
+            self.config.get_announce_address(),
+            self.config.get_listening_address()
+        );
+        println!("Version: {}", self.config.get_version());
     }
 
     fn start_http_api(

@@ -4,6 +4,9 @@ use std::time::Duration;
 
 use rocket::serde::json::Json;
 use rocket::{Route, State};
+use rocket_okapi::okapi::openapi3::OpenApi;
+use rocket_okapi::openapi_get_routes_spec;
+use rocket_okapi::settings::OpenApiSettings;
 
 use mixnet_contract::MixNodeBond;
 
@@ -12,8 +15,8 @@ use crate::state::ExplorerApiStateContext;
 
 const CONNECTION_TIMEOUT_SECONDS: Duration = Duration::from_secs(10);
 
-pub fn ping_make_default_routes() -> Vec<Route> {
-    routes_with_openapi![index]
+pub fn ping_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
+    openapi_get_routes_spec![settings: index]
 }
 
 #[openapi(tag = "ping")]

@@ -7,13 +7,14 @@ export interface ClientConfig {
 
 export interface MixNode {
   host: string;
-  location: string;
+  mix_port: number;
+  http_api_port: number;
+  verloc_port: number;
   sphinx_key: string;
   identity_key: string;
   version: string;
-  mix_port: number;
-  verloc_port: number;
-  http_api_port: number;
+  profit_margin_percent: number;
+  location: string;
 }
 
 export interface Gateway {
@@ -32,7 +33,7 @@ export interface Amount {
 }
 
 export interface MixNodeResponseItem {
-  bond_amount: Amount;
+  pledge_amount: Amount;
   total_delegation: Amount;
   owner: string;
   layer: string;
@@ -74,7 +75,7 @@ export type MixNodeHistoryResponse = StatsResponse;
 
 export interface GatewayResponseItem {
   block_height: number;
-  bond_amount: Amount;
+  pledge_amount: Amount;
   total_delegation: Amount;
   owner: string;
   gateway: Gateway;

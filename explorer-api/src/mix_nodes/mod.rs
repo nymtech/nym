@@ -1,3 +1,4 @@
+pub(crate) mod http;
 pub(crate) mod tasks;
 mod utils;
 

@@ -5,18 +5,14 @@ import { Layout } from '../../layouts'
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
 import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
 import { getGasFee, getReverseMixDelegations } from '../../requests'
-import { TFee, TDelegation } from '../../types'
-
-export type TDelegations = {
-  mixnodes: TDelegation
-}
+import { TFee, TPagedDelegations } from '../../types'
 
 export const Undelegate = () => {
   const [message, setMessage] = useState<string>()
   const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial)
   const [isLoading, setIsLoading] = useState(true)
   const [fees, setFees] = useState<TFee>()
-  const [delegations, setDelegations] = useState<TDelegations>()
+  const [pagedDelegations, setPagesDelegations] = useState<TPagedDelegations>()
 
   useEffect(() => {
     initialize()
@@ -35,9 +31,7 @@ export const Undelegate = () => {
         mixnode: mixnodeFee,
       })
 
-      setDelegations({
-        mixnodes: mixnodeDelegations,
-      })
+      setPagesDelegations(mixnodeDelegations)
     } catch {
       setStatus(EnumRequestStatus.error)
       setMessage('An error occured when initialising the page')
@@ -61,10 +55,10 @@ export const Undelegate = () => {
           </Box>
         )}
         <>
-          {status === EnumRequestStatus.initial && fees && delegations && (
+          {status === EnumRequestStatus.initial && fees && pagedDelegations && (
             <UndelegateForm
               fees={fees}
-              delegations={delegations}
+              delegations={pagedDelegations?.delegations}
               onError={(message) => {
                 setMessage(message)
                 setStatus(EnumRequestStatus.error)

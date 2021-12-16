@@ -29,8 +29,15 @@ export type TFee = {
 }
 
 export type TDelegation = {
-  delegated_nodes: string[]
-  delegation_owner: string
+  owner: string
+  node_identity: string
+  amount: Coin
+  block_height: number
+  proxy: string // proxy address used to delegate the funds on behalf of anouther address
+}
+
+export type TPagedDelegations = {
+  delegations: TDelegation[]
   start_next_after: string
 }
 

@@ -1,22 +1,11 @@
 import React, { useContext, useEffect } from 'react'
 import { useForm, Controller } from 'react-hook-form'
-import {
-  Box,
-  Alert,
-  Autocomplete,
-  Button,
-  CircularProgress,
-  FormControl,
-  Grid,
-  TextField,
-  Typography,
-} from '@mui/material'
+import { Box, Autocomplete, Button, CircularProgress, FormControl, Grid, TextField, Typography } from '@mui/material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
-import { EnumNodeType, TFee } from '../../types'
+import { EnumNodeType, TDelegation, TFee } from '../../types'
 import { ClientContext } from '../../context/main'
 import { undelegate } from '../../requests'
-import { TDelegations } from '.'
 
 type TFormData = {
   nodeType: EnumNodeType
@@ -35,7 +24,7 @@ export const UndelegateForm = ({
   onSuccess,
 }: {
   fees: TFee
-  delegations: TDelegations
+  delegations?: TDelegation[]
   onError: (message?: string) => void
   onSuccess: (message?: string) => void
 }) => {
@@ -77,11 +66,11 @@ export const UndelegateForm = ({
             <Controller
               control={control}
               name="identity"
-              render={({ field }) => (
+              render={() => (
                 <Autocomplete
-                  value={field.value}
+                  disabled={isSubmitting}
                   onChange={(_, value) => setValue('identity', value || '')}
-                  options={watchNodeType === EnumNodeType.mixnode ? delegations.mixnodes.delegated_nodes : []}
+                  options={delegations?.map((d) => d.node_identity) || []}
                   renderInput={(params) => (
                     <TextField
                       {...params}

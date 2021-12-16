@@ -12,6 +12,7 @@ import {
   TCreateAccount,
   TDelegation,
   TMixnodeBondDetails,
+  TPagedDelegations,
   TSignInWithMnemonic,
 } from '../types'
 
@@ -74,10 +75,10 @@ export const getContractParams = async (): Promise<TauriContractStateParams> => 
 export const setContractParams = async (params: TauriContractStateParams): Promise<TauriContractStateParams> =>
   await invoke('update_contract_settings', { params })
 
-export const getReverseMixDelegations = async (): Promise<TDelegation> =>
+export const getReverseMixDelegations = async (): Promise<TPagedDelegations> =>
   await invoke('get_reverse_mix_delegations_paged')
 
-export const getReverseGatewayDelegations = async (): Promise<TDelegation> =>
+export const getReverseGatewayDelegations = async (): Promise<TPagedDelegations> =>
   await invoke('get_reverse_gateway_delegations_paged')
 
 export const getMixnodeBondDetails = async (): Promise<TMixnodeBondDetails | null> =>

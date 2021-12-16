@@ -1,25 +1,17 @@
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const FaviconsWebpackPlugin = require('favicons-webpack-plugin')
+const Dotenv = require('dotenv-webpack')
 var path = require('path')
 
 module.exports = {
-  mode: 'development',
   entry: path.resolve(__dirname, '/src/index'),
-  devServer: {
-    port: 9000,
-    compress: true,
-    historyApiFallback: true,
-    hot: true,
-    client: {
-      overlay: false,
-    },
-  },
   plugins: [
     new HtmlWebpackPlugin({
       template: path.resolve(__dirname, 'public/index.html'),
       filename: 'index.html',
     }),
     new FaviconsWebpackPlugin(path.resolve(__dirname, 'public/favicon.ico')),
+    new Dotenv(),
   ],
   module: {
     rules: [

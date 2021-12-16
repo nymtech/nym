@@ -4,22 +4,19 @@ import { minor, valid } from 'semver'
 import { userBalance, majorToMinor } from '../requests'
 import { Coin } from '../types'
 
-export const validateKey = (key: string): boolean => {
+export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key
   try {
     const bytes = bs58.decode(key)
     // of length 32
-    return bytes.length === 32
+    return bytes.length === bytesLength
   } catch (e) {
-    console.log(e)
+    console.error(e)
     return false
   }
 }
 
-export const validateAmount = async (
-  amount: string,
-  minimum: string,
-): Promise<boolean> => {
+export const validateAmount = async (amount: string, minimum: string): Promise<boolean> => {
   // tests basic coin value requirements, like no more than 6 decimal places, value lower than total supply, etc
   if (!Number(amount)) {
     return false
@@ -85,11 +82,9 @@ export const validateLocation = (location: string): boolean => {
   return !location.trim().includes('physical location of your node')
 }
 
-export const validateRawPort = (rawPort: number): boolean =>
-  !isNaN(rawPort) && rawPort >= 1 && rawPort <= 65535
+export const validateRawPort = (rawPort: number): boolean => !isNaN(rawPort) && rawPort >= 1 && rawPort <= 65535
 
-export const truncate = (text: string, trim: number) =>
-  text.substring(0, trim) + '...'
+export const truncate = (text: string, trim: number) => text.substring(0, trim) + '...'
 
 export const checkHasEnoughFunds = async (allocationValue: string) => {
   const minorValue = await majorToMinor(allocationValue)

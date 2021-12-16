@@ -94,6 +94,12 @@ impl MixNode {
             self.config.get_listening_address()
         );
         println!("Version: {}", self.config.get_version());
+        println!(
+            "Mix Port: {}, Verloc port: {}, Http Port: {}",
+            self.config.get_mix_port(),
+            self.config.get_version(),
+            self.config.get_http_api_port()
+        );
     }
 
     fn start_http_api(

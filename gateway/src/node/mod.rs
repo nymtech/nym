@@ -93,6 +93,11 @@ impl Gateway {
             self.config.get_listening_address()
         );
         println!("Version: {}", self.config.get_version());
+        println!(
+            "Mix Port: {}, Clients port: {}",
+            self.config.get_mix_port(),
+            self.config.get_clients_port()
+        );
 
         println!(
             "Data store is at: {:?}",

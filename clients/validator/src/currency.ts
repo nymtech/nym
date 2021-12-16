@@ -1,5 +1,5 @@
 import { Decimal } from '@cosmjs/math';
-import { Coin } from '.';
+import { Coin } from '@cosmjs/stargate';
 
 // NARROW NO-BREAK SPACE (U+202F)
 const thinSpace = '\u202F';

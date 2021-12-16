@@ -19,10 +19,10 @@ use crypto::asymmetric::identity::{PublicKey, Signature};
 use erc20_bridge_contract::msg::ExecuteMsg;
 use erc20_bridge_contract::payment::LinkPaymentData;
 use gateway_client::bandwidth::eth_contract;
-use network_defaults::{COSMOS_CONTRACT_ADDRESS, DENOM, ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
-use validator_client::nymd::{
-    AccountId, CosmosCoin, Decimal, Denom, NymdClient, SigningNymdClient,
+use network_defaults::{
+    COSMOS_CONTRACT_ADDRESS, DEFAULT_MIXNET_CONTRACT_ADDRESS, ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH,
 };
+use validator_client::nymd::{AccountId, NymdClient, SigningNymdClient};
 
 pub(crate) struct ERC20Bridge {
     // This is needed because web3's Contract doesn't sufficiently expose it's eth interface
@@ -42,8 +42,9 @@ impl ERC20Bridge {
             Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
         let nymd_client = NymdClient::connect_with_mnemonic(
             nymd_url.as_ref(),
-            AccountId::from_str(COSMOS_CONTRACT_ADDRESS).ok(),
+            AccountId::from_str(DEFAULT_MIXNET_CONTRACT_ADDRESS).ok(),
             None,
+            AccountId::from_str(COSMOS_CONTRACT_ADDRESS).ok(),
             mnemonic,
             None,
         )

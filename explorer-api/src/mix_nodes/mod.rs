@@ -229,6 +229,7 @@ fn new_nymd_client() -> validator_client::Client<QueryNymdClient> {
         api_url,
         Some(mixnet_contract.parse().unwrap()),
         None,
+        None,
     );
 
     validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!")

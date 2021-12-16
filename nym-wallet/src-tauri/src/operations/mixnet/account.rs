@@ -96,6 +96,7 @@ fn _connect_with_mnemonic(mnemonic: Mnemonic, config: &Config) -> NymdClient<Sig
     config.get_nymd_validator_url().unwrap(),
     Some(AccountId::from_str(&config.get_mixnet_contract_address()).unwrap()),
     None,
+    None,
     mnemonic,
     None,
   ) {

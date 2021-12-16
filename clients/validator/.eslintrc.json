@@ -1,41 +1,83 @@
 {
     "root": true,
-    "parser": "@typescript-eslint/parser",
-    "plugins": [
-        "@typescript-eslint"
-    ],
     "env": {
+        "browser": true,
         "es6": true,
-        "node": true,
-        "mocha": true
+        "node": true
     },
-    "extends": [
-        "eslint:recommended",
-        "plugin:@typescript-eslint/eslint-recommended",
-        "plugin:@typescript-eslint/recommended"
-    ],
     "parserOptions": {
-        "ecmaVersion": 2018,
+        "ecmaVersion": 2019,
         "sourceType": "module"
     },
+    "globals": {
+        "Atomics": "readonly",
+        "SharedArrayBuffer": "readonly"
+    },
+    "plugins": ["prettier", "mocha"],
+    "extends": [
+        "airbnb-base",
+        "airbnb-typescript/base",
+        "prettier"],
     "rules": {
-        "no-console": "off",
-        "linebreak-style": "off",
-        "quotes": [
-            "error",
-            "double",
-            {
-                "allowTemplateLiterals": true
-            }
-        ],
-        "keyword-spacing": [
+        "prettier/prettier": "error",
+        "import/prefer-default-export": "off",
+        "import/no-extraneous-dependencies": [
             "error",
             {
-                "before": true
+                "devDependencies": [
+                    "**/*.test.[jt]s",
+                    "**/*.spec.[jt]s"
+                ]
             }
         ],
-        "space-before-blocks": [
-            "error"
+        "import/extensions": [
+            "error",
+            "ignorePackages",
+            {
+                "ts": "never",
+                "js": "never"
+            }
         ]
-    }
+    },
+    "overrides": [
+        {
+            "files": "**/*.ts",
+            "parser": "@typescript-eslint/parser",
+            "parserOptions": {
+                "project": "./tsconfig.json"
+            },
+            "plugins": ["@typescript-eslint/eslint-plugin"],
+            "extends": [
+                "plugin:@typescript-eslint/eslint-recommended",
+                "plugin:@typescript-eslint/recommended",
+                "prettier"
+            ],
+            "rules": {
+                "@typescript-eslint/explicit-function-return-type": "off",
+                "@typescript-eslint/no-explicit-any": "off",
+                "@typescript-eslint/no-var-requires": "off",
+                "no-use-before-define": [0],
+                "@typescript-eslint/no-use-before-define": [1],
+                "import/no-unresolved": 0,
+                "import/no-extraneous-dependencies": [
+                    "error",
+                    {
+                        "devDependencies": [
+                            "**/*.test.ts",
+                            "**/*.spec.ts"
+                        ]
+                    }
+                ],
+                "quotes": "off",
+                "@typescript-eslint/quotes": [
+                    2,
+                    "single",
+                    {
+                        "avoidEscape": true
+                    }
+                ],
+                "@typescript-eslint/no-unused-vars": [2, { "argsIgnorePattern": "^_" }]
+            }
+        }
+    ]
 }

@@ -15,6 +15,7 @@ use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
 
+use crate::config::persistence::pathfinder::GatewayPathfinder;
 #[cfg(not(feature = "coconut"))]
 use crate::node::client_handling::websocket::connection_handler::eth_events::ERC20Bridge;
 #[cfg(feature = "coconut")]
@@ -29,13 +30,25 @@ pub(crate) mod storage;
 pub struct Gateway {
     config: Config,
     /// ed25519 keypair used to assert one's identity.
-    identity: Arc<identity::KeyPair>,
+    identity_keypair: Arc<identity::KeyPair>,
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
-    encryption_keys: Arc<encryption::KeyPair>,
+    sphinx_keypair: Arc<encryption::KeyPair>,
     storage: PersistentStorage,
 }
 
 impl Gateway {
+    pub async fn new(config: Config) -> Self {
+        let storage = Self::initialise_storage(&config).await;
+        let pathfinder = GatewayPathfinder::new_from_config(&config);
+
+        Gateway {
+            config,
+            identity_keypair: Arc::new(Self::load_identity_keys(&pathfinder)),
+            sphinx_keypair: Arc::new(Self::load_sphinx_keys(&pathfinder)),
+            storage,
+        }
+    }
+
     async fn initialise_storage(config: &Config) -> PersistentStorage {
         let path = config.get_persistent_store_path();
         let retrieval_limit = config.get_message_retrieval_limit();
@@ -45,19 +58,51 @@ impl Gateway {
         }
     }
 
-    pub async fn new(
-        config: Config,
-        encryption_keys: encryption::KeyPair,
-        identity: identity::KeyPair,
-    ) -> Self {
-        let storage = Self::initialise_storage(&config).await;
+    fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
+        let identity_keypair: identity::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_identity_key().to_owned(),
+                pathfinder.public_identity_key().to_owned(),
+            ))
+            .expect("Failed to read stored identity key files");
+        identity_keypair
+    }
 
-        Gateway {
-            config,
-            identity: Arc::new(identity),
-            encryption_keys: Arc::new(encryption_keys),
-            storage,
-        }
+    fn load_sphinx_keys(pathfinder: &GatewayPathfinder) -> encryption::KeyPair {
+        let sphinx_keypair: encryption::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_encryption_key().to_owned(),
+                pathfinder.public_encryption_key().to_owned(),
+            ))
+            .expect("Failed to read stored sphinx key files");
+        sphinx_keypair
+    }
+
+    pub(crate) fn print_node_details(&self) {
+        println!(
+            "Identity Key: {}",
+            self.identity_keypair.public_key().to_base58_string()
+        );
+        println!(
+            "Sphinx Key: {}",
+            self.sphinx_keypair.public_key().to_base58_string()
+        );
+        println!(
+            "Host: {} (bind address: {})",
+            self.config.get_announce_address(),
+            self.config.get_listening_address()
+        );
+        println!("Version: {}", self.config.get_version());
+        println!(
+            "Mix Port: {}, Clients port: {}",
+            self.config.get_mix_port(),
+            self.config.get_clients_port()
+        );
+
+        println!(
+            "Data store is at: {:?}",
+            self.config.get_persistent_store_path()
+        );
     }
 
     fn start_mix_socket_listener(
@@ -68,7 +113,7 @@ impl Gateway {
         info!("Starting mix socket listener...");
 
         let packet_processor =
-            mixnet_handling::PacketProcessor::new(self.encryption_keys.private_key());
+            mixnet_handling::PacketProcessor::new(self.sphinx_keypair.private_key());
 
         let connection_handler = ConnectionHandler::new(
             packet_processor,
@@ -101,7 +146,7 @@ impl Gateway {
 
         websocket::Listener::new(
             listening_address,
-            Arc::clone(&self.identity),
+            Arc::clone(&self.identity_keypair),
             #[cfg(feature = "coconut")]
             verification_key,
             #[cfg(not(feature = "coconut"))]
@@ -168,7 +213,7 @@ impl Gateway {
         info!("Starting nym gateway!");
 
         if let Some(duplicate_node_key) = self.check_if_same_ip_gateway_exists().await {
-            if duplicate_node_key == self.identity.public_key().to_base58_string() {
+            if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
                 warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host as us registered.")
             } else {
                 error!(

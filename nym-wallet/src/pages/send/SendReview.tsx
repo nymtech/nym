@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, Divider, Grid, Typography } from '@mui/material'
 import { useFormContext } from 'react-hook-form'
+import {} from '../../context/main'
 
 export const SendReview = ({ transferFee }: { transferFee?: string }) => {
   const { getValues } = useFormContext()
@@ -32,13 +33,13 @@ export const SendReview = ({ transferFee }: { transferFee?: string }) => {
           <Divider light />
         </Grid>
         <Grid item xs={12}>
-          <SendReviewField title="Amount" subtitle={values.amount + ' punk'} />
+          <SendReviewField title="Amount" subtitle={values.amount + MAJOR_CURRENCY} />
         </Grid>
         <Grid item xs={12}>
           <Divider light />
         </Grid>
         <Grid item xs={12}>
-          <SendReviewField title="Transfer fee" subtitle={transferFee + ' punk'} info />
+          <SendReviewField title="Transfer fee" subtitle={`${transferFee} ${MAJOR_CURRENCY}`} info />
         </Grid>
       </Grid>
     </Card>

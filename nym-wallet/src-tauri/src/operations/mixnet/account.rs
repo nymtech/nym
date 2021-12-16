@@ -58,7 +58,10 @@ pub async fn connect_with_mnemonic(
 pub async fn get_balance(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Balance, BackendError> {
-  match client!(state).get_balance(client!(state).address()).await {
+  match client!(state)
+    .get_mixnet_balance(client!(state).address())
+    .await
+  {
     Ok(Some(coin)) => {
       let coin = Coin::new(
         &coin.amount.to_string(),

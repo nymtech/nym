@@ -18,7 +18,7 @@ import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { bond, majorToMinor } from '../../requests'
 import { validationSchema } from './validationSchema'
 import { Coin, Gateway, MixNode } from '../../types'
-import { ClientContext } from '../../context/main'
+import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 import { checkHasEnoughFunds } from '../../utils'
 
 type TBondFormFields = {
@@ -195,7 +195,7 @@ export const BondForm = ({
               error={!!errors.amount}
               helperText={errors.amount?.message}
               InputProps={{
-                endAdornment: <InputAdornment position="end">punk</InputAdornment>,
+                endAdornment: <InputAdornment position="end">{MAJOR_CURRENCY}</InputAdornment>,
               }}
               disabled={disabled}
             />
@@ -203,7 +203,7 @@ export const BondForm = ({
 
           <Grid item xs={12} sm={6}>
             <TextField
-              {...register('profitMarginPercent', { valueAsNumber: true })}
+              {...register('profitMarginPercent')}
               variant="outlined"
               required
               id="profitMarginPercent"
@@ -362,7 +362,7 @@ export const BondForm = ({
                 {' '}
                 {`Bonding fee: ${
                   watchNodeType === EnumNodeType.mixnode ? fees.mixnode.amount : fees?.gateway?.amount
-                } punk`}
+                } ${MAJOR_CURRENCY}`}
               </Typography>
             </Grid>
           )}

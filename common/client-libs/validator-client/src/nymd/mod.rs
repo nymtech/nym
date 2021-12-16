@@ -234,11 +234,25 @@ impl<C> NymdClient<C> {
             .map(|block| block.block_id.hash)
     }
 
-    pub async fn get_balance(&self, address: &AccountId) -> Result<Option<CosmosCoin>, NymdError>
+    pub async fn get_balance(
+        &self,
+        address: &AccountId,
+        denom: Denom,
+    ) -> Result<Option<CosmosCoin>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        self.client.get_balance(address, self.denom()?).await
+        self.client.get_balance(address, denom).await
+    }
+
+    pub async fn get_mixnet_balance(
+        &self,
+        address: &AccountId,
+    ) -> Result<Option<CosmosCoin>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.get_balance(address, self.denom()?).await
     }
 
     pub async fn get_contract_settings(&self) -> Result<ContractStateParams, NymdError>

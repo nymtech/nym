@@ -4,7 +4,7 @@ import { Box, Autocomplete, Button, CircularProgress, FormControl, Grid, TextFie
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { EnumNodeType, TDelegation, TFee } from '../../types'
-import { ClientContext } from '../../context/main'
+import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 import { undelegate } from '../../requests'
 
 type TFormData = {
@@ -89,7 +89,9 @@ export const UndelegateForm = ({
             />
           </Grid>
           <Grid item xs={12}>
-            <Typography sx={{ color: 'nym.fee' }}>Fee for this transaction: {fees.mixnode.amount} punk</Typography>
+            <Typography sx={{ color: 'nym.fee' }}>
+              Fee for this transaction: {`${fees.mixnode.amount} ${MAJOR_CURRENCY}`}{' '}
+            </Typography>
           </Grid>
         </Grid>
       </Box>

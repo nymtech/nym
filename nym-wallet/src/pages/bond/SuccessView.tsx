@@ -1,7 +1,7 @@
 import React, { useContext } from 'react'
 import { Box } from '@mui/system'
 import { SuccessReponse, TransactionDetails } from '../../components'
-import { ClientContext } from '../../context/main'
+import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 
 export const SuccessView: React.FC<{ details?: { amount: string; address: string } }> = ({ details }) => {
   const { userBalance } = useContext(ClientContext)
@@ -17,7 +17,7 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
           <TransactionDetails
             details={[
               { primary: 'Node', secondary: details.address },
-              { primary: 'Amount', secondary: `${details.amount} punk` },
+              { primary: 'Amount', secondary: `${details.amount} ${MAJOR_CURRENCY}` },
             ]}
           />
         </Box>

@@ -7,6 +7,7 @@ use url::Url;
 
 pub(crate) mod describe;
 pub(crate) mod init;
+pub(crate) mod node_details;
 pub(crate) mod run;
 pub(crate) mod sign;
 pub(crate) mod upgrade;

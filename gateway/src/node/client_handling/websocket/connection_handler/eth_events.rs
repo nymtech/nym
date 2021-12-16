@@ -15,7 +15,7 @@ use web3::Web3;
 
 use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 use credentials::token::bandwidth::TokenCredential;
-use crypto::asymmetric::identity::{PublicKey, Signature};
+use crypto::asymmetric::identity::{PublicKey, Signature, SIGNATURE_LENGTH};
 use erc20_bridge_contract::msg::ExecuteMsg;
 use erc20_bridge_contract::payment::LinkPaymentData;
 use gateway_client::bandwidth::eth_contract;
@@ -60,7 +60,7 @@ impl ERC20Bridge {
     pub(crate) async fn verify_eth_events(
         &self,
         verification_key: PublicKey,
-    ) -> Result<(), RequestHandlingError> {
+    ) -> Result<String, RequestHandlingError> {
         // It's safe to unwrap here, as we are guarded by a unit test that checks the event
         // name constant against the contract abi
         let event = self.contract.abi().event(ETH_EVENT_NAME).unwrap();
@@ -82,7 +82,7 @@ impl ERC20Bridge {
             .to_block(BlockNumber::Number(check_until))
             .build();
         // Get only the first event that checks out. If the client burns more tokens with the
-        // same verification key, those token would be lost
+        // same verification key, those tokens would be lost
         for l in self.web3.eth().logs(filter).await? {
             let log = event.parse_log(web3::ethabi::RawLog {
                 topics: l.topics,
@@ -91,23 +91,39 @@ impl ERC20Bridge {
             let burned_event =
                 Burned::from_tokens(log.params.into_iter().map(|x| x.value).collect::<Vec<_>>())?;
             if burned_event.verify(verification_key) {
-                return Ok(());
+                return Ok(burned_event.cosmos_recipient);
             }
         }
 
         Err(RequestHandlingError::InvalidBandwidthCredential)
     }
 
+    pub(crate) async fn verify_gateway_owner(
+        &self,
+        gateway_owner: String,
+        gateway_identity: &PublicKey,
+    ) -> Result<(), RequestHandlingError> {
+        let owner_address = AccountId::from_str(&gateway_owner)
+            .map_err(|_| RequestHandlingError::InvalidBandwidthCredential)?;
+        let gateway_bond = self
+            .nymd_client
+            .owns_gateway(&owner_address)
+            .await?
+            .ok_or(RequestHandlingError::InvalidBandwidthCredential)?;
+        if gateway_bond.gateway.identity_key == gateway_identity.to_base58_string() {
+            Ok(())
+        } else {
+            Err(RequestHandlingError::InvalidBandwidthCredential)
+        }
+    }
+
     pub(crate) async fn claim_token(
         &self,
         credential: &TokenCredential,
     ) -> Result<(), RequestHandlingError> {
-        // It's ok to unwrap here, as the cosmos contract and denom are set correctly
-        let contract_address = self.nymd_client.mixnet_contract_address().unwrap();
-        let coin = CosmosCoin {
-            denom: Denom::from_str(DENOM).unwrap(),
-            amount: Decimal::from(100000u64),
-        };
+        // It's ok to unwrap here, as the cosmos contract is set correctly
+        let erc20_bridge_contract_address =
+            self.nymd_client.erc20_bridge_contract_address().unwrap();
         let req = ExecuteMsg::LinkPayment {
             data: LinkPaymentData::new(
                 credential.verification_key().to_bytes(),
@@ -118,12 +134,11 @@ impl ERC20Bridge {
         };
         self.nymd_client
             .execute(
-                // it's ok to unwrap here, as the address is
-                contract_address,
+                erc20_bridge_contract_address,
                 &req,
                 Default::default(),
                 "Linking payment",
-                vec![coin],
+                vec![],
             )
             .await?;
         Ok(())
@@ -138,6 +153,8 @@ pub struct Burned {
     pub verification_key: PublicKey,
     /// Signed verification key
     pub signed_verification_key: Signature,
+    /// Address for the owner of the gateway
+    pub cosmos_recipient: String,
 }
 
 impl Burned {
@@ -185,22 +202,27 @@ impl Detokenize for Burned {
                 verification_key.len()
             ))
         })?;
-        let signed_verification_key =
-            tokens.get(2).unwrap().clone().into_bytes().ok_or_else(|| {
-                Error::InvalidOutputType(String::from("Expected Bytes for signed_verification_key"))
-            })?;
-        let signed_verification_key =
-            Signature::from_bytes(&signed_verification_key).map_err(|_| {
-                Error::InvalidOutputType(format!(
-                    "Expected signature of 64 bytes, got: {}",
-                    signed_verification_key.len()
-                ))
+        let remaining_bytes = tokens.get(2).unwrap().clone().into_bytes().ok_or_else(|| {
+            Error::InvalidOutputType(String::from("Expected Bytes for the last two fields"))
+        })?;
+        let signed_verification_key = Signature::from_bytes(&remaining_bytes[..SIGNATURE_LENGTH])
+            .map_err(|_| {
+            Error::InvalidOutputType(format!(
+                "Expected signature of {} bytes, got: {}",
+                SIGNATURE_LENGTH,
+                remaining_bytes.len()
+            ))
+        })?;
+        let cosmos_recipient = String::from_utf8(remaining_bytes[SIGNATURE_LENGTH..].to_vec())
+            .map_err(|_| {
+                Error::InvalidOutputType(String::from("Expected utf8 encoded owner address"))
             })?;
 
         Ok(Burned {
             bandwidth,
             verification_key,
             signed_verification_key,
+            cosmos_recipient,
         })
     }
 }

@@ -243,9 +243,15 @@ where
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
         debug!("Verifying Ethereum for token burn...");
+        let gateway_owner = self
+            .inner
+            .erc20_bridge
+            .verify_eth_events(credential.verification_key())
+            .await?;
+        debug!("Check that the gateway owner is the one that's getting paid...");
         self.inner
             .erc20_bridge
-            .verify_eth_events(credential.verification_key(), self.inner.lo)
+            .verify_gateway_owner(gateway_owner, &credential.gateway_identity())
             .await?;
         debug!("Claim the token on Cosmos, to make sure it's not spent twice...");
         self.inner.erc20_bridge.claim_token(&credential).await?;

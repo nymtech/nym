@@ -67,6 +67,10 @@ impl TestRoute {
         self.gateway().identity_key
     }
 
+    pub(crate) fn gateway_owner(&self) -> String {
+        self.gateway().owner.clone()
+    }
+
     pub(crate) fn topology(&self) -> &NymTopology {
         &self.nodes
     }

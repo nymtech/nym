@@ -4,6 +4,7 @@
  */
 
 import { JsonObject } from '@cosmjs/cosmwasm-stargate/build/queries';
+// eslint-disable-next-line import/no-cycle
 import { INymdQuery } from './query-client';
 import {
   ContractStateParams,

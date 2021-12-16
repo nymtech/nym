@@ -34,6 +34,7 @@ use validator_client::nymd::SigningNymdClient;
 use coconut::InternalSignRequest;
 
 pub(crate) mod cache;
+pub(crate) mod commands;
 pub(crate) mod config;
 mod network_monitor;
 mod node_status_api;
@@ -86,6 +87,7 @@ fn parse_args<'a>() -> ArgMatches<'a> {
 
     let base_app = App::new("Nym Validator API")
         .author("Nymtech")
+        .subcommand(commands::version::command_args())
         .arg(
             Arg::with_name(MONITORING_ENABLED)
                 .help("specifies whether a network monitoring is enabled on this API")
@@ -407,12 +409,8 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    setup_logging();
+async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     let system_version = env!("CARGO_PKG_VERSION");
-
-    println!("Starting validator api...");
 
     // try to load config from the file, if it doesn't exist, use default values
     let config = match Config::load_from_file(None) {
@@ -429,8 +427,6 @@ async fn main() -> Result<()> {
             Config::new()
         }
     };
-
-    let matches = parse_args();
 
     let config = override_config(config, &matches);
     // if we just wanted to write data to the config, exit
@@ -514,6 +510,20 @@ async fn main() -> Result<()> {
 
     wait_for_interrupt().await;
     shutdown_handle.notify();
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    println!("Starting validator api...");
+
+    setup_logging();
+    let args = parse_args();
+    match args.subcommand() {
+        ("version", Some(m)) => commands::version::execute(m),
+        _ => run_validator_api(args).await?,
+    }
 
     Ok(())
 }

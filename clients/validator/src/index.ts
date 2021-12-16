@@ -93,7 +93,6 @@ export default class ValidatorClient implements INymClient {
   }
 
   static async connectForQuery(
-    contractAddress: string,
     nymdUrl: string,
     validatorApiUrl: string,
     prefix: string,

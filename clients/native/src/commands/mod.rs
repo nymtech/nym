@@ -8,7 +8,6 @@ use url::Url;
 pub(crate) mod init;
 pub(crate) mod run;
 pub(crate) mod upgrade;
-pub(crate) mod version;
 
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')

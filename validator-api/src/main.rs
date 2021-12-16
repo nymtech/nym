@@ -15,7 +15,7 @@ use crate::storage::ValidatorApiStorage;
 use ::config::NymConfig;
 use anyhow::Result;
 use cache::ValidatorCache;
-use clap::{App, Arg, ArgMatches};
+use clap::{crate_version, App, Arg, ArgMatches};
 use log::{info, warn};
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
@@ -34,7 +34,6 @@ use validator_client::nymd::SigningNymdClient;
 use coconut::InternalSignRequest;
 
 pub(crate) mod cache;
-pub(crate) mod commands;
 pub(crate) mod config;
 mod network_monitor;
 mod node_status_api;
@@ -79,15 +78,47 @@ fn parse_validators(raw: &str) -> Vec<Url> {
         .collect()
 }
 
+fn long_version() -> String {
+    format!(
+        r#"
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+"#,
+        "Build Timestamp:",
+        env!("VERGEN_BUILD_TIMESTAMP"),
+        "Build Version:",
+        env!("VERGEN_BUILD_SEMVER"),
+        "Commit SHA:",
+        env!("VERGEN_GIT_SHA"),
+        "Commit Date:",
+        env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
+        "Commit Branch:",
+        env!("VERGEN_GIT_BRANCH"),
+        "rustc Version:",
+        env!("VERGEN_RUSTC_SEMVER"),
+        "rustc Channel:",
+        env!("VERGEN_RUSTC_CHANNEL"),
+        "cargo Profile:",
+        env!("VERGEN_CARGO_PROFILE"),
+    )
+}
+
 fn parse_args<'a>() -> ArgMatches<'a> {
     #[cfg(feature = "coconut")]
     let monitor_reqs = &[];
     #[cfg(not(feature = "coconut"))]
     let monitor_reqs = &[ETH_ENDPOINT, ETH_PRIVATE_KEY];
-
+    let build_details = long_version();
     let base_app = App::new("Nym Validator API")
+        .version(crate_version!())
+        .long_version(&*build_details)
         .author("Nymtech")
-        .subcommand(commands::version::command_args())
         .arg(
             Arg::with_name(MONITORING_ENABLED)
                 .help("specifies whether a network monitoring is enabled on this API")
@@ -520,10 +551,5 @@ async fn main() -> Result<()> {
 
     setup_logging();
     let args = parse_args();
-    match args.subcommand() {
-        ("version", Some(m)) => commands::version::execute(m),
-        _ => run_validator_api(args).await?,
-    }
-
-    Ok(())
+    run_validator_api(args).await
 }

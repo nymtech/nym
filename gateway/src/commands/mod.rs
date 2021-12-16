@@ -9,7 +9,6 @@ pub(crate) mod init;
 pub(crate) mod run;
 pub(crate) mod sign;
 pub(crate) mod upgrade;
-pub(crate) mod version;
 
 pub(crate) const ID_ARG_NAME: &str = "id";
 pub(crate) const HOST_ARG_NAME: &str = "host";

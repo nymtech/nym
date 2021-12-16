@@ -4,7 +4,7 @@ extern crate rocket;
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::{App, ArgMatches};
+use clap::{crate_version, App, ArgMatches};
 
 mod commands;
 mod config;
@@ -16,7 +16,8 @@ fn main() {
     println!("{}", banner());
 
     let arg_matches = App::new("Nym Mixnode")
-        .version(env!("CARGO_PKG_VERSION"))
+        .version(crate_version!())
+        .long_version(&*long_version())
         .author("Nymtech")
         .about("Implementation of a Loopix-based Mixnode")
         .subcommand(commands::describe::command_args())
@@ -24,7 +25,6 @@ fn main() {
         .subcommand(commands::run::command_args())
         .subcommand(commands::upgrade::command_args())
         .subcommand(commands::sign::command_args())
-        .subcommand(commands::version::command_args())
         .get_matches();
 
     execute(arg_matches);
@@ -37,7 +37,6 @@ fn execute(matches: ArgMatches) {
         ("run", Some(m)) => commands::run::execute(m),
         ("sign", Some(m)) => commands::sign::execute(m),
         ("upgrade", Some(m)) => commands::upgrade::execute(m),
-        ("version", Some(m)) => commands::version::execute(m),
         _ => println!("{}", usage()),
     }
 }
@@ -59,7 +58,38 @@ fn banner() -> String {
              (mixnode - version {:})
 
     "#,
-        env!("CARGO_PKG_VERSION")
+        crate_version!()
+    )
+}
+
+fn long_version() -> String {
+    format!(
+        r#"
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+"#,
+        "Build Timestamp:",
+        env!("VERGEN_BUILD_TIMESTAMP"),
+        "Build Version:",
+        env!("VERGEN_BUILD_SEMVER"),
+        "Commit SHA:",
+        env!("VERGEN_GIT_SHA"),
+        "Commit Date:",
+        env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
+        "Commit Branch:",
+        env!("VERGEN_GIT_BRANCH"),
+        "rustc Version:",
+        env!("VERGEN_RUSTC_SEMVER"),
+        "rustc Channel:",
+        env!("VERGEN_RUSTC_CHANNEL"),
+        "cargo Profile:",
+        env!("VERGEN_CARGO_PROFILE"),
     )
 }
 

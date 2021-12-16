@@ -13,7 +13,6 @@ use nymsphinx::utils::sample_poisson_duration;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
-use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tokio::time;
 
@@ -165,8 +164,8 @@ impl LoopCoverTrafficStream<OsRng> {
         }
     }
 
-    pub fn start(mut self, handle: &Handle) -> JoinHandle<()> {
-        handle.spawn(async move {
+    pub fn start(mut self) -> JoinHandle<()> {
+        tokio::spawn(async move {
             self.run().await;
         })
     }

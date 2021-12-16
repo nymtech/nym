@@ -72,7 +72,7 @@ fn version_check(cfg: &Config) -> bool {
     }
 }
 
-pub fn execute(matches: &ArgMatches) {
+pub async fn execute(matches: ArgMatches<'static>) {
     let id = matches.value_of("id").unwrap();
 
     let mut config = match Config::load_from_file(Some(id)) {
@@ -83,12 +83,12 @@ pub fn execute(matches: &ArgMatches) {
         }
     };
 
-    config = override_config(config, matches);
+    config = override_config(config, &matches);
 
     if !version_check(&config) {
         error!("failed the local version check");
         return;
     }
 
-    NymClient::new(config).run_forever();
+    NymClient::new(config).run_forever().await;
 }

@@ -28,7 +28,6 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
-use tokio::runtime::Runtime;
 
 use crate::client::config::Config;
 use crate::socks::{
@@ -43,11 +42,6 @@ pub struct NymClient {
     /// key filepaths, etc.
     config: Config,
 
-    /// Tokio runtime used for futures execution.
-    // TODO: JS: Personally I think I prefer the implicit way of using it that we've done with the
-    // gateway.
-    runtime: Runtime,
-
     /// KeyManager object containing smart pointers to all relevant keys used by the client.
     key_manager: KeyManager,
 }
@@ -58,7 +52,6 @@ impl NymClient {
         let key_manager = KeyManager::load_keys(&pathfinder).expect("failed to load stored keys");
 
         NymClient {
-            runtime: Runtime::new().unwrap(),
             config,
             key_manager,
         }
@@ -82,9 +75,6 @@ impl NymClient {
         mix_tx: BatchMixMessageSender,
     ) {
         info!("Starting loop cover traffic stream...");
-        // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
-        // set in the constructor which HAS TO be called within context of a tokio runtime
-        let _guard = self.runtime.enter();
 
         LoopCoverTrafficStream::new(
             self.key_manager.ack_key(),
@@ -97,7 +87,7 @@ impl NymClient {
             self.as_mix_recipient(),
             topology_accessor,
         )
-        .start(self.runtime.handle());
+        .start();
     }
 
     fn start_real_traffic_controller(
@@ -119,10 +109,6 @@ impl NymClient {
         );
 
         info!("Starting real traffic stream...");
-        // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
-        // set in the constructor [of OutQueueControl] which HAS TO be called within context of a tokio runtime
-        // When refactoring this restriction should definitely be removed.
-        let _guard = self.runtime.enter();
 
         RealMessagesController::new(
             controller_config,
@@ -132,7 +118,7 @@ impl NymClient {
             topology_accessor,
             reply_key_storage,
         )
-        .start(self.runtime.handle());
+        .start();
     }
 
     // buffer controlling all messages fetched from provider
@@ -150,10 +136,10 @@ impl NymClient {
             mixnet_receiver,
             reply_key_storage,
         )
-        .start(self.runtime.handle())
+        .start()
     }
 
-    fn start_gateway_client(
+    async fn start_gateway_client(
         &mut self,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
@@ -170,43 +156,41 @@ impl NymClient {
         let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
             .expect("provided gateway id is invalid!");
 
-        self.runtime.block_on(async {
-            #[cfg(feature = "coconut")]
-            let bandwidth_controller = BandwidthController::new(
-                self.config.get_base().get_validator_api_endpoints(),
-                *self.key_manager.identity_keypair().public_key(),
-            );
-            #[cfg(not(feature = "coconut"))]
-            let bandwidth_controller = BandwidthController::new(
-                self.config.get_base().get_eth_endpoint(),
-                self.config.get_base().get_eth_private_key(),
-                self.config.get_base().get_backup_bandwidth_token_keys_dir(),
-            )
-            .expect("Could not create bandwidth controller");
+        #[cfg(feature = "coconut")]
+        let bandwidth_controller = BandwidthController::new(
+            self.config.get_base().get_validator_api_endpoints(),
+            *self.key_manager.identity_keypair().public_key(),
+        );
+        #[cfg(not(feature = "coconut"))]
+        let bandwidth_controller = BandwidthController::new(
+            self.config.get_base().get_eth_endpoint(),
+            self.config.get_base().get_eth_private_key(),
+            self.config.get_base().get_backup_bandwidth_token_keys_dir(),
+        )
+        .expect("Could not create bandwidth controller");
 
-            let mut gateway_client = GatewayClient::new(
-                gateway_address,
-                self.key_manager.identity_keypair(),
-                gateway_identity,
-                Some(self.key_manager.gateway_shared_key()),
-                mixnet_message_sender,
-                ack_sender,
-                self.config.get_base().get_gateway_response_timeout(),
-                Some(bandwidth_controller),
-            );
+        let mut gateway_client = GatewayClient::new(
+            gateway_address,
+            self.key_manager.identity_keypair(),
+            gateway_identity,
+            Some(self.key_manager.gateway_shared_key()),
+            mixnet_message_sender,
+            ack_sender,
+            self.config.get_base().get_gateway_response_timeout(),
+            Some(bandwidth_controller),
+        );
 
-            gateway_client
-                .authenticate_and_start()
-                .await
-                .expect("could not authenticate and start up the gateway connection");
+        gateway_client
+            .authenticate_and_start()
+            .await
+            .expect("could not authenticate and start up the gateway connection");
 
-            gateway_client
-        })
+        gateway_client
     }
 
     // future responsible for periodically polling directory server and updating
     // the current global view of topology
-    fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
+    async fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
         let topology_refresher_config = TopologyRefresherConfig::new(
             self.config.get_base().get_validator_api_endpoints(),
             self.config.get_base().get_topology_refresh_rate(),
@@ -217,13 +201,10 @@ impl NymClient {
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
         info!("Obtaining initial network topology");
-        self.runtime.block_on(topology_refresher.refresh());
+        topology_refresher.refresh().await;
 
         // TODO: a slightly more graceful termination here
-        if !self
-            .runtime
-            .block_on(topology_refresher.is_topology_routable())
-        {
+        if !topology_refresher.is_topology_routable().await {
             panic!(
                 "The current network topology seem to be insufficient to route any packets through\
                 - check if enough nodes and a gateway are online"
@@ -231,7 +212,7 @@ impl NymClient {
         }
 
         info!("Starting topology refresher...");
-        topology_refresher.start(self.runtime.handle());
+        topology_refresher.start();
     }
 
     // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
@@ -244,7 +225,7 @@ impl NymClient {
         gateway_client: GatewayClient,
     ) {
         info!("Starting mix traffic controller...");
-        MixTrafficController::new(mix_rx, gateway_client).start(self.runtime.handle());
+        MixTrafficController::new(mix_rx, gateway_client).start();
     }
 
     fn start_socks5_listener(
@@ -263,14 +244,13 @@ impl NymClient {
             self.config.get_provider_mix_address(),
             self.as_mix_recipient(),
         );
-        self.runtime
-            .spawn(async move { sphinx_socks.serve(msg_input, buffer_requester).await });
+        tokio::spawn(async move { sphinx_socks.serve(msg_input, buffer_requester).await });
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
-    pub fn run_forever(&mut self) {
-        self.start();
-        if let Err(e) = self.runtime.block_on(tokio::signal::ctrl_c()) {
+    pub async fn run_forever(&mut self) {
+        self.start().await;
+        if let Err(e) = tokio::signal::ctrl_c().await {
             error!(
                 "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
                 e
@@ -282,7 +262,7 @@ impl NymClient {
         );
     }
 
-    pub fn start(&mut self) {
+    pub async fn start(&mut self) {
         info!("Starting nym client");
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
@@ -314,14 +294,17 @@ impl NymClient {
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
-        self.start_topology_refresher(shared_topology_accessor.clone());
+        self.start_topology_refresher(shared_topology_accessor.clone())
+            .await;
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
             mixnet_messages_receiver,
             reply_key_storage.clone(),
         );
 
-        let gateway_client = self.start_gateway_client(mixnet_messages_sender, ack_sender);
+        let gateway_client = self
+            .start_gateway_client(mixnet_messages_sender, ack_sender)
+            .await;
 
         self.start_mix_traffic_controller(sphinx_message_receiver, gateway_client);
         self.start_real_traffic_controller(

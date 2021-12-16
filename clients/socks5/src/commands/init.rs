@@ -203,7 +203,7 @@ fn show_address(config: &Config) {
     println!("\nThe address of this client is: {}", client_recipient);
 }
 
-pub fn execute(matches: &ArgMatches) {
+pub async fn execute(matches: ArgMatches<'static>) {
     println!("Initialising client...");
 
     let id = matches.value_of("id").unwrap(); // required for now
@@ -222,7 +222,7 @@ pub fn execute(matches: &ArgMatches) {
 
     // TODO: ideally that should be the last thing that's being done to config.
     // However, we are later further overriding it with gateway id
-    config = override_config(config, matches);
+    config = override_config(config, &matches);
     if matches.is_present("fastmode") {
         config.get_base_mut().set_high_default_traffic_volume();
     }
@@ -235,26 +235,20 @@ pub fn execute(matches: &ArgMatches) {
 
         let chosen_gateway_id = matches.value_of("gateway");
 
-        let registration_fut = async {
-            let gate_details = gateway_details(
-                config.get_base().get_validator_api_endpoints(),
-                chosen_gateway_id,
-            )
-            .await;
-            config
-                .get_base_mut()
-                .with_gateway_id(gate_details.identity_key.to_base58_string());
-            let shared_keys =
-                register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
-            (shared_keys, gate_details.clients_address())
-        };
-
-        // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let (shared_keys, gateway_listener) = rt.block_on(registration_fut);
+        let gateway_details = gateway_details(
+            config.get_base().get_validator_api_endpoints(),
+            chosen_gateway_id,
+        )
+        .await;
         config
             .get_base_mut()
-            .with_gateway_listener(gateway_listener);
+            .with_gateway_id(gateway_details.identity_key.to_base58_string());
+        let shared_keys =
+            register_with_gateway(&gateway_details, key_manager.identity_keypair()).await;
+
+        config
+            .get_base_mut()
+            .with_gateway_listener(gateway_details.clients_address());
         key_manager.insert_gateway_shared_key(shared_keys);
 
         let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());

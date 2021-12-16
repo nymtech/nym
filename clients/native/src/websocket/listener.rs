@@ -5,7 +5,6 @@ use super::handler::Handler;
 use log::*;
 use std::{net::SocketAddr, process, sync::Arc};
 use tokio::io::AsyncWriteExt;
-use tokio::runtime;
 use tokio::{sync::Notify, task::JoinHandle};
 
 enum State {
@@ -87,9 +86,9 @@ impl Listener {
         }
     }
 
-    pub(crate) fn start(mut self, rt_handle: &runtime::Handle, handler: Handler) -> JoinHandle<()> {
+    pub(crate) fn start(mut self, handler: Handler) -> JoinHandle<()> {
         info!("Running websocket on {:?}", self.address.to_string());
 
-        rt_handle.spawn(async move { self.run(handler).await })
+        tokio::spawn(async move { self.run(handler).await })
     }
 }

@@ -6,6 +6,7 @@ import {
   COUNTRY_DATA_API,
   MIXNODE_PING,
   UPTIME_STORY_API,
+  MIXNODE_API,
 } from './constants';
 
 import {
@@ -87,10 +88,10 @@ export class Api {
   static fetchDelegationsById = async (
     id: string,
   ): Promise<DelegationsResponse> =>
-    (await fetch(`${MIXNODES_API}/${id}/delegations`)).json();
+    (await fetch(`${MIXNODE_API}/${id}/delegations`)).json();
 
   static fetchStatsById = async (id: string): Promise<StatsResponse> =>
-    (await fetch(`${MIXNODES_API}/${id}/stats`)).json();
+    (await fetch(`${MIXNODE_API}/${id}/stats`)).json();
 
   static fetchStatusById = async (id: string): Promise<StatusResponse> =>
     (await fetch(`${MIXNODE_PING}/${id}`)).json();

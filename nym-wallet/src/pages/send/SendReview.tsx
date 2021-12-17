@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card, Divider, Grid, Typography } from '@mui/material'
 import { useFormContext } from 'react-hook-form'
-import {} from '../../context/main'
+import { MAJOR_CURRENCY } from '../../context/main'
 
 export const SendReview = ({ transferFee }: { transferFee?: string }) => {
   const { getValues } = useFormContext()

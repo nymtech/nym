@@ -3,13 +3,12 @@
 
 use crate::commands::*;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
-use crate::node::bech32::address_validation;
+use crate::node::signing::sign_text;
 use clap::{App, Arg, ArgMatches};
 use colored::Colorize;
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
-use std::process;
 
 const SIGN_TEXT_ARG_NAME: &str = "text";
 const SIGN_ADDRESS_ARG_NAME: &str = "address";
@@ -49,10 +48,10 @@ pub fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
     identity_keypair
 }
 
-// we do tiny bit of sanity check validation
 fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) -> String {
     let trimmed = raw_address.trim();
-    let signature = sign_address(private_key, trimmed);
+    validate_bech32_address_or_exit(trimmed);
+    let signature = sign_text(private_key, trimmed);
 
     println!(
         "The base58-encoded signature on '{}' is: {}",
@@ -61,40 +60,13 @@ fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) -
     signature
 }
 
-pub fn sign_address(private_key: &identity::PrivateKey, raw_address: &str) -> String {
-    let trimmed = raw_address.trim();
-
-    if let Err(address_validation::Bech32Error::DecodeFailed(err)) =
-        address_validation::try_bech32_decode(trimmed)
-    {
-        let error_message = format!("Error: wallet address decoding failed: {}", err).red();
-        println!("{}", error_message);
-        println!("Exiting...");
-        process::exit(1);
-    }
-
-    if let Err(address_validation::Bech32Error::WrongPrefix(err)) =
-        address_validation::validate_bech32_prefix(trimmed)
-    {
-        let error_message = format!("Error: wallet address type is wrong, {}", err).red();
-        println!("{}", error_message);
-        println!("Exiting...");
-        process::exit(1);
-    }
-    let signature_bytes = private_key.sign(trimmed.as_ref()).to_bytes();
-    let signature = bs58::encode(signature_bytes).into_string();
-    signature
-}
-
-// we just sign whatever the user has provided
-fn sign_text(private_key: &identity::PrivateKey, text: &str) {
+fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
     println!(
         "Signing the text {:?} using your mixnode's Ed25519 identity key...",
         text
     );
 
-    let signature_bytes = private_key.sign(text.as_ref()).to_bytes();
-    let signature = bs58::encode(signature_bytes).into_string();
+    let signature = sign_text(private_key, text);
 
     println!(
         "The base58-encoded signature on '{}' is: {}",
@@ -116,7 +88,7 @@ pub fn execute(matches: &ArgMatches) {
     let identity_keypair = load_identity_keys(&pathfinder);
 
     if let Some(text) = matches.value_of(SIGN_TEXT_ARG_NAME) {
-        sign_text(identity_keypair.private_key(), text)
+        print_signed_text(identity_keypair.private_key(), text)
     } else if let Some(address) = matches.value_of(SIGN_ADDRESS_ARG_NAME) {
         print_signed_address(identity_keypair.private_key(), address);
     } else {

@@ -1,8 +1,11 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::Config;
+use std::process;
+
+use crate::{config::Config, node::bech32::address_validation};
 use clap::ArgMatches;
+use colored::Colorize;
 use url::Url;
 
 pub(crate) mod describe;
@@ -84,9 +87,31 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
     }
 
     if let Some(wallet_address) = matches.value_of(WALLET_ADDRESS) {
-        config = config.with_wallet_address(wallet_address);
-
+        let trimmed = wallet_address.trim();
+        validate_bech32_address_or_exit(trimmed);
+        config = config.with_wallet_address(trimmed);
     }
 
     config
+}
+
+/// Ensures that a given bech32 address is valid, or exits
+fn validate_bech32_address_or_exit(address: &str) {
+    if let Err(address_validation::Bech32Error::DecodeFailed(err)) =
+        address_validation::try_bech32_decode(address)
+    {
+        let error_message = format!("Error: wallet address decoding failed: {}", err).red();
+        println!("{}", error_message);
+        println!("Exiting...");
+        process::exit(1);
+    }
+
+    if let Err(address_validation::Bech32Error::WrongPrefix(err)) =
+        address_validation::validate_bech32_prefix(address)
+    {
+        let error_message = format!("Error: wallet address type is wrong, {}", err).red();
+        println!("{}", error_message);
+        println!("Exiting...");
+        process::exit(1);
+    }
 }

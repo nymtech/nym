@@ -1,7 +1,6 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::sign::sign_address;
 use crate::config::Config;
 use crate::node::http::{
     description::description,
@@ -30,13 +29,15 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use version_checker::parse_version;
 
+use self::signing::sign_text;
+
+pub(crate) mod bech32;
 pub(crate) mod http;
 mod listener;
-// mod metrics;
-pub mod bech32;
 pub(crate) mod node_description;
 pub(crate) mod node_statistics;
 pub(crate) mod packet_delayforwarder;
+pub(crate) mod signing;
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
@@ -86,7 +87,7 @@ impl MixNode {
     fn generate_verification_code(&self) -> String {
         let pathfinder = MixNodePathfinder::new_from_config(&self.config);
         let identity_keypair = load_identity_keys(&pathfinder);
-        let verification_code = sign_address(
+        let verification_code = sign_text(
             identity_keypair.private_key(),
             self.config.get_wallet_address(),
         );

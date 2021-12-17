@@ -3,7 +3,7 @@
 
 use crate::commands::*;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
-use crate::node::crypto::ed25519::sign_text;
+use crate::crypto::ed25519::sign_text;
 use clap::{App, Arg, ArgMatches};
 use colored::Colorize;
 use config::NymConfig;

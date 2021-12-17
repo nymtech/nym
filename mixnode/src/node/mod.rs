@@ -3,7 +3,7 @@
 
 use crate::commands::validate_bech32_address_or_exit;
 use crate::config::Config;
-use crate::node::crypto::ed25519::sign_text;
+use crate::crypto::ed25519::sign_text;
 use crate::node::http::{
     description::description,
     not_found,
@@ -31,7 +31,6 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use version_checker::parse_version;
 
-pub(crate) mod crypto;
 pub(crate) mod http;
 mod listener;
 pub(crate) mod node_description;

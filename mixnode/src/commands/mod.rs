@@ -3,7 +3,7 @@
 
 use std::process;
 
-use crate::{config::Config, node::crypto::bech32_address_validation};
+use crate::{config::Config, crypto::bech32_address_validation};
 use clap::ArgMatches;
 use colored::Colorize;
 use url::Url;

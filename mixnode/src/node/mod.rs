@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::pathfinder::MixNodePathfinder;
+use crate::commands::sign::sign_address;
 use crate::config::Config;
 use crate::node::http::{
     description::description,
@@ -15,6 +15,9 @@ use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::NodeStatsWrapper;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
+use crate::{
+    commands::sign::load_identity_keys, config::persistence::pathfinder::MixNodePathfinder,
+};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 use log::{error, info, warn};
@@ -30,6 +33,7 @@ use version_checker::parse_version;
 pub(crate) mod http;
 mod listener;
 // mod metrics;
+pub mod bech32;
 pub(crate) mod node_description;
 pub(crate) mod node_statistics;
 pub(crate) mod packet_delayforwarder;
@@ -79,6 +83,16 @@ impl MixNode {
         sphinx_keypair
     }
 
+    fn generate_verification_code(&self) -> String {
+        let pathfinder = MixNodePathfinder::new_from_config(&self.config);
+        let identity_keypair = load_identity_keys(&pathfinder);
+        let verification_code = sign_address(
+            identity_keypair.private_key(),
+            self.config.get_wallet_address(),
+        );
+        verification_code
+    }
+
     pub(crate) fn print_node_details(&self) {
         println!(
             "Identity Key: {}",
@@ -99,6 +113,11 @@ impl MixNode {
             self.config.get_mix_port(),
             self.config.get_version(),
             self.config.get_http_api_port()
+        );
+        println!("Wallet Address: {}", self.config.get_wallet_address());
+        println!(
+            "Node Verification Code: {}",
+            self.generate_verification_code()
         );
     }
 

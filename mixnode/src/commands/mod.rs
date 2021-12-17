@@ -19,6 +19,7 @@ pub(crate) const VERLOC_PORT_ARG_NAME: &str = "verloc-port";
 pub(crate) const HTTP_API_PORT_ARG_NAME: &str = "http-api-port";
 pub(crate) const VALIDATORS_ARG_NAME: &str = "validators";
 pub(crate) const ANNOUNCE_HOST_ARG_NAME: &str = "announce-host";
+pub(crate) const WALLET_ADDRESS: &str = "wallet-address";
 
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
@@ -80,6 +81,11 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
     } else if was_host_overridden {
         // make sure our 'announce-host' always defaults to 'host'
         config = config.announce_address_from_listening_address()
+    }
+
+    if let Some(wallet_address) = matches.value_of(WALLET_ADDRESS) {
+        config = config.with_wallet_address(wallet_address);
+
     }
 
     config

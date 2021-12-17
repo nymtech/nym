@@ -57,6 +57,13 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name(WALLET_ADDRESS)
+            .long(WALLET_ADDRESS)
+            .help("The wallet address you will use to bond this mixnode, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9")
+            .takes_value(true)
+            .required(true)
+        )
 }
 
 pub fn execute(matches: &ArgMatches) {

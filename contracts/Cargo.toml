@@ -1,5 +1,5 @@
 [workspace]
-members = ["erc20-bridge", "mixnet", "vesting"]
+members = ["bandwidth-claim", "mixnet", "vesting"]
 
 [profile.release]
 opt-level = 3

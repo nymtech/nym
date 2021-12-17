@@ -4,11 +4,11 @@
 #[cfg(test)]
 pub mod helpers {
     use crate::instantiate;
+    use bandwidth_claim_contract::keys::PublicKey;
+    use bandwidth_claim_contract::msg::InstantiateMsg;
+    use bandwidth_claim_contract::payment::Payment;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
     use cosmwasm_std::{Empty, MemoryStorage, OwnedDeps};
-    use erc20_bridge_contract::keys::PublicKey;
-    use erc20_bridge_contract::msg::InstantiateMsg;
-    use erc20_bridge_contract::payment::Payment;
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();

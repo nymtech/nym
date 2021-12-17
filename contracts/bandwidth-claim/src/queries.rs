@@ -4,8 +4,8 @@
 use cosmwasm_std::{Deps, Order, StdResult};
 
 use crate::storage::payments_read;
-use erc20_bridge_contract::keys::PublicKey;
-use erc20_bridge_contract::payment::{PagedPaymentResponse, Payment};
+use bandwidth_claim_contract::keys::PublicKey;
+use bandwidth_claim_contract::payment::{PagedPaymentResponse, Payment};
 
 const PAYMENT_PAGE_MAX_LIMIT: u32 = 100;
 const PAYMENT_PAGE_DEFAULT_LIMIT: u32 = 50;

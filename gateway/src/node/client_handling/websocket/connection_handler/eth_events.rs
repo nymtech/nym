@@ -14,10 +14,10 @@ use web3::types::{BlockNumber, FilterBuilder, H256};
 use web3::Web3;
 
 use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
+use bandwidth_claim_contract::msg::ExecuteMsg;
+use bandwidth_claim_contract::payment::LinkPaymentData;
 use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity::{PublicKey, Signature};
-use erc20_bridge_contract::msg::ExecuteMsg;
-use erc20_bridge_contract::payment::LinkPaymentData;
 use gateway_client::bandwidth::eth_contract;
 use network_defaults::{COSMOS_CONTRACT_ADDRESS, DENOM, ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
 use validator_client::nymd::{

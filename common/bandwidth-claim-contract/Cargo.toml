@@ -1,5 +1,5 @@
 [package]
-name = "erc20-bridge-contract"
+name = "bandwidth-claim-contract"
 version = "0.1.0"
 edition = "2018"
 

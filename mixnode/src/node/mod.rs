@@ -63,6 +63,7 @@ impl MixNode {
             .unwrap_or_default()
     }
 
+    /// Loads identity keys stored on disk
     fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
         let identity_keypair: identity::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
@@ -73,6 +74,7 @@ impl MixNode {
         identity_keypair
     }
 
+    /// Loads Sphinx keys stored on disk
     fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
         let sphinx_keypair: encryption::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
@@ -83,6 +85,8 @@ impl MixNode {
         sphinx_keypair
     }
 
+    /// Signs the node config's bech32 address to produce a verification code for use in the wallet.
+    /// Exits if the address isn't valid (which should protect against manual edits).
     fn generate_verification_code(&self) -> String {
         let pathfinder = MixNodePathfinder::new_from_config(&self.config);
         let identity_keypair = load_identity_keys(&pathfinder);
@@ -92,6 +96,7 @@ impl MixNode {
         verification_code
     }
 
+    /// Prints relevant node details to the console
     pub(crate) fn print_node_details(&self) {
         println!(
             "Identity Key: {}",

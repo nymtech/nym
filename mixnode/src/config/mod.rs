@@ -197,6 +197,10 @@ impl Config {
     }
 
     // getters
+    pub fn get_id(&self) -> String {
+        self.mixnode.id.clone()
+    }
+
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
     }

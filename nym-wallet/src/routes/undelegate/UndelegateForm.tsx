@@ -100,7 +100,9 @@ export const UndelegateForm = ({
             />
           </Grid>
           <Grid item xs={12}>
-            <Typography sx={{ color: 'nym.info' }}>Fee for this transaction: {fees.mixnode.amount} punk</Typography>
+            <Typography sx={{ color: 'nym.info' }}>
+              Fee for this transaction: {`${fees.mixnode.amount} ${MAJOR_CURRENCY}`}{' '}
+            </Typography>
           </Grid>
         </Grid>
       </Box>

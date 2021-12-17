@@ -1,4 +1,5 @@
 import * as Yup from 'yup'
+import { MAJOR_CURRENCY } from '../../context/main'
 import {
   isValidHostname,
   validateAmount,
@@ -12,16 +13,22 @@ export const validationSchema = Yup.object().shape({
   identityKey: Yup.string()
     .required('An indentity key is required')
     .test('valid-id-key', 'A valid identity key is required', function (value) {
-      return validateKey(value || '')
+      return validateKey(value || '', 32)
     }),
   sphinxKey: Yup.string()
     .required('A sphinx key is required')
     .test('valid-sphinx-key', 'A valid sphinx key is required', function (value) {
-      return validateKey(value || '')
+      return validateKey(value || '', 32)
     }),
+  ownerSignature: Yup.string()
+    .required('Signature is required')
+    .test('valid-signature', 'A valid signature is required', function (value) {
+      return validateKey(value || '', 64)
+    }),
+  profitMarginPercent: Yup.number().required('Profit Percentage is required').min(1).max(100),
   amount: Yup.string()
     .required('An amount is required')
-    .test('valid-amount', 'A valid amount is required (min 100 punk)', function (value) {
+    .test('valid-amount', `A valid amount is required (min 100 ${MAJOR_CURRENCY})`, function (value) {
       return validateAmount(value || '', '100000000')
       // minimum amount needs to come from the backend - replace when available
     }),

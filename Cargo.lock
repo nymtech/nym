@@ -1615,6 +1615,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "enum-iterator"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4eeac5c5edb79e4e39fe8439ef35207780a11f69c52cbe424ce3dfad4cb78de6"
+dependencies = [
+ "enum-iterator-derive",
+]
+
+[[package]]
+name = "enum-iterator-derive"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c134c37760b27a871ba422106eedbb8247da973a09e82558bf26d619c882b159"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "enum_kind"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2283,6 +2303,19 @@ dependencies = [
  "libc",
  "system-deps 3.2.0",
  "winapi",
+]
+
+[[package]]
+name = "git2"
+version = "0.13.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f29229cc1b24c0e6062f6e742aa3e256492a5323365e5ed3413599f8a5eff7d6"
+dependencies = [
+ "bitflags",
+ "libc",
+ "libgit2-sys",
+ "log",
+ "url",
 ]
 
 [[package]]
@@ -3058,6 +3091,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2a5ac8f984bfcf3a823267e5fde638acc3325f6496633a5da6bb6eb2171e103"
 
 [[package]]
+name = "libgit2-sys"
+version = "0.12.26+1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19e1c899248e606fbfe68dcb31d8b0176ebab833b103824af31bddf4b7457494"
+dependencies = [
+ "cc",
+ "libc",
+ "libz-sys",
+ "pkg-config",
+]
+
+[[package]]
 name = "libm"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3070,6 +3115,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290b64917f8b0cb885d9de0f9959fe1f775d7fa12f1da2db9001c1c8ab60f89d"
 dependencies = [
  "cc",
+ "pkg-config",
+ "vcpkg",
+]
+
+[[package]]
+name = "libz-sys"
+version = "1.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de5435b8549c16d423ed0c03dbaafe57cf6c3344744f1242520d59c9d8ecec66"
+dependencies = [
+ "cc",
+ "libc",
  "pkg-config",
  "vcpkg",
 ]
@@ -3541,6 +3598,7 @@ dependencies = [
  "topology",
  "url",
  "validator-client",
+ "vergen",
  "version-checker",
  "websocket-requests",
 ]
@@ -3607,6 +3665,7 @@ dependencies = [
  "tokio-util",
  "url",
  "validator-client",
+ "vergen",
  "version-checker",
  "web3",
 ]
@@ -3642,6 +3701,7 @@ dependencies = [
  "topology",
  "url",
  "validator-client",
+ "vergen",
  "version-checker",
 ]
 
@@ -3697,6 +3757,7 @@ dependencies = [
  "topology",
  "url",
  "validator-client",
+ "vergen",
  "version-checker",
 ]
 
@@ -3737,6 +3798,7 @@ dependencies = [
  "topology",
  "url",
  "validator-client",
+ "vergen",
  "version-checker",
 ]
 
@@ -3910,10 +3972,11 @@ dependencies = [
 
 [[package]]
 name = "okapi"
-version = "0.6.0-alpha-1"
+version = "0.7.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb085e00daf8d75b9dbf0ffdb4738e69503e28898d9641fa8bdc6ad536c7bcf4"
+checksum = "ce66b6366e049880a35c378123fddb630b1a1a3c37fa1ca70caaf4a09f6e2893"
 dependencies = [
+ "log",
  "schemars",
  "serde",
  "serde_json",
@@ -5150,10 +5213,12 @@ dependencies = [
 
 [[package]]
 name = "rocket_okapi"
-version = "0.7.0-alpha-1"
+version = "0.8.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b2f4f48fb070f9f6c56d5663df5fa8a514406207744f4abd84661bfb24efd7d"
+checksum = "0025aa04994af8cd8e1fcdd5a73579a395c941ae090ecb0a39b41cca7e237a20"
 dependencies = [
+ "either",
+ "log",
  "okapi",
  "rocket",
  "rocket_okapi_codegen",
@@ -5164,9 +5229,9 @@ dependencies = [
 
 [[package]]
 name = "rocket_okapi_codegen"
-version = "0.7.0-alpha-1"
+version = "0.8.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88ccf1550e1c806461a6b08e2ab64eb10701d41bf50bde59ab9aa3a57ab14d41"
+checksum = "dc114779fc27afb78179233e966f469e47fd7a98dc15181cff2574cdddb65612"
 dependencies = [
  "darling 0.13.0",
  "proc-macro2",
@@ -7159,6 +7224,23 @@ name = "vec_map"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
+
+[[package]]
+name = "vergen"
+version = "5.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6cf88d94e969e7956d924ba70741316796177fa0c79a2c9f4ab04998d96e966e"
+dependencies = [
+ "anyhow",
+ "cfg-if 1.0.0",
+ "chrono",
+ "enum-iterator",
+ "getset",
+ "git2",
+ "rustc_version 0.4.0",
+ "rustversion",
+ "thiserror",
+]
 
 [[package]]
 name = "version-checker"

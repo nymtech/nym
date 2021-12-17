@@ -4,6 +4,7 @@
 use crate::commands::*;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
+use crate::node::Gateway;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
@@ -81,58 +82,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     app
 }
 
-fn show_bonding_info(config: &Config) {
-    fn load_sphinx_keys(pathfinder: &GatewayPathfinder) -> encryption::KeyPair {
-        let sphinx_keypair: encryption::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
-                pathfinder.private_encryption_key().to_owned(),
-                pathfinder.public_encryption_key().to_owned(),
-            ))
-            .expect("Failed to read stored sphinx key files");
-        println!(
-            "Public sphinx key: {}\n",
-            sphinx_keypair.public_key().to_base58_string()
-        );
-        sphinx_keypair
-    }
-
-    fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
-        let identity_keypair: identity::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
-                pathfinder.private_identity_key().to_owned(),
-                pathfinder.public_identity_key().to_owned(),
-            ))
-            .expect("Failed to read stored identity key files");
-        println!(
-            "Public identity key: {}\n",
-            identity_keypair.public_key().to_base58_string()
-        );
-        identity_keypair
-    }
-
-    let pathfinder = GatewayPathfinder::new_from_config(config);
-    let identity_keypair = load_identity_keys(&pathfinder);
-    let sphinx_keypair = load_sphinx_keys(&pathfinder);
-
-    println!(
-        "\nTo bond your gateway you will [most likely] need to provide the following:
-    Identity key: {}
-    Sphinx key: {}
-    Host: {}
-    Mix Port: {}
-    Clients Port: {}
-    Location: [physical location of your node's server]
-    Version: {}
-    ",
-        identity_keypair.public_key().to_base58_string(),
-        sphinx_keypair.public_key().to_base58_string(),
-        config.get_announce_address(),
-        config.get_mix_port(),
-        config.get_clients_port(),
-        config.get_version(),
-    );
-}
-
 pub async fn execute(matches: ArgMatches<'static>) {
     let id = matches.value_of(ID_ARG_NAME).unwrap();
     println!("Initialising gateway {}...", id);
@@ -181,7 +130,7 @@ pub async fn execute(matches: ArgMatches<'static>) {
         .save_to_file(None)
         .expect("Failed to save the config file");
     println!("Saved configuration file to {:?}", config_save_location);
-
     println!("Gateway configuration completed.\n\n\n");
-    show_bonding_info(&config);
+
+    Gateway::new(config).await.print_node_details()
 }

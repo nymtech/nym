@@ -35,6 +35,11 @@ impl ExplorerApi {
     async fn run(&mut self) {
         info!("Explorer API starting up...");
 
+        info!(
+            "Using validator API - {}",
+            network_defaults::default_api_endpoints()[0].clone()
+        );
+
         // spawn concurrent tasks
         mix_nodes::tasks::MixNodesTasks::new(self.state.clone()).start();
         country_statistics::distribution::CountryStatisticsDistributionTask::new(

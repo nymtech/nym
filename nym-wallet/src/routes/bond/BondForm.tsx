@@ -1,6 +1,5 @@
 import React, { useContext } from 'react'
 import {
-  Alert,
   Box,
   Button,
   Checkbox,
@@ -19,15 +18,16 @@ import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { bond, majorToMinor } from '../../requests'
 import { validationSchema } from './validationSchema'
 import { Coin, Gateway, MixNode } from '../../types'
-import { ClientContext } from '../../context/main'
+import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 import { checkHasEnoughFunds } from '../../utils'
 
 type TBondFormFields = {
   withAdvancedOptions: boolean
   nodeType: EnumNodeType
-  ownerSignature: string,
+  ownerSignature: string
   identityKey: string
   sphinxKey: string
+  profitMarginPercent: number
   amount: string
   host: string
   version: string
@@ -43,9 +43,11 @@ const defaultValues = {
   nodeType: EnumNodeType.mixnode,
   identityKey: '',
   sphinxKey: '',
+  ownerSignature: '',
   amount: '',
   host: '',
   version: '',
+  profitMarginPercent: 10,
   location: undefined,
   mixPort: 1789,
   verlocPort: 1790,
@@ -60,6 +62,7 @@ const formatData = (data: TBondFormFields) => {
     host: data.host,
     version: data.version,
     mix_port: data.mixPort,
+    profit_margin_percent: data.profitMarginPercent,
   }
 
   if (data.nodeType === EnumNodeType.mixnode) {
@@ -108,9 +111,9 @@ export const BondForm = ({
     }
 
     const formattedData = formatData(data)
-    const amount = await majorToMinor(data.amount)
+    const pledge = await majorToMinor(data.amount)
 
-    await bond({ type: data.nodeType, data: formattedData, amount })
+    await bond({ type: data.nodeType, ownerSignature: data.ownerSignature, data: formattedData, pledge })
       .then(() => {
         userBalance.fetchBalance()
         onSuccess({ address: data.identityKey, amount: data.amount })
@@ -164,7 +167,23 @@ export const BondForm = ({
               disabled={disabled}
             />
           </Grid>
-          <Grid item xs={12} sm={9}>
+
+          <Grid item xs={12} sm={12}>
+            <TextField
+              {...register('ownerSignature')}
+              variant="outlined"
+              required
+              id="ownerSignature"
+              name="ownerSignature"
+              label="Signature on your address"
+              fullWidth
+              error={!!errors.ownerSignature}
+              helperText={errors.ownerSignature?.message}
+              disabled={disabled}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
             <TextField
               {...register('amount')}
               variant="outlined"
@@ -176,8 +195,23 @@ export const BondForm = ({
               error={!!errors.amount}
               helperText={errors.amount?.message}
               InputProps={{
-                endAdornment: <InputAdornment position="end">punk</InputAdornment>,
+                endAdornment: <InputAdornment position="end">{MAJOR_CURRENCY}</InputAdornment>,
               }}
+              disabled={disabled}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <TextField
+              {...register('profitMarginPercent')}
+              variant="outlined"
+              required
+              id="profitMarginPercent"
+              name="profitMarginPercent"
+              label="Profit percentage"
+              fullWidth
+              error={!!errors.profitMarginPercent}
+              helperText={errors.profitMarginPercent?.message}
               disabled={disabled}
             />
           </Grid>
@@ -227,22 +261,6 @@ export const BondForm = ({
               error={!!errors.version}
               helperText={errors.version?.message}
               disabled={disabled}
-            />
-          </Grid>
-
-
-          <Grid item xs={12} sm={12}>
-            <TextField
-                {...register('ownerSignature')}
-                variant="outlined"
-                required
-                id="ownerSignature"
-                name="ownerSignature"
-                label="Signature on your address"
-                fullWidth
-                error={!!errors.ownerSignature}
-                helperText={errors.ownerSignature?.message}
-                disabled={disabled}
             />
           </Grid>
 
@@ -344,7 +362,7 @@ export const BondForm = ({
                 {' '}
                 {`A bonding fee: ${
                   watchNodeType === EnumNodeType.mixnode ? fees.mixnode.amount : fees?.gateway?.amount
-                }`}
+                } ${MAJOR_CURRENCY}`}
               </Typography>
             </Grid>
           )}

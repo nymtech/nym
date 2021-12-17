@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::*;
-use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
 use crate::node::Gateway;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::asymmetric::{encryption, identity};
 use log::*;
 use version_checker::is_minor_version_compatible;
 
@@ -97,32 +95,6 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-fn load_sphinx_keys(pathfinder: &GatewayPathfinder) -> encryption::KeyPair {
-    let sphinx_keypair: encryption::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
-        pathfinder.private_encryption_key().to_owned(),
-        pathfinder.public_encryption_key().to_owned(),
-    ))
-    .expect("Failed to read stored sphinx key files");
-    println!(
-        "Public sphinx key: {}\n",
-        sphinx_keypair.public_key().to_base58_string()
-    );
-    sphinx_keypair
-}
-
-fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
-    let identity_keypair: identity::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
-        pathfinder.private_identity_key().to_owned(),
-        pathfinder.public_identity_key().to_owned(),
-    ))
-    .expect("Failed to read stored identity key files");
-    println!(
-        "Public identity key: {}\n",
-        identity_keypair.public_key().to_base58_string()
-    );
-    identity_keypair
-}
-
 // this only checks compatibility between config the binary. It does not take into consideration
 // network version. It might do so in the future.
 fn version_check(cfg: &Config) -> bool {
@@ -162,32 +134,12 @@ pub async fn execute(matches: ArgMatches<'static>) {
         return;
     }
 
-    let pathfinder = GatewayPathfinder::new_from_config(&config);
-    let sphinx_keypair = load_sphinx_keys(&pathfinder);
-    let identity = load_identity_keys(&pathfinder);
-
     if special_addresses().contains(&&*config.get_listening_address().to_string()) {
         show_binding_warning(config.get_listening_address().to_string());
     }
 
-    println!(
-        "Validator API servers: {:?}",
-        config.get_validator_api_endpoints()
-    );
+    let mut gateway = Gateway::new(config).await;
+    gateway.print_node_details();
 
-    println!(
-        "Listening for incoming packets on {}",
-        config.get_listening_address()
-    );
-    println!(
-        "Announcing the following address: {}",
-        config.get_announce_address()
-    );
-
-    println!("Data store is at: {:?}", config.get_persistent_store_path());
-
-    Gateway::new(config, sphinx_keypair, identity)
-        .await
-        .run()
-        .await;
+    gateway.run().await;
 }

@@ -13,7 +13,7 @@ interface ChartProps {
   loading: boolean;
 }
 
-type FormattedDateRecord = [string, number, number];
+type FormattedDateRecord = [string, number];
 type FormattedChartHeadings = string[];
 type FormattedChartData = [FormattedChartHeadings | FormattedDateRecord];
 
@@ -30,22 +30,19 @@ export const UptimeChart: React.FC<ChartProps> = ({
   const color = theme.palette.text.primary;
   React.useEffect(() => {
     if (uptimeStory.data?.history) {
-      const allFormattedChartData: FormattedChartData = [
-        ['Date', 'UptimeV4', 'UptimeV6'],
-      ];
+      const allFormattedChartData: FormattedChartData = [['Date', 'Uptime']];
       uptimeStory.data.history.forEach((eachDate) => {
         const formattedDateUptimeRecord: FormattedDateRecord = [
           format(new Date(eachDate.date), 'MMM dd'),
-          eachDate.ipv4_uptime,
-          eachDate.ipv6_uptime,
+          eachDate.uptime,
         ];
         allFormattedChartData.push(formattedDateUptimeRecord);
       });
       setFormattedChartData(allFormattedChartData);
     } else {
       const emptyData: any = [
-        ['Date', 'UptimeV4', 'UptimeV6'],
-        ['Jul 27', 10, 10],
+        ['Date', 'Uptime'],
+        ['Jul 27', 10],
       ];
       setFormattedChartData(emptyData);
     }
@@ -65,8 +62,8 @@ export const UptimeChart: React.FC<ChartProps> = ({
             uptimeStory.data
               ? formattedChartData
               : [
-                  ['Date', 'UptimeV4', 'UptimeV6'],
-                  [format(new Date(Date.now()), 'MMM dd'), 0, 0],
+                  ['Date', 'Uptime'],
+                  [format(new Date(Date.now()), 'MMM dd'), 0],
                 ]
           }
           options={{
@@ -77,7 +74,7 @@ export const UptimeChart: React.FC<ChartProps> = ({
             color: uptimeStory.error
               ? 'rgba(255, 255, 255, 0.4)'
               : 'rgba(255, 255, 255, 1)',
-            colors: ['#FB7A21', '#CC808A'],
+            colors: ['#FB7A21'],
             legend: {
               textStyle: {
                 color,

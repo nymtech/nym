@@ -6,6 +6,15 @@ use time::OffsetDateTime;
 use url::Url;
 
 pub mod eth_contract;
+#[cfg(network = "milhon")]
+pub mod milhon;
+#[cfg(network = "sandbox")]
+pub mod sandbox;
+
+#[cfg(network = "milhon")]
+pub use milhon::*;
+#[cfg(network = "sandbox")]
+pub use sandbox::*;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ValidatorDetails {
@@ -38,6 +47,15 @@ impl ValidatorDetails {
     }
 }
 
+#[cfg(network = "milhon")]
+pub fn default_validators() -> Vec<ValidatorDetails> {
+    vec![ValidatorDetails::new(
+        "https://sandbox-validator.nymtech.net",
+        Some("https://sandbox-validator.nymtech.net/api"),
+    )]
+}
+
+#[cfg(network = "sandbox")]
 pub fn default_validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
         "https://sandbox-validator.nymtech.net",
@@ -63,6 +81,7 @@ pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "nymt14hj2tavq8fpesdwxxcu44rty
 pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = "nymt1nc5tatafv6eyq7llkr2gv50ff9e22mnfp9pc5s";
 pub const REWARDING_VALIDATOR_ADDRESS: &str = "nymt17zujduc46wvkwvp6f062mm5xhr7jc3fewvqu9e";
 
+// Ethereum constants used for token bridge
 /// How much bandwidth (in bytes) one token can buy
 const BYTES_PER_TOKEN: u64 = 1024 * 1024 * 1024;
 /// How many ERC20 tokens should be burned to buy bandwidth
@@ -70,9 +89,6 @@ pub const TOKENS_TO_BURN: u64 = 10;
 /// Default bandwidth (in bytes) that we try to buy
 pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
 
-// Ethereum constants used for token bridge
-pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
-    hex_literal::hex!("9fEE3e28c17dbB87310A51F13C4fbf4331A6f102");
 pub const ETH_MIN_BLOCK_DEPTH: usize = 7;
 pub const COSMOS_CONTRACT_ADDRESS: &str = "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
 // Name of the event triggered by the eth contract. If the event name is changed,

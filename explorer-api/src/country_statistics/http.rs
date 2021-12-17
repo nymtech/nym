@@ -2,9 +2,12 @@ use crate::country_statistics::country_nodes_distribution::CountryNodesDistribut
 use crate::state::ExplorerApiStateContext;
 use rocket::serde::json::Json;
 use rocket::{Route, State};
+use rocket_okapi::okapi::openapi3::OpenApi;
+use rocket_okapi::openapi_get_routes_spec;
+use rocket_okapi::settings::OpenApiSettings;
 
-pub fn country_statistics_make_default_routes() -> Vec<Route> {
-    routes_with_openapi![index]
+pub fn country_statistics_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
+    openapi_get_routes_spec![settings: index]
 }
 
 // We could either separate stuff by structure (like this, http is separate), or we could just

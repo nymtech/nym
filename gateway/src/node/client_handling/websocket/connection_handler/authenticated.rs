@@ -18,6 +18,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 use crate::node::client_handling::bandwidth::Bandwidth;
+use crate::node::client_handling::FREE_TESTNET_BANDWIDTH_VALUE;
 use gateway_requests::iv::IV;
 
 #[derive(Debug, Error)]
@@ -43,6 +44,9 @@ pub(crate) enum RequestHandlingError {
     #[error("Provided bandwidth credential did not verify correctly")]
     InvalidBandwidthCredential,
 
+    #[error("This gateway is not running in the testnet mode")]
+    NotInTestnetMode,
+
     #[cfg(not(feature = "coconut"))]
     #[error("Ethereum web3 error")]
     Web3Error(#[from] web3::Error),
@@ -67,6 +71,21 @@ pub(crate) enum RequestHandlingError {
 impl RequestHandlingError {
     fn into_error_message(self) -> Message {
         ServerResponse::new_error(self.to_string()).into()
+    }
+}
+
+/// Helper trait that allows converting result of handling client request into a websocket message
+// Note: I couldn't have implemented a normal "From" trait as both `Message` and `Result` are foreign types
+trait IntoWSMessage {
+    fn into_ws_message(self) -> Message;
+}
+
+impl IntoWSMessage for Result<ServerResponse, RequestHandlingError> {
+    fn into_ws_message(self) -> Message {
+        match self {
+            Ok(response) => response.into(),
+            Err(err) => err.into_error_message(),
+        }
     }
 }
 
@@ -273,6 +292,20 @@ where
         return self.handle_token_bandwidth(enc_credential, iv).await;
     }
 
+    async fn handle_claim_testnet_bandwidth(
+        &mut self,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        if !self.inner.testnet_mode {
+            return Err(RequestHandlingError::NotInTestnetMode);
+        }
+
+        self.increase_bandwidth(FREE_TESTNET_BANDWIDTH_VALUE)
+            .await?;
+        let available_total = self.get_available_bandwidth().await?;
+
+        Ok(ServerResponse::Bandwidth { available_total })
+    }
+
     /// Tries to handle request to forward sphinx packet into the network. The request can only succeed
     /// if the client has enough available bandwidth.
     ///
@@ -314,12 +347,10 @@ where
             Err(e) => RequestHandlingError::InvalidBinaryRequest(e).into_error_message(),
             Ok(request) => match request {
                 // currently only a single type exists
-                BinaryRequest::ForwardSphinx(mix_packet) => {
-                    match self.handle_forward_sphinx(mix_packet).await {
-                        Ok(response) => response.into(),
-                        Err(err) => err.into_error_message(),
-                    }
-                }
+                BinaryRequest::ForwardSphinx(mix_packet) => self
+                    .handle_forward_sphinx(mix_packet)
+                    .await
+                    .into_ws_message(),
             },
         }
     }
@@ -335,12 +366,14 @@ where
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
             Ok(request) => match request {
-                ClientControlRequest::BandwidthCredential { enc_credential, iv } => {
-                    match self.handle_bandwidth(enc_credential, iv).await {
-                        Ok(response) => response.into(),
-                        Err(err) => err.into_error_message(),
-                    }
-                }
+                ClientControlRequest::BandwidthCredential { enc_credential, iv } => self
+                    .handle_bandwidth(enc_credential, iv)
+                    .await
+                    .into_ws_message(),
+                ClientControlRequest::ClaimFreeTestnetBandwidth => self
+                    .handle_claim_testnet_bandwidth()
+                    .await
+                    .into_ws_message(),
                 _ => RequestHandlingError::IllegalRequest.into_error_message(),
             },
         }

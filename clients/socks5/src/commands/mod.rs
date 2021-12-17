@@ -9,6 +9,8 @@ pub(crate) mod init;
 pub(crate) mod run;
 pub(crate) mod upgrade;
 
+pub(crate) const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
+
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
         .map(|raw_validator| {
@@ -46,6 +48,10 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
     #[cfg(not(feature = "coconut"))]
     if let Some(eth_private_key) = matches.value_of("eth_private_key") {
         config.get_base_mut().with_eth_private_key(eth_private_key);
+    }
+
+    if matches.is_present(TESTNET_MODE_ARG_NAME) {
+        config.get_base_mut().with_testnet_mode(true)
     }
 
     config

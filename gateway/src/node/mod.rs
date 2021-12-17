@@ -147,6 +147,7 @@ impl Gateway {
         websocket::Listener::new(
             listening_address,
             Arc::clone(&self.identity_keypair),
+            self.config.get_testnet_mode(),
             #[cfg(feature = "coconut")]
             verification_key,
             #[cfg(not(feature = "coconut"))]

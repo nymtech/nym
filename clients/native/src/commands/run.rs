@@ -3,7 +3,7 @@
 
 use crate::client::config::Config;
 use crate::client::NymClient;
-use crate::commands::override_config;
+use crate::commands::{override_config, TESTNET_MODE_ARG_NAME};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use log::*;
@@ -38,6 +38,11 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .long("port")
             .help("Port for the socket (if applicable) to listen on")
             .takes_value(true)
+        )
+        .arg(
+            Arg::with_name(TESTNET_MODE_ARG_NAME)
+                .long(TESTNET_MODE_ARG_NAME)
+                .help("Set this client to work in a testnet mode that would attempt to use gateway without bandwidth credential requirement")
         );
     #[cfg(not(feature = "coconut"))]
         let app = app

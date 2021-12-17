@@ -28,7 +28,7 @@ use topology::{filter::VersionFilterable, gateway};
 use url::Url;
 
 use crate::client::config::Config;
-use crate::commands::override_config;
+use crate::commands::{override_config, TESTNET_MODE_ARG_NAME};
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     let app = App::new("init")
@@ -65,6 +65,11 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .long("fastmode")
             .hidden(true) // this will prevent this flag from being displayed in `--help`
             .help("Mostly debug-related option to increase default traffic rate so that you would not need to modify config post init")
+        )
+        .arg(
+            Arg::with_name(TESTNET_MODE_ARG_NAME)
+                .long(TESTNET_MODE_ARG_NAME)
+                .help("Set this client to work in a testnet mode that would attempt to use gateway without bandwidth credential requirement")
         );
     #[cfg(not(feature = "coconut"))]
         let app = app

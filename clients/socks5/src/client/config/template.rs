@@ -5,7 +5,7 @@ pub(crate) fn config_template() -> &'static str {
     // While using normal toml marshalling would have been way simpler with less overhead,
     // I think it's useful to have comments attached to the saved config file to explain behaviour of
     // particular fields.
-    // Note: any changes to the template must be reflected in the appropriate structs in verloc.
+    // Note: any changes to the template must be reflected in the appropriate structs.
     r#"
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
@@ -18,6 +18,10 @@ version = '{{ client.version }}'
 
 # Human readable ID of this particular client.
 id = '{{ client.id }}'
+
+# Indicates whether this client is running in a testnet mode, thus attempting
+# to claim bandwidth without presenting bandwidth credentials.
+testnet_mode = {{ client.testnet_mode }}
 
 # Addresses to APIs running on validator from which the client gets the view of the network.
 validator_api_urls = [

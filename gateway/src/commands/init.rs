@@ -55,6 +55,11 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .long(VALIDATOR_APIS_ARG_NAME)
                 .help("Comma separated list of endpoints of the validators APIs")
                 .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(TESTNET_MODE_ARG_NAME)
+                .long(TESTNET_MODE_ARG_NAME)
+                .help("Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement")
         );
 
     #[cfg(not(feature = "coconut"))]

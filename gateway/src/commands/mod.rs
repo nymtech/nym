@@ -24,6 +24,7 @@ pub(crate) const COSMOS_MNEMONIC: &str = "mnemonic";
 pub(crate) const ETH_ENDPOINT: &str = "eth_endpoint";
 pub(crate) const ANNOUNCE_HOST_ARG_NAME: &str = "announce-host";
 pub(crate) const DATASTORE_PATH: &str = "datastore";
+pub(crate) const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
 
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
@@ -95,5 +96,9 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_eth_endpoint(String::from(eth_endpoint));
     }
 
-    config
+    if matches.is_present(TESTNET_MODE_ARG_NAME) {
+        config.with_testnet_mode(true)
+    } else {
+        config
+    }
 }

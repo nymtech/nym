@@ -212,7 +212,7 @@ export const BondForm = ({
                 label="Profit percentage"
                 fullWidth
                 error={!!errors.profitMarginPercent}
-                helperText={errors.profitMarginPercent?.message}
+                helperText={errors.profitMarginPercent ? errors.profitMarginPercent.message : 'Default is 10%'}
                 disabled={disabled}
               />
             </Grid>

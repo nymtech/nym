@@ -21,11 +21,12 @@ export const Settings = () => {
   useEffect(() => {
     const getBondDetails = async () => {
       const details = await getMixnodeBondDetails()
-      console.log(details)
       setMixnodeDetails(details)
     }
     if (showSettings) getBondDetails()
   }, [showSettings])
+
+  console.log(mixnodeDetails)
 
   const handleTabChange = (event: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab)
 
@@ -52,7 +53,7 @@ export const Settings = () => {
           )}
           {selectedTab === 0 && mixnodeDetails && <Profile />}
           {selectedTab === 1 && mixnodeDetails && (
-            <SystemVariables profitMargin={mixnodeDetails.mix_node.profit_margin_percent} />
+            <SystemVariables mixnodeDetails={mixnodeDetails.mix_node} pledge={mixnodeDetails.pledge_amount} />
           )}
           {selectedTab === 2 && mixnodeDetails && <NodeStats mixnodeId={mixnodeDetails.mix_node.identity_key} />}
         </>

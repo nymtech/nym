@@ -1,37 +1,107 @@
-import React, { ChangeEvent, useState } from 'react'
-import { Box, Button, Chip, Divider, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material'
+import React, { useContext, useState } from 'react'
+import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Divider,
+  Grid,
+  LinearProgress,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material'
 import { AccessTimeOutlined, PercentOutlined } from '@mui/icons-material'
+import { yupResolver } from '@hookform/resolvers/yup'
+import { useForm } from 'react-hook-form'
 import { InfoTooltip } from '../../components/InfoToolTip'
+import { EnumNodeType, TMixnodeBondDetails } from '../../types'
+import { validationSchema } from './validationSchema'
+import { bond, unbond } from '../../requests'
+import { ClientContext } from '../../context/main'
 
-export const SystemVariables = ({ profitMargin }: { profitMargin: number }) => {
-  const [profitMarginPercent, setProfirMarginPercent] = useState<string>(profitMargin.toString())
+type TFormData = {
+  profitMarginPercent: number
+  signature: string
+}
+
+export const SystemVariables = ({
+  mixnodeDetails,
+  pledge,
+}: {
+  mixnodeDetails: TMixnodeBondDetails['mix_node']
+  pledge: TMixnodeBondDetails['pledge_amount']
+}) => {
+  const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>()
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: yupResolver(validationSchema),
+    defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString(), signature: '' },
+  })
+  console.log(pledge, mixnodeDetails)
+  const { userBalance } = useContext(ClientContext)
+
+  const onSubmit = async (data: TFormData) => {
+    await unbond(EnumNodeType.mixnode)
+    await bond({
+      type: EnumNodeType.mixnode,
+      data: { ...mixnodeDetails, profit_margin_percent: data.profitMarginPercent },
+      pledge: { denom: 'Minor', amount: pledge.amount },
+      ownerSignature: data.signature,
+    })
+      .then(() => {
+        userBalance.fetchBalance()
+        setNodeUpdateResponse('success')
+      })
+      .catch((e) => {
+        setNodeUpdateResponse('failed')
+        console.log(e)
+      })
+  }
+
   return (
     <>
       <Box sx={{ p: 4 }}>
         <Stack spacing={3}>
           <TextField
+            {...register('profitMarginPercent', { valueAsNumber: true })}
             label="Profit margin"
-            helperText="The percentage of your delegators' rewards that you as the node operator will take"
-            value={profitMarginPercent}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setProfirMarginPercent(e.target.value)}
+            helperText={
+              !!errors.profitMarginPercent
+                ? errors.profitMarginPercent.message
+                : "The percentage of your delegators' rewards that you as the node operator will take"
+            }
             InputProps={{ endAdornment: <PercentOutlined fontSize="small" sx={{ color: 'grey.500' }} /> }}
+            error={!!errors.profitMarginPercent}
+            disabled={isSubmitting}
+          />
+          <TextField
+            {...register('signature')}
+            label="Signature on address"
+            error={!!errors.signature}
+            helperText={!!errors.signature && errors.signature.message}
+            disabled={isSubmitting}
           />
           <Divider />
           <DataField
             title="Estimated reward"
             info="Estimated reward per epoch for this profit margin if your node is selected in the active set."
-            Indicator={<Typography sx={{ color: 'nym.fee', fontWeight: 600 }}>~ 152,140,028 punk</Typography>}
+            Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
           />
           <Divider />
           <DataField
             title="Chance of being in the active set"
             info="Probability of getting selected in the reward set (active and standby nodes) in the next epoch. The more your stake, the higher the chances to be selected"
-            Indicator={<PercentIndicator value={78} />}
+            Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
           />
           <DataField
             title="Chance of being in the standby set"
             info="Probability of getting selected in the reward set (active and standby nodes) in the next epoch. The more your stake, the higher the chances to be selected"
-            Indicator={<PercentIndicator value={22} />}
+            Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
           />
 
           <Divider />
@@ -46,14 +116,28 @@ export const SystemVariables = ({ profitMargin }: { profitMargin: number }) => {
         sx={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
           borderTop: (theme) => `1px solid ${theme.palette.grey[300]}`,
           bgcolor: 'grey.200',
           padding: 2,
         }}
       >
-        <Button variant="contained" color="primary" type="submit" disableElevation>
-          Save
+        {nodeUpdateResponse === 'success' ? (
+          <Typography sx={{ color: 'success.main', fontWeight: 600 }}>Node successfully updated</Typography>
+        ) : nodeUpdateResponse === 'failed' ? (
+          <Typography sx={{ color: 'error.main', fontWeight: 600 }}>Node updated failed</Typography>
+        ) : (
+          <Box />
+        )}
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleSubmit(onSubmit)}
+          disableElevation
+          endIcon={isSubmitting && <CircularProgress size={20} />}
+          disabled={Object.keys(errors).length > 0 || isSubmitting}
+        >
+          Update Profit Margin
         </Button>
       </Box>
     </>
@@ -69,8 +153,10 @@ const DataField = ({ title, info, Indicator }: { title: string; info: string; In
       </Box>
     </Grid>
 
-    <Grid item xs={12} md={5}>
-      {Indicator}
+    <Grid item xs={12} md={6}>
+      <Box display="flex" justifyContent="flex-end">
+        {Indicator}
+      </Box>
     </Grid>
   </Grid>
 )

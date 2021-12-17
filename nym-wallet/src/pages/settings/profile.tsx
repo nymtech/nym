@@ -23,8 +23,8 @@ export const Profile = () => {
           padding: 2,
         }}
       >
-        <Button variant="contained" color="primary" type="submit" disableElevation>
-          Bond
+        <Button variant="contained" color="primary" type="submit" disableElevation disabled>
+          Update
         </Button>
       </Box>
     </>

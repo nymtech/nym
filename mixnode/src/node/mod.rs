@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
+use crate::node::crypto::ed25519::sign_text;
 use crate::node::http::{
     description::description,
     not_found,
@@ -17,8 +18,8 @@ use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSende
 use crate::{
     commands::sign::load_identity_keys, config::persistence::pathfinder::MixNodePathfinder,
 };
+use ::crypto::asymmetric::{encryption, identity};
 use config::NymConfig;
-use crypto::asymmetric::{encryption, identity};
 use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use rand::seq::SliceRandom;
@@ -29,15 +30,12 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use version_checker::parse_version;
 
-use self::signing::sign_text;
-
-pub(crate) mod bech32;
+pub(crate) mod crypto;
 pub(crate) mod http;
 mod listener;
 pub(crate) mod node_description;
 pub(crate) mod node_statistics;
 pub(crate) mod packet_delayforwarder;
-pub(crate) mod signing;
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {

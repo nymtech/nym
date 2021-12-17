@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::validate_bech32_address_or_exit;
 use crate::config::Config;
 use crate::node::crypto::ed25519::sign_text;
 use crate::node::http::{
@@ -85,10 +86,9 @@ impl MixNode {
     fn generate_verification_code(&self) -> String {
         let pathfinder = MixNodePathfinder::new_from_config(&self.config);
         let identity_keypair = load_identity_keys(&pathfinder);
-        let verification_code = sign_text(
-            identity_keypair.private_key(),
-            self.config.get_wallet_address(),
-        );
+        let address = self.config.get_wallet_address();
+        validate_bech32_address_or_exit(address);
+        let verification_code = sign_text(identity_keypair.private_key(), address);
         verification_code
     }
 

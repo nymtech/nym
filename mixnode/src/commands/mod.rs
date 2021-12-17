@@ -96,7 +96,7 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
 }
 
 /// Ensures that a given bech32 address is valid, or exits
-fn validate_bech32_address_or_exit(address: &str) {
+pub(crate) fn validate_bech32_address_or_exit(address: &str) {
     if let Err(bech32_address_validation::Bech32Error::DecodeFailed(err)) =
         bech32_address_validation::try_bech32_decode(address)
     {

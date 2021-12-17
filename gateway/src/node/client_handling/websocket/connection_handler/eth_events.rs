@@ -19,7 +19,9 @@ use bandwidth_claim_contract::payment::LinkPaymentData;
 use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity::{PublicKey, Signature};
 use gateway_client::bandwidth::eth_contract;
-use network_defaults::{COSMOS_CONTRACT_ADDRESS, DENOM, ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
+use network_defaults::{
+    BANDWIDTH_CLAIM_CONTRACT_ADDRESS, DENOM, ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH,
+};
 use validator_client::nymd::{
     AccountId, CosmosCoin, Decimal, Denom, NymdClient, SigningNymdClient,
 };
@@ -42,7 +44,7 @@ impl ERC20Bridge {
             Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
         let nymd_client = NymdClient::connect_with_mnemonic(
             nymd_url.as_ref(),
-            AccountId::from_str(COSMOS_CONTRACT_ADDRESS).ok(),
+            AccountId::from_str(BANDWIDTH_CLAIM_CONTRACT_ADDRESS).ok(),
             None,
             mnemonic,
             None,

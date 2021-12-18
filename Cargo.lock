@@ -620,7 +620,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "config",
  "crypto",
@@ -3571,7 +3571,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "clap",
  "client-core",
@@ -3605,7 +3605,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "coconut-interface",
  "console_error_panic_hook",
@@ -3629,7 +3629,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "bandwidth-claim-contract",
  "bip39",
@@ -3672,7 +3672,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "bs58",
  "clap",
@@ -3707,7 +3707,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "clap",
  "dirs",
@@ -3728,7 +3728,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "clap",
  "client-core",
@@ -3763,7 +3763,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-api"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "clap",

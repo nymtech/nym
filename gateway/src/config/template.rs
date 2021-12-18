@@ -72,6 +72,9 @@ validator_nymd_urls = [
 
 cosmos_mnemonic = "{{ gateway.cosmos_mnemonic }}"
 
+# Nym wallet address on the blockchain that should control this gateway
+wallet_address = '{{ gateway.wallet_address }}'
+
 ##### advanced configuration options #####
 
 # nym_home_directory specifies absolute path to the home nym gateway directory.

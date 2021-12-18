@@ -19,7 +19,9 @@ x25519-dalek = "1.1"
 ed25519-dalek = "1.0"
 log = "0.4"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+subtle-encoding = { version = "0.5", features =  ["bech32-preview"]}
 
 # internal
 nymsphinx-types = { path = "../nymsphinx/types" }
 pemstore = { path = "../../common/pemstore" }
+config = { path="../../common/config" }

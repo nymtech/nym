@@ -193,6 +193,11 @@ impl Config {
         self
     }
 
+    pub fn with_wallet_address(mut self, wallet_address: &str) -> Self {
+        self.gateway.wallet_address = wallet_address.to_string();
+        self
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
@@ -280,6 +285,10 @@ impl Config {
     pub fn get_version(&self) -> &str {
         &self.gateway.version
     }
+
+    pub fn get_wallet_address(&self) -> &str {
+        &self.gateway.wallet_address
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -350,6 +359,9 @@ pub struct Gateway {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys and available client bandwidths.
     persistent_storage: PathBuf,
+
+    /// The Cosmos wallet address that will control this gateway
+    wallet_address: String,
 }
 
 impl Gateway {
@@ -397,6 +409,7 @@ impl Default for Gateway {
             cosmos_mnemonic: "".to_string(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),
+            wallet_address: "nymXXXXXXXX".to_string(),
         }
     }
 }

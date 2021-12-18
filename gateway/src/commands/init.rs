@@ -60,6 +60,13 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             Arg::with_name(TESTNET_MODE_ARG_NAME)
                 .long(TESTNET_MODE_ARG_NAME)
                 .help("Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement")
+        )
+        .arg(
+            Arg::with_name(WALLET_ADDRESS)
+            .long(WALLET_ADDRESS)
+            .help("The wallet address you will use to bond this gateway, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9")
+            .takes_value(true)
+            .required(true)
         );
 
     #[cfg(not(feature = "coconut"))]

@@ -3,7 +3,6 @@
 
 use crate::commands::validate_bech32_address_or_exit;
 use crate::config::Config;
-use crate::crypto::ed25519::sign_text;
 use crate::node::http::{
     description::description,
     not_found,
@@ -91,7 +90,7 @@ impl MixNode {
         let identity_keypair = load_identity_keys(&pathfinder);
         let address = self.config.get_wallet_address();
         validate_bech32_address_or_exit(address);
-        let verification_code = sign_text(identity_keypair.private_key(), address);
+        let verification_code = identity_keypair.private_key().sign_text(address);
         verification_code
     }
 

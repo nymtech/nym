@@ -3,9 +3,10 @@
 
 use std::process;
 
-use crate::{config::Config, crypto::bech32_address_validation};
+use crate::config::Config;
 use clap::ArgMatches;
 use colored::Colorize;
+use crypto::bech32_address_validation;
 use url::Url;
 
 pub(crate) mod describe;

@@ -189,6 +189,13 @@ impl PrivateKey {
         let sig = expanded_secret_key.sign(message, &public_key.0);
         Signature(sig)
     }
+
+    /// Signs text with the provided Ed25519 private key, returning a base58 signature
+    pub fn sign_text(&self, text: &str) -> String {
+        let signature_bytes = self.sign(text.as_ref()).to_bytes();
+        let signature = bs58::encode(signature_bytes).into_string();
+        signature
+    }
 }
 
 impl PemStorableKey for PrivateKey {

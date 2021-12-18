@@ -1,4 +1,3 @@
-export * from './AdminForm'
 export * from './Error'
 export * from './CopyToClipboard'
 export * from './NymCard'

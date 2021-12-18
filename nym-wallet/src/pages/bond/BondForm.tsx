@@ -201,20 +201,40 @@ export const BondForm = ({
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
-            <TextField
-              {...register('profitMarginPercent')}
-              variant="outlined"
-              required
-              id="profitMarginPercent"
-              name="profitMarginPercent"
-              label="Profit percentage"
-              fullWidth
-              error={!!errors.profitMarginPercent}
-              helperText={errors.profitMarginPercent?.message}
-              disabled={disabled}
-            />
-          </Grid>
+          {watchNodeType === EnumNodeType.mixnode && (
+            <Grid item xs={12} sm={6}>
+              <TextField
+                {...register('profitMarginPercent')}
+                variant="outlined"
+                required
+                id="profitMarginPercent"
+                name="profitMarginPercent"
+                label="Profit percentage"
+                fullWidth
+                error={!!errors.profitMarginPercent}
+                helperText={errors.profitMarginPercent ? errors.profitMarginPercent.message : 'Default is 10%'}
+                disabled={disabled}
+              />
+            </Grid>
+          )}
+
+          {/* if it's a gateway - get location */}
+          {watchNodeType === EnumNodeType.gateway && (
+            <Grid item xs={6}>
+              <TextField
+                {...register('location')}
+                variant="outlined"
+                required
+                id="location"
+                name="location"
+                label="Location"
+                fullWidth
+                error={!!errors.location}
+                helperText={errors.location?.message}
+                disabled={disabled}
+              />
+            </Grid>
+          )}
 
           <Grid item xs={12} sm={6}>
             <TextField
@@ -229,24 +249,6 @@ export const BondForm = ({
               helperText={errors.host?.message}
               disabled={disabled}
             />
-          </Grid>
-
-          {/* if it's a gateway - get location */}
-          <Grid item xs={6}>
-            {watchNodeType === EnumNodeType.gateway && (
-              <TextField
-                {...register('location')}
-                variant="outlined"
-                required
-                id="location"
-                name="location"
-                label="Location"
-                fullWidth
-                error={!!errors.location}
-                helperText={errors.location?.message}
-                disabled={disabled}
-              />
-            )}
           </Grid>
 
           <Grid item xs={12} sm={6}>
@@ -358,9 +360,9 @@ export const BondForm = ({
           )}
           {fees && (
             <Grid item xs={12}>
-              <Typography sx={{ color: 'nym.info' }}>
+              <Typography sx={{ color: 'nym.fee' }}>
                 {' '}
-                {`A bonding fee: ${
+                {`Bonding fee: ${
                   watchNodeType === EnumNodeType.mixnode ? fees.mixnode.amount : fees?.gateway?.amount
                 } ${MAJOR_CURRENCY}`}
               </Typography>

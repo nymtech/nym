@@ -110,7 +110,7 @@ export const Bond = () => {
                   checkOwnership()
                 }}
               >
-                Again?
+                {status === EnumRequestStatus.error ? 'Again?' : 'Finish'}
               </Button>
             </Box>
           </>

@@ -104,7 +104,7 @@ export const DelegateForm = ({
             />
           </Grid>
           <Grid item xs={12}>
-            <Typography sx={{ color: 'nym.info' }}>
+            <Typography sx={{ color: 'nym.fee' }}>
               Fee for this transaction: {`${fees.mixnode.amount}  ${MAJOR_CURRENCY}`}
             </Typography>
           </Grid>

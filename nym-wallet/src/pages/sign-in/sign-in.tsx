@@ -32,7 +32,8 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
     <Stack spacing={3} alignItems="center" sx={{ width: '80%' }}>
       <Logo width={80} />
       <Typography sx={{ color: 'common.white' }}>Enter Mnemonic and sign in</Typography>
-      <Grid container direction="column" spacing={3}>
+
+      <Grid container direction="column" spacing={3} component="form">
         <Grid item style={{ paddingTop: 0 }}>
           <StyledInput
             value={mnemonic}
@@ -61,6 +62,7 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
             disableElevation
             size="large"
             onClick={handleSignIn}
+            type="submit"
           >
             {!isLoading ? 'Sign In' : 'Signing in'}
           </Button>
@@ -73,6 +75,7 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
           </Grid>
         )}
       </Grid>
+
       <div>
         <Typography sx={{ color: 'common.white' }} component="span">
           Don't have an account?

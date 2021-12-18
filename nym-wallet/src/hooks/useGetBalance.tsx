@@ -15,7 +15,7 @@ export const useGetBalance = (): TUseuserBalance => {
   const [error, setError] = useState<string>()
   const [isLoading, setIsLoading] = useState(false)
 
-  const fetchBalance = useCallback(() => {
+  const fetchBalance = useCallback(async () => {
     setIsLoading(true)
     setError(undefined)
     invoke('get_balance')

@@ -3,7 +3,6 @@
 
 use crate::commands::*;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
-use crate::crypto::ed25519::sign_text;
 use clap::{App, Arg, ArgMatches};
 use colored::Colorize;
 use config::NymConfig;
@@ -51,7 +50,7 @@ pub fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
 fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) -> String {
     let trimmed = raw_address.trim();
     validate_bech32_address_or_exit(trimmed);
-    let signature = sign_text(private_key, trimmed);
+    let signature = private_key.sign_text(trimmed);
 
     println!(
         "The base58-encoded signature on '{}' is: {}",
@@ -66,7 +65,7 @@ fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
         text
     );
 
-    let signature = sign_text(private_key, text);
+    let signature = private_key.sign_text(text);
 
     println!(
         "The base58-encoded signature on '{}' is: {}",

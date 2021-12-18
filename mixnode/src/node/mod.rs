@@ -106,21 +106,24 @@ impl MixNode {
             self.sphinx_keypair.public_key().to_base58_string()
         );
         println!(
+            "Node Verification Code: {}",
+            self.generate_verification_code()
+        );
+        println!(
             "Host: {} (bind address: {})",
             self.config.get_announce_address(),
             self.config.get_listening_address()
         );
         println!("Version: {}", self.config.get_version());
         println!(
-            "Mix Port: {}, Verloc port: {}, Http Port: {}",
+            "Mix Port: {}, Verloc port: {}, Http Port: {}\n",
             self.config.get_mix_port(),
             self.config.get_version(),
             self.config.get_http_api_port()
         );
-        println!("Wallet Address: {}", self.config.get_wallet_address());
         println!(
-            "Node Verification Code: {}",
-            self.generate_verification_code()
+            "You are bonding to wallet address: {}\n\n",
+            self.config.get_wallet_address()
         );
     }
 

@@ -175,7 +175,7 @@ export const BondForm = ({
               required
               id="ownerSignature"
               name="ownerSignature"
-              label="Signature on your address"
+              label="Owner signature"
               fullWidth
               error={!!errors.ownerSignature}
               helperText={errors.ownerSignature?.message}

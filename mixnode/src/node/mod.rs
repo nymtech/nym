@@ -85,7 +85,7 @@ impl MixNode {
 
     /// Signs the node config's bech32 address to produce a verification code for use in the wallet.
     /// Exits if the address isn't valid (which should protect against manual edits).
-    fn generate_verification_code(&self) -> String {
+    fn generate_owner_signature(&self) -> String {
         let pathfinder = MixNodePathfinder::new_from_config(&self.config);
         let identity_keypair = load_identity_keys(&pathfinder);
         let address = self.config.get_wallet_address();
@@ -104,10 +104,7 @@ impl MixNode {
             "Sphinx Key: {}",
             self.sphinx_keypair.public_key().to_base58_string()
         );
-        println!(
-            "Node Verification Code: {}",
-            self.generate_verification_code()
-        );
+        println!("Owner Signature: {}", self.generate_owner_signature());
         println!(
             "Host: {} (bind address: {})",
             self.config.get_announce_address(),

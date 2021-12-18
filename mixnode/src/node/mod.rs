@@ -1,8 +1,9 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::pathfinder::MixNodePathfinder;
+use crate::commands::validate_bech32_address_or_exit;
 use crate::config::Config;
+use crate::crypto::ed25519::sign_text;
 use crate::node::http::{
     description::description,
     not_found,
@@ -15,8 +16,11 @@ use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::NodeStatsWrapper;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
+use crate::{
+    commands::sign::load_identity_keys, config::persistence::pathfinder::MixNodePathfinder,
+};
+use ::crypto::asymmetric::{encryption, identity};
 use config::NymConfig;
-use crypto::asymmetric::{encryption, identity};
 use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use rand::seq::SliceRandom;
@@ -29,7 +33,6 @@ use version_checker::parse_version;
 
 pub(crate) mod http;
 mod listener;
-// mod metrics;
 pub(crate) mod node_description;
 pub(crate) mod node_statistics;
 pub(crate) mod packet_delayforwarder;
@@ -59,6 +62,7 @@ impl MixNode {
             .unwrap_or_default()
     }
 
+    /// Loads identity keys stored on disk
     fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
         let identity_keypair: identity::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
@@ -69,6 +73,7 @@ impl MixNode {
         identity_keypair
     }
 
+    /// Loads Sphinx keys stored on disk
     fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
         let sphinx_keypair: encryption::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
@@ -79,6 +84,18 @@ impl MixNode {
         sphinx_keypair
     }
 
+    /// Signs the node config's bech32 address to produce a verification code for use in the wallet.
+    /// Exits if the address isn't valid (which should protect against manual edits).
+    fn generate_verification_code(&self) -> String {
+        let pathfinder = MixNodePathfinder::new_from_config(&self.config);
+        let identity_keypair = load_identity_keys(&pathfinder);
+        let address = self.config.get_wallet_address();
+        validate_bech32_address_or_exit(address);
+        let verification_code = sign_text(identity_keypair.private_key(), address);
+        verification_code
+    }
+
+    /// Prints relevant node details to the console
     pub(crate) fn print_node_details(&self) {
         println!(
             "Identity Key: {}",
@@ -89,16 +106,24 @@ impl MixNode {
             self.sphinx_keypair.public_key().to_base58_string()
         );
         println!(
+            "Node Verification Code: {}",
+            self.generate_verification_code()
+        );
+        println!(
             "Host: {} (bind address: {})",
             self.config.get_announce_address(),
             self.config.get_listening_address()
         );
         println!("Version: {}", self.config.get_version());
         println!(
-            "Mix Port: {}, Verloc port: {}, Http Port: {}",
+            "Mix Port: {}, Verloc port: {}, Http Port: {}\n",
             self.config.get_mix_port(),
             self.config.get_version(),
             self.config.get_http_api_port()
+        );
+        println!(
+            "You are bonding to wallet address: {}\n\n",
+            self.config.get_wallet_address()
         );
     }
 

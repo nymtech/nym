@@ -8,6 +8,7 @@ use clap::{crate_version, App, ArgMatches};
 
 mod commands;
 mod config;
+mod crypto;
 mod node;
 
 fn main() {

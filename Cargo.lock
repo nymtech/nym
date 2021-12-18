@@ -241,6 +241,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d6dff4a1892b54d70af377bf7a17064192e822865791d812957f21e3108c325"
 
 [[package]]
+name = "bandwidth-claim-contract"
+version = "0.1.0"
+dependencies = [
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "base-x"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -612,7 +620,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "config",
  "crypto",
@@ -1657,14 +1665,6 @@ dependencies = [
  "log",
  "regex",
  "termcolor",
-]
-
-[[package]]
-name = "erc20-bridge-contract"
-version = "0.1.0"
-dependencies = [
- "schemars",
- "serde",
 ]
 
 [[package]]
@@ -3571,7 +3571,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "clap",
  "client-core",
@@ -3605,7 +3605,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "coconut-interface",
  "console_error_panic_hook",
@@ -3629,8 +3629,9 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
+ "bandwidth-claim-contract",
  "bip39",
  "bs58",
  "clap",
@@ -3642,7 +3643,6 @@ dependencies = [
  "dashmap",
  "dirs",
  "dotenv",
- "erc20-bridge-contract",
  "futures",
  "gateway-client",
  "gateway-requests",
@@ -3672,7 +3672,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "bs58",
  "clap",
@@ -3707,7 +3707,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "clap",
  "dirs",
@@ -3728,7 +3728,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "clap",
  "client-core",
@@ -3763,7 +3763,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-api"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "clap",

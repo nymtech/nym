@@ -119,7 +119,8 @@ pub fn execute(matches: &ArgMatches) {
     let mut mixnode = MixNode::new(config);
 
     println!(
-        "\nTo bond your mixnode, get the Nym Wallet from https://nymtech.net/.  You will need to provide the following:\n");
+        "\nTo bond your mixnode you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
+         Select the correct version and install it to your machine. You will need to provide the following: \n ");
     mixnode.print_node_details();
 
     mixnode.run()

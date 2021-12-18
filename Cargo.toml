@@ -25,7 +25,7 @@ members = [
     "common/config",
     "common/credentials",
     "common/crypto",
-    "common/erc20-bridge-contract",
+    "common/bandwidth-claim-contract",
     "common/mixnet-contract",
     "common/mixnode-common",
     "common/network-defaults",

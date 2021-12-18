@@ -3,13 +3,13 @@ import { Card, CardContent, CardHeader } from '@mui/material'
 import { styled } from '@mui/material/styles'
 
 export const NymCard: React.FC<{
-  title: string
+  title: string | React.ReactElement
   subheader?: string
   Action?: React.ReactNode
   noPadding?: boolean
 }> = ({ title, subheader, Action, noPadding, children }) => {
   return (
-    <Card variant="outlined">
+    <Card variant="outlined" sx={{ overflow: 'auto' }}>
       <CardHeader
         title={title}
         subheader={subheader}

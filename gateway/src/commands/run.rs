@@ -139,6 +139,9 @@ pub async fn execute(matches: ArgMatches<'static>) {
     }
 
     let mut gateway = Gateway::new(config).await;
+    println!(
+        "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
+         Select the correct version and install it to your machine. You will need to provide the following: \n ");
     gateway.print_node_details();
 
     gateway.run().await;

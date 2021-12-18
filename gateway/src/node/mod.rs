@@ -1,6 +1,8 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::sign::load_identity_keys;
+use crate::commands::validate_bech32_address_or_exit;
 use crate::config::Config;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket;
@@ -78,6 +80,17 @@ impl Gateway {
         sphinx_keypair
     }
 
+    /// Signs the node config's bech32 address to produce a verification code for use in the wallet.
+    /// Exits if the address isn't valid (which should protect against manual edits).
+    fn generate_verification_code(&self) -> String {
+        let pathfinder = GatewayPathfinder::new_from_config(&self.config);
+        let identity_keypair = load_identity_keys(&pathfinder);
+        let address = self.config.get_wallet_address();
+        validate_bech32_address_or_exit(address);
+        let verification_code = identity_keypair.private_key().sign_text(address);
+        verification_code
+    }
+
     pub(crate) fn print_node_details(&self) {
         println!(
             "Identity Key: {}",
@@ -86,6 +99,10 @@ impl Gateway {
         println!(
             "Sphinx Key: {}",
             self.sphinx_keypair.public_key().to_base58_string()
+        );
+        println!(
+            "Node Verification Code: {}",
+            self.generate_verification_code()
         );
         println!(
             "Host: {} (bind address: {})",

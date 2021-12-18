@@ -5,7 +5,7 @@ use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 
 use crate::error::ContractError;
 use crate::storage::{payments, status, Status};
-use erc20_bridge_contract::payment::{LinkPaymentData, Payment};
+use bandwidth_claim_contract::payment::{LinkPaymentData, Payment};
 
 pub(crate) fn link_payment(
     deps: DepsMut,
@@ -49,8 +49,8 @@ mod tests {
     use super::*;
     use crate::storage::payments_read;
     use crate::support::tests::helpers;
+    use bandwidth_claim_contract::keys::PublicKey;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use erc20_bridge_contract::keys::PublicKey;
 
     #[test]
     fn bad_signature_payment() {

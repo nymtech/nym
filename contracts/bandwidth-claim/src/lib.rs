@@ -12,7 +12,7 @@ use cosmwasm_std::{
 };
 
 use crate::error::ContractError;
-use erc20_bridge_contract::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use bandwidth_claim_contract::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 /// Instantiate the contract.
 ///
@@ -61,10 +61,10 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, 
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use bandwidth_claim_contract::payment::PagedPaymentResponse;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
-    use erc20_bridge_contract::payment::PagedPaymentResponse;
 
     #[test]
     fn initialize_contract() {

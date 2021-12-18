@@ -241,6 +241,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d6dff4a1892b54d70af377bf7a17064192e822865791d812957f21e3108c325"
 
 [[package]]
+name = "bandwidth-claim-contract"
+version = "0.1.0"
+dependencies = [
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "base-x"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1657,14 +1665,6 @@ dependencies = [
  "log",
  "regex",
  "termcolor",
-]
-
-[[package]]
-name = "erc20-bridge-contract"
-version = "0.1.0"
-dependencies = [
- "schemars",
- "serde",
 ]
 
 [[package]]
@@ -3631,6 +3631,7 @@ dependencies = [
 name = "nym-gateway"
 version = "0.11.0"
 dependencies = [
+ "bandwidth-claim-contract",
  "bip39",
  "bs58",
  "clap",
@@ -3642,7 +3643,6 @@ dependencies = [
  "dashmap",
  "dirs",
  "dotenv",
- "erc20-bridge-contract",
  "futures",
  "gateway-client",
  "gateway-requests",

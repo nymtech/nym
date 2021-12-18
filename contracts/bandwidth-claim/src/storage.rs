@@ -6,7 +6,7 @@ use cosmwasm_storage::{bucket, bucket_read, Bucket, ReadonlyBucket};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use erc20_bridge_contract::payment::Payment;
+use bandwidth_claim_contract::payment::Payment;
 
 // buckets
 const PREFIX_PAYMENTS: &[u8] = b"payments";
@@ -35,8 +35,8 @@ pub fn status(storage: &mut dyn Storage) -> Bucket<Status> {
 mod tests {
     use super::*;
     use crate::support::tests::helpers;
+    use bandwidth_claim_contract::keys::PublicKey;
     use cosmwasm_std::testing::MockStorage;
-    use erc20_bridge_contract::keys::PublicKey;
 
     #[test]
     fn payments_single_read_retrieval() {

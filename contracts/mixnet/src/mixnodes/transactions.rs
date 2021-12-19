@@ -617,15 +617,14 @@ pub mod tests {
 
     #[cfg(test)]
     mod owner_signature {
-        use super::*;
+        // use super::*;
 
         #[test]
         fn bonding_a_mixnode_with_a_correct_owner_signature() {
             // the owner signature here matches the wallet address via the mixnode's self-declared public key
-            //     let (owner_signature, public_key) =
-            //         crate::support::tests::signing::sign("nymt1m44hu9wguv5gx3p0estfzsnjkrjluu83y7chyf");
-            //     let mut bond = tests::fixtures::good_mixnode_bond();
-            //     bond.
+            // let sender = "nymt1m44hu9wguv5gx3p0estfzsnjkrjluu83y7chyf";
+            // let (owner_signature, public_key) = crate::support::tests::signing::sign(sender);
+            // let mut bond_message = tests::messages::valid_bond_mixnode_msg(sender);
         }
     }
 

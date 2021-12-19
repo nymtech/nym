@@ -317,7 +317,7 @@ pub mod tests {
         // bonding fails if the user already owns a gateway
         test_helpers::add_gateway(
             "gateway-owner",
-            tests::fixtures::good_gateway_bond(),
+            tests::fixtures::good_gateway_pledge(),
             deps.as_mut(),
         );
 

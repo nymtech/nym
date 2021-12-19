@@ -389,8 +389,8 @@ pub mod tests {
     use crate::rewards::transactions::{
         try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
     };
+    use crate::support::tests;
     use crate::support::tests::test_helpers;
-    use crate::support::tests::test_helpers::{good_mixnode_bond, mix_node_fixture};
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Coin;
@@ -753,8 +753,11 @@ pub mod tests {
 
         // bond the node
         let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity =
-            test_helpers::add_mixnode(node_owner.as_str(), good_mixnode_bond(), deps.as_mut());
+        let node_identity = test_helpers::add_mixnode(
+            node_owner.as_str(),
+            tests::fixtures::good_mixnode_pledge(),
+            deps.as_mut(),
+        );
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         let res = try_reward_mixnode(
@@ -762,7 +765,7 @@ pub mod tests {
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            test_helpers::node_rewarding_params_fixture(100),
+            tests::fixtures::node_rewarding_params_fixture(100),
             1,
         );
         assert_eq!(Err(ContractError::RewardingNotInProgress), res);
@@ -774,7 +777,7 @@ pub mod tests {
             env.clone(),
             info,
             node_identity.clone(),
-            test_helpers::node_rewarding_params_fixture(100),
+            tests::fixtures::node_rewarding_params_fixture(100),
             1,
         );
         assert!(res.is_ok())
@@ -791,8 +794,11 @@ pub mod tests {
 
         // bond the node
         let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity =
-            test_helpers::add_mixnode(node_owner.as_str(), good_mixnode_bond(), deps.as_mut());
+        let node_identity = test_helpers::add_mixnode(
+            node_owner.as_str(),
+            tests::fixtures::good_mixnode_pledge(),
+            deps.as_mut(),
+        );
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
@@ -801,7 +807,7 @@ pub mod tests {
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            test_helpers::node_rewarding_params_fixture(100),
+            tests::fixtures::node_rewarding_params_fixture(100),
             0,
         );
         assert_eq!(
@@ -817,7 +823,7 @@ pub mod tests {
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            test_helpers::node_rewarding_params_fixture(100),
+            tests::fixtures::node_rewarding_params_fixture(100),
             2,
         );
         assert_eq!(
@@ -833,7 +839,7 @@ pub mod tests {
             env.clone(),
             info,
             node_identity.clone(),
-            test_helpers::node_rewarding_params_fixture(100),
+            tests::fixtures::node_rewarding_params_fixture(100),
             1,
         );
         assert!(res.is_ok())
@@ -850,8 +856,11 @@ pub mod tests {
 
         // bond the node
         let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity =
-            test_helpers::add_mixnode(node_owner.as_str(), good_mixnode_bond(), deps.as_mut());
+        let node_identity = test_helpers::add_mixnode(
+            node_owner.as_str(),
+            tests::fixtures::good_mixnode_pledge(),
+            deps.as_mut(),
+        );
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
@@ -862,7 +871,7 @@ pub mod tests {
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            test_helpers::node_rewarding_params_fixture(100),
+            tests::fixtures::node_rewarding_params_fixture(100),
             1,
         );
         assert!(res.is_ok());
@@ -873,7 +882,7 @@ pub mod tests {
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            test_helpers::node_rewarding_params_fixture(100),
+            tests::fixtures::node_rewarding_params_fixture(100),
             1,
         );
         assert_eq!(
@@ -892,7 +901,7 @@ pub mod tests {
             env,
             info,
             node_identity.clone(),
-            test_helpers::node_rewarding_params_fixture(100),
+            tests::fixtures::node_rewarding_params_fixture(100),
             2,
         );
         assert!(res.is_ok());
@@ -919,7 +928,7 @@ pub mod tests {
             block_height: env.block.height,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
-                ..mix_node_fixture()
+                ..tests::fixtures::mix_node_fixture()
             },
             profit_margin_percent: Some(10),
             proxy: None,
@@ -960,7 +969,7 @@ pub mod tests {
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            test_helpers::node_rewarding_params_fixture(100),
+            tests::fixtures::node_rewarding_params_fixture(100),
             1,
         )
         .unwrap();
@@ -998,7 +1007,7 @@ pub mod tests {
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            test_helpers::node_rewarding_params_fixture(100),
+            tests::fixtures::node_rewarding_params_fixture(100),
             2,
         )
         .unwrap();
@@ -1041,7 +1050,7 @@ pub mod tests {
             env.clone(),
             info.clone(),
             node_identity.clone(),
-            test_helpers::node_rewarding_params_fixture(100),
+            tests::fixtures::node_rewarding_params_fixture(100),
             3,
         )
         .unwrap();
@@ -1277,7 +1286,7 @@ pub mod tests {
                 env,
                 info,
                 node_identity.clone(),
-                test_helpers::node_rewarding_params_fixture(100),
+                tests::fixtures::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();
@@ -1358,7 +1367,7 @@ pub mod tests {
                 env,
                 info,
                 node_identity.clone(),
-                test_helpers::node_rewarding_params_fixture(100),
+                tests::fixtures::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();
@@ -1439,7 +1448,7 @@ pub mod tests {
                 env,
                 info,
                 node_identity.clone(),
-                test_helpers::node_rewarding_params_fixture(100),
+                tests::fixtures::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();
@@ -1511,7 +1520,7 @@ pub mod tests {
         }
 
         env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING + 1;
-        let mut node_rewarding_params = test_helpers::node_rewarding_params_fixture(100);
+        let mut node_rewarding_params = tests::fixtures::node_rewarding_params_fixture(100);
         node_rewarding_params.set_reward_blockstamp(env.block.height);
 
         let params = DelegatorRewardParams::new(&bond, node_rewarding_params);
@@ -1564,7 +1573,7 @@ pub mod tests {
         }
 
         env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING + 1;
-        let mut node_rewarding_params = test_helpers::node_rewarding_params_fixture(100);
+        let mut node_rewarding_params = tests::fixtures::node_rewarding_params_fixture(100);
         node_rewarding_params.set_reward_blockstamp(env.block.height);
 
         let params = DelegatorRewardParams::new(&bond, node_rewarding_params);
@@ -1730,7 +1739,7 @@ pub mod tests {
                 env.clone(),
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 node_identity.clone(),
-                test_helpers::node_rewarding_params_fixture(100),
+                tests::fixtures::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();
@@ -1793,7 +1802,7 @@ pub mod tests {
                 env.clone(),
                 info,
                 node_identity.clone(),
-                test_helpers::node_rewarding_params_fixture(100),
+                tests::fixtures::node_rewarding_params_fixture(100),
                 2,
             )
             .unwrap();
@@ -1883,7 +1892,7 @@ pub mod tests {
                 env.clone(),
                 info,
                 node_identity.clone(),
-                test_helpers::node_rewarding_params_fixture(100),
+                tests::fixtures::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();
@@ -2002,7 +2011,7 @@ pub mod tests {
                 env.clone(),
                 info,
                 node_identity.clone(),
-                test_helpers::node_rewarding_params_fixture(100),
+                tests::fixtures::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();

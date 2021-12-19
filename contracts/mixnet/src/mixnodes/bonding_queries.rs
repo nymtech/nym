@@ -64,9 +64,9 @@ pub fn query_owns_mixnode(deps: Deps, address: String) -> StdResult<MixOwnership
 pub(crate) mod tests {
     use super::storage;
     use super::*;
-    use crate::contract::execute;
     use crate::mixnodes::storage::BOND_PAGE_DEFAULT_LIMIT;
     use crate::support::tests::test_helpers;
+    use crate::{contract::execute, support::tests};
     use cosmwasm_std::testing::{mock_env, mock_info};
 
     #[test]
@@ -82,7 +82,7 @@ pub(crate) mod tests {
         let limit = 2;
         for n in 0..1000 {
             let key = format!("bond{}", n);
-            test_helpers::add_mixnode(&key, test_helpers::good_mixnode_bond(), deps.as_mut());
+            test_helpers::add_mixnode(&key, tests::fixtures::good_mixnode_pledge(), deps.as_mut());
         }
 
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
@@ -94,7 +94,7 @@ pub(crate) mod tests {
         let mut deps = test_helpers::init_contract();
         for n in 0..1000 {
             let key = format!("bond{}", n);
-            test_helpers::add_mixnode(&key, test_helpers::good_mixnode_bond(), deps.as_mut());
+            test_helpers::add_mixnode(&key, tests::fixtures::good_mixnode_pledge(), deps.as_mut());
         }
 
         // query without explicitly setting a limit
@@ -108,7 +108,7 @@ pub(crate) mod tests {
         let mut deps = test_helpers::init_contract();
         for n in 0..1000 {
             let key = format!("bond{}", n);
-            test_helpers::add_mixnode(&key, test_helpers::good_mixnode_bond(), deps.as_mut());
+            test_helpers::add_mixnode(&key, tests::fixtures::good_mixnode_pledge(), deps.as_mut());
         }
 
         // query with a crazily high limit in an attempt to use too many resources
@@ -127,7 +127,7 @@ pub(crate) mod tests {
         let mut exec_data = (0..4)
             .map(|i| {
                 let sender = format!("nym-addr{}", i);
-                let (msg, identity) = test_helpers::valid_bond_mixnode_msg(&sender);
+                let (msg, identity) = tests::messages::valid_bond_mixnode_msg(&sender);
                 (msg, (sender, identity))
             })
             .collect::<Vec<_>>();
@@ -138,7 +138,7 @@ pub(crate) mod tests {
 
         let info = mock_info(
             &sender_identities[0].0.clone(),
-            &test_helpers::good_mixnode_bond(),
+            &tests::fixtures::good_mixnode_pledge(),
         );
         execute(deps.as_mut(), mock_env(), info, messages[0].clone()).unwrap();
 
@@ -151,7 +151,7 @@ pub(crate) mod tests {
         // save another
         let info = mock_info(
             &sender_identities[1].0.clone(),
-            &test_helpers::good_mixnode_bond(),
+            &tests::fixtures::good_mixnode_pledge(),
         );
         execute(deps.as_mut(), mock_env(), info, messages[1].clone()).unwrap();
 
@@ -161,7 +161,7 @@ pub(crate) mod tests {
 
         let info = mock_info(
             &sender_identities[2].0.clone(),
-            &test_helpers::good_mixnode_bond(),
+            &tests::fixtures::good_mixnode_pledge(),
         );
         execute(deps.as_mut(), mock_env(), info, messages[2].clone()).unwrap();
 
@@ -183,7 +183,7 @@ pub(crate) mod tests {
         // save another one
         let info = mock_info(
             &sender_identities[3].0.clone(),
-            &test_helpers::good_mixnode_bond(),
+            &tests::fixtures::good_mixnode_pledge(),
         );
         execute(deps.as_mut(), mock_env(), info, messages[3].clone()).unwrap();
 
@@ -207,13 +207,17 @@ pub(crate) mod tests {
         assert!(res.mixnode.is_none());
 
         // mixnode was added to "bob", "fred" still does not own one
-        test_helpers::add_mixnode("bob", test_helpers::good_mixnode_bond(), deps.as_mut());
+        test_helpers::add_mixnode("bob", tests::fixtures::good_mixnode_pledge(), deps.as_mut());
 
         let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.mixnode.is_none());
 
         // "fred" now owns a mixnode!
-        test_helpers::add_mixnode("fred", test_helpers::good_mixnode_bond(), deps.as_mut());
+        test_helpers::add_mixnode(
+            "fred",
+            tests::fixtures::good_mixnode_pledge(),
+            deps.as_mut(),
+        );
 
         let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.mixnode.is_some());

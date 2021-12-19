@@ -317,6 +317,7 @@ dependencies = [
  "blake3",
  "bs58",
  "cipher",
+ "config",
  "digest 0.9.0",
  "ed25519-dalek",
  "generic-array 0.14.4",
@@ -326,6 +327,7 @@ dependencies = [
  "nymsphinx-types",
  "pemstore",
  "rand",
+ "subtle-encoding",
  "x25519-dalek",
 ]
 
@@ -852,6 +854,7 @@ dependencies = [
  "cosmwasm-storage",
  "crypto",
  "cw-storage-plus",
+ "ed25519-dalek",
  "fixed",
  "mixnet-contract",
  "rand",
@@ -1327,6 +1330,15 @@ name = "subtle"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
+
+[[package]]
+name = "subtle-encoding"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7dcb1ed7b8330c5eed5441052651dd7a12c75e2ed88f2ec024ae1fa3a5e59945"
+dependencies = [
+ "zeroize",
+]
 
 [[package]]
 name = "syn"

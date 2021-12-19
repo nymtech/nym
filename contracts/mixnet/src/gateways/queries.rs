@@ -67,7 +67,7 @@ pub(crate) mod tests {
         let limit = 2;
         for n in 0..1000 {
             let key = format!("bond{}", n);
-            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_bond(), deps.as_mut());
+            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_pledge(), deps.as_mut());
         }
 
         let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
@@ -79,7 +79,7 @@ pub(crate) mod tests {
         let mut deps = test_helpers::init_contract();
         for n in 0..1000 {
             let key = format!("bond{}", n);
-            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_bond(), deps.as_mut());
+            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_pledge(), deps.as_mut());
         }
 
         // query without explicitly setting a limit
@@ -93,7 +93,7 @@ pub(crate) mod tests {
         let mut deps = test_helpers::init_contract();
         for n in 0..1000 {
             let key = format!("bond{}", n);
-            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_bond(), deps.as_mut());
+            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_pledge(), deps.as_mut());
         }
 
         // query with a crazily high limit in an attempt to use too many resources
@@ -123,7 +123,7 @@ pub(crate) mod tests {
 
         let info = mock_info(
             &sender_identities[0].0.clone(),
-            &tests::fixtures::good_gateway_bond(),
+            &tests::fixtures::good_gateway_pledge(),
         );
         execute(deps.as_mut(), mock_env(), info, messages[0].clone()).unwrap();
 
@@ -136,7 +136,7 @@ pub(crate) mod tests {
         // save another
         let info = mock_info(
             &sender_identities[1].0.clone(),
-            &tests::fixtures::good_gateway_bond(),
+            &tests::fixtures::good_gateway_pledge(),
         );
         execute(deps.as_mut(), mock_env(), info, messages[1].clone()).unwrap();
 
@@ -146,7 +146,7 @@ pub(crate) mod tests {
 
         let info = mock_info(
             &sender_identities[2].0.clone(),
-            &tests::fixtures::good_gateway_bond(),
+            &tests::fixtures::good_gateway_pledge(),
         );
         execute(deps.as_mut(), mock_env(), info, messages[2].clone()).unwrap();
 
@@ -168,7 +168,7 @@ pub(crate) mod tests {
         // save another one
         let info = mock_info(
             &sender_identities[3].0.clone(),
-            &tests::fixtures::good_gateway_bond(),
+            &tests::fixtures::good_gateway_pledge(),
         );
         execute(deps.as_mut(), mock_env(), info, messages[3].clone()).unwrap();
 
@@ -192,13 +192,17 @@ pub(crate) mod tests {
         assert!(res.gateway.is_none());
 
         // mixnode was added to "bob", "fred" still does not own one
-        test_helpers::add_gateway("bob", tests::fixtures::good_gateway_bond(), deps.as_mut());
+        test_helpers::add_gateway("bob", tests::fixtures::good_gateway_pledge(), deps.as_mut());
 
         let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.gateway.is_none());
 
         // "fred" now owns a gateway!
-        test_helpers::add_gateway("fred", tests::fixtures::good_gateway_bond(), deps.as_mut());
+        test_helpers::add_gateway(
+            "fred",
+            tests::fixtures::good_gateway_pledge(),
+            deps.as_mut(),
+        );
 
         let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.gateway.is_some());

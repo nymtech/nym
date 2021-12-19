@@ -137,7 +137,7 @@ pub(crate) fn read_full_mixnode_bond(
 mod tests {
     use super::super::storage;
     use super::*;
-    use crate::support::tests::test_helpers;
+    use crate::support::tests;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::{coin, Addr, Uint128};
@@ -147,8 +147,8 @@ mod tests {
     #[test]
     fn mixnode_single_read_retrieval() {
         let mut storage = MockStorage::new();
-        let bond1 = test_helpers::stored_mixnode_bond_fixture("owner1");
-        let bond2 = test_helpers::stored_mixnode_bond_fixture("owner2");
+        let bond1 = tests::fixtures::stored_mixnode_bond_fixture("owner1");
+        let bond2 = tests::fixtures::stored_mixnode_bond_fixture("owner2");
         mixnodes().save(&mut storage, "bond1", &bond1).unwrap();
         mixnodes().save(&mut storage, "bond2", &bond2).unwrap();
 
@@ -178,7 +178,7 @@ mod tests {
             block_height: 12_345,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
-                ..test_helpers::mix_node_fixture()
+                ..tests::fixtures::mix_node_fixture()
             },
             profit_margin_percent: None,
             proxy: None,

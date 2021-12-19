@@ -615,19 +615,6 @@ pub mod tests {
         assert_eq!(result, Err(ContractError::WrongDenom {}));
     }
 
-    #[cfg(test)]
-    mod owner_signature {
-        // use super::*;
-
-        #[test]
-        fn bonding_a_mixnode_with_a_correct_owner_signature() {
-            // the owner signature here matches the wallet address via the mixnode's self-declared public key
-            // let sender = "nymt1m44hu9wguv5gx3p0estfzsnjkrjluu83y7chyf";
-            // let (owner_signature, public_key) = crate::support::tests::signing::sign(sender);
-            // let mut bond_message = tests::messages::valid_bond_mixnode_msg(sender);
-        }
-    }
-
     #[test]
     fn choose_layer_mix_node() {
         let mut deps = test_helpers::init_contract();

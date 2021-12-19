@@ -854,7 +854,6 @@ dependencies = [
  "cosmwasm-storage",
  "crypto",
  "cw-storage-plus",
- "ed25519-dalek",
  "fixed",
  "mixnet-contract",
  "rand",

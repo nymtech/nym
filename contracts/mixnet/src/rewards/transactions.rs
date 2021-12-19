@@ -755,7 +755,7 @@ pub mod tests {
         let node_owner: Addr = Addr::unchecked("node-owner");
         let node_identity = test_helpers::add_mixnode(
             node_owner.as_str(),
-            tests::fixtures::good_mixnode_bond(),
+            tests::fixtures::good_mixnode_pledge(),
             deps.as_mut(),
         );
 
@@ -796,7 +796,7 @@ pub mod tests {
         let node_owner: Addr = Addr::unchecked("node-owner");
         let node_identity = test_helpers::add_mixnode(
             node_owner.as_str(),
-            tests::fixtures::good_mixnode_bond(),
+            tests::fixtures::good_mixnode_pledge(),
             deps.as_mut(),
         );
 
@@ -858,7 +858,7 @@ pub mod tests {
         let node_owner: Addr = Addr::unchecked("node-owner");
         let node_identity = test_helpers::add_mixnode(
             node_owner.as_str(),
-            tests::fixtures::good_mixnode_bond(),
+            tests::fixtures::good_mixnode_pledge(),
             deps.as_mut(),
         );
 

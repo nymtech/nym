@@ -63,7 +63,7 @@ pub(crate) fn stored_mixnode_bond_fixture(owner: &str) -> mixnodes_storage::Stor
     )
 }
 
-pub fn good_mixnode_bond() -> Vec<Coin> {
+pub fn good_mixnode_pledge() -> Vec<Coin> {
     vec![Coin {
         denom: DENOM.to_string(),
         amount: INITIAL_MIXNODE_PLEDGE,

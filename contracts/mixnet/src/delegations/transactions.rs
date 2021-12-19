@@ -301,7 +301,7 @@ mod tests {
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
@@ -342,7 +342,7 @@ mod tests {
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
@@ -366,13 +366,13 @@ mod tests {
             let mixnode_owner = "bob";
             test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation = coin(123, DENOM);
@@ -413,7 +413,7 @@ mod tests {
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
@@ -462,7 +462,7 @@ mod tests {
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
@@ -507,7 +507,7 @@ mod tests {
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation_owner1 = Addr::unchecked("sender1");
@@ -562,7 +562,7 @@ mod tests {
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
@@ -594,12 +594,12 @@ mod tests {
             let mixnode_owner2 = "fred";
             let identity1 = test_helpers::add_mixnode(
                 mixnode_owner1,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let identity2 = test_helpers::add_mixnode(
                 mixnode_owner2,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
@@ -650,7 +650,7 @@ mod tests {
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation1 = coin(123, DENOM);
@@ -684,7 +684,7 @@ mod tests {
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
@@ -733,7 +733,7 @@ mod tests {
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
@@ -756,7 +756,7 @@ mod tests {
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
@@ -801,7 +801,7 @@ mod tests {
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
@@ -836,7 +836,7 @@ mod tests {
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
             let delegation_owner1 = Addr::unchecked("sender1");

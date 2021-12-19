@@ -286,7 +286,7 @@ pub mod tests {
         // bonding fails if the user already owns a mixnode
         test_helpers::add_mixnode(
             "mixnode-owner",
-            tests::fixtures::good_mixnode_bond(),
+            tests::fixtures::good_mixnode_pledge(),
             deps.as_mut(),
         );
 

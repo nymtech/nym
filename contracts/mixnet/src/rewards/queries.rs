@@ -59,7 +59,7 @@ pub(crate) mod tests {
 
             let node_identity = test_helpers::add_mixnode(
                 "bob",
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
 
@@ -103,7 +103,7 @@ pub(crate) mod tests {
             let node_owner: Addr = Addr::unchecked("bob");
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
 
@@ -143,7 +143,7 @@ pub(crate) mod tests {
             let node_owner: Addr = Addr::unchecked("alice");
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
 
@@ -214,7 +214,7 @@ pub(crate) mod tests {
             let node_owner: Addr = Addr::unchecked("bob");
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
-                tests::fixtures::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
 

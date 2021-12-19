@@ -31,6 +31,7 @@ pub(crate) fn query_rewarding_status(
 pub(crate) mod tests {
     use super::*;
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+    use crate::support::tests;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
 
@@ -56,8 +57,11 @@ pub(crate) mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
-            let node_identity =
-                test_helpers::add_mixnode("bob", test_helpers::good_mixnode_bond(), deps.as_mut());
+            let node_identity = test_helpers::add_mixnode(
+                "bob",
+                tests::fixtures::good_mixnode_pledge(),
+                deps.as_mut(),
+            );
 
             assert!(
                 query_rewarding_status(deps.as_ref(), node_identity.clone(), 1)
@@ -74,7 +78,7 @@ pub(crate) mod tests {
                 env.clone(),
                 info.clone(),
                 node_identity.clone(),
-                test_helpers::node_rewarding_params_fixture(100),
+                tests::fixtures::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();
@@ -99,7 +103,7 @@ pub(crate) mod tests {
             let node_owner: Addr = Addr::unchecked("bob");
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
-                test_helpers::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
 
@@ -112,7 +116,7 @@ pub(crate) mod tests {
                 env.clone(),
                 info.clone(),
                 node_identity.clone(),
-                test_helpers::node_rewarding_params_fixture(100),
+                tests::fixtures::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();
@@ -139,7 +143,7 @@ pub(crate) mod tests {
             let node_owner: Addr = Addr::unchecked("alice");
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
-                test_helpers::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
 
@@ -166,7 +170,7 @@ pub(crate) mod tests {
                 env.clone(),
                 info.clone(),
                 node_identity.clone(),
-                test_helpers::node_rewarding_params_fixture(100),
+                tests::fixtures::node_rewarding_params_fixture(100),
                 2,
             )
             .unwrap();
@@ -210,7 +214,7 @@ pub(crate) mod tests {
             let node_owner: Addr = Addr::unchecked("bob");
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
-                test_helpers::good_mixnode_bond(),
+                tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
 
@@ -237,7 +241,7 @@ pub(crate) mod tests {
                 env.clone(),
                 info,
                 node_identity.clone(),
-                test_helpers::node_rewarding_params_fixture(100),
+                tests::fixtures::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();

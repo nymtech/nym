@@ -52,8 +52,16 @@ pub fn try_add_gateway_on_behalf(
         .minimum_mixnode_pledge;
     let pledge = validate_gateway_pledge(info.funds, minimum_pledge)?;
 
-    let _proxy = info.sender;
-    _try_add_gateway(deps, env, gateway, pledge, &owner, owner_signature, None)
+    let proxy = info.sender;
+    _try_add_gateway(
+        deps,
+        env,
+        gateway,
+        pledge,
+        &owner,
+        owner_signature,
+        Some(proxy),
+    )
 }
 
 pub(crate) fn _try_add_gateway(

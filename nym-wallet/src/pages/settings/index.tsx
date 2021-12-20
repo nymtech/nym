@@ -24,7 +24,6 @@ export const Settings = () => {
       setMixnodeDetails(details)
     }
     if (showSettings) getBondDetails()
-    if (!showSettings) setSelectedTab(0)
   }, [showSettings])
 
   const handleTabChange = (event: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab)

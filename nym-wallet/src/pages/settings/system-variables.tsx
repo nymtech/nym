@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useState } from 'react'
 import {
   Box,
   Button,
@@ -36,19 +36,14 @@ export const SystemVariables = ({
 
   const {
     register,
-    reset,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(validationSchema),
-    defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString() },
+    defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString(), signature: '' },
   })
 
   const { userBalance } = useContext(ClientContext)
-
-  useEffect(() => {
-    return () => reset()
-  }, [])
 
   const onSubmit = async (data: TFormData) => {
     await unbond(EnumNodeType.mixnode)
@@ -57,7 +52,7 @@ export const SystemVariables = ({
       data: { ...mixnodeDetails, profit_margin_percent: data.profitMarginPercent },
       pledge: { denom: 'Minor', amount: pledge.amount },
       //hardcoded for the moment as required in bonding but not necessary
-      ownerSignature: 'foo',
+      ownerSignature: data.signature,
     })
       .then(() => {
         userBalance.fetchBalance()
@@ -83,6 +78,13 @@ export const SystemVariables = ({
             }
             InputProps={{ endAdornment: <PercentOutlined fontSize="small" sx={{ color: 'grey.500' }} /> }}
             error={!!errors.profitMarginPercent}
+            disabled={isSubmitting}
+          />
+          <TextField
+            {...register('signature')}
+            label="Owner signature"
+            error={!!errors.signature}
+            helperText={!!errors.signature && errors.signature.message}
             disabled={isSubmitting}
           />
           <Divider />

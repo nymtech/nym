@@ -36,7 +36,7 @@ const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
 const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
-const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(30);
+const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(5);
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]

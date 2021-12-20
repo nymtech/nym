@@ -114,7 +114,7 @@ impl MixNode {
         println!(
             "Mix Port: {}, Verloc port: {}, Http Port: {}\n",
             self.config.get_mix_port(),
-            self.config.get_version(),
+            self.config.get_verloc_port(),
             self.config.get_http_api_port()
         );
         println!(

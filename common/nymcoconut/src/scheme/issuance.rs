@@ -111,15 +111,15 @@ impl Bytable for BlindSignRequest {
     fn to_byte_vec(&self) -> Vec<u8> {
         let cm_bytes = self.commitment.to_affine().to_compressed();
         let cm_hash_bytes = self.commitment_hash.to_affine().to_compressed();
-        let c_len = self.private_attributes_ciphertexts.len() as u64;
+        let c_len = self.private_attributes_commitments.len() as u64;
         let proof_bytes = self.pi_s.to_bytes();
 
-        let mut bytes = Vec::with_capacity(48 + 48 + 8 + c_len as usize * 96 + proof_bytes.len());
+        let mut bytes = Vec::with_capacity(48 + 48 + 8 + c_len as usize * 48 + proof_bytes.len());
 
         bytes.extend_from_slice(&cm_bytes);
         bytes.extend_from_slice(&cm_hash_bytes);
         bytes.extend_from_slice(&c_len.to_le_bytes());
-        for c in &self.private_attributes_ciphertexts {
+        for c in &self.private_attributes_commitments {
             bytes.extend_from_slice(&c.to_bytes());
         }
 

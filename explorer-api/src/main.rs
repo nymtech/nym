@@ -13,7 +13,7 @@ mod ping;
 mod state;
 
 const GEO_IP_SERVICE: &str = "https://api.freegeoip.app/json";
-const MIXNODE_REFRESH_INTERVAL: u64 = 30;
+const COUNTRY_DATA_REFRESH_INTERVAL: u64 = 60 * 15; // every 15 minutes
 
 #[tokio::main]
 async fn main() {

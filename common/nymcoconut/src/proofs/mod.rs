@@ -28,8 +28,7 @@ type ChallengeDigest = Sha256;
 pub struct ProofCmCs {
     challenge: Scalar,
     response_opening: Scalar,
-    response_private_elgamal_key: Scalar,
-    response_keys: Vec<Scalar>,
+    response_openings: Vec<Scalar>,
     response_attributes: Vec<Scalar>,
 }
 
@@ -88,12 +87,11 @@ impl ProofCmCs {
     /// using the Fiat-Shamir heuristic.
     pub(crate) fn construct(
         params: &Parameters,
-        elgamal_keypair: &ElGamalKeyPair,
-        ephemeral_keys: &[elgamal::EphemeralKey],
         commitment: &G1Projective,
         commitment_opening: &Scalar,
+        commitments: &[G1Projective],
+        commitments_openings: &[Scalar],
         private_attributes: &[Attribute],
-        priv_attributes_ciphertexts: &[Ciphertext],
     ) -> Self {
         // note: this is only called from `prepare_blind_sign` that already checks
         // whether private attributes are non-empty and whether we don't have too many
@@ -101,10 +99,8 @@ impl ProofCmCs {
         // we also know, due to the single call place, that ephemeral_keys.len() == private_attributes.len()
 
         // witness creation
-
         let witness_commitment_opening = params.random_scalar();
-        let witness_private_elgamal_key = params.random_scalar();
-        let witness_keys = params.n_random_scalars(ephemeral_keys.len());
+        let witness_commitments_openings = params.n_random_scalars(commitments_openings.len());
         let witness_attributes = params.n_random_scalars(private_attributes.len());
 
         // recompute h
@@ -118,22 +114,6 @@ impl ProofCmCs {
         let g1 = params.gen1();
 
         // compute commitments
-        let commitment_private_key_elgamal = g1 * witness_private_elgamal_key;
-
-        // Aw[i] = (wk[i] * g1)
-        let commitment_keys1_bytes = witness_keys
-            .iter()
-            .map(|wk_i| g1 * wk_i)
-            .map(|witness| witness.to_bytes())
-            .collect::<Vec<_>>();
-
-        // Bw[i] = (wm[i] * h) + (wk[i] * gamma)
-        let commitment_keys2_bytes = witness_keys
-            .iter()
-            .zip(witness_attributes.iter())
-            .map(|(wk_i, wm_i)| elgamal_keypair.public_key() * wk_i + h * wm_i)
-            .map(|witness| witness.to_bytes())
-            .collect::<Vec<_>>();
 
         // zkp commitment for the attributes commitment cm
         // Ccm = (wr * g1) + (wm[0] * hs[0]) + ... + (wm[i] * hs[i])
@@ -144,38 +124,20 @@ impl ProofCmCs {
                 .map(|(wm_i, hs_i)| hs_i * wm_i)
                 .sum::<G1Projective>();
 
-        let ciphertexts_bytes = priv_attributes_ciphertexts
-            .iter()
-            .map(|c| c.to_bytes())
-            .collect::<Vec<_>>();
-
         // compute challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(params.gen1().to_bytes().as_ref())
                 .chain(hs_bytes.iter().map(|hs| hs.as_ref()))
                 .chain(std::iter::once(h.to_bytes().as_ref()))
-                .chain(std::iter::once(
-                    elgamal_keypair.public_key().to_bytes().as_ref(),
-                ))
                 .chain(std::iter::once(commitment.to_bytes().as_ref()))
-                .chain(std::iter::once(commitment_attributes.to_bytes().as_ref()))
-                .chain(std::iter::once(
-                    commitment_private_key_elgamal.to_bytes().as_ref(),
-                ))
-                .chain(commitment_keys1_bytes.iter().map(|aw| aw.as_ref()))
-                .chain(commitment_keys2_bytes.iter().map(|bw| bw.as_ref()))
-                .chain(ciphertexts_bytes.iter().map(|c| c.as_ref())),
+                .chain(std::iter::once(commitment_attributes.to_bytes().as_ref())),
         );
+
+        // TODO
 
         // Responses
         let response_opening =
             produce_response(&witness_commitment_opening, &challenge, commitment_opening);
-        let response_private_elgamal_key = produce_response(
-            &witness_private_elgamal_key,
-            &challenge,
-            &elgamal_keypair.private_key().0,
-        );
-        let response_keys = produce_responses(&witness_keys, &challenge, ephemeral_keys);
         let response_attributes = produce_responses(
             &witness_attributes,
             &challenge,
@@ -185,8 +147,6 @@ impl ProofCmCs {
         ProofCmCs {
             challenge,
             response_opening,
-            response_private_elgamal_key,
-            response_keys,
             response_attributes,
         }
     }

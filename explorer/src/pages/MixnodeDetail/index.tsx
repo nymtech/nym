@@ -1,6 +1,5 @@
 import * as React from 'react';
-import { Box, Grid, Typography, useMediaQuery } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Box, Grid, Typography } from '@mui/material';
 import { ColumnsType, DetailTable } from 'src/components/DetailTable';
 import { mixnodeToGridRow, scrollToRef } from 'src/utils';
 import { useParams } from 'react-router-dom';
@@ -63,8 +62,6 @@ const columns: ColumnsType[] = [
 
 export const PageMixnodeDetail: React.FC = () => {
   const ref = React.useRef();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [row, setRow] = React.useState<MixNodeResponseItem[]>([]);
   const {
     fetchMixnodeById,

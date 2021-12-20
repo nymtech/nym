@@ -23,7 +23,7 @@ import {
 
 function getFromCache(key: string) {
   const ts = Number(localStorage.getItem('ts'));
-  const hasExpired = Date.now() - ts > 200000;
+  const hasExpired = Date.now() - ts > 5000;
   const curr = localStorage.getItem(key);
   if (curr && !hasExpired) {
     return JSON.parse(curr);

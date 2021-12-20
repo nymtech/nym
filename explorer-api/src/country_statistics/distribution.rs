@@ -1,6 +1,7 @@
 use log::info;
 
 use crate::country_statistics::country_nodes_distribution::CountryNodesDistribution;
+use crate::MIXNODE_REFRESH_INTERVAL;
 
 use crate::state::ExplorerApiStateContext;
 
@@ -16,7 +17,8 @@ impl CountryStatisticsDistributionTask {
     pub(crate) fn start(mut self) {
         info!("Spawning mix node country distribution task runner...");
         tokio::spawn(async move {
-            let mut interval_timer = tokio::time::interval(std::time::Duration::from_secs(60 * 15)); // every 15 mins
+            let mut interval_timer =
+                tokio::time::interval(std::time::Duration::from_secs(MIXNODE_REFRESH_INTERVAL)); // every 15 mins
             loop {
                 // wait for the next interval tick
                 interval_timer.tick().await;

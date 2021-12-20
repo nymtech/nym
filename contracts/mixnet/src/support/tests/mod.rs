@@ -6,8 +6,6 @@ pub mod fixtures;
 pub mod messages;
 #[cfg(test)]
 pub mod queries;
-#[cfg(test)]
-pub mod signing;
 
 #[cfg(test)]
 pub mod test_helpers {

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, Button, Grid, Typography, useMediaQuery } from '@mui/material';
+import { Box, Grid, Typography, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ColumnsType, DetailTable } from 'src/components/DetailTable';
 import { mixnodeToGridRow, scrollToRef } from 'src/utils';
@@ -13,8 +13,7 @@ import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
 import { UptimeChart } from 'src/components/UptimeChart';
 import { WorldMap } from 'src/components/WorldMap';
 import { useMainContext } from 'src/context/main';
-import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
-import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
+import { UserInfoHeader } from 'src/components/UserInfoHeader';
 
 const columns: ColumnsType[] = [
   {
@@ -109,103 +108,11 @@ export const PageMixnodeDetail: React.FC = () => {
             <Title text="Mixnode Detail" />
           </Grid>
         </Grid>
-        <Box sx={{ mt: 2, mb: 2 }}>
-          <Grid container>
-            <Grid item xs={12} md={6}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: isMobile ? 'column' : 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <AccountCircleOutlinedIcon
-                  style={{ height: '66px', width: '66px' }}
-                />
-                <Typography
-                  variant="h6"
-                  sx={{ fontWeight: 600, ml: isMobile ? 0 : 2 }}
-                >
-                  Mixnode
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'flex-end',
-                }}
-              >
-                {!isMobile && (
-                  <Typography
-                    variant="body1"
-                    sx={{ fontWeight: 600, textAlign: 'end' }}
-                  >
-                    Node Status:
-                  </Typography>
-                )}
-                <Typography
-                  variant="body1"
-                  sx={{
-                    textAlign: 'end',
-                    color: '#60D7EF',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: isMobile ? 'center' : 'flex-end',
-                    mt: isMobile ? 2 : 0,
-                    mb: isMobile ? 2 : 0,
-                  }}
-                >
-                  <PauseCircleOutlineIcon />
-                  &nbsp;Stand-by
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: 'darkgrey',
-                    textAlign: isMobile ? 'center' : 'end',
-                  }}
-                >
-                  This node is on standy by in this epoch
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sx={{ mt: isMobile ? 4 : 2 }}>
-              <Typography sx={{ fontSize: 21 }}>
-                This node has not yet set a name.
-              </Typography>
-            </Grid>
-            <Grid item xs={12} sx={{ mb: isMobile ? 2 : 2 }}>
-              <Typography sx={{ fontSize: 16 }}>
-                This node has not yet set a description
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: isMobile ? 'column' : 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <Button
-                  variant="contained"
-                  onClick={() => null}
-                  sx={{
-                    background:
-                      'linear-gradient(90deg, #F4731B 1.05%, #F12D50 100%)',
-                    borderRadius: 30,
-                    fontWeight: 800,
-                  }}
-                >
-                  THIS IS A LINK
-                </Button>
-              </Box>
-            </Grid>
-          </Grid>
-        </Box>
+        <UserInfoHeader
+          status="active"
+          name="This node has not yet set a name"
+          description="This node has not yet set a description"
+        />
         <Grid container>
           <Grid item xs={12}>
             <DetailTable

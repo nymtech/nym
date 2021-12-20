@@ -21,6 +21,8 @@ import {
 const nymPalette: NymPalette = {
   /** emphasises important elements */
   highlight: '#FB6E4E',
+  info: '#60D7EF',
+  success: '#21D072',
   text: {
     nav: '#F2F2F2',
     /** footer text colour */

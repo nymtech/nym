@@ -135,6 +135,7 @@ impl Bytable for BlindSignRequest {
 
 impl Base58 for BlindSignRequest {}
 
+// TODO
 impl BlindSignRequest {
     fn verify_proof(&self, params: &Parameters, pub_key: &elgamal::PublicKey) -> bool {
         self.pi_s.verify(
@@ -182,6 +183,7 @@ pub fn compute_commitment_hash(commitment: G1Projective) -> G1Projective {
     hash_g1(commitment.to_bytes())
 }
 
+// TODO
 pub fn compute_attribute_encryption(
     params: &Parameters,
     private_attributes: &[Attribute],
@@ -194,6 +196,7 @@ pub fn compute_attribute_encryption(
         .unzip()
 }
 
+// TODO
 /// Builds cryptographic material required for blind sign.
 pub fn prepare_blind_sign(
     params: &Parameters,
@@ -248,6 +251,7 @@ pub fn prepare_blind_sign(
     })
 }
 
+// TODO
 pub fn blind_sign(
     params: &Parameters,
     signing_secret_key: &SecretKey,

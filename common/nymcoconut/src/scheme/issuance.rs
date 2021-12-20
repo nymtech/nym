@@ -33,7 +33,7 @@ pub struct BlindSignRequest {
     // h
     commitment_hash: G1Projective,
     // c
-    private_attributes_ciphertexts: Vec<elgamal::Ciphertext>,
+    private_attributes_commitments: Vec<G1Projective>,
     // pi_s
     pi_s: ProofCmCs,
 }
@@ -42,9 +42,9 @@ impl TryFrom<&[u8]> for BlindSignRequest {
     type Error = CoconutError;
 
     fn try_from(bytes: &[u8]) -> Result<BlindSignRequest> {
-        if bytes.len() < 48 + 48 + 8 + 96 {
+        if bytes.len() < 48 + 48 + 8 + 48 {
             return Err(CoconutError::DeserializationMinLength {
-                min: 48 + 48 + 8 + 96,
+                min: 48 + 48 + 8 + 48,
                 actual: bytes.len(),
             });
         }
@@ -73,26 +73,35 @@ impl TryFrom<&[u8]> for BlindSignRequest {
 
         let c_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
         j += 8;
-        if bytes[j..].len() < c_len as usize * 96 {
+        if bytes[j..].len() < c_len as usize * 48 {
             return Err(CoconutError::DeserializationMinLength {
-                min: c_len as usize * 96,
+                min: c_len as usize * 48,
                 actual: bytes[56..].len(),
             });
         }
 
-        let mut private_attributes_ciphertexts = Vec::with_capacity(c_len as usize);
+        let mut private_attributes_commitments = Vec::with_capacity(c_len as usize);
         for i in 0..c_len as usize {
-            let start = j + i * 96;
-            let end = start + 96;
-            private_attributes_ciphertexts.push(Ciphertext::try_from(&bytes[start..end])?)
+            let start = j + i * 48;
+            let end = start + 48;
+
+            let private_attributes_commitment_bytes = bytes[start..end].try_into().unwrap();
+            let private_attributes_commitment = try_deserialize_g1_projective(
+                &private_attributes_commitment_bytes,
+                CoconutError::Deserialization(
+                    "Failed to deserialize compressed commitment".to_string(),
+                ),
+            )?;
+
+            private_attributes_commitments.push(private_attributes_commitment)
         }
 
-        let pi_s = ProofCmCs::from_bytes(&bytes[j + c_len as usize * 96..])?;
+        let pi_s = ProofCmCs::from_bytes(&bytes[j + c_len as usize * 48..])?;
 
         Ok(BlindSignRequest {
             commitment,
             commitment_hash,
-            private_attributes_ciphertexts,
+            private_attributes_commitments,
             pi_s,
         })
     }

@@ -40,7 +40,7 @@ Node, node operator and delegator rewards are determined according to the princi
 |<img src="https://render.githubusercontent.com/render/math?math=R">|global share of rewards available, starts at 2% of the reward pool. 
 |<img src="https://render.githubusercontent.com/render/math?math=R_{i}">|node reward for mixnode `i`.
 |<img src="https://render.githubusercontent.com/render/math?math=\sigma_{i}">|ratio of total node stake (node bond + all delegations) to the token circulating supply.
-|<img src="https://render.githubusercontent.com/render/math?math=\lambda_{i}">|ratio of stake operator has plaged to their node to the token circulating supply.
+|<img src="https://render.githubusercontent.com/render/math?math=\lambda_{i}">|ratio of stake operator has pledged to their node to the token circulating supply.
 |<img src="https://render.githubusercontent.com/render/math?math=\omega_{i}">|fraction of total effort undertaken by node `i`, set to `1/k`.
 |<img src="https://render.githubusercontent.com/render/math?math=k">|number of nodes stakeholders are incentivised to create, set by the validators, a matter of governance. Currently determined by the `reward set` size, and set to 720 in testnet Sandbox.
 |<img src="https://render.githubusercontent.com/render/math?math=\alpha">|Sybil attack resistance parameter - the higher this parameter is set the stronger the reduction in competitivness gets for a Sybil attacker.

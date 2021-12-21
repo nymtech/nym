@@ -124,20 +124,42 @@ impl ProofCmCs {
                 .map(|(wm_i, hs_i)| hs_i * wm_i)
                 .sum::<G1Projective>();
 
+        // zkp commitments for the individual attributes
+        let commitments_attributes = witness_commitments_openings
+            .iter()
+            .zip(witness_attributes.iter())
+            .map(|(o_j, m_j)| g1 * o_j + h * m_j)
+            .collect::<Vec<_>>();
+
+        let commitments_bytes = commitments
+            .iter()
+            .map(|cm| cm.to_bytes())
+            .collect::<Vec<_>>();
+
+        let commitments_attributes_bytes = commitments_attributes
+            .iter()
+            .map(|cm| cm.to_bytes())
+            .collect::<Vec<_>>();
+
         // compute challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(params.gen1().to_bytes().as_ref())
                 .chain(hs_bytes.iter().map(|hs| hs.as_ref()))
                 .chain(std::iter::once(h.to_bytes().as_ref()))
                 .chain(std::iter::once(commitment.to_bytes().as_ref()))
-                .chain(std::iter::once(commitment_attributes.to_bytes().as_ref())),
+                .chain(commitments_bytes.iter().map(|cm| cm.as_ref()))
+                .chain(std::iter::once(commitment_attributes.to_bytes().as_ref()))
+                .chain(commitments_attributes_bytes.iter().map(|cm| cm.as_ref())),
         );
-
-        // TODO
 
         // Responses
         let response_opening =
             produce_response(&witness_commitment_opening, &challenge, commitment_opening);
+        let response_openings = produce_responses(
+            &witness_commitments_openings,
+            &challenge,
+            &commitments_openings.iter().collect::<Vec<_>>(),
+        );
         let response_attributes = produce_responses(
             &witness_attributes,
             &challenge,
@@ -147,6 +169,7 @@ impl ProofCmCs {
         ProofCmCs {
             challenge,
             response_opening,
+            response_openings,
             response_attributes,
         }
     }

@@ -120,7 +120,7 @@ impl Bytable for BlindSignRequest {
         bytes.extend_from_slice(&cm_hash_bytes);
         bytes.extend_from_slice(&c_len.to_le_bytes());
         for c in &self.private_attributes_commitments {
-            bytes.extend_from_slice(&c.to_bytes());
+            bytes.extend_from_slice(&c.to_affine().to_compressed());
         }
 
         bytes.extend_from_slice(&proof_bytes);
@@ -137,12 +137,11 @@ impl Base58 for BlindSignRequest {}
 
 // TODO
 impl BlindSignRequest {
-    fn verify_proof(&self, params: &Parameters, pub_key: &elgamal::PublicKey) -> bool {
+    fn verify_proof(&self, params: &Parameters) -> bool {
         self.pi_s.verify(
             params,
-            pub_key,
             &self.commitment,
-            &self.private_attributes_ciphertexts,
+            &self.private_attributes_commitments,
         )
     }
 
@@ -179,11 +178,29 @@ pub fn compute_private_attributes_commitment(
     (commitment_opening, commitment)
 }
 
+pub fn compute_private_attributes_commitments(
+    params: &Parameters,
+    private_attributes: &[Attribute],
+    h: &G1Affine,
+) -> Vec<(Scalar, G1Projective)> {
+    let openings = params.n_random_scalars(private_attributes.len());
+    let commitments = openings
+        .iter()
+        .zip(private_attributes.iter())
+        // TODO
+        .map(|(o_j, m_j)| params.g1 * o_j + h * m_j)
+        .collect::<Vec<_>>();
+
+    openings
+        .iter()
+        .zip(commitments.iter())
+        .collect::<Vec<(_, _)>>()
+}
+
 pub fn compute_commitment_hash(commitment: G1Projective) -> G1Projective {
     hash_g1(commitment.to_bytes())
 }
 
-// TODO
 pub fn compute_attribute_encryption(
     params: &Parameters,
     private_attributes: &[Attribute],
@@ -224,29 +241,23 @@ pub fn prepare_blind_sign(
 
     // Compute the challenge as the commitment hash
     let commitment_hash = compute_commitment_hash(commitment);
-    // build ElGamal encryption
-    let (private_attributes_ciphertexts, ephemeral_keys): (Vec<_>, Vec<_>) =
-        compute_attribute_encryption(
-            params,
-            private_attributes,
-            elgamal_keypair.public_key(),
-            commitment_hash,
-        );
+
+    let (commitments_openings, commitments) =
+        compute_private_attributes_commitments(params, private_attributes, &commitment_hash);
 
     let pi_s = ProofCmCs::construct(
         params,
-        elgamal_keypair,
-        &ephemeral_keys,
         &commitment,
         &commitment_opening,
+        &commitments,
+        &commitments_openings,
         private_attributes,
-        &*private_attributes_ciphertexts,
     );
 
     Ok(BlindSignRequest {
         commitment,
         commitment_hash,
-        private_attributes_ciphertexts,
+        compute_private_attributes_commitments,
         pi_s,
     })
 }

@@ -6,11 +6,13 @@ declare module '*.svg' {
 namespace NodeJS {
   export interface Process {
     env: {
-      VALIDATOR_ADDRESS: string
+      VALIDATOR_CONTRACT: string
       MNEMONIC: string
-      TESTNET_URL_1: string
-      TESTNET_URL_2: string
+      TESTNET_URL: string
       ACCOUNT_ADDRESS: string
+      MAJOR_CURRENCY: string
+      MINOR_CURRENCY: string
+      NETWORK: string
     }
   }
 }

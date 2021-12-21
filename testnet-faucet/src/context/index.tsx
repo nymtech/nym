@@ -2,20 +2,23 @@ import { createContext, useEffect, useState } from 'react'
 import ClientValidator, {
   nativeToPrintable,
 } from '@nymproject/nym-validator-client'
+import { config } from '../config'
+
+export const { MAJOR_CURRENCY, MINOR_CURRENCY, VALIDATOR_ADDRESS, ACCOUNT_ADDRESS, NETWORK , TESTNET_URL, MNEMONIC } = config
 
 export const urls = {
-  blockExplorer: 'https://testnet-milhon-blocks.nymtech.net',
+  blockExplorer: `https://${NETWORK}-blocks.nymtech.net`,
 }
 
 type TGlobalContext = {
   getBalance: () => void
   requestTokens: ({
     address,
-    upunks,
+    utokens,
   }: {
     address: string
-    upunks: string
-    punks: string
+    utokens: string
+    majorcurrency: string
   }) => void
   loadingState: TLoadingState
   balance?: string
@@ -25,7 +28,6 @@ type TGlobalContext = {
 
 export const GlobalContext = createContext({} as TGlobalContext)
 
-const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } = process.env
 
 export enum EnumRequestType {
   balance = 'balance',
@@ -52,8 +54,9 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     const Validator = await ClientValidator.connect(
       VALIDATOR_ADDRESS,
       MNEMONIC,
-      [TESTNET_URL_1],
-      'punk'
+      'https://sandbox-validator.nymtech.net',
+      ///`${MAJOR_CURRENCY.toString()}`
+      'nymt'
     )
     setValidator(Validator)
   }
@@ -87,20 +90,20 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
 
   const requestTokens = async ({
     address,
-    upunks,
-    punks,
+    uminorcurrency,
+    majorcurrency,
   }: {
     address: string
-    upunks: string
-    punks: string
+    uminorcurrency: string
+    majorcurrency: string
   }) => {
     setTokenTransfer(undefined)
     setLoadingState({ isLoading: true, requestType: EnumRequestType.tokens })
     try {
       await validator?.send(ACCOUNT_ADDRESS, address, [
-        { amount: upunks, denom: 'upunk' },
+        { amount: uminorcurrency, denom: MINOR_CURRENCY },
       ])
-      setTokenTransfer({ address, amount: punks })
+      setTokenTransfer({ address, amount: majorcurrency })
     } catch (e) {
       setError(`An error occured during the transfer request: ${e}`)
     } finally {

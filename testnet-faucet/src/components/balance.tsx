@@ -8,6 +8,9 @@ import {
 } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import { GlobalContext, EnumRequestType } from '../context'
+import { config } from '../config'
+
+export const { MAJOR_CURRENCY } = config
 
 export const Balance = () => {
   const { balance, loadingState, getBalance } = useContext(GlobalContext)
@@ -27,9 +30,9 @@ export const Balance = () => {
             <Typography
               component="span"
               variant="h6"
-              data-testid="punk-balance-message"
+              data-testid="balance-message"
             >
-              {balance} PUNKS
+              {balance} {MAJOR_CURRENCY.toString()}
             </Typography>
           </Typography>
         }

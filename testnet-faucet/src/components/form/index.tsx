@@ -14,6 +14,7 @@ import { getCoinValue } from '../../utils'
 import { EnumRequestType, GlobalContext } from '../../context'
 import { TokenTransfer } from '../token-transfer'
 
+
 type TFormData = {
   address: string
   amount: string
@@ -35,11 +36,11 @@ export const Form = () => {
     useContext(GlobalContext)
 
   const onSubmit: SubmitHandler<TFormData> = async (data) => {
-    const upunks = getCoinValue(data.amount)
+    const uminorcurrency = getCoinValue(data.amount)
     await requestTokens({
       address: data.address,
-      upunks: upunks.toString(),
-      punks: data.amount,
+      utokens: uminorcurrency.toString(),
+      majorcurrency: data.amount,
     })
     resetForm()
   }
@@ -61,13 +62,13 @@ export const Form = () => {
         data-testid="address"
       />
       <TextField
-        label="Amount (PUNKS)"
+        label="Amount (tokens)"
         fullWidth
         {...register('amount')}
         sx={{ mb: 1 }}
         helperText={errors?.amount?.message}
         error={!!errors.amount}
-        data-testid={'punk-amounts'}
+        data-testid={'token-amounts'}
       />
       <Box
         sx={{

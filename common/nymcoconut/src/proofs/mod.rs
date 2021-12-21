@@ -238,22 +238,20 @@ impl ProofCmCs {
 
     // challenge || response opening || response private elgamal key || keys len || response keys || attributes len || response attributes
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        let keys_len = self.response_keys.len() as u64;
+        let openings_len = self.response_openings.len() as u64;
         let attributes_len = self.response_attributes.len() as u64;
 
-        let mut bytes = Vec::with_capacity(16 + (keys_len + attributes_len + 3) as usize * 32);
+        let mut bytes = Vec::with_capacity(16 + (2 + openings_len + attributes_len) as usize * 32);
 
         bytes.extend_from_slice(&self.challenge.to_bytes());
         bytes.extend_from_slice(&self.response_opening.to_bytes());
-        bytes.extend_from_slice(&self.response_private_elgamal_key.to_bytes());
-        bytes.extend_from_slice(&keys_len.to_le_bytes());
 
-        for rk in &self.response_keys {
-            bytes.extend_from_slice(&rk.to_bytes());
+        bytes.extend_from_slice(&openings_len.to_le_bytes());
+        for ro in &self.response_openings {
+            bytes.extend_from_slice(&ro.to_bytes());
         }
 
         bytes.extend_from_slice(&attributes_len.to_le_bytes());
-
         for rm in &self.response_attributes {
             bytes.extend_from_slice(&rm.to_bytes());
         }

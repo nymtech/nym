@@ -261,7 +261,7 @@ impl ProofCmCs {
 
     pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Self> {
         // at the very minimum there must be a single attribute being proven
-        if bytes.len() < 32 * 5 + 16 || (bytes.len() - 16) % 32 != 0 {
+        if bytes.len() < 32 * 4 + 16 || (bytes.len() - 16) % 32 != 0 {
             return Err(
                 CoconutError::Deserialization(
                     "tried to deserialize proof of ciphertexts and commitment with bytes of invalid length".to_string())
@@ -273,54 +273,46 @@ impl ProofCmCs {
         idx += 32;
         let response_opening_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
-        let response_private_elgamal_key_bytes = bytes[idx..idx + 32].try_into().unwrap();
-        idx += 32;
 
         let challenge = try_deserialize_scalar(
             &challenge_bytes,
             CoconutError::Deserialization("Failed to deserialize challenge".to_string()),
         )?;
+
         let response_opening = try_deserialize_scalar(
             &response_opening_bytes,
             CoconutError::Deserialization(
                 "Failed to deserialize the response to the random".to_string(),
             ),
         )?;
-        let response_private_elgamal_key = try_deserialize_scalar(
-            &response_private_elgamal_key_bytes,
-            CoconutError::Deserialization(
-                "Failed to deserialize the response to the private ElGamal key".to_string(),
-            ),
-        )?;
 
-        let rk_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap());
+        let ro_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap());
         idx += 8;
-        if bytes[idx..].len() < rk_len as usize * 32 + 8 {
+        if bytes[idx..].len() < ro_len as usize * 32 + 8 {
             return Err(
                 CoconutError::Deserialization(
                     "tried to deserialize proof of ciphertexts and commitment with insufficient number of bytes provided".to_string()),
             );
         }
 
-        let rk_end = idx + rk_len as usize * 32;
-        let response_keys = try_deserialize_scalar_vec(
-            rk_len,
-            &bytes[idx..rk_end],
-            CoconutError::Deserialization("Failed to deserialize keys response".to_string()),
+        let ro_end = idx + ro_len as usize * 32;
+        let response_openings = try_deserialize_scalar_vec(
+            ro_len,
+            &bytes[idx..ro_end],
+            CoconutError::Deserialization("Failed to deserialize openings response".to_string()),
         )?;
 
-        let rm_len = u64::from_le_bytes(bytes[rk_end..rk_end + 8].try_into().unwrap());
+        let rm_len = u64::from_le_bytes(bytes[ro_end..ro_end + 8].try_into().unwrap());
         let response_attributes = try_deserialize_scalar_vec(
             rm_len,
-            &bytes[rk_end + 8..],
+            &bytes[ro_end + 8..],
             CoconutError::Deserialization("Failed to deserialize attributes response".to_string()),
         )?;
 
         Ok(ProofCmCs {
             challenge,
             response_opening,
-            response_private_elgamal_key,
-            response_keys,
+            response_openings,
             response_attributes,
         })
     }

@@ -13,12 +13,11 @@ use group::GroupEncoding;
 use itertools::izip;
 use sha2::Sha256;
 
-use crate::elgamal::Ciphertext;
 use crate::error::{CoconutError, Result};
 use crate::scheme::setup::Parameters;
 use crate::scheme::VerificationKey;
 use crate::utils::{hash_g1, try_deserialize_scalar, try_deserialize_scalar_vec};
-use crate::{elgamal, Attribute, ElGamalKeyPair};
+use crate::Attribute;
 
 // as per the reference python implementation
 type ChallengeDigest = Sha256;
@@ -205,9 +204,22 @@ impl ProofCmCs {
                 .map(|(res_attr, hs)| hs * res_attr)
                 .sum::<G1Projective>();
 
-        let ciphertexts_bytes = attributes_ciphertexts
+        let commitments_attributes = izip!(
+            commitments.iter(),
+            self.response_openings.iter(),
+            self.response_attributes.iter()
+        )
+        .map(|(cm_j, r_o_j, r_m_j)| cm_j * self.challenge + g1 * r_o_j + h * r_m_j)
+        .collect::<Vec<_>>();
+
+        let commitments_bytes = commitments
             .iter()
-            .map(|c| c.to_bytes())
+            .map(|cm| cm.to_bytes())
+            .collect::<Vec<_>>();
+
+        let commitments_attributes_bytes = commitments_attributes
+            .iter()
+            .map(|cm| cm.to_bytes())
             .collect::<Vec<_>>();
 
         // re-compute the challenge
@@ -215,15 +227,10 @@ impl ProofCmCs {
             std::iter::once(params.gen1().to_bytes().as_ref())
                 .chain(hs_bytes.iter().map(|hs| hs.as_ref()))
                 .chain(std::iter::once(h.to_bytes().as_ref()))
-                .chain(std::iter::once(pub_key.to_bytes().as_ref()))
                 .chain(std::iter::once(commitment.to_bytes().as_ref()))
+                .chain(commitments_bytes.iter().map(|cm| cm.as_ref()))
                 .chain(std::iter::once(commitment_attributes.to_bytes().as_ref()))
-                .chain(std::iter::once(
-                    commitment_private_key_elgamal.to_bytes().as_ref(),
-                ))
-                .chain(commitment_keys1_bytes.iter().map(|aw| aw.as_ref()))
-                .chain(commitment_keys2_bytes.iter().map(|bw| bw.as_ref()))
-                .chain(ciphertexts_bytes.iter().map(|c| c.as_ref())),
+                .chain(commitments_attributes_bytes.iter().map(|cm| cm.as_ref())),
         );
 
         challenge == self.challenge

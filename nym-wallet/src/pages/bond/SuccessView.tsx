@@ -9,8 +9,8 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
     <>
       <SuccessReponse
         title="Bonding Complete"
-        subtitle="Sucessfully bonded to node with following details"
-        caption={`You current balance is: ${userBalance.balance?.printable_balance}`}
+        subtitle="Successfully bonded to node with following details"
+        caption={`Your current balance is: ${userBalance.balance?.printable_balance}`}
       />
       {details && (
         <Box sx={{ mt: 2 }}>

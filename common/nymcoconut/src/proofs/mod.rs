@@ -505,61 +505,41 @@ mod tests {
     use group::Group;
     use rand::thread_rng;
 
-    use crate::scheme::issuance::{compute_attribute_encryption, compute_commitment_hash};
     use crate::scheme::keygen::keygen;
     use crate::scheme::setup::setup;
     use crate::scheme::verification::{compute_kappa, compute_zeta};
 
     use super::*;
 
+    // TODO check this test
     #[test]
     fn proof_cm_cs_bytes_roundtrip() {
-        let mut rng = thread_rng();
-        let mut params = setup(1).unwrap();
-
-        let elgamal_keypair = elgamal::elgamal_keygen(&params);
-        let private_attributes = params.n_random_scalars(1);
-
         // we don't care about 'correctness' of the proof. only whether we can correctly recover it from bytes
+
+        let mut rng = thread_rng();
+
+        let mut params = setup(1).unwrap();
         let cm = G1Projective::random(&mut rng);
         let r = params.random_scalar();
-
-        let commitment_hash = compute_commitment_hash(cm);
-        let (attributes_ciphertexts, _): (Vec<_>, Vec<_>) = compute_attribute_encryption(
-            &params,
-            private_attributes.as_ref(),
-            elgamal_keypair.public_key(),
-            commitment_hash,
-        );
-        let ephemeral_keys = params.n_random_scalars(1);
+        let cms: [G1Projective; 1] = G1Projective::random(&mut rng);
+        let rs = params.n_random_scalars(1);
+        let private_attributes = params.n_random_scalars(1);
 
         // 0 public 1 private
-        let pi_s = ProofCmCs::construct(
-            &mut params,
-            &elgamal_keypair,
-            &ephemeral_keys,
-            &cm,
-            &r,
-            &private_attributes,
-            &*attributes_ciphertexts,
-        );
+        let pi_s = ProofCmCs::construct(&mut params, &cm, &r, &cms, &rs, &private_attributes);
 
         let bytes = pi_s.to_bytes();
         assert_eq!(ProofCmCs::from_bytes(&bytes).unwrap(), pi_s);
 
-        // 2 private
+        let mut params = setup(2).unwrap();
+        let cm = G1Projective::random(&mut rng);
+        let r = params.random_scalar();
+        let cms: [G1Projective; 2] = G1Projective::random(&mut rng);
+        let rs = params.n_random_scalars(2);
         let private_attributes = params.n_random_scalars(2);
-        let ephemeral_keys = params.n_random_scalars(2);
 
-        let pi_s = ProofCmCs::construct(
-            &mut params,
-            &elgamal_keypair,
-            &ephemeral_keys,
-            &cm,
-            &r,
-            &private_attributes,
-            &*attributes_ciphertexts,
-        );
+        // 0 public 2 privates
+        let pi_s = ProofCmCs::construct(&mut params, &cm, &r, &cms, &rs, &private_attributes);
 
         let bytes = pi_s.to_bytes();
         assert_eq!(ProofCmCs::from_bytes(&bytes).unwrap(), pi_s);

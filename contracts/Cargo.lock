@@ -326,8 +326,8 @@ dependencies = [
  "log",
  "nymsphinx-types",
  "pemstore",
- "subtle-encoding",
  "rand 0.7.3",
+ "subtle-encoding",
  "x25519-dalek",
 ]
 

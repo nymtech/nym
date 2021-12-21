@@ -177,11 +177,10 @@ impl ProofCmCs {
     pub(crate) fn verify(
         &self,
         params: &Parameters,
-        pub_key: &elgamal::PublicKey,
         commitment: &G1Projective,
-        attributes_ciphertexts: &[elgamal::Ciphertext],
+        commitments: &[G1Projective],
     ) -> bool {
-        if self.response_keys.len() != attributes_ciphertexts.len() {
+        if self.response_attributes.len() != commitments.len() {
             return false;
         }
 
@@ -196,30 +195,6 @@ impl ProofCmCs {
             .collect::<Vec<_>>();
 
         // recompute witnesses commitments
-        let commitment_private_key_elgamal =
-            pub_key * &self.challenge + g1 * self.response_private_elgamal_key;
-
-        // Aw[i] = (c * c1[i]) + (rk[i] * g1)
-        let commitment_keys1_bytes = attributes_ciphertexts
-            .iter()
-            .map(|ciphertext| ciphertext.c1())
-            .zip(self.response_keys.iter())
-            .map(|(c1, res_k)| c1 * self.challenge + g1 * res_k)
-            .map(|witness| witness.to_bytes())
-            .collect::<Vec<_>>();
-
-        // Bw[i] = (c * c2[i]) + (rk[i] * gamma) + (rm[i] * h)
-        let commitment_keys2_bytes = izip!(
-            attributes_ciphertexts
-                .iter()
-                .map(|ciphertext| ciphertext.c2()),
-            self.response_keys.iter(),
-            self.response_attributes.iter()
-        )
-        .map(|(c2, res_key, res_attr)| c2 * self.challenge + pub_key * res_key + h * res_attr)
-        .map(|witness| witness.to_bytes())
-        .collect::<Vec<_>>();
-
         // Cw = (cm * c) + (rr * g1) + (rm[0] * hs[0]) + ... + (rm[n] * hs[n])
         let commitment_attributes = commitment * self.challenge
             + g1 * self.response_opening

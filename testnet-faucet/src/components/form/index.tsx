@@ -36,10 +36,10 @@ export const Form = () => {
     useContext(GlobalContext)
 
   const onSubmit: SubmitHandler<TFormData> = async (data) => {
-    const uminorcurrency = getCoinValue(data.amount)
+    const minorcurrency = getCoinValue(data.amount)
     await requestTokens({
       address: data.address,
-      utokens: uminorcurrency.toString(),
+      minorcurrency: minorcurrency.toString(),
       majorcurrency: data.amount,
     })
     resetForm()

@@ -14,10 +14,10 @@ type TGlobalContext = {
   getBalance: () => void
   requestTokens: ({
     address,
-    utokens,
+    minorcurrency,
   }: {
     address: string
-    utokens: string
+    minorcurrency: string
     majorcurrency: string
   }) => void
   loadingState: TLoadingState
@@ -27,7 +27,6 @@ type TGlobalContext = {
 }
 
 export const GlobalContext = createContext({} as TGlobalContext)
-
 
 export enum EnumRequestType {
   balance = 'balance',
@@ -54,9 +53,8 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     const Validator = await ClientValidator.connect(
       VALIDATOR_ADDRESS,
       MNEMONIC,
-      'https://sandbox-validator.nymtech.net',
-      ///`${MAJOR_CURRENCY.toString()}`
-      'nymt'
+      [TESTNET_URL],
+      MAJOR_CURRENCY
     )
     setValidator(Validator)
   }
@@ -90,18 +88,18 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
 
   const requestTokens = async ({
     address,
-    uminorcurrency,
+    minorcurrency,
     majorcurrency,
   }: {
     address: string
-    uminorcurrency: string
+    minorcurrency: string
     majorcurrency: string
   }) => {
     setTokenTransfer(undefined)
     setLoadingState({ isLoading: true, requestType: EnumRequestType.tokens })
     try {
       await validator?.send(ACCOUNT_ADDRESS, address, [
-        { amount: uminorcurrency, denom: MINOR_CURRENCY },
+        { amount: minorcurrency, denom: MINOR_CURRENCY},
       ])
       setTokenTransfer({ address, amount: majorcurrency })
     } catch (e) {

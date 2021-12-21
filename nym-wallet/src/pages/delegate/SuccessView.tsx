@@ -9,8 +9,8 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
     <>
       <SuccessReponse
         title="Delegation Complete"
-        subtitle="Sucessfully delegated to node with following details"
-        caption={`You current balance is: ${userBalance.balance?.printable_balance}`}
+        subtitle="Successfully delegated to node with following details"
+        caption={`Your current balance is: ${userBalance.balance?.printable_balance}`}
       />
       {details && (
         <Box sx={{ mt: 2 }}>

@@ -2,7 +2,7 @@ import { Card, CardHeader, Link, Typography } from '@mui/material'
 import { urls } from '../context/index'
 import { config } from '../config'
 
-export const { MAJOR_CURRENCY, MINOR_CURRENCY, VALIDATOR_ADDRESS, NETWORK } = config
+export const { MAJOR_CURRENCY } = config
 
 
 export const TokenTransfer = ({
@@ -25,7 +25,7 @@ export const TokenTransfer = ({
         title={
           <>
             <Typography component="span" variant="h5">
-              Successfully transferred {amount} {MAJOR_CURRENCY.toString()} to
+              Successfully transferred {amount} {MAJOR_CURRENCY} to
             </Typography>{' '}
             <Link
               target="_blank"

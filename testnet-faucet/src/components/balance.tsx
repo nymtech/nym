@@ -32,7 +32,7 @@ export const Balance = () => {
               variant="h6"
               data-testid="balance-message"
             >
-              {balance} {MAJOR_CURRENCY.toString()}
+              {balance} {MAJOR_CURRENCY}
             </Typography>
           </Typography>
         }

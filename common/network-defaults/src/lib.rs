@@ -49,10 +49,13 @@ impl ValidatorDetails {
 
 #[cfg(network = "milhon")]
 pub fn default_validators() -> Vec<ValidatorDetails> {
-    vec![ValidatorDetails::new(
-        "https://sandbox-validator.nymtech.net",
-        Some("https://sandbox-validator.nymtech.net/api"),
-    )]
+    vec![
+        ValidatorDetails::new(
+            "https://testnet-milhon-validator1.nymtech.net",
+            Some("https://testnet-milhon-validator1.nymtech.net/api"),
+        ),
+        ValidatorDetails::new("https://testnet-milhon-validator2.nymtech.net", None),
+    ]
 }
 
 #[cfg(network = "sandbox")]
@@ -77,10 +80,6 @@ pub fn default_api_endpoints() -> Vec<Url> {
         .collect()
 }
 
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "nymt14hj2tavq8fpesdwxxcu44rty3hh90vhuysqrsr";
-pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = "nymt1nc5tatafv6eyq7llkr2gv50ff9e22mnfp9pc5s";
-pub const REWARDING_VALIDATOR_ADDRESS: &str = "nymt17zujduc46wvkwvp6f062mm5xhr7jc3fewvqu9e";
-
 // Ethereum constants used for token bridge
 /// How much bandwidth (in bytes) one token can buy
 const BYTES_PER_TOKEN: u64 = 1024 * 1024 * 1024;
@@ -90,16 +89,9 @@ pub const TOKENS_TO_BURN: u64 = 10;
 pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
 
 pub const ETH_MIN_BLOCK_DEPTH: usize = 7;
-pub const COSMOS_CONTRACT_ADDRESS: &str = "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
-// Name of the event triggered by the eth contract. If the event name is changed,
-// this would also need to be changed; It is currently tested against the json abi
-pub const ETH_EVENT_NAME: &str = "Burned";
-pub const ETH_BURN_FUNCTION_NAME: &str = "burnTokenForAccessCode";
 
 /// Defaults Cosmos Hub/ATOM path
 pub const COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
-pub const BECH32_PREFIX: &str = "nymt";
-pub const DENOM: &str = "unymt";
 // as set by validators in their configs
 // (note that the 'amount' postfix is relevant here as the full gas price also includes denom)
 pub const GAS_PRICE_AMOUNT: f64 = 0.025;

@@ -16,7 +16,7 @@ use crate::scheme::setup::Parameters;
 use crate::scheme::verification::check_bilinear_pairing;
 use crate::traits::{Base58, Bytable};
 use crate::utils::try_deserialize_g1_projective;
-use crate::{elgamal, Attribute};
+use crate::Attribute;
 
 pub mod aggregation;
 pub mod issuance;
@@ -149,16 +149,15 @@ impl BlindedSignature {
     pub fn unblind(
         &self,
         params: &Parameters,
-        private_key: &elgamal::PrivateKey,
         partial_verification_key: &VerificationKey,
         private_attributes: &[Attribute],
         public_attributes: &[Attribute],
         commitment_hash: &G1Projective,
+        commitments_openings: &[Scalar],
     ) -> Result<Signature> {
         // parse the signature
         let h = &self.0;
         let c = &self.1;
-        let sig2 = private_key.decrypt(c);
 
         // Verify the commitment hash
         if !(commitment_hash == h) {
@@ -166,6 +165,12 @@ impl BlindedSignature {
                 "Verification of commitment hash from signature failed".to_string(),
             ));
         }
+
+        let extra_openings = commitments_openings
+            .iter()
+            .map(|o| h * o)
+            .sum::<G1Projective>();
+        let c = c - extra_openings;
 
         let alpha = partial_verification_key.alpha;
 
@@ -180,7 +185,7 @@ impl BlindedSignature {
         if !check_bilinear_pairing(
             &h.to_affine(),
             &G2Prepared::from((alpha + tmp).to_affine()),
-            &sig2.to_affine(),
+            &c.to_affine(),
             params.prepared_miller_g2(),
         ) {
             return Err(CoconutError::Unblind(
@@ -188,7 +193,7 @@ impl BlindedSignature {
             ));
         }
 
-        Ok(Signature(self.0, sig2))
+        Ok(Signature(*h, c))
     }
 
     pub fn to_bytes(&self) -> [u8; 144] {

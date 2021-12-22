@@ -42,17 +42,18 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         .arg(
             Arg::with_name(TESTNET_MODE_ARG_NAME)
                 .long(TESTNET_MODE_ARG_NAME)
-                .help("Set this client to work in a testnet mode that would attempt to use gateway without bandwidth credential requirement")
+                .help("Set this client to work in a testnet mode that would attempt to use gateway without bandwidth credential requirement. If this value is set, --eth_endpoint and --eth_private_key don't need to be set.")
+                .conflicts_with_all(&["eth_endpoint", "eth_private_key"])
         );
     #[cfg(not(feature = "coconut"))]
         let app = app
         .arg(Arg::with_name("eth_endpoint")
             .long("eth_endpoint")
-            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
+            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens. If you don't want to set this value, use --testnet-mode instead")
             .takes_value(true))
         .arg(Arg::with_name("eth_private_key")
             .long("eth_private_key")
-            .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens")
+            .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens. If you don't want to set this value, use --testnet-mode instead")
             .takes_value(true));
 
     app

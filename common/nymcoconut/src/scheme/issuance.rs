@@ -181,20 +181,16 @@ pub fn compute_private_attributes_commitment(
 pub fn compute_private_attributes_commitments(
     params: &Parameters,
     private_attributes: &[Attribute],
-    h: &G1Affine,
-) -> Vec<(Scalar, G1Projective)> {
+    h: &G1Projective,
+) -> (Vec<Scalar>, Vec<G1Projective>) {
     let openings = params.n_random_scalars(private_attributes.len());
     let commitments = openings
         .iter()
         .zip(private_attributes.iter())
-        // TODO
-        .map(|(o_j, m_j)| params.g1 * o_j + h * m_j)
+        .map(|(o_j, m_j)| params.gen1() * o_j + h * m_j)
         .collect::<Vec<_>>();
 
-    openings
-        .iter()
-        .zip(commitments.iter())
-        .collect::<Vec<(_, _)>>()
+    (openings, commitments)
 }
 
 pub fn compute_commitment_hash(commitment: G1Projective) -> G1Projective {
@@ -213,7 +209,6 @@ pub fn compute_attribute_encryption(
         .unzip()
 }
 
-// TODO
 /// Builds cryptographic material required for blind sign.
 pub fn prepare_blind_sign(
     params: &Parameters,
@@ -254,10 +249,12 @@ pub fn prepare_blind_sign(
         private_attributes,
     );
 
+    let private_attributes_commitments = commitments;
+
     Ok(BlindSignRequest {
         commitment,
         commitment_hash,
-        compute_private_attributes_commitments,
+        private_attributes_commitments,
         pi_s,
     })
 }

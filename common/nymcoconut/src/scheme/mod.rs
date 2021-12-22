@@ -251,33 +251,30 @@ mod tests {
     fn unblind_returns_error_if_integrity_check_on_commitment_hash_fails() {
         let mut params = Parameters::new(2).unwrap();
         let private_attributes = params.n_random_scalars(2 as usize);
-        let elgamal_keypair = elgamal::elgamal_keygen(&mut params);
+        let commitments_openings = params.n_random_scalars(2 as usize);
 
         let lambda =
-            prepare_blind_sign(&mut params, &elgamal_keypair, &private_attributes, &[]).unwrap();
+            prepare_blind_sign(&mut params, &private_attributes, &commitments_openings, &[])
+                .unwrap();
 
         let keypair1 = keygen(&mut params);
 
-        let sig1 = blind_sign(
-            &mut params,
-            &keypair1.secret_key(),
-            elgamal_keypair.public_key(),
-            &lambda,
-            &[],
-        )
-        .unwrap();
+        let sig1 = blind_sign(&mut params, &keypair1.secret_key(), &lambda, &[]).unwrap();
 
         let wrong_commitment_opening = params.random_scalar();
         let wrong_commitment = params.gen1() * wrong_commitment_opening;
         let fake_commitment_hash = hash_g1(wrong_commitment.to_bytes());
+        let wrong_commitments_openings = params.n_random_scalars(private_attributes.len());
+
         assert!(sig1
             .unblind(
                 &params,
-                elgamal_keypair.private_key(),
+                &keypair1.secret_key().betas_g1(&params),
                 &keypair1.verification_key(),
                 &private_attributes,
                 &[],
                 &fake_commitment_hash,
+                &wrong_commitments_openings,
             )
             .is_err());
     }
@@ -287,30 +284,25 @@ mod tests {
         let mut params = Parameters::new(2).unwrap();
         let private_attributes = vec![hash_to_scalar("Attribute1"), hash_to_scalar("Attribute2")];
         let private_attributes2 = vec![hash_to_scalar("Attribute3"), hash_to_scalar("Attribute4")];
-        let elgamal_keypair = elgamal::elgamal_keygen(&mut params);
+        let commitments_openings = params.n_random_scalars(2);
 
         let lambda =
-            prepare_blind_sign(&mut params, &elgamal_keypair, &private_attributes, &[]).unwrap();
+            prepare_blind_sign(&mut params, &private_attributes, &commitments_openings, &[])
+                .unwrap();
 
         let keypair1 = keygen(&mut params);
 
-        let sig1 = blind_sign(
-            &mut params,
-            &keypair1.secret_key(),
-            elgamal_keypair.public_key(),
-            &lambda,
-            &[],
-        )
-        .unwrap();
+        let sig1 = blind_sign(&mut params, &keypair1.secret_key(), &lambda, &[]).unwrap();
 
         assert!(sig1
             .unblind(
                 &params,
-                elgamal_keypair.private_key(),
+                &keypair1.secret_key().betas_g1(&params),
                 &keypair1.verification_key(),
                 &private_attributes2,
                 &[],
                 &lambda.get_commitment_hash(),
+                &commitments_openings,
             )
             .is_err());
     }
@@ -321,49 +313,40 @@ mod tests {
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
-        let elgamal_keypair = elgamal::elgamal_keygen(&mut params);
+        let commitments_openings = params.n_random_scalars(2);
 
         let keypair1 = keygen(&mut params);
         let keypair2 = keygen(&mut params);
 
         let lambda =
-            prepare_blind_sign(&mut params, &elgamal_keypair, &private_attributes, &[]).unwrap();
+            prepare_blind_sign(&mut params, &private_attributes, &commitments_openings, &[])
+                .unwrap();
 
-        let sig1 = blind_sign(
-            &mut params,
-            &keypair1.secret_key(),
-            elgamal_keypair.public_key(),
-            &lambda,
-            &[],
-        )
-        .unwrap()
-        .unblind(
-            &params,
-            elgamal_keypair.private_key(),
-            &keypair1.verification_key(),
-            &private_attributes,
-            &[],
-            &lambda.get_commitment_hash(),
-        )
-        .unwrap();
+        let sig1 = blind_sign(&mut params, &keypair1.secret_key(), &lambda, &[])
+            .unwrap()
+            .unblind(
+                &params,
+                &keypair1.secret_key().betas_g1(&params),
+                &keypair1.verification_key(),
+                &private_attributes,
+                &[],
+                &lambda.get_commitment_hash(),
+                &commitments_openings,
+            )
+            .unwrap();
 
-        let sig2 = blind_sign(
-            &mut params,
-            &keypair2.secret_key(),
-            elgamal_keypair.public_key(),
-            &lambda,
-            &[],
-        )
-        .unwrap()
-        .unblind(
-            &params,
-            elgamal_keypair.private_key(),
-            &keypair2.verification_key(),
-            &private_attributes,
-            &[],
-            &lambda.get_commitment_hash(),
-        )
-        .unwrap();
+        let sig2 = blind_sign(&mut params, &keypair2.secret_key(), &lambda, &[])
+            .unwrap()
+            .unblind(
+                &params,
+                &keypair2.secret_key().betas_g1(&params),
+                &keypair2.verification_key(),
+                &private_attributes,
+                &[],
+                &lambda.get_commitment_hash(),
+                &commitments_openings,
+            )
+            .unwrap();
 
         let theta1 = prove_bandwidth_credential(
             &mut params,
@@ -444,15 +427,15 @@ mod tests {
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
-        let elgamal_keypair = elgamal::elgamal_keygen(&mut params);
+        let commitments_openings = params.n_random_scalars(2);
 
         let keypair1 = keygen(&mut params);
         let keypair2 = keygen(&mut params);
 
         let lambda = prepare_blind_sign(
             &mut params,
-            &elgamal_keypair,
             &private_attributes,
+            &commitments_openings,
             &public_attributes,
         )
         .unwrap();
@@ -460,36 +443,36 @@ mod tests {
         let sig1 = blind_sign(
             &mut params,
             &keypair1.secret_key(),
-            elgamal_keypair.public_key(),
             &lambda,
             &public_attributes,
         )
         .unwrap()
         .unblind(
             &params,
-            elgamal_keypair.private_key(),
+            &keypair1.secret_key().betas_g1(&params),
             &keypair1.verification_key(),
             &private_attributes,
             &public_attributes,
             &lambda.get_commitment_hash(),
+            &commitments_openings,
         )
         .unwrap();
 
         let sig2 = blind_sign(
             &mut params,
             &keypair2.secret_key(),
-            elgamal_keypair.public_key(),
             &lambda,
             &public_attributes,
         )
         .unwrap()
         .unblind(
             &params,
-            elgamal_keypair.private_key(),
+            &keypair2.secret_key().betas_g1(&params),
             &keypair2.verification_key(),
             &private_attributes,
             &public_attributes,
             &lambda.get_commitment_hash(),
+            &commitments_openings,
         )
         .unwrap();
 
@@ -540,14 +523,14 @@ mod tests {
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
-        let elgamal_keypair = elgamal::elgamal_keygen(&params);
+        let commitments_openings = params.n_random_scalars(2);
 
         let keypairs = ttp_keygen(&mut params, 2, 3).unwrap();
 
         let lambda = prepare_blind_sign(
             &mut params,
-            &elgamal_keypair,
             &private_attributes,
+            &commitments_openings,
             &public_attributes,
         )
         .unwrap();
@@ -558,18 +541,18 @@ mod tests {
                 blind_sign(
                     &mut params,
                     &keypair.secret_key(),
-                    elgamal_keypair.public_key(),
                     &lambda,
                     &public_attributes,
                 )
                 .unwrap()
                 .unblind(
                     &params,
-                    elgamal_keypair.private_key(),
+                    &keypair.secret_key().betas_g1(&params),
                     &keypair.verification_key(),
                     &private_attributes,
                     &public_attributes,
                     &lambda.get_commitment_hash(),
+                    &commitments_openings,
                 )
                 .unwrap()
             })
@@ -651,18 +634,13 @@ mod tests {
         let params = Parameters::default();
         let r = params.random_scalar();
         let s = params.random_scalar();
-        let t = params.random_scalar();
-        let blinded_sig = BlindedSignature(
-            params.gen1() * t,
-            Ciphertext(params.gen1() * r, params.gen1() * s),
-        );
+        let blinded_sig = BlindedSignature(params.gen1() * r, params.gen1() * s);
         let bytes = blinded_sig.to_bytes();
 
         // also make sure it is equivalent to the internal g1 compressed bytes concatenated
         let expected_bytes = [
             blinded_sig.0.to_affine().to_compressed(),
-            blinded_sig.1 .0.to_affine().to_compressed(),
-            blinded_sig.1 .1.to_affine().to_compressed(),
+            blinded_sig.1.to_affine().to_compressed(),
         ]
         .concat();
         assert_eq!(expected_bytes, bytes);

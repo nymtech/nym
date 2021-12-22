@@ -178,17 +178,15 @@ pub fn compute_private_attributes_commitment(
 
 pub fn compute_private_attributes_commitments(
     params: &Parameters,
+    commitments_openings: &[Scalar],
     private_attributes: &[Attribute],
     h: &G1Projective,
-) -> (Vec<Scalar>, Vec<G1Projective>) {
-    let openings = params.n_random_scalars(private_attributes.len());
-    let commitments = openings
+) -> Vec<G1Projective> {
+    commitments_openings
         .iter()
         .zip(private_attributes.iter())
         .map(|(o_j, m_j)| params.gen1() * o_j + h * m_j)
-        .collect::<Vec<_>>();
-
-    (openings, commitments)
+        .collect::<Vec<_>>()
 }
 
 pub fn compute_commitment_hash(commitment: G1Projective) -> G1Projective {
@@ -199,6 +197,7 @@ pub fn compute_commitment_hash(commitment: G1Projective) -> G1Projective {
 pub fn prepare_blind_sign(
     params: &Parameters,
     private_attributes: &[Attribute],
+    commitments_openings: &[Scalar],
     public_attributes: &[Attribute],
 ) -> Result<BlindSignRequest> {
     if private_attributes.is_empty() {
@@ -206,6 +205,10 @@ pub fn prepare_blind_sign(
             "Tried to prepare blind sign request for an empty set of private attributes"
                 .to_string(),
         ));
+    }
+
+    if private_attributes.len() != commitments_openings.len() {
+        return Err(CoconutError::Issuance("Trie to prepare blind sign request but length of private attributes and provided openings do not match".to_string()));
     }
 
     let hs = params.gen_hs();
@@ -222,8 +225,12 @@ pub fn prepare_blind_sign(
     // Compute the challenge as the commitment hash
     let commitment_hash = compute_commitment_hash(commitment);
 
-    let (commitments_openings, commitments) =
-        compute_private_attributes_commitments(params, private_attributes, &commitment_hash);
+    let commitments = compute_private_attributes_commitments(
+        params,
+        commitments_openings,
+        private_attributes,
+        &commitment_hash,
+    );
 
     let pi_s = ProofCmCs::construct(
         params,
@@ -337,14 +344,14 @@ mod tests {
     #[test]
     fn blind_sign_request_bytes_roundtrip() {
         let mut params = Parameters::new(1).unwrap();
-        let public_attributes = params.n_random_scalars(0);
         let private_attributes = params.n_random_scalars(1);
-        let elgamal_keypair = elgamal::elgamal_keygen(&params);
+        let commitments_openings = params.n_random_scalars(1);
+        let public_attributes = params.n_random_scalars(0);
 
         let lambda = prepare_blind_sign(
             &mut params,
-            &elgamal_keypair,
             &private_attributes,
+            &commitments_openings,
             &public_attributes,
         )
         .unwrap();
@@ -357,12 +364,13 @@ mod tests {
         );
 
         let mut params = Parameters::new(4).unwrap();
-        let public_attributes = params.n_random_scalars(2);
         let private_attributes = params.n_random_scalars(2);
+        let commitments_openings = params.n_random_scalars(2);
+        let public_attributes = params.n_random_scalars(2);
         let lambda = prepare_blind_sign(
             &mut params,
-            &elgamal_keypair,
             &private_attributes,
+            &commitments_openings,
             &public_attributes,
         )
         .unwrap();

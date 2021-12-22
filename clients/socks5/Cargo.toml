@@ -43,6 +43,7 @@ network-defaults = { path = "../../common/network-defaults" }
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut"]
+eth = []
 
 [build-dependencies]
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }

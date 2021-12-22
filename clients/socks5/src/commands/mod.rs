@@ -10,6 +10,12 @@ pub(crate) mod run;
 pub(crate) mod upgrade;
 
 pub(crate) const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
+pub(crate) const ETH_ENDPOINT_ARG_NAME: &str = "eth_endpoint";
+pub(crate) const ETH_PRIVATE_KEY_ARG_NAME: &str = "eth_private_key";
+pub(crate) const DEFAULT_ETH_ENDPOINT: &str =
+    "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
+pub(crate) const DEFAULT_ETH_PRIVATE_KEY: &str =
+    "0000000000000000000000000000000000000000000000000000000000000001";
 
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
@@ -42,15 +48,23 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
     }
 
     #[cfg(not(feature = "coconut"))]
-    if let Some(eth_endpoint) = matches.value_of("eth_endpoint") {
+    if let Some(eth_endpoint) = matches.value_of(ETH_ENDPOINT_ARG_NAME) {
         config.get_base_mut().with_eth_endpoint(eth_endpoint);
+    } else {
+        config
+            .get_base_mut()
+            .with_eth_endpoint(DEFAULT_ETH_ENDPOINT);
     }
     #[cfg(not(feature = "coconut"))]
-    if let Some(eth_private_key) = matches.value_of("eth_private_key") {
+    if let Some(eth_private_key) = matches.value_of(ETH_PRIVATE_KEY_ARG_NAME) {
         config.get_base_mut().with_eth_private_key(eth_private_key);
+    } else {
+        config
+            .get_base_mut()
+            .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY);
     }
 
-    if matches.is_present(TESTNET_MODE_ARG_NAME) {
+    if !cfg!(feature = "eth") || matches.is_present(TESTNET_MODE_ARG_NAME) {
         config.get_base_mut().with_testnet_mode(true)
     }
 

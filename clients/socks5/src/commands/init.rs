@@ -28,7 +28,12 @@ use topology::{filter::VersionFilterable, gateway};
 use url::Url;
 
 use crate::client::config::Config;
-use crate::commands::{override_config, TESTNET_MODE_ARG_NAME};
+use crate::commands::override_config;
+#[cfg(feature = "eth")]
+use crate::commands::{
+    DEFAULT_ETH_ENDPOINT, DEFAULT_ETH_PRIVATE_KEY, ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME,
+    TESTNET_MODE_ARG_NAME,
+};
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     let app = App::new("init")
@@ -65,26 +70,26 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .long("fastmode")
             .hidden(true) // this will prevent this flag from being displayed in `--help`
             .help("Mostly debug-related option to increase default traffic rate so that you would not need to modify config post init")
-        )
+        );
+    #[cfg(feature = "eth")]
+        let app = app
         .arg(
             Arg::with_name(TESTNET_MODE_ARG_NAME)
                 .long(TESTNET_MODE_ARG_NAME)
                 .help("Set this client to work in a testnet mode that would attempt to use gateway without bandwidth credential requirement. If this value is set, --eth_endpoint and --eth_private_key don't need to be set.")
-                .conflicts_with_all(&["eth_endpoint", "eth_private_key"])
-        );
-    #[cfg(not(feature = "coconut"))]
-        let app = app
-        .arg(Arg::with_name("eth_endpoint")
-            .long("eth_endpoint")
+                .conflicts_with_all(&[ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME])
+        )
+        .arg(Arg::with_name(ETH_ENDPOINT_ARG_NAME)
+            .long(ETH_ENDPOINT_ARG_NAME)
             .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens. If you don't want to set this value, use --testnet-mode instead")
             .takes_value(true)
-            .default_value_if(TESTNET_MODE_ARG_NAME, None, "https://rinkeby.infura.io/v3/00000000000000000000000000000000")
+            .default_value_if(TESTNET_MODE_ARG_NAME, None, DEFAULT_ETH_ENDPOINT)
             .required(true))
-        .arg(Arg::with_name("eth_private_key")
-            .long("eth_private_key")
+        .arg(Arg::with_name(ETH_PRIVATE_KEY_ARG_NAME)
+            .long(ETH_PRIVATE_KEY_ARG_NAME)
             .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens. If you don't want to set this value, use --testnet-mode instead")
             .takes_value(true)
-            .default_value_if(TESTNET_MODE_ARG_NAME, None, "0000000000000000000000000000000000000000000000000000000000000001")
+            .default_value_if(TESTNET_MODE_ARG_NAME, None, DEFAULT_ETH_PRIVATE_KEY)
             .required(true)
         );
 

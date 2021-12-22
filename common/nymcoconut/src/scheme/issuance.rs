@@ -267,7 +267,7 @@ pub fn blind_sign(
     blind_sign_request: &BlindSignRequest,
     public_attributes: &[Attribute],
 ) -> Result<BlindedSignature> {
-    let num_private = blind_sign_request.private_attributes_ciphertexts.len();
+    let num_private = blind_sign_request.private_attributes_commitments.len();
     let hs = params.gen_hs();
 
     if num_private + public_attributes.len() > hs.len() {

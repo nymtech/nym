@@ -149,6 +149,7 @@ impl BlindedSignature {
     pub fn unblind(
         &self,
         params: &Parameters,
+        betas_g1: &[G1Projective],
         partial_verification_key: &VerificationKey,
         private_attributes: &[Attribute],
         public_attributes: &[Attribute],
@@ -166,9 +167,10 @@ impl BlindedSignature {
             ));
         }
 
-        let extra_openings = commitments_openings
+        let extra_openings = betas_g1
             .iter()
-            .map(|o| h * o)
+            .zip(commitments_openings.iter())
+            .map(|(beta_j, o_j)| beta_j * o_j)
             .sum::<G1Projective>();
         let c = c - extra_openings;
 

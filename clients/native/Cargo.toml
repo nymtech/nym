@@ -48,6 +48,7 @@ network-defaults = { path = "../../common/network-defaults" }
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut"]
+eth = []
 
 [dev-dependencies]
 serde_json = "1.0" # for the "textsend" example

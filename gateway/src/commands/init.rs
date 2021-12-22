@@ -57,11 +57,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name(TESTNET_MODE_ARG_NAME)
-                .long(TESTNET_MODE_ARG_NAME)
-                .help("Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement")
-        )
-        .arg(
             Arg::with_name(WALLET_ADDRESS)
             .long(WALLET_ADDRESS)
             .help("The wallet address you will use to bond this gateway, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9")
@@ -69,8 +64,13 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .required(true)
         );
 
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(feature = "eth")]
     let app = app
+        .arg(
+            Arg::with_name(TESTNET_MODE_ARG_NAME)
+                .long(TESTNET_MODE_ARG_NAME)
+                .help("Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement")
+        )
         .arg(Arg::with_name(ETH_ENDPOINT)
             .long(ETH_ENDPOINT)
             .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")

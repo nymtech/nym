@@ -52,6 +52,7 @@ version-checker = { path = "../common/version-checker" }
 
 [features]
 coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coconut"]
+eth = []
 
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }

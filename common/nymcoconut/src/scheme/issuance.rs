@@ -7,16 +7,15 @@ use std::convert::TryInto;
 use bls12_381::{G1Affine, G1Projective, Scalar};
 use group::{Curve, GroupEncoding};
 
-use crate::elgamal::{Ciphertext, EphemeralKey};
 use crate::error::{CoconutError, Result};
 use crate::proofs::ProofCmCs;
 use crate::scheme::setup::Parameters;
 use crate::scheme::BlindedSignature;
 use crate::scheme::SecretKey;
+use crate::Attribute;
 /// Creates a Coconut Signature under a given secret key on a set of public attributes only.
 #[cfg(test)]
 use crate::Signature;
-use crate::{elgamal, Attribute, ElGamalKeyPair};
 // TODO: possibly completely remove those two functions.
 // They only exist to have a simpler and smaller code snippets to test
 // basic functionalities.
@@ -196,22 +195,9 @@ pub fn compute_commitment_hash(commitment: G1Projective) -> G1Projective {
     hash_g1(commitment.to_bytes())
 }
 
-pub fn compute_attribute_encryption(
-    params: &Parameters,
-    private_attributes: &[Attribute],
-    pub_key: &elgamal::PublicKey,
-    commitment_hash: G1Projective,
-) -> (Vec<Ciphertext>, Vec<EphemeralKey>) {
-    private_attributes
-        .iter()
-        .map(|m| pub_key.encrypt(params, &commitment_hash, m))
-        .unzip()
-}
-
 /// Builds cryptographic material required for blind sign.
 pub fn prepare_blind_sign(
     params: &Parameters,
-    elgamal_keypair: &ElGamalKeyPair,
     private_attributes: &[Attribute],
     public_attributes: &[Attribute],
 ) -> Result<BlindSignRequest> {
@@ -261,7 +247,6 @@ pub fn prepare_blind_sign(
 pub fn blind_sign(
     params: &Parameters,
     signing_secret_key: &SecretKey,
-    prover_pub_key: &elgamal::PublicKey,
     blind_sign_request: &BlindSignRequest,
     public_attributes: &[Attribute],
 ) -> Result<BlindedSignature> {

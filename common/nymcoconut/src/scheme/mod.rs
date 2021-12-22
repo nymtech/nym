@@ -197,7 +197,7 @@ impl BlindedSignature {
     }
 
     pub fn to_bytes(&self) -> [u8; 96] {
-        let mut bytes = [0u8; 144];
+        let mut bytes = [0u8; 96];
         bytes[..48].copy_from_slice(&self.0.to_affine().to_compressed());
         bytes[48..].copy_from_slice(&self.1.to_affine().to_compressed());
         bytes

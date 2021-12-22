@@ -135,7 +135,6 @@ impl Bytable for BlindSignRequest {
 
 impl Base58 for BlindSignRequest {}
 
-// TODO
 impl BlindSignRequest {
     fn verify_proof(&self, params: &Parameters) -> bool {
         self.pi_s.verify(
@@ -259,7 +258,6 @@ pub fn prepare_blind_sign(
     })
 }
 
-// TODO
 pub fn blind_sign(
     params: &Parameters,
     signing_secret_key: &SecretKey,
@@ -286,7 +284,7 @@ pub fn blind_sign(
     }
 
     // Verify the ZK proof
-    if !blind_sign_request.verify_proof(params, prover_pub_key) {
+    if !blind_sign_request.verify_proof(params) {
         return Err(CoconutError::Issuance(
             "Failed to verify the proof of knowledge".to_string(),
         ));
@@ -301,27 +299,17 @@ pub fn blind_sign(
         .map(|(attr, yi)| attr * yi)
         .sum::<Scalar>();
 
-    // c1[0] ^ y[0] * ... * c1[m] ^ y[m]
-    let sig_1 = blind_sign_request
-        .private_attributes_ciphertexts
+    // h ^ x + c[0] ^ y[0] + ... c[m] ^ y[m] + h ^ (pub_m[0] * y[m + 1] + ... + pub_m[n] * y[m + n])
+    let sig = blind_sign_request
+        .private_attributes_commitments
         .iter()
-        .map(|ciphertext| ciphertext.c1())
         .zip(signing_secret_key.ys.iter())
-        .map(|(c1, yi)| c1 * yi)
-        .sum();
-
-    // h ^ x + c2[0] ^ y[0] + ... c2[m] ^ y[m] + h ^ (pub_m[0] * y[m + 1] + ... + pub_m[n] * y[m + n])
-    let sig_2 = blind_sign_request
-        .private_attributes_ciphertexts
-        .iter()
-        .map(|ciphertext| ciphertext.c2())
-        .zip(signing_secret_key.ys.iter())
-        .map(|(c2, yi)| c2 * yi)
+        .map(|(c, yi)| c * yi)
         .chain(std::iter::once(h * signing_secret_key.x))
         .chain(std::iter::once(signed_public))
         .sum();
 
-    Ok(BlindedSignature(h, elgamal::Ciphertext(sig_1, sig_2)))
+    Ok(BlindedSignature(h, sig))
 }
 
 #[cfg(test)]

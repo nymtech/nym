@@ -11,7 +11,6 @@ use group::Curve;
 
 pub use keygen::{SecretKey, VerificationKey};
 
-use crate::elgamal::Ciphertext;
 use crate::error::{CoconutError, Result};
 use crate::scheme::setup::Parameters;
 use crate::scheme::verification::check_bilinear_pairing;
@@ -105,7 +104,7 @@ impl Base58 for Signature {}
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
-pub struct BlindedSignature(G1Projective, elgamal::Ciphertext);
+pub struct BlindedSignature(G1Projective, G1Projective);
 
 impl Bytable for BlindedSignature {
     fn to_byte_vec(&self) -> Vec<u8> {
@@ -123,22 +122,26 @@ impl TryFrom<&[u8]> for BlindedSignature {
     type Error = CoconutError;
 
     fn try_from(bytes: &[u8]) -> Result<BlindedSignature> {
-        if bytes.len() != 144 {
+        if bytes.len() != 96 {
             return Err(CoconutError::Deserialization(format!(
-                "BlindedSignature must be exactly 144 bytes, got {}",
+                "BlindedSignature must be exactly 96 bytes, got {}",
                 bytes.len()
             )));
         }
 
         let h_bytes: &[u8; 48] = &bytes[..48].try_into().expect("Slice size != 48");
+        let sig_bytes: &[u8; 48] = &bytes[48..].try_into().expect("Slice size != 48");
 
         let h = try_deserialize_g1_projective(
             h_bytes,
             CoconutError::Deserialization("Failed to deserialize compressed h".to_string()),
         )?;
-        let c_tilde = Ciphertext::try_from(&bytes[48..])?;
+        let sig = try_deserialize_g1_projective(
+            sig_bytes,
+            CoconutError::Deserialization("Failed to deserialize compressed sig".to_string()),
+        )?;
 
-        Ok(BlindedSignature(h, c_tilde))
+        Ok(BlindedSignature(h, sig))
     }
 }
 

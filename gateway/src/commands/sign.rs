@@ -5,14 +5,9 @@ use crate::commands::*;
 use crate::config::{persistence::pathfinder::GatewayPathfinder, Config};
 use clap::{App, Arg, ArgMatches};
 use colored::Colorize;
-#[cfg(feature = "coconut")]
-use config::defaults::BECH32_PREFIX;
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
-use std::process;
-#[cfg(feature = "coconut")]
-use subtle_encoding::bech32;
 #[cfg(not(feature = "coconut"))]
 use validator_client::nymd::AccountId;
 
@@ -111,7 +106,7 @@ fn sign_derived_address(private_key: &identity::PrivateKey, address: &AccountId)
 
 // we do tiny bit of sanity check validation
 #[cfg(feature = "coconut")]
-fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) -> String {
+fn sign_provided_address(private_key: &identity::PrivateKey, raw_address: &str) {
     let trimmed = raw_address.trim();
     validate_bech32_address_or_exit(trimmed);
     let signature = private_key.sign_text(trimmed);
@@ -119,8 +114,7 @@ fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) -
     println!(
         "The base58-encoded signature on '{}' is: {}",
         trimmed, signature
-    );
-    signature
+    )
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {

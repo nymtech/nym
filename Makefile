@@ -1,25 +1,36 @@
-all: clippy test wasm fmt
-clippy: clippy-main clippy-contracts clippy-wallet
+all: clippy-all test fmt
+happy: clippy-happy test fmt
+clippy-all: clippy-all-main clippy-all-contracts clippy-all-wallet
+clippy-happy: clippy-happy-main clippy-happy-contracts clippy-happy-wallet
 test: test-main test-contracts test-wallet
 fmt: fmt-main fmt-contracts fmt-wallet
 
-clippy-main:
+clippy-happy-main:
 	cargo clippy
 
-clippy-contracts:
-	cargo clippy --manifest-path contracts/Cargo.toml
+clippy-happy-contracts:
+	cargo clippy --manifest-path contracts/Cargo.toml --target wasm32-unknown-unknown
 
-clippy-wallet: 
+clippy-happy-wallet: 
 	cargo clippy --manifest-path nym-wallet/Cargo.toml
 
+clippy-all-main:
+	cargo clippy --all-features -- -D warnings 
+
+clippy-all-contracts:
+	cargo clippy --manifest-path contracts/Cargo.toml --all-features --target wasm32-unknown-unknown -- -D warnings
+
+clippy-all-wallet: 
+	cargo clippy --manifest-path nym-wallet/Cargo.toml --all-features -- -D warnings
+
 test-main:
-	cargo test
+	cargo test --all-features
 
 test-contracts:
-	cargo test --manifest-path contracts/Cargo.toml
+	cargo test --manifest-path contracts/Cargo.toml --all-features
 
 test-wallet:
-	cargo test --manifest-path nym-wallet/Cargo.toml
+	cargo test --manifest-path nym-wallet/Cargo.toml --all-features
 
 fmt-main:
 	cargo fmt --all

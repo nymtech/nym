@@ -262,10 +262,10 @@ impl ProofCmCs {
     pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Self> {
         // at the very minimum there must be a single attribute being proven
         if bytes.len() < 32 * 4 + 16 || (bytes.len() - 16) % 32 != 0 {
-            return Err(
-                CoconutError::Deserialization(
-                    "tried to deserialize proof of ciphertexts and commitment with bytes of invalid length".to_string())
-            );
+            return Err(CoconutError::Deserialization(
+                "tried to deserialize proof of commitments with bytes of invalid length"
+                    .to_string(),
+            ));
         }
 
         let mut idx = 0;

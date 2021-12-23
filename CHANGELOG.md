@@ -1,5 +1,27 @@
 # Changelog
 
+## [v0.12.1](https://github.com/nymtech/nym/tree/v0.12.1) (2021-12-23)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.12.0...v0.12.1)
+
+**Implemented enhancements:**
+
+- Add version check to  binaries [\#967](https://github.com/nymtech/nym/issues/967)
+
+**Fixed bugs:**
+
+- \[Issue\] NYM wallet doesn't work after login [\#995](https://github.com/nymtech/nym/issues/995)
+- \[Issue\] [\#993](https://github.com/nymtech/nym/issues/993)
+- NYM wallet setup trouble\[Issue\] [\#958](https://github.com/nymtech/nym/issues/958)
+
+**Merged pull requests:**
+
+- Update wallet version [\#998](https://github.com/nymtech/nym/pull/998) ([tommyv1987](https://github.com/tommyv1987))
+- Fix wallet build instructions [\#997](https://github.com/nymtech/nym/pull/997) ([tommyv1987](https://github.com/tommyv1987))
+- Make the separation between testnet-mode and erc20 bandwidth mode clearer [\#994](https://github.com/nymtech/nym/pull/994) ([neacsu](https://github.com/neacsu))
+- Bump @openzeppelin/contracts from 3.4.0 to 4.4.1 in /contracts/basic-bandwidth-generation [\#983](https://github.com/nymtech/nym/pull/983) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Differentiate staking and ownership [\#961](https://github.com/nymtech/nym/pull/961) ([durch](https://github.com/durch))
+
 ## [v0.12.0](https://github.com/nymtech/nym/tree/v0.12.0) (2021-12-21)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.11.0...v0.12.0)
@@ -58,6 +80,7 @@
 
 **Merged pull requests:**
 
+- Update wallet to align with versioning on nodes and gateways [\#991](https://github.com/nymtech/nym/pull/991) ([tommyv1987](https://github.com/tommyv1987))
 - Fix success view messages. [\#990](https://github.com/nymtech/nym/pull/990) ([tommyv1987](https://github.com/tommyv1987))
 - Feature/enable signature check [\#989](https://github.com/nymtech/nym/pull/989) ([neacsu](https://github.com/neacsu))
 - Update mixnet contract address [\#988](https://github.com/nymtech/nym/pull/988) ([neacsu](https://github.com/neacsu))

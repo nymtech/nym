@@ -31,6 +31,14 @@ pub(crate) const DATASTORE_PATH: &str = "datastore";
 pub(crate) const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
 pub(crate) const WALLET_ADDRESS: &str = "wallet-address";
 
+#[cfg(not(feature = "coconut"))]
+const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
+#[cfg(not(feature = "coconut"))]
+const DEFAULT_VALIDATOR_ENDPOINT: &str = "http://localhost:26657";
+// A dummy mnemonic
+#[cfg(not(feature = "coconut"))]
+const DEFAULT_MNEMONIC: &str = "typical regret aware used tennis noise resource crisp defy join donate orient army item immense clean emerge globe gift chronic loan flat enter egg";
+
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
         .map(|raw_validator| {
@@ -85,11 +93,15 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
     #[cfg(not(feature = "coconut"))]
     if let Some(raw_validators) = matches.value_of(VALIDATORS_ARG_NAME) {
         config = config.with_custom_validator_nymd(parse_validators(raw_validators));
+    } else {
+        config = config.with_custom_validator_nymd(parse_validators(DEFAULT_VALIDATOR_ENDPOINT));
     }
 
     #[cfg(not(feature = "coconut"))]
     if let Some(cosmos_mnemonic) = matches.value_of(COSMOS_MNEMONIC) {
         config = config.with_cosmos_mnemonic(String::from(cosmos_mnemonic));
+    } else {
+        config = config.with_cosmos_mnemonic(String::from(DEFAULT_MNEMONIC));
     }
 
     if let Some(datastore_path) = matches.value_of(DATASTORE_PATH) {
@@ -99,6 +111,8 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
     #[cfg(not(feature = "coconut"))]
     if let Some(eth_endpoint) = matches.value_of(ETH_ENDPOINT) {
         config = config.with_eth_endpoint(String::from(eth_endpoint));
+    } else {
+        config = config.with_eth_endpoint(String::from(DEFAULT_ETH_ENDPOINT));
     }
 
     if let Some(wallet_address) = matches.value_of(WALLET_ADDRESS) {
@@ -107,7 +121,7 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_wallet_address(trimmed);
     }
 
-    if matches.is_present(TESTNET_MODE_ARG_NAME) {
+    if !cfg!(feature = "eth") || matches.is_present(TESTNET_MODE_ARG_NAME) {
         config.with_testnet_mode(true)
     } else {
         config

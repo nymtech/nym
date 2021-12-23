@@ -65,6 +65,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         );
 
     #[cfg(feature = "eth")]
+    #[cfg(not(feature = "coconut"))]
     let app = app
         .arg(
             Arg::with_name(TESTNET_MODE_ARG_NAME)

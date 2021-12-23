@@ -32,6 +32,7 @@ use url::Url;
 use crate::client::config::Config;
 use crate::commands::override_config;
 #[cfg(feature = "eth")]
+#[cfg(not(feature = "coconut"))]
 use crate::commands::{
     DEFAULT_ETH_ENDPOINT, DEFAULT_ETH_PRIVATE_KEY, ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME,
     TESTNET_MODE_ARG_NAME,
@@ -72,6 +73,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .help("Mostly debug-related option to increase default traffic rate so that you would not need to modify config post init")
         );
     #[cfg(feature = "eth")]
+    #[cfg(not(feature = "coconut"))]
         let app = app
         .arg(
             Arg::with_name(TESTNET_MODE_ARG_NAME)

@@ -31,9 +31,12 @@ pub(crate) const DATASTORE_PATH: &str = "datastore";
 pub(crate) const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
 pub(crate) const WALLET_ADDRESS: &str = "wallet-address";
 
+#[cfg(not(feature = "coconut"))]
 const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
+#[cfg(not(feature = "coconut"))]
 const DEFAULT_VALIDATOR_ENDPOINT: &str = "http://localhost:26657";
 // A dummy mnemonic
+#[cfg(not(feature = "coconut"))]
 const DEFAULT_MNEMONIC: &str = "typical regret aware used tennis noise resource crisp defy join donate orient army item immense clean emerge globe gift chronic loan flat enter egg";
 
 fn parse_validators(raw: &str) -> Vec<Url> {

@@ -10,10 +10,14 @@ pub(crate) mod run;
 pub(crate) mod upgrade;
 
 pub(crate) const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
+#[cfg(not(feature = "coconut"))]
 pub(crate) const ETH_ENDPOINT_ARG_NAME: &str = "eth_endpoint";
+#[cfg(not(feature = "coconut"))]
 pub(crate) const ETH_PRIVATE_KEY_ARG_NAME: &str = "eth_private_key";
+#[cfg(not(feature = "coconut"))]
 pub(crate) const DEFAULT_ETH_ENDPOINT: &str =
     "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
+#[cfg(not(feature = "coconut"))]
 pub(crate) const DEFAULT_ETH_PRIVATE_KEY: &str =
     "0000000000000000000000000000000000000000000000000000000000000001";
 

@@ -62,7 +62,7 @@ fn derive_address(raw_mnemonic: &str) -> AccountId {
         Err(err) => {
             let error_message = format!("failed to parse the provided mnemonic - {}", err).red();
             println!("{}", error_message);
-            process::exit(1);
+            std::process::exit(1);
         }
     };
     let wallet =
@@ -75,7 +75,7 @@ fn derive_address(raw_mnemonic: &str) -> AccountId {
                 )
                 .red();
                 println!("{}", error_message);
-                process::exit(1);
+                std::process::exit(1);
             }
         };
     let account_data = match wallet.try_derive_accounts() {
@@ -87,7 +87,7 @@ fn derive_address(raw_mnemonic: &str) -> AccountId {
             )
             .red();
             println!("{}", error_message);
-            process::exit(1);
+            std::process::exit(1);
         }
     };
     account_data[0].address().clone()
@@ -158,7 +158,7 @@ pub fn execute(matches: &ArgMatches) {
     #[cfg(feature = "coconut")]
     {
         if let Some(address) = matches.value_of(SIGN_ADDRESS_ARG_NAME) {
-            sign_provided_address(identity_keypair.private_key(), address)
+            sign_provided_address(identity_keypair.private_key(), address);
         }
     }
 

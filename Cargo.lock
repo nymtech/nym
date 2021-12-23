@@ -3674,7 +3674,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "bs58",
  "clap",

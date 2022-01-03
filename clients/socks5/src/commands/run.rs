@@ -5,6 +5,7 @@ use crate::client::config::Config;
 use crate::client::NymClient;
 use crate::commands::override_config;
 #[cfg(feature = "eth")]
+#[cfg(not(feature = "coconut"))]
 use crate::commands::{ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME, TESTNET_MODE_ARG_NAME};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
@@ -48,6 +49,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .takes_value(true)
         );
     #[cfg(feature = "eth")]
+    #[cfg(not(feature = "coconut"))]
     let app = app
         .arg(
             Arg::with_name(TESTNET_MODE_ARG_NAME)

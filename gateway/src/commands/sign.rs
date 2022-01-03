@@ -141,6 +141,12 @@ pub fn execute(matches: &ArgMatches) {
             return;
         }
     };
+
+    if !version_check(&config) {
+        error!("failed the local version check");
+        return;
+    }
+
     let pathfinder = GatewayPathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);
 

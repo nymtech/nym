@@ -7,7 +7,6 @@ use crate::node::Gateway;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use log::*;
-use version_checker::is_minor_version_compatible;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     let app = App::new("run")
@@ -93,25 +92,6 @@ fn show_binding_warning(address: String) {
 
 fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
-}
-
-// this only checks compatibility between config the binary. It does not take into consideration
-// network version. It might do so in the future.
-fn version_check(cfg: &Config) -> bool {
-    let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = cfg.get_version();
-    if binary_version != config_version {
-        warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
-        if is_minor_version_compatible(binary_version, config_version) {
-            info!("but they are still semver compatible. However, consider running the `upgrade` command");
-            true
-        } else {
-            error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
-            false
-        }
-    } else {
-        true
-    }
 }
 
 pub async fn execute(matches: ArgMatches<'static>) {

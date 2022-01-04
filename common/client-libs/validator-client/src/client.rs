@@ -420,6 +420,12 @@ impl ApiClient {
         Ok(self.validator_api.get_active_mixnodes().await?)
     }
 
+    pub async fn get_cached_rewarded_mixnodes(
+        &self,
+    ) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
+        Ok(self.validator_api.get_rewarded_mixnodes().await?)
+    }
+
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
         Ok(self.validator_api.get_mixnodes().await?)
     }

@@ -73,6 +73,11 @@ impl Client {
             .await
     }
 
+    pub async fn get_rewarded_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorAPIError> {
+        self.query_validator_api(&[routes::API_VERSION, routes::MIXNODES, routes::REWARDED])
+            .await
+    }
+
     pub async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,

@@ -1,11 +1,23 @@
 use std::sync::Arc;
 use std::time::SystemTime;
 
+use mixnet_contract::{Addr, Coin, Layer, MixNode};
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::RwLock;
 
 use crate::mix_node::cache::Cache;
+use crate::mix_nodes::Location;
+
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub(crate) struct PrettyMixNodeBondWithLocation {
+    pub location: Option<Location>,
+    pub pledge_amount: Coin,
+    pub total_delegation: Coin,
+    pub owner: Addr,
+    pub layer: Layer,
+    pub mix_node: MixNode,
+}
 
 pub(crate) struct MixNodeCache {
     pub(crate) descriptions: Cache<NodeDescription>,

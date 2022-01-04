@@ -1,21 +1,19 @@
-pub(crate) mod http;
-pub(crate) mod tasks;
-mod utils;
-
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
-
-use rocket::tokio::sync::RwLock;
-use serde::{Deserialize, Serialize};
-
-use crate::mix_node::http::PrettyMixNodeBondWithLocation;
+use crate::mix_node::models::PrettyMixNodeBondWithLocation;
 use crate::mix_nodes::utils::map_2_letter_to_3_letter_country_code;
 use mixnet_contract::{Delegation, MixNodeBond};
 use network_defaults::{
     default_api_endpoints, default_nymd_endpoints, DEFAULT_MIXNET_CONTRACT_ADDRESS,
 };
+use rocket::tokio::sync::RwLock;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 use validator_client::nymd::QueryNymdClient;
+
+pub(crate) mod http;
+pub(crate) mod tasks;
+mod utils;
 
 pub(crate) type LocationCache = HashMap<String, LocationCacheItem>;
 

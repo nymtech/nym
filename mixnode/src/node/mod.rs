@@ -27,7 +27,6 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use tokio::runtime::Runtime;
 use version_checker::parse_version;
 
 pub(crate) mod http;
@@ -279,33 +278,30 @@ impl MixNode {
         );
     }
 
-    pub fn run(&mut self) {
+    pub async fn run(&mut self) {
         info!("Starting nym mixnode");
 
-        let runtime = Runtime::new().unwrap();
-
-        runtime.block_on(async {
-            if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists().await {
-                if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
-                    warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it might result in slashing");
-                } else {
-                    log::error!(
-                        "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
-                        duplicate_node_key
-                    );
-                    return;
-                }
+        if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists().await {
+            if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
+                warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it might result in slashing");
+            } else {
+                log::error!(
+                    "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
+                    duplicate_node_key
+                );
+                return;
             }
+        }
 
-            let (node_stats_pointer, node_stats_update_sender) = self.start_node_stats_controller();
-            let delay_forwarding_channel = self.start_packet_delay_forwarder(node_stats_update_sender.clone());
-            self.start_socket_listener(node_stats_update_sender, delay_forwarding_channel);
+        let (node_stats_pointer, node_stats_update_sender) = self.start_node_stats_controller();
+        let delay_forwarding_channel =
+            self.start_packet_delay_forwarder(node_stats_update_sender.clone());
+        self.start_socket_listener(node_stats_update_sender, delay_forwarding_channel);
 
-            let atomic_verloc_results= self.start_verloc_measurements();
-            self.start_http_api(atomic_verloc_results, node_stats_pointer);
+        let atomic_verloc_results = self.start_verloc_measurements();
+        self.start_http_api(atomic_verloc_results, node_stats_pointer);
 
-            info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
-            self.wait_for_interrupt().await
-        });
+        info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
+        self.wait_for_interrupt().await
     }
 }

@@ -22,7 +22,6 @@ use nymsphinx::addressing::clients::Recipient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 mod acknowledgement_control;
@@ -170,10 +169,8 @@ impl RealMessagesController<OsRng> {
         self.ack_control = Some(ack_control_fut.await.unwrap());
     }
 
-    // &Handle is only passed for consistency sake with other client modules, but I think
-    // when we get to refactoring, we should apply gateway approach and make it implicit
-    pub fn start(mut self, handle: &Handle) -> JoinHandle<Self> {
-        handle.spawn(async move {
+    pub fn start(mut self) -> JoinHandle<Self> {
+        tokio::spawn(async move {
             self.run().await;
             self
         })

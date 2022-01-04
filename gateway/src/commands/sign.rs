@@ -8,8 +8,6 @@ use colored::Colorize;
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
-#[cfg(not(feature = "coconut"))]
-use validator_client::nymd::AccountId;
 
 const SIGN_TEXT_ARG_NAME: &str = "text";
 const SIGN_ADDRESS_ARG_NAME: &str = "address";
@@ -55,58 +53,7 @@ pub fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
     identity_keypair
 }
 
-#[cfg(not(feature = "coconut"))]
-fn derive_address(raw_mnemonic: &str) -> AccountId {
-    let mnemonic = match raw_mnemonic.parse() {
-        Ok(mnemonic) => mnemonic,
-        Err(err) => {
-            let error_message = format!("failed to parse the provided mnemonic - {}", err).red();
-            println!("{}", error_message);
-            process::exit(1);
-        }
-    };
-    let wallet =
-        match validator_client::nymd::wallet::DirectSecp256k1HdWallet::from_mnemonic(mnemonic) {
-            Ok(wallet) => wallet,
-            Err(err) => {
-                let error_message = format!(
-                    "failed to derive your account with the provided mnemonic - {}",
-                    err
-                )
-                .red();
-                println!("{}", error_message);
-                process::exit(1);
-            }
-        };
-    let account_data = match wallet.try_derive_accounts() {
-        Ok(data) => data,
-        Err(err) => {
-            let error_message = format!(
-                "failed to derive your account with the provided mnemonic - {}",
-                err
-            )
-            .red();
-            println!("{}", error_message);
-            process::exit(1);
-        }
-    };
-    account_data[0].address().clone()
-}
-
-#[cfg(not(feature = "coconut"))]
-fn sign_derived_address(private_key: &identity::PrivateKey, address: &AccountId) {
-    let signature_bytes = private_key.sign(&address.to_bytes()).to_bytes();
-    let signature = bs58::encode(signature_bytes).into_string();
-
-    println!(
-        "The base58-encoded signature on '{}' is: {}",
-        address, signature
-    )
-}
-
-// we do tiny bit of sanity check validation
-#[cfg(feature = "coconut")]
-fn sign_provided_address(private_key: &identity::PrivateKey, raw_address: &str) {
+fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) -> String {
     let trimmed = raw_address.trim();
     validate_bech32_address_or_exit(trimmed);
     let signature = private_key.sign_text(trimmed);
@@ -114,7 +61,8 @@ fn sign_provided_address(private_key: &identity::PrivateKey, raw_address: &str) 
     println!(
         "The base58-encoded signature on '{}' is: {}",
         trimmed, signature
-    )
+    );
+    signature
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
@@ -141,28 +89,20 @@ pub fn execute(matches: &ArgMatches) {
             return;
         }
     };
+
+    if !version_check(&config) {
+        error!("failed the local version check");
+        return;
+    }
+
     let pathfinder = GatewayPathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);
 
     if let Some(text) = matches.value_of(SIGN_TEXT_ARG_NAME) {
         print_signed_text(identity_keypair.private_key(), text)
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    {
-        if matches.is_present(SIGN_ADDRESS_ARG_NAME) {
-            let address = derive_address(&config.get_cosmos_mnemonic());
-            sign_derived_address(identity_keypair.private_key(), &address);
-        }
-    }
-    #[cfg(feature = "coconut")]
-    {
-        if let Some(address) = matches.value_of(SIGN_ADDRESS_ARG_NAME) {
-            sign_provided_address(identity_keypair.private_key(), address)
-        }
-    }
-
-    if !matches.is_present(SIGN_TEXT_ARG_NAME) && !matches.is_present(SIGN_ADDRESS_ARG_NAME) {
+    } else if let Some(address) = matches.value_of(SIGN_ADDRESS_ARG_NAME) {
+        print_signed_address(identity_keypair.private_key(), address);
+    } else {
         let error_message = format!(
             "You must specify either '--{}' or '--{}' argument!",
             SIGN_TEXT_ARG_NAME, SIGN_ADDRESS_ARG_NAME

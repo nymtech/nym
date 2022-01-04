@@ -21,7 +21,7 @@ The platform is composed of multiple Rust crates. Top-level executable binary cr
 
 ### Building
 
-Platform build instructions are available on [our docs site](https://nymtech.net/docs/0.11.0/overview/index/).
+Platform build instructions are available on [our docs site](https://nymtech.net/docs/stable/run-nym-nodes/build-nym).
 
 ### Developing
 

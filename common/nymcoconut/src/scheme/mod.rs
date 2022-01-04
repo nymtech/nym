@@ -251,10 +251,9 @@ mod tests {
     fn unblind_returns_error_if_integrity_check_on_commitment_hash_fails() {
         let mut params = Parameters::new(2).unwrap();
         let private_attributes = params.n_random_scalars(2 as usize);
-        let commitments_openings = params.n_random_scalars(2 as usize);
 
-        let lambda =
-            prepare_blind_sign(&mut params, &private_attributes, &commitments_openings, &[])
+        let (_commitments_openings, lambda) =
+            prepare_blind_sign(&mut params, &private_attributes,  &[])
                 .unwrap();
 
         let keypair1 = keygen(&mut params);
@@ -284,10 +283,9 @@ mod tests {
         let mut params = Parameters::new(2).unwrap();
         let private_attributes = vec![hash_to_scalar("Attribute1"), hash_to_scalar("Attribute2")];
         let private_attributes2 = vec![hash_to_scalar("Attribute3"), hash_to_scalar("Attribute4")];
-        let commitments_openings = params.n_random_scalars(2);
 
-        let lambda =
-            prepare_blind_sign(&mut params, &private_attributes, &commitments_openings, &[])
+        let (commitments_openings, lambda) =
+            prepare_blind_sign(&mut params, &private_attributes,  &[])
                 .unwrap();
 
         let keypair1 = keygen(&mut params);
@@ -318,8 +316,8 @@ mod tests {
         let keypair1 = keygen(&mut params);
         let keypair2 = keygen(&mut params);
 
-        let lambda =
-            prepare_blind_sign(&mut params, &private_attributes, &commitments_openings, &[])
+        let (_commitments_openings, lambda) =
+            prepare_blind_sign(&mut params, &private_attributes, &[])
                 .unwrap();
 
         let sig1 = blind_sign(&mut params, &keypair1.secret_key(), &lambda, &[])
@@ -427,15 +425,13 @@ mod tests {
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
-        let commitments_openings = params.n_random_scalars(2);
 
         let keypair1 = keygen(&mut params);
         let keypair2 = keygen(&mut params);
 
-        let lambda = prepare_blind_sign(
+        let (commitments_openings, lambda) = prepare_blind_sign(
             &mut params,
             &private_attributes,
-            &commitments_openings,
             &public_attributes,
         )
         .unwrap();
@@ -523,14 +519,12 @@ mod tests {
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
-        let commitments_openings = params.n_random_scalars(2);
 
         let keypairs = ttp_keygen(&mut params, 2, 3).unwrap();
 
-        let lambda = prepare_blind_sign(
+        let (commitments_openings, lambda) = prepare_blind_sign(
             &mut params,
             &private_attributes,
-            &commitments_openings,
             &public_attributes,
         )
         .unwrap();

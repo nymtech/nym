@@ -147,6 +147,8 @@ impl BlindSignRequest {
         self.commitment_hash
     }
 
+    pub fn get_private_attributes_pedersen_commitments(&self) -> Vec<G1Projective> { self.private_attributes_commitments.clone() }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         self.to_byte_vec()
     }
@@ -176,17 +178,22 @@ pub fn compute_private_attributes_commitment(
     (commitment_opening, commitment)
 }
 
-pub fn compute_private_attributes_commitments(
+pub fn compute_pedersen_commitments_for_private_attributes(
     params: &Parameters,
-    commitments_openings: &[Scalar],
     private_attributes: &[Attribute],
     h: &G1Projective,
-) -> Vec<G1Projective> {
-    commitments_openings
+) -> (Vec<Scalar>, Vec<G1Projective>) {
+    // Generate openings for Pedersen commitment for each private attribute
+    let commitments_openings = params.n_random_scalars(private_attributes.len());
+
+    // Compute Pedersen commitment for each private attribute
+    let pedersen_commitments = commitments_openings
         .iter()
         .zip(private_attributes.iter())
         .map(|(o_j, m_j)| params.gen1() * o_j + h * m_j)
-        .collect::<Vec<_>>()
+        .collect::<Vec<_>>();
+
+    (commitments_openings, pedersen_commitments)
 }
 
 pub fn compute_commitment_hash(commitment: G1Projective) -> G1Projective {
@@ -197,18 +204,13 @@ pub fn compute_commitment_hash(commitment: G1Projective) -> G1Projective {
 pub fn prepare_blind_sign(
     params: &Parameters,
     private_attributes: &[Attribute],
-    commitments_openings: &[Scalar],
     public_attributes: &[Attribute],
-) -> Result<BlindSignRequest> {
+) -> Result<(Vec<Scalar>, BlindSignRequest)> {
     if private_attributes.is_empty() {
         return Err(CoconutError::Issuance(
             "Tried to prepare blind sign request for an empty set of private attributes"
                 .to_string(),
         ));
-    }
-
-    if private_attributes.len() != commitments_openings.len() {
-        return Err(CoconutError::Issuance("Trie to prepare blind sign request but length of private attributes and provided openings do not match".to_string()));
     }
 
     let hs = params.gen_hs();
@@ -225,9 +227,8 @@ pub fn prepare_blind_sign(
     // Compute the challenge as the commitment hash
     let commitment_hash = compute_commitment_hash(commitment);
 
-    let commitments = compute_private_attributes_commitments(
+    let (commitments_openings, pedersen_commitments) = compute_pedersen_commitments_for_private_attributes(
         params,
-        commitments_openings,
         private_attributes,
         &commitment_hash,
     );
@@ -236,19 +237,17 @@ pub fn prepare_blind_sign(
         params,
         &commitment,
         &commitment_opening,
-        &commitments,
+        &pedersen_commitments,
         &commitments_openings,
         private_attributes,
     );
 
-    let private_attributes_commitments = commitments;
-
-    Ok(BlindSignRequest {
+    Ok((commitments_openings, BlindSignRequest {
         commitment,
         commitment_hash,
-        private_attributes_commitments,
+        private_attributes_commitments : pedersen_commitments,
         pi_s,
-    })
+    }))
 }
 
 pub fn blind_sign(
@@ -345,13 +344,11 @@ mod tests {
     fn blind_sign_request_bytes_roundtrip() {
         let mut params = Parameters::new(1).unwrap();
         let private_attributes = params.n_random_scalars(1);
-        let commitments_openings = params.n_random_scalars(1);
         let public_attributes = params.n_random_scalars(0);
 
-        let lambda = prepare_blind_sign(
+        let (_commitments_openings, lambda) = prepare_blind_sign(
             &mut params,
             &private_attributes,
-            &commitments_openings,
             &public_attributes,
         )
         .unwrap();
@@ -365,12 +362,10 @@ mod tests {
 
         let mut params = Parameters::new(4).unwrap();
         let private_attributes = params.n_random_scalars(2);
-        let commitments_openings = params.n_random_scalars(2);
         let public_attributes = params.n_random_scalars(2);
-        let lambda = prepare_blind_sign(
+        let (_commitments_openings, lambda) = prepare_blind_sign(
             &mut params,
             &private_attributes,
-            &commitments_openings,
             &public_attributes,
         )
         .unwrap();

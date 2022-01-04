@@ -1,4 +1,4 @@
-use crate::mix_node::models::PrettyMixNodeBondWithLocation;
+use crate::mix_node::models::PrettyDetailedMixNodeBond;
 use crate::state::ExplorerApiStateContext;
 use rocket::serde::json::Json;
 use rocket::{Route, State};
@@ -14,6 +14,6 @@ pub fn mix_nodes_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>,
 #[get("/")]
 pub(crate) async fn list(
     state: &State<ExplorerApiStateContext>,
-) -> Json<Vec<PrettyMixNodeBondWithLocation>> {
+) -> Json<Vec<PrettyDetailedMixNodeBond>> {
     Json(state.inner.mix_nodes.get_mixnodes_with_location().await)
 }

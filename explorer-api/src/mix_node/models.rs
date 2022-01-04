@@ -10,7 +10,7 @@ use crate::mix_node::cache::Cache;
 use crate::mix_nodes::Location;
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
-pub(crate) struct PrettyMixNodeBondWithLocation {
+pub(crate) struct PrettyDetailedMixNodeBond {
     pub location: Option<Location>,
     pub pledge_amount: Coin,
     pub total_delegation: Coin,

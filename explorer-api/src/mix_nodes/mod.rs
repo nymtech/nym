@@ -1,4 +1,4 @@
-use crate::mix_node::models::PrettyMixNodeBondWithLocation;
+use crate::mix_node::models::PrettyDetailedMixNodeBond;
 use crate::mix_nodes::utils::map_2_letter_to_3_letter_country_code;
 use mixnet_contract::{Delegation, MixNodeBond};
 use network_defaults::{
@@ -140,7 +140,7 @@ impl ThreadsafeMixNodesResult {
         self.inner.read().await.clone()
     }
 
-    pub(crate) async fn get_mixnodes_with_location(&self) -> Vec<PrettyMixNodeBondWithLocation> {
+    pub(crate) async fn get_mixnodes_with_location(&self) -> Vec<PrettyDetailedMixNodeBond> {
         let guard = self.inner.read().await;
         guard
             .value
@@ -148,7 +148,7 @@ impl ThreadsafeMixNodesResult {
             .map(|bond| {
                 let location = guard.location_cache.get(&bond.mix_node.identity_key);
                 let copy = bond.clone();
-                PrettyMixNodeBondWithLocation {
+                PrettyDetailedMixNodeBond {
                     location: location.and_then(|l| l.location.clone()),
                     pledge_amount: copy.pledge_amount,
                     total_delegation: copy.total_delegation,

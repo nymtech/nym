@@ -15,7 +15,6 @@ use nymsphinx::params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorith
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
-use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 // Buffer Requests to say "hey, send any reconstructed messages to this channel"
@@ -291,8 +290,8 @@ impl RequestReceiver {
         }
     }
 
-    fn start(mut self, handle: &Handle) -> JoinHandle<()> {
-        handle.spawn(async move {
+    fn start(mut self) -> JoinHandle<()> {
+        tokio::spawn(async move {
             while let Some(request) = self.query_receiver.next().await {
                 match request {
                     ReceivedBufferMessage::ReceiverAnnounce(sender) => {
@@ -322,8 +321,8 @@ impl FragmentedMessageReceiver {
             mixnet_packet_receiver,
         }
     }
-    fn start(mut self, handle: &Handle) -> JoinHandle<()> {
-        handle.spawn(async move {
+    fn start(mut self) -> JoinHandle<()> {
+        tokio::spawn(async move {
             while let Some(new_messages) = self.mixnet_packet_receiver.next().await {
                 self.received_buffer.handle_new_received(new_messages).await;
             }
@@ -355,9 +354,9 @@ impl ReceivedMessagesBufferController {
         }
     }
 
-    pub fn start(self, handle: &Handle) {
+    pub fn start(self) {
         // TODO: should we do anything with JoinHandle(s) returned by start methods?
-        self.fragmented_message_receiver.start(handle);
-        self.request_receiver.start(handle);
+        self.fragmented_message_receiver.start();
+        self.request_receiver.start();
     }
 }

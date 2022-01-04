@@ -71,7 +71,7 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-pub fn execute(matches: &ArgMatches) {
+pub async fn execute(matches: ArgMatches<'static>) {
     let id = matches.value_of(ID_ARG_NAME).unwrap();
 
     println!("Starting mixnode {}...", id);
@@ -84,7 +84,7 @@ pub fn execute(matches: &ArgMatches) {
         }
     };
 
-    config = override_config(config, matches);
+    config = override_config(config, &matches);
 
     if !version_check(&config) {
         error!("failed the local version check");
@@ -102,5 +102,5 @@ pub fn execute(matches: &ArgMatches) {
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
     mixnode.print_node_details();
 
-    mixnode.run()
+    mixnode.run().await
 }

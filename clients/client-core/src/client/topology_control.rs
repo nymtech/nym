@@ -10,7 +10,6 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time;
 use std::time::Duration;
-use tokio::runtime::Handle;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::task::JoinHandle;
 use topology::{nym_topology_from_bonds, NymTopology};
@@ -304,8 +303,8 @@ impl TopologyRefresher {
         self.topology_accessor.is_routable().await
     }
 
-    pub fn start(mut self, handle: &Handle) -> JoinHandle<()> {
-        handle.spawn(async move {
+    pub fn start(mut self) -> JoinHandle<()> {
+        tokio::spawn(async move {
             loop {
                 tokio::time::sleep(self.refresh_rate).await;
                 self.refresh().await;

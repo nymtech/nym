@@ -122,6 +122,11 @@ impl Config {
         self
     }
 
+    pub fn with_testnet_mode(mut self, testnet_mode: bool) -> Self {
+        self.gateway.testnet_mode = testnet_mode;
+        self
+    }
+
     pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
         self.gateway.validator_api_urls = validator_api_urls;
         self
@@ -188,9 +193,18 @@ impl Config {
         self
     }
 
+    pub fn with_wallet_address(mut self, wallet_address: &str) -> Self {
+        self.gateway.wallet_address = wallet_address.to_string();
+        self
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
+    }
+
+    pub fn get_testnet_mode(&self) -> bool {
+        self.gateway.testnet_mode
     }
 
     pub fn get_private_identity_key_file(&self) -> PathBuf {
@@ -271,6 +285,10 @@ impl Config {
     pub fn get_version(&self) -> &str {
         &self.gateway.version
     }
+
+    pub fn get_wallet_address(&self) -> &str {
+        &self.gateway.wallet_address
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -281,6 +299,11 @@ pub struct Gateway {
 
     /// ID specifies the human readable ID of this particular gateway.
     id: String,
+
+    /// Indicates whether this gateway is running in a testnet mode, thus allowing clients
+    /// to claim bandwidth without presenting bandwidth credentials.
+    #[serde(default)]
+    testnet_mode: bool,
 
     /// Address to which this mixnode will bind to and will be listening for packets.
     #[serde(default = "bind_all_address")]
@@ -336,6 +359,9 @@ pub struct Gateway {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys and available client bandwidths.
     persistent_storage: PathBuf,
+
+    /// The Cosmos wallet address that will control this gateway
+    wallet_address: String,
 }
 
 impl Gateway {
@@ -365,6 +391,7 @@ impl Default for Gateway {
         Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
+            testnet_mode: false,
             listening_address: bind_all_address(),
             announce_address: "127.0.0.1".to_string(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,
@@ -382,6 +409,7 @@ impl Default for Gateway {
             cosmos_mnemonic: "".to_string(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),
+            wallet_address: "nymXXXXXXXX".to_string(),
         }
     }
 }

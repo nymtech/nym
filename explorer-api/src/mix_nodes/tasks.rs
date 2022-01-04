@@ -12,7 +12,7 @@ impl MixNodesTasks {
     pub(crate) fn start(self) {
         info!("Spawning mix nodes task runner...");
         tokio::spawn(async move {
-            let mut interval_timer = tokio::time::interval(std::time::Duration::from_secs(60 * 60)); // every hour
+            let mut interval_timer = tokio::time::interval(std::time::Duration::from_secs(2));
             loop {
                 // wait for the next interval tick
                 interval_timer.tick().await;

@@ -64,7 +64,8 @@ pub trait VestingSigningClient {
 
     async fn create_periodic_vesting_account(
         &self,
-        address: &str,
+        owner_address: &str,
+        staking_address: Option<String>,
         start_time: Option<u64>,
         amount: Coin,
     ) -> Result<ExecuteResult, NymdError>;
@@ -271,13 +272,15 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
     }
     async fn create_periodic_vesting_account(
         &self,
-        address: &str,
+        owner_address: &str,
+        staking_address: Option<String>,
         start_time: Option<u64>,
         amount: Coin,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.operation_fee(Operation::CreatePeriodicVestingAccount);
         let req = VestingExecuteMsg::CreateAccount {
-            address: address.to_string(),
+            owner_address: owner_address.to_string(),
+            staking_address,
             start_time,
         };
         self.client

@@ -18,7 +18,8 @@ pub enum ExecuteMsg {
         mix_identity: IdentityKey,
     },
     CreateAccount {
-        address: String,
+        owner_address: String,
+        staking_address: Option<String>,
         start_time: Option<u64>,
     },
     WithdrawVestedCoins {
@@ -46,6 +47,12 @@ pub enum ExecuteMsg {
     TrackUnbondGateway {
         owner: String,
         amount: Coin,
+    },
+    TransferOwnership {
+        to_address: String,
+    },
+    UpdateStakingAddress {
+        to_address: Option<String>,
     },
 }
 

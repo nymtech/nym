@@ -40,13 +40,13 @@ Node, node operator and delegator rewards are determined according to the princi
 |<img src="https://render.githubusercontent.com/render/math?math=R">|global share of rewards available, starts at 2% of the reward pool. 
 |<img src="https://render.githubusercontent.com/render/math?math=R_{i}">|node reward for mixnode `i`.
 |<img src="https://render.githubusercontent.com/render/math?math=\sigma_{i}">|ratio of total node stake (node bond + all delegations) to the token circulating supply.
-|<img src="https://render.githubusercontent.com/render/math?math=\lambda_{i}">|ratio of stake operator has plaged to their node to the token circulating supply.
-|<img src="https://render.githubusercontent.com/render/math?math=\omega_{i}">|fraction of total effort undertaken by node `i`, set to `1/k` in testnet Milhon.
-|<img src="https://render.githubusercontent.com/render/math?math=k">|number of nodes stakeholders are incentivised to create, set by the validators, a matter of governance. Currently determined by the `active set` size, and set to 5000 in testnet Milhon.
+|<img src="https://render.githubusercontent.com/render/math?math=\lambda_{i}">|ratio of stake operator has pledged to their node to the token circulating supply.
+|<img src="https://render.githubusercontent.com/render/math?math=\omega_{i}">|fraction of total effort undertaken by node `i`, set to `1/k`.
+|<img src="https://render.githubusercontent.com/render/math?math=k">|number of nodes stakeholders are incentivised to create, set by the validators, a matter of governance. Currently determined by the `reward set` size, and set to 720 in testnet Sandbox.
 |<img src="https://render.githubusercontent.com/render/math?math=\alpha">|Sybil attack resistance parameter - the higher this parameter is set the stronger the reduction in competitivness gets for a Sybil attacker.
-|<img src="https://render.githubusercontent.com/render/math?math=PM_{i}">|declared profit margin of operator `i`, defaults to 10% in testnet Milhon.
+|<img src="https://render.githubusercontent.com/render/math?math=PM_{i}">|declared profit margin of operator `i`, defaults to 10% in.
 |<img src="https://render.githubusercontent.com/render/math?math=PF_{i}">|uptime of node `i`, scaled to 0 - 1, for the rewarding epoch
-|<img src="https://render.githubusercontent.com/render/math?math=PP_{i}">|cost of operating node `i` for the duration of the rewarding eopoch, set to 40 Nym for testnet Milhon.
+|<img src="https://render.githubusercontent.com/render/math?math=PP_{i}">|cost of operating node `i` for the duration of the rewarding eopoch, set to 40 NYMT.
 
 Node reward for node `i` is determined as:
 

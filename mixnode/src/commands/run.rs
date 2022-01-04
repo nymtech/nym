@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::*;
-use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
-use crate::node::node_description::NodeDescription;
+use crate::config::Config;
 use crate::node::MixNode;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::asymmetric::{encryption, identity};
 use log::warn;
 use version_checker::is_minor_version_compatible;
 
@@ -75,24 +73,6 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
-    let identity_keypair: identity::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
-        pathfinder.private_identity_key().to_owned(),
-        pathfinder.public_identity_key().to_owned(),
-    ))
-    .expect("Failed to read stored identity key files");
-    identity_keypair
-}
-
-fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
-    let sphinx_keypair: encryption::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
-        pathfinder.private_encryption_key().to_owned(),
-        pathfinder.public_encryption_key().to_owned(),
-    ))
-    .expect("Failed to read stored sphinx key files");
-    sphinx_keypair
-}
-
 // this only checks compatibility between config the binary. It does not take into consideration
 // network version. It might do so in the future.
 fn version_check(cfg: &Config) -> bool {
@@ -132,43 +112,16 @@ pub async fn execute(matches: ArgMatches<'static>) {
         return;
     }
 
-    let pathfinder = MixNodePathfinder::new_from_config(&config);
-    let identity_keypair = load_identity_keys(&pathfinder);
-    let sphinx_keypair = load_sphinx_keys(&pathfinder);
-
     if special_addresses().contains(&&*config.get_listening_address().to_string()) {
         show_binding_warning(config.get_listening_address().to_string());
     }
 
-    let description = NodeDescription::load_from_file(Config::default_config_directory(Some(id)))
-        .unwrap_or_default();
+    let mut mixnode = MixNode::new(config);
 
     println!(
-        "Validator servers: {:?}",
-        config.get_validator_api_endpoints()
-    );
-    println!(
-        "Listening for incoming packets on {}",
-        config.get_listening_address()
-    );
-    println!(
-        "Announcing the following address: {}",
-        config.get_announce_address()
-    );
+        "\nTo bond your mixnode you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
+         Select the correct version and install it to your machine. You will need to provide the following: \n ");
+    mixnode.print_node_details();
 
-    println!(
-        "\nTo bond your mixnode, go to https://testnet-milhon-wallet.nymtech.net/.  You will need to provide the following:
-    Identity key: {}
-    Sphinx key: {}
-    Address: {}
-    Version: {}
-    ",
-        identity_keypair.public_key().to_base58_string(),
-        sphinx_keypair.public_key().to_base58_string(),
-        config.get_announce_address(),
-        config.get_version(),
-    );
-    MixNode::new(config, description, identity_keypair, sphinx_keypair)
-        .run()
-        .await;
+    mixnode.run().await
 }

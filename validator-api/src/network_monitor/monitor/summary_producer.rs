@@ -78,8 +78,6 @@ impl TestReport {
         mixnode_results: &[NodeResult],
         gateway_results: &[NodeResult],
         route_results: &[RouteResult],
-        invalid_mixnodes: usize,
-        invalid_gateways: usize,
     ) -> Self {
         let mut exceptional_mixnodes = 0;
         let mut exceptional_gateways = 0;
@@ -93,8 +91,8 @@ impl TestReport {
         let mut unreliable_mixnodes = 0;
         let mut unreliable_gateways = 0;
 
-        let mut unroutable_mixnodes = invalid_mixnodes;
-        let mut unroutable_gateways = invalid_gateways;
+        let mut unroutable_mixnodes = 0;
+        let mut unroutable_gateways = 0;
 
         for mixnode_result in mixnode_results {
             if mixnode_result.reliability >= EXCEPTIONAL_THRESHOLD {
@@ -226,11 +224,6 @@ pub(crate) struct TestSummary {
     pub(crate) mixnode_results: Vec<NodeResult>,
     pub(crate) gateway_results: Vec<NodeResult>,
     pub(crate) route_results: Vec<RouteResult>,
-
-    // technically we don't need to keep them here, but I couldn't figure out a better way
-    // of keeping them on hand to later produce the report
-    pub(crate) invalid_mixnodes: usize,
-    pub(crate) invalid_gateways: usize,
 }
 
 impl TestSummary {
@@ -241,8 +234,6 @@ impl TestSummary {
             &self.mixnode_results,
             &self.gateway_results,
             &self.route_results,
-            self.invalid_mixnodes,
-            self.invalid_gateways,
         )
     }
 }
@@ -275,9 +266,6 @@ impl SummaryProducer {
         invalid_gateways: Vec<InvalidNode>,
         test_routes: &[TestRoute],
     ) -> TestSummary {
-        let invalid_mixnodes_count = invalid_mixnodes.len();
-        let invalid_gateways_count = invalid_gateways.len();
-
         let mut raw_mixnode_results = HashMap::new();
         let mut raw_gateway_results = HashMap::new();
 
@@ -357,8 +345,6 @@ impl SummaryProducer {
             mixnode_results,
             gateway_results,
             route_results,
-            invalid_mixnodes: invalid_mixnodes_count,
-            invalid_gateways: invalid_gateways_count,
         }
     }
 }

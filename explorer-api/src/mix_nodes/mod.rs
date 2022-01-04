@@ -1,3 +1,4 @@
+pub(crate) mod http;
 pub(crate) mod tasks;
 mod utils;
 
@@ -170,7 +171,7 @@ impl ThreadsafeMixNodesResult {
                 .into_iter()
                 .map(|bond| (bond.mix_node.identity_key.to_string(), bond))
                 .collect(),
-            valid_until: SystemTime::now() + Duration::from_secs(60 * 10), // valid for 10 minutes
+            valid_until: SystemTime::now() + Duration::from_secs(30),
             location_cache,
         };
     }

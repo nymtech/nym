@@ -6,6 +6,15 @@ use time::OffsetDateTime;
 use url::Url;
 
 pub mod eth_contract;
+#[cfg(network = "milhon")]
+pub mod milhon;
+#[cfg(network = "sandbox")]
+pub mod sandbox;
+
+#[cfg(network = "milhon")]
+pub use milhon::*;
+#[cfg(network = "sandbox")]
+pub use sandbox::*;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ValidatorDetails {
@@ -38,6 +47,7 @@ impl ValidatorDetails {
     }
 }
 
+#[cfg(network = "milhon")]
 pub fn default_validators() -> Vec<ValidatorDetails> {
     vec![
         ValidatorDetails::new(
@@ -46,6 +56,14 @@ pub fn default_validators() -> Vec<ValidatorDetails> {
         ),
         ValidatorDetails::new("https://testnet-milhon-validator2.nymtech.net", None),
     ]
+}
+
+#[cfg(network = "sandbox")]
+pub fn default_validators() -> Vec<ValidatorDetails> {
+    vec![ValidatorDetails::new(
+        "https://sandbox-validator.nymtech.net",
+        Some("https://sandbox-validator.nymtech.net/api"),
+    )]
 }
 
 pub fn default_nymd_endpoints() -> Vec<Url> {
@@ -62,10 +80,7 @@ pub fn default_api_endpoints() -> Vec<Url> {
         .collect()
 }
 
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
-pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = "";
-pub const REWARDING_VALIDATOR_ADDRESS: &str = "punk1v9qauwdq5terag6uvfsdytcs2d0sdmfdy7hgk3";
-
+// Ethereum constants used for token bridge
 /// How much bandwidth (in bytes) one token can buy
 const BYTES_PER_TOKEN: u64 = 1024 * 1024 * 1024;
 /// How many ERC20 tokens should be burned to buy bandwidth
@@ -73,20 +88,10 @@ pub const TOKENS_TO_BURN: u64 = 10;
 /// Default bandwidth (in bytes) that we try to buy
 pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
 
-// Ethereum constants used for token bridge
-pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
-    hex_literal::hex!("9fEE3e28c17dbB87310A51F13C4fbf4331A6f102");
 pub const ETH_MIN_BLOCK_DEPTH: usize = 7;
-pub const COSMOS_CONTRACT_ADDRESS: &str = "punk1jld76tqw4wnpfenmay2xkv86nr3j0w426eka82";
-// Name of the event triggered by the eth contract. If the event name is changed,
-// this would also need to be changed; It is currently tested against the json abi
-pub const ETH_EVENT_NAME: &str = "Burned";
-pub const ETH_BURN_FUNCTION_NAME: &str = "burnTokenForAccessCode";
 
 /// Defaults Cosmos Hub/ATOM path
 pub const COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
-pub const BECH32_PREFIX: &str = "punk";
-pub const DENOM: &str = "upunk";
 // as set by validators in their configs
 // (note that the 'amount' postfix is relevant here as the full gas price also includes denom)
 pub const GAS_PRICE_AMOUNT: f64 = 0.025;

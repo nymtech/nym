@@ -8,9 +8,9 @@ import {
   TableHead,
   TableRow,
 } from '@mui/material';
-import { printableCoin } from '@nymproject/nym-validator-client';
 import { cellStyles } from './Universal-DataGrid';
 import { MixnodeRowType } from '../utils/index';
+import { currencyToString } from '../utils/currency';
 
 export type ColumnsType = {
   field: string;
@@ -28,7 +28,7 @@ export interface UniversalTableProps {
 
 function formatCellValues(val: string | number, field: string) {
   if (field === 'bond') {
-    return printableCoin({ amount: val.toString(), denom: 'upunk' });
+    return currencyToString(val.toString());
   }
   return val;
 }

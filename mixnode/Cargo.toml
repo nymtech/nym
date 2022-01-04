@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-mixnode"
-version = "0.11.0"
+version = "0.12.1"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -27,7 +27,6 @@ pretty_env_logger = "0.4.0"
 rand = "0.7.3"
 rocket = { version="0.5.0-rc.1", features = ["json"] }
 serde = { version="1.0", features = ["derive"] }
-subtle-encoding = { version = "0.5", features =  ["bech32-preview"]}
 tokio = { version="1.8", features = ["rt-multi-thread", "net", "signal"] }
 tokio-util = { version="0.6.7", features = ["codec"] }
 toml = "0.5.8"
@@ -47,3 +46,6 @@ version-checker = { path="../common/version-checker" }
 
 [dev-dependencies]
 serial_test = "0.5"
+
+[build-dependencies]
+vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }

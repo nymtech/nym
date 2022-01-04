@@ -60,6 +60,9 @@ validator_api_urls = [
     {{/each}}
 ]
 
+# Nym wallet address on the blockchain that should control this mixnode
+wallet_address = '{{ mixnode.wallet_address }}'
+
 ##### advanced configuration options #####
 
 # Absolute path to the home Nym Clients directory.

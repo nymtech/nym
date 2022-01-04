@@ -36,7 +36,7 @@ const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
 const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
-const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(10 * 60);
+const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(5);
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -114,6 +114,11 @@ pub struct NetworkMonitor {
     /// Specifies whether network monitoring service is enabled in this process.
     enabled: bool,
 
+    /// Indicates whether this validator api is running in a testnet mode, thus attempting
+    /// to claim bandwidth without presenting bandwidth credentials.
+    #[serde(default)]
+    testnet_mode: bool,
+
     /// Specifies list of all validators on the network issuing coconut credentials.
     /// A special care must be taken to ensure they are in correct order.
     /// The list must also contain THIS validator that is running the test
@@ -188,6 +193,7 @@ impl Default for NetworkMonitor {
     fn default() -> Self {
         NetworkMonitor {
             enabled: false,
+            testnet_mode: false,
             all_validator_apis: default_api_endpoints(),
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,
@@ -296,6 +302,11 @@ impl Config {
         self
     }
 
+    pub fn with_testnet_mode(mut self, testnet_mode: bool) -> Self {
+        self.network_monitor.testnet_mode = testnet_mode;
+        self
+    }
+
     pub fn with_rewarding_enabled(mut self, enabled: bool) -> Self {
         self.rewarding.enabled = enabled;
         self
@@ -356,6 +367,10 @@ impl Config {
 
     pub fn get_network_monitor_enabled(&self) -> bool {
         self.network_monitor.enabled
+    }
+
+    pub fn get_testnet_mode(&self) -> bool {
+        self.network_monitor.testnet_mode
     }
 
     #[cfg(not(feature = "coconut"))]

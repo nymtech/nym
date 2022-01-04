@@ -35,7 +35,7 @@ pub(crate) fn gateways<'a>() -> IndexedMap<'a, IdentityKeyRef<'a>, GatewayBond, 
 #[cfg(test)]
 mod tests {
     use super::super::storage;
-    use crate::support::tests::test_helpers;
+    use crate::support::tests;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::StdResult;
@@ -57,8 +57,8 @@ mod tests {
     #[test]
     fn gateway_single_read_retrieval() {
         let mut storage = MockStorage::new();
-        let bond1 = test_helpers::gateway_bond_fixture("owner1");
-        let bond2 = test_helpers::gateway_bond_fixture("owner2");
+        let bond1 = tests::fixtures::gateway_bond_fixture("owner1");
+        let bond2 = tests::fixtures::gateway_bond_fixture("owner2");
         storage::gateways()
             .save(&mut storage, "bond1", &bond1)
             .unwrap();
@@ -91,7 +91,7 @@ mod tests {
             block_height: 12_345,
             gateway: Gateway {
                 identity_key: node_identity.clone(),
-                ..test_helpers::gateway_fixture()
+                ..tests::fixtures::gateway_fixture()
             },
             proxy: None,
         };

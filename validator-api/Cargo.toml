@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-validator-api"
-version = "0.11.0"
+version = "0.12.0"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -61,3 +61,4 @@ coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }

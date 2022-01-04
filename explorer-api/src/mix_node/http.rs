@@ -1,6 +1,9 @@
 use reqwest::Error as ReqwestError;
 use rocket::serde::json::Json;
 use rocket::{Route, State};
+use rocket_okapi::okapi::openapi3::OpenApi;
+use rocket_okapi::openapi_get_routes_spec;
+use rocket_okapi::settings::OpenApiSettings;
 use serde::Serialize;
 
 use mixnet_contract::{Addr, Coin, Delegation, Layer, MixNode};
@@ -9,13 +12,12 @@ use crate::mix_node::models::{NodeDescription, NodeStats};
 use crate::mix_nodes::{get_mixnode_delegations, get_single_mixnode_delegations, Location};
 use crate::state::ExplorerApiStateContext;
 
-pub fn mix_node_make_default_routes() -> Vec<Route> {
-    routes_with_openapi![
-        get_delegations,
+pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
+    openapi_get_routes_spec![
+        settings: get_delegations,
         get_all_delegations,
         get_description,
         get_stats,
-        list
     ]
 }
 
@@ -27,14 +29,6 @@ pub(crate) struct PrettyMixNodeBondWithLocation {
     pub owner: Addr,
     pub layer: Layer,
     pub mix_node: MixNode,
-}
-
-#[openapi(tag = "mix_node")]
-#[get("/")]
-pub(crate) async fn list(
-    state: &State<ExplorerApiStateContext>,
-) -> Json<Vec<PrettyMixNodeBondWithLocation>> {
-    Json(state.inner.mix_nodes.get_mixnodes_with_location().await)
 }
 
 #[openapi(tag = "mix_node")]

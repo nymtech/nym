@@ -13,6 +13,7 @@ mod ping;
 mod state;
 
 const GEO_IP_SERVICE: &str = "https://api.freegeoip.app/json";
+const COUNTRY_DATA_REFRESH_INTERVAL: u64 = 60 * 15; // every 15 minutes
 
 #[tokio::main]
 async fn main() {
@@ -34,6 +35,11 @@ impl ExplorerApi {
 
     async fn run(&mut self) {
         info!("Explorer API starting up...");
+
+        info!(
+            "Using validator API - {}",
+            network_defaults::default_api_endpoints()[0].clone()
+        );
 
         // spawn concurrent tasks
         mix_nodes::tasks::MixNodesTasks::new(self.state.clone()).start();

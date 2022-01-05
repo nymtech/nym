@@ -51,6 +51,17 @@ pub async fn bond_mixnode(
 }
 
 #[tauri::command]
+pub async fn update_mixnode(
+  profit_margin_percent: u8,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), BackendError> {
+  client!(state)
+    .update_mixnode_config(profit_margin_percent)
+    .await?;
+  Ok(())
+}
+
+#[tauri::command]
 pub async fn mixnode_bond_details(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Option<MixNodeBond>, BackendError> {

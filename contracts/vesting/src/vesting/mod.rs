@@ -80,7 +80,7 @@ mod tests {
         let account_again = vesting_account_fixture(&mut deps.storage, &env);
         assert_eq!(
             created_account.balance_key(),
-            "5032709489228919411ba".to_string()
+            "1ba".to_string()
         );
         assert_ne!(created_account.balance_key(), account_again.balance_key());
     }

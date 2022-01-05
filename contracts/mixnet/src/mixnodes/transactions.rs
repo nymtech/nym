@@ -624,12 +624,14 @@ pub mod tests {
     #[test]
     fn updating_mixnode_config() {
         let sender = "bob";
-        let stake = tests::fixtures::good_mixnode_pledge();
         let mut deps = test_helpers::init_contract();
-        let info = mock_info(sender, &stake);
+        let info = mock_info(sender, &[]);
 
         // try updating a non existing mixnode bond
-        let ret = try_update_mixnode_config(deps.as_mut(), info.clone(), 10);
+        let msg = ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent: 10,
+        };
+        let ret = execute(deps.as_mut(), mock_env(), info.clone(), msg);
         assert_eq!(
             ret,
             Err(ContractError::NoAssociatedMixNodeBond {
@@ -637,16 +639,10 @@ pub mod tests {
             })
         );
 
-        test_helpers::add_mixnode(sender, stake, deps.as_mut());
-
-        // try updating with an invalid value
-        let profit_margin_percent = 101;
-        let ret = try_update_mixnode_config(deps.as_mut(), info.clone(), 101);
-        assert_eq!(
-            ret,
-            Err(ContractError::InvalidProfitMarginPercent(
-                profit_margin_percent
-            ))
+        test_helpers::add_mixnode(
+            sender,
+            tests::fixtures::good_mixnode_pledge(),
+            deps.as_mut(),
         );
 
         // check the initial profit margin is set to the fixture value
@@ -664,9 +660,26 @@ pub mod tests {
                 .profit_margin_percent
         );
 
-        try_update_mixnode_config(deps.as_mut(), info, fixture_profit_margin + 10).unwrap();
+        // try updating with an invalid value
+        let profit_margin_percent = 101;
+        let msg = ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        };
+        let ret = execute(deps.as_mut(), mock_env(), info.clone(), msg);
         assert_eq!(
-            fixture_profit_margin + 10,
+            ret,
+            Err(ContractError::InvalidProfitMarginPercent(
+                profit_margin_percent
+            ))
+        );
+
+        let profit_margin_percent = fixture_profit_margin + 10;
+        let msg = ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        };
+        execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(
+            profit_margin_percent,
             storage::mixnodes()
                 .idx
                 .owner

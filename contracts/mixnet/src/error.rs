@@ -107,4 +107,7 @@ pub enum ContractError {
 
     #[error("Profit margin percent needs to be an integer in range [0, 100], recieved {0}")]
     InvalidProfitMarginPercent(u8),
+
+    #[error("Rewarded set height not set, was rewarding set determined?")]
+    RewardSetHeightMapEmpty,
 }

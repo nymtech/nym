@@ -63,13 +63,13 @@ impl MixNodesTasks {
             .retrieve_rewarded_mixnodes()
             .await
             .into_iter()
-            .map(|bond| bond.mix_node.identity_key.to_string())
+            .map(|bond| bond.mix_node.identity_key)
             .collect();
         let active_nodes = self
             .retrieve_active_mixnodes()
             .await
             .into_iter()
-            .map(|bond| bond.mix_node.identity_key.to_string())
+            .map(|bond| bond.mix_node.identity_key)
             .collect();
         self.state
             .inner

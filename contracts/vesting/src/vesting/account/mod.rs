@@ -18,10 +18,10 @@ const BALANCE_SUFFIX: &str = "ba";
 const PLEDGE_SUFFIX: &str = "bo";
 const GATEWAY_SUFFIX: &str = "ga";
 
-fn generate_storage_key(storage: &mut dyn Storage) -> Result<String, ContractError> {
+fn generate_storage_key(storage: &mut dyn Storage) -> Result<u32, ContractError> {
     let key = KEY.may_load(storage)?.unwrap_or(0) + 1;
     KEY.save(storage, &key)?;
-    Ok(key.to_string())
+    Ok(key)
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -43,7 +43,7 @@ impl Account {
         periods: Vec<VestingPeriod>,
         storage: &mut dyn Storage,
     ) -> Result<Self, ContractError> {
-        let storage_key = generate_storage_key(storage)?;
+        let storage_key = generate_storage_key(storage)?.to_string();
         let amount = coin.amount;
         let account = Account {
             owner_address,

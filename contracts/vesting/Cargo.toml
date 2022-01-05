@@ -23,5 +23,3 @@ cw-storage-plus = { version = "0.10.3", features = ["iterator"] }
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
-rand = {version = "0.8.4", features = ["std_rng"]}
-getrandom = { version = "0.2.3", features = ["js"]}

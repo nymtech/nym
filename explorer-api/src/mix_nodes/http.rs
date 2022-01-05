@@ -15,5 +15,5 @@ pub fn mix_nodes_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>,
 pub(crate) async fn list(
     state: &State<ExplorerApiStateContext>,
 ) -> Json<Vec<PrettyDetailedMixNodeBond>> {
-    Json(state.inner.mix_nodes.get_mixnodes_with_location().await)
+    Json(state.inner.mix_nodes.get_detailed_mixnodes().await)
 }

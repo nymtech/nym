@@ -1,5 +1,8 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::mix_node::models::{NodeDescription, NodeStats};
-use crate::mix_nodes::{get_mixnode_delegations, get_single_mixnode_delegations};
+use crate::mix_nodes::delegations::{get_mixnode_delegations, get_single_mixnode_delegations};
 use crate::state::ExplorerApiStateContext;
 use mixnet_contract::Delegation;
 use reqwest::Error as ReqwestError;

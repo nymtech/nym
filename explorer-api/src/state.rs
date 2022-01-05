@@ -11,7 +11,8 @@ use crate::country_statistics::country_nodes_distribution::{
     ConcurrentCountryNodesDistribution, CountryNodesDistribution,
 };
 use crate::mix_node::models::ThreadsafeMixNodeCache;
-use crate::mix_nodes::{LocationCache, ThreadsafeMixNodesResult};
+use crate::mix_nodes::location::LocationCache;
+use crate::mix_nodes::models::ThreadsafeMixNodesResult;
 use crate::ping::models::ThreadsafePingCache;
 
 // TODO: change to an environment variable with a default value
@@ -27,7 +28,7 @@ pub struct ExplorerApiState {
 
 impl ExplorerApiState {
     pub(crate) async fn get_mix_node(&self, pubkey: &str) -> Option<MixNodeBond> {
-        self.mix_nodes.get().await.value.get(pubkey).cloned()
+        self.mix_nodes.get().await.all_mixnodes.get(pubkey).cloned()
     }
 }
 

@@ -219,6 +219,13 @@ pub(crate) fn try_update_mixnode_config(
         .identity()
         .clone();
 
+    // We don't have to check lower bound as its an u8
+    if profit_margin_percent > 100 {
+        return Err(ContractError::InvalidProfitMarginPercent(
+            profit_margin_percent,
+        ));
+    }
+
     storage::mixnodes().update(deps.storage, &mix_identity, |mixnode_bond_opt| {
         mixnode_bond_opt
             .map(|mut mixnode_bond| {
@@ -631,6 +638,16 @@ pub mod tests {
         );
 
         test_helpers::add_mixnode(sender, stake, deps.as_mut());
+
+        // try updating with an invalid value
+        let profit_margin_percent = 101;
+        let ret = try_update_mixnode_config(deps.as_mut(), info.clone(), 101);
+        assert_eq!(
+            ret,
+            Err(ContractError::InvalidProfitMarginPercent(
+                profit_margin_percent
+            ))
+        );
 
         // check the initial profit margin is set to the fixture value
         let fixture_profit_margin = tests::fixtures::mix_node_fixture().profit_margin_percent;

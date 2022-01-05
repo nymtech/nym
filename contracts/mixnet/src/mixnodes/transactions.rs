@@ -206,6 +206,7 @@ pub(crate) fn _try_remove_mixnode(
 
 pub(crate) fn try_update_mixnode_config(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     profit_margin_percent: u8,
 ) -> Result<Response, ContractError> {
@@ -230,6 +231,7 @@ pub(crate) fn try_update_mixnode_config(
         mixnode_bond_opt
             .map(|mut mixnode_bond| {
                 mixnode_bond.mix_node.profit_margin_percent = profit_margin_percent;
+                mixnode_bond.block_height = env.block.height;
                 mixnode_bond
             })
             .ok_or(ContractError::NoBondFound)

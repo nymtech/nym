@@ -108,6 +108,7 @@ pub fn execute(
             profit_margin_percent,
         } => crate::mixnodes::transactions::try_update_mixnode_config(
             deps,
+            env,
             info,
             profit_margin_percent,
         ),

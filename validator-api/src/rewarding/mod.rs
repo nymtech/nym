@@ -189,9 +189,9 @@ impl Rewarder {
         // 1. get list of 'rewarded' nodes
         // 2. for each of them determine their delegator count
         // 3. for each of them determine their uptime for the epoch
-        let rewarded_nodes = self.validator_cache.rewarded_mixnodes().await.into_inner();
-        let mut nodes_with_delegations = Vec::with_capacity(rewarded_nodes.len());
-        for rewarded_node in rewarded_nodes {
+        let rewarded_set = self.validator_cache.rewarded_set().await.into_inner();
+        let mut nodes_with_delegations = Vec::with_capacity(rewarded_set.len());
+        for rewarded_node in rewarded_set {
             let delegator_count = self
                 .get_mixnode_delegators_count(rewarded_node.mix_node.identity_key.clone())
                 .await?;

@@ -22,7 +22,6 @@ fn generate_storage_key(storage: &mut dyn Storage) -> Result<String, ContractErr
     let key = KEY.may_load(storage)?.unwrap_or(0) + 1;
     KEY.save(storage, &key)?;
     Ok(key.to_string())
-    
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

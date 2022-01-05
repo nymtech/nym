@@ -78,10 +78,7 @@ mod tests {
         // Test key collision avoidance
 
         let account_again = vesting_account_fixture(&mut deps.storage, &env);
-        assert_eq!(
-            created_account.balance_key(),
-            "1ba".to_string()
-        );
+        assert_eq!(created_account.balance_key(), "1ba".to_string());
         assert_ne!(created_account.balance_key(), account_again.balance_key());
     }
 

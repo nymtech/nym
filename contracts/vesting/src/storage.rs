@@ -1,7 +1,7 @@
 use crate::errors::ContractError;
 use crate::vesting::Account;
 use cosmwasm_std::{Addr, Api, Storage};
-use cw_storage_plus::{Map, Item};
+use cw_storage_plus::{Item, Map};
 
 pub const KEY: Item<u32> = Item::new("key");
 const ACCOUNTS: Map<Addr, Account> = Map::new("acc");

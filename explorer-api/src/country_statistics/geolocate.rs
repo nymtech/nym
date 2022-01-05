@@ -36,7 +36,7 @@ impl GeoLocateTask {
     }
 
     async fn locate_mix_nodes(&mut self) {
-        // I unwrap to default value to get rid of extra indentation level with if let Some(...) =
+        // I'm unwrapping to the default value to get rid of an extra indentation level from the `if let Some(...) = ...`
         // If the value is None, we'll unwrap to an empty hashmap and the `values()` loop won't do any work anyway
         let mixnode_bonds = self
             .state

@@ -37,6 +37,26 @@ impl MixNodesResult {
             MixnodeStatus::Inactive
         }
     }
+
+    fn is_valid(&self) -> bool {
+        self.valid_until >= SystemTime::now()
+    }
+
+    fn get_mixnode(&self, pubkey: &str) -> Option<MixNodeBond> {
+        if self.is_valid() {
+            self.all_mixnodes.get(pubkey).cloned()
+        } else {
+            None
+        }
+    }
+
+    fn get_mixnodes(&self) -> Option<HashMap<String, MixNodeBond>> {
+        if self.is_valid() {
+            Some(self.all_mixnodes.clone())
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -81,29 +101,12 @@ impl ThreadsafeMixNodesResult {
         );
     }
 
-    async fn is_valid(&self) -> bool {
-        self.mixnode_results.read().await.valid_until >= SystemTime::now()
-    }
-
     pub(crate) async fn get_mixnode(&self, pubkey: &str) -> Option<MixNodeBond> {
-        if self.is_valid().await {
-            self.mixnode_results
-                .read()
-                .await
-                .all_mixnodes
-                .get(pubkey)
-                .cloned()
-        } else {
-            None
-        }
+        self.mixnode_results.read().await.get_mixnode(pubkey)
     }
 
     pub(crate) async fn get_mixnodes(&self) -> Option<HashMap<String, MixNodeBond>> {
-        if self.is_valid().await {
-            Some(self.mixnode_results.read().await.all_mixnodes.clone())
-        } else {
-            None
-        }
+        self.mixnode_results.read().await.get_mixnodes()
     }
 
     pub(crate) async fn get_detailed_mixnodes(&self) -> Vec<PrettyDetailedMixNodeBond> {

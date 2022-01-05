@@ -289,7 +289,63 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
     Ok(query_res?)
 }
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    #[derive(serde::Serialize, serde::Deserialize, Clone)]
+    pub struct StoredMixnodeBondOld {
+        pub pledge_amount: mixnet_contract::Coin,
+        pub owner: Addr,
+        pub layer: mixnet_contract::Layer,
+        pub block_height: u64,
+        pub mix_node: mixnet_contract::MixNode,
+        pub profit_margin_percent: Option<u8>,
+        pub proxy: Option<Addr>,
+    }
+    pub struct MixnodeBondIndexOld<'a> {
+        pub owner: cw_storage_plus::UniqueIndex<'a, Addr, StoredMixnodeBondOld>,
+    }
+    impl<'a> cw_storage_plus::IndexList<StoredMixnodeBondOld> for MixnodeBondIndexOld<'a> {
+        fn get_indexes(
+            &'_ self,
+        ) -> Box<dyn Iterator<Item = &'_ dyn cw_storage_plus::Index<StoredMixnodeBondOld>> + '_>
+        {
+            let v: Vec<&dyn cw_storage_plus::Index<StoredMixnodeBondOld>> = vec![&self.owner];
+            Box::new(v.into_iter())
+        }
+    }
+    pub(crate) fn mixnodes_old<'a>() -> cw_storage_plus::IndexedMap<
+        'a,
+        mixnet_contract::IdentityKeyRef<'a>,
+        StoredMixnodeBondOld,
+        MixnodeBondIndexOld<'a>,
+    > {
+        let indexes = MixnodeBondIndexOld {
+            owner: cw_storage_plus::UniqueIndex::new(|d| d.owner.clone(), &"mno"),
+        };
+        cw_storage_plus::IndexedMap::new(&"mno", indexes)
+    }
+
+    let mixnodes: Vec<_> = mixnodes_old()
+        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .collect();
+    for mixnode in mixnodes.into_iter() {
+        if let Ok(record) = mixnode {
+            let stored_mixnode_bond_old = record.1;
+            let stored_mixnode_bond_new = crate::mixnodes::storage::StoredMixnodeBond {
+                pledge_amount: stored_mixnode_bond_old.pledge_amount,
+                owner: stored_mixnode_bond_old.owner,
+                layer: stored_mixnode_bond_old.layer,
+                block_height: stored_mixnode_bond_old.block_height,
+                mix_node: stored_mixnode_bond_old.mix_node,
+                proxy: stored_mixnode_bond_old.proxy,
+            };
+            crate::mixnodes::storage::mixnodes().save(
+                deps.storage,
+                stored_mixnode_bond_new.identity(),
+                &stored_mixnode_bond_new,
+            )?;
+        }
+    }
+
     Ok(Default::default())
 }
 

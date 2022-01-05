@@ -20,7 +20,7 @@ pub(crate) enum MixnodeStatus {
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub(crate) struct PrettyDetailedMixNodeBond {
     pub location: Option<Location>,
-    // pub status: MixnodeStatus,
+    pub status: MixnodeStatus,
     pub pledge_amount: Coin,
     pub total_delegation: Coin,
     pub owner: Addr,

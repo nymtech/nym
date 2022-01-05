@@ -11,6 +11,7 @@ use std::time::SystemTime;
 use tokio::sync::RwLock;
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum MixnodeStatus {
     Active,   // in both the active set and the rewarded set
     Standby,  // only in the rewarded set

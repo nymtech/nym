@@ -9,6 +9,7 @@ use config::defaults::DENOM;
 use cosmwasm_std::{
     coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
 };
+use mixnet_contract::events::{new_gateway_bonding_event, new_gateway_unbonding_event};
 use mixnet_contract::{Gateway, GatewayBond, Layer};
 use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
 
@@ -97,12 +98,24 @@ pub(crate) fn _try_add_gateway(
         &gateway.identity_key,
     )?;
 
-    let bond = GatewayBond::new(pledge, owner, env.block.height, gateway, proxy);
+    let gateway_identity = gateway.identity_key.clone();
+    let bond = GatewayBond::new(
+        pledge.clone(),
+        owner.clone(),
+        env.block.height,
+        gateway,
+        proxy.clone(),
+    );
 
     storage::gateways().save(deps.storage, bond.identity(), &bond)?;
     mixnet_params_storage::increment_layer_count(deps.storage, Layer::Gateway)?;
 
-    Ok(Response::new())
+    Ok(Response::new().add_event(new_gateway_bonding_event(
+        &owner,
+        &proxy,
+        &pledge,
+        &gateway_identity,
+    )))
 }
 
 pub fn try_remove_gateway_on_behalf(
@@ -155,23 +168,24 @@ pub(crate) fn _try_remove_gateway(
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, Layer::Gateway)?;
 
-    let mut response = Response::new()
-        .add_message(return_tokens)
-        .add_attribute("action", "unbond")
-        .add_attribute("address", owner.clone())
-        .add_attribute("gateway_bond", gateway_bond.to_string());
+    let mut response = Response::new().add_message(return_tokens);
 
     if let Some(proxy) = &proxy {
         let msg = VestingContractExecuteMsg::TrackUnbondGateway {
             owner: owner.as_str().to_string(),
-            amount: gateway_bond.pledge_amount,
+            amount: gateway_bond.pledge_amount(),
         };
 
         let track_unbond_message = wasm_execute(proxy, &msg, coins(0, DENOM))?;
         response = response.add_message(track_unbond_message);
     }
 
-    Ok(response)
+    Ok(response.add_event(new_gateway_unbonding_event(
+        &owner,
+        &proxy,
+        &gateway_bond.pledge_amount,
+        gateway_bond.identity(),
+    )))
 }
 
 fn validate_gateway_pledge(

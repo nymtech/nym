@@ -8,8 +8,13 @@ use cosmwasm_std::{Addr, Coin, Event};
 pub const REWARDING_EVENT_TYPE: &str = "rewarding";
 pub const DELEGATION_EVENT_TYPE: &str = "delegation";
 pub const UNDELEGATION_EVENT_TYPE: &str = "undelegation";
+pub const GATEWAY_BONDING_EVENT_TYPE: &str = "gateway_bonding";
+pub const GATEWAY_UNBONDING_EVENT_TYPE: &str = "gateway_unbonding";
+pub const MIXNODE_BONDING_EVENT_TYPE: &str = "mixnode_bonding";
+pub const MIXNODE_UNBONDING_EVENT_TYPE: &str = "mixnode_unbonding";
 
 // attributes that are used in multiple places
+pub const OWNER_KEY: &str = "owner";
 pub const AMOUNT_KEY: &str = "amount";
 pub const PROXY_KEY: &str = "proxy";
 
@@ -19,6 +24,9 @@ pub const PROXY_KEY: &str = "proxy";
 pub const DELEGATOR_KEY: &str = "delegator";
 pub const DELEGATION_TARGET_KEY: &str = "delegation_target";
 pub const DELEGATION_HEIGHT_KEY: &str = "delegation_latest_block_height";
+
+// bonding/unbonding
+pub const NODE_IDENTITY_KEY: &str = "identity";
 
 pub fn new_delegation_event(
     delegator: &Addr,
@@ -58,4 +66,40 @@ pub fn new_undelegation_event(
             old_delegation.block_height.to_string(),
         )
         .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+}
+
+pub fn new_gateway_bonding_event(
+    owner: &Addr,
+    proxy: &Option<Addr>,
+    amount: &Coin,
+    identity: IdentityKeyRef,
+) -> Event {
+    let mut event = Event::new(GATEWAY_BONDING_EVENT_TYPE)
+        .add_attribute(OWNER_KEY, owner)
+        .add_attribute(NODE_IDENTITY_KEY, identity);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event.add_attribute(AMOUNT_KEY, amount.to_string())
+}
+
+pub fn new_gateway_unbonding_event(
+    owner: &Addr,
+    proxy: &Option<Addr>,
+    amount: &Coin,
+    identity: IdentityKeyRef,
+) -> Event {
+    let mut event = Event::new(GATEWAY_UNBONDING_EVENT_TYPE)
+        .add_attribute(OWNER_KEY, owner)
+        .add_attribute(NODE_IDENTITY_KEY, identity);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event.add_attribute(AMOUNT_KEY, amount.to_string())
 }

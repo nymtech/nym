@@ -204,6 +204,42 @@ pub(crate) fn _try_remove_mixnode(
     Ok(response)
 }
 
+pub(crate) fn try_update_mixnode_config(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    profit_margin_percent: u8,
+) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(info.sender.as_ref())?;
+    let mix_identity = storage::mixnodes()
+        .idx
+        .owner
+        .item(deps.storage, owner.clone())?
+        .ok_or(ContractError::NoAssociatedMixNodeBond { owner })?
+        .1
+        .identity()
+        .clone();
+
+    // We don't have to check lower bound as its an u8
+    if profit_margin_percent > 100 {
+        return Err(ContractError::InvalidProfitMarginPercent(
+            profit_margin_percent,
+        ));
+    }
+
+    storage::mixnodes().update(deps.storage, &mix_identity, |mixnode_bond_opt| {
+        mixnode_bond_opt
+            .map(|mut mixnode_bond| {
+                mixnode_bond.mix_node.profit_margin_percent = profit_margin_percent;
+                mixnode_bond.block_height = env.block.height;
+                mixnode_bond
+            })
+            .ok_or(ContractError::NoBondFound)
+    })?;
+
+    Ok(Response::new())
+}
+
 fn validate_mixnode_pledge(
     mut pledge: Vec<Coin>,
     minimum_pledge: Uint128,
@@ -584,6 +620,77 @@ pub mod tests {
                 .unwrap()
                 .1
                 .identity()
+        );
+    }
+
+    #[test]
+    fn updating_mixnode_config() {
+        let sender = "bob";
+        let mut deps = test_helpers::init_contract();
+        let info = mock_info(sender, &[]);
+
+        // try updating a non existing mixnode bond
+        let msg = ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent: 10,
+        };
+        let ret = execute(deps.as_mut(), mock_env(), info.clone(), msg);
+        assert_eq!(
+            ret,
+            Err(ContractError::NoAssociatedMixNodeBond {
+                owner: Addr::unchecked(sender)
+            })
+        );
+
+        test_helpers::add_mixnode(
+            sender,
+            tests::fixtures::good_mixnode_pledge(),
+            deps.as_mut(),
+        );
+
+        // check the initial profit margin is set to the fixture value
+        let fixture_profit_margin = tests::fixtures::mix_node_fixture().profit_margin_percent;
+        assert_eq!(
+            fixture_profit_margin,
+            storage::mixnodes()
+                .idx
+                .owner
+                .item(deps.as_ref().storage, Addr::unchecked("bob"))
+                .unwrap()
+                .unwrap()
+                .1
+                .mix_node
+                .profit_margin_percent
+        );
+
+        // try updating with an invalid value
+        let profit_margin_percent = 101;
+        let msg = ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        };
+        let ret = execute(deps.as_mut(), mock_env(), info.clone(), msg);
+        assert_eq!(
+            ret,
+            Err(ContractError::InvalidProfitMarginPercent(
+                profit_margin_percent
+            ))
+        );
+
+        let profit_margin_percent = fixture_profit_margin + 10;
+        let msg = ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        };
+        execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(
+            profit_margin_percent,
+            storage::mixnodes()
+                .idx
+                .owner
+                .item(deps.as_ref().storage, Addr::unchecked("bob"))
+                .unwrap()
+                .unwrap()
+                .1
+                .mix_node
+                .profit_margin_percent
         );
     }
 

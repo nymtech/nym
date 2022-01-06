@@ -773,6 +773,31 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    /// Update the configuration of a mixnode. Right now, only possible for profit margin.
+    pub async fn update_mixnode_config(
+        &self,
+        profit_margin_percent: u8,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::UpdateMixnodeConfig);
+
+        let req = ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Updating mixnode configuration from rust!",
+                Vec::new(),
+            )
+            .await
+    }
+
     /// Delegates specified amount of stake to particular mixnode.
     pub async fn delegate_to_mixnode(
         &self,

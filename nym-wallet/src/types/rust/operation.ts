@@ -8,6 +8,7 @@ export type Operation =
   | "BondMixnodeOnBehalf"
   | "UnbondMixnode"
   | "UnbondMixnodeOnBehalf"
+  | "UpdateMixnodeConfig"
   | "DelegateToMixnode"
   | "DelegateToMixnodeOnBehalf"
   | "UndelegateFromMixnode"

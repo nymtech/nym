@@ -83,3 +83,6 @@ export const getReverseGatewayDelegations = async (): Promise<TPagedDelegations>
 
 export const getMixnodeBondDetails = async (): Promise<TMixnodeBondDetails | null> =>
   await invoke('mixnode_bond_details')
+
+export const updateMixnode = async ({ profitMarginPercent }: { profitMarginPercent: number }) =>
+  await invoke('update_mixnode', { profitMarginPercent })

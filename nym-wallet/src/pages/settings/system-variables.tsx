@@ -15,23 +15,16 @@ import { AccessTimeOutlined, PercentOutlined } from '@mui/icons-material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
 import { InfoTooltip } from '../../components/InfoToolTip'
-import { EnumNodeType, TMixnodeBondDetails } from '../../types'
+import { TMixnodeBondDetails } from '../../types'
 import { validationSchema } from './validationSchema'
-import { bond, unbond } from '../../requests'
+import { updateMixnode } from '../../requests'
 import { ClientContext } from '../../context/main'
 
 type TFormData = {
   profitMarginPercent: number
-  signature: string
 }
 
-export const SystemVariables = ({
-  mixnodeDetails,
-  pledge,
-}: {
-  mixnodeDetails: TMixnodeBondDetails['mix_node']
-  pledge: TMixnodeBondDetails['pledge_amount']
-}) => {
+export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBondDetails['mix_node'] }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>()
 
   const {
@@ -40,28 +33,21 @@ export const SystemVariables = ({
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(validationSchema),
-    defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString(), signature: '' },
+    defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString() },
   })
 
   const { userBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TFormData) => {
-    await unbond(EnumNodeType.mixnode)
-    await bond({
-      type: EnumNodeType.mixnode,
-      data: { ...mixnodeDetails, profit_margin_percent: data.profitMarginPercent },
-      pledge: { denom: 'Minor', amount: pledge.amount },
-      //hardcoded for the moment as required in bonding but not necessary
-      ownerSignature: data.signature,
-    })
-      .then(() => {
+    try {
+      await updateMixnode({ profitMarginPercent: data.profitMarginPercent }).then(() => {
         userBalance.fetchBalance()
         setNodeUpdateResponse('success')
       })
-      .catch((e) => {
-        setNodeUpdateResponse('failed')
-        console.log(e)
-      })
+    } catch (e) {
+      setNodeUpdateResponse('failed')
+      console.log(e)
+    }
   }
 
   return (
@@ -78,13 +64,6 @@ export const SystemVariables = ({
             }
             InputProps={{ endAdornment: <PercentOutlined fontSize="small" sx={{ color: 'grey.500' }} /> }}
             error={!!errors.profitMarginPercent}
-            disabled={isSubmitting}
-          />
-          <TextField
-            {...register('signature')}
-            label="Owner signature"
-            error={!!errors.signature}
-            helperText={!!errors.signature && errors.signature.message}
             disabled={isSubmitting}
           />
           <Divider />

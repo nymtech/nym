@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Delegation, IdentityKeyRef, Layer};
+use crate::{ContractStateParams, Delegation, IdentityKeyRef, Layer};
 use cosmwasm_std::{Addr, Coin, Event};
 
 // event types
@@ -12,6 +12,7 @@ pub const GATEWAY_BONDING_EVENT_TYPE: &str = "gateway_bonding";
 pub const GATEWAY_UNBONDING_EVENT_TYPE: &str = "gateway_unbonding";
 pub const MIXNODE_BONDING_EVENT_TYPE: &str = "mixnode_bonding";
 pub const MIXNODE_UNBONDING_EVENT_TYPE: &str = "mixnode_unbonding";
+pub const SETTINGS_UPDATE_EVENT_TYPE: &str = "settings_update";
 
 // attributes that are used in multiple places
 pub const OWNER_KEY: &str = "owner";
@@ -28,6 +29,19 @@ pub const DELEGATION_HEIGHT_KEY: &str = "delegation_latest_block_height";
 // bonding/unbonding
 pub const NODE_IDENTITY_KEY: &str = "identity";
 pub const ASSIGNED_LAYER_KEY: &str = "assigned_layer";
+
+// settings change
+pub const OLD_MINIMUM_MIXNODE_PLEDGE_KEY: &str = "old_minimum_mixnode_pledge";
+pub const OLD_MINIMUM_GATEWAY_PLEDGE_KEY: &str = "old_minimum_gateway_pledge";
+pub const OLD_MIXNODE_REWARDED_SET_SIZE_KEY: &str = "old_mixnode_rewarded_set_size";
+pub const OLD_MIXNODE_ACTIVE_SET_SIZE_KEY: &str = "old_mixnode_active_set_size";
+pub const OLD_ACTIVE_SET_WORK_FACTOR_KEY: &str = "old_active_set_work_factor";
+
+pub const NEW_MINIMUM_MIXNODE_PLEDGE_KEY: &str = "new_minimum_mixnode_pledge";
+pub const NEW_MINIMUM_GATEWAY_PLEDGE_KEY: &str = "new_minimum_gateway_pledge";
+pub const NEW_MIXNODE_REWARDED_SET_SIZE_KEY: &str = "new_mixnode_rewarded_set_size";
+pub const NEW_MIXNODE_ACTIVE_SET_SIZE_KEY: &str = "new_mixnode_active_set_size";
+pub const NEW_ACTIVE_SET_WORK_FACTOR_KEY: &str = "new_active_set_work_factor";
 
 pub fn new_delegation_event(
     delegator: &Addr,
@@ -142,4 +156,73 @@ pub fn new_mixnode_unbonding_event(
 
     // coin implements Display trait and we use that implementation here
     event.add_attribute(AMOUNT_KEY, amount.to_string())
+}
+
+pub fn new_settings_update_event(
+    old_params: &ContractStateParams,
+    new_params: &ContractStateParams,
+) -> Event {
+    let mut event = Event::new(SETTINGS_UPDATE_EVENT_TYPE);
+
+    if old_params.minimum_mixnode_pledge != new_params.minimum_mixnode_pledge {
+        event = event
+            .add_attribute(
+                OLD_MINIMUM_MIXNODE_PLEDGE_KEY,
+                old_params.minimum_mixnode_pledge,
+            )
+            .add_attribute(
+                NEW_MINIMUM_MIXNODE_PLEDGE_KEY,
+                new_params.minimum_mixnode_pledge,
+            )
+    }
+
+    if old_params.minimum_gateway_pledge != new_params.minimum_gateway_pledge {
+        event = event
+            .add_attribute(
+                OLD_MINIMUM_GATEWAY_PLEDGE_KEY,
+                old_params.minimum_gateway_pledge,
+            )
+            .add_attribute(
+                NEW_MINIMUM_GATEWAY_PLEDGE_KEY,
+                new_params.minimum_gateway_pledge,
+            )
+    }
+
+    if old_params.mixnode_rewarded_set_size != new_params.mixnode_rewarded_set_size {
+        event = event
+            .add_attribute(
+                OLD_MIXNODE_REWARDED_SET_SIZE_KEY,
+                old_params.mixnode_rewarded_set_size.to_string(),
+            )
+            .add_attribute(
+                NEW_MIXNODE_REWARDED_SET_SIZE_KEY,
+                new_params.mixnode_rewarded_set_size.to_string(),
+            )
+    }
+
+    if old_params.mixnode_active_set_size != new_params.mixnode_active_set_size {
+        event = event
+            .add_attribute(
+                OLD_MIXNODE_ACTIVE_SET_SIZE_KEY,
+                old_params.mixnode_active_set_size.to_string(),
+            )
+            .add_attribute(
+                NEW_MIXNODE_ACTIVE_SET_SIZE_KEY,
+                new_params.mixnode_active_set_size.to_string(),
+            )
+    }
+
+    if old_params.active_set_work_factor != new_params.active_set_work_factor {
+        event = event
+            .add_attribute(
+                OLD_ACTIVE_SET_WORK_FACTOR_KEY,
+                old_params.active_set_work_factor.to_string(),
+            )
+            .add_attribute(
+                NEW_ACTIVE_SET_WORK_FACTOR_KEY,
+                new_params.active_set_work_factor.to_string(),
+            )
+    }
+
+    event
 }

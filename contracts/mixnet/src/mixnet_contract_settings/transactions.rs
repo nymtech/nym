@@ -6,6 +6,7 @@ use crate::error::ContractError;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;
+use mixnet_contract::events::new_settings_update_event;
 use mixnet_contract::ContractStateParams;
 
 pub(crate) fn try_update_contract_settings(
@@ -34,10 +35,12 @@ pub(crate) fn try_update_contract_settings(
         return Err(ContractError::InvalidActiveSetSize);
     }
 
+    let response = Response::new().add_event(new_settings_update_event(&state.params, &params));
+
     state.params = params;
     storage::CONTRACT_STATE.save(deps.storage, &state)?;
 
-    Ok(Response::default())
+    Ok(response)
 }
 
 #[cfg(test)]

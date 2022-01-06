@@ -253,7 +253,7 @@ impl DelegatorRewardParams {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct NodeRewardResult {
     reward: U128,
     lambda: U128,

@@ -9,6 +9,11 @@ use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::helpers;
 use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
 use cw_storage_plus::{Bound, PrimaryKey};
+use mixnet_contract::events::{
+    new_begin_rewarding_event, new_finish_rewarding_event, new_mix_delegators_rewarding_event,
+    new_mix_operator_rewarding_event, new_not_found_mix_operator_rewarding_event,
+    new_too_fresh_bond_mix_operator_rewarding_event, new_zero_uptime_mix_operator_rewarding_event,
+};
 use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
 use mixnet_contract::{
     IdentityKey, RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
@@ -106,10 +111,7 @@ pub(crate) fn try_begin_mixnode_rewarding(
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
 
-    Ok(Response::new().add_attribute(
-        "rewarding interval nonce",
-        rewarding_interval_nonce.to_string(),
-    ))
+    Ok(Response::new().add_event(new_begin_rewarding_event(rewarding_interval_nonce)))
 }
 
 fn reward_mix_delegators(
@@ -232,21 +234,26 @@ pub(crate) fn try_reward_next_mixnode_delegators(
             let mut rewarding_results = next_page_info.running_results;
             rewarding_results.total_delegator_reward += delegation_rewarding_result.total_rewarded;
 
-            let round_increase = delegation_rewarding_result.total_rewarded.to_string();
+            let round_increase = delegation_rewarding_result.total_rewarded;
             let more_delegators = delegation_rewarding_result.start_next.is_some();
 
             helpers::update_rewarding_status(
                 deps.storage,
                 rewarding_interval_nonce,
-                mix_identity,
+                mix_identity.clone(),
                 rewarding_results,
                 delegation_rewarding_result.start_next,
                 next_page_info.rewarding_params,
             )?;
 
-            Ok(Response::new()
-                .add_attribute("current round delegation increase", round_increase)
-                .add_attribute("more delegators to reward", more_delegators.to_string()))
+            Ok(
+                Response::new().add_event(new_mix_delegators_rewarding_event(
+                    rewarding_interval_nonce,
+                    &mix_identity,
+                    round_increase,
+                    more_delegators,
+                )),
+            )
         }
     }
 }
@@ -283,68 +290,91 @@ pub(crate) fn try_reward_mixnode(
     let current_bond = match mixnodes_storage::read_full_mixnode_bond(deps.storage, &mix_identity)?
     {
         Some(bond) => bond,
-        None => return Ok(Response::new().add_attribute("result", "bond not found")),
+        None => {
+            return Ok(
+                Response::new().add_event(new_not_found_mix_operator_rewarding_event(
+                    rewarding_interval_nonce,
+                    &mix_identity,
+                )),
+            )
+        }
     };
 
-    let mut node_reward = "0".to_string();
-    let mut operator_reward = Uint128::zero();
-    let mut total_delegation_increase = Uint128::zero();
-    let mut more_delegators = false;
-
-    // check if node is old enough for rewarding and if its uptime is non-zero
-    if current_bond.block_height + storage::MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height
-        && params.uptime() > 0
-    {
-        let mut node_reward_params = params;
-        node_reward_params.set_reward_blockstamp(env.block.height);
-
-        let operator_reward_result = current_bond.reward(&node_reward_params);
-        node_reward = operator_reward_result.reward().to_string();
-
-        // Omitting the price per packet function now, it follows that base operator reward is the node_reward
-        operator_reward = Uint128::new(current_bond.operator_reward(&node_reward_params));
-
-        let delegator_params = DelegatorRewardParams::new(&current_bond, node_reward_params);
-        let delegation_rewarding_result =
-            reward_mix_delegators(deps.storage, mix_identity.clone(), None, delegator_params)?;
-
-        helpers::update_post_rewarding_storage(
-            deps.storage,
-            &mix_identity,
-            operator_reward,
-            delegation_rewarding_result.total_rewarded,
-        )?;
-
-        let rewarding_results = RewardingResult {
-            operator_reward,
-            total_delegator_reward: delegation_rewarding_result.total_rewarded,
-        };
-
-        total_delegation_increase = rewarding_results.total_delegator_reward;
-        more_delegators = delegation_rewarding_result.start_next.is_some();
-
-        helpers::update_rewarding_status(
-            deps.storage,
-            rewarding_interval_nonce,
-            mix_identity,
-            rewarding_results,
-            delegation_rewarding_result.start_next,
-            delegator_params,
-        )?;
-    } else {
-        // node is not eligible for rewarding, so we're done immediately
+    // check if node is old enough for rewarding
+    if current_bond.block_height + storage::MINIMUM_BLOCK_AGE_FOR_REWARDING > env.block.height {
         storage::REWARDING_STATUS.save(
             deps.storage,
-            (rewarding_interval_nonce.into(), mix_identity),
+            (rewarding_interval_nonce.into(), mix_identity.clone()),
             &RewardingStatus::Complete(Default::default()),
         )?;
+
+        return Ok(
+            Response::new().add_event(new_too_fresh_bond_mix_operator_rewarding_event(
+                rewarding_interval_nonce,
+                &mix_identity,
+            )),
+        );
     }
 
-    Ok(Response::new()
-        .add_attribute("node reward", node_reward)
-        .add_attribute("operator reward", operator_reward)
-        .add_attribute("total delegation increase", total_delegation_increase)
-        .add_attribute("more delegators to reward", more_delegators.to_string()))
+    // check if it has non-zero uptime
+    if params.uptime() == 0 {
+        storage::REWARDING_STATUS.save(
+            deps.storage,
+            (rewarding_interval_nonce.into(), mix_identity.clone()),
+            &RewardingStatus::Complete(Default::default()),
+        )?;
+
+        return Ok(
+            Response::new().add_event(new_zero_uptime_mix_operator_rewarding_event(
+                rewarding_interval_nonce,
+                &mix_identity,
+            )),
+        );
+    }
+
+    let mut node_reward_params = params;
+    node_reward_params.set_reward_blockstamp(env.block.height);
+
+    let node_reward_result = current_bond.reward(&node_reward_params);
+
+    // Omitting the price per packet function now, it follows that base operator reward is the node_reward
+    let operator_reward = Uint128::new(current_bond.operator_reward(&node_reward_params));
+
+    let delegator_params = DelegatorRewardParams::new(&current_bond, node_reward_params);
+    let delegation_rewarding_result =
+        reward_mix_delegators(deps.storage, mix_identity.clone(), None, delegator_params)?;
+
+    helpers::update_post_rewarding_storage(
+        deps.storage,
+        &mix_identity,
+        operator_reward,
+        delegation_rewarding_result.total_rewarded,
+    )?;
+
+    let rewarding_results = RewardingResult {
+        operator_reward,
+        total_delegator_reward: delegation_rewarding_result.total_rewarded,
+    };
+    let total_delegator_reward = rewarding_results.total_delegator_reward;
+    let further_delegations = delegation_rewarding_result.start_next.is_some();
+
+    helpers::update_rewarding_status(
+        deps.storage,
+        rewarding_interval_nonce,
+        mix_identity.clone(),
+        rewarding_results,
+        delegation_rewarding_result.start_next,
+        delegator_params,
+    )?;
+
+    Ok(Response::new().add_event(new_mix_operator_rewarding_event(
+        rewarding_interval_nonce,
+        &mix_identity,
+        node_reward_result,
+        operator_reward,
+        total_delegator_reward,
+        further_delegations,
+    )))
 }
 
 pub(crate) fn try_finish_mixnode_rewarding(
@@ -374,7 +404,7 @@ pub(crate) fn try_finish_mixnode_rewarding(
     state.rewarding_in_progress = false;
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
 
-    Ok(Response::new())
+    Ok(Response::new().add_event(new_finish_rewarding_event(rewarding_interval_nonce)))
 }
 
 #[cfg(test)]

@@ -319,31 +319,29 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
         MixnodeBondIndexOld<'a>,
     > {
         let indexes = MixnodeBondIndexOld {
-            owner: cw_storage_plus::UniqueIndex::new(|d| d.owner.clone(), &"mno"),
+            owner: cw_storage_plus::UniqueIndex::new(|d| d.owner.clone(), "mno"),
         };
-        cw_storage_plus::IndexedMap::new(&"mno", indexes)
+        cw_storage_plus::IndexedMap::new("mno", indexes)
     }
 
-    let mixnodes: Vec<_> = mixnodes_old()
+    let stored_mixnode_bonds: Vec<_> = mixnodes_old()
         .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .flatten()
+        .map(|record| crate::mixnodes::storage::StoredMixnodeBond {
+            pledge_amount: record.1.pledge_amount,
+            owner: record.1.owner,
+            layer: record.1.layer,
+            block_height: record.1.block_height,
+            mix_node: record.1.mix_node,
+            proxy: record.1.proxy,
+        })
         .collect();
-    for mixnode in mixnodes.into_iter() {
-        if let Ok(record) = mixnode {
-            let stored_mixnode_bond_old = record.1;
-            let stored_mixnode_bond_new = crate::mixnodes::storage::StoredMixnodeBond {
-                pledge_amount: stored_mixnode_bond_old.pledge_amount,
-                owner: stored_mixnode_bond_old.owner,
-                layer: stored_mixnode_bond_old.layer,
-                block_height: stored_mixnode_bond_old.block_height,
-                mix_node: stored_mixnode_bond_old.mix_node,
-                proxy: stored_mixnode_bond_old.proxy,
-            };
-            crate::mixnodes::storage::mixnodes().save(
-                deps.storage,
-                stored_mixnode_bond_new.identity(),
-                &stored_mixnode_bond_new,
-            )?;
-        }
+    for stored_mixnode_bond in stored_mixnode_bonds {
+        crate::mixnodes::storage::mixnodes().save(
+            deps.storage,
+            stored_mixnode_bond.identity(),
+            &stored_mixnode_bond,
+        )?;
     }
 
     Ok(Default::default())

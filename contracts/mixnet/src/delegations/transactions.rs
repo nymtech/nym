@@ -7,6 +7,7 @@ use crate::support::helpers::generate_storage_key;
 use config::defaults::DENOM;
 use cosmwasm_std::{coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
 use cw_storage_plus::PrimaryKey;
+use mixnet_contract::events::{new_delegation_event, new_undelegation_event};
 use mixnet_contract::Delegation;
 use mixnet_contract::IdentityKey;
 use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
@@ -113,16 +114,21 @@ pub(crate) fn _try_delegate_to_mixnode(
                 }
                 None => Delegation::new(
                     delegate.to_owned(),
-                    mix_identity,
-                    amount,
+                    mix_identity.clone(),
+                    amount.clone(),
                     env.block.height,
-                    proxy,
+                    proxy.clone(),
                 ),
             })
         },
     )?;
 
-    Ok(Response::default())
+    Ok(Response::new().add_event(new_delegation_event(
+        &delegate,
+        &proxy,
+        &amount,
+        &mix_identity,
+    )))
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode(
@@ -204,14 +210,19 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
                 let msg = Some(VestingContractExecuteMsg::TrackUndelegation {
                     owner: delegate.as_str().to_string(),
                     mix_identity: mix_identity.clone(),
-                    amount: old_delegation.amount,
+                    amount: old_delegation.amount.clone(),
                 });
 
                 let track_undelegation_msg = wasm_execute(proxy, &msg, coins(0, DENOM))?;
 
                 response = response.add_message(track_undelegation_msg);
             }
-            Ok(response)
+            Ok(response.add_event(new_undelegation_event(
+                &delegate,
+                &proxy,
+                &old_delegation,
+                &mix_identity,
+            )))
         }
     }
 }

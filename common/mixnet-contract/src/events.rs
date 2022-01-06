@@ -1,0 +1,61 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::{Delegation, IdentityKeyRef};
+use cosmwasm_std::{Addr, Coin, Event};
+
+// event types
+pub const REWARDING_EVENT_TYPE: &str = "rewarding";
+pub const DELEGATION_EVENT_TYPE: &str = "delegation";
+pub const UNDELEGATION_EVENT_TYPE: &str = "undelegation";
+
+// attributes that are used in multiple places
+pub const AMOUNT_KEY: &str = "amount";
+pub const PROXY_KEY: &str = "proxy";
+
+// event-specific attributes
+
+// delegation/undelegation
+pub const DELEGATOR_KEY: &str = "delegator";
+pub const DELEGATION_TARGET_KEY: &str = "delegation_target";
+pub const DELEGATION_HEIGHT_KEY: &str = "delegation_latest_block_height";
+
+pub fn new_delegation_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    amount: &Coin,
+    mix_identity: IdentityKeyRef,
+) -> Event {
+    let mut event = Event::new(DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+}
+
+pub fn new_undelegation_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    old_delegation: &Delegation,
+    mix_identity: IdentityKeyRef,
+) -> Event {
+    let mut event = Event::new(UNDELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event
+        .add_attribute(AMOUNT_KEY, old_delegation.amount.to_string())
+        .add_attribute(
+            DELEGATION_HEIGHT_KEY,
+            old_delegation.block_height.to_string(),
+        )
+        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+}

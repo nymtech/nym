@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import {
   Box,
   Button,
@@ -17,8 +17,8 @@ import { useForm } from 'react-hook-form'
 import { InfoTooltip } from '../../components/InfoToolTip'
 import { TMixnodeBondDetails } from '../../types'
 import { validationSchema } from './validationSchema'
-import { updateMixnode } from '../../requests'
-import { ClientContext } from '../../context/main'
+import { getGasFee, updateMixnode } from '../../requests'
+import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 
 type TFormData = {
   profitMarginPercent: number
@@ -26,6 +26,7 @@ type TFormData = {
 
 export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBondDetails['mix_node'] }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>()
+  const [configFee, setConfigFee] = useState<string>()
 
   const {
     register,
@@ -35,6 +36,13 @@ export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBo
     resolver: yupResolver(validationSchema),
     defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString() },
   })
+
+  useEffect(() => {
+    ;(async () => {
+      const fee = await getGasFee('UpdateMixnodeConfig')
+      setConfigFee(fee.amount)
+    })()
+  }, [])
 
   const { userBalance } = useContext(ClientContext)
 
@@ -107,7 +115,9 @@ export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBo
         ) : nodeUpdateResponse === 'failed' ? (
           <Typography sx={{ color: 'error.main', fontWeight: 600 }}>Node updated failed</Typography>
         ) : (
-          <Box />
+          <Typography sx={{ color: 'nym.fee' }}>
+            Fee for this transaction: {`${configFee} ${MAJOR_CURRENCY}`}{' '}
+          </Typography>
         )}
         <Button
           variant="contained"

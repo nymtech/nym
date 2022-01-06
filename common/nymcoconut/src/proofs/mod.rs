@@ -99,7 +99,7 @@ impl ProofCmCs {
 
         // witness creation
         let witness_commitment_opening = params.random_scalar();
-        let witness_commitments_openings = params.n_random_scalars(commitments_openings.len());
+        let witness_pedersen_commitments_openings = params.n_random_scalars(commitments_openings.len());
         let witness_attributes = params.n_random_scalars(private_attributes.len());
 
         // recompute h
@@ -124,7 +124,7 @@ impl ProofCmCs {
                 .sum::<G1Projective>();
 
         // zkp commitments for the individual attributes
-        let commitments_attributes = witness_commitments_openings
+        let commitments_attributes = witness_pedersen_commitments_openings
             .iter()
             .zip(witness_attributes.iter())
             .map(|(o_j, m_j)| g1 * o_j + h * m_j)
@@ -155,7 +155,7 @@ impl ProofCmCs {
         let response_opening =
             produce_response(&witness_commitment_opening, &challenge, commitment_opening);
         let response_openings = produce_responses(
-            &witness_commitments_openings,
+            &witness_pedersen_commitments_openings,
             &challenge,
             &commitments_openings.iter().collect::<Vec<_>>(),
         );

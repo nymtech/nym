@@ -154,7 +154,7 @@ impl BlindedSignature {
         private_attributes: &[Attribute],
         public_attributes: &[Attribute],
         commitment_hash: &G1Projective,
-        commitments_openings: &[Scalar],
+        pedersen_commitments_openings: &[Scalar],
     ) -> Result<Signature> {
         // parse the signature
         let h = &self.0;
@@ -169,14 +169,14 @@ impl BlindedSignature {
 
         let extra_openings = betas_g1
             .iter()
-            .zip(commitments_openings.iter())
+            .zip(pedersen_commitments_openings.iter())
             .map(|(beta_j, o_j)| beta_j * o_j)
             .sum::<G1Projective>();
         let c = c - extra_openings;
 
         let alpha = partial_verification_key.alpha;
 
-        let tmp = private_attributes
+        let signed_attributes = private_attributes
             .iter()
             .chain(public_attributes.iter())
             .zip(partial_verification_key.beta.iter())
@@ -186,7 +186,7 @@ impl BlindedSignature {
         // Verify the signature share
         if !check_bilinear_pairing(
             &h.to_affine(),
-            &G2Prepared::from((alpha + tmp).to_affine()),
+            &G2Prepared::from((alpha + signed_attributes).to_affine()),
             &c.to_affine(),
             params.prepared_miller_g2(),
         ) {

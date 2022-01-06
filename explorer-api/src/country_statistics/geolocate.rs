@@ -1,9 +1,11 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::mix_nodes::location::{GeoLocation, Location};
+use crate::state::ExplorerApiStateContext;
 use log::{info, warn};
 use reqwest::Error as ReqwestError;
 use thiserror::Error;
-
-use crate::mix_nodes::{GeoLocation, Location};
-use crate::state::ExplorerApiStateContext;
 
 pub(crate) struct GeoLocateTask {
     state: ExplorerApiStateContext,
@@ -34,7 +36,15 @@ impl GeoLocateTask {
     }
 
     async fn locate_mix_nodes(&mut self) {
-        let mixnode_bonds = self.state.inner.mix_nodes.get().await.value;
+        // I'm unwrapping to the default value to get rid of an extra indentation level from the `if let Some(...) = ...`
+        // If the value is None, we'll unwrap to an empty hashmap and the `values()` loop won't do any work anyway
+        let mixnode_bonds = self
+            .state
+            .inner
+            .mix_nodes
+            .get_mixnodes()
+            .await
+            .unwrap_or_default();
 
         for (i, cache_item) in mixnode_bonds.values().enumerate() {
             if self

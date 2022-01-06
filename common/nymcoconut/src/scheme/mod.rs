@@ -167,19 +167,19 @@ impl BlindedSignature {
             ));
         }
 
-        let extra_openings = betas_g1
-            .iter()
+        let blinding_removers = partial_verification_key.betaG1.iter()
             .zip(pedersen_commitments_openings.iter())
-            .map(|(beta_j, o_j)| beta_j * o_j)
+            .map(|(beta, opening)| beta * opening)
             .sum::<G1Projective>();
-        let c = c - extra_openings;
+
+        let unblinded_c = c - blinding_removers;
 
         let alpha = partial_verification_key.alpha;
 
         let signed_attributes = private_attributes
             .iter()
             .chain(public_attributes.iter())
-            .zip(partial_verification_key.beta.iter())
+            .zip(partial_verification_key.betaG2.iter())
             .map(|(attr, beta_i)| beta_i * attr)
             .sum::<G2Projective>();
 
@@ -187,7 +187,7 @@ impl BlindedSignature {
         if !check_bilinear_pairing(
             &h.to_affine(),
             &G2Prepared::from((alpha + signed_attributes).to_affine()),
-            &c.to_affine(),
+            &unblinded_c.to_affine(),
             params.prepared_miller_g2(),
         ) {
             return Err(CoconutError::Unblind(
@@ -195,7 +195,7 @@ impl BlindedSignature {
             ));
         }
 
-        Ok(Signature(*h, c))
+        Ok(Signature(*h, unblinded_c))
     }
 
     pub fn to_bytes(&self) -> [u8; 96] {

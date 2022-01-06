@@ -64,7 +64,7 @@ impl Aggregatable for PartialSignature {
 
 /// Ensures all provided verification keys were generated to verify the same number of attributes.
 fn check_same_key_size(keys: &[VerificationKey]) -> bool {
-    keys.iter().map(|vk| vk.beta.len()).all_equal()
+    keys.iter().map(|vk| vk.betaG1.len()).all_equal() && keys.iter().map(|vk| vk.betaG2.len()).all_equal()
 }
 
 pub fn aggregate_verification_keys(
@@ -98,7 +98,7 @@ pub fn aggregate_signatures(
 
     let tmp = attributes
         .iter()
-        .zip(verification_key.beta.iter())
+        .zip(verification_key.betaG2.iter())
         .map(|(attr, beta_i)| beta_i * attr)
         .sum::<G2Projective>();
 

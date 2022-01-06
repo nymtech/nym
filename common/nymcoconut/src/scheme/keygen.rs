@@ -16,9 +16,7 @@ use crate::scheme::aggregation::aggregate_verification_keys;
 use crate::scheme::setup::Parameters;
 use crate::scheme::SignerIndex;
 use crate::traits::Bytable;
-use crate::utils::{
-    try_deserialize_g2_projective, try_deserialize_scalar, try_deserialize_scalar_vec, Polynomial,
-};
+use crate::utils::{try_deserialize_g2_projective, try_deserialize_scalar, try_deserialize_scalar_vec, Polynomial, try_deserialize_g1_projective};
 use crate::Base58;
 
 #[derive(Debug, Clone)]
@@ -71,10 +69,12 @@ impl TryFrom<&[u8]> for SecretKey {
 impl SecretKey {
     /// Derive verification key using this secret key.
     pub fn verification_key(&self, params: &Parameters) -> VerificationKey {
+        let g1 = params.gen1();
         let g2 = params.gen2();
         VerificationKey {
             alpha: g2 * self.x,
-            beta: self.ys.iter().map(|y| g2 * y).collect(),
+            betaG1: self.ys.iter().map(|y| g1 * y).collect(),
+            betaG2: self.ys.iter().map(|y| g2 * y).collect(),
         }
     }
 
@@ -120,14 +120,16 @@ impl Base58 for SecretKey {}
 pub struct VerificationKey {
     // TODO add gen2 as per the paper or imply it from the fact library is using bls381?
     pub(crate) alpha: G2Projective,
-    pub(crate) beta: Vec<G2Projective>,
+    pub(crate) betaG1: Vec<G1Projective>,
+    pub(crate) betaG2: Vec<G2Projective>,
 }
 
 impl TryFrom<&[u8]> for VerificationKey {
     type Error = CoconutError;
 
     fn try_from(bytes: &[u8]) -> Result<VerificationKey> {
-        if bytes.len() < 96 * 2 + 8 || (bytes.len() - 8) % 96 != 0 {
+        // There should be at least alpha, one betaG1 and one betaG2
+        if bytes.len() < 96 * 3 + 8 || (bytes.len() - 8) % 96 != 0 {
             return Err(CoconutError::DeserializationInvalidLength {
                 actual: bytes.len(),
                 modulus_target: bytes.len() - 8,
@@ -140,13 +142,14 @@ impl TryFrom<&[u8]> for VerificationKey {
         // this conversion will not fail as we are taking the same length of data
         let alpha_bytes: [u8; 96] = bytes[..96].try_into().unwrap();
         let beta_len = u64::from_le_bytes(bytes[96..104].try_into().unwrap());
-        let actual_beta_len = (bytes.len() - 104) / 96;
 
-        if beta_len as usize != actual_beta_len {
+        let actual_betaG2_len = (bytes.len() - 104) / 96;
+
+        if beta_len as usize != actual_betaG2_len {
             return Err(
                 CoconutError::Deserialization(
                     format!("Tried to deserialize verification key with inconsistent beta len (expected {}, got {})",
-                            beta_len, actual_beta_len
+                            beta_len, actual_betaG2_len
                     )));
         }
 
@@ -157,10 +160,27 @@ impl TryFrom<&[u8]> for VerificationKey {
             ),
         )?;
 
-        let mut beta = Vec::with_capacity(actual_beta_len);
-        for i in 0..actual_beta_len {
-            let start = 104 + i * 96;
-            let end = start + 96;
+        let mut betaG1 = Vec::with_capacity(beta_len as usize);
+        let mut betaG1_end: u64 = 0;
+        for i in 0..beta_len {
+            let start = (104 + i * 96) as usize;
+            let end = (start + 96) as usize;
+            let beta_i_bytes = bytes[start..end].try_into().unwrap();
+            let beta_i = try_deserialize_g1_projective(
+                &beta_i_bytes,
+                CoconutError::Deserialization(
+                    "Failed to deserialize verification key G2 point (beta)".to_string(),
+                ),
+            )?;
+
+            betaG1_end = end.clone() as u64;
+            betaG1.push(beta_i)
+        }
+
+        let mut betaG2 = Vec::with_capacity(beta_len as usize);
+        for i in 0..beta_len {
+            let start = (betaG1_end + i * 96) as usize;
+            let end = start + 96 as usize;
             let beta_i_bytes = bytes[start..end].try_into().unwrap();
             let beta_i = try_deserialize_g2_projective(
                 &beta_i_bytes,
@@ -169,10 +189,10 @@ impl TryFrom<&[u8]> for VerificationKey {
                 ),
             )?;
 
-            beta.push(beta_i)
+            betaG2.push(beta_i)
         }
 
-        Ok(VerificationKey { alpha, beta })
+        Ok(VerificationKey { alpha, betaG1, betaG2 })
     }
 }
 
@@ -185,18 +205,30 @@ impl<'b> Add<&'b VerificationKey> for VerificationKey {
         // for different number of attributes, just panic as it's a
         // nonsense operation.
         assert_eq!(
-            self.beta.len(),
-            rhs.beta.len(),
-            "trying to add verification keys generated for different number of attributes"
+            self.betaG1.len(),
+            rhs.betaG1.len(),
+            "trying to add verification keys generated for different number of attributes [G1]"
+        );
+
+        assert_eq!(
+            self.betaG2.len(),
+            rhs.betaG2.len(),
+            "trying to add verification keys generated for different number of attributes [G2]"
         );
 
         VerificationKey {
             alpha: self.alpha + rhs.alpha,
-            beta: self
-                .beta
+            betaG1: self
+                .betaG1
                 .iter()
-                .zip(rhs.beta.iter())
-                .map(|(self_beta, rhs_beta)| self_beta + rhs_beta)
+                .zip(rhs.betaG1.iter())
+                .map(|(self_betaG1, rhs_betaG1)| self_betaG1 + rhs_betaG1)
+                .collect(),
+            betaG2: self
+                .betaG2
+                .iter()
+                .zip(rhs.betaG2.iter())
+                .map(|(self_betaG2, rhs_betaG2)| self_betaG2 + rhs_betaG2)
                 .collect(),
         }
     }
@@ -209,7 +241,8 @@ impl<'a> Mul<Scalar> for &'a VerificationKey {
     fn mul(self, rhs: Scalar) -> Self::Output {
         VerificationKey {
             alpha: self.alpha * rhs,
-            beta: self.beta.iter().map(|b_i| b_i * rhs).collect(),
+            betaG1: self.betaG1.iter().map(|b_i| b_i * rhs).collect(),
+            betaG2: self.betaG2.iter().map(|b_i| b_i * rhs).collect(),
         }
     }
 }
@@ -225,7 +258,7 @@ where
     {
         let mut peekable = iter.peekable();
         let head_attributes = match peekable.peek() {
-            Some(head) => head.borrow().beta.len(),
+            Some(head) => head.borrow().betaG2.len(),
             None => {
                 // TODO: this is a really weird edge case. You're trying to sum an EMPTY iterator
                 // of VerificationKey. So should it panic here or just return some nonsense value?
@@ -245,7 +278,8 @@ impl VerificationKey {
     pub(crate) fn identity(beta_size: usize) -> Self {
         VerificationKey {
             alpha: G2Projective::identity(),
-            beta: vec![G2Projective::identity(); beta_size],
+            betaG1: vec![G1Projective::identity(); beta_size],
+            betaG2: vec![G2Projective::identity(); beta_size],
         }
     }
 
@@ -257,17 +291,24 @@ impl VerificationKey {
         &self.alpha
     }
 
-    pub fn beta(&self) -> &Vec<G2Projective> {
-        &self.beta
+    pub fn betaG1(&self) -> &Vec<G1Projective> {
+        &self.betaG1
+    }
+
+    pub fn betaG2(&self) -> &Vec<G2Projective> {
+        &self.betaG2
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let beta_len = self.beta.len() as u64;
-        let mut bytes = Vec::with_capacity(8 + (beta_len + 1) as usize * 96);
+        let beta_len = self.betaG1.len() as u64;
+        let mut bytes = Vec::with_capacity(8 + (beta_len + 1) as usize * 96 * 2);
 
         bytes.extend_from_slice(&self.alpha.to_affine().to_compressed());
         bytes.extend_from_slice(&beta_len.to_le_bytes());
-        for beta in self.beta.iter() {
+        for beta in self.betaG1.iter() {
+            bytes.extend_from_slice(&beta.to_affine().to_compressed())
+        }
+        for beta in self.betaG2.iter() {
             bytes.extend_from_slice(&beta.to_affine().to_compressed())
         }
         bytes

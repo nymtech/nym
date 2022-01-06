@@ -347,7 +347,7 @@ impl ProofKappaZeta {
         let witness_attributes = vec![witness_serial_number, witness_binding_number];
 
         let beta_bytes = verification_key
-            .beta
+            .betaG2
             .iter()
             .map(|beta_i| beta_i.to_bytes())
             .collect::<Vec<_>>();
@@ -358,7 +358,7 @@ impl ProofKappaZeta {
             + verification_key.alpha
             + witness_attributes
                 .iter()
-                .zip(verification_key.beta.iter())
+                .zip(verification_key.betaG2.iter())
                 .map(|(wm_i, beta_i)| beta_i * wm_i)
                 .sum::<G2Projective>();
 
@@ -402,7 +402,7 @@ impl ProofKappaZeta {
         zeta: &G2Projective,
     ) -> bool {
         let beta_bytes = verification_key
-            .beta
+            .betaG2
             .iter()
             .map(|beta_i| beta_i.to_bytes())
             .collect::<Vec<_>>();
@@ -415,7 +415,7 @@ impl ProofKappaZeta {
             + verification_key.alpha * (Scalar::one() - self.challenge)
             + response_attributes
                 .iter()
-                .zip(verification_key.beta.iter())
+                .zip(verification_key.betaG2.iter())
                 .map(|(priv_attr, beta_i)| beta_i * priv_attr)
                 .sum::<G2Projective>();
 

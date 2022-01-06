@@ -149,7 +149,6 @@ impl BlindedSignature {
     pub fn unblind(
         &self,
         params: &Parameters,
-        betas_g1: &[G1Projective],
         partial_verification_key: &VerificationKey,
         private_attributes: &[Attribute],
         public_attributes: &[Attribute],
@@ -268,7 +267,6 @@ mod tests {
         assert!(sig1
             .unblind(
                 &params,
-                &keypair1.secret_key().betas_g1(&params),
                 &keypair1.verification_key(),
                 &private_attributes,
                 &[],
@@ -295,7 +293,6 @@ mod tests {
         assert!(sig1
             .unblind(
                 &params,
-                &keypair1.secret_key().betas_g1(&params),
                 &keypair1.verification_key(),
                 &private_attributes2,
                 &[],
@@ -324,7 +321,6 @@ mod tests {
             .unwrap()
             .unblind(
                 &params,
-                &keypair1.secret_key().betas_g1(&params),
                 &keypair1.verification_key(),
                 &private_attributes,
                 &[],
@@ -337,7 +333,6 @@ mod tests {
             .unwrap()
             .unblind(
                 &params,
-                &keypair2.secret_key().betas_g1(&params),
                 &keypair2.verification_key(),
                 &private_attributes,
                 &[],
@@ -445,7 +440,6 @@ mod tests {
         .unwrap()
         .unblind(
             &params,
-            &keypair1.secret_key().betas_g1(&params),
             &keypair1.verification_key(),
             &private_attributes,
             &public_attributes,
@@ -463,7 +457,6 @@ mod tests {
         .unwrap()
         .unblind(
             &params,
-            &keypair2.secret_key().betas_g1(&params),
             &keypair2.verification_key(),
             &private_attributes,
             &public_attributes,
@@ -541,7 +534,6 @@ mod tests {
                 .unwrap()
                 .unblind(
                     &params,
-                    &keypair.secret_key().betas_g1(&params),
                     &keypair.verification_key(),
                     &private_attributes,
                     &public_attributes,

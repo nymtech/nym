@@ -227,7 +227,7 @@ pub fn prepare_blind_sign(
     // Compute the challenge as the commitment hash
     let commitment_hash = compute_commitment_hash(commitment);
 
-    let (commitments_openings, pedersen_commitments) = compute_pedersen_commitments_for_private_attributes(
+    let (pedersen_commitments_openings, pedersen_commitments) = compute_pedersen_commitments_for_private_attributes(
         params,
         private_attributes,
         &commitment_hash,
@@ -238,11 +238,11 @@ pub fn prepare_blind_sign(
         &commitment,
         &commitment_opening,
         &pedersen_commitments,
-        &commitments_openings,
+        &pedersen_commitments_openings,
         private_attributes,
     );
 
-    Ok((commitments_openings, BlindSignRequest {
+    Ok((pedersen_commitments_openings, BlindSignRequest {
         commitment,
         commitment_hash,
         private_attributes_commitments : pedersen_commitments,

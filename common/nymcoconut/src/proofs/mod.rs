@@ -89,7 +89,7 @@ impl ProofCmCs {
         commitment: &G1Projective,
         commitment_opening: &Scalar,
         commitments: &[G1Projective],
-        commitments_openings: &[Scalar],
+        pedersen_commitments_openings: &[Scalar],
         private_attributes: &[Attribute],
     ) -> Self {
         // note: this is only called from `prepare_blind_sign` that already checks
@@ -99,7 +99,7 @@ impl ProofCmCs {
 
         // witness creation
         let witness_commitment_opening = params.random_scalar();
-        let witness_pedersen_commitments_openings = params.n_random_scalars(commitments_openings.len());
+        let witness_pedersen_commitments_openings = params.n_random_scalars(pedersen_commitments_openings.len());
         let witness_attributes = params.n_random_scalars(private_attributes.len());
 
         // recompute h
@@ -157,7 +157,7 @@ impl ProofCmCs {
         let response_openings = produce_responses(
             &witness_pedersen_commitments_openings,
             &challenge,
-            &commitments_openings.iter().collect::<Vec<_>>(),
+            &pedersen_commitments_openings.iter().collect::<Vec<_>>(),
         );
         let response_attributes = produce_responses(
             &witness_attributes,

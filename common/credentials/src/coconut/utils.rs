@@ -68,7 +68,7 @@ async fn obtain_partial_credential(
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
     let elgamal_keypair = coconut_interface::elgamal_keygen(params);
-    let (commitments_openings, blind_sign_request) = prepare_blind_sign(
+    let (pedersen_commitments_openings, blind_sign_request) = prepare_blind_sign(
         params,
         private_attributes,
         public_attributes,
@@ -88,11 +88,11 @@ async fn obtain_partial_credential(
 
     let unblinded_signature = blinded_signature.unblind(
         params,
-        elgamal_keypair.private_key(),
         validator_vk,
         private_attributes,
         public_attributes,
         &blind_sign_request.get_commitment_hash(),
+        &*pedersen_commitments_openings
     )?;
 
     Ok(unblinded_signature)

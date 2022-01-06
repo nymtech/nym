@@ -26,10 +26,6 @@ fn main() -> Result<(), CoconutError> {
     // generate_keys
     let coconut_keypairs = ttp_keygen(&params, 2, 3)?;
 
-    let betas_g1: Vec<Vec<G1Projective>> = coconut_keypairs
-        .iter()
-        .map(|keypair| keypair.secret_key().betas_g1(&params))
-        .collect();
     let verification_keys: Vec<VerificationKey> = coconut_keypairs
         .iter()
         .map(|keypair| keypair.verification_key())
@@ -54,13 +50,11 @@ fn main() -> Result<(), CoconutError> {
     // Unblind
     let unblinded_signatures: Vec<Signature> = izip!(
         blinded_signatures.iter(),
-        betas_g1.iter(),
         verification_keys.iter()
     )
-    .map(|(s, b, vk)| {
+    .map(|(s,  vk)| {
         s.unblind(
             &params,
-            &b,
             &vk,
             &private_attributes,
             &public_attributes,

@@ -11,6 +11,7 @@ use config::defaults::DENOM;
 use cosmwasm_std::{
     coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
 };
+use mixnet_contract::events::{new_mixnode_bonding_event, new_mixnode_unbonding_event};
 use mixnet_contract::MixNode;
 use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
 
@@ -109,13 +110,13 @@ fn _try_add_mixnode(
     let layer = layer_distribution.choose_with_fewest();
 
     let stored_bond = StoredMixnodeBond::new(
-        pledge_amount,
-        owner,
+        pledge_amount.clone(),
+        owner.clone(),
         layer,
         env.block.height,
         mix_node,
         None,
-        proxy,
+        proxy.clone(),
     );
 
     // technically we don't have to set the total_delegation bucket, but it makes things easier
@@ -133,7 +134,13 @@ fn _try_add_mixnode(
 
     mixnet_params_storage::increment_layer_count(deps.storage, stored_bond.layer)?;
 
-    Ok(Response::new())
+    Ok(Response::new().add_event(new_mixnode_bonding_event(
+        &owner,
+        &proxy,
+        &pledge_amount,
+        &identity,
+        stored_bond.layer,
+    )))
 }
 
 pub fn try_remove_mixnode_on_behalf(
@@ -186,22 +193,24 @@ pub(crate) fn _try_remove_mixnode(
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
 
-    let mut response = Response::new()
-        .add_message(return_tokens)
-        .add_attribute("action", "unbond")
-        .add_attribute("mixnode_bond", mixnode_bond.to_string());
+    let mut response = Response::new().add_message(return_tokens);
 
     if let Some(proxy) = &proxy {
         let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
             owner: owner.as_str().to_string(),
-            amount: mixnode_bond.pledge_amount,
+            amount: mixnode_bond.pledge_amount(),
         };
 
         let track_unbond_message = wasm_execute(proxy, &msg, coins(0, DENOM))?;
         response = response.add_message(track_unbond_message);
     }
 
-    Ok(response)
+    Ok(response.add_event(new_mixnode_unbonding_event(
+        &owner,
+        &proxy,
+        &mixnode_bond.pledge_amount,
+        mixnode_bond.identity(),
+    )))
 }
 
 fn validate_mixnode_pledge(

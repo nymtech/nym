@@ -53,6 +53,16 @@ pub enum Layer {
     Three = 3,
 }
 
+impl From<Layer> for String {
+    fn from(layer: Layer) -> Self {
+        if layer == Layer::Gateway {
+            "gateway".to_string()
+        } else {
+            (layer as u8).to_string()
+        }
+    }
+}
+
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct NodeRewardParams {
     period_reward_pool: Uint128,

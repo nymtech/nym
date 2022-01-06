@@ -32,7 +32,7 @@ pub(crate) struct MixnodeStatusResponse {
     status: MixnodeStatus,
 }
 
-#[get("/mixnodes/status?<identity>")]
+#[get("/mixnode/<identity>/status")]
 pub(crate) async fn get_mixnode_status(
     cache: &State<ValidatorCache>,
     identity: String,

@@ -5,7 +5,11 @@
         "esModuleInterop": true,
         "strict": true,
         "declaration": true,
-        "outDir": "./dist"
+        "outDir": "./dist",
+        "types": [
+            "jest",
+            "node",
+        ]
     },
     "typedocOptions": {
         "entryPoints": [
@@ -16,7 +20,11 @@
     "exclude": [
         "dist",
         "examples",
-        "tests",
         "node_modules"
+    ],
+    "include": [
+        "tests",
+        "./tests/*/*.tsx",
+        "./tests/*/*.ts" 
     ]
 }

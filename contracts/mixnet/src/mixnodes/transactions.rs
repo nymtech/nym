@@ -251,7 +251,6 @@ pub mod tests {
     use crate::support::tests;
     use crate::support::tests::test_helpers;
     use config::defaults::DENOM;
-    use cosmwasm_std::attr;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, BankMsg, Response};
     use cosmwasm_std::{from_binary, Addr, Uint128};
@@ -516,18 +515,6 @@ pub mod tests {
         let msg = ExecuteMsg::UnbondMixnode {};
         let remove_fred = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
-        // we should see log messages come back showing an unbond message
-        let expected_attributes = vec![
-            attr("action", "unbond"),
-            attr(
-                "mixnode_bond",
-                format!(
-                    "amount: {}{}, owner: fred, identity: {}",
-                    INITIAL_MIXNODE_PLEDGE, DENOM, fred_identity
-                ),
-            ),
-        ];
-
         // we should see a funds transfer from the contract back to fred
         let expected_message = BankMsg::Send {
             to_address: String::from(info.sender),
@@ -535,11 +522,17 @@ pub mod tests {
         };
 
         // run the executor and check that we got back the correct results
-        let expected = Response::new()
-            .add_attributes(expected_attributes)
-            .add_message(expected_message);
+        let expected_response =
+            Response::new()
+                .add_message(expected_message)
+                .add_event(new_mixnode_unbonding_event(
+                    &Addr::unchecked("fred"),
+                    &None,
+                    &tests::fixtures::good_gateway_pledge()[0],
+                    &fred_identity,
+                ));
 
-        assert_eq!(remove_fred, expected);
+        assert_eq!(expected_response, remove_fred);
 
         // only 1 node now exists, owned by bob:
         let mix_node_bonds = tests::queries::get_mix_nodes(&mut deps);

@@ -6,7 +6,6 @@ use crate::{ContractStateParams, Delegation, IdentityKeyRef, Layer};
 use cosmwasm_std::{Addr, Coin, Event, Uint128};
 
 // event types
-pub const REWARDING_EVENT_TYPE: &str = "rewarding";
 pub const DELEGATION_EVENT_TYPE: &str = "delegation";
 pub const UNDELEGATION_EVENT_TYPE: &str = "undelegation";
 pub const GATEWAY_BONDING_EVENT_TYPE: &str = "gateway_bonding";
@@ -349,4 +348,30 @@ pub fn new_mix_delegators_rewarding_event(
             FURTHER_DELEGATIONS_TO_REWARD_KEY,
             further_delegations.to_string(),
         )
+}
+
+/// Looks up value of particular attribute in the provided event. If it fails to find it,
+/// the function panics.
+///
+/// # Arguments
+///
+/// * `event`: event to search through.
+/// * `key`: key associated with the particular attribute
+pub fn must_find_attribute(event: &Event, key: &str) -> String {
+    may_find_attribute(event, key).unwrap()
+}
+
+/// Looks up value of particular attribute in the provided event. Returns None if it does not exist.
+///
+/// # Arguments
+///
+/// * `event`: event to search through.
+/// * `key`: key associated with the particular attribute
+pub fn may_find_attribute(event: &Event, key: &str) -> Option<String> {
+    for attr in &event.attributes {
+        if attr.key == key {
+            return Some(attr.value.clone());
+        }
+    }
+    None
 }

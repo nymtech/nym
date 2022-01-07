@@ -66,14 +66,13 @@ pub mod tests {
             active_set_work_factor: 10,
         };
 
+        let initial_params = storage::CONTRACT_STATE
+            .load(deps.as_ref().storage)
+            .unwrap()
+            .params;
+
         // sanity check to ensure new_params are different than the default ones
-        assert_ne!(
-            new_params,
-            storage::CONTRACT_STATE
-                .load(deps.as_ref().storage)
-                .unwrap()
-                .params
-        );
+        assert_ne!(new_params, initial_params);
 
         // cannot be updated from non-owner account
         let info = mock_info("not-the-creator", &[]);
@@ -83,7 +82,10 @@ pub mod tests {
         // but works fine from the creator account
         let info = mock_info("creator", &[]);
         let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
-        assert_eq!(res, Ok(Response::default()));
+        assert_eq!(
+            res,
+            Ok(Response::new().add_event(new_settings_update_event(&initial_params, &new_params)))
+        );
 
         // and the state is actually updated
         let current_state = storage::CONTRACT_STATE.load(deps.as_ref().storage).unwrap();

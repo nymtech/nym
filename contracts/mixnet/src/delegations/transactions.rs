@@ -733,6 +733,7 @@ mod tests {
 
     #[cfg(test)]
     mod removing_mix_stake_delegation {
+        use crate::delegations::queries::query_mixnode_delegation;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::mock_env;
         use cosmwasm_std::testing::mock_info;
@@ -785,11 +786,27 @@ mod tests {
                 identity.clone(),
             )
             .unwrap();
-            assert_eq!(
-                Ok(Response::new().add_message(BankMsg::Send {
+            let delegation = query_mixnode_delegation(
+                deps.as_ref(),
+                identity.clone(),
+                delegation_owner.clone().into_string(),
+            )
+            .unwrap();
+
+            let expected_response = Response::new()
+                .add_message(BankMsg::Send {
                     to_address: delegation_owner.clone().into(),
                     amount: coins(100, DENOM),
-                })),
+                })
+                .add_event(new_undelegation_event(
+                    &delegation_owner,
+                    &None,
+                    &delegation,
+                    &identity,
+                ));
+
+            assert_eq!(
+                Ok(expected_response),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
                     mock_info(delegation_owner.as_str(), &[]),
@@ -830,12 +847,27 @@ mod tests {
                 identity.clone(),
             )
             .unwrap();
-            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
-            assert_eq!(
-                Ok(Response::new().add_message(BankMsg::Send {
+            let delegation = query_mixnode_delegation(
+                deps.as_ref(),
+                identity.clone(),
+                delegation_owner.clone().into_string(),
+            )
+            .unwrap();
+            let expected_response = Response::new()
+                .add_message(BankMsg::Send {
                     to_address: delegation_owner.clone().into(),
                     amount: coins(100, DENOM),
-                })),
+                })
+                .add_event(new_undelegation_event(
+                    &delegation_owner,
+                    &None,
+                    &delegation,
+                    &identity,
+                ));
+
+            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
+            assert_eq!(
+                Ok(expected_response),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
                     mock_info(delegation_owner.as_str(), &[]),

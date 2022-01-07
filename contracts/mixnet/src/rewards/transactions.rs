@@ -424,8 +424,13 @@ pub mod tests {
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Coin;
-    use cosmwasm_std::{attr, Order};
+    use cosmwasm_std::Order;
     use cosmwasm_std::{coin, coins, Addr, Uint128};
+    use mixnet_contract::events::{
+        must_find_attribute, BOND_TOO_FRESH_VALUE, DISTRIBUTED_DELEGATION_REWARDS_KEY,
+        FURTHER_DELEGATIONS_TO_REWARD_KEY, NO_REWARD_REASON_KEY, OPERATOR_REWARDING_EVENT_TYPE,
+        OPERATOR_REWARD_KEY, TOTAL_MIXNODE_REWARD_KEY,
+    };
     use mixnet_contract::mixnode::NodeRewardParams;
     use mixnet_contract::{Delegation, MixNode};
     use mixnet_contract::{IdentityKey, Layer};
@@ -1018,13 +1023,11 @@ pub mod tests {
                 .unwrap()
                 .u128()
         );
-
-        assert_eq!(res.attributes[0], attr("node reward", "0"));
-        assert_eq!(res.attributes[1], attr("operator reward", "0"));
-        assert_eq!(res.attributes[2], attr("total delegation increase", "0"));
+        assert_eq!(1, res.events.len());
+        assert_eq!(OPERATOR_REWARDING_EVENT_TYPE, res.events[0].ty);
         assert_eq!(
-            res.attributes[3],
-            attr("more delegators to reward", false.to_string())
+            BOND_TOO_FRESH_VALUE,
+            must_find_attribute(&res.events[0], NO_REWARD_REASON_KEY)
         );
 
         // reward can happen now, but only for bonded node
@@ -1057,12 +1060,18 @@ pub mod tests {
                 .u128()
         );
 
-        assert_ne!(res.attributes[0], attr("node reward", "0"));
-        assert_ne!(res.attributes[1], attr("operator reward", "0"));
-        assert_eq!(res.attributes[2], attr("total delegation increase", "0"));
+        assert_eq!(1, res.events.len());
+        let event = &res.events[0];
+        assert_eq!(OPERATOR_REWARDING_EVENT_TYPE, event.ty);
+        assert_ne!("0", must_find_attribute(event, TOTAL_MIXNODE_REWARD_KEY));
+        assert_ne!("0", must_find_attribute(event, OPERATOR_REWARD_KEY));
         assert_eq!(
-            res.attributes[3],
-            attr("more delegators to reward", false.to_string())
+            "0",
+            must_find_attribute(event, DISTRIBUTED_DELEGATION_REWARDS_KEY)
+        );
+        assert_eq!(
+            false.to_string(),
+            must_find_attribute(event, FURTHER_DELEGATIONS_TO_REWARD_KEY)
         );
 
         // reward happens now, both for node owner and delegators
@@ -1100,12 +1109,18 @@ pub mod tests {
                 > initial_delegation
         );
 
-        assert_ne!(res.attributes[0], attr("node reward", "0"));
-        assert_ne!(res.attributes[1], attr("operator reward", "0"));
-        assert_ne!(res.attributes[2], attr("total delegation increase", "0"));
+        assert_eq!(1, res.events.len());
+        let event = &res.events[0];
+        assert_eq!(OPERATOR_REWARDING_EVENT_TYPE, event.ty);
+        assert_ne!("0", must_find_attribute(event, TOTAL_MIXNODE_REWARD_KEY));
+        assert_ne!("0", must_find_attribute(event, OPERATOR_REWARD_KEY));
+        assert_ne!(
+            "0",
+            must_find_attribute(event, DISTRIBUTED_DELEGATION_REWARDS_KEY)
+        );
         assert_eq!(
-            res.attributes[3],
-            attr("more delegators to reward", false.to_string())
+            false.to_string(),
+            must_find_attribute(event, FURTHER_DELEGATIONS_TO_REWARD_KEY)
         );
     }
 
@@ -1321,8 +1336,8 @@ pub mod tests {
             )
             .unwrap();
             assert_eq!(
-                res.attributes[3],
-                attr("more delegators to reward", false.to_string())
+                false.to_string(),
+                must_find_attribute(&res.events[0], FURTHER_DELEGATIONS_TO_REWARD_KEY)
             );
 
             try_finish_mixnode_rewarding(
@@ -1402,8 +1417,8 @@ pub mod tests {
             )
             .unwrap();
             assert_eq!(
-                res.attributes[3],
-                attr("more delegators to reward", false.to_string())
+                false.to_string(),
+                must_find_attribute(&res.events[0], FURTHER_DELEGATIONS_TO_REWARD_KEY)
             );
 
             try_finish_mixnode_rewarding(
@@ -1483,8 +1498,8 @@ pub mod tests {
             )
             .unwrap();
             assert_eq!(
-                res.attributes[3],
-                attr("more delegators to reward", true.to_string())
+                true.to_string(),
+                must_find_attribute(&res.events[0], FURTHER_DELEGATIONS_TO_REWARD_KEY)
             );
 
             try_finish_mixnode_rewarding(

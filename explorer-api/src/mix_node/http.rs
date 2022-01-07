@@ -1,24 +1,44 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mix_node::models::{NodeDescription, NodeStats};
-use crate::mix_nodes::delegations::{get_mixnode_delegations, get_single_mixnode_delegations};
-use crate::state::ExplorerApiStateContext;
-use mixnet_contract_common::Delegation;
 use reqwest::Error as ReqwestError;
+use rocket::response::status::NotFound;
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 use rocket_okapi::okapi::openapi3::OpenApi;
 use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
 
+use mixnet_contract_common::Delegation;
+
+use crate::mix_node::models::{NodeDescription, NodeStats, PrettyDetailedMixNodeBond};
+use crate::mix_nodes::delegations::{get_mixnode_delegations, get_single_mixnode_delegations};
+use crate::state::ExplorerApiStateContext;
+
 pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
     openapi_get_routes_spec![
         settings: get_delegations,
+        get_by_id,
         get_all_delegations,
         get_description,
         get_stats,
     ]
+}
+
+#[openapi(tag = "mix_nodes")]
+#[get("/<pubkey>")]
+pub(crate) async fn get_by_id(
+    pubkey: &str,
+    state: &State<ExplorerApiStateContext>,
+) -> Result<Json<PrettyDetailedMixNodeBond>, NotFound<String>> {
+    let mixnodes = state.inner.mix_nodes.get_detailed_mixnodes().await;
+    let result = mixnodes
+        .into_iter()
+        .find(|mixnode| mixnode.mix_node.identity_key == pubkey);
+    if result.is_none() {
+        return Err(NotFound("Mixnode not found".to_string()));
+    }
+    Ok(Json(result.unwrap()))
 }
 
 #[openapi(tag = "mix_node")]

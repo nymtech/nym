@@ -1,24 +1,25 @@
 import {
-  GATEWAYS_API,
-  MIXNODES_API,
-  VALIDATORS_API,
   BLOCK_API,
   COUNTRY_DATA_API,
-  MIXNODE_PING,
-  UPTIME_STORY_API,
+  GATEWAYS_API,
   MIXNODE_API,
+  MIXNODE_PING,
+  MIXNODES_API,
+  UPTIME_STORY_API,
+  VALIDATORS_API,
 } from './constants';
 
 import {
-  MixNodeResponse,
-  GatewayResponse,
-  ValidatorsResponse,
   CountryDataResponse,
-  MixNodeResponseItem,
   DelegationsResponse,
+  GatewayResponse,
+  MixNodeDescriptionResponse,
+  MixNodeResponse,
+  MixNodeResponseItem,
   StatsResponse,
   StatusResponse,
   UptimeStoryResponse,
+  ValidatorsResponse,
 } from '../typeDefs/explorer-api';
 
 function getFromCache(key: string) {
@@ -92,6 +93,11 @@ export class Api {
 
   static fetchStatsById = async (id: string): Promise<StatsResponse> =>
     (await fetch(`${MIXNODE_API}/${id}/stats`)).json();
+
+  static fetchMixnodeDescriptionById = async (
+    id: string,
+  ): Promise<MixNodeDescriptionResponse> =>
+    (await fetch(`${MIXNODE_API}/${id}/description`)).json();
 
   static fetchStatusById = async (id: string): Promise<StatusResponse> =>
     (await fetch(`${MIXNODE_PING}/${id}`)).json();

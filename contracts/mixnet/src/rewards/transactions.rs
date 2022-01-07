@@ -26,11 +26,12 @@ pub fn try_write_rewarded_set(
     storage: &mut dyn Storage,
     env: Env,
 ) -> Result<Response, ContractError> {
+    let current_epoch = storage::CURRENT_EPOCH.load(storage)?;
     let block_height = env.block.height;
     for (key, value) in rewarded_set {
         storage::REWARDED_SET.save(storage, (block_height, key), &value)?;
     }
-    storage::REWARDED_SET_HEIGHTS.save(storage, block_height, &())?;
+    storage::REWARDED_SET_HEIGHTS_FOR_EPOCH.save(storage, (current_epoch, block_height), &())?;
     Ok(Response::default())
 }
 

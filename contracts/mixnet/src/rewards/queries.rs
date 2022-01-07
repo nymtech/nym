@@ -6,14 +6,46 @@ use crate::error::ContractError;
 use cosmwasm_std::Uint128;
 use cosmwasm_std::{Deps, Order, StdResult, Storage};
 use mixnet_contract::{IdentityKey, MixnodeRewardingStatusResponse, NodeStatus};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+
+pub fn query_current_epoch(storage: &dyn Storage) -> Result<u32, ContractError> {
+    Ok(storage::CURRENT_EPOCH.may_load(storage)?.unwrap_or(0))
+}
+
+pub fn query_rewarded_set_for_epoch(
+    epoch: Option<u32>,
+    filter: Option<NodeStatus>,
+    storage: &dyn Storage,
+) -> Result<HashSet<IdentityKey>, ContractError> {
+    let epoch = epoch.unwrap_or(storage::CURRENT_EPOCH.load(storage)?);
+    let heights: Vec<u64> = storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
+        .prefix_de(epoch)
+        .range_de(storage, None, None, Order::Descending)
+        .scan((), |_, x| x.ok())
+        .map(|(height, _)| height)
+        .collect();
+    let mut rewarded_set = HashSet::new();
+    for height in heights {
+        let nodes: HashSet<IdentityKey> = storage::REWARDED_SET
+            .prefix_de(height)
+            .range_de(storage, None, None, Order::Ascending)
+            .scan((), |_, x| x.ok())
+            .filter(|(_identity_key, node_status)| {
+                filter.is_none() || Some(node_status) == filter.as_ref()
+            })
+            .map(|(identity_key, _node_status)| identity_key)
+            .collect();
+        rewarded_set = rewarded_set.union(&nodes).map(|x| x.to_owned()).collect();
+    }
+    Ok(rewarded_set)
+}
 
 pub fn query_current_rewarded_set_height(storage: &dyn Storage) -> Result<u64, ContractError> {
-    if let Some(Ok(height)) = storage::REWARDED_SET_HEIGHTS
+    if let Some(Ok(height)) = storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
         .keys_de(storage, None, None, Order::Descending)
         .next()
     {
-        Ok(height)
+        Ok(height.1)
     } else {
         Err(ContractError::RewardSetHeightMapEmpty)
     }

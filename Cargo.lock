@@ -3321,6 +3321,7 @@ dependencies = [
  "serde",
  "serde_repr",
  "thiserror",
+ "time 0.3.5",
  "ts-rs",
 ]
 
@@ -3440,7 +3441,7 @@ version = "0.1.0"
 dependencies = [
  "hex-literal",
  "serde",
- "time 0.3.3",
+ "time 0.3.5",
  "url",
 ]
 
@@ -3794,7 +3795,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "thiserror",
- "time 0.3.3",
+ "time 0.3.5",
  "tokio",
  "topology",
  "url",
@@ -6776,9 +6777,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.3"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cde1cf55178e0293453ba2cca0d5f8392a922e52aa958aee9c28ed02becc6d03"
+checksum = "41effe7cfa8af36f439fac33861b66b049edc6f9a32331e2312660529c1c24ad"
 dependencies = [
  "itoa",
  "libc",

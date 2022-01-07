@@ -4,7 +4,6 @@
 use crate::cache::ValidatorCache;
 use crate::node_status_api::ONE_DAY;
 use crate::nymd_client::Client;
-use crate::rewarding::epoch::Epoch;
 use crate::rewarding::error::RewardingError;
 use crate::storage::models::{
     FailedMixnodeRewardChunk, PossiblyUnrewardedMixnode, RewardingReport,
@@ -13,14 +12,15 @@ use crate::storage::ValidatorApiStorage;
 use config::defaults::DENOM;
 use log::{error, info};
 use mixnet_contract::mixnode::NodeRewardParams;
-use mixnet_contract::{ExecuteMsg, IdentityKey, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT};
+use mixnet_contract::{
+    Epoch, ExecuteMsg, IdentityKey, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
+};
 use std::convert::TryInto;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::sleep;
 use validator_client::nymd::SigningNymdClient;
 
-pub(crate) mod epoch;
 pub(crate) mod error;
 
 struct EpochRewardParams {

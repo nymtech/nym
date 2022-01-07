@@ -9,7 +9,6 @@ use crate::config::Config;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
-use crate::rewarding::epoch::Epoch;
 use crate::rewarding::Rewarder;
 use crate::storage::ValidatorApiStorage;
 use ::config::NymConfig;
@@ -17,6 +16,7 @@ use anyhow::Result;
 use cache::ValidatorCache;
 use clap::{crate_version, App, Arg, ArgMatches};
 use log::{info, warn};
+use mixnet_contract::Epoch;
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
@@ -408,6 +408,8 @@ fn setup_rewarder(
         let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
         let first_epoch = Epoch::new(
+            // TODO: pull this from blockchain
+            0,
             config.get_first_rewarding_epoch(),
             config.get_epoch_length(),
         );

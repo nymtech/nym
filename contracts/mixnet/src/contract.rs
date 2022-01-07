@@ -17,9 +17,11 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnodes_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
+use crate::rewards::queries::query_current_epoch;
 use crate::rewards::queries::{
     query_circulating_supply, query_current_rewarded_set, query_current_rewarded_set_height,
-    query_reward_pool, query_rewarded_set_at_height, query_rewarding_status,
+    query_reward_pool, query_rewarded_set_at_height, query_rewarded_set_for_epoch,
+    query_rewarding_status,
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
@@ -291,6 +293,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         QueryMsg::GetRewardedSetAtHeight { height } => {
             to_binary(&query_rewarded_set_at_height(height, deps.storage)?)
         }
+        QueryMsg::GetAllRewardedSetsForEpoch { epoch, filter } => {
+            to_binary(&query_rewarded_set_for_epoch(epoch, filter, deps.storage)?)
+        }
+        QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
     };
 
     Ok(query_res?)

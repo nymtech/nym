@@ -843,6 +843,7 @@ dependencies = [
  "serde",
  "serde_repr",
  "thiserror",
+ "time 0.3.5",
 ]
 
 [[package]]

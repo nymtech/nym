@@ -150,6 +150,11 @@ pub enum QueryMsg {
     GetRewardedSetAtHeight {
         height: u64,
     },
+    GetAllRewardedSetsForEpoch {
+        epoch: Option<u32>,
+        filter: Option<NodeStatus>,
+    },
+    GetCurrentEpoch {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

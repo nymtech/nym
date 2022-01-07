@@ -22,9 +22,6 @@ use time::OffsetDateTime;
 pub(crate) mod manager;
 pub(crate) mod models;
 
-// A type alias to be more explicit about type of timestamp used.
-pub(crate) type UnixTimestamp = i64;
-
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
 pub(crate) struct ValidatorApiStorage {
@@ -81,7 +78,7 @@ impl ValidatorApiStorage {
     async fn get_mixnode_statuses(
         &self,
         identity: &str,
-        since: UnixTimestamp,
+        since: i64,
     ) -> Result<Vec<NodeStatus>, ValidatorApiStorageError> {
         let statuses = self
             .manager
@@ -102,7 +99,7 @@ impl ValidatorApiStorage {
     async fn get_gateway_statuses(
         &self,
         identity: &str,
-        since: UnixTimestamp,
+        since: i64,
     ) -> Result<Vec<NodeStatus>, ValidatorApiStorageError> {
         let statuses = self
             .manager
@@ -275,8 +272,8 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_average_mixnode_uptime_in_interval(
         &self,
         identity: &str,
-        start: UnixTimestamp,
-        end: UnixTimestamp,
+        start: i64,
+        end: i64,
     ) -> Result<Uptime, ValidatorApiStorageError> {
         let mixnode_database_id = match self
             .manager
@@ -322,8 +319,8 @@ impl ValidatorApiStorage {
     // epoch length, the constructed reports still assume the epochs are 24h in length.
     pub(crate) async fn get_all_active_mixnode_reports_in_interval(
         &self,
-        start: UnixTimestamp,
-        end: UnixTimestamp,
+        start: i64,
+        end: i64,
     ) -> Result<Vec<MixnodeStatusReport>, ValidatorApiStorageError> {
         if (end - start) as u64 != ONE_DAY.as_secs() {
             warn!("Our current epoch length breaks the 24h length assumption")
@@ -366,8 +363,8 @@ impl ValidatorApiStorage {
     // epoch length, the constructed reports still assume the epochs are 24h in length.
     pub(crate) async fn get_all_active_gateway_reports_in_interval(
         &self,
-        start: UnixTimestamp,
-        end: UnixTimestamp,
+        start: i64,
+        end: i64,
     ) -> Result<Vec<GatewayStatusReport>, ValidatorApiStorageError> {
         if (end - start) as u64 != ONE_DAY.as_secs() {
             warn!("Our current epoch length breaks the 24h length assumption")
@@ -465,7 +462,7 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_core_mixnode_status_count(
         &self,
         identity: &str,
-        since: Option<UnixTimestamp>,
+        since: Option<i64>,
     ) -> Result<i32, ValidatorApiStorageError> {
         let node_id = self
             .manager
@@ -497,7 +494,7 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_core_gateway_status_count(
         &self,
         identity: &str,
-        since: Option<UnixTimestamp>,
+        since: Option<i64>,
     ) -> Result<i32, ValidatorApiStorageError> {
         let node_id = self
             .manager
@@ -567,8 +564,8 @@ impl ValidatorApiStorage {
     /// * `until`: unix timestamp indicating the upper bound interval of the selection.
     pub(crate) async fn get_monitor_runs_count(
         &self,
-        since: UnixTimestamp,
-        until: UnixTimestamp,
+        since: i64,
+        until: i64,
     ) -> Result<usize, ValidatorApiStorageError> {
         let run_count = self
             .manager
@@ -668,7 +665,7 @@ impl ValidatorApiStorage {
     /// * `until`: timestamp specifying the purge cutoff.
     pub(crate) async fn purge_old_statuses(
         &self,
-        until: UnixTimestamp,
+        until: i64,
     ) -> Result<(), ValidatorApiStorageError> {
         self.manager
             .purge_old_mixnode_statuses(until)
@@ -692,7 +689,7 @@ impl ValidatorApiStorage {
     /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
     pub(crate) async fn insert_started_epoch_rewarding(
         &self,
-        epoch_timestamp: UnixTimestamp,
+        epoch_timestamp: i64,
     ) -> Result<i64, ValidatorApiStorageError> {
         self.manager
             .insert_new_epoch_rewarding(epoch_timestamp)
@@ -721,7 +718,7 @@ impl ValidatorApiStorage {
     /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
     pub(super) async fn get_epoch_rewarding_entry(
         &self,
-        epoch_timestamp: UnixTimestamp,
+        epoch_timestamp: i64,
     ) -> Result<Option<EpochRewarding>, ValidatorApiStorageError> {
         self.manager
             .get_epoch_rewarding_entry(epoch_timestamp)

@@ -1,30 +1,30 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::storage::UnixTimestamp;
-use config::defaults::{DEFAULT_EPOCH_LENGTH, DEFAULT_FIRST_EPOCH_START};
+use network_defaults::{DEFAULT_EPOCH_LENGTH, DEFAULT_FIRST_EPOCH_START};
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use time::OffsetDateTime;
 
-// TODO: perhaps this should be moved to a commons crate?
 // And become representation of system epoch?
 /// Representation of rewarding epoch.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Epoch {
+    id: u32,
     start: OffsetDateTime,
     length: Duration,
 }
 
 impl Epoch {
     /// Creates new epoch instance.
-    pub const fn new(start: OffsetDateTime, length: Duration) -> Self {
-        Epoch { start, length }
+    pub const fn new(id: u32, start: OffsetDateTime, length: Duration) -> Self {
+        Epoch { id, start, length }
     }
 
     /// Returns the next epoch.
     pub fn next_epoch(&self) -> Self {
         Epoch {
+            id: self.id + 1,
             start: self.end(),
             length: self.length,
         }
@@ -33,6 +33,7 @@ impl Epoch {
     /// Returns the last epoch.
     pub fn previous_epoch(&self) -> Self {
         Epoch {
+            id: self.id.saturating_sub(1),
             start: self.start - self.length,
             length: self.length,
         }
@@ -89,12 +90,12 @@ impl Epoch {
     }
 
     /// Returns the unix timestamp of the start of this epoch.
-    pub const fn start_unix_timestamp(&self) -> UnixTimestamp {
+    pub const fn start_unix_timestamp(&self) -> i64 {
         self.start().unix_timestamp()
     }
 
     /// Returns the unix timestamp of the end of this epoch.
-    pub fn end_unix_timestamp(&self) -> UnixTimestamp {
+    pub fn end_unix_timestamp(&self) -> i64 {
         self.end().unix_timestamp()
     }
 }
@@ -116,6 +117,7 @@ impl Display for Epoch {
 impl Default for Epoch {
     fn default() -> Self {
         Epoch {
+            id: 0,
             start: DEFAULT_FIRST_EPOCH_START,
             length: DEFAULT_EPOCH_LENGTH,
         }
@@ -129,10 +131,12 @@ mod tests {
     #[test]
     fn previous_epoch() {
         let epoch = Epoch {
+            id: 1,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
         let expected = Epoch {
+            id: 0,
             start: time::macros::datetime!(2021-08-22 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
@@ -143,10 +147,12 @@ mod tests {
     #[test]
     fn next_epoch() {
         let epoch = Epoch {
+            id: 0,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
         let expected = Epoch {
+            id: 1,
             start: time::macros::datetime!(2021-08-24 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
@@ -157,6 +163,7 @@ mod tests {
     #[test]
     fn checking_for_datetime_inclusion() {
         let epoch = Epoch {
+            id: 0,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
@@ -175,6 +182,7 @@ mod tests {
     #[test]
     fn determining_current_epoch() {
         let first_epoch = Epoch {
+            id: 0,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };

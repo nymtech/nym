@@ -24,11 +24,11 @@ pub enum ContractError {
     ImprobableVestingAmount(u128),
     #[error("Address {0} has already bonded a node")]
     AlreadyBonded(String),
-    #[error("Recieved empty funds vector")]
+    #[error("Received empty funds vector")]
     EmptyFunds,
-    #[error("Recieved wrong denom: {0}, expected {1}")]
+    #[error("Received wrong denom: {0}, expected {1}")]
     WrongDenom(String, String),
-    #[error("Recieved multiple denoms, expected 1")]
+    #[error("Received multiple denoms, expected 1")]
     MultipleDenoms,
     #[error("No delegations found for account {0}, mix_identity {1}")]
     NoSuchDelegation(Addr, IdentityKey),

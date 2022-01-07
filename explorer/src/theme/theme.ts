@@ -26,6 +26,12 @@ const nymPalette: NymPalette = {
     /** footer text colour */
     footer: '#666B77',
   },
+  mixnodes: {
+    status: {
+      active: '#20D073',
+      standby: '#5FD7EF',
+    },
+  },
 };
 
 const darkMode: NymPaletteVariant = {
@@ -101,6 +107,13 @@ const networkExplorerPalette = (
       socialIcons:
         variant.mode === 'light' ? nymPalette.text.footer : darkMode.text.main,
     },
+    mixnodes: {
+      status: {
+        active: nymPalette.mixnodes.status.active,
+        standby: nymPalette.mixnodes.status.standby,
+        inactive: variant.text.main,
+      },
+    },
   },
 });
 
@@ -148,7 +161,7 @@ const createDarkModePalette = (): PaletteOptions => ({
 });
 
 /**
- * IMPORANT: if you need to get the default MUI theme, use the following
+ * IMPORTANT: if you need to get the default MUI theme, use the following
  *
  *   import { createTheme as systemCreateTheme } from '@mui/system';
  *

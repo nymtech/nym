@@ -4,7 +4,9 @@
 use crate::nymd_client::Client;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;
-use mixnet_contract::{ContractStateParams, GatewayBond, MixNodeBond, RewardingIntervalResponse};
+use mixnet_contract::{
+    ContractStateParams, GatewayBond, IdentityKey, MixNodeBond, RewardingIntervalResponse,
+};
 use rand::prelude::SliceRandom;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha20Rng;
@@ -19,6 +21,15 @@ use validator_client::nymd::hash::SHA256_HASH_SIZE;
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MixnodeStatus {
+    Active,   // in both the active set and the rewarded set
+    Standby,  // only in the rewarded set
+    Inactive, // in neither the rewarded set nor the active set, but is bonded
+    NotFound, // doesn't even exist in the bonded set
+}
 
 pub struct ValidatorCacheRefresher<C> {
     nymd_client: Client<C>,
@@ -157,6 +168,7 @@ impl ValidatorCache {
                     routes::get_gateways,
                     routes::get_active_mixnodes,
                     routes::get_rewarded_mixnodes,
+                    routes::get_mixnode_status,
                 ],
             )
         })
@@ -302,6 +314,47 @@ impl ValidatorCache {
         Cache {
             value: nodes,
             as_at: timestamp,
+        }
+    }
+
+    pub async fn mixnode_status(&self, identity: IdentityKey) -> MixnodeStatus {
+        // it might not be the most optimal to possibly iterate the entire vector to find (or not)
+        // the relevant value. However, the vectors are relatively small (< 10_000 elements) and
+        // the implementation for active/rewarded sets might change soon so there's no point in premature optimisation
+        // with HashSets
+        let rewarded_mixnodes = &self.inner.rewarded_mixnodes.read().await.value;
+        let active_set_size = self
+            .inner
+            .current_mixnode_active_set_size
+            .load(Ordering::SeqCst) as usize;
+
+        // see if node is in the top active_set_size of rewarded nodes, i.e. it's active
+        if rewarded_mixnodes
+            .iter()
+            .take(active_set_size)
+            .any(|mix| mix.mix_node.identity_key == identity)
+        {
+            MixnodeStatus::Active
+            // see if it's in the bottom part of the rewarded set, i.e. it's in standby
+        } else if rewarded_mixnodes
+            .iter()
+            .skip(active_set_size)
+            .any(|mix| mix.mix_node.identity_key == identity)
+        {
+            MixnodeStatus::Standby
+            // if it's not in the rewarded set see if its bonded at all
+        } else if self
+            .inner
+            .mixnodes
+            .read()
+            .await
+            .value
+            .iter()
+            .any(|mix| mix.mix_node.identity_key == identity)
+        {
+            MixnodeStatus::Inactive
+        } else {
+            MixnodeStatus::NotFound
         }
     }
 

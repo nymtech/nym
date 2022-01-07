@@ -1,10 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cache::ValidatorCache;
+use crate::cache::{MixnodeStatus, ValidatorCache};
 use mixnet_contract::{GatewayBond, MixNodeBond};
 use rocket::serde::json::Json;
 use rocket::State;
+use serde::Serialize;
 
 #[get("/mixnodes")]
 pub(crate) async fn get_mixnodes(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBond>> {
@@ -24,4 +25,19 @@ pub(crate) async fn get_rewarded_mixnodes(cache: &State<ValidatorCache>) -> Json
 #[get("/mixnodes/active")]
 pub(crate) async fn get_active_mixnodes(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBond>> {
     Json(cache.active_mixnodes().await.value)
+}
+
+#[derive(Serialize)]
+pub(crate) struct MixnodeStatusResponse {
+    status: MixnodeStatus,
+}
+
+#[get("/mixnode/<identity>/status")]
+pub(crate) async fn get_mixnode_status(
+    cache: &State<ValidatorCache>,
+    identity: String,
+) -> Json<MixnodeStatusResponse> {
+    Json(MixnodeStatusResponse {
+        status: cache.mixnode_status(identity).await,
+    })
 }

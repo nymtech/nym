@@ -27,6 +27,7 @@ pub(crate) fn stage_full() -> AdHoc {
                 routes::gateway_core_status_count,
                 routes::get_mixnode_status,
                 routes::get_mixnode_reward_estimation,
+                routes::get_mixnode_stake_saturation,
             ],
         )
     })
@@ -36,6 +37,12 @@ pub(crate) fn stage_full() -> AdHoc {
 // of the network monitor and the associated storage
 pub(crate) fn stage_minimal() -> AdHoc {
     AdHoc::on_ignite("Node Status API Stage", |rocket| async {
-        rocket.mount("/v1/status", routes![routes::get_mixnode_status,])
+        rocket.mount(
+            "/v1/status",
+            routes![
+                routes::get_mixnode_status,
+                routes::get_mixnode_stake_saturation,
+            ],
+        )
     })
 }

@@ -168,7 +168,6 @@ impl ValidatorCache {
                     routes::get_gateways,
                     routes::get_active_mixnodes,
                     routes::get_rewarded_mixnodes,
-                    routes::get_mixnode_status,
                 ],
             )
         })

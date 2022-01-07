@@ -1,14 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node_status_api::models::{
-    CoreNodeStatus, ErrorResponse, GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport,
-    MixnodeUptimeHistory,
-};
+use crate::node_status_api::models::{CoreNodeStatus, ErrorResponse, GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeStatusResponse, MixnodeUptimeHistory};
 use crate::storage::ValidatorApiStorage;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
+use crate::ValidatorCache;
 
 #[get("/mixnode/<pubkey>/report")]
 pub(crate) async fn mixnode_report(
@@ -89,5 +87,15 @@ pub(crate) async fn gateway_core_status_count(
     Json(CoreNodeStatus {
         identity: pubkey.to_string(),
         count,
+    })
+}
+
+#[get("/mixnode/<identity>/status")]
+pub(crate) async fn get_mixnode_status(
+    node_cache: &State<ValidatorCache>,
+    identity: String,
+) -> Json<MixnodeStatusResponse> {
+    Json(MixnodeStatusResponse {
+        status: node_cache.mixnode_status(identity).await,
     })
 }

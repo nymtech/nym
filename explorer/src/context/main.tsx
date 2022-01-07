@@ -13,34 +13,42 @@ import {
   StatsResponse,
   StatusResponse,
   UptimeStoryResponse,
+  MixNodeDescriptionResponse,
 } from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
 import { navOptionType, originalNavOptions } from './nav';
 
-interface State {
-  mode: PaletteMode;
-  toggleMode: () => void;
-  navState: navOptionType[];
-  updateNavState: (id: number) => void;
-  mixnodes?: ApiState<MixNodeResponse>;
-  fetchMixnodes: () => void;
-  filterMixnodes: (arg: MixNodeResponse) => void;
-  gateways?: ApiState<GatewayResponse>;
-  validators?: ApiState<ValidatorsResponse>;
+interface StateData {
   block?: ApiState<BlockResponse>;
   countryData?: ApiState<CountryDataResponse>;
+  delegations?: ApiState<DelegationsResponse>;
+  gateways?: ApiState<GatewayResponse>;
   globalError?: string | undefined;
   mixnodeDetailInfo?: ApiState<MixNodeResponse>;
-  fetchMixnodeById: (arg: string) => void;
-  fetchDelegationsById: (arg: string) => void;
-  delegations?: ApiState<DelegationsResponse>;
+  mixnodeDescription?: ApiState<MixNodeDescriptionResponse>;
+  mixnodes?: ApiState<MixNodeResponse>;
+  mode: PaletteMode;
+  navState: navOptionType[];
   stats?: ApiState<StatsResponse>;
-  fetchStatsById: (arg: string) => void;
   status?: ApiState<StatusResponse>;
-  fetchStatusById: (arg: string) => void;
-  fetchUptimeStoryById: (arg: string) => void;
   uptimeStory?: ApiState<UptimeStoryResponse>;
+  validators?: ApiState<ValidatorsResponse>;
 }
+
+interface StateApi {
+  fetchDelegationsById: (id: string) => void;
+  fetchMixnodeById: (id: string) => void;
+  fetchMixnodeDescriptionById: (id: string) => void;
+  fetchMixnodes: () => void;
+  fetchStatsById: (id: string) => void;
+  fetchStatusById: (id: string) => void;
+  fetchUptimeStoryById: (id: string) => void;
+  filterMixnodes: (arg: MixNodeResponse) => void;
+  toggleMode: () => void;
+  updateNavState: (id: number) => void;
+}
+
+type State = StateData & StateApi;
 
 export const MainContext = React.createContext<State>({
   mode: 'dark',
@@ -54,6 +62,7 @@ export const MainContext = React.createContext<State>({
   fetchUptimeStoryById: () => null,
   filterMixnodes: () => null,
   fetchMixnodes: () => null,
+  fetchMixnodeDescriptionById: () => null,
   status: { data: undefined, isLoading: false, error: undefined },
   stats: { data: undefined, isLoading: false, error: undefined },
   mixnodeDetailInfo: { data: undefined, isLoading: false, error: undefined },
@@ -90,6 +99,8 @@ export const MainContextProvider: React.FC = ({ children }) => {
     React.useState<ApiState<DelegationsResponse>>();
   const [status, setStatus] = React.useState<ApiState<StatusResponse>>();
   const [stats, setStats] = React.useState<ApiState<StatsResponse>>();
+  const [mixnodeDescription, setMixnodeDescription] =
+    React.useState<ApiState<MixNodeDescriptionResponse>>();
   const [uptimeStory, setUptimeStory] =
     React.useState<ApiState<UptimeStoryResponse>>();
 
@@ -145,6 +156,25 @@ export const MainContextProvider: React.FC = ({ children }) => {
     } catch (error) {
       setStats({
         error: error instanceof Error ? error : new Error('Stats api fail'),
+        isLoading: false,
+      });
+    }
+  };
+  const fetchMixnodeDescriptionById = async (id: string) => {
+    setMixnodeDescription({
+      data: mixnodeDescription?.data,
+      isLoading: true,
+      error: mixnodeDescription?.error,
+    });
+    try {
+      const data = await Api.fetchMixnodeDescriptionById(id);
+      setMixnodeDescription({ data, isLoading: false });
+    } catch (error) {
+      setMixnodeDescription({
+        error:
+          error instanceof Error
+            ? error
+            : new Error('Mixnode description api fail'),
         isLoading: false,
       });
     }
@@ -273,28 +303,30 @@ export const MainContextProvider: React.FC = ({ children }) => {
   return (
     <MainContext.Provider
       value={{
-        mode,
-        updateNavState,
-        navState,
-        toggleMode,
-        mixnodes,
-        filterMixnodes,
-        fetchMixnodes,
-        gateways,
-        validators,
         block,
         countryData,
-        globalError,
-        mixnodeDetailInfo,
-        fetchMixnodeById,
-        fetchDelegationsById,
         delegations,
-        stats,
+        fetchDelegationsById,
+        fetchMixnodeById,
+        fetchMixnodes,
         fetchStatsById,
-        status,
         fetchStatusById,
-        uptimeStory,
         fetchUptimeStoryById,
+        filterMixnodes,
+        fetchMixnodeDescriptionById,
+        gateways,
+        globalError,
+        mixnodeDescription,
+        mixnodeDetailInfo,
+        mixnodes,
+        mode,
+        navState,
+        stats,
+        status,
+        toggleMode,
+        updateNavState,
+        uptimeStory,
+        validators,
       }}
     >
       {children}

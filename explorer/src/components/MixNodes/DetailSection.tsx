@@ -73,16 +73,17 @@ export const MixNodeDetailSection: React.FC<MixNodeDetailProps> = ({
         </Grid>
       </Grid>
       <Grid container>
-        <Grid item xs={12}>
+        <Grid item xs={6}>
           <Typography fontWeight="bold">{mixnodeDescription.name}</Typography>
           <Typography fontSize="smaller">
-            {mixnodeDescription.description}
+            {(mixnodeDescription.description || '').slice(0, 1000)}
           </Typography>
           <Button
             component="a"
             variant="contained"
             sx={{ mt: 4, borderRadius: '30px', fontWeight: 'bold' }}
             href={mixnodeDescription.link}
+            target="_blank"
           >
             <Typography component="span" paddingX={2}>
               {mixnodeDescription.link}

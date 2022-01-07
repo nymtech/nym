@@ -432,7 +432,7 @@ pub mod tests {
         OPERATOR_REWARD_KEY, TOTAL_MIXNODE_REWARD_KEY,
     };
     use mixnet_contract_common::mixnode::NodeRewardParams;
-    use mixnet_contract_common::{Delegation, IdentityKey, IdentityKey, Layer, Layer, MixNode};
+    use mixnet_contract_common::{Delegation, IdentityKey, Layer, MixNode};
 
     #[cfg(test)]
     mod beginning_mixnode_rewarding {

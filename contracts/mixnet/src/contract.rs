@@ -106,6 +106,14 @@ pub fn execute(
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, info)
         }
+        ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        } => crate::mixnodes::transactions::try_update_mixnode_config(
+            deps,
+            env,
+            info,
+            profit_margin_percent,
+        ),
         ExecuteMsg::BondGateway {
             gateway,
             owner_signature,

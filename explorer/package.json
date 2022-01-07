@@ -19,6 +19,7 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-google-charts": "^3.0.15",
+    "react-identicons": "^1.2.5",
     "react-router-dom": "^5.3.0",
     "react-simple-maps": "^2.3.0",
     "react-tooltip": "^4.2.21"

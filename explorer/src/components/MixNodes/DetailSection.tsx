@@ -58,9 +58,9 @@ export const MixNodeDetailSection: React.FC<MixNodeDetailProps> = ({
             <Typography fontWeight="800" alignSelf="self-end">
               Node status:
             </Typography>
-            <Typography mt={2} alignSelf="self-end">
+            <Box mt={2} alignSelf="self-end">
               <MixNodeStatus mixNodeRow={mixNodeRow} />
-            </Typography>
+            </Box>
             <Typography
               mt={1}
               alignSelf="self-end"

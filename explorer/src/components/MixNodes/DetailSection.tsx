@@ -85,7 +85,14 @@ export const MixNodeDetailSection: React.FC<MixNodeDetailProps> = ({
             href={mixnodeDescription.link}
             target="_blank"
           >
-            <Typography component="span" paddingX={2}>
+            <Typography
+              component="span"
+              paddingX={2}
+              textOverflow="ellipsis"
+              whiteSpace="nowrap"
+              overflow="hidden"
+              maxWidth="250px"
+            >
               {mixnodeDescription.link}
             </Typography>
           </Button>

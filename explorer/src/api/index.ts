@@ -51,11 +51,9 @@ export class Api {
   static fetchMixnodeByID = async (
     id: string,
   ): Promise<MixNodeResponseItem | undefined> => {
-    const allMixnodes: MixNodeResponse = await Api.fetchMixnodes();
-    const matchedByID = allMixnodes.filter(
-      (eachRecord) => eachRecord.mix_node.identity_key === id,
-    );
-    return (matchedByID.length && matchedByID[0]) || undefined;
+    // TODO: replace with call to API to get single mix node by id
+    const allMixnodes = await Api.fetchMixnodes();
+    return allMixnodes.find((item) => item.mix_node.identity_key === id);
   };
 
   static fetchGateways = async (): Promise<GatewayResponse> => {

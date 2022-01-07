@@ -3,7 +3,7 @@
 
 use crate::validator_api::error::ValidatorAPIError;
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract_common::{GatewayBond, MixNodeBond};
 use serde::{Deserialize, Serialize};
 use url::Url;
 

@@ -12,8 +12,10 @@ use crate::storage::models::{
 use crate::storage::ValidatorApiStorage;
 use config::defaults::DENOM;
 use log::{error, info};
-use mixnet_contract::mixnode::NodeRewardParams;
-use mixnet_contract::{ExecuteMsg, IdentityKey, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT};
+use mixnet_contract_common::mixnode::NodeRewardParams;
+use mixnet_contract_common::{
+    ExecuteMsg, IdentityKey, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
+};
 use std::convert::TryInto;
 use std::time::Duration;
 use time::OffsetDateTime;

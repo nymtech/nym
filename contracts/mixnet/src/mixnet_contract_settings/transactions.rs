@@ -6,8 +6,8 @@ use crate::error::ContractError;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;
-use mixnet_contract::events::new_settings_update_event;
-use mixnet_contract::ContractStateParams;
+use mixnet_contract_common::events::new_settings_update_event;
+use mixnet_contract_common::ContractStateParams;
 
 pub(crate) fn try_update_contract_settings(
     deps: DepsMut,
@@ -52,7 +52,7 @@ pub mod tests {
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::Response;
-    use mixnet_contract::ContractStateParams;
+    use mixnet_contract_common::ContractStateParams;
 
     #[test]
     fn updating_contract_settings() {

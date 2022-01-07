@@ -4,7 +4,9 @@
 use super::storage;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
-use mixnet_contract::{IdentityKey, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse};
+use mixnet_contract_common::{
+    IdentityKey, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse,
+};
 
 pub fn query_mixnodes_paged(
     deps: Deps,

@@ -3,8 +3,8 @@ use crate::traits::DelegatingAccount;
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{wasm_execute, Coin, Env, Order, Response, Storage, Timestamp, Uint128};
 use cw_storage_plus::Map;
-use mixnet_contract::ExecuteMsg as MixnetExecuteMsg;
-use mixnet_contract::IdentityKey;
+use mixnet_contract_common::ExecuteMsg as MixnetExecuteMsg;
+use mixnet_contract_common::IdentityKey;
 
 use super::Account;
 

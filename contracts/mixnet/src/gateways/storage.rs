@@ -3,7 +3,7 @@
 
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Index, IndexList, IndexedMap, UniqueIndex};
-use mixnet_contract::{GatewayBond, IdentityKeyRef};
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
 
 // storage prefixes
 const GATEWAYS_PK_NAMESPACE: &str = "gt";
@@ -41,9 +41,7 @@ mod tests {
     use cosmwasm_std::StdResult;
     use cosmwasm_std::Storage;
     use cosmwasm_std::{coin, Addr, Uint128};
-    use mixnet_contract::GatewayBond;
-    use mixnet_contract::IdentityKey;
-    use mixnet_contract::{Gateway, IdentityKeyRef};
+    use mixnet_contract_common::{Gateway, GatewayBond, IdentityKey, IdentityKeyRef};
 
     // currently this is only used in tests but may become useful later on
     pub(crate) fn read_gateway_pledge_amount(

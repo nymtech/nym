@@ -832,6 +832,28 @@ checksum = "a3e378b66a060d48947b590737b30a1be76706c8dd7b8ba0f2fe3989c68a853f"
 name = "mixnet-contract"
 version = "0.1.0"
 dependencies = [
+ "bs58",
+ "config",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "crypto",
+ "cw-storage-plus",
+ "fixed",
+ "mixnet-contract-common",
+ "rand",
+ "rand_chacha",
+ "schemars",
+ "serde",
+ "thiserror",
+ "vergen",
+ "vesting-contract",
+]
+
+[[package]]
+name = "mixnet-contract-common"
+version = "0.1.0"
+dependencies = [
  "az",
  "cosmwasm-std",
  "fixed",
@@ -841,28 +863,6 @@ dependencies = [
  "serde",
  "serde_repr",
  "thiserror",
-]
-
-[[package]]
-name = "mixnet-contracts"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "config",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "crypto",
- "cw-storage-plus",
- "fixed",
- "mixnet-contract",
- "rand",
- "rand_chacha",
- "schemars",
- "serde",
- "thiserror",
- "vergen",
- "vesting-contract",
 ]
 
 [[package]]
@@ -1525,7 +1525,7 @@ dependencies = [
  "config",
  "cosmwasm-std",
  "cw-storage-plus",
- "mixnet-contract",
+ "mixnet-contract-common",
  "schemars",
  "serde",
  "thiserror",

@@ -11,8 +11,8 @@ use config::defaults::DENOM;
 use cosmwasm_std::{
     coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
 };
-use mixnet_contract::events::{new_mixnode_bonding_event, new_mixnode_unbonding_event};
-use mixnet_contract::MixNode;
+use mixnet_contract_common::events::{new_mixnode_bonding_event, new_mixnode_unbonding_event};
+use mixnet_contract_common::MixNode;
 use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub fn try_add_mixnode(
@@ -254,9 +254,9 @@ pub mod tests {
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, BankMsg, Response};
     use cosmwasm_std::{from_binary, Addr, Uint128};
-    use mixnet_contract::Layer;
-    use mixnet_contract::MixNode;
-    use mixnet_contract::{ExecuteMsg, LayerDistribution, PagedMixnodeResponse, QueryMsg};
+    use mixnet_contract_common::{
+        ExecuteMsg, Layer, LayerDistribution, MixNode, PagedMixnodeResponse, QueryMsg,
+    };
 
     #[test]
     fn mixnode_add() {
@@ -651,6 +651,6 @@ pub mod tests {
         assert_eq!(alice_node.mix_node.identity_key, alice_identity);
         assert_eq!(alice_node.layer, Layer::One);
         assert_eq!(bob_node.mix_node.identity_key, bob_identity);
-        assert_eq!(bob_node.layer, mixnet_contract::Layer::Two);
+        assert_eq!(bob_node.layer, mixnet_contract_common::Layer::Two);
     }
 }

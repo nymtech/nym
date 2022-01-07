@@ -35,7 +35,7 @@ cosmwasm-std = "1.0.0-beta3"
 validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nymd-client",
 ] }
-mixnet-contract = { path = "../../common/mixnet-contract" }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 config = { path = "../../common/config" }
 coconut-interface = { path = "../../common/coconut-interface" }
 credentials = { path = "../../common/credentials" }
@@ -44,7 +44,7 @@ credentials = { path = "../../common/credentials" }
 ts-rs = "5.1"
 
 [dev-dependencies.mixnet-contract]
-path = "../../common/mixnet-contract"
+path = "../../common/cosmwasm-smart-contracts/mixnet-contract"
 features = ["ts-rs"]
 
 [dev-dependencies.validator-client]

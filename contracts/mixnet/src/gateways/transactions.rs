@@ -9,8 +9,8 @@ use config::defaults::DENOM;
 use cosmwasm_std::{
     coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
 };
-use mixnet_contract::events::{new_gateway_bonding_event, new_gateway_unbonding_event};
-use mixnet_contract::{Gateway, GatewayBond, Layer};
+use mixnet_contract_common::events::{new_gateway_bonding_event, new_gateway_unbonding_event};
+use mixnet_contract_common::{Gateway, GatewayBond, Layer};
 use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub fn try_add_gateway(
@@ -229,8 +229,7 @@ pub mod tests {
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, BankMsg, Response};
     use cosmwasm_std::{from_binary, Addr, Uint128};
-    use mixnet_contract::Gateway;
-    use mixnet_contract::{ExecuteMsg, PagedGatewayResponse, QueryMsg};
+    use mixnet_contract_common::{ExecuteMsg, Gateway, PagedGatewayResponse, QueryMsg};
 
     #[test]
     fn gateway_add() {

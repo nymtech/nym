@@ -10,7 +10,7 @@ use cosmwasm_std::{
     entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Timestamp, Uint128,
 };
-use mixnet_contract::{Gateway, IdentityKey, MixNode};
+use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 
 // We're using a 24 month vesting period with 3 months sub-periods.
 // There are 8 three month periods in two years

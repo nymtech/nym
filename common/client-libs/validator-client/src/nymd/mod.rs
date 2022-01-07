@@ -13,7 +13,7 @@ use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
 use cosmwasm_std::{Coin, Uint128};
 pub use fee::gas_price::GasPrice;
 use fee::helpers::Operation;
-use mixnet_contract::{
+use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
     IdentityKey, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
     MixnetContractVersion, MixnodeRewardingStatusResponse, PagedAllDelegationsResponse,
@@ -289,7 +289,7 @@ impl<C> NymdClient<C> {
 
     pub async fn get_rewarding_status(
         &self,
-        mix_identity: mixnet_contract::IdentityKey,
+        mix_identity: mixnet_contract_common::IdentityKey,
         rewarding_interval_nonce: u32,
     ) -> Result<MixnodeRewardingStatusResponse, NymdError>
     where

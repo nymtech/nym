@@ -3,7 +3,9 @@
 
 use super::storage;
 use cosmwasm_std::{Deps, StdResult};
-use mixnet_contract::{ContractStateParams, MixnetContractVersion, RewardingIntervalResponse};
+use mixnet_contract_common::{
+    ContractStateParams, MixnetContractVersion, RewardingIntervalResponse,
+};
 
 pub(crate) fn query_contract_settings_params(deps: Deps) -> StdResult<ContractStateParams> {
     storage::CONTRACT_STATE

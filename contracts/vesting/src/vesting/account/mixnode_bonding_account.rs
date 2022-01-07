@@ -3,7 +3,7 @@ use crate::errors::ContractError;
 use crate::traits::MixnodeBondingAccount;
 use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
-use mixnet_contract::{ExecuteMsg as MixnetExecuteMsg, MixNode};
+use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 
 use super::Account;
 

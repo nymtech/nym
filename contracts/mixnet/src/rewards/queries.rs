@@ -4,7 +4,7 @@
 use super::storage;
 use cosmwasm_std::Uint128;
 use cosmwasm_std::{Deps, StdResult};
-use mixnet_contract::{IdentityKey, MixnodeRewardingStatusResponse};
+use mixnet_contract_common::{IdentityKey, MixnodeRewardingStatusResponse};
 
 pub(crate) fn query_reward_pool(deps: Deps) -> StdResult<Uint128> {
     storage::REWARD_POOL.load(deps.storage)
@@ -46,7 +46,9 @@ pub(crate) mod tests {
         };
         use config::defaults::DENOM;
         use cosmwasm_std::{coin, Addr};
-        use mixnet_contract::{RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT};
+        use mixnet_contract_common::{
+            RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
+        };
 
         #[test]
         fn returns_empty_status_for_unrewarded_nodes() {
@@ -151,10 +153,7 @@ pub(crate) mod tests {
                 try_delegate_to_mixnode(
                     deps.as_mut(),
                     env.clone(),
-                    mock_info(
-                        &*format!("delegator{:04}", i),
-                        &[coin(200_000000, DENOM)],
-                    ),
+                    mock_info(&*format!("delegator{:04}", i), &[coin(200_000000, DENOM)]),
                     node_identity.clone(),
                 )
                 .unwrap();
@@ -176,13 +175,8 @@ pub(crate) mod tests {
             .unwrap();
 
             // rewards all pending
-            try_reward_next_mixnode_delegators(
-                deps.as_mut(),
-                info,
-                node_identity.to_string(),
-                2,
-            )
-            .unwrap();
+            try_reward_next_mixnode_delegators(deps.as_mut(), info, node_identity.to_string(), 2)
+                .unwrap();
 
             let res = query_rewarding_status(deps.as_ref(), node_identity, 2).unwrap();
             assert!(matches!(res.status, Some(RewardingStatus::Complete(..))));
@@ -222,10 +216,7 @@ pub(crate) mod tests {
                 try_delegate_to_mixnode(
                     deps.as_mut(),
                     env.clone(),
-                    mock_info(
-                        &*format!("delegator{:04}", i),
-                        &[coin(200_000000, DENOM)],
-                    ),
+                    mock_info(&*format!("delegator{:04}", i), &[coin(200_000000, DENOM)]),
                     node_identity.clone(),
                 )
                 .unwrap();

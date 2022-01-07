@@ -7,9 +7,8 @@ use crate::support::helpers::generate_storage_key;
 use config::defaults::DENOM;
 use cosmwasm_std::{coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
 use cw_storage_plus::PrimaryKey;
-use mixnet_contract::events::{new_delegation_event, new_undelegation_event};
-use mixnet_contract::Delegation;
-use mixnet_contract::IdentityKey;
+use mixnet_contract_common::events::{new_delegation_event, new_undelegation_event};
+use mixnet_contract_common::{Delegation, IdentityKey};
 use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 fn validate_delegation_stake(mut delegation: Vec<Coin>) -> Result<Coin, ContractError> {

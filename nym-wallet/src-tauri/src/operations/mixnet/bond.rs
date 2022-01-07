@@ -3,7 +3,7 @@ use crate::coin::Coin;
 use crate::error::BackendError;
 use crate::state::State;
 use crate::{Gateway, MixNode};
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract_common::{GatewayBond, MixNodeBond};
 use std::convert::TryInto;
 use std::sync::Arc;
 use tokio::sync::RwLock;

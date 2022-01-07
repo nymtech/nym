@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cache::ValidatorCache;
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract_common::{GatewayBond, MixNodeBond};
 use rocket::serde::json::Json;
 use rocket::State;
 

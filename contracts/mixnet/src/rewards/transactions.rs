@@ -9,13 +9,13 @@ use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::helpers;
 use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
 use cw_storage_plus::{Bound, PrimaryKey};
-use mixnet_contract::events::{
+use mixnet_contract_common::events::{
     new_begin_rewarding_event, new_finish_rewarding_event, new_mix_delegators_rewarding_event,
     new_mix_operator_rewarding_event, new_not_found_mix_operator_rewarding_event,
     new_too_fresh_bond_mix_operator_rewarding_event, new_zero_uptime_mix_operator_rewarding_event,
 };
-use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
-use mixnet_contract::{
+use mixnet_contract_common::mixnode::{DelegatorRewardParams, NodeRewardParams};
+use mixnet_contract_common::{
     IdentityKey, RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 
@@ -426,14 +426,13 @@ pub mod tests {
     use cosmwasm_std::Coin;
     use cosmwasm_std::Order;
     use cosmwasm_std::{coin, coins, Addr, Uint128};
-    use mixnet_contract::events::{
+    use mixnet_contract_common::events::{
         must_find_attribute, BOND_TOO_FRESH_VALUE, DISTRIBUTED_DELEGATION_REWARDS_KEY,
         FURTHER_DELEGATIONS_TO_REWARD_KEY, NO_REWARD_REASON_KEY, OPERATOR_REWARDING_EVENT_TYPE,
         OPERATOR_REWARD_KEY, TOTAL_MIXNODE_REWARD_KEY,
     };
-    use mixnet_contract::mixnode::NodeRewardParams;
-    use mixnet_contract::{Delegation, MixNode};
-    use mixnet_contract::{IdentityKey, Layer};
+    use mixnet_contract_common::mixnode::NodeRewardParams;
+    use mixnet_contract_common::{Delegation, IdentityKey, IdentityKey, Layer, Layer, MixNode};
 
     #[cfg(test)]
     mod beginning_mixnode_rewarding {

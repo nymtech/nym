@@ -1,6 +1,5 @@
 use cosmwasm_std::{Coin, Timestamp};
-use mixnet_contract::IdentityKey;
-use mixnet_contract::{Gateway, MixNode};
+use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

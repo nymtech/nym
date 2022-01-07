@@ -775,6 +775,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
+name = "contracts-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1729,7 +1736,7 @@ dependencies = [
  "humantime-serde",
  "isocountry",
  "log",
- "mixnet-contract",
+ "mixnet-contract-common",
  "network-defaults",
  "okapi",
  "pretty_env_logger",
@@ -3309,7 +3316,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mixnet-contract"
+name = "mixnet-contract-common"
 version = "0.1.0"
 dependencies = [
  "az",
@@ -3779,7 +3786,7 @@ dependencies = [
  "getset",
  "humantime-serde",
  "log",
- "mixnet-contract",
+ "mixnet-contract-common",
  "nymsphinx",
  "pin-project",
  "pretty_env_logger",
@@ -3829,7 +3836,7 @@ name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
  "crypto",
- "mixnet-contract",
+ "mixnet-contract-common",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-anonymous-replies",
@@ -6955,7 +6962,7 @@ dependencies = [
  "bs58",
  "crypto",
  "log",
- "mixnet-contract",
+ "mixnet-contract-common",
  "nymsphinx-addressing",
  "nymsphinx-types",
  "rand 0.7.3",
@@ -7201,7 +7208,7 @@ dependencies = [
  "flate2",
  "itertools",
  "log",
- "mixnet-contract",
+ "mixnet-contract-common",
  "network-defaults",
  "prost",
  "reqwest",
@@ -7275,11 +7282,15 @@ dependencies = [
  "config",
  "cosmwasm-std",
  "cw-storage-plus",
- "mixnet-contract",
+ "mixnet-contract-common",
  "schemars",
  "serde",
  "thiserror",
 ]
+
+[[package]]
+name = "vesting-contract-common"
+version = "0.1.0"
 
 [[package]]
 name = "waker-fn"

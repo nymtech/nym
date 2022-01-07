@@ -4,7 +4,7 @@
 use crate::config::Config;
 use crate::rewarding::{error::RewardingError, MixnodeToReward};
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
-use mixnet_contract::{
+use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond,
     MixnodeRewardingStatusResponse, RewardingIntervalResponse, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
@@ -160,7 +160,7 @@ impl<C> Client<C> {
 
     pub(crate) async fn get_rewarding_status(
         &self,
-        mix_identity: mixnet_contract::IdentityKey,
+        mix_identity: mixnet_contract_common::IdentityKey,
         rewarding_interval_nonce: u32,
     ) -> Result<MixnodeRewardingStatusResponse, ValidatorClientError>
     where

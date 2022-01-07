@@ -5,8 +5,8 @@ use super::storage;
 use crate::error::ContractError;
 use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::{Addr, Storage, Uint128};
-use mixnet_contract::mixnode::DelegatorRewardParams;
-use mixnet_contract::{
+use mixnet_contract_common::mixnode::DelegatorRewardParams;
+use mixnet_contract_common::{
     IdentityKey, IdentityKeyRef, PendingDelegatorRewarding, RewardingResult, RewardingStatus,
 };
 

@@ -3,7 +3,7 @@
   windows_subsystem = "windows"
 )]
 
-use mixnet_contract::{Gateway, MixNode};
+use mixnet_contract_common::{Gateway, MixNode};
 use std::sync::Arc;
 use tauri::Menu;
 use tokio::sync::RwLock;
@@ -71,10 +71,10 @@ fn main() {
 #[cfg(test)]
 mod test {
   ts_rs::export! {
-    mixnet_contract::MixNode => "../src/types/rust/mixnode.ts",
+    mixnet_contract_common::MixNode => "../src/types/rust/mixnode.ts",
     crate::coin::Coin => "../src/types/rust/coin.ts",
     crate::mixnet::account::Balance => "../src/types/rust/balance.ts",
-    mixnet_contract::Gateway => "../src/types/rust/gateway.ts",
+    mixnet_contract_common::Gateway => "../src/types/rust/gateway.ts",
     crate::mixnet::send::TauriTxResult => "../src/types/rust/tauritxresult.ts",
     crate::mixnet::send::TransactionDetails => "../src/types/rust/transactiondetails.ts",
     validator_client::nymd::fee::helpers::Operation => "../src/types/rust/operation.ts",

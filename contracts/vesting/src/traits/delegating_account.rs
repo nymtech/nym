@@ -1,6 +1,6 @@
 use crate::errors::ContractError;
 use cosmwasm_std::{Coin, Env, Response, Storage, Timestamp, Uint128};
-use mixnet_contract::IdentityKey;
+use mixnet_contract_common::IdentityKey;
 
 pub trait DelegatingAccount {
     fn try_delegate_to_mixnode(

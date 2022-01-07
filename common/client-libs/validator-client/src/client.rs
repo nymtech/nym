@@ -6,15 +6,15 @@ use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
 #[cfg(feature = "nymd-client")]
-use mixnet_contract::ContractStateParams;
+use mixnet_contract_common::ContractStateParams;
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 #[cfg(feature = "nymd-client")]
-use mixnet_contract::{
+use mixnet_contract_common::{
     Delegation, MixnetContractVersion, MixnodeRewardingStatusResponse, RewardingIntervalResponse,
 };
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract_common::{GatewayBond, MixNodeBond};
 
 #[cfg(feature = "nymd-client")]
 use std::str::FromStr;
@@ -208,7 +208,7 @@ impl<C> Client<C> {
 
     pub async fn get_rewarding_status(
         &self,
-        mix_identity: mixnet_contract::IdentityKey,
+        mix_identity: mixnet_contract_common::IdentityKey,
         rewarding_interval_nonce: u32,
     ) -> Result<MixnodeRewardingStatusResponse, ValidatorClientError>
     where
@@ -297,8 +297,8 @@ impl<C> Client<C> {
 
     pub async fn get_all_nymd_single_mixnode_delegations(
         &self,
-        identity: mixnet_contract::IdentityKey,
-    ) -> Result<Vec<mixnet_contract::Delegation>, ValidatorClientError>
+        identity: mixnet_contract_common::IdentityKey,
+    ) -> Result<Vec<mixnet_contract_common::Delegation>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {

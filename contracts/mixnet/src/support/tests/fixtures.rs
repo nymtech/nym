@@ -6,8 +6,8 @@ use crate::mixnodes::storage as mixnodes_storage;
 use crate::{mixnodes::storage::StoredMixnodeBond, support::tests};
 use config::defaults::{DENOM, TOTAL_SUPPLY};
 use cosmwasm_std::{coin, Addr, Coin};
-use mixnet_contract::mixnode::NodeRewardParams;
-use mixnet_contract::{Gateway, GatewayBond, Layer, MixNode};
+use mixnet_contract_common::mixnode::NodeRewardParams;
+use mixnet_contract_common::{Gateway, GatewayBond, Layer, MixNode};
 
 pub fn mix_node_fixture() -> MixNode {
     MixNode {

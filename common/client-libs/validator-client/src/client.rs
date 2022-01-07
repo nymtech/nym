@@ -12,7 +12,8 @@ use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 #[cfg(feature = "nymd-client")]
 use mixnet_contract::{
-    Delegation, MixnetContractVersion, MixnodeRewardingStatusResponse, RewardingIntervalResponse,
+    Delegation, Epoch, MixnetContractVersion, MixnodeRewardingStatusResponse,
+    RewardingIntervalResponse,
 };
 use mixnet_contract::{GatewayBond, MixNodeBond};
 
@@ -225,6 +226,13 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.nymd.get_reward_pool().await?.u128())
+    }
+
+    pub async fn get_current_epoch(&self) -> Result<Epoch, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_current_epoch().await?)
     }
 
     pub async fn get_circulating_supply(&self) -> Result<u128, ValidatorClientError>

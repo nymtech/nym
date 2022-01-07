@@ -85,8 +85,8 @@ pub(crate) struct Rewarder {
     validator_cache: ValidatorCache,
     storage: ValidatorApiStorage,
 
-    /// The first epoch of the current length.
-    first_epoch: Epoch,
+    /// Current epoch
+    current_epoch: Epoch,
 
     /// Ideal world, expected number of network monitor test runs per epoch.
     /// In reality it will be slightly lower due to network delays, but it's good enough
@@ -103,7 +103,7 @@ impl Rewarder {
         nymd_client: Client<SigningNymdClient>,
         validator_cache: ValidatorCache,
         storage: ValidatorApiStorage,
-        first_epoch: Epoch,
+        current_epoch: Epoch,
         expected_epoch_monitor_runs: usize,
         minimum_epoch_monitor_threshold: u8,
     ) -> Self {
@@ -111,7 +111,7 @@ impl Rewarder {
             nymd_client,
             validator_cache,
             storage,
-            first_epoch,
+            current_epoch,
             expected_epoch_monitor_runs,
             minimum_epoch_monitor_threshold,
         }
@@ -162,7 +162,7 @@ impl Rewarder {
     /// * `epoch`: current rewarding epoch
     async fn determine_eligible_mixnodes(
         &self,
-        epoch: Epoch,
+        epoch: &Epoch,
     ) -> Result<Vec<MixnodeToReward>, RewardingError> {
         // Currently we don't have as many 'features' as in the typescript reward script,
         // such as we don't check ports or verloc data anymore. However, that's fine as
@@ -471,7 +471,7 @@ impl Rewarder {
     async fn distribute_rewards(
         &self,
         epoch_rewarding_database_id: i64,
-        epoch: Epoch,
+        epoch: &Epoch,
     ) -> Result<(RewardingReport, Option<FailureData>), RewardingError> {
         let mut failure_data = FailureData::default();
 
@@ -602,7 +602,7 @@ impl Rewarder {
     /// * `epoch`: epoch to check
     async fn check_if_rewarding_happened_at_epoch(
         &self,
-        epoch: Epoch,
+        epoch: &Epoch,
     ) -> Result<bool, RewardingError> {
         if let Some(entry) = self
             .storage
@@ -630,7 +630,7 @@ impl Rewarder {
     /// # Arguments
     ///
     /// * `epoch`: epoch to check
-    async fn check_epoch_eligibility(&self, epoch: Epoch) -> Result<bool, RewardingError> {
+    async fn check_epoch_eligibility(&self, epoch: &Epoch) -> Result<bool, RewardingError> {
         if self.check_if_rewarding_happened_at_epoch(epoch).await?
             || !self.check_for_monitor_data(epoch).await?
         {
@@ -651,11 +651,11 @@ impl Rewarder {
         // (i.e. epoch length transition)
         // we don't have to perform checks here as it's impossible to distribute rewards for epochs
         // in the future
-        if self.first_epoch.start() > now {
-            return Ok(self.first_epoch);
+        if self.current_epoch.start() > now {
+            return Ok(self.current_epoch.clone());
         }
 
-        let current_epoch = self.first_epoch.current(now);
+        let current_epoch = self.current_epoch.current(now);
         // check previous epoch in case we had a tiny hiccup
         // example:
         // epochs start at 12:00pm and last for 24h (ignore variance)
@@ -663,7 +663,7 @@ impl Rewarder {
         // and restarted at 12:01 - it has all the data required to distribute the rewards
         // for the previous epoch.
         let previous_epoch = current_epoch.previous_epoch();
-        if self.check_epoch_eligibility(previous_epoch).await? {
+        if self.check_epoch_eligibility(&previous_epoch).await? {
             return Ok(previous_epoch);
         }
 
@@ -672,7 +672,7 @@ impl Rewarder {
         // note that if the epoch ends at say 12:00 and it's 11:59 and we just started,
         // we might end up skipping this epoch regardless
         if !self
-            .check_if_rewarding_happened_at_epoch(current_epoch)
+            .check_if_rewarding_happened_at_epoch(&current_epoch)
             .await?
         {
             return Ok(current_epoch);
@@ -688,7 +688,7 @@ impl Rewarder {
     /// # Arguments
     ///
     /// * `rewarding_epoch`: the rewarding epoch
-    fn determine_delay_until_next_rewarding(&self, rewarding_epoch: Epoch) -> Option<Duration> {
+    fn determine_delay_until_next_rewarding(&self, rewarding_epoch: &Epoch) -> Option<Duration> {
         let now = OffsetDateTime::now_utc();
         if now > rewarding_epoch.end() {
             return None;
@@ -718,7 +718,7 @@ impl Rewarder {
             .insert_started_epoch_rewarding(epoch.start_unix_timestamp())
             .await?;
 
-        let (report, failure_data) = self.distribute_rewards(epoch_rewarding_id, epoch).await?;
+        let (report, failure_data) = self.distribute_rewards(epoch_rewarding_id, &epoch).await?;
 
         self.storage
             .finish_rewarding_epoch_and_insert_report(report)
@@ -750,7 +750,7 @@ impl Rewarder {
     /// # Arguments
     ///
     /// * `epoch`: epoch to check
-    async fn check_for_monitor_data(&self, epoch: Epoch) -> Result<bool, RewardingError> {
+    async fn check_for_monitor_data(&self, epoch: &Epoch) -> Result<bool, RewardingError> {
         let since = epoch.start_unix_timestamp();
         let until = epoch.end_unix_timestamp();
 
@@ -796,7 +796,7 @@ impl Rewarder {
                 Err(err) => {
                     // I'm not entirely sure whether this is recoverable, because failure implies database errors
                     error!("We failed to determine time until next reward cycle ({}). Going to wait for the epoch length until next attempt", err);
-                    sleep(self.first_epoch.length()).await;
+                    sleep(self.current_epoch.length()).await;
                     continue;
                 }
             };
@@ -804,7 +804,7 @@ impl Rewarder {
             // wait's until the start of the *next* epoch, e.g. end of the current chosen epoch
             // (it could be none, for example if we are distributing overdue rewards for the previous epoch)
             if let Some(remaining_time) =
-                self.determine_delay_until_next_rewarding(next_rewarding_epoch)
+                self.determine_delay_until_next_rewarding(&next_rewarding_epoch)
             {
                 info!("Next rewarding epoch is {}", next_rewarding_epoch);
                 info!(
@@ -824,7 +824,7 @@ impl Rewarder {
             // (consider the case of rewards being distributed every 24h at 12:00pm and validator-api
             // starting for the very first time at 11:00am. It's not going to have enough data for
             // rewards for the *current* epoch, but we couldn't have known that at startup)
-            match self.check_for_monitor_data(next_rewarding_epoch).await {
+            match self.check_for_monitor_data(&next_rewarding_epoch).await {
                 Err(_) | Ok(false) => {
                     warn!("We do not have sufficient monitor data to perform rewarding in this epoch ({})", next_rewarding_epoch);
                     self.wait_until_next_epoch(next_rewarding_epoch).await;

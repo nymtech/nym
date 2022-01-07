@@ -14,11 +14,11 @@ use cosmwasm_std::{Coin, Uint128};
 pub use fee::gas_price::GasPrice;
 use fee::helpers::Operation;
 use mixnet_contract::{
-    ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
-    IdentityKey, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
-    MixnetContractVersion, MixnodeRewardingStatusResponse, PagedAllDelegationsResponse,
-    PagedDelegatorDelegationsResponse, PagedGatewayResponse, PagedMixDelegationsResponse,
-    PagedMixnodeResponse, QueryMsg, RewardingIntervalResponse,
+    ContractStateParams, Delegation, Epoch, ExecuteMsg, Gateway, GatewayBond,
+    GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNode, MixNodeBond,
+    MixOwnershipResponse, MixnetContractVersion, MixnodeRewardingStatusResponse,
+    PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
+    PagedMixDelegationsResponse, PagedMixnodeResponse, QueryMsg, RewardingIntervalResponse,
 };
 use serde::Serialize;
 use std::convert::TryInto;
@@ -309,6 +309,16 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::LayerDistribution {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_current_epoch(&self) -> Result<Epoch, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetCurrentEpoch {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await

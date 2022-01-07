@@ -462,6 +462,8 @@ impl Config {
         self.network_monitor.all_validator_apis.clone()
     }
 
+    // TODO: Is this needed?
+    #[allow(dead_code)]
     pub fn get_first_rewarding_epoch(&self) -> OffsetDateTime {
         self.rewarding.first_rewarding_epoch
     }

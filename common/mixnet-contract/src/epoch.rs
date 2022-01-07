@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use network_defaults::{DEFAULT_EPOCH_LENGTH, DEFAULT_FIRST_EPOCH_START};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use time::OffsetDateTime;
 
-// And become representation of system epoch?
 /// Representation of rewarding epoch.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
 pub struct Epoch {
     id: u32,
     start: OffsetDateTime,
@@ -16,6 +16,10 @@ pub struct Epoch {
 }
 
 impl Epoch {
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
     /// Creates new epoch instance.
     pub const fn new(id: u32, start: OffsetDateTime, length: Duration) -> Self {
         Epoch { id, start, length }
@@ -55,7 +59,7 @@ impl Epoch {
     ///
     /// * `now`: current datetime
     pub fn current(&self, now: OffsetDateTime) -> Self {
-        let mut candidate = *self;
+        let mut candidate = self.clone();
 
         if now > self.start {
             loop {
@@ -106,7 +110,8 @@ impl Display for Epoch {
         let hours = length.as_secs_f32() / 3600.0;
         write!(
             f,
-            "Epoch: {} - {} ({:.1} hours)",
+            "Epoch {}: {} - {} ({:.1} hours)",
+            self.id,
             self.start(),
             self.end(),
             hours

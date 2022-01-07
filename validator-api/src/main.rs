@@ -16,7 +16,6 @@ use anyhow::Result;
 use cache::ValidatorCache;
 use clap::{crate_version, App, Arg, ArgMatches};
 use log::{info, warn};
-use mixnet_contract::Epoch;
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
@@ -29,6 +28,7 @@ use time::OffsetDateTime;
 use tokio::sync::Notify;
 use url::Url;
 use validator_client::nymd::SigningNymdClient;
+use validator_client::ValidatorClientError;
 
 #[cfg(feature = "coconut")]
 use coconut::InternalSignRequest;
@@ -397,35 +397,31 @@ fn expected_monitor_test_runs(config: &Config) -> usize {
     (epoch_length.as_secs() / test_delay.as_secs()) as usize
 }
 
-fn setup_rewarder(
+async fn setup_rewarder(
     config: &Config,
     rocket: &Rocket<Ignite>,
     nymd_client: &Client<SigningNymdClient>,
-) -> Option<Rewarder> {
+) -> Result<Option<Rewarder>, ValidatorClientError> {
     if config.get_rewarding_enabled() && config.get_network_monitor_enabled() {
         // get instances of managed states
         let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
         let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
-        let first_epoch = Epoch::new(
-            // TODO: pull this from blockchain
-            0,
-            config.get_first_rewarding_epoch(),
-            config.get_epoch_length(),
-        );
-        Some(Rewarder::new(
+        let current_epoch = nymd_client.get_current_epoch().await?;
+
+        Ok(Some(Rewarder::new(
             nymd_client.clone(),
             validator_cache,
             node_status_storage,
-            first_epoch,
+            current_epoch,
             expected_monitor_test_runs(config),
             config.get_minimum_epoch_monitor_threshold(),
-        ))
+        )))
     } else if config.get_rewarding_enabled() {
         warn!("Cannot enable rewarding with the network monitor being disabled");
-        None
+        Ok(None)
     } else {
-        None
+        Ok(None)
     }
 }
 
@@ -515,7 +511,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         let uptime_updater = HistoricalUptimeUpdater::new(storage);
         tokio::spawn(async move { uptime_updater.run().await });
 
-        if let Some(rewarder) = setup_rewarder(&config, &rocket, &nymd_client) {
+        if let Some(rewarder) = setup_rewarder(&config, &rocket, &nymd_client).await? {
             info!("Periodic rewarding is starting...");
             tokio::spawn(async move { rewarder.run().await });
         } else {

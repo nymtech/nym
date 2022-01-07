@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::rewarding::{error::RewardingError, MixnodeToReward};
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract::{
-    ContractStateParams, Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond,
+    ContractStateParams, Delegation, Epoch, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond,
     MixnodeRewardingStatusResponse, RewardingIntervalResponse, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 use serde::Serialize;
@@ -103,6 +103,13 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.0.read().await.get_reward_pool().await?)
+    }
+
+    pub(crate) async fn get_current_epoch(&self) -> Result<Epoch, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.0.read().await.get_current_epoch().await?)
     }
 
     pub(crate) async fn get_circulating_supply(&self) -> Result<u128, ValidatorClientError>

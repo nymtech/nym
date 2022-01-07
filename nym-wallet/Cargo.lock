@@ -4865,6 +4865,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41effe7cfa8af36f439fac33861b66b049edc6f9a32331e2312660529c1c24ad"
 dependencies = [
  "libc",
+ "serde",
  "time-macros",
 ]
 

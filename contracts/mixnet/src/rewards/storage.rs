@@ -9,8 +9,8 @@ use mixnet_contract::{Epoch, IdentityKey, NodeStatus, RewardingStatus};
 
 pub(crate) const REWARD_POOL: Item<Uint128> = Item::new("pool");
 pub(crate) const REWARDING_STATUS: Map<(U32Key, IdentityKey), RewardingStatus> = Map::new("rm");
-pub(crate) const CURRENT_EPOCH: Item<u32> = Item::new("cep");
-pub(crate) const EPOCH_MAP: Map<u32, Epoch> = Map::new("ep");
+pub(crate) const CURRENT_EPOCH: Item<Epoch> = Item::new("cep");
+pub(crate) const _EPOCH_MAP: Map<u32, Epoch> = Map::new("ep");
 pub(crate) const REWARDED_SET_HEIGHTS_FOR_EPOCH: Map<(u32, u64), ()> = Map::new("rsh");
 pub(crate) const REWARDED_SET: Map<(u64, IdentityKey), NodeStatus> = Map::new("rs");
 

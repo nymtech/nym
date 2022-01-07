@@ -5,11 +5,13 @@ use super::storage;
 use crate::error::ContractError;
 use cosmwasm_std::Uint128;
 use cosmwasm_std::{Deps, Order, StdResult, Storage};
-use mixnet_contract::{IdentityKey, MixnodeRewardingStatusResponse, NodeStatus};
+use mixnet_contract::{Epoch, IdentityKey, MixnodeRewardingStatusResponse, NodeStatus};
 use std::collections::{HashMap, HashSet};
 
-pub fn query_current_epoch(storage: &dyn Storage) -> Result<u32, ContractError> {
-    Ok(storage::CURRENT_EPOCH.may_load(storage)?.unwrap_or(0))
+pub fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
+    Ok(storage::CURRENT_EPOCH
+        .may_load(storage)?
+        .unwrap_or_default())
 }
 
 pub fn query_rewarded_set_for_epoch(
@@ -17,7 +19,7 @@ pub fn query_rewarded_set_for_epoch(
     filter: Option<NodeStatus>,
     storage: &dyn Storage,
 ) -> Result<HashSet<IdentityKey>, ContractError> {
-    let epoch = epoch.unwrap_or(storage::CURRENT_EPOCH.load(storage)?);
+    let epoch = epoch.unwrap_or(storage::CURRENT_EPOCH.load(storage)?.id());
     let heights: Vec<u64> = storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
         .prefix_de(epoch)
         .range_de(storage, None, None, Order::Descending)

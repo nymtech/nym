@@ -1,20 +1,23 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { Button, Grid, Link as MuiLink, Card } from '@mui/material';
+import { Button, Card, Grid, Link as MuiLink } from '@mui/material';
 import { Link as RRDLink } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useMainContext } from 'src/context/main';
-import { mixnodeToGridRow } from 'src/utils';
+import { MixnodeRowType, mixnodeToGridRow } from 'src/components/MixNodes';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { MixNodeResponse } from 'src/typeDefs/explorer-api';
 import { BIG_DIPPER } from 'src/api/constants';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
 import { Title } from 'src/components/Title';
 import {
-  UniversalDataGrid,
   cellStyles,
+  UniversalDataGrid,
 } from 'src/components/Universal-DataGrid';
+import { SxProps } from '@mui/system';
+import { Theme, useTheme } from '@mui/material/styles';
 import { currencyToString } from '../../utils/currency';
+import { getMixNodeStatusColor } from '../../components/MixNodes/Status';
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes } = useMainContext();
@@ -22,6 +25,7 @@ export const PageMixnodes: React.FC = () => {
     React.useState<MixNodeResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('10');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
+  const theme = useTheme();
 
   const handleSearch = (str: string) => {
     setSearchTerm(str.toLowerCase());
@@ -59,7 +63,7 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           href={`${BIG_DIPPER}/account/${params.value}`}
           target="_blank"
-          sx={cellStyles}
+          sx={getCellStyles(theme, params.row)}
           data-testid="big-dipper-link"
         >
           {params.value}
@@ -75,7 +79,7 @@ export const PageMixnodes: React.FC = () => {
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
-          sx={cellStyles}
+          sx={getCellStyles(theme, params.row)}
           component={RRDLink}
           to={`/network-components/mixnodes/${params.value}`}
           data-testid="identity-link"
@@ -94,7 +98,7 @@ export const PageMixnodes: React.FC = () => {
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
-          sx={cellStyles}
+          sx={getCellStyles(theme, params.row)}
           component={RRDLink}
           to={`/network-components/mixnodes/${params.row.identity_key}`}
         >
@@ -112,7 +116,10 @@ export const PageMixnodes: React.FC = () => {
       renderCell: (params: GridRenderCellParams) => (
         <Button
           onClick={() => handleSearch(params.value as string)}
-          sx={{ ...cellStyles, justifyContent: 'flex-start' }}
+          sx={{
+            ...getCellStyles(theme, params.row),
+            justifyContent: 'flex-start',
+          }}
         >
           {params.value}
         </Button>
@@ -128,7 +135,7 @@ export const PageMixnodes: React.FC = () => {
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
-          sx={cellStyles}
+          sx={getCellStyles(theme, params.row)}
           component={RRDLink}
           to={`/network-components/mixnodes/${params.row.identity_key}`}
         >
@@ -141,11 +148,11 @@ export const PageMixnodes: React.FC = () => {
       headerName: 'Host',
       renderHeader: () => <CustomColumnHeading headingTitle="Host" />,
       headerClassName: 'MuiDataGrid-header-override',
-      width: 110,
+      width: 130,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
-          sx={cellStyles}
+          sx={getCellStyles(theme, params.row)}
           component={RRDLink}
           to={`/network-components/mixnodes/${params.row.identity_key}`}
         >
@@ -162,7 +169,7 @@ export const PageMixnodes: React.FC = () => {
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
-          sx={{ ...cellStyles, textAlign: 'left' }}
+          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
           component={RRDLink}
           to={`/network-components/mixnodes/${params.row.identity_key}`}
         >
@@ -204,4 +211,15 @@ export const PageMixnodes: React.FC = () => {
       </Grid>
     </>
   );
+};
+
+const getCellStyles = (theme: Theme, row: MixnodeRowType): SxProps => {
+  const color = getMixNodeStatusColor(theme, row);
+  return {
+    ...cellStyles,
+    // TODO: should these be here, or change in `cellStyles`??
+    fontWeight: 700,
+    fontSize: 14,
+    color,
+  };
 };

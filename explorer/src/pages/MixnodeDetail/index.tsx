@@ -1,17 +1,17 @@
 import * as React from 'react';
 import { Box, Grid, Typography } from '@mui/material';
 import { ColumnsType, DetailTable } from 'src/components/DetailTable';
-import { mixnodeToGridRow, scrollToRef } from 'src/utils';
+import { scrollToRef } from 'src/utils';
 import { useParams } from 'react-router-dom';
 import { BondBreakdownTable } from 'src/components/BondBreakdown';
 import { ComponentError } from 'src/components/ComponentError';
 import { ContentCard } from 'src/components/ContentCard';
-import { MixNodeResponseItem } from 'src/typeDefs/explorer-api';
-import { Title } from 'src/components/Title';
 import { TwoColSmallTable } from 'src/components/TwoColSmallTable';
 import { UptimeChart } from 'src/components/UptimeChart';
 import { WorldMap } from 'src/components/WorldMap';
 import { useMainContext } from 'src/context/main';
+import { MixnodeRowType, mixnodeToGridRow } from '../../components/MixNodes';
+import { MixNodeDetailSection } from '../../components/MixNodes/DetailSection';
 
 const columns: ColumnsType[] = [
   {
@@ -28,8 +28,8 @@ const columns: ColumnsType[] = [
   },
 
   {
-    field: 'pledge',
-    title: 'Pledge',
+    field: 'bond',
+    title: 'Bond',
     flex: 1,
     headerAlign: 'left',
   },
@@ -61,7 +61,9 @@ const columns: ColumnsType[] = [
 
 export const PageMixnodeDetail: React.FC = () => {
   const ref = React.useRef();
-  const [row, setRow] = React.useState<MixNodeResponseItem[]>([]);
+  const [mixNodeRow, setMixNodeRow] = React.useState<
+    MixnodeRowType | undefined
+  >();
   const {
     fetchMixnodeById,
     mixnodeDetailInfo,
@@ -69,9 +71,11 @@ export const PageMixnodeDetail: React.FC = () => {
     fetchDelegationsById,
     fetchUptimeStoryById,
     fetchStatusById,
+    fetchMixnodeDescriptionById,
     stats,
     status,
     uptimeStory,
+    mixnodeDescription,
   } = useMainContext();
   const { id }: any = useParams();
 
@@ -87,8 +91,9 @@ export const PageMixnodeDetail: React.FC = () => {
       fetchStatsById(id);
       fetchStatusById(id);
       fetchUptimeStoryById(id);
+      fetchMixnodeDescriptionById(id);
     } else if (mixnodeDetailInfo?.data !== undefined) {
-      setRow(mixnodeDetailInfo?.data);
+      setMixNodeRow(mixnodeToGridRow(mixnodeDetailInfo?.data)[0]);
     }
   }, [id, mixnodeDetailInfo]);
 
@@ -99,9 +104,14 @@ export const PageMixnodeDetail: React.FC = () => {
   return (
     <>
       <Box component="main" ref={ref}>
-        <Grid container spacing={2}>
+        <Grid container spacing={2} mt={1} mb={6}>
           <Grid item xs={12}>
-            <Title text="Mixnode Detail" />
+            {mixNodeRow && mixnodeDescription?.data && (
+              <MixNodeDetailSection
+                mixNodeRow={mixNodeRow}
+                mixnodeDescription={mixnodeDescription.data}
+              />
+            )}
           </Grid>
         </Grid>
 
@@ -110,7 +120,7 @@ export const PageMixnodeDetail: React.FC = () => {
             <DetailTable
               columnsData={columns}
               tableName="Mixnode detail table"
-              rows={mixnodeToGridRow(row)}
+              rows={mixNodeRow ? [mixNodeRow] : []}
             />
           </Grid>
         </Grid>

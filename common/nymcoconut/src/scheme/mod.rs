@@ -308,12 +308,11 @@ mod tests {
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
-        let commitments_openings = params.n_random_scalars(2);
 
         let keypair1 = keygen(&mut params);
         let keypair2 = keygen(&mut params);
 
-        let (_commitments_openings, lambda) =
+        let (commitments_openings, lambda) =
             prepare_blind_sign(&mut params, &private_attributes, &[])
                 .unwrap();
 

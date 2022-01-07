@@ -4,6 +4,9 @@ use crate::traits::MixnodeBondingAccount;
 use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, MixNode};
+use vesting_contract_common::events::{
+    new_vesting_mixnode_bonding_event, new_vesting_mixnode_unbonding_event,
+};
 
 use super::Account;
 
@@ -50,8 +53,8 @@ impl MixnodeBondingAccount for Account {
         self.save_mixnode_pledge(pledge_data, storage)?;
 
         Ok(Response::new()
-            .add_attribute("action", "bond mixnode on behalf")
-            .add_message(bond_mixnode_mag))
+            .add_message(bond_mixnode_mag)
+            .add_event(new_vesting_mixnode_bonding_event()))
     }
 
     fn try_unbond_mixnode(&self, storage: &dyn Storage) -> Result<Response, ContractError> {
@@ -63,8 +66,8 @@ impl MixnodeBondingAccount for Account {
             let unbond_msg = wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![])?;
 
             Ok(Response::new()
-                .add_attribute("action", "unbond mixnode on behalf")
-                .add_message(unbond_msg))
+                .add_message(unbond_msg)
+                .add_event(new_vesting_mixnode_unbonding_event()))
         } else {
             Err(ContractError::NoBondFound(
                 self.owner_address().as_str().to_string(),

@@ -5,6 +5,9 @@ use cosmwasm_std::{wasm_execute, Coin, Env, Order, Response, Storage, Timestamp,
 use cw_storage_plus::Map;
 use mixnet_contract_common::ExecuteMsg as MixnetExecuteMsg;
 use mixnet_contract_common::IdentityKey;
+use vesting_contract_common::events::{
+    new_vesting_delegation_event, new_vesting_undelegation_event,
+};
 
 use super::Account;
 
@@ -34,8 +37,8 @@ impl DelegatingAccount for Account {
         self.track_delegation(env.block.time, mix_identity, current_balance, coin, storage)?;
 
         Ok(Response::new()
-            .add_attribute("action", "delegate to mixnode on behalf")
-            .add_message(delegate_to_mixnode))
+            .add_message(delegate_to_mixnode)
+            .add_event(new_vesting_delegation_event()))
     }
 
     fn try_undelegate_from_mixnode(
@@ -64,8 +67,8 @@ impl DelegatingAccount for Account {
         )?;
 
         Ok(Response::new()
-            .add_attribute("action", "undelegate to mixnode on behalf")
-            .add_message(undelegate_from_mixnode))
+            .add_message(undelegate_from_mixnode)
+            .add_event(new_vesting_undelegation_event()))
     }
 
     fn track_delegation(

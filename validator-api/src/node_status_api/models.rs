@@ -209,22 +209,24 @@ pub struct HistoricalUptime {
 }
 
 pub(crate) struct ErrorResponse {
-    error: ValidatorApiStorageError,
+    error_message: String,
     status: Status,
 }
 
 impl ErrorResponse {
-    pub(crate) fn new(error: ValidatorApiStorageError, status: Status) -> Self {
-        ErrorResponse { error, status }
+    pub(crate) fn new(error_message: impl Into<String>, status: Status) -> Self {
+        ErrorResponse {
+            error_message: error_message.into(),
+            status,
+        }
     }
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for ErrorResponse {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'o> {
-        let message = format!("{}", self.error);
         Response::build()
             .header(ContentType::Plain)
-            .sized_body(message.len(), Cursor::new(message))
+            .sized_body(self.error_message.len(), Cursor::new(self.error_message))
             .status(self.status)
             .ok()
     }
@@ -280,4 +282,21 @@ pub struct CoreNodeStatus {
 #[derive(Serialize)]
 pub(crate) struct MixnodeStatusResponse {
     pub(crate) status: MixnodeStatus,
+}
+
+#[derive(Serialize)]
+pub(crate) struct RewardEstimationResponse {
+    pub(crate) estimated_total_node_reward: u128,
+    pub(crate) estimated_operator_reward: u128,
+    pub(crate) estimated_delegators_reward: u128,
+
+    pub(crate) current_epoch_start: i64,
+    pub(crate) current_epoch_end: i64,
+    pub(crate) current_epoch_uptime: Uptime,
+    pub(crate) as_at: i64,
+}
+
+#[derive(Serialize)]
+pub(crate) struct StakeSaturationResponse {
+    //
 }

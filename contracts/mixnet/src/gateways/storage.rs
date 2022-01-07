@@ -87,7 +87,7 @@ mod tests {
 
         let gateway_bond = GatewayBond {
             pledge_amount: coin(pledge_amount, DENOM),
-            owner: node_owner.clone(),
+            owner: node_owner,
             block_height: 12_345,
             gateway: Gateway {
                 identity_key: node_identity.clone(),

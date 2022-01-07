@@ -138,7 +138,7 @@ fn _try_add_mixnode(
         &owner,
         &proxy,
         &pledge_amount,
-        &identity,
+        identity,
         stored_bond.layer,
     )))
 }

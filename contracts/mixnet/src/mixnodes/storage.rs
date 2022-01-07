@@ -173,7 +173,7 @@ mod tests {
 
         let mixnode_bond = StoredMixnodeBond {
             pledge_amount: coin(pledge_value, DENOM),
-            owner: node_owner.clone(),
+            owner: node_owner,
             layer: Layer::One,
             block_height: 12_345,
             mix_node: MixNode {

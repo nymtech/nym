@@ -541,7 +541,7 @@ mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 env1,
-                mock_info(delegation_owner1.as_str(), &[delegation1.clone()]),
+                mock_info(delegation_owner1.as_str(), &[delegation1]),
                 identity.clone(),
             )
             .unwrap();
@@ -555,7 +555,7 @@ mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 env2,
-                mock_info(delegation_owner2.as_str(), &[delegation2.clone()]),
+                mock_info(delegation_owner2.as_str(), &[delegation2]),
                 identity.clone(),
             )
             .unwrap();
@@ -710,7 +710,7 @@ mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(delegation_owner.as_str(), &vec![delegation_amount.clone()]),
+                mock_info(delegation_owner.as_str(), &[delegation_amount.clone()]),
                 identity.clone(),
             )
             .unwrap();
@@ -896,7 +896,7 @@ mod tests {
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(delegation_owner1.as_str(), &[delegation1.clone()]),
+                mock_info(delegation_owner1.as_str(), &[delegation1]),
                 identity.clone(),
             )
             .is_ok());

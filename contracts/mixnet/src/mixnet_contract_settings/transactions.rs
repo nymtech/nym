@@ -95,21 +95,21 @@ pub mod tests {
         let info = mock_info("creator", &[]);
         let mut new_params = current_state.params.clone();
         new_params.mixnode_rewarded_set_size = new_params.mixnode_active_set_size - 1;
-        let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
+        let res = try_update_contract_settings(deps.as_mut(), info, new_params);
         assert_eq!(Err(ContractError::InvalidActiveSetSize), res);
 
         // error is thrown for 0 size rewarded set
         let info = mock_info("creator", &[]);
         let mut new_params = current_state.params.clone();
         new_params.mixnode_rewarded_set_size = 0;
-        let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
+        let res = try_update_contract_settings(deps.as_mut(), info, new_params);
         assert_eq!(Err(ContractError::ZeroRewardedSet), res);
 
         // error is thrown for 0 size active set
         let info = mock_info("creator", &[]);
-        let mut new_params = current_state.params.clone();
+        let mut new_params = current_state.params;
         new_params.mixnode_active_set_size = 0;
-        let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
+        let res = try_update_contract_settings(deps.as_mut(), info, new_params);
         assert_eq!(Err(ContractError::ZeroActiveSet), res);
     }
 }

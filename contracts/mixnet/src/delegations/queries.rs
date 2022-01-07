@@ -444,7 +444,7 @@ pub(crate) mod tests {
 
         // add delegation from a different address
         let delegation = Delegation::new(
-            delegation_owner2.clone(),
+            delegation_owner2,
             node_identity1.clone(),
             coin(1234, DENOM),
             1234,
@@ -474,7 +474,7 @@ pub(crate) mod tests {
         // add delegation for a different node
         let delegation = Delegation::new(
             delegation_owner1.clone(),
-            node_identity2.clone(),
+            node_identity2,
             coin(1234, DENOM),
             1234,
             None,
@@ -495,7 +495,7 @@ pub(crate) mod tests {
             }),
             query_mixnode_delegation(
                 deps.as_ref(),
-                node_identity1.clone(),
+                node_identity1,
                 delegation_owner1.to_string()
             )
         )

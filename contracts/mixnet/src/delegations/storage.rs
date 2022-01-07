@@ -94,7 +94,7 @@ mod tests {
             storage::delegations()
                 .save(
                     &mut deps.storage,
-                    (node_identity.clone(), delegation_owner.clone()).joined_key(),
+                    (node_identity, delegation_owner.clone()).joined_key(),
                     &dummy_data,
                 )
                 .unwrap();
@@ -131,7 +131,7 @@ mod tests {
             // add delegation for a different node
             let dummy_data = Delegation::new(
                 delegation_owner1.clone(),
-                node_identity2.clone(),
+                node_identity2,
                 delegation.clone(),
                 mock_env().block.height,
                 None,
@@ -156,14 +156,14 @@ mod tests {
             let dummy_data = Delegation::new(
                 delegation_owner2.clone(),
                 node_identity1.clone(),
-                delegation.clone(),
+                delegation,
                 mock_env().block.height,
                 None,
             );
             storage::delegations()
                 .save(
                     &mut deps.storage,
-                    (node_identity1.clone(), delegation_owner2.clone()).joined_key(),
+                    (node_identity1.clone(), delegation_owner2).joined_key(),
                     &dummy_data,
                 )
                 .unwrap();

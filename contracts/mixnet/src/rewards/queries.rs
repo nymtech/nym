@@ -75,14 +75,14 @@ pub(crate) mod tests {
             try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
             try_reward_mixnode(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 info.clone(),
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),
                 1,
             )
             .unwrap();
-            try_finish_mixnode_rewarding(deps.as_mut(), info.clone(), 1).unwrap();
+            try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
 
             assert!(query_rewarding_status(deps.as_ref(), node_identity, 2)
                 .unwrap()
@@ -120,7 +120,7 @@ pub(crate) mod tests {
                 1,
             )
             .unwrap();
-            try_finish_mixnode_rewarding(deps.as_mut(), info.clone(), 1).unwrap();
+            try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
 
             let res = query_rewarding_status(deps.as_ref(), node_identity, 1).unwrap();
             assert!(matches!(res.status, Some(RewardingStatus::Complete(..))));
@@ -153,7 +153,7 @@ pub(crate) mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{:04}", i),
-                        &vec![coin(200_000000, DENOM)],
+                        &[coin(200_000000, DENOM)],
                     ),
                     node_identity.clone(),
                 )
@@ -167,7 +167,7 @@ pub(crate) mod tests {
 
             try_reward_mixnode(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 info.clone(),
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),
@@ -178,7 +178,7 @@ pub(crate) mod tests {
             // rewards all pending
             try_reward_next_mixnode_delegators(
                 deps.as_mut(),
-                info.clone(),
+                info,
                 node_identity.to_string(),
                 2,
             )
@@ -224,7 +224,7 @@ pub(crate) mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{:04}", i),
-                        &vec![coin(200_000000, DENOM)],
+                        &[coin(200_000000, DENOM)],
                     ),
                     node_identity.clone(),
                 )
@@ -238,7 +238,7 @@ pub(crate) mod tests {
 
             try_reward_mixnode(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 info,
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),

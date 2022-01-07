@@ -461,7 +461,7 @@ pub mod tests {
 
             let res = try_begin_mixnode_rewarding(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 1,
             );
@@ -487,7 +487,7 @@ pub mod tests {
 
             let res = try_begin_mixnode_rewarding(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 2,
             );
@@ -582,7 +582,7 @@ pub mod tests {
 
             let res = try_begin_mixnode_rewarding(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 43,
             );
@@ -809,9 +809,9 @@ pub mod tests {
 
         let res = try_reward_mixnode(
             deps.as_mut(),
-            env.clone(),
+            env,
             info,
-            node_identity.clone(),
+            node_identity,
             tests::fixtures::node_rewarding_params_fixture(100),
             1,
         );
@@ -871,9 +871,9 @@ pub mod tests {
 
         let res = try_reward_mixnode(
             deps.as_mut(),
-            env.clone(),
+            env,
             info,
-            node_identity.clone(),
+            node_identity,
             tests::fixtures::node_rewarding_params_fixture(100),
             1,
         );
@@ -935,7 +935,7 @@ pub mod tests {
             deps.as_mut(),
             env,
             info,
-            node_identity.clone(),
+            node_identity,
             tests::fixtures::node_rewarding_params_fixture(100),
             2,
         );
@@ -958,7 +958,7 @@ pub mod tests {
         let initial_delegation = 20000_000000;
         let mixnode_bond = StoredMixnodeBond {
             pledge_amount: coin(initial_bond, DENOM),
-            owner: node_owner.clone(),
+            owner: node_owner,
             layer: Layer::One,
             block_height: env.block.height,
             mix_node: MixNode {
@@ -1086,7 +1086,7 @@ pub mod tests {
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 3).unwrap();
         let res = try_reward_mixnode(
             deps.as_mut(),
-            env.clone(),
+            env,
             info.clone(),
             node_identity.clone(),
             tests::fixtures::node_rewarding_params_fixture(100),
@@ -1243,7 +1243,7 @@ pub mod tests {
         );
         assert_eq!(
             mixnodes_storage::TOTAL_DELEGATION
-                .load(&deps.storage, &node_identity.clone())
+                .load(&deps.storage, &node_identity)
                 .unwrap()
                 .u128(),
             pre_reward_delegation + mix1_delegator1_reward + mix1_delegator2_reward
@@ -1259,7 +1259,7 @@ pub mod tests {
 
         // it's all correctly saved
         match storage::REWARDING_STATUS
-            .load(deps.as_ref().storage, (1.into(), node_identity.clone()))
+            .load(deps.as_ref().storage, (1.into(), node_identity))
             .unwrap()
         {
             RewardingStatus::Complete(result) => assert_eq!(
@@ -1289,6 +1289,7 @@ pub mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
+            #[allow(clippy::inconsistent_digit_grouping)]
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
 
@@ -1308,7 +1309,7 @@ pub mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{}", i),
-                        &vec![coin(delegation_value, DENOM)],
+                        &[coin(delegation_value, DENOM)],
                     ),
                     node_identity.clone(),
                 )
@@ -1370,6 +1371,7 @@ pub mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
+            #[allow(clippy::inconsistent_digit_grouping)]
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
 
@@ -1389,7 +1391,7 @@ pub mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{}", i),
-                        &vec![coin(delegation_value, DENOM)],
+                        &[coin(delegation_value, DENOM)],
                     ),
                     node_identity.clone(),
                 )
@@ -1451,6 +1453,7 @@ pub mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
+            #[allow(clippy::inconsistent_digit_grouping)]
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
 
@@ -1470,7 +1473,7 @@ pub mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{:04}", i),
-                        &vec![coin(delegation_value, DENOM)],
+                        &[coin(delegation_value, DENOM)],
                     ),
                     node_identity.clone(),
                 )
@@ -1522,7 +1525,7 @@ pub mod tests {
 
             let delegation = test_helpers::read_delegation(
                 &deps.storage,
-                node_identity.clone(),
+                node_identity,
                 format!("delegator{:04}", MIXNODE_DELEGATORS_PAGE_LIMIT),
             )
             .unwrap();
@@ -1538,6 +1541,8 @@ pub mod tests {
         let mut env = mock_env();
 
         let node_owner: Addr = Addr::unchecked("bob");
+
+        #[allow(clippy::inconsistent_digit_grouping)]
         let node_identity = test_helpers::add_mixnode(
             node_owner.as_str(),
             coins(10000_000_000, DENOM),
@@ -1557,7 +1562,7 @@ pub mod tests {
                 env.clone(),
                 mock_info(
                     &*format!("delegator{:04}", i),
-                    &vec![coin(base_delegation, DENOM)],
+                    &[coin(base_delegation, DENOM)],
                 ),
                 node_identity.clone(),
             )
@@ -1576,7 +1581,7 @@ pub mod tests {
         for delegation in delegations_storage::delegations()
             .idx
             .mixnode
-            .prefix(node_identity.clone())
+            .prefix(node_identity)
             .range(deps.as_ref().storage, None, None, Order::Ascending)
         {
             actual_reward +=
@@ -1591,6 +1596,8 @@ pub mod tests {
 
         // with paging
         let node_owner: Addr = Addr::unchecked("alice");
+
+        #[allow(clippy::inconsistent_digit_grouping)]
         let node_identity = test_helpers::add_mixnode(
             node_owner.as_str(),
             coins(10000_000_000, DENOM),
@@ -1610,7 +1617,7 @@ pub mod tests {
                 env.clone(),
                 mock_info(
                     &*format!("delegator{:04}", i),
-                    &vec![coin(base_delegation, DENOM)],
+                    &[coin(base_delegation, DENOM)],
                 ),
                 node_identity.clone(),
             )
@@ -1674,7 +1681,7 @@ pub mod tests {
         for delegation in delegations_storage::delegations()
             .idx
             .mixnode
-            .prefix(node_identity.clone())
+            .prefix(node_identity)
             .range(deps.as_ref().storage, Some(start), None, Order::Ascending)
         {
             actual_reward +=
@@ -1731,7 +1738,7 @@ pub mod tests {
 
             try_begin_mixnode_rewarding(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 1,
             )
@@ -1763,6 +1770,8 @@ pub mod tests {
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             let node_owner: Addr = Addr::unchecked("alice");
+
+            #[allow(clippy::inconsistent_digit_grouping)]
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
                 coins(10000_000_000, DENOM),
@@ -1798,7 +1807,7 @@ pub mod tests {
 
             assert_eq!(
                 Err(ContractError::MixnodeAlreadyRewarded {
-                    identity: node_identity.clone()
+                    identity: node_identity
                 }),
                 res
             );
@@ -1812,6 +1821,8 @@ pub mod tests {
 
             // there was another page of delegators, but they were already dealt with
             let node_owner: Addr = Addr::unchecked("bob");
+
+            #[allow(clippy::inconsistent_digit_grouping)]
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
                 coins(10000_000_000, DENOM),
@@ -1822,10 +1833,7 @@ pub mod tests {
                 try_delegate_to_mixnode(
                     deps.as_mut(),
                     env.clone(),
-                    mock_info(
-                        &*format!("delegator{:04}", i),
-                        &vec![coin(2000_000000, DENOM)],
-                    ),
+                    mock_info(&*format!("delegator{:04}", i), &[coin(2000_000000, DENOM)]),
                     node_identity.clone(),
                 )
                 .unwrap();
@@ -1844,7 +1852,7 @@ pub mod tests {
 
             try_reward_mixnode(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 info,
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),
@@ -1870,7 +1878,7 @@ pub mod tests {
 
             assert_eq!(
                 Err(ContractError::MixnodeAlreadyRewarded {
-                    identity: node_identity.clone()
+                    identity: node_identity
                 }),
                 res
             );
@@ -1893,6 +1901,7 @@ pub mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
+            #[allow(clippy::inconsistent_digit_grouping)]
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
 
@@ -1914,7 +1923,7 @@ pub mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{:04}", i),
-                        &vec![coin(delegation_value, DENOM)],
+                        &[coin(delegation_value, DENOM)],
                     ),
                     node_identity.clone(),
                 )
@@ -1934,7 +1943,7 @@ pub mod tests {
 
             try_reward_mixnode(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 info,
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),
@@ -1990,6 +1999,7 @@ pub mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
+            #[allow(clippy::inconsistent_digit_grouping)]
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
 
@@ -2011,7 +2021,7 @@ pub mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{:04}", i),
-                        &vec![coin(delegation_value, DENOM)],
+                        &[coin(delegation_value, DENOM)],
                     ),
                     node_identity.clone(),
                 )
@@ -2024,7 +2034,7 @@ pub mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 env.clone(),
-                mock_info("delegator0123", &vec![coin(delegation_value, DENOM)]),
+                mock_info("delegator0123", &[coin(delegation_value, DENOM)]),
                 node_identity.clone(),
             )
             .unwrap();
@@ -2034,7 +2044,7 @@ pub mod tests {
                 env.clone(),
                 mock_info(
                     &*format!("delegator{:04}", 123 + MIXNODE_DELEGATORS_PAGE_LIMIT),
-                    &vec![coin(delegation_value, DENOM)],
+                    &[coin(delegation_value, DENOM)],
                 ),
                 node_identity.clone(),
             )
@@ -2053,7 +2063,7 @@ pub mod tests {
 
             try_reward_mixnode(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 info,
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),

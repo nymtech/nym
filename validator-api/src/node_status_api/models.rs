@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::cache::MixnodeStatus;
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
 use rocket::http::{ContentType, Status};
@@ -274,4 +275,9 @@ impl Display for ValidatorApiStorageError {
 pub struct CoreNodeStatus {
     pub(crate) identity: String,
     pub(crate) count: i32,
+}
+
+#[derive(Serialize)]
+pub(crate) struct MixnodeStatusResponse {
+    pub(crate) status: MixnodeStatus,
 }

@@ -29,6 +29,7 @@ pub(crate) fn stage(database_path: PathBuf) -> AdHoc {
                     routes::gateway_uptime_history,
                     routes::mixnode_core_status_count,
                     routes::gateway_core_status_count,
+                    routes::get_mixnode_status,
                 ],
             )
     })

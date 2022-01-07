@@ -298,5 +298,6 @@ pub(crate) struct RewardEstimationResponse {
 
 #[derive(Serialize)]
 pub(crate) struct StakeSaturationResponse {
-    //
+    pub(crate) saturation: f32,
+    pub(crate) as_at: i64,
 }

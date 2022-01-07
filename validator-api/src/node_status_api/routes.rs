@@ -149,8 +149,28 @@ pub(crate) async fn get_mixnode_reward_estimation(
 
 #[get("/mixnode/<identity>/stake_saturation")]
 pub(crate) async fn get_mixnode_stake_saturation(
-    node_cache: &State<ValidatorCache>,
+    cache: &State<ValidatorCache>,
     identity: String,
 ) -> Result<Json<StakeSaturationResponse>, ErrorResponse> {
-    todo!()
+    let (bond, _) = cache.mixnode_details(&identity).await;
+    if let Some(bond) = bond {
+        let epoch_reward_params = cache.epoch_reward_params().await;
+        let as_at = epoch_reward_params.timestamp();
+        let epoch_reward_params = epoch_reward_params.into_inner();
+
+        let saturation = bond.stake_saturation(
+            epoch_reward_params.circulating_supply,
+            epoch_reward_params.rewarded_set_size,
+        );
+
+        Ok(Json(StakeSaturationResponse {
+            saturation: saturation.to_num(),
+            as_at,
+        }))
+    } else {
+        Err(ErrorResponse::new(
+            "mixnode bond not found",
+            Status::NotFound,
+        ))
+    }
 }

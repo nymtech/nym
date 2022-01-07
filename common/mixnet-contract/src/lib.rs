@@ -16,6 +16,8 @@ pub use delegation::{
     PagedMixDelegationsResponse,
 };
 pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayResponse};
-pub use mixnode::{Layer, MixNode, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse, NodeStatus};
+pub use mixnode::{
+    Layer, MixNode, MixNodeBond, MixOwnershipResponse, NodeStatus, PagedMixnodeResponse,
+};
 pub use msg::*;
 pub use types::*;

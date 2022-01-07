@@ -456,8 +456,7 @@ impl PacketPreparer {
         // any reward during the current rewarding interval
         let (rewarded_set, all_gateways) = self.get_rewarded_nodes().await;
 
-        let (mixes, invalid_mixnodes) =
-            self.filter_outdated_and_malformed_mixnodes(rewarded_set);
+        let (mixes, invalid_mixnodes) = self.filter_outdated_and_malformed_mixnodes(rewarded_set);
         let (gateways, invalid_gateways) =
             self.filter_outdated_and_malformed_gateways(all_gateways);
 

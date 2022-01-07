@@ -3,9 +3,10 @@
 
 use crate::mixnode::NodeRewardParams;
 use crate::ContractStateParams;
-use crate::{Gateway, IdentityKey, MixNode};
+use crate::{Gateway, IdentityKey, MixNode, NodeStatus};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -82,6 +83,10 @@ pub enum ExecuteMsg {
     UnbondGatewayOnBehalf {
         owner: String,
     },
+    WriteRewardedSet {
+        rewarded_set: HashMap<IdentityKey, NodeStatus>,
+    },
+    ClearRewardedSet {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -139,6 +144,11 @@ pub enum QueryMsg {
     GetRewardingStatus {
         mix_identity: IdentityKey,
         rewarding_interval_nonce: u32,
+    },
+    GetCurrentRewardedSet {},
+    GetCurrentRewardedSetHeight {},
+    GetRewardedSetAtHeight {
+        height: u64,
     },
 }
 

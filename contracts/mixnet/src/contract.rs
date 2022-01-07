@@ -17,8 +17,10 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnodes_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
-use crate::rewards::queries::query_reward_pool;
-use crate::rewards::queries::{query_circulating_supply, query_rewarding_status};
+use crate::rewards::queries::{
+    query_circulating_supply, query_current_rewarded_set, query_current_rewarded_set_height,
+    query_reward_pool, query_rewarded_set_at_height, query_rewarding_status,
+};
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
@@ -217,6 +219,12 @@ pub fn execute(
         ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
             crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
         }
+        ExecuteMsg::WriteRewardedSet { rewarded_set } => {
+            crate::rewards::transactions::try_write_rewarded_set(rewarded_set, deps.storage, env)
+        }
+        ExecuteMsg::ClearRewardedSet {} => {
+            crate::rewards::transactions::try_clear_rewarded_set(deps.storage)
+        }
     }
 }
 
@@ -276,6 +284,13 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             mix_identity,
             rewarding_interval_nonce,
         )?),
+        QueryMsg::GetCurrentRewardedSet {} => to_binary(&query_current_rewarded_set(deps.storage)?),
+        QueryMsg::GetCurrentRewardedSetHeight {} => {
+            to_binary(&query_current_rewarded_set_height(deps.storage)?)
+        }
+        QueryMsg::GetRewardedSetAtHeight { height } => {
+            to_binary(&query_rewarded_set_at_height(height, deps.storage)?)
+        }
     };
 
     Ok(query_res?)

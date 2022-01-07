@@ -7,17 +7,41 @@ use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::helpers;
-use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
+use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Order, Response, StdResult, Storage, Uint128};
 use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
 use mixnet_contract::{
-    IdentityKey, RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
+    IdentityKey, NodeStatus, RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
+use std::collections::HashMap;
 
 #[derive(Debug)]
 struct MixDelegationRewardingResult {
     total_rewarded: Uint128,
     start_next: Option<Addr>,
+}
+
+pub fn try_write_rewarded_set(
+    rewarded_set: HashMap<IdentityKey, NodeStatus>,
+    storage: &mut dyn Storage,
+    env: Env,
+) -> Result<Response, ContractError> {
+    let block_height = env.block.height;
+    for (key, value) in rewarded_set {
+        storage::REWARDED_SET.save(storage, (block_height, key), &value)?;
+    }
+    storage::REWARDED_SET_HEIGHTS.save(storage, block_height, &())?;
+    Ok(Response::default())
+}
+
+pub fn try_clear_rewarded_set(storage: &mut dyn Storage) -> Result<Response, ContractError> {
+    let keys: StdResult<Vec<(u64, String)>> = storage::REWARDED_SET
+        .keys_de(storage, None, None, Order::Ascending)
+        .collect();
+    for key in keys? {
+        storage::REWARDED_SET.remove(storage, key)
+    }
+    Ok(Response::default())
 }
 
 /// Checks whether under the current context, any rewarding-related functionalities can be called.

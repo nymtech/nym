@@ -2,9 +2,40 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::error::ContractError;
 use cosmwasm_std::Uint128;
-use cosmwasm_std::{Deps, StdResult};
-use mixnet_contract::{IdentityKey, MixnodeRewardingStatusResponse};
+use cosmwasm_std::{Deps, Order, StdResult, Storage};
+use mixnet_contract::{IdentityKey, MixnodeRewardingStatusResponse, NodeStatus};
+use std::collections::HashMap;
+
+pub fn query_current_rewarded_set_height(storage: &dyn Storage) -> Result<u64, ContractError> {
+    if let Some(Ok(height)) = storage::REWARDED_SET_HEIGHTS
+        .keys_de(storage, None, None, Order::Descending)
+        .next()
+    {
+        Ok(height)
+    } else {
+        Err(ContractError::RewardSetHeightMapEmpty)
+    }
+}
+
+pub fn query_rewarded_set_at_height(
+    height: u64,
+    storage: &dyn Storage,
+) -> Result<HashMap<IdentityKey, NodeStatus>, ContractError> {
+    let rewarded_set: StdResult<Vec<_>> = storage::REWARDED_SET
+        .prefix_de(height)
+        .range(storage, None, None, Order::Ascending)
+        .collect();
+    Ok(rewarded_set?.into_iter().collect())
+}
+
+pub fn query_current_rewarded_set(
+    storage: &dyn Storage,
+) -> Result<HashMap<IdentityKey, NodeStatus>, ContractError> {
+    let latest_height = query_current_rewarded_set_height(storage)?;
+    query_rewarded_set_at_height(latest_height, storage)
+}
 
 pub(crate) fn query_reward_pool(deps: Deps) -> StdResult<Uint128> {
     storage::REWARD_POOL.load(deps.storage)

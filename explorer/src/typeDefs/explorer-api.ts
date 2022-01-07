@@ -32,11 +32,18 @@ export interface Amount {
   amount: number;
 }
 
+export enum MixnodeStatus {
+  active = 'active', // in both the active set and the rewarded set
+  standby = 'standby', // only in the rewarded set
+  inactive = 'inactive', // in neither the rewarded set nor the active set
+}
+
 export interface MixNodeResponseItem {
   pledge_amount: Amount;
   total_delegation: Amount;
   owner: string;
   layer: string;
+  status: MixnodeStatus;
   location: {
     country_name: string;
     lat: number;

@@ -4,7 +4,6 @@ use crate::{
     SignatureShare, VerificationKey,
 };
 
-use bls12_381::G1Projective;
 use itertools::izip;
 
 #[test]
@@ -17,11 +16,8 @@ fn main() -> Result<(), CoconutError> {
     let private_attributes = vec![serial_number, binding_number];
 
     // generate commitment and encryption
-    let (commitments_openings, blind_sign_request) = prepare_blind_sign(
-        &params,
-        &private_attributes,
-        &public_attributes,
-    )?;
+    let (commitments_openings, blind_sign_request) =
+        prepare_blind_sign(&params, &private_attributes, &public_attributes)?;
 
     // generate_keys
     let coconut_keypairs = ttp_keygen(&params, 2, 3)?;
@@ -48,22 +44,20 @@ fn main() -> Result<(), CoconutError> {
     }
 
     // Unblind
-    let unblinded_signatures: Vec<Signature> = izip!(
-        blinded_signatures.iter(),
-        verification_keys.iter()
-    )
-    .map(|(s,  vk)| {
-        s.unblind(
-            &params,
-            &vk,
-            &private_attributes,
-            &public_attributes,
-            &blind_sign_request.get_commitment_hash(),
-            &commitments_openings,
-        )
-        .unwrap()
-    })
-    .collect();
+    let unblinded_signatures: Vec<Signature> =
+        izip!(blinded_signatures.iter(), verification_keys.iter())
+            .map(|(s, vk)| {
+                s.unblind(
+                    &params,
+                    &vk,
+                    &private_attributes,
+                    &public_attributes,
+                    &blind_sign_request.get_commitment_hash(),
+                    &commitments_openings,
+                )
+                .unwrap()
+            })
+            .collect();
 
     // Aggregate signatures
     let signature_shares: Vec<SignatureShare> = unblinded_signatures

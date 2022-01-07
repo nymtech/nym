@@ -166,7 +166,9 @@ impl BlindedSignature {
             ));
         }
 
-        let blinding_removers = partial_verification_key.betaG1.iter()
+        let blinding_removers = partial_verification_key
+            .beta_g1
+            .iter()
             .zip(pedersen_commitments_openings.iter())
             .map(|(beta, opening)| beta * opening)
             .sum::<G1Projective>();
@@ -178,7 +180,7 @@ impl BlindedSignature {
         let signed_attributes = private_attributes
             .iter()
             .chain(public_attributes.iter())
-            .zip(partial_verification_key.betaG2.iter())
+            .zip(partial_verification_key.beta_g2.iter())
             .map(|(attr, beta_i)| beta_i * attr)
             .sum::<G2Projective>();
 
@@ -252,8 +254,7 @@ mod tests {
         let private_attributes = params.n_random_scalars(2 as usize);
 
         let (_commitments_openings, lambda) =
-            prepare_blind_sign(&mut params, &private_attributes,  &[])
-                .unwrap();
+            prepare_blind_sign(&mut params, &private_attributes, &[]).unwrap();
 
         let keypair1 = keygen(&mut params);
 
@@ -283,8 +284,7 @@ mod tests {
         let private_attributes2 = vec![hash_to_scalar("Attribute3"), hash_to_scalar("Attribute4")];
 
         let (commitments_openings, lambda) =
-            prepare_blind_sign(&mut params, &private_attributes,  &[])
-                .unwrap();
+            prepare_blind_sign(&mut params, &private_attributes, &[]).unwrap();
 
         let keypair1 = keygen(&mut params);
 
@@ -313,8 +313,7 @@ mod tests {
         let keypair2 = keygen(&mut params);
 
         let (commitments_openings, lambda) =
-            prepare_blind_sign(&mut params, &private_attributes, &[])
-                .unwrap();
+            prepare_blind_sign(&mut params, &private_attributes, &[]).unwrap();
 
         let sig1 = blind_sign(&mut params, &keypair1.secret_key(), &lambda, &[])
             .unwrap()
@@ -423,12 +422,8 @@ mod tests {
         let keypair1 = keygen(&mut params);
         let keypair2 = keygen(&mut params);
 
-        let (commitments_openings, lambda) = prepare_blind_sign(
-            &mut params,
-            &private_attributes,
-            &public_attributes,
-        )
-        .unwrap();
+        let (commitments_openings, lambda) =
+            prepare_blind_sign(&mut params, &private_attributes, &public_attributes).unwrap();
 
         let sig1 = blind_sign(
             &mut params,
@@ -514,12 +509,8 @@ mod tests {
 
         let keypairs = ttp_keygen(&mut params, 2, 3).unwrap();
 
-        let (commitments_openings, lambda) = prepare_blind_sign(
-            &mut params,
-            &private_attributes,
-            &public_attributes,
-        )
-        .unwrap();
+        let (commitments_openings, lambda) =
+            prepare_blind_sign(&mut params, &private_attributes, &public_attributes).unwrap();
 
         let sigs = keypairs
             .iter()

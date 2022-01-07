@@ -99,7 +99,8 @@ impl ProofCmCs {
 
         // witness creation
         let witness_commitment_opening = params.random_scalar();
-        let witness_pedersen_commitments_openings = params.n_random_scalars(pedersen_commitments_openings.len());
+        let witness_pedersen_commitments_openings =
+            params.n_random_scalars(pedersen_commitments_openings.len());
         let witness_attributes = params.n_random_scalars(private_attributes.len());
 
         // recompute h
@@ -347,7 +348,7 @@ impl ProofKappaZeta {
         let witness_attributes = vec![witness_serial_number, witness_binding_number];
 
         let beta_bytes = verification_key
-            .betaG2
+            .beta_g2
             .iter()
             .map(|beta_i| beta_i.to_bytes())
             .collect::<Vec<_>>();
@@ -358,7 +359,7 @@ impl ProofKappaZeta {
             + verification_key.alpha
             + witness_attributes
                 .iter()
-                .zip(verification_key.betaG2.iter())
+                .zip(verification_key.beta_g2.iter())
                 .map(|(wm_i, beta_i)| beta_i * wm_i)
                 .sum::<G2Projective>();
 
@@ -402,7 +403,7 @@ impl ProofKappaZeta {
         zeta: &G2Projective,
     ) -> bool {
         let beta_bytes = verification_key
-            .betaG2
+            .beta_g2
             .iter()
             .map(|beta_i| beta_i.to_bytes())
             .collect::<Vec<_>>();
@@ -415,7 +416,7 @@ impl ProofKappaZeta {
             + verification_key.alpha * (Scalar::one() - self.challenge)
             + response_attributes
                 .iter()
-                .zip(verification_key.betaG2.iter())
+                .zip(verification_key.beta_g2.iter())
                 .map(|(priv_attr, beta_i)| beta_i * priv_attr)
                 .sum::<G2Projective>();
 

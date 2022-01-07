@@ -16,7 +16,10 @@ use crate::scheme::aggregation::aggregate_verification_keys;
 use crate::scheme::setup::Parameters;
 use crate::scheme::SignerIndex;
 use crate::traits::Bytable;
-use crate::utils::{try_deserialize_g2_projective, try_deserialize_scalar, try_deserialize_scalar_vec, Polynomial, try_deserialize_g1_projective};
+use crate::utils::{
+    try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar,
+    try_deserialize_scalar_vec, Polynomial,
+};
 use crate::Base58;
 
 #[derive(Debug, Clone)]
@@ -73,8 +76,8 @@ impl SecretKey {
         let g2 = params.gen2();
         VerificationKey {
             alpha: g2 * self.x,
-            betaG1: self.ys.iter().map(|y| g1 * y).collect(),
-            betaG2: self.ys.iter().map(|y| g2 * y).collect(),
+            beta_g1: self.ys.iter().map(|y| g1 * y).collect(),
+            beta_g2: self.ys.iter().map(|y| g2 * y).collect(),
         }
     }
 
@@ -120,8 +123,8 @@ impl Base58 for SecretKey {}
 pub struct VerificationKey {
     // TODO add gen2 as per the paper or imply it from the fact library is using bls381?
     pub(crate) alpha: G2Projective,
-    pub(crate) betaG1: Vec<G1Projective>,
-    pub(crate) betaG2: Vec<G2Projective>,
+    pub(crate) beta_g1: Vec<G1Projective>,
+    pub(crate) beta_g2: Vec<G2Projective>,
 }
 
 impl TryFrom<&[u8]> for VerificationKey {
@@ -160,8 +163,8 @@ impl TryFrom<&[u8]> for VerificationKey {
             ),
         )?;
 
-        let mut betaG1 = Vec::with_capacity(beta_len as usize);
-        let mut betaG1_end: u64 = 0;
+        let mut beta_g1 = Vec::with_capacity(beta_len as usize);
+        let mut beta_g1_end: u64 = 0;
         for i in 0..beta_len {
             let start = (104 + i * 48) as usize;
             let end = (start + 48) as usize;
@@ -173,14 +176,14 @@ impl TryFrom<&[u8]> for VerificationKey {
                 ),
             )?;
 
-            betaG1_end = end.clone() as u64;
-            betaG1.push(beta_i)
+            beta_g1_end = end as u64;
+            beta_g1.push(beta_i)
         }
 
-        let mut betaG2 = Vec::with_capacity(beta_len as usize);
+        let mut beta_g2 = Vec::with_capacity(beta_len as usize);
         for i in 0..beta_len {
-            let start = (betaG1_end + i * 96) as usize;
-            let end = start + 96 as usize;
+            let start = (beta_g1_end + i * 96) as usize;
+            let end = start + 96;
             let beta_i_bytes = bytes[start..end].try_into().unwrap();
             let beta_i = try_deserialize_g2_projective(
                 &beta_i_bytes,
@@ -189,10 +192,14 @@ impl TryFrom<&[u8]> for VerificationKey {
                 ),
             )?;
 
-            betaG2.push(beta_i)
+            beta_g2.push(beta_i)
         }
 
-        Ok(VerificationKey { alpha, betaG1, betaG2 })
+        Ok(VerificationKey {
+            alpha,
+            beta_g1,
+            beta_g2,
+        })
     }
 }
 
@@ -205,30 +212,30 @@ impl<'b> Add<&'b VerificationKey> for VerificationKey {
         // for different number of attributes, just panic as it's a
         // nonsense operation.
         assert_eq!(
-            self.betaG1.len(),
-            rhs.betaG1.len(),
+            self.beta_g1.len(),
+            rhs.beta_g1.len(),
             "trying to add verification keys generated for different number of attributes [G1]"
         );
 
         assert_eq!(
-            self.betaG2.len(),
-            rhs.betaG2.len(),
+            self.beta_g2.len(),
+            rhs.beta_g2.len(),
             "trying to add verification keys generated for different number of attributes [G2]"
         );
 
         VerificationKey {
             alpha: self.alpha + rhs.alpha,
-            betaG1: self
-                .betaG1
+            beta_g1: self
+                .beta_g1
                 .iter()
-                .zip(rhs.betaG1.iter())
-                .map(|(self_betaG1, rhs_betaG1)| self_betaG1 + rhs_betaG1)
+                .zip(rhs.beta_g1.iter())
+                .map(|(self_beta_g1, rhs_beta_g1)| self_beta_g1 + rhs_beta_g1)
                 .collect(),
-            betaG2: self
-                .betaG2
+            beta_g2: self
+                .beta_g2
                 .iter()
-                .zip(rhs.betaG2.iter())
-                .map(|(self_betaG2, rhs_betaG2)| self_betaG2 + rhs_betaG2)
+                .zip(rhs.beta_g2.iter())
+                .map(|(self_beta_g2, rhs_beta_g2)| self_beta_g2 + rhs_beta_g2)
                 .collect(),
         }
     }
@@ -241,8 +248,8 @@ impl<'a> Mul<Scalar> for &'a VerificationKey {
     fn mul(self, rhs: Scalar) -> Self::Output {
         VerificationKey {
             alpha: self.alpha * rhs,
-            betaG1: self.betaG1.iter().map(|b_i| b_i * rhs).collect(),
-            betaG2: self.betaG2.iter().map(|b_i| b_i * rhs).collect(),
+            beta_g1: self.beta_g1.iter().map(|b_i| b_i * rhs).collect(),
+            beta_g2: self.beta_g2.iter().map(|b_i| b_i * rhs).collect(),
         }
     }
 }
@@ -258,7 +265,7 @@ where
     {
         let mut peekable = iter.peekable();
         let head_attributes = match peekable.peek() {
-            Some(head) => head.borrow().betaG2.len(),
+            Some(head) => head.borrow().beta_g2.len(),
             None => {
                 // TODO: this is a really weird edge case. You're trying to sum an EMPTY iterator
                 // of VerificationKey. So should it panic here or just return some nonsense value?
@@ -278,8 +285,8 @@ impl VerificationKey {
     pub(crate) fn identity(beta_size: usize) -> Self {
         VerificationKey {
             alpha: G2Projective::identity(),
-            betaG1: vec![G1Projective::identity(); beta_size],
-            betaG2: vec![G2Projective::identity(); beta_size],
+            beta_g1: vec![G1Projective::identity(); beta_size],
+            beta_g2: vec![G2Projective::identity(); beta_size],
         }
     }
 
@@ -291,29 +298,31 @@ impl VerificationKey {
         &self.alpha
     }
 
-    pub fn betaG1(&self) -> &Vec<G1Projective> {
-        &self.betaG1
+    pub fn beta_g1(&self) -> &Vec<G1Projective> {
+        &self.beta_g1
     }
 
-    pub fn betaG2(&self) -> &Vec<G2Projective> {
-        &self.betaG2
+    pub fn beta_g2(&self) -> &Vec<G2Projective> {
+        &self.beta_g2
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let betaG1_len = self.betaG1.len() as u64;
-        let betaG2_len = self.betaG2.len() as u64;
-        let mut bytes = Vec::with_capacity(8 + (betaG1_len + 1) as usize * 48 + (betaG2_len + 1) as usize + 96);
+        let beta_g1_len = self.beta_g1.len() as u64;
+        let beta_g2_len = self.beta_g2.len() as u64;
+        let mut bytes = Vec::with_capacity(
+            8 + (beta_g1_len + 1) as usize * 48 + (beta_g2_len + 1) as usize + 96,
+        );
 
         bytes.extend_from_slice(&self.alpha.to_affine().to_compressed());
 
-        bytes.extend_from_slice(&betaG1_len.to_le_bytes());
+        bytes.extend_from_slice(&beta_g1_len.to_le_bytes());
 
-        for betaG1 in self.betaG1.iter() {
-            bytes.extend_from_slice(&betaG1.to_affine().to_compressed())
+        for beta_g1 in self.beta_g1.iter() {
+            bytes.extend_from_slice(&beta_g1.to_affine().to_compressed())
         }
 
-        for betaG2 in self.betaG2.iter() {
-            bytes.extend_from_slice(&betaG2.to_affine().to_compressed())
+        for beta_g2 in self.beta_g2.iter() {
+            bytes.extend_from_slice(&beta_g2.to_affine().to_compressed())
         }
 
         bytes

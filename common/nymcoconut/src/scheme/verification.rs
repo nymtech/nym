@@ -124,7 +124,7 @@ pub fn compute_kappa(
         + verification_key.alpha
         + private_attributes
             .iter()
-            .zip(verification_key.betaG2.iter())
+            .zip(verification_key.beta_g2.iter())
             .map(|(priv_attr, beta_i)| beta_i * priv_attr)
             .sum::<G2Projective>()
 }
@@ -140,11 +140,11 @@ pub fn prove_bandwidth_credential(
     serial_number: Attribute,
     binding_number: Attribute,
 ) -> Result<Theta> {
-    if verification_key.betaG2.len() < 2 {
+    if verification_key.beta_g2.len() < 2 {
         return Err(
             CoconutError::Verification(
                 format!("Tried to prove a credential for higher than supported by the provided verification key number of attributes (max: {}, requested: 2)",
-                        verification_key.betaG2.len()
+                        verification_key.beta_g2.len()
                 )));
     }
 
@@ -205,7 +205,9 @@ pub fn verify_credential(
     theta: &Theta,
     public_attributes: &[Attribute],
 ) -> bool {
-    if public_attributes.len() + theta.pi_v.private_attributes_len() > verification_key.betaG2.len() {
+    if public_attributes.len() + theta.pi_v.private_attributes_len()
+        > verification_key.beta_g2.len()
+    {
         return false;
     }
 
@@ -220,7 +222,7 @@ pub fn verify_credential(
             .iter()
             .zip(
                 verification_key
-                    .betaG2
+                    .beta_g2
                     .iter()
                     .skip(theta.pi_v.private_attributes_len()),
             )
@@ -249,7 +251,7 @@ pub fn verify(
     let kappa = (verification_key.alpha
         + public_attributes
             .iter()
-            .zip(verification_key.betaG2.iter())
+            .zip(verification_key.beta_g2.iter())
             .map(|(m_i, b_i)| b_i * m_i)
             .sum::<G2Projective>())
     .to_affine();

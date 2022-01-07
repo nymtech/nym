@@ -147,7 +147,9 @@ impl BlindSignRequest {
         self.commitment_hash
     }
 
-    pub fn get_private_attributes_pedersen_commitments(&self) -> Vec<G1Projective> { self.private_attributes_commitments.clone() }
+    pub fn get_private_attributes_pedersen_commitments(&self) -> Vec<G1Projective> {
+        self.private_attributes_commitments.clone()
+    }
 
     pub fn to_bytes(&self) -> Vec<u8> {
         self.to_byte_vec()
@@ -227,11 +229,12 @@ pub fn prepare_blind_sign(
     // Compute the challenge as the commitment hash
     let commitment_hash = compute_commitment_hash(commitment);
 
-    let (pedersen_commitments_openings, pedersen_commitments) = compute_pedersen_commitments_for_private_attributes(
-        params,
-        private_attributes,
-        &commitment_hash,
-    );
+    let (pedersen_commitments_openings, pedersen_commitments) =
+        compute_pedersen_commitments_for_private_attributes(
+            params,
+            private_attributes,
+            &commitment_hash,
+        );
 
     let pi_s = ProofCmCs::construct(
         params,
@@ -242,12 +245,15 @@ pub fn prepare_blind_sign(
         private_attributes,
     );
 
-    Ok((pedersen_commitments_openings, BlindSignRequest {
-        commitment,
-        commitment_hash,
-        private_attributes_commitments : pedersen_commitments,
-        pi_s,
-    }))
+    Ok((
+        pedersen_commitments_openings,
+        BlindSignRequest {
+            commitment,
+            commitment_hash,
+            private_attributes_commitments: pedersen_commitments,
+            pi_s,
+        },
+    ))
 }
 
 pub fn blind_sign(
@@ -346,12 +352,8 @@ mod tests {
         let private_attributes = params.n_random_scalars(1);
         let public_attributes = params.n_random_scalars(0);
 
-        let (_commitments_openings, lambda) = prepare_blind_sign(
-            &mut params,
-            &private_attributes,
-            &public_attributes,
-        )
-        .unwrap();
+        let (_commitments_openings, lambda) =
+            prepare_blind_sign(&mut params, &private_attributes, &public_attributes).unwrap();
 
         let bytes = lambda.to_bytes();
         println!("{:?}", bytes.len());
@@ -363,12 +365,8 @@ mod tests {
         let mut params = Parameters::new(4).unwrap();
         let private_attributes = params.n_random_scalars(2);
         let public_attributes = params.n_random_scalars(2);
-        let (_commitments_openings, lambda) = prepare_blind_sign(
-            &mut params,
-            &private_attributes,
-            &public_attributes,
-        )
-        .unwrap();
+        let (_commitments_openings, lambda) =
+            prepare_blind_sign(&mut params, &private_attributes, &public_attributes).unwrap();
 
         let bytes = lambda.to_bytes();
         assert_eq!(

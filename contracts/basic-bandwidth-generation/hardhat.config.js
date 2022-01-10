@@ -8,15 +8,15 @@ require('dotenv').config({ path: require('find-config')('.env') });
  */
 module.exports = {
   solidity: {
-    version: "0.6.6",
+    version: "0.8.10",
     settings: {
       optimizer: {
         enabled: true
       }
     }  },
-  paths: {
-    artifacts: "./artifacts/contracts"
-  },
+  // paths: {
+  //   artifacts: "./artifacts/contracts"
+  // },
   networks: {
   //  rinkeby: {
   //     url: process.env.RINKEBY_URL, //Infura url with projectId

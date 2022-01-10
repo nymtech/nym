@@ -1,9 +1,9 @@
-pragma solidity 0.6.6;
+pragma solidity 0.8.10;
 
 import "./CosmosToken.sol";
 import "./Gravity.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /** 
  * @title BandwidthGenerator
@@ -28,7 +28,7 @@ contract BandwidthGenerator is Ownable {
         uint256 Bandwidth,
         uint256 indexed VerificationKey,
         bytes   SignedVerificationKey, 
-        bytes32 indexed CosmosRecipient
+        string  indexed CosmosRecipient
     );
 
     event RatioChanged(
@@ -39,7 +39,7 @@ contract BandwidthGenerator is Ownable {
      * @param _erc20          Address of the erc20NYM deployed through the Gravity Bridge.
      * @param _gravityBridge  Address of the deployed Gravity Bridge. 
      */
-    constructor(CosmosERC20 _erc20, Gravity _gravityBridge) public {
+    constructor(CosmosERC20 _erc20, Gravity _gravityBridge) {
         require(address(_erc20) != address(0),         "BandwidthGenerator: erc20 address cannot be null"); 
         require(address(_gravityBridge) != address(0), "BandwidthGenerator: gravity bridge address cannot be null"); 
         erc20 = _erc20;
@@ -65,7 +65,7 @@ contract BandwidthGenerator is Ownable {
      * @param _signedVerificationKey  Number of erc20NYMs to spend signed by _verificationKey for auth on Cosmos Blockchain.
      * @param _cosmosRecipient        Address of the recipient of payment on Nym Cosmos Blockchain.
      */    
-    function generateBasicBandwidthCredential(uint256 _amount, uint256 _verificationKey, bytes memory _signedVerificationKey, bytes32 _cosmosRecipient) public {
+    function generateBasicBandwidthCredential(uint256 _amount, uint256 _verificationKey, bytes memory _signedVerificationKey, string memory _cosmosRecipient) public {
         require(_signedVerificationKey.length == 64, "BandwidthGenerator: Signature doesn't have 64 bytes");
         erc20.transferFrom(msg.sender, address(this), _amount);
         erc20.approve(address(gravityBridge), _amount); 

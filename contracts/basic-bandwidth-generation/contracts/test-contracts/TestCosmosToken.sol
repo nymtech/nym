@@ -2,8 +2,23 @@
 pragma solidity 0.8.10;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract CosmosERC20 is ERC20 {
-	uint256 MAX_UINT = 2**256 - 1;
+/**
+* This is a slightly modified version of the cosmos erc20 contract 
+* which I have done for unit testing. 
+* 
+* All that has been changed is the MAX_UINT variable to allow 
+* me to mint some tokens more easily in unit tests, and the 
+* addition of the public mint() function. 
+*/
+
+
+contract TestCosmosERC20 is ERC20 {
+	/* canonical amount */
+	// uint256 MAX_UINT = 2**256 - 1;
+
+	/* unit testing amount */
+	uint256 HALF_MAX_UINT = 2**256 / 2;
+
 	uint8 private cosmosDecimals;
 	address private gravityAddress;
 
@@ -19,7 +34,7 @@ contract CosmosERC20 is ERC20 {
 	// side, while in theory this could be piggy-backed on some existing bridge
 	// operation it's a lot of complextiy to add so we chose to forgoe it.
 	function totalSupply() public view virtual override returns (uint256) {
-		return MAX_UINT - balanceOf(gravityAddress);
+		return HALF_MAX_UINT - balanceOf(gravityAddress);
 	}
 
 	constructor(
@@ -30,6 +45,11 @@ contract CosmosERC20 is ERC20 {
 	) ERC20(_name, _symbol) {
 		cosmosDecimals = _decimals;
 		gravityAddress = _gravityAddress;
-		_mint(_gravityAddress, MAX_UINT);
+		_mint(_gravityAddress, HALF_MAX_UINT);
+	}
+
+	// Additional function for our (nym repo) unit tests with bridge
+	function mintForUnitTesting(address _to, uint _amount) public {
+		_mint(_to, _amount); 
 	}
 }

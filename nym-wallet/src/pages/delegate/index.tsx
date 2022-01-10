@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
+import { Alert, AlertTitle, Box, Button, CircularProgress, Link, Typography } from '@mui/material'
 import { DelegateForm } from './DelegateForm'
 import { Layout } from '../../layouts'
 import { NymCard } from '../../components'
@@ -8,6 +8,7 @@ import { TFee } from '../../types'
 import { getGasFee } from '../../requests'
 import { SuccessView } from './SuccessView'
 import { Delegate as DelegateIcon } from '../../svg-icons'
+import { urls } from '../../context/main'
 
 export const Delegate = () => {
   const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial)
@@ -98,6 +99,13 @@ export const Delegate = () => {
           )}
         </>
       </NymCard>
+      <Typography sx={{ p: 3 }}>
+        Checkout the{' '}
+        <Link href={`${urls.networkExplorer}/network-components/mixnodes`} target="_blank">
+          list of mixnodes
+        </Link>{' '}
+        for uptime and performances to help make delegation decisions
+      </Typography>
     </Layout>
   )
 }

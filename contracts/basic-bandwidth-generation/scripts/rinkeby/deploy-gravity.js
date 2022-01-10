@@ -5,6 +5,8 @@ const fs = require('file-system');
 
 async function main() {
     const [deployer] = await ethers.getSigners();
+    console.log(deployer.address); 
+    console.log(constants.ZERO_BYTES32); 
     const Gravity = await ethers.getContractFactory("Gravity");
     // deploy with args from unit tests 
     const gravity = await Gravity.deploy(

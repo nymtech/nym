@@ -11,7 +11,7 @@ use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Order, Response, StdResult, 
 use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
 use mixnet_contract::{
-    IdentityKey, NodeStatus, RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
+    IdentityKey, NodeStatus, RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT, Epoch
 };
 use std::collections::HashMap;
 
@@ -42,6 +42,14 @@ pub fn try_clear_rewarded_set(storage: &mut dyn Storage) -> Result<Response, Con
     for key in keys? {
         storage::REWARDED_SET.remove(storage, key)
     }
+    Ok(Response::default())
+}
+
+pub fn try_set_current_epoch(
+    epoch: Epoch,
+    storage: &mut dyn Storage,
+) -> Result<Response, ContractError> {
+    storage::CURRENT_EPOCH.save(storage, &epoch)?;
     Ok(Response::default())
 }
 

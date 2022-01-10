@@ -9,9 +9,7 @@ use mixnet_contract::{Epoch, IdentityKey, MixnodeRewardingStatusResponse, NodeSt
 use std::collections::{HashMap, HashSet};
 
 pub fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
-    Ok(storage::CURRENT_EPOCH
-        .may_load(storage)?
-        .unwrap_or_default())
+    Ok(storage::CURRENT_EPOCH.load(storage)?)
 }
 
 pub fn query_rewarded_set_for_epoch(

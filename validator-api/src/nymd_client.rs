@@ -6,9 +6,11 @@ use crate::rewarding::{error::RewardingError, MixnodeToReward};
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract::{
     ContractStateParams, Delegation, Epoch, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond,
-    MixnodeRewardingStatusResponse, RewardingIntervalResponse, MIXNODE_DELEGATORS_PAGE_LIMIT,
+    MixnodeRewardingStatusResponse, NodeStatus, RewardingIntervalResponse,
+    MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 use serde::Serialize;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -244,6 +246,38 @@ impl<C> Client<C> {
             .nymd
             .finish_mixnode_rewarding(rewarding_interval_nonce)
             .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn set_current_epoch(&self, epoch: &Epoch) -> Result<(), ValidatorClientError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0.write().await.nymd.set_current_epoch(epoch).await?;
+        Ok(())
+    }
+
+    pub(crate) async fn write_rewarded_set(
+        &self,
+        rewarded_set: &HashMap<String, NodeStatus>,
+    ) -> Result<(), ValidatorClientError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0
+            .write()
+            .await
+            .nymd
+            .write_rewarded_set(rewarded_set)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn clear_rewarded_set(&self) -> Result<(), ValidatorClientError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0.write().await.nymd.clear_rewarded_set().await?;
         Ok(())
     }
 

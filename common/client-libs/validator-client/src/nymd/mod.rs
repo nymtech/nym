@@ -18,7 +18,7 @@ use mixnet_contract::{
     GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNode, MixNodeBond,
     MixOwnershipResponse, MixnetContractVersion, MixnodeRewardingStatusResponse,
     PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
-    PagedMixDelegationsResponse, PagedMixnodeResponse, QueryMsg, RewardingIntervalResponse,
+    PagedMixDelegationsResponse, PagedMixnodeResponse, QueryMsg, RewardingIntervalResponse, NodeStatus,
 };
 use serde::Serialize;
 use std::convert::TryInto;
@@ -1129,6 +1129,73 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Finishing mixnode rewarding procedure",
+                Vec::new(),
+            )
+            .await
+    }
+
+    pub async fn set_current_epoch(
+        &self,
+        epoch: &Epoch,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::SetCurrentEpoch);
+
+        let req = ExecuteMsg::SetCurrentEpoch {
+            epoch: epoch.clone(),
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Setting current epoch",
+                Vec::new(),
+            )
+            .await
+    }
+
+    pub async fn write_rewarded_set(
+        &self,
+        rewarded_set: &HashMap<String, NodeStatus>,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::WriteRewardedSet);
+
+        let req = ExecuteMsg::WriteRewardedSet {
+            rewarded_set: rewarded_set.clone(),
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Writing rewarded set",
+                Vec::new(),
+            )
+            .await
+    }
+
+    pub async fn clear_rewarded_set(&self) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::ClearRewardedSet);
+
+        let req = ExecuteMsg::ClearRewardedSet {};
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Clearing rewarded set",
                 Vec::new(),
             )
             .await

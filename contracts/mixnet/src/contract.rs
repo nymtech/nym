@@ -27,7 +27,9 @@ use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
-use mixnet_contract::{ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use mixnet_contract::{
+    ContractStateParams, Epoch, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+};
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_PLEDGE: Uint128 = Uint128::new(100_000_000);
@@ -82,6 +84,7 @@ pub fn instantiate(
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
+    rewards_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
 
     Ok(Response::default())
 }
@@ -226,6 +229,9 @@ pub fn execute(
         }
         ExecuteMsg::ClearRewardedSet {} => {
             crate::rewards::transactions::try_clear_rewarded_set(deps.storage)
+        }
+        ExecuteMsg::SetCurrentEpoch {epoch} => {
+            crate::rewards::transactions::try_set_current_epoch(epoch, deps.storage)
         }
     }
 }

@@ -3,7 +3,7 @@
 
 use crate::mixnode::NodeRewardParams;
 use crate::ContractStateParams;
-use crate::{Gateway, IdentityKey, MixNode, NodeStatus};
+use crate::{Gateway, IdentityKey, MixNode, NodeStatus, Epoch};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -13,7 +13,8 @@ pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+// TODO: We've removed JsonSchema derive from here due to Epoch, it needs to be put back
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     BondMixnode {
@@ -87,6 +88,7 @@ pub enum ExecuteMsg {
         rewarded_set: HashMap<IdentityKey, NodeStatus>,
     },
     ClearRewardedSet {},
+    SetCurrentEpoch { epoch: Epoch }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

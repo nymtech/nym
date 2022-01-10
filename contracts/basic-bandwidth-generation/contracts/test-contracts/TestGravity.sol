@@ -70,7 +70,7 @@ struct Signature {
 	bytes32 s;
 }
 
-contract Gravity is ReentrancyGuard {
+contract TestGravity is ReentrancyGuard {
 	using SafeERC20 for IERC20;
 
 	// The number of 'votes' required to execute a valset

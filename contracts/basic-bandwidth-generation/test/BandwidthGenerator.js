@@ -3,8 +3,8 @@ const { constants, expectRevert, expectEvent } = require('@openzeppelin/test-hel
 const { artifacts, web3 } = require("hardhat");
 const BN = require('bn.js');
 const BandwidthGenerator = artifacts.require('BandwidthGenerator');
-const Gravity = artifacts.require('Gravity');   
-const CosmosToken = artifacts.require('CosmosERC20');
+const Gravity = artifacts.require('test-contracts/TestGravity');   
+const CosmosToken = artifacts.require('TestCosmosERC20');
 
 
 contract('BandwidthGenerator', (accounts) => {
@@ -13,6 +13,7 @@ contract('BandwidthGenerator', (accounts) => {
   let erc20token; 
   let owner = accounts[0];
   let user = accounts[1];
+  let cosmosRecipient = 'nymt1f06hzmwf9chqewkpv93ajk6tayzp4784m2da9x'; // random sandbox testnet address
   let initialRatio = 1073741824; // 1073741824 bytes = 1GB
   let newRatio; 
   let tokenAmount = web3.utils.toWei('100'); // this is converting 100 tokens to their representation in wei: 100000000000000000000
@@ -25,14 +26,13 @@ contract('BandwidthGenerator', (accounts) => {
     // deploy gravity bridge with test data
     gravity = await Gravity.new(
       constants.ZERO_BYTES32, 
-      1, 
       [owner], 
-      [10]
+      [2863311531]
     ); 
 
     // deploy erc20 NYM from bridge 
     await gravity.deployERC20(
-      'eNYM',
+      'cosmosNYMDenomination',
       'NYMERC20',
       'NYM',
       6
@@ -49,6 +49,7 @@ contract('BandwidthGenerator', (accounts) => {
     
     // deploy bandwidthGenerator contract with contract address of erc20NYM & address of gravity bridge
     bandwidthGenerator = await BandwidthGenerator.new(erc20token.address, gravity.address); 
+
   });
   
   context(">> deployment parameters are valid", () => {
@@ -82,7 +83,7 @@ contract('BandwidthGenerator', (accounts) => {
   });
 
   context(">> generateBasicBandwidthCredential()", () => {
-    before("", async () => {
+    before("mint tokens & approve", async () => {
       // transfer tokens to account which will create a BBCredential 
       await erc20token.mintForUnitTesting(user, tokenAmount); 
       // approve transfer to contract
@@ -95,7 +96,7 @@ contract('BandwidthGenerator', (accounts) => {
             15,
             [0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba,
               0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba],
-            constants.ZERO_BYTES32,  
+            cosmosRecipient,  
             { from: user }
       );
 
@@ -105,7 +106,7 @@ contract('BandwidthGenerator', (accounts) => {
         Bandwidth: expectedBandwidthInMB.toString(), 
         VerificationKey: '15',
         SignedVerificationKey: '0x39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba',
-        CosmosRecipient: constants.ZERO_BYTES32 
+        // CosmosRecipient: cosmosRecipient 
       });
 
       await expectEvent.inTransaction(tx.tx, erc20token, 'Transfer', {
@@ -116,7 +117,7 @@ contract('BandwidthGenerator', (accounts) => {
       await expectEvent.inTransaction(tx.tx, gravity, 'SendToCosmosEvent', {
         _tokenContract: erc20token.address,
         _sender: bandwidthGenerator.address,
-        _destination: constants.ZERO_BYTES32,
+        _destination: cosmosRecipient,
         _amount: halfTokenAmount
       });
 
@@ -133,7 +134,7 @@ contract('BandwidthGenerator', (accounts) => {
         15,
         [0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba,
           0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba],
-        constants.ZERO_BYTES32,  
+        cosmosRecipient,  
         { from: user }
       );
       
@@ -143,7 +144,7 @@ contract('BandwidthGenerator', (accounts) => {
         Bandwidth: newexpectedBandwidthInMB.toString(), 
         VerificationKey: '15',
         SignedVerificationKey: '0x39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba',
-        CosmosRecipient: constants.ZERO_BYTES32 
+        // CosmosRecipient: cosmosRecipient 
       });
 
       await expectEvent.inTransaction(tx.tx, erc20token, 'Transfer', {
@@ -154,7 +155,7 @@ contract('BandwidthGenerator', (accounts) => {
       await expectEvent.inTransaction(tx.tx, gravity, 'SendToCosmosEvent', {
         _tokenContract: erc20token.address,
         _sender: bandwidthGenerator.address,
-        _destination: constants.ZERO_BYTES32,
+        _destination: cosmosRecipient,
         _amount: unevenTokenAmount
       });
     });
@@ -168,7 +169,7 @@ contract('BandwidthGenerator', (accounts) => {
           16,
           [0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba,
             0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba],
-          constants.ZERO_BYTES32,
+          cosmosRecipient,
           { from: user }
         ), "BandwidthGenerator: Signature doesn't have 64 bytes"
       );
@@ -196,7 +197,7 @@ contract('BandwidthGenerator', (accounts) => {
         15,
         [0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba,
           0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba],
-        constants.ZERO_BYTES32,  
+        cosmosRecipient,  
         { from: user }
       );
 
@@ -206,7 +207,7 @@ contract('BandwidthGenerator', (accounts) => {
         Bandwidth: expectedBandwidthInMB.toString(), 
         VerificationKey: '15',
         SignedVerificationKey: '0x39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba',
-        CosmosRecipient: constants.ZERO_BYTES32 
+        // CosmosRecipient: cosmosRecipient
       });
 
       await expectEvent.inTransaction(tx.tx, erc20token, 'Transfer', {
@@ -217,7 +218,7 @@ contract('BandwidthGenerator', (accounts) => {
       await expectEvent.inTransaction(tx.tx, gravity, 'SendToCosmosEvent', {
         _tokenContract: erc20token.address,
         _sender: bandwidthGenerator.address,
-        _destination: constants.ZERO_BYTES32,
+        _destination: cosmosRecipient,
         _amount: oneToken
       });       
     });

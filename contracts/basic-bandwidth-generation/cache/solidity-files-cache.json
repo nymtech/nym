@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/BandwidthGenerator.sol": {
-      "lastModificationDate": 1641813499577,
-      "contentHash": "019fffdd8521017f63b3e923d292c025",
+      "lastModificationDate": 1641816859262,
+      "contentHash": "7637957db2593564c0135f527db4673b",
       "sourceName": "contracts/BandwidthGenerator.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -505,8 +505,8 @@
       ]
     },
     "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/test-contracts/TestGravity.sol": {
-      "lastModificationDate": 1641813465624,
-      "contentHash": "5c725464b149a3862c88db62891d8f66",
+      "lastModificationDate": 1641815710987,
+      "contentHash": "f24299c3acb20aff23914e16b7ba95e1",
       "sourceName": "contracts/test-contracts/TestGravity.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -542,7 +542,7 @@
         "0.8.10"
       ],
       "artifacts": [
-        "Gravity"
+        "TestGravity"
       ]
     }
   }

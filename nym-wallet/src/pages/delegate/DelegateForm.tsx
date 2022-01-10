@@ -115,7 +115,8 @@ export const DelegateForm = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          padding: 3,
+          p: 3,
+          pt: 0,
         }}
       >
         <Button

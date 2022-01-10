@@ -56,6 +56,7 @@ export const Unbond = () => {
               display: 'flex',
               justifyContent: 'center',
               p: 3,
+              pt: 0,
             }}
           >
             <CircularProgress size={48} />

@@ -92,6 +92,7 @@ export const Undelegate = () => {
                   alignItems: 'center',
                   justifyContent: 'flex-end',
                   p: 3,
+                  pt: 0,
                 }}
               >
                 <Button

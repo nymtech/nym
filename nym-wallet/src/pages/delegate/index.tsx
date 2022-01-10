@@ -74,7 +74,8 @@ export const Delegate = () => {
                   justifyContent: 'flex-end',
                   borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
                   bgcolor: 'grey.100',
-                  p: 2,
+                  p: 3,
+                  pt: 0,
                 }}
               >
                 <Button

@@ -118,7 +118,8 @@ export const SystemVariables = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: 3,
+          p: 3,
+          pt: 0,
         }}
       >
         {nodeUpdateResponse === 'success' ? (

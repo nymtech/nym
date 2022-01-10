@@ -376,6 +376,7 @@ export const BondForm = ({
           alignItems: 'center',
           justifyContent: 'flex-end',
           padding: 3,
+          pt: 0,
         }}
       >
         <Button

@@ -35,7 +35,7 @@ contract('BandwidthGenerator', (accounts) => {
       'eNYM',
       'NYMERC20',
       'NYM',
-      18
+      6
     ); 
 
     // grab event args for getting token address

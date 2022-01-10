@@ -66,8 +66,8 @@ export const SystemVariables = ({
 
   return (
     <>
-      <Box sx={{ p: 4 }}>
-        <Stack spacing={3}>
+      <Box sx={{ p: 3 }}>
+        <Stack spacing={5}>
           <TextField
             {...register('profitMarginPercent', { valueAsNumber: true })}
             label="Profit margin"
@@ -80,20 +80,13 @@ export const SystemVariables = ({
             error={!!errors.profitMarginPercent}
             disabled={isSubmitting}
           />
-          <TextField
-            {...register('signature')}
-            label="Owner signature"
-            error={!!errors.signature}
-            helperText={!!errors.signature && errors.signature.message}
-            disabled={isSubmitting}
-          />
-          <Divider />
+
           <DataField
             title="Estimated reward"
             info="Estimated reward per epoch for this profit margin if your node is selected in the active set."
             Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
           />
-          <Divider />
+
           <DataField
             title="Chance of being in the active set"
             info="Probability of getting selected in the reward set (active and standby nodes) in the next epoch. The more your stake, the higher the chances to be selected"
@@ -105,7 +98,6 @@ export const SystemVariables = ({
             Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
           />
 
-          <Divider />
           <DataField
             title="Node stake saturation"
             info="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 1 million NYM, computed as S/K where S is the total amount of tokens available to stakeholders and K is the number of nodes in the reward set."

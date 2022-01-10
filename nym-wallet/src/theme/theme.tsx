@@ -201,7 +201,6 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         styleOverrides: {
           sizeLarge: {
             height: 55,
-            padding: '13px 24px',
           },
         },
       },

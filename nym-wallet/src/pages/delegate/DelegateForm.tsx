@@ -1,8 +1,8 @@
 import React, { useContext } from 'react'
 import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField, Typography } from '@mui/material'
+import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
 import { EnumNodeType, TFee } from '../../types'
-import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 import { delegate, majorToMinor } from '../../requests'
@@ -71,7 +71,7 @@ export const DelegateForm = ({
 
   return (
     <FormControl fullWidth>
-      <Box sx={{ padding: [3, 5] }}>
+      <Box sx={{ p: 3 }}>
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <TextField

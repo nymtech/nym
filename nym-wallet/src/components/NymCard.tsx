@@ -1,27 +1,28 @@
 import React from 'react'
-import { Card, CardContent, CardHeader } from '@mui/material'
+import { Box, Card, CardContent, CardHeader } from '@mui/material'
 import { styled } from '@mui/material/styles'
 
 export const NymCard: React.FC<{
   title: string | React.ReactElement
   subheader?: string
   Action?: React.ReactNode
+  Icon?: any
   noPadding?: boolean
-}> = ({ title, subheader, Action, noPadding, children }) => {
+}> = ({ title, subheader, Action, Icon, noPadding, children }) => {
   return (
     <Card variant="outlined" sx={{ overflow: 'auto' }}>
       <CardHeader
-        title={title}
+        sx={{ p: 3, color: 'nym.background.dark' }}
+        title={
+          <Box display="flex" alignItems="center">
+            {Icon && <Icon sx={{ mr: 1 }} />} {title}
+          </Box>
+        }
         subheader={subheader}
         data-testid={title}
         titleTypographyProps={{ variant: 'h5' }}
         subheaderTypographyProps={{ variant: 'subtitle1' }}
         action={Action}
-        sx={{
-          color: 'nym.background.dark',
-          py: 2.5,
-          px: 4,
-        }}
       />
       {noPadding ? <CardContentNoPadding>{children}</CardContentNoPadding> : <CardContent>{children}</CardContent>}
     </Card>

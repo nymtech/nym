@@ -6,6 +6,7 @@ import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus
 import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
 import { getGasFee, getReverseMixDelegations } from '../../requests'
 import { TFee, TPagedDelegations } from '../../types'
+import { Undelegate as UndelegateIcon } from '../../svg-icons'
 
 export const Undelegate = () => {
   const [message, setMessage] = useState<string>()
@@ -42,7 +43,7 @@ export const Undelegate = () => {
 
   return (
     <Layout>
-      <NymCard title="Undelegate" subheader="Undelegate from a mixnode" noPadding>
+      <NymCard title="Undelegate" subheader="Undelegate from a mixnode" Icon={UndelegateIcon} noPadding>
         {isLoading && (
           <Box
             sx={{

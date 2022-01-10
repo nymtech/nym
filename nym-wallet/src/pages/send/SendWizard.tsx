@@ -102,7 +102,7 @@ export const SendWizard = () => {
 
   return (
     <FormProvider {...methods}>
-      <Box sx={{ pt: 3 }}>
+      <Box>
         <Stepper
           activeStep={activeStep}
           sx={{
@@ -147,8 +147,8 @@ export const SendWizard = () => {
             </Button>
           )}
           <Button
-            variant={activeStep > 0 ? 'contained' : 'text'}
-            color={activeStep > 0 ? 'primary' : 'inherit'}
+            variant="contained"
+            color="primary"
             disableElevation
             data-testid="button"
             onClick={activeStep === 0 ? handleNextStep : activeStep === 1 ? handleSend : handleFinish}

@@ -125,7 +125,7 @@ export const BondForm = ({
 
   return (
     <FormControl fullWidth>
-      <Box sx={{ padding: [3, 5] }}>
+      <Box sx={{ p: 3 }}>
         <Grid container spacing={3}>
           <Grid container item justifyContent="space-between">
             <Grid item>

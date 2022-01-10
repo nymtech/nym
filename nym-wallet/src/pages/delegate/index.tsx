@@ -7,6 +7,7 @@ import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus
 import { TFee } from '../../types'
 import { getGasFee } from '../../requests'
 import { SuccessView } from './SuccessView'
+import { Delegate as DelegateIcon } from '../../svg-icons'
 
 export const Delegate = () => {
   const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial)
@@ -28,7 +29,13 @@ export const Delegate = () => {
 
   return (
     <Layout>
-      <NymCard title="Delegate" subheader="Delegate to mixnode" noPadding data-testid="delegateCard">
+      <NymCard
+        title="Delegate"
+        subheader="Delegate to mixnode"
+        noPadding
+        Icon={DelegateIcon}
+        data-testid="delegateCard"
+      >
         {isLoading && (
           <Box
             sx={{

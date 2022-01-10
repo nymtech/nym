@@ -60,7 +60,7 @@ export const UndelegateForm = ({
 
   return (
     <FormControl fullWidth>
-      <Box sx={{ p: 4 }}>
+      <Box sx={{ p: 3 }}>
         <Grid container spacing={3} direction="column">
           <Grid item xs={12}>
             <Controller
@@ -101,6 +101,7 @@ export const UndelegateForm = ({
           alignItems: 'center',
           justifyContent: 'flex-end',
           p: 3,
+          pt: 0,
         }}
       >
         <Button

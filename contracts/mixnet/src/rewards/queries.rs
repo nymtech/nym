@@ -12,14 +12,18 @@ pub fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError
     Ok(storage::CURRENT_EPOCH.load(storage)?)
 }
 
+pub(crate) fn query_rewarded_set_refresh_secs() -> u32 {
+    crate::contract::REWARDED_SET_REFRESH_SECS
+}
+
 pub fn query_rewarded_set_for_epoch(
-    epoch: Option<u32>,
+    epoch: Option<Epoch>,
     filter: Option<NodeStatus>,
     storage: &dyn Storage,
 ) -> Result<HashSet<IdentityKey>, ContractError> {
-    let epoch = epoch.unwrap_or(storage::CURRENT_EPOCH.load(storage)?.id());
+    let epoch = epoch.unwrap_or(storage::CURRENT_EPOCH.load(storage)?);
     let heights: Vec<u64> = storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
-        .prefix_de(epoch)
+        .prefix_de(epoch.id())
         .range_de(storage, None, None, Order::Descending)
         .scan((), |_, x| x.ok())
         .map(|(height, _)| height)
@@ -62,7 +66,7 @@ pub fn query_rewarded_set_at_height(
     Ok(rewarded_set?.into_iter().collect())
 }
 
-pub fn query_current_rewarded_set(
+pub fn query_rewarded_set(
     storage: &dyn Storage,
 ) -> Result<HashMap<IdentityKey, NodeStatus>, ContractError> {
     let latest_height = query_current_rewarded_set_height(storage)?;

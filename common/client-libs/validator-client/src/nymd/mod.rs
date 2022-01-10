@@ -304,6 +304,57 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn query_rewarded_set(
+        &self,
+    ) -> Result<HashMap<String, NodeStatus>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetRewardedSet {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn query_current_rewarded_set_height(
+        &self,
+    ) -> Result<u64, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetCurrentRewardedSetHeight {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn query_rewarded_set_at_height(
+        &self,
+        height: u64,
+    ) -> Result<HashMap<String, NodeStatus>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetRewardedSetAtHeight { height };
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn query_rewarded_set_for_epoch(
+        &self,
+        epoch: Option<Epoch>,
+        filter: Option<NodeStatus>
+    ) -> Result<HashMap<String, NodeStatus>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetRewardedSetForEpoch { epoch, filter };
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
     pub async fn get_layer_distribution(&self) -> Result<LayerDistribution, NymdError>
     where
         C: CosmWasmClient + Sync,

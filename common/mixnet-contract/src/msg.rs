@@ -3,7 +3,7 @@
 
 use crate::mixnode::NodeRewardParams;
 use crate::ContractStateParams;
-use crate::{Gateway, IdentityKey, MixNode, NodeStatus, Epoch};
+use crate::{Epoch, Gateway, IdentityKey, MixNode, NodeStatus};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -88,10 +88,13 @@ pub enum ExecuteMsg {
         rewarded_set: HashMap<IdentityKey, NodeStatus>,
     },
     ClearRewardedSet {},
-    SetCurrentEpoch { epoch: Epoch }
+    SetCurrentEpoch {
+        epoch: Epoch,
+    },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+// TODO: See comment above for JsonSchema derive
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetContractVersion {},
@@ -147,16 +150,17 @@ pub enum QueryMsg {
         mix_identity: IdentityKey,
         rewarding_interval_nonce: u32,
     },
-    GetCurrentRewardedSet {},
+    GetRewardedSet {},
     GetCurrentRewardedSetHeight {},
     GetRewardedSetAtHeight {
         height: u64,
     },
-    GetAllRewardedSetsForEpoch {
-        epoch: Option<u32>,
+    GetCurrentEpoch {},
+    GetRewardedSetRefreshSecs {},
+    GetRewardedSetForEpoch {
+        epoch: Option<Epoch>,
         filter: Option<NodeStatus>,
     },
-    GetCurrentEpoch {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

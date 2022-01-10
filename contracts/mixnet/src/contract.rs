@@ -19,9 +19,9 @@ use crate::mixnodes::bonding_queries::query_mixnodes_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::rewards::queries::query_current_epoch;
 use crate::rewards::queries::{
-    query_circulating_supply, query_current_rewarded_set, query_current_rewarded_set_height,
+    query_circulating_supply, query_rewarded_set, query_current_rewarded_set_height,
     query_reward_pool, query_rewarded_set_at_height, query_rewarded_set_for_epoch,
-    query_rewarding_status,
+    query_rewarded_set_refresh_secs, query_rewarding_status,
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
@@ -45,6 +45,8 @@ pub const EPOCH_REWARD_PERCENT: u8 = 2; // Used to calculate epoch reward pool
 pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
 pub const DEFAULT_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 
+pub const REWARDED_SET_REFRESH_SECS: u32 = 3600;
+
 fn default_initial_state(
     owner: Addr,
     rewarding_validator_address: Addr,
@@ -58,6 +60,7 @@ fn default_initial_state(
             minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+            // TODO: This is no longer needed, and can be removed
             active_set_work_factor: DEFAULT_ACTIVE_SET_WORK_FACTOR,
         },
         rewarding_interval_starting_block: env.block.height,
@@ -230,7 +233,7 @@ pub fn execute(
         ExecuteMsg::ClearRewardedSet {} => {
             crate::rewards::transactions::try_clear_rewarded_set(deps.storage)
         }
-        ExecuteMsg::SetCurrentEpoch {epoch} => {
+        ExecuteMsg::SetCurrentEpoch { epoch } => {
             crate::rewards::transactions::try_set_current_epoch(epoch, deps.storage)
         }
     }
@@ -292,17 +295,16 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             mix_identity,
             rewarding_interval_nonce,
         )?),
-        QueryMsg::GetCurrentRewardedSet {} => to_binary(&query_current_rewarded_set(deps.storage)?),
+        QueryMsg::GetRewardedSet {} => to_binary(&query_rewarded_set(deps.storage)?),
         QueryMsg::GetCurrentRewardedSetHeight {} => {
             to_binary(&query_current_rewarded_set_height(deps.storage)?)
         }
         QueryMsg::GetRewardedSetAtHeight { height } => {
             to_binary(&query_rewarded_set_at_height(height, deps.storage)?)
         }
-        QueryMsg::GetAllRewardedSetsForEpoch { epoch, filter } => {
-            to_binary(&query_rewarded_set_for_epoch(epoch, filter, deps.storage)?)
-        }
         QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
+        QueryMsg::GetRewardedSetRefreshSecs {} => to_binary(&query_rewarded_set_refresh_secs()),
+        QueryMsg::GetRewardedSetForEpoch {epoch, filter} => to_binary(&query_rewarded_set_for_epoch(epoch, filter, deps.storage)?),
     };
 
     Ok(query_res?)

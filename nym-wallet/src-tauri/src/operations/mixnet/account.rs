@@ -1,14 +1,16 @@
-use crate::client;
 use crate::coin::{Coin, Denom};
 use crate::config::Config;
 use crate::error::BackendError;
+use crate::nymd_client;
 use crate::state::State;
 use bip39::{Language, Mnemonic};
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use validator_client::nymd::{AccountId, NymdClient, SigningNymdClient};
+use validator_client::nymd::SigningNymdClient;
+use validator_client::Client;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Serialize, Deserialize)]
@@ -37,14 +39,14 @@ pub async fn connect_with_mnemonic(
     _connect_with_mnemonic(mnemonic, &r_state.config())
   };
 
-  let contract_address = client.mixnet_contract_address()?.to_string();
-  let client_address = client.address().to_string();
-  let denom = client.denom()?;
+  let contract_address = client.nymd.mixnet_contract_address()?.to_string();
+  let client_address = client.nymd.address().to_string();
+  let denom = client.nymd.denom()?;
 
   let account = Account {
     contract_address,
     client_address,
-    denom: Denom::from_str(&denom.to_string())?,
+    denom: denom.try_into()?,
     mnemonic: None,
   };
 
@@ -58,8 +60,8 @@ pub async fn connect_with_mnemonic(
 pub async fn get_balance(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Balance, BackendError> {
-  match client!(state)
-    .get_mixnet_balance(client!(state).address())
+  match nymd_client!(state)
+    .get_mixnet_balance(nymd_client!(state).address())
     .await
   {
     Ok(Some(coin)) => {
@@ -73,7 +75,7 @@ pub async fn get_balance(
       })
     }
     Ok(None) => Err(BackendError::NoBalance(
-      client!(state).address().to_string(),
+      nymd_client!(state).address().to_string(),
     )),
     Err(e) => Err(BackendError::from(e)),
   }
@@ -94,13 +96,15 @@ fn random_mnemonic() -> Mnemonic {
   Mnemonic::generate_in_with(&mut rng, Language::English, 24).unwrap()
 }
 
-fn _connect_with_mnemonic(mnemonic: Mnemonic, config: &Config) -> NymdClient<SigningNymdClient> {
-  match NymdClient::connect_with_mnemonic(
-    config.get_nymd_validator_url().unwrap(),
-    Some(AccountId::from_str(&config.get_mixnet_contract_address()).unwrap()),
-    None,
+fn _connect_with_mnemonic(mnemonic: Mnemonic, config: &Config) -> Client<SigningNymdClient> {
+  match validator_client::Client::new_signing(
+    validator_client::Config::new(
+      config.get_nymd_validator_url(),
+      config.get_validator_api_url(),
+      Some(config.get_mixnet_contract_address()),
+      config.get_vesting_contract_address(),
+    ),
     mnemonic,
-    None,
   ) {
     Ok(client) => client,
     Err(e) => panic!("{}", e),

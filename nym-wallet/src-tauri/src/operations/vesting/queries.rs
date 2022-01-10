@@ -1,6 +1,6 @@
-use crate::client;
 use crate::coin::Coin;
 use crate::error::BackendError;
+use crate::nymd_client;
 use crate::state::State;
 use cosmwasm_std::Timestamp;
 use std::sync::Arc;
@@ -14,7 +14,7 @@ pub async fn locked_coins(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
   Ok(
-    client!(state)
+    nymd_client!(state)
       .locked_coins(address, block_time.map(Timestamp::from_seconds))
       .await?
       .into(),
@@ -28,7 +28,7 @@ pub async fn spendable_coins(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
   Ok(
-    client!(state)
+    nymd_client!(state)
       .spendable_coins(
         vesting_account_address,
         block_time.map(Timestamp::from_seconds),
@@ -45,7 +45,7 @@ pub async fn vested_coins(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
   Ok(
-    client!(state)
+    nymd_client!(state)
       .vested_coins(
         vesting_account_address,
         block_time.map(Timestamp::from_seconds),
@@ -62,7 +62,7 @@ pub async fn vesting_coins(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
   Ok(
-    client!(state)
+    nymd_client!(state)
       .vesting_coins(
         vesting_account_address,
         block_time.map(Timestamp::from_seconds),
@@ -78,7 +78,7 @@ pub async fn vesting_start_time(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<u64, BackendError> {
   Ok(
-    client!(state)
+    nymd_client!(state)
       .vesting_start_time(vesting_account_address)
       .await?
       .seconds(),
@@ -91,7 +91,7 @@ pub async fn vesting_end_time(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<u64, BackendError> {
   Ok(
-    client!(state)
+    nymd_client!(state)
       .vesting_end_time(vesting_account_address)
       .await?
       .seconds(),
@@ -104,7 +104,7 @@ pub async fn original_vesting(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
   Ok(
-    client!(state)
+    nymd_client!(state)
       .original_vesting(vesting_account_address)
       .await?
       .into(),
@@ -118,7 +118,7 @@ pub async fn delegated_free(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
   Ok(
-    client!(state)
+    nymd_client!(state)
       .delegated_free(
         vesting_account_address,
         block_time.map(Timestamp::from_seconds),
@@ -135,7 +135,7 @@ pub async fn delegated_vesting(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
   Ok(
-    client!(state)
+    nymd_client!(state)
       .delegated_vesting(
         vesting_account_address,
         block_time.map(Timestamp::from_seconds),

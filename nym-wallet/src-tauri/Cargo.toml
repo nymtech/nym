@@ -24,7 +24,7 @@ dirs = "4.0"
 bip39 = "1.0"
 thiserror = "1.0"
 tendermint-rpc = "0.23.0"
-url = "2.0"
+url = "2.2"
 rand = "0.6.5"
 eyre = "0.6.5"
 

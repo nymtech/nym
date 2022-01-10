@@ -23,4 +23,7 @@ export type Operation =
   | "TrackUnbondMixnode"
   | "WithdrawVestedCoins"
   | "TrackUndelegation"
-  | "CreatePeriodicVestingAccount";
+  | "CreatePeriodicVestingAccount"
+  | "SetCurrentEpoch"
+  | "WriteRewardedSet"
+  | "ClearRewardedSet";

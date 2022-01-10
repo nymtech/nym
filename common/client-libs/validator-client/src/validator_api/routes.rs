@@ -10,5 +10,5 @@ pub const GATEWAYS: &str = "gateways";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
 
-pub const COCONUT_BLIND_SIGN: &str = "blind_sign";
-pub const COCONUT_VERIFICATION_KEY: &str = "verification_key";
+pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
+pub const COCONUT_VERIFICATION_KEY: &str = "verification-key";

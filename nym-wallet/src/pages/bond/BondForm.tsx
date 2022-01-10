@@ -375,9 +375,7 @@ export const BondForm = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-          bgcolor: 'grey.100',
-          padding: 2,
+          padding: 3,
         }}
       >
         <Button
@@ -389,6 +387,7 @@ export const BondForm = ({
           disableElevation
           onClick={handleSubmit(onSubmit)}
           endIcon={isSubmitting && <CircularProgress size={20} />}
+          size="large"
         >
           Bond
         </Button>

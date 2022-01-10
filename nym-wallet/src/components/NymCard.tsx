@@ -21,7 +21,6 @@ export const NymCard: React.FC<{
           color: 'nym.background.dark',
           py: 2.5,
           px: 4,
-          borderBottom: (theme) => `1px solid ${theme.palette.grey[200]}`,
         }}
       />
       {noPadding ? <CardContentNoPadding>{children}</CardContentNoPadding> : <CardContent>{children}</CardContent>}
@@ -30,7 +29,6 @@ export const NymCard: React.FC<{
 }
 
 const CardContentNoPadding = styled(CardContent)(({ theme }) => ({
-  background: theme.palette.grey[50],
   padding: 0,
   '&:last-child': {
     paddingBottom: 0,

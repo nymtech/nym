@@ -138,9 +138,7 @@ export const SendWizard = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
-            borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-            bgcolor: 'grey.100',
-            p: 2,
+            p: 3,
           }}
         >
           {activeStep === 1 && (
@@ -155,6 +153,7 @@ export const SendWizard = () => {
             data-testid="button"
             onClick={activeStep === 0 ? handleNextStep : activeStep === 1 ? handleSend : handleFinish}
             disabled={!!(methods.formState.errors.amount || methods.formState.errors.to || isLoading)}
+            size="large"
           >
             {activeStep === 0 ? 'Next' : activeStep === 1 ? 'Send' : 'Finish'}
           </Button>

@@ -118,9 +118,7 @@ export const SystemVariables = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderTop: (theme) => `1px solid ${theme.palette.grey[300]}`,
-          bgcolor: 'grey.200',
-          padding: 2,
+          padding: 3,
         }}
       >
         {nodeUpdateResponse === 'success' ? (
@@ -137,6 +135,7 @@ export const SystemVariables = ({
           disableElevation
           endIcon={isSubmitting && <CircularProgress size={20} />}
           disabled={Object.keys(errors).length > 0 || isSubmitting}
+          size="large"
         >
           Update Profit Margin
         </Button>

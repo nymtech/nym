@@ -18,9 +18,7 @@ export const Profile = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          borderTop: (theme) => `1px solid ${theme.palette.grey[300]}`,
-          bgcolor: 'grey.200',
-          padding: 2,
+          padding: 3,
         }}
       >
         <Button variant="contained" color="primary" type="submit" disableElevation disabled>

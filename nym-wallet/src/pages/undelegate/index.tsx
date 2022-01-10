@@ -91,9 +91,7 @@ export const Undelegate = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'flex-end',
-                  borderTop: '1px solid grey[200]',
-                  bgcolor: 'grey.100',
-                  p: 2,
+                  p: 3,
                 }}
               >
                 <Button
@@ -104,6 +102,7 @@ export const Undelegate = () => {
                     setStatus(EnumRequestStatus.initial)
                     initialize()
                   }}
+                  size="large"
                 >
                   Finish
                 </Button>

@@ -1,1 +1,12 @@
-{"rinkeby":{"NYM_ERC20":"","BANDWIDTH_GENERATOR":"","GRAVITY":"0xe58c12f8bA4a28e87841b10BdEdf80A47F86BA9B"}}
+{
+    "rinkeby": {
+        "NYM_ERC20":"",
+        "BANDWIDTH_GENERATOR":"",
+        "GRAVITY":"0xe58c12f8bA4a28e87841b10BdEdf80A47F86BA9B"
+    }, 
+    "mainnet": {
+        "NYM_ERC20":"",
+        "BANDWIDTH_GENERATOR":"",
+        "GRAVITY":""
+    }
+}

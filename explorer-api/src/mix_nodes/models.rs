@@ -5,10 +5,24 @@ use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
 use crate::mix_nodes::location::{Location, LocationCache, LocationCacheItem};
 use crate::mix_nodes::MIXNODES_CACHE_ENTRY_TTL;
 use mixnet_contract_common::MixNodeBond;
+use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
+
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub(crate) struct MixNodeActiveSetSummary {
+    pub active: usize,
+    pub standby: usize,
+    pub inactive: usize,
+}
+
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub(crate) struct MixNodeSummary {
+    pub count: usize,
+    pub activeset: MixNodeActiveSetSummary,
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct MixNodesResult {

@@ -89,5 +89,10 @@ mod test {
     crate::utils::DelegationResult => "../src/types/rust/delegationresult.ts",
     crate::mixnet::account::Account => "../src/types/rust/account.ts",
     crate::mixnet::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts",
+    validator_client::models::CoreNodeStatusResponse => "../src/types/corenodestatusresponse.ts",
+    validator_client::models::MixnodeStatus => "../src/types/rust/mixnodestatus.ts",
+    validator_client::models::MixnodeStatusResponse => "../src/types/rust/mixnodestatusresponse.ts",
+    validator_client::models::RewardEstimationResponse => "../src/types/rust/rewardestimationresponse.ts",
+    validator_client::models::StakeSaturationResponse => "../src/types/rust/stakesaturaionresponse.ts",
   }
 }

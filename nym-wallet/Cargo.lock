@@ -5135,6 +5135,7 @@ name = "validator-api-requests"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "ts-rs",
 ]
 
 [[package]]

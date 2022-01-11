@@ -39,3 +39,4 @@ ts-rs = {version = "5.1", optional = true}
 
 [features]
 nymd-client = ["async-trait", "bip39", "config", "cosmrs", "prost", "flate2", "sha2", "itertools", "cosmwasm-std"]
+typescript-types = ["ts-rs", "validator-api-requests/ts-rs"]

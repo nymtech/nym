@@ -5,6 +5,23 @@ export interface ClientConfig {
   version: string;
 }
 
+export interface SummaryOverviewResponse {
+  mixnodes: {
+    count: number;
+    activeset: {
+      active: number;
+      standby: number;
+      inactive: number;
+    };
+  };
+  gateways: {
+    count: number;
+  };
+  validators: {
+    count: number;
+  };
+}
+
 export interface MixNode {
   host: string;
   mix_port: number;
@@ -37,6 +54,22 @@ export enum MixnodeStatus {
   standby = 'standby', // only in the rewarded set
   inactive = 'inactive', // in neither the rewarded set nor the active set
 }
+
+export enum MixnodeStatusWithAll {
+  active = 'active', // in both the active set and the rewarded set
+  standby = 'standby', // only in the rewarded set
+  inactive = 'inactive', // in neither the rewarded set nor the active set
+  all = 'all', // any status
+}
+
+export const toMixnodeStatus = (
+  status?: MixnodeStatusWithAll,
+): MixnodeStatus | undefined => {
+  if (!status || status === MixnodeStatusWithAll.all) {
+    return undefined;
+  }
+  return status as unknown as MixnodeStatus;
+};
 
 export interface MixNodeResponseItem {
   pledge_amount: Amount;

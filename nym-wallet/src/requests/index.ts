@@ -6,15 +6,17 @@ import {
   EnumNodeType,
   Gateway,
   MixNode,
+  MixnodeStatusResponse,
   Operation,
+  StakeSaturationResponse,
   TauriContractStateParams,
   TauriTxResult,
   TCreateAccount,
-  TDelegation,
   TMixnodeBondDetails,
   TPagedDelegations,
   TSignInWithMnemonic,
 } from '../types'
+import { MixnodeStatus } from '../types/rust/mixnodestatus'
 
 export const createAccount = async (): Promise<TCreateAccount> => await invoke('create_new_account')
 
@@ -83,3 +85,9 @@ export const getReverseGatewayDelegations = async (): Promise<TPagedDelegations>
 
 export const getMixnodeBondDetails = async (): Promise<TMixnodeBondDetails | null> =>
   await invoke('mixnode_bond_details')
+
+export const getMixnodeStakeSaturation = async (identity: string): Promise<StakeSaturationResponse> =>
+  await invoke('mixnode_stake_saturation', { identity })
+
+export const getMixnodeStatus = async (identity: string): Promise<MixnodeStatusResponse> =>
+  await invoke('mixnode_status', { identity })

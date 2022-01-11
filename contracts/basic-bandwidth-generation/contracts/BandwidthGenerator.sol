@@ -28,7 +28,7 @@ contract BandwidthGenerator is Ownable {
         uint256 Bandwidth,
         uint256 indexed VerificationKey,
         bytes   SignedVerificationKey, 
-        string  indexed CosmosRecipient
+        string  CosmosRecipient
     );
 
     event RatioChanged(

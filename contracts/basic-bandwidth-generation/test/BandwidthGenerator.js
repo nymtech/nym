@@ -13,7 +13,7 @@ contract('BandwidthGenerator', (accounts) => {
   let erc20token; 
   let owner = accounts[0];
   let user = accounts[1];
-  let cosmosRecipient = 'nymt1f06hzmwf9chqewkpv93ajk6tayzp4784m2da9x'; // random sandbox testnet address
+  let cosmosRecipient = "nymt1f06hzmwf9chqewkpv93ajk6tayzp4784m2da9x"; // random sandbox testnet address
   let initialRatio = 1073741824; // 1073741824 bytes = 1GB
   let newRatio; 
   let tokenAmount = web3.utils.toWei('100'); // this is converting 100 tokens to their representation in wei: 100000000000000000000
@@ -106,7 +106,7 @@ contract('BandwidthGenerator', (accounts) => {
         Bandwidth: expectedBandwidthInMB.toString(), 
         VerificationKey: '15',
         SignedVerificationKey: '0x39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba',
-        // CosmosRecipient: cosmosRecipient 
+        CosmosRecipient: cosmosRecipient 
       });
 
       await expectEvent.inTransaction(tx.tx, erc20token, 'Transfer', {
@@ -144,7 +144,7 @@ contract('BandwidthGenerator', (accounts) => {
         Bandwidth: newexpectedBandwidthInMB.toString(), 
         VerificationKey: '15',
         SignedVerificationKey: '0x39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba',
-        // CosmosRecipient: cosmosRecipient 
+        CosmosRecipient: cosmosRecipient 
       });
 
       await expectEvent.inTransaction(tx.tx, erc20token, 'Transfer', {
@@ -207,7 +207,7 @@ contract('BandwidthGenerator', (accounts) => {
         Bandwidth: expectedBandwidthInMB.toString(), 
         VerificationKey: '15',
         SignedVerificationKey: '0x39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba39530a00eae2a5aac8144209ccac917ae56bf4a9589544cb0020f92fee35a3ba',
-        // CosmosRecipient: cosmosRecipient
+        CosmosRecipient: cosmosRecipient
       });
 
       await expectEvent.inTransaction(tx.tx, erc20token, 'Transfer', {

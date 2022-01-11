@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/BandwidthGenerator.sol": {
-      "lastModificationDate": 1641816859262,
-      "contentHash": "7637957db2593564c0135f527db4673b",
+      "lastModificationDate": 1641908013011,
+      "contentHash": "7de243b3b780dd7ee86ffb17fc6f3e07",
       "sourceName": "contracts/BandwidthGenerator.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -41,7 +41,7 @@
       ]
     },
     "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/CosmosToken.sol": {
-      "lastModificationDate": 1641811013678,
+      "lastModificationDate": 1641825755989,
       "contentHash": "fc5dd09fe73bc6cfece970f702a3aba1",
       "sourceName": "contracts/CosmosToken.sol",
       "solcConfig": {

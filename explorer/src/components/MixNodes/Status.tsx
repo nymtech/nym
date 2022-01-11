@@ -1,38 +1,32 @@
 import { Typography } from '@mui/material';
 import * as React from 'react';
 import { Theme, useTheme } from '@mui/material/styles';
-import { MixnodeRowType } from '../MixNodes';
+import { MixnodeRowType } from '.';
 import { getMixNodeIcon } from '../Icons';
 import { MixnodeStatus } from '../../typeDefs/explorer-api';
 
 interface MixNodeStatusProps {
-  mixNodeRow: MixnodeRowType;
+  status: MixnodeStatus;
 }
 
-export const MixNodeStatus: React.FC<MixNodeStatusProps> = ({ mixNodeRow }) => {
+export const MixNodeStatus: React.FC<MixNodeStatusProps> = ({ status }) => {
   const theme = useTheme();
-  const Icon = React.useMemo(
-    () => getMixNodeIcon(mixNodeRow.status),
-    [mixNodeRow.status],
-  );
-  const color = React.useMemo(
-    () => getMixNodeStatusColor(theme, mixNodeRow),
-    [mixNodeRow.status, theme],
-  );
+  const Icon = React.useMemo(() => getMixNodeIcon(status), [status]);
+  const color = React.useMemo(() => getMixNodeStatusColor(theme, status), [status, theme]);
 
   return (
     <Typography color={color} display="flex" alignItems="center">
       <Icon />
       <Typography ml={1} component="span" color="inherit">
-        {`${mixNodeRow.status[0].toUpperCase()}${mixNodeRow.status.slice(1)}`}
+        {`${status[0].toUpperCase()}${status.slice(1)}`}
       </Typography>
     </Typography>
   );
 };
 
-export const getMixNodeStatusColor = (theme: Theme, row: MixnodeRowType) => {
+export const getMixNodeStatusColor = (theme: Theme, status: MixnodeStatus) => {
   let color;
-  switch (row.status) {
+  switch (status) {
     case MixnodeStatus.active:
       color = theme.palette.nym.networkExplorer.mixnodes.status.active;
       break;
@@ -47,8 +41,8 @@ export const getMixNodeStatusColor = (theme: Theme, row: MixnodeRowType) => {
 };
 
 // TODO: should be done with i18n
-export const getMixNodeStatusText = (row: MixnodeRowType) => {
-  switch (row.status) {
+export const getMixNodeStatusText = (status: MixnodeStatus) => {
+  switch (status) {
     case MixnodeStatus.active:
       return 'active';
     case MixnodeStatus.standby:

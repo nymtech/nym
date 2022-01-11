@@ -19,6 +19,7 @@ mod utils;
 
 use crate::menu::AddDefaultSubmenus;
 use crate::operations::mixnet;
+use crate::operations::validator_api;
 use crate::operations::vesting;
 
 use crate::state::State;
@@ -63,6 +64,11 @@ fn main() {
       vesting::queries::original_vesting,
       vesting::queries::delegated_free,
       vesting::queries::delegated_vesting,
+      validator_api::status::mixnode_core_node_status,
+      validator_api::status::gateway_core_node_status,
+      validator_api::status::mixnode_status,
+      validator_api::status::mixnode_reward_estimation,
+      validator_api::status::mixnode_stake_saturation,
     ])
     .menu(Menu::new().add_default_app_submenu_if_macos())
     .run(tauri::generate_context!())
@@ -82,6 +88,11 @@ mod test {
     crate::coin::Denom => "../src/types/rust/denom.ts",
     crate::utils::DelegationResult => "../src/types/rust/delegationresult.ts",
     crate::mixnet::account::Account => "../src/types/rust/account.ts",
-    crate::mixnet::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts"
+    crate::mixnet::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts",
+    validator_client::models::CoreNodeStatusResponse => "../src/types/corenodestatusresponse.ts",
+    validator_client::models::MixnodeStatus => "../src/types/rust/mixnodestatus.ts",
+    validator_client::models::MixnodeStatusResponse => "../src/types/rust/mixnodestatusresponse.ts",
+    validator_client::models::RewardEstimationResponse => "../src/types/rust/rewardestimationresponse.ts",
+    validator_client::models::StakeSaturationResponse => "../src/types/rust/stakesaturaionresponse.ts",
   }
 }

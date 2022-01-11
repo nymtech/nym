@@ -49,7 +49,6 @@ pub(crate) struct StoredMixnodeBond {
     pub layer: Layer,
     pub block_height: u64,
     pub mix_node: MixNode,
-    pub profit_margin_percent: Option<u8>,
     pub proxy: Option<Addr>,
 }
 
@@ -60,7 +59,6 @@ impl StoredMixnodeBond {
         layer: Layer,
         block_height: u64,
         mix_node: MixNode,
-        profit_margin_percent: Option<u8>,
         proxy: Option<Addr>,
     ) -> Self {
         StoredMixnodeBond {
@@ -69,7 +67,6 @@ impl StoredMixnodeBond {
             layer,
             block_height,
             mix_node,
-            profit_margin_percent,
             proxy,
         }
     }
@@ -179,7 +176,6 @@ mod tests {
                 identity_key: node_identity.clone(),
                 ..tests::fixtures::mix_node_fixture()
             },
-            profit_margin_percent: None,
             proxy: None,
         };
 

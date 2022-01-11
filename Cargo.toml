@@ -54,6 +54,7 @@ members = [
     "mixnode",
     "service-providers/network-requester",
     "validator-api",
+    "validator-api/validator-api-requests",
 ]
 
 default-members = [

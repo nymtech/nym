@@ -101,6 +101,10 @@ pub fn try_withdraw_vested_coins(
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
+    if amount.denom != DENOM {
+        return Err(ContractError::WrongDenom(amount.denom, DENOM.to_string()));
+    }
+
     let address = info.sender.clone();
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     if address != account.owner_address() {

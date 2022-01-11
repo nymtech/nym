@@ -964,7 +964,6 @@ pub mod tests {
                 identity_key: node_identity.clone(),
                 ..tests::fixtures::mix_node_fixture()
             },
-            profit_margin_percent: Some(10),
             proxy: None,
         };
 

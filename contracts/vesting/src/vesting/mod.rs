@@ -124,7 +124,7 @@ mod tests {
         let msg = ExecuteMsg::WithdrawVestedCoins {
             amount: Coin {
                 amount: Uint128::new(1),
-                denom: "nym".to_string(),
+                denom: DENOM.to_string(),
             },
         };
         let info = mock_info("new_owner", &[]);

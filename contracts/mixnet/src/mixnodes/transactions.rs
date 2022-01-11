@@ -115,7 +115,6 @@ fn _try_add_mixnode(
         layer,
         env.block.height,
         mix_node,
-        None,
         proxy.clone(),
     );
 

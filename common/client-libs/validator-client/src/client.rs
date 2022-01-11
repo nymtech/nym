@@ -14,11 +14,15 @@ use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, Verifica
 use mixnet_contract_common::{
     Delegation, MixnetContractVersion, MixnodeRewardingStatusResponse, RewardingIntervalResponse,
 };
-use mixnet_contract_common::{GatewayBond, MixNodeBond};
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 
 #[cfg(feature = "nymd-client")]
 use std::str::FromStr;
 use url::Url;
+use validator_api_requests::models::{
+    CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
+    StakeSaturationResponse,
+};
 
 #[cfg(feature = "nymd-client")]
 pub struct Config {
@@ -432,6 +436,55 @@ impl ApiClient {
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.validator_api.get_gateways().await?)
+    }
+
+    pub async fn get_gateway_core_status_count(
+        &self,
+        identity: IdentityKeyRef<'_>,
+        since: Option<i64>,
+    ) -> Result<CoreNodeStatusResponse, ValidatorClientError> {
+        Ok(self
+            .validator_api
+            .get_gateway_core_status_count(identity, since)
+            .await?)
+    }
+
+    pub async fn get_mixnode_core_status_count(
+        &self,
+        identity: IdentityKeyRef<'_>,
+        since: Option<i64>,
+    ) -> Result<CoreNodeStatusResponse, ValidatorClientError> {
+        Ok(self
+            .validator_api
+            .get_mixnode_core_status_count(identity, since)
+            .await?)
+    }
+
+    pub async fn get_mixnode_status(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<MixnodeStatusResponse, ValidatorClientError> {
+        Ok(self.validator_api.get_mixnode_status(identity).await?)
+    }
+
+    pub async fn get_mixnode_reward_estimation(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<RewardEstimationResponse, ValidatorClientError> {
+        Ok(self
+            .validator_api
+            .get_mixnode_reward_estimation(identity)
+            .await?)
+    }
+
+    pub async fn get_mixnode_stake_saturation(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<StakeSaturationResponse, ValidatorClientError> {
+        Ok(self
+            .validator_api
+            .get_mixnode_stake_saturation(identity)
+            .await?)
     }
 
     pub async fn blind_sign(

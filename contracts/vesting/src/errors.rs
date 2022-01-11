@@ -1,5 +1,5 @@
 use cosmwasm_std::{Addr, StdError};
-use mixnet_contract::IdentityKey;
+use mixnet_contract_common::IdentityKey;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]

@@ -6,7 +6,7 @@ use crate::rewarding::EpochRewardParams;
 use ::time::OffsetDateTime;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;
-use mixnet_contract::{
+use mixnet_contract_common::{
     ContractStateParams, GatewayBond, IdentityKey, IdentityKeyRef, MixNodeBond,
     RewardingIntervalResponse,
 };

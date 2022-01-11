@@ -8,7 +8,7 @@ use rocket_okapi::okapi::openapi3::OpenApi;
 use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
 
-use mixnet_contract::MixNodeBond;
+use mixnet_contract_common::MixNodeBond;
 
 use crate::ping::models::PingResponse;
 use crate::state::ExplorerApiStateContext;

@@ -47,7 +47,7 @@ sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros"
 config = { path = "../common/config" }
 crypto = { path="../common/crypto" }
 gateway-client = { path="../common/client-libs/gateway-client" }
-mixnet-contract = { path="../common/mixnet-contract" }
+mixnet-contract-common = { path= "../common/cosmwasm-smart-contracts/mixnet-contract" }
 nymsphinx = { path="../common/nymsphinx" }
 topology = { path="../common/topology" }
 validator-api-requests = { path = "validator-api-requests" }

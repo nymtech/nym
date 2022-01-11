@@ -2,7 +2,7 @@ use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
 use cosmwasm_std::Uint128;
-use mixnet_contract::ContractStateParams;
+use mixnet_contract_common::ContractStateParams;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 use std::sync::Arc;

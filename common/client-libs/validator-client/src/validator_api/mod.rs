@@ -4,7 +4,7 @@
 use crate::validator_api::error::ValidatorAPIError;
 use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-use mixnet_contract::{GatewayBond, IdentityKeyRef, MixNodeBond};
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use serde::{Deserialize, Serialize};
 use url::Url;
 use validator_api_requests::models::{

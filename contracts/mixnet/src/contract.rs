@@ -23,7 +23,9 @@ use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
-use mixnet_contract::{ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use mixnet_contract_common::{
+    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+};
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_PLEDGE: Uint128 = Uint128::new(100_000_000);
@@ -292,11 +294,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     #[derive(serde::Serialize, serde::Deserialize, Clone)]
     pub struct StoredMixnodeBondOld {
-        pub pledge_amount: mixnet_contract::Coin,
+        pub pledge_amount: mixnet_contract_common::Coin,
         pub owner: Addr,
-        pub layer: mixnet_contract::Layer,
+        pub layer: mixnet_contract_common::Layer,
         pub block_height: u64,
-        pub mix_node: mixnet_contract::MixNode,
+        pub mix_node: mixnet_contract_common::MixNode,
         pub profit_margin_percent: Option<u8>,
         pub proxy: Option<Addr>,
     }
@@ -314,7 +316,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
     }
     pub(crate) fn mixnodes_old<'a>() -> cw_storage_plus::IndexedMap<
         'a,
-        mixnet_contract::IdentityKeyRef<'a>,
+        mixnet_contract_common::IdentityKeyRef<'a>,
         StoredMixnodeBondOld,
         MixnodeBondIndexOld<'a>,
     > {
@@ -354,7 +356,7 @@ pub mod tests {
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
-    use mixnet_contract::PagedMixnodeResponse;
+    use mixnet_contract_common::PagedMixnodeResponse;
 
     #[test]
     fn initialize_contract() {

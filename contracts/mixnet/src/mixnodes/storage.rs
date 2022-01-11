@@ -4,7 +4,7 @@
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Map, UniqueIndex};
-use mixnet_contract::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond};
+use mixnet_contract_common::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -138,8 +138,7 @@ mod tests {
     use config::defaults::DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::{coin, Addr, Uint128};
-    use mixnet_contract::IdentityKey;
-    use mixnet_contract::MixNode;
+    use mixnet_contract_common::{IdentityKey, MixNode};
 
     #[test]
     fn mixnode_single_read_retrieval() {
@@ -170,7 +169,7 @@ mod tests {
 
         let mixnode_bond = StoredMixnodeBond {
             pledge_amount: coin(pledge_value, DENOM),
-            owner: node_owner.clone(),
+            owner: node_owner,
             layer: Layer::One,
             block_height: 12_345,
             mix_node: MixNode {

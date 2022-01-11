@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use log::info;
 use serde::{Deserialize, Serialize};
 
-use mixnet_contract::MixNodeBond;
+use mixnet_contract_common::MixNodeBond;
 
 use crate::country_statistics::country_nodes_distribution::{
     ConcurrentCountryNodesDistribution, CountryNodesDistribution,

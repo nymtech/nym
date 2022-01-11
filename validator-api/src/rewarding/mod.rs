@@ -12,8 +12,8 @@ use crate::storage::models::{
 use crate::storage::ValidatorApiStorage;
 use config::defaults::DENOM;
 use log::{error, info};
-use mixnet_contract::mixnode::NodeRewardParams;
-use mixnet_contract::{
+use mixnet_contract_common::mixnode::NodeRewardParams;
+use mixnet_contract_common::{
     ExecuteMsg, IdentityKey, MixNodeBond, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 use std::convert::TryInto;

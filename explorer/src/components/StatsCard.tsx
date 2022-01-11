@@ -13,9 +13,10 @@ import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
 interface StatsCardProps {
   icon: React.ReactNode;
   title: string;
-  count: string | number;
+  count?: string | number;
   errorMsg?: Error | string;
   onClick?: () => void;
+  color?: string;
 }
 export const StatsCard: React.FC<StatsCardProps> = ({
   icon,
@@ -23,9 +24,11 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   count,
   onClick,
   errorMsg,
+  color: colorProp,
 }) => {
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
+  const color = colorProp || theme.palette.text.primary;
   return (
     <Card onClick={onClick} sx={{ height: '100%' }}>
       <CardContent
@@ -41,41 +44,28 @@ export const StatsCard: React.FC<StatsCardProps> = ({
           display="flex"
           alignItems="center"
           sx={{
-            color: theme.palette.text.primary,
+            color,
             fontSize: 18,
-            justifyContent: matches ? 'space-between' : 'flex-start',
-            maxWidth: matches ? 230 : null,
+            justifyContent: 'space-between',
           }}
         >
-          {icon}
-
-          <Box
-            sx={{
-              color: theme.palette.text.primary,
-              display: 'flex',
-              flexDirection: 'row',
-              fontSize: 18,
-              justifyContent: matches ? 'space-between' : 'flex-start',
-              alignItems: 'center',
-              width: '100%',
-              maxWidth: matches ? 230 : null,
-            }}
-          >
+          <Box display="flex">
+            {icon}
             <Typography
               ml={3}
               mr={0.75}
               fontSize="inherit"
               data-testid={`${title}-amount`}
             >
-              {count}
+              {count === undefined || count === null ? '' : count}
             </Typography>
             <Typography mr={1} fontSize="inherit" data-testid={title}>
               {title}
             </Typography>
-            <IconButton color="inherit">
-              <ArrowRightAltIcon />
-            </IconButton>
           </Box>
+          <IconButton color="inherit">
+            <ArrowRightAltIcon />
+          </IconButton>
         </Box>
         {errorMsg && (
           <Typography variant="body2" sx={{ color: 'danger', padding: 2 }}>
@@ -90,4 +80,5 @@ export const StatsCard: React.FC<StatsCardProps> = ({
 StatsCard.defaultProps = {
   onClick: undefined,
   errorMsg: undefined,
+  color: undefined,
 };

@@ -7,10 +7,10 @@ use cosmwasm_std::Deps;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use cw_storage_plus::{Bound, PrimaryKey};
-use mixnet_contract::PagedAllDelegationsResponse;
-use mixnet_contract::PagedDelegatorDelegationsResponse;
-use mixnet_contract::PagedMixDelegationsResponse;
-use mixnet_contract::{Delegation, IdentityKey};
+use mixnet_contract_common::{
+    Delegation, IdentityKey, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    PagedMixDelegationsResponse,
+};
 
 pub(crate) fn query_all_network_delegations_paged(
     deps: Deps,
@@ -140,7 +140,7 @@ pub(crate) mod tests {
     #[cfg(test)]
     mod querying_for_mixnode_delegations_paged {
         use super::*;
-        use mixnet_contract::IdentityKey;
+        use mixnet_contract_common::IdentityKey;
 
         #[test]
         fn retrieval_obeys_limits() {
@@ -281,7 +281,7 @@ pub(crate) mod tests {
     mod querying_for_all_mixnode_delegations_paged {
         use super::*;
         use crate::support::tests::test_helpers;
-        use mixnet_contract::IdentityKey;
+        use mixnet_contract_common::IdentityKey;
 
         #[test]
         fn retrieval_obeys_limits() {
@@ -444,7 +444,7 @@ pub(crate) mod tests {
 
         // add delegation from a different address
         let delegation = Delegation::new(
-            delegation_owner2.clone(),
+            delegation_owner2,
             node_identity1.clone(),
             coin(1234, DENOM),
             1234,
@@ -474,7 +474,7 @@ pub(crate) mod tests {
         // add delegation for a different node
         let delegation = Delegation::new(
             delegation_owner1.clone(),
-            node_identity2.clone(),
+            node_identity2,
             coin(1234, DENOM),
             1234,
             None,
@@ -493,11 +493,7 @@ pub(crate) mod tests {
                 identity: node_identity1.clone(),
                 address: Addr::unchecked(delegation_owner1.clone())
             }),
-            query_mixnode_delegation(
-                deps.as_ref(),
-                node_identity1.clone(),
-                delegation_owner1.to_string()
-            )
+            query_mixnode_delegation(deps.as_ref(), node_identity1, delegation_owner1.to_string())
         )
     }
 

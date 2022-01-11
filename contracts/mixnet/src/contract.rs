@@ -30,7 +30,7 @@ use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
-use mixnet_contract::{
+use mixnet_contract_common::{
     ContractStateParams, Epoch, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
 
@@ -117,6 +117,14 @@ pub fn execute(
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, info)
         }
+        ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        } => crate::mixnodes::transactions::try_update_mixnode_config(
+            deps,
+            env,
+            info,
+            profit_margin_percent,
+        ),
         ExecuteMsg::BondGateway {
             gateway,
             owner_signature,
@@ -315,7 +323,61 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
     Ok(query_res?)
 }
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    #[derive(serde::Serialize, serde::Deserialize, Clone)]
+    pub struct StoredMixnodeBondOld {
+        pub pledge_amount: mixnet_contract_common::Coin,
+        pub owner: Addr,
+        pub layer: mixnet_contract_common::Layer,
+        pub block_height: u64,
+        pub mix_node: mixnet_contract_common::MixNode,
+        pub profit_margin_percent: Option<u8>,
+        pub proxy: Option<Addr>,
+    }
+    pub struct MixnodeBondIndexOld<'a> {
+        pub owner: cw_storage_plus::UniqueIndex<'a, Addr, StoredMixnodeBondOld>,
+    }
+    impl<'a> cw_storage_plus::IndexList<StoredMixnodeBondOld> for MixnodeBondIndexOld<'a> {
+        fn get_indexes(
+            &'_ self,
+        ) -> Box<dyn Iterator<Item = &'_ dyn cw_storage_plus::Index<StoredMixnodeBondOld>> + '_>
+        {
+            let v: Vec<&dyn cw_storage_plus::Index<StoredMixnodeBondOld>> = vec![&self.owner];
+            Box::new(v.into_iter())
+        }
+    }
+    pub(crate) fn mixnodes_old<'a>() -> cw_storage_plus::IndexedMap<
+        'a,
+        mixnet_contract_common::IdentityKeyRef<'a>,
+        StoredMixnodeBondOld,
+        MixnodeBondIndexOld<'a>,
+    > {
+        let indexes = MixnodeBondIndexOld {
+            owner: cw_storage_plus::UniqueIndex::new(|d| d.owner.clone(), "mno"),
+        };
+        cw_storage_plus::IndexedMap::new("mno", indexes)
+    }
+
+    let stored_mixnode_bonds: Vec<_> = mixnodes_old()
+        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .flatten()
+        .map(|record| crate::mixnodes::storage::StoredMixnodeBond {
+            pledge_amount: record.1.pledge_amount,
+            owner: record.1.owner,
+            layer: record.1.layer,
+            block_height: record.1.block_height,
+            mix_node: record.1.mix_node,
+            proxy: record.1.proxy,
+        })
+        .collect();
+    for stored_mixnode_bond in stored_mixnode_bonds {
+        crate::mixnodes::storage::mixnodes().save(
+            deps.storage,
+            stored_mixnode_bond.identity(),
+            &stored_mixnode_bond,
+        )?;
+    }
+
     Ok(Default::default())
 }
 
@@ -326,7 +388,7 @@ pub mod tests {
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
-    use mixnet_contract::PagedMixnodeResponse;
+    use mixnet_contract_common::PagedMixnodeResponse;
 
     #[test]
     fn initialize_contract() {

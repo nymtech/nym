@@ -4,6 +4,7 @@
 mod delegation;
 mod epoch;
 pub mod error;
+pub mod events;
 mod gateway;
 pub mod mixnode;
 mod msg;

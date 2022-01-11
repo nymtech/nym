@@ -13,12 +13,12 @@ use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
 use cosmwasm_std::{Coin, Uint128};
 pub use fee::gas_price::GasPrice;
 use fee::helpers::Operation;
-use mixnet_contract::{
+use mixnet_contract_common::{
     ContractStateParams, Delegation, Epoch, ExecuteMsg, Gateway, GatewayBond,
     GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNode, MixNodeBond,
-    MixOwnershipResponse, MixnetContractVersion, MixnodeRewardingStatusResponse,
+    MixOwnershipResponse, MixnetContractVersion, MixnodeRewardingStatusResponse, NodeStatus,
     PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
-    PagedMixDelegationsResponse, PagedMixnodeResponse, QueryMsg, RewardingIntervalResponse, NodeStatus,
+    PagedMixDelegationsResponse, PagedMixnodeResponse, QueryMsg, RewardingIntervalResponse,
 };
 use serde::Serialize;
 use std::convert::TryInto;
@@ -289,7 +289,7 @@ impl<C> NymdClient<C> {
 
     pub async fn get_rewarding_status(
         &self,
-        mix_identity: mixnet_contract::IdentityKey,
+        mix_identity: mixnet_contract_common::IdentityKey,
         rewarding_interval_nonce: u32,
     ) -> Result<MixnodeRewardingStatusResponse, NymdError>
     where
@@ -304,9 +304,7 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn query_rewarded_set(
-        &self,
-    ) -> Result<HashMap<String, NodeStatus>, NymdError>
+    pub async fn query_rewarded_set(&self) -> Result<HashMap<String, NodeStatus>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -316,9 +314,7 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn query_current_rewarded_set_height(
-        &self,
-    ) -> Result<u64, NymdError>
+    pub async fn query_current_rewarded_set_height(&self) -> Result<u64, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -344,7 +340,7 @@ impl<C> NymdClient<C> {
     pub async fn query_rewarded_set_for_epoch(
         &self,
         epoch: Option<Epoch>,
-        filter: Option<NodeStatus>
+        filter: Option<NodeStatus>,
     ) -> Result<HashMap<String, NodeStatus>, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -834,6 +830,31 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    /// Update the configuration of a mixnode. Right now, only possible for profit margin.
+    pub async fn update_mixnode_config(
+        &self,
+        profit_margin_percent: u8,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::UpdateMixnodeConfig);
+
+        let req = ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Updating mixnode configuration from rust!",
+                Vec::new(),
+            )
+            .await
+    }
+
     /// Delegates specified amount of stake to particular mixnode.
     pub async fn delegate_to_mixnode(
         &self,
@@ -1185,10 +1206,7 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn set_current_epoch(
-        &self,
-        epoch: &Epoch,
-    ) -> Result<ExecuteResult, NymdError>
+    pub async fn set_current_epoch(&self, epoch: &Epoch) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {

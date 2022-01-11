@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cw_storage_plus::{Item, Map};
-use mixnet_contract::{Epoch, IdentityKey, NodeStatus};
+use mixnet_contract_common::{Epoch, IdentityKey, NodeStatus};
 
 pub(crate) const CURRENT_EPOCH: Item<Epoch> = Item::new("cep");
 pub(crate) const _EPOCH_MAP: Map<u32, Epoch> = Map::new("ep");

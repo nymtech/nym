@@ -33,6 +33,7 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     let mut address_sign_cmd = Arg::with_name(SIGN_ADDRESS_ARG_NAME)
         .long(SIGN_ADDRESS_ARG_NAME)
         .help("Signs your blockchain address with your identity key")
+        .takes_value(true)
         .conflicts_with(SIGN_TEXT_ARG_NAME);
 
     if cfg!(feature = "coconut") {

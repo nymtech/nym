@@ -410,7 +410,7 @@ async fn setup_rewarder(
         let last_stored_epoch = nymd_client.get_current_epoch().await?;
 
         let current_epoch = last_stored_epoch.current(OffsetDateTime::now_utc());
-        
+
         if last_stored_epoch != current_epoch {
             nymd_client.set_current_epoch(&current_epoch).await?
         }
@@ -444,13 +444,17 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
     // see if we should start up network monitor and if so, attach the node status api
     if config.get_network_monitor_enabled() {
         Ok(rocket
-            .attach(node_status_api::stage(
+            .attach(storage::ValidatorApiStorage::stage(
                 config.get_node_status_api_database_path(),
             ))
+            .attach(node_status_api::stage_full())
             .ignite()
             .await?)
     } else {
-        Ok(rocket.ignite().await?)
+        Ok(rocket
+            .attach(node_status_api::stage_minimal())
+            .ignite()
+            .await?)
     }
 }
 

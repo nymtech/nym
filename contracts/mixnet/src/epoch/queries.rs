@@ -4,7 +4,7 @@
 use super::storage;
 use crate::error::ContractError;
 use cosmwasm_std::{Order, StdResult, Storage};
-use mixnet_contract::{Epoch, IdentityKey, NodeStatus};
+use mixnet_contract_common::{Epoch, IdentityKey, NodeStatus};
 use std::collections::{HashMap, HashSet};
 
 pub fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {

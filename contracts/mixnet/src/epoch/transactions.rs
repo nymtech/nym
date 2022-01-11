@@ -4,7 +4,7 @@
 use super::storage;
 use crate::error::ContractError;
 use cosmwasm_std::{Env, Order, Response, StdResult, Storage};
-use mixnet_contract::{Epoch, IdentityKey, NodeStatus};
+use mixnet_contract_common::{Epoch, IdentityKey, NodeStatus};
 use std::collections::HashMap;
 
 pub fn try_write_rewarded_set(

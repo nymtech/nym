@@ -3,7 +3,7 @@
 
 use config::defaults::DENOM;
 use cosmwasm_std::{Addr, StdError};
-use mixnet_contract::IdentityKey;
+use mixnet_contract_common::IdentityKey;
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.

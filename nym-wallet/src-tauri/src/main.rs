@@ -43,7 +43,7 @@ fn main() {
       mixnet::delegate::get_reverse_mix_delegations_paged,
       mixnet::delegate::undelegate_from_mixnode,
       mixnet::send::send,
-      utils::get_approximate_fee,
+      utils::outdated_get_approximate_fee,
       utils::major_to_minor,
       utils::minor_to_major,
       utils::owns_gateway,

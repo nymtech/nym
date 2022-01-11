@@ -24,12 +24,12 @@ dirs = "4.0"
 bip39 = "1.0"
 thiserror = "1.0"
 tendermint-rpc = "0.23.0"
-url = "2.0"
+url = "2.2"
 rand = "0.6.5"
 eyre = "0.6.5"
 
 
-cosmrs = { git = "https://github.com/cosmos/cosmos-rust", rev="e5a1872083abb3d88fa62dda966e7f5408deba58", features = ["rpc", "bip32", "cosmwasm"] }
+cosmrs = { version = "0.4.1", features = ["rpc", "bip32", "cosmwasm"] }
 cosmwasm-std = "1.0.0-beta3"
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [

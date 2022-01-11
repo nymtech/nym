@@ -46,6 +46,14 @@ impl FromStr for Denom {
   }
 }
 
+impl TryFrom<CosmosDenom> for Denom {
+  type Error = BackendError;
+
+  fn try_from(value: CosmosDenom) -> Result<Self, Self::Error> {
+    Denom::from_str(&value.to_string())
+  }
+}
+
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct Coin {

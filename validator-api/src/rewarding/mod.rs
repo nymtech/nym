@@ -13,7 +13,9 @@ use crate::storage::ValidatorApiStorage;
 use config::defaults::DENOM;
 use log::{error, info};
 use mixnet_contract::mixnode::NodeRewardParams;
-use mixnet_contract::{ExecuteMsg, IdentityKey, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT};
+use mixnet_contract::{
+    ExecuteMsg, IdentityKey, MixNodeBond, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
+};
 use std::convert::TryInto;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -23,14 +25,66 @@ use validator_client::nymd::SigningNymdClient;
 pub(crate) mod epoch;
 pub(crate) mod error;
 
-struct EpochRewardParams {
-    reward_pool: u128,
-    circulating_supply: u128,
-    sybil_resistance_percent: u8,
-    rewarded_set_size: u32,
-    active_set_size: u32,
-    period_reward_pool: u128,
-    active_set_work_factor: u8,
+#[derive(Copy, Clone)]
+pub(crate) struct EpochRewardParams {
+    pub(crate) reward_pool: u128,
+    pub(crate) circulating_supply: u128,
+    pub(crate) sybil_resistance_percent: u8,
+    pub(crate) rewarded_set_size: u32,
+    pub(crate) active_set_size: u32,
+    pub(crate) period_reward_pool: u128,
+    pub(crate) active_set_work_factor: u8,
+}
+
+impl EpochRewardParams {
+    // technically it's identical to what would have been derived with a Default implementation,
+    // however, I prefer to be explicit about it, as a `Default::default` value makes no sense
+    // apart from the `ValidatorCacheInner` context, where this value is not going to be touched anyway
+    // (it's guarded behind an `initialised` flag)
+    pub(crate) fn new_empty() -> Self {
+        EpochRewardParams {
+            reward_pool: 0,
+            circulating_supply: 0,
+            sybil_resistance_percent: 0,
+            rewarded_set_size: 0,
+            active_set_size: 0,
+            period_reward_pool: 0,
+            active_set_work_factor: 0,
+        }
+    }
+
+    pub(crate) fn estimate_reward(
+        &self,
+        node: &MixNodeBond,
+        uptime: u8,
+        in_active_set: bool,
+    ) -> (u128, u128, u128) {
+        let node_reward_params = NodeRewardParams::new(
+            self.period_reward_pool,
+            self.rewarded_set_size.into(),
+            self.active_set_size.into(),
+            0,
+            self.circulating_supply,
+            uptime.into(),
+            self.sybil_resistance_percent,
+            in_active_set,
+            self.active_set_work_factor,
+        );
+
+        let total_node_reward = node.reward(&node_reward_params);
+        let operator_reward = node.operator_reward(&node_reward_params);
+        let delegators_reward =
+            node.reward_delegation(node.total_delegation().amount, &node_reward_params);
+
+        (
+            total_node_reward
+                .reward()
+                .checked_to_num()
+                .unwrap_or_default(),
+            operator_reward,
+            delegators_reward,
+        )
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -117,24 +171,6 @@ impl Rewarder {
         }
     }
 
-    async fn epoch_reward_params(&self) -> Result<EpochRewardParams, RewardingError> {
-        let state = self.nymd_client.get_contract_settings().await?;
-        let reward_pool = self.nymd_client.get_reward_pool().await?;
-        let epoch_reward_percent = self.nymd_client.get_epoch_reward_percent().await?;
-
-        let epoch_reward_params = EpochRewardParams {
-            reward_pool,
-            circulating_supply: self.nymd_client.get_circulating_supply().await?,
-            sybil_resistance_percent: self.nymd_client.get_sybil_resistance_percent().await?,
-            rewarded_set_size: state.mixnode_rewarded_set_size,
-            active_set_size: state.mixnode_active_set_size,
-            period_reward_pool: (reward_pool / 100) * epoch_reward_percent as u128,
-            active_set_work_factor: state.active_set_work_factor,
-        };
-
-        Ok(epoch_reward_params)
-    }
-
     /// Obtains the current number of delegators that have delegated their stake towards this particular mixnode.
     ///
     /// # Arguments
@@ -170,7 +206,7 @@ impl Rewarder {
         // and the lack of port data / verloc data will eventually be balanced out anyway
         // by people hesitating to delegate to nodes without them and thus those nodes disappearing
         // from the active set (once introduced)
-        let epoch_reward_params = self.epoch_reward_params().await?;
+        let epoch_reward_params = self.nymd_client.get_current_epoch_reward_params().await?;
 
         info!("Rewarding pool stats");
         info!(

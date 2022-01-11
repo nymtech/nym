@@ -5,14 +5,10 @@ use crate::error::ContractError;
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cw_storage_plus::{Item, Map, U32Key};
-use mixnet_contract::{Epoch, IdentityKey, NodeStatus, RewardingStatus};
+use mixnet_contract::{IdentityKey, RewardingStatus};
 
 pub(crate) const REWARD_POOL: Item<Uint128> = Item::new("pool");
 pub(crate) const REWARDING_STATUS: Map<(U32Key, IdentityKey), RewardingStatus> = Map::new("rm");
-pub(crate) const CURRENT_EPOCH: Item<Epoch> = Item::new("cep");
-pub(crate) const _EPOCH_MAP: Map<u32, Epoch> = Map::new("ep");
-pub(crate) const REWARDED_SET_HEIGHTS_FOR_EPOCH: Map<(u32, u64), ()> = Map::new("rsh");
-pub(crate) const REWARDED_SET: Map<(u64, IdentityKey), NodeStatus> = Map::new("rs");
 
 // approximately 1 day (assuming 5s per block)
 pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;

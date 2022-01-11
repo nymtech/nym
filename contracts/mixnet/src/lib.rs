@@ -3,6 +3,7 @@
 
 pub mod contract;
 mod delegations;
+mod epoch;
 mod error;
 mod gateways;
 mod mixnet_contract_settings;

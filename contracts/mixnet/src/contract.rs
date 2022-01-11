@@ -5,6 +5,11 @@ use crate::delegations::queries::query_all_network_delegations_paged;
 use crate::delegations::queries::query_delegator_delegations_paged;
 use crate::delegations::queries::query_mixnode_delegation;
 use crate::delegations::queries::query_mixnode_delegations_paged;
+use crate::epoch::queries::{
+    query_current_epoch, query_current_rewarded_set_height, query_rewarded_set,
+    query_rewarded_set_at_height, query_rewarded_set_for_epoch, query_rewarded_set_refresh_secs,
+};
+use crate::epoch::storage as epoch_storage;
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
@@ -17,13 +22,11 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnodes_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
-use crate::rewards::queries::query_current_epoch;
 use crate::rewards::queries::{
-    query_circulating_supply, query_rewarded_set, query_current_rewarded_set_height,
-    query_reward_pool, query_rewarded_set_at_height, query_rewarded_set_for_epoch,
-    query_rewarded_set_refresh_secs, query_rewarding_status,
+    query_circulating_supply, query_reward_pool, query_rewarding_status,
 };
 use crate::rewards::storage as rewards_storage;
+
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
@@ -87,7 +90,7 @@ pub fn instantiate(
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
-    rewards_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
+    epoch_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
 
     Ok(Response::default())
 }
@@ -228,13 +231,13 @@ pub fn execute(
             crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
         }
         ExecuteMsg::WriteRewardedSet { rewarded_set } => {
-            crate::rewards::transactions::try_write_rewarded_set(rewarded_set, deps.storage, env)
+            crate::epoch::transactions::try_write_rewarded_set(rewarded_set, deps.storage, env)
         }
         ExecuteMsg::ClearRewardedSet {} => {
-            crate::rewards::transactions::try_clear_rewarded_set(deps.storage)
+            crate::epoch::transactions::try_clear_rewarded_set(deps.storage)
         }
         ExecuteMsg::SetCurrentEpoch { epoch } => {
-            crate::rewards::transactions::try_set_current_epoch(epoch, deps.storage)
+            crate::epoch::transactions::try_set_current_epoch(epoch, deps.storage)
         }
     }
 }
@@ -304,7 +307,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         }
         QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
         QueryMsg::GetRewardedSetRefreshSecs {} => to_binary(&query_rewarded_set_refresh_secs()),
-        QueryMsg::GetRewardedSetForEpoch {epoch, filter} => to_binary(&query_rewarded_set_for_epoch(epoch, filter, deps.storage)?),
+        QueryMsg::GetRewardedSetForEpoch { epoch, filter } => {
+            to_binary(&query_rewarded_set_for_epoch(epoch, filter, deps.storage)?)
+        }
     };
 
     Ok(query_res?)

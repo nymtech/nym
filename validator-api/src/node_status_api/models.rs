@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cache::MixnodeStatus;
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
 use rocket::http::{ContentType, Status};
@@ -271,33 +270,4 @@ impl Display for ValidatorApiStorageError {
             }
         }
     }
-}
-
-#[derive(Serialize)]
-pub struct CoreNodeStatus {
-    pub(crate) identity: String,
-    pub(crate) count: i32,
-}
-
-#[derive(Serialize)]
-pub(crate) struct MixnodeStatusResponse {
-    pub(crate) status: MixnodeStatus,
-}
-
-#[derive(Serialize)]
-pub(crate) struct RewardEstimationResponse {
-    pub(crate) estimated_total_node_reward: u128,
-    pub(crate) estimated_operator_reward: u128,
-    pub(crate) estimated_delegators_reward: u128,
-
-    pub(crate) current_epoch_start: i64,
-    pub(crate) current_epoch_end: i64,
-    pub(crate) current_epoch_uptime: Uptime,
-    pub(crate) as_at: i64,
-}
-
-#[derive(Serialize)]
-pub(crate) struct StakeSaturationResponse {
-    pub(crate) saturation: f32,
-    pub(crate) as_at: i64,
 }

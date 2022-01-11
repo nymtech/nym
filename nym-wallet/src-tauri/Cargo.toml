@@ -49,7 +49,7 @@ features = ["ts-rs"]
 
 [dev-dependencies.validator-client]
 path = "../../common/client-libs/validator-client"
-features = ["ts-rs"]
+features = ["typescript-types"]
 
 [features]
 default = ["custom-protocol"]

@@ -3884,6 +3884,7 @@ dependencies = [
  "tokio",
  "topology",
  "url",
+ "validator-api-requests",
  "validator-client",
  "vergen",
  "version-checker",
@@ -7319,6 +7320,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "validator-api-requests"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "ts-rs",
+]
+
+[[package]]
 name = "validator-client"
 version = "0.1.0"
 dependencies = [
@@ -7342,6 +7351,7 @@ dependencies = [
  "thiserror",
  "ts-rs",
  "url",
+ "validator-api-requests",
  "vesting-contract",
 ]
 

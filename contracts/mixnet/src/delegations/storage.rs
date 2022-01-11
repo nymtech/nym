@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
-use mixnet_contract::{Addr, Delegation, IdentityKey};
+use mixnet_contract_common::{Addr, Delegation, IdentityKey};
 
 // storage prefixes
 const DELEGATION_PK_NAMESPACE: &str = "dl";
@@ -64,7 +64,7 @@ pub(crate) fn delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, Delega
 mod tests {
     use crate::delegations::storage;
     use cosmwasm_std::Addr;
-    use mixnet_contract::IdentityKey;
+    use mixnet_contract_common::IdentityKey;
 
     #[cfg(test)]
     mod reverse_mix_delegations {
@@ -74,7 +74,7 @@ mod tests {
         use cosmwasm_std::testing::mock_env;
         use cosmwasm_std::{coin, Order};
         use cw_storage_plus::PrimaryKey;
-        use mixnet_contract::Delegation;
+        use mixnet_contract_common::Delegation;
 
         #[test]
         fn reverse_mix_delegation_exists() {
@@ -94,7 +94,7 @@ mod tests {
             storage::delegations()
                 .save(
                     &mut deps.storage,
-                    (node_identity.clone(), delegation_owner.clone()).joined_key(),
+                    (node_identity, delegation_owner.clone()).joined_key(),
                     &dummy_data,
                 )
                 .unwrap();
@@ -131,7 +131,7 @@ mod tests {
             // add delegation for a different node
             let dummy_data = Delegation::new(
                 delegation_owner1.clone(),
-                node_identity2.clone(),
+                node_identity2,
                 delegation.clone(),
                 mock_env().block.height,
                 None,
@@ -156,14 +156,14 @@ mod tests {
             let dummy_data = Delegation::new(
                 delegation_owner2.clone(),
                 node_identity1.clone(),
-                delegation.clone(),
+                delegation,
                 mock_env().block.height,
                 None,
             );
             storage::delegations()
                 .save(
                     &mut deps.storage,
-                    (node_identity1.clone(), delegation_owner2.clone()).joined_key(),
+                    (node_identity1.clone(), delegation_owner2).joined_key(),
                     &dummy_data,
                 )
                 .unwrap();

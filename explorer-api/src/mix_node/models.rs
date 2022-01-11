@@ -3,7 +3,7 @@
 
 use crate::mix_node::cache::Cache;
 use crate::mix_nodes::location::Location;
-use mixnet_contract::{Addr, Coin, Layer, MixNode};
+use mixnet_contract_common::{Addr, Coin, Layer, MixNode};
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;

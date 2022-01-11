@@ -208,22 +208,24 @@ pub struct HistoricalUptime {
 }
 
 pub(crate) struct ErrorResponse {
-    error: ValidatorApiStorageError,
+    error_message: String,
     status: Status,
 }
 
 impl ErrorResponse {
-    pub(crate) fn new(error: ValidatorApiStorageError, status: Status) -> Self {
-        ErrorResponse { error, status }
+    pub(crate) fn new(error_message: impl Into<String>, status: Status) -> Self {
+        ErrorResponse {
+            error_message: error_message.into(),
+            status,
+        }
     }
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for ErrorResponse {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'o> {
-        let message = format!("{}", self.error);
         Response::build()
             .header(ContentType::Plain)
-            .sized_body(message.len(), Cursor::new(message))
+            .sized_body(self.error_message.len(), Cursor::new(self.error_message))
             .status(self.status)
             .ok()
     }
@@ -268,10 +270,4 @@ impl Display for ValidatorApiStorageError {
             }
         }
     }
-}
-
-#[derive(Serialize)]
-pub struct CoreNodeStatus {
-    pub(crate) identity: String,
-    pub(crate) count: i32,
 }

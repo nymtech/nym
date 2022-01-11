@@ -237,6 +237,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
+name = "contracts-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+]
+
+[[package]]
 name = "cosmwasm-crypto"
 version = "1.0.0-beta3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -832,21 +839,6 @@ checksum = "a3e378b66a060d48947b590737b30a1be76706c8dd7b8ba0f2fe3989c68a853f"
 name = "mixnet-contract"
 version = "0.1.0"
 dependencies = [
- "az",
- "cosmwasm-std",
- "fixed",
- "log",
- "network-defaults",
- "schemars",
- "serde",
- "serde_repr",
- "thiserror",
-]
-
-[[package]]
-name = "mixnet-contracts"
-version = "0.1.0"
-dependencies = [
  "bs58",
  "config",
  "cosmwasm-schema",
@@ -855,7 +847,7 @@ dependencies = [
  "crypto",
  "cw-storage-plus",
  "fixed",
- "mixnet-contract",
+ "mixnet-contract-common",
  "rand",
  "rand_chacha",
  "schemars",
@@ -863,6 +855,22 @@ dependencies = [
  "thiserror",
  "vergen",
  "vesting-contract",
+]
+
+[[package]]
+name = "mixnet-contract-common"
+version = "0.1.0"
+dependencies = [
+ "az",
+ "contracts-common",
+ "cosmwasm-std",
+ "fixed",
+ "log",
+ "network-defaults",
+ "schemars",
+ "serde",
+ "serde_repr",
+ "thiserror",
 ]
 
 [[package]]
@@ -1525,10 +1533,18 @@ dependencies = [
  "config",
  "cosmwasm-std",
  "cw-storage-plus",
- "mixnet-contract",
+ "mixnet-contract-common",
  "schemars",
  "serde",
  "thiserror",
+ "vesting-contract-common",
+]
+
+[[package]]
+name = "vesting-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
 ]
 
 [[package]]

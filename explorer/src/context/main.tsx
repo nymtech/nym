@@ -14,11 +14,14 @@ import {
   StatusResponse,
   UptimeStoryResponse,
   MixNodeDescriptionResponse,
+  MixnodeStatus,
+  SummaryOverviewResponse,
 } from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
 import { navOptionType, originalNavOptions } from './nav';
 
 interface StateData {
+  summaryOverview?: ApiState<SummaryOverviewResponse>;
   block?: ApiState<BlockResponse>;
   countryData?: ApiState<CountryDataResponse>;
   gateways?: ApiState<GatewayResponse>;
@@ -30,8 +33,8 @@ interface StateData {
 }
 
 interface StateApi {
-  fetchMixnodes: () => void;
-  filterMixnodes: (arg: MixNodeResponse) => void;
+  fetchMixnodes: (status?: MixnodeStatus) => void;
+  filterMixnodes: (mixnodes: MixNodeResponse) => void;
   toggleMode: () => void;
   updateNavState: (id: number) => void;
 }
@@ -62,6 +65,8 @@ export const MainContextProvider: React.FC = ({ children }) => {
   const [globalError, setGlobalError] = React.useState<string>();
 
   // various APIs for Overview page
+  const [summaryOverview, setSummaryOverview] =
+    React.useState<ApiState<SummaryOverviewResponse>>();
   const [mixnodes, setMixnodes] = React.useState<ApiState<MixNodeResponse>>();
   const [gateways, setGateways] = React.useState<ApiState<GatewayResponse>>();
   const [validators, setValidators] =
@@ -72,10 +77,27 @@ export const MainContextProvider: React.FC = ({ children }) => {
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
-  const fetchMixnodes = async () => {
+  const fetchOverviewSummary = async () => {
+    try {
+      const data = await Api.fetchOverviewSummary();
+      setSummaryOverview({ data, isLoading: false });
+    } catch (error) {
+      setSummaryOverview({
+        error:
+          error instanceof Error
+            ? error
+            : new Error('Overview summary api fail'),
+        isLoading: false,
+      });
+    }
+  };
+
+  const fetchMixnodes = async (status?: MixnodeStatus) => {
     setMixnodes((d) => ({ ...d, isLoading: true }));
     try {
-      const data = await Api.fetchMixnodes();
+      const data = status
+        ? await Api.fetchMixnodesActiveSetByStatus(status)
+        : await Api.fetchMixnodes();
       setMixnodes({ data, isLoading: false });
     } catch (error) {
       setMixnodes({
@@ -143,7 +165,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
   };
   React.useEffect(() => {
     Promise.all([
-      fetchMixnodes(),
+      fetchOverviewSummary(),
       fetchGateways(),
       fetchValidators(),
       fetchBlock(),
@@ -163,6 +185,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
         mixnodes,
         mode,
         navState,
+        summaryOverview,
         toggleMode,
         updateNavState,
         validators,

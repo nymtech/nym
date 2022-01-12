@@ -24,7 +24,15 @@ type TFormData = {
   profitMarginPercent: number
 }
 
-export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBondDetails['mix_node'] }) => {
+export const SystemVariables = ({
+  mixnodeDetails,
+  saturation,
+  rewardEstimation,
+}: {
+  mixnodeDetails: TMixnodeBondDetails['mix_node']
+  saturation: number
+  rewardEstimation: number
+}) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>()
   const [configFee, setConfigFee] = useState<string>()
 
@@ -78,7 +86,11 @@ export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBo
           <DataField
             title="Estimated reward"
             info="Estimated reward per epoch for this profit margin if your node is selected in the active set."
-            Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
+            Indicator={
+              <Typography sx={{ color: (theme) => theme.palette.nym.fee, fontWeight: '600' }}>
+                {rewardEstimation} {MAJOR_CURRENCY}
+              </Typography>
+            }
           />
           <Divider />
           <DataField
@@ -96,7 +108,7 @@ export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBo
           <DataField
             title="Node stake saturation"
             info="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 1 million NYM, computed as S/K where S is the total amount of tokens available to stakeholders and K is the number of nodes in the reward set."
-            Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
+            Indicator={<PercentIndicator value={saturation} />}
           />
         </Stack>
       </Box>

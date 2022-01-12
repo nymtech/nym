@@ -9,6 +9,7 @@ import { SystemVariables } from './system-variables'
 import { NodeStats } from './node-stats'
 import { Overview } from './overview'
 import { useSettingsState } from './useSettingsState'
+import { NodeStatus } from '../../components/NodeStatus'
 
 const tabs = ['Profile', 'System variables', 'Node stats']
 
@@ -16,26 +17,23 @@ export const Settings = () => {
   const { showSettings, handleShowSettings } = useContext(ClientContext)
   const [selectedTab, setSelectedTab] = useState(0)
 
-  const { mixnodeDetails, status, saturation } = useSettingsState(showSettings)
+  const { mixnodeDetails, status, saturation, rewardEstimation } = useSettingsState(showSettings)
 
-  console.log({ status, saturation })
-
-  const handleTabChange = (event: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab)
+  const handleTabChange = (_: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab)
 
   return showSettings ? (
     <Dialog open={true} onClose={handleShowSettings} maxWidth="md" fullWidth>
       <NymCard
         title={
           <Box display="flex" alignItems="center">
-            <SettingsOutlined sx={{ mr: 1 }} /> Settings
+            <SettingsOutlined sx={{ mr: 1 }} />
+            Node Settings
           </Box>
         }
+        Action={<NodeStatus status={status} />}
         noPadding
       >
         <>
-          <Typography variant="h5" sx={{ py: 2, px: 4 }}>
-            Node settings
-          </Typography>
           <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} disabled={!mixnodeDetails} />
           <Overview details={mixnodeDetails} />
           {!mixnodeDetails && (
@@ -44,7 +42,13 @@ export const Settings = () => {
             </Alert>
           )}
           {selectedTab === 0 && mixnodeDetails && <Profile />}
-          {selectedTab === 1 && mixnodeDetails && <SystemVariables mixnodeDetails={mixnodeDetails.mix_node} />}
+          {selectedTab === 1 && mixnodeDetails && (
+            <SystemVariables
+              mixnodeDetails={mixnodeDetails.mix_node}
+              saturation={saturation}
+              rewardEstimation={rewardEstimation}
+            />
+          )}
           {selectedTab === 2 && mixnodeDetails && <NodeStats mixnodeId={mixnodeDetails.mix_node.identity_key} />}
         </>
       </NymCard>

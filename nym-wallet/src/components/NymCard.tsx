@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent, CardHeader } from '@mui/material'
+import { Box, Card, CardContent, CardHeader } from '@mui/material'
 import { styled } from '@mui/material/styles'
 
 export const NymCard: React.FC<{
@@ -16,7 +16,7 @@ export const NymCard: React.FC<{
         data-testid={title}
         titleTypographyProps={{ variant: 'h5' }}
         subheaderTypographyProps={{ variant: 'subtitle1' }}
-        action={Action}
+        action={<Box sx={{ mt: 1 }}>{Action}</Box>}
         sx={{
           color: 'nym.background.dark',
           py: 2.5,

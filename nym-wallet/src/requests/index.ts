@@ -8,6 +8,7 @@ import {
   MixNode,
   MixnodeStatusResponse,
   Operation,
+  RewardEstimationResponse,
   StakeSaturationResponse,
   TauriContractStateParams,
   TauriTxResult,
@@ -89,8 +90,11 @@ export const getMixnodeBondDetails = async (): Promise<TMixnodeBondDetails | nul
 export const getMixnodeStakeSaturation = async (identity: string): Promise<StakeSaturationResponse> =>
   await invoke('mixnode_stake_saturation', { identity })
 
+export const getMixnodeRewardEstimation = async (identity: string): Promise<RewardEstimationResponse> =>
+  await invoke('mixnode_reward_estimation', { identity })
+
 export const getMixnodeStatus = async (identity: string): Promise<MixnodeStatusResponse> =>
   await invoke('mixnode_status', { identity })
-  
+
 export const updateMixnode = async ({ profitMarginPercent }: { profitMarginPercent: number }) =>
   await invoke('update_mixnode', { profitMarginPercent })

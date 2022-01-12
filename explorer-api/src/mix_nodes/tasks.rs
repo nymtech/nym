@@ -3,7 +3,7 @@
 
 use crate::mix_nodes::MIXNODES_CACHE_REFRESH_RATE;
 use crate::state::ExplorerApiStateContext;
-use mixnet_contract::MixNodeBond;
+use mixnet_contract_common::MixNodeBond;
 use reqwest::Url;
 use std::future::Future;
 use validator_client::ValidatorClientError;

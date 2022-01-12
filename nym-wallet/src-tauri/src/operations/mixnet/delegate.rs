@@ -4,7 +4,7 @@ use crate::nymd_client;
 use crate::state::State;
 use crate::utils::DelegationResult;
 use cosmwasm_std::Coin as CosmWasmCoin;
-use mixnet_contract::PagedDelegatorDelegationsResponse;
+use mixnet_contract_common::PagedDelegatorDelegationsResponse;
 use std::convert::TryInto;
 use std::sync::Arc;
 use tokio::sync::RwLock;

@@ -4,7 +4,7 @@
 use crate::mix_node::models::{NodeDescription, NodeStats};
 use crate::mix_nodes::delegations::{get_mixnode_delegations, get_single_mixnode_delegations};
 use crate::state::ExplorerApiStateContext;
-use mixnet_contract::Delegation;
+use mixnet_contract_common::Delegation;
 use reqwest::Error as ReqwestError;
 use rocket::serde::json::Json;
 use rocket::{Route, State};

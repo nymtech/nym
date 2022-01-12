@@ -23,7 +23,9 @@ use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
-use mixnet_contract::{ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use mixnet_contract_common::{
+    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+};
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_PLEDGE: Uint128 = Uint128::new(100_000_000);
@@ -300,7 +302,7 @@ pub mod tests {
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
-    use mixnet_contract::PagedMixnodeResponse;
+    use mixnet_contract_common::PagedMixnodeResponse;
 
     #[test]
     fn initialize_contract() {

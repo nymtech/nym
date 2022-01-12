@@ -576,6 +576,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
+name = "contracts-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2589,10 +2596,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "mixnet-contract"
+name = "mixnet-contract-common"
 version = "0.1.0"
 dependencies = [
  "az",
+ "contracts-common",
  "cosmwasm-std",
  "fixed",
  "log",
@@ -2797,7 +2805,7 @@ dependencies = [
  "credentials",
  "dirs",
  "eyre",
- "mixnet-contract",
+ "mixnet-contract-common",
  "rand 0.6.5",
  "serde",
  "serde_json",
@@ -5262,6 +5270,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "validator-api-requests"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "ts-rs",
+]
+
+[[package]]
 name = "validator-client"
 version = "0.1.0"
 dependencies = [
@@ -5275,7 +5291,7 @@ dependencies = [
  "flate2",
  "itertools",
  "log",
- "mixnet-contract",
+ "mixnet-contract-common",
  "network-defaults",
  "prost",
  "reqwest",
@@ -5285,6 +5301,7 @@ dependencies = [
  "thiserror",
  "ts-rs",
  "url",
+ "validator-api-requests",
  "vesting-contract",
 ]
 
@@ -5319,10 +5336,18 @@ dependencies = [
  "config",
  "cosmwasm-std",
  "cw-storage-plus",
- "mixnet-contract",
+ "mixnet-contract-common",
  "schemars",
  "serde",
  "thiserror",
+ "vesting-contract-common",
+]
+
+[[package]]
+name = "vesting-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
 ]
 
 [[package]]

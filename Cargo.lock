@@ -350,9 +350,9 @@ dependencies = [
 
 [[package]]
 name = "blake3"
-version = "1.0.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcd555c66291d5f836dbb6883b48660ece810fe25a31f3bdfb911945dff2691f"
+checksum = "526c210b4520e416420759af363083471656e819a75e831b8d2c9d5a584f2413"
 dependencies = [
  "arrayref",
  "arrayvec 0.7.1",
@@ -787,6 +787,13 @@ name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
+
+[[package]]
+name = "contracts-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+]
 
 [[package]]
 name = "convert_case"
@@ -1795,7 +1802,7 @@ dependencies = [
  "humantime-serde",
  "isocountry",
  "log",
- "mixnet-contract",
+ "mixnet-contract-common",
  "network-defaults",
  "okapi",
  "pretty_env_logger",
@@ -3395,10 +3402,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "mixnet-contract"
+name = "mixnet-contract-common"
 version = "0.1.0"
 dependencies = [
  "az",
+ "contracts-common",
  "cosmwasm-std",
  "fixed",
  "log",
@@ -3865,7 +3873,7 @@ dependencies = [
  "getset",
  "humantime-serde",
  "log",
- "mixnet-contract",
+ "mixnet-contract-common",
  "nymsphinx",
  "pin-project",
  "pretty_env_logger",
@@ -3884,6 +3892,7 @@ dependencies = [
  "tokio",
  "topology",
  "url",
+ "validator-api-requests",
  "validator-client",
  "vergen",
  "version-checker",
@@ -3915,7 +3924,7 @@ name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
  "crypto",
- "mixnet-contract",
+ "mixnet-contract-common",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-anonymous-replies",
@@ -7086,7 +7095,7 @@ dependencies = [
  "bs58",
  "crypto",
  "log",
- "mixnet-contract",
+ "mixnet-contract-common",
  "nymsphinx-addressing",
  "nymsphinx-types",
  "rand 0.7.3",
@@ -7319,6 +7328,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "validator-api-requests"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "ts-rs",
+]
+
+[[package]]
 name = "validator-client"
 version = "0.1.0"
 dependencies = [
@@ -7332,7 +7349,7 @@ dependencies = [
  "flate2",
  "itertools",
  "log",
- "mixnet-contract",
+ "mixnet-contract-common",
  "network-defaults",
  "prost",
  "reqwest",
@@ -7342,6 +7359,7 @@ dependencies = [
  "thiserror",
  "ts-rs",
  "url",
+ "validator-api-requests",
  "vesting-contract",
 ]
 
@@ -7406,10 +7424,18 @@ dependencies = [
  "config",
  "cosmwasm-std",
  "cw-storage-plus",
- "mixnet-contract",
+ "mixnet-contract-common",
  "schemars",
  "serde",
  "thiserror",
+ "vesting-contract-common",
+]
+
+[[package]]
+name = "vesting-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
 ]
 
 [[package]]

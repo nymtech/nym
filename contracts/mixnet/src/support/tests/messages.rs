@@ -1,4 +1,4 @@
-use mixnet_contract::{ExecuteMsg, Gateway, IdentityKey, MixNode};
+use mixnet_contract_common::{ExecuteMsg, Gateway, IdentityKey, MixNode};
 use rand::thread_rng;
 
 use crate::support::tests;

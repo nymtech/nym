@@ -6,7 +6,7 @@ use crate::rewarding::EpochRewardParams;
 use ::time::OffsetDateTime;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;
-use mixnet_contract::{
+use mixnet_contract_common::{
     ContractStateParams, GatewayBond, IdentityKey, IdentityKeyRef, MixNodeBond,
     RewardingIntervalResponse,
 };
@@ -20,25 +20,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
+use validator_api_requests::models::MixnodeStatus;
 use validator_client::nymd::hash::SHA256_HASH_SIZE;
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
-
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum MixnodeStatus {
-    Active,   // in both the active set and the rewarded set
-    Standby,  // only in the rewarded set
-    Inactive, // in neither the rewarded set nor the active set, but is bonded
-    NotFound, // doesn't even exist in the bonded set
-}
-
-impl MixnodeStatus {
-    pub fn is_active(&self) -> bool {
-        *self == MixnodeStatus::Active
-    }
-}
 
 pub struct ValidatorCacheRefresher<C> {
     nymd_client: Client<C>,

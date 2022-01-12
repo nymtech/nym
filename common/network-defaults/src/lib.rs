@@ -8,11 +8,15 @@ use url::Url;
 pub mod eth_contract;
 #[cfg(network = "milhon")]
 pub mod milhon;
+#[cfg(network = "qa")]
+pub mod qa;
 #[cfg(network = "sandbox")]
 pub mod sandbox;
 
 #[cfg(network = "milhon")]
 pub use milhon::*;
+#[cfg(network = "qa")]
+pub use qa::*;
 #[cfg(network = "sandbox")]
 pub use sandbox::*;
 
@@ -56,6 +60,14 @@ pub fn default_validators() -> Vec<ValidatorDetails> {
         ),
         ValidatorDetails::new("https://testnet-milhon-validator2.nymtech.net", None),
     ]
+}
+
+#[cfg(network = "qa")]
+pub fn default_validators() -> Vec<ValidatorDetails> {
+    vec![ValidatorDetails::new(
+        "https://qa-validator.nymtech.net",
+        Some("https://qa-validator.nymtech.net/api"),
+    )]
 }
 
 #[cfg(network = "sandbox")]

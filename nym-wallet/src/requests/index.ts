@@ -16,7 +16,6 @@ import {
   TPagedDelegations,
   TSignInWithMnemonic,
 } from '../types'
-import { MixnodeStatus } from '../types/rust/mixnodestatus'
 
 export const createAccount = async (): Promise<TCreateAccount> => await invoke('create_new_account')
 
@@ -30,7 +29,7 @@ export const majorToMinor = async (amount: string): Promise<Coin> => await invok
 // NOTE: this uses OUTDATED defaults that might have no resemblance with the reality
 // as for the actual transaction, the gas cost is being simulated beforehand
 export const getGasFee = async (operation: Operation): Promise<Coin> =>
-  await invoke('get_approximate_fee', { operation })
+  await invoke('outdated_get_approximate_fee', { operation })
 
 export const delegate = async ({
   type,

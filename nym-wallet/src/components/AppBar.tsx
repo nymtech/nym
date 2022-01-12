@@ -4,7 +4,7 @@ import { Box } from '@mui/system'
 import { Logout } from '@mui/icons-material'
 import { ClientContext } from '../context/main'
 import { CopyToClipboard } from '.'
-import { Node } from '../svg-icons/node'
+import { Node as NodeIcon } from '../svg-icons/node'
 
 export const AppBar = () => {
   const { userBalance, clientDetails, showSettings, logOut, handleShowSettings } = useContext(ClientContext)
@@ -38,7 +38,7 @@ export const AppBar = () => {
                 sx={{ color: showSettings ? 'primary.main' : 'nym.background.dark' }}
                 size="small"
               >
-                <Node />
+                <NodeIcon fontSize="small" />
               </IconButton>
             </Grid>
             <Grid item>

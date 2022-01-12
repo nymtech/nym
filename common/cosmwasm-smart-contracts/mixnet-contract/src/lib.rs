@@ -20,7 +20,7 @@ pub use delegation::{
 pub use epoch::Epoch;
 pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayResponse};
 pub use mixnode::{
-    Layer, MixNode, MixNodeBond, MixOwnershipResponse, NodeStatus, PagedMixnodeResponse,
+    Layer, MixNode, MixNodeBond, MixOwnershipResponse, RewardedSetNodeStatus, PagedMixnodeResponse,
 };
 pub use msg::*;
 pub use types::*;

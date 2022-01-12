@@ -42,7 +42,7 @@ pub enum ContractError {
     #[error("No coin was sent for the bonding, you must send {}", DENOM)]
     NoBondFound,
 
-    #[error("Provided active set size is bigger than the demanded set")]
+    #[error("Provided active set size is bigger than the rewarded set")]
     InvalidActiveSetSize,
 
     #[error("Provided active set size is zero")]
@@ -105,9 +105,12 @@ pub enum ContractError {
     #[error("Provided ed25519 signature did not verify correctly")]
     InvalidEd25519Signature,
 
-    #[error("Profit margin percent needs to be an integer in range [0, 100], recieved {0}")]
+    #[error("Profit margin percent needs to be an integer in range [0, 100], received {0}")]
     InvalidProfitMarginPercent(u8),
 
     #[error("Rewarded set height not set, was rewarding set determined?")]
     RewardSetHeightMapEmpty,
+
+    #[error("Received unexpected value for the active set. Got: {received}, expected: {expected}")]
+    UnexpectedActiveSetSize { received: u32, expected: u32 },
 }

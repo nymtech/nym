@@ -20,7 +20,7 @@ fixed::const_fixed_from_int! {
 
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
-pub enum NodeStatus {
+pub enum RewardedSetNodeStatus {
     Active,
     Standby,
 }

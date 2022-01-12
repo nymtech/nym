@@ -10,25 +10,21 @@ use time::OffsetDateTime;
 /// Representation of rewarding epoch.
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
 pub struct Epoch {
-    id: u32,
+    id: i32,
     start: OffsetDateTime,
     length: Duration,
 }
 
 impl Epoch {
-    pub fn id(&self) -> u32 {
-        self.id
-    }
-
     /// Creates new epoch instance.
-    pub const fn new(id: u32, start: OffsetDateTime, length: Duration) -> Self {
+    pub const fn new(id: i32, start: OffsetDateTime, length: Duration) -> Self {
         Epoch { id, start, length }
     }
 
     /// Returns the next epoch.
     pub fn next_epoch(&self) -> Self {
         Epoch {
-            id: self.id + 1,
+            id: self.id.saturating_add(1),
             start: self.end(),
             length: self.length,
         }
@@ -76,6 +72,10 @@ impl Epoch {
                 candidate = candidate.previous_epoch();
             }
         }
+    }
+
+    pub const fn id(&self) -> i32 {
+        self.id
     }
 
     /// Returns the starting datetime of this epoch.

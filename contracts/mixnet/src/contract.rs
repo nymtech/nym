@@ -239,14 +239,14 @@ pub fn execute(
             crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
         }
         ExecuteMsg::WriteRewardedSet { rewarded_set } => {
-            crate::epoch::transactions::try_write_rewarded_set(rewarded_set, deps.storage, env)
-        }
-        ExecuteMsg::ClearRewardedSet {} => {
-            crate::epoch::transactions::try_clear_rewarded_set(deps.storage)
-        }
-        ExecuteMsg::SetCurrentEpoch { epoch } => {
-            crate::epoch::transactions::try_set_current_epoch(epoch, deps.storage)
-        }
+            todo!()
+            // crate::epoch::transactions::try_write_rewarded_set(rewarded_set, deps.storage, env)
+        } // ExecuteMsg::ClearRewardedSet {} => {
+          //     crate::epoch::transactions::try_clear_rewarded_set(deps.storage)
+          // }
+          // ExecuteMsg::SetCurrentEpoch { epoch } => {
+          //     crate::epoch::transactions::try_set_current_epoch(epoch, deps.storage)
+          // }
     }
 }
 

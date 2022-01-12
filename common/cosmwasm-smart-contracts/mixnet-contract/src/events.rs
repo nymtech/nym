@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mixnode::NodeRewardResult;
-use crate::{ContractStateParams, Delegation, IdentityKeyRef, Layer};
+use crate::{ContractStateParams, Delegation, Epoch, IdentityKeyRef, Layer};
 use cosmwasm_std::{Addr, Coin, Event, Uint128};
 
 pub use contracts_common::events::*;
@@ -19,6 +19,7 @@ pub const BEGIN_REWARDING_EVENT_TYPE: &str = "begin_rewarding";
 pub const OPERATOR_REWARDING_EVENT_TYPE: &str = "mix_rewarding";
 pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
 pub const FINISH_REWARDING_EVENT_TYPE: &str = "finish_rewarding";
+pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
 
 // attributes that are used in multiple places
 pub const OWNER_KEY: &str = "owner";
@@ -61,6 +62,12 @@ pub const NO_REWARD_REASON_KEY: &str = "no_reward_reason";
 pub const BOND_NOT_FOUND_VALUE: &str = "bond_not_found";
 pub const BOND_TOO_FRESH_VALUE: &str = "bond_too_fresh";
 pub const ZERO_UPTIME_VALUE: &str = "zero_uptime";
+
+// rewarded set update
+pub const ACTIVE_SET_SIZE_KEY: &str = "active_set_size";
+pub const REWARDED_SET_SIZE_KEY: &str = "rewarded_set_size";
+pub const NODES_IN_REWARDED_SET_KEY: &str = "nodes_in_rewarded_set";
+pub const CURRENT_EPOCH_ID_KEY: &str = "current_epoch";
 
 pub fn new_delegation_event(
     delegator: &Addr,
@@ -350,4 +357,18 @@ pub fn new_mix_delegators_rewarding_event(
             FURTHER_DELEGATIONS_TO_REWARD_KEY,
             further_delegations.to_string(),
         )
+}
+
+// note that when this event is emitted, we'll know the current block height
+pub fn new_change_rewarded_set_event(
+    active_set_size: u32,
+    rewarded_set_size: u32,
+    nodes_in_rewarded_set: u32,
+    current_epoch_id: i32,
+) -> Event {
+    Event::new(CHANGE_REWARDED_SET_EVENT_TYPE)
+        .add_attribute(ACTIVE_SET_SIZE_KEY, active_set_size.to_string())
+        .add_attribute(REWARDED_SET_SIZE_KEY, rewarded_set_size.to_string())
+        .add_attribute(NODES_IN_REWARDED_SET_KEY, nodes_in_rewarded_set.to_string())
+        .add_attribute(CURRENT_EPOCH_ID_KEY, current_epoch_id.to_string())
 }

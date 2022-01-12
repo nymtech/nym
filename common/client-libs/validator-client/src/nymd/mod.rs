@@ -16,7 +16,7 @@ use fee::helpers::Operation;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, Epoch, ExecuteMsg, Gateway, GatewayBond,
     GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNode, MixNodeBond,
-    MixOwnershipResponse, MixnetContractVersion, MixnodeRewardingStatusResponse, NodeStatus,
+    MixOwnershipResponse, MixnetContractVersion, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
     PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
     PagedMixDelegationsResponse, PagedMixnodeResponse, QueryMsg, RewardingIntervalResponse,
 };
@@ -304,7 +304,7 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn query_rewarded_set(&self) -> Result<HashMap<String, NodeStatus>, NymdError>
+    pub async fn query_rewarded_set(&self) -> Result<HashMap<String, RewardedSetNodeStatus>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -327,7 +327,7 @@ impl<C> NymdClient<C> {
     pub async fn query_rewarded_set_at_height(
         &self,
         height: u64,
-    ) -> Result<HashMap<String, NodeStatus>, NymdError>
+    ) -> Result<HashMap<String, RewardedSetNodeStatus>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -340,8 +340,8 @@ impl<C> NymdClient<C> {
     pub async fn query_rewarded_set_for_epoch(
         &self,
         epoch: Option<Epoch>,
-        filter: Option<NodeStatus>,
-    ) -> Result<HashMap<String, NodeStatus>, NymdError>
+        filter: Option<RewardedSetNodeStatus>,
+    ) -> Result<HashMap<String, RewardedSetNodeStatus>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -1229,7 +1229,7 @@ impl<C> NymdClient<C> {
 
     pub async fn write_rewarded_set(
         &self,
-        rewarded_set: &HashMap<String, NodeStatus>,
+        rewarded_set: &HashMap<String, RewardedSetNodeStatus>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,

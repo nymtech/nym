@@ -6,7 +6,7 @@ use crate::rewarding::{error::RewardingError, EpochRewardParams, MixnodeToReward
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, Epoch, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond,
-    MixnodeRewardingStatusResponse, NodeStatus, RewardingIntervalResponse,
+    MixnodeRewardingStatusResponse, RewardedSetNodeStatus, RewardingIntervalResponse,
     MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 use serde::Serialize;
@@ -256,7 +256,7 @@ impl<C> Client<C> {
 
     pub(crate) async fn write_rewarded_set(
         &self,
-        rewarded_set: &HashMap<String, NodeStatus>,
+        rewarded_set: &HashMap<String, RewardedSetNodeStatus>,
     ) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,

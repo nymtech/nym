@@ -4,7 +4,7 @@
 use super::storage;
 use crate::error::ContractError;
 use cosmwasm_std::{Order, StdResult, Storage};
-use mixnet_contract_common::{Epoch, IdentityKey, NodeStatus};
+use mixnet_contract_common::{Epoch, IdentityKey, RewardedSetNodeStatus};
 use std::collections::{HashMap, HashSet};
 
 pub fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
@@ -17,7 +17,7 @@ pub(crate) fn query_rewarded_set_refresh_secs() -> u32 {
 
 pub fn query_rewarded_set_for_epoch(
     epoch: Option<Epoch>,
-    filter: Option<NodeStatus>,
+    filter: Option<RewardedSetNodeStatus>,
     storage: &dyn Storage,
 ) -> Result<HashSet<IdentityKey>, ContractError> {
     let epoch = epoch.unwrap_or(storage::CURRENT_EPOCH.load(storage)?);
@@ -57,7 +57,7 @@ pub fn query_current_rewarded_set_height(storage: &dyn Storage) -> Result<u64, C
 pub fn query_rewarded_set_at_height(
     height: u64,
     storage: &dyn Storage,
-) -> Result<HashMap<IdentityKey, NodeStatus>, ContractError> {
+) -> Result<HashMap<IdentityKey, RewardedSetNodeStatus>, ContractError> {
     let rewarded_set: StdResult<Vec<_>> = storage::REWARDED_SET
         .prefix_de(height)
         .range(storage, None, None, Order::Ascending)
@@ -67,7 +67,7 @@ pub fn query_rewarded_set_at_height(
 
 pub fn query_rewarded_set(
     storage: &dyn Storage,
-) -> Result<HashMap<IdentityKey, NodeStatus>, ContractError> {
+) -> Result<HashMap<IdentityKey, RewardedSetNodeStatus>, ContractError> {
     let latest_height = query_current_rewarded_set_height(storage)?;
     query_rewarded_set_at_height(latest_height, storage)
 }

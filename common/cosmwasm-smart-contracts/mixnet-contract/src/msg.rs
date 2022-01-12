@@ -3,7 +3,7 @@
 
 use crate::mixnode::NodeRewardParams;
 use crate::ContractStateParams;
-use crate::{Epoch, Gateway, IdentityKey, MixNode, NodeStatus};
+use crate::{Epoch, Gateway, IdentityKey, MixNode, RewardedSetNodeStatus};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -88,12 +88,14 @@ pub enum ExecuteMsg {
         owner: String,
     },
     WriteRewardedSet {
-        rewarded_set: HashMap<IdentityKey, NodeStatus>,
+        // rewarded_set: HashMap<IdentityKey, RewardedSetNodeStatus>,
+        rewarded_set: Vec<IdentityKey>,
+        expected_active_set_size: u32,
     },
-    ClearRewardedSet {},
-    SetCurrentEpoch {
-        epoch: Epoch,
-    },
+    // ClearRewardedSet {},
+    // SetCurrentEpoch {
+    //     epoch: Epoch,
+    // },
 }
 
 // TODO: See comment above for JsonSchema derive
@@ -162,7 +164,7 @@ pub enum QueryMsg {
     GetRewardedSetRefreshSecs {},
     GetRewardedSetForEpoch {
         epoch: Option<Epoch>,
-        filter: Option<NodeStatus>,
+        filter: Option<RewardedSetNodeStatus>,
     },
 }
 

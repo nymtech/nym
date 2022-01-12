@@ -6,6 +6,7 @@ import { validationSchema } from './validationSchema'
 import { EnumNodeType, TDelegation, TFee } from '../../types'
 import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 import { undelegate } from '../../requests'
+import { Fee } from '../../components'
 
 type TFormData = {
   nodeType: EnumNodeType
@@ -89,9 +90,7 @@ export const UndelegateForm = ({
             />
           </Grid>
           <Grid item xs={12}>
-            <Typography sx={{ color: 'nym.fee' }}>
-              Fee for this transaction: {`${fees.mixnode.amount} ${MAJOR_CURRENCY}`}{' '}
-            </Typography>
+            <Fee feeType="UndelegateFromMixnode" />
           </Grid>
         </Grid>
       </Box>

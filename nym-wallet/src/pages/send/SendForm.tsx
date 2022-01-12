@@ -2,6 +2,7 @@ import React, { useContext } from 'react'
 import { Grid, InputAdornment, TextField, Typography } from '@mui/material'
 import { useFormContext } from 'react-hook-form'
 import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
+import { Fee } from '../../components'
 
 export const SendForm = ({ transferFee }: { transferFee?: string }) => {
   const {
@@ -48,9 +49,7 @@ export const SendForm = ({ transferFee }: { transferFee?: string }) => {
         />
       </Grid>
       <Grid item xs={12}>
-        <Typography sx={{ color: 'nym.fee' }}>
-          Fee for this transaction: {`${transferFee} ${MAJOR_CURRENCY}`}
-        </Typography>
+        <Fee feeType="Send" />
       </Grid>
     </Grid>
   )

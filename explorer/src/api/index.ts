@@ -37,7 +37,9 @@ function getFromCache(key: string) {
 
 function storeInCache(key: string, data: any) {
   localStorage.setItem(key, data);
+  localStorage.setItem('ts', Date.now().toString());
 }
+
 export class Api {
   static fetchOverviewSummary = async (): Promise<SummaryOverviewResponse> => {
     const cache = getFromCache('overview-summary');
@@ -58,7 +60,6 @@ export class Api {
     const res = await fetch(MIXNODES_API);
     const json = await res.json();
     storeInCache('mixnodes', JSON.stringify(json));
-    storeInCache('ts', Date.now());
     return json;
   };
 

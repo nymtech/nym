@@ -87,7 +87,7 @@ export const DelegateForm = ({
             />
           </Grid>
 
-          <Grid item xs={12} lg={6}>
+          <Grid item xs={12}>
             <TextField
               {...register('amount')}
               required

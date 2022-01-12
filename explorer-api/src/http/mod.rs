@@ -89,7 +89,7 @@ fn get_servers() -> Vec<rocket_okapi::okapi::openapi3::Server> {
         return vec![];
     }
     return vec![rocket_okapi::okapi::openapi3::Server {
-        url: std::env::var("OPEN_API_BASE").unwrap_or("/api/v1/".to_owned()),
+        url: std::env::var("OPEN_API_BASE").unwrap_or_else(|_| "/api/v1/".to_owned()),
         description: Some("API".to_owned()),
         ..Default::default()
     }];

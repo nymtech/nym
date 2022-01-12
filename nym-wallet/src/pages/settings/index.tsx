@@ -44,9 +44,7 @@ export const Settings = () => {
             </Alert>
           )}
           {selectedTab === 0 && mixnodeDetails && <Profile />}
-          {selectedTab === 1 && mixnodeDetails && (
-            <SystemVariables mixnodeDetails={mixnodeDetails.mix_node} pledge={mixnodeDetails.pledge_amount} />
-          )}
+          {selectedTab === 1 && mixnodeDetails && <SystemVariables mixnodeDetails={mixnodeDetails.mix_node} />}
           {selectedTab === 2 && mixnodeDetails && <NodeStats mixnodeId={mixnodeDetails.mix_node.identity_key} />}
         </>
       </NymCard>

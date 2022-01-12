@@ -51,6 +51,7 @@ export const undelegate = async ({
 
 export const send = async (args: { amount: Coin; address: string; memo: string }): Promise<TauriTxResult> =>
   await invoke('send', args)
+
 export const checkMixnodeOwnership = async (): Promise<boolean> => await invoke('owns_mixnode')
 
 export const checkGatewayOwnership = async (): Promise<boolean> => await invoke('owns_gateway')
@@ -90,3 +91,6 @@ export const getMixnodeStakeSaturation = async (identity: string): Promise<Stake
 
 export const getMixnodeStatus = async (identity: string): Promise<MixnodeStatusResponse> =>
   await invoke('mixnode_status', { identity })
+  
+export const updateMixnode = async ({ profitMarginPercent }: { profitMarginPercent: number }) =>
+  await invoke('update_mixnode', { profitMarginPercent })

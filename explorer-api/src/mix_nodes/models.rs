@@ -4,7 +4,7 @@
 use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
 use crate::mix_nodes::location::{Location, LocationCache, LocationCacheItem};
 use crate::mix_nodes::MIXNODES_CACHE_ENTRY_TTL;
-use mixnet_contract::MixNodeBond;
+use mixnet_contract_common::MixNodeBond;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};

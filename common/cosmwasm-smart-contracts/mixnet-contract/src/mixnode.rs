@@ -53,6 +53,16 @@ pub enum Layer {
     Three = 3,
 }
 
+impl From<Layer> for String {
+    fn from(layer: Layer) -> Self {
+        if layer == Layer::Gateway {
+            "gateway".to_string()
+        } else {
+            (layer as u8).to_string()
+        }
+    }
+}
+
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct NodeRewardParams {
     period_reward_pool: Uint128,
@@ -243,7 +253,7 @@ impl DelegatorRewardParams {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct NodeRewardResult {
     reward: U128,
     lambda: U128,
@@ -325,6 +335,11 @@ impl MixNodeBond {
 
     pub fn total_delegation(&self) -> Coin {
         self.total_delegation.clone()
+    }
+
+    pub fn stake_saturation(&self, circulating_supply: u128, rewarded_set_size: u32) -> U128 {
+        self.total_bond_to_circulating_supply(circulating_supply)
+            * U128::from_num(rewarded_set_size)
     }
 
     pub fn pledge_to_circulating_supply(&self, circulating_supply: u128) -> U128 {

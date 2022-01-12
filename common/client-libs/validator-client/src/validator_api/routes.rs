@@ -10,5 +10,16 @@ pub const GATEWAYS: &str = "gateways";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
 
-pub const COCONUT_BLIND_SIGN: &str = "blind_sign";
-pub const COCONUT_VERIFICATION_KEY: &str = "verification_key";
+pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
+pub const COCONUT_VERIFICATION_KEY: &str = "verification-key";
+
+pub const STATUS_ROUTES: &str = "status";
+pub const MIXNODE: &str = "mixnode";
+pub const GATEWAY: &str = "gateway";
+
+pub const CORE_STATUS_COUNT: &str = "core-status-count";
+pub const SINCE_ARG: &str = "since";
+
+pub const STATUS: &str = "status";
+pub const REWARD_ESTIMATION: &str = "reward-estimation";
+pub const STAKE_SATURATION: &str = "stake-saturation";

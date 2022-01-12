@@ -8,7 +8,7 @@ use crate::nymd::fee::helpers::Operation;
 use crate::nymd::{cosmwasm_coin_to_cosmos_coin, NymdClient};
 use async_trait::async_trait;
 use cosmwasm_std::Coin;
-use mixnet_contract::{Gateway, IdentityKey, IdentityKeyRef, MixNode};
+use mixnet_contract_common::{Gateway, IdentityKey, IdentityKeyRef, MixNode};
 use vesting_contract::messages::ExecuteMsg as VestingExecuteMsg;
 
 #[async_trait]

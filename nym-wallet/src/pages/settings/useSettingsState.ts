@@ -30,9 +30,11 @@ export const useSettingsState = (showSettings: boolean) => {
   }
 
   useEffect(() => {
-    getBondDetails()
-    getStatus()
-    getStakeSaturation()
+    if (showSettings) {
+      getBondDetails()
+      getStatus()
+      getStakeSaturation()
+    }
   }, [showSettings])
 
   return {

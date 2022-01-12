@@ -17,7 +17,7 @@ export const Settings = () => {
   const { showSettings, handleShowSettings } = useContext(ClientContext)
   const [selectedTab, setSelectedTab] = useState(0)
 
-  const { mixnodeDetails, status, saturation, rewardEstimation } = useSettingsState(showSettings)
+  const { mixnodeDetails, status, saturation, rewardEstimation, getBondDetails } = useSettingsState(showSettings)
 
   const handleTabChange = (_: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab)
 
@@ -47,6 +47,7 @@ export const Settings = () => {
               mixnodeDetails={mixnodeDetails.mix_node}
               saturation={saturation}
               rewardEstimation={rewardEstimation}
+              onUpdate={getBondDetails}
             />
           )}
           {selectedTab === 2 && mixnodeDetails && <NodeStats mixnodeId={mixnodeDetails.mix_node.identity_key} />}

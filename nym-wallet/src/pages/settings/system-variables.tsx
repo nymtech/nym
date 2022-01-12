@@ -19,6 +19,7 @@ import { TMixnodeBondDetails } from '../../types'
 import { validationSchema } from './validationSchema'
 import { getGasFee, updateMixnode } from '../../requests'
 import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
+import { Fee } from '../../components'
 
 type TFormData = {
   profitMarginPercent: number
@@ -28,10 +29,12 @@ export const SystemVariables = ({
   mixnodeDetails,
   saturation,
   rewardEstimation,
+  onUpdate,
 }: {
   mixnodeDetails: TMixnodeBondDetails['mix_node']
   saturation: number
   rewardEstimation: number
+  onUpdate: () => void
 }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>()
   const [configFee, setConfigFee] = useState<string>()
@@ -45,21 +48,16 @@ export const SystemVariables = ({
     defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString() },
   })
 
-  useEffect(() => {
-    ;(async () => {
-      const fee = await getGasFee('UpdateMixnodeConfig')
-      setConfigFee(fee.amount)
-    })()
-  }, [])
+
 
   const { userBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TFormData) => {
     try {
-      await updateMixnode({ profitMarginPercent: data.profitMarginPercent }).then(() => {
-        userBalance.fetchBalance()
-        setNodeUpdateResponse('success')
-      })
+      await updateMixnode({ profitMarginPercent: data.profitMarginPercent })
+      await userBalance.fetchBalance()
+      onUpdate()
+      setNodeUpdateResponse('success')
     } catch (e) {
       setNodeUpdateResponse('failed')
       console.log(e)
@@ -127,9 +125,7 @@ export const SystemVariables = ({
         ) : nodeUpdateResponse === 'failed' ? (
           <Typography sx={{ color: 'error.main', fontWeight: 600 }}>Node updated failed</Typography>
         ) : (
-          <Typography sx={{ color: 'nym.fee' }}>
-            Fee for this transaction: {`${configFee} ${MAJOR_CURRENCY}`}{' '}
-          </Typography>
+          <Fee feeType="UpdateMixnodeConfig" />
         )}
         <Button
           variant="contained"

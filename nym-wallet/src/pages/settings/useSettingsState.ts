@@ -9,9 +9,9 @@ import {
 } from '../../requests'
 import { TMixnodeBondDetails, MixnodeStatus } from '../../types'
 
-export const useSettingsState = (showSettings: boolean) => {
+export const useSettingsState = (shouldUpdate: boolean) => {
   const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>()
-  const [status, setStatus] = useState<MixnodeStatus>('NotFound')
+  const [status, setStatus] = useState<MixnodeStatus>('not_found')
   const [saturation, setSaturation] = useState<number>(0)
   const [rewardEstimation, setRewardEstimation] = useState<number>(0)
 
@@ -49,18 +49,19 @@ export const useSettingsState = (showSettings: boolean) => {
   }
 
   useEffect(() => {
-    if (showSettings) {
+    if (shouldUpdate) {
       getBondDetails()
       getStatus()
       getStakeSaturation()
       getRewardEstimation()
     }
-  }, [showSettings])
+  }, [shouldUpdate])
 
   return {
     status,
     saturation,
     mixnodeDetails,
     rewardEstimation,
+    getBondDetails,
   }
 }

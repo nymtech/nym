@@ -4,8 +4,8 @@
 #[macro_use]
 extern crate rocket;
 
-use crate::cache::ValidatorCacheRefresher;
 use crate::config::Config;
+use crate::contract_cache::ValidatorCacheRefresher;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
@@ -13,8 +13,8 @@ use crate::rewarding::Rewarder;
 use crate::storage::ValidatorApiStorage;
 use ::config::NymConfig;
 use anyhow::Result;
-use cache::ValidatorCache;
 use clap::{crate_version, App, Arg, ArgMatches};
+use contract_cache::ValidatorCache;
 use log::{info, warn};
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
@@ -33,11 +33,12 @@ use validator_client::ValidatorClientError;
 #[cfg(feature = "coconut")]
 use coconut::InternalSignRequest;
 
-pub(crate) mod cache;
 pub(crate) mod config;
+pub(crate) mod contract_cache;
 mod network_monitor;
 mod node_status_api;
 pub(crate) mod nymd_client;
+mod rewarded_set_updater;
 mod rewarding;
 pub(crate) mod storage;
 
@@ -505,12 +506,17 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     // if network monitor is disabled, we're not going to be sending any rewarding hence
     // we're not starting signing client
     if config.get_network_monitor_enabled() {
+        let rewarded_set_update_notify = Arc::new(Notify::new());
+
         let nymd_client = Client::new_signing(&config);
         let validator_cache_refresher = ValidatorCacheRefresher::new(
             nymd_client.clone(),
             config.get_caching_interval(),
             validator_cache.clone(),
+            Some(Arc::clone(&rewarded_set_update_notify)),
         );
+
+        todo!("spawn rewarded set updater here");
 
         // spawn our cacher
         tokio::spawn(async move { validator_cache_refresher.run().await });
@@ -533,6 +539,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             nymd_client,
             config.get_caching_interval(),
             validator_cache,
+            None,
         );
 
         // spawn our cacher

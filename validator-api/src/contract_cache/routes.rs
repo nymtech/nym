@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cache::ValidatorCache;
+use crate::contract_cache::ValidatorCache;
 use mixnet_contract_common::{GatewayBond, MixNodeBond};
 use rocket::serde::json::Json;
 use rocket::State;

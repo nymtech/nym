@@ -35,9 +35,9 @@ pub struct MixnodeStatusResponse {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
 pub struct RewardEstimationResponse {
-    pub estimated_total_node_reward: u128,
-    pub estimated_operator_reward: u128,
-    pub estimated_delegators_reward: u128,
+    pub estimated_total_node_reward: u64,
+    pub estimated_operator_reward: u64,
+    pub estimated_delegators_reward: u64,
 
     pub current_epoch_start: i64,
     pub current_epoch_end: i64,

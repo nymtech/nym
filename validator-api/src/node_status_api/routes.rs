@@ -10,6 +10,7 @@ use crate::{Epoch, ValidatorCache};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
+use std::convert::TryFrom;
 use time::OffsetDateTime;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
@@ -135,9 +136,9 @@ pub(crate) async fn get_mixnode_reward_estimation(
             epoch_reward_params.estimate_reward(&bond, uptime.u8(), status.is_active());
 
         Ok(Json(RewardEstimationResponse {
-            estimated_total_node_reward,
-            estimated_operator_reward,
-            estimated_delegators_reward,
+            estimated_total_node_reward: estimated_total_node_reward as u64,
+            estimated_operator_reward: estimated_operator_reward as u64,
+            estimated_delegators_reward: estimated_delegators_reward as u64,
             current_epoch_start: current_epoch.start_unix_timestamp(),
             current_epoch_end: current_epoch.end_unix_timestamp(),
             current_epoch_uptime: uptime.u8(),

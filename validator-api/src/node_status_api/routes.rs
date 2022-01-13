@@ -10,7 +10,6 @@ use crate::{Epoch, ValidatorCache};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
-use std::convert::TryFrom;
 use time::OffsetDateTime;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,

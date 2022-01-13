@@ -22,7 +22,7 @@ pub fn mix_nodes_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>,
 pub(crate) async fn list(
     state: &State<ExplorerApiStateContext>,
 ) -> Json<Vec<PrettyDetailedMixNodeBond>> {
-    Json(state.inner.mix_nodes.get_detailed_mixnodes().await)
+    Json(state.inner.mixnodes.get_detailed_mixnodes().await)
 }
 
 #[openapi(tag = "mix_nodes")]
@@ -31,7 +31,7 @@ pub(crate) async fn list_active_set(
     state: &State<ExplorerApiStateContext>,
 ) -> Json<Vec<PrettyDetailedMixNodeBond>> {
     Json(get_mixnodes_by_status(
-        state.inner.mix_nodes.get_detailed_mixnodes().await,
+        state.inner.mixnodes.get_detailed_mixnodes().await,
         MixnodeStatus::Active,
     ))
 }
@@ -42,7 +42,7 @@ pub(crate) async fn list_inactive_set(
     state: &State<ExplorerApiStateContext>,
 ) -> Json<Vec<PrettyDetailedMixNodeBond>> {
     Json(get_mixnodes_by_status(
-        state.inner.mix_nodes.get_detailed_mixnodes().await,
+        state.inner.mixnodes.get_detailed_mixnodes().await,
         MixnodeStatus::Inactive,
     ))
 }
@@ -53,7 +53,7 @@ pub(crate) async fn list_standby_set(
     state: &State<ExplorerApiStateContext>,
 ) -> Json<Vec<PrettyDetailedMixNodeBond>> {
     Json(get_mixnodes_by_status(
-        state.inner.mix_nodes.get_detailed_mixnodes().await,
+        state.inner.mixnodes.get_detailed_mixnodes().await,
         MixnodeStatus::Standby,
     ))
 }
@@ -65,7 +65,7 @@ pub(crate) async fn summary(state: &State<ExplorerApiStateContext>) -> Json<MixN
 }
 
 pub(crate) async fn get_mixnode_summary(state: &State<ExplorerApiStateContext>) -> MixNodeSummary {
-    let mixnodes = state.inner.mix_nodes.get_detailed_mixnodes().await;
+    let mixnodes = state.inner.mixnodes.get_detailed_mixnodes().await;
     let active = get_mixnodes_by_status(mixnodes.clone(), MixnodeStatus::Active).len();
     let standby = get_mixnodes_by_status(mixnodes.clone(), MixnodeStatus::Standby).len();
     let inactive = get_mixnodes_by_status(mixnodes.clone(), MixnodeStatus::Inactive).len();

@@ -7,31 +7,26 @@ import {
   getMixnodeStatus,
   minorToMajor,
 } from '../../requests'
-import { TMixnodeBondDetails, MixnodeStatus } from '../../types'
+import { MixnodeStatus } from '../../types'
 
 export const useSettingsState = (shouldUpdate: boolean) => {
-  const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>()
   const [status, setStatus] = useState<MixnodeStatus>('not_found')
   const [saturation, setSaturation] = useState<number>(0)
   const [rewardEstimation, setRewardEstimation] = useState<number>(0)
 
-  const { clientDetails } = useContext(ClientContext)
-
-  const getBondDetails = async () => {
-    const details = await getMixnodeBondDetails()
-    setMixnodeDetails(details)
-  }
+  const { mixnodeDetails } = useContext(ClientContext)
 
   const getStatus = async () => {
-    if (clientDetails?.client_address) {
-      const status = await getMixnodeStatus(clientDetails?.contract_address)
+    if (mixnodeDetails?.mix_node.identity_key) {
+      const status = await getMixnodeStatus(mixnodeDetails?.mix_node.identity_key)
       setStatus(status.status)
     }
   }
 
   const getStakeSaturation = async () => {
-    if (clientDetails?.client_address) {
-      const saturation = await getMixnodeStakeSaturation(clientDetails?.contract_address)
+    if (mixnodeDetails?.mix_node.identity_key) {
+      const saturation = await getMixnodeStakeSaturation(mixnodeDetails?.mix_node.identity_key)
+
       if (saturation) {
         setSaturation(Math.round(saturation.saturation * 100))
       }
@@ -39,8 +34,8 @@ export const useSettingsState = (shouldUpdate: boolean) => {
   }
 
   const getRewardEstimation = async () => {
-    if (clientDetails?.client_address) {
-      const rewardEstimation = await getMixnodeRewardEstimation(clientDetails?.contract_address)
+    if (mixnodeDetails?.mix_node.identity_key) {
+      const rewardEstimation = await getMixnodeRewardEstimation(mixnodeDetails?.mix_node.identity_key)
       if (rewardEstimation) {
         const toMajor = await minorToMajor(rewardEstimation.estimated_total_node_reward.toString())
         setRewardEstimation(parseInt(toMajor.amount))
@@ -50,7 +45,6 @@ export const useSettingsState = (shouldUpdate: boolean) => {
 
   useEffect(() => {
     if (shouldUpdate) {
-      getBondDetails()
       getStatus()
       getStakeSaturation()
       getRewardEstimation()
@@ -60,8 +54,6 @@ export const useSettingsState = (shouldUpdate: boolean) => {
   return {
     status,
     saturation,
-    mixnodeDetails,
     rewardEstimation,
-    getBondDetails,
   }
 }

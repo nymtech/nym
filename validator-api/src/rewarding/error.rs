@@ -27,9 +27,8 @@ pub(crate) enum RewardingError {
     #[error("Error downcasting u128 -> u64")]
     DowncastingError {
         #[from]
-        source: std::num::TryFromIntError
-    }
-
+        source: std::num::TryFromIntError,
+    },
 }
 
 impl From<NymdError> for RewardingError {

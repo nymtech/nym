@@ -5,6 +5,7 @@ extern crate rocket_okapi;
 
 use log::info;
 
+mod client;
 mod country_statistics;
 mod http;
 mod mix_node;

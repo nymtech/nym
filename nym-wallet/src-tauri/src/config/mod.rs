@@ -62,33 +62,51 @@ impl NymConfig for Config {
 }
 
 impl Config {
-  pub fn get_nymd_validator_url(&self) -> Url {
+  pub fn get_nymd_validator_url(&self, network: &Network) -> Url {
     // TODO make this a random choice
-    if let Some(validator_details) = self.base.validators.first() {
+    if let Some(Some(validator_details)) = self
+      .base
+      .networks
+      .validators(network)
+      .map(|validators| validators.first())
+    {
       validator_details.nymd_url()
     } else {
       panic!("No validators found in config")
     }
   }
 
-  pub fn get_validator_api_url(&self) -> Url {
+  pub fn get_validator_api_url(&self, network: &Network) -> Url {
     // TODO make this a random choice
-    if let Some(validator_details) = self.base.validators.first() {
+    if let Some(Some(validator_details)) = self
+      .base
+      .networks
+      .validators(network)
+      .map(|validators| validators.first())
+    {
       validator_details.api_url().expect("no api url provided")
     } else {
       panic!("No validators found in config")
     }
   }
 
-  pub fn get_mixnet_contract_address(&self) -> cosmrs::AccountId {
+  pub fn get_mixnet_contract_address(&self, network: &Network) -> cosmrs::AccountId {
     self
       .base
-      .mixnet_contract_address
+      .networks
+      .mixnet_contract_address(network)
+      .expect("No mixnet contract address found in config")
       .parse()
       .expect("stored mixnet contract address is not a valid account address")
   }
 
-  pub fn get_vesting_contract_address(&self) -> Option<cosmrs::AccountId> {
-    None
+  pub fn get_vesting_contract_address(&self, network: &Network) -> cosmrs::AccountId {
+    self
+      .base
+      .networks
+      .vesting_contract_address(network)
+      .expect("No vesting contract address found in config")
+      .parse()
+      .expect("stored vesting contract address is not a valid account address")
   }
 }

@@ -1,17 +1,19 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{milhon, qa, sandbox, ValidatorDetails};
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum Network {
     MILHON,
     QA,
     SANDBOX,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NetworkDetails {
     bech32_prefix: String,
     denom: String,
@@ -22,6 +24,7 @@ pub struct NetworkDetails {
     validators: Vec<ValidatorDetails>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SupportedNetworks {
     networks: HashMap<Network, NetworkDetails>,
 }
@@ -81,5 +84,47 @@ impl SupportedNetworks {
             };
         }
         SupportedNetworks { networks }
+    }
+
+    pub fn bech32_prefix(&self, network: &Network) -> Option<&str> {
+        self.networks
+            .get(network)
+            .map(|network_details| network_details.bech32_prefix.as_str())
+    }
+
+    pub fn denom(&self, network: &Network) -> Option<&str> {
+        self.networks
+            .get(network)
+            .map(|network_details| network_details.denom.as_str())
+    }
+
+    pub fn mixnet_contract_address(&self, network: &Network) -> Option<&str> {
+        self.networks
+            .get(network)
+            .map(|network_details| network_details.mixnet_contract_address.as_str())
+    }
+
+    pub fn vesting_contract_address(&self, network: &Network) -> Option<&str> {
+        self.networks
+            .get(network)
+            .map(|network_details| network_details.vesting_contract_address.as_str())
+    }
+
+    pub fn bandwidth_claim_contract_address(&self, network: &Network) -> Option<&str> {
+        self.networks
+            .get(network)
+            .map(|network_details| network_details.bandwidth_claim_contract_address.as_str())
+    }
+
+    pub fn rewarding_validator_address(&self, network: &Network) -> Option<&str> {
+        self.networks
+            .get(network)
+            .map(|network_details| network_details.rewarding_validator_address.as_str())
+    }
+
+    pub fn validators(&self, network: &Network) -> Option<&Vec<ValidatorDetails>> {
+        self.networks
+            .get(network)
+            .map(|network_details| &network_details.validators)
     }
 }

@@ -24,6 +24,10 @@ cfg_if::cfg_if! {
         pub fn default_validators() -> Vec<ValidatorDetails> {
             milhon::validators()
         }
+
+        pub fn default_network() -> all::Network {
+            all::Network::MILHON
+        }
     } else if #[cfg(network = "qa")] {
         pub const BECH32_PREFIX: &str = qa::BECH32_PREFIX;
         pub const DENOM: &str = qa::DENOM;
@@ -36,6 +40,10 @@ cfg_if::cfg_if! {
         pub fn default_validators() -> Vec<ValidatorDetails> {
             qa::validators()
         }
+
+        pub fn default_network() -> all::Network {
+            all::Network::QA
+        }
     } else if #[cfg(network = "sandbox")] {
         pub const BECH32_PREFIX: &str = sandbox::BECH32_PREFIX;
         pub const DENOM: &str = sandbox::DENOM;
@@ -47,6 +55,10 @@ cfg_if::cfg_if! {
 
         pub fn default_validators() -> Vec<ValidatorDetails> {
             sandbox::validators()
+        }
+
+        pub fn default_network() -> all::Network {
+            all::Network::SANDBOX
         }
     }
 }

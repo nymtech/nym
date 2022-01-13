@@ -7,7 +7,7 @@ export enum EnumNodeType {
 
 export type TNodeOwnership = {
   hasOwnership: boolean
-  nodeType: EnumNodeType
+  nodeType?: EnumNodeType
 }
 
 export type TClientDetails = {

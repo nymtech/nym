@@ -4,8 +4,7 @@ import { BondForm } from './BondForm'
 import { NymCard } from '../../components'
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
 import { Layout } from '../../layouts'
-import { getGasFee, unbond } from '../../requests'
-import { TFee } from '../../types'
+import { unbond } from '../../requests'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { ClientContext } from '../../context/main'
 import { SuccessView } from './SuccessView'
@@ -14,19 +13,14 @@ export const Bond = () => {
   const [status, setStatus] = useState(EnumRequestStatus.initial)
   const [error, setError] = useState<string>()
   const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>()
-  const [fees, setFees] = useState<TFee>()
 
   const { checkOwnership, ownership } = useCheckOwnership()
-  const { userBalance } = useContext(ClientContext)
+  const { userBalance, getBondDetails } = useContext(ClientContext)
 
   useEffect(() => {
     if (status === EnumRequestStatus.initial) {
       const initialiseForm = async () => {
         await checkOwnership()
-        setFees({
-          mixnode: await getGasFee('BondMixnode'),
-          gateway: await getGasFee('BondGateway'),
-        })
         setStatus(EnumRequestStatus.initial)
       }
       initialiseForm()
@@ -45,7 +39,8 @@ export const Bond = () => {
                 onClick={async () => {
                   setStatus(EnumRequestStatus.loading)
                   await unbond(ownership.nodeType!)
-                  userBalance.fetchBalance()
+                  await getBondDetails()
+                  await userBalance.fetchBalance()
                   setStatus(EnumRequestStatus.initial)
                 }}
                 data-testid="unBond"
@@ -71,7 +66,6 @@ export const Bond = () => {
         )}
         {status === EnumRequestStatus.initial && (
           <BondForm
-            fees={!ownership.hasOwnership ? fees : undefined}
             onError={(e?: string) => {
               setError(e)
               setStatus(EnumRequestStatus.error)

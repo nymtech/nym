@@ -9,7 +9,7 @@ import { unbond } from '../../requests'
 export const Unbond = () => {
   const [isLoading, setIsLoading] = useState(false)
   const { checkOwnership, ownership } = useCheckOwnership()
-  const { userBalance } = useContext(ClientContext)
+  const { userBalance, getBondDetails } = useContext(ClientContext)
 
   useEffect(() => {
     const initialiseForm = async () => {
@@ -33,6 +33,7 @@ export const Unbond = () => {
                   setIsLoading(true)
                   await unbond(ownership.nodeType)
                   await userBalance.fetchBalance()
+                  await getBondDetails()
                   await checkOwnership()
                   setIsLoading(false)
                 }}

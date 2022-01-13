@@ -48,8 +48,6 @@ export const SystemVariables = ({
     defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString() },
   })
 
-
-
   const { userBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TFormData) => {
@@ -106,7 +104,7 @@ export const SystemVariables = ({
           <DataField
             title="Node stake saturation"
             info="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 1 million NYM, computed as S/K where S is the total amount of tokens available to stakeholders and K is the number of nodes in the reward set."
-            Indicator={<PercentIndicator value={saturation} />}
+            Indicator={<PercentIndicator value={saturation} warning={saturation >= 100} />}
           />
         </Stack>
       </Box>
@@ -159,16 +157,21 @@ const DataField = ({ title, info, Indicator }: { title: string; info: string; In
   </Grid>
 )
 
-const PercentIndicator = ({ value }: { value: number }) => {
+const PercentIndicator = ({ value, warning }: { value: number; warning?: boolean }) => {
   return (
     <Grid container alignItems="center">
       <Grid item xs={2}>
-        <Typography component="span" sx={{ color: 'nym.fee', fontWeight: 600 }}>
+        <Typography component="span" sx={{ color: warning ? 'error.main' : 'nym.fee', fontWeight: 600 }}>
           {value}%
         </Typography>
       </Grid>
       <Grid item xs={10}>
-        <LinearProgress color="inherit" sx={{ color: 'nym.fee' }} variant="determinate" value={value} />
+        <LinearProgress
+          color="inherit"
+          sx={{ color: warning ? 'error.main' : 'nym.fee' }}
+          variant="determinate"
+          value={value < 100 ? value : 100}
+        />
       </Grid>
     </Grid>
   )

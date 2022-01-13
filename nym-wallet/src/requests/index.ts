@@ -10,7 +10,6 @@ import {
   TauriContractStateParams,
   TauriTxResult,
   TCreateAccount,
-  TDelegation,
   TMixnodeBondDetails,
   TPagedDelegations,
   TSignInWithMnemonic,
@@ -50,6 +49,7 @@ export const undelegate = async ({
 
 export const send = async (args: { amount: Coin; address: string; memo: string }): Promise<TauriTxResult> =>
   await invoke('send', args)
+
 export const checkMixnodeOwnership = async (): Promise<boolean> => await invoke('owns_mixnode')
 
 export const checkGatewayOwnership = async (): Promise<boolean> => await invoke('owns_gateway')
@@ -83,3 +83,6 @@ export const getReverseGatewayDelegations = async (): Promise<TPagedDelegations>
 
 export const getMixnodeBondDetails = async (): Promise<TMixnodeBondDetails | null> =>
   await invoke('mixnode_bond_details')
+
+export const updateMixnode = async ({ profitMarginPercent }: { profitMarginPercent: number }) =>
+  await invoke('update_mixnode', { profitMarginPercent })

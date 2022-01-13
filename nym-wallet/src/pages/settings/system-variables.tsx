@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import {
   Box,
   Button,
@@ -15,24 +15,18 @@ import { AccessTimeOutlined, PercentOutlined } from '@mui/icons-material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
 import { InfoTooltip } from '../../components/InfoToolTip'
-import { EnumNodeType, TMixnodeBondDetails } from '../../types'
+import { TMixnodeBondDetails } from '../../types'
 import { validationSchema } from './validationSchema'
-import { bond, unbond } from '../../requests'
-import { ClientContext } from '../../context/main'
+import { getGasFee, updateMixnode } from '../../requests'
+import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 
 type TFormData = {
   profitMarginPercent: number
-  signature: string
 }
 
-export const SystemVariables = ({
-  mixnodeDetails,
-  pledge,
-}: {
-  mixnodeDetails: TMixnodeBondDetails['mix_node']
-  pledge: TMixnodeBondDetails['pledge_amount']
-}) => {
+export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBondDetails['mix_node'] }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>()
+  const [configFee, setConfigFee] = useState<string>()
 
   const {
     register,
@@ -40,28 +34,28 @@ export const SystemVariables = ({
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(validationSchema),
-    defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString(), signature: '' },
+    defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString() },
   })
+
+  useEffect(() => {
+    ;(async () => {
+      const fee = await getGasFee('UpdateMixnodeConfig')
+      setConfigFee(fee.amount)
+    })()
+  }, [])
 
   const { userBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TFormData) => {
-    await unbond(EnumNodeType.mixnode)
-    await bond({
-      type: EnumNodeType.mixnode,
-      data: { ...mixnodeDetails, profit_margin_percent: data.profitMarginPercent },
-      pledge: { denom: 'Minor', amount: pledge.amount },
-      //hardcoded for the moment as required in bonding but not necessary
-      ownerSignature: data.signature,
-    })
-      .then(() => {
+    try {
+      await updateMixnode({ profitMarginPercent: data.profitMarginPercent }).then(() => {
         userBalance.fetchBalance()
         setNodeUpdateResponse('success')
       })
-      .catch((e) => {
-        setNodeUpdateResponse('failed')
-        console.log(e)
-      })
+    } catch (e) {
+      setNodeUpdateResponse('failed')
+      console.log(e)
+    }
   }
 
   return (
@@ -81,6 +75,7 @@ export const SystemVariables = ({
             disabled={isSubmitting}
           />
 
+          <Divider />
           <DataField
             title="Estimated reward"
             info="Estimated reward per epoch for this profit margin if your node is selected in the active set."
@@ -119,7 +114,9 @@ export const SystemVariables = ({
         ) : nodeUpdateResponse === 'failed' ? (
           <Typography sx={{ color: 'error.main', fontWeight: 600 }}>Node updated failed</Typography>
         ) : (
-          <Box />
+          <Typography sx={{ color: 'nym.fee' }}>
+            Fee for this transaction: {`${configFee} ${MAJOR_CURRENCY}`}{' '}
+          </Typography>
         )}
         <Button
           variant="contained"

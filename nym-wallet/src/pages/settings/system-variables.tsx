@@ -60,8 +60,8 @@ export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBo
 
   return (
     <>
-      <Box sx={{ p: 4 }}>
-        <Stack spacing={3}>
+      <Box sx={{ p: 3 }}>
+        <Stack spacing={5}>
           <TextField
             {...register('profitMarginPercent', { valueAsNumber: true })}
             label="Profit margin"
@@ -74,13 +74,14 @@ export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBo
             error={!!errors.profitMarginPercent}
             disabled={isSubmitting}
           />
+
           <Divider />
           <DataField
             title="Estimated reward"
             info="Estimated reward per epoch for this profit margin if your node is selected in the active set."
             Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
           />
-          <Divider />
+
           <DataField
             title="Chance of being in the active set"
             info="Probability of getting selected in the reward set (active and standby nodes) in the next epoch. The more your stake, the higher the chances to be selected"
@@ -92,7 +93,6 @@ export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBo
             Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
           />
 
-          <Divider />
           <DataField
             title="Node stake saturation"
             info="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 1 million NYM, computed as S/K where S is the total amount of tokens available to stakeholders and K is the number of nodes in the reward set."
@@ -105,9 +105,8 @@ export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBo
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderTop: (theme) => `1px solid ${theme.palette.grey[300]}`,
-          bgcolor: 'grey.200',
-          padding: 2,
+          p: 3,
+          pt: 0,
         }}
       >
         {nodeUpdateResponse === 'success' ? (
@@ -126,6 +125,7 @@ export const SystemVariables = ({ mixnodeDetails }: { mixnodeDetails: TMixnodeBo
           disableElevation
           endIcon={isSubmitting && <CircularProgress size={20} />}
           disabled={Object.keys(errors).length > 0 || isSubmitting}
+          size="large"
         >
           Update Profit Margin
         </Button>

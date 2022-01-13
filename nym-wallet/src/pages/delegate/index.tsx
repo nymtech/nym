@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
+import { Alert, AlertTitle, Box, Button, CircularProgress, Link, Typography } from '@mui/material'
 import { DelegateForm } from './DelegateForm'
 import { Layout } from '../../layouts'
 import { NymCard } from '../../components'
@@ -7,6 +7,8 @@ import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus
 import { TFee } from '../../types'
 import { getGasFee } from '../../requests'
 import { SuccessView } from './SuccessView'
+import { Delegate as DelegateIcon } from '../../svg-icons'
+import { urls } from '../../context/main'
 
 export const Delegate = () => {
   const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial)
@@ -28,7 +30,13 @@ export const Delegate = () => {
 
   return (
     <Layout>
-      <NymCard title="Delegate" subheader="Delegate to mixnode" noPadding data-testid="delegateCard">
+      <NymCard
+        title="Delegate"
+        subheader="Delegate to mixnode"
+        noPadding
+        Icon={DelegateIcon}
+        data-testid="delegateCard"
+      >
         {isLoading && (
           <Box
             sx={{
@@ -74,7 +82,8 @@ export const Delegate = () => {
                   justifyContent: 'flex-end',
                   borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
                   bgcolor: 'grey.100',
-                  p: 2,
+                  p: 3,
+                  pt: 0,
                 }}
               >
                 <Button
@@ -90,6 +99,13 @@ export const Delegate = () => {
           )}
         </>
       </NymCard>
+      <Typography sx={{ p: 3 }}>
+        Checkout the{' '}
+        <Link href={`${urls.networkExplorer}/network-components/mixnodes`} target="_blank">
+          list of mixnodes
+        </Link>{' '}
+        for uptime and performances to help make delegation decisions
+      </Typography>
     </Layout>
   )
 }

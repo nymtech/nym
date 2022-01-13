@@ -5,6 +5,7 @@ import { Layout } from '../../layouts'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { ClientContext } from '../../context/main'
 import { unbond } from '../../requests'
+import { Unbond as UnbondIcon } from '../../svg-icons'
 
 export const Unbond = () => {
   const [isLoading, setIsLoading] = useState(false)
@@ -20,7 +21,7 @@ export const Unbond = () => {
 
   return (
     <Layout>
-      <NymCard title="Unbond" subheader="Unbond a mixnode or gateway" noPadding>
+      <NymCard title="Unbond" subheader="Unbond a mixnode or gateway" noPadding Icon={UnbondIcon}>
         {ownership?.hasOwnership && (
           <Alert
             severity="warning"
@@ -56,6 +57,7 @@ export const Unbond = () => {
               display: 'flex',
               justifyContent: 'center',
               p: 3,
+              pt: 0,
             }}
           >
             <CircularProgress size={48} />

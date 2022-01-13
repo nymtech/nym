@@ -6,12 +6,14 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rocket_okapi::swagger_ui::make_swagger_ui;
 
 use crate::country_statistics::http::country_statistics_make_default_routes;
+use crate::gateways::http::gateways_make_default_routes;
 use crate::http::swagger::get_docs;
 use crate::mix_node::http::mix_node_make_default_routes;
 use crate::mix_nodes::http::mix_nodes_make_default_routes;
 use crate::overview::http::overview_make_default_routes;
 use crate::ping::http::ping_make_default_routes;
 use crate::state::ExplorerApiStateContext;
+use crate::validators::http::validators_make_default_routes;
 
 mod swagger;
 
@@ -47,11 +49,13 @@ fn configure_rocket(state: ExplorerApiStateContext) -> Rocket<Build> {
         "/v1".to_owned(),
         openapi_settings,
         "/" => custom_route_spec,
-        "/ping" => ping_make_default_routes(&openapi_settings),
         "/countries" => country_statistics_make_default_routes(&openapi_settings),
+        "/gateways" => gateways_make_default_routes(&openapi_settings),
         "/mix-node" => mix_node_make_default_routes(&openapi_settings),
         "/mix-nodes" => mix_nodes_make_default_routes(&openapi_settings),
         "/overview" => overview_make_default_routes(&openapi_settings),
+        "/ping" => ping_make_default_routes(&openapi_settings),
+        "/validators" => validators_make_default_routes(&openapi_settings),
     };
 
     building_rocket

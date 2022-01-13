@@ -271,6 +271,14 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    pub(crate) async fn set_current_epoch(&self) -> Result<(), ValidatorClientError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0.write().await.nymd.set_current_epoch().await?;
+        Ok(())
+    }
+
     pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,

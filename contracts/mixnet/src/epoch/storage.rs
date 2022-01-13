@@ -47,8 +47,6 @@ pub(crate) fn save_rewarded_set(
     Ok(())
 }
 
-pub(crate) fn advance_epoch(storage: &mut dyn Storage) -> StdResult<()> {
-    CURRENT_EPOCH
-        .update(storage, |current_epoch| Ok(current_epoch.next_epoch()))
-        .map(|_| ())
+pub(crate) fn advance_epoch(storage: &mut dyn Storage) -> StdResult<Epoch> {
+    CURRENT_EPOCH.update(storage, |current_epoch| Ok(current_epoch.next_epoch()))
 }

@@ -94,6 +94,7 @@ pub enum ExecuteMsg {
     },
     // ClearRewardedSet {},
     AdvanceCurrentEpoch {},
+    SetCurrentEpoch {},
 }
 
 // TODO: See comment above for JsonSchema derive

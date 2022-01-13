@@ -223,21 +223,24 @@ pub fn execute(
         ExecuteMsg::WriteRewardedSet {
             rewarded_set,
             expected_active_set_size,
-        } => {
-            todo!()
-            // crate::epoch::transactions::try_write_rewarded_set(rewarded_set, deps.storage, env)
-        } // ExecuteMsg::ClearRewardedSet {} => {
-        //     crate::epoch::transactions::try_clear_rewarded_set(deps.storage)
-        // }
-        // ExecuteMsg::SetCurrentEpoch { epoch } => {
-        //     crate::epoch::transactions::try_set_current_epoch(epoch, deps.storage)
-        // }
-        ExecuteMsg::AdvanceCurrentEpoch {} => todo!(),
+        } => crate::epoch::transactions::try_write_rewarded_set(
+            deps,
+            env,
+            info,
+            rewarded_set,
+            expected_active_set_size,
+        ),
+        ExecuteMsg::AdvanceCurrentEpoch {} => {
+            crate::epoch::transactions::try_advance_epoch(env, deps.storage)
+        }
+        ExecuteMsg::SetCurrentEpoch {} => {
+            crate::epoch::transactions::try_set_current_epoch(env, deps.storage)
+        }
     }
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetContractVersion {} => to_binary(&query_contract_version()),
         QueryMsg::GetMixNodes { start_after, limit } => {
@@ -303,7 +306,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             limit,
         )?),
         QueryMsg::GetRewardedSetUpdateDetails {} => {
-            to_binary(query_rewarded_set_update_details(env, deps.storage)?)
+            to_binary(&query_rewarded_set_update_details(env, deps.storage)?)
         }
         QueryMsg::GetCurrentRewardedSetHeight {} => {
             to_binary(&query_current_rewarded_set_height(deps.storage)?)

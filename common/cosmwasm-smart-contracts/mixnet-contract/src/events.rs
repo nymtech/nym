@@ -20,6 +20,8 @@ pub const OPERATOR_REWARDING_EVENT_TYPE: &str = "mix_rewarding";
 pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
 pub const FINISH_REWARDING_EVENT_TYPE: &str = "finish_rewarding";
 pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
+pub const SET_CURRENT_EPOCH_EVENT_TYPE: &str = "set_current_epoch";
+pub const ADVANCE_EPOCH_EVENT_TYPE: &str = "advance_epoch";
 
 // attributes that are used in multiple places
 pub const OWNER_KEY: &str = "owner";
@@ -68,6 +70,8 @@ pub const ACTIVE_SET_SIZE_KEY: &str = "active_set_size";
 pub const REWARDED_SET_SIZE_KEY: &str = "rewarded_set_size";
 pub const NODES_IN_REWARDED_SET_KEY: &str = "nodes_in_rewarded_set";
 pub const CURRENT_EPOCH_ID_KEY: &str = "current_epoch";
+
+pub const NEW_CURRENT_EPOCH_KEY: &str = "new_current_epoch";
 
 pub fn new_delegation_event(
     delegator: &Addr,
@@ -371,4 +375,12 @@ pub fn new_change_rewarded_set_event(
         .add_attribute(REWARDED_SET_SIZE_KEY, rewarded_set_size.to_string())
         .add_attribute(NODES_IN_REWARDED_SET_KEY, nodes_in_rewarded_set.to_string())
         .add_attribute(CURRENT_EPOCH_ID_KEY, current_epoch_id.to_string())
+}
+
+pub fn new_set_current_epoch_event(epoch: Epoch) -> Event {
+    Event::new(SET_CURRENT_EPOCH_EVENT_TYPE).add_attribute(NEW_CURRENT_EPOCH_KEY, epoch.to_string())
+}
+
+pub fn new_advance_epoch_event(epoch: Epoch) -> Event {
+    Event::new(ADVANCE_EPOCH_EVENT_TYPE).add_attribute(NEW_CURRENT_EPOCH_KEY, epoch.to_string())
 }

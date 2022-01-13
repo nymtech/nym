@@ -116,4 +116,18 @@ pub enum ContractError {
 
     #[error("Received unexpected value for the rewarded set. Got: {received}, expected at most: {expected}")]
     UnexpectedRewardedSetSize { received: u32, expected: u32 },
+
+    #[error("There hasn't been sufficient delay since last rewarded set update. It was last updated at height {last_update}. The delay is {minimum_delay}. The current block height is {current_height}")]
+    TooFrequentRewardedSetUpdate {
+        last_update: u64,
+        minimum_delay: u32,
+        current_height: u64,
+    },
+
+    #[error("Can't change to the desired epoch as it's not in progress yet. It starts at {epoch_start} and finishes at {epoch_end}, while the current block time is {current_block_time}")]
+    EpochNotInProgress {
+        current_block_time: u64,
+        epoch_start: i64,
+        epoch_end: i64,
+    },
 }

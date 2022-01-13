@@ -410,14 +410,16 @@ async fn setup_rewarder(
         let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
         let last_stored_epoch = nymd_client.get_current_epoch().await?;
-
         let current_epoch = last_stored_epoch.current(OffsetDateTime::now_utc());
 
-        todo!("looks like we may need set_current_epoch after all");
-
-        // if last_stored_epoch != current_epoch {
-        //     nymd_client.set_current_epoch(&current_epoch).await?
-        // }
+        // now, is it theoretically possible that this might fail in an edge case
+        // since the block time uses BFT Tendermint time which might be different
+        // than the clock of this machine.
+        //
+        // TODO: think a bit more about what this desync could cause
+        if last_stored_epoch != current_epoch {
+            nymd_client.set_current_epoch().await?
+        }
 
         Ok(Some(Rewarder::new(
             nymd_client.clone(),

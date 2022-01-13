@@ -49,6 +49,10 @@ impl Epoch {
         self.start <= datetime && datetime <= self.end()
     }
 
+    pub fn contains_timestamp(&self, timestamp: i64) -> bool {
+        self.start_unix_timestamp() <= timestamp && timestamp <= self.end_unix_timestamp()
+    }
+
     /// Returns new instance of [Epoch] such that the provided datetime would be within
     /// its duration.
     ///
@@ -68,6 +72,26 @@ impl Epoch {
         } else {
             loop {
                 if candidate.contains(now) {
+                    return candidate;
+                }
+                candidate = candidate.previous_epoch();
+            }
+        }
+    }
+
+    pub fn current_with_timestamp(&self, now_unix: i64) -> Self {
+        let mut candidate = self.clone();
+
+        if now_unix > self.start_unix_timestamp() {
+            loop {
+                if candidate.contains_timestamp(now_unix) {
+                    return candidate;
+                }
+                candidate = candidate.next_epoch();
+            }
+        } else {
+            loop {
+                if candidate.contains_timestamp(now_unix) {
                     return candidate;
                 }
                 candidate = candidate.previous_epoch();

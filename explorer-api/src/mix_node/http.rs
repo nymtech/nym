@@ -31,7 +31,7 @@ pub(crate) async fn get_by_id(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Result<Json<PrettyDetailedMixNodeBond>, NotFound<String>> {
-    let mixnodes = state.inner.mix_nodes.get_detailed_mixnodes().await;
+    let mixnodes = state.inner.mixnodes.get_detailed_mixnodes().await;
     let result = mixnodes
         .into_iter()
         .find(|mixnode| mixnode.mix_node.identity_key == pubkey);
@@ -59,13 +59,7 @@ pub(crate) async fn get_description(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<NodeDescription>> {
-    match state
-        .inner
-        .mix_node_cache
-        .clone()
-        .get_description(pubkey)
-        .await
-    {
+    match state.inner.mixnode.clone().get_description(pubkey).await {
         Some(cache_value) => {
             trace!("Returning cached value for {}", pubkey);
             Some(Json(cache_value))
@@ -84,7 +78,7 @@ pub(crate) async fn get_description(
                             // cache the response and return as the HTTP response
                             state
                                 .inner
-                                .mix_node_cache
+                                .mixnode
                                 .set_description(pubkey, response.clone())
                                 .await;
                             Some(Json(response))
@@ -110,7 +104,7 @@ pub(crate) async fn get_stats(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<NodeStats>> {
-    match state.inner.mix_node_cache.get_node_stats(pubkey).await {
+    match state.inner.mixnode.get_node_stats(pubkey).await {
         Some(cache_value) => {
             trace!("Returning cached value for {}", pubkey);
             Some(Json(cache_value))
@@ -126,7 +120,7 @@ pub(crate) async fn get_stats(
                             // cache the response and return as the HTTP response
                             state
                                 .inner
-                                .mix_node_cache
+                                .mixnode
                                 .set_node_stats(pubkey, response.clone())
                                 .await;
                             Some(Json(response))

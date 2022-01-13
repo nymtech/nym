@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mix_node::cache::Cache;
+use crate::cache::Cache;
 use crate::mix_nodes::location::Location;
 use mixnet_contract_common::{Addr, Coin, Layer, MixNode};
 use serde::Deserialize;

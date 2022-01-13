@@ -34,7 +34,7 @@ export const SendReview = ({ transferFee }: { transferFee?: string }) => {
           <Divider light />
         </Grid>
         <Grid item xs={12}>
-          <SendReviewField title="Amount" subtitle={`${values.amount}  ${MAJOR_CURRENCY}`} />
+          <SendReviewField title="Amount" subtitle={`${values.amount} ${MAJOR_CURRENCY}`} />
         </Grid>
         <Grid item xs={12}>
           <Divider light />

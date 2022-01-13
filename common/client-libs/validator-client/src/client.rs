@@ -183,6 +183,18 @@ impl<C> Client<C> {
         Ok(self.validator_api.get_mixnodes().await?)
     }
 
+    pub async fn get_cached_rewarded_mixnodes(
+        &self,
+    ) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
+        Ok(self.validator_api.get_rewarded_mixnodes().await?)
+    }
+
+    pub async fn get_cached_active_mixnodes(
+        &self,
+    ) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
+        Ok(self.validator_api.get_active_mixnodes().await?)
+    }
+
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.validator_api.get_gateways().await?)
     }

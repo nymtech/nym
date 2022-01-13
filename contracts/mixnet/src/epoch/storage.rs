@@ -8,9 +8,15 @@ use mixnet_contract_common::{Epoch, IdentityKey, RewardedSetNodeStatus};
 // type aliases for better reasoning for storage keys
 // (I found it helpful)
 type BlockHeight = u64;
-type EpochId = i32;
+type EpochId = u32;
+
+// TODO: those values need to be verified
+pub(crate) const REWARDED_NODE_DEFAULT_LIMIT: u32 = 1000;
+pub(crate) const REWARDED_NODE_MAX_LIMIT: u32 = 1500;
 
 pub(crate) const CURRENT_EPOCH: Item<Epoch> = Item::new("cep");
+pub(crate) const CURRENT_REWARDED_SET_HEIGHT: Item<BlockHeight> = Item::new("crh");
+
 // pub(crate) const _EPOCH_MAP: Map<u32, Epoch> = Map::new("ep");
 
 // I've changed the `()` data to an `u8` as after serializing `()` is represented as "null",
@@ -42,6 +48,7 @@ pub(crate) fn save_rewarded_set(
 }
 
 pub(crate) fn advance_epoch(storage: &mut dyn Storage) -> StdResult<()> {
-    CURRENT_EPOCH.update(storage, |current_epoch| Ok(current_epoch.next_epoch()))?;
-    Ok(())
+    CURRENT_EPOCH
+        .update(storage, |current_epoch| Ok(current_epoch.next_epoch()))
+        .map(|_| ())
 }

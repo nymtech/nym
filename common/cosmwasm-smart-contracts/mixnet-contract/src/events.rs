@@ -364,7 +364,7 @@ pub fn new_change_rewarded_set_event(
     active_set_size: u32,
     rewarded_set_size: u32,
     nodes_in_rewarded_set: u32,
-    current_epoch_id: i32,
+    current_epoch_id: u32,
 ) -> Event {
     Event::new(CHANGE_REWARDED_SET_EVENT_TYPE)
         .add_attribute(ACTIVE_SET_SIZE_KEY, active_set_size.to_string())

@@ -7,7 +7,7 @@ use crate::delegations::queries::query_mixnode_delegation;
 use crate::delegations::queries::query_mixnode_delegations_paged;
 use crate::epoch::queries::{
     query_current_epoch, query_current_rewarded_set_height, query_rewarded_set,
-    query_rewarded_set_at_height, query_rewarded_set_for_epoch, query_rewarded_set_refresh_secs,
+    query_rewarded_set_for_epoch, query_rewarded_set_refresh_minimum_blocks,
 };
 use crate::epoch::storage as epoch_storage;
 use crate::error::ContractError;
@@ -48,13 +48,9 @@ pub const EPOCH_REWARD_PERCENT: u8 = 2; // Used to calculate epoch reward pool
 pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
 pub const DEFAULT_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 
-pub const REWARDED_SET_REFRESH_SECS: u32 = 3600;
+pub const REWARDED_SET_REFRESH_BLOCKS: u32 = 720; // with blocktime being approximately 5s, it should be roughly 1h
 
-fn default_initial_state(
-    owner: Addr,
-    rewarding_validator_address: Addr,
-    env: Env,
-) -> ContractState {
+fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> ContractState {
     ContractState {
         owner,
         rewarding_validator_address,
@@ -66,8 +62,6 @@ fn default_initial_state(
             // TODO: This is no longer needed, and can be removed
             active_set_work_factor: DEFAULT_ACTIVE_SET_WORK_FACTOR,
         },
-        rewarding_interval_starting_block: env.block.height,
-        latest_rewarding_interval_nonce: 0,
         rewarding_in_progress: false,
     }
 }
@@ -85,12 +79,13 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
-    let state = default_initial_state(info.sender, rewarding_validator_address, env);
+    let state = default_initial_state(info.sender, rewarding_validator_address);
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
     epoch_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
+    epoch_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Response::default())
 }
@@ -146,14 +141,9 @@ pub fn execute(
         ExecuteMsg::RewardMixnode {
             identity,
             params,
-            rewarding_interval_nonce,
+            epoch_id,
         } => crate::rewards::transactions::try_reward_mixnode(
-            deps,
-            env,
-            info,
-            identity,
-            params,
-            rewarding_interval_nonce,
+            deps, env, info, identity, params, epoch_id,
         ),
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
@@ -165,29 +155,20 @@ pub fn execute(
                 mix_identity,
             )
         }
-        ExecuteMsg::BeginMixnodeRewarding {
-            rewarding_interval_nonce,
-        } => crate::rewards::transactions::try_begin_mixnode_rewarding(
-            deps,
-            env,
-            info,
-            rewarding_interval_nonce,
-        ),
-        ExecuteMsg::FinishMixnodeRewarding {
-            rewarding_interval_nonce,
-        } => crate::rewards::transactions::try_finish_mixnode_rewarding(
-            deps,
-            info,
-            rewarding_interval_nonce,
-        ),
+        ExecuteMsg::BeginMixnodeRewarding { epoch_id } => {
+            crate::rewards::transactions::try_begin_mixnode_rewarding(deps, env, info, epoch_id)
+        }
+        ExecuteMsg::FinishMixnodeRewarding { epoch_id } => {
+            crate::rewards::transactions::try_finish_mixnode_rewarding(deps, info, epoch_id)
+        }
         ExecuteMsg::RewardNextMixDelegators {
             mix_identity,
-            rewarding_interval_nonce,
+            epoch_id,
         } => crate::rewards::transactions::try_reward_next_mixnode_delegators(
             deps,
             info,
             mix_identity,
-            rewarding_interval_nonce,
+            epoch_id,
         ),
         ExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_identity,
@@ -238,15 +219,19 @@ pub fn execute(
         ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
             crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
         }
-        ExecuteMsg::WriteRewardedSet { rewarded_set } => {
+        ExecuteMsg::WriteRewardedSet {
+            rewarded_set,
+            expected_active_set_size,
+        } => {
             todo!()
             // crate::epoch::transactions::try_write_rewarded_set(rewarded_set, deps.storage, env)
         } // ExecuteMsg::ClearRewardedSet {} => {
-          //     crate::epoch::transactions::try_clear_rewarded_set(deps.storage)
-          // }
-          // ExecuteMsg::SetCurrentEpoch { epoch } => {
-          //     crate::epoch::transactions::try_set_current_epoch(epoch, deps.storage)
-          // }
+        //     crate::epoch::transactions::try_clear_rewarded_set(deps.storage)
+        // }
+        // ExecuteMsg::SetCurrentEpoch { epoch } => {
+        //     crate::epoch::transactions::try_set_current_epoch(epoch, deps.storage)
+        // }
+        ExecuteMsg::AdvanceCurrentEpoch {} => todo!(),
     }
 }
 
@@ -306,15 +291,23 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             mix_identity,
             rewarding_interval_nonce,
         )?),
-        QueryMsg::GetRewardedSet {} => to_binary(&query_rewarded_set(deps.storage)?),
+        QueryMsg::GetRewardedSet {
+            height,
+            start_after,
+            limit,
+        } => to_binary(&query_rewarded_set(
+            deps.storage,
+            height,
+            start_after,
+            limit,
+        )?),
         QueryMsg::GetCurrentRewardedSetHeight {} => {
             to_binary(&query_current_rewarded_set_height(deps.storage)?)
         }
-        QueryMsg::GetRewardedSetAtHeight { height } => {
-            to_binary(&query_rewarded_set_at_height(height, deps.storage)?)
-        }
         QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
-        QueryMsg::GetRewardedSetRefreshSecs {} => to_binary(&query_rewarded_set_refresh_secs()),
+        QueryMsg::GetRewardedSetRefreshBlocks {} => {
+            to_binary(&query_rewarded_set_refresh_minimum_blocks())
+        }
         QueryMsg::GetRewardedSetForEpoch { epoch, filter } => {
             to_binary(&query_rewarded_set_for_epoch(epoch, filter, deps.storage)?)
         }
@@ -324,6 +317,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 #[entry_point]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    // needed migration:
+    /*
+       1. removal of rewarding_interval_starting_block field from ContractState
+       2. removal of latest_rewarding_interval_nonce field from ContractState
+       3. epoch_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
+       4. epoch_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
+    */
+
     #[derive(serde::Serialize, serde::Deserialize, Clone)]
     pub struct StoredMixnodeBondOld {
         pub pledge_amount: mixnet_contract_common::Coin,

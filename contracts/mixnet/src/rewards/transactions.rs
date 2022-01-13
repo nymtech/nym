@@ -3,6 +3,7 @@
 
 use super::storage;
 use crate::delegations::storage as delegations_storage;
+use crate::epoch::storage as epoch_storage;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
@@ -35,11 +36,11 @@ struct MixDelegationRewardingResult {
 ///
 /// * `storage`: reference (kinda) to the underlying storage pool of the contract used to read the current state
 /// * `info`: contains the essential info for authorization, such as identity of the call
-/// * `rewarding_interval_nonce`: nonce of the rewarding procedure sent alongside the call
+/// * `epoch_id`: expected id of the current epoch sent alongside the call
 fn verify_rewarding_state(
     storage: &dyn Storage,
     info: MessageInfo,
-    rewarding_interval_nonce: u32,
+    epoch_id: u32,
 ) -> Result<(), ContractError> {
     let state = mixnet_params_storage::CONTRACT_STATE.load(storage)?;
 
@@ -53,15 +54,15 @@ fn verify_rewarding_state(
         return Err(ContractError::RewardingNotInProgress);
     }
 
+    let current_epoch = epoch_storage::CURRENT_EPOCH.load(storage)?;
+
     // make sure the transaction is sent for the correct rewarding interval
     // (guard ourselves against somebody trying to send stale results;
     // realistically it's never going to happen in a single rewarding validator case
-    // but this check is not expensive (since we already had to read the state),
-    // so we might as well)
-    if rewarding_interval_nonce != state.latest_rewarding_interval_nonce {
+    if epoch_id != current_epoch.id() {
         Err(ContractError::InvalidRewardingIntervalNonce {
-            received: rewarding_interval_nonce,
-            expected: state.latest_rewarding_interval_nonce,
+            received: epoch_id,
+            expected: current_epoch.id(),
         })
     } else {
         Ok(())
@@ -75,43 +76,9 @@ pub(crate) fn try_begin_mixnode_rewarding(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    rewarding_interval_nonce: u32,
+    epoch_id: u32,
 ) -> Result<Response, ContractError> {
-    let mut state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
-
-    // check if this is executed by the permitted validator, if not reject the transaction
-    if info.sender != state.rewarding_validator_address {
-        return Err(ContractError::Unauthorized);
-    }
-
-    // check whether sufficient number of blocks already elapsed since the previous rewarding happened
-    // (this implies the validator responsible for rewarding in the previous interval did not call
-    // `try_finish_mixnode_rewarding` - perhaps they crashed or something. Regardless of the reason
-    // it shouldn't prevent anyone from distributing rewards in the following interval)
-    // Do note, however, that calling `try_finish_mixnode_rewarding` is crucial as otherwise the
-    // "demanded" set won't get updated on the validator API side
-    if state.rewarding_in_progress
-        && state.rewarding_interval_starting_block + storage::MAX_REWARDING_DURATION_IN_BLOCKS
-            > env.block.height
-    {
-        return Err(ContractError::RewardingInProgress);
-    }
-
-    // make sure the validator is in sync with the contract state
-    if rewarding_interval_nonce != state.latest_rewarding_interval_nonce + 1 {
-        return Err(ContractError::InvalidRewardingIntervalNonce {
-            received: rewarding_interval_nonce,
-            expected: state.latest_rewarding_interval_nonce + 1,
-        });
-    }
-
-    state.rewarding_interval_starting_block = env.block.height;
-    state.latest_rewarding_interval_nonce = rewarding_interval_nonce;
-    state.rewarding_in_progress = true;
-
-    mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
-
-    Ok(Response::new().add_event(new_begin_rewarding_event(rewarding_interval_nonce)))
+    todo!("perhaps no longer needed")
 }
 
 fn reward_mix_delegators(
@@ -195,14 +162,13 @@ pub(crate) fn try_reward_next_mixnode_delegators(
     deps: DepsMut,
     info: MessageInfo,
     mix_identity: IdentityKey,
-    rewarding_interval_nonce: u32,
+    epoch_id: u32,
 ) -> Result<Response, ContractError> {
-    verify_rewarding_state(deps.storage, info, rewarding_interval_nonce)?;
+    verify_rewarding_state(deps.storage, info, epoch_id)?;
 
-    match storage::REWARDING_STATUS.may_load(
-        deps.storage,
-        (rewarding_interval_nonce.into(), mix_identity.clone()),
-    )? {
+    match storage::REWARDING_STATUS
+        .may_load(deps.storage, (epoch_id.into(), mix_identity.clone()))?
+    {
         None => {
             // we haven't called 'regular' try_reward_mixnode, i.e. the operator itself
             // was not rewarded yet
@@ -239,7 +205,7 @@ pub(crate) fn try_reward_next_mixnode_delegators(
 
             helpers::update_rewarding_status(
                 deps.storage,
-                rewarding_interval_nonce,
+                epoch_id,
                 mix_identity.clone(),
                 rewarding_results,
                 delegation_rewarding_result.start_next,
@@ -248,7 +214,7 @@ pub(crate) fn try_reward_next_mixnode_delegators(
 
             Ok(
                 Response::new().add_event(new_mix_delegators_rewarding_event(
-                    rewarding_interval_nonce,
+                    epoch_id,
                     &mix_identity,
                     round_increase,
                     more_delegators,
@@ -264,15 +230,14 @@ pub(crate) fn try_reward_mixnode(
     info: MessageInfo,
     mix_identity: IdentityKey,
     params: NodeRewardParams,
-    rewarding_interval_nonce: u32,
+    epoch_id: u32,
 ) -> Result<Response, ContractError> {
-    verify_rewarding_state(deps.storage, info, rewarding_interval_nonce)?;
+    verify_rewarding_state(deps.storage, info, epoch_id)?;
 
     // check if the mixnode hasn't been rewarded in this rewarding interval already
-    match storage::REWARDING_STATUS.may_load(
-        deps.storage,
-        (rewarding_interval_nonce.into(), mix_identity.clone()),
-    )? {
+    match storage::REWARDING_STATUS
+        .may_load(deps.storage, (epoch_id.into(), mix_identity.clone()))?
+    {
         None => (),
         Some(RewardingStatus::Complete(_)) => {
             return Err(ContractError::MixnodeAlreadyRewarded {
@@ -293,7 +258,7 @@ pub(crate) fn try_reward_mixnode(
         None => {
             return Ok(
                 Response::new().add_event(new_not_found_mix_operator_rewarding_event(
-                    rewarding_interval_nonce,
+                    epoch_id,
                     &mix_identity,
                 )),
             )
@@ -304,13 +269,13 @@ pub(crate) fn try_reward_mixnode(
     if current_bond.block_height + storage::MINIMUM_BLOCK_AGE_FOR_REWARDING > env.block.height {
         storage::REWARDING_STATUS.save(
             deps.storage,
-            (rewarding_interval_nonce.into(), mix_identity.clone()),
+            (epoch_id.into(), mix_identity.clone()),
             &RewardingStatus::Complete(Default::default()),
         )?;
 
         return Ok(
             Response::new().add_event(new_too_fresh_bond_mix_operator_rewarding_event(
-                rewarding_interval_nonce,
+                epoch_id,
                 &mix_identity,
             )),
         );
@@ -320,13 +285,13 @@ pub(crate) fn try_reward_mixnode(
     if params.uptime() == 0 {
         storage::REWARDING_STATUS.save(
             deps.storage,
-            (rewarding_interval_nonce.into(), mix_identity.clone()),
+            (epoch_id.into(), mix_identity.clone()),
             &RewardingStatus::Complete(Default::default()),
         )?;
 
         return Ok(
             Response::new().add_event(new_zero_uptime_mix_operator_rewarding_event(
-                rewarding_interval_nonce,
+                epoch_id,
                 &mix_identity,
             )),
         );
@@ -360,7 +325,7 @@ pub(crate) fn try_reward_mixnode(
 
     helpers::update_rewarding_status(
         deps.storage,
-        rewarding_interval_nonce,
+        epoch_id,
         mix_identity.clone(),
         rewarding_results,
         delegation_rewarding_result.start_next,
@@ -368,7 +333,7 @@ pub(crate) fn try_reward_mixnode(
     )?;
 
     Ok(Response::new().add_event(new_mix_operator_rewarding_event(
-        rewarding_interval_nonce,
+        epoch_id,
         &mix_identity,
         node_reward_result,
         operator_reward,
@@ -380,31 +345,9 @@ pub(crate) fn try_reward_mixnode(
 pub(crate) fn try_finish_mixnode_rewarding(
     deps: DepsMut,
     info: MessageInfo,
-    rewarding_interval_nonce: u32,
+    epoch_id: u32,
 ) -> Result<Response, ContractError> {
-    let mut state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
-
-    // check if this is executed by the permitted validator, if not reject the transaction
-    if info.sender != state.rewarding_validator_address {
-        return Err(ContractError::Unauthorized);
-    }
-
-    if !state.rewarding_in_progress {
-        return Err(ContractError::RewardingNotInProgress);
-    }
-
-    // make sure the validator is in sync with the contract state
-    if rewarding_interval_nonce != state.latest_rewarding_interval_nonce {
-        return Err(ContractError::InvalidRewardingIntervalNonce {
-            received: rewarding_interval_nonce,
-            expected: state.latest_rewarding_interval_nonce,
-        });
-    }
-
-    state.rewarding_in_progress = false;
-    mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
-
-    Ok(Response::new().add_event(new_finish_rewarding_event(rewarding_interval_nonce)))
+    todo!("perhaps no longer needed")
 }
 
 #[cfg(test)]

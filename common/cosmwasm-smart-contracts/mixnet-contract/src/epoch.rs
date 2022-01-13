@@ -10,21 +10,21 @@ use time::OffsetDateTime;
 /// Representation of rewarding epoch.
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
 pub struct Epoch {
-    id: i32,
+    id: u32,
     start: OffsetDateTime,
     length: Duration,
 }
 
 impl Epoch {
     /// Creates new epoch instance.
-    pub const fn new(id: i32, start: OffsetDateTime, length: Duration) -> Self {
+    pub const fn new(id: u32, start: OffsetDateTime, length: Duration) -> Self {
         Epoch { id, start, length }
     }
 
     /// Returns the next epoch.
     pub fn next_epoch(&self) -> Self {
         Epoch {
-            id: self.id.saturating_add(1),
+            id: self.id + 1,
             start: self.end(),
             length: self.length,
         }
@@ -33,6 +33,7 @@ impl Epoch {
     /// Returns the last epoch.
     pub fn previous_epoch(&self) -> Self {
         Epoch {
+            // TODO: is saturating_sub what we really want? perhaps we want to return an Option instead?
             id: self.id.saturating_sub(1),
             start: self.start - self.length,
             length: self.length,
@@ -74,7 +75,7 @@ impl Epoch {
         }
     }
 
-    pub const fn id(&self) -> i32 {
+    pub const fn id(&self) -> u32 {
         self.id
     }
 

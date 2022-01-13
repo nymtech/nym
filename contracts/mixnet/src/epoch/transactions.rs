@@ -32,6 +32,13 @@ pub fn try_write_rewarded_set(
         });
     }
 
+    if rewarded_set.len() as u32 > state.params.mixnode_rewarded_set_size {
+        return Err(ContractError::UnexpectedRewardedSetSize {
+            received: rewarded_set.len() as u32,
+            expected: state.params.mixnode_rewarded_set_size,
+        });
+    }
+
     let current_epoch = storage::CURRENT_EPOCH.load(deps.storage)?.id();
     let block_height = env.block.height;
     let num_nodes = rewarded_set.len();

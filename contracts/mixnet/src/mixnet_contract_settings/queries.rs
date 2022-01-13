@@ -17,8 +17,8 @@ pub(crate) fn query_rewarding_interval(deps: Deps) -> StdResult<RewardingInterva
     let state = storage::CONTRACT_STATE.load(deps.storage)?;
 
     Ok(RewardingIntervalResponse {
-        current_rewarding_interval_starting_block: state.rewarding_interval_starting_block,
-        current_rewarding_interval_nonce: state.latest_rewarding_interval_nonce,
+        // current_rewarding_interval_starting_block: state.rewarding_interval_starting_block,
+        // current_rewarding_interval_nonce: state.latest_rewarding_interval_nonce,
         rewarding_in_progress: state.rewarding_in_progress,
     })
 }
@@ -59,8 +59,8 @@ pub(crate) mod tests {
                 mixnode_active_set_size: 500,
                 active_set_work_factor: 10,
             },
-            rewarding_interval_starting_block: 123,
-            latest_rewarding_interval_nonce: 0,
+            // rewarding_interval_starting_block: 123,
+            // latest_rewarding_interval_nonce: 0,
             rewarding_in_progress: false,
         };
 

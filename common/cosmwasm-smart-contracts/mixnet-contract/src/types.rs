@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mixnode::DelegatorRewardParams;
-use crate::Layer;
+use crate::{Layer, RewardedSetNodeStatus};
 use cosmwasm_std::{Addr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -29,8 +29,8 @@ impl LayerDistribution {
 
 #[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
 pub struct RewardingIntervalResponse {
-    pub current_rewarding_interval_starting_block: u64,
-    pub current_rewarding_interval_nonce: u32,
+    // pub current_rewarding_interval_starting_block: u64,
+    // pub current_rewarding_interval_nonce: u32,
     pub rewarding_in_progress: bool,
 }
 
@@ -136,3 +136,10 @@ pub struct MixnetContractVersion {
 pub type IdentityKey = String;
 pub type IdentityKeyRef<'a> = &'a str;
 pub type SphinxKey = String;
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct PagedRewardedSetResponse {
+    pub identities: Vec<(IdentityKey, RewardedSetNodeStatus)>,
+    pub start_next_after: Option<IdentityKey>,
+    pub at_height: u64,
+}

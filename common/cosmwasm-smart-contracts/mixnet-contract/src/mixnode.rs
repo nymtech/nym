@@ -19,10 +19,16 @@ fixed::const_fixed_from_int! {
 }
 
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
-#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub enum RewardedSetNodeStatus {
     Active,
     Standby,
+}
+
+impl RewardedSetNodeStatus {
+    pub fn is_active(&self) -> bool {
+        matches!(self, RewardedSetNodeStatus::Active)
+    }
 }
 
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]

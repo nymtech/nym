@@ -12,10 +12,5 @@ pub struct ContractState {
     pub rewarding_validator_address: Addr,
     pub params: ContractStateParams,
 
-    // keep track of the changes to the current rewarding interval,
-    // i.e. at which block has the latest rewarding occurred
-    // and whether another run is already in progress
-    pub rewarding_interval_starting_block: u64,
-    pub latest_rewarding_interval_nonce: u32,
     pub rewarding_in_progress: bool,
 }

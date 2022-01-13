@@ -41,13 +41,13 @@ pub enum ExecuteMsg {
     },
 
     BeginMixnodeRewarding {
-        // nonce of the current rewarding interval
-        rewarding_interval_nonce: u32,
+        // id of the current rewarding interval
+        epoch_id: u32,
     },
 
     FinishMixnodeRewarding {
-        // nonce of the current rewarding interval
-        rewarding_interval_nonce: u32,
+        // id of the current rewarding interval
+        epoch_id: u32,
     },
 
     RewardMixnode {
@@ -55,13 +55,13 @@ pub enum ExecuteMsg {
         // percentage value in range 0-100
         params: NodeRewardParams,
 
-        // nonce of the current rewarding interval
-        rewarding_interval_nonce: u32,
+        // id of the current rewarding interval
+        epoch_id: u32,
     },
     RewardNextMixDelegators {
         mix_identity: IdentityKey,
-        // nonce of the current rewarding interval
-        rewarding_interval_nonce: u32,
+        // id of the current rewarding interval
+        epoch_id: u32,
     },
     DelegateToMixnodeOnBehalf {
         mix_identity: IdentityKey,
@@ -93,9 +93,7 @@ pub enum ExecuteMsg {
         expected_active_set_size: u32,
     },
     // ClearRewardedSet {},
-    // SetCurrentEpoch {
-    //     epoch: Epoch,
-    // },
+    AdvanceCurrentEpoch {},
 }
 
 // TODO: See comment above for JsonSchema derive
@@ -155,13 +153,17 @@ pub enum QueryMsg {
         mix_identity: IdentityKey,
         rewarding_interval_nonce: u32,
     },
-    GetRewardedSet {},
-    GetCurrentRewardedSetHeight {},
-    GetRewardedSetAtHeight {
-        height: u64,
+
+    GetRewardedSet {
+        height: Option<u64>,
+        start_after: Option<IdentityKey>,
+        limit: Option<u32>,
     },
+
+    GetCurrentRewardedSetHeight {},
+
     GetCurrentEpoch {},
-    GetRewardedSetRefreshSecs {},
+    GetRewardedSetRefreshBlocks {},
     GetRewardedSetForEpoch {
         epoch: Option<Epoch>,
         filter: Option<RewardedSetNodeStatus>,

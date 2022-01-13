@@ -30,6 +30,7 @@ use url::Url;
 use validator_client::nymd::SigningNymdClient;
 use validator_client::ValidatorClientError;
 
+use crate::rewarded_set_updater::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
 use coconut::InternalSignRequest;
 
@@ -412,9 +413,11 @@ async fn setup_rewarder(
 
         let current_epoch = last_stored_epoch.current(OffsetDateTime::now_utc());
 
-        if last_stored_epoch != current_epoch {
-            nymd_client.set_current_epoch(&current_epoch).await?
-        }
+        todo!("looks like we may need set_current_epoch after all");
+
+        // if last_stored_epoch != current_epoch {
+        //     nymd_client.set_current_epoch(&current_epoch).await?
+        // }
 
         Ok(Some(Rewarder::new(
             nymd_client.clone(),
@@ -516,8 +519,6 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             Some(Arc::clone(&rewarded_set_update_notify)),
         );
 
-        todo!("spawn rewarded set updater here");
-
         // spawn our cacher
         tokio::spawn(async move { validator_cache_refresher.run().await });
 
@@ -529,6 +530,18 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
 
         if let Some(rewarder) = setup_rewarder(&config, &rocket, &nymd_client).await? {
             info!("Periodic rewarding is starting...");
+
+            let rewarded_set_updater = RewardedSetUpdater::new(
+                nymd_client.clone(),
+                rewarded_set_update_notify,
+                validator_cache.clone(),
+            );
+
+            // spawn rewarded set updater
+            tokio::spawn(async move { rewarded_set_updater.run().await });
+
+            // only update rewarded set if we're also distributing rewards
+
             tokio::spawn(async move { rewarder.run().await });
         } else {
             info!("Periodic rewarding is disabled.");

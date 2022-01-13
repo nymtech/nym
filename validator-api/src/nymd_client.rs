@@ -6,11 +6,10 @@ use crate::rewarding::{error::RewardingError, EpochRewardParams, MixnodeToReward
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, Epoch, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond,
-    MixnodeRewardingStatusResponse, RewardedSetNodeStatus, RewardingIntervalResponse,
-    MIXNODE_DELEGATORS_PAGE_LIMIT,
+    MixnodeRewardingStatusResponse, RewardedSetNodeStatus, RewardedSetUpdateDetails,
+    RewardingIntervalResponse, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 use serde::Serialize;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -214,6 +213,32 @@ impl<C> Client<C> {
             .await
     }
 
+    pub(crate) async fn get_rewarded_set_identities(
+        &self,
+    ) -> Result<Vec<(IdentityKey, RewardedSetNodeStatus)>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0
+            .read()
+            .await
+            .get_all_nymd_rewarded_set_mixnode_identities()
+            .await
+    }
+
+    pub(crate) async fn get_current_rewarded_set_update_details(
+        &self,
+    ) -> Result<RewardedSetUpdateDetails, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0
+            .read()
+            .await
+            .get_current_rewarded_set_update_details()
+            .await
+    }
+
     pub(crate) async fn begin_mixnode_rewarding(
         &self,
         rewarding_interval_nonce: u32,
@@ -246,17 +271,18 @@ impl<C> Client<C> {
         Ok(())
     }
 
-    pub(crate) async fn set_current_epoch(&self, epoch: &Epoch) -> Result<(), ValidatorClientError>
+    pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        self.0.write().await.nymd.set_current_epoch(epoch).await?;
+        self.0.write().await.nymd.advance_current_epoch().await?;
         Ok(())
     }
 
     pub(crate) async fn write_rewarded_set(
         &self,
-        rewarded_set: &HashMap<String, RewardedSetNodeStatus>,
+        rewarded_set: Vec<IdentityKey>,
+        expected_active_set_size: u32,
     ) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -265,16 +291,8 @@ impl<C> Client<C> {
             .write()
             .await
             .nymd
-            .write_rewarded_set(rewarded_set)
+            .write_rewarded_set(rewarded_set, expected_active_set_size)
             .await?;
-        Ok(())
-    }
-
-    pub(crate) async fn clear_rewarded_set(&self) -> Result<(), ValidatorClientError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        self.0.write().await.nymd.clear_rewarded_set().await?;
         Ok(())
     }
 

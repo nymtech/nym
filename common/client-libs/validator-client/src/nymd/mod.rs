@@ -19,7 +19,7 @@ use mixnet_contract_common::{
     MixOwnershipResponse, MixnetContractVersion, MixnodeRewardingStatusResponse,
     PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
     PagedMixDelegationsResponse, PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg,
-    RewardedSetNodeStatus, RewardingIntervalResponse,
+    RewardedSetNodeStatus, RewardedSetUpdateDetails, RewardingIntervalResponse,
 };
 use serde::Serialize;
 use std::convert::TryInto;
@@ -310,6 +310,18 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::GetCurrentRewardedSetHeight {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn query_current_rewarded_set_update_details(
+        &self,
+    ) -> Result<RewardedSetUpdateDetails, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetRewardedSetUpdateDetails {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await

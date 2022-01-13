@@ -338,7 +338,7 @@ impl MixNodeBond {
         &self.mix_node
     }
 
-    pub fn total_stake(&self) -> Option<u128> {
+    pub fn total_bond(&self) -> Option<u128> {
         if self.pledge_amount.denom != self.total_delegation.denom {
             None
         } else {

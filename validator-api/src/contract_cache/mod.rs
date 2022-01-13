@@ -160,8 +160,15 @@ impl<C> ValidatorCacheRefresher<C> {
             .await;
 
         if let Some(notify) = &self.update_rewarded_set_notify {
-            // grab refresh rate, grab blocks, compare, etc.
-            // if appropriate notify.
+            let update_details = self
+                .nymd_client
+                .get_current_rewarded_set_update_details()
+                .await?;
+
+            if update_details.last_refreshed_block + (update_details.refresh_rate_blocks as u64) < update_details.current_height {
+                // there's only ever a single waiter -> the set updater
+                notify.notify_one()
+            }
         }
 
         Ok(())

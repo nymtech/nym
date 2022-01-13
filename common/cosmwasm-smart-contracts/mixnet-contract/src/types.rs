@@ -143,3 +143,10 @@ pub struct PagedRewardedSetResponse {
     pub start_next_after: Option<IdentityKey>,
     pub at_height: u64,
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct RewardedSetUpdateDetails {
+    pub refresh_rate_blocks: u32,
+    pub last_refreshed_block: u64,
+    pub current_height: u64,
+}

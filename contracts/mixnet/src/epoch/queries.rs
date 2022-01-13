@@ -3,9 +3,11 @@
 
 use super::storage;
 use crate::error::ContractError;
-use cosmwasm_std::{Order, StdResult, Storage};
+use cosmwasm_std::{Env, Order, StdResult, Storage};
 use cw_storage_plus::Bound;
-use mixnet_contract_common::{Epoch, IdentityKey, PagedRewardedSetResponse, RewardedSetNodeStatus};
+use mixnet_contract_common::{
+    Epoch, IdentityKey, PagedRewardedSetResponse, RewardedSetNodeStatus, RewardedSetUpdateDetails,
+};
 use std::collections::{HashMap, HashSet};
 
 pub fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
@@ -91,5 +93,17 @@ pub fn query_rewarded_set(
         identities: paged_result,
         start_next_after,
         at_height: height,
+    })
+}
+
+// this was all put together into the same query so that all information would be synced together
+pub fn query_rewarded_set_update_details(
+    env: Env,
+    storage: &dyn Storage,
+) -> Result<RewardedSetUpdateDetails, ContractError> {
+    Ok(RewardedSetUpdateDetails {
+        refresh_rate_blocks: query_rewarded_set_refresh_minimum_blocks(),
+        last_refreshed_block: query_current_rewarded_set_height(storage)?,
+        current_height: env.block.height,
     })
 }

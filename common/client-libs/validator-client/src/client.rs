@@ -17,6 +17,7 @@ use mixnet_contract_common::{
 };
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, MixNodeBond, RewardedSetNodeStatus,
+    RewardedSetUpdateDetails,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -271,6 +272,18 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.nymd.get_epoch_reward_percent().await?)
+    }
+
+    pub async fn get_current_rewarded_set_update_details(
+        &self,
+    ) -> Result<RewardedSetUpdateDetails, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self
+            .nymd
+            .query_current_rewarded_set_update_details()
+            .await?)
     }
 
     // basically handles paging for us

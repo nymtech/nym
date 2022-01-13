@@ -8,6 +8,7 @@ use crate::delegations::queries::query_mixnode_delegations_paged;
 use crate::epoch::queries::{
     query_current_epoch, query_current_rewarded_set_height, query_rewarded_set,
     query_rewarded_set_for_epoch, query_rewarded_set_refresh_minimum_blocks,
+    query_rewarded_set_update_details,
 };
 use crate::epoch::storage as epoch_storage;
 use crate::error::ContractError;
@@ -301,6 +302,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             start_after,
             limit,
         )?),
+        QueryMsg::GetRewardedSetUpdateDetails {} => {
+            to_binary(query_rewarded_set_update_details(env, deps.storage)?)
+        }
         QueryMsg::GetCurrentRewardedSetHeight {} => {
             to_binary(&query_current_rewarded_set_height(deps.storage)?)
         }

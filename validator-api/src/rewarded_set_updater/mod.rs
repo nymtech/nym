@@ -14,7 +14,7 @@
 
 use crate::contract_cache::ValidatorCache;
 use crate::nymd_client::Client;
-use mixnet_contract_common::MixNodeBond;
+use mixnet_contract_common::{IdentityKey, MixNodeBond};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::sync::Arc;
@@ -28,11 +28,23 @@ pub struct RewardedSetUpdater {
 }
 
 impl RewardedSetUpdater {
+    pub(crate) fn new(
+        nymd_client: Client<SigningNymdClient>,
+        update_rewarded_set_notify: Arc<Notify>,
+        validator_cache: ValidatorCache,
+    ) -> Self {
+        RewardedSetUpdater {
+            nymd_client,
+            update_rewarded_set_notify,
+            validator_cache,
+        }
+    }
+
     fn determine_rewarded_set(
         &self,
-        mixnodes: &[MixNodeBond],
+        mixnodes: Vec<MixNodeBond>,
         nodes_to_select: u32,
-    ) -> Vec<MixNodeBond> {
+    ) -> Vec<IdentityKey> {
         if mixnodes.is_empty() {
             return Vec::new();
         }
@@ -41,13 +53,13 @@ impl RewardedSetUpdater {
 
         // generate list of mixnodes and their relatively weight (by total stake)
         let choices = mixnodes
-            .iter()
+            .into_iter()
             .map(|mix| {
                 // note that the theoretical maximum possible stake is equal to the total
                 // supply of all tokens, i.e. 1B (which is 1 quadrillion of native tokens, i.e. 10^15 ~ 2^50)
                 // which is way below maximum value of f64, so the cast is fine
-                let total_stake = mix.total_stake().unwrap_or_default() as f64;
-                (mix, total_stake)
+                let total_stake = mix.total_bond().unwrap_or_default() as f64;
+                (mix.mix_node.identity_key, total_stake)
             }) // if for some reason node is invalid, treat it as 0 stake/weight
             .collect::<Vec<_>>();
 
@@ -59,13 +71,33 @@ impl RewardedSetUpdater {
         choices
             .choose_multiple_weighted(&mut rng, nodes_to_select as usize, |item| item.1)
             .unwrap()
-            .map(|(bond, _weight)| *bond)
-            .cloned()
+            .map(|(identity, _weight)| identity.clone())
             .collect()
     }
 
     async fn update_rewarded_set(&self) {
-        //
+        // we know the entries are not stale, as a matter of fact they were JUST updated, since we got notified
+        let all_nodes = self.validator_cache.mixnodes().await.into_inner();
+        let rewarding_params = self
+            .validator_cache
+            .epoch_reward_params()
+            .await
+            .into_inner();
+
+        let rewarded_set_size = rewarding_params.rewarded_set_size;
+        let active_set_size = rewarding_params.active_set_size;
+
+        // note that top k nodes are in the active set
+        let new_rewarded_set = self.determine_rewarded_set(all_nodes, rewarded_set_size);
+        if let Err(err) = self
+            .nymd_client
+            .write_rewarded_set(new_rewarded_set, active_set_size)
+            .await
+        {
+            log::error!("failed to update the rewarded set - {}", err)
+            // note that if the transaction failed to get executed because, I don't know, there was a networking hiccup
+            // the cache will notify the updater on its next round
+        }
     }
 
     pub(crate) async fn run(&self) {

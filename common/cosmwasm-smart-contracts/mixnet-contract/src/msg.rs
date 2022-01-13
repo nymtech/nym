@@ -159,6 +159,7 @@ pub enum QueryMsg {
         start_after: Option<IdentityKey>,
         limit: Option<u32>,
     },
+    GetRewardedSetUpdateDetails {},
 
     GetCurrentRewardedSetHeight {},
 

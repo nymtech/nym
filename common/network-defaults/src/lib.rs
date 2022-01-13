@@ -17,8 +17,8 @@ cfg_if::cfg_if! {
 
         pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = milhon::MIXNET_CONTRACT_ADDRESS;
         pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = milhon::VESTING_CONTRACT_ADDRESS;
-        pub const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = milhon::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
-        pub const REWARDING_VALIDATOR_ADDRESS: &str = milhon::REWARDING_VALIDATOR_ADDRESS;
+        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = milhon::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
+        pub const DEFAULT_REWARDING_VALIDATOR_ADDRESS: &str = milhon::REWARDING_VALIDATOR_ADDRESS;
 
         pub fn default_validators() -> Vec<ValidatorDetails> {
             milhon::validators()
@@ -29,8 +29,8 @@ cfg_if::cfg_if! {
 
         pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = qa::MIXNET_CONTRACT_ADDRESS;
         pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = qa::VESTING_CONTRACT_ADDRESS;
-        pub const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
-        pub const REWARDING_VALIDATOR_ADDRESS: &str = qa::REWARDING_VALIDATOR_ADDRESS;
+        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
+        pub const DEFAULT_REWARDING_VALIDATOR: &str = qa::REWARDING_VALIDATOR_ADDRESS;
 
         pub fn default_validators() -> Vec<ValidatorDetails> {
             qa::validators()
@@ -41,8 +41,8 @@ cfg_if::cfg_if! {
 
         pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = sandbox::MIXNET_CONTRACT_ADDRESS;
         pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = sandbox::VESTING_CONTRACT_ADDRESS;
-        pub const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
-        pub const REWARDING_VALIDATOR_ADDRESS: &str = sandbox::REWARDING_VALIDATOR_ADDRESS;
+        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
+        pub const DEFAULT_REWARDING_VALIDATOR: &str = sandbox::REWARDING_VALIDATOR_ADDRESS;
 
         pub fn default_validators() -> Vec<ValidatorDetails> {
             sandbox::validators()

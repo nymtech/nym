@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::{default_validators, ValidatorDetails, DEFAULT_MIXNET_CONTRACT_ADDRESS};
+use config::defaults::all::{Network, SupportedNetworks};
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -20,10 +20,8 @@ pub struct Config {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Base {
-  validators: Vec<ValidatorDetails>,
-
-  /// Address of the validator contract managing the network
-  mixnet_contract_address: String,
+  /// Information on all the networks that the wallet connects to.
+  networks: SupportedNetworks,
 
   /// Mnemonic (currently of the network monitor) used for rewarding
   mnemonic: String,
@@ -32,8 +30,7 @@ pub struct Base {
 impl Default for Base {
   fn default() -> Self {
     Base {
-      validators: default_validators(),
-      mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
+      networks: SupportedNetworks::new(&[Network::QA, Network::SANDBOX]),
       mnemonic: String::default(),
     }
   }

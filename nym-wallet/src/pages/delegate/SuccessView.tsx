@@ -17,7 +17,7 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
           <TransactionDetails
             details={[
               { primary: 'Node', secondary: details.address },
-              { primary: 'Amount', secondary: `${details.amount + MAJOR_CURRENCY}` },
+              { primary: 'Amount', secondary: `${details.amount} ${MAJOR_CURRENCY}` },
             ]}
           />
         </Box>

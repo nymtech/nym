@@ -7,6 +7,7 @@ import { Layout } from '../../layouts'
 import { unbond } from '../../requests'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { ClientContext } from '../../context/main'
+import { Bond as BondIcon } from '../../svg-icons/bond'
 import { SuccessView } from './SuccessView'
 
 export const Bond = () => {
@@ -29,7 +30,7 @@ export const Bond = () => {
 
   return (
     <Layout>
-      <NymCard title="Bond" subheader="Bond a node or gateway" noPadding>
+      <NymCard title="Bond" subheader="Bond a node or gateway" noPadding Icon={BondIcon}>
         {ownership?.hasOwnership && (
           <Alert
             severity="warning"
@@ -93,9 +94,8 @@ export const Bond = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'flex-end',
-                borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-                bgcolor: 'grey.100',
-                padding: 2,
+                padding: 3,
+                pt: 0,
               }}
             >
               <Button

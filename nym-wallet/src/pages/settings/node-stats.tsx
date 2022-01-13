@@ -2,7 +2,6 @@ import { OpenInNew } from '@mui/icons-material'
 import { Button, Link, Stack, Typography } from '@mui/material'
 import React, { useEffect } from 'react'
 import { urls } from '../../context/main'
-import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 
 export const NodeStats = ({ mixnodeId }: { mixnodeId?: string }) => {
   return (

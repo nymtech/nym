@@ -6,23 +6,23 @@ export const NymCard: React.FC<{
   title: string | React.ReactElement
   subheader?: string
   Action?: React.ReactNode
+  Icon?: any
   noPadding?: boolean
-}> = ({ title, subheader, Action, noPadding, children }) => {
+}> = ({ title, subheader, Action, Icon, noPadding, children }) => {
   return (
     <Card variant="outlined" sx={{ overflow: 'auto' }}>
       <CardHeader
-        title={title}
+        sx={{ p: 3, color: 'nym.background.dark' }}
+        title={
+          <Box display="flex" alignItems="center">
+            {Icon && <Icon sx={{ mr: 1 }} />} {title}
+          </Box>
+        }
         subheader={subheader}
         data-testid={title}
         titleTypographyProps={{ variant: 'h5' }}
         subheaderTypographyProps={{ variant: 'subtitle1' }}
-        action={<Box sx={{ mt: 1 }}>{Action}</Box>}
-        sx={{
-          color: 'nym.background.dark',
-          py: 2.5,
-          px: 4,
-          borderBottom: (theme) => `1px solid ${theme.palette.grey[200]}`,
-        }}
+        action={<Box sx={{ mt: 1, mr: 1 }}>{Action}</Box>}
       />
       {noPadding ? <CardContentNoPadding>{children}</CardContentNoPadding> : <CardContent>{children}</CardContent>}
     </Card>
@@ -30,7 +30,6 @@ export const NymCard: React.FC<{
 }
 
 const CardContentNoPadding = styled(CardContent)(({ theme }) => ({
-  background: theme.palette.grey[50],
   padding: 0,
   '&:last-child': {
     paddingBottom: 0,

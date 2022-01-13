@@ -125,7 +125,7 @@ export const BondForm = ({
 
   return (
     <FormControl fullWidth>
-      <Box sx={{ padding: [3, 5] }}>
+      <Box sx={{ p: 3 }}>
         <Grid container spacing={3}>
           <Grid container item justifyContent="space-between">
             <Grid item>
@@ -358,19 +358,20 @@ export const BondForm = ({
               )}
             </>
           )}
+          <Grid item>
+            {!disabled ? <Fee feeType={EnumNodeType.mixnode ? 'BondMixnode' : 'BondGateway'} /> : <div />}
+          </Grid>
         </Grid>
       </Box>
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-          bgcolor: 'grey.100',
-          padding: 2,
+          justifyContent: 'flex-end',
+          padding: 3,
+          pt: 0,
         }}
       >
-        {!disabled ? <Fee feeType={EnumNodeType.mixnode ? 'BondMixnode' : 'BondGateway'} /> : <div />}
         <Button
           disabled={isSubmitting || disabled}
           variant="contained"
@@ -380,6 +381,7 @@ export const BondForm = ({
           disableElevation
           onClick={handleSubmit(onSubmit)}
           endIcon={isSubmitting && <CircularProgress size={20} />}
+          size="large"
         >
           Bond
         </Button>

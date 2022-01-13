@@ -1,15 +1,14 @@
-import React, { useContext, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { Alert, Box, Dialog } from '@mui/material'
-import { SettingsOutlined } from '@mui/icons-material'
 import { NymCard } from '../../components'
 import { ClientContext } from '../../context/main'
 import { Tabs } from './tabs'
 import { Profile } from './profile'
 import { SystemVariables } from './system-variables'
 import { NodeStats } from './node-stats'
-import { Overview } from './overview'
 import { useSettingsState } from './useSettingsState'
 import { NodeStatus } from '../../components/NodeStatus'
+import { Node as NodeIcon } from '../../svg-icons/node'
 
 const tabs = ['Profile', 'System variables', 'Node stats']
 
@@ -26,7 +25,7 @@ export const Settings = () => {
       <NymCard
         title={
           <Box display="flex" alignItems="center">
-            <SettingsOutlined sx={{ mr: 1 }} />
+            <NodeIcon sx={{ mr: 1 }} />
             Node Settings
           </Box>
         }
@@ -35,7 +34,6 @@ export const Settings = () => {
       >
         <>
           <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} disabled={!mixnodeDetails} />
-          <Overview details={mixnodeDetails} />
           {!mixnodeDetails && (
             <Alert severity="info" sx={{ m: 4 }}>
               You don't currently have a node running

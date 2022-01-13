@@ -1,8 +1,8 @@
 import React, { useContext } from 'react'
 import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField, Typography } from '@mui/material'
+import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
 import { EnumNodeType, TFee } from '../../types'
-import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
 import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 import { delegate, majorToMinor } from '../../requests'
@@ -70,7 +70,7 @@ export const DelegateForm = ({
 
   return (
     <FormControl fullWidth>
-      <Box sx={{ padding: [3, 5] }}>
+      <Box sx={{ p: 3 }}>
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <TextField
@@ -86,7 +86,7 @@ export const DelegateForm = ({
             />
           </Grid>
 
-          <Grid item xs={12} lg={6}>
+          <Grid item xs={12}>
             <TextField
               {...register('amount')}
               required
@@ -102,7 +102,7 @@ export const DelegateForm = ({
               }}
             />
           </Grid>
-          <Grid item xs={12}>
+          <Grid item>
             <Fee feeType="DelegateToMixnode" />
           </Grid>
         </Grid>
@@ -112,9 +112,8 @@ export const DelegateForm = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-          bgcolor: 'grey.100',
-          padding: 2,
+          p: 3,
+          pt: 0,
         }}
       >
         <Button
@@ -126,6 +125,7 @@ export const DelegateForm = ({
           type="submit"
           disableElevation
           endIcon={isSubmitting && <CircularProgress size={20} />}
+          size="large"
         >
           Delegate stake
         </Button>

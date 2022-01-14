@@ -361,10 +361,6 @@ mod tests {
             lambda
         );
 
-        println!("BlindSign Request (commitment, commitment hash, commitment attributes, proof) : {:?}", bytes.len());
-        println!("Commitment: {:?}", lambda.commitment.to_affine().to_compressed().len());
-        println!("Commitment hash: {:?}", lambda.commitment_hash.to_affine().to_compressed().len());
-        println!("Proof: {:?}", lambda.pi_s.to_bytes().len());
 
         let mut params = Parameters::new(4).unwrap();
         let private_attributes = params.n_random_scalars(2);
@@ -373,6 +369,11 @@ mod tests {
             prepare_blind_sign(&mut params, &private_attributes, &public_attributes).unwrap();
 
         let bytes = lambda.to_bytes();
+        println!("BlindSign Request (commitment, commitment hash, commitment attributes, proof) : {:?}", bytes.len());
+        println!("Commitment: {:?}", lambda.commitment.to_affine().to_compressed().len());
+        println!("Commitment hash: {:?}", lambda.commitment_hash.to_affine().to_compressed().len());
+        println!("Proof: {:?}", lambda.pi_s.to_bytes().len());
+        
         assert_eq!(
             BlindSignRequest::try_from(bytes.as_slice()).unwrap(),
             lambda

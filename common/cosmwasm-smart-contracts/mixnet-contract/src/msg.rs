@@ -3,10 +3,9 @@
 
 use crate::mixnode::NodeRewardParams;
 use crate::ContractStateParams;
-use crate::{Epoch, Gateway, IdentityKey, MixNode, RewardedSetNodeStatus};
+use crate::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -38,16 +37,6 @@ pub enum ExecuteMsg {
 
     UndelegateFromMixnode {
         mix_identity: IdentityKey,
-    },
-
-    BeginMixnodeRewarding {
-        // id of the current rewarding interval
-        epoch_id: u32,
-    },
-
-    FinishMixnodeRewarding {
-        // id of the current rewarding interval
-        epoch_id: u32,
     },
 
     RewardMixnode {
@@ -117,7 +106,6 @@ pub enum QueryMsg {
         address: String,
     },
     StateParams {},
-    CurrentRewardingInterval {},
     // gets all [paged] delegations in the entire network
     // TODO: do we even want that?
     GetAllNetworkDelegations {
@@ -152,24 +140,20 @@ pub enum QueryMsg {
     GetSybilResistancePercent {},
     GetRewardingStatus {
         mix_identity: IdentityKey,
-        rewarding_interval_nonce: u32,
+        epoch_id: u32,
     },
-
     GetRewardedSet {
         height: Option<u64>,
         start_after: Option<IdentityKey>,
         limit: Option<u32>,
     },
+    GetRewardedSetHeightsForEpoch {
+        epoch_id: u32,
+    },
     GetRewardedSetUpdateDetails {},
-
     GetCurrentRewardedSetHeight {},
-
     GetCurrentEpoch {},
     GetRewardedSetRefreshBlocks {},
-    GetRewardedSetForEpoch {
-        epoch: Option<Epoch>,
-        filter: Option<RewardedSetNodeStatus>,
-    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

@@ -17,12 +17,10 @@ pub(crate) fn query_circulating_supply(deps: Deps) -> StdResult<Uint128> {
 pub(crate) fn query_rewarding_status(
     deps: Deps,
     mix_identity: IdentityKey,
-    rewarding_interval_nonce: u32,
+    epoch_id: u32,
 ) -> StdResult<MixnodeRewardingStatusResponse> {
-    let status = storage::REWARDING_STATUS.may_load(
-        deps.storage,
-        (rewarding_interval_nonce.into(), mix_identity),
-    )?;
+    let status =
+        storage::REWARDING_STATUS.may_load(deps.storage, (epoch_id.into(), mix_identity))?;
 
     Ok(MixnodeRewardingStatusResponse { status })
 }

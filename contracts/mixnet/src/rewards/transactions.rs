@@ -11,9 +11,9 @@ use crate::rewards::helpers;
 use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
 use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract_common::events::{
-    new_begin_rewarding_event, new_finish_rewarding_event, new_mix_delegators_rewarding_event,
-    new_mix_operator_rewarding_event, new_not_found_mix_operator_rewarding_event,
-    new_too_fresh_bond_mix_operator_rewarding_event, new_zero_uptime_mix_operator_rewarding_event,
+    new_mix_delegators_rewarding_event, new_mix_operator_rewarding_event,
+    new_not_found_mix_operator_rewarding_event, new_too_fresh_bond_mix_operator_rewarding_event,
+    new_zero_uptime_mix_operator_rewarding_event,
 };
 use mixnet_contract_common::mixnode::{DelegatorRewardParams, NodeRewardParams};
 use mixnet_contract_common::{
@@ -49,36 +49,19 @@ fn verify_rewarding_state(
         return Err(ContractError::Unauthorized);
     }
 
-    // check if rewarding is currently in progress, if not reject the transaction
-    if !state.rewarding_in_progress {
-        return Err(ContractError::RewardingNotInProgress);
-    }
-
     let current_epoch = epoch_storage::CURRENT_EPOCH.load(storage)?;
 
-    // make sure the transaction is sent for the correct rewarding interval
+    // make sure the transaction is sent for the correct epoch
     // (guard ourselves against somebody trying to send stale results;
     // realistically it's never going to happen in a single rewarding validator case
     if epoch_id != current_epoch.id() {
-        Err(ContractError::InvalidRewardingIntervalNonce {
+        Err(ContractError::InvalidEpochId {
             received: epoch_id,
             expected: current_epoch.id(),
         })
     } else {
         Ok(())
     }
-}
-
-// Note: this function is designed to work with only a single validator entity distributing rewards
-// The main purpose of this function is to update `latest_rewarding_interval_nonce` which
-// will trigger a different seed selection for the pseudorandom generation of the "demanded" set of mixnodes.
-pub(crate) fn try_begin_mixnode_rewarding(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    epoch_id: u32,
-) -> Result<Response, ContractError> {
-    todo!("perhaps no longer needed")
 }
 
 fn reward_mix_delegators(
@@ -342,14 +325,6 @@ pub(crate) fn try_reward_mixnode(
     )))
 }
 
-pub(crate) fn try_finish_mixnode_rewarding(
-    deps: DepsMut,
-    info: MessageInfo,
-    epoch_id: u32,
-) -> Result<Response, ContractError> {
-    todo!("perhaps no longer needed")
-}
-
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -487,7 +462,7 @@ pub mod tests {
                 11,
             );
             assert_eq!(
-                Err(ContractError::InvalidRewardingIntervalNonce {
+                Err(ContractError::InvalidEpochId {
                     received: 11,
                     expected: 43
                 }),
@@ -501,7 +476,7 @@ pub mod tests {
                 44,
             );
             assert_eq!(
-                Err(ContractError::InvalidRewardingIntervalNonce {
+                Err(ContractError::InvalidEpochId {
                     received: 44,
                     expected: 43
                 }),
@@ -515,7 +490,7 @@ pub mod tests {
                 42,
             );
             assert_eq!(
-                Err(ContractError::InvalidRewardingIntervalNonce {
+                Err(ContractError::InvalidEpochId {
                     received: 42,
                     expected: 43
                 }),
@@ -647,7 +622,7 @@ pub mod tests {
                 11,
             );
             assert_eq!(
-                Err(ContractError::InvalidRewardingIntervalNonce {
+                Err(ContractError::InvalidEpochId {
                     received: 11,
                     expected: 43
                 }),
@@ -660,7 +635,7 @@ pub mod tests {
                 44,
             );
             assert_eq!(
-                Err(ContractError::InvalidRewardingIntervalNonce {
+                Err(ContractError::InvalidEpochId {
                     received: 44,
                     expected: 43
                 }),
@@ -673,7 +648,7 @@ pub mod tests {
                 42,
             );
             assert_eq!(
-                Err(ContractError::InvalidRewardingIntervalNonce {
+                Err(ContractError::InvalidEpochId {
                     received: 42,
                     expected: 43
                 }),
@@ -788,7 +763,7 @@ pub mod tests {
             0,
         );
         assert_eq!(
-            Err(ContractError::InvalidRewardingIntervalNonce {
+            Err(ContractError::InvalidEpochId {
                 received: 0,
                 expected: 1
             }),
@@ -804,7 +779,7 @@ pub mod tests {
             2,
         );
         assert_eq!(
-            Err(ContractError::InvalidRewardingIntervalNonce {
+            Err(ContractError::InvalidEpochId {
                 received: 2,
                 expected: 1
             }),

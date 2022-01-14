@@ -15,10 +15,8 @@ pub const GATEWAY_UNBONDING_EVENT_TYPE: &str = "gateway_unbonding";
 pub const MIXNODE_BONDING_EVENT_TYPE: &str = "mixnode_bonding";
 pub const MIXNODE_UNBONDING_EVENT_TYPE: &str = "mixnode_unbonding";
 pub const SETTINGS_UPDATE_EVENT_TYPE: &str = "settings_update";
-pub const BEGIN_REWARDING_EVENT_TYPE: &str = "begin_rewarding";
 pub const OPERATOR_REWARDING_EVENT_TYPE: &str = "mix_rewarding";
 pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
-pub const FINISH_REWARDING_EVENT_TYPE: &str = "finish_rewarding";
 pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
 pub const SET_CURRENT_EPOCH_EVENT_TYPE: &str = "set_current_epoch";
 pub const ADVANCE_EPOCH_EVENT_TYPE: &str = "advance_epoch";
@@ -53,7 +51,7 @@ pub const NEW_MIXNODE_ACTIVE_SET_SIZE_KEY: &str = "new_mixnode_active_set_size";
 pub const NEW_ACTIVE_SET_WORK_FACTOR_KEY: &str = "new_active_set_work_factor";
 
 // rewarding
-pub const REWARDING_INTERVAL_NONCE_KEY: &str = "rewarding_interval_nonce";
+pub const EPOCH_ID_KEY: &str = "epoch_id";
 pub const TOTAL_MIXNODE_REWARD_KEY: &str = "total_node_reward";
 pub const OPERATOR_REWARD_KEY: &str = "operator_reward";
 pub const LAMBDA_KEY: &str = "lambda";
@@ -257,61 +255,38 @@ pub fn new_settings_update_event(
     event
 }
 
-pub fn new_begin_rewarding_event(rewarding_interval_nonce: u32) -> Event {
-    Event::new(BEGIN_REWARDING_EVENT_TYPE).add_attribute(
-        REWARDING_INTERVAL_NONCE_KEY,
-        rewarding_interval_nonce.to_string(),
-    )
-}
-
-pub fn new_finish_rewarding_event(rewarding_interval_nonce: u32) -> Event {
-    Event::new(FINISH_REWARDING_EVENT_TYPE).add_attribute(
-        REWARDING_INTERVAL_NONCE_KEY,
-        rewarding_interval_nonce.to_string(),
-    )
-}
-
 pub fn new_not_found_mix_operator_rewarding_event(
-    rewarding_interval_nonce: u32,
+    epoch_id: u32,
     identity: IdentityKeyRef,
 ) -> Event {
     Event::new(OPERATOR_REWARDING_EVENT_TYPE)
-        .add_attribute(
-            REWARDING_INTERVAL_NONCE_KEY,
-            rewarding_interval_nonce.to_string(),
-        )
+        .add_attribute(EPOCH_ID_KEY, epoch_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(NO_REWARD_REASON_KEY, BOND_NOT_FOUND_VALUE)
 }
 
 pub fn new_too_fresh_bond_mix_operator_rewarding_event(
-    rewarding_interval_nonce: u32,
+    epoch_id: u32,
     identity: IdentityKeyRef,
 ) -> Event {
     Event::new(OPERATOR_REWARDING_EVENT_TYPE)
-        .add_attribute(
-            REWARDING_INTERVAL_NONCE_KEY,
-            rewarding_interval_nonce.to_string(),
-        )
+        .add_attribute(EPOCH_ID_KEY, epoch_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(NO_REWARD_REASON_KEY, BOND_TOO_FRESH_VALUE)
 }
 
 pub fn new_zero_uptime_mix_operator_rewarding_event(
-    rewarding_interval_nonce: u32,
+    epoch_id: u32,
     identity: IdentityKeyRef,
 ) -> Event {
     Event::new(OPERATOR_REWARDING_EVENT_TYPE)
-        .add_attribute(
-            REWARDING_INTERVAL_NONCE_KEY,
-            rewarding_interval_nonce.to_string(),
-        )
+        .add_attribute(EPOCH_ID_KEY, epoch_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(NO_REWARD_REASON_KEY, ZERO_UPTIME_VALUE)
 }
 
 pub fn new_mix_operator_rewarding_event(
-    rewarding_interval_nonce: u32,
+    epoch_id: u32,
     identity: IdentityKeyRef,
     node_reward_result: NodeRewardResult,
     operator_reward: Uint128,
@@ -319,10 +294,7 @@ pub fn new_mix_operator_rewarding_event(
     further_delegations: bool,
 ) -> Event {
     Event::new(OPERATOR_REWARDING_EVENT_TYPE)
-        .add_attribute(
-            REWARDING_INTERVAL_NONCE_KEY,
-            rewarding_interval_nonce.to_string(),
-        )
+        .add_attribute(EPOCH_ID_KEY, epoch_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(
             TOTAL_MIXNODE_REWARD_KEY,
@@ -342,16 +314,13 @@ pub fn new_mix_operator_rewarding_event(
 }
 
 pub fn new_mix_delegators_rewarding_event(
-    rewarding_interval_nonce: u32,
+    epoch_id: u32,
     identity: IdentityKeyRef,
     delegation_rewards_distributed: Uint128,
     further_delegations: bool,
 ) -> Event {
     Event::new(MIX_DELEGATORS_REWARDING_EVENT_TYPE)
-        .add_attribute(
-            REWARDING_INTERVAL_NONCE_KEY,
-            rewarding_interval_nonce.to_string(),
-        )
+        .add_attribute(EPOCH_ID_KEY, epoch_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(
             DISTRIBUTED_DELEGATION_REWARDS_KEY,

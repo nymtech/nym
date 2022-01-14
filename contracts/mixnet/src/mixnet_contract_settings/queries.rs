@@ -3,24 +3,12 @@
 
 use super::storage;
 use cosmwasm_std::{Deps, StdResult};
-use mixnet_contract_common::{
-    ContractStateParams, MixnetContractVersion, RewardingIntervalResponse,
-};
+use mixnet_contract_common::{ContractStateParams, MixnetContractVersion};
 
 pub(crate) fn query_contract_settings_params(deps: Deps) -> StdResult<ContractStateParams> {
     storage::CONTRACT_STATE
         .load(deps.storage)
         .map(|settings| settings.params)
-}
-
-pub(crate) fn query_rewarding_interval(deps: Deps) -> StdResult<RewardingIntervalResponse> {
-    let state = storage::CONTRACT_STATE.load(deps.storage)?;
-
-    Ok(RewardingIntervalResponse {
-        // current_rewarding_interval_starting_block: state.rewarding_interval_starting_block,
-        // current_rewarding_interval_nonce: state.latest_rewarding_interval_nonce,
-        rewarding_in_progress: state.rewarding_in_progress,
-    })
 }
 
 pub(crate) fn query_contract_version() -> MixnetContractVersion {
@@ -59,9 +47,6 @@ pub(crate) mod tests {
                 mixnode_active_set_size: 500,
                 active_set_work_factor: 10,
             },
-            // rewarding_interval_starting_block: 123,
-            // latest_rewarding_interval_nonce: 0,
-            rewarding_in_progress: false,
         };
 
         storage::CONTRACT_STATE

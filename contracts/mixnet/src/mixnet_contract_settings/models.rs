@@ -11,6 +11,4 @@ pub struct ContractState {
     pub owner: Addr, // only the owner account can update state
     pub rewarding_validator_address: Addr,
     pub params: ContractStateParams,
-
-    pub rewarding_in_progress: bool,
 }

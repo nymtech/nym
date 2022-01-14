@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{StdResult, Storage};
-use cw_storage_plus::{Item, Map, PrimaryKey};
+use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::{Epoch, IdentityKey, RewardedSetNodeStatus};
 
 // type aliases for better reasoning for storage keys

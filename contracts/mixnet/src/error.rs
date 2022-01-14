@@ -75,8 +75,8 @@ pub enum ContractError {
     #[error("We tried to remove more funds then are available in the Reward pool. Wanted to remove {to_remove}, but have only {reward_pool}")]
     OutOfFunds { to_remove: u128, reward_pool: u128 },
 
-    #[error("Received invalid rewarding interval nonce. Expected {expected}, received {received}")]
-    InvalidRewardingIntervalNonce { received: u32, expected: u32 },
+    #[error("Received invalid epoch id. Expected {expected}, received {received}")]
+    InvalidEpochId { received: u32, expected: u32 },
 
     #[error("Rewarding distribution is currently in progress")]
     RewardingInProgress,

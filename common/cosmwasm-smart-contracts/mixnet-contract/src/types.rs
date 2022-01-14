@@ -27,13 +27,6 @@ impl LayerDistribution {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
-pub struct RewardingIntervalResponse {
-    // pub current_rewarding_interval_starting_block: u64,
-    // pub current_rewarding_interval_nonce: u32,
-    pub rewarding_in_progress: bool,
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ContractStateParams {
     // so currently epoch_length is being unused and validator API performs rewarding
@@ -149,4 +142,10 @@ pub struct RewardedSetUpdateDetails {
     pub refresh_rate_blocks: u32,
     pub last_refreshed_block: u64,
     pub current_height: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct EpochRewardedSetHeightsResponse {
+    pub epoch_id: u32,
+    pub heights: Vec<u64>,
 }

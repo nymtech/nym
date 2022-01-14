@@ -6,9 +6,9 @@ use crate::error::ContractError;
 use cosmwasm_std::{Env, Order, StdResult, Storage};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::{
-    Epoch, IdentityKey, PagedRewardedSetResponse, RewardedSetNodeStatus, RewardedSetUpdateDetails,
+    Epoch, EpochRewardedSetHeightsResponse, IdentityKey, PagedRewardedSetResponse,
+    RewardedSetNodeStatus, RewardedSetUpdateDetails,
 };
-use std::collections::{HashMap, HashSet};
 
 pub fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
     Ok(storage::CURRENT_EPOCH.load(storage)?)
@@ -18,35 +18,26 @@ pub(crate) fn query_rewarded_set_refresh_minimum_blocks() -> u32 {
     crate::contract::REWARDED_SET_REFRESH_BLOCKS
 }
 
-pub fn query_rewarded_set_for_epoch(
-    epoch: Option<Epoch>,
-    filter: Option<RewardedSetNodeStatus>,
+pub fn query_rewarded_set_heights_for_epoch(
     storage: &dyn Storage,
-) -> Result<HashSet<IdentityKey>, ContractError> {
-    todo!("rethinking this one")
+    epoch_id: u32,
+) -> Result<EpochRewardedSetHeightsResponse, ContractError> {
+    // I don't think we have to deal with paging here as at most we're going to have 720 values here
+    // and I think the validators are capable of performing 720 storage reads at once if they're only
+    // reading u64 (+ u8) values...
+    let heights = storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
+        .prefix_de(epoch_id)
+        .range(storage, None, None, Order::Ascending)
+        .map(|val| val.map(|(height, _)| height))
+        .collect::<StdResult<Vec<_>>>()?;
 
-    // let epoch = epoch.unwrap_or(storage::CURRENT_EPOCH.load(storage)?);
-    // let heights: Vec<u64> = storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
-    //     .prefix_de(epoch.id())
-    //     .range_de(storage, None, None, Order::Descending)
-    //     .scan((), |_, x| x.ok())
-    //     .map(|(height, _)| height)
-    //     .collect();
-    // let mut rewarded_set = HashSet::new();
-    // for height in heights {
-    //     let nodes: HashSet<IdentityKey> = storage::REWARDED_SET
-    //         .prefix_de(height)
-    //         .range_de(storage, None, None, Order::Ascending)
-    //         .scan((), |_, x| x.ok())
-    //         .filter(|(_identity_key, node_status)| {
-    //             filter.is_none() || Some(node_status) == filter.as_ref()
-    //         })
-    //         .map(|(identity_key, _node_status)| identity_key)
-    //         .collect();
-    //     rewarded_set = rewarded_set.union(&nodes).map(|x| x.to_owned()).collect();
-    // }
-    // Ok(rewarded_set)
+    Ok(EpochRewardedSetHeightsResponse { epoch_id, heights })
 }
+
+// note: I have removed the `query_rewarded_set_for_epoch`, because I don't think it's appropriate
+// for the contract to go through so much data (i.e. all "rewarded" sets of particular epoch) in one go.
+// To achieve the same result, the client would have to instead first call `query_rewarded_set_heights_for_epoch`
+// to learn the heights used in given epoch and then for each of them `query_rewarded_set` for that particular height.
 
 pub fn query_current_rewarded_set_height(storage: &dyn Storage) -> Result<u64, ContractError> {
     Ok(storage::CURRENT_REWARDED_SET_HEIGHT.load(storage)?)

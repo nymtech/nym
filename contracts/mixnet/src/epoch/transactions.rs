@@ -5,11 +5,11 @@ use super::storage;
 use crate::error::ContractError;
 use crate::error::ContractError::EpochNotInProgress;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, StdResult, Storage};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::events::{
     new_advance_epoch_event, new_change_rewarded_set_event, new_set_current_epoch_event,
 };
-use mixnet_contract_common::{Epoch, IdentityKey};
+use mixnet_contract_common::IdentityKey;
 
 pub fn try_write_rewarded_set(
     deps: DepsMut,

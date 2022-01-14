@@ -7,7 +7,7 @@ use crate::delegations::queries::query_mixnode_delegation;
 use crate::delegations::queries::query_mixnode_delegations_paged;
 use crate::epoch::queries::{
     query_current_epoch, query_current_rewarded_set_height, query_rewarded_set,
-    query_rewarded_set_for_epoch, query_rewarded_set_refresh_minimum_blocks,
+    query_rewarded_set_heights_for_epoch, query_rewarded_set_refresh_minimum_blocks,
     query_rewarded_set_update_details,
 };
 use crate::epoch::storage as epoch_storage;
@@ -15,7 +15,6 @@ use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
 use crate::mixnet_contract_settings::models::ContractState;
-use crate::mixnet_contract_settings::queries::query_rewarding_interval;
 use crate::mixnet_contract_settings::queries::{
     query_contract_settings_params, query_contract_version,
 };
@@ -63,7 +62,6 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
             // TODO: This is no longer needed, and can be removed
             active_set_work_factor: DEFAULT_ACTIVE_SET_WORK_FACTOR,
         },
-        rewarding_in_progress: false,
     }
 }
 
@@ -155,12 +153,6 @@ pub fn execute(
                 info,
                 mix_identity,
             )
-        }
-        ExecuteMsg::BeginMixnodeRewarding { epoch_id } => {
-            crate::rewards::transactions::try_begin_mixnode_rewarding(deps, env, info, epoch_id)
-        }
-        ExecuteMsg::FinishMixnodeRewarding { epoch_id } => {
-            crate::rewards::transactions::try_finish_mixnode_rewarding(deps, info, epoch_id)
         }
         ExecuteMsg::RewardNextMixDelegators {
             mix_identity,
@@ -254,7 +246,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
         }
         QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
         QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)?),
-        QueryMsg::CurrentRewardingInterval {} => to_binary(&query_rewarding_interval(deps)?),
         QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)?),
         QueryMsg::GetMixnodeDelegations {
             mix_identity,
@@ -289,12 +280,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
         QueryMsg::GetSybilResistancePercent {} => to_binary(&DEFAULT_SYBIL_RESISTANCE_PERCENT),
         QueryMsg::GetRewardingStatus {
             mix_identity,
-            rewarding_interval_nonce,
-        } => to_binary(&query_rewarding_status(
-            deps,
-            mix_identity,
-            rewarding_interval_nonce,
-        )?),
+            epoch_id,
+        } => to_binary(&query_rewarding_status(deps, mix_identity, epoch_id)?),
         QueryMsg::GetRewardedSet {
             height,
             start_after,
@@ -305,6 +292,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             start_after,
             limit,
         )?),
+        QueryMsg::GetRewardedSetHeightsForEpoch { epoch_id } => to_binary(
+            &query_rewarded_set_heights_for_epoch(deps.storage, epoch_id)?,
+        ),
         QueryMsg::GetRewardedSetUpdateDetails {} => {
             to_binary(&query_rewarded_set_update_details(env, deps.storage)?)
         }
@@ -314,9 +304,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
         QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
         QueryMsg::GetRewardedSetRefreshBlocks {} => {
             to_binary(&query_rewarded_set_refresh_minimum_blocks())
-        }
-        QueryMsg::GetRewardedSetForEpoch { epoch, filter } => {
-            to_binary(&query_rewarded_set_for_epoch(epoch, filter, deps.storage)?)
         }
     };
 
@@ -328,8 +315,9 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
     /*
        1. removal of rewarding_interval_starting_block field from ContractState
        2. removal of latest_rewarding_interval_nonce field from ContractState
-       3. epoch_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
-       4. epoch_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
+       3. removal of rewarding_in_progress field from ContractState
+       4. epoch_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
+       5. epoch_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
     */
 
     #[derive(serde::Serialize, serde::Deserialize, Clone)]

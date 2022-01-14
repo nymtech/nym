@@ -13,9 +13,6 @@ pub(crate) const REWARDING_STATUS: Map<(U32Key, IdentityKey), RewardingStatus> =
 // approximately 1 day (assuming 5s per block)
 pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
 
-// approximately 30min (assuming 5s per block)
-pub(crate) const MAX_REWARDING_DURATION_IN_BLOCKS: u64 = 360;
-
 #[allow(dead_code)]
 pub fn incr_reward_pool(
     amount: Uint128,

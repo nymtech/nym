@@ -612,6 +612,7 @@ mod tests {
         let s = params.random_scalar();
         let blinded_sig = BlindedSignature(params.gen1() * r, params.gen1() * s);
         let bytes = blinded_sig.to_bytes();
+        println!("BlindedSignature: {:?}", bytes.len());
 
         // also make sure it is equivalent to the internal g1 compressed bytes concatenated
         let expected_bytes = [

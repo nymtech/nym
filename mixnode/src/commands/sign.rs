@@ -3,7 +3,7 @@
 
 use crate::commands::*;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
-use clap::{App, Arg, ArgMatches};
+use clap::ArgGroup;
 use colored::Colorize;
 use config::NymConfig;
 use crypto::asymmetric::identity;
@@ -12,30 +12,20 @@ use log::error;
 const SIGN_TEXT_ARG_NAME: &str = "text";
 const SIGN_ADDRESS_ARG_NAME: &str = "address";
 
-pub fn command_args<'a, 'b>() -> App<'a, 'b> {
-    App::new("sign")
-        .about("Sign text to prove ownership of this mixnode")
-        .arg(
-            Arg::with_name(ID_ARG_NAME)
-                .long(ID_ARG_NAME)
-                .help("The id of the mixnode you want to sign with")
-                .takes_value(true)
-                .required(true),
-        )
-        .arg(
-            Arg::with_name(SIGN_ADDRESS_ARG_NAME)
-                .long(SIGN_ADDRESS_ARG_NAME)
-                .help("Signs your blockchain address with your identity key")
-                .takes_value(true)
-                .conflicts_with(SIGN_TEXT_ARG_NAME),
-        )
-        .arg(
-            Arg::with_name(SIGN_TEXT_ARG_NAME)
-                .long(SIGN_TEXT_ARG_NAME)
-                .help("Signs an arbitrary piece of text with your identity key")
-                .takes_value(true)
-                .conflicts_with(SIGN_ADDRESS_ARG_NAME),
-        )
+#[derive(Args)]
+#[clap(group(ArgGroup::new("sign").required(true).args(&["address", "text"])))]
+pub(crate) struct Sign {
+    /// The id of the mixnode you want to sign with
+    #[clap(long)]
+    id: String,
+
+    /// Signs your blockchain address with your identity key
+    #[clap(long)]
+    address: Option<String>,
+
+    /// Signs an arbitrary piece of text with your identity key
+    #[clap(long)]
+    text: Option<String>,
 }
 
 pub fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
@@ -73,13 +63,15 @@ fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
     )
 }
 
-pub fn execute(matches: &ArgMatches) {
-    let id = matches.value_of(ID_ARG_NAME).unwrap();
-
-    let config = match Config::load_from_file(Some(id)) {
+pub(crate) fn execute(args: &Sign) {
+    let config = match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => cfg,
         Err(err) => {
-            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
+            error!(
+                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})",
+                args.id,
+                err,
+            );
             return;
         }
     };
@@ -92,10 +84,10 @@ pub fn execute(matches: &ArgMatches) {
     let pathfinder = MixNodePathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);
 
-    if let Some(text) = matches.value_of(SIGN_TEXT_ARG_NAME) {
-        print_signed_text(identity_keypair.private_key(), text)
-    } else if let Some(address) = matches.value_of(SIGN_ADDRESS_ARG_NAME) {
-        print_signed_address(identity_keypair.private_key(), address);
+    if let Some(text) = args.text.as_deref() {
+        print_signed_text(identity_keypair.private_key(), &text)
+    } else if let Some(address) = args.address.as_deref() {
+        print_signed_address(identity_keypair.private_key(), &address);
     } else {
         let error_message = format!(
             "You must specify either '--{}' or '--{}' argument!",

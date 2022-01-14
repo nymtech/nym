@@ -1,35 +1,24 @@
 use crate::commands::*;
 use crate::config::Config;
 use crate::node::node_description::NodeDescription;
-use clap::{App, Arg, ArgMatches};
 use colored::Colorize;
 use config::NymConfig;
 use std::io;
 use std::io::Write;
 
-pub fn command_args<'a, 'b>() -> App<'a, 'b> {
-    App::new("describe")
-        .about("Describe your mixnode and tell people why they should delegate stake to you")
-        .arg(
-            Arg::with_name(ID_ARG_NAME)
-                .long(ID_ARG_NAME)
-                .help("The id of the mixnode you want to describe")
-                .takes_value(true)
-                .required(true),
-        )
+#[derive(Args)]
+pub(crate) struct Describe {
+    /// The id of the mixnode you want to describe
+    #[clap(long)]
+    id: String,
 }
 
-pub fn execute(matches: &ArgMatches) {
-    // figure out which node the user is describing
-    let id = matches
-        .value_of(ID_ARG_NAME)
-        .expect("Please provide the id of your mixnode");
-
+pub(crate) fn execute(args: &Describe) {
     // ensure that the mixnode has in fact been initialized
-    match Config::load_from_file(Some(id)) {
+    match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => cfg,
         Err(err) => {
-            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
+            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", &args.id, err);
             return;
         }
     };
@@ -72,7 +61,7 @@ pub fn execute(matches: &ArgMatches) {
     // save the struct
     NodeDescription::save_to_file(
         &node_description,
-        Config::default_config_directory(Some(id)),
+        Config::default_config_directory(Some(&args.id)),
     )
     .unwrap()
 }

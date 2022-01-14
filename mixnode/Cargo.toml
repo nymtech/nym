@@ -9,6 +9,7 @@ authors = [
     "Jędrzej Stuczyński <andrew@nymtech.net>",
     "Drazen Urch <durch@users.noreply.github.com>",
 ]
+description = "Implementation of a Loopix-based Mixnode"
 edition = "2018"
 rust-version = "1.56"
 
@@ -16,7 +17,7 @@ rust-version = "1.56"
 
 [dependencies]
 bs58 = "0.4.0"
-clap = "2.3"
+clap = { version = "3.0.7", features = ["cargo", "derive"] }
 colored = "2.0"
 dirs = "3.0"
 dotenv = "0.15.0"
@@ -43,6 +44,7 @@ pemstore = { path="../common/pemstore" }
 topology = { path="../common/topology" }
 validator-client = { path="../common/client-libs/validator-client" }
 version-checker = { path="../common/version-checker" }
+lazy_static = "1.4.0"
 
 [dev-dependencies]
 serial_test = "0.5"

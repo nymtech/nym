@@ -6,6 +6,7 @@ use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use url::Url;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
@@ -96,6 +97,23 @@ impl Client {
     pub async fn get_rewarded_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorAPIError> {
         self.query_validator_api(
             &[routes::API_VERSION, routes::MIXNODES, routes::REWARDED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_probs_mixnode_rewarded(
+        &self,
+        mixnode_id: &str,
+    ) -> Result<HashMap<String, f32>, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::MIXNODES,
+                routes::REWARDED,
+                routes::INCLUSION_CHANCE,
+                &mixnode_id.to_string(),
+            ],
             NO_PARAMS,
         )
         .await

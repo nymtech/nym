@@ -27,7 +27,7 @@ pub(crate) async fn get_active_mixnodes(cache: &State<ValidatorCache>) -> Json<V
     Json(cache.active_mixnodes().await.value)
 }
 
-#[get("/mixnodes/rewarded/probs/<mixnode_id>")]
+#[get("/mixnodes/rewarded/inclusion-prob/<mixnode_id>")]
 pub(crate) async fn get_probs_mixnode_rewarded(
     cache: &State<ValidatorCache>,
     mixnode_id: String,

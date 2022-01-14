@@ -1,9 +1,9 @@
 import React, { useContext, useState } from 'react'
 import { Button, CircularProgress, Grid, Stack, Link, TextField, Typography, Alert, SvgIcon } from '@mui/material'
 import { styled } from '@mui/material/styles'
-import Logo from '../../images/logo-background.svg'
 import { signInWithMnemonic } from '../../requests'
 import { ClientContext } from '../../context/main'
+import { NymLogo } from '../../components'
 
 export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ showCreateAccount }) => {
   const [mnemonic, setMnemonic] = useState<string>('')
@@ -30,7 +30,7 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
 
   return (
     <Stack spacing={3} alignItems="center" sx={{ width: '80%' }}>
-      <Logo width={80} />
+      <NymLogo />
       <Typography sx={{ color: 'common.white' }}>Enter Mnemonic and sign in</Typography>
 
       <Grid container direction="column" spacing={3} component="form">

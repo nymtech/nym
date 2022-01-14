@@ -19,7 +19,7 @@ use mixnet_contract_common::{
     MixOwnershipResponse, MixnetContractVersion, MixnodeRewardingStatusResponse,
     PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
     PagedMixDelegationsResponse, PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg,
-    RewardedSetNodeStatus, RewardedSetUpdateDetails, RewardingIntervalResponse,
+    RewardedSetUpdateDetails,
 };
 use serde::Serialize;
 use std::convert::TryInto;
@@ -276,29 +276,17 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn get_current_rewarding_interval(
-        &self,
-    ) -> Result<RewardingIntervalResponse, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::CurrentRewardingInterval {};
-        self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
-            .await
-    }
-
     pub async fn get_rewarding_status(
         &self,
         mix_identity: mixnet_contract_common::IdentityKey,
-        rewarding_interval_nonce: u32,
+        epoch_id: u32,
     ) -> Result<MixnodeRewardingStatusResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::GetRewardingStatus {
             mix_identity,
-            rewarding_interval_nonce,
+            epoch_id,
         };
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
@@ -1166,58 +1154,6 @@ impl<C> NymdClient<C> {
                 Vec::new(),
             )
             .await
-    }
-
-    pub async fn begin_mixnode_rewarding(
-        &self,
-        rewarding_interval_nonce: u32,
-    ) -> Result<ExecuteResult, NymdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        todo!("do we still need it?")
-
-        // let fee = self.operation_fee(Operation::BeginMixnodeRewarding);
-        //
-        // let req = ExecuteMsg::BeginMixnodeRewarding {
-        //     rewarding_interval_nonce,
-        // };
-        // self.client
-        //     .execute(
-        //         self.address(),
-        //         self.mixnet_contract_address()?,
-        //         &req,
-        //         fee,
-        //         "Beginning mixnode rewarding procedure",
-        //         Vec::new(),
-        //     )
-        //     .await
-    }
-
-    pub async fn finish_mixnode_rewarding(
-        &self,
-        rewarding_interval_nonce: u32,
-    ) -> Result<ExecuteResult, NymdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        todo!("do we still need it?")
-        //
-        // let fee = self.operation_fee(Operation::FinishMixnodeRewarding);
-        //
-        // let req = ExecuteMsg::FinishMixnodeRewarding {
-        //     rewarding_interval_nonce,
-        // };
-        // self.client
-        //     .execute(
-        //         self.address(),
-        //         self.mixnet_contract_address()?,
-        //         &req,
-        //         fee,
-        //         "Finishing mixnode rewarding procedure",
-        //         Vec::new(),
-        //     )
-        //     .await
     }
 
     pub async fn set_current_epoch(&self) -> Result<ExecuteResult, NymdError>

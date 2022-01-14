@@ -28,7 +28,6 @@ import {
   PagedGatewayResponse,
   PagedMixDelegationsResponse,
   PagedMixnodeResponse,
-  RewardingIntervalResponse,
   RewardingStatus,
 } from './types';
 import ValidatorApiQuerier, { IValidatorApiQuery } from './validator-api-querier';
@@ -63,7 +62,6 @@ export interface INymdQuery {
   ownsMixNode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse>;
   ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
   getStateParams(mixnetContractAddress: string): Promise<ContractStateParams>;
-  getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse>;
 
   getAllNetworkDelegationsPaged(
     mixnetContractAddress: string,
@@ -136,10 +134,6 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
 
   getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
     return this.nymdQuerier.getStateParams(mixnetContractAddress);
-  }
-
-  getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse> {
-    return this.nymdQuerier.getCurrentRewardingInterval(mixnetContractAddress);
   }
 
   getAllNetworkDelegationsPaged(

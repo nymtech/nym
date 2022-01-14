@@ -18,7 +18,6 @@ import {
   PagedGatewayResponse,
   PagedMixDelegationsResponse,
   PagedMixnodeResponse,
-  RewardingIntervalResponse,
   RewardingStatus,
 } from './types';
 
@@ -76,12 +75,6 @@ export default class NymdQuerier implements INymdQuery {
   getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       state_params: {},
-    });
-  }
-
-  getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse> {
-    return this.client.queryContractSmart(mixnetContractAddress, {
-      current_rewarding_interval: {},
     });
   }
 

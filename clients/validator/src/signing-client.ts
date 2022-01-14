@@ -31,7 +31,6 @@ import {
   PagedGatewayResponse,
   PagedMixDelegationsResponse,
   PagedMixnodeResponse,
-  RewardingIntervalResponse,
   RewardingStatus,
 } from './types';
 import ValidatorApiQuerier from './validator-api-querier';
@@ -248,10 +247,6 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
   getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
     return this.nymdQuerier.getStateParams(mixnetContractAddress);
-  }
-
-  getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse> {
-    return this.nymdQuerier.getCurrentRewardingInterval(mixnetContractAddress);
   }
 
   getAllNetworkDelegationsPaged(

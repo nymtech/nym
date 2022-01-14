@@ -13,7 +13,6 @@ use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, Verifica
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
     Delegation, Epoch, MixnetContractVersion, MixnodeRewardingStatusResponse,
-    RewardingIntervalResponse,
 };
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, MixNodeBond, RewardedSetNodeStatus,
@@ -214,15 +213,6 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.nymd.get_mixnet_contract_version().await?)
-    }
-
-    pub async fn get_current_rewarding_interval(
-        &self,
-    ) -> Result<RewardingIntervalResponse, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.nymd.get_current_rewarding_interval().await?)
     }
 
     pub async fn get_rewarding_status(

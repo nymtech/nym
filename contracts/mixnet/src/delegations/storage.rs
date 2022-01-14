@@ -17,9 +17,9 @@ pub(crate) const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 250;
 type PrimaryKey = Vec<u8>;
 
 pub(crate) struct DelegationIndex<'a> {
-    pub(crate) owner: MultiIndex<'a, (Addr, PrimaryKey), Delegation>,
+    pub(crate) owner: MultiIndex<'a, Addr, Delegation>,
 
-    pub(crate) mixnode: MultiIndex<'a, (IdentityKey, PrimaryKey), Delegation>,
+    pub(crate) mixnode: MultiIndex<'a, IdentityKey, Delegation>,
 }
 
 impl<'a> IndexList<Delegation> for DelegationIndex<'a> {
@@ -46,12 +46,12 @@ impl<'a> IndexList<Delegation> for DelegationIndex<'a> {
 pub(crate) fn delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, DelegationIndex<'a>> {
     let indexes = DelegationIndex {
         owner: MultiIndex::new(
-            |d, pk| (d.owner.clone(), pk),
+            |d| d.owner.clone(),
             DELEGATION_PK_NAMESPACE,
             DELEGATION_OWNER_IDX_NAMESPACE,
         ),
         mixnode: MultiIndex::new(
-            |d, pk| (d.node_identity.clone(), pk),
+            |d| d.node_identity.clone(),
             DELEGATION_PK_NAMESPACE,
             DELEGATION_MIXNODE_IDX_NAMESPACE,
         ),

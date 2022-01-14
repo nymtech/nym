@@ -15,6 +15,7 @@ use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha20Rng;
 use rocket::fairing::AdHoc;
 use serde::Serialize;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -178,6 +179,7 @@ impl ValidatorCache {
                     routes::get_gateways,
                     routes::get_active_mixnodes,
                     routes::get_rewarded_mixnodes,
+                    routes::get_probs_mixnode_rewarded
                 ],
             )
         })
@@ -214,29 +216,82 @@ impl ValidatorCache {
         // seed our rng with the hash of the block of the most recent rewarding interval
         let mut rng = ChaCha20Rng::from_seed(block_hash.unwrap());
 
-        // generate list of mixnodes and their relatively weight (by total stake)
-        let choices = mixnodes
-            .iter()
-            .map(|mix| {
-                // note that the theoretical maximum possible stake is equal to the total
-                // supply of all tokens, i.e. 1B (which is 1 quadrillion of native tokens, i.e. 10^15 ~ 2^50)
-                // which is way below maximum value of f64, so the cast is fine
-                let total_stake = mix.total_stake().unwrap_or_default() as f64;
-                (mix, total_stake)
-            }) // if for some reason node is invalid, treat it as 0 stake/weight
-            .collect::<Vec<_>>();
+        self.stake_weighted_choice(mixnodes, nodes_to_select as usize, &mut rng)
+    }
 
+    fn stake_weighted_choice(
+        &self,
+        mixnodes: &[MixNodeBond],
+        nodes_to_select: usize,
+        rng: &mut ChaCha20Rng,
+    ) -> Vec<MixNodeBond> {
+        // generate list of mixnodes and their relatively weight (by total stake)
+        let choices = self.generate_mixnode_stake_tuples(mixnodes);
         // the unwrap here is fine as an error can only be thrown under one of the following conditions:
         // - our mixnode list is empty - we have already checked for that
         // - we have invalid weights, i.e. less than zero or NaNs - it shouldn't happen in our case as we safely cast down from u128
         // - all weights are zero - it's impossible in our case as the list of nodes is not empty and weight is proportional to stake. You must have non-zero stake in order to bond
         // - we have more than u32::MAX values (which is incredibly unrealistic to have 4B mixnodes bonded... literally every other person on the planet would need one)
         choices
-            .choose_multiple_weighted(&mut rng, nodes_to_select as usize, |item| item.1)
+            .choose_multiple_weighted(rng, nodes_to_select, |item| item.1)
             .unwrap()
-            .map(|(bond, _weight)| *bond)
+            .map(|(bond, _weight)| bond)
             .cloned()
             .collect()
+    }
+
+    fn generate_mixnode_stake_tuples(&self, mixnodes: &[MixNodeBond]) -> Vec<(MixNodeBond, f64)> {
+        mixnodes
+            .iter()
+            .map(|mix| {
+                // note that the theoretical maximum possible stake is equal to the total
+                // supply of all tokens, i.e. 1B (which is 1 quadrillion of native tokens, i.e. 10^15 ~ 2^50)
+                // which is way below maximum value of f64, so the cast is fine
+                let total_stake = mix.total_stake().unwrap_or_default() as f64;
+                (mix.clone(), total_stake)
+            }) // if for some reason node is invalid, treat it as 0 stake/weight
+            .collect()
+    }
+
+    // Estimate probability that a node will end up in the rewarded set, by running the selection process 100 times and aggregating the results.
+    // If a node is in the active set it is not counted as being in the reserve set, the probabilities are exclusive. Cumulative probabilitiy
+    // can be obtained by summing the two probabilities returned.
+    async fn probs_mixnode_rewarded(&self, target_mixnode_id: IdentityKey) -> HashMap<String, f32> {
+        let mut in_active = 0;
+        let mut in_reserve = 0;
+        let mixnodes = self.inner.mixnodes.read().await.value.clone();
+        let nodes_to_select = self
+            .inner
+            .current_mixnode_rewarded_set_size
+            .load(Ordering::SeqCst) as usize;
+        let mut rng = ChaCha20Rng::from_entropy();
+        for _ in 0..100 {
+            let rewarded_set = self.stake_weighted_choice(&mixnodes, nodes_to_select, &mut rng);
+            let active_set = rewarded_set
+                .iter()
+                .take(
+                    self.inner
+                        .current_mixnode_active_set_size
+                        .load(Ordering::SeqCst) as usize,
+                )
+                .map(|bond| bond.identity().clone())
+                .collect::<HashSet<IdentityKey>>();
+            let rewarded_set = rewarded_set
+                .iter()
+                .map(|bond| bond.identity().clone())
+                .collect::<HashSet<IdentityKey>>();
+            if active_set.contains(&target_mixnode_id) {
+                in_active += 1;
+            } else if rewarded_set.contains(&target_mixnode_id) {
+                in_reserve += 1;
+            }
+        }
+        vec![
+            ("in_active".to_string(), in_active as f32 / 100.0),
+            ("in_reserve".to_string(), in_reserve as f32 / 100.0),
+        ]
+        .into_iter()
+        .collect()
     }
 
     async fn update_cache(

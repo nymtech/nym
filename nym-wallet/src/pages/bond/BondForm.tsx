@@ -19,7 +19,7 @@ import { bond, majorToMinor } from '../../requests'
 import { validationSchema } from './validationSchema'
 import { Coin, Gateway, MixNode } from '../../types'
 import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
-import { checkHasEnoughFunds } from '../../utils'
+import { checkHasEnoughFunds, checkHasEnoughToUnbond } from '../../utils'
 
 type TBondFormFields = {
   withAdvancedOptions: boolean
@@ -106,8 +106,14 @@ export const BondForm = ({
 
   const onSubmit = async (data: TBondFormFields) => {
     const hasEnoughFunds = await checkHasEnoughFunds(data.amount)
+    const hasEnoughToUnbond = await checkHasEnoughToUnbond(data.amount)
+
     if (!hasEnoughFunds) {
       return setError('amount', { message: 'Not enough funds in wallet' })
+    }
+  
+    if(!hasEnoughToUnbond) {
+      return setError('amount', { message: 'you will not have enough funds to unbond this mixnode' })
     }
 
     const formattedData = formatData(data)

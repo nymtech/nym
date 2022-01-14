@@ -310,7 +310,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
     Ok(query_res?)
 }
 #[entry_point]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     // needed migration:
     /*
        1. removal of rewarding_interval_starting_block field from ContractState
@@ -319,60 +319,6 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
        4. epoch_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
        5. epoch_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
     */
-
-    #[derive(serde::Serialize, serde::Deserialize, Clone)]
-    pub struct StoredMixnodeBondOld {
-        pub pledge_amount: mixnet_contract_common::Coin,
-        pub owner: Addr,
-        pub layer: mixnet_contract_common::Layer,
-        pub block_height: u64,
-        pub mix_node: mixnet_contract_common::MixNode,
-        pub profit_margin_percent: Option<u8>,
-        pub proxy: Option<Addr>,
-    }
-    pub struct MixnodeBondIndexOld<'a> {
-        pub owner: cw_storage_plus::UniqueIndex<'a, Addr, StoredMixnodeBondOld>,
-    }
-    impl<'a> cw_storage_plus::IndexList<StoredMixnodeBondOld> for MixnodeBondIndexOld<'a> {
-        fn get_indexes(
-            &'_ self,
-        ) -> Box<dyn Iterator<Item = &'_ dyn cw_storage_plus::Index<StoredMixnodeBondOld>> + '_>
-        {
-            let v: Vec<&dyn cw_storage_plus::Index<StoredMixnodeBondOld>> = vec![&self.owner];
-            Box::new(v.into_iter())
-        }
-    }
-    pub(crate) fn mixnodes_old<'a>() -> cw_storage_plus::IndexedMap<
-        'a,
-        mixnet_contract_common::IdentityKeyRef<'a>,
-        StoredMixnodeBondOld,
-        MixnodeBondIndexOld<'a>,
-    > {
-        let indexes = MixnodeBondIndexOld {
-            owner: cw_storage_plus::UniqueIndex::new(|d| d.owner.clone(), "mno"),
-        };
-        cw_storage_plus::IndexedMap::new("mno", indexes)
-    }
-
-    let stored_mixnode_bonds: Vec<_> = mixnodes_old()
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .flatten()
-        .map(|record| crate::mixnodes::storage::StoredMixnodeBond {
-            pledge_amount: record.1.pledge_amount,
-            owner: record.1.owner,
-            layer: record.1.layer,
-            block_height: record.1.block_height,
-            mix_node: record.1.mix_node,
-            proxy: record.1.proxy,
-        })
-        .collect();
-    for stored_mixnode_bond in stored_mixnode_bonds {
-        crate::mixnodes::storage::mixnodes().save(
-            deps.storage,
-            stored_mixnode_bond.identity(),
-            &stored_mixnode_bond,
-        )?;
-    }
 
     Ok(Default::default())
 }

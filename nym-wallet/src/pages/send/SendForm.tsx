@@ -13,8 +13,7 @@ export const SendForm = ({ transferFee }: { transferFee?: string }) => {
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <Typography variant="caption">Your address</Typography>
-        <Typography>{clientDetails?.client_address}</Typography>
+        <Typography variant="body2">Your address: {clientDetails?.client_address}</Typography>
       </Grid>
 
       <Grid item xs={12}>

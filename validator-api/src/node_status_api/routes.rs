@@ -148,7 +148,10 @@ pub(crate) async fn get_mixnode_reward_estimation(
                 };
                 Ok(Json(reponse))
             }
-            Err(e) => Err(ErrorResponse::new(e.to_string(), Status::InternalServerError)),
+            Err(e) => Err(ErrorResponse::new(
+                e.to_string(),
+                Status::InternalServerError,
+            )),
         }
     } else {
         Err(ErrorResponse::new(

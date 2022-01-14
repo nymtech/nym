@@ -18,7 +18,7 @@ beforeEach(async () => {
         mnemonic = validator.randomMnemonic();
     }
    
-    wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic)
+    wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic);
     
     signingClient = await SigningClient.connectWithNymSigner(
         wallet,
@@ -85,7 +85,7 @@ describe("simple actions to simulate a users actions for nym", () => {
             sphinx_key: "",
             identity_key: "",
             location: "earth"
-        }
+        };
        
         const ownerSignature = "some signature";
        

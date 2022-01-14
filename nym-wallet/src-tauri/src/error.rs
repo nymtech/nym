@@ -1,6 +1,7 @@
 use serde::{Serialize, Serializer};
 use thiserror::Error;
 use validator_client::nymd::error::NymdError;
+use validator_client::validator_api::error::ValidatorAPIError;
 
 #[derive(Error, Debug)]
 pub enum BackendError {
@@ -28,6 +29,11 @@ pub enum BackendError {
   ErrorReport {
     #[from]
     source: eyre::Report,
+  },
+  #[error("{source}")]
+  ValidatorApiError {
+    #[from]
+    source: ValidatorAPIError,
   },
   #[error("Client has not been initialized yet, connect with mnemonic to initialize")]
   ClientNotInitialized,

@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd_client::Client;
+use crate::rewarding::EpochRewardParams;
+use ::time::OffsetDateTime;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;
-use mixnet_contract::{ContractStateParams, GatewayBond, MixNodeBond, RewardingIntervalResponse};
+use mixnet_contract_common::{
+    ContractStateParams, GatewayBond, IdentityKey, IdentityKeyRef, MixNodeBond,
+    RewardingIntervalResponse,
+};
 use rand::prelude::SliceRandom;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha20Rng;
@@ -12,9 +17,10 @@ use rocket::fairing::AdHoc;
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
+use validator_api_requests::models::MixnodeStatus;
 use validator_client::nymd::hash::SHA256_HASH_SIZE;
 use validator_client::nymd::CosmWasmClient;
 
@@ -42,28 +48,40 @@ struct ValidatorCacheInner {
 
     current_mixnode_rewarded_set_size: AtomicU32,
     current_mixnode_active_set_size: AtomicU32,
+
+    current_reward_params: RwLock<Cache<EpochRewardParams>>,
+}
+
+fn current_unix_timestamp() -> i64 {
+    let now = OffsetDateTime::now_utc();
+    now.unix_timestamp()
 }
 
 #[derive(Default, Serialize, Clone)]
 pub struct Cache<T> {
     value: T,
-    as_at: u64,
+    as_at: i64,
 }
 
 impl<T: Clone> Cache<T> {
+    fn new(value: T) -> Self {
+        Cache {
+            value,
+            as_at: current_unix_timestamp(),
+        }
+    }
+
     fn set(&mut self, value: T) {
         self.value = value;
-        self.as_at = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
+        self.as_at = current_unix_timestamp()
     }
 
     fn renew(&mut self) {
-        self.as_at = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
+        self.as_at = current_unix_timestamp()
+    }
+
+    pub fn timestamp(&self) -> i64 {
+        self.as_at
     }
 
     pub fn into_inner(self) -> T {
@@ -102,6 +120,8 @@ impl<C> ValidatorCacheRefresher<C> {
             )
             .await?;
 
+        let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
+
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
             mixnodes.len(),
@@ -115,6 +135,7 @@ impl<C> ValidatorCacheRefresher<C> {
                 contract_settings,
                 current_rewarding_interval,
                 rewarding_block_hash,
+                epoch_rewarding_params,
             )
             .await;
 
@@ -225,6 +246,7 @@ impl ValidatorCache {
         state: ContractStateParams,
         rewarding_interval: RewardingIntervalResponse,
         rewarding_block_hash: Option<[u8; SHA256_HASH_SIZE]>,
+        epoch_rewarding_params: EpochRewardParams,
     ) {
         // if the rewarding is currently in progress, don't mess with the rewarded/active sets
         // as most likely will be changed next time this function is called
@@ -270,6 +292,11 @@ impl ValidatorCache {
 
         self.inner.mixnodes.write().await.set(mixnodes);
         self.inner.gateways.write().await.set(gateways);
+        self.inner
+            .current_reward_params
+            .write()
+            .await
+            .set(epoch_rewarding_params);
     }
 
     pub async fn mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
@@ -305,6 +332,58 @@ impl ValidatorCache {
         }
     }
 
+    pub(crate) async fn epoch_reward_params(&self) -> Cache<EpochRewardParams> {
+        self.inner.current_reward_params.read().await.clone()
+    }
+
+    pub async fn mixnode_details(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> (Option<MixNodeBond>, MixnodeStatus) {
+        // it might not be the most optimal to possibly iterate the entire vector to find (or not)
+        // the relevant value. However, the vectors are relatively small (< 10_000 elements) and
+        // the implementation for active/rewarded sets might change soon so there's no point in premature optimisation
+        // with HashSets
+        let rewarded_mixnodes = &self.inner.rewarded_mixnodes.read().await.value;
+        let active_set_size = self
+            .inner
+            .current_mixnode_active_set_size
+            .load(Ordering::SeqCst) as usize;
+
+        // see if node is in the top active_set_size of rewarded nodes, i.e. it's active
+        if let Some(bond) = rewarded_mixnodes
+            .iter()
+            .take(active_set_size)
+            .find(|mix| mix.mix_node.identity_key == identity)
+        {
+            (Some(bond.clone()), MixnodeStatus::Active)
+            // see if it's in the bottom part of the rewarded set, i.e. it's in standby
+        } else if let Some(bond) = rewarded_mixnodes
+            .iter()
+            .skip(active_set_size)
+            .find(|mix| mix.mix_node.identity_key == identity)
+        {
+            (Some(bond.clone()), MixnodeStatus::Standby)
+            // if it's not in the rewarded set see if its bonded at all
+        } else if let Some(bond) = self
+            .inner
+            .mixnodes
+            .read()
+            .await
+            .value
+            .iter()
+            .find(|mix| mix.mix_node.identity_key == identity)
+        {
+            (Some(bond.clone()), MixnodeStatus::Inactive)
+        } else {
+            (None, MixnodeStatus::NotFound)
+        }
+    }
+
+    pub async fn mixnode_status(&self, identity: IdentityKey) -> MixnodeStatus {
+        self.mixnode_details(&identity).await.1
+    }
+
     pub fn initialised(&self) -> bool {
         self.inner.initialised.load(Ordering::Relaxed)
     }
@@ -332,6 +411,7 @@ impl ValidatorCacheInner {
             rewarded_mixnodes: RwLock::new(Cache::default()),
             current_mixnode_rewarded_set_size: Default::default(),
             current_mixnode_active_set_size: Default::default(),
+            current_reward_params: RwLock::new(Cache::new(EpochRewardParams::new_empty())),
         }
     }
 }

@@ -1,12 +1,10 @@
 use super::{PledgeData, VestingPeriod};
 use crate::contract::NUM_VESTING_PERIODS;
 use crate::errors::ContractError;
-use crate::storage::save_account;
+use crate::storage::{save_account, KEY};
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract::IdentityKey;
-use rand::rngs::StdRng;
-use rand::{RngCore, SeedableRng};
+use mixnet_contract_common::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -20,17 +18,10 @@ const BALANCE_SUFFIX: &str = "ba";
 const PLEDGE_SUFFIX: &str = "bo";
 const GATEWAY_SUFFIX: &str = "ga";
 
-fn generate_storage_key(b: &[u8], storage: &dyn Storage) -> Result<String, ContractError> {
-    let mut rng = StdRng::seed_from_u64(b.iter().fold(0, |acc, x| acc + *x as u64));
-    // Be paranoid and check for collisions
-    loop {
-        let key = rng.next_u64().to_string();
-        let balance_key = format!("{}{}", key, BALANCE_SUFFIX);
-        let balance: Item<Uint128> = Item::new(&balance_key);
-        if balance.may_load(storage)?.is_none() {
-            return Ok(key);
-        }
-    }
+fn generate_storage_key(storage: &mut dyn Storage) -> Result<u32, ContractError> {
+    let key = KEY.may_load(storage)?.unwrap_or(0) + 1;
+    KEY.save(storage, &key)?;
+    Ok(key)
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -52,7 +43,7 @@ impl Account {
         periods: Vec<VestingPeriod>,
         storage: &mut dyn Storage,
     ) -> Result<Self, ContractError> {
-        let storage_key = generate_storage_key(owner_address.as_bytes(), storage)?;
+        let storage_key = generate_storage_key(storage)?.to_string();
         let amount = coin.amount;
         let account = Account {
             owner_address,

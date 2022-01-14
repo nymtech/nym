@@ -6,7 +6,7 @@ import { InfoTooltip } from '../../components/InfoToolTip'
 export const Profile = () => {
   return (
     <>
-      <Box sx={{ p: 4 }}>
+      <Box sx={{ p: 3 }}>
         <Stack spacing={3}>
           <TextField label="Mixnode name" disabled />
           <TextField multiline label="Mixnode description" rows={3} disabled />
@@ -18,12 +18,10 @@ export const Profile = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          borderTop: (theme) => `1px solid ${theme.palette.grey[300]}`,
-          bgcolor: 'grey.200',
-          padding: 2,
+          padding: 3,
         }}
       >
-        <Button variant="contained" color="primary" type="submit" disableElevation disabled>
+        <Button variant="contained" size="large" color="primary" type="submit" disableElevation disabled>
           Update
         </Button>
       </Box>

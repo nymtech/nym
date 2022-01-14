@@ -7,8 +7,8 @@ use crate::support::helpers::generate_storage_key;
 use config::defaults::DENOM;
 use cosmwasm_std::{coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
 use cw_storage_plus::PrimaryKey;
-use mixnet_contract::Delegation;
-use mixnet_contract::IdentityKey;
+use mixnet_contract_common::events::{new_delegation_event, new_undelegation_event};
+use mixnet_contract_common::{Delegation, IdentityKey};
 use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 fn validate_delegation_stake(mut delegation: Vec<Coin>) -> Result<Coin, ContractError> {
@@ -113,16 +113,21 @@ pub(crate) fn _try_delegate_to_mixnode(
                 }
                 None => Delegation::new(
                     delegate.to_owned(),
-                    mix_identity,
-                    amount,
+                    mix_identity.clone(),
+                    amount.clone(),
                     env.block.height,
-                    proxy,
+                    proxy.clone(),
                 ),
             })
         },
     )?;
 
-    Ok(Response::default())
+    Ok(Response::new().add_event(new_delegation_event(
+        &delegate,
+        &proxy,
+        &amount,
+        &mix_identity,
+    )))
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode(
@@ -204,14 +209,19 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
                 let msg = Some(VestingContractExecuteMsg::TrackUndelegation {
                     owner: delegate.as_str().to_string(),
                     mix_identity: mix_identity.clone(),
-                    amount: old_delegation.amount,
+                    amount: old_delegation.amount.clone(),
                 });
 
                 let track_undelegation_msg = wasm_execute(proxy, &msg, coins(0, DENOM))?;
 
                 response = response.add_message(track_undelegation_msg);
             }
-            Ok(response)
+            Ok(response.add_event(new_undelegation_event(
+                &delegate,
+                &proxy,
+                &old_delegation,
+                &mix_identity,
+            )))
         }
     }
 }
@@ -530,7 +540,7 @@ mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 env1,
-                mock_info(delegation_owner1.as_str(), &[delegation1.clone()]),
+                mock_info(delegation_owner1.as_str(), &[delegation1]),
                 identity.clone(),
             )
             .unwrap();
@@ -544,7 +554,7 @@ mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 env2,
-                mock_info(delegation_owner2.as_str(), &[delegation2.clone()]),
+                mock_info(delegation_owner2.as_str(), &[delegation2]),
                 identity.clone(),
             )
             .unwrap();
@@ -699,7 +709,7 @@ mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(delegation_owner.as_str(), &vec![delegation_amount.clone()]),
+                mock_info(delegation_owner.as_str(), &[delegation_amount.clone()]),
                 identity.clone(),
             )
             .unwrap();
@@ -722,6 +732,7 @@ mod tests {
 
     #[cfg(test)]
     mod removing_mix_stake_delegation {
+        use crate::delegations::queries::query_mixnode_delegation;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::mock_env;
         use cosmwasm_std::testing::mock_info;
@@ -774,11 +785,27 @@ mod tests {
                 identity.clone(),
             )
             .unwrap();
-            assert_eq!(
-                Ok(Response::new().add_message(BankMsg::Send {
+            let delegation = query_mixnode_delegation(
+                deps.as_ref(),
+                identity.clone(),
+                delegation_owner.clone().into_string(),
+            )
+            .unwrap();
+
+            let expected_response = Response::new()
+                .add_message(BankMsg::Send {
                     to_address: delegation_owner.clone().into(),
                     amount: coins(100, DENOM),
-                })),
+                })
+                .add_event(new_undelegation_event(
+                    &delegation_owner,
+                    &None,
+                    &delegation,
+                    &identity,
+                ));
+
+            assert_eq!(
+                Ok(expected_response),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
                     mock_info(delegation_owner.as_str(), &[]),
@@ -819,12 +846,27 @@ mod tests {
                 identity.clone(),
             )
             .unwrap();
-            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
-            assert_eq!(
-                Ok(Response::new().add_message(BankMsg::Send {
+            let delegation = query_mixnode_delegation(
+                deps.as_ref(),
+                identity.clone(),
+                delegation_owner.clone().into_string(),
+            )
+            .unwrap();
+            let expected_response = Response::new()
+                .add_message(BankMsg::Send {
                     to_address: delegation_owner.clone().into(),
                     amount: coins(100, DENOM),
-                })),
+                })
+                .add_event(new_undelegation_event(
+                    &delegation_owner,
+                    &None,
+                    &delegation,
+                    &identity,
+                ));
+
+            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
+            assert_eq!(
+                Ok(expected_response),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
                     mock_info(delegation_owner.as_str(), &[]),
@@ -853,7 +895,7 @@ mod tests {
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(delegation_owner1.as_str(), &[delegation1.clone()]),
+                mock_info(delegation_owner1.as_str(), &[delegation1]),
                 identity.clone(),
             )
             .is_ok());

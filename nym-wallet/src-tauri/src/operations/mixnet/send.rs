@@ -1,6 +1,6 @@
-use crate::client;
 use crate::coin::Coin;
 use crate::error::BackendError;
+use crate::nymd_client;
 use crate::state::State;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -51,13 +51,13 @@ pub async fn send(
 ) -> Result<TauriTxResult, BackendError> {
   let address = AccountId::from_str(address)?;
   let cosmos_amount: CosmosCoin = amount.clone().try_into()?;
-  let result = client!(state)
+  let result = nymd_client!(state)
     .send(&address, vec![cosmos_amount], memo)
     .await?;
   Ok(TauriTxResult::new(
     result,
     TransactionDetails {
-      from_address: client!(state).address().to_string(),
+      from_address: nymd_client!(state).address().to_string(),
       to_address: address.to_string(),
       amount,
     },

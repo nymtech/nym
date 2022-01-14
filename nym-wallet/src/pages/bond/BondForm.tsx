@@ -125,7 +125,7 @@ export const BondForm = ({
 
   return (
     <FormControl fullWidth>
-      <Box sx={{ padding: [3, 5] }}>
+      <Box sx={{ p: 3 }}>
         <Grid container spacing={3}>
           <Grid container item justifyContent="space-between">
             <Grid item>
@@ -375,9 +375,8 @@ export const BondForm = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-          bgcolor: 'grey.100',
-          padding: 2,
+          padding: 3,
+          pt: 0,
         }}
       >
         <Button
@@ -389,6 +388,7 @@ export const BondForm = ({
           disableElevation
           onClick={handleSubmit(onSubmit)}
           endIcon={isSubmitting && <CircularProgress size={20} />}
+          size="large"
         >
           Bond
         </Button>

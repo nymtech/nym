@@ -1,6 +1,6 @@
 import React, { useContext, useEffect } from 'react'
 import { Alert, Button, Grid, Link, Typography } from '@mui/material'
-import { OpenInNew } from '@mui/icons-material'
+import { AccountBalanceWalletOutlined, OpenInNew } from '@mui/icons-material'
 import { NymCard } from '../../components'
 import { Layout } from '../../layouts'
 
@@ -15,7 +15,7 @@ export const Balance = () => {
 
   return (
     <Layout>
-      <NymCard title="Balance" data-testid="check-balance">
+      <NymCard title="Balance" data-testid="check-balance" Icon={AccountBalanceWalletOutlined}>
         <Grid container direction="column" spacing={2}>
           <Grid item>
             {userBalance.error && (

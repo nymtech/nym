@@ -186,7 +186,7 @@ impl Default for MessageReceiver {
 mod message_receiver {
     use super::*;
     use crypto::asymmetric::identity;
-    use mixnet_contract::Layer;
+    use mixnet_contract_common::Layer;
     use nymsphinx_addressing::clients::Recipient;
     use rand::rngs::OsRng;
     use std::collections::HashMap;

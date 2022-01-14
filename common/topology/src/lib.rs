@@ -3,7 +3,7 @@
 
 use crate::filter::VersionFilterable;
 use log::warn;
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract_common::{GatewayBond, MixNodeBond};
 use nymsphinx_addressing::nodes::NodeIdentity;
 use nymsphinx_types::Node as SphinxNode;
 use rand::Rng;
@@ -272,7 +272,7 @@ mod converting_mixes_to_vec {
         use crypto::asymmetric::{encryption, identity};
 
         use super::*;
-        use mixnet_contract::Layer;
+        use mixnet_contract_common::Layer;
 
         #[test]
         fn returns_a_vec_with_hashmap_values() {

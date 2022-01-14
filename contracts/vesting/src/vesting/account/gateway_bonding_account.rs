@@ -3,7 +3,10 @@ use crate::errors::ContractError;
 use crate::traits::GatewayBondingAccount;
 use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
-use mixnet_contract::{ExecuteMsg as MixnetExecuteMsg, Gateway};
+use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, Gateway};
+use vesting_contract_common::events::{
+    new_vesting_gateway_bonding_event, new_vesting_gateway_unbonding_event,
+};
 
 use super::Account;
 
@@ -50,8 +53,8 @@ impl GatewayBondingAccount for Account {
         self.save_gateway_pledge(pledge_data, storage)?;
 
         Ok(Response::new()
-            .add_attribute("action", "bond gateway on behalf")
-            .add_message(bond_gateway_msg))
+            .add_message(bond_gateway_msg)
+            .add_event(new_vesting_gateway_bonding_event()))
     }
 
     fn try_unbond_gateway(&self, storage: &dyn Storage) -> Result<Response, ContractError> {
@@ -63,8 +66,8 @@ impl GatewayBondingAccount for Account {
             let unbond_msg = wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![])?;
 
             Ok(Response::new()
-                .add_attribute("action", "unbond gateway on behalf")
-                .add_message(unbond_msg))
+                .add_message(unbond_msg)
+                .add_event(new_vesting_gateway_unbonding_event()))
         } else {
             Err(ContractError::NoBondFound(
                 self.owner_address().as_str().to_string(),

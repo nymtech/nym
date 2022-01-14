@@ -43,9 +43,9 @@ describe("call out to the validator api and run queries", () => {
 
     test("get cached gateways and it should be six", async () => {
         try {
-            //current gateways running in sandbox-testnet 6
+            //current gateways running in sandbox-testnet 8
             let response = await client.getCachedGateways();
-            expect(response.length).toStrictEqual(6);
+            expect(response.length).toStrictEqual(8);
         }
         catch (e) {
             console.log(e);

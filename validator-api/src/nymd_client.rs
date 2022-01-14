@@ -81,7 +81,6 @@ impl Client<SigningNymdClient> {
 
 impl<C> Client<C> {
     // a helper function for the future to obtain the current block timestamp
-    #[allow(dead_code)]
     pub(crate) async fn current_block_timestamp(
         &self,
     ) -> Result<TendermintTime, ValidatorClientError>

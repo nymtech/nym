@@ -260,29 +260,32 @@ impl ValidatorCache {
         let mut in_active = 0;
         let mut in_reserve = 0;
         let mixnodes = self.inner.mixnodes.read().await.value.clone();
-        let nodes_to_select = self
+        let rewarded_set_size = self
             .inner
             .current_mixnode_rewarded_set_size
             .load(Ordering::SeqCst) as usize;
+        let active_set_size = self
+            .inner
+            .current_mixnode_active_set_size
+            .load(Ordering::SeqCst) as usize;
         let mut rng = ChaCha20Rng::from_entropy();
+
         for _ in 0..100 {
-            let rewarded_set = self.stake_weighted_choice(&mixnodes, nodes_to_select, &mut rng);
+            let mut rewarded_set =
+                self.stake_weighted_choice(&mixnodes, rewarded_set_size, &mut rng);
+            let reserve_set = rewarded_set
+                .split_off(active_set_size)
+                .iter()
+                .map(|bond| bond.identity().clone())
+                .collect::<HashSet<IdentityKey>>();
             let active_set = rewarded_set
                 .iter()
-                .take(
-                    self.inner
-                        .current_mixnode_active_set_size
-                        .load(Ordering::SeqCst) as usize,
-                )
                 .map(|bond| bond.identity().clone())
                 .collect::<HashSet<IdentityKey>>();
-            let rewarded_set = rewarded_set
-                .iter()
-                .map(|bond| bond.identity().clone())
-                .collect::<HashSet<IdentityKey>>();
+
             if active_set.contains(&target_mixnode_id) {
                 in_active += 1;
-            } else if rewarded_set.contains(&target_mixnode_id) {
+            } else if reserve_set.contains(&target_mixnode_id) {
                 in_reserve += 1;
             }
         }

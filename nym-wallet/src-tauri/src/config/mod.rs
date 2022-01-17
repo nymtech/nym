@@ -112,4 +112,8 @@ impl Config {
       .parse()
       .expect("stored vesting contract address is not a valid account address")
   }
+
+  pub fn get_mnemonic(&self) -> &str {
+    &self.base.mnemonic
+  }
 }

@@ -13,7 +13,7 @@ pub struct InstantiateMsg {
 }
 
 // TODO: We've removed JsonSchema derive from here due to Epoch, it needs to be put back
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     BondMixnode {
@@ -84,7 +84,7 @@ pub enum ExecuteMsg {
 }
 
 // TODO: See comment above for JsonSchema derive
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetContractVersion {},

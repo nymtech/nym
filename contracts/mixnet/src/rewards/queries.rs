@@ -28,6 +28,7 @@ pub(crate) fn query_rewarding_status(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::epoch::storage as epoch_storage;
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
     use crate::support::tests;
     use crate::support::tests::test_helpers;
@@ -38,12 +39,12 @@ pub(crate) mod tests {
         use super::storage;
         use super::*;
         use crate::delegations::transactions::try_delegate_to_mixnode;
+        use crate::epoch;
         use crate::rewards::transactions::{
-            try_begin_mixnode_rewarding, try_finish_mixnode_rewarding, try_reward_mixnode,
-            try_reward_next_mixnode_delegators,
+            try_reward_mixnode, try_reward_next_mixnode_delegators,
         };
         use config::defaults::DENOM;
-        use cosmwasm_std::{coin, Addr};
+        use cosmwasm_std::{coin, Addr, Timestamp};
         use mixnet_contract_common::{
             RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
         };
@@ -72,17 +73,15 @@ pub(crate) mod tests {
 
             // node was rewarded but for different epoch
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-            try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
             try_reward_mixnode(
                 deps.as_mut(),
                 env,
-                info.clone(),
+                info,
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),
-                1,
+                0,
             )
             .unwrap();
-            try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
 
             assert!(query_rewarding_status(deps.as_ref(), node_identity, 2)
                 .unwrap()
@@ -110,19 +109,17 @@ pub(crate) mod tests {
             env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-            try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
             try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
-                info.clone(),
+                info,
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),
-                1,
+                0,
             )
             .unwrap();
-            try_finish_mixnode_rewarding(deps.as_mut(), info, 1).unwrap();
 
-            let res = query_rewarding_status(deps.as_ref(), node_identity, 1).unwrap();
+            let res = query_rewarding_status(deps.as_ref(), node_identity, 0).unwrap();
             assert!(matches!(res.status, Some(RewardingStatus::Complete(..))));
 
             match res.status.unwrap() {
@@ -158,9 +155,17 @@ pub(crate) mod tests {
             }
 
             env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.time = Timestamp::from_seconds(
+                (epoch_storage::CURRENT_EPOCH
+                    .load(&deps.storage)
+                    .unwrap()
+                    .next_epoch()
+                    .start_unix_timestamp()
+                    + 123) as u64,
+            );
+            epoch::transactions::try_advance_epoch(env.clone(), &mut deps.storage).unwrap();
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-            try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 2).unwrap();
 
             try_reward_mixnode(
                 deps.as_mut(),
@@ -168,15 +173,15 @@ pub(crate) mod tests {
                 info.clone(),
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),
-                2,
+                1,
             )
             .unwrap();
 
             // rewards all pending
-            try_reward_next_mixnode_delegators(deps.as_mut(), info, node_identity.to_string(), 2)
+            try_reward_next_mixnode_delegators(deps.as_mut(), info, node_identity.to_string(), 1)
                 .unwrap();
 
-            let res = query_rewarding_status(deps.as_ref(), node_identity, 2).unwrap();
+            let res = query_rewarding_status(deps.as_ref(), node_identity, 1).unwrap();
             assert!(matches!(res.status, Some(RewardingStatus::Complete(..))));
 
             match res.status.unwrap() {
@@ -223,7 +228,6 @@ pub(crate) mod tests {
             env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-            try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 1).unwrap();
 
             try_reward_mixnode(
                 deps.as_mut(),
@@ -231,11 +235,11 @@ pub(crate) mod tests {
                 info,
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),
-                1,
+                0,
             )
             .unwrap();
 
-            let res = query_rewarding_status(deps.as_ref(), node_identity, 1).unwrap();
+            let res = query_rewarding_status(deps.as_ref(), node_identity, 0).unwrap();
             assert!(matches!(
                 res.status,
                 Some(RewardingStatus::PendingNextDelegatorPage(..))

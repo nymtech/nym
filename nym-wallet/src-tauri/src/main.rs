@@ -82,6 +82,7 @@ mod test {
   ts_rs::export! {
     mixnet_contract_common::MixNode => "../src/types/rust/mixnode.ts",
     crate::coin::Coin => "../src/types/rust/coin.ts",
+    crate::network::Network => "../src/types/rust/network.ts",
     crate::mixnet::account::Balance => "../src/types/rust/balance.ts",
     mixnet_contract_common::Gateway => "../src/types/rust/gateway.ts",
     crate::mixnet::send::TauriTxResult => "../src/types/rust/tauritxresult.ts",

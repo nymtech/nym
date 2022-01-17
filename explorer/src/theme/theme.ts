@@ -256,6 +256,19 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
           },
         },
       },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            borderRadius: '10px',
+          },
+          elevation1: {
+            backgroundImage: mode === 'dark' ? 'none' : undefined,
+          },
+          elevation2: {
+            backgroundImage: mode === 'dark' ? 'none' : undefined,
+          },
+        },
+      },
     },
     palette,
   };

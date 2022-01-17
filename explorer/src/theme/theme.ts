@@ -100,7 +100,7 @@ const networkExplorerPalette = (
     },
     topNav: {
       ...variant.topNav,
-      appBar: '#070B15',
+      appBar: '#080715',
       socialIcons: '#F2F2F2',
     },
     footer: {

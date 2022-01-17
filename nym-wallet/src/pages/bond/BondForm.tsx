@@ -20,6 +20,7 @@ import { validationSchema } from './validationSchema'
 import { Coin, Gateway, MixNode } from '../../types'
 import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 import { checkHasEnoughFunds } from '../../utils'
+import { Fee } from '../../components'
 
 type TBondFormFields = {
   withAdvancedOptions: boolean
@@ -78,12 +79,10 @@ const formatData = (data: TBondFormFields) => {
 
 export const BondForm = ({
   disabled,
-  fees,
   onError,
   onSuccess,
 }: {
   disabled: boolean
-  fees?: { [EnumNodeType.mixnode]: Coin; [EnumNodeType.gateway]?: Coin }
   onError: (message?: string) => void
   onSuccess: (details: { address: string; amount: string }) => void
 }) => {
@@ -99,7 +98,7 @@ export const BondForm = ({
     defaultValues,
   })
 
-  const { userBalance } = useContext(ClientContext)
+  const { userBalance, getBondDetails } = useContext(ClientContext)
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
   const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions)
@@ -114,7 +113,8 @@ export const BondForm = ({
     const pledge = await majorToMinor(data.amount)
 
     await bond({ type: data.nodeType, ownerSignature: data.ownerSignature, data: formattedData, pledge })
-      .then(() => {
+      .then(async () => {
+        await getBondDetails()
         userBalance.fetchBalance()
         onSuccess({ address: data.identityKey, amount: data.amount })
       })
@@ -358,16 +358,9 @@ export const BondForm = ({
               )}
             </>
           )}
-          {fees && (
-            <Grid item xs={12}>
-              <Typography sx={{ color: 'nym.fee' }}>
-                {' '}
-                {`Bonding fee: ${
-                  watchNodeType === EnumNodeType.mixnode ? fees.mixnode.amount : fees?.gateway?.amount
-                } ${MAJOR_CURRENCY}`}
-              </Typography>
-            </Grid>
-          )}
+          <Grid item>
+            {!disabled ? <Fee feeType={EnumNodeType.mixnode ? 'BondMixnode' : 'BondGateway'} /> : <div />}
+          </Grid>
         </Grid>
       </Box>
       <Box

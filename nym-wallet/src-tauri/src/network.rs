@@ -15,6 +15,12 @@ pub enum Network {
   SANDBOX,
 }
 
+impl Default for Network {
+  fn default() -> Self {
+    Network::SANDBOX
+  }
+}
+
 impl Into<ConfigNetwork> for Network {
   fn into(self) -> ConfigNetwork {
     match self {

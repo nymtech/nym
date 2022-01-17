@@ -24,9 +24,6 @@ pub struct Config {
 pub struct Base {
   /// Information on all the networks that the wallet connects to.
   networks: SupportedNetworks,
-
-  /// Mnemonic (currently of the network monitor) used for rewarding
-  mnemonic: String,
 }
 
 impl Default for Base {
@@ -34,7 +31,6 @@ impl Default for Base {
     let networks = Network::iter().map(|network| network.into()).collect();
     Base {
       networks: SupportedNetworks::new(networks),
-      mnemonic: String::default(),
     }
   }
 }
@@ -111,9 +107,5 @@ impl Config {
       .expect("No vesting contract address found in config")
       .parse()
       .expect("stored vesting contract address is not a valid account address")
-  }
-
-  pub fn get_mnemonic(&self) -> &str {
-    &self.base.mnemonic
   }
 }

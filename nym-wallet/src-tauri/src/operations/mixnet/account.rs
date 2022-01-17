@@ -3,11 +3,13 @@ use crate::error::BackendError;
 use crate::network::Network;
 use crate::nymd_client;
 use crate::state::State;
+
 use bip39::{Language, Mnemonic};
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 use std::sync::Arc;
+use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -16,7 +18,6 @@ pub struct Account {
   contract_address: String,
   client_address: String,
   denom: Denom,
-  mnemonic: Option<String>,
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -32,12 +33,7 @@ pub async fn connect_with_mnemonic(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
   let mnemonic = Mnemonic::from_str(&mnemonic)?;
-  _connect_with_mnemonic(
-    mnemonic,
-    Network::try_from(config::defaults::default_network())?,
-    state,
-  )
-  .await
+  _connect_with_mnemonic(mnemonic, state).await
 }
 
 #[tauri::command]
@@ -70,9 +66,8 @@ pub async fn create_new_account(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
   let rand_mnemonic = random_mnemonic();
-  let mut client = connect_with_mnemonic(rand_mnemonic.to_string(), state).await?;
-  client.mnemonic = Some(rand_mnemonic.to_string());
-  Ok(client)
+  let account = connect_with_mnemonic(rand_mnemonic.to_string(), state).await?;
+  Ok(account)
 }
 
 #[tauri::command]
@@ -80,11 +75,25 @@ pub async fn switch_network(
   state: tauri::State<'_, Arc<RwLock<State>>>,
   network: Network,
 ) -> Result<Account, BackendError> {
-  let mnemonic = {
+  let account = {
     let r_state = state.read().await;
-    Mnemonic::from_str(r_state.config().get_mnemonic())?
+    let client = r_state.client(network)?;
+
+    let contract_address = client.nymd.mixnet_contract_address()?.to_string();
+    let client_address = client.nymd.address().to_string();
+    let denom = client.nymd.denom()?;
+
+    Account {
+      contract_address,
+      client_address,
+      denom: denom.try_into()?,
+    }
   };
-  _connect_with_mnemonic(mnemonic, network, state).await
+
+  let mut w_state = state.write().await;
+  w_state.set_network(network);
+
+  Ok(account)
 }
 
 fn random_mnemonic() -> Mnemonic {
@@ -94,38 +103,44 @@ fn random_mnemonic() -> Mnemonic {
 
 async fn _connect_with_mnemonic(
   mnemonic: Mnemonic,
-  network: Network,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
-  let client = {
-    let config = state.read().await.config();
-    match validator_client::Client::new_signing(
-      validator_client::Config::new(
-        config.get_nymd_validator_url(network),
-        config.get_validator_api_url(network),
-        Some(config.get_mixnet_contract_address(network)),
-        Some(config.get_vesting_contract_address(network)),
-      ),
-      mnemonic,
-    ) {
-      Ok(client) => client,
-      Err(e) => panic!("{}", e),
+  let default_network = Network::try_from(config::defaults::default_network())?;
+  let mut default_account = None;
+  for network in Network::iter() {
+    let client = {
+      let config = state.read().await.config();
+      match validator_client::Client::new_signing(
+        validator_client::Config::new(
+          config.get_nymd_validator_url(network),
+          config.get_validator_api_url(network),
+          Some(config.get_mixnet_contract_address(network)),
+          Some(config.get_vesting_contract_address(network)),
+        ),
+        mnemonic.clone(),
+      ) {
+        Ok(client) => client,
+        Err(e) => panic!("{}", e),
+      }
+    };
+
+    if network == default_network {
+      let contract_address = client.nymd.mixnet_contract_address()?.to_string();
+      let client_address = client.nymd.address().to_string();
+      let denom = client.nymd.denom()?;
+
+      default_account = Some(Account {
+        contract_address,
+        client_address,
+        denom: denom.try_into()?,
+      });
     }
-  };
 
-  let contract_address = client.nymd.mixnet_contract_address()?.to_string();
-  let client_address = client.nymd.address().to_string();
-  let denom = client.nymd.denom()?;
+    let mut w_state = state.write().await;
+    w_state.add_client(network, client);
+  }
 
-  let account = Account {
-    contract_address,
-    client_address,
-    denom: denom.try_into()?,
-    mnemonic: None,
-  };
-
-  let mut w_state = state.write().await;
-  w_state.set_client(client);
-
-  Ok(account)
+  default_account.ok_or(BackendError::NetworkNotSupported(
+    config::defaults::default_network(),
+  ))
 }

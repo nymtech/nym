@@ -201,7 +201,7 @@ pub(crate) fn try_reward_next_mixnode_delegators(
 
     match storage::REWARDING_STATUS.may_load(
         deps.storage,
-        (rewarding_interval_nonce.into(), mix_identity.clone()),
+        (rewarding_interval_nonce, mix_identity.clone()),
     )? {
         None => {
             // we haven't called 'regular' try_reward_mixnode, i.e. the operator itself
@@ -271,7 +271,7 @@ pub(crate) fn try_reward_mixnode(
     // check if the mixnode hasn't been rewarded in this rewarding interval already
     match storage::REWARDING_STATUS.may_load(
         deps.storage,
-        (rewarding_interval_nonce.into(), mix_identity.clone()),
+        (rewarding_interval_nonce, mix_identity.clone()),
     )? {
         None => (),
         Some(RewardingStatus::Complete(_)) => {
@@ -304,7 +304,7 @@ pub(crate) fn try_reward_mixnode(
     if current_bond.block_height + storage::MINIMUM_BLOCK_AGE_FOR_REWARDING > env.block.height {
         storage::REWARDING_STATUS.save(
             deps.storage,
-            (rewarding_interval_nonce.into(), mix_identity.clone()),
+            (rewarding_interval_nonce, mix_identity.clone()),
             &RewardingStatus::Complete(Default::default()),
         )?;
 
@@ -320,7 +320,7 @@ pub(crate) fn try_reward_mixnode(
     if params.uptime() == 0 {
         storage::REWARDING_STATUS.save(
             deps.storage,
-            (rewarding_interval_nonce.into(), mix_identity.clone()),
+            (rewarding_interval_nonce, mix_identity.clone()),
             &RewardingStatus::Complete(Default::default()),
         )?;
 
@@ -1257,7 +1257,7 @@ pub mod tests {
 
         // it's all correctly saved
         match storage::REWARDING_STATUS
-            .load(deps.as_ref().storage, (1.into(), node_identity))
+            .load(deps.as_ref().storage, (1u32, node_identity))
             .unwrap()
         {
             RewardingStatus::Complete(result) => assert_eq!(
@@ -1635,7 +1635,7 @@ pub mod tests {
             .idx
             .mixnode
             .prefix(node_identity.clone())
-            .range(deps.as_ref().storage, None, None, Order::Ascending)
+            .range_raw(deps.as_ref().storage, None, None, Order::Ascending)
         {
             let (primary_key, delegation) = delegation.unwrap();
             let delegator_reward = Uint128::new(delegation.amount.amount.u128() - base_delegation);

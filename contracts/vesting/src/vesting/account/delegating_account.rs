@@ -111,8 +111,8 @@ impl DelegatingAccount for Account {
 
         // Iterate over keys matching the prefix and remove them from the map
         let block_times = delegations
-            .prefix_de(mix_bytes)
-            .keys_de(storage, None, None, Order::Ascending)
+            .prefix(mix_bytes)
+            .keys(storage, None, None, Order::Ascending)
             // Scan will blow up on first error
             .scan((), |_, x| x.ok())
             .collect::<Vec<u64>>();

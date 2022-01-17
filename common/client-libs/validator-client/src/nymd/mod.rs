@@ -1156,25 +1156,6 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn set_current_epoch(&self) -> Result<ExecuteResult, NymdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let fee = self.operation_fee(Operation::SetCurrentEpoch);
-
-        let req = ExecuteMsg::SetCurrentEpoch {};
-        self.client
-            .execute(
-                self.address(),
-                self.mixnet_contract_address()?,
-                &req,
-                fee,
-                "Setting current epoch",
-                Vec::new(),
-            )
-            .await
-    }
-
     pub async fn advance_current_epoch(&self) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,

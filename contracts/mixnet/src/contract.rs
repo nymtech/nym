@@ -225,9 +225,6 @@ pub fn execute(
         ExecuteMsg::AdvanceCurrentEpoch {} => {
             crate::epoch::transactions::try_advance_epoch(env, deps.storage)
         }
-        ExecuteMsg::SetCurrentEpoch {} => {
-            crate::epoch::transactions::try_set_current_epoch(env, deps.storage)
-        }
     }
 }
 

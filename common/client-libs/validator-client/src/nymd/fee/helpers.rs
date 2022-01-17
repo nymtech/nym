@@ -43,7 +43,6 @@ pub enum Operation {
     CreatePeriodicVestingAccount,
 
     AdvanceCurrentEpoch,
-    SetCurrentEpoch,
     WriteRewardedSet,
     ClearRewardedSet,
 }
@@ -84,7 +83,6 @@ impl fmt::Display for Operation {
             Operation::TrackUndelegation => f.write_str("TrackUndelegation"),
             Operation::CreatePeriodicVestingAccount => f.write_str("CreatePeriodicVestingAccount"),
             Operation::AdvanceCurrentEpoch => f.write_str("AdvanceCurrentEpoch"),
-            Operation::SetCurrentEpoch => f.write_str("SetCurrentEpoch"),
             Operation::WriteRewardedSet => f.write_str("WriteRewardedSet"),
             Operation::ClearRewardedSet => f.write_str("ClearRewardedSet"),
         }
@@ -125,7 +123,6 @@ impl Operation {
             Operation::TrackUndelegation => 175_000u64.into(),
             Operation::CreatePeriodicVestingAccount => 175_000u64.into(),
             Operation::AdvanceCurrentEpoch => 175_000u64.into(),
-            Operation::SetCurrentEpoch => 175_000u64.into(),
             Operation::WriteRewardedSet => 175_000u64.into(),
             Operation::ClearRewardedSet => 175_000u64.into(),
         }

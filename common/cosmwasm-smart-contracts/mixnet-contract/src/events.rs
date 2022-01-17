@@ -18,7 +18,6 @@ pub const SETTINGS_UPDATE_EVENT_TYPE: &str = "settings_update";
 pub const OPERATOR_REWARDING_EVENT_TYPE: &str = "mix_rewarding";
 pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
 pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
-pub const SET_CURRENT_EPOCH_EVENT_TYPE: &str = "set_current_epoch";
 pub const ADVANCE_EPOCH_EVENT_TYPE: &str = "advance_epoch";
 
 // attributes that are used in multiple places
@@ -344,10 +343,6 @@ pub fn new_change_rewarded_set_event(
         .add_attribute(REWARDED_SET_SIZE_KEY, rewarded_set_size.to_string())
         .add_attribute(NODES_IN_REWARDED_SET_KEY, nodes_in_rewarded_set.to_string())
         .add_attribute(CURRENT_EPOCH_ID_KEY, current_epoch_id.to_string())
-}
-
-pub fn new_set_current_epoch_event(epoch: Epoch) -> Event {
-    Event::new(SET_CURRENT_EPOCH_EVENT_TYPE).add_attribute(NEW_CURRENT_EPOCH_KEY, epoch.to_string())
 }
 
 pub fn new_advance_epoch_event(epoch: Epoch) -> Event {

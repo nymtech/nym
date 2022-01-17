@@ -409,19 +409,10 @@ async fn setup_rewarder(
         let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
         let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
-        let last_stored_epoch = nymd_client.get_current_epoch().await?;
-        let block_now: OffsetDateTime = nymd_client.current_block_timestamp().await?.into();
-        let actual_current_epoch = last_stored_epoch.current(block_now);
-
-        if last_stored_epoch != actual_current_epoch {
-            nymd_client.set_current_epoch().await?
-        }
-
         Ok(Some(Rewarder::new(
             nymd_client.clone(),
             validator_cache,
             node_status_storage,
-            actual_current_epoch,
             expected_monitor_test_runs(config),
             config.get_minimum_epoch_monitor_threshold(),
         )))

@@ -6,9 +6,7 @@ use crate::error::ContractError;
 use crate::error::ContractError::EpochNotInProgress;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
-use mixnet_contract_common::events::{
-    new_advance_epoch_event, new_change_rewarded_set_event, new_set_current_epoch_event,
-};
+use mixnet_contract_common::events::{new_advance_epoch_event, new_change_rewarded_set_event};
 use mixnet_contract_common::IdentityKey;
 
 pub fn try_write_rewarded_set(
@@ -69,20 +67,6 @@ pub fn try_write_rewarded_set(
         num_nodes as u32,
         current_epoch,
     )))
-}
-
-pub fn try_set_current_epoch(
-    env: Env,
-    storage: &mut dyn Storage,
-) -> Result<Response, ContractError> {
-    let current_stored = storage::CURRENT_EPOCH.load(storage)?;
-    let new_current = current_stored.current_with_timestamp(env.block.time.seconds() as i64);
-
-    if new_current != current_stored {
-        storage::CURRENT_EPOCH.save(storage, &new_current)?;
-    }
-
-    Ok(Response::new().add_event(new_set_current_epoch_event(new_current)))
 }
 
 pub fn try_advance_epoch(env: Env, storage: &mut dyn Storage) -> Result<Response, ContractError> {

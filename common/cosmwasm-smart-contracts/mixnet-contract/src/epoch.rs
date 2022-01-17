@@ -3,12 +3,13 @@
 
 use network_defaults::{DEFAULT_EPOCH_LENGTH, DEFAULT_FIRST_EPOCH_START};
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use time::OffsetDateTime;
 
 /// Representation of rewarding epoch.
-#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
 pub struct Epoch {
     id: u32,
     start: OffsetDateTime,
@@ -49,6 +50,11 @@ impl Epoch {
         self.start <= datetime && datetime <= self.end()
     }
 
+    /// Determines whether the provided unix timestamp is contained within the epoch
+    ///
+    /// # Arguments
+    ///
+    /// * `timestamp`: specified timestamp
     pub fn contains_timestamp(&self, timestamp: i64) -> bool {
         self.start_unix_timestamp() <= timestamp && timestamp <= self.end_unix_timestamp()
     }
@@ -60,7 +66,7 @@ impl Epoch {
     ///
     /// * `now`: current datetime
     pub fn current(&self, now: OffsetDateTime) -> Self {
-        let mut candidate = self.clone();
+        let mut candidate = *self;
 
         if now > self.start {
             loop {
@@ -79,8 +85,14 @@ impl Epoch {
         }
     }
 
+    /// Returns new instance of [Epoch] such that the provided unix timestamp would be within
+    /// its duration.
+    ///
+    /// # Arguments
+    ///
+    /// * `now_unix`: current unix time
     pub fn current_with_timestamp(&self, now_unix: i64) -> Self {
-        let mut candidate = self.clone();
+        let mut candidate = *self;
 
         if now_unix > self.start_unix_timestamp() {
             loop {
@@ -99,8 +111,32 @@ impl Epoch {
         }
     }
 
+    /// Checks whether this epoch has already finished
+    ///
+    /// # Arguments
+    ///
+    /// * `now`: current datetime
+    pub fn has_elapsed(&self, now: OffsetDateTime) -> bool {
+        self.end() < now
+    }
+
+    /// Returns id of this epoch
     pub const fn id(&self) -> u32 {
         self.id
+    }
+
+    /// Determines amount of time left until this epoch finishes.
+    ///
+    /// # Arguments
+    ///
+    /// * `now`: current datetime
+    pub fn until_end(&self, now: OffsetDateTime) -> Option<Duration> {
+        let remaining = self.end() - now;
+        if remaining.is_negative() {
+            None
+        } else {
+            remaining.try_into().ok()
+        }
     }
 
     /// Returns the starting datetime of this epoch.

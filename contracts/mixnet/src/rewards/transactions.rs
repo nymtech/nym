@@ -29,7 +29,6 @@ struct MixDelegationRewardingResult {
 /// Checks whether under the current context, any rewarding-related functionalities can be called.
 /// The following must be true:
 /// - the call has originated from the address of the authorised rewarding validator,
-/// - the rewarding procedure has been initialised and has not concluded yet,
 /// - the call has been made with the nonce corresponding to the current rewarding procedure,
 ///
 /// # Arguments

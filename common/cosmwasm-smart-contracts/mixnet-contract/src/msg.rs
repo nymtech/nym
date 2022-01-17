@@ -77,13 +77,10 @@ pub enum ExecuteMsg {
         owner: String,
     },
     WriteRewardedSet {
-        // rewarded_set: HashMap<IdentityKey, RewardedSetNodeStatus>,
         rewarded_set: Vec<IdentityKey>,
         expected_active_set_size: u32,
     },
-    // ClearRewardedSet {},
     AdvanceCurrentEpoch {},
-    SetCurrentEpoch {},
 }
 
 // TODO: See comment above for JsonSchema derive

@@ -16,7 +16,7 @@ use mixnet_contract_common::{
     Epoch, ExecuteMsg, IdentityKey, MixNodeBond, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 use std::collections::HashSet;
-use std::convert::TryInto;
+use std::process;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::sleep;
@@ -135,9 +135,6 @@ pub(crate) struct Rewarder {
     validator_cache: ValidatorCache,
     storage: ValidatorApiStorage,
 
-    /// Current epoch
-    current_epoch: Epoch,
-
     /// Ideal world, expected number of network monitor test runs per epoch.
     /// In reality it will be slightly lower due to network delays, but it's good enough
     /// for estimations regarding percentage of available data for reward distribution.
@@ -153,7 +150,6 @@ impl Rewarder {
         nymd_client: Client<SigningNymdClient>,
         validator_cache: ValidatorCache,
         storage: ValidatorApiStorage,
-        current_epoch: Epoch,
         expected_epoch_monitor_runs: usize,
         minimum_epoch_monitor_threshold: u8,
     ) -> Self {
@@ -161,7 +157,6 @@ impl Rewarder {
             nymd_client,
             validator_cache,
             storage,
-            current_epoch,
             expected_epoch_monitor_runs,
             minimum_epoch_monitor_threshold,
         }
@@ -194,7 +189,7 @@ impl Rewarder {
     /// * `epoch`: current rewarding epoch
     async fn determine_eligible_mixnodes(
         &self,
-        epoch: &Epoch,
+        epoch: Epoch,
     ) -> Result<Vec<MixnodeToReward>, RewardingError> {
         let epoch_reward_params = self.nymd_client.get_current_epoch_reward_params().await?;
 
@@ -499,7 +494,7 @@ impl Rewarder {
     async fn distribute_rewards(
         &self,
         epoch_rewarding_database_id: i64,
-        epoch: &Epoch,
+        epoch: Epoch,
     ) -> Result<(RewardingReport, Option<FailureData>), RewardingError> {
         let mut failure_data = FailureData::default();
 
@@ -620,7 +615,7 @@ impl Rewarder {
     /// * `epoch`: epoch to check
     async fn check_if_rewarding_happened_at_epoch(
         &self,
-        epoch: &Epoch,
+        epoch: Epoch,
     ) -> Result<bool, RewardingError> {
         if let Some(entry) = self
             .storage
@@ -648,7 +643,7 @@ impl Rewarder {
     /// # Arguments
     ///
     /// * `epoch`: epoch to check
-    async fn check_epoch_eligibility(&self, epoch: &Epoch) -> Result<bool, RewardingError> {
+    async fn check_epoch_eligibility(&self, epoch: Epoch) -> Result<bool, RewardingError> {
         if self.check_if_rewarding_happened_at_epoch(epoch).await?
             || !self.check_for_monitor_data(epoch).await?
         {
@@ -657,65 +652,6 @@ impl Rewarder {
             // we haven't sent rewards during the epoch and we have enough monitor test data
             Ok(true)
         }
-    }
-
-    /// Determines the next epoch during which the rewards should get distributed.
-    ///
-    /// # Arguments
-    ///
-    /// * `now`: current datetime
-    async fn next_rewarding_epoch(&self, now: OffsetDateTime) -> Result<Epoch, RewardingError> {
-        // edge case handling for when we decide to change first epoch to be at some time in the future
-        // (i.e. epoch length transition)
-        // we don't have to perform checks here as it's impossible to distribute rewards for epochs
-        // in the future
-        if self.current_epoch.start() > now {
-            return Ok(self.current_epoch.clone());
-        }
-
-        let current_epoch = self.current_epoch.current(now);
-        // check previous epoch in case we had a tiny hiccup
-        // example:
-        // epochs start at 12:00pm and last for 24h (ignore variance)
-        // validator-api crashed at 11:59am before distributing rewards
-        // and restarted at 12:01 - it has all the data required to distribute the rewards
-        // for the previous epoch.
-        let previous_epoch = current_epoch.previous_epoch();
-        if self.check_epoch_eligibility(&previous_epoch).await? {
-            return Ok(previous_epoch);
-        }
-
-        // check if rewards weren't already given out for the current epoch
-        // (it can happen for negative variance if the process crashed)
-        // note that if the epoch ends at say 12:00 and it's 11:59 and we just started,
-        // we might end up skipping this epoch regardless
-        if !self
-            .check_if_rewarding_happened_at_epoch(&current_epoch)
-            .await?
-        {
-            return Ok(current_epoch);
-        }
-
-        // if we have given rewards for the previous and the current epoch,
-        // wait until the next one
-        Ok(current_epoch.next_epoch())
-    }
-
-    /// Given datetime of the rewarding epoch datetime, determine duration until it ends.
-    ///
-    /// # Arguments
-    ///
-    /// * `rewarding_epoch`: the rewarding epoch
-    fn determine_delay_until_next_rewarding(&self, rewarding_epoch: &Epoch) -> Option<Duration> {
-        let now = OffsetDateTime::now_utc();
-        if now > rewarding_epoch.end() {
-            return None;
-        }
-
-        // we have a positive duration so we can't fail the conversion
-        let until_epoch_end: Duration = (rewarding_epoch.end() - now).try_into().unwrap();
-
-        Some(until_epoch_end)
     }
 
     /// Distribute rewards to all eligible mixnodes and gateways on the network.
@@ -736,7 +672,7 @@ impl Rewarder {
             .insert_started_epoch_rewarding(epoch.start_unix_timestamp())
             .await?;
 
-        let (report, failure_data) = self.distribute_rewards(epoch_rewarding_id, &epoch).await?;
+        let (report, failure_data) = self.distribute_rewards(epoch_rewarding_id, epoch).await?;
 
         self.storage
             .finish_rewarding_epoch_and_insert_report(report)
@@ -768,7 +704,7 @@ impl Rewarder {
     /// # Arguments
     ///
     /// * `epoch`: epoch to check
-    async fn check_for_monitor_data(&self, epoch: &Epoch) -> Result<bool, RewardingError> {
+    async fn check_for_monitor_data(&self, epoch: Epoch) -> Result<bool, RewardingError> {
         let since = epoch.start_unix_timestamp();
         let until = epoch.end_unix_timestamp();
 
@@ -779,81 +715,90 @@ impl Rewarder {
         Ok(available >= self.minimum_epoch_monitor_threshold as f32)
     }
 
-    /// Waits until the next epoch starts
-    ///
-    /// # Arguments
-    ///
-    /// * `current_epoch`: current epoch that we want to wait out
-    async fn wait_until_next_epoch(&self, current_epoch: Epoch) {
-        let now = OffsetDateTime::now_utc();
-        let until_end = current_epoch.end() - now;
+    async fn sync_up_rewarding_epochs(&self) -> Result<(), RewardingError> {
+        let mut last_stored_epoch = self.nymd_client.get_current_epoch().await?;
 
-        // otherwise it means the epoch is already over and the next one has begun
-        if until_end.is_positive() {
-            // we know for sure that the duration here is positive so conversion can't fail
-            sleep(until_end.try_into().unwrap()).await;
+        let block_now: OffsetDateTime = self.nymd_client.current_block_timestamp().await?.into();
+        let actual_current_epoch = last_stored_epoch.current(block_now);
+
+        // we're waiting for the first epoch to start...
+        if actual_current_epoch.start() < last_stored_epoch.start() {
+            return Ok(());
         }
+
+        // we're already synced up
+        if actual_current_epoch == last_stored_epoch {
+            return Ok(());
+        }
+
+        // actual_current_epoch > last_stored_epoch
+        loop {
+            // if we can perform rewarding, do it, otherwise just go straight into the next epoch
+            if self.check_epoch_eligibility(last_stored_epoch).await? {
+                self.perform_rewarding(last_stored_epoch).await?;
+            } else {
+                self.nymd_client.advance_current_epoch().await?;
+            }
+
+            last_stored_epoch = self.nymd_client.get_current_epoch().await?;
+
+            // compare by start times in case the id didn't match (TODO: is it even possible?)
+            if last_stored_epoch.start() == actual_current_epoch.start() {
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    // pub(crate) async fn processing_loop_iteration(&self) -> Result<std::ops::ControlFlow<()>, RewardingError> {
+    pub(crate) async fn processing_loop_iteration(&self) -> Result<(), RewardingError> {
+        let last_stored_epoch = self.nymd_client.get_current_epoch().await?;
+        let block_now: OffsetDateTime = self.nymd_client.current_block_timestamp().await?.into();
+
+        let actual_current_epoch = last_stored_epoch.current(block_now);
+
+        // the [stored] epoch has finished - we should distribute rewards now
+        if last_stored_epoch.start() < actual_current_epoch.start() {
+            // it's time to distribute rewards, however, first let's see if we have enough data to go through with it
+            // (consider the case of rewards being distributed every 24h at 12:00pm and validator-api
+            // starting for the very first time at 11:00am. It's not going to have enough data for
+            // rewards for the *current* epoch, but we couldn't have known that at startup)
+            if self.check_epoch_eligibility(last_stored_epoch).await? {
+                self.perform_rewarding(last_stored_epoch).await?;
+            } else {
+                warn!("We do not have sufficient monitor data to perform rewarding in this epoch ({}). We're advancing it forward...", last_stored_epoch);
+                self.nymd_client.advance_current_epoch().await?;
+            }
+        } else {
+            info!(
+                "rewards will be distributed around {}. Approximately {:?} remaining",
+                last_stored_epoch.end(),
+                last_stored_epoch.until_end(block_now)
+            );
+        }
+
+        sleep(Duration::from_secs(15 * 60)).await;
+
+        Ok(())
     }
 
     pub(crate) async fn run(&self) {
         // whatever happens, we shouldn't do anything until the cache is initialised
         self.validator_cache.wait_for_initial_values().await;
 
+        if let Err(err) = self.sync_up_rewarding_epochs().await {
+            error!("Failed to sync up epochs with the contract state - {}", err);
+            process::exit(1);
+        }
+
+        // at this point the current block time < end of current[or first] epoch, so to do anything,
+        // we have to wait for the epoch to finish
         loop {
-            // Just a reference for anyone wanting to modify the code to use blockchain timestamps.
-            // This method is now available:
-            // let current_block_timestamp = self.nymd_client.current_block_timestamp().await.unwrap();
-            // and if you look at the source of that, you can easily use block height instead if preferred.
-
-            let now = OffsetDateTime::now_utc();
-            // if we haven't rewarded anyone for the previous epoch, get the start of the previous epoch
-            // otherwise get the start of the current epoch
-            // (remember, we will be rewarding at the END of the selected epoch)
-            let next_rewarding_epoch = match self.next_rewarding_epoch(now).await {
-                Ok(next_rewarding_epoch) => next_rewarding_epoch,
-                Err(err) => {
-                    // I'm not entirely sure whether this is recoverable, because failure implies database errors
-                    error!("We failed to determine time until next reward cycle ({}). Going to wait for the epoch length until next attempt", err);
-                    sleep(self.current_epoch.length()).await;
-                    continue;
-                }
-            };
-
-            // wait's until the start of the *next* epoch, e.g. end of the current chosen epoch
-            // (it could be none, for example if we are distributing overdue rewards for the previous epoch)
-            if let Some(remaining_time) =
-                self.determine_delay_until_next_rewarding(&next_rewarding_epoch)
-            {
-                info!("Next rewarding epoch is {}", next_rewarding_epoch);
-                info!(
-                    "Rewards distribution will happen at {}. ({:?} left)",
-                    now + remaining_time,
-                    remaining_time
-                );
-                sleep(remaining_time).await;
-            } else {
-                info!(
-                    "Starting reward distribution for epoch {} immediately!",
-                    next_rewarding_epoch
-                );
-            }
-
-            // it's time to distribute rewards, however, first let's see if we have enough data to go through with it
-            // (consider the case of rewards being distributed every 24h at 12:00pm and validator-api
-            // starting for the very first time at 11:00am. It's not going to have enough data for
-            // rewards for the *current* epoch, but we couldn't have known that at startup)
-            match self.check_for_monitor_data(&next_rewarding_epoch).await {
-                Err(_) | Ok(false) => {
-                    warn!("We do not have sufficient monitor data to perform rewarding in this epoch ({})", next_rewarding_epoch);
-                    self.wait_until_next_epoch(next_rewarding_epoch).await;
-                    continue;
-                }
-                _ => (),
-            }
-
-            if let Err(err) = self.perform_rewarding(next_rewarding_epoch).await {
-                // TODO: should we just terminate the process here instead?
-                error!("Failed to distribute rewards! - {}", err)
+            if let Err(err) = self.processing_loop_iteration().await {
+                error!("failed to finish rewarding loop iteration - {}", err);
+                // should we go into backoff here or just exit the process?
+                sleep(Duration::from_secs(15 * 60)).await;
             }
         }
     }

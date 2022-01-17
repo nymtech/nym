@@ -20,6 +20,16 @@ pub struct Account {
   denom: Denom,
 }
 
+impl Account {
+  pub fn new(contract_address: String, client_address: String, denom: Denom) -> Self {
+    Account {
+      contract_address,
+      client_address,
+      denom,
+    }
+  }
+}
+
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Serialize, Deserialize)]
 pub struct Balance {
@@ -79,15 +89,11 @@ pub async fn switch_network(
     let r_state = state.read().await;
     let client = r_state.client(network)?;
 
-    let contract_address = client.nymd.mixnet_contract_address()?.to_string();
-    let client_address = client.nymd.address().to_string();
-    let denom = client.nymd.denom()?;
-
-    Account {
-      contract_address,
-      client_address,
-      denom: denom.try_into()?,
-    }
+    Account::new(
+      client.nymd.mixnet_contract_address()?.to_string(),
+      client.nymd.address().to_string(),
+      client.nymd.denom()?.try_into()?,
+    )
   };
 
   let mut w_state = state.write().await;
@@ -125,15 +131,11 @@ async fn _connect_with_mnemonic(
     };
 
     if network == default_network {
-      let contract_address = client.nymd.mixnet_contract_address()?.to_string();
-      let client_address = client.nymd.address().to_string();
-      let denom = client.nymd.denom()?;
-
-      default_account = Some(Account {
-        contract_address,
-        client_address,
-        denom: denom.try_into()?,
-      });
+      default_account = Some(Account::new(
+        client.nymd.mixnet_contract_address()?.to_string(),
+        client.nymd.address().to_string(),
+        client.nymd.denom()?.try_into()?,
+      ));
     }
 
     let mut w_state = state.write().await;

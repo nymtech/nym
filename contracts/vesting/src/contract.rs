@@ -7,8 +7,8 @@ use crate::traits::{
 use crate::vesting::{populate_vesting_periods, Account};
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{
-    coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Timestamp, Uint128,
+    coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, Event, MessageInfo,
+    QueryResponse, Response, Timestamp, Uint128,
 };
 use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use vesting_contract_common::events::{
@@ -37,7 +37,9 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    Ok(Default::default())
+    let response = Response::new();
+    let response = response.add_event(Event::new("test").add_attribute("foo", "whatever"));
+    Ok(response)
 }
 
 #[entry_point]

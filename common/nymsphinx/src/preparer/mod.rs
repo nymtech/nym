@@ -390,8 +390,8 @@ where
                 reply_surb
                     .encryption_key()
                     .compute_digest()
-                    .to_vec()
-                    .into_iter(),
+                    .iter()
+                    .copied(),
             )
             .chain(reply_content.into_iter())
             .collect();

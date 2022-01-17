@@ -162,8 +162,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             sender: sender_address.clone(),
             admin: options
                 .as_mut()
-                .map(|options| options.admin.take())
-                .flatten(),
+                .and_then(|options| options.admin.take()),
             code_id,
             // now this is a weird one. the protobuf files say this field is optional,
             // but if you omit it, the initialisation will fail CheckTx

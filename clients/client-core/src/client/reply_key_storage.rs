@@ -59,7 +59,7 @@ impl ReplyKeyStorage {
     ) -> Result<(), ReplyKeyStorageError> {
         let digest = encryption_key.compute_digest();
 
-        let insertion_result = match self.db.insert(digest.to_vec(), encryption_key.to_bytes()) {
+        let insertion_result = match self.db.insert(digest, encryption_key.to_bytes()) {
             Err(e) => Err(ReplyKeyStorageError::DbWriteError(e)),
             Ok(existing_key) => {
                 if existing_key.is_some() {
@@ -79,7 +79,7 @@ impl ReplyKeyStorage {
         &self,
         key_digest: EncryptionKeyDigest,
     ) -> Result<Option<SurbEncryptionKey>, ReplyKeyStorageError> {
-        let removal_result = match self.db.remove(&key_digest.to_vec()) {
+        let removal_result = match self.db.remove(key_digest) {
             Err(e) => Err(ReplyKeyStorageError::DbReadError(e)),
             Ok(existing_key) => {
                 Ok(existing_key.map(|existing_key| self.read_encryption_key(existing_key)))

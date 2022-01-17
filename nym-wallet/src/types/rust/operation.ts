@@ -26,6 +26,5 @@ export type Operation =
   | "TrackUndelegation"
   | "CreatePeriodicVestingAccount"
   | "AdvanceCurrentEpoch"
-  | "SetCurrentEpoch"
   | "WriteRewardedSet"
   | "ClearRewardedSet";

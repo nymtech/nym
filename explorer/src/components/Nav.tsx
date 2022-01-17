@@ -314,6 +314,7 @@ export const Nav: React.FC = ({ children }) => {
       <AppBar
         sx={{
           background: theme.palette.nym.networkExplorer.topNav.appBar,
+          borderRadius: 0,
         }}
       >
         <Toolbar
@@ -384,6 +385,7 @@ export const Nav: React.FC = ({ children }) => {
         PaperProps={{
           style: {
             background: theme.palette.nym.networkExplorer.nav.background,
+            borderRadius: 0,
           },
         }}
       >
@@ -426,7 +428,7 @@ export const Nav: React.FC = ({ children }) => {
           ))}
         </List>
       </Drawer>
-      <Box sx={{ width: '100%', p: 4, mt: 7 }}>
+      <Box sx={{ width: '100%', py: 5, px: 6, mt: 7 }}>
         {children}
         <Footer />
       </Box>

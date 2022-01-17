@@ -28,7 +28,7 @@ export const PageOverview: React.FC = () => {
             <Title text="Overview" />
           </Grid>
           <Grid item>
-            <Grid container spacing={2}>
+            <Grid container spacing={3}>
               {summaryOverview && (
                 <>
                   <Grid item xs={12} md={4}>

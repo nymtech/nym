@@ -1,10 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::all::{Network, SupportedNetworks};
+use crate::network::Network;
+use config::defaults::all::SupportedNetworks;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use strum::IntoEnumIterator;
 use url::Url;
 
 mod template;
@@ -29,8 +31,9 @@ pub struct Base {
 
 impl Default for Base {
   fn default() -> Self {
+    let networks = Network::iter().map(|network| network.into()).collect();
     Base {
-      networks: SupportedNetworks::new(&[Network::QA, Network::SANDBOX]),
+      networks: SupportedNetworks::new(networks),
       mnemonic: String::default(),
     }
   }
@@ -62,12 +65,12 @@ impl NymConfig for Config {
 }
 
 impl Config {
-  pub fn get_nymd_validator_url(&self, network: &Network) -> Url {
+  pub fn get_nymd_validator_url(&self, network: Network) -> Url {
     // TODO make this a random choice
     if let Some(Some(validator_details)) = self
       .base
       .networks
-      .validators(network)
+      .validators(network.into())
       .map(|validators| validators.first())
     {
       validator_details.nymd_url()
@@ -76,12 +79,12 @@ impl Config {
     }
   }
 
-  pub fn get_validator_api_url(&self, network: &Network) -> Url {
+  pub fn get_validator_api_url(&self, network: Network) -> Url {
     // TODO make this a random choice
     if let Some(Some(validator_details)) = self
       .base
       .networks
-      .validators(network)
+      .validators(network.into())
       .map(|validators| validators.first())
     {
       validator_details.api_url().expect("no api url provided")
@@ -90,21 +93,21 @@ impl Config {
     }
   }
 
-  pub fn get_mixnet_contract_address(&self, network: &Network) -> cosmrs::AccountId {
+  pub fn get_mixnet_contract_address(&self, network: Network) -> cosmrs::AccountId {
     self
       .base
       .networks
-      .mixnet_contract_address(network)
+      .mixnet_contract_address(network.into())
       .expect("No mixnet contract address found in config")
       .parse()
       .expect("stored mixnet contract address is not a valid account address")
   }
 
-  pub fn get_vesting_contract_address(&self, network: &Network) -> cosmrs::AccountId {
+  pub fn get_vesting_contract_address(&self, network: Network) -> cosmrs::AccountId {
     self
       .base
       .networks
-      .vesting_contract_address(network)
+      .vesting_contract_address(network.into())
       .expect("No vesting contract address found in config")
       .parse()
       .expect("stored vesting contract address is not a valid account address")

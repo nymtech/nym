@@ -13,6 +13,7 @@ mod coin;
 mod config;
 mod error;
 mod menu;
+mod network;
 mod operations;
 mod state;
 mod utils;

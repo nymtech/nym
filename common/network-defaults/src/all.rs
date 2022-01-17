@@ -30,7 +30,7 @@ pub struct SupportedNetworks {
 }
 
 impl SupportedNetworks {
-    pub fn new(support: &[Network]) -> Self {
+    pub fn new(support: Vec<Network>) -> Self {
         let mut networks = HashMap::new();
 
         for network in support {
@@ -86,45 +86,45 @@ impl SupportedNetworks {
         SupportedNetworks { networks }
     }
 
-    pub fn bech32_prefix(&self, network: &Network) -> Option<&str> {
+    pub fn bech32_prefix(&self, network: Network) -> Option<&str> {
         self.networks
-            .get(network)
+            .get(&network)
             .map(|network_details| network_details.bech32_prefix.as_str())
     }
 
-    pub fn denom(&self, network: &Network) -> Option<&str> {
+    pub fn denom(&self, network: Network) -> Option<&str> {
         self.networks
-            .get(network)
+            .get(&network)
             .map(|network_details| network_details.denom.as_str())
     }
 
-    pub fn mixnet_contract_address(&self, network: &Network) -> Option<&str> {
+    pub fn mixnet_contract_address(&self, network: Network) -> Option<&str> {
         self.networks
-            .get(network)
+            .get(&network)
             .map(|network_details| network_details.mixnet_contract_address.as_str())
     }
 
-    pub fn vesting_contract_address(&self, network: &Network) -> Option<&str> {
+    pub fn vesting_contract_address(&self, network: Network) -> Option<&str> {
         self.networks
-            .get(network)
+            .get(&network)
             .map(|network_details| network_details.vesting_contract_address.as_str())
     }
 
-    pub fn bandwidth_claim_contract_address(&self, network: &Network) -> Option<&str> {
+    pub fn bandwidth_claim_contract_address(&self, network: Network) -> Option<&str> {
         self.networks
-            .get(network)
+            .get(&network)
             .map(|network_details| network_details.bandwidth_claim_contract_address.as_str())
     }
 
-    pub fn rewarding_validator_address(&self, network: &Network) -> Option<&str> {
+    pub fn rewarding_validator_address(&self, network: Network) -> Option<&str> {
         self.networks
-            .get(network)
+            .get(&network)
             .map(|network_details| network_details.rewarding_validator_address.as_str())
     }
 
-    pub fn validators(&self, network: &Network) -> Option<&Vec<ValidatorDetails>> {
+    pub fn validators(&self, network: Network) -> Option<&Vec<ValidatorDetails>> {
         self.networks
-            .get(network)
+            .get(&network)
             .map(|network_details| &network_details.validators)
     }
 }

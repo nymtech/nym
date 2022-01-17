@@ -1,11 +1,12 @@
 use crate::coin::{Coin, Denom};
 use crate::config::Config;
 use crate::error::BackendError;
+use crate::network::Network;
 use crate::nymd_client;
 use crate::state::State;
 use bip39::{Language, Mnemonic};
 use serde::{Deserialize, Serialize};
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -31,13 +32,16 @@ pub struct Balance {
 #[tauri::command]
 pub async fn connect_with_mnemonic(
   mnemonic: String,
-  network: config::defaults::all::Network,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
   let mnemonic = Mnemonic::from_str(&mnemonic)?;
   let client = {
     let r_state = state.read().await;
-    _connect_with_mnemonic(mnemonic, network, &r_state.config())
+    _connect_with_mnemonic(
+      mnemonic,
+      Network::try_from(config::defaults::default_network())?,
+      &r_state.config(),
+    )
   };
 
   let contract_address = client.nymd.mixnet_contract_address()?.to_string();
@@ -87,12 +91,7 @@ pub async fn create_new_account(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
   let rand_mnemonic = random_mnemonic();
-  let mut client = connect_with_mnemonic(
-    rand_mnemonic.to_string(),
-    config::defaults::default_network(),
-    state,
-  )
-  .await?;
+  let mut client = connect_with_mnemonic(rand_mnemonic.to_string(), state).await?;
   client.mnemonic = Some(rand_mnemonic.to_string());
   Ok(client)
 }
@@ -104,15 +103,15 @@ fn random_mnemonic() -> Mnemonic {
 
 fn _connect_with_mnemonic(
   mnemonic: Mnemonic,
-  network: config::defaults::all::Network,
+  network: Network,
   config: &Config,
 ) -> Client<SigningNymdClient> {
   match validator_client::Client::new_signing(
     validator_client::Config::new(
-      config.get_nymd_validator_url(&network),
-      config.get_validator_api_url(&network),
-      Some(config.get_mixnet_contract_address(&network)),
-      Some(config.get_vesting_contract_address(&network)),
+      config.get_nymd_validator_url(network),
+      config.get_validator_api_url(network),
+      Some(config.get_mixnet_contract_address(network)),
+      Some(config.get_vesting_contract_address(network)),
     ),
     mnemonic,
   ) {

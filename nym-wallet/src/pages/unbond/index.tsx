@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { Alert, Box, Button, CircularProgress } from '@mui/material'
-import { NymCard } from '../../components'
+import { Fee, NymCard } from '../../components'
 import { Layout } from '../../layouts'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { ClientContext } from '../../context/main'
@@ -10,7 +10,7 @@ import { Unbond as UnbondIcon } from '../../svg-icons'
 export const Unbond = () => {
   const [isLoading, setIsLoading] = useState(false)
   const { checkOwnership, ownership } = useCheckOwnership()
-  const { userBalance } = useContext(ClientContext)
+  const { userBalance, getBondDetails } = useContext(ClientContext)
 
   useEffect(() => {
     const initialiseForm = async () => {
@@ -24,7 +24,7 @@ export const Unbond = () => {
       <NymCard title="Unbond" subheader="Unbond a mixnode or gateway" noPadding Icon={UnbondIcon}>
         {ownership?.hasOwnership && (
           <Alert
-            severity="warning"
+            severity="info"
             data-testid="bond-noded"
             action={
               <Button
@@ -34,9 +34,11 @@ export const Unbond = () => {
                   setIsLoading(true)
                   await unbond(ownership.nodeType)
                   await userBalance.fetchBalance()
+                  await getBondDetails()
                   await checkOwnership()
                   setIsLoading(false)
                 }}
+                color="inherit"
               >
                 Unbond
               </Button>
@@ -46,6 +48,9 @@ export const Unbond = () => {
             {`Looks like you already have a ${ownership.nodeType} bonded.`}
           </Alert>
         )}
+        <Box sx={{ p: 3 }}>
+          <Fee feeType="UnbondMixnode" />
+        </Box>
         {!ownership.hasOwnership && (
           <Alert severity="info" sx={{ m: 3 }} data-testid="no-bond">
             You don't currently have a bonded node

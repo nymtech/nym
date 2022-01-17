@@ -6,7 +6,10 @@ import {
   EnumNodeType,
   Gateway,
   MixNode,
+  MixnodeStatusResponse,
   Operation,
+  RewardEstimationResponse,
+  StakeSaturationResponse,
   TauriContractStateParams,
   TauriTxResult,
   TCreateAccount,
@@ -83,6 +86,15 @@ export const getReverseGatewayDelegations = async (): Promise<TPagedDelegations>
 
 export const getMixnodeBondDetails = async (): Promise<TMixnodeBondDetails | null> =>
   await invoke('mixnode_bond_details')
+
+export const getMixnodeStakeSaturation = async (identity: string): Promise<StakeSaturationResponse> =>
+  await invoke('mixnode_stake_saturation', { identity })
+
+export const getMixnodeRewardEstimation = async (identity: string): Promise<RewardEstimationResponse> =>
+  await invoke('mixnode_reward_estimation', { identity })
+
+export const getMixnodeStatus = async (identity: string): Promise<MixnodeStatusResponse> =>
+  await invoke('mixnode_status', { identity })
 
 export const updateMixnode = async ({ profitMarginPercent }: { profitMarginPercent: number }) =>
   await invoke('update_mixnode', { profitMarginPercent })

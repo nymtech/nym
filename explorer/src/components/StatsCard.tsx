@@ -38,6 +38,8 @@ export const StatsCard: React.FC<StatsCardProps> = ({
             paddingBottom: 2,
           },
           cursor: 'pointer',
+          fontSize: 14,
+          fontWeight: 600,
         }}
       >
         <Box
@@ -55,11 +57,17 @@ export const StatsCard: React.FC<StatsCardProps> = ({
               ml={3}
               mr={0.75}
               fontSize="inherit"
+              fontWeight="inherit"
               data-testid={`${title}-amount`}
             >
               {count === undefined || count === null ? '' : count}
             </Typography>
-            <Typography mr={1} fontSize="inherit" data-testid={title}>
+            <Typography
+              mr={1}
+              fontSize="inherit"
+              fontWeight="inherit"
+              data-testid={title}
+            >
               {title}
             </Typography>
           </Box>

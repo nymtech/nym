@@ -216,7 +216,7 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         'Helvetica Neue',
       ].join(','),
       fontSize: 14,
-      fontWeightRegular: 600,
+      fontWeightRegular: 400,
     },
     transitions: {
       duration: {
@@ -236,8 +236,8 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       MuiCardHeader: {
         styleOverrides: {
           title: {
-            fontSize: 18,
-            fontWeight: 800,
+            fontSize: 16,
+            fontWeight: 600,
           },
         },
       },

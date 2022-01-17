@@ -6,6 +6,7 @@ export const Title: React.FC<{ text: string }> = ({ text }) => (
     variant="h5"
     sx={{
       mb: 3,
+      fontWeight: 600,
     }}
     data-testid={text}
   >

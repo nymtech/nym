@@ -43,10 +43,7 @@ export const DetailTable: React.FC<{
       <TableHead>
         <TableRow>
           {columnsData?.map(({ field, title, flex }) => (
-            <TableCell
-              key={field}
-              sx={{ fontSize: 16, fontWeight: 'bold', flex }}
-            >
+            <TableCell key={field} sx={{ fontSize: 14, fontWeight: 600, flex }}>
               {title}
             </TableCell>
           ))}
@@ -69,7 +66,6 @@ export const DetailTable: React.FC<{
                   padding: 2,
                   width: 200,
                   fontSize: 14,
-                  fontWeight: 700,
                 }}
                 data-testid={`${_.title.replace(/ /g, '-')}-value`}
               >

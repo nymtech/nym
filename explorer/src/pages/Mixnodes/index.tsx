@@ -247,8 +247,8 @@ const getCellStyles = (theme: Theme, row: MixnodeRowType): SxProps => {
   return {
     ...cellStyles,
     // TODO: should these be here, or change in `cellStyles`??
-    fontWeight: 700,
-    fontSize: 14,
+    fontWeight: 400,
+    fontSize: 12,
     color,
   };
 };

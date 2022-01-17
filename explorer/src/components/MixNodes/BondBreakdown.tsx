@@ -92,7 +92,7 @@ export const BondBreakdownTable: React.FC = () => {
             <TableRow sx={matches ? { minWidth: '70vw' } : null}>
               <TableCell
                 sx={{
-                  fontWeight: 'bold',
+                  fontWeight: 400,
                   width: '150px',
                 }}
                 align="left"
@@ -141,20 +141,20 @@ export const BondBreakdownTable: React.FC = () => {
               <TableHead>
                 <TableRow>
                   <TableCell
-                    sx={{ fontWeight: 'bold', background: '#242C3D' }}
+                    sx={{ fontWeight: 600, background: '#242C3D' }}
                     align="left"
                   >
                     Delegators
                   </TableCell>
                   <TableCell
-                    sx={{ fontWeight: 'bold', background: '#242C3D' }}
+                    sx={{ fontWeight: 600, background: '#242C3D' }}
                     align="left"
                   >
                     Stake
                   </TableCell>
                   <TableCell
                     sx={{
-                      fontWeight: 'bold',
+                      fontWeight: 600,
                       background: '#242C3D',
                       width: '200px',
                     }}

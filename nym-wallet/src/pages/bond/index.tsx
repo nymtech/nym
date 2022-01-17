@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { Alert, Box, Button, CircularProgress } from '@mui/material'
 import { BondForm } from './BondForm'
+import { SuccessView } from './SuccessView'
 import { NymCard } from '../../components'
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
 import { Layout } from '../../layouts'
@@ -9,7 +10,6 @@ import { TFee } from '../../types'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { ClientContext } from '../../context/main'
 import { Bond as BondIcon } from '../../svg-icons/bond'
-import { SuccessView } from './SuccessView'
 
 export const Bond = () => {
   const [status, setStatus] = useState(EnumRequestStatus.initial)

@@ -86,16 +86,15 @@ export const validateRawPort = (rawPort: number): boolean => !isNaN(rawPort) && 
 
 export const truncate = (text: string, trim: number) => text.substring(0, trim) + '...'
 
-export const checkHasEnoughFunds = async (allocationValue: string) => {
-  const walletValue = await userBalance()
-  const minorValue = await majorToMinor(allocationValue)
-  return !(+walletValue.coin.amount - +minorValue.amount < 0)
-}
+export const isGreaterThan = (a: number, b: number) => a > b
 
-export const checkHasEnoughToUnbond = async (allocationValue: string) => {
-  const walletValue = await userBalance()
-  const minorAllocationValue = await majorToMinor(allocationValue)
-  const unbondFee = await getGasFee('UnbondMixnode')
-  const unbondFeeMinor = await majorToMinor(unbondFee.amount)
-  return !(+walletValue.coin.amount - +minorAllocationValue.amount < +unbondFeeMinor.amount)
+export const checkHasEnoughFunds = async (allocationValue: string) => {
+  try {
+    const walletValue = await userBalance()
+    const minorValue = await majorToMinor(allocationValue)
+    const remainingBalance = +walletValue.coin.amount - +minorValue.amount
+    return isGreaterThan(remainingBalance, 0)
+  } catch (e) {
+    console.log(e)
+  }
 }

@@ -1,10 +1,16 @@
 import * as React from 'react';
 import { Box, IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import TelegramIcon from '@mui/icons-material/Telegram';
-import GitHubIcon from '@mui/icons-material/GitHub';
-import TwitterIcon from '@mui/icons-material/Twitter';
-import { GITHUB_LINK, TELEGRAM_LINK, TWITTER_LINK } from 'src/api/constants';
+import { TelegramIcon } from '../icons/socials/TelegramIcon';
+import { GitHubIcon } from '../icons/socials/GitHubIcon';
+import { TwitterIcon } from '../icons/socials/TwitterIcon';
+import { DiscordIcon } from '../icons/socials/DiscordIcon';
+
+// socials
+export const TELEGRAM_LINK = 'https://t.me/nymchan';
+export const TWITTER_LINK = 'https://twitter.com/nymproject';
+export const GITHUB_LINK = 'https://github.com/nymtech';
+export const DISCORD_LINK = 'https://discord.gg/jUqJYGB5';
 
 export const Socials: React.FC<{ isFooter?: boolean }> = ({ isFooter }) => {
   const theme = useTheme();
@@ -19,7 +25,25 @@ export const Socials: React.FC<{ isFooter?: boolean }> = ({ isFooter }) => {
         target="_blank"
         data-testid="telegram"
       >
-        <TelegramIcon sx={{ color }} />
+        <TelegramIcon color={color} size={24} />
+      </IconButton>
+      {false && (
+        <IconButton
+          component="a"
+          href={DISCORD_LINK}
+          target="_blank"
+          data-testid="discord"
+        >
+          <DiscordIcon color={color} size={24} />
+        </IconButton>
+      )}
+      <IconButton
+        component="a"
+        href={TWITTER_LINK}
+        target="_blank"
+        data-testid="twitter"
+      >
+        <TwitterIcon color={color} size={24} />
       </IconButton>
       <IconButton
         component="a"
@@ -27,15 +51,7 @@ export const Socials: React.FC<{ isFooter?: boolean }> = ({ isFooter }) => {
         target="_blank"
         data-testid="github"
       >
-        <GitHubIcon sx={{ color }} />
-      </IconButton>
-      <IconButton
-        component="a"
-        href={TWITTER_LINK}
-        target="_blank"
-        data-testid="twitter"
-      >
-        <TwitterIcon sx={{ color }} />
+        <GitHubIcon color={color} size={24} />
       </IconButton>
     </Box>
   );

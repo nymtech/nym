@@ -1,5 +1,5 @@
 use crate::errors::ContractError;
-use crate::messages::{ExecuteMsg, InitMsg, QueryMsg};
+use crate::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
 use crate::storage::account_from_address;
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
@@ -33,6 +33,11 @@ pub fn instantiate(
     _msg: InitMsg,
 ) -> Result<Response, ContractError> {
     Ok(Response::default())
+}
+
+#[entry_point]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    Ok(Default::default())
 }
 
 #[entry_point]

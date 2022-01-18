@@ -31,27 +31,9 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
   return (
     <Stack spacing={3} alignItems="center" sx={{ width: '80%' }}>
       <NymLogo />
-      <Typography sx={{ color: 'common.white' }}>Enter Mnemonic and sign in</Typography>
-
-      <Grid container direction="column" spacing={3} component="form">
-        <Grid item style={{ paddingTop: 0 }}>
-          <StyledInput
-            value={mnemonic}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMnemonic(e.target.value)}
-            size="medium"
-            variant="outlined"
-            margin="normal"
-            required
-            fullWidth
-            id="mnemonic"
-            label="BIP-39 Mnemonic"
-            name="mnemonic"
-            autoComplete="mnemonic"
-            autoFocus
-            disabled={isLoading}
-            sx={{ m: 0 }}
-          />
-        </Grid>
+      <Typography sx={{ color: 'common.white', fontWeight: 600 }}>Welcome to NYM</Typography>
+      <Typography variant="caption" sx={{color: 'grey.800', textTransform: "uppercase", letterSpacing: 4}}>Next generation of privacy</Typography>
+      <Grid container direction="column" spacing={2}>
         <Grid item>
           <Button
             fullWidth
@@ -64,7 +46,12 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
             onClick={handleSignIn}
             type="submit"
           >
-            {!isLoading ? 'Sign In' : 'Signing in'}
+            Create Account
+          </Button>
+        </Grid>
+        <Grid item >
+          <Button fullWidth variant="outlined" size="large" >
+            Use Existing Account
           </Button>
         </Grid>
         {inputError && (
@@ -75,15 +62,6 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
           </Grid>
         )}
       </Grid>
-
-      <div>
-        <Typography sx={{ color: 'common.white' }} component="span">
-          Don't have an account?
-        </Typography>{' '}
-        <Link href="#" onClick={showCreateAccount}>
-          Create one now
-        </Link>
-      </div>
     </Stack>
   )
 }

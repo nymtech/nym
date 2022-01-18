@@ -35,9 +35,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const userBalance = useGetBalance()
 
   useEffect(() => {
-    if (!clientDetails) {
-      history.push('/signin')
-    } else {
+    if (clientDetails) {
       userBalance.fetchBalance()
       history.push('/balance')
     }

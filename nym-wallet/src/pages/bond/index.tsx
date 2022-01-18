@@ -31,9 +31,11 @@ export const Bond = () => {
   return (
     <Layout>
       <NymCard title="Bond" subheader="Bond a node or gateway" noPadding Icon={BondIcon}>
-        <Box sx={{ px: 3, mb: 1 }}>
-          <Alert severity="warning">Always ensure you leave yourself enough funds to UNBOND</Alert>
-        </Box>
+        {status === EnumRequestStatus.initial && (
+          <Box sx={{ px: 3, mb: 1 }}>
+            <Alert severity="warning">Always ensure you leave yourself enough funds to UNBOND</Alert>
+          </Box>
+        )}
         {ownership?.hasOwnership && (
           <Box sx={{ px: 3 }}>
             <Alert

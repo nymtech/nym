@@ -72,19 +72,24 @@ pub fn query_rewarded_set(
     let limit = limit
         .unwrap_or(storage::REWARDED_NODE_DEFAULT_LIMIT)
         .min(storage::REWARDED_NODE_MAX_LIMIT);
-    let paged_result = query_rewarded_set_at_height(storage, height, start_after, limit)?;
 
-    let start_next_after = if paged_result.len() > limit as usize {
-        paged_result.last().map(|res| res.0.clone())
+    // query for an additional element to determine paging requirements
+    let mut paged_result = query_rewarded_set_at_height(storage, height, start_after, limit + 1)?;
+
+    if paged_result.len() > limit as usize {
+        paged_result.truncate(limit as usize);
+        Ok(PagedRewardedSetResponse {
+            start_next_after: paged_result.last().map(|res| res.0.clone()),
+            identities: paged_result,
+            at_height: height,
+        })
     } else {
-        None
-    };
-
-    Ok(PagedRewardedSetResponse {
-        identities: paged_result,
-        start_next_after,
-        at_height: height,
-    })
+        Ok(PagedRewardedSetResponse {
+            identities: paged_result,
+            start_next_after: None,
+            at_height: height,
+        })
+    }
 }
 
 // this was all put together into the same query so that all information would be synced together
@@ -97,4 +102,321 @@ pub fn query_rewarded_set_update_details(
         last_refreshed_block: query_current_rewarded_set_height(storage)?,
         current_height: env.block.height,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::epoch::storage::REWARDED_NODE_MAX_LIMIT;
+    use crate::support::tests::test_helpers;
+    use cosmwasm_std::testing::mock_env;
+
+    fn store_rewarded_nodes(
+        storage: &mut dyn Storage,
+        height: u64,
+        active_set: u32,
+        rewarded_set: u32,
+    ) -> Vec<IdentityKey> {
+        let identities = (0..rewarded_set)
+            .map(|i| format!("identity{:04}", i))
+            .collect::<Vec<_>>();
+        storage::save_rewarded_set(storage, height, active_set, identities.clone()).unwrap();
+        identities
+    }
+
+    #[test]
+    fn querying_for_rewarded_set_heights_for_epoch() {
+        let mut deps = test_helpers::init_contract();
+
+        // no data
+        assert!(
+            query_rewarded_set_heights_for_epoch(deps.as_ref().storage, 0)
+                .unwrap()
+                .heights
+                .is_empty()
+        );
+
+        // 100 heights
+        for i in 0..100 {
+            storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
+                .save(deps.as_mut().storage, (1, i), &0u8)
+                .unwrap();
+        }
+        let expected = (0..100).collect::<Vec<_>>();
+        assert_eq!(
+            expected,
+            query_rewarded_set_heights_for_epoch(deps.as_ref().storage, 1)
+                .unwrap()
+                .heights
+        );
+
+        // 100 heights for different epoch
+        for i in 200..300 {
+            storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
+                .save(deps.as_mut().storage, (10, i), &0u8)
+                .unwrap();
+        }
+        let expected = (200..300).collect::<Vec<_>>();
+        assert_eq!(
+            expected,
+            query_rewarded_set_heights_for_epoch(deps.as_ref().storage, 10)
+                .unwrap()
+                .heights
+        )
+    }
+
+    #[test]
+    fn querying_for_rewarded_set_at_height() {
+        let mut deps = test_helpers::init_contract();
+
+        // store some nodes
+        let identities1 = store_rewarded_nodes(deps.as_mut().storage, 1, 100, 200);
+        let identities2 = store_rewarded_nodes(deps.as_mut().storage, 2, 50, 200);
+        let identities3 = store_rewarded_nodes(deps.as_mut().storage, 3, 150, 200);
+        let identities4 = store_rewarded_nodes(deps.as_mut().storage, 4, 300, 500);
+        let identities5 = store_rewarded_nodes(deps.as_mut().storage, 5, 500, 500);
+
+        // expected2 and 3 are basically sanity checks to ensure changing active set size (increase or decrease)
+        // doesn't affect the ordering
+
+        let expected1 = identities1
+            .into_iter()
+            .enumerate()
+            .map(|(i, identity)| {
+                if i < 100 {
+                    (identity, RewardedSetNodeStatus::Active)
+                } else {
+                    (identity, RewardedSetNodeStatus::Standby)
+                }
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            expected1,
+            query_rewarded_set_at_height(deps.as_ref().storage, 1, None, 1000).unwrap()
+        );
+
+        let expected2 = identities2
+            .into_iter()
+            .enumerate()
+            .map(|(i, identity)| {
+                if i < 50 {
+                    (identity, RewardedSetNodeStatus::Active)
+                } else {
+                    (identity, RewardedSetNodeStatus::Standby)
+                }
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            expected2,
+            query_rewarded_set_at_height(deps.as_ref().storage, 2, None, 1000).unwrap()
+        );
+
+        let expected3 = identities3
+            .into_iter()
+            .enumerate()
+            .map(|(i, identity)| {
+                if i < 150 {
+                    (identity, RewardedSetNodeStatus::Active)
+                } else {
+                    (identity, RewardedSetNodeStatus::Standby)
+                }
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            expected3,
+            query_rewarded_set_at_height(deps.as_ref().storage, 3, None, 1000).unwrap()
+        );
+
+        // check limit and paging
+        // active: 300, rewarded: 500
+        let first_100 = identities4
+            .iter()
+            .take(100)
+            .map(|identity| (identity.clone(), RewardedSetNodeStatus::Active))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            first_100,
+            query_rewarded_set_at_height(deps.as_ref().storage, 4, None, 100).unwrap()
+        );
+
+        let expected_single1 = vec![("identity0299".to_string(), RewardedSetNodeStatus::Active)];
+        let expected_single2 = vec![("identity0300".to_string(), RewardedSetNodeStatus::Standby)];
+        assert_eq!(
+            expected_single1,
+            query_rewarded_set_at_height(
+                deps.as_ref().storage,
+                4,
+                Some("identity0298".to_string()),
+                1
+            )
+            .unwrap()
+        );
+        assert_eq!(
+            expected_single2,
+            query_rewarded_set_at_height(
+                deps.as_ref().storage,
+                4,
+                Some("identity0299".to_string()),
+                1
+            )
+            .unwrap()
+        );
+
+        let last_100 = identities4
+            .iter()
+            .skip(400)
+            .map(|identity| (identity.clone(), RewardedSetNodeStatus::Standby))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            last_100,
+            query_rewarded_set_at_height(
+                deps.as_ref().storage,
+                4,
+                Some("identity0399".to_string()),
+                100
+            )
+            .unwrap()
+        );
+
+        // all nodes are in the active set
+        let expected5 = identities5
+            .into_iter()
+            .map(|identity| (identity, RewardedSetNodeStatus::Active))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            expected5,
+            query_rewarded_set_at_height(deps.as_ref().storage, 5, None, 1000).unwrap()
+        );
+    }
+
+    #[test]
+    fn querying_for_rewarded_set() {
+        let mut deps = test_helpers::init_contract();
+
+        let current_height = 123;
+        let other_height = 456;
+        let different_height = 789;
+
+        storage::CURRENT_REWARDED_SET_HEIGHT
+            .save(deps.as_mut().storage, &current_height)
+            .unwrap();
+
+        let identities1 = store_rewarded_nodes(deps.as_mut().storage, current_height, 50, 100);
+        let identities2 = store_rewarded_nodes(deps.as_mut().storage, other_height, 100, 200);
+        let identities3 = store_rewarded_nodes(
+            deps.as_mut().storage,
+            different_height,
+            storage::REWARDED_NODE_MAX_LIMIT,
+            storage::REWARDED_NODE_MAX_LIMIT * 2,
+        );
+
+        // if height is not set, current height is used, else it's just passed
+        let expected1 = PagedRewardedSetResponse {
+            identities: identities1
+                .into_iter()
+                .enumerate()
+                .map(|(i, identity)| {
+                    if i < 50 {
+                        (identity, RewardedSetNodeStatus::Active)
+                    } else {
+                        (identity, RewardedSetNodeStatus::Standby)
+                    }
+                })
+                .collect::<Vec<_>>(),
+            start_next_after: None,
+            at_height: current_height,
+        };
+        let expected2 = PagedRewardedSetResponse {
+            identities: identities2
+                .into_iter()
+                .enumerate()
+                .map(|(i, identity)| {
+                    if i < 100 {
+                        (identity, RewardedSetNodeStatus::Active)
+                    } else {
+                        (identity, RewardedSetNodeStatus::Standby)
+                    }
+                })
+                .collect::<Vec<_>>(),
+            start_next_after: None,
+            at_height: other_height,
+        };
+
+        assert_eq!(
+            Ok(expected1),
+            query_rewarded_set(deps.as_ref().storage, None, None, None)
+        );
+        assert_eq!(
+            Ok(expected2),
+            query_rewarded_set(deps.as_ref().storage, Some(other_height), None, None)
+        );
+
+        // if limit is not set, a default one is used instead
+        let expected3 = PagedRewardedSetResponse {
+            identities: identities3
+                .iter()
+                .take(storage::REWARDED_NODE_DEFAULT_LIMIT as usize)
+                .cloned()
+                .map(|identity| (identity, RewardedSetNodeStatus::Active))
+                .collect::<Vec<_>>(),
+            start_next_after: Some(format!(
+                "identity{:04}",
+                storage::REWARDED_NODE_DEFAULT_LIMIT - 1
+            )),
+            at_height: different_height,
+        };
+        assert_eq!(
+            Ok(expected3),
+            query_rewarded_set(deps.as_ref().storage, Some(different_height), None, None)
+        );
+
+        // limit cannot be larger that pre-defined maximum
+        let expected4 = PagedRewardedSetResponse {
+            identities: identities3
+                .iter()
+                .take(storage::REWARDED_NODE_MAX_LIMIT as usize)
+                .cloned()
+                .map(|identity| (identity, RewardedSetNodeStatus::Active))
+                .collect::<Vec<_>>(),
+            start_next_after: Some(format!(
+                "identity{:04}",
+                storage::REWARDED_NODE_MAX_LIMIT - 1
+            )),
+            at_height: different_height,
+        };
+        assert_eq!(
+            Ok(expected4),
+            query_rewarded_set(
+                deps.as_ref().storage,
+                Some(different_height),
+                None,
+                Some(REWARDED_NODE_MAX_LIMIT * 100)
+            )
+        );
+    }
+
+    #[test]
+    fn querying_for_rewarded_set_update_details() {
+        let env = mock_env();
+        let mut deps = test_helpers::init_contract();
+
+        let current_height = 123;
+        storage::CURRENT_REWARDED_SET_HEIGHT
+            .save(deps.as_mut().storage, &current_height)
+            .unwrap();
+
+        // returns whatever is in the correct environment
+        assert_eq!(
+            RewardedSetUpdateDetails {
+                refresh_rate_blocks: crate::contract::REWARDED_SET_REFRESH_BLOCKS,
+                last_refreshed_block: current_height,
+                current_height: env.block.height
+            },
+            query_rewarded_set_update_details(env, deps.as_ref().storage).unwrap()
+        )
+    }
 }

@@ -24,6 +24,9 @@ export const Delegate = () => {
           Icon={DelegateIcon}
         >
           <>
+            <Box sx={{ px: 3, mb: 1 }}>
+              <Alert severity="warning">Always ensure you leave yourself enough funds to UNDELEGATE</Alert>
+            </Box>
             {status === EnumRequestStatus.initial && (
               <DelegateForm
                 onError={(message?: string) => {

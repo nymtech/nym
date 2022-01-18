@@ -1,11 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::cache::InclusionProbabilityResponse;
 use crate::cache::ValidatorCache;
 use mixnet_contract_common::{GatewayBond, MixNodeBond};
 use rocket::serde::json::Json;
 use rocket::State;
-use std::collections::HashMap;
 
 #[get("/mixnodes")]
 pub(crate) async fn get_mixnodes(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBond>> {
@@ -27,10 +27,14 @@ pub(crate) async fn get_active_mixnodes(cache: &State<ValidatorCache>) -> Json<V
     Json(cache.active_mixnodes().await.value)
 }
 
-#[get("/mixnodes/rewarded/inclusion-prob/<mixnode_id>")]
+#[get("/mixnodes/rewarded/inclusion-probability/<mixnode_id>")]
 pub(crate) async fn get_probs_mixnode_rewarded(
     cache: &State<ValidatorCache>,
     mixnode_id: String,
-) -> Json<HashMap<String, f32>> {
-    Json(cache.probs_mixnode_rewarded(mixnode_id).await)
+) -> Json<Option<InclusionProbabilityResponse>> {
+    Json(
+        cache
+            .probs_mixnode_rewarded_calculate(mixnode_id, None)
+            .await,
+    )
 }

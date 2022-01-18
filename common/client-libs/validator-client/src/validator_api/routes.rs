@@ -23,4 +23,4 @@ pub const SINCE_ARG: &str = "since";
 pub const STATUS: &str = "status";
 pub const REWARD_ESTIMATION: &str = "reward-estimation";
 pub const STAKE_SATURATION: &str = "stake-saturation";
-pub const INCLUSION_CHANCE: &str = "inclusion-prob";
+pub const INCLUSION_CHANCE: &str = "inclusion-probability";

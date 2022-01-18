@@ -14,8 +14,9 @@ use rand::prelude::SliceRandom;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha20Rng;
 use rocket::fairing::AdHoc;
-use serde::Serialize;
-use std::collections::{HashMap, HashSet};
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::fmt;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -26,6 +27,22 @@ use validator_client::nymd::hash::SHA256_HASH_SIZE;
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InclusionProbabilityResponse {
+    in_active: f32,
+    in_reserve: f32,
+}
+
+impl fmt::Display for InclusionProbabilityResponse {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "in_active: {:.5}, in_reserve: {:.5}",
+            self.in_active, self.in_reserve
+        )
+    }
+}
 
 pub struct ValidatorCacheRefresher<C> {
     nymd_client: Client<C>,
@@ -256,10 +273,63 @@ impl ValidatorCache {
     // Estimate probability that a node will end up in the rewarded set, by running the selection process 100 times and aggregating the results.
     // If a node is in the active set it is not counted as being in the reserve set, the probabilities are exclusive. Cumulative probabilitiy
     // can be obtained by summing the two probabilities returned.
-    async fn probs_mixnode_rewarded(&self, target_mixnode_id: IdentityKey) -> HashMap<String, f32> {
+    async fn probs_mixnode_rewarded_calculate(
+        &self,
+        target_mixnode_id: IdentityKey,
+        mixnodes: Option<Vec<MixNodeBond>>,
+    ) -> Option<InclusionProbabilityResponse> {
+        let mixnodes = if let Some(nodes) = mixnodes {
+            nodes
+        } else {
+            self.inner.mixnodes.read().await.value.clone()
+        };
+        let total_bonded_tokens = mixnodes
+            .iter()
+            .fold(0u128, |acc, x| acc + x.total_stake().unwrap_or_default())
+            as f64;
+        let target_mixnode = mixnodes
+            .iter()
+            .find(|x| x.identity() == &target_mixnode_id)?;
+        let rewarded_set_size = self
+            .inner
+            .current_mixnode_rewarded_set_size
+            .load(Ordering::SeqCst) as f64;
+        let active_set_size = self
+            .inner
+            .current_mixnode_active_set_size
+            .load(Ordering::SeqCst) as f64;
+
+        // For running comparison tests below, needs improvement
+        // let rewarded_set_size = 720.;
+        // let active_set_size = 300.;
+
+        let prob_one_draw =
+            target_mixnode.total_stake().unwrap_or_default() as f64 / total_bonded_tokens;
+        // Chance to be selected in any draw for active set
+        let prob_active_set = active_set_size * prob_one_draw;
+        // This is likely slightly too high, as we're not correcting form them not being selected in active, should be chance to be selected, minus the chance for being not selected in reserve
+        let prob_reserve_set = (rewarded_set_size - active_set_size) * prob_one_draw;
+        // (rewarded_set_size - active_set_size) * prob_one_draw * (1. - prob_active_set);
+
+        Some(InclusionProbabilityResponse {
+            in_active: prob_active_set as f32,
+            in_reserve: prob_reserve_set as f32,
+        })
+    }
+
+    #[allow(dead_code)]
+    async fn probs_mixnode_rewarded_simulate(
+        &self,
+        target_mixnode_id: IdentityKey,
+        mixnodes: Option<Vec<MixNodeBond>>,
+    ) -> Option<InclusionProbabilityResponse> {
         let mut in_active = 0;
         let mut in_reserve = 0;
-        let mixnodes = self.inner.mixnodes.read().await.value.clone();
+        let mixnodes = if let Some(nodes) = mixnodes {
+            nodes
+        } else {
+            self.inner.mixnodes.read().await.value.clone()
+        };
         let rewarded_set_size = self
             .inner
             .current_mixnode_rewarded_set_size
@@ -270,7 +340,13 @@ impl ValidatorCache {
             .load(Ordering::SeqCst) as usize;
         let mut rng = ChaCha20Rng::from_entropy();
 
-        for _ in 0..100 {
+        // For running comparison tests below, needs improvement
+        // let rewarded_set_size = 720.;
+        // let active_set_size = 300.;
+
+        let it = 100;
+
+        for _ in 0..it {
             let mut rewarded_set =
                 self.stake_weighted_choice(&mixnodes, rewarded_set_size, &mut rng);
             let reserve_set = rewarded_set
@@ -289,12 +365,10 @@ impl ValidatorCache {
                 in_reserve += 1;
             }
         }
-        vec![
-            ("in_active".to_string(), in_active as f32 / 100.0),
-            ("in_reserve".to_string(), in_reserve as f32 / 100.0),
-        ]
-        .into_iter()
-        .collect()
+        Some(InclusionProbabilityResponse {
+            in_active: in_active as f32 / it as f32,
+            in_reserve: in_reserve as f32 / it as f32,
+        })
     }
 
     async fn update_cache(
@@ -473,3 +547,47 @@ impl ValidatorCacheInner {
         }
     }
 }
+
+// #[cfg(test)]
+// mod test {
+//     use crate::cache::InclusionProbabilityResponse;
+
+//     use super::ValidatorCache;
+//     use mixnet_contract_common::MixNodeBond;
+
+//     #[tokio::test]
+//     async fn test_inclusion_probabilities() {
+//         let cache = ValidatorCache::new();
+//         let response = attohttpc::get("https://sandbox-validator.nymtech.net/api/v1/mixnodes")
+//             .send()
+//             .unwrap();
+//         let mixnodes: Vec<MixNodeBond> = response.json().unwrap();
+//         let calculated = cache
+//             .probs_mixnode_rewarded_calculate(
+//                 "ysmgeYJQPBFzB2TgqBjN5BE3Rb79CgFANrnJaYd8woQ".to_string(),
+//                 Some(mixnodes.clone()),
+//             )
+//             .await
+//             .unwrap();
+//         let mut simulated_avg = Vec::new();
+//         for _ in 0..1000 {
+//             let simulated = cache
+//                 .probs_mixnode_rewarded_simulate(
+//                     "ysmgeYJQPBFzB2TgqBjN5BE3Rb79CgFANrnJaYd8woQ".to_string(),
+//                     Some(mixnodes.clone()),
+//                 )
+//                 .await
+//                 .unwrap();
+//             simulated_avg.push(simulated);
+//         }
+//         let simulated = simulated_avg.iter().fold((0., 0.), |acc, x| {
+//             (acc.0 + x.in_active, acc.1 + x.in_reserve)
+//         });
+//         let simulated = InclusionProbabilityResponse {
+//             in_active: simulated.0 / 100.,
+//             in_reserve: simulated.1 / 100.,
+//         };
+//         println!("calculted: {calculated}");
+//         println!("simulated: {simulated}");
+//     }
+// }

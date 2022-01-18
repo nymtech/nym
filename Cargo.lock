@@ -208,7 +208,24 @@ dependencies = [
  "serde_json",
  "serde_urlencoded 0.6.1",
  "url",
- "wildmatch",
+ "wildmatch 1.1.0",
+]
+
+[[package]]
+name = "attohttpc"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e69e13a99a7e6e070bb114f7ff381e58c7ccc188630121fc4c2fe4bcf24cd072"
+dependencies = [
+ "flate2",
+ "http",
+ "log",
+ "native-tls",
+ "openssl",
+ "serde",
+ "serde_json",
+ "url",
+ "wildmatch 2.1.0",
 ]
 
 [[package]]
@@ -3861,6 +3878,7 @@ name = "nym-validator-api"
 version = "0.12.0"
 dependencies = [
  "anyhow",
+ "attohttpc 0.18.0",
  "clap",
  "coconut-interface",
  "config",
@@ -6580,7 +6598,7 @@ version = "1.0.0-beta.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79a0579dcc6fb883fe90dd3c66d76b8b8f4a1786e1e915e314b2017a500ede09"
 dependencies = [
- "attohttpc",
+ "attohttpc 0.17.0",
  "bincode",
  "cfg_aliases",
  "dirs-next",
@@ -7767,6 +7785,12 @@ name = "wildmatch"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f44b95f62d34113cf558c93511ac93027e03e9c29a60dd0fd70e6e025c7270a"
+
+[[package]]
+name = "wildmatch"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6c48bd20df7e4ced539c12f570f937c6b4884928a87fee70a479d72f031d4e0"
 
 [[package]]
 name = "winapi"

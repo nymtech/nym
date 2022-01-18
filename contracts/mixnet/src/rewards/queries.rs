@@ -28,7 +28,6 @@ pub(crate) fn query_rewarding_status(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::epoch::storage as epoch_storage;
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
     use crate::support::tests;
     use crate::support::tests::test_helpers;
@@ -39,12 +38,11 @@ pub(crate) mod tests {
         use super::storage;
         use super::*;
         use crate::delegations::transactions::try_delegate_to_mixnode;
-        use crate::epoch;
         use crate::rewards::transactions::{
             try_reward_mixnode, try_reward_next_mixnode_delegators,
         };
         use config::defaults::DENOM;
-        use cosmwasm_std::{coin, Addr, Timestamp};
+        use cosmwasm_std::{coin, Addr};
         use mixnet_contract_common::{
             RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
         };
@@ -155,15 +153,7 @@ pub(crate) mod tests {
             }
 
             env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
-            env.block.time = Timestamp::from_seconds(
-                (epoch_storage::CURRENT_EPOCH
-                    .load(&deps.storage)
-                    .unwrap()
-                    .next_epoch()
-                    .start_unix_timestamp()
-                    + 123) as u64,
-            );
-            epoch::transactions::try_advance_epoch(env.clone(), &mut deps.storage).unwrap();
+            test_helpers::update_env_and_progress_epoch(&mut env, deps.as_mut().storage);
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
 

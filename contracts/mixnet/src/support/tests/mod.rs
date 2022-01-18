@@ -11,12 +11,13 @@ pub mod queries;
 pub mod test_helpers {
     use crate::contract::instantiate;
     use crate::delegations::storage as delegations_storage;
+    use crate::epoch;
+    use crate::epoch::storage as epoch_storage;
     use crate::gateways::transactions::try_add_gateway;
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::transactions::try_add_mixnode;
     use crate::support::tests;
     use config::defaults::DENOM;
-    use cosmwasm_std::coin;
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::mock_info;
@@ -25,6 +26,7 @@ pub mod test_helpers {
     use cosmwasm_std::Coin;
     use cosmwasm_std::DepsMut;
     use cosmwasm_std::OwnedDeps;
+    use cosmwasm_std::{coin, Env, Timestamp};
     use cosmwasm_std::{Addr, StdResult, Storage};
     use cosmwasm_std::{Empty, MemoryStorage};
     use cw_storage_plus::PrimaryKey;
@@ -124,5 +126,19 @@ pub mod test_helpers {
         delegations_storage::delegations()
             .may_load(storage, (mix.into(), owner.into()).joined_key())
             .unwrap()
+    }
+
+    pub(crate) fn update_env_and_progress_epoch(env: &mut Env, storage: &mut dyn Storage) {
+        // make sure current block time is within the expected next epoch
+        env.block.time = Timestamp::from_seconds(
+            (epoch_storage::CURRENT_EPOCH
+                .load(storage)
+                .unwrap()
+                .next_epoch()
+                .start_unix_timestamp()
+                + 123) as u64,
+        );
+
+        epoch::transactions::try_advance_epoch(env.clone(), storage).unwrap();
     }
 }

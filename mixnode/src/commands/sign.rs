@@ -4,15 +4,11 @@
 use crate::commands::*;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
 use clap::ArgGroup;
-use colored::Colorize;
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
 
-const SIGN_TEXT_ARG_NAME: &str = "text";
-const SIGN_ADDRESS_ARG_NAME: &str = "address";
-
-#[derive(Args)]
+#[derive(Args, Clone)]
 #[clap(group(ArgGroup::new("sign").required(true).args(&["address", "text"])))]
 pub(crate) struct Sign {
     /// The id of the mixnode you want to sign with
@@ -28,6 +24,25 @@ pub(crate) struct Sign {
     text: Option<String>,
 }
 
+enum SignedTarget {
+    Text(String),
+    Address(String),
+}
+
+impl From<Sign> for SignedTarget {
+    fn from(args: Sign) -> Self {
+        if let Some(text) = args.text {
+            SignedTarget::Text(text)
+        } else if let Some(address) = args.address {
+            SignedTarget::Address(address)
+        } else {
+            // Clap should guarantee this by using ArgGroup. Perhaps support for outputting the enum
+            // directly will be added in the future? Or I missed how to get it?
+            unreachable!()
+        }
+    }
+}
+
 pub fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
     let identity_keypair: identity::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
         pathfinder.private_identity_key().to_owned(),
@@ -37,7 +52,7 @@ pub fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
     identity_keypair
 }
 
-fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) -> String {
+fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) {
     let trimmed = raw_address.trim();
     validate_bech32_address_or_exit(trimmed);
     let signature = private_key.sign_text(trimmed);
@@ -46,7 +61,6 @@ fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) -
         "The base58-encoded signature on '{}' is: {}",
         trimmed, signature
     );
-    signature
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
@@ -60,7 +74,7 @@ fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
     println!(
         "The base58-encoded signature on '{}' is: {}",
         text, signature
-    )
+    );
 }
 
 pub(crate) fn execute(args: &Sign) {
@@ -81,19 +95,12 @@ pub(crate) fn execute(args: &Sign) {
         return;
     }
 
+    let signed_target = SignedTarget::from(args.clone());
     let pathfinder = MixNodePathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);
 
-    if let Some(text) = args.text.as_deref() {
-        print_signed_text(identity_keypair.private_key(), &text)
-    } else if let Some(address) = args.address.as_deref() {
-        print_signed_address(identity_keypair.private_key(), &address);
-    } else {
-        let error_message = format!(
-            "You must specify either '--{}' or '--{}' argument!",
-            SIGN_TEXT_ARG_NAME, SIGN_ADDRESS_ARG_NAME
-        )
-        .red();
-        println!("{}", error_message);
+    match signed_target {
+        SignedTarget::Text(text) => print_signed_text(identity_keypair.private_key(), &text),
+        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), &addr),
     }
 }

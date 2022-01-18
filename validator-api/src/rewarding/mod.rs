@@ -16,6 +16,7 @@ use mixnet_contract_common::{
     Epoch, ExecuteMsg, IdentityKey, MixNodeBond, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 use std::collections::HashSet;
+use std::convert::TryInto;
 use std::process;
 use std::time::Duration;
 use time::OffsetDateTime;

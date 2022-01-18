@@ -315,20 +315,6 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    // pub async fn query_rewarded_set_for_epoch(
-    //     &self,
-    //     epoch: Option<Epoch>,
-    //     filter: Option<RewardedSetNodeStatus>,
-    // ) -> Result<HashMap<String, RewardedSetNodeStatus>, NymdError>
-    // where
-    //     C: CosmWasmClient + Sync,
-    // {
-    //     let request = QueryMsg::GetRewardedSetForEpoch { epoch, filter };
-    //     self.client
-    //         .query_contract_smart(self.mixnet_contract_address()?, &request)
-    //         .await
-    // }
-
     pub async fn get_rewarded_set_identities_paged(
         &self,
         start_after: Option<IdentityKey>,
@@ -1199,26 +1185,6 @@ impl<C> NymdClient<C> {
                 Vec::new(),
             )
             .await
-    }
-
-    pub async fn clear_rewarded_set(&self) -> Result<ExecuteResult, NymdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        todo!("do we still need it?")
-        // let fee = self.operation_fee(Operation::ClearRewardedSet);
-        //
-        // let req = ExecuteMsg::ClearRewardedSet {};
-        // self.client
-        //     .execute(
-        //         self.address(),
-        //         self.mixnet_contract_address()?,
-        //         &req,
-        //         fee,
-        //         "Clearing rewarded set",
-        //         Vec::new(),
-        //     )
-        //     .await
     }
 }
 

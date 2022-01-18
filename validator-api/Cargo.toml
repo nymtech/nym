@@ -63,3 +63,6 @@ coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }
+
+[dev-dependencies]
+attohttpc = {version = "0.18.0", features = ["json"]}

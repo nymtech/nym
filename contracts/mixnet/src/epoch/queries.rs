@@ -26,7 +26,7 @@ pub fn query_rewarded_set_heights_for_epoch(
     // and I think the validators are capable of performing 720 storage reads at once if they're only
     // reading u64 (+ u8) values...
     let heights = storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
-        .prefix_de(epoch_id)
+        .prefix(epoch_id)
         .range(storage, None, None, Order::Ascending)
         .map(|val| val.map(|(height, _)| height))
         .collect::<StdResult<Vec<_>>>()?;
@@ -52,7 +52,7 @@ fn query_rewarded_set_at_height(
     let start = start_after.map(Bound::exclusive);
 
     let rewarded_set = storage::REWARDED_SET
-        .prefix_de(height)
+        .prefix(height)
         .range(storage, start, None, Order::Ascending)
         .take(limit as usize)
         .collect::<StdResult<_>>()?;

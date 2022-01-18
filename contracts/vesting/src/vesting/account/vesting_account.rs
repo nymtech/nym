@@ -119,7 +119,7 @@ impl VestingAccount for Account {
         let delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_key);
 
         let delegations_keys = delegations
-            .keys_de(storage, None, None, Order::Ascending)
+            .keys(storage, None, None, Order::Ascending)
             .scan((), |_, x| x.ok())
             .filter(|(_mix, block_time)| *block_time < start_time)
             .map(|(mix, block_time)| (mix, block_time))

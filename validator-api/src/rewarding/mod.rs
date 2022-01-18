@@ -57,7 +57,7 @@ impl EpochRewardParams {
         node: &MixNodeBond,
         uptime: u8,
         in_active_set: bool,
-    ) -> (u128, u128, u128) {
+    ) -> Result<(u64, u64, u64), RewardingError> {
         let node_reward_params = NodeRewardParams::new(
             self.period_reward_pool,
             self.rewarded_set_size.into(),
@@ -75,14 +75,15 @@ impl EpochRewardParams {
         let delegators_reward =
             node.reward_delegation(node.total_delegation().amount, &node_reward_params);
 
-        (
+        Ok((
             total_node_reward
                 .reward()
-                .checked_to_num()
-                .unwrap_or_default(),
-            operator_reward,
-            delegators_reward,
-        )
+                .checked_to_num::<u128>()
+                .unwrap_or_default()
+                .try_into()?,
+            operator_reward.try_into()?,
+            delegators_reward.try_into()?,
+        ))
     }
 }
 

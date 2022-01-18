@@ -19,8 +19,7 @@ pub(crate) fn query_rewarding_status(
     mix_identity: IdentityKey,
     epoch_id: u32,
 ) -> StdResult<MixnodeRewardingStatusResponse> {
-    let status =
-        storage::REWARDING_STATUS.may_load(deps.storage, (epoch_id.into(), mix_identity))?;
+    let status = storage::REWARDING_STATUS.may_load(deps.storage, (epoch_id, mix_identity))?;
 
     Ok(MixnodeRewardingStatusResponse { status })
 }

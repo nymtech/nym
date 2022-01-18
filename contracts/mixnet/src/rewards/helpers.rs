@@ -64,7 +64,7 @@ pub(crate) fn update_rewarding_status(
     if let Some(next_start) = next_start {
         storage::REWARDING_STATUS.save(
             storage,
-            (epoch_id.into(), mix_identity),
+            (epoch_id, mix_identity),
             &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
                 running_results: rewarding_results,
                 next_start,
@@ -74,7 +74,7 @@ pub(crate) fn update_rewarding_status(
     } else {
         storage::REWARDING_STATUS.save(
             storage,
-            (epoch_id.into(), mix_identity),
+            (epoch_id, mix_identity),
             &RewardingStatus::Complete(rewarding_results),
         )?;
     }

@@ -23,6 +23,12 @@ pub(crate) enum RewardingError {
 
     #[error("Failed to query the smart contract - {0}")]
     ValidatorClientError(ValidatorClientError),
+
+    #[error("Error downcasting u128 -> u64")]
+    DowncastingError {
+        #[from]
+        source: std::num::TryFromIntError,
+    },
 }
 
 impl From<NymdError> for RewardingError {

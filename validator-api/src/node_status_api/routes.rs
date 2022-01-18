@@ -129,18 +129,28 @@ pub(crate) async fn get_mixnode_reward_estimation(
             .await
             .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))?;
 
-        let (estimated_total_node_reward, estimated_operator_reward, estimated_delegators_reward) =
-            epoch_reward_params.estimate_reward(&bond, uptime.u8(), status.is_active());
-
-        Ok(Json(RewardEstimationResponse {
-            estimated_total_node_reward,
-            estimated_operator_reward,
-            estimated_delegators_reward,
-            current_epoch_start: current_epoch.start_unix_timestamp(),
-            current_epoch_end: current_epoch.end_unix_timestamp(),
-            current_epoch_uptime: uptime.u8(),
-            as_at,
-        }))
+        match epoch_reward_params.estimate_reward(&bond, uptime.u8(), status.is_active()) {
+            Ok((
+                estimated_total_node_reward,
+                estimated_operator_reward,
+                estimated_delegators_reward,
+            )) => {
+                let reponse = RewardEstimationResponse {
+                    estimated_total_node_reward,
+                    estimated_operator_reward,
+                    estimated_delegators_reward,
+                    current_epoch_start: current_epoch.start_unix_timestamp(),
+                    current_epoch_end: current_epoch.end_unix_timestamp(),
+                    current_epoch_uptime: uptime.u8(),
+                    as_at,
+                };
+                Ok(Json(reponse))
+            }
+            Err(e) => Err(ErrorResponse::new(
+                e.to_string(),
+                Status::InternalServerError,
+            )),
+        }
     } else {
         Err(ErrorResponse::new(
             "mixnode bond not found",

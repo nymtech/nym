@@ -14,44 +14,13 @@ export const Delegate = () => {
   const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial)
   const [error, setError] = useState<string>()
   const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>()
-  const [isLoading, setIsLoading] = useState(true)
-  const [fees, setFees] = useState<TFee>()
-
-  useEffect(() => {
-    const getFees = async () => {
-      const mixnode = await getGasFee('DelegateToMixnode')
-      setFees({
-        mixnode: mixnode,
-      })
-      setIsLoading(false)
-    }
-    getFees()
-  }, [])
 
   return (
     <Layout>
-      <NymCard
-        title="Delegate"
-        subheader="Delegate to mixnode"
-        noPadding
-        Icon={DelegateIcon}
-        data-testid="delegateCard"
-      >
-        {isLoading && (
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              p: 3,
-            }}
-          >
-            <CircularProgress size={48} />
-          </Box>
-        )}
+      <NymCard title="Delegate" subheader="Delegate to mixnode" noPadding data-testid="delegateCard">
         <>
-          {status === EnumRequestStatus.initial && fees && (
+          {status === EnumRequestStatus.initial && (
             <DelegateForm
-              fees={fees}
               onError={(message?: string) => {
                 setStatus(EnumRequestStatus.error)
                 setError(message)

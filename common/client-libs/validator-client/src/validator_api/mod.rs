@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse,
+    CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
+    RewardEstimationResponse, StakeSaturationResponse,
 };
 
 pub mod error;
@@ -226,6 +226,23 @@ impl Client {
                 routes::MIXNODE,
                 identity,
                 routes::STAKE_SATURATION,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_mixnode_inclusion_probability(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<InclusionProbabilityResponse, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS_ROUTES,
+                routes::MIXNODE,
+                identity,
+                routes::INCLUSION_CHANCE,
             ],
             NO_PARAMS,
         )

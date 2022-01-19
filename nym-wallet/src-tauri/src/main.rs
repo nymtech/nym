@@ -71,6 +71,7 @@ fn main() {
       validator_api::status::mixnode_status,
       validator_api::status::mixnode_reward_estimation,
       validator_api::status::mixnode_stake_saturation,
+      validator_api::status::mixnode_inclusion_probability,
     ])
     .menu(Menu::new().add_default_app_submenu_if_macos())
     .run(tauri::generate_context!())

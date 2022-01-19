@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn checking_for_datetime_inclusion() {
         let epoch = Epoch {
-            id: 0,
+            id: 100,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
@@ -257,7 +257,7 @@ mod tests {
     #[test]
     fn determining_current_epoch() {
         let first_epoch = Epoch {
-            id: 0,
+            id: 100,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };

@@ -8,11 +8,11 @@ beforeEach(async () => {
     mnemonic = validatorClient.randomMnemonic();
     client = await validatorClient.connect(
         mnemonic,
-        config.NYMD_URL as string,
-        config.VALIDATOR_API as string,
-        config.CURRENCY_PREFIX as string,
-        config.MIXNET_CONTRACT as string,
-        config.VESTING_CONTRACT as string
+        config.NYMD_URL,
+        config.VALIDATOR_API,
+        config.CURRENCY_PREFIX,
+        config.MIXNET_CONTRACT,
+        config.VESTING_CONTRACT
     );
 });
 

@@ -4,7 +4,7 @@ import { config } from '../test-utils/config';
 let client: ValidatorApiQuerier;
 
 beforeEach(() => {
-    client = new ValidatorApiQuerier(config.VALIDATOR_API as string);
+    client = new ValidatorApiQuerier(config.VALIDATOR_API);
 });
 
 describe("init the validator api querier", () => {

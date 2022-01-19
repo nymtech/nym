@@ -23,6 +23,7 @@ impl Epoch {
     }
 
     /// Returns the next epoch.
+    #[must_use]
     pub fn next_epoch(&self) -> Self {
         Epoch {
             id: self.id + 1,

@@ -206,10 +206,12 @@ impl NymTopology {
         true
     }
 
+    #[must_use]
     pub fn filter_system_version(&self, expected_version: &str) -> Self {
         self.filter_node_versions(expected_version, expected_version)
     }
 
+    #[must_use]
     pub fn filter_node_versions(
         &self,
         expected_mix_version: &str,

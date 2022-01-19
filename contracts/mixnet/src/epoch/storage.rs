@@ -47,10 +47,6 @@ pub(crate) fn save_rewarded_set(
     Ok(())
 }
 
-pub(crate) fn advance_epoch(storage: &mut dyn Storage) -> StdResult<Epoch> {
-    CURRENT_EPOCH.update(storage, |current_epoch| Ok(current_epoch.next_epoch()))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -87,28 +83,5 @@ mod tests {
                 )
             }
         }
-    }
-
-    #[test]
-    fn advancing_epoch() {
-        let mut deps = test_helpers::init_contract();
-
-        let initial = CURRENT_EPOCH.load(deps.as_ref().storage).unwrap();
-        let new_epoch = advance_epoch(deps.as_mut().storage).unwrap();
-        let new_epoch_read = CURRENT_EPOCH.load(deps.as_ref().storage).unwrap();
-
-        assert_eq!(new_epoch, new_epoch_read);
-        assert_eq!(initial.next_epoch(), new_epoch);
-        assert_eq!(initial.end(), new_epoch.start());
-        assert_eq!(initial.length(), new_epoch.length());
-
-        // as a sanity check, advance it again
-        let new_epoch2 = advance_epoch(deps.as_mut().storage).unwrap();
-        let new_epoch_read2 = CURRENT_EPOCH.load(deps.as_ref().storage).unwrap();
-
-        assert_eq!(new_epoch2, new_epoch_read2);
-        assert_eq!(new_epoch.next_epoch(), new_epoch2);
-        assert_eq!(new_epoch.end(), new_epoch2.start());
-        assert_eq!(new_epoch.length(), new_epoch2.length());
     }
 }

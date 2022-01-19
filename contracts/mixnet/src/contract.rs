@@ -48,7 +48,7 @@ pub const EPOCH_REWARD_PERCENT: u8 = 2; // Used to calculate epoch reward pool
 pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
 pub const DEFAULT_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 
-pub const REWARDED_SET_REFRESH_BLOCKS: u32 = 720; // with blocktime being approximately 5s, it should be roughly 1h
+pub const REWARDED_SET_REFRESH_BLOCKS: u64 = 720; // with blocktime being approximately 5s, it should be roughly 1h
 
 fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> ContractState {
     ContractState {

@@ -14,7 +14,7 @@ pub fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError
     Ok(storage::CURRENT_EPOCH.load(storage)?)
 }
 
-pub(crate) fn query_rewarded_set_refresh_minimum_blocks() -> u32 {
+pub(crate) fn query_rewarded_set_refresh_minimum_blocks() -> u64 {
     crate::contract::REWARDED_SET_REFRESH_BLOCKS
 }
 

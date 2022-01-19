@@ -139,7 +139,7 @@ pub struct PagedRewardedSetResponse {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct RewardedSetUpdateDetails {
-    pub refresh_rate_blocks: u32,
+    pub refresh_rate_blocks: u64,
     pub last_refreshed_block: u64,
     pub current_height: u64,
 }

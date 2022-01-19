@@ -114,7 +114,7 @@ pub enum ContractError {
     #[error("There hasn't been sufficient delay since last rewarded set update. It was last updated at height {last_update}. The delay is {minimum_delay}. The current block height is {current_height}")]
     TooFrequentRewardedSetUpdate {
         last_update: u64,
-        minimum_delay: u32,
+        minimum_delay: u64,
         current_height: u64,
     },
 

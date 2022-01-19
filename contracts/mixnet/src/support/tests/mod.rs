@@ -87,7 +87,7 @@ pub mod test_helpers {
         };
         let env = mock_env();
         let info = mock_info("creator", &[]);
-        instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
+        instantiate(deps.as_mut(), env, info, msg).unwrap();
         deps
     }
 

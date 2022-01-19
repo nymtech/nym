@@ -853,6 +853,7 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+ "time 0.3.5",
  "vergen",
  "vesting-contract",
 ]

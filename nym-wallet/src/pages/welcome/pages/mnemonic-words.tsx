@@ -1,9 +1,9 @@
 import React from 'react'
 import { Alert, Button, Typography } from '@mui/material'
 import { WordTiles } from '../components/word-tiles'
-import { TMnemonicObject } from '../types'
+import { TMnemonicArray } from '../types'
 
-export const MnemonicWords = ({ words, onNext }: { words?: TMnemonicObject; onNext: () => void }) => {
+export const MnemonicWords = ({ words, onNext }: { words?: TMnemonicArray; onNext: () => void }) => {
   return (
     <>
       <Typography sx={{ color: 'common.white', fontWeight: 600 }}>Write down your mnemonic</Typography>

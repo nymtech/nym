@@ -1,4 +1,4 @@
-export type TMnemonicObject = {
-  [key: number]: string
-}
-
+export type TMnemonicArray = Array<{
+  name: string
+  index: number
+}>

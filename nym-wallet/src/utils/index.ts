@@ -91,3 +91,9 @@ export const checkHasEnoughFunds = async (allocationValue: string) => {
   const walletValue = await userBalance()
   return !(+walletValue.coin.amount - +minorValue.amount < 0)
 }
+
+export const randomNumberBetween = (min: number, max: number) => {
+  min = Math.ceil(min)
+  max = Math.floor(max)
+  return Math.floor(Math.random() * (max - min + 1) + min)
+}

@@ -1,22 +1,22 @@
 import React from 'react'
 import { Box, Card, CardHeader, Grid, Typography, Stack } from '@mui/material'
-import { TMnemonicObject } from '../types'
+import { TMnemonicArray } from '../types'
 
 export const WordTiles = ({
   words,
   showIndex,
   onClick,
 }: {
-  words?: TMnemonicObject
+  words?: TMnemonicArray
   showIndex?: boolean
-  onClick?: ({ word, index }: { word: string; index: string }) => void
+  onClick?: ({ name, index }: { name: string; index: number }) => void
 }) => {
   if (words) {
     return (
       <Grid container spacing={3} justifyContent="center">
-        {Object.entries(words).map(([index, word]) => (
-          <Grid item xs={2} key={index} onClick={() => onClick?.({ word, index })}>
-            <WordTile word={word} index={showIndex ? index : undefined} onClick={!!onClick} />
+        {words.map(({ name, index }) => (
+          <Grid item xs={2} key={index} onClick={() => onClick?.({ name, index })}>
+            <WordTile word={name} index={showIndex ? index : undefined} onClick={!!onClick} />
           </Grid>
         ))}
       </Grid>
@@ -26,7 +26,7 @@ export const WordTiles = ({
   return null
 }
 
-export const WordTile = ({ word, index, onClick }: { word: string; index?: string; onClick?: boolean }) => (
+export const WordTile = ({ word, index, onClick }: { word: string; index?: number; onClick?: boolean }) => (
   <Card
     variant="outlined"
     sx={{ background: '#151A2C', border: '1px solid #3A4053', cursor: onClick ? 'pointer' : 'default' }}
@@ -45,13 +45,13 @@ export const WordTile = ({ word, index, onClick }: { word: string; index?: strin
   </Card>
 )
 
-export const WordGuesses = ({ words }: { words?: TMnemonicObject }) => {
+export const WordsSelection = ({ words }: { words?: TMnemonicArray }) => {
   if (words) {
     return (
       <Grid container spacing={3} justifyContent="center">
-        {Object.entries(words).map(([index, word]) => (
+        {words.map(({ name, index }) => (
           <Grid item xs={2} key={index}>
-            <WordGuess index={index} />
+            <WordSelection index={index} />
           </Grid>
         ))}
       </Grid>
@@ -60,7 +60,7 @@ export const WordGuesses = ({ words }: { words?: TMnemonicObject }) => {
   return null
 }
 
-const WordGuess = ({ index }: { index: string }) => {
+const WordSelection = ({ index }: { index: number }) => {
   return (
     <Stack spacing={2} alignItems="center">
       <Box borderBottom="1px solid #3A4053" sx={{ p: 2, width: '100%' }}></Box>

@@ -59,7 +59,6 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
             minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
-            // TODO: This is no longer needed, and can be removed
             active_set_work_factor: DEFAULT_ACTIVE_SET_WORK_FACTOR,
         },
     }
@@ -307,7 +306,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
     Ok(query_res?)
 }
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    use cw_storage_plus::Item;
+    use serde::{Deserialize, Serialize};
+
     // needed migration:
     /*
        1. removal of rewarding_interval_starting_block field from ContractState
@@ -316,6 +318,30 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, 
        4. epoch_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
        5. epoch_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
     */
+
+    #[derive(Serialize, Deserialize)]
+    struct OldContractState {
+        pub owner: Addr, // only the owner account can update state
+        pub rewarding_validator_address: Addr,
+        pub params: ContractStateParams,
+        pub rewarding_interval_starting_block: u64,
+        pub latest_rewarding_interval_nonce: u32,
+        pub rewarding_in_progress: bool,
+    }
+
+    let old_contract_state: Item<OldContractState> = Item::new("config");
+
+    let old_state = old_contract_state.load(deps.storage)?;
+    let new_state = crate::mixnet_contract_settings::models::ContractState {
+        owner: old_state.owner,
+        rewarding_validator_address: old_state.rewarding_validator_address,
+        params: old_state.params,
+    };
+
+    mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &new_state)?;
+
+    epoch_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
+    epoch_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Default::default())
 }

@@ -16,21 +16,18 @@ beforeEach(async () => {
     );
 });
 
-//todos
-//we want to mock the majority of these tests
-//and keep a few integration tests in place
-
-describe("connect to the nym validator client and perform integration tests against the current testnet", () => {
-    test("get cached mixnodes", async () => {
+describe("perform a few non expensive network calls with the validator client", () => {
+    test("get all cached mixnodes", async () => {
         try {
             const response = await client.getCachedMixnodes();
+
             //expect all mixnodes to have their owner address
             response.forEach(mixnodeDetails => {
                 expect(mixnodeDetails.owner).toHaveLength(43)
             });
         }
-        catch (e) {
-            console.log(e);
+        catch (error) {
+            throw error;
         }
     });
 
@@ -40,53 +37,58 @@ describe("connect to the nym validator client and perform integration tests agai
             //we expect their balance to be zero, as it's a new account
             const address = await validatorClient.mnemonicToAddress(mnemonic, config.CURRENCY_PREFIX as string);
             const response = await client.getBalance(address);
+
             expect(response.amount).toStrictEqual("0");
             expect(response.denom).toBe("unymt");
         }
-        catch (e) {
-            console.log(e);
+        catch (error) {
+            throw error;
         }
     });
 
     test("get minimium pledge amount for a mixnode", async () => {
         try {
+
             const response = await client.minimumMixnodePledge();
+
             expect(response.amount).toBe("100000000");
-            expect(response.denom).toBe(config.CURRENCY_PREFIX as string);
+            expect(response.denom).toBe(config.CURRENCY_PREFIX);
         }
-        catch (e) {
-            console.log(e);
+        catch (error) {
+            throw error;
         }
     });
 
     test("get minimium gateway pledge amount", async () => {
         try {
             const response = await client.minimumGatewayPledge();
+
             expect(response.amount).toBe("100000000");
             expect(response.denom).toBe(config.CURRENCY_PREFIX as string);
         }
-        catch (e) {
-            console.log(e);
+        catch (error) {
+            throw error;
         }
     });
 
-    test("get current mixnet contract address", () => {
+    test("ensure the correct mixnet address is being passed", () => {
         try {
-            const response = client.mixnetContract;
-            expect(response).toStrictEqual(config.MIXNET_CONTRACT as string)
+            //should supply the given value from the client init
+            const mixnet_contract = client.mixnetContract;
+            expect(mixnet_contract).toStrictEqual(config.MIXNET_CONTRACT)
         }
-        catch (e) {
-            console.log(e);
+        catch (error) {
+            throw error;
         }
     });
 
-    test("get current vesting contract address", () => {
+    test("ensure the correct vesting address is being passed", () => {
         try {
-            const response = client.vestingContract;
-            expect(response).toStrictEqual(config.VESTING_CONTRACT as string)
+            const vesting_contract = client.vestingContract;
+            expect(vesting_contract).toStrictEqual(config.VESTING_CONTRACT)
         }
-        catch (e) {
-            console.log(e);
+        catch (error) {
+            throw error;
         }
     });
 });

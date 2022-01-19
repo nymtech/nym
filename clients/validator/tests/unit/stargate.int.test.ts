@@ -1,10 +1,11 @@
 const stargate = require("../../src/stargate-helper");
 import { config } from '../test-utils/config';
 
-describe("test the stargate functions within the client", () => {
-    test("test that the gas price is returned correctly", () => {
-        const nymCurrency = config.CURRENCY_PREFIX as string;
+describe("test the stargate functions within the project", () => {
+    test("gas price is returned correctly", () => {
+        const nymCurrency = config.CURRENCY_PREFIX;
         const getGasPrice = stargate.nymGasPrice(nymCurrency);
+       
         expect(getGasPrice.denom).toBe(`u${nymCurrency}`);
     });
 

@@ -112,7 +112,7 @@ impl Client {
                 routes::MIXNODES,
                 routes::REWARDED,
                 routes::INCLUSION_CHANCE,
-                &mixnode_id.to_string(),
+                mixnode_id,
             ],
             NO_PARAMS,
         )

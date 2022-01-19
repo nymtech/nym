@@ -54,6 +54,7 @@ impl From<NymTopologyError> for PreparationError {
 /// an optional reply-SURB, padding it to appropriate length, encrypting its content,
 /// and chunking into appropriate size [`Fragment`]s.
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
+#[must_use]
 pub struct MessagePreparer<R: CryptoRng + Rng> {
     /// Instance of a cryptographically secure random number generator.
     rng: R,

@@ -133,6 +133,7 @@ impl DirectSecp256k1HdWallet {
     }
 }
 
+#[must_use]
 pub struct DirectSecp256k1HdWalletBuilder {
     /// The password to use when deriving a BIP39 seed from a mnemonic.
     bip39_password: String,

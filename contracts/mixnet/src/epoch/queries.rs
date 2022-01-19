@@ -70,8 +70,8 @@ pub fn query_rewarded_set(
         None => query_current_rewarded_set_height(storage)?,
     };
     let limit = limit
-        .unwrap_or(storage::REWARDED_NODE_DEFAULT_LIMIT)
-        .min(storage::REWARDED_NODE_MAX_LIMIT);
+        .unwrap_or(storage::REWARDED_NODE_DEFAULT_PAGE_LIMIT)
+        .min(storage::REWARDED_NODE_MAX_PAGE_LIMIT);
 
     // query for an additional element to determine paging requirements
     let mut paged_result = query_rewarded_set_at_height(storage, height, start_after, limit + 1)?;
@@ -107,7 +107,7 @@ pub fn query_rewarded_set_update_details(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::epoch::storage::REWARDED_NODE_MAX_LIMIT;
+    use crate::epoch::storage::REWARDED_NODE_MAX_PAGE_LIMIT;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_env;
 
@@ -310,8 +310,8 @@ mod tests {
         let identities3 = store_rewarded_nodes(
             deps.as_mut().storage,
             different_height,
-            storage::REWARDED_NODE_MAX_LIMIT,
-            storage::REWARDED_NODE_MAX_LIMIT * 2,
+            storage::REWARDED_NODE_MAX_PAGE_LIMIT,
+            storage::REWARDED_NODE_MAX_PAGE_LIMIT * 2,
         );
 
         // if height is not set, current height is used, else it's just passed
@@ -359,13 +359,13 @@ mod tests {
         let expected3 = PagedRewardedSetResponse {
             identities: identities3
                 .iter()
-                .take(storage::REWARDED_NODE_DEFAULT_LIMIT as usize)
+                .take(storage::REWARDED_NODE_DEFAULT_PAGE_LIMIT as usize)
                 .cloned()
                 .map(|identity| (identity, RewardedSetNodeStatus::Active))
                 .collect::<Vec<_>>(),
             start_next_after: Some(format!(
                 "identity{:04}",
-                storage::REWARDED_NODE_DEFAULT_LIMIT - 1
+                storage::REWARDED_NODE_DEFAULT_PAGE_LIMIT - 1
             )),
             at_height: different_height,
         };
@@ -378,13 +378,13 @@ mod tests {
         let expected4 = PagedRewardedSetResponse {
             identities: identities3
                 .iter()
-                .take(storage::REWARDED_NODE_MAX_LIMIT as usize)
+                .take(storage::REWARDED_NODE_MAX_PAGE_LIMIT as usize)
                 .cloned()
                 .map(|identity| (identity, RewardedSetNodeStatus::Active))
                 .collect::<Vec<_>>(),
             start_next_after: Some(format!(
                 "identity{:04}",
-                storage::REWARDED_NODE_MAX_LIMIT - 1
+                storage::REWARDED_NODE_MAX_PAGE_LIMIT - 1
             )),
             at_height: different_height,
         };
@@ -394,7 +394,7 @@ mod tests {
                 deps.as_ref().storage,
                 Some(different_height),
                 None,
-                Some(REWARDED_NODE_MAX_LIMIT * 100)
+                Some(REWARDED_NODE_MAX_PAGE_LIMIT * 100)
             )
         );
     }

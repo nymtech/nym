@@ -11,13 +11,11 @@ type BlockHeight = u64;
 type EpochId = u32;
 
 // TODO: those values need to be verified
-pub(crate) const REWARDED_NODE_DEFAULT_LIMIT: u32 = 1000;
-pub(crate) const REWARDED_NODE_MAX_LIMIT: u32 = 1500;
+pub(crate) const REWARDED_NODE_DEFAULT_PAGE_LIMIT: u32 = 1000;
+pub(crate) const REWARDED_NODE_MAX_PAGE_LIMIT: u32 = 1500;
 
 pub(crate) const CURRENT_EPOCH: Item<Epoch> = Item::new("cep");
 pub(crate) const CURRENT_REWARDED_SET_HEIGHT: Item<BlockHeight> = Item::new("crh");
-
-// pub(crate) const _EPOCH_MAP: Map<u32, Epoch> = Map::new("ep");
 
 // I've changed the `()` data to an `u8` as after serializing `()` is represented as "null",
 // taking more space than a single digit u8. If we don't care about what's there, why not go with more efficient approach? : )

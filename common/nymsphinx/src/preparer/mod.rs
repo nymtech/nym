@@ -386,13 +386,7 @@ where
         // (note: surb_ack_bytes contains SURB_ACK_FIRST_HOP || SURB_ACK_DATA )
         let packet_payload: Vec<_> = surb_ack_bytes
             .into_iter()
-            .chain(
-                reply_surb
-                    .encryption_key()
-                    .compute_digest()
-                    .to_vec()
-                    .into_iter(),
-            )
+            .chain(reply_surb.encryption_key().compute_digest().iter().copied())
             .chain(reply_content.into_iter())
             .collect();
 

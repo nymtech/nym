@@ -36,7 +36,7 @@ async fn send_text_with_reply() {
     let (mut ws_stream, _) = connect_async(uri).await.unwrap();
 
     let recipient = get_self_address(&mut ws_stream).await;
-    println!("our full address is: {}", recipient.to_string());
+    println!("our full address is: {}", recipient);
 
     let send_request = json!({
         "type" : "send",
@@ -76,7 +76,7 @@ async fn send_text_without_reply() {
     let (mut ws_stream, _) = connect_async(uri).await.unwrap();
 
     let recipient = get_self_address(&mut ws_stream).await;
-    println!("our full address is: {}", recipient.to_string());
+    println!("our full address is: {}", recipient);
 
     let send_request = json!({
         "type" : "send",

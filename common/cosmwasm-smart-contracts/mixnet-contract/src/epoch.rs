@@ -32,12 +32,15 @@ impl Epoch {
     }
 
     /// Returns the last epoch.
-    pub fn previous_epoch(&self) -> Self {
-        Epoch {
-            // TODO: is saturating_sub what we really want? perhaps we want to return an Option instead?
-            id: self.id.saturating_sub(1),
-            start: self.start - self.length,
-            length: self.length,
+    pub fn previous_epoch(&self) -> Option<Self> {
+        if self.id > 0 {
+            Some(Epoch {
+                id: self.id - 1,
+                start: self.start - self.length,
+                length: self.length,
+            })
+        } else {
+            None
         }
     }
 
@@ -65,22 +68,22 @@ impl Epoch {
     /// # Arguments
     ///
     /// * `now`: current datetime
-    pub fn current(&self, now: OffsetDateTime) -> Self {
+    pub fn current(&self, now: OffsetDateTime) -> Option<Self> {
         let mut candidate = *self;
 
         if now > self.start {
             loop {
                 if candidate.contains(now) {
-                    return candidate;
+                    return Some(candidate);
                 }
                 candidate = candidate.next_epoch();
             }
         } else {
             loop {
                 if candidate.contains(now) {
-                    return candidate;
+                    return Some(candidate);
                 }
-                candidate = candidate.previous_epoch();
+                candidate = candidate.previous_epoch()?;
             }
         }
     }
@@ -91,22 +94,22 @@ impl Epoch {
     /// # Arguments
     ///
     /// * `now_unix`: current unix time
-    pub fn current_with_timestamp(&self, now_unix: i64) -> Self {
+    pub fn current_with_timestamp(&self, now_unix: i64) -> Option<Self> {
         let mut candidate = *self;
 
         if now_unix > self.start_unix_timestamp() {
             loop {
                 if candidate.contains_timestamp(now_unix) {
-                    return candidate;
+                    return Some(candidate);
                 }
                 candidate = candidate.next_epoch();
             }
         } else {
             loop {
                 if candidate.contains_timestamp(now_unix) {
-                    return candidate;
+                    return Some(candidate);
                 }
-                candidate = candidate.previous_epoch();
+                candidate = candidate.previous_epoch()?;
             }
         }
     }
@@ -206,8 +209,14 @@ mod tests {
             start: time::macros::datetime!(2021-08-22 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
+        assert_eq!(expected, epoch.previous_epoch().unwrap());
 
-        assert_eq!(expected, epoch.previous_epoch())
+        let genesis_epoch = Epoch {
+            id: 0,
+            start: time::macros::datetime!(2021-08-23 12:00 UTC),
+            length: Duration::from_secs(24 * 60 * 60),
+        };
+        assert!(genesis_epoch.previous_epoch().is_none());
     }
 
     #[test]
@@ -242,7 +251,7 @@ mod tests {
         assert!(epoch.contains(in_the_midle));
 
         assert!(!epoch.contains(epoch.next_epoch().end()));
-        assert!(!epoch.contains(epoch.previous_epoch().start()));
+        assert!(!epoch.contains(epoch.previous_epoch().unwrap().start()));
     }
 
     #[test]
@@ -258,18 +267,21 @@ mod tests {
         assert_eq!(first_epoch.previous_epoch(), first_epoch.current(fake_now));
 
         // this epoch (start boundary)
-        assert_eq!(first_epoch, first_epoch.current(first_epoch.start));
+        assert_eq!(first_epoch, first_epoch.current(first_epoch.start).unwrap());
 
         // this epoch (in the middle)
         let fake_now = first_epoch.start + Duration::from_secs(123);
-        assert_eq!(first_epoch, first_epoch.current(fake_now));
+        assert_eq!(first_epoch, first_epoch.current(fake_now).unwrap());
 
         // this epoch (end boundary)
-        assert_eq!(first_epoch, first_epoch.current(first_epoch.end()));
+        assert_eq!(first_epoch, first_epoch.current(first_epoch.end()).unwrap());
 
         // next epoch
         let fake_now = first_epoch.end() + Duration::from_secs(123);
-        assert_eq!(first_epoch.next_epoch(), first_epoch.current(fake_now));
+        assert_eq!(
+            first_epoch.next_epoch(),
+            first_epoch.current(fake_now).unwrap()
+        );
 
         // few epochs in the past
         let fake_now =
@@ -277,9 +289,12 @@ mod tests {
         assert_eq!(
             first_epoch
                 .previous_epoch()
+                .unwrap()
                 .previous_epoch()
-                .previous_epoch(),
-            first_epoch.current(fake_now)
+                .unwrap()
+                .previous_epoch()
+                .unwrap(),
+            first_epoch.current(fake_now).unwrap()
         );
 
         // few epochs in the future
@@ -287,7 +302,7 @@ mod tests {
             first_epoch.end() + first_epoch.length + first_epoch.length + first_epoch.length;
         assert_eq!(
             first_epoch.next_epoch().next_epoch().next_epoch(),
-            first_epoch.current(fake_now)
+            first_epoch.current(fake_now).unwrap()
         );
     }
 }

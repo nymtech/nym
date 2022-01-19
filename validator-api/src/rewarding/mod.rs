@@ -721,9 +721,12 @@ impl Rewarder {
         let mut last_stored_epoch = self.nymd_client.get_current_epoch().await?;
 
         let block_now: OffsetDateTime = self.nymd_client.current_block_timestamp().await?.into();
-        let actual_current_epoch = last_stored_epoch.current(block_now);
+        let actual_current_epoch = match last_stored_epoch.current(block_now) {
+            None => return Ok(()),
+            Some(epoch) => epoch,
+        };
 
-        // we're waiting for the first epoch to start...
+        // we're waiting for the first epoch to start... (same is true if the value was 'None')
         if actual_current_epoch.start() < last_stored_epoch.start() {
             return Ok(());
         }
@@ -758,7 +761,10 @@ impl Rewarder {
         let last_stored_epoch = self.nymd_client.get_current_epoch().await?;
         let block_now: OffsetDateTime = self.nymd_client.current_block_timestamp().await?.into();
 
-        let actual_current_epoch = last_stored_epoch.current(block_now);
+        let actual_current_epoch = match last_stored_epoch.current(block_now) {
+            None => return Ok(()),
+            Some(epoch) => epoch,
+        };
 
         // the [stored] epoch has finished - we should distribute rewards now
         if last_stored_epoch.start() < actual_current_epoch.start() {

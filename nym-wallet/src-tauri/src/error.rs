@@ -41,6 +41,8 @@ pub enum BackendError {
   NoBalance(String),
   #[error("{0} is not a valid denomination string")]
   InvalidDenom(String),
+  #[error("The provided network is not supported (yet)")]
+  NetworkNotSupported(config::defaults::all::Network),
 }
 
 impl Serialize for BackendError {

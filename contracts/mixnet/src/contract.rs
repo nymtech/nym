@@ -309,7 +309,7 @@ pub mod tests {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let msg = InstantiateMsg {
-            rewarding_validator_address: config::defaults::REWARDING_VALIDATOR_ADDRESS.to_string(),
+            rewarding_validator_address: config::defaults::DEFAULT_REWARDING_VALIDATOR.to_string(),
         };
         let info = mock_info("creator", &[]);
 

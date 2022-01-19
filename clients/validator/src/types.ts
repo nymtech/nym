@@ -135,6 +135,7 @@ export type MixNode = {
   sphinx_key: string;
   identity_key: string;
   version: string;
+  profit_margin_percent: number;
 };
 
 export type GatewayBond = {

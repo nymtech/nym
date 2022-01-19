@@ -82,7 +82,6 @@ pub enum ExecuteMsg {
     AdvanceCurrentEpoch {},
 }
 
-// TODO: See comment above for JsonSchema derive
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {

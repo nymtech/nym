@@ -12,7 +12,6 @@ pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
 }
 
-// TODO: We've removed JsonSchema derive from here due to Epoch, it needs to be put back
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {

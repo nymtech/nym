@@ -4,6 +4,8 @@ import { WordTiles, HiddenWords } from '../components/word-tiles'
 import { THiddenMnemonicWords, THiddenMnemonicWord, TMnemonicWord, TMnemonicWords } from '../types'
 import { randomNumberBetween } from '../../../utils'
 
+const numberOfRandomWords = 4
+
 export const VerifyMnemonic = ({ words }: { words?: TMnemonicWords }) => {
   const [randomWords, setRandomWords] = useState<TMnemonicWords>()
   const [hiddenRandomWords, setHiddenRandomWords] = useState<THiddenMnemonicWords>()
@@ -11,9 +13,9 @@ export const VerifyMnemonic = ({ words }: { words?: TMnemonicWords }) => {
 
   useEffect(() => {
     if (words) {
-      const randomWords = getRandomEntriesFromArray<TMnemonicWord>(words, 4)
+      const randomWords = getRandomEntriesFromArray<TMnemonicWord>(words, numberOfRandomWords)
       const withHiddenProperty = randomWords.map((word) => ({ ...word, hidden: true }))
-      const shuffled = getRandomEntriesFromArray<THiddenMnemonicWord>(withHiddenProperty, 4)
+      const shuffled = getRandomEntriesFromArray<THiddenMnemonicWord>(withHiddenProperty, numberOfRandomWords)
       setRandomWords(randomWords)
       setHiddenRandomWords(shuffled)
     }
@@ -34,8 +36,13 @@ export const VerifyMnemonic = ({ words }: { words?: TMnemonicWords }) => {
         <Typography sx={{ color: 'common.white', fontWeight: 600 }}>Verify your mnemonic</Typography>
         <Typography sx={{ color: 'common.white' }}>Select the words from your mnmonic based on their order</Typography>
         <HiddenWords words={hiddenRandomWords} />
-        <WordTiles words={randomWords} onClick={revealWord} />
-        <Button variant="contained" sx={{ width: 300 }} size="large" disabled>
+        <WordTiles words={randomWords} onClick={currentSelection !== numberOfRandomWords ? revealWord : undefined} />
+        <Button
+          variant="contained"
+          sx={{ width: 300 }}
+          size="large"
+          disabled={currentSelection !== numberOfRandomWords}
+        >
           Next
         </Button>
       </>

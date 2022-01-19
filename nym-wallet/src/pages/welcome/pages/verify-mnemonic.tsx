@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Button, Typography } from '@mui/material'
-import { WordTiles } from '../components/word-tiles'
+import { WordTiles, WordGuesses } from '../components/word-tiles'
 import { TMnemonicObject } from '../types'
 
 export const VerifyMnemonic = ({ words }: { words?: TMnemonicObject }) => {
@@ -17,10 +17,11 @@ export const VerifyMnemonic = ({ words }: { words?: TMnemonicObject }) => {
     <>
       <Typography sx={{ color: 'common.white', fontWeight: 600 }}>Verify your mnemonic</Typography>
       <Typography sx={{ color: 'common.white' }}>Select the words from your mnmonic based on their order</Typography>
+      <WordGuesses words={randomWords} />
       {randomWords && (
         <WordTiles words={randomWords} onClick={(arg) => alert(`word is: ${arg.word}. index is: ${arg.index}`)} />
       )}
-      <Button variant="contained" sx={{ width: 300 }} size="large">
+      <Button variant="contained" sx={{ width: 300 }} size="large" disabled>
         Next
       </Button>
     </>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardHeader, Grid, Typography } from '@mui/material'
+import { Box, Card, CardHeader, Grid, Typography, Stack } from '@mui/material'
 import { TMnemonicObject } from '../types'
 
 export const WordTiles = ({
@@ -44,3 +44,27 @@ export const WordTile = ({ word, index, onClick }: { word: string; index?: strin
     />
   </Card>
 )
+
+export const WordGuesses = ({ words }: { words?: TMnemonicObject }) => {
+  if (words) {
+    return (
+      <Grid container spacing={3} justifyContent="center">
+        {Object.entries(words).map(([index, word]) => (
+          <Grid item xs={2} key={index}>
+            <WordGuess index={index} />
+          </Grid>
+        ))}
+      </Grid>
+    )
+  }
+  return null
+}
+
+const WordGuess = ({ index }: { index: string }) => {
+  return (
+    <Stack spacing={2} alignItems="center">
+      <Box borderBottom="1px solid #3A4053" sx={{ p: 2, width: '100%' }}></Box>
+      <Typography>{index}.</Typography>
+    </Stack>
+  )
+}

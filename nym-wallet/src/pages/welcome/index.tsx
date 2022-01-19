@@ -43,7 +43,7 @@ export const Welcome = () => {
           margin: 'auto',
         }}
       >
-        <Stack spacing={3} alignItems="center" sx={{ width: 1080 }}>
+        <Stack spacing={4} alignItems="center" sx={{ width: 1080 }}>
           <NymLogo />
           {page === 'welcome' && <WelcomeContent onComplete={() => setPage('create account')} />}
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
@@ -50,4 +51,21 @@ pub struct RewardEstimationResponse {
 pub struct StakeSaturationResponse {
     pub saturation: f32,
     pub as_at: i64,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+pub struct InclusionProbabilityResponse {
+    pub in_active: f32,
+    pub in_reserve: f32,
+}
+
+impl fmt::Display for InclusionProbabilityResponse {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "in_active: {:.5}, in_reserve: {:.5}",
+            self.in_active, self.in_reserve
+        )
+    }
 }

@@ -304,7 +304,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         let monitor_threshold =
             monitor_threshold.expect("Provided monitor threshold is not a number!");
         assert!(
-            !(monitor_threshold > 100),
+            monitor_threshold <= 100,
             "Provided monitor threshold is greater than 100!"
         );
         config = config.with_minimum_epoch_monitor_threshold(monitor_threshold)

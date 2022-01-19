@@ -17,9 +17,8 @@ import { EnumNodeType } from '../../types/global'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { bond, majorToMinor } from '../../requests'
 import { validationSchema } from './validationSchema'
-import { Coin, Gateway, MixNode } from '../../types'
+import { Gateway, MixNode } from '../../types'
 import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
-import { checkHasEnoughFunds } from '../../utils'
 import { Fee } from '../../components'
 
 type TBondFormFields = {
@@ -90,7 +89,6 @@ export const BondForm = ({
     register,
     handleSubmit,
     setValue,
-    setError,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<TBondFormFields>({
@@ -104,11 +102,6 @@ export const BondForm = ({
   const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions)
 
   const onSubmit = async (data: TBondFormFields) => {
-    const hasEnoughFunds = await checkHasEnoughFunds(data.amount)
-    if (!hasEnoughFunds) {
-      return setError('amount', { message: 'Not enough funds in wallet' })
-    }
-
     const formattedData = formatData(data)
     const pledge = await majorToMinor(data.amount)
 

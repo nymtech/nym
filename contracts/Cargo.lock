@@ -879,6 +879,7 @@ dependencies = [
 name = "network-defaults"
 version = "0.1.0"
 dependencies = [
+ "cfg-if",
  "hex-literal",
  "serde",
  "time 0.3.5",

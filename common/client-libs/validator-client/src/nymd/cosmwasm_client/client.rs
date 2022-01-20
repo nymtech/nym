@@ -180,7 +180,7 @@ pub trait CosmWasmClient: rpc::Client {
             let mut res = self
                 .make_abci_query::<_, QueryTotalSupplyResponse>(path.clone(), req)
                 .await?;
-            
+
             supply.append(&mut res.supply);
             if let Some(pagination_info) = res.pagination {
                 pagination = Some(create_pagination(pagination_info.next_key))
@@ -188,7 +188,7 @@ pub trait CosmWasmClient: rpc::Client {
                 break;
             }
         }
-        
+
         supply
             .into_iter()
             .map(|coin| {

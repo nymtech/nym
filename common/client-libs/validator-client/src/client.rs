@@ -29,6 +29,7 @@ use validator_api_requests::models::{
 };
 
 #[cfg(feature = "nymd-client")]
+#[must_use]
 pub struct Config {
     api_url: Url,
     nymd_url: Url,

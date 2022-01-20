@@ -177,6 +177,13 @@ export interface ISigningClient extends IQueryClient, ICosmWasmSigning, INymSign
     memo?: string,
   ): Promise<ExecuteResult>;
 
+  updateMixnodeConfig(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    profitMarginPercent: number,
+    fee: StdFee | 'auto' | number,
+  ): Promise<ExecuteResult>;
+
   updateContractStateParams(
     mixnetContractAddress: string,
     newParams: ContractStateParams,
@@ -440,6 +447,20 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
       },
       fee,
       memo,
+    );
+  }
+
+  updateMixnodeConfig(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    profitMarginPercent: number,
+    fee: StdFee | 'auto' | number,
+  ): Promise<ExecuteResult> {
+    return this.execute(
+      this.clientAddress,
+      mixnetContractAddress,
+      { update_mixnode_config: { profit_margin_percent: profitMarginPercent, mix_identity: mixIdentity } },
+      fee,
     );
   }
 

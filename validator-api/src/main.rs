@@ -570,6 +570,11 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
 async fn main() -> Result<()> {
     println!("Starting validator api...");
 
+    cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
+        // instriment tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
+        console_subscriber::init();
+    }}
+
     setup_logging();
     let args = parse_args();
     run_validator_api(args).await

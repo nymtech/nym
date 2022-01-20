@@ -1,4 +1,4 @@
-import { type } from '@tauri-apps/api/os'
+export type TPages = 'welcome' | 'create account' | 'verify mnemonic part 1' | 'verify mnemonic part 2'
 
 export type TMnemonicWord = {
   name: string

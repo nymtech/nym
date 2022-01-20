@@ -6,7 +6,7 @@ import { randomNumberBetween } from '../../../utils'
 
 const numberOfRandomWords = 4
 
-export const VerifyMnemonic = ({ words }: { words?: TMnemonicWords }) => {
+export const VerifyMnemonic = ({ words, onComplete }: { words?: TMnemonicWords; onComplete: () => void }) => {
   const [randomWords, setRandomWords] = useState<TMnemonicWords>()
   const [hiddenRandomWords, setHiddenRandomWords] = useState<THiddenMnemonicWords>()
   const [currentSelection, setCurrentSelection] = useState(0)
@@ -42,6 +42,7 @@ export const VerifyMnemonic = ({ words }: { words?: TMnemonicWords }) => {
           sx={{ width: 300 }}
           size="large"
           disabled={currentSelection !== numberOfRandomWords}
+          onClick={onComplete}
         >
           Next
         </Button>

@@ -11,11 +11,17 @@ interface MixNodeDetailProps {
   mixnodeDescription: MixNodeDescriptionResponse;
 }
 
-export const MixNodeDetailSection: React.FC<MixNodeDetailProps> = ({ mixNodeRow, mixnodeDescription }) => {
+export const MixNodeDetailSection: React.FC<MixNodeDetailProps> = ({
+  mixNodeRow,
+  mixnodeDescription,
+}) => {
   const theme = useTheme();
   const palette = [theme.palette.text.primary];
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
-  const statusText = React.useMemo(() => getMixNodeStatusText(mixNodeRow.status), [mixNodeRow.status]);
+  const statusText = React.useMemo(
+    () => getMixNodeStatusText(mixNodeRow.status),
+    [mixNodeRow.status],
+  );
   return (
     <Grid container>
       <Grid item xs={12} sm={6}>
@@ -34,39 +40,63 @@ export const MixNodeDetailSection: React.FC<MixNodeDetailProps> = ({ mixNodeRow,
               placeItems: 'center',
             }}
           >
-            <Identicon size={43} string={mixNodeRow.identity_key} palette={palette} />
+            <Identicon
+              size={43}
+              string={mixNodeRow.identity_key}
+              palette={palette}
+            />
           </Box>
           <Box ml={2}>
             <Typography fontSize={21}>{mixnodeDescription.name}</Typography>
-            <Typography>{(mixnodeDescription.description || '').slice(0, 1000)}</Typography>
+            <Typography>
+              {(mixnodeDescription.description || '').slice(0, 1000)}
+            </Typography>
             <Button
               component="a"
               variant="text"
               sx={{
                 mt: 4,
                 borderRadius: '30px',
-                fontWeight: 'bold',
+                fontWeight: 600,
                 padding: 0,
               }}
               href={mixnodeDescription.link}
               target="_blank"
             >
-              <Typography component="span" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden" maxWidth="250px">
+              <Typography
+                component="span"
+                textOverflow="ellipsis"
+                whiteSpace="nowrap"
+                overflow="hidden"
+                maxWidth="250px"
+              >
                 {mixnodeDescription.link}
               </Typography>
             </Button>
           </Box>
         </Box>
       </Grid>
-      <Grid item xs={12} sm={6} display="flex" justifyContent="end" mt={matches ? 5 : undefined}>
+      <Grid
+        item
+        xs={12}
+        sm={6}
+        display="flex"
+        justifyContent="end"
+        mt={matches ? 5 : undefined}
+      >
         <Box display="flex" flexDirection="column">
-          <Typography fontWeight="800" alignSelf="self-end">
+          <Typography fontWeight="600" alignSelf="self-end">
             Node status:
           </Typography>
           <Box mt={2} alignSelf="self-end">
             <MixNodeStatus status={mixNodeRow.status} />
           </Box>
-          <Typography mt={1} alignSelf="self-end" color={theme.palette.text.secondary} fontSize="smaller">
+          <Typography
+            mt={1}
+            alignSelf="self-end"
+            color={theme.palette.text.secondary}
+            fontSize="smaller"
+          >
             This node is {statusText} in this epoch
           </Typography>
         </Box>

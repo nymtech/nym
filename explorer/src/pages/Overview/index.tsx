@@ -1,10 +1,11 @@
 import * as React from 'react';
-import { Box, Grid, Link } from '@mui/material';
+import { Box, Grid, Link, Typography } from '@mui/material';
 import { WorldMap } from 'src/components/WorldMap';
 import { useHistory } from 'react-router-dom';
 import { useMainContext } from 'src/context/main';
 import { formatNumber } from 'src/utils';
 import { BIG_DIPPER } from 'src/api/constants';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { ValidatorsSVG } from 'src/icons/ValidatorsSVG';
 import { GatewaysSVG } from 'src/icons/GatewaysSVG';
 import { MixnodesSVG } from 'src/icons/MixnodesSVG';
@@ -23,11 +24,11 @@ export const PageOverview: React.FC = () => {
     <>
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Grid>
-          <Grid item>
+          <Grid item paddingBottom={3}>
             <Title text="Overview" />
           </Grid>
           <Grid item>
-            <Grid container spacing={2}>
+            <Grid container spacing={3}>
               {summaryOverview && (
                 <>
                   <Grid item xs={12} md={4}>
@@ -97,19 +98,29 @@ export const PageOverview: React.FC = () => {
               )}
               {block?.data && (
                 <Grid item xs={12}>
-                  <ContentCard
-                    title={
-                      <Link
-                        href={`${BIG_DIPPER}/blocks`}
-                        target="_blank"
-                        rel="noreferrer"
-                        underline="none"
-                        color="inherit"
-                      >
-                        Current block height is {formatNumber(block.data)}
-                      </Link>
-                    }
-                  />
+                  <Link
+                    href={`${BIG_DIPPER}/blocks`}
+                    target="_blank"
+                    rel="noreferrer"
+                    underline="none"
+                    color="inherit"
+                    marginY={2}
+                    paddingX={3}
+                    paddingY={0.25}
+                    fontSize={14}
+                    fontWeight={600}
+                    display="flex"
+                    alignItems="center"
+                  >
+                    <Typography fontWeight="inherit" fontSize="inherit">
+                      Current block height is {formatNumber(block.data)}
+                    </Typography>
+                    <OpenInNewIcon
+                      fontWeight="inherit"
+                      fontSize="inherit"
+                      sx={{ ml: 0.5 }}
+                    />
+                  </Link>
                 </Grid>
               )}
               <Grid item xs={12}>

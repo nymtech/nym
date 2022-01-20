@@ -57,16 +57,16 @@ pub struct NymdClient<C> {
 impl NymdClient<QueryNymdClient> {
     pub fn connect<U>(
         endpoint: U,
-        mixnet_contract_address: AccountId,
-        vesting_contract_address: AccountId,
+        mixnet_contract_address: Option<AccountId>,
+        vesting_contract_address: Option<AccountId>,
     ) -> Result<NymdClient<QueryNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         Ok(NymdClient {
             client: QueryNymdClient::new(endpoint)?,
-            mixnet_contract_address: Some(mixnet_contract_address),
-            vesting_contract_address: Some(vesting_contract_address),
+            mixnet_contract_address,
+            vesting_contract_address,
             client_address: None,
             custom_gas_limits: Default::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,

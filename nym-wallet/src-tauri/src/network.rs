@@ -8,6 +8,7 @@ use strum::EnumIter;
 use crate::error::BackendError;
 use config::defaults::all::Network as ConfigNetwork;
 
+#[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Copy, Clone, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
 pub enum Network {
@@ -21,6 +22,7 @@ impl Default for Network {
   }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<ConfigNetwork> for Network {
   fn into(self) -> ConfigNetwork {
     match self {

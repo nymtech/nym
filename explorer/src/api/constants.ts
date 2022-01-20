@@ -4,6 +4,7 @@ export const VALIDATOR_API_BASE_URL = process.env.VALIDATOR_API_URL;
 export const BIG_DIPPER = process.env.BIG_DIPPER_URL;
 
 // specific API routes
+export const OVERVIEW_API = `${API_BASE_URL}/overview`;
 export const MIXNODE_PING = `${API_BASE_URL}/ping`;
 export const MIXNODES_API = `${API_BASE_URL}/mix-nodes`;
 export const MIXNODE_API = `${API_BASE_URL}/mix-node`;

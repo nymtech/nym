@@ -38,6 +38,12 @@ declare module '@mui/material/styles' {
       nav: string;
       footer: string;
     };
+    mixnodes: {
+      status: {
+        active: string;
+        standby: string;
+      };
+    };
   }
 
   interface NymPaletteVariant {
@@ -86,6 +92,13 @@ declare module '@mui/material/styles' {
       };
       footer: {
         socialIcons: string;
+      };
+      mixnodes: {
+        status: {
+          active: string;
+          standby: string;
+          inactive: string;
+        };
       };
     };
   }

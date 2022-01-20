@@ -26,12 +26,6 @@ const nymPalette: NymPalette = {
     /** footer text colour */
     footer: '#666B77',
   },
-  mixnodes: {
-    status: {
-      active: '#20D073',
-      standby: '#5FD7EF',
-    },
-  },
 };
 
 const darkMode: NymPaletteVariant = {
@@ -50,6 +44,12 @@ const darkMode: NymPaletteVariant = {
     background: '#242C3D',
     hover: '#111826',
   },
+  mixnodes: {
+    status: {
+      active: '#20D073',
+      standby: '#5FD7EF',
+    },
+  },
 };
 
 const lightMode: NymPaletteVariant = {
@@ -67,6 +67,12 @@ const lightMode: NymPaletteVariant = {
   nav: {
     background: '#242C3D',
     hover: '#111826',
+  },
+  mixnodes: {
+    status: {
+      active: '#1CBB67',
+      standby: '#55C1D7',
+    },
   },
 };
 
@@ -109,8 +115,8 @@ const networkExplorerPalette = (
     },
     mixnodes: {
       status: {
-        active: nymPalette.mixnodes.status.active,
-        standby: nymPalette.mixnodes.status.standby,
+        active: variant.mixnodes.status.active,
+        standby: variant.mixnodes.status.standby,
         inactive: variant.text.main,
       },
     },

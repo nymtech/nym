@@ -17,20 +17,14 @@ impl<T: Clone> Cache<T> {
         self.inner.len()
     }
 
-    pub(crate) fn get_all(&self) -> Vec<T>
-    where
-        T: Clone,
-    {
+    pub(crate) fn get_all(&self) -> Vec<T> {
         self.inner
             .values()
             .map(|cache_item| cache_item.value.clone())
             .collect()
     }
 
-    pub(crate) fn get(&self, key: &str) -> Option<T>
-    where
-        T: Clone,
-    {
+    pub(crate) fn get(&self, key: &str) -> Option<T> {
         self.inner
             .get(key)
             .filter(|cache_item| cache_item.valid_until > SystemTime::now())

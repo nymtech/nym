@@ -31,14 +31,15 @@ pub(crate) async fn get_by_id(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Result<Json<PrettyDetailedMixNodeBond>, NotFound<String>> {
-    let mixnodes = state.inner.mixnodes.get_detailed_mixnodes().await;
-    let result = mixnodes
-        .into_iter()
-        .find(|mixnode| mixnode.mix_node.identity_key == pubkey);
-    if result.is_none() {
-        return Err(NotFound("Mixnode not found".to_string()));
+    match state
+        .inner
+        .mixnodes
+        .get_detailed_mixnode_by_id(pubkey)
+        .await
+    {
+        Some(mixnode) => Ok(Json(mixnode)),
+        None => Err(NotFound("Mixnode not found".to_string())),
     }
-    Ok(Json(result.unwrap()))
 }
 
 #[openapi(tag = "mix_node")]

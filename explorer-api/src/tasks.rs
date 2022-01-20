@@ -9,7 +9,7 @@ use validator_client::nymd::{Paging, QueryNymdClient, ValidatorResponse};
 use validator_client::ValidatorClientError;
 
 use crate::client::new_nymd_client;
-use crate::mix_nodes::MIXNODES_CACHE_REFRESH_RATE;
+use crate::mix_nodes::CACHE_REFRESH_RATE;
 use crate::state::ExplorerApiStateContext;
 
 pub(crate) struct ExplorerApiTasks {
@@ -116,7 +116,7 @@ impl ExplorerApiTasks {
         match self.retrieve_all_gateways().await {
             Ok(response) => self.state.inner.gateways.update_cache(response).await,
             Err(e) => {
-                error!("Failed to get validators: {:?}", e)
+                error!("Failed to get gateways: {:?}", e)
             }
         }
     }
@@ -124,7 +124,7 @@ impl ExplorerApiTasks {
     pub(crate) fn start(self) {
         info!("Spawning mix nodes task runner...");
         tokio::spawn(async move {
-            let mut interval_timer = tokio::time::interval(MIXNODES_CACHE_REFRESH_RATE);
+            let mut interval_timer = tokio::time::interval(CACHE_REFRESH_RATE);
             loop {
                 // wait for the next interval tick
                 interval_timer.tick().await;

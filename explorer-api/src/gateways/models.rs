@@ -49,7 +49,7 @@ impl ThreadsafeGatewayCache {
         for gateway in gateways {
             guard
                 .gateways
-                .set(gateway.gateway.identity_key.clone().as_str(), gateway)
+                .set(gateway.clone().gateway.identity_key.as_str(), gateway)
         }
     }
 }

@@ -1,15 +1,18 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
-use crate::mix_nodes::location::{Location, LocationCache, LocationCacheItem};
-use crate::mix_nodes::MIXNODES_CACHE_ENTRY_TTL;
-use mixnet_contract_common::MixNodeBond;
-use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+
+use serde::Serialize;
 use tokio::sync::RwLock;
+
+use mixnet_contract_common::MixNodeBond;
+
+use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
+use crate::mix_nodes::location::{Location, LocationCache, LocationCacheItem};
+use crate::mix_nodes::CACHE_ENTRY_TTL;
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub(crate) struct MixNodeActiveSetSummary {
@@ -123,6 +126,30 @@ impl ThreadsafeMixNodesCache {
         self.mixnodes.read().await.get_mixnodes()
     }
 
+    pub(crate) async fn get_detailed_mixnode_by_id(
+        &self,
+        identity_key: &str,
+    ) -> Option<PrettyDetailedMixNodeBond> {
+        let mixnodes_guard = self.mixnodes.read().await;
+        let location_guard = self.locations.read().await;
+
+        let bond = mixnodes_guard.get_mixnode(identity_key);
+        let location = location_guard.get(identity_key);
+
+        match bond {
+            Some(bond) => Some(PrettyDetailedMixNodeBond {
+                location: location.and_then(|l| l.location.clone()),
+                status: mixnodes_guard.determine_node_status(&bond.mix_node.identity_key),
+                pledge_amount: bond.pledge_amount,
+                total_delegation: bond.total_delegation,
+                owner: bond.owner,
+                layer: bond.layer,
+                mix_node: bond.mix_node,
+            }),
+            None => None,
+        }
+    }
+
     pub(crate) async fn get_detailed_mixnodes(&self) -> Vec<PrettyDetailedMixNodeBond> {
         let mixnodes_guard = self.mixnodes.read().await;
         let location_guard = self.locations.read().await;
@@ -159,6 +186,6 @@ impl ThreadsafeMixNodesCache {
             .collect();
         guard.rewarded_mixnodes = rewarded_nodes;
         guard.active_mixnodes = active_nodes;
-        guard.valid_until = SystemTime::now() + MIXNODES_CACHE_ENTRY_TTL;
+        guard.valid_until = SystemTime::now() + CACHE_ENTRY_TTL;
     }
 }

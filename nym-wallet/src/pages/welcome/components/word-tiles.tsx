@@ -1,22 +1,22 @@
-import React, { createRef, forwardRef, useRef } from 'react'
+import React from 'react'
 import { Box, Card, CardHeader, Grid, Typography, Stack, Fade } from '@mui/material'
 import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWords } from '../types'
 
 export const WordTiles = ({
-  words,
+  mnemonicWords,
   showIndex,
   onClick,
 }: {
-  words?: TMnemonicWords
+  mnemonicWords?: TMnemonicWords
   showIndex?: boolean
   onClick?: ({ name, index }: { name: string; index: number }) => void
 }) => {
-  if (words) {
+  if (mnemonicWords) {
     return (
       <Grid container spacing={3} justifyContent="center">
-        {words.map(({ name, index }) => (
+        {mnemonicWords.map(({ name, index }) => (
           <Grid item xs={2} key={index} onClick={() => onClick?.({ name, index })}>
-            <WordTile word={name} index={showIndex ? index : undefined} onClick={!!onClick} />
+            <WordTile mnemonicWord={name} index={showIndex ? index : undefined} onClick={!!onClick} />
           </Grid>
         ))}
       </Grid>
@@ -26,34 +26,40 @@ export const WordTiles = ({
   return null
 }
 
-export const WordTile = forwardRef(
-  ({ word, index, onClick }: { word: string; index?: number; onClick?: boolean }, ref) => (
-    <Card
-      variant="outlined"
-      sx={{ background: '#151A2C', border: '1px solid #3A4053', cursor: onClick ? 'pointer' : 'default' }}
-    >
-      <CardHeader
-        title={word}
-        titleTypographyProps={{ sx: { fontWeight: 700 }, variant: 'body1', textAlign: index ? 'left' : 'center' }}
-        avatar={
-          index && (
-            <Typography variant="caption" color="#3A4053">
-              {index}
-            </Typography>
-          )
-        }
-      />
-    </Card>
-  ),
+export const WordTile = ({
+  mnemonicWord,
+  index,
+  onClick,
+}: {
+  mnemonicWord: string
+  index?: number
+  onClick?: boolean
+}) => (
+  <Card
+    variant="outlined"
+    sx={{ background: '#151A2C', border: '1px solid #3A4053', cursor: onClick ? 'pointer' : 'default' }}
+  >
+    <CardHeader
+      title={mnemonicWord}
+      titleTypographyProps={{ sx: { fontWeight: 700 }, variant: 'body1', textAlign: index ? 'left' : 'center' }}
+      avatar={
+        index && (
+          <Typography variant="caption" color="#3A4053">
+            {index}
+          </Typography>
+        )
+      }
+    />
+  </Card>
 )
 
-export const HiddenWords = ({ words }: { words?: THiddenMnemonicWords }) => {
-  if (words) {
+export const HiddenWords = ({ mnemonicWords }: { mnemonicWords?: THiddenMnemonicWords }) => {
+  if (mnemonicWords) {
     return (
       <Grid container spacing={3} justifyContent="center">
-        {words.map((word) => (
-          <Grid item xs={2} key={word.index}>
-            <HiddenWord word={word} />
+        {mnemonicWords.map((mnemonicWord) => (
+          <Grid item xs={2} key={mnemonicWord.index}>
+            <HiddenWord mnemonicWord={mnemonicWord} />
           </Grid>
         ))}
       </Grid>
@@ -62,17 +68,17 @@ export const HiddenWords = ({ words }: { words?: THiddenMnemonicWords }) => {
   return null
 }
 
-const HiddenWord = ({ word }: { word: THiddenMnemonicWord }) => {
+const HiddenWord = ({ mnemonicWord }: { mnemonicWord: THiddenMnemonicWord }) => {
   return (
     <Stack spacing={2} alignItems="center">
       <Box borderBottom="1px solid #3A4053" sx={{ p: 2, width: '100%' }}>
-        <Fade in={!word.hidden}>
+        <Fade in={!mnemonicWord.hidden}>
           <Box>
-            <WordTile word={word.name} />
+            <WordTile mnemonicWord={mnemonicWord.name} />
           </Box>
         </Fade>
       </Box>
-      <Typography>{word.index}.</Typography>
+      <Typography>{mnemonicWord.index}.</Typography>
     </Stack>
   )
 }

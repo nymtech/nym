@@ -1,18 +1,16 @@
 import React from 'react'
-import { Button, Grid, Stack, Typography } from '@mui/material'
+import { Button, Stack } from '@mui/material'
+import { SubtitleSlick, Title } from '../components'
 
-export const WelcomeContent = ({ onComplete }: { onComplete: () => void }) => {
+export const WelcomeContent = ({  onComplete }: { page: 'welcome', onComplete: () => void }) => {
   return (
     <>
-      <Typography sx={{ color: 'common.white', fontWeight: 600 }}>Welcome to NYM</Typography>
-      <Typography variant="caption" sx={{ color: 'grey.800', textTransform: 'uppercase', letterSpacing: 4 }}>
-        Next generation of privacy
-      </Typography>
-      <Stack spacing={3} sx={{width: 300}}>
+      <Title title="Welcome to NYM" />
+      <SubtitleSlick subtitle="Next generation of privacy" />
+      <Stack spacing={3} sx={{ width: 300 }}>
         <Button fullWidth variant="contained" color="primary" disableElevation size="large" onClick={onComplete}>
           Create Account
         </Button>
-
         <Button
           fullWidth
           variant="outlined"

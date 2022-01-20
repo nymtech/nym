@@ -1,25 +1,33 @@
 import React, { useEffect, useState } from 'react'
-import { Button, Typography } from '@mui/material'
+import { Button } from '@mui/material'
 import { WordTiles, HiddenWords } from '../components/word-tiles'
 import { THiddenMnemonicWords, THiddenMnemonicWord, TMnemonicWord, TMnemonicWords } from '../types'
 import { randomNumberBetween } from '../../../utils'
+import { Title, Subtitle } from '../components'
 
 const numberOfRandomWords = 4
 
-export const VerifyMnemonic = ({ words, onComplete }: { words?: TMnemonicWords; onComplete: () => void }) => {
+export const VerifyMnemonic = ({
+  mnemonicWords,
+  onComplete,
+}: {
+  page: 'verify mnemonic part 1' | 'verify mnemonic part 2'
+  mnemonicWords?: TMnemonicWords
+  onComplete: () => void
+}) => {
   const [randomWords, setRandomWords] = useState<TMnemonicWords>()
   const [hiddenRandomWords, setHiddenRandomWords] = useState<THiddenMnemonicWords>()
   const [currentSelection, setCurrentSelection] = useState(0)
 
   useEffect(() => {
-    if (words) {
-      const randomWords = getRandomEntriesFromArray<TMnemonicWord>(words, numberOfRandomWords)
+    if (mnemonicWords) {
+      const randomWords = getRandomEntriesFromArray<TMnemonicWord>(mnemonicWords, numberOfRandomWords)
       const withHiddenProperty = randomWords.map((word) => ({ ...word, hidden: true }))
       const shuffled = getRandomEntriesFromArray<THiddenMnemonicWord>(withHiddenProperty, numberOfRandomWords)
       setRandomWords(randomWords)
       setHiddenRandomWords(shuffled)
     }
-  }, [words])
+  }, [mnemonicWords])
 
   const revealWord = ({ name }: { name: string }) => {
     if (name === hiddenRandomWords![currentSelection].name) {
@@ -33,10 +41,13 @@ export const VerifyMnemonic = ({ words, onComplete }: { words?: TMnemonicWords; 
   if (randomWords && hiddenRandomWords) {
     return (
       <>
-        <Typography sx={{ color: 'common.white', fontWeight: 600 }}>Verify your mnemonic</Typography>
-        <Typography sx={{ color: 'common.white' }}>Select the words from your mnmonic based on their order</Typography>
-        <HiddenWords words={hiddenRandomWords} />
-        <WordTiles words={randomWords} onClick={currentSelection !== numberOfRandomWords ? revealWord : undefined} />
+        <Title title="Verify your mnemonic" />
+        <Subtitle subtitle="Select the words from your mnmonic based on their order" />
+        <HiddenWords mnemonicWords={hiddenRandomWords} />
+        <WordTiles
+          mnemonicWords={randomWords}
+          onClick={currentSelection !== numberOfRandomWords ? revealWord : undefined}
+        />
         <Button
           variant="contained"
           sx={{ width: 300 }}

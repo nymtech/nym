@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { Box } from '@mui/system'
 import { Stack } from '@mui/material'
-import { WelcomeContent, MnemonicWords, VerifyMnemonic } from './pages'
+import { WelcomeContent, VerifyMnemonic, MnemonicWords, CreatePassword } from './pages'
 import { NymLogo } from '../../components'
 import { TMnemonicWords, TPages } from './types'
+import { RenderPage } from './components'
 
 const mnemonic =
   'futuristic big receptive caption saw hug odd spoon internal dime bike rake helpless left distribution gusty eyes beg enormous word influence trashy pets curl'
@@ -12,12 +13,12 @@ const mnemonicToArray = (mnemonic: string): TMnemonicWords =>
   mnemonic.split(' ').reduce((a, c, index) => [...a, { name: c, index: index + 1 }], [])
 
 export const Welcome = () => {
-  const [page, setPage] = useState<TPages>('welcome')
-  const [words, setWords] = useState<TMnemonicWords>()
+  const [page, setPage] = useState<TPages>('create password')
+  const [mnemonicWords, setMnemonicWords] = useState<TMnemonicWords>()
 
   useEffect(() => {
     const mnemonicArray = mnemonicToArray(mnemonic)
-    setWords(mnemonicArray)
+    setMnemonicWords(mnemonicArray)
   }, [])
 
   return (
@@ -40,15 +41,27 @@ export const Welcome = () => {
           margin: 'auto',
         }}
       >
-        <Stack spacing={4} alignItems="center" sx={{ width: 1080 }}>
+        <Stack spacing={3} alignItems="center" sx={{ width: 1080 }}>
           <NymLogo />
-          {page === 'welcome' && <WelcomeContent onComplete={() => setPage('create account')} />}
-
-          {page === 'create account' && <MnemonicWords words={words} onNext={() => setPage('verify mnemonic part 1')} />}
-
-          {page === 'verify mnemonic part 1' && <VerifyMnemonic words={words} onComplete={() => setPage('verify mnemonic part 2')}/>}
-
-          {page === 'verify mnemonic part 2' && <VerifyMnemonic words={words} onComplete={() => setPage('welcome')}/>}
+          <RenderPage page={page}>
+            <WelcomeContent onComplete={() => setPage('create account')} page="welcome" />
+            <MnemonicWords
+              mnemonicWords={mnemonicWords}
+              onNext={() => setPage('verify mnemonic part 1')}
+              page="create account"
+            />
+            <VerifyMnemonic
+              mnemonicWords={mnemonicWords}
+              onComplete={() => setPage('verify mnemonic part 2')}
+              page="verify mnemonic part 1"
+            />
+            <VerifyMnemonic
+              mnemonicWords={mnemonicWords}
+              onComplete={() => setPage('create password')}
+              page="verify mnemonic part 2"
+            />
+            <CreatePassword page="create password" />
+          </RenderPage>
         </Stack>
       </Box>
     </Box>

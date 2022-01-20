@@ -7,8 +7,4 @@ const imgSize = {
   ['large']: 120,
 }
 
-export const NymLogo = ({ size = 'medium' }: { size?: 'small' | 'medium' | 'large' }) => (
-  <div>
-    <Logo width={imgSize[size]} />
-  </div>
-)
+export const NymLogo = ({ size = 'medium' }: { size?: 'small' | 'medium' | 'large' }) => <Logo width={imgSize[size]} />

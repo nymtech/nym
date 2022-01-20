@@ -142,7 +142,6 @@ async fn _connect_with_mnemonic(
     w_state.add_client(network, client);
   }
 
-  default_account.ok_or(BackendError::NetworkNotSupported(
-    config::defaults::default_network(),
-  ))
+  default_account
+    .ok_or_else(|| BackendError::NetworkNotSupported(config::defaults::default_network()))
 }

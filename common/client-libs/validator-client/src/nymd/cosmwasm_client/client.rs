@@ -13,6 +13,7 @@ use cosmrs::proto::cosmos::auth::v1beta1::{
 };
 use cosmrs::proto::cosmos::bank::v1beta1::{
     QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
+    QueryTotalSupplyRequest, QueryTotalSupplyResponse,
 };
 use cosmrs::proto::cosmos::tx::v1beta1::{
     SimulateRequest, SimulateResponse as ProtoSimulateResponse,
@@ -27,6 +28,7 @@ use cosmrs::tendermint::abci::Code as AbciCode;
 use cosmrs::tendermint::abci::Transaction;
 use cosmrs::tendermint::{abci, block, chain};
 use cosmrs::{tx, AccountId, Coin, Denom, Tx};
+use cosmwasm_std::Coin as CosmWasmCoin;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
@@ -158,6 +160,43 @@ pub trait CosmWasmClient: rpc::Client {
         raw_balances
             .into_iter()
             .map(TryFrom::try_from)
+            .collect::<Result<_, _>>()
+            .map_err(|_| NymdError::SerializationError("Coins".to_owned()))
+    }
+
+    // this is annoyingly and inconsistently returning `Vec<CosmWasmCoin>` rather than
+    // Vec<Coin>, since cosmrs::Coin can't deal with IBC denoms.
+    // Presumably after https://github.com/cosmos/cosmos-rust/issues/173 is resolved,
+    // the code could be adjusted
+    async fn get_total_supply(&self) -> Result<Vec<CosmWasmCoin>, NymdError> {
+        let path = Some("/cosmos.bank.v1beta1.Query/TotalSupply".parse().unwrap());
+
+        let mut supply = Vec::new();
+        let mut pagination = None;
+
+        loop {
+            let req = QueryTotalSupplyRequest { pagination };
+
+            let mut res = self
+                .make_abci_query::<_, QueryTotalSupplyResponse>(path.clone(), req)
+                .await?;
+            
+            supply.append(&mut res.supply);
+            if let Some(pagination_info) = res.pagination {
+                pagination = Some(create_pagination(pagination_info.next_key))
+            } else {
+                break;
+            }
+        }
+        
+        supply
+            .into_iter()
+            .map(|coin| {
+                coin.amount.parse().map(|amount| CosmWasmCoin {
+                    denom: coin.denom,
+                    amount,
+                })
+            })
             .collect::<Result<_, _>>()
             .map_err(|_| NymdError::SerializationError("Coins".to_owned()))
     }

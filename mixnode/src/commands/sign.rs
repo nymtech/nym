@@ -1,8 +1,11 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::convert::TryFrom;
+
 use crate::commands::*;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
+use anyhow::{anyhow, Result};
 use clap::ArgGroup;
 use config::NymConfig;
 use crypto::asymmetric::identity;
@@ -29,16 +32,19 @@ enum SignedTarget {
     Address(String),
 }
 
-impl From<Sign> for SignedTarget {
-    fn from(args: Sign) -> Self {
+impl TryFrom<Sign> for SignedTarget {
+    type Error = anyhow::Error;
+
+    fn try_from(args: Sign) -> Result<Self, Self::Error> {
         if let Some(text) = args.text {
-            SignedTarget::Text(text)
+            Ok(SignedTarget::Text(text))
         } else if let Some(address) = args.address {
-            SignedTarget::Address(address)
+            Ok(SignedTarget::Address(address))
         } else {
-            // Clap should guarantee this by using ArgGroup. Perhaps support for outputting the enum
-            // directly will be added in the future? Or I missed how to get it?
-            unreachable!()
+            // This is unreachable, and hopefully clap will support it explicitly by outputting an
+            // enum from the ArgGroup in the future.
+            // See: https://github.com/clap-rs/clap/issues/2621
+            Err(anyhow!("Error: missing signed target flag"))
         }
     }
 }
@@ -91,11 +97,17 @@ pub(crate) fn execute(args: &Sign) {
     };
 
     if !version_check(&config) {
-        error!("failed the local version check");
+        error!("Failed the local version check");
         return;
     }
 
-    let signed_target = SignedTarget::from(args.clone());
+    let signed_target = match SignedTarget::try_from(args.clone()) {
+        Ok(s) => s,
+        Err(err) => {
+            error!("{err}");
+            return;
+        }
+    };
     let pathfinder = MixNodePathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);
 

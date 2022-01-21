@@ -59,8 +59,6 @@ impl From<Init> for OverrideConfig {
 }
 
 pub(crate) async fn execute(args: &Init) {
-    // TODO: this should probably be made implicit by slapping `#[tokio::main]` on our main method
-    // and then removing runtime from mixnode itself in `run`
     let override_config_fields = OverrideConfig::from(args.clone());
     let id = &override_config_fields.id;
     println!("Initialising mixnode {}...", id);

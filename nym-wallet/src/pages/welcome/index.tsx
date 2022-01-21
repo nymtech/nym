@@ -13,7 +13,7 @@ const mnemonicToArray = (mnemonic: string): TMnemonicWords =>
   mnemonic.split(' ').reduce((a, c, index) => [...a, { name: c, index: index + 1 }], [])
 
 export const Welcome = () => {
-  const [page, setPage] = useState<TPages>('create password')
+  const [page, setPage] = useState<TPages>('welcome')
   const [mnemonicWords, setMnemonicWords] = useState<TMnemonicWords>()
 
   useEffect(() => {

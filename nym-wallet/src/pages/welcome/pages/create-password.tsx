@@ -12,7 +12,7 @@ export const CreatePassword = ({}: { page: 'create password' }) => {
   return (
     <>
       <Title title="Create password" />
-      <Subtitle subtitle="Create strong password, min 8 characters, at least one capital letter, number and special sign" />
+      <Subtitle subtitle="Create a strong password. Min 8 characters, at least one capital letter, number and special symbol" />
       <Grid container justifyContent="center">
         <Grid item xs={6}>
           <FormControl fullWidth>
@@ -44,7 +44,11 @@ export const CreatePassword = ({}: { page: 'create password' }) => {
                   ),
                 }}
               />
-              <Button size="large" variant="contained" disabled={password !== confirmedPassword || password.length === 0}>
+              <Button
+                size="large"
+                variant="contained"
+                disabled={password !== confirmedPassword || password.length === 0}
+              >
                 Next
               </Button>
             </Stack>

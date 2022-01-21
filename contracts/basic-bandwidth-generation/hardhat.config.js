@@ -25,6 +25,12 @@ module.exports = {
       gas: "auto", 
       gasPrice: "auto"
     },
+    mainnet: {
+      url: process.env.MAINNET_URL, //Infura url with projectId
+      accounts: [process.env.PRIV_KEY], // private key of account used for contract interaction
+      gas: "auto", 
+      gasPrice: "auto"
+    }
   }, 
   etherscan: {
     // Your API key for Etherscan

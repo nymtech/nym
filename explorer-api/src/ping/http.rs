@@ -25,7 +25,7 @@ pub(crate) async fn index(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<PingResponse>> {
-    match state.inner.ping_cache.clone().get(pubkey).await {
+    match state.inner.ping.clone().get(pubkey).await {
         Some(cache_value) => {
             trace!("Returning cached value for {}", pubkey);
             Some(Json(PingResponse {
@@ -39,7 +39,7 @@ pub(crate) async fn index(
             match state.inner.get_mix_node(pubkey).await {
                 Some(bond) => {
                     // set status to pending, so that any HTTP requests are pending
-                    state.inner.ping_cache.set_pending(pubkey).await;
+                    state.inner.ping.set_pending(pubkey).await;
 
                     // do the check
                     let ports = Some(port_check(&bond).await);
@@ -51,7 +51,7 @@ pub(crate) async fn index(
 
                     // cache for 1 min
                     trace!("Caching value for {}", pubkey);
-                    state.inner.ping_cache.set(pubkey, response.clone()).await;
+                    state.inner.ping.set(pubkey, response.clone()).await;
 
                     // return response
                     Some(Json(response))

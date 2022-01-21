@@ -2,7 +2,7 @@ import { Card, CardHeader, CardContent, Typography } from '@mui/material';
 import React, { ReactEventHandler } from 'react';
 
 type ContentCardProps = {
-  title?: string | React.ReactNode;
+  title?: React.ReactNode;
   subtitle?: string;
   Icon?: React.ReactNode;
   Action?: React.ReactNode;

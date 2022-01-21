@@ -14,7 +14,7 @@ export const CustomColumnHeading: React.FC<{ headingTitle: string }> = ({
     <Box alignItems="center" display="flex" onClick={handleClick}>
       <Typography
         sx={{
-          fontWeight: 'bold',
+          fontWeight: 600,
           fontSize: 14,
           padding: 0,
           // border: '1px solid red',

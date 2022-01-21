@@ -44,6 +44,12 @@ const darkMode: NymPaletteVariant = {
     background: '#242C3D',
     hover: '#111826',
   },
+  mixnodes: {
+    status: {
+      active: '#20D073',
+      standby: '#5FD7EF',
+    },
+  },
 };
 
 const lightMode: NymPaletteVariant = {
@@ -61,6 +67,12 @@ const lightMode: NymPaletteVariant = {
   nav: {
     background: '#242C3D',
     hover: '#111826',
+  },
+  mixnodes: {
+    status: {
+      active: '#1CBB67',
+      standby: '#55C1D7',
+    },
   },
 };
 
@@ -94,12 +106,19 @@ const networkExplorerPalette = (
     },
     topNav: {
       ...variant.topNav,
-      appBar: '#070B15',
+      appBar: '#080715',
       socialIcons: '#F2F2F2',
     },
     footer: {
       socialIcons:
         variant.mode === 'light' ? nymPalette.text.footer : darkMode.text.main,
+    },
+    mixnodes: {
+      status: {
+        active: variant.mixnodes.status.active,
+        standby: variant.mixnodes.status.standby,
+        inactive: variant.text.main,
+      },
     },
   },
 });
@@ -148,7 +167,7 @@ const createDarkModePalette = (): PaletteOptions => ({
 });
 
 /**
- * IMPORANT: if you need to get the default MUI theme, use the following
+ * IMPORTANT: if you need to get the default MUI theme, use the following
  *
  *   import { createTheme as systemCreateTheme } from '@mui/system';
  *
@@ -203,7 +222,7 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         'Helvetica Neue',
       ].join(','),
       fontSize: 14,
-      fontWeightRegular: 600,
+      fontWeightRegular: 400,
     },
     transitions: {
       duration: {
@@ -223,8 +242,8 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       MuiCardHeader: {
         styleOverrides: {
           title: {
-            fontSize: 18,
-            fontWeight: 800,
+            fontSize: 16,
+            fontWeight: 600,
           },
         },
       },
@@ -240,6 +259,19 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         styleOverrides: {
           root: {
             background: palette.secondary.dark,
+          },
+        },
+      },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            borderRadius: '10px',
+          },
+          elevation1: {
+            backgroundImage: mode === 'dark' ? 'none' : undefined,
+          },
+          elevation2: {
+            backgroundImage: mode === 'dark' ? 'none' : undefined,
           },
         },
       },

@@ -1,8 +1,8 @@
 use crate::errors::ContractError;
+use crate::storage::save_delegation;
 use crate::traits::DelegatingAccount;
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
-use cosmwasm_std::{wasm_execute, Coin, Env, Order, Response, Storage, Timestamp, Uint128};
-use cw_storage_plus::Map;
+use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Timestamp, Uint128};
 use mixnet_contract_common::ExecuteMsg as MixnetExecuteMsg;
 use mixnet_contract_common::IdentityKey;
 use vesting_contract_common::events::{
@@ -46,7 +46,7 @@ impl DelegatingAccount for Account {
         mix_identity: IdentityKey,
         storage: &dyn Storage,
     ) -> Result<Response, ContractError> {
-        if !self.any_delegation_for_mix(&mix_identity, storage) {
+        if !self.any_delegation_for_mix(&mix_identity, storage)? {
             return Err(ContractError::NoSuchDelegation(
                 self.owner_address(),
                 mix_identity,
@@ -79,23 +79,17 @@ impl DelegatingAccount for Account {
         delegation: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        let delegation_key = (mix_identity.as_bytes(), block_time.seconds());
-        let delegations_storage_key = self.delegations_key();
-        let delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_storage_key);
-
-        let new_delegation =
-            if let Some(existing_delegation) = delegations.may_load(storage, delegation_key)? {
-                existing_delegation + delegation.amount
-            } else {
-                delegation.amount
-            };
-
-        delegations.save(storage, delegation_key, &new_delegation)?;
-
+        save_delegation(
+            (
+                self.storage_key(),
+                mix_identity.as_bytes(),
+                block_time.seconds(),
+            ),
+            delegation.amount,
+            storage,
+        )?;
         let new_balance = Uint128::new(current_balance.u128() - delegation.amount.u128());
-
         self.save_balance(new_balance, storage)?;
-
         Ok(())
     }
 
@@ -105,26 +99,9 @@ impl DelegatingAccount for Account {
         amount: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        let mix_bytes = mix_identity.as_bytes();
-        let delegations_key = self.delegations_key();
-        let delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_key);
-
-        // Iterate over keys matching the prefix and remove them from the map
-        let block_times = delegations
-            .prefix(mix_bytes)
-            .keys(storage, None, None, Order::Ascending)
-            // Scan will blow up on first error
-            .scan((), |_, x| x.ok())
-            .collect::<Vec<u64>>();
-
-        for t in block_times {
-            delegations.remove(storage, (mix_bytes, t))
-        }
-
+        self.remove_delegations_for_mix(mix_identity, storage)?;
         let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());
-
         self.save_balance(new_balance, storage)?;
-
         Ok(())
     }
 }

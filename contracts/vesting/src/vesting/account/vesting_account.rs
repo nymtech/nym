@@ -1,10 +1,9 @@
 use crate::contract::NUM_VESTING_PERIODS;
 use crate::errors::ContractError;
-use crate::storage::{delete_account, save_account};
+use crate::storage::{delete_account, load_delegations_all, save_account};
 use crate::traits::VestingAccount;
 use config::defaults::DENOM;
-use cosmwasm_std::{Addr, Coin, Env, Order, Storage, Timestamp, Uint128};
-use cw_storage_plus::Map;
+use cosmwasm_std::{Addr, Coin, Env, Storage, Timestamp, Uint128};
 
 use super::Account;
 
@@ -115,21 +114,15 @@ impl VestingAccount for Account {
         let period = self.get_current_vesting_period(block_time);
         let max_vested = self.tokens_per_period()? * period as u128;
         let start_time = self.periods[period].start_time;
-        let delegations_key = self.delegations_key();
-        let delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_key);
 
-        let delegations_keys = delegations
-            .keys(storage, None, None, Order::Ascending)
-            .scan((), |_, x| x.ok())
-            .filter(|(_mix, block_time)| *block_time < start_time)
-            .map(|(mix, block_time)| (mix, block_time))
-            .collect::<Vec<(Vec<u8>, u64)>>();
+        let coin = load_delegations_all(self.storage_key(), storage)?
+            .into_iter()
+            .filter(|((_mix, block_time), _amount)| *block_time < start_time)
+            .fold(Uint128::zero(), |acc, ((_mix, _block_time), amount)| {
+                acc + amount
+            });
 
-        let mut amount = Uint128::zero();
-        for (mix, block_time) in delegations_keys {
-            amount += delegations.load(storage, (&mix, block_time))?
-        }
-        amount = Uint128::new(amount.u128().min(max_vested));
+        let amount = Uint128::new(coin.u128().min(max_vested));
 
         Ok(Coin {
             amount,

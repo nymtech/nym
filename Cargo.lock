@@ -3625,7 +3625,6 @@ dependencies = [
  "cfg-if 1.0.0",
  "hex-literal",
  "serde",
- "time 0.3.5",
  "url",
 ]
 

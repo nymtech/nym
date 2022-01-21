@@ -1,8 +1,6 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
-use time::OffsetDateTime;
 use url::Url;
 
 pub mod all;
@@ -152,9 +150,7 @@ pub const DEFAULT_VALIDATOR_API_PORT: u16 = 8080;
 pub const VALIDATOR_API_VERSION: &str = "v1";
 
 // REWARDING
-pub const DEFAULT_FIRST_INTERVAL_START: OffsetDateTime =
-    time::macros::datetime!(2021-08-23 12:00 UTC);
-pub const DEFAULT_INTERVAL_LENGTH: Duration = Duration::from_secs(24 * 60 * 60 * 30); // 30 days, i.e. 720h
+
 /// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate interval costs to Nyms. We'll also assume a cost of 40$ per interval(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
 pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 40_000_000; // 40$/(30 days) at 1 Nym == 1$
 

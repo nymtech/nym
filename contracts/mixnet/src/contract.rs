@@ -1,6 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::{
+    INTERVAL_REWARD_PERCENT, REWARDING_INTERVAL_LENGTH, SYBIL_RESISTANCE_PERCENT,
+};
 use crate::delegations::queries::query_all_network_delegations_paged;
 use crate::delegations::queries::query_delegator_delegations_paged;
 use crate::delegations::queries::query_mixnode_delegation;
@@ -26,13 +29,13 @@ use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status,
 };
 use crate::rewards::storage as rewards_storage;
-
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
 use mixnet_contract_common::{
     ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
 };
+use time::OffsetDateTime;
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_PLEDGE: Uint128 = Uint128::new(100_000_000);
@@ -44,11 +47,10 @@ pub const INITIAL_MIXNODE_REWARDED_SET_SIZE: u32 = 200;
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
 pub const INITIAL_REWARD_POOL: u128 = 250_000_000_000_000;
-pub const INTERVAL_REWARD_PERCENT: u8 = 2; // Used to calculate interval reward pool
-pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
-pub const DEFAULT_ACTIVE_SET_WORK_FACTOR: u8 = 10;
+pub const INITIAL_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 
-pub const REWARDED_SET_REFRESH_BLOCKS: u64 = 720; // with blocktime being approximately 5s, it should be roughly 1h
+pub const DEFAULT_FIRST_INTERVAL_START: OffsetDateTime =
+    time::macros::datetime!(2022-01-01 12:00 UTC);
 
 fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> ContractState {
     ContractState {
@@ -59,7 +61,7 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
             minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
-            active_set_work_factor: DEFAULT_ACTIVE_SET_WORK_FACTOR,
+            active_set_work_factor: INITIAL_ACTIVE_SET_WORK_FACTOR,
         },
     }
 }
@@ -78,11 +80,13 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let state = default_initial_state(info.sender, rewarding_validator_address);
+    let rewarding_interval =
+        Interval::new(0, DEFAULT_FIRST_INTERVAL_START, REWARDING_INTERVAL_LENGTH);
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
-    interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
+    interval_storage::CURRENT_INTERVAL.save(deps.storage, &rewarding_interval)?;
     interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Response::default())
@@ -278,7 +282,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
         QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
         QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
         QueryMsg::GetIntervalRewardPercent {} => to_binary(&INTERVAL_REWARD_PERCENT),
-        QueryMsg::GetSybilResistancePercent {} => to_binary(&DEFAULT_SYBIL_RESISTANCE_PERCENT),
+        QueryMsg::GetSybilResistancePercent {} => to_binary(&SYBIL_RESISTANCE_PERCENT),
         QueryMsg::GetRewardingStatus {
             mix_identity,
             interval_id,
@@ -342,10 +346,12 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
         rewarding_validator_address: old_state.rewarding_validator_address,
         params: old_state.params,
     };
+    let rewarding_interval =
+        Interval::new(0, DEFAULT_FIRST_INTERVAL_START, REWARDING_INTERVAL_LENGTH);
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &new_state)?;
 
-    interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
+    interval_storage::CURRENT_INTERVAL.save(deps.storage, &rewarding_interval)?;
     interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Default::default())

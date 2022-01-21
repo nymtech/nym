@@ -22,5 +22,9 @@ time = { version = "0.3.5", features = ["serde"] }
 
 contracts-common = { path = "../contracts-common" }
 
+[dev-dependencies]
+time = { version = "0.3.5", features = ["serde", "macros"] }
+
+
 [features]
 default = []

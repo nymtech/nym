@@ -17,9 +17,9 @@ pub(crate) fn query_circulating_supply(deps: Deps) -> StdResult<Uint128> {
 pub(crate) fn query_rewarding_status(
     deps: Deps,
     mix_identity: IdentityKey,
-    epoch_id: u32,
+    interval_id: u32,
 ) -> StdResult<MixnodeRewardingStatusResponse> {
-    let status = storage::REWARDING_STATUS.may_load(deps.storage, (epoch_id, mix_identity))?;
+    let status = storage::REWARDING_STATUS.may_load(deps.storage, (interval_id, mix_identity))?;
 
     Ok(MixnodeRewardingStatusResponse { status })
 }
@@ -68,7 +68,7 @@ pub(crate) mod tests {
                     .is_none()
             );
 
-            // node was rewarded but for different epoch
+            // node was rewarded but for different interval
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             try_reward_mixnode(
                 deps.as_mut(),
@@ -152,7 +152,7 @@ pub(crate) mod tests {
             }
 
             env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
-            test_helpers::update_env_and_progress_epoch(&mut env, deps.as_mut().storage);
+            test_helpers::update_env_and_progress_interval(&mut env, deps.as_mut().storage);
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
 

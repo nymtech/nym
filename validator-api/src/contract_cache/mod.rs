@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd_client::Client;
-use crate::rewarding::EpochRewardParams;
+use crate::rewarding::IntervalRewardParams;
 use ::time::OffsetDateTime;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;
 use mixnet_contract_common::{
-    Epoch, GatewayBond, IdentityKey, IdentityKeyRef, MixNodeBond, RewardedSetNodeStatus,
+    GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNodeBond, RewardedSetNodeStatus,
 };
 
 use rocket::fairing::AdHoc;
@@ -43,8 +43,8 @@ struct ValidatorCacheInner {
     rewarded_set: Cache<Vec<MixNodeBond>>,
     active_set: Cache<Vec<MixNodeBond>>,
 
-    current_reward_params: Cache<EpochRewardParams>,
-    current_epoch: Cache<Epoch>,
+    current_reward_params: Cache<IntervalRewardParams>,
+    current_interval: Cache<Interval>,
 }
 
 fn current_unix_timestamp() -> i64 {
@@ -131,8 +131,11 @@ impl<C> ValidatorCacheRefresher<C> {
         let (rewarded_set, active_set) =
             self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities);
 
-        let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
-        let current_epoch = self.nymd_client.get_current_epoch().await?;
+        let interval_rewarding_params = self
+            .nymd_client
+            .get_current_interval_reward_params()
+            .await?;
+        let current_interval = self.nymd_client.get_current_interval().await?;
 
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
@@ -146,8 +149,8 @@ impl<C> ValidatorCacheRefresher<C> {
                 gateways,
                 rewarded_set,
                 active_set,
-                epoch_rewarding_params,
-                current_epoch,
+                interval_rewarding_params,
+                current_interval,
             )
             .await;
 
@@ -216,8 +219,8 @@ impl ValidatorCache {
         gateways: Vec<GatewayBond>,
         rewarded_set: Vec<MixNodeBond>,
         active_set: Vec<MixNodeBond>,
-        epoch_rewarding_params: EpochRewardParams,
-        current_epoch: Epoch,
+        interval_rewarding_params: IntervalRewardParams,
+        current_interval: Interval,
     ) {
         let mut inner = self.inner.write().await;
 
@@ -225,8 +228,10 @@ impl ValidatorCache {
         inner.gateways.update(gateways);
         inner.rewarded_set.update(rewarded_set);
         inner.active_set.update(active_set);
-        inner.current_reward_params.update(epoch_rewarding_params);
-        inner.current_epoch.update(current_epoch);
+        inner
+            .current_reward_params
+            .update(interval_rewarding_params);
+        inner.current_interval.update(current_interval);
     }
 
     pub async fn mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
@@ -245,12 +250,12 @@ impl ValidatorCache {
         self.inner.read().await.active_set.clone()
     }
 
-    pub(crate) async fn epoch_reward_params(&self) -> Cache<EpochRewardParams> {
+    pub(crate) async fn interval_reward_params(&self) -> Cache<IntervalRewardParams> {
         self.inner.read().await.current_reward_params.clone()
     }
 
-    pub(crate) async fn current_epoch(&self) -> Cache<Epoch> {
-        self.inner.read().await.current_epoch.clone()
+    pub(crate) async fn current_interval(&self) -> Cache<Interval> {
+        self.inner.read().await.current_interval.clone()
     }
 
     pub async fn mixnode_details(
@@ -315,8 +320,8 @@ impl ValidatorCacheInner {
             gateways: Cache::default(),
             rewarded_set: Cache::default(),
             active_set: Cache::default(),
-            current_reward_params: Cache::new(EpochRewardParams::new_empty()),
-            current_epoch: Cache::default(),
+            current_reward_params: Cache::new(IntervalRewardParams::new_empty()),
+            current_interval: Cache::default(),
         }
     }
 }

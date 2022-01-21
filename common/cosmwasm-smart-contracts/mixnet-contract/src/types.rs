@@ -29,10 +29,10 @@ impl LayerDistribution {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ContractStateParams {
-    // so currently epoch_length is being unused and validator API performs rewarding
-    // based on its own epoch length config value. I guess that's fine for time being
+    // so currently interval_length is being unused and validator API performs rewarding
+    // based on its own interval length config value. I guess that's fine for time being
     // however, in the future, the contract constant should be controlling it instead.
-    // pub epoch_length: u32, // length of a rewarding epoch/interval, expressed in hours
+    // pub interval_length: u32, // length of a rewarding interval/interval, expressed in hours
     pub minimum_mixnode_pledge: Uint128, // minimum amount a mixnode must pledge to get into the system
     pub minimum_gateway_pledge: Uint128, // minimum amount a gateway must pledge to get into the system
 
@@ -145,7 +145,7 @@ pub struct RewardedSetUpdateDetails {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct EpochRewardedSetHeightsResponse {
-    pub epoch_id: u32,
+pub struct IntervalRewardedSetHeightsResponse {
+    pub interval_id: u32,
     pub heights: Vec<u64>,
 }

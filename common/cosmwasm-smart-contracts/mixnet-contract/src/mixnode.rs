@@ -5,7 +5,7 @@ use crate::{IdentityKey, SphinxKey};
 use az::CheckedCast;
 use cosmwasm_std::{coin, Addr, Coin, Uint128};
 use log::error;
-use network_defaults::DEFAULT_OPERATOR_EPOCH_COST;
+use network_defaults::DEFAULT_OPERATOR_INTERVAL_COST;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -146,7 +146,7 @@ impl NodeRewardParams {
     }
 
     pub fn operator_cost(&self) -> U128 {
-        U128::from_num(self.uptime.u128() / 100u128 * DEFAULT_OPERATOR_EPOCH_COST as u128)
+        U128::from_num(self.uptime.u128() / 100u128 * DEFAULT_OPERATOR_INTERVAL_COST as u128)
     }
 
     pub fn set_reward_blockstamp(&mut self, blockstamp: u64) {

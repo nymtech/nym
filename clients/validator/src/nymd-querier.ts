@@ -148,9 +148,9 @@ export default class NymdQuerier implements INymdQuery {
     });
   }
 
-  getEpochRewardPercent(mixnetContractAddress: string): Promise<number> {
+  getIntervalRewardPercent(mixnetContractAddress: string): Promise<number> {
     return this.client.queryContractSmart(mixnetContractAddress, {
-      get_epoch_reward_percent: {},
+      get_interval_reward_percent: {},
     });
   }
 

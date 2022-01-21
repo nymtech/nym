@@ -66,8 +66,8 @@ const ETH_ENDPOINT: &str = "eth_endpoint";
 #[cfg(not(feature = "coconut"))]
 const ETH_PRIVATE_KEY: &str = "eth_private_key";
 
-const EPOCH_LENGTH_ARG: &str = "epoch-length";
-const FIRST_REWARDING_EPOCH_ARG: &str = "first-epoch";
+const INTERVAL_LENGTH_ARG: &str = "interval-length";
+const FIRST_REWARDING_INTERVAL_ARG: &str = "first-interval";
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 
 fn parse_validators(raw: &str) -> Vec<Url> {
@@ -166,22 +166,22 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name(FIRST_REWARDING_EPOCH_ARG)
-                .help("Datetime specifying beginning of the first rewarding epoch of this length. It must be a valid rfc3339 datetime.")
+            Arg::with_name(FIRST_REWARDING_INTERVAL_ARG)
+                .help("Datetime specifying beginning of the first rewarding interval of this length. It must be a valid rfc3339 datetime.")
                 .takes_value(true)
-                .long(FIRST_REWARDING_EPOCH_ARG)
+                .long(FIRST_REWARDING_INTERVAL_ARG)
                 .requires(REWARDING_ENABLED)
         )
         .arg(
-            Arg::with_name(EPOCH_LENGTH_ARG)
-                .help("Length of the current rewarding epoch in hours")
+            Arg::with_name(INTERVAL_LENGTH_ARG)
+                .help("Length of the current rewarding interval in hours")
                 .takes_value(true)
-                .long(EPOCH_LENGTH_ARG)
+                .long(INTERVAL_LENGTH_ARG)
                 .requires(REWARDING_ENABLED)
         )
         .arg(
             Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
-                .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given epoch.")
+                .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.")
                 .takes_value(true)
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
                 .requires(REWARDING_ENABLED)
@@ -283,18 +283,18 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_mnemonic(mnemonic)
     }
 
-    if let Some(rewarding_epoch_datetime) = matches.value_of(FIRST_REWARDING_EPOCH_ARG) {
-        let first_epoch = OffsetDateTime::parse(rewarding_epoch_datetime, &Rfc3339)
-            .expect("Provided first epoch is not a valid rfc3339 datetime!");
-        config = config.with_first_rewarding_epoch(first_epoch)
+    if let Some(rewarding_interval_datetime) = matches.value_of(FIRST_REWARDING_INTERVAL_ARG) {
+        let first_interval = OffsetDateTime::parse(rewarding_interval_datetime, &Rfc3339)
+            .expect("Provided first interval is not a valid rfc3339 datetime!");
+        config = config.with_first_rewarding_interval(first_interval)
     }
 
-    if let Some(epoch_length) = matches
-        .value_of(EPOCH_LENGTH_ARG)
+    if let Some(interval_length) = matches
+        .value_of(INTERVAL_LENGTH_ARG)
         .map(|len| len.parse::<u64>())
     {
-        let epoch_length = epoch_length.expect("Provided epoch length is not a number!");
-        config = config.with_epoch_length(Duration::from_secs(epoch_length * 60 * 60));
+        let interval_length = interval_length.expect("Provided interval length is not a number!");
+        config = config.with_interval_length(Duration::from_secs(interval_length * 60 * 60));
     }
 
     if let Some(monitor_threshold) = matches
@@ -307,7 +307,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
             monitor_threshold <= 100,
             "Provided monitor threshold is greater than 100!"
         );
-        config = config.with_minimum_epoch_monitor_threshold(monitor_threshold)
+        config = config.with_minimum_interval_monitor_threshold(monitor_threshold)
     }
 
     #[cfg(feature = "coconut")]
@@ -391,12 +391,12 @@ fn setup_network_monitor<'a>(
 }
 
 fn expected_monitor_test_runs(config: &Config) -> usize {
-    let epoch_length = config.get_epoch_length();
+    let interval_length = config.get_interval_length();
     let test_delay = config.get_network_monitor_run_interval();
 
     // this is just a rough estimate. In real world there will be slightly fewer test runs
     // as they are not instantaneous and hence do not happen exactly every test_delay
-    (epoch_length.as_secs() / test_delay.as_secs()) as usize
+    (interval_length.as_secs() / test_delay.as_secs()) as usize
 }
 
 async fn setup_rewarder(
@@ -414,7 +414,7 @@ async fn setup_rewarder(
             validator_cache,
             node_status_storage,
             expected_monitor_test_runs(config),
-            config.get_minimum_epoch_monitor_threshold(),
+            config.get_minimum_interval_monitor_threshold(),
         )))
     } else if config.get_rewarding_enabled() {
         warn!("Cannot enable rewarding with the network monitor being disabled");

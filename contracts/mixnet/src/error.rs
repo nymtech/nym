@@ -75,8 +75,8 @@ pub enum ContractError {
     #[error("We tried to remove more funds then are available in the Reward pool. Wanted to remove {to_remove}, but have only {reward_pool}")]
     OutOfFunds { to_remove: u128, reward_pool: u128 },
 
-    #[error("Received invalid epoch id. Expected {expected}, received {received}")]
-    InvalidEpochId { received: u32, expected: u32 },
+    #[error("Received invalid interval id. Expected {expected}, received {received}")]
+    InvalidIntervalId { received: u32, expected: u32 },
 
     #[error("Mixnode {identity} has already been rewarded during the current rewarding interval")]
     MixnodeAlreadyRewarded { identity: IdentityKey },
@@ -118,10 +118,10 @@ pub enum ContractError {
         current_height: u64,
     },
 
-    #[error("Can't change to the desired epoch as it's not in progress yet. It starts at {epoch_start} and finishes at {epoch_end}, while the current block time is {current_block_time}")]
-    EpochNotInProgress {
+    #[error("Can't change to the desired interval as it's not in progress yet. It starts at {interval_start} and finishes at {interval_end}, while the current block time is {current_block_time}")]
+    IntervalNotInProgress {
         current_block_time: u64,
-        epoch_start: i64,
-        epoch_end: i64,
+        interval_start: i64,
+        interval_end: i64,
     },
 }

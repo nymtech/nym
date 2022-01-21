@@ -40,9 +40,9 @@ pub struct RewardEstimationResponse {
     pub estimated_operator_reward: u64,
     pub estimated_delegators_reward: u64,
 
-    pub current_epoch_start: i64,
-    pub current_epoch_end: i64,
-    pub current_epoch_uptime: u8,
+    pub current_interval_start: i64,
+    pub current_interval_end: i64,
+    pub current_interval_uptime: u8,
     pub as_at: i64,
 }
 

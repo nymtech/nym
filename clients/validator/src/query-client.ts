@@ -85,7 +85,7 @@ export interface INymdQuery {
   getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution>;
   getRewardPool(mixnetContractAddress: string): Promise<string>;
   getCirculatingSupply(mixnetContractAddress: string): Promise<string>;
-  getEpochRewardPercent(mixnetContractAddress: string): Promise<number>;
+  getIntervalRewardPercent(mixnetContractAddress: string): Promise<number>;
   getSybilResistancePercent(mixnetContractAddress: string): Promise<number>;
   getRewardingStatus(
     mixnetContractAddress: string,
@@ -178,8 +178,8 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
     return this.nymdQuerier.getCirculatingSupply(mixnetContractAddress);
   }
 
-  getEpochRewardPercent(mixnetContractAddress: string): Promise<number> {
-    return this.nymdQuerier.getEpochRewardPercent(mixnetContractAddress);
+  getIntervalRewardPercent(mixnetContractAddress: string): Promise<number> {
+    return this.nymdQuerier.getIntervalRewardPercent(mixnetContractAddress);
   }
 
   getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {

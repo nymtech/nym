@@ -450,7 +450,7 @@ impl PacketPreparer {
         test_nonce: u64,
         test_routes: &[TestRoute],
     ) -> PreparedPackets {
-        // only test mixnodes that are rewarded, i.e. that will be rewarded in this epoch.
+        // only test mixnodes that are rewarded, i.e. that will be rewarded in this interval.
         // (remember that "idle" nodes are still part of that set)
         // we don't care about other nodes, i.e. nodes that are bonded but will not get
         // any reward during the current rewarding interval

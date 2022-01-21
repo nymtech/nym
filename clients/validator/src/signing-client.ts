@@ -298,8 +298,8 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nymdQuerier.getCirculatingSupply(mixnetContractAddress);
   }
 
-  getEpochRewardPercent(mixnetContractAddress: string): Promise<number> {
-    return this.nymdQuerier.getEpochRewardPercent(mixnetContractAddress);
+  getIntervalRewardPercent(mixnetContractAddress: string): Promise<number> {
+    return this.nymdQuerier.getIntervalRewardPercent(mixnetContractAddress);
   }
 
   getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {

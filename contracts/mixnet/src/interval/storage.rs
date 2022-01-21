@@ -3,23 +3,24 @@
 
 use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::{Epoch, IdentityKey, RewardedSetNodeStatus};
+use mixnet_contract_common::{IdentityKey, Interval, RewardedSetNodeStatus};
 
 // type aliases for better reasoning for storage keys
 // (I found it helpful)
 type BlockHeight = u64;
-type EpochId = u32;
+type IntervalId = u32;
 
 // TODO: those values need to be verified
 pub(crate) const REWARDED_NODE_DEFAULT_PAGE_LIMIT: u32 = 1000;
 pub(crate) const REWARDED_NODE_MAX_PAGE_LIMIT: u32 = 1500;
 
-pub(crate) const CURRENT_EPOCH: Item<Epoch> = Item::new("cep");
+pub(crate) const CURRENT_INTERVAL: Item<Interval> = Item::new("cep");
 pub(crate) const CURRENT_REWARDED_SET_HEIGHT: Item<BlockHeight> = Item::new("crh");
 
 // I've changed the `()` data to an `u8` as after serializing `()` is represented as "null",
 // taking more space than a single digit u8. If we don't care about what's there, why not go with more efficient approach? : )
-pub(crate) const REWARDED_SET_HEIGHTS_FOR_EPOCH: Map<(EpochId, BlockHeight), u8> = Map::new("rsh");
+pub(crate) const REWARDED_SET_HEIGHTS_FOR_INTERVAL: Map<(IntervalId, BlockHeight), u8> =
+    Map::new("rsh");
 
 // pub(crate) const REWARDED_SET: Map<(u64, IdentityKey), NodeStatus> = Map::new("rs");
 pub(crate) const REWARDED_SET: Map<(BlockHeight, IdentityKey), RewardedSetNodeStatus> =

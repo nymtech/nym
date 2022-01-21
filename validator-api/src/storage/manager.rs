@@ -5,7 +5,7 @@ use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
 use crate::node_status_api::utils::ActiveNodeStatuses;
 use crate::storage::models::{
-    ActiveNode, EpochRewarding, FailedMixnodeRewardChunk, NodeStatus, PossiblyUnrewardedMixnode,
+    ActiveNode, FailedMixnodeRewardChunk, IntervalRewarding, NodeStatus, PossiblyUnrewardedMixnode,
     RewardingReport, TestingRoute,
 };
 use std::convert::TryFrom;
@@ -666,22 +666,25 @@ impl StorageManager {
         .await
     }
 
-    /// Inserts information about starting new epoch rewarding into the database.
+    /// Inserts information about starting new interval rewarding into the database.
     /// Returns id of the newly created entry.
     ///
     /// # Arguments
     ///
-    /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
-    pub(super) async fn insert_new_epoch_rewarding(
+    /// * `interval_start_timestamp`: Unix timestamp of start of this rewarding interval.
+    /// * `interval_end_timestamp`: Unix timestamp of end of this rewarding interval.
+    pub(super) async fn insert_new_interval_rewarding(
         &self,
-        epoch_timestamp: i64,
+        interval_start_timestamp: i64,
+        interval_end_timestamp: i64,
     ) -> Result<i64, sqlx::Error> {
         let res = sqlx::query!(
             r#"
-                INSERT INTO epoch_rewarding (epoch_timestamp, finished)
-                VALUES (?, 0) 
+                INSERT INTO interval_rewarding (interval_start_timestamp, interval_end_timestamp, finished)
+                VALUES (?, ?, 0) 
             "#,
-            epoch_timestamp
+            interval_start_timestamp,
+            interval_end_timestamp,
         )
         .execute(&self.connection_pool)
         .await?;
@@ -689,15 +692,18 @@ impl StorageManager {
         Ok(res.last_insert_rowid())
     }
 
-    /// Sets the `finished` field on the epoch rewarding to true.
+    /// Sets the `finished` field on the interval rewarding to true.
     ///
     /// # Arguments
     ///
     /// * `id`: id of the entry we want to update.
-    pub(super) async fn update_finished_epoch_rewarding(&self, id: i64) -> Result<(), sqlx::Error> {
+    pub(super) async fn update_finished_interval_rewarding(
+        &self,
+        id: i64,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                UPDATE epoch_rewarding
+                UPDATE interval_rewarding
                 SET finished = 1
                 WHERE id = ?
             "#,
@@ -709,17 +715,17 @@ impl StorageManager {
         Ok(())
     }
 
-    // /// Tries to obtain the most recent epoch rewarding entry currently stored.
+    // /// Tries to obtain the most recent interval rewarding entry currently stored.
     // ///
     // /// Returns None if no data exists.
-    // pub(super) async fn get_most_recent_epoch_rewarding_entry(
+    // pub(super) async fn get_most_recent_interval_rewarding_entry(
     //     &self,
-    // ) -> Result<Option<EpochRewarding>, sqlx::Error> {
+    // ) -> Result<Option<IntervalRewarding>, sqlx::Error> {
     //     sqlx::query_as!(
-    //         EpochRewarding,
+    //         IntervalRewarding,
     //         r#"
-    //             SELECT * FROM epoch_rewarding
-    //             ORDER BY epoch_timestamp DESC
+    //             SELECT * FROM interval_rewarding
+    //             ORDER BY interval_timestamp DESC
     //             LIMIT 1
     //         "#,
     //     )
@@ -727,24 +733,24 @@ impl StorageManager {
     //     .await
     // }
 
-    /// Tries to obtain the epoch rewarding entry that has the provided timestamp.
+    /// Tries to obtain the interval rewarding entry that has the provided timestamp.
     ///
     /// Returns None if no data exists.
     ///
     /// # Arguments
     ///
-    /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
-    pub(super) async fn get_epoch_rewarding_entry(
+    /// * `interval_start_timestamp`: Unix timestamp of the start of this rewarding interval.
+    pub(super) async fn get_interval_rewarding_entry(
         &self,
-        epoch_timestamp: i64,
-    ) -> Result<Option<EpochRewarding>, sqlx::Error> {
+        interval_start_timestamp: i64,
+    ) -> Result<Option<IntervalRewarding>, sqlx::Error> {
         sqlx::query_as!(
-            EpochRewarding,
+            IntervalRewarding,
             r#"
-                SELECT * FROM epoch_rewarding
-                WHERE epoch_timestamp = ?
+                SELECT * FROM interval_rewarding
+                WHERE interval_start_timestamp = ?
             "#,
-            epoch_timestamp
+            interval_start_timestamp
         )
         .fetch_optional(&self.connection_pool)
         .await
@@ -762,10 +768,10 @@ impl StorageManager {
         sqlx::query!(
             r#"
                 INSERT INTO rewarding_report
-                (epoch_rewarding_id, eligible_mixnodes, possibly_unrewarded_mixnodes)
+                (interval_rewarding_id, eligible_mixnodes, possibly_unrewarded_mixnodes)
                 VALUES (?, ?, ?);
             "#,
-            report.epoch_rewarding_id,
+            report.interval_rewarding_id,
             report.eligible_mixnodes,
             report.possibly_unrewarded_mixnodes,
         )
@@ -789,13 +795,13 @@ impl StorageManager {
                 INSERT INTO failed_mixnode_reward_chunk (error_message, reward_summary_id) VALUES (?, ?)
             "#,
             failed_chunk.error_message,
-            failed_chunk.epoch_rewarding_id,
+            failed_chunk.interval_rewarding_id,
         ).execute(&self.connection_pool).await?;
 
         Ok(res.last_insert_rowid())
     }
 
-    /// Inserts information into the database about a mixnode that might have been unfairly unrewarded this epoch.
+    /// Inserts information into the database about a mixnode that might have been unfairly unrewarded this interval.
     ///
     /// # Arguments
     ///

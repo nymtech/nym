@@ -12,7 +12,7 @@ use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
-    Delegation, Epoch, MixnetContractVersion, MixnodeRewardingStatusResponse,
+    Delegation, Interval, MixnetContractVersion, MixnodeRewardingStatusResponse,
 };
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, MixNodeBond, RewardedSetNodeStatus,
@@ -237,11 +237,11 @@ impl<C> Client<C> {
         Ok(self.nymd.get_reward_pool().await?.u128())
     }
 
-    pub async fn get_current_epoch(&self) -> Result<Epoch, ValidatorClientError>
+    pub async fn get_current_interval(&self) -> Result<Interval, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.nymd.get_current_epoch().await?)
+        Ok(self.nymd.get_current_interval().await?)
     }
 
     pub async fn get_circulating_supply(&self) -> Result<u128, ValidatorClientError>
@@ -258,11 +258,11 @@ impl<C> Client<C> {
         Ok(self.nymd.get_sybil_resistance_percent().await?)
     }
 
-    pub async fn get_epoch_reward_percent(&self) -> Result<u8, ValidatorClientError>
+    pub async fn get_interval_reward_percent(&self) -> Result<u8, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.nymd.get_epoch_reward_percent().await?)
+        Ok(self.nymd.get_interval_reward_percent().await?)
     }
 
     pub async fn get_current_rewarded_set_update_details(

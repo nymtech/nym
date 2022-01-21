@@ -80,7 +80,7 @@ impl RewardedSetUpdater {
         let all_nodes = self.validator_cache.mixnodes().await.into_inner();
         let rewarding_params = self
             .validator_cache
-            .epoch_reward_params()
+            .interval_reward_params()
             .await
             .into_inner();
 

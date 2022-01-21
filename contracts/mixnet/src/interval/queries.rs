@@ -6,38 +6,41 @@ use crate::error::ContractError;
 use cosmwasm_std::{Env, Order, StdResult, Storage};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::{
-    Epoch, EpochRewardedSetHeightsResponse, IdentityKey, PagedRewardedSetResponse,
+    IdentityKey, Interval, IntervalRewardedSetHeightsResponse, PagedRewardedSetResponse,
     RewardedSetNodeStatus, RewardedSetUpdateDetails,
 };
 
-pub fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
-    Ok(storage::CURRENT_EPOCH.load(storage)?)
+pub fn query_current_interval(storage: &dyn Storage) -> Result<Interval, ContractError> {
+    Ok(storage::CURRENT_INTERVAL.load(storage)?)
 }
 
 pub(crate) fn query_rewarded_set_refresh_minimum_blocks() -> u64 {
     crate::contract::REWARDED_SET_REFRESH_BLOCKS
 }
 
-pub fn query_rewarded_set_heights_for_epoch(
+pub fn query_rewarded_set_heights_for_interval(
     storage: &dyn Storage,
-    epoch_id: u32,
-) -> Result<EpochRewardedSetHeightsResponse, ContractError> {
+    interval_id: u32,
+) -> Result<IntervalRewardedSetHeightsResponse, ContractError> {
     // I don't think we have to deal with paging here as at most we're going to have 720 values here
     // and I think the validators are capable of performing 720 storage reads at once if they're only
     // reading u64 (+ u8) values...
-    let heights = storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
-        .prefix(epoch_id)
+    let heights = storage::REWARDED_SET_HEIGHTS_FOR_INTERVAL
+        .prefix(interval_id)
         .range(storage, None, None, Order::Ascending)
         .map(|val| val.map(|(height, _)| height))
         .collect::<StdResult<Vec<_>>>()?;
 
-    Ok(EpochRewardedSetHeightsResponse { epoch_id, heights })
+    Ok(IntervalRewardedSetHeightsResponse {
+        interval_id,
+        heights,
+    })
 }
 
-// note: I have removed the `query_rewarded_set_for_epoch`, because I don't think it's appropriate
-// for the contract to go through so much data (i.e. all "rewarded" sets of particular epoch) in one go.
-// To achieve the same result, the client would have to instead first call `query_rewarded_set_heights_for_epoch`
-// to learn the heights used in given epoch and then for each of them `query_rewarded_set` for that particular height.
+// note: I have removed the `query_rewarded_set_for_interval`, because I don't think it's appropriate
+// for the contract to go through so much data (i.e. all "rewarded" sets of particular interval) in one go.
+// To achieve the same result, the client would have to instead first call `query_rewarded_set_heights_for_interval`
+// to learn the heights used in given interval and then for each of them `query_rewarded_set` for that particular height.
 
 pub fn query_current_rewarded_set_height(storage: &dyn Storage) -> Result<u64, ContractError> {
     Ok(storage::CURRENT_REWARDED_SET_HEIGHT.load(storage)?)
@@ -107,7 +110,7 @@ pub fn query_rewarded_set_update_details(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::epoch::storage::REWARDED_NODE_MAX_PAGE_LIMIT;
+    use crate::interval::storage::REWARDED_NODE_MAX_PAGE_LIMIT;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_env;
 
@@ -125,12 +128,12 @@ mod tests {
     }
 
     #[test]
-    fn querying_for_rewarded_set_heights_for_epoch() {
+    fn querying_for_rewarded_set_heights_for_interval() {
         let mut deps = test_helpers::init_contract();
 
         // no data
         assert!(
-            query_rewarded_set_heights_for_epoch(deps.as_ref().storage, 0)
+            query_rewarded_set_heights_for_interval(deps.as_ref().storage, 0)
                 .unwrap()
                 .heights
                 .is_empty()
@@ -138,28 +141,28 @@ mod tests {
 
         // 100 heights
         for i in 0..100 {
-            storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
+            storage::REWARDED_SET_HEIGHTS_FOR_INTERVAL
                 .save(deps.as_mut().storage, (1, i), &0u8)
                 .unwrap();
         }
         let expected = (0..100).collect::<Vec<_>>();
         assert_eq!(
             expected,
-            query_rewarded_set_heights_for_epoch(deps.as_ref().storage, 1)
+            query_rewarded_set_heights_for_interval(deps.as_ref().storage, 1)
                 .unwrap()
                 .heights
         );
 
-        // 100 heights for different epoch
+        // 100 heights for different interval
         for i in 200..300 {
-            storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
+            storage::REWARDED_SET_HEIGHTS_FOR_INTERVAL
                 .save(deps.as_mut().storage, (10, i), &0u8)
                 .unwrap();
         }
         let expected = (200..300).collect::<Vec<_>>();
         assert_eq!(
             expected,
-            query_rewarded_set_heights_for_epoch(deps.as_ref().storage, 10)
+            query_rewarded_set_heights_for_interval(deps.as_ref().storage, 10)
                 .unwrap()
                 .heights
         )

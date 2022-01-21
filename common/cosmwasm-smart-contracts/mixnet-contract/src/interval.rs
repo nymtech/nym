@@ -1,41 +1,41 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use network_defaults::{DEFAULT_EPOCH_LENGTH, DEFAULT_FIRST_EPOCH_START};
+use network_defaults::{DEFAULT_FIRST_INTERVAL_START, DEFAULT_INTERVAL_LENGTH};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use time::OffsetDateTime;
 
-/// Representation of rewarding epoch.
+/// Representation of rewarding interval.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
-pub struct Epoch {
+pub struct Interval {
     id: u32,
     start: OffsetDateTime,
     length: Duration,
 }
 
-impl Epoch {
-    /// Creates new epoch instance.
+impl Interval {
+    /// Creates new interval instance.
     pub const fn new(id: u32, start: OffsetDateTime, length: Duration) -> Self {
-        Epoch { id, start, length }
+        Interval { id, start, length }
     }
 
-    /// Returns the next epoch.
+    /// Returns the next interval.
     #[must_use]
-    pub fn next_epoch(&self) -> Self {
-        Epoch {
+    pub fn next_interval(&self) -> Self {
+        Interval {
             id: self.id + 1,
             start: self.end(),
             length: self.length,
         }
     }
 
-    /// Returns the last epoch.
-    pub fn previous_epoch(&self) -> Option<Self> {
+    /// Returns the last interval.
+    pub fn previous_interval(&self) -> Option<Self> {
         if self.id > 0 {
-            Some(Epoch {
+            Some(Interval {
                 id: self.id - 1,
                 start: self.start - self.length,
                 length: self.length,
@@ -45,7 +45,7 @@ impl Epoch {
         }
     }
 
-    /// Determines whether the provided datetime is contained within the epoch
+    /// Determines whether the provided datetime is contained within the interval
     ///
     /// # Arguments
     ///
@@ -54,7 +54,7 @@ impl Epoch {
         self.start <= datetime && datetime <= self.end()
     }
 
-    /// Determines whether the provided unix timestamp is contained within the epoch
+    /// Determines whether the provided unix timestamp is contained within the interval
     ///
     /// # Arguments
     ///
@@ -63,7 +63,7 @@ impl Epoch {
         self.start_unix_timestamp() <= timestamp && timestamp <= self.end_unix_timestamp()
     }
 
-    /// Returns new instance of [Epoch] such that the provided datetime would be within
+    /// Returns new instance of [Interval] such that the provided datetime would be within
     /// its duration.
     ///
     /// # Arguments
@@ -77,19 +77,19 @@ impl Epoch {
                 if candidate.contains(now) {
                     return Some(candidate);
                 }
-                candidate = candidate.next_epoch();
+                candidate = candidate.next_interval();
             }
         } else {
             loop {
                 if candidate.contains(now) {
                     return Some(candidate);
                 }
-                candidate = candidate.previous_epoch()?;
+                candidate = candidate.previous_interval()?;
             }
         }
     }
 
-    /// Returns new instance of [Epoch] such that the provided unix timestamp would be within
+    /// Returns new instance of [Interval] such that the provided unix timestamp would be within
     /// its duration.
     ///
     /// # Arguments
@@ -103,19 +103,19 @@ impl Epoch {
                 if candidate.contains_timestamp(now_unix) {
                     return Some(candidate);
                 }
-                candidate = candidate.next_epoch();
+                candidate = candidate.next_interval();
             }
         } else {
             loop {
                 if candidate.contains_timestamp(now_unix) {
                     return Some(candidate);
                 }
-                candidate = candidate.previous_epoch()?;
+                candidate = candidate.previous_interval()?;
             }
         }
     }
 
-    /// Checks whether this epoch has already finished
+    /// Checks whether this interval has already finished
     ///
     /// # Arguments
     ///
@@ -124,12 +124,12 @@ impl Epoch {
         self.end() < now
     }
 
-    /// Returns id of this epoch
+    /// Returns id of this interval
     pub const fn id(&self) -> u32 {
         self.id
     }
 
-    /// Determines amount of time left until this epoch finishes.
+    /// Determines amount of time left until this interval finishes.
     ///
     /// # Arguments
     ///
@@ -143,39 +143,39 @@ impl Epoch {
         }
     }
 
-    /// Returns the starting datetime of this epoch.
+    /// Returns the starting datetime of this interval.
     pub const fn start(&self) -> OffsetDateTime {
         self.start
     }
 
-    /// Returns the length of this epoch.
+    /// Returns the length of this interval.
     pub const fn length(&self) -> Duration {
         self.length
     }
 
-    /// Returns the ending datetime of this epoch.
+    /// Returns the ending datetime of this interval.
     pub fn end(&self) -> OffsetDateTime {
         self.start + self.length
     }
 
-    /// Returns the unix timestamp of the start of this epoch.
+    /// Returns the unix timestamp of the start of this interval.
     pub const fn start_unix_timestamp(&self) -> i64 {
         self.start().unix_timestamp()
     }
 
-    /// Returns the unix timestamp of the end of this epoch.
+    /// Returns the unix timestamp of the end of this interval.
     pub fn end_unix_timestamp(&self) -> i64 {
         self.end().unix_timestamp()
     }
 }
 
-impl Display for Epoch {
+impl Display for Interval {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         let length = self.length();
         let hours = length.as_secs_f32() / 3600.0;
         write!(
             f,
-            "Epoch {}: {} - {} ({:.1} hours)",
+            "Interval {}: {} - {} ({:.1} hours)",
             self.id,
             self.start(),
             self.end(),
@@ -184,12 +184,12 @@ impl Display for Epoch {
     }
 }
 
-impl Default for Epoch {
+impl Default for Interval {
     fn default() -> Self {
-        Epoch {
+        Interval {
             id: 0,
-            start: DEFAULT_FIRST_EPOCH_START,
-            length: DEFAULT_EPOCH_LENGTH,
+            start: DEFAULT_FIRST_INTERVAL_START,
+            length: DEFAULT_INTERVAL_LENGTH,
         }
     }
 }
@@ -199,111 +199,127 @@ mod tests {
     use super::*;
 
     #[test]
-    fn previous_epoch() {
-        let epoch = Epoch {
+    fn previous_interval() {
+        let interval = Interval {
             id: 1,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
-        let expected = Epoch {
+        let expected = Interval {
             id: 0,
             start: time::macros::datetime!(2021-08-22 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
-        assert_eq!(expected, epoch.previous_epoch().unwrap());
+        assert_eq!(expected, interval.previous_interval().unwrap());
 
-        let genesis_epoch = Epoch {
+        let genesis_interval = Interval {
             id: 0,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
-        assert!(genesis_epoch.previous_epoch().is_none());
+        assert!(genesis_interval.previous_interval().is_none());
     }
 
     #[test]
-    fn next_epoch() {
-        let epoch = Epoch {
+    fn next_interval() {
+        let interval = Interval {
             id: 0,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
-        let expected = Epoch {
+        let expected = Interval {
             id: 1,
             start: time::macros::datetime!(2021-08-24 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
 
-        assert_eq!(expected, epoch.next_epoch())
+        assert_eq!(expected, interval.next_interval())
     }
 
     #[test]
     fn checking_for_datetime_inclusion() {
-        let epoch = Epoch {
+        let interval = Interval {
             id: 100,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
 
         // it must contain its own boundaries
-        assert!(epoch.contains(epoch.start));
-        assert!(epoch.contains(epoch.end()));
+        assert!(interval.contains(interval.start));
+        assert!(interval.contains(interval.end()));
 
-        let in_the_midle = epoch.start + Duration::from_secs(epoch.length.as_secs() / 2);
-        assert!(epoch.contains(in_the_midle));
+        let in_the_midle = interval.start + Duration::from_secs(interval.length.as_secs() / 2);
+        assert!(interval.contains(in_the_midle));
 
-        assert!(!epoch.contains(epoch.next_epoch().end()));
-        assert!(!epoch.contains(epoch.previous_epoch().unwrap().start()));
+        assert!(!interval.contains(interval.next_interval().end()));
+        assert!(!interval.contains(interval.previous_interval().unwrap().start()));
     }
 
     #[test]
-    fn determining_current_epoch() {
-        let first_epoch = Epoch {
+    fn determining_current_interval() {
+        let first_interval = Interval {
             id: 100,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
 
-        // epoch just before
-        let fake_now = first_epoch.start - Duration::from_secs(123);
-        assert_eq!(first_epoch.previous_epoch(), first_epoch.current(fake_now));
-
-        // this epoch (start boundary)
-        assert_eq!(first_epoch, first_epoch.current(first_epoch.start).unwrap());
-
-        // this epoch (in the middle)
-        let fake_now = first_epoch.start + Duration::from_secs(123);
-        assert_eq!(first_epoch, first_epoch.current(fake_now).unwrap());
-
-        // this epoch (end boundary)
-        assert_eq!(first_epoch, first_epoch.current(first_epoch.end()).unwrap());
-
-        // next epoch
-        let fake_now = first_epoch.end() + Duration::from_secs(123);
+        // interval just before
+        let fake_now = first_interval.start - Duration::from_secs(123);
         assert_eq!(
-            first_epoch.next_epoch(),
-            first_epoch.current(fake_now).unwrap()
+            first_interval.previous_interval(),
+            first_interval.current(fake_now)
         );
 
-        // few epochs in the past
-        let fake_now =
-            first_epoch.start() - first_epoch.length - first_epoch.length - first_epoch.length;
+        // this interval (start boundary)
         assert_eq!(
-            first_epoch
-                .previous_epoch()
+            first_interval,
+            first_interval.current(first_interval.start).unwrap()
+        );
+
+        // this interval (in the middle)
+        let fake_now = first_interval.start + Duration::from_secs(123);
+        assert_eq!(first_interval, first_interval.current(fake_now).unwrap());
+
+        // this interval (end boundary)
+        assert_eq!(
+            first_interval,
+            first_interval.current(first_interval.end()).unwrap()
+        );
+
+        // next interval
+        let fake_now = first_interval.end() + Duration::from_secs(123);
+        assert_eq!(
+            first_interval.next_interval(),
+            first_interval.current(fake_now).unwrap()
+        );
+
+        // few intervals in the past
+        let fake_now = first_interval.start()
+            - first_interval.length
+            - first_interval.length
+            - first_interval.length;
+        assert_eq!(
+            first_interval
+                .previous_interval()
                 .unwrap()
-                .previous_epoch()
+                .previous_interval()
                 .unwrap()
-                .previous_epoch()
+                .previous_interval()
                 .unwrap(),
-            first_epoch.current(fake_now).unwrap()
+            first_interval.current(fake_now).unwrap()
         );
 
-        // few epochs in the future
-        let fake_now =
-            first_epoch.end() + first_epoch.length + first_epoch.length + first_epoch.length;
+        // few intervals in the future
+        let fake_now = first_interval.end()
+            + first_interval.length
+            + first_interval.length
+            + first_interval.length;
         assert_eq!(
-            first_epoch.next_epoch().next_epoch().next_epoch(),
-            first_epoch.current(fake_now).unwrap()
+            first_interval
+                .next_interval()
+                .next_interval()
+                .next_interval(),
+            first_interval.current(fake_now).unwrap()
         );
     }
 }

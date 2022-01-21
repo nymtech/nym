@@ -11,9 +11,9 @@ pub mod queries;
 pub mod test_helpers {
     use crate::contract::instantiate;
     use crate::delegations::storage as delegations_storage;
-    use crate::epoch;
-    use crate::epoch::storage as epoch_storage;
     use crate::gateways::transactions::try_add_gateway;
+    use crate::interval;
+    use crate::interval::storage as interval_storage;
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::transactions::try_add_mixnode;
     use crate::support::tests;
@@ -128,17 +128,17 @@ pub mod test_helpers {
             .unwrap()
     }
 
-    pub(crate) fn update_env_and_progress_epoch(env: &mut Env, storage: &mut dyn Storage) {
-        // make sure current block time is within the expected next epoch
+    pub(crate) fn update_env_and_progress_interval(env: &mut Env, storage: &mut dyn Storage) {
+        // make sure current block time is within the expected next interval
         env.block.time = Timestamp::from_seconds(
-            (epoch_storage::CURRENT_EPOCH
+            (interval_storage::CURRENT_INTERVAL
                 .load(storage)
                 .unwrap()
-                .next_epoch()
+                .next_interval()
                 .start_unix_timestamp()
                 + 123) as u64,
         );
 
-        epoch::transactions::try_advance_epoch(env.clone(), storage).unwrap();
+        interval::transactions::try_advance_interval(env.clone(), storage).unwrap();
     }
 }

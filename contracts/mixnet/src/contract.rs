@@ -5,15 +5,15 @@ use crate::delegations::queries::query_all_network_delegations_paged;
 use crate::delegations::queries::query_delegator_delegations_paged;
 use crate::delegations::queries::query_mixnode_delegation;
 use crate::delegations::queries::query_mixnode_delegations_paged;
-use crate::epoch::queries::{
-    query_current_epoch, query_current_rewarded_set_height, query_rewarded_set,
-    query_rewarded_set_heights_for_epoch, query_rewarded_set_refresh_minimum_blocks,
-    query_rewarded_set_update_details,
-};
-use crate::epoch::storage as epoch_storage;
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
+use crate::interval::queries::{
+    query_current_interval, query_current_rewarded_set_height, query_rewarded_set,
+    query_rewarded_set_heights_for_interval, query_rewarded_set_refresh_minimum_blocks,
+    query_rewarded_set_update_details,
+};
+use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::{
     query_contract_settings_params, query_contract_version,
@@ -31,7 +31,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
 use mixnet_contract_common::{
-    ContractStateParams, Epoch, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+    ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
 };
 
 /// Constant specifying minimum of coin required to bond a gateway
@@ -44,7 +44,7 @@ pub const INITIAL_MIXNODE_REWARDED_SET_SIZE: u32 = 200;
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
 pub const INITIAL_REWARD_POOL: u128 = 250_000_000_000_000;
-pub const EPOCH_REWARD_PERCENT: u8 = 2; // Used to calculate epoch reward pool
+pub const INTERVAL_REWARD_PERCENT: u8 = 2; // Used to calculate interval reward pool
 pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
 pub const DEFAULT_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 
@@ -82,8 +82,8 @@ pub fn instantiate(
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
-    epoch_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
-    epoch_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
+    interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
+    interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Response::default())
 }
@@ -139,9 +139,14 @@ pub fn execute(
         ExecuteMsg::RewardMixnode {
             identity,
             params,
-            epoch_id,
+            interval_id,
         } => crate::rewards::transactions::try_reward_mixnode(
-            deps, env, info, identity, params, epoch_id,
+            deps,
+            env,
+            info,
+            identity,
+            params,
+            interval_id,
         ),
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
@@ -155,12 +160,12 @@ pub fn execute(
         }
         ExecuteMsg::RewardNextMixDelegators {
             mix_identity,
-            epoch_id,
+            interval_id,
         } => crate::rewards::transactions::try_reward_next_mixnode_delegators(
             deps,
             info,
             mix_identity,
-            epoch_id,
+            interval_id,
         ),
         ExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_identity,
@@ -214,15 +219,15 @@ pub fn execute(
         ExecuteMsg::WriteRewardedSet {
             rewarded_set,
             expected_active_set_size,
-        } => crate::epoch::transactions::try_write_rewarded_set(
+        } => crate::interval::transactions::try_write_rewarded_set(
             deps,
             env,
             info,
             rewarded_set,
             expected_active_set_size,
         ),
-        ExecuteMsg::AdvanceCurrentEpoch {} => {
-            crate::epoch::transactions::try_advance_epoch(env, deps.storage)
+        ExecuteMsg::AdvanceCurrentInterval {} => {
+            crate::interval::transactions::try_advance_interval(env, deps.storage)
         }
     }
 }
@@ -272,12 +277,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
         } => to_binary(&query_mixnode_delegation(deps, mix_identity, delegator)?),
         QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
         QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
-        QueryMsg::GetEpochRewardPercent {} => to_binary(&EPOCH_REWARD_PERCENT),
+        QueryMsg::GetIntervalRewardPercent {} => to_binary(&INTERVAL_REWARD_PERCENT),
         QueryMsg::GetSybilResistancePercent {} => to_binary(&DEFAULT_SYBIL_RESISTANCE_PERCENT),
         QueryMsg::GetRewardingStatus {
             mix_identity,
-            epoch_id,
-        } => to_binary(&query_rewarding_status(deps, mix_identity, epoch_id)?),
+            interval_id,
+        } => to_binary(&query_rewarding_status(deps, mix_identity, interval_id)?),
         QueryMsg::GetRewardedSet {
             height,
             start_after,
@@ -288,8 +293,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             start_after,
             limit,
         )?),
-        QueryMsg::GetRewardedSetHeightsForEpoch { epoch_id } => to_binary(
-            &query_rewarded_set_heights_for_epoch(deps.storage, epoch_id)?,
+        QueryMsg::GetRewardedSetHeightsForInterval { interval_id } => to_binary(
+            &query_rewarded_set_heights_for_interval(deps.storage, interval_id)?,
         ),
         QueryMsg::GetRewardedSetUpdateDetails {} => {
             to_binary(&query_rewarded_set_update_details(env, deps.storage)?)
@@ -297,7 +302,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
         QueryMsg::GetCurrentRewardedSetHeight {} => {
             to_binary(&query_current_rewarded_set_height(deps.storage)?)
         }
-        QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
+        QueryMsg::GetCurrentInterval {} => to_binary(&query_current_interval(deps.storage)?),
         QueryMsg::GetRewardedSetRefreshBlocks {} => {
             to_binary(&query_rewarded_set_refresh_minimum_blocks())
         }
@@ -315,8 +320,8 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
        1. removal of rewarding_interval_starting_block field from ContractState
        2. removal of latest_rewarding_interval_nonce field from ContractState
        3. removal of rewarding_in_progress field from ContractState
-       4. epoch_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
-       5. epoch_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
+       4. interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
+       5. interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
     */
 
     #[derive(Serialize, Deserialize)]
@@ -340,8 +345,8 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &new_state)?;
 
-    epoch_storage::CURRENT_EPOCH.save(deps.storage, &Epoch::default())?;
-    epoch_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
+    interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
+    interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Default::default())
 }

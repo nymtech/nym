@@ -3,10 +3,10 @@
 
 use super::storage;
 use crate::error::ContractError;
-use crate::error::ContractError::EpochNotInProgress;
+use crate::error::ContractError::IntervalNotInProgress;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
-use mixnet_contract_common::events::{new_advance_epoch_event, new_change_rewarded_set_event};
+use mixnet_contract_common::events::{new_advance_interval_event, new_change_rewarded_set_event};
 use mixnet_contract_common::IdentityKey;
 
 pub fn try_write_rewarded_set(
@@ -50,13 +50,13 @@ pub fn try_write_rewarded_set(
         });
     }
 
-    let current_epoch = storage::CURRENT_EPOCH.load(deps.storage)?.id();
+    let current_interval = storage::CURRENT_INTERVAL.load(deps.storage)?.id();
     let num_nodes = rewarded_set.len();
 
     storage::save_rewarded_set(deps.storage, block_height, active_set_size, rewarded_set)?;
-    storage::REWARDED_SET_HEIGHTS_FOR_EPOCH.save(
+    storage::REWARDED_SET_HEIGHTS_FOR_INTERVAL.save(
         deps.storage,
-        (current_epoch, block_height),
+        (current_interval, block_height),
         &0u8,
     )?;
     storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &block_height)?;
@@ -65,36 +65,39 @@ pub fn try_write_rewarded_set(
         state.params.mixnode_active_set_size,
         state.params.mixnode_rewarded_set_size,
         num_nodes as u32,
-        current_epoch,
+        current_interval,
     )))
 }
 
-pub fn try_advance_epoch(env: Env, storage: &mut dyn Storage) -> Result<Response, ContractError> {
+pub fn try_advance_interval(
+    env: Env,
+    storage: &mut dyn Storage,
+) -> Result<Response, ContractError> {
     // in theory, we could have just changed the state and relied on its reversal upon failed
     // execution, but better safe than sorry and do not modify the state at all unless we know
     // all checks have succeeded.
-    let current_epoch = storage::CURRENT_EPOCH.load(storage)?;
-    let next_epoch = current_epoch.next_epoch();
+    let current_interval = storage::CURRENT_INTERVAL.load(storage)?;
+    let next_interval = current_interval.next_interval();
 
-    if next_epoch.start_unix_timestamp() > env.block.time.seconds() as i64 {
+    if next_interval.start_unix_timestamp() > env.block.time.seconds() as i64 {
         // the reason for this check is as follows:
-        // nobody, even trusted validators, should be able to continuously keep advancing epochs,
+        // nobody, even trusted validators, should be able to continuously keep advancing intervals,
         // because otherwise it would be possible for them to continuously keep rewarding nodes.
         //
         // Therefore, even if "trusted" validator, responsible for rewarding, is malicious,
         // they can't send rewards more often than every `REWARDED_SET_REFRESH_BLOCKS`
         // and changing this value requires going through governance and having agreement of
         // the super-majority of the validators (by stake)
-        return Err(EpochNotInProgress {
+        return Err(IntervalNotInProgress {
             current_block_time: env.block.time.seconds(),
-            epoch_start: next_epoch.start_unix_timestamp(),
-            epoch_end: next_epoch.end_unix_timestamp(),
+            interval_start: next_interval.start_unix_timestamp(),
+            interval_end: next_interval.end_unix_timestamp(),
         });
     }
 
-    storage::CURRENT_EPOCH.save(storage, &next_epoch)?;
+    storage::CURRENT_INTERVAL.save(storage, &next_interval)?;
 
-    Ok(Response::new().add_event(new_advance_epoch_event(next_epoch)))
+    Ok(Response::new().add_event(new_advance_interval_event(next_interval)))
 }
 
 #[cfg(test)]
@@ -103,7 +106,7 @@ mod tests {
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Timestamp;
-    use mixnet_contract_common::{Epoch, RewardedSetNodeStatus};
+    use mixnet_contract_common::{Interval, RewardedSetNodeStatus};
     use std::time::Duration;
     use time::OffsetDateTime;
 
@@ -222,7 +225,7 @@ mod tests {
                 )
             }
         }
-        assert!(storage::REWARDED_SET_HEIGHTS_FOR_EPOCH
+        assert!(storage::REWARDED_SET_HEIGHTS_FOR_INTERVAL
             .has(deps.as_ref().storage, (0, env.block.height)));
         assert_eq!(
             env.block.height,
@@ -233,7 +236,7 @@ mod tests {
     }
 
     #[test]
-    fn advancing_epoch() {
+    fn advancing_interval() {
         let mut env = mock_env();
         let mut deps = test_helpers::init_contract();
 
@@ -243,62 +246,63 @@ mod tests {
         // 1643673600 = 2022-02-01
         // 1672531200 = 2023-01-01
 
-        let current_epoch = Epoch::new(
+        let current_interval = Interval::new(
             0,
             OffsetDateTime::from_unix_timestamp(1640995200).unwrap(),
             Duration::from_secs(60 * 60 * 720),
         );
-        let next_epoch = current_epoch.next_epoch();
-        storage::CURRENT_EPOCH
-            .save(deps.as_mut().storage, &current_epoch)
+        let next_interval = current_interval.next_interval();
+        storage::CURRENT_INTERVAL
+            .save(deps.as_mut().storage, &current_interval)
             .unwrap();
 
-        // fails if the current epoch hasn't finished yet i.e. the new epoch hasn't begun
+        // fails if the current interval hasn't finished yet i.e. the new interval hasn't begun
         env.block.time = Timestamp::from_seconds(1641081600);
         assert_eq!(
-            Err(ContractError::EpochNotInProgress {
+            Err(ContractError::IntervalNotInProgress {
                 current_block_time: 1641081600,
-                epoch_start: next_epoch.start_unix_timestamp(),
-                epoch_end: next_epoch.end_unix_timestamp()
+                interval_start: next_interval.start_unix_timestamp(),
+                interval_end: next_interval.end_unix_timestamp()
             }),
-            try_advance_epoch(env.clone(), deps.as_mut().storage)
+            try_advance_interval(env.clone(), deps.as_mut().storage)
         );
 
-        // same if the current blocktime is set to BEFORE the first epoch has even begun
-        // (say we decided to set the first epoch to be some time in the future at initialisation)
+        // same if the current blocktime is set to BEFORE the first interval has even begun
+        // (say we decided to set the first interval to be some time in the future at initialisation)
         env.block.time = Timestamp::from_seconds(1609459200);
         assert_eq!(
-            Err(ContractError::EpochNotInProgress {
+            Err(ContractError::IntervalNotInProgress {
                 current_block_time: 1609459200,
-                epoch_start: next_epoch.start_unix_timestamp(),
-                epoch_end: next_epoch.end_unix_timestamp()
+                interval_start: next_interval.start_unix_timestamp(),
+                interval_end: next_interval.end_unix_timestamp()
             }),
-            try_advance_epoch(env.clone(), deps.as_mut().storage)
+            try_advance_interval(env.clone(), deps.as_mut().storage)
         );
 
         // works otherwise
 
-        // epoch that has just finished
-        env.block.time = Timestamp::from_seconds(next_epoch.start_unix_timestamp() as u64 + 10000);
-        let expected_new_epoch = current_epoch.next_epoch();
+        // interval that has just finished
+        env.block.time =
+            Timestamp::from_seconds(next_interval.start_unix_timestamp() as u64 + 10000);
+        let expected_new_interval = current_interval.next_interval();
         let expected_response =
-            Response::new().add_event(new_advance_epoch_event(expected_new_epoch));
+            Response::new().add_event(new_advance_interval_event(expected_new_interval));
         assert_eq!(
             Ok(expected_response),
-            try_advance_epoch(env.clone(), deps.as_mut().storage)
+            try_advance_interval(env.clone(), deps.as_mut().storage)
         );
 
-        // epoch way back in the past (i.e. 'somebody' failed to advance it for a long time)
+        // interval way back in the past (i.e. 'somebody' failed to advance it for a long time)
         env.block.time = Timestamp::from_seconds(1672531200);
-        storage::CURRENT_EPOCH
-            .save(deps.as_mut().storage, &current_epoch)
+        storage::CURRENT_INTERVAL
+            .save(deps.as_mut().storage, &current_interval)
             .unwrap();
-        let expected_new_epoch = current_epoch.next_epoch();
+        let expected_new_interval = current_interval.next_interval();
         let expected_response =
-            Response::new().add_event(new_advance_epoch_event(expected_new_epoch));
+            Response::new().add_event(new_advance_interval_event(expected_new_interval));
         assert_eq!(
             Ok(expected_response),
-            try_advance_epoch(env.clone(), deps.as_mut().storage)
+            try_advance_interval(env.clone(), deps.as_mut().storage)
         );
     }
 }

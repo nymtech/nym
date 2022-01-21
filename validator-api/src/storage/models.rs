@@ -22,17 +22,19 @@ pub(crate) struct TestingRoute {
     pub(crate) monitor_run_id: i64,
 }
 
-pub(crate) struct EpochRewarding {
+pub(crate) struct IntervalRewarding {
     #[allow(dead_code)]
     pub(crate) id: i64,
     #[allow(dead_code)]
-    pub(crate) epoch_timestamp: i64,
+    pub(crate) interval_start_timestamp: i64,
+    #[allow(dead_code)]
+    pub(crate) interval_end_timestamp: i64,
     pub(crate) finished: bool,
 }
 
 pub(crate) struct RewardingReport {
-    // references particular epoch_rewarding
-    pub(crate) epoch_rewarding_id: i64,
+    // references particular interval_rewarding
+    pub(crate) interval_rewarding_id: i64,
 
     pub(crate) eligible_mixnodes: i64,
 
@@ -40,8 +42,8 @@ pub(crate) struct RewardingReport {
 }
 
 pub(crate) struct FailedMixnodeRewardChunk {
-    // references particular epoch_rewarding (there can be multiple chunks in a rewarding epoch)
-    pub(crate) epoch_rewarding_id: i64,
+    // references particular interval_rewarding (there can be multiple chunks in a rewarding interval)
+    pub(crate) interval_rewarding_id: i64,
     pub(crate) error_message: String,
 }
 

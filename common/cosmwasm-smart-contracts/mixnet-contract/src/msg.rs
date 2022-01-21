@@ -44,12 +44,12 @@ pub enum ExecuteMsg {
         params: NodeRewardParams,
 
         // id of the current rewarding interval
-        epoch_id: u32,
+        interval_id: u32,
     },
     RewardNextMixDelegators {
         mix_identity: IdentityKey,
         // id of the current rewarding interval
-        epoch_id: u32,
+        interval_id: u32,
     },
     DelegateToMixnodeOnBehalf {
         mix_identity: IdentityKey,
@@ -79,7 +79,7 @@ pub enum ExecuteMsg {
         rewarded_set: Vec<IdentityKey>,
         expected_active_set_size: u32,
     },
-    AdvanceCurrentEpoch {},
+    AdvanceCurrentInterval {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -131,23 +131,23 @@ pub enum QueryMsg {
     LayerDistribution {},
     GetRewardPool {},
     GetCirculatingSupply {},
-    GetEpochRewardPercent {},
+    GetIntervalRewardPercent {},
     GetSybilResistancePercent {},
     GetRewardingStatus {
         mix_identity: IdentityKey,
-        epoch_id: u32,
+        interval_id: u32,
     },
     GetRewardedSet {
         height: Option<u64>,
         start_after: Option<IdentityKey>,
         limit: Option<u32>,
     },
-    GetRewardedSetHeightsForEpoch {
-        epoch_id: u32,
+    GetRewardedSetHeightsForInterval {
+        interval_id: u32,
     },
     GetRewardedSetUpdateDetails {},
     GetCurrentRewardedSetHeight {},
-    GetCurrentEpoch {},
+    GetCurrentInterval {},
     GetRewardedSetRefreshBlocks {},
 }
 

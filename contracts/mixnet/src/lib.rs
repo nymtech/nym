@@ -3,9 +3,9 @@
 
 pub mod contract;
 mod delegations;
-mod epoch;
 mod error;
 mod gateways;
+mod interval;
 mod mixnet_contract_settings;
 mod mixnodes;
 mod rewards;

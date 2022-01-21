@@ -13,7 +13,7 @@ use config::defaults::DENOM;
 use log::{error, info};
 use mixnet_contract_common::mixnode::NodeRewardParams;
 use mixnet_contract_common::{
-    Epoch, ExecuteMsg, IdentityKey, MixNodeBond, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
+    ExecuteMsg, IdentityKey, Interval, MixNodeBond, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 use std::collections::HashSet;
 use std::convert::TryInto;
@@ -26,7 +26,7 @@ use validator_client::nymd::SigningNymdClient;
 pub(crate) mod error;
 
 #[derive(Copy, Clone)]
-pub(crate) struct EpochRewardParams {
+pub(crate) struct IntervalRewardParams {
     pub(crate) reward_pool: u128,
     pub(crate) circulating_supply: u128,
     pub(crate) sybil_resistance_percent: u8,
@@ -36,13 +36,13 @@ pub(crate) struct EpochRewardParams {
     pub(crate) active_set_work_factor: u8,
 }
 
-impl EpochRewardParams {
+impl IntervalRewardParams {
     // technically it's identical to what would have been derived with a Default implementation,
     // however, I prefer to be explicit about it, as a `Default::default` value makes no sense
     // apart from the `ValidatorCacheInner` context, where this value is not going to be touched anyway
     // (it's guarded behind an `initialised` flag)
     pub(crate) fn new_empty() -> Self {
-        EpochRewardParams {
+        IntervalRewardParams {
             reward_pool: 0,
             circulating_supply: 0,
             sybil_resistance_percent: 0,
@@ -106,18 +106,18 @@ impl MixnodeToReward {
 }
 
 impl MixnodeToReward {
-    pub(crate) fn to_reward_execute_msg(&self, epoch_id: u32) -> ExecuteMsg {
+    pub(crate) fn to_reward_execute_msg(&self, interval_id: u32) -> ExecuteMsg {
         ExecuteMsg::RewardMixnode {
             identity: self.identity.clone(),
             params: self.params(),
-            epoch_id,
+            interval_id,
         }
     }
 
-    pub(crate) fn to_next_delegator_reward_execute_msg(&self, epoch_id: u32) -> ExecuteMsg {
+    pub(crate) fn to_next_delegator_reward_execute_msg(&self, interval_id: u32) -> ExecuteMsg {
         ExecuteMsg::RewardNextMixDelegators {
             mix_identity: self.identity.clone(),
-            epoch_id,
+            interval_id,
         }
     }
 }
@@ -137,14 +137,14 @@ pub(crate) struct Rewarder {
     validator_cache: ValidatorCache,
     storage: ValidatorApiStorage,
 
-    /// Ideal world, expected number of network monitor test runs per epoch.
+    /// Ideal world, expected number of network monitor test runs per interval.
     /// In reality it will be slightly lower due to network delays, but it's good enough
     /// for estimations regarding percentage of available data for reward distribution.
-    expected_epoch_monitor_runs: usize,
+    expected_interval_monitor_runs: usize,
 
     /// Minimum percentage of network monitor test runs reports required in order to distribute
     /// rewards.
-    minimum_epoch_monitor_threshold: u8,
+    minimum_interval_monitor_threshold: u8,
 }
 
 impl Rewarder {
@@ -152,15 +152,15 @@ impl Rewarder {
         nymd_client: Client<SigningNymdClient>,
         validator_cache: ValidatorCache,
         storage: ValidatorApiStorage,
-        expected_epoch_monitor_runs: usize,
-        minimum_epoch_monitor_threshold: u8,
+        expected_interval_monitor_runs: usize,
+        minimum_interval_monitor_threshold: u8,
     ) -> Self {
         Rewarder {
             nymd_client,
             validator_cache,
             storage,
-            expected_epoch_monitor_runs,
-            minimum_epoch_monitor_threshold,
+            expected_interval_monitor_runs,
+            minimum_interval_monitor_threshold,
         }
     }
 
@@ -180,7 +180,7 @@ impl Rewarder {
             .len())
     }
 
-    /// Obtain the list of current 'rewarded' set, determine their uptime in the provided epoch
+    /// Obtain the list of current 'rewarded' set, determine their uptime in the provided interval
     /// and attach information required for rewarding.
     ///
     /// The method also obtains the number of delegators towards the node in order to more accurately
@@ -188,30 +188,33 @@ impl Rewarder {
     ///
     /// # Arguments
     ///
-    /// * `epoch`: current rewarding epoch
+    /// * `interval`: current rewarding interval
     async fn determine_eligible_mixnodes(
         &self,
-        epoch: Epoch,
+        interval: Interval,
     ) -> Result<Vec<MixnodeToReward>, RewardingError> {
-        let epoch_reward_params = self.nymd_client.get_current_epoch_reward_params().await?;
+        let interval_reward_params = self
+            .nymd_client
+            .get_current_interval_reward_params()
+            .await?;
 
         info!("Rewarding pool stats");
         info!(
             "-- Reward pool: {} {}",
-            epoch_reward_params.reward_pool, DENOM
+            interval_reward_params.reward_pool, DENOM
         );
         info!(
-            "---- Epoch reward pool: {} {}",
-            epoch_reward_params.period_reward_pool, DENOM
+            "---- Interval reward pool: {} {}",
+            interval_reward_params.period_reward_pool, DENOM
         );
         info!(
             "-- Circulating supply: {} {}",
-            epoch_reward_params.circulating_supply, DENOM
+            interval_reward_params.circulating_supply, DENOM
         );
 
         // 1. get list of all currently bonded nodes
         // 2. for each of them determine their delegator count
-        // 3. for each of them determine their uptime for the epoch
+        // 3. for each of them determine their uptime for the interval
         // 4. for each of them determine if they're currently in the active set
         // TODO: step 4 will definitely need to change.
         let all_nodes = self.validator_cache.mixnodes().await.into_inner();
@@ -238,8 +241,8 @@ impl Rewarder {
                 .storage
                 .get_average_mixnode_uptime_in_interval(
                     rewarded_node.identity(),
-                    epoch.start_unix_timestamp(),
-                    epoch.end_unix_timestamp(),
+                    interval.start_unix_timestamp(),
+                    interval.end_unix_timestamp(),
                 )
                 .await?;
 
@@ -247,16 +250,16 @@ impl Rewarder {
                 identity: rewarded_node.identity().clone(),
                 total_delegations,
                 params: NodeRewardParams::new(
-                    epoch_reward_params.period_reward_pool,
-                    epoch_reward_params.rewarded_set_size.into(),
-                    epoch_reward_params.active_set_size.into(),
+                    interval_reward_params.period_reward_pool,
+                    interval_reward_params.rewarded_set_size.into(),
+                    interval_reward_params.active_set_size.into(),
                     // Reward blockstamp gets set in the contract call
                     0,
-                    epoch_reward_params.circulating_supply,
+                    interval_reward_params.circulating_supply,
                     uptime.u8().into(),
-                    epoch_reward_params.sybil_resistance_percent,
+                    interval_reward_params.sybil_resistance_percent,
                     active_set.contains(rewarded_node.identity()),
-                    epoch_reward_params.active_set_work_factor,
+                    interval_reward_params.active_set_work_factor,
                 ),
             })
         }
@@ -272,7 +275,7 @@ impl Rewarder {
     /// onto the next page that the validator API was not aware of.
     ///
     /// * `eligible_mixnodes`: list of the nodes that were eligible to receive rewards.
-    /// * `epoch_id`: nonce associated with the current rewarding interval
+    /// * `interval_id`: nonce associated with the current rewarding interval
     async fn verify_rewarding_completion(
         &self,
         eligible_mixnodes: &[MixnodeToReward],
@@ -338,12 +341,12 @@ impl Rewarder {
     /// # Arguments
     ///
     /// * `eligible_mixnodes`: list of the nodes that are eligible to receive rewards.
-    /// * `epoch_id`: nonce associated with the current rewarding interval.
+    /// * `interval_id`: nonce associated with the current rewarding interval.
     /// * `retry`: flag to indicate whether this is a retry attempt for rewarding particular nodes.
     async fn distribute_rewards_to_mixnodes(
         &self,
         eligible_mixnodes: &[MixnodeToReward],
-        epoch_id: u32,
+        interval_id: u32,
         retry: bool,
     ) -> Option<Vec<FailedMixnodeRewardChunkDetails>> {
         if retry {
@@ -400,7 +403,7 @@ impl Rewarder {
         for mix in individually_rewarded {
             if let Err(err) = self
                 .nymd_client
-                .reward_mixnode_and_all_delegators(mix, epoch_id)
+                .reward_mixnode_and_all_delegators(mix, interval_id)
                 .await
             {
                 // this is a super weird edge case that we didn't catch change to sequence and
@@ -427,7 +430,7 @@ impl Rewarder {
             }
             if let Err(err) = self
                 .nymd_client
-                .reward_mixnodes_with_single_page_of_delegators(&mix_chunk, epoch_id)
+                .reward_mixnodes_with_single_page_of_delegators(&mix_chunk, interval_id)
                 .await
             {
                 // this is a super weird edge case that we didn't catch change to sequence and
@@ -461,9 +464,9 @@ impl Rewarder {
     /// Realistically if this method is ever called, it will be only done once per node, so there's
     /// no need to determine the exact number of missed delegators.
     ///
-    /// * `nodes`: mixnodes which delegators did not receive all rewards in this epoch.
-    /// * `epoch_id`: nonce associated with the current rewarding interval.
-    async fn reward_missed_delegators(&self, nodes: &[MixnodeToReward], epoch_id: u32) {
+    /// * `nodes`: mixnodes which delegators did not receive all rewards in this interval.
+    /// * `interval_id`: nonce associated with the current rewarding interval.
+    async fn reward_missed_delegators(&self, nodes: &[MixnodeToReward], interval_id: u32) {
         let mut total_resent = 0;
         for missed_node in nodes {
             total_resent += 1;
@@ -475,7 +478,7 @@ impl Rewarder {
 
             if let Err(err) = self
                 .nymd_client
-                .reward_mix_delegators(missed_node, epoch_id)
+                .reward_mix_delegators(missed_node, interval_id)
                 .await
             {
                 warn!(
@@ -491,23 +494,23 @@ impl Rewarder {
     ///
     /// # Arguments
     ///
-    /// * `epoch_rewarding_id`: id of the current epoch rewarding as stored in the database.
-    /// * `epoch`: current rewarding epoch
+    /// * `interval_rewarding_id`: id of the current interval rewarding as stored in the database.
+    /// * `interval`: current rewarding interval
     async fn distribute_rewards(
         &self,
-        epoch_rewarding_database_id: i64,
-        epoch: Epoch,
+        interval_rewarding_database_id: i64,
+        interval: Interval,
     ) -> Result<(RewardingReport, Option<FailureData>), RewardingError> {
         let mut failure_data = FailureData::default();
 
-        let eligible_mixnodes = self.determine_eligible_mixnodes(epoch).await?;
+        let eligible_mixnodes = self.determine_eligible_mixnodes(interval).await?;
         if eligible_mixnodes.is_empty() {
             return Err(RewardingError::NoMixnodesToReward);
         }
         let total_eligible = eligible_mixnodes.len();
 
         failure_data.mixnodes = self
-            .distribute_rewards_to_mixnodes(&eligible_mixnodes, epoch.id(), false)
+            .distribute_rewards_to_mixnodes(&eligible_mixnodes, interval.id(), false)
             .await;
 
         let mut nodes_to_verify = eligible_mixnodes;
@@ -519,7 +522,7 @@ impl Rewarder {
                 break;
             }
             let (unrewarded, mut pending_delegators) = self
-                .verify_rewarding_completion(&nodes_to_verify, epoch.id())
+                .verify_rewarding_completion(&nodes_to_verify, interval.id())
                 .await;
             if unrewarded.is_empty() && pending_delegators.is_empty() {
                 // we're all good - everyone got their rewards
@@ -528,12 +531,12 @@ impl Rewarder {
 
             if !unrewarded.is_empty() {
                 // no need to save failure data as we already know about those from the very first run
-                self.distribute_rewards_to_mixnodes(&unrewarded, epoch.id(), true)
+                self.distribute_rewards_to_mixnodes(&unrewarded, interval.id(), true)
                     .await;
             }
 
             if !pending_delegators.is_empty() {
-                self.reward_missed_delegators(&pending_delegators, epoch.id())
+                self.reward_missed_delegators(&pending_delegators, interval.id())
                     .await;
             }
 
@@ -545,7 +548,7 @@ impl Rewarder {
         }
 
         let report = RewardingReport {
-            epoch_rewarding_id: epoch_rewarding_database_id,
+            interval_rewarding_id: interval_rewarding_database_id,
             eligible_mixnodes: total_eligible as i64,
             possibly_unrewarded_mixnodes: failure_data
                 .mixnodes
@@ -559,7 +562,7 @@ impl Rewarder {
                 .unwrap_or_default(),
         };
 
-        self.nymd_client.advance_current_epoch().await?;
+        self.nymd_client.advance_current_interval().await?;
 
         if failure_data.mixnodes.is_none() {
             Ok((report, None))
@@ -574,13 +577,13 @@ impl Rewarder {
     ///
     /// # Arguments
     ///
-    /// * `failure_data`: information regarding nodes that might have not received reward this epoch.
+    /// * `failure_data`: information regarding nodes that might have not received reward this interval.
     ///
-    /// * `epoch_rewarding_id`: id of the current epoch rewarding.
+    /// * `interval_rewarding_id`: id of the current interval rewarding.
     async fn save_failure_information(
         &self,
         failure_data: FailureData,
-        epoch_rewarding_id: i64,
+        interval_rewarding_id: i64,
     ) -> Result<(), RewardingError> {
         if let Some(failed_mixnode_chunks) = failure_data.mixnodes {
             for failed_chunk in failed_mixnode_chunks.into_iter() {
@@ -588,7 +591,7 @@ impl Rewarder {
                 let chunk_id = self
                     .storage
                     .insert_failed_mixnode_reward_chunk(FailedMixnodeRewardChunk {
-                        epoch_rewarding_id,
+                        interval_rewarding_id,
                         error_message: failed_chunk.error_message,
                     })
                     .await?;
@@ -609,19 +612,19 @@ impl Rewarder {
         Ok(())
     }
 
-    /// Determines whether this validator has already distributed rewards for the specified epoch
+    /// Determines whether this validator has already distributed rewards for the specified interval
     /// so that it wouldn't accidentally attempt to do it again.
     ///
     /// # Arguments
     ///
-    /// * `epoch`: epoch to check
-    async fn check_if_rewarding_happened_at_epoch(
+    /// * `interval`: interval to check
+    async fn check_if_rewarding_happened_at_interval(
         &self,
-        epoch: Epoch,
+        interval: Interval,
     ) -> Result<bool, RewardingError> {
         if let Some(entry) = self
             .storage
-            .get_epoch_rewarding_entry(epoch.start_unix_timestamp())
+            .get_interval_rewarding_entry(interval.start_unix_timestamp())
             .await?
         {
             // log error if the attempt wasn't finished. This error implies the process has crashed
@@ -629,7 +632,7 @@ impl Rewarder {
             if !entry.finished {
                 error!(
                     "It seems that we haven't successfully finished distributing rewards at {}",
-                    epoch
+                    interval
                 )
             }
 
@@ -639,19 +642,21 @@ impl Rewarder {
         }
     }
 
-    /// Determines whether the specified epoch is eligible for rewards, i.e. it was not rewarded
+    /// Determines whether the specified interval is eligible for rewards, i.e. it was not rewarded
     /// before and we have enough network monitor test data to distribute the rewards based on them.
     ///
     /// # Arguments
     ///
-    /// * `epoch`: epoch to check
-    async fn check_epoch_eligibility(&self, epoch: Epoch) -> Result<bool, RewardingError> {
-        if self.check_if_rewarding_happened_at_epoch(epoch).await?
-            || !self.check_for_monitor_data(epoch).await?
+    /// * `interval`: interval to check
+    async fn check_interval_eligibility(&self, interval: Interval) -> Result<bool, RewardingError> {
+        if self
+            .check_if_rewarding_happened_at_interval(interval)
+            .await?
+            || !self.check_for_monitor_data(interval).await?
         {
             Ok(false)
         } else {
-            // we haven't sent rewards during the epoch and we have enough monitor test data
+            // we haven't sent rewards during the interval and we have enough monitor test data
             Ok(true)
         }
     }
@@ -660,29 +665,34 @@ impl Rewarder {
     ///
     /// # Arguments
     ///
-    /// * `epoch`: current rewarding epoch
-    async fn perform_rewarding(&self, epoch: Epoch) -> Result<(), RewardingError> {
+    /// * `interval`: current rewarding interval
+    async fn perform_rewarding(&self, interval: Interval) -> Result<(), RewardingError> {
         info!(
-            "Starting mixnode and gateway rewarding for epoch {} ...",
-            epoch
+            "Starting mixnode and gateway rewarding for interval {} ...",
+            interval
         );
 
         // insert information about beginning the procedure (so that if we crash during it,
         // we wouldn't attempt to possibly double reward operators)
-        let epoch_rewarding_id = self
+        let interval_rewarding_id = self
             .storage
-            .insert_started_epoch_rewarding(epoch.start_unix_timestamp())
+            .insert_started_interval_rewarding(
+                interval.start_unix_timestamp(),
+                interval.end_unix_timestamp(),
+            )
             .await?;
 
-        let (report, failure_data) = self.distribute_rewards(epoch_rewarding_id, epoch).await?;
+        let (report, failure_data) = self
+            .distribute_rewards(interval_rewarding_id, interval)
+            .await?;
 
         self.storage
-            .finish_rewarding_epoch_and_insert_report(report)
+            .finish_rewarding_interval_and_insert_report(report)
             .await?;
 
         if let Some(failure_data) = failure_data {
             if let Err(err) = self
-                .save_failure_information(failure_data, epoch_rewarding_id)
+                .save_failure_information(failure_data, interval_rewarding_id)
                 .await
             {
                 error!("failed to save information about rewarding failures!");
@@ -691,64 +701,67 @@ impl Rewarder {
             }
         }
 
-        // since we have already performed rewards, purge everything older than the end of this epoch
+        // since we have already performed rewards, purge everything older than the end of this interval
         // (+one day of buffer) as we're never going to need it again (famous last words...)
-        // note that usually end of epoch is equal to the current time
-        let cutoff = (epoch.end() - ONE_DAY).unix_timestamp();
+        // note that usually end of interval is equal to the current time
+        let cutoff = (interval.end() - ONE_DAY).unix_timestamp();
         self.storage.purge_old_statuses(cutoff).await?;
 
         Ok(())
     }
 
     /// Checks whether there is enough network monitor test run data to distribute rewards
-    /// for the specified epoch.
+    /// for the specified interval.
     ///
     /// # Arguments
     ///
-    /// * `epoch`: epoch to check
-    async fn check_for_monitor_data(&self, epoch: Epoch) -> Result<bool, RewardingError> {
-        let since = epoch.start_unix_timestamp();
-        let until = epoch.end_unix_timestamp();
+    /// * `interval`: interval to check
+    async fn check_for_monitor_data(&self, interval: Interval) -> Result<bool, RewardingError> {
+        let since = interval.start_unix_timestamp();
+        let until = interval.end_unix_timestamp();
 
         let monitor_runs = self.storage.get_monitor_runs_count(since, until).await?;
 
-        // check if we have more than threshold percentage of monitor runs for the epoch
-        let available = monitor_runs as f32 * 100.0 / self.expected_epoch_monitor_runs as f32;
-        Ok(available >= self.minimum_epoch_monitor_threshold as f32)
+        // check if we have more than threshold percentage of monitor runs for the interval
+        let available = monitor_runs as f32 * 100.0 / self.expected_interval_monitor_runs as f32;
+        Ok(available >= self.minimum_interval_monitor_threshold as f32)
     }
 
-    async fn sync_up_rewarding_epochs(&self) -> Result<(), RewardingError> {
-        let mut last_stored_epoch = self.nymd_client.get_current_epoch().await?;
+    async fn sync_up_rewarding_intervals(&self) -> Result<(), RewardingError> {
+        let mut last_stored_interval = self.nymd_client.get_current_interval().await?;
 
         let block_now: OffsetDateTime = self.nymd_client.current_block_timestamp().await?.into();
-        let actual_current_epoch = match last_stored_epoch.current(block_now) {
+        let actual_current_interval = match last_stored_interval.current(block_now) {
             None => return Ok(()),
-            Some(epoch) => epoch,
+            Some(interval) => interval,
         };
 
-        // we're waiting for the first epoch to start... (same is true if the value was 'None')
-        if actual_current_epoch.start() < last_stored_epoch.start() {
+        // we're waiting for the first interval to start... (same is true if the value was 'None')
+        if actual_current_interval.start() < last_stored_interval.start() {
             return Ok(());
         }
 
         // we're already synced up
-        if actual_current_epoch == last_stored_epoch {
+        if actual_current_interval == last_stored_interval {
             return Ok(());
         }
 
-        // actual_current_epoch > last_stored_epoch
+        // actual_current_interval > last_stored_interval
         loop {
-            // if we can perform rewarding, do it, otherwise just go straight into the next epoch
-            if self.check_epoch_eligibility(last_stored_epoch).await? {
-                self.perform_rewarding(last_stored_epoch).await?;
+            // if we can perform rewarding, do it, otherwise just go straight into the next interval
+            if self
+                .check_interval_eligibility(last_stored_interval)
+                .await?
+            {
+                self.perform_rewarding(last_stored_interval).await?;
             } else {
-                self.nymd_client.advance_current_epoch().await?;
+                self.nymd_client.advance_current_interval().await?;
             }
 
-            last_stored_epoch = self.nymd_client.get_current_epoch().await?;
+            last_stored_interval = self.nymd_client.get_current_interval().await?;
 
             // compare by start times in case the id didn't match (TODO: is it even possible?)
-            if last_stored_epoch.start() == actual_current_epoch.start() {
+            if last_stored_interval.start() == actual_current_interval.start() {
                 break;
             }
         }
@@ -758,31 +771,34 @@ impl Rewarder {
 
     // pub(crate) async fn processing_loop_iteration(&self) -> Result<std::ops::ControlFlow<()>, RewardingError> {
     pub(crate) async fn processing_loop_iteration(&self) -> Result<(), RewardingError> {
-        let last_stored_epoch = self.nymd_client.get_current_epoch().await?;
+        let last_stored_interval = self.nymd_client.get_current_interval().await?;
         let block_now: OffsetDateTime = self.nymd_client.current_block_timestamp().await?.into();
 
-        let actual_current_epoch = match last_stored_epoch.current(block_now) {
+        let actual_current_interval = match last_stored_interval.current(block_now) {
             None => return Ok(()),
-            Some(epoch) => epoch,
+            Some(interval) => interval,
         };
 
-        // the [stored] epoch has finished - we should distribute rewards now
-        if last_stored_epoch.start() < actual_current_epoch.start() {
+        // the [stored] interval has finished - we should distribute rewards now
+        if last_stored_interval.start() < actual_current_interval.start() {
             // it's time to distribute rewards, however, first let's see if we have enough data to go through with it
             // (consider the case of rewards being distributed every 24h at 12:00pm and validator-api
             // starting for the very first time at 11:00am. It's not going to have enough data for
-            // rewards for the *current* epoch, but we couldn't have known that at startup)
-            if self.check_epoch_eligibility(last_stored_epoch).await? {
-                self.perform_rewarding(last_stored_epoch).await?;
+            // rewards for the *current* interval, but we couldn't have known that at startup)
+            if self
+                .check_interval_eligibility(last_stored_interval)
+                .await?
+            {
+                self.perform_rewarding(last_stored_interval).await?;
             } else {
-                warn!("We do not have sufficient monitor data to perform rewarding in this epoch ({}). We're advancing it forward...", last_stored_epoch);
-                self.nymd_client.advance_current_epoch().await?;
+                warn!("We do not have sufficient monitor data to perform rewarding in this interval ({}). We're advancing it forward...", last_stored_interval);
+                self.nymd_client.advance_current_interval().await?;
             }
         } else {
             info!(
                 "rewards will be distributed around {}. Approximately {:?} remaining",
-                last_stored_epoch.end(),
-                last_stored_epoch.until_end(block_now)
+                last_stored_interval.end(),
+                last_stored_interval.until_end(block_now)
             );
         }
 
@@ -795,13 +811,16 @@ impl Rewarder {
         // whatever happens, we shouldn't do anything until the cache is initialised
         self.validator_cache.wait_for_initial_values().await;
 
-        if let Err(err) = self.sync_up_rewarding_epochs().await {
-            error!("Failed to sync up epochs with the contract state - {}", err);
+        if let Err(err) = self.sync_up_rewarding_intervals().await {
+            error!(
+                "Failed to sync up intervals with the contract state - {}",
+                err
+            );
             process::exit(1);
         }
 
-        // at this point the current block time < end of current[or first] epoch, so to do anything,
-        // we have to wait for the epoch to finish
+        // at this point the current block time < end of current[or first] interval, so to do anything,
+        // we have to wait for the interval to finish
         loop {
             if let Err(err) = self.processing_loop_iteration().await {
                 error!("failed to finish rewarding loop iteration - {}", err);

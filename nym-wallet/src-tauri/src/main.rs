@@ -91,6 +91,7 @@ mod test {
     crate::coin::Denom => "../src/types/rust/denom.ts",
     crate::utils::DelegationResult => "../src/types/rust/delegationresult.ts",
     crate::mixnet::account::Account => "../src/types/rust/account.ts",
+    crate::mixnet::account::CreatedAccount => "../src/types/rust/createdaccount.ts",
     crate::mixnet::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts",
     validator_client::models::CoreNodeStatusResponse => "../src/types/corenodestatusresponse.ts",
     validator_client::models::MixnodeStatus => "../src/types/rust/mixnodestatus.ts",

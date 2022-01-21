@@ -32,6 +32,13 @@ impl Account {
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Serialize, Deserialize)]
+pub struct CreatedAccount {
+  account: Account,
+  mnemonic: String,
+}
+
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Serialize, Deserialize)]
 pub struct Balance {
   coin: Coin,
   printable_balance: String,
@@ -74,10 +81,13 @@ pub async fn get_balance(
 #[tauri::command]
 pub async fn create_new_account(
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<Account, BackendError> {
+) -> Result<CreatedAccount, BackendError> {
   let rand_mnemonic = random_mnemonic();
   let account = connect_with_mnemonic(rand_mnemonic.to_string(), state).await?;
-  Ok(account)
+  Ok(CreatedAccount {
+    account,
+    mnemonic: rand_mnemonic.to_string(),
+  })
 }
 
 #[tauri::command]

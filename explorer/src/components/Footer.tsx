@@ -42,7 +42,7 @@ export const Footer: React.FC = () => {
           color: theme.palette.nym.text.footer,
         }}
       >
-        © 2021 Nym Technologies SA, all rights reserved
+        © {new Date().getFullYear()} Nym Technologies SA, all rights reserved
       </Typography>
     </Box>
   );

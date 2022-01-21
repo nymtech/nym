@@ -31,7 +31,6 @@ import {
   PagedGatewayResponse,
   PagedMixDelegationsResponse,
   PagedMixnodeResponse,
-  RewardingIntervalResponse,
   RewardingStatus,
 } from './types';
 import ValidatorApiQuerier from './validator-api-querier';
@@ -257,10 +256,6 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nymdQuerier.getStateParams(mixnetContractAddress);
   }
 
-  getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse> {
-    return this.nymdQuerier.getCurrentRewardingInterval(mixnetContractAddress);
-  }
-
   getAllNetworkDelegationsPaged(
     mixnetContractAddress: string,
     limit?: number,
@@ -303,8 +298,8 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nymdQuerier.getCirculatingSupply(mixnetContractAddress);
   }
 
-  getEpochRewardPercent(mixnetContractAddress: string): Promise<number> {
-    return this.nymdQuerier.getEpochRewardPercent(mixnetContractAddress);
+  getIntervalRewardPercent(mixnetContractAddress: string): Promise<number> {
+    return this.nymdQuerier.getIntervalRewardPercent(mixnetContractAddress);
   }
 
   getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {

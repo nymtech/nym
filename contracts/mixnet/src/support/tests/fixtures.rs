@@ -1,6 +1,6 @@
 use crate::contract::{
-    DEFAULT_SYBIL_RESISTANCE_PERCENT, EPOCH_REWARD_PERCENT, INITIAL_MIXNODE_PLEDGE,
-    INITIAL_REWARD_POOL,
+    DEFAULT_SYBIL_RESISTANCE_PERCENT, INITIAL_MIXNODE_PLEDGE, INITIAL_REWARD_POOL,
+    INTERVAL_REWARD_PERCENT,
 };
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::{mixnodes::storage::StoredMixnodeBond, support::tests};
@@ -79,7 +79,7 @@ pub fn good_gateway_pledge() -> Vec<Coin> {
 // when exact values are irrelevant and what matters is the action of rewarding
 pub fn node_rewarding_params_fixture(uptime: u128) -> NodeRewardParams {
     NodeRewardParams::new(
-        (INITIAL_REWARD_POOL / 100) * EPOCH_REWARD_PERCENT as u128,
+        (INITIAL_REWARD_POOL / 100) * INTERVAL_REWARD_PERCENT as u128,
         50 as u128,
         25 as u128,
         0,

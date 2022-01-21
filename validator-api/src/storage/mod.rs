@@ -10,7 +10,7 @@ use crate::node_status_api::models::{
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    EpochRewarding, FailedMixnodeRewardChunk, NodeStatus, PossiblyUnrewardedMixnode,
+    FailedMixnodeRewardChunk, IntervalRewarding, NodeStatus, PossiblyUnrewardedMixnode,
     RewardingReport, TestingRoute,
 };
 use rocket::fairing::{self, AdHoc};
@@ -21,9 +21,6 @@ use time::OffsetDateTime;
 
 pub(crate) mod manager;
 pub(crate) mod models;
-
-// A type alias to be more explicit about type of timestamp used.
-pub(crate) type UnixTimestamp = i64;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
@@ -81,7 +78,7 @@ impl ValidatorApiStorage {
     async fn get_mixnode_statuses(
         &self,
         identity: &str,
-        since: UnixTimestamp,
+        since: i64,
     ) -> Result<Vec<NodeStatus>, ValidatorApiStorageError> {
         let statuses = self
             .manager
@@ -102,7 +99,7 @@ impl ValidatorApiStorage {
     async fn get_gateway_statuses(
         &self,
         identity: &str,
-        since: UnixTimestamp,
+        since: i64,
     ) -> Result<Vec<NodeStatus>, ValidatorApiStorageError> {
         let statuses = self
             .manager
@@ -275,8 +272,8 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_average_mixnode_uptime_in_interval(
         &self,
         identity: &str,
-        start: UnixTimestamp,
-        end: UnixTimestamp,
+        start: i64,
+        end: i64,
     ) -> Result<Uptime, ValidatorApiStorageError> {
         let mixnode_database_id = match self
             .manager
@@ -319,14 +316,14 @@ impl ValidatorApiStorage {
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `end`: unix timestamp indicating the upper bound interval of the selection.
     // NOTE: even though the arguments would suggest this function is generic in regards to
-    // epoch length, the constructed reports still assume the epochs are 24h in length.
+    // interval length, the constructed reports still assume the intervals are 24h in length.
     pub(crate) async fn get_all_active_mixnode_reports_in_interval(
         &self,
-        start: UnixTimestamp,
-        end: UnixTimestamp,
+        start: i64,
+        end: i64,
     ) -> Result<Vec<MixnodeStatusReport>, ValidatorApiStorageError> {
         if (end - start) as u64 != ONE_DAY.as_secs() {
-            warn!("Our current epoch length breaks the 24h length assumption")
+            warn!("Our current interval length breaks the 24h length assumption")
         }
 
         let hour_ago = end - ONE_HOUR.as_secs() as i64;
@@ -363,14 +360,14 @@ impl ValidatorApiStorage {
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `end`: unix timestamp indicating the upper bound interval of the selection.
     // NOTE: even though the arguments would suggest this function is generic in regards to
-    // epoch length, the constructed reports still assume the epochs are 24h in length.
+    // interval length, the constructed reports still assume the intervals are 24h in length.
     pub(crate) async fn get_all_active_gateway_reports_in_interval(
         &self,
-        start: UnixTimestamp,
-        end: UnixTimestamp,
+        start: i64,
+        end: i64,
     ) -> Result<Vec<GatewayStatusReport>, ValidatorApiStorageError> {
         if (end - start) as u64 != ONE_DAY.as_secs() {
-            warn!("Our current epoch length breaks the 24h length assumption")
+            warn!("Our current interval length breaks the 24h length assumption")
         }
 
         let hour_ago = end - ONE_HOUR.as_secs() as i64;
@@ -465,7 +462,7 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_core_mixnode_status_count(
         &self,
         identity: &str,
-        since: Option<UnixTimestamp>,
+        since: Option<i64>,
     ) -> Result<i32, ValidatorApiStorageError> {
         let node_id = self
             .manager
@@ -497,7 +494,7 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_core_gateway_status_count(
         &self,
         identity: &str,
-        since: Option<UnixTimestamp>,
+        since: Option<i64>,
     ) -> Result<i32, ValidatorApiStorageError> {
         let node_id = self
             .manager
@@ -567,8 +564,8 @@ impl ValidatorApiStorage {
     /// * `until`: unix timestamp indicating the upper bound interval of the selection.
     pub(crate) async fn get_monitor_runs_count(
         &self,
-        since: UnixTimestamp,
-        until: UnixTimestamp,
+        since: i64,
+        until: i64,
     ) -> Result<usize, ValidatorApiStorageError> {
         let run_count = self
             .manager
@@ -668,7 +665,7 @@ impl ValidatorApiStorage {
     /// * `until`: timestamp specifying the purge cutoff.
     pub(crate) async fn purge_old_statuses(
         &self,
-        until: UnixTimestamp,
+        until: i64,
     ) -> Result<(), ValidatorApiStorageError> {
         self.manager
             .purge_old_mixnode_statuses(until)
@@ -684,63 +681,65 @@ impl ValidatorApiStorage {
     // TODO: Should all of the below really return a "ValidatorApiStorageError" Errors?
     ////////////////////////////////////////////////////////////////////////
 
-    /// Inserts information about starting new epoch rewarding into the database.
+    /// Inserts information about starting new interval rewarding into the database.
     /// Returns id of the newly created entry.
     ///
     /// # Arguments
     ///
-    /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
-    pub(crate) async fn insert_started_epoch_rewarding(
+    /// * `interval_start_timestamp`: Unix timestamp of start of this rewarding interval.
+    /// * `interval_end_timestamp`: Unix timestamp of end of this rewarding interval.
+    pub(crate) async fn insert_started_interval_rewarding(
         &self,
-        epoch_timestamp: UnixTimestamp,
+        interval_start_timestamp: i64,
+        interval_end_timestamp: i64,
     ) -> Result<i64, ValidatorApiStorageError> {
         self.manager
-            .insert_new_epoch_rewarding(epoch_timestamp)
+            .insert_new_interval_rewarding(interval_start_timestamp, interval_end_timestamp)
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
     }
 
-    // /// Tries to obtain the most recent epoch rewarding entry currently stored.
+    // /// Tries to obtain the most recent interval rewarding entry currently stored.
     // ///
     // /// Returns None if no data exists.
-    // pub(crate) async fn get_most_recent_epoch_rewarding_entry(
+    // pub(crate) async fn get_most_recent_interval_rewarding_entry(
     //     &self,
-    // ) -> Result<Option<EpochRewarding>, ValidatorApiStorageError> {
+    // ) -> Result<Option<IntervalRewarding>, ValidatorApiStorageError> {
     //     self.manager
-    //         .get_most_recent_epoch_rewarding_entry()
+    //         .get_most_recent_interval_rewarding_entry()
     //         .await
     //         .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
     // }
 
-    /// Tries to obtain the epoch rewarding entry that has the provided timestamp.
+    /// Tries to obtain the interval rewarding entry that has the provided timestamp.
     ///
     /// Returns None if no data exists.
     ///
     /// # Arguments
     ///
-    /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
-    pub(super) async fn get_epoch_rewarding_entry(
+    /// * `interval_timestamp`: Unix timestamp of this rewarding interval.
+    pub(super) async fn get_interval_rewarding_entry(
         &self,
-        epoch_timestamp: UnixTimestamp,
-    ) -> Result<Option<EpochRewarding>, ValidatorApiStorageError> {
+        interval_timestamp: i64,
+    ) -> Result<Option<IntervalRewarding>, ValidatorApiStorageError> {
         self.manager
-            .get_epoch_rewarding_entry(epoch_timestamp)
+            .get_interval_rewarding_entry(interval_timestamp)
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
     }
 
-    /// Sets the `finished` field on the epoch rewarding to true and inserts the rewarding report into
+    /// Sets the `finished` field on the interval rewarding to true and inserts the rewarding report into
     /// the database.
     ///
     /// # Arguments
     ///
     /// * `report`: report to insert into the database
-    pub(crate) async fn finish_rewarding_epoch_and_insert_report(
+    pub(crate) async fn finish_rewarding_interval_and_insert_report(
         &self,
         report: RewardingReport,
     ) -> Result<(), ValidatorApiStorageError> {
         self.manager
-            .update_finished_epoch_rewarding(report.epoch_rewarding_id)
+            .update_finished_interval_rewarding(report.interval_rewarding_id)
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)?;
 
@@ -766,7 +765,7 @@ impl ValidatorApiStorage {
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
     }
 
-    /// Inserts information into the database about a mixnode that might have been unfairly unrewarded this epoch.
+    /// Inserts information into the database about a mixnode that might have been unfairly unrewarded this interval.
     ///
     /// # Arguments
     ///

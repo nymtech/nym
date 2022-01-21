@@ -12,10 +12,14 @@ use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
-    Delegation, MixnetContractVersion, MixnodeRewardingStatusResponse, RewardingIntervalResponse,
+    Delegation, Interval, MixnetContractVersion, MixnodeRewardingStatusResponse,
 };
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
+use mixnet_contract_common::{
+    GatewayBond, IdentityKey, IdentityKeyRef, MixNodeBond, RewardedSetNodeStatus,
+    RewardedSetUpdateDetails,
+};
 
+use std::collections::{HashMap, HashSet};
 #[cfg(feature = "nymd-client")]
 use std::str::FromStr;
 use url::Url;
@@ -35,6 +39,7 @@ pub struct Config {
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
     mixnode_delegations_page_limit: Option<u32>,
+    rewarded_set_page_limit: Option<u32>,
 }
 
 #[cfg(feature = "nymd-client")]
@@ -53,6 +58,7 @@ impl Config {
             mixnode_page_limit: None,
             gateway_page_limit: None,
             mixnode_delegations_page_limit: None,
+            rewarded_set_page_limit: None,
         }
     }
 
@@ -70,6 +76,11 @@ impl Config {
         self.mixnode_delegations_page_limit = limit;
         self
     }
+
+    pub fn with_rewarded_set_page_limit(mut self, limit: Option<u32>) -> Config {
+        self.rewarded_set_page_limit = limit;
+        self
+    }
 }
 
 #[cfg(feature = "nymd-client")]
@@ -81,6 +92,7 @@ pub struct Client<C> {
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
     mixnode_delegations_page_limit: Option<u32>,
+    rewarded_set_page_limit: Option<u32>,
 
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
     pub validator_api: validator_api::Client,
@@ -109,6 +121,7 @@ impl Client<SigningNymdClient> {
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
+            rewarded_set_page_limit: None,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -149,6 +162,7 @@ impl Client<QueryNymdClient> {
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
+            rewarded_set_page_limit: config.rewarded_set_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -214,15 +228,6 @@ impl<C> Client<C> {
         Ok(self.nymd.get_mixnet_contract_version().await?)
     }
 
-    pub async fn get_current_rewarding_interval(
-        &self,
-    ) -> Result<RewardingIntervalResponse, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.nymd.get_current_rewarding_interval().await?)
-    }
-
     pub async fn get_rewarding_status(
         &self,
         mix_identity: mixnet_contract_common::IdentityKey,
@@ -244,6 +249,13 @@ impl<C> Client<C> {
         Ok(self.nymd.get_reward_pool().await?.u128())
     }
 
+    pub async fn get_current_interval(&self) -> Result<Interval, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_current_interval().await?)
+    }
+
     pub async fn get_circulating_supply(&self) -> Result<u128, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -258,14 +270,129 @@ impl<C> Client<C> {
         Ok(self.nymd.get_sybil_resistance_percent().await?)
     }
 
-    pub async fn get_epoch_reward_percent(&self) -> Result<u8, ValidatorClientError>
+    pub async fn get_interval_reward_percent(&self) -> Result<u8, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.nymd.get_epoch_reward_percent().await?)
+        Ok(self.nymd.get_interval_reward_percent().await?)
+    }
+
+    pub async fn get_current_rewarded_set_update_details(
+        &self,
+    ) -> Result<RewardedSetUpdateDetails, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self
+            .nymd
+            .query_current_rewarded_set_update_details()
+            .await?)
     }
 
     // basically handles paging for us
+    pub async fn get_all_nymd_rewarded_set_mixnode_identities(
+        &self,
+    ) -> Result<Vec<(IdentityKey, RewardedSetNodeStatus)>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let mut identities = Vec::new();
+        let mut start_after = None;
+        let mut height = None;
+
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_rewarded_set_identities_paged(
+                    start_after.take(),
+                    self.rewarded_set_page_limit,
+                    height,
+                )
+                .await?;
+            identities.append(&mut paged_response.identities);
+
+            if height.is_none() {
+                // keep using the same height (the first query happened at the most recent height)
+                height = Some(paged_response.at_height)
+            }
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(identities)
+    }
+
+    pub async fn get_nymd_rewarded_and_active_sets(
+        &self,
+    ) -> Result<Vec<(MixNodeBond, RewardedSetNodeStatus)>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let all_mixnodes = self.get_all_nymd_mixnodes().await?;
+        let rewarded_set_identities = self
+            .get_all_nymd_rewarded_set_mixnode_identities()
+            .await?
+            .into_iter()
+            .collect::<HashMap<_, _>>();
+
+        Ok(all_mixnodes
+            .into_iter()
+            .filter_map(|node| {
+                rewarded_set_identities
+                    .get(node.identity())
+                    .map(|status| (node, *status))
+            })
+            .collect())
+    }
+
+    /// If you need both rewarded and the active set, consider using [Self::get_nymd_rewarded_and_active_sets] instead
+    pub async fn get_nymd_rewarded_set(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let all_mixnodes = self.get_all_nymd_mixnodes().await?;
+        let rewarded_set_identities = self
+            .get_all_nymd_rewarded_set_mixnode_identities()
+            .await?
+            .into_iter()
+            .map(|(identity, _status)| identity)
+            .collect::<HashSet<_>>();
+
+        Ok(all_mixnodes
+            .into_iter()
+            .filter(|node| rewarded_set_identities.contains(node.identity()))
+            .collect())
+    }
+
+    /// If you need both rewarded and the active set, consider using [Self::get_nymd_rewarded_and_active_sets] instead
+    pub async fn get_nymd_active_set(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let all_mixnodes = self.get_all_nymd_mixnodes().await?;
+        let active_set_identities = self
+            .get_all_nymd_rewarded_set_mixnode_identities()
+            .await?
+            .into_iter()
+            .filter_map(|(identity, status)| {
+                if status.is_active() {
+                    Some(identity)
+                } else {
+                    None
+                }
+            })
+            .collect::<HashSet<_>>();
+
+        Ok(all_mixnodes
+            .into_iter()
+            .filter(|node| active_set_identities.contains(node.identity()))
+            .collect())
+    }
+
     pub async fn get_all_nymd_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -314,8 +441,8 @@ impl<C> Client<C> {
 
     pub async fn get_all_nymd_single_mixnode_delegations(
         &self,
-        identity: mixnet_contract_common::IdentityKey,
-    ) -> Result<Vec<mixnet_contract_common::Delegation>, ValidatorClientError>
+        identity: IdentityKey,
+    ) -> Result<Vec<Delegation>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {

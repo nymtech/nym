@@ -41,7 +41,7 @@ impl GeoLocateTask {
         let mixnode_bonds = self
             .state
             .inner
-            .mix_nodes
+            .mixnodes
             .get_mixnodes()
             .await
             .unwrap_or_default();
@@ -50,7 +50,7 @@ impl GeoLocateTask {
             if self
                 .state
                 .inner
-                .mix_nodes
+                .mixnodes
                 .is_location_valid(&cache_item.mix_node.identity_key)
                 .await
             {
@@ -79,7 +79,7 @@ impl GeoLocateTask {
 
                     self.state
                         .inner
-                        .mix_nodes
+                        .mixnodes
                         .set_location(&cache_item.mix_node.identity_key, Some(location))
                         .await;
 
@@ -98,7 +98,7 @@ impl GeoLocateTask {
                         );
                         self.state
                             .inner
-                            .mix_nodes
+                            .mixnodes
                             .set_location(&cache_item.mix_node.identity_key, None)
                             .await;
                     },

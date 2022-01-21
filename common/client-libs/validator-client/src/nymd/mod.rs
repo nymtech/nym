@@ -27,9 +27,12 @@ pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::fee::Fee;
 use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
+pub use cosmrs::rpc::endpoint::validators::Response as ValidatorResponse;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
+pub use cosmrs::rpc::Paging;
 pub use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::hash;
+pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
@@ -232,6 +235,17 @@ impl<C> NymdClient<C> {
             .get_block(Some(height))
             .await
             .map(|block| block.block_id.hash)
+    }
+
+    pub async fn get_validators(
+        &self,
+        height: u64,
+        paging: Paging,
+    ) -> Result<ValidatorResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.client.validators(height as u32, paging).await?)
     }
 
     pub async fn get_balance(

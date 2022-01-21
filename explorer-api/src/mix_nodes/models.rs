@@ -1,14 +1,31 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
-use crate::mix_nodes::location::{Location, LocationCache, LocationCacheItem};
-use crate::mix_nodes::MIXNODES_CACHE_ENTRY_TTL;
-use mixnet_contract_common::MixNodeBond;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+
+use serde::Serialize;
 use tokio::sync::RwLock;
+
+use mixnet_contract_common::MixNodeBond;
+
+use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
+use crate::mix_nodes::location::{Location, LocationCache, LocationCacheItem};
+use crate::mix_nodes::CACHE_ENTRY_TTL;
+
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub(crate) struct MixNodeActiveSetSummary {
+    pub active: usize,
+    pub standby: usize,
+    pub inactive: usize,
+}
+
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub(crate) struct MixNodeSummary {
+    pub count: usize,
+    pub activeset: MixNodeActiveSetSummary,
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct MixNodesResult {
@@ -60,28 +77,28 @@ impl MixNodesResult {
 }
 
 #[derive(Clone)]
-pub(crate) struct ThreadsafeMixNodesResult {
-    mixnode_results: Arc<RwLock<MixNodesResult>>,
-    location_cache: Arc<RwLock<LocationCache>>,
+pub(crate) struct ThreadsafeMixNodesCache {
+    mixnodes: Arc<RwLock<MixNodesResult>>,
+    locations: Arc<RwLock<LocationCache>>,
 }
 
-impl ThreadsafeMixNodesResult {
+impl ThreadsafeMixNodesCache {
     pub(crate) fn new() -> Self {
-        ThreadsafeMixNodesResult {
-            mixnode_results: Arc::new(RwLock::new(MixNodesResult::new())),
-            location_cache: Arc::new(RwLock::new(LocationCache::new())),
+        ThreadsafeMixNodesCache {
+            mixnodes: Arc::new(RwLock::new(MixNodesResult::new())),
+            locations: Arc::new(RwLock::new(LocationCache::new())),
         }
     }
 
-    pub(crate) fn new_with_location_cache(location_cache: LocationCache) -> Self {
-        ThreadsafeMixNodesResult {
-            mixnode_results: Arc::new(RwLock::new(MixNodesResult::new())),
-            location_cache: Arc::new(RwLock::new(location_cache)),
+    pub(crate) fn new_with_location_cache(locations: LocationCache) -> Self {
+        ThreadsafeMixNodesCache {
+            mixnodes: Arc::new(RwLock::new(MixNodesResult::new())),
+            locations: Arc::new(RwLock::new(locations)),
         }
     }
 
     pub(crate) async fn is_location_valid(&self, identity_key: &str) -> bool {
-        self.location_cache
+        self.locations
             .read()
             .await
             .get(identity_key)
@@ -89,29 +106,53 @@ impl ThreadsafeMixNodesResult {
             .unwrap_or(false)
     }
 
-    pub(crate) async fn get_location_cache(&self) -> LocationCache {
-        self.location_cache.read().await.clone()
+    pub(crate) async fn get_locations(&self) -> LocationCache {
+        self.locations.read().await.clone()
     }
 
     pub(crate) async fn set_location(&self, identity_key: &str, location: Option<Location>) {
         // cache the location for this mix node so that it can be used when the mix node list is refreshed
-        self.location_cache.write().await.insert(
+        self.locations.write().await.insert(
             identity_key.to_string(),
             LocationCacheItem::new_from_location(location),
         );
     }
 
     pub(crate) async fn get_mixnode(&self, pubkey: &str) -> Option<MixNodeBond> {
-        self.mixnode_results.read().await.get_mixnode(pubkey)
+        self.mixnodes.read().await.get_mixnode(pubkey)
     }
 
     pub(crate) async fn get_mixnodes(&self) -> Option<HashMap<String, MixNodeBond>> {
-        self.mixnode_results.read().await.get_mixnodes()
+        self.mixnodes.read().await.get_mixnodes()
+    }
+
+    pub(crate) async fn get_detailed_mixnode_by_id(
+        &self,
+        identity_key: &str,
+    ) -> Option<PrettyDetailedMixNodeBond> {
+        let mixnodes_guard = self.mixnodes.read().await;
+        let location_guard = self.locations.read().await;
+
+        let bond = mixnodes_guard.get_mixnode(identity_key);
+        let location = location_guard.get(identity_key);
+
+        match bond {
+            Some(bond) => Some(PrettyDetailedMixNodeBond {
+                location: location.and_then(|l| l.location.clone()),
+                status: mixnodes_guard.determine_node_status(&bond.mix_node.identity_key),
+                pledge_amount: bond.pledge_amount,
+                total_delegation: bond.total_delegation,
+                owner: bond.owner,
+                layer: bond.layer,
+                mix_node: bond.mix_node,
+            }),
+            None => None,
+        }
     }
 
     pub(crate) async fn get_detailed_mixnodes(&self) -> Vec<PrettyDetailedMixNodeBond> {
-        let mixnodes_guard = self.mixnode_results.read().await;
-        let location_guard = self.location_cache.read().await;
+        let mixnodes_guard = self.mixnodes.read().await;
+        let location_guard = self.locations.read().await;
 
         mixnodes_guard
             .all_mixnodes
@@ -138,13 +179,13 @@ impl ThreadsafeMixNodesResult {
         rewarded_nodes: HashSet<String>,
         active_nodes: HashSet<String>,
     ) {
-        let mut guard = self.mixnode_results.write().await;
+        let mut guard = self.mixnodes.write().await;
         guard.all_mixnodes = all_bonds
             .into_iter()
             .map(|bond| (bond.mix_node.identity_key.to_string(), bond))
             .collect();
         guard.rewarded_mixnodes = rewarded_nodes;
         guard.active_mixnodes = active_nodes;
-        guard.valid_until = SystemTime::now() + MIXNODES_CACHE_ENTRY_TTL;
+        guard.valid_until = SystemTime::now() + CACHE_ENTRY_TTL;
     }
 }

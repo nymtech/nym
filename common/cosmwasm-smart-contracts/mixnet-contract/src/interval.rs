@@ -23,14 +23,14 @@ pub(crate) mod string_rfc3339_offset_date_time {
 
     struct Rfc3339OffsetDateTimeVisitor;
 
-    impl<'a> Visitor<'a> for Rfc3339OffsetDateTimeVisitor {
+    impl<'de> Visitor<'de> for Rfc3339OffsetDateTimeVisitor {
         type Value = OffsetDateTime;
 
         fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
             formatter.write_str("an rfc3339 `OffsetDateTime`")
         }
 
-        fn visit_borrowed_str<E>(self, value: &'a str) -> Result<Self::Value, E>
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
         where
             E: serde::de::Error,
         {

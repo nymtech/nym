@@ -179,6 +179,7 @@ impl ProofCmCs {
         params: &Parameters,
         commitment: &G1Projective,
         commitments: &[G1Projective],
+        public_attributes: &[Attribute],
     ) -> bool {
         if self.response_attributes.len() != commitments.len() {
             return false;
@@ -196,7 +197,13 @@ impl ProofCmCs {
 
         // recompute witnesses commitments
         // Cw = (cm * c) + (rr * g1) + (rm[0] * hs[0]) + ... + (rm[n] * hs[n])
-        let commitment_attributes = commitment * self.challenge
+        let commitment_attributes = (commitment
+            - public_attributes
+                .iter()
+                .zip(params.gen_hs().iter().skip(self.response_attributes.len()))
+                .map(|(pub_attr, hs)| hs * pub_attr)
+                .sum::<G1Projective>())
+            * self.challenge
             + g1 * self.response_opening
             + self
                 .response_attributes

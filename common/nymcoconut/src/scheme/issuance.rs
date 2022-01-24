@@ -135,11 +135,12 @@ impl Bytable for BlindSignRequest {
 impl Base58 for BlindSignRequest {}
 
 impl BlindSignRequest {
-    fn verify_proof(&self, params: &Parameters) -> bool {
+    fn verify_proof(&self, params: &Parameters, public_attributes: &[Attribute]) -> bool {
         self.pi_s.verify(
             params,
             &self.commitment,
             &self.private_attributes_commitments,
+            &public_attributes,
         )
     }
 
@@ -160,16 +161,18 @@ impl BlindSignRequest {
     }
 }
 
-pub fn compute_private_attributes_commitment(
+pub fn compute_attributes_commitment(
     params: &Parameters,
     private_attributes: &[Attribute],
+    public_attributes: &[Attribute],
     hs: &[G1Affine],
 ) -> (Scalar, G1Projective) {
     let commitment_opening = params.random_scalar();
 
     // Produces h0 ^ m0 * h1^m1 * .... * hn^mn
-    // where m0, m1, ...., mn are private attributes
-    let attr_cm = private_attributes
+    // where m0, m1, ...., mn are attributes
+    let attr_cm = [private_attributes, public_attributes]
+        .concat()
         .iter()
         .zip(hs)
         .map(|(&m, h)| h * m)
@@ -224,7 +227,7 @@ pub fn prepare_blind_sign(
     }
 
     let (commitment_opening, commitment) =
-        compute_private_attributes_commitment(params, private_attributes, hs);
+        compute_attributes_commitment(params, private_attributes, public_attributes, hs);
 
     // Compute the challenge as the commitment hash
     let commitment_hash = compute_commitment_hash(commitment);
@@ -281,7 +284,7 @@ pub fn blind_sign(
     }
 
     // Verify the ZK proof
-    if !blind_sign_request.verify_proof(params) {
+    if !blind_sign_request.verify_proof(params, public_attributes) {
         return Err(CoconutError::Issuance(
             "Failed to verify the proof of knowledge".to_string(),
         ));

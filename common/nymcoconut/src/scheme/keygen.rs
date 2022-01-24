@@ -97,12 +97,6 @@ impl SecretKey {
     pub fn from_bytes(bytes: &[u8]) -> Result<SecretKey> {
         SecretKey::try_from(bytes)
     }
-
-    // betas for group g1 should only be used to unblind signature on commitments
-    // prevent changing all the VerificationKey struct and methods
-    pub fn betas_g1(&self, params: &Parameters) -> Vec<G1Projective> {
-        self.ys.iter().map(|y| params.gen1() * y).collect()
-    }
 }
 
 impl Bytable for SecretKey {

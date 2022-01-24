@@ -11,7 +11,7 @@ export const VerifyMnemonic = ({
   mnemonicWords,
   onComplete,
 }: {
-  page: 'verify mnemonic part 1' | 'verify mnemonic part 2'
+  page: 'verify mnemonic'
   mnemonicWords?: TMnemonicWords
   onComplete: () => void
 }) => {
@@ -33,6 +33,9 @@ export const VerifyMnemonic = ({
     if (name === hiddenRandomWords![currentSelection].name) {
       setHiddenRandomWords((hiddenWords) =>
         hiddenWords?.map((word) => (word.name === name ? { ...word, hidden: false } : word)),
+      )
+      setRandomWords((randomWords) =>
+        randomWords?.map((word) => (word.name === name ? { ...word, disabled: true } : word)),
       )
       setCurrentSelection((current) => current + 1)
     }

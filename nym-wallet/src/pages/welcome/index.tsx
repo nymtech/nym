@@ -10,7 +10,9 @@ const mnemonic =
   'futuristic big receptive caption saw hug odd spoon internal dime bike rake helpless left distribution gusty eyes beg enormous word influence trashy pets curl'
 
 const mnemonicToArray = (mnemonic: string): TMnemonicWords =>
-  mnemonic.split(' ').reduce((a, c, index) => [...a, { name: c, index: index + 1 }], [])
+  mnemonic
+    .split(' ')
+    .reduce((a, c: string, index) => [...a, { name: c, index: index + 1, disabled: false }], [] as TMnemonicWords)
 
 export const Welcome = () => {
   const [page, setPage] = useState<TPages>('welcome')
@@ -47,18 +49,13 @@ export const Welcome = () => {
             <WelcomeContent onComplete={() => setPage('create account')} page="welcome" />
             <MnemonicWords
               mnemonicWords={mnemonicWords}
-              onNext={() => setPage('verify mnemonic part 1')}
+              onNext={() => setPage('verify mnemonic')}
               page="create account"
             />
             <VerifyMnemonic
               mnemonicWords={mnemonicWords}
-              onComplete={() => setPage('verify mnemonic part 2')}
-              page="verify mnemonic part 1"
-            />
-            <VerifyMnemonic
-              mnemonicWords={mnemonicWords}
               onComplete={() => setPage('create password')}
-              page="verify mnemonic part 2"
+              page="verify mnemonic"
             />
             <CreatePassword page="create password" />
           </RenderPage>

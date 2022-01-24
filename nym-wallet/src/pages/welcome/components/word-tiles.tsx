@@ -14,9 +14,9 @@ export const WordTiles = ({
   if (mnemonicWords) {
     return (
       <Grid container spacing={3} justifyContent="center">
-        {mnemonicWords.map(({ name, index }) => (
+        {mnemonicWords.map(({ name, index, disabled }) => (
           <Grid item xs={2} key={index} onClick={() => onClick?.({ name, index })}>
-            <WordTile mnemonicWord={name} index={showIndex ? index : undefined} onClick={!!onClick} />
+            <WordTile mnemonicWord={name} index={showIndex ? index : undefined} onClick={!!onClick} disabled={disabled}/>
           </Grid>
         ))}
       </Grid>
@@ -29,22 +29,29 @@ export const WordTiles = ({
 export const WordTile = ({
   mnemonicWord,
   index,
+  disabled,
   onClick,
 }: {
   mnemonicWord: string
   index?: number
+  disabled?: boolean
   onClick?: boolean
 }) => (
   <Card
     variant="outlined"
-    sx={{ background: '#151A2C', border: '1px solid #3A4053', cursor: onClick ? 'pointer' : 'default' }}
+    sx={{
+      background: '#151A2C',
+      border: '1px solid #3A4053',
+      cursor: onClick ? 'pointer' : 'default',
+      opacity: disabled ? 0.2 : 1,
+    }}
   >
     <CardHeader
       title={mnemonicWord}
       titleTypographyProps={{ sx: { fontWeight: 700 }, variant: 'body1', textAlign: index ? 'left' : 'center' }}
       avatar={
         index && (
-          <Typography variant="caption" color="#3A4053">
+          <Typography variant="caption" color={'#3A4053'}>
             {index}
           </Typography>
         )

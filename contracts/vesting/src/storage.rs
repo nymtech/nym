@@ -6,7 +6,7 @@ use cosmwasm_std::{Addr, Api, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 
 pub const KEY: Item<u32> = Item::new("key");
-const ACCOUNTS: Map<Addr, Account> = Map::new("acc");
+const ACCOUNTS: Map<String, Account> = Map::new("acc");
 // Holds data related to individual accounts
 const BALANCES: Map<u32, Uint128> = Map::new("blc");
 const BOND_PLEDGES: Map<u32, PledgeData> = Map::new("bnd");
@@ -56,7 +56,7 @@ pub fn load_delegations_for_mix(
 }
 
 pub fn delete_account(address: &Addr, storage: &mut dyn Storage) -> Result<(), ContractError> {
-    ACCOUNTS.remove(storage, address.to_owned());
+    ACCOUNTS.remove(storage, address.to_owned().to_string());
     Ok(())
 }
 
@@ -121,9 +121,9 @@ pub fn remove_gateway_pledge(key: u32, storage: &mut dyn Storage) -> Result<(), 
 pub fn save_account(account: &Account, storage: &mut dyn Storage) -> Result<(), ContractError> {
     // This is a bit dirty, but its a simple way to allow for both staking account and owner to load it from storage
     if let Some(staking_address) = account.staking_address() {
-        ACCOUNTS.save(storage, staking_address.to_owned(), account)?;
+        ACCOUNTS.save(storage, staking_address.to_owned().to_string(), account)?;
     }
-    ACCOUNTS.save(storage, account.owner_address(), account)?;
+    ACCOUNTS.save(storage, account.owner_address().to_string(), account)?;
     Ok(())
 }
 
@@ -132,7 +132,7 @@ pub fn load_account(
     storage: &dyn Storage,
 ) -> Result<Option<Account>, ContractError> {
     Ok(ACCOUNTS
-        .may_load(storage, address.to_owned())
+        .may_load(storage, address.to_owned().to_string())
         .unwrap_or(None))
 }
 

@@ -21,9 +21,9 @@ pub(crate) mod string_rfc3339_offset_date_time {
     use time::format_description::well_known::Rfc3339;
     use time::OffsetDateTime;
 
-    struct Rfc3339ffsetDateTimeVisitor;
+    struct Rfc3339OffsetDateTimeVisitor;
 
-    impl<'a> Visitor<'a> for Rfc3339ffsetDateTimeVisitor {
+    impl<'a> Visitor<'a> for Rfc3339OffsetDateTimeVisitor {
         type Value = OffsetDateTime;
 
         fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
@@ -42,7 +42,7 @@ pub(crate) mod string_rfc3339_offset_date_time {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_str(Rfc3339ffsetDateTimeVisitor)
+        deserializer.deserialize_str(Rfc3339OffsetDateTimeVisitor)
     }
 
     pub(crate) fn serialize<S>(datetime: &OffsetDateTime, serializer: S) -> Result<S::Ok, S::Error>

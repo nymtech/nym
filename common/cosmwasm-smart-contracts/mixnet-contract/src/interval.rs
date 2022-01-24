@@ -8,10 +8,59 @@ use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use time::OffsetDateTime;
 
+// internally, since version 0.3.6, time uses deserialize_any for deserialization, which can't be handled
+// by serde wasm. We could just downgrade to 0.3.5 and call it a day, but then it would break
+// when we decided to upgrade it at some point in the future. And then it would have been more problematic
+// to fix it, since the data would have already been stored inside the contract.
+// Hence, an explicit workaround to use string representation of Rfc3339-formatted datetime.
+pub(crate) mod string_rfc3339_offset_date_time {
+    use serde::de::Visitor;
+    use serde::ser::Error;
+    use serde::{Deserializer, Serialize, Serializer};
+    use std::fmt::Formatter;
+    use time::format_description::well_known::Rfc3339;
+    use time::OffsetDateTime;
+
+    struct Rfc3339ffsetDateTimeVisitor;
+
+    impl<'a> Visitor<'a> for Rfc3339ffsetDateTimeVisitor {
+        type Value = OffsetDateTime;
+
+        fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+            formatter.write_str("an rfc3339 `OffsetDateTime`")
+        }
+
+        fn visit_borrowed_str<E>(self, value: &'a str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            OffsetDateTime::parse(value, &Rfc3339).map_err(E::custom)
+        }
+    }
+
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<OffsetDateTime, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(Rfc3339ffsetDateTimeVisitor)
+    }
+
+    pub(crate) fn serialize<S>(datetime: &OffsetDateTime, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        datetime
+            .format(&Rfc3339)
+            .map_err(S::Error::custom)?
+            .serialize(serializer)
+    }
+}
+
 /// Representation of rewarding interval.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
 pub struct Interval {
     id: u32,
+    #[serde(with = "string_rfc3339_offset_date_time")]
     start: OffsetDateTime,
     length: Duration,
 }

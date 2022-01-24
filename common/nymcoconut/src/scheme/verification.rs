@@ -293,7 +293,6 @@ mod tests {
         .unwrap();
 
         let bytes = theta.to_bytes();
-        println!("Theta (Prove credential) containing blinded message, blinded serial number, credential, zkproof (with 2 private attributes) {:?}", bytes.len());
         assert_eq!(Theta::try_from(bytes.as_slice()).unwrap(), theta);
     }
 }

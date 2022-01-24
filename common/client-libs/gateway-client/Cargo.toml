@@ -15,6 +15,8 @@ log = "0.4"
 thiserror = "1.0"
 url = "2.2"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+secp256k1 = "0.20.3"
+web3 = { version = "0.17.0", default-features = false }
 
 # internal
 credentials = { path = "../../credentials" }
@@ -35,12 +37,6 @@ features = ["macros", "rt", "net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
 version = "0.14"
-
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.secp256k1]
-version = "0.20.3"
-
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.web3]
-version = "0.17.0"
 
 # wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
@@ -71,3 +67,5 @@ features = ["js"]
 
 [features]
 coconut = ["gateway-requests/coconut", "coconut-interface"]
+wasm = ["web3/wasm", "web3/http", "web3/signing"]
+default = ["web3/default"]

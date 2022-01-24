@@ -244,7 +244,8 @@ impl ProofCmCs {
         challenge == self.challenge
     }
 
-    // challenge || response opening || response private elgamal key || keys len || response keys || attributes len || response attributes
+    // challenge || response opening || openings len || response openings || attributes len ||
+    // response attributes
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
         let openings_len = self.response_openings.len() as u64;
         let attributes_len = self.response_attributes.len() as u64;

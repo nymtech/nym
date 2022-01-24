@@ -269,6 +269,13 @@ impl<C> NymdClient<C> {
         self.get_balance(address, self.denom()?).await
     }
 
+    pub async fn get_total_supply(&self) -> Result<Vec<Coin>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client.get_total_supply().await
+    }
+
     pub async fn get_contract_settings(&self) -> Result<ContractStateParams, NymdError>
     where
         C: CosmWasmClient + Sync,

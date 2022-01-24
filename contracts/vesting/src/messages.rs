@@ -95,4 +95,7 @@ pub enum QueryMsg {
         block_time: Option<Timestamp>,
         vesting_account_address: String,
     },
+    GetAccount {
+        address: String
+    }
 }

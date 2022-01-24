@@ -389,9 +389,20 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             env,
             deps,
         )?),
+        QueryMsg::GetAccount {
+            address,
+        } => to_binary(&try_get_account(&address, deps)?),
     };
 
     Ok(query_res?)
+}
+
+pub fn try_get_account(
+    address: &str,
+    deps: Deps,
+) -> Result<Option<Account>, ContractError> {
+    let account = account_from_address(address, deps.storage, deps.api)?;
+    Ok(Some(account))
 }
 
 pub fn try_get_locked_coins(

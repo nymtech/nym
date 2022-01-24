@@ -1,6 +1,6 @@
 use crate::errors::ContractError;
-use crate::messages::{ExecuteMsg, InitMsg, QueryMsg};
-use crate::storage::account_from_address;
+use crate::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
+use crate::storage::{account_from_address, ADMIN};
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
@@ -8,7 +8,7 @@ use crate::vesting::{populate_vesting_periods, Account};
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Timestamp, Uint128, WasmQuery,
+    Response, Timestamp, Uint128,
 };
 use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use vesting_contract_common::events::{
@@ -22,16 +22,21 @@ use vesting_contract_common::events::{
 // and duration of a single period is 30 days.
 pub const NUM_VESTING_PERIODS: usize = 8;
 pub const VESTING_PERIOD: u64 = 3 * 30 * 86400;
-// Address of the account set to be contract admin
-pub const ADMIN_ADDRESS: &str = "admin";
 
 #[entry_point]
 pub fn instantiate(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     _msg: InitMsg,
 ) -> Result<Response, ContractError> {
+    // ADMIN is set to the address that instantiated the contract, TODO: make this updatable
+    ADMIN.save(deps.storage, &info.sender.to_string())?;
+    Ok(Response::default())
+}
+
+#[entry_point]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Response::default())
 }
 
@@ -277,9 +282,18 @@ fn try_create_periodic_vesting_account(
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    if info.sender != ADMIN_ADDRESS {
-        return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
+    cfg_if::cfg_if! {
+        if #[cfg(test)] {
+            if info.sender != "admin" {
+                return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
+            }
+        } else {
+            if info.sender != ADMIN.load(deps.storage)? {
+                return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
+            }
+        }
     }
+
     let coin = validate_funds(&info.funds)?;
     let owner_address = deps.api.addr_validate(owner_address)?;
     let staking_address = if let Some(staking_address) = staking_address {

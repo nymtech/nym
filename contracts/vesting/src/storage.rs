@@ -10,8 +10,9 @@ const ACCOUNTS: Map<Addr, Account> = Map::new("acc");
 // Holds data related to individual accounts
 const BALANCES: Map<u32, Uint128> = Map::new("blc");
 const BOND_PLEDGES: Map<u32, PledgeData> = Map::new("bnd");
-const GATEWAY_PLEDGFES: Map<u32, PledgeData> = Map::new("gtw");
+const GATEWAY_PLEDGES: Map<u32, PledgeData> = Map::new("gtw");
 const DELEGATIONS: Map<(u32, &[u8], u64), Uint128> = Map::new("dlg");
+pub const ADMIN: Item<String> = Item::new("adm");
 
 pub fn save_delegation(
     key: (u32, &[u8], u64),
@@ -100,7 +101,7 @@ pub fn load_gateway_pledge(
     key: u32,
     storage: &dyn Storage,
 ) -> Result<Option<PledgeData>, ContractError> {
-    Ok(GATEWAY_PLEDGFES.may_load(storage, key).unwrap_or(None))
+    Ok(GATEWAY_PLEDGES.may_load(storage, key).unwrap_or(None))
 }
 
 pub fn save_gateway_pledge(
@@ -108,12 +109,12 @@ pub fn save_gateway_pledge(
     value: &PledgeData,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
-    GATEWAY_PLEDGFES.save(storage, key, value)?;
+    GATEWAY_PLEDGES.save(storage, key, value)?;
     Ok(())
 }
 
 pub fn remove_gateway_pledge(key: u32, storage: &mut dyn Storage) -> Result<(), ContractError> {
-    GATEWAY_PLEDGFES.remove(storage, key);
+    GATEWAY_PLEDGES.remove(storage, key);
     Ok(())
 }
 

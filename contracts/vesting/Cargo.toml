@@ -24,3 +24,4 @@ cw-storage-plus = { version = "0.11.1", features = ["iterator"] }
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
+cfg-if = "*"

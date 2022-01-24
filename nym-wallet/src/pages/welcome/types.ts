@@ -1,4 +1,4 @@
-export type TPages = 'welcome' | 'create account' | 'verify mnemonic' | 'create password'
+export type TPages = 'welcome' | 'create account' | 'verify mnemonic' | 'create password' | 'existing account'
 
 export type TMnemonicWord = {
   name: string

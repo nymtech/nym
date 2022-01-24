@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react'
-import { Button, CircularProgress, Grid, Stack, Link, TextField, Typography, Alert, SvgIcon } from '@mui/material'
+import { Button, CircularProgress, Grid, Stack, TextField, Typography, Alert } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import { signInWithMnemonic } from '../../requests'
 import { ClientContext } from '../../context/main'
@@ -32,7 +32,9 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
     <Stack spacing={3} alignItems="center" sx={{ width: '80%' }}>
       <NymLogo />
       <Typography sx={{ color: 'common.white', fontWeight: 600 }}>Welcome to NYM</Typography>
-      <Typography variant="caption" sx={{color: 'grey.800', textTransform: "uppercase", letterSpacing: 4}}>Next generation of privacy</Typography>
+      <Typography variant="caption" sx={{ color: 'grey.800', textTransform: 'uppercase', letterSpacing: 4 }}>
+        Next generation of privacy
+      </Typography>
       <Grid container direction="column" spacing={2}>
         <Grid item>
           <Button
@@ -49,8 +51,8 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
             Create Account
           </Button>
         </Grid>
-        <Grid item >
-          <Button fullWidth variant="outlined" size="large" >
+        <Grid item>
+          <Button fullWidth variant="outlined" size="large">
             Use Existing Account
           </Button>
         </Grid>

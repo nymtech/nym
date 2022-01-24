@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Box } from '@mui/system'
 import { Stack } from '@mui/material'
-import { WelcomeContent, VerifyMnemonic, MnemonicWords, CreatePassword } from './pages'
+import { WelcomeContent, VerifyMnemonic, MnemonicWords, CreatePassword, ExistingAccount } from './pages'
 import { NymLogo } from '../../components'
 import { TMnemonicWords, TPages } from './types'
 import { RenderPage } from './components'
@@ -46,7 +46,11 @@ export const Welcome = () => {
         <Stack spacing={3} alignItems="center" sx={{ width: 1080 }}>
           <NymLogo />
           <RenderPage page={page}>
-            <WelcomeContent onComplete={() => setPage('create account')} page="welcome" />
+            <WelcomeContent
+              onUseExisting={() => setPage('existing account')}
+              onCreateAccountComplete={() => setPage('create account')}
+              page="welcome"
+            />
             <MnemonicWords
               mnemonicWords={mnemonicWords}
               onNext={() => setPage('verify mnemonic')}
@@ -58,6 +62,7 @@ export const Welcome = () => {
               page="verify mnemonic"
             />
             <CreatePassword page="create password" />
+            <ExistingAccount page="existing account" />
           </RenderPage>
         </Stack>
       </Box>

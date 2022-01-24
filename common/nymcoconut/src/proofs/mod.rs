@@ -520,7 +520,6 @@ mod tests {
 
     use super::*;
 
-    // TODO check this test
     #[test]
     fn proof_cm_cs_bytes_roundtrip() {
         // we don't care about 'correctness' of the proof. only whether we can correctly recover it from bytes

@@ -61,7 +61,8 @@ pub fn delete_account(address: &Addr, storage: &mut dyn Storage) -> Result<(), C
 
 pub fn load_balance(key: u32, storage: &dyn Storage) -> Result<Uint128, ContractError> {
     Ok(BALANCES
-        .may_load(storage, key)?
+        .may_load(storage, key)
+        .unwrap_or(None)
         .unwrap_or_else(Uint128::zero))
 }
 
@@ -78,7 +79,7 @@ pub fn load_bond_pledge(
     key: u32,
     storage: &dyn Storage,
 ) -> Result<Option<PledgeData>, ContractError> {
-    Ok(BOND_PLEDGES.may_load(storage, key)?)
+    Ok(BOND_PLEDGES.may_load(storage, key).unwrap_or(None))
 }
 
 pub fn remove_bond_pledge(key: u32, storage: &mut dyn Storage) -> Result<(), ContractError> {
@@ -99,7 +100,7 @@ pub fn load_gateway_pledge(
     key: u32,
     storage: &dyn Storage,
 ) -> Result<Option<PledgeData>, ContractError> {
-    Ok(GATEWAY_PLEDGFES.may_load(storage, key)?)
+    Ok(GATEWAY_PLEDGFES.may_load(storage, key).unwrap_or(None))
 }
 
 pub fn save_gateway_pledge(
@@ -129,7 +130,9 @@ pub fn load_account(
     address: &Addr,
     storage: &dyn Storage,
 ) -> Result<Option<Account>, ContractError> {
-    Ok(ACCOUNTS.may_load(storage, address.to_owned())?)
+    Ok(ACCOUNTS
+        .may_load(storage, address.to_owned())
+        .unwrap_or(None))
 }
 
 fn validate_account(address: &Addr, storage: &dyn Storage) -> Result<Account, ContractError> {

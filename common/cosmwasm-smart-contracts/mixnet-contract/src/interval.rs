@@ -171,15 +171,17 @@ impl Interval {
 
 impl Display for Interval {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        let length = self.length();
-        let hours = length.as_secs_f32() / 3600.0;
+        let length = self.length().as_secs();
+        let full_hours = length / 3600;
+        let rem = length % 3600;
         write!(
             f,
-            "Interval {}: {} - {} ({:.1} hours)",
+            "Interval {}: {} - {} ({}h {}s)",
             self.id,
             self.start(),
             self.end(),
-            hours
+            full_hours,
+            rem
         )
     }
 }

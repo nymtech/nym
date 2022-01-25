@@ -20,7 +20,7 @@ export const MnemonicWords = ({
         Please store your mnemonic in a safe place. This is the only way to access your wallet!
       </Alert>
       <WordTiles mnemonicWords={mnemonicWords} showIndex />
-      <Button variant="contained" color="primary" disableElevation size="large" onClick={onNext}>
+      <Button variant="contained" color="primary" disableElevation size="large" onClick={onNext} sx={{ width: 250 }}>
         Verify mnemonic
       </Button>
       <Button
@@ -28,7 +28,7 @@ export const MnemonicWords = ({
         disableElevation
         size="large"
         onClick={onPrev}
-        sx={{ color: 'common.white', border: '1px solid white', '&:hover': { border: '1px solid white' } }}
+        sx={{ color: 'common.white', border: '1px solid white', '&:hover': { border: '1px solid white' }, width: 250 }}
       >
         Back
       </Button>

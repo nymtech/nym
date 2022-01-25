@@ -553,6 +553,8 @@ impl GatewayClient {
             return self.try_claim_testnet_bandwidth().await;
         }
 
+        let _gateway_owner = self.gateway_owner.clone();
+
         #[cfg(feature = "coconut")]
         let credential = self
             .bandwidth_controller
@@ -565,7 +567,7 @@ impl GatewayClient {
             .bandwidth_controller
             .as_ref()
             .unwrap()
-            .prepare_token_credential(self.gateway_identity, self.gateway_owner.clone())
+            .prepare_token_credential(self.gateway_identity, _gateway_owner)
             .await?;
 
         #[cfg(feature = "coconut")]

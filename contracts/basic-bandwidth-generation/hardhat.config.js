@@ -19,6 +19,9 @@ module.exports = {
   //   artifacts: "./artifacts/contracts"
   // },
   networks: {
+   localhost: {
+      url: "http://127.0.0.1:8545"
+   },
    rinkeby: {
       url: process.env.RINKEBY_URL, //Infura url with projectId
       accounts: [process.env.PRIV_KEY], // private key of account used for contract interaction

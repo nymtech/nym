@@ -11,13 +11,15 @@ async function main() {
         contracts.rinkeby.GRAVITY
     ); 
 
+    console.log("deploying..."); 
+
     contracts.rinkeby.BANDWIDTH_GENERATOR = bandwidthGenerator.address;
     // the location of the json file is relative to where you are running the script from - run from root of directory 
     fs.writeFileSync('./contractAddresses.json', JSON.stringify(contracts), (err) => {
         if (err) throw err;
     });
     
-    console.log(`bandwidthGenerator.sol deployed at ${bandwidthGenerator.address}`); 
+    console.log(`...bandwidthGenerator.sol deployed at ${bandwidthGenerator.address}`); 
 }
   
 main()

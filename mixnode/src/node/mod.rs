@@ -1,7 +1,9 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::sign::load_identity_keys;
 use crate::commands::validate_bech32_address_or_exit;
+use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::http::{
     description::description,
@@ -15,9 +17,6 @@ use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::NodeStatsWrapper;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
-use crate::{
-    commands::sign::load_identity_keys, config::persistence::pathfinder::MixNodePathfinder,
-};
 use ::crypto::asymmetric::{encryption, identity};
 use config::NymConfig;
 use log::{error, info, warn};

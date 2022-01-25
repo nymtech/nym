@@ -1,16 +1,16 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mix_node::cache::Cache;
+use crate::cache::Cache;
 use crate::mix_nodes::location::Location;
-use mixnet_contract::{Addr, Coin, Layer, MixNode};
+use mixnet_contract_common::{Addr, Coin, Layer, MixNode};
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::sync::RwLock;
 
-#[derive(Clone, Debug, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, JsonSchema, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum MixnodeStatus {
     Active,   // in both the active set and the rewarded set

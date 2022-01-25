@@ -3,7 +3,7 @@
 
 use config::defaults::DENOM;
 use cosmwasm_std::{Addr, StdError};
-use mixnet_contract::IdentityKey;
+use mixnet_contract_common::IdentityKey;
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.
@@ -42,7 +42,7 @@ pub enum ContractError {
     #[error("No coin was sent for the bonding, you must send {}", DENOM)]
     NoBondFound,
 
-    #[error("Provided active set size is bigger than the demanded set")]
+    #[error("Provided active set size is bigger than the rewarded set")]
     InvalidActiveSetSize,
 
     #[error("Provided active set size is zero")]
@@ -75,14 +75,8 @@ pub enum ContractError {
     #[error("We tried to remove more funds then are available in the Reward pool. Wanted to remove {to_remove}, but have only {reward_pool}")]
     OutOfFunds { to_remove: u128, reward_pool: u128 },
 
-    #[error("Received invalid rewarding interval nonce. Expected {expected}, received {received}")]
-    InvalidRewardingIntervalNonce { received: u32, expected: u32 },
-
-    #[error("Rewarding distribution is currently in progress")]
-    RewardingInProgress,
-
-    #[error("Rewarding distribution is currently not in progress")]
-    RewardingNotInProgress,
+    #[error("Received invalid interval id. Expected {expected}, received {received}")]
+    InvalidIntervalId { received: u32, expected: u32 },
 
     #[error("Mixnode {identity} has already been rewarded during the current rewarding interval")]
     MixnodeAlreadyRewarded { identity: IdentityKey },
@@ -105,6 +99,29 @@ pub enum ContractError {
     #[error("Provided ed25519 signature did not verify correctly")]
     InvalidEd25519Signature,
 
-    #[error("Profit margin percent needs to be an integer in range [0, 100], recieved {0}")]
+    #[error("Profit margin percent needs to be an integer in range [0, 100], received {0}")]
     InvalidProfitMarginPercent(u8),
+
+    #[error("Rewarded set height not set, was rewarding set determined?")]
+    RewardSetHeightMapEmpty,
+
+    #[error("Received unexpected value for the active set. Got: {received}, expected: {expected}")]
+    UnexpectedActiveSetSize { received: u32, expected: u32 },
+
+    #[error("Received unexpected value for the rewarded set. Got: {received}, expected at most: {expected}")]
+    UnexpectedRewardedSetSize { received: u32, expected: u32 },
+
+    #[error("There hasn't been sufficient delay since last rewarded set update. It was last updated at height {last_update}. The delay is {minimum_delay}. The current block height is {current_height}")]
+    TooFrequentRewardedSetUpdate {
+        last_update: u64,
+        minimum_delay: u64,
+        current_height: u64,
+    },
+
+    #[error("Can't change to the desired interval as it's not in progress yet. It starts at {interval_start} and finishes at {interval_end}, while the current block time is {current_block_time}")]
+    IntervalNotInProgress {
+        current_block_time: u64,
+        interval_start: i64,
+        interval_end: i64,
+    },
 }

@@ -79,9 +79,9 @@ impl KeyManager {
             ))?;
 
         let gateway_shared_key: SharedKeys =
-            pemstore::load_key(&client_pathfinder.gateway_shared_key().to_owned())?;
+            pemstore::load_key(client_pathfinder.gateway_shared_key())?;
 
-        let ack_key: AckKey = pemstore::load_key(&client_pathfinder.ack_key().to_owned())?;
+        let ack_key: AckKey = pemstore::load_key(client_pathfinder.ack_key())?;
 
         // TODO: ack key is never stored so it is generated now. But perhaps it should be stored
         // after all for consistency sake?

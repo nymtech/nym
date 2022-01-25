@@ -17,9 +17,7 @@ import { TCreateAccount } from '../../types'
 import logo from '../../images/logo-background.svg'
 import { CopyToClipboard } from '../../components'
 
-export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({
-  showSignIn,
-}) => {
+export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({ showSignIn }) => {
   const [accountDetails, setAccountDetails] = useState<TCreateAccount>()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error>()
@@ -29,6 +27,7 @@ export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({
     setError(undefined)
     try {
       const res = await createAccount()
+      console.log(res)
       setTimeout(() => {
         setAccountDetails(res)
         setIsLoading(false)
@@ -53,26 +52,12 @@ export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({
       <Typography sx={{ color: 'common.white' }} variant="h6">
         Account setup complete!
       </Typography>
-      <Alert
-        severity="info"
-        variant="outlined"
-        sx={{ color: 'info.light' }}
-        data-testid="mnemonic-warning"
-      >
-        <Typography>
-          Please store your mnemonic in a safe place. You'll need it to access
-          your account!
-        </Typography>
+      <Alert severity="info" variant="outlined" sx={{ color: 'info.light' }} data-testid="mnemonic-warning">
+        <Typography>Please store your mnemonic in a safe place. You'll need it to access your account!</Typography>
       </Alert>
-      <Card
-        variant="outlined"
-        sx={{ bgcolor: 'transparent', p: 2, borderColor: 'common.white' }}
-      >
+      <Card variant="outlined" sx={{ bgcolor: 'transparent', p: 2, borderColor: 'common.white' }}>
         <CardHeader sx={{ color: 'common.white' }} title="Mnemonic" />
-        <CardContent
-          sx={{ color: 'common.white' }}
-          data-testid="mnemonic-phrase"
-        >
+        <CardContent sx={{ color: 'common.white' }} data-testid="mnemonic-phrase">
           {accountDetails?.mnemonic}
         </CardContent>
         <CardActions sx={{ justifyContent: 'flex-end' }}>
@@ -82,7 +67,7 @@ export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({
       <Box sx={{ textAlign: 'center' }}>
         <Typography sx={{ color: 'common.white' }}>Address:</Typography>
         <Typography sx={{ color: 'common.white' }} data-testid="wallet-address">
-          {accountDetails?.client_address}
+          {accountDetails?.account.client_address}
         </Typography>
       </Box>
       {error && (

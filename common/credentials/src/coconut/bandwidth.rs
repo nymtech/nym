@@ -27,7 +27,7 @@ pub struct BandwidthVoucherAttributes {
     pub binding_number: PrivateAttribute,
     // the value (e.g., bandwidth) encoded in this voucher
     pub voucher_value: PublicAttribute,
-    // a field with public information, e.g., type of voucher, epoch etc.
+    // a field with public information, e.g., type of voucher, interval etc.
     pub voucher_info: PublicAttribute,
 }
 

@@ -5,7 +5,9 @@ use super::storage;
 use crate::mixnodes::storage::{BOND_PAGE_DEFAULT_LIMIT, BOND_PAGE_MAX_LIMIT}; // Keeps gateway and mixnode retrieval in sync by re-using the constant. Could be split into its own constant.
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
-use mixnet_contract::{GatewayBond, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse};
+use mixnet_contract_common::{
+    GatewayBond, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse,
+};
 
 pub(crate) fn query_gateways_paged(
     deps: Deps,

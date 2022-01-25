@@ -9,17 +9,18 @@ rust-version = "1.56"
 
 [dependencies]
 base64 = "0.13"
-mixnet-contract = { path="../../../common/mixnet-contract" }
-vesting-contract = { path="../../../contracts/vesting" }
-serde = { version="1", features=["derive"] }
+mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract" }
+vesting-contract = { path = "../../../contracts/vesting" }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-reqwest = { version="0.11", features=["json"] }
+reqwest = { version = "0.11", features = ["json"] }
 thiserror = "1"
 log = "0.4"
 url = { version = "2.2", features = ["serde"] }
 
 coconut-interface = { path = "../../coconut-interface" }
 network-defaults = { path = "../../network-defaults" }
+validator-api-requests = { path = "../../../validator-api/validator-api-requests" }
 
 # required for nymd-client
 # at some point it might be possible to make it wasm-compatible
@@ -27,14 +28,28 @@ network-defaults = { path = "../../network-defaults" }
 async-trait = { version = "0.1.51", optional = true }
 bip39 = { version = "1", features = ["rand"], optional = true }
 config = { path = "../../config", optional = true }
-#cosmrs = { version = "0.3", features = ["rpc", "bip32", "cosmwasm"], optional = true }
-cosmrs = { git = "https://github.com/cosmos/cosmos-rust", rev="e5a1872083abb3d88fa62dda966e7f5408deba58", features = ["rpc", "bip32", "cosmwasm"], optional = true }
+cosmrs = { version = "0.4.1", features = [
+    "rpc",
+    "bip32",
+    "cosmwasm",
+], optional = true }
 prost = { version = "0.9", default-features = false, optional = true }
 flate2 = { version = "1.0.20", optional = true }
 sha2 = { version = "0.9.5", optional = true }
 itertools = { version = "0.10", optional = true }
 cosmwasm-std = { version = "1.0.0-beta3", optional = true }
-ts-rs = {version = "5.1", optional = true}
+ts-rs = { version = "5.1", optional = true }
 
 [features]
-nymd-client = ["async-trait", "bip39", "config", "cosmrs", "prost", "flate2", "sha2", "itertools", "cosmwasm-std"]
+nymd-client = [
+    "async-trait",
+    "bip39",
+    "config",
+    "cosmrs",
+    "prost",
+    "flate2",
+    "sha2",
+    "itertools",
+    "cosmwasm-std",
+]
+typescript-types = ["ts-rs", "validator-api-requests/ts-rs"]

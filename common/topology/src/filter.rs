@@ -9,6 +9,7 @@ pub trait Versioned: Clone {
 }
 
 pub trait VersionFilterable<T> {
+    #[must_use]
     fn filter_by_version(&self, expected_version: &str) -> Self;
 }
 

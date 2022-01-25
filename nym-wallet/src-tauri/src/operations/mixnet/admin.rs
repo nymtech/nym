@@ -1,8 +1,8 @@
-use crate::client;
 use crate::error::BackendError;
+use crate::nymd_client;
 use crate::state::State;
 use cosmwasm_std::Uint128;
-use mixnet_contract::ContractStateParams;
+use mixnet_contract_common::ContractStateParams;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 use std::sync::Arc;
@@ -48,7 +48,7 @@ impl TryFrom<TauriContractStateParams> for ContractStateParams {
 pub async fn get_contract_settings(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TauriContractStateParams, BackendError> {
-  Ok(client!(state).get_contract_settings().await?.into())
+  Ok(nymd_client!(state).get_contract_settings().await?.into())
 }
 
 #[tauri::command]
@@ -57,7 +57,7 @@ pub async fn update_contract_settings(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TauriContractStateParams, BackendError> {
   let mixnet_contract_settings_params: ContractStateParams = params.try_into()?;
-  client!(state)
+  nymd_client!(state)
     .update_contract_settings(mixnet_contract_settings_params.clone())
     .await?;
   Ok(mixnet_contract_settings_params.into())

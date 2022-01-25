@@ -3,7 +3,7 @@
   windows_subsystem = "windows"
 )]
 
-use mixnet_contract::{Gateway, MixNode};
+use mixnet_contract_common::{Gateway, MixNode};
 use std::sync::Arc;
 use tauri::Menu;
 use tokio::sync::RwLock;
@@ -13,12 +13,14 @@ mod coin;
 mod config;
 mod error;
 mod menu;
+mod network;
 mod operations;
 mod state;
 mod utils;
 
 use crate::menu::AddDefaultSubmenus;
 use crate::operations::mixnet;
+use crate::operations::validator_api;
 use crate::operations::vesting;
 
 use crate::state::State;
@@ -29,6 +31,7 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       mixnet::account::connect_with_mnemonic,
       mixnet::account::create_new_account,
+      mixnet::account::switch_network,
       mixnet::account::get_balance,
       mixnet::admin::get_contract_settings,
       mixnet::admin::update_contract_settings,
@@ -36,13 +39,14 @@ fn main() {
       mixnet::bond::bond_mixnode,
       mixnet::bond::unbond_gateway,
       mixnet::bond::unbond_mixnode,
+      mixnet::bond::update_mixnode,
       mixnet::bond::mixnode_bond_details,
       mixnet::bond::gateway_bond_details,
       mixnet::delegate::delegate_to_mixnode,
       mixnet::delegate::get_reverse_mix_delegations_paged,
       mixnet::delegate::undelegate_from_mixnode,
       mixnet::send::send,
-      utils::get_approximate_fee,
+      utils::outdated_get_approximate_fee,
       utils::major_to_minor,
       utils::minor_to_major,
       utils::owns_gateway,
@@ -62,6 +66,12 @@ fn main() {
       vesting::queries::original_vesting,
       vesting::queries::delegated_free,
       vesting::queries::delegated_vesting,
+      validator_api::status::mixnode_core_node_status,
+      validator_api::status::gateway_core_node_status,
+      validator_api::status::mixnode_status,
+      validator_api::status::mixnode_reward_estimation,
+      validator_api::status::mixnode_stake_saturation,
+      validator_api::status::mixnode_inclusion_probability,
     ])
     .menu(Menu::new().add_default_app_submenu_if_macos())
     .run(tauri::generate_context!())
@@ -71,16 +81,24 @@ fn main() {
 #[cfg(test)]
 mod test {
   ts_rs::export! {
-    mixnet_contract::MixNode => "../src/types/rust/mixnode.ts",
+    mixnet_contract_common::MixNode => "../src/types/rust/mixnode.ts",
     crate::coin::Coin => "../src/types/rust/coin.ts",
+    crate::network::Network => "../src/types/rust/network.ts",
     crate::mixnet::account::Balance => "../src/types/rust/balance.ts",
-    mixnet_contract::Gateway => "../src/types/rust/gateway.ts",
+    mixnet_contract_common::Gateway => "../src/types/rust/gateway.ts",
     crate::mixnet::send::TauriTxResult => "../src/types/rust/tauritxresult.ts",
     crate::mixnet::send::TransactionDetails => "../src/types/rust/transactiondetails.ts",
     validator_client::nymd::fee::helpers::Operation => "../src/types/rust/operation.ts",
     crate::coin::Denom => "../src/types/rust/denom.ts",
     crate::utils::DelegationResult => "../src/types/rust/delegationresult.ts",
     crate::mixnet::account::Account => "../src/types/rust/account.ts",
-    crate::mixnet::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts"
+    crate::mixnet::account::CreatedAccount => "../src/types/rust/createdaccount.ts",
+    crate::mixnet::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts",
+    validator_client::models::CoreNodeStatusResponse => "../src/types/corenodestatusresponse.ts",
+    validator_client::models::MixnodeStatus => "../src/types/rust/mixnodestatus.ts",
+    validator_client::models::MixnodeStatusResponse => "../src/types/rust/mixnodestatusresponse.ts",
+    validator_client::models::RewardEstimationResponse => "../src/types/rust/rewardestimationresponse.ts",
+    validator_client::models::StakeSaturationResponse => "../src/types/rust/stakesaturaionresponse.ts",
+    validator_client::models::InclusionProbabilityResponse => "../src/types/rust/inclusionprobabilityresponse.ts",
   }
 }

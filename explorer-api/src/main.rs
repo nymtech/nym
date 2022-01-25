@@ -5,12 +5,18 @@ extern crate rocket_okapi;
 
 use log::info;
 
+pub(crate) mod cache;
+mod client;
 mod country_statistics;
+mod gateways;
 mod http;
 mod mix_node;
-mod mix_nodes;
+pub(crate) mod mix_nodes;
+mod overview;
 mod ping;
 mod state;
+mod tasks;
+mod validators;
 
 const GEO_IP_SERVICE: &str = "https://api.freegeoip.app/json";
 const COUNTRY_DATA_REFRESH_INTERVAL: u64 = 60 * 15; // every 15 minutes
@@ -40,7 +46,7 @@ impl ExplorerApi {
         info!("Using validator API - {}", validator_api_url);
 
         // spawn concurrent tasks
-        mix_nodes::tasks::MixNodesTasks::new(self.state.clone(), validator_api_url).start();
+        crate::tasks::ExplorerApiTasks::new(self.state.clone()).start();
         country_statistics::distribution::CountryStatisticsDistributionTask::new(
             self.state.clone(),
         )

@@ -8,6 +8,7 @@ export type Operation =
   | "BondMixnodeOnBehalf"
   | "UnbondMixnode"
   | "UnbondMixnodeOnBehalf"
+  | "UpdateMixnodeConfig"
   | "DelegateToMixnode"
   | "DelegateToMixnodeOnBehalf"
   | "UndelegateFromMixnode"
@@ -23,4 +24,7 @@ export type Operation =
   | "TrackUnbondMixnode"
   | "WithdrawVestedCoins"
   | "TrackUndelegation"
-  | "CreatePeriodicVestingAccount";
+  | "CreatePeriodicVestingAccount"
+  | "AdvanceCurrentInterval"
+  | "WriteRewardedSet"
+  | "ClearRewardedSet";

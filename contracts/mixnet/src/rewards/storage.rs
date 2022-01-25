@@ -4,17 +4,16 @@
 use crate::error::ContractError;
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::{StdResult, Storage, Uint128};
-use cw_storage_plus::{Item, Map, U32Key};
-use mixnet_contract::{IdentityKey, RewardingStatus};
+use cw_storage_plus::{Item, Map};
+use mixnet_contract_common::{IdentityKey, RewardingStatus};
 
 pub(crate) const REWARD_POOL: Item<Uint128> = Item::new("pool");
-pub(crate) const REWARDING_STATUS: Map<(U32Key, IdentityKey), RewardingStatus> = Map::new("rm");
+// TODO: Do we need a migration for this?
+pub(crate) const REWARDING_STATUS: Map<(u32, IdentityKey), RewardingStatus> = Map::new("rm");
 
-// approximately 1 day (assuming 5s per block)
-pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 17280;
-
-// approximately 30min (assuming 5s per block)
-pub(crate) const MAX_REWARDING_DURATION_IN_BLOCKS: u64 = 360;
+// approximately 1 week (assuming 5s per block)
+// i.e. approximately quarter of the interval (there are 3600 * 60 * 7 = 604800 seconds in a week, i.e. ~604800 / 5 = 120960 blocks)
+pub(crate) const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 120960;
 
 #[allow(dead_code)]
 pub fn incr_reward_pool(

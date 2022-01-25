@@ -4,7 +4,7 @@ use crate::errors::ContractError;
 use crate::storage::{save_account, KEY};
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract::IdentityKey;
+use mixnet_contract_common::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -196,8 +196,8 @@ impl Account {
         let key = self.delegations_key();
         let delegations: Map<(&[u8], u64), Uint128> = Map::new(&key);
         delegations
-            .prefix_de(mix.as_bytes())
-            .keys_de(storage, None, None, Order::Ascending)
+            .prefix(mix.as_bytes())
+            .keys(storage, None, None, Order::Ascending)
             // Scan will blow up on first error
             .scan((), |_, x| x.ok())
             .collect::<Vec<u64>>()

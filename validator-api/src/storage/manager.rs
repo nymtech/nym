@@ -5,10 +5,9 @@ use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
 use crate::node_status_api::utils::ActiveNodeStatuses;
 use crate::storage::models::{
-    ActiveNode, EpochRewarding, FailedMixnodeRewardChunk, NodeStatus, PossiblyUnrewardedMixnode,
+    ActiveNode, FailedMixnodeRewardChunk, IntervalRewarding, NodeStatus, PossiblyUnrewardedMixnode,
     RewardingReport, TestingRoute,
 };
-use crate::storage::UnixTimestamp;
 use std::convert::TryFrom;
 
 #[derive(Clone)]
@@ -102,7 +101,7 @@ impl StorageManager {
     pub(super) async fn get_mixnode_statuses_since(
         &self,
         identity: &str,
-        timestamp: UnixTimestamp,
+        timestamp: i64,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
         sqlx::query_as!(
             NodeStatus,
@@ -130,7 +129,7 @@ impl StorageManager {
     pub(super) async fn get_gateway_statuses_since(
         &self,
         identity: &str,
-        timestamp: UnixTimestamp,
+        timestamp: i64,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
         sqlx::query_as!(
             NodeStatus,
@@ -234,8 +233,8 @@ impl StorageManager {
     pub(super) async fn get_mixnode_statuses_by_id(
         &self,
         id: i64,
-        since: UnixTimestamp,
-        until: UnixTimestamp,
+        since: i64,
+        until: i64,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
         sqlx::query_as!(
             NodeStatus,
@@ -262,8 +261,8 @@ impl StorageManager {
     pub(super) async fn get_gateway_statuses_by_id(
         &self,
         id: i64,
-        since: UnixTimestamp,
-        until: UnixTimestamp,
+        since: i64,
+        until: i64,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
         sqlx::query_as!(
             NodeStatus,
@@ -288,7 +287,7 @@ impl StorageManager {
     /// * `mixnode_results`: reliability results of each node that got tested.
     pub(super) async fn submit_mixnode_statuses(
         &self,
-        timestamp: UnixTimestamp,
+        timestamp: i64,
         mixnode_results: Vec<NodeResult>,
     ) -> Result<(), sqlx::Error> {
         // insert it all in a transaction to make sure all nodes are updated at the same time
@@ -333,7 +332,7 @@ impl StorageManager {
     /// * `gateway_results`: reliability results of each node that got tested.
     pub(super) async fn submit_gateway_statuses(
         &self,
-        timestamp: UnixTimestamp,
+        timestamp: i64,
         gateway_results: Vec<NodeResult>,
     ) -> Result<(), sqlx::Error> {
         // insert it all in a transaction to make sure all nodes are updated at the same time
@@ -411,7 +410,7 @@ impl StorageManager {
     pub(super) async fn get_mixnode_testing_route_presence_count_since(
         &self,
         mixnode_id: i64,
-        since: UnixTimestamp,
+        since: i64,
     ) -> Result<i32, sqlx::Error> {
         let count = sqlx::query!(
             r#"
@@ -450,7 +449,7 @@ impl StorageManager {
     pub(super) async fn get_gateway_testing_route_presence_count_since(
         &self,
         gateway_id: i64,
-        since: UnixTimestamp,
+        since: i64,
     ) -> Result<i32, sqlx::Error> {
         let count = sqlx::query!(
             r#"
@@ -542,10 +541,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `timestamp`: unix timestamp at which the monitor test run has occurred
-    pub(super) async fn insert_monitor_run(
-        &self,
-        timestamp: UnixTimestamp,
-    ) -> Result<i64, sqlx::Error> {
+    pub(super) async fn insert_monitor_run(&self, timestamp: i64) -> Result<i64, sqlx::Error> {
         let res = sqlx::query!("INSERT INTO monitor_run(timestamp) VALUES (?)", timestamp)
             .execute(&self.connection_pool)
             .await?;
@@ -560,8 +556,8 @@ impl StorageManager {
     /// * `until`: unix timestamp indicating the upper bound interval of the selection.
     pub(super) async fn get_monitor_runs_count(
         &self,
-        since: UnixTimestamp,
-        until: UnixTimestamp,
+        since: i64,
+        until: i64,
     ) -> Result<i32, sqlx::Error> {
         let count = sqlx::query!(
             "SELECT COUNT(*) as count FROM monitor_run WHERE timestamp > ? AND timestamp < ?",
@@ -582,7 +578,7 @@ impl StorageManager {
     /// * `until`: timestamp specifying the purge cutoff.
     pub(super) async fn purge_old_mixnode_statuses(
         &self,
-        timestamp: UnixTimestamp,
+        timestamp: i64,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!("DELETE FROM mixnode_status WHERE timestamp < ?", timestamp)
             .execute(&self.connection_pool)
@@ -598,7 +594,7 @@ impl StorageManager {
     /// * `until`: timestamp specifying the purge cutoff.
     pub(super) async fn purge_old_gateway_statuses(
         &self,
-        timestamp: UnixTimestamp,
+        timestamp: i64,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!("DELETE FROM gateway_status WHERE timestamp < ?", timestamp)
             .execute(&self.connection_pool)
@@ -615,8 +611,8 @@ impl StorageManager {
     /// * `until`: indicates the upper bound timestamp for deciding whether given mixnode is active
     pub(super) async fn get_all_active_mixnodes_in_interval(
         &self,
-        since: UnixTimestamp,
-        until: UnixTimestamp,
+        since: i64,
+        until: i64,
     ) -> Result<Vec<ActiveNode>, sqlx::Error> {
         // find mixnode details of all nodes that have had at least 1 status information since the provided
         // timestamp
@@ -649,8 +645,8 @@ impl StorageManager {
     /// * `until`: indicates the upper bound timestamp for deciding whether given gateway is active
     pub(super) async fn get_all_active_gateways_in_interval(
         &self,
-        since: UnixTimestamp,
-        until: UnixTimestamp,
+        since: i64,
+        until: i64,
     ) -> Result<Vec<ActiveNode>, sqlx::Error> {
         sqlx::query_as!(
             ActiveNode,
@@ -670,22 +666,25 @@ impl StorageManager {
         .await
     }
 
-    /// Inserts information about starting new epoch rewarding into the database.
+    /// Inserts information about starting new interval rewarding into the database.
     /// Returns id of the newly created entry.
     ///
     /// # Arguments
     ///
-    /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
-    pub(super) async fn insert_new_epoch_rewarding(
+    /// * `interval_start_timestamp`: Unix timestamp of start of this rewarding interval.
+    /// * `interval_end_timestamp`: Unix timestamp of end of this rewarding interval.
+    pub(super) async fn insert_new_interval_rewarding(
         &self,
-        epoch_timestamp: UnixTimestamp,
+        interval_start_timestamp: i64,
+        interval_end_timestamp: i64,
     ) -> Result<i64, sqlx::Error> {
         let res = sqlx::query!(
             r#"
-                INSERT INTO epoch_rewarding (epoch_timestamp, finished)
-                VALUES (?, 0) 
+                INSERT INTO interval_rewarding (interval_start_timestamp, interval_end_timestamp, finished)
+                VALUES (?, ?, 0) 
             "#,
-            epoch_timestamp
+            interval_start_timestamp,
+            interval_end_timestamp,
         )
         .execute(&self.connection_pool)
         .await?;
@@ -693,15 +692,18 @@ impl StorageManager {
         Ok(res.last_insert_rowid())
     }
 
-    /// Sets the `finished` field on the epoch rewarding to true.
+    /// Sets the `finished` field on the interval rewarding to true.
     ///
     /// # Arguments
     ///
     /// * `id`: id of the entry we want to update.
-    pub(super) async fn update_finished_epoch_rewarding(&self, id: i64) -> Result<(), sqlx::Error> {
+    pub(super) async fn update_finished_interval_rewarding(
+        &self,
+        id: i64,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                UPDATE epoch_rewarding
+                UPDATE interval_rewarding
                 SET finished = 1
                 WHERE id = ?
             "#,
@@ -713,17 +715,17 @@ impl StorageManager {
         Ok(())
     }
 
-    // /// Tries to obtain the most recent epoch rewarding entry currently stored.
+    // /// Tries to obtain the most recent interval rewarding entry currently stored.
     // ///
     // /// Returns None if no data exists.
-    // pub(super) async fn get_most_recent_epoch_rewarding_entry(
+    // pub(super) async fn get_most_recent_interval_rewarding_entry(
     //     &self,
-    // ) -> Result<Option<EpochRewarding>, sqlx::Error> {
+    // ) -> Result<Option<IntervalRewarding>, sqlx::Error> {
     //     sqlx::query_as!(
-    //         EpochRewarding,
+    //         IntervalRewarding,
     //         r#"
-    //             SELECT * FROM epoch_rewarding
-    //             ORDER BY epoch_timestamp DESC
+    //             SELECT * FROM interval_rewarding
+    //             ORDER BY interval_timestamp DESC
     //             LIMIT 1
     //         "#,
     //     )
@@ -731,24 +733,24 @@ impl StorageManager {
     //     .await
     // }
 
-    /// Tries to obtain the epoch rewarding entry that has the provided timestamp.
+    /// Tries to obtain the interval rewarding entry that has the provided timestamp.
     ///
     /// Returns None if no data exists.
     ///
     /// # Arguments
     ///
-    /// * `epoch_timestamp`: Unix timestamp of this rewarding epoch.
-    pub(super) async fn get_epoch_rewarding_entry(
+    /// * `interval_start_timestamp`: Unix timestamp of the start of this rewarding interval.
+    pub(super) async fn get_interval_rewarding_entry(
         &self,
-        epoch_timestamp: UnixTimestamp,
-    ) -> Result<Option<EpochRewarding>, sqlx::Error> {
+        interval_start_timestamp: i64,
+    ) -> Result<Option<IntervalRewarding>, sqlx::Error> {
         sqlx::query_as!(
-            EpochRewarding,
+            IntervalRewarding,
             r#"
-                SELECT * FROM epoch_rewarding
-                WHERE epoch_timestamp = ?
+                SELECT * FROM interval_rewarding
+                WHERE interval_start_timestamp = ?
             "#,
-            epoch_timestamp
+            interval_start_timestamp
         )
         .fetch_optional(&self.connection_pool)
         .await
@@ -766,10 +768,10 @@ impl StorageManager {
         sqlx::query!(
             r#"
                 INSERT INTO rewarding_report
-                (epoch_rewarding_id, eligible_mixnodes, possibly_unrewarded_mixnodes)
+                (interval_rewarding_id, eligible_mixnodes, possibly_unrewarded_mixnodes)
                 VALUES (?, ?, ?);
             "#,
-            report.epoch_rewarding_id,
+            report.interval_rewarding_id,
             report.eligible_mixnodes,
             report.possibly_unrewarded_mixnodes,
         )
@@ -793,13 +795,13 @@ impl StorageManager {
                 INSERT INTO failed_mixnode_reward_chunk (error_message, reward_summary_id) VALUES (?, ?)
             "#,
             failed_chunk.error_message,
-            failed_chunk.epoch_rewarding_id,
+            failed_chunk.interval_rewarding_id,
         ).execute(&self.connection_pool).await?;
 
         Ok(res.last_insert_rowid())
     }
 
-    /// Inserts information into the database about a mixnode that might have been unfairly unrewarded this epoch.
+    /// Inserts information into the database about a mixnode that might have been unfairly unrewarded this interval.
     ///
     /// # Arguments
     ///
@@ -827,8 +829,8 @@ impl StorageManager {
     /// * `until`: unix timestamp indicating the upper bound interval of the selection.
     pub(super) async fn get_all_active_mixnodes_statuses_in_interval(
         &self,
-        since: UnixTimestamp,
-        until: UnixTimestamp,
+        since: i64,
+        until: i64,
     ) -> Result<Vec<ActiveNodeStatuses>, sqlx::Error> {
         let active_nodes = self
             .get_all_active_mixnodes_in_interval(since, until)
@@ -860,8 +862,8 @@ impl StorageManager {
     /// * `until`: unix timestamp indicating the upper bound interval of the selection.
     pub(super) async fn get_all_active_gateways_statuses_in_interval(
         &self,
-        since: UnixTimestamp,
-        until: UnixTimestamp,
+        since: i64,
+        until: i64,
     ) -> Result<Vec<ActiveNodeStatuses>, sqlx::Error> {
         let active_nodes = self
             .get_all_active_gateways_in_interval(since, until)

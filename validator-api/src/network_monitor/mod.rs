@@ -6,8 +6,8 @@ use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use std::sync::Arc;
 
-use crate::cache::ValidatorCache;
 use crate::config::Config;
+use crate::contract_cache::ValidatorCache;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,

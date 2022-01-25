@@ -3,7 +3,7 @@ import { Button, Card, Grid, Typography } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useMainContext } from 'src/context/main';
-import { gatewayToGridRow } from 'src/utils';
+import { gatewayToGridRow } from 'src/components/Gateways';
 import { GatewayResponse } from 'src/typeDefs/explorer-api';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';

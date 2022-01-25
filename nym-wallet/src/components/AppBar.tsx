@@ -1,9 +1,10 @@
-import React, { useContext, useEffect } from 'react'
+import React, { useContext } from 'react'
 import { AppBar as MuiAppBar, Divider, Grid, IconButton, Toolbar, Typography, useMediaQuery } from '@mui/material'
 import { Box } from '@mui/system'
-import { Logout, SettingsOutlined } from '@mui/icons-material'
+import { Logout } from '@mui/icons-material'
 import { ClientContext } from '../context/main'
 import { CopyToClipboard } from '.'
+import { Node as NodeIcon } from '../svg-icons/node'
 
 export const AppBar = () => {
   const { userBalance, clientDetails, showSettings, logOut, handleShowSettings } = useContext(ClientContext)
@@ -20,7 +21,6 @@ export const AppBar = () => {
             {matches && (
               <>
                 <Divider orientation="vertical" variant="middle" flexItem sx={{ mr: 1 }} />
-
                 <Grid item>
                   <AppBarItem
                     primaryText="Address"
@@ -38,7 +38,7 @@ export const AppBar = () => {
                 sx={{ color: showSettings ? 'primary.main' : 'nym.background.dark' }}
                 size="small"
               >
-                <SettingsOutlined fontSize="small" />
+                <NodeIcon fontSize="small" />
               </IconButton>
             </Grid>
             <Grid item>

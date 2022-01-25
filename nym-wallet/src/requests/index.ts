@@ -6,11 +6,13 @@ import {
   EnumNodeType,
   Gateway,
   MixNode,
+  MixnodeStatusResponse,
   Operation,
+  RewardEstimationResponse,
+  StakeSaturationResponse,
   TauriContractStateParams,
   TauriTxResult,
   TCreateAccount,
-  TDelegation,
   TMixnodeBondDetails,
   TPagedDelegations,
   TSignInWithMnemonic,
@@ -28,7 +30,7 @@ export const majorToMinor = async (amount: string): Promise<Coin> => await invok
 // NOTE: this uses OUTDATED defaults that might have no resemblance with the reality
 // as for the actual transaction, the gas cost is being simulated beforehand
 export const getGasFee = async (operation: Operation): Promise<Coin> =>
-  await invoke('get_approximate_fee', { operation })
+  await invoke('outdated_get_approximate_fee', { operation })
 
 export const delegate = async ({
   type,
@@ -50,6 +52,7 @@ export const undelegate = async ({
 
 export const send = async (args: { amount: Coin; address: string; memo: string }): Promise<TauriTxResult> =>
   await invoke('send', args)
+
 export const checkMixnodeOwnership = async (): Promise<boolean> => await invoke('owns_mixnode')
 
 export const checkGatewayOwnership = async (): Promise<boolean> => await invoke('owns_gateway')
@@ -83,3 +86,15 @@ export const getReverseGatewayDelegations = async (): Promise<TPagedDelegations>
 
 export const getMixnodeBondDetails = async (): Promise<TMixnodeBondDetails | null> =>
   await invoke('mixnode_bond_details')
+
+export const getMixnodeStakeSaturation = async (identity: string): Promise<StakeSaturationResponse> =>
+  await invoke('mixnode_stake_saturation', { identity })
+
+export const getMixnodeRewardEstimation = async (identity: string): Promise<RewardEstimationResponse> =>
+  await invoke('mixnode_reward_estimation', { identity })
+
+export const getMixnodeStatus = async (identity: string): Promise<MixnodeStatusResponse> =>
+  await invoke('mixnode_status', { identity })
+
+export const updateMixnode = async ({ profitMarginPercent }: { profitMarginPercent: number }) =>
+  await invoke('update_mixnode', { profitMarginPercent })

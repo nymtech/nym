@@ -20,6 +20,7 @@ pub enum Operation {
     BondMixnodeOnBehalf,
     UnbondMixnode,
     UnbondMixnodeOnBehalf,
+    UpdateMixnodeConfig,
     DelegateToMixnode,
     DelegateToMixnodeOnBehalf,
     UndelegateFromMixnode,
@@ -40,6 +41,10 @@ pub enum Operation {
     WithdrawVestedCoins,
     TrackUndelegation,
     CreatePeriodicVestingAccount,
+
+    AdvanceCurrentInterval,
+    WriteRewardedSet,
+    ClearRewardedSet,
 }
 
 pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
@@ -57,6 +62,7 @@ impl fmt::Display for Operation {
             Operation::BondMixnode => f.write_str("BondMixnode"),
             Operation::BondMixnodeOnBehalf => f.write_str("BondMixnodeOnBehalf"),
             Operation::UnbondMixnode => f.write_str("UnbondMixnode"),
+            Operation::UpdateMixnodeConfig => f.write_str("UpdateMixnodeConfig"),
             Operation::UnbondMixnodeOnBehalf => f.write_str("UnbondMixnodeOnBehalf"),
             Operation::BondGateway => f.write_str("BondGateway"),
             Operation::BondGatewayOnBehalf => f.write_str("BondGatewayOnBehalf"),
@@ -76,6 +82,9 @@ impl fmt::Display for Operation {
             Operation::WithdrawVestedCoins => f.write_str("WithdrawVestedCoins"),
             Operation::TrackUndelegation => f.write_str("TrackUndelegation"),
             Operation::CreatePeriodicVestingAccount => f.write_str("CreatePeriodicVestingAccount"),
+            Operation::AdvanceCurrentInterval => f.write_str("AdvanceCurrentInterval"),
+            Operation::WriteRewardedSet => f.write_str("WriteRewardedSet"),
+            Operation::ClearRewardedSet => f.write_str("ClearRewardedSet"),
         }
     }
 }
@@ -94,6 +103,7 @@ impl Operation {
             Operation::BondMixnodeOnBehalf => 200_000u64.into(),
             Operation::UnbondMixnode => 175_000u64.into(),
             Operation::UnbondMixnodeOnBehalf => 175_000u64.into(),
+            Operation::UpdateMixnodeConfig => 175_000u64.into(),
             Operation::DelegateToMixnode => 175_000u64.into(),
             Operation::DelegateToMixnodeOnBehalf => 175_000u64.into(),
             Operation::UndelegateFromMixnode => 175_000u64.into(),
@@ -112,6 +122,9 @@ impl Operation {
             Operation::WithdrawVestedCoins => 175_000u64.into(),
             Operation::TrackUndelegation => 175_000u64.into(),
             Operation::CreatePeriodicVestingAccount => 175_000u64.into(),
+            Operation::AdvanceCurrentInterval => 175_000u64.into(),
+            Operation::WriteRewardedSet => 175_000u64.into(),
+            Operation::ClearRewardedSet => 175_000u64.into(),
         }
     }
 

@@ -3,7 +3,6 @@
 
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
-use gateway_client::bandwidth::BandwidthController;
 use gateway_client::GatewayClient;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
@@ -111,7 +110,7 @@ impl NymClient {
         let testnet_mode = self.testnet_mode;
 
         #[cfg(feature = "coconut")]
-        let bandwidth_controller = Some(BandwidthController::new(
+        let bandwidth_controller = Some(gateway_client::bandwidth::BandwidthController::new(
             vec![self.validator_server.clone()],
             *self.identity.public_key(),
         ));

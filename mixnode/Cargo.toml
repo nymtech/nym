@@ -9,6 +9,7 @@ authors = [
     "Jędrzej Stuczyński <andrew@nymtech.net>",
     "Drazen Urch <durch@users.noreply.github.com>",
 ]
+description = "Implementation of a Loopix-based Mixnode"
 edition = "2018"
 rust-version = "1.56"
 
@@ -16,7 +17,7 @@ rust-version = "1.56"
 
 [dependencies]
 bs58 = "0.4.0"
-clap = "2.3"
+clap = { version = "3.0.10", features = ["cargo", "derive"] }
 colored = "2.0"
 dirs = "3.0"
 dotenv = "0.15.0"
@@ -31,6 +32,8 @@ tokio = { version="1.8", features = ["rt-multi-thread", "net", "signal"] }
 tokio-util = { version="0.6.7", features = ["codec"] }
 toml = "0.5.8"
 url = { version = "2.2", features = ["serde"] }
+lazy_static = "1.4.0"
+anyhow = "1.0.40"
 
 ## internal
 config = { path="../common/config" }

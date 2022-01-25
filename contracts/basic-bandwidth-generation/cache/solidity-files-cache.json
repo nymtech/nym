@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/BandwidthGenerator.sol": {
-      "lastModificationDate": 1641908013011,
-      "contentHash": "7de243b3b780dd7ee86ffb17fc6f3e07",
+      "lastModificationDate": 1643129770695,
+      "contentHash": "642b72e2d50d565db7bc994cace3f5a0",
       "sourceName": "contracts/BandwidthGenerator.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -41,7 +41,7 @@
       ]
     },
     "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/CosmosToken.sol": {
-      "lastModificationDate": 1641825755989,
+      "lastModificationDate": 1642773899716,
       "contentHash": "fc5dd09fe73bc6cfece970f702a3aba1",
       "sourceName": "contracts/CosmosToken.sol",
       "solcConfig": {
@@ -77,7 +77,7 @@
       ]
     },
     "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/Gravity.sol": {
-      "lastModificationDate": 1641810221576,
+      "lastModificationDate": 1642773899716,
       "contentHash": "0d6dae561f7b541bafb892b8593a08ac",
       "sourceName": "contracts/Gravity.sol",
       "solcConfig": {
@@ -469,7 +469,7 @@
       ]
     },
     "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/test-contracts/TestCosmosToken.sol": {
-      "lastModificationDate": 1641813266722,
+      "lastModificationDate": 1642773899716,
       "contentHash": "957b6079ee0d5a6e048fce8555c14dee",
       "sourceName": "contracts/test-contracts/TestCosmosToken.sol",
       "solcConfig": {
@@ -505,7 +505,7 @@
       ]
     },
     "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/test-contracts/TestGravity.sol": {
-      "lastModificationDate": 1641815710987,
+      "lastModificationDate": 1642773899716,
       "contentHash": "f24299c3acb20aff23914e16b7ba95e1",
       "sourceName": "contracts/test-contracts/TestGravity.sol",
       "solcConfig": {

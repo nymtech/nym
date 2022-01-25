@@ -50,9 +50,10 @@ export const useSettingsState = (shouldUpdate: boolean) => {
   const getMixnodeInclusionProbability = async () => {
     if (mixnodeDetails?.mix_node.identity_key) {
       const probability = await getInclusionProbability(mixnodeDetails?.mix_node.identity_key)
-
       if (probability) {
-        setInclusionProbability(probability)
+        const in_active = Math.round(probability.in_active * 100)
+        const in_reserve = Math.round(probability.in_reserve * 100)
+        setInclusionProbability({ in_active, in_reserve })
       }
     }
   }

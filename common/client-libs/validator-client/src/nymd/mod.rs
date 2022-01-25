@@ -398,6 +398,16 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn get_active_set_work_factor(&self) -> Result<u8, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetActiveSetWorkFactor {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
     pub async fn get_interval_reward_percent(&self) -> Result<u8, NymdError>
     where
         C: CosmWasmClient + Sync,

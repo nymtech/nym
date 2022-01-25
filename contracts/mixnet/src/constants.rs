@@ -9,6 +9,7 @@ pub const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 120960;
 
 pub const INTERVAL_REWARD_PERCENT: u8 = 2; // Used to calculate interval reward pool
 pub const SYBIL_RESISTANCE_PERCENT: u8 = 30;
+pub const ACTIVE_SET_WORK_FACTOR: u8 = 10;
 
 // TODO: this, in theory, represents "epoch" length.
 // However, since the blocktime is not EXACTLY 5s, we can't really guarantee 720 epochs in interval

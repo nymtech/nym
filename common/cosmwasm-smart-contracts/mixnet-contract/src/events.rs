@@ -47,7 +47,6 @@ pub const NEW_MINIMUM_MIXNODE_PLEDGE_KEY: &str = "new_minimum_mixnode_pledge";
 pub const NEW_MINIMUM_GATEWAY_PLEDGE_KEY: &str = "new_minimum_gateway_pledge";
 pub const NEW_MIXNODE_REWARDED_SET_SIZE_KEY: &str = "new_mixnode_rewarded_set_size";
 pub const NEW_MIXNODE_ACTIVE_SET_SIZE_KEY: &str = "new_mixnode_active_set_size";
-pub const NEW_ACTIVE_SET_WORK_FACTOR_KEY: &str = "new_active_set_work_factor";
 
 // rewarding
 pub const INTERVAL_ID_KEY: &str = "interval_id";
@@ -236,18 +235,6 @@ pub fn new_settings_update_event(
             .add_attribute(
                 NEW_MIXNODE_ACTIVE_SET_SIZE_KEY,
                 new_params.mixnode_active_set_size.to_string(),
-            )
-    }
-
-    if old_params.active_set_work_factor != new_params.active_set_work_factor {
-        event = event
-            .add_attribute(
-                OLD_ACTIVE_SET_WORK_FACTOR_KEY,
-                old_params.active_set_work_factor.to_string(),
-            )
-            .add_attribute(
-                NEW_ACTIVE_SET_WORK_FACTOR_KEY,
-                new_params.active_set_work_factor.to_string(),
             )
     }
 

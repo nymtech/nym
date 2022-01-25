@@ -270,6 +270,13 @@ impl<C> Client<C> {
         Ok(self.nymd.get_sybil_resistance_percent().await?)
     }
 
+    pub async fn get_active_set_work_factor(&self) -> Result<u8, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_active_set_work_factor().await?)
+    }
+
     pub async fn get_interval_reward_percent(&self) -> Result<u8, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,

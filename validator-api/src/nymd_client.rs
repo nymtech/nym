@@ -150,7 +150,7 @@ impl<C> Client<C> {
             rewarded_set_size: state.mixnode_rewarded_set_size,
             active_set_size: state.mixnode_active_set_size,
             period_reward_pool: (reward_pool / 100) * interval_reward_percent as u128,
-            active_set_work_factor: state.active_set_work_factor,
+            active_set_work_factor: this.get_active_set_work_factor().await?,
         };
 
         Ok(interval_reward_params)

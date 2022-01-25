@@ -133,6 +133,7 @@ pub enum QueryMsg {
     GetCirculatingSupply {},
     GetIntervalRewardPercent {},
     GetSybilResistancePercent {},
+    GetActiveSetWorkFactor {},
     GetRewardingStatus {
         mix_identity: IdentityKey,
         interval_id: u32,

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{
-    INTERVAL_REWARD_PERCENT, REWARDING_INTERVAL_LENGTH, SYBIL_RESISTANCE_PERCENT,
+    ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, REWARDING_INTERVAL_LENGTH,
+    SYBIL_RESISTANCE_PERCENT,
 };
 use crate::delegations::queries::query_all_network_delegations_paged;
 use crate::delegations::queries::query_delegator_delegations_paged;
@@ -61,7 +62,6 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
             minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
-            active_set_work_factor: INITIAL_ACTIVE_SET_WORK_FACTOR,
         },
     }
 }
@@ -283,6 +283,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
         QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
         QueryMsg::GetIntervalRewardPercent {} => to_binary(&INTERVAL_REWARD_PERCENT),
         QueryMsg::GetSybilResistancePercent {} => to_binary(&SYBIL_RESISTANCE_PERCENT),
+        QueryMsg::GetActiveSetWorkFactor {} => to_binary(&ACTIVE_SET_WORK_FACTOR),
         QueryMsg::GetRewardingStatus {
             mix_identity,
             interval_id,
@@ -326,13 +327,23 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
        3. removal of rewarding_in_progress field from ContractState
        4. interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
        5. interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
+       6. removal of active_set_work_factor fields from ContractStateParams
     */
+
+    #[derive(Serialize, Deserialize)]
+    pub struct OldContractStateParams {
+        pub minimum_mixnode_pledge: Uint128,
+        pub minimum_gateway_pledge: Uint128,
+        pub mixnode_rewarded_set_size: u32,
+        pub mixnode_active_set_size: u32,
+        pub active_set_work_factor: u8,
+    }
 
     #[derive(Serialize, Deserialize)]
     struct OldContractState {
         pub owner: Addr, // only the owner account can update state
         pub rewarding_validator_address: Addr,
-        pub params: ContractStateParams,
+        pub params: OldContractStateParams,
         pub rewarding_interval_starting_block: u64,
         pub latest_rewarding_interval_nonce: u32,
         pub rewarding_in_progress: bool,
@@ -341,10 +352,18 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
     let old_contract_state: Item<OldContractState> = Item::new("config");
 
     let old_state = old_contract_state.load(deps.storage)?;
+
+    let new_params = mixnet_contract_common::ContractStateParams {
+        minimum_mixnode_pledge: old_state.params.minimum_mixnode_pledge,
+        minimum_gateway_pledge: old_state.params.minimum_mixnode_pledge,
+        mixnode_rewarded_set_size: old_state.params.mixnode_rewarded_set_size,
+        mixnode_active_set_size: old_state.params.mixnode_active_set_size,
+    };
+
     let new_state = crate::mixnet_contract_settings::models::ContractState {
         owner: old_state.owner,
         rewarding_validator_address: old_state.rewarding_validator_address,
-        params: old_state.params,
+        params: new_params,
     };
     let rewarding_interval =
         Interval::new(0, DEFAULT_FIRST_INTERVAL_START, REWARDING_INTERVAL_LENGTH);

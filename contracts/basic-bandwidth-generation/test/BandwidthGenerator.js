@@ -65,6 +65,9 @@ contract('BandwidthGenerator', (accounts) => {
     it("returns the correct contract admin", async () => {
       expect((await bandwidthGenerator.owner()).toString()).to.equal((owner).toString());
     });
+    it("returns the correct default generation state: true", async () => {
+      expect((await bandwidthGenerator.credentialGenerationEnabled())).to.equal(true); 
+    });
   });
 
   context(">> deployment parameters are invalid", () => {
@@ -223,6 +226,41 @@ contract('BandwidthGenerator', (accounts) => {
       });       
     });
   });  
+  context(">>credential generation admin switch", () => {
+    it("only admin can switch credential generation off", async () => {
+      await expectRevert(
+        bandwidthGenerator.credentialGenerationSwitch(false, { from: user }), 
+        "Ownable: caller is not the owner"
+      )
+    }); 
+    it("admin can switch credential generation on/off & switch generates an event", async () => {
+      let tx = await bandwidthGenerator.credentialGenerationSwitch(false); 
+      expect((await bandwidthGenerator.credentialGenerationEnabled())).to.equal(false); 
 
+      await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'CredentialGenerationSwitch', {
+        Enabled: false, 
+      });
+
+      tx = await bandwidthGenerator.credentialGenerationSwitch(true); 
+      expect((await bandwidthGenerator.credentialGenerationEnabled())).to.equal(true); 
+
+      await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'CredentialGenerationSwitch', {
+        Enabled: true, 
+      });
+    }); 
+    it("cannot generate credentials if switch = false", async () => {
+      await bandwidthGenerator.credentialGenerationSwitch(false); 
+      await expectRevert(
+        bandwidthGenerator.generateBasicBandwidthCredential(
+          oneToken,
+          15,
+          [0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba,
+            0x39, 0x53, 0x0a, 0x00, 0xea, 0xe2, 0xa5, 0xaa, 0xc8, 0x14, 0x42, 0x09, 0xcc, 0xac, 0x91, 0x7a, 0xe5, 0x6b, 0xf4, 0xa9, 0x58, 0x95, 0x44, 0xcb, 0x00, 0x20, 0xf9, 0x2f, 0xee, 0x35, 0xa3, 0xba],
+          cosmosRecipient,  
+          { from: user }
+        ), "BandwidthGenerator: credential generation isn't currently enabled"      
+      ); 
+    }); 
+  }); 
 }); 
 

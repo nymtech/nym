@@ -83,6 +83,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         let req = VestingExecuteMsg::BondGateway {
             gateway,
             owner_signature: owner_signature.to_string(),
+            amount: pledge,
         };
         self.client
             .execute(
@@ -91,7 +92,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 &req,
                 fee,
                 "VestingContract::BondGateway",
-                vec![cosmwasm_coin_to_cosmos_coin(pledge)],
+                vec![],
             )
             .await
     }
@@ -143,6 +144,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         let req = VestingExecuteMsg::BondMixnode {
             mix_node,
             owner_signature: owner_signature.to_string(),
+            amount: pledge,
         };
         self.client
             .execute(
@@ -151,7 +153,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 &req,
                 fee,
                 "VestingContract::BondMixnode",
-                vec![cosmwasm_coin_to_cosmos_coin(pledge)],
+                vec![],
             )
             .await
     }
@@ -239,6 +241,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         let fee = self.operation_fee(Operation::DelegateToMixnode);
         let req = VestingExecuteMsg::DelegateToMixnode {
             mix_identity: mix_identity.into(),
+            amount: amount.clone(),
         };
         self.client
             .execute(
@@ -247,7 +250,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 &req,
                 fee,
                 "VestingContract::DeledateToMixnode",
-                vec![cosmwasm_coin_to_cosmos_coin(amount.to_owned())],
+                vec![],
             )
             .await
     }

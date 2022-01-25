@@ -48,9 +48,10 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::DelegateToMixnode { mix_identity } => {
-            try_delegate_to_mixnode(mix_identity, info, env, deps)
-        }
+        ExecuteMsg::DelegateToMixnode {
+            mix_identity,
+            amount,
+        } => try_delegate_to_mixnode(mix_identity, amount, info, env, deps),
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
             try_undelegate_from_mixnode(mix_identity, info, deps)
         }
@@ -77,7 +78,8 @@ pub fn execute(
         ExecuteMsg::BondMixnode {
             mix_node,
             owner_signature,
-        } => try_bond_mixnode(mix_node, owner_signature, info, env, deps),
+            amount,
+        } => try_bond_mixnode(mix_node, owner_signature, amount, info, env, deps),
         ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
         ExecuteMsg::TrackUnbondMixnode { owner, amount } => {
             try_track_unbond_mixnode(&owner, amount, info, deps)
@@ -85,7 +87,8 @@ pub fn execute(
         ExecuteMsg::BondGateway {
             gateway,
             owner_signature,
-        } => try_bond_gateway(gateway, owner_signature, info, env, deps),
+            amount,
+        } => try_bond_gateway(gateway, owner_signature, amount, info, env, deps),
         ExecuteMsg::UnbondGateway {} => try_unbond_gateway(info, deps),
         ExecuteMsg::TrackUnbondGateway { owner, amount } => {
             try_track_unbond_gateway(&owner, amount, info, deps)
@@ -180,11 +183,12 @@ fn try_update_staking_address(
 pub fn try_bond_gateway(
     gateway: Gateway,
     owner_signature: String,
+    amount: Coin,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let pledge = validate_funds(&info.funds)?;
+    let pledge = validate_funds(&[amount])?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_bond_gateway(gateway, owner_signature, pledge, &env, deps.storage)
 }
@@ -211,11 +215,12 @@ pub fn try_track_unbond_gateway(
 pub fn try_bond_mixnode(
     mix_node: MixNode,
     owner_signature: String,
+    amount: Coin,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let pledge = validate_funds(&info.funds)?;
+    let pledge = validate_funds(&[amount])?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_bond_mixnode(mix_node, owner_signature, pledge, &env, deps.storage)
 }
@@ -256,11 +261,12 @@ fn try_track_undelegation(
 
 fn try_delegate_to_mixnode(
     mix_identity: IdentityKey,
+    amount: Coin,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let amount = validate_funds(&info.funds)?;
+    let amount = validate_funds(&[amount])?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
 }
@@ -389,18 +395,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             env,
             deps,
         )?),
-        QueryMsg::GetAccount {
-            address,
-        } => to_binary(&try_get_account(&address, deps)?),
+        QueryMsg::GetAccount { address } => to_binary(&try_get_account(&address, deps)?),
     };
 
     Ok(query_res?)
 }
 
-pub fn try_get_account(
-    address: &str,
-    deps: Deps,
-) -> Result<Option<Account>, ContractError> {
+pub fn try_get_account(address: &str, deps: Deps) -> Result<Option<Account>, ContractError> {
     let account = account_from_address(address, deps.storage, deps.api)?;
     Ok(Some(account))
 }

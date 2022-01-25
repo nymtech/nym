@@ -16,6 +16,7 @@ pub struct MigrateMsg {}
 pub enum ExecuteMsg {
     DelegateToMixnode {
         mix_identity: IdentityKey,
+        amount: Coin,
     },
     UndelegateFromMixnode {
         mix_identity: IdentityKey,
@@ -36,6 +37,7 @@ pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
         owner_signature: String,
+        amount: Coin,
     },
     UnbondMixnode {},
     TrackUnbondMixnode {
@@ -45,6 +47,7 @@ pub enum ExecuteMsg {
     BondGateway {
         gateway: Gateway,
         owner_signature: String,
+        amount: Coin,
     },
     UnbondGateway {},
     TrackUnbondGateway {
@@ -96,6 +99,6 @@ pub enum QueryMsg {
         vesting_account_address: String,
     },
     GetAccount {
-        address: String
-    }
+        address: String,
+    },
 }

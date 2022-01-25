@@ -5,6 +5,7 @@ import {
   DelegationResult,
   EnumNodeType,
   Gateway,
+  InclusionProbabilityResponse,
   MixNode,
   MixnodeStatusResponse,
   Operation,
@@ -98,3 +99,6 @@ export const getMixnodeStatus = async (identity: string): Promise<MixnodeStatusR
 
 export const updateMixnode = async ({ profitMarginPercent }: { profitMarginPercent: number }) =>
   await invoke('update_mixnode', { profitMarginPercent })
+
+export const getInclusionProbability = async (identity: string): Promise<InclusionProbabilityResponse> =>
+  await invoke('mixnode_inclusion_probability', { identity })

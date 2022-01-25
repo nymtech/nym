@@ -1,21 +1,25 @@
 import { useContext, useEffect, useState } from 'react'
 import { ClientContext } from '../../context/main'
 import {
-  getMixnodeBondDetails,
   getMixnodeRewardEstimation,
   getMixnodeStakeSaturation,
   getMixnodeStatus,
   minorToMajor,
+  getInclusionProbability,
 } from '../../requests'
-import { MixnodeStatus } from '../../types'
+import { MixnodeStatus, InclusionProbabilityResponse } from '../../types'
 
 export const useSettingsState = (shouldUpdate: boolean) => {
   const [status, setStatus] = useState<MixnodeStatus>('not_found')
   const [saturation, setSaturation] = useState<number>(0)
   const [rewardEstimation, setRewardEstimation] = useState<number>(0)
+  const [inclusionProbability, setInclusionProbability] = useState<InclusionProbabilityResponse>({
+    in_active: 0,
+    in_reserve: 0,
+  })
 
   const { mixnodeDetails } = useContext(ClientContext)
-
+  console.log(inclusionProbability)
   const getStatus = async () => {
     if (mixnodeDetails?.mix_node.identity_key) {
       const status = await getMixnodeStatus(mixnodeDetails?.mix_node.identity_key)
@@ -43,11 +47,22 @@ export const useSettingsState = (shouldUpdate: boolean) => {
     }
   }
 
+  const getMixnodeInclusionProbability = async () => {
+    if (mixnodeDetails?.mix_node.identity_key) {
+      const probability = await getInclusionProbability(mixnodeDetails?.mix_node.identity_key)
+
+      if (probability) {
+        setInclusionProbability(probability)
+      }
+    }
+  }
+
   useEffect(() => {
     if (shouldUpdate) {
       getStatus()
       getStakeSaturation()
       getRewardEstimation()
+      getMixnodeInclusionProbability()
     }
   }, [shouldUpdate])
 
@@ -55,5 +70,6 @@ export const useSettingsState = (shouldUpdate: boolean) => {
     status,
     saturation,
     rewardEstimation,
+    inclusionProbability,
   }
 }

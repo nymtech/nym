@@ -1,7 +1,7 @@
 [package]
 name = "nym-client-wasm"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jedrzej Stuczynski <andrew@nymtech.net>"]
-version = "0.11.0"
+version = "0.12.0"
 edition = "2018"
 keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy", "client"]
 license = "Apache-2.0"
@@ -32,7 +32,7 @@ credentials = { path = "../../common/credentials", optional = true }
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
-gateway-client = { path = "../../common/client-libs/gateway-client" }
+gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm"] }
 validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 wasm-utils = { path = "../../common/wasm-utils" }
 

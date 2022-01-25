@@ -1,10 +1,9 @@
 import * as React from 'react';
 import { Button, Card, Grid, Typography } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { printableCoin } from '@nymproject/nym-validator-client';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useMainContext } from 'src/context/main';
-import { gatewayToGridRow } from 'src/utils';
+import { gatewayToGridRow } from 'src/components/Gateways';
 import { GatewayResponse } from 'src/typeDefs/explorer-api';
 import { TableToolbar } from 'src/components/TableToolbar';
 import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
@@ -13,6 +12,7 @@ import {
   cellStyles,
   UniversalDataGrid,
 } from 'src/components/Universal-DataGrid';
+import { currencyToString } from '../../utils/currency';
 
 export const PageGateways: React.FC = () => {
   const { gateways } = useMainContext();
@@ -79,17 +79,11 @@ export const PageGateways: React.FC = () => {
       renderHeader: () => <CustomColumnHeading headingTitle="Pledge" />,
       headerClassName: 'MuiDataGrid-header-override',
       headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => {
-        const bondAsPunk = printableCoin({
-          amount: params.value as string,
-          denom: 'upunk',
-        });
-        return (
-          <Typography sx={cellStyles} data-testid="pledge-amount">
-            {bondAsPunk}
-          </Typography>
-        );
-      },
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography sx={cellStyles} data-testid="pledge-amount">
+          {currencyToString(params.value)}
+        </Typography>
+      ),
     },
     {
       field: 'host',

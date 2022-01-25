@@ -11,7 +11,8 @@ use config::defaults::DENOM;
 use cosmwasm_std::{
     coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
 };
-use mixnet_contract::MixNode;
+use mixnet_contract_common::events::{new_mixnode_bonding_event, new_mixnode_unbonding_event};
+use mixnet_contract_common::MixNode;
 use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub fn try_add_mixnode(
@@ -109,13 +110,12 @@ fn _try_add_mixnode(
     let layer = layer_distribution.choose_with_fewest();
 
     let stored_bond = StoredMixnodeBond::new(
-        pledge_amount,
-        owner,
+        pledge_amount.clone(),
+        owner.clone(),
         layer,
         env.block.height,
         mix_node,
-        None,
-        proxy,
+        proxy.clone(),
     );
 
     // technically we don't have to set the total_delegation bucket, but it makes things easier
@@ -133,7 +133,13 @@ fn _try_add_mixnode(
 
     mixnet_params_storage::increment_layer_count(deps.storage, stored_bond.layer)?;
 
-    Ok(Response::new())
+    Ok(Response::new().add_event(new_mixnode_bonding_event(
+        &owner,
+        &proxy,
+        &pledge_amount,
+        identity,
+        stored_bond.layer,
+    )))
 }
 
 pub fn try_remove_mixnode_on_behalf(
@@ -186,22 +192,60 @@ pub(crate) fn _try_remove_mixnode(
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
 
-    let mut response = Response::new()
-        .add_message(return_tokens)
-        .add_attribute("action", "unbond")
-        .add_attribute("mixnode_bond", mixnode_bond.to_string());
+    let mut response = Response::new().add_message(return_tokens);
 
     if let Some(proxy) = &proxy {
         let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
             owner: owner.as_str().to_string(),
-            amount: mixnode_bond.pledge_amount,
+            amount: mixnode_bond.pledge_amount(),
         };
 
         let track_unbond_message = wasm_execute(proxy, &msg, coins(0, DENOM))?;
         response = response.add_message(track_unbond_message);
     }
 
-    Ok(response)
+    Ok(response.add_event(new_mixnode_unbonding_event(
+        &owner,
+        &proxy,
+        &mixnode_bond.pledge_amount,
+        mixnode_bond.identity(),
+    )))
+}
+
+pub(crate) fn try_update_mixnode_config(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    profit_margin_percent: u8,
+) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(info.sender.as_ref())?;
+    let mix_identity = storage::mixnodes()
+        .idx
+        .owner
+        .item(deps.storage, owner.clone())?
+        .ok_or(ContractError::NoAssociatedMixNodeBond { owner })?
+        .1
+        .identity()
+        .clone();
+
+    // We don't have to check lower bound as its an u8
+    if profit_margin_percent > 100 {
+        return Err(ContractError::InvalidProfitMarginPercent(
+            profit_margin_percent,
+        ));
+    }
+
+    storage::mixnodes().update(deps.storage, &mix_identity, |mixnode_bond_opt| {
+        mixnode_bond_opt
+            .map(|mut mixnode_bond| {
+                mixnode_bond.mix_node.profit_margin_percent = profit_margin_percent;
+                mixnode_bond.block_height = env.block.height;
+                mixnode_bond
+            })
+            .ok_or(ContractError::NoBondFound)
+    })?;
+
+    Ok(Response::new())
 }
 
 fn validate_mixnode_pledge(
@@ -239,15 +283,15 @@ pub mod tests {
     use crate::contract::{execute, query, INITIAL_MIXNODE_PLEDGE};
     use crate::error::ContractError;
     use crate::mixnodes::transactions::validate_mixnode_pledge;
+    use crate::support::tests;
     use crate::support::tests::test_helpers;
     use config::defaults::DENOM;
-    use cosmwasm_std::attr;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, BankMsg, Response};
     use cosmwasm_std::{from_binary, Addr, Uint128};
-    use mixnet_contract::Layer;
-    use mixnet_contract::MixNode;
-    use mixnet_contract::{ExecuteMsg, LayerDistribution, PagedMixnodeResponse, QueryMsg};
+    use mixnet_contract_common::{
+        ExecuteMsg, Layer, LayerDistribution, MixNode, PagedMixnodeResponse, QueryMsg,
+    };
 
     #[test]
     fn mixnode_add() {
@@ -256,7 +300,7 @@ pub mod tests {
         // if we don't send enough funds
         let insufficient_bond = Into::<u128>::into(INITIAL_MIXNODE_PLEDGE) - 1;
         let info = mock_info("anyone", &coins(insufficient_bond, DENOM));
-        let (msg, _) = test_helpers::valid_bond_mixnode_msg("anyone");
+        let (msg, _) = tests::messages::valid_bond_mixnode_msg("anyone");
 
         // we are informed that we didn't send enough funds
         let result = execute(deps.as_mut(), mock_env(), info, msg);
@@ -282,8 +326,8 @@ pub mod tests {
         assert_eq!(0, page.nodes.len());
 
         // if we send enough funds
-        let info = mock_info("anyone", &test_helpers::good_mixnode_bond());
-        let (msg, identity) = test_helpers::valid_bond_mixnode_msg("anyone");
+        let info = mock_info("anyone", &tests::fixtures::good_mixnode_pledge());
+        let (msg, identity) = tests::messages::valid_bond_mixnode_msg("anyone");
 
         // we get back a message telling us everything was OK
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
@@ -304,18 +348,18 @@ pub mod tests {
         assert_eq!(
             &MixNode {
                 identity_key: identity,
-                ..test_helpers::mix_node_fixture()
+                ..tests::fixtures::mix_node_fixture()
             },
             page.nodes[0].mix_node()
         );
 
         // if there was already a mixnode bonded by particular user
-        let info = mock_info("foomper", &test_helpers::good_mixnode_bond());
-        let (msg, _) = test_helpers::valid_bond_mixnode_msg("foomper");
+        let info = mock_info("foomper", &tests::fixtures::good_mixnode_pledge());
+        let (msg, _) = tests::messages::valid_bond_mixnode_msg("foomper");
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        let info = mock_info("foomper", &test_helpers::good_mixnode_bond());
-        let (msg, _) = test_helpers::valid_bond_mixnode_msg("foomper");
+        let info = mock_info("foomper", &tests::fixtures::good_mixnode_pledge());
+        let (msg, _) = tests::messages::valid_bond_mixnode_msg("foomper");
 
         // it fails
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
@@ -324,12 +368,12 @@ pub mod tests {
         // bonding fails if the user already owns a gateway
         test_helpers::add_gateway(
             "gateway-owner",
-            test_helpers::good_gateway_bond(),
+            tests::fixtures::good_gateway_pledge(),
             deps.as_mut(),
         );
 
-        let info = mock_info("gateway-owner", &test_helpers::good_mixnode_bond());
-        let (msg, _) = test_helpers::valid_bond_mixnode_msg("gateway-owner");
+        let info = mock_info("gateway-owner", &tests::fixtures::good_mixnode_pledge());
+        let (msg, _) = tests::messages::valid_bond_mixnode_msg("gateway-owner");
 
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
         assert_eq!(execute_response, Err(ContractError::AlreadyOwnsGateway));
@@ -339,8 +383,8 @@ pub mod tests {
         let msg = ExecuteMsg::UnbondGateway {};
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        let info = mock_info("gateway-owner", &test_helpers::good_mixnode_bond());
-        let (msg, _) = test_helpers::valid_bond_mixnode_msg("gateway-owner");
+        let info = mock_info("gateway-owner", &tests::fixtures::good_mixnode_pledge());
+        let (msg, _) = tests::messages::valid_bond_mixnode_msg("gateway-owner");
 
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
         assert!(execute_response.is_ok());
@@ -350,10 +394,10 @@ pub mod tests {
     }
 
     #[test]
-    fn adding_mixnode_without_existing_owner() {
+    fn adding_mixnode_without_existing_owner_succeeds() {
         let mut deps = test_helpers::init_contract();
 
-        let info = mock_info("mix-owner", &test_helpers::good_mixnode_bond());
+        let info = mock_info("mix-owner", &tests::fixtures::good_mixnode_pledge());
 
         // before the execution the node had no associated owner
         assert!(storage::mixnodes()
@@ -363,7 +407,7 @@ pub mod tests {
             .unwrap()
             .is_none());
 
-        let (msg, identity) = test_helpers::valid_bond_mixnode_msg("mix-owner");
+        let (msg, identity) = tests::messages::valid_bond_mixnode_msg("mix-owner");
 
         // it's all fine, owner is saved
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
@@ -383,21 +427,24 @@ pub mod tests {
     }
 
     #[test]
-    fn adding_mixnode_with_existing_owner() {
+    fn adding_mixnode_with_existing_owner_fails() {
         let mut deps = test_helpers::init_contract();
 
         let identity = test_helpers::add_mixnode(
             "mix-owner",
-            test_helpers::good_mixnode_bond(),
+            tests::fixtures::good_mixnode_pledge(),
             deps.as_mut(),
         );
 
         // request fails giving the existing owner address in the message
-        let info = mock_info("mix-owner-pretender", &test_helpers::good_mixnode_bond());
+        let info = mock_info(
+            "mix-owner-pretender",
+            &tests::fixtures::good_mixnode_pledge(),
+        );
         let msg = ExecuteMsg::BondMixnode {
             mix_node: MixNode {
                 identity_key: identity,
-                ..test_helpers::mix_node_fixture()
+                ..tests::fixtures::mix_node_fixture()
             },
             owner_signature: "foomp".to_string(),
         };
@@ -412,17 +459,17 @@ pub mod tests {
     }
 
     #[test]
-    fn adding_mixnode_with_existing_unchanged_owner() {
+    fn adding_mixnode_with_existing_unchanged_owner_fails() {
         let mut deps = test_helpers::init_contract();
 
         test_helpers::add_mixnode(
             "mix-owner",
-            test_helpers::good_mixnode_bond(),
+            tests::fixtures::good_mixnode_pledge(),
             deps.as_mut(),
         );
 
-        let info = mock_info("mix-owner", &test_helpers::good_mixnode_bond());
-        let (msg, _) = test_helpers::valid_bond_mixnode_msg("mix-owner");
+        let info = mock_info("mix-owner", &tests::fixtures::good_mixnode_pledge());
+        let (msg, _) = tests::messages::valid_bond_mixnode_msg("mix-owner");
 
         let res = execute(deps.as_mut(), mock_env(), info, msg);
         assert_eq!(Err(ContractError::AlreadyOwnsMixnode), res);
@@ -437,7 +484,11 @@ pub mod tests {
             mixnet_params_storage::LAYERS.load(&deps.storage).unwrap(),
         );
 
-        test_helpers::add_mixnode("mix1", test_helpers::good_mixnode_bond(), deps.as_mut());
+        test_helpers::add_mixnode(
+            "mix1",
+            tests::fixtures::good_mixnode_pledge(),
+            deps.as_mut(),
+        );
 
         assert_eq!(
             LayerDistribution {
@@ -466,7 +517,7 @@ pub mod tests {
         );
 
         // let's add a node owned by bob
-        test_helpers::add_mixnode("bob", test_helpers::good_mixnode_bond(), deps.as_mut());
+        test_helpers::add_mixnode("bob", tests::fixtures::good_mixnode_pledge(), deps.as_mut());
 
         // attempt to un-register fred's node, which doesn't exist
         let info = mock_info("fred", &[]);
@@ -480,49 +531,46 @@ pub mod tests {
         );
 
         // bob's node is still there
-        let nodes = test_helpers::get_mix_nodes(&mut deps);
+        let nodes = tests::queries::get_mix_nodes(&mut deps);
         assert_eq!(1, nodes.len());
         assert_eq!("bob", nodes[0].owner().clone());
 
         // add a node owned by fred
-        let fred_identity =
-            test_helpers::add_mixnode("fred", test_helpers::good_mixnode_bond(), deps.as_mut());
+        let fred_identity = test_helpers::add_mixnode(
+            "fred",
+            tests::fixtures::good_mixnode_pledge(),
+            deps.as_mut(),
+        );
 
         // let's make sure we now have 2 nodes:
-        assert_eq!(2, test_helpers::get_mix_nodes(&mut deps).len());
+        assert_eq!(2, tests::queries::get_mix_nodes(&mut deps).len());
 
         // un-register fred's node
         let info = mock_info("fred", &[]);
         let msg = ExecuteMsg::UnbondMixnode {};
         let remove_fred = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
-        // we should see log messages come back showing an unbond message
-        let expected_attributes = vec![
-            attr("action", "unbond"),
-            attr(
-                "mixnode_bond",
-                format!(
-                    "amount: {}{}, owner: fred, identity: {}",
-                    INITIAL_MIXNODE_PLEDGE, DENOM, fred_identity
-                ),
-            ),
-        ];
-
         // we should see a funds transfer from the contract back to fred
         let expected_message = BankMsg::Send {
             to_address: String::from(info.sender),
-            amount: test_helpers::good_mixnode_bond(),
+            amount: tests::fixtures::good_mixnode_pledge(),
         };
 
         // run the executor and check that we got back the correct results
-        let expected = Response::new()
-            .add_attributes(expected_attributes)
-            .add_message(expected_message);
+        let expected_response =
+            Response::new()
+                .add_message(expected_message)
+                .add_event(new_mixnode_unbonding_event(
+                    &Addr::unchecked("fred"),
+                    &None,
+                    &tests::fixtures::good_gateway_pledge()[0],
+                    &fred_identity,
+                ));
 
-        assert_eq!(remove_fred, expected);
+        assert_eq!(expected_response, remove_fred);
 
         // only 1 node now exists, owned by bob:
-        let mix_node_bonds = test_helpers::get_mix_nodes(&mut deps);
+        let mix_node_bonds = tests::queries::get_mix_nodes(&mut deps);
         assert_eq!(1, mix_node_bonds.len());
         assert_eq!(&Addr::unchecked("bob"), mix_node_bonds[0].owner());
     }
@@ -531,8 +579,8 @@ pub mod tests {
     fn removing_mixnode_clears_ownership() {
         let mut deps = test_helpers::init_contract();
 
-        let info = mock_info("mix-owner", &test_helpers::good_mixnode_bond());
-        let (bond_msg, identity) = test_helpers::valid_bond_mixnode_msg("mix-owner");
+        let info = mock_info("mix-owner", &tests::fixtures::good_mixnode_pledge());
+        let (bond_msg, identity) = tests::messages::valid_bond_mixnode_msg("mix-owner");
         execute(deps.as_mut(), mock_env(), info, bond_msg.clone()).unwrap();
 
         assert_eq!(
@@ -560,7 +608,7 @@ pub mod tests {
             .is_none());
 
         // and since it's removed, it can be reclaimed
-        let info = mock_info("mix-owner", &test_helpers::good_mixnode_bond());
+        let info = mock_info("mix-owner", &tests::fixtures::good_mixnode_pledge());
 
         assert!(execute(deps.as_mut(), mock_env(), info, bond_msg).is_ok());
         assert_eq!(
@@ -577,13 +625,84 @@ pub mod tests {
     }
 
     #[test]
+    fn updating_mixnode_config() {
+        let sender = "bob";
+        let mut deps = test_helpers::init_contract();
+        let info = mock_info(sender, &[]);
+
+        // try updating a non existing mixnode bond
+        let msg = ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent: 10,
+        };
+        let ret = execute(deps.as_mut(), mock_env(), info.clone(), msg);
+        assert_eq!(
+            ret,
+            Err(ContractError::NoAssociatedMixNodeBond {
+                owner: Addr::unchecked(sender)
+            })
+        );
+
+        test_helpers::add_mixnode(
+            sender,
+            tests::fixtures::good_mixnode_pledge(),
+            deps.as_mut(),
+        );
+
+        // check the initial profit margin is set to the fixture value
+        let fixture_profit_margin = tests::fixtures::mix_node_fixture().profit_margin_percent;
+        assert_eq!(
+            fixture_profit_margin,
+            storage::mixnodes()
+                .idx
+                .owner
+                .item(deps.as_ref().storage, Addr::unchecked("bob"))
+                .unwrap()
+                .unwrap()
+                .1
+                .mix_node
+                .profit_margin_percent
+        );
+
+        // try updating with an invalid value
+        let profit_margin_percent = 101;
+        let msg = ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        };
+        let ret = execute(deps.as_mut(), mock_env(), info.clone(), msg);
+        assert_eq!(
+            ret,
+            Err(ContractError::InvalidProfitMarginPercent(
+                profit_margin_percent
+            ))
+        );
+
+        let profit_margin_percent = fixture_profit_margin + 10;
+        let msg = ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        };
+        execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(
+            profit_margin_percent,
+            storage::mixnodes()
+                .idx
+                .owner
+                .item(deps.as_ref().storage, Addr::unchecked("bob"))
+                .unwrap()
+                .unwrap()
+                .1
+                .mix_node
+                .profit_margin_percent
+        );
+    }
+
+    #[test]
     fn validating_mixnode_bond() {
         // you must send SOME funds
         let result = validate_mixnode_pledge(Vec::new(), INITIAL_MIXNODE_PLEDGE);
         assert_eq!(result, Err(ContractError::NoBondFound));
 
         // you must send at least 100 coins...
-        let mut bond = test_helpers::good_mixnode_bond();
+        let mut bond = tests::fixtures::good_mixnode_pledge();
         bond[0].amount = INITIAL_MIXNODE_PLEDGE.checked_sub(Uint128::new(1)).unwrap();
         let result = validate_mixnode_pledge(bond.clone(), INITIAL_MIXNODE_PLEDGE);
         assert_eq!(
@@ -595,18 +714,18 @@ pub mod tests {
         );
 
         // more than that is still fine
-        let mut bond = test_helpers::good_mixnode_bond();
+        let mut bond = tests::fixtures::good_mixnode_pledge();
         bond[0].amount = INITIAL_MIXNODE_PLEDGE + Uint128::new(1);
         let result = validate_mixnode_pledge(bond.clone(), INITIAL_MIXNODE_PLEDGE);
         assert!(result.is_ok());
 
         // it must be sent in the defined denom!
-        let mut bond = test_helpers::good_mixnode_bond();
+        let mut bond = tests::fixtures::good_mixnode_pledge();
         bond[0].denom = "baddenom".to_string();
         let result = validate_mixnode_pledge(bond.clone(), INITIAL_MIXNODE_PLEDGE);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
 
-        let mut bond = test_helpers::good_mixnode_bond();
+        let mut bond = tests::fixtures::good_mixnode_pledge();
         bond[0].denom = "foomp".to_string();
         let result = validate_mixnode_pledge(bond.clone(), INITIAL_MIXNODE_PLEDGE);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
@@ -615,12 +734,15 @@ pub mod tests {
     #[test]
     fn choose_layer_mix_node() {
         let mut deps = test_helpers::init_contract();
-        let alice_identity =
-            test_helpers::add_mixnode("alice", test_helpers::good_mixnode_bond(), deps.as_mut());
+        let alice_identity = test_helpers::add_mixnode(
+            "alice",
+            tests::fixtures::good_mixnode_pledge(),
+            deps.as_mut(),
+        );
         let bob_identity =
-            test_helpers::add_mixnode("bob", test_helpers::good_mixnode_bond(), deps.as_mut());
+            test_helpers::add_mixnode("bob", tests::fixtures::good_mixnode_pledge(), deps.as_mut());
 
-        let bonded_mix_nodes = test_helpers::get_mix_nodes(&mut deps);
+        let bonded_mix_nodes = tests::queries::get_mix_nodes(&mut deps);
         let alice_node = bonded_mix_nodes
             .iter()
             .find(|m| m.owner == "alice")
@@ -635,6 +757,6 @@ pub mod tests {
         assert_eq!(alice_node.mix_node.identity_key, alice_identity);
         assert_eq!(alice_node.layer, Layer::One);
         assert_eq!(bob_node.mix_node.identity_key, bob_identity);
-        assert_eq!(bob_node.layer, mixnet_contract::Layer::Two);
+        assert_eq!(bob_node.layer, mixnet_contract_common::Layer::Two);
     }
 }

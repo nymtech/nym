@@ -7,6 +7,7 @@ import {
   createTheme,
   NymPaletteVariant,
 } from '@mui/material/styles'
+import { number } from 'yup'
 
 //-----------------------------------------------------------------------------------------------
 // Nym palette type definitions
@@ -22,7 +23,8 @@ const nymPalette: NymPalette = {
   /** emphasises important elements */
   highlight: '#FB6E4E',
   success: '#21D073',
-  info: '#967FF0',
+  info: '#60D7EF',
+  fee: '#967FF0',
   background: { light: '#F4F6F8', dark: '#121726' },
   text: {
     light: '#F2F2F2',
@@ -85,6 +87,9 @@ const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
   },
   success: {
     main: nymPalette.success,
+  },
+  info: {
+    main: nymPalette.info,
   },
   background: {
     default: variant.background.main,

@@ -1,6 +1,9 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::sign::load_identity_keys;
+use crate::commands::validate_bech32_address_or_exit;
+use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::http::{
     description::description,
@@ -14,7 +17,8 @@ use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::NodeStatsWrapper;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
-use crypto::asymmetric::{encryption, identity};
+use ::crypto::asymmetric::{encryption, identity};
+use config::NymConfig;
 use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use rand::seq::SliceRandom;
@@ -22,12 +26,10 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use tokio::runtime::Runtime;
 use version_checker::parse_version;
 
 pub(crate) mod http;
 mod listener;
-// mod metrics;
 pub(crate) mod node_description;
 pub(crate) mod node_statistics;
 pub(crate) mod packet_delayforwarder;
@@ -41,18 +43,82 @@ pub struct MixNode {
 }
 
 impl MixNode {
-    pub fn new(
-        config: Config,
-        descriptor: NodeDescription,
-        identity_keypair: identity::KeyPair,
-        sphinx_keypair: encryption::KeyPair,
-    ) -> Self {
+    pub fn new(config: Config) -> Self {
+        let pathfinder = MixNodePathfinder::new_from_config(&config);
+
         MixNode {
+            descriptor: Self::load_node_description(&config),
+            identity_keypair: Arc::new(Self::load_identity_keys(&pathfinder)),
+            sphinx_keypair: Arc::new(Self::load_sphinx_keys(&pathfinder)),
             config,
-            descriptor,
-            identity_keypair: Arc::new(identity_keypair),
-            sphinx_keypair: Arc::new(sphinx_keypair),
         }
+    }
+
+    fn load_node_description(config: &Config) -> NodeDescription {
+        NodeDescription::load_from_file(Config::default_config_directory(Some(&config.get_id())))
+            .unwrap_or_default()
+    }
+
+    /// Loads identity keys stored on disk
+    fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
+        let identity_keypair: identity::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_identity_key().to_owned(),
+                pathfinder.public_identity_key().to_owned(),
+            ))
+            .expect("Failed to read stored identity key files");
+        identity_keypair
+    }
+
+    /// Loads Sphinx keys stored on disk
+    fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
+        let sphinx_keypair: encryption::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_encryption_key().to_owned(),
+                pathfinder.public_encryption_key().to_owned(),
+            ))
+            .expect("Failed to read stored sphinx key files");
+        sphinx_keypair
+    }
+
+    /// Signs the node config's bech32 address to produce a verification code for use in the wallet.
+    /// Exits if the address isn't valid (which should protect against manual edits).
+    fn generate_owner_signature(&self) -> String {
+        let pathfinder = MixNodePathfinder::new_from_config(&self.config);
+        let identity_keypair = load_identity_keys(&pathfinder);
+        let address = self.config.get_wallet_address();
+        validate_bech32_address_or_exit(address);
+        let verification_code = identity_keypair.private_key().sign_text(address);
+        verification_code
+    }
+
+    /// Prints relevant node details to the console
+    pub(crate) fn print_node_details(&self) {
+        println!(
+            "Identity Key: {}",
+            self.identity_keypair.public_key().to_base58_string()
+        );
+        println!(
+            "Sphinx Key: {}",
+            self.sphinx_keypair.public_key().to_base58_string()
+        );
+        println!("Owner Signature: {}", self.generate_owner_signature());
+        println!(
+            "Host: {} (bind address: {})",
+            self.config.get_announce_address(),
+            self.config.get_listening_address()
+        );
+        println!("Version: {}", self.config.get_version());
+        println!(
+            "Mix Port: {}, Verloc port: {}, Http Port: {}\n",
+            self.config.get_mix_port(),
+            self.config.get_verloc_port(),
+            self.config.get_http_api_port()
+        );
+        println!(
+            "You are bonding to wallet address: {}\n\n",
+            self.config.get_wallet_address()
+        );
     }
 
     fn start_http_api(
@@ -211,33 +277,30 @@ impl MixNode {
         );
     }
 
-    pub fn run(&mut self) {
+    pub async fn run(&mut self) {
         info!("Starting nym mixnode");
 
-        let runtime = Runtime::new().unwrap();
-
-        runtime.block_on(async {
-            if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists().await {
-                if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
-                    warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it might result in slashing");
-                } else {
-                    log::error!(
-                        "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
-                        duplicate_node_key
-                    );
-                    return;
-                }
+        if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists().await {
+            if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
+                warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it might result in slashing");
+            } else {
+                log::error!(
+                    "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
+                    duplicate_node_key
+                );
+                return;
             }
+        }
 
-            let (node_stats_pointer, node_stats_update_sender) = self.start_node_stats_controller();
-            let delay_forwarding_channel = self.start_packet_delay_forwarder(node_stats_update_sender.clone());
-            self.start_socket_listener(node_stats_update_sender, delay_forwarding_channel);
+        let (node_stats_pointer, node_stats_update_sender) = self.start_node_stats_controller();
+        let delay_forwarding_channel =
+            self.start_packet_delay_forwarder(node_stats_update_sender.clone());
+        self.start_socket_listener(node_stats_update_sender, delay_forwarding_channel);
 
-            let atomic_verloc_results= self.start_verloc_measurements();
-            self.start_http_api(atomic_verloc_results, node_stats_pointer);
+        let atomic_verloc_results = self.start_verloc_measurements();
+        self.start_http_api(atomic_verloc_results, node_stats_pointer);
 
-            info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
-            self.wait_for_interrupt().await
-        });
+        info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
+        self.wait_for_interrupt().await
     }
 }

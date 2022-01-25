@@ -8,8 +8,13 @@ use crate::delegations::queries::query_mixnode_delegations_paged;
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
+use crate::interval::queries::{
+    query_current_interval, query_current_rewarded_set_height, query_rewarded_set,
+    query_rewarded_set_heights_for_interval, query_rewarded_set_refresh_minimum_blocks,
+    query_rewarded_set_update_details,
+};
+use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::models::ContractState;
-use crate::mixnet_contract_settings::queries::query_rewarding_interval;
 use crate::mixnet_contract_settings::queries::{
     query_contract_settings_params, query_contract_version,
 };
@@ -17,13 +22,17 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnodes_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
-use crate::rewards::queries::query_reward_pool;
-use crate::rewards::queries::{query_circulating_supply, query_rewarding_status};
+use crate::rewards::queries::{
+    query_circulating_supply, query_reward_pool, query_rewarding_status,
+};
 use crate::rewards::storage as rewards_storage;
+
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
-use mixnet_contract::{ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use mixnet_contract_common::{
+    ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
+};
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_PLEDGE: Uint128 = Uint128::new(100_000_000);
@@ -35,15 +44,13 @@ pub const INITIAL_MIXNODE_REWARDED_SET_SIZE: u32 = 200;
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
 pub const INITIAL_REWARD_POOL: u128 = 250_000_000_000_000;
-pub const EPOCH_REWARD_PERCENT: u8 = 2; // Used to calculate epoch reward pool
+pub const INTERVAL_REWARD_PERCENT: u8 = 2; // Used to calculate interval reward pool
 pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
 pub const DEFAULT_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 
-fn default_initial_state(
-    owner: Addr,
-    rewarding_validator_address: Addr,
-    env: Env,
-) -> ContractState {
+pub const REWARDED_SET_REFRESH_BLOCKS: u64 = 720; // with blocktime being approximately 5s, it should be roughly 1h
+
+fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> ContractState {
     ContractState {
         owner,
         rewarding_validator_address,
@@ -54,9 +61,6 @@ fn default_initial_state(
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
             active_set_work_factor: DEFAULT_ACTIVE_SET_WORK_FACTOR,
         },
-        rewarding_interval_starting_block: env.block.height,
-        latest_rewarding_interval_nonce: 0,
-        rewarding_in_progress: false,
     }
 }
 
@@ -73,11 +77,13 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
-    let state = default_initial_state(info.sender, rewarding_validator_address, env);
+    let state = default_initial_state(info.sender, rewarding_validator_address);
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
+    interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
+    interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Response::default())
 }
@@ -104,6 +110,14 @@ pub fn execute(
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, info)
         }
+        ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        } => crate::mixnodes::transactions::try_update_mixnode_config(
+            deps,
+            env,
+            info,
+            profit_margin_percent,
+        ),
         ExecuteMsg::BondGateway {
             gateway,
             owner_signature,
@@ -125,14 +139,14 @@ pub fn execute(
         ExecuteMsg::RewardMixnode {
             identity,
             params,
-            rewarding_interval_nonce,
+            interval_id,
         } => crate::rewards::transactions::try_reward_mixnode(
             deps,
             env,
             info,
             identity,
             params,
-            rewarding_interval_nonce,
+            interval_id,
         ),
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
@@ -144,29 +158,14 @@ pub fn execute(
                 mix_identity,
             )
         }
-        ExecuteMsg::BeginMixnodeRewarding {
-            rewarding_interval_nonce,
-        } => crate::rewards::transactions::try_begin_mixnode_rewarding(
-            deps,
-            env,
-            info,
-            rewarding_interval_nonce,
-        ),
-        ExecuteMsg::FinishMixnodeRewarding {
-            rewarding_interval_nonce,
-        } => crate::rewards::transactions::try_finish_mixnode_rewarding(
-            deps,
-            info,
-            rewarding_interval_nonce,
-        ),
         ExecuteMsg::RewardNextMixDelegators {
             mix_identity,
-            rewarding_interval_nonce,
+            interval_id,
         } => crate::rewards::transactions::try_reward_next_mixnode_delegators(
             deps,
             info,
             mix_identity,
-            rewarding_interval_nonce,
+            interval_id,
         ),
         ExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_identity,
@@ -217,11 +216,24 @@ pub fn execute(
         ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
             crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
         }
+        ExecuteMsg::WriteRewardedSet {
+            rewarded_set,
+            expected_active_set_size,
+        } => crate::interval::transactions::try_write_rewarded_set(
+            deps,
+            env,
+            info,
+            rewarded_set,
+            expected_active_set_size,
+        ),
+        ExecuteMsg::AdvanceCurrentInterval {} => {
+            crate::interval::transactions::try_advance_interval(env, deps.storage)
+        }
     }
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetContractVersion {} => to_binary(&query_contract_version()),
         QueryMsg::GetMixNodes { start_after, limit } => {
@@ -235,7 +247,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         }
         QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
         QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)?),
-        QueryMsg::CurrentRewardingInterval {} => to_binary(&query_rewarding_interval(deps)?),
         QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)?),
         QueryMsg::GetMixnodeDelegations {
             mix_identity,
@@ -266,41 +277,95 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         } => to_binary(&query_mixnode_delegation(deps, mix_identity, delegator)?),
         QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
         QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
-        QueryMsg::GetEpochRewardPercent {} => to_binary(&EPOCH_REWARD_PERCENT),
+        QueryMsg::GetIntervalRewardPercent {} => to_binary(&INTERVAL_REWARD_PERCENT),
         QueryMsg::GetSybilResistancePercent {} => to_binary(&DEFAULT_SYBIL_RESISTANCE_PERCENT),
         QueryMsg::GetRewardingStatus {
             mix_identity,
-            rewarding_interval_nonce,
-        } => to_binary(&query_rewarding_status(
-            deps,
-            mix_identity,
-            rewarding_interval_nonce,
+            interval_id,
+        } => to_binary(&query_rewarding_status(deps, mix_identity, interval_id)?),
+        QueryMsg::GetRewardedSet {
+            height,
+            start_after,
+            limit,
+        } => to_binary(&query_rewarded_set(
+            deps.storage,
+            height,
+            start_after,
+            limit,
         )?),
+        QueryMsg::GetRewardedSetHeightsForInterval { interval_id } => to_binary(
+            &query_rewarded_set_heights_for_interval(deps.storage, interval_id)?,
+        ),
+        QueryMsg::GetRewardedSetUpdateDetails {} => {
+            to_binary(&query_rewarded_set_update_details(env, deps.storage)?)
+        }
+        QueryMsg::GetCurrentRewardedSetHeight {} => {
+            to_binary(&query_current_rewarded_set_height(deps.storage)?)
+        }
+        QueryMsg::GetCurrentInterval {} => to_binary(&query_current_interval(deps.storage)?),
+        QueryMsg::GetRewardedSetRefreshBlocks {} => {
+            to_binary(&query_rewarded_set_refresh_minimum_blocks())
+        }
     };
 
     Ok(query_res?)
 }
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    todo!("ACTIVE_STATE_WORK_FACTOR to State");
-    // Ok(Default::default())
+pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    use cw_storage_plus::Item;
+    use serde::{Deserialize, Serialize};
+
+    // needed migration:
+    /*
+       1. removal of rewarding_interval_starting_block field from ContractState
+       2. removal of latest_rewarding_interval_nonce field from ContractState
+       3. removal of rewarding_in_progress field from ContractState
+       4. interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
+       5. interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
+    */
+
+    #[derive(Serialize, Deserialize)]
+    struct OldContractState {
+        pub owner: Addr, // only the owner account can update state
+        pub rewarding_validator_address: Addr,
+        pub params: ContractStateParams,
+        pub rewarding_interval_starting_block: u64,
+        pub latest_rewarding_interval_nonce: u32,
+        pub rewarding_in_progress: bool,
+    }
+
+    let old_contract_state: Item<OldContractState> = Item::new("config");
+
+    let old_state = old_contract_state.load(deps.storage)?;
+    let new_state = crate::mixnet_contract_settings::models::ContractState {
+        owner: old_state.owner,
+        rewarding_validator_address: old_state.rewarding_validator_address,
+        params: old_state.params,
+    };
+
+    mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &new_state)?;
+
+    interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
+    interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
+
+    Ok(Default::default())
 }
 
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::support::tests::test_helpers;
+    use crate::support::tests;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
-    use mixnet_contract::PagedMixnodeResponse;
+    use mixnet_contract_common::PagedMixnodeResponse;
 
     #[test]
     fn initialize_contract() {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let msg = InstantiateMsg {
-            rewarding_validator_address: config::defaults::REWARDING_VALIDATOR_ADDRESS.to_string(),
+            rewarding_validator_address: config::defaults::DEFAULT_REWARDING_VALIDATOR.to_string(),
         };
         let info = mock_info("creator", &[]);
 
@@ -323,7 +388,7 @@ pub mod tests {
         // Contract balance should match what we initialized it as
         assert_eq!(
             coins(0, DENOM),
-            test_helpers::query_contract_balance(env.contract.address, deps)
+            tests::queries::query_contract_balance(env.contract.address, deps)
         );
     }
 }

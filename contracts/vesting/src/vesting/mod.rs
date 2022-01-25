@@ -36,35 +36,129 @@ pub fn populate_vesting_periods(start_time: u64, n: usize) -> Vec<VestingPeriod>
 
 #[cfg(test)]
 mod tests {
-    use crate::contract::{NUM_VESTING_PERIODS, VESTING_PERIOD};
+    use crate::contract::{execute, ADMIN_ADDRESS, NUM_VESTING_PERIODS, VESTING_PERIOD};
+    use crate::messages::ExecuteMsg;
     use crate::storage::load_account;
     use crate::support::tests::helpers::{init_contract, vesting_account_fixture};
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
     use config::defaults::DENOM;
-    use cosmwasm_std::testing::mock_env;
-    use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
-    use mixnet_contract::{Gateway, MixNode};
+    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::{coins, Addr, Coin, Timestamp, Uint128};
+    use mixnet_contract_common::{Gateway, MixNode};
 
     #[test]
     fn test_account_creation() {
         let mut deps = init_contract();
         let env = mock_env();
-        let account = vesting_account_fixture(&mut deps.storage, &env);
-        let created_account = load_account(&account.address(), &deps.storage).unwrap();
-        let created_account_test =
-            load_account(&Addr::unchecked("fixture"), &deps.storage).unwrap();
-        assert_eq!(Some(&account), created_account.as_ref());
-        assert_eq!(Some(&account), created_account_test.as_ref());
+        let info = mock_info("not_admin", &coins(1_000_000_000_000, DENOM));
+        let msg = ExecuteMsg::CreateAccount {
+            owner_address: "owner".to_string(),
+            staking_address: Some("staking".to_string()),
+            start_time: None,
+        };
+        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        assert!(response.is_err());
+
+        let info = mock_info(ADMIN_ADDRESS, &coins(1_000_000_000_000, DENOM));
+        let _response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        let created_account = load_account(&Addr::unchecked("owner"), &deps.storage)
+            .unwrap()
+            .unwrap();
+        let created_account_test_by_staking =
+            load_account(&Addr::unchecked("staking"), &deps.storage)
+                .unwrap()
+                .unwrap();
+        assert_eq!(created_account_test_by_staking, created_account);
         assert_eq!(
-            account.load_balance(&deps.storage).unwrap(),
+            created_account.load_balance(&deps.storage).unwrap(),
             Uint128::new(1_000_000_000_000)
         );
+        // Test key collision avoidance
+
+        let account_again = vesting_account_fixture(&mut deps.storage, &env);
+        assert_eq!(created_account.balance_key(), "1ba".to_string());
+        assert_ne!(created_account.balance_key(), account_again.balance_key());
+    }
+
+    #[test]
+    fn test_ownership_transfer() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+        let info = mock_info("owner", &[]);
+        let account = vesting_account_fixture(&mut deps.storage, &env);
+        let msg = ExecuteMsg::TransferOwnership {
+            to_address: "new_owner".to_string(),
+        };
+        let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+        let new_owner_account = load_account(&Addr::unchecked("new_owner"), &deps.storage)
+            .unwrap()
+            .unwrap();
         assert_eq!(
-            account.load_balance(&deps.storage).unwrap(),
-            Uint128::new(1_000_000_000_000)
-        )
+            new_owner_account.load_balance(&deps.storage),
+            account.load_balance(&deps.storage)
+        );
+
+        // Check old account is gone
+        let old_owner_account = load_account(&Addr::unchecked("owner"), &deps.storage).unwrap();
+        assert!(old_owner_account.is_none());
+
+        // Not the owner
+        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg);
+        assert!(response.is_err());
+
+        let info = mock_info("new_owner", &[]);
+        let msg = ExecuteMsg::UpdateStakingAddress {
+            to_address: Some("new_staking".to_string()),
+        };
+        let _response = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+        let new_staking_account = load_account(&Addr::unchecked("new_staking"), &deps.storage)
+            .unwrap()
+            .unwrap();
+        assert_eq!(new_staking_account.owner_address(), "new_owner".to_string());
+
+        let old_staking_account = load_account(&Addr::unchecked("staking"), &deps.storage).unwrap();
+        assert!(old_staking_account.is_none());
+
+        let msg = ExecuteMsg::WithdrawVestedCoins {
+            amount: Coin {
+                amount: Uint128::new(1),
+                denom: DENOM.to_string(),
+            },
+        };
+        let info = mock_info("new_owner", &[]);
+        env.block.time = Timestamp::from_nanos(env.block.time.nanos() + 100_000_000_000_000_000);
+        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        assert!(response.is_ok());
+
+        let info = mock_info("owner", &[]);
+        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        assert!(response.is_err());
+    }
+
+    #[test]
+    fn test_staking_account() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+        let info = mock_info("staking", &[]);
+        let msg = ExecuteMsg::TransferOwnership {
+            to_address: "new_owner".to_string(),
+        };
+        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+        // Only owner can transfer
+        assert!(response.is_err());
+
+        let msg = ExecuteMsg::WithdrawVestedCoins {
+            amount: Coin {
+                amount: Uint128::new(1),
+                denom: "nym".to_string(),
+            },
+        };
+        env.block.time = Timestamp::from_nanos(env.block.time.nanos() + 100_000_000_000_000_000);
+        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        // Only owner can withdraw
+        assert!(response.is_err());
     }
 
     #[test]

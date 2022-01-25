@@ -186,7 +186,7 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
     if (isChild) {
       setDynamicStyle({
         background: palette.nym.networkExplorer.nav.selected.nested,
-        fontWeight: 800,
+        fontWeight: 600,
       });
     }
     if (!nested && !isChild) {
@@ -239,7 +239,7 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
             }}
             primaryTypographyProps={{
               style: {
-                fontWeight: isActive ? 800 : 300,
+                fontWeight: isActive ? 600 : 400,
               },
             }}
           />
@@ -314,6 +314,7 @@ export const Nav: React.FC = ({ children }) => {
       <AppBar
         sx={{
           background: theme.palette.nym.networkExplorer.topNav.appBar,
+          borderRadius: 0,
         }}
       >
         <Toolbar
@@ -329,7 +330,6 @@ export const Nav: React.FC = ({ children }) => {
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              width: 205,
               ml: 0.5,
             }}
           >
@@ -342,7 +342,7 @@ export const Nav: React.FC = ({ children }) => {
               sx={{
                 color: theme.palette.nym.networkExplorer.nav.text,
                 fontSize: '18px',
-                fontWeight: 800,
+                fontWeight: 600,
               }}
             >
               <MuiLink
@@ -385,6 +385,7 @@ export const Nav: React.FC = ({ children }) => {
         PaperProps={{
           style: {
             background: theme.palette.nym.networkExplorer.nav.background,
+            borderRadius: 0,
           },
         }}
       >
@@ -427,7 +428,7 @@ export const Nav: React.FC = ({ children }) => {
           ))}
         </List>
       </Drawer>
-      <Box sx={{ width: '100%', p: 4, mt: 7 }}>
+      <Box sx={{ width: '100%', py: 5, px: 6, mt: 7 }}>
         {children}
         <Footer />
       </Box>

@@ -4,16 +4,19 @@ use std::time::Duration;
 
 use rocket::serde::json::Json;
 use rocket::{Route, State};
+use rocket_okapi::okapi::openapi3::OpenApi;
+use rocket_okapi::openapi_get_routes_spec;
+use rocket_okapi::settings::OpenApiSettings;
 
-use mixnet_contract::MixNodeBond;
+use mixnet_contract_common::MixNodeBond;
 
 use crate::ping::models::PingResponse;
 use crate::state::ExplorerApiStateContext;
 
 const CONNECTION_TIMEOUT_SECONDS: Duration = Duration::from_secs(10);
 
-pub fn ping_make_default_routes() -> Vec<Route> {
-    routes_with_openapi![index]
+pub fn ping_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
+    openapi_get_routes_spec![settings: index]
 }
 
 #[openapi(tag = "ping")]
@@ -22,7 +25,7 @@ pub(crate) async fn index(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<PingResponse>> {
-    match state.inner.ping_cache.clone().get(pubkey).await {
+    match state.inner.ping.clone().get(pubkey).await {
         Some(cache_value) => {
             trace!("Returning cached value for {}", pubkey);
             Some(Json(PingResponse {
@@ -36,7 +39,7 @@ pub(crate) async fn index(
             match state.inner.get_mix_node(pubkey).await {
                 Some(bond) => {
                     // set status to pending, so that any HTTP requests are pending
-                    state.inner.ping_cache.set_pending(pubkey).await;
+                    state.inner.ping.set_pending(pubkey).await;
 
                     // do the check
                     let ports = Some(port_check(&bond).await);
@@ -48,7 +51,7 @@ pub(crate) async fn index(
 
                     // cache for 1 min
                     trace!("Caching value for {}", pubkey);
-                    state.inner.ping_cache.set(pubkey, response.clone()).await;
+                    state.inner.ping.set(pubkey, response.clone()).await;
 
                     // return response
                     Some(Json(response))

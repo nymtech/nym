@@ -4,7 +4,7 @@
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Map, UniqueIndex};
-use mixnet_contract::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond};
+use mixnet_contract_common::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -49,7 +49,6 @@ pub(crate) struct StoredMixnodeBond {
     pub layer: Layer,
     pub block_height: u64,
     pub mix_node: MixNode,
-    pub profit_margin_percent: Option<u8>,
     pub proxy: Option<Addr>,
 }
 
@@ -60,7 +59,6 @@ impl StoredMixnodeBond {
         layer: Layer,
         block_height: u64,
         mix_node: MixNode,
-        profit_margin_percent: Option<u8>,
         proxy: Option<Addr>,
     ) -> Self {
         StoredMixnodeBond {
@@ -69,7 +67,6 @@ impl StoredMixnodeBond {
             layer,
             block_height,
             mix_node,
-            profit_margin_percent,
             proxy,
         }
     }
@@ -137,18 +134,17 @@ pub(crate) fn read_full_mixnode_bond(
 mod tests {
     use super::super::storage;
     use super::*;
-    use crate::support::tests::test_helpers;
+    use crate::support::tests;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::{coin, Addr, Uint128};
-    use mixnet_contract::IdentityKey;
-    use mixnet_contract::MixNode;
+    use mixnet_contract_common::{IdentityKey, MixNode};
 
     #[test]
     fn mixnode_single_read_retrieval() {
         let mut storage = MockStorage::new();
-        let bond1 = test_helpers::stored_mixnode_bond_fixture("owner1");
-        let bond2 = test_helpers::stored_mixnode_bond_fixture("owner2");
+        let bond1 = tests::fixtures::stored_mixnode_bond_fixture("owner1");
+        let bond2 = tests::fixtures::stored_mixnode_bond_fixture("owner2");
         mixnodes().save(&mut storage, "bond1", &bond1).unwrap();
         mixnodes().save(&mut storage, "bond2", &bond2).unwrap();
 
@@ -173,14 +169,13 @@ mod tests {
 
         let mixnode_bond = StoredMixnodeBond {
             pledge_amount: coin(pledge_value, DENOM),
-            owner: node_owner.clone(),
+            owner: node_owner,
             layer: Layer::One,
             block_height: 12_345,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
-                ..test_helpers::mix_node_fixture()
+                ..tests::fixtures::mix_node_fixture()
             },
-            profit_margin_percent: None,
             proxy: None,
         };
 

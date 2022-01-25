@@ -25,7 +25,7 @@ crypto = { path = "../crypto" }
 topology = { path = "../topology" }
 
 [dev-dependencies]
-mixnet-contract = { path = "../mixnet-contract" }
+mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 
 # do not include this when compiling into wasm as it somehow when combined together with reqwest, it will require
 # net2 via tokio-util -> tokio -> mio -> net2

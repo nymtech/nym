@@ -100,6 +100,7 @@ struct FreshGatewayClientData {
     // get things running we're re-using the same credential for all gateways all the time.
     // THIS IS VERY BAD!!
     bandwidth_controller: BandwidthController,
+    testnet_mode: bool,
 }
 
 impl FreshGatewayClientData {
@@ -148,6 +149,9 @@ pub(crate) struct PacketSender {
 }
 
 impl PacketSender {
+    // at this point I'm not entirely sure how to deal with this warning without
+    // some considerable refactoring
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         gateways_status_updater: GatewayClientUpdateSender,
         local_identity: Arc<identity::KeyPair>,
@@ -156,6 +160,7 @@ impl PacketSender {
         max_concurrent_clients: usize,
         max_sending_rate: usize,
         bandwidth_controller: BandwidthController,
+        testnet_mode: bool,
     ) -> Self {
         PacketSender {
             active_gateway_clients: ActiveGatewayClients::new(),
@@ -164,6 +169,7 @@ impl PacketSender {
                 local_identity,
                 gateway_response_timeout,
                 bandwidth_controller,
+                testnet_mode,
             }),
             gateway_connection_timeout,
             max_concurrent_clients,
@@ -199,18 +205,24 @@ impl PacketSender {
         // currently we do not care about acks at all, but we must keep the channel alive
         // so that the gateway client would not crash
         let (ack_sender, ack_receiver) = mpsc::unbounded();
+        let mut gateway_client = GatewayClient::new(
+            address,
+            Arc::clone(&fresh_gateway_client_data.local_identity),
+            identity,
+            owner,
+            None,
+            message_sender,
+            ack_sender,
+            fresh_gateway_client_data.gateway_response_timeout,
+            Some(fresh_gateway_client_data.bandwidth_controller.clone()),
+        );
+
+        if fresh_gateway_client_data.testnet_mode {
+            gateway_client.set_testnet_mode(true)
+        }
+
         (
-            GatewayClientHandle::new(GatewayClient::new(
-                address,
-                Arc::clone(&fresh_gateway_client_data.local_identity),
-                identity,
-                owner,
-                None,
-                message_sender,
-                ack_sender,
-                fresh_gateway_client_data.gateway_response_timeout,
-                Some(fresh_gateway_client_data.bandwidth_controller.clone()),
-            )),
+            GatewayClientHandle::new(gateway_client),
             (message_receiver, ack_receiver),
         )
     }

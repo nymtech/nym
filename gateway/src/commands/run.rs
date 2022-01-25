@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::*;
-use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
 use crate::node::Gateway;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::asymmetric::{encryption, identity};
 use log::*;
-use version_checker::is_minor_version_compatible;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     let app = App::new("run")
@@ -57,6 +54,11 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .long(VALIDATOR_APIS_ARG_NAME)
                 .help("Comma separated list of endpoints of the validators APIs")
                 .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(TESTNET_MODE_ARG_NAME)
+                .long(TESTNET_MODE_ARG_NAME)
+                .help("Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement")
         );
 
     #[cfg(not(feature = "coconut"))]
@@ -92,51 +94,6 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-fn load_sphinx_keys(pathfinder: &GatewayPathfinder) -> encryption::KeyPair {
-    let sphinx_keypair: encryption::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
-        pathfinder.private_encryption_key().to_owned(),
-        pathfinder.public_encryption_key().to_owned(),
-    ))
-    .expect("Failed to read stored sphinx key files");
-    println!(
-        "Public sphinx key: {}\n",
-        sphinx_keypair.public_key().to_base58_string()
-    );
-    sphinx_keypair
-}
-
-fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
-    let identity_keypair: identity::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
-        pathfinder.private_identity_key().to_owned(),
-        pathfinder.public_identity_key().to_owned(),
-    ))
-    .expect("Failed to read stored identity key files");
-    println!(
-        "Public identity key: {}\n",
-        identity_keypair.public_key().to_base58_string()
-    );
-    identity_keypair
-}
-
-// this only checks compatibility between config the binary. It does not take into consideration
-// network version. It might do so in the future.
-fn version_check(cfg: &Config) -> bool {
-    let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = cfg.get_version();
-    if binary_version != config_version {
-        warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
-        if is_minor_version_compatible(binary_version, config_version) {
-            info!("but they are still semver compatible. However, consider running the `upgrade` command");
-            true
-        } else {
-            error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
-            false
-        }
-    } else {
-        true
-    }
-}
-
 pub async fn execute(matches: ArgMatches<'static>) {
     let id = matches.value_of(ID_ARG_NAME).unwrap();
 
@@ -157,32 +114,15 @@ pub async fn execute(matches: ArgMatches<'static>) {
         return;
     }
 
-    let pathfinder = GatewayPathfinder::new_from_config(&config);
-    let sphinx_keypair = load_sphinx_keys(&pathfinder);
-    let identity = load_identity_keys(&pathfinder);
-
     if special_addresses().contains(&&*config.get_listening_address().to_string()) {
         show_binding_warning(config.get_listening_address().to_string());
     }
 
+    let mut gateway = Gateway::new(config).await;
     println!(
-        "Validator API servers: {:?}",
-        config.get_validator_api_endpoints()
-    );
+        "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
+         Select the correct version and install it to your machine. You will need to provide the following: \n ");
+    gateway.print_node_details();
 
-    println!(
-        "Listening for incoming packets on {}",
-        config.get_listening_address()
-    );
-    println!(
-        "Announcing the following address: {}",
-        config.get_announce_address()
-    );
-
-    println!("Data store is at: {:?}", config.get_persistent_store_path());
-
-    Gateway::new(config, sphinx_keypair, identity)
-        .await
-        .run()
-        .await;
+    gateway.run().await;
 }

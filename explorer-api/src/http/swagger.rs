@@ -1,12 +1,8 @@
-use rocket_okapi::swagger_ui::{SwaggerUIConfig, UrlObject};
+use rocket_okapi::swagger_ui::SwaggerUIConfig;
 
 pub(crate) fn get_docs() -> SwaggerUIConfig {
     SwaggerUIConfig {
-        urls: vec![
-            UrlObject::new("Country statistics", "/countries/openapi.json"),
-            UrlObject::new("Node ping", "/ping/openapi.json"),
-            UrlObject::new("Mix node", "/mix-node/openapi.json"),
-        ],
+        url: "../v1/openapi.json".to_owned(),
         ..Default::default()
     }
 }

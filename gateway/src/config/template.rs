@@ -19,6 +19,10 @@ version = '{{ gateway.version }}'
 # Human readable ID of this particular gateway.
 id = '{{ gateway.id }}'
 
+# Indicates whether this gateway is running in a testnet mode, thus allowing clients
+# to claim bandwidth without presenting bandwidth credentials.
+testnet_mode = {{ gateway.testnet_mode }}
+
 # Socket address to which this gateway will bind to and will be listening for packets.
 listening_address = '{{ gateway.listening_address }}'
 
@@ -67,6 +71,9 @@ validator_nymd_urls = [
 ]
 
 cosmos_mnemonic = "{{ gateway.cosmos_mnemonic }}"
+
+# Nym wallet address on the blockchain that should control this gateway
+wallet_address = '{{ gateway.wallet_address }}'
 
 ##### advanced configuration options #####
 

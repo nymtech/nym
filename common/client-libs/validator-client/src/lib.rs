@@ -9,6 +9,7 @@ pub mod validator_api;
 
 pub use crate::client::ApiClient;
 pub use crate::error::ValidatorClientError;
+pub use validator_api_requests::*;
 
 #[cfg(feature = "nymd-client")]
 pub use client::{Client, Config};

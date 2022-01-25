@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod asymmetric;
+pub mod bech32_address_validation;
 pub mod crypto_hash;
 pub mod hkdf;
 pub mod hmac;

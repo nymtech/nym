@@ -71,6 +71,7 @@ impl InitialAuthenticationError {
 pub(crate) struct FreshHandler<R, S> {
     rng: R,
     local_identity: Arc<identity::KeyPair>,
+    pub(crate) testnet_mode: bool,
     pub(crate) active_clients_store: ActiveClientsStore,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
@@ -89,9 +90,13 @@ where
 {
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
+    // also at this point I'm not entirely sure how to deal with this warning without
+    // some considerable refactoring
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         rng: R,
         conn: S,
+        testnet_mode: bool,
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
         storage: PersistentStorage,
@@ -102,6 +107,7 @@ where
         FreshHandler {
             rng,
             active_clients_store,
+            testnet_mode,
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,
@@ -113,6 +119,7 @@ where
         }
     }
 
+    #[cfg(not(feature = "coconut"))]
     /// Check that the local identity matches a given identity.
     pub(crate) fn check_local_identity(
         &self,

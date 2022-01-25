@@ -21,7 +21,8 @@ pub mod helpers {
         let periods = populate_vesting_periods(start_time.seconds(), NUM_VESTING_PERIODS);
 
         Account::new(
-            Addr::unchecked("fixture"),
+            Addr::unchecked("owner"),
+            Some(Addr::unchecked("staking")),
             Coin {
                 amount: Uint128::new(1_000_000_000_000),
                 denom: DENOM.to_string(),

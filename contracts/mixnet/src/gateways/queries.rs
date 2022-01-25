@@ -5,7 +5,9 @@ use super::storage;
 use crate::mixnodes::storage::{BOND_PAGE_DEFAULT_LIMIT, BOND_PAGE_MAX_LIMIT}; // Keeps gateway and mixnode retrieval in sync by re-using the constant. Could be split into its own constant.
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
-use mixnet_contract::{GatewayBond, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse};
+use mixnet_contract_common::{
+    GatewayBond, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse,
+};
 
 pub(crate) fn query_gateways_paged(
     deps: Deps,
@@ -50,6 +52,7 @@ pub(crate) fn query_owns_gateway(
 pub(crate) mod tests {
     use super::*;
     use crate::contract::execute;
+    use crate::support::tests;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
 
@@ -66,7 +69,7 @@ pub(crate) mod tests {
         let limit = 2;
         for n in 0..1000 {
             let key = format!("bond{}", n);
-            test_helpers::add_gateway(&key, test_helpers::good_gateway_bond(), deps.as_mut());
+            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_pledge(), deps.as_mut());
         }
 
         let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
@@ -78,7 +81,7 @@ pub(crate) mod tests {
         let mut deps = test_helpers::init_contract();
         for n in 0..1000 {
             let key = format!("bond{}", n);
-            test_helpers::add_gateway(&key, test_helpers::good_gateway_bond(), deps.as_mut());
+            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_pledge(), deps.as_mut());
         }
 
         // query without explicitly setting a limit
@@ -92,7 +95,7 @@ pub(crate) mod tests {
         let mut deps = test_helpers::init_contract();
         for n in 0..1000 {
             let key = format!("bond{}", n);
-            test_helpers::add_gateway(&key, test_helpers::good_gateway_bond(), deps.as_mut());
+            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_pledge(), deps.as_mut());
         }
 
         // query with a crazily high limit in an attempt to use too many resources
@@ -111,7 +114,7 @@ pub(crate) mod tests {
         let mut exec_data = (0..4)
             .map(|i| {
                 let sender = format!("nym-addr{}", i);
-                let (msg, identity) = test_helpers::valid_bond_gateway_msg(&sender);
+                let (msg, identity) = tests::messages::valid_bond_gateway_msg(&sender);
                 (msg, (sender, identity))
             })
             .collect::<Vec<_>>();
@@ -122,7 +125,7 @@ pub(crate) mod tests {
 
         let info = mock_info(
             &sender_identities[0].0.clone(),
-            &test_helpers::good_gateway_bond(),
+            &tests::fixtures::good_gateway_pledge(),
         );
         execute(deps.as_mut(), mock_env(), info, messages[0].clone()).unwrap();
 
@@ -135,7 +138,7 @@ pub(crate) mod tests {
         // save another
         let info = mock_info(
             &sender_identities[1].0.clone(),
-            &test_helpers::good_gateway_bond(),
+            &tests::fixtures::good_gateway_pledge(),
         );
         execute(deps.as_mut(), mock_env(), info, messages[1].clone()).unwrap();
 
@@ -145,7 +148,7 @@ pub(crate) mod tests {
 
         let info = mock_info(
             &sender_identities[2].0.clone(),
-            &test_helpers::good_gateway_bond(),
+            &tests::fixtures::good_gateway_pledge(),
         );
         execute(deps.as_mut(), mock_env(), info, messages[2].clone()).unwrap();
 
@@ -167,7 +170,7 @@ pub(crate) mod tests {
         // save another one
         let info = mock_info(
             &sender_identities[3].0.clone(),
-            &test_helpers::good_gateway_bond(),
+            &tests::fixtures::good_gateway_pledge(),
         );
         execute(deps.as_mut(), mock_env(), info, messages[3].clone()).unwrap();
 
@@ -191,13 +194,17 @@ pub(crate) mod tests {
         assert!(res.gateway.is_none());
 
         // mixnode was added to "bob", "fred" still does not own one
-        test_helpers::add_gateway("bob", test_helpers::good_gateway_bond(), deps.as_mut());
+        test_helpers::add_gateway("bob", tests::fixtures::good_gateway_pledge(), deps.as_mut());
 
         let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.gateway.is_none());
 
         // "fred" now owns a gateway!
-        test_helpers::add_gateway("fred", test_helpers::good_gateway_bond(), deps.as_mut());
+        test_helpers::add_gateway(
+            "fred",
+            tests::fixtures::good_gateway_pledge(),
+            deps.as_mut(),
+        );
 
         let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.gateway.is_some());

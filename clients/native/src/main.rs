@@ -1,19 +1,21 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::{App, ArgMatches};
+use clap::{crate_version, App, ArgMatches};
 
 pub mod client;
 pub mod commands;
 pub mod websocket;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     dotenv::dotenv().ok();
     setup_logging();
     println!("{}", banner());
 
     let arg_matches = App::new("Nym Client")
-        .version(env!("CARGO_PKG_VERSION"))
+        .version(crate_version!())
+        .long_version(&*long_version())
         .author("Nymtech")
         .about("Implementation of the Nym Client")
         .subcommand(commands::init::command_args())
@@ -21,13 +23,13 @@ fn main() {
         .subcommand(commands::upgrade::command_args())
         .get_matches();
 
-    execute(arg_matches);
+    execute(arg_matches).await;
 }
 
-fn execute(matches: ArgMatches) {
+async fn execute(matches: ArgMatches<'static>) {
     match matches.subcommand() {
-        ("init", Some(m)) => commands::init::execute(m),
-        ("run", Some(m)) => commands::run::execute(m),
+        ("init", Some(m)) => commands::init::execute(m.clone()).await,
+        ("run", Some(m)) => commands::run::execute(m.clone()).await,
         ("upgrade", Some(m)) => commands::upgrade::execute(m),
         _ => println!("{}", usage()),
     }
@@ -50,7 +52,38 @@ fn banner() -> String {
              (client - version {:})
 
     "#,
-        env!("CARGO_PKG_VERSION")
+        crate_version!()
+    )
+}
+
+fn long_version() -> String {
+    format!(
+        r#"
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+"#,
+        "Build Timestamp:",
+        env!("VERGEN_BUILD_TIMESTAMP"),
+        "Build Version:",
+        env!("VERGEN_BUILD_SEMVER"),
+        "Commit SHA:",
+        env!("VERGEN_GIT_SHA"),
+        "Commit Date:",
+        env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
+        "Commit Branch:",
+        env!("VERGEN_GIT_BRANCH"),
+        "rustc Version:",
+        env!("VERGEN_RUSTC_SEMVER"),
+        "rustc Channel:",
+        env!("VERGEN_RUSTC_CHANNEL"),
+        "cargo Profile:",
+        env!("VERGEN_CARGO_PROFILE"),
     )
 }
 

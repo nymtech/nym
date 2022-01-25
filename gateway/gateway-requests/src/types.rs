@@ -118,11 +118,14 @@ pub enum ClientControlRequest {
         iv: String,
     },
     #[serde(alias = "handshakePayload")]
-    RegisterHandshakeInitRequest { data: Vec<u8> },
+    RegisterHandshakeInitRequest {
+        data: Vec<u8>,
+    },
     BandwidthCredential {
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     },
+    ClaimFreeTestnetBandwidth,
 }
 
 impl ClientControlRequest {

@@ -4,154 +4,109 @@
 use crate::commands::*;
 use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
-use clap::{App, Arg, ArgMatches};
+use crate::node::MixNode;
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
-use tokio::runtime::Runtime;
 
-pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
-    App::new("init")
-        .about("Initialise the mixnode")
-        .arg(
-            Arg::with_name(ID_ARG_NAME)
-                .long(ID_ARG_NAME)
-                .help("Id of the nym-mixnode we want to create config for.")
-                .takes_value(true)
-                .required(true),
-        )
-        .arg(
-            Arg::with_name(HOST_ARG_NAME)
-                .long(HOST_ARG_NAME)
-                .help("The host on which the mixnode will be running")
-                .takes_value(true)
-                .required(true),
-        )
-        .arg(
-            Arg::with_name(MIX_PORT_ARG_NAME)
-                .long(MIX_PORT_ARG_NAME)
-                .help("The port on which the mixnode will be listening for mix packets")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(VERLOC_PORT_ARG_NAME)
-                .long(VERLOC_PORT_ARG_NAME)
-                .help("The port on which the mixnode will be listening for verloc packets")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(HTTP_API_PORT_ARG_NAME)
-                .long(HTTP_API_PORT_ARG_NAME)
-                .help("The port on which the mixnode will be listening for http requests")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(ANNOUNCE_HOST_ARG_NAME)
-                .long(ANNOUNCE_HOST_ARG_NAME)
-                .help("The custom host that will be reported to the directory server")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(VALIDATORS_ARG_NAME)
-                .long(VALIDATORS_ARG_NAME)
-                .help("Comma separated list of rest endpoints of the validators")
-                .takes_value(true),
-        )
+#[derive(Args, Clone)]
+pub(crate) struct Init {
+    /// Initialise the mixnode
+    #[clap(long)]
+    id: String,
+
+    /// The host on which the mixnode will be running
+    #[clap(long)]
+    host: String,
+
+    /// The port on which the mixnode will be listening for mix packets
+    #[clap(long)]
+    mix_port: Option<u16>,
+
+    /// The port on which the mixnode will be listening for verloc packets
+    #[clap(long)]
+    verloc_port: Option<u16>,
+
+    /// The port on which the mixnode will be listening for http requests
+    #[clap(long)]
+    http_api_port: Option<u16>,
+
+    /// The custom host that will be reported to the directory server
+    #[clap(long)]
+    announce_host: Option<String>,
+
+    /// Comma separated list of rest endpoints of the validators
+    #[clap(long)]
+    validators: Option<String>,
+
+    /// The wallet address you will use to bond this mixnode, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
+    #[clap(long)]
+    wallet_address: Option<String>,
 }
 
-fn show_bonding_info(config: &Config) {
-    fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
-        let identity_keypair: identity::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+impl From<Init> for OverrideConfig {
+    fn from(init_config: Init) -> Self {
+        OverrideConfig {
+            id: init_config.id,
+            host: Some(init_config.host),
+            mix_port: init_config.mix_port,
+            verloc_port: init_config.verloc_port,
+            http_api_port: init_config.http_api_port,
+            announce_host: init_config.announce_host,
+            validators: init_config.validators,
+            wallet_address: init_config.wallet_address,
+        }
+    }
+}
+
+pub(crate) async fn execute(args: &Init) {
+    let override_config_fields = OverrideConfig::from(args.clone());
+    let id = &override_config_fields.id;
+    println!("Initialising mixnode {}...", id);
+
+    let already_init = if Config::default_config_file_path(Some(id)).exists() {
+        println!("Mixnode \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
+        true
+    } else {
+        false
+    };
+
+    let mut config = Config::new(id);
+    config = override_config(config, override_config_fields);
+
+    // if node was already initialised, don't generate new keys
+    if !already_init {
+        let mut rng = rand::rngs::OsRng;
+
+        let identity_keys = identity::KeyPair::new(&mut rng);
+        let sphinx_keys = encryption::KeyPair::new(&mut rng);
+        let pathfinder = MixNodePathfinder::new_from_config(&config);
+        pemstore::store_keypair(
+            &identity_keys,
+            &pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
                 pathfinder.public_identity_key().to_owned(),
-            ))
-            .expect("Failed to read stored identity key files");
-        identity_keypair
-    }
+            ),
+        )
+        .expect("Failed to save identity keys");
 
-    fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
-        let sphinx_keypair: encryption::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+        pemstore::store_keypair(
+            &sphinx_keys,
+            &pemstore::KeyPairPath::new(
                 pathfinder.private_encryption_key().to_owned(),
                 pathfinder.public_encryption_key().to_owned(),
-            ))
-            .expect("Failed to read stored sphinx key files");
-        sphinx_keypair
+            ),
+        )
+        .expect("Failed to save sphinx keys");
+
+        println!("Saved mixnet identity and sphinx keypairs");
     }
 
-    let pathfinder = MixNodePathfinder::new_from_config(config);
-    let identity_keypair = load_identity_keys(&pathfinder);
-    let sphinx_keypair = load_sphinx_keys(&pathfinder);
+    let config_save_location = config.get_config_file_save_location();
+    config
+        .save_to_file(None)
+        .expect("Failed to save the config file");
+    println!("Saved configuration file to {:?}", config_save_location);
+    println!("Mixnode configuration completed.\n\n\n");
 
-    println!(
-        "\nTo bond your mixnode you will need to provide the following:
-    Identity key: {}
-    Sphinx key: {}
-    Address: {}
-    Mix port: {}
-    Version: {}
-    ",
-        identity_keypair.public_key().to_base58_string(),
-        sphinx_keypair.public_key().to_base58_string(),
-        config.get_announce_address(),
-        config.get_mix_port(),
-        config.get_version(),
-    );
-}
-
-pub fn execute(matches: &ArgMatches) {
-    // TODO: this should probably be made implicit by slapping `#[tokio::main]` on our main method
-    // and then removing runtime from mixnode itself in `run`
-    let rt = Runtime::new().unwrap();
-    rt.block_on(async {
-        let id = matches.value_of(ID_ARG_NAME).unwrap();
-        println!("Initialising mixnode {}...", id);
-
-        let already_init = if Config::default_config_file_path(Some(id)).exists() {
-            println!("Mixnode \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
-            true
-        } else {
-            false
-        };
-
-        let mut config = Config::new(id);
-        config = override_config(config, matches);
-
-        // if node was already initialised, don't generate new keys
-        if !already_init {
-            let mut rng = rand::rngs::OsRng;
-
-            let identity_keys = identity::KeyPair::new(&mut rng);
-            let sphinx_keys = encryption::KeyPair::new(&mut rng);
-            let pathfinder = MixNodePathfinder::new_from_config(&config);
-            pemstore::store_keypair(
-                &identity_keys,
-                &pemstore::KeyPairPath::new(
-                    pathfinder.private_identity_key().to_owned(),
-                    pathfinder.public_identity_key().to_owned(),
-                ),
-            )
-                .expect("Failed to save identity keys");
-
-            pemstore::store_keypair(
-                &sphinx_keys,
-                &pemstore::KeyPairPath::new(
-                    pathfinder.private_encryption_key().to_owned(),
-                    pathfinder.public_encryption_key().to_owned(),
-                ),
-            )
-                .expect("Failed to save sphinx keys");
-
-            println!("Saved mixnet identity and sphinx keypairs");
-        }
-
-        let config_save_location = config.get_config_file_save_location();
-        config
-            .save_to_file(None)
-            .expect("Failed to save the config file");
-        println!("Saved configuration file to {:?}", config_save_location);
-        println!("Mixnode configuration completed.\n\n\n");
-
-        show_bonding_info(&config)
-    })
+    MixNode::new(config).print_node_details()
 }

@@ -81,7 +81,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
               sx={{
                 color: theme.palette.nym.networkExplorer.nav.text,
                 fontSize: '18px',
-                fontWeight: 800,
+                fontWeight: 600,
                 ml: 2,
               }}
             >

@@ -1,8 +1,10 @@
 use crate::contract::NUM_VESTING_PERIODS;
 use crate::errors::ContractError;
+use crate::storage::{delete_account, save_account};
 use crate::traits::VestingAccount;
 use config::defaults::DENOM;
-use cosmwasm_std::{Coin, Env, Order, Storage, Timestamp, Uint128};
+use cosmwasm_std::{Addr, Coin, Env, Order, Storage, Timestamp, Uint128};
+use cw_storage_plus::Map;
 
 use super::Account;
 
@@ -113,10 +115,11 @@ impl VestingAccount for Account {
         let period = self.get_current_vesting_period(block_time);
         let max_vested = self.tokens_per_period()? * period as u128;
         let start_time = self.periods[period].start_time;
+        let delegations_key = self.delegations_key();
+        let delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_key);
 
-        let delegations_keys = self
-            .delegations()
-            .keys_de(storage, None, None, Order::Ascending)
+        let delegations_keys = delegations
+            .keys(storage, None, None, Order::Ascending)
             .scan((), |_, x| x.ok())
             .filter(|(_mix, block_time)| *block_time < start_time)
             .map(|(mix, block_time)| (mix, block_time))
@@ -124,7 +127,7 @@ impl VestingAccount for Account {
 
         let mut amount = Uint128::zero();
         for (mix, block_time) in delegations_keys {
-            amount += self.delegations().load(storage, (&mix, block_time))?
+            amount += delegations.load(storage, (&mix, block_time))?
         }
         amount = Uint128::new(amount.u128().min(max_vested));
 
@@ -208,5 +211,29 @@ impl VestingAccount for Account {
                 denom: DENOM.to_string(),
             })
         }
+    }
+
+    fn transfer_ownership(
+        &mut self,
+        to_address: &Addr,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
+        delete_account(&self.owner_address(), storage)?;
+        self.owner_address = to_address.to_owned();
+        save_account(self, storage)?;
+        Ok(())
+    }
+
+    fn update_staking_address(
+        &mut self,
+        to_address: Option<Addr>,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
+        if let Some(staking_address) = self.staking_address() {
+            delete_account(staking_address, storage)?;
+        }
+        self.staking_address = to_address;
+        save_account(self, storage)?;
+        Ok(())
     }
 }

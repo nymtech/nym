@@ -1,5 +1,6 @@
 use sqlx::{Connection, SqliteConnection};
 use std::env;
+use vergen::{vergen, Config};
 
 #[tokio::main]
 async fn main() {
@@ -22,4 +23,6 @@ async fn main() {
     // for some strange reason we need to add a leading `/` to the windows path even though it's
     // not a valid windows path... but hey, it works...
     println!("cargo:rustc-env=DATABASE_URL=sqlite:///{}", &database_path);
+
+    vergen(Config::default()).expect("failed to extract build metadata")
 }

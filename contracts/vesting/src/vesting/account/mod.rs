@@ -1,10 +1,10 @@
 use super::{PledgeData, VestingPeriod};
 use crate::contract::NUM_VESTING_PERIODS;
 use crate::errors::ContractError;
-use crate::storage::save_account;
+use crate::storage::{save_account, KEY};
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract::IdentityKey;
+use mixnet_contract_common::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -18,44 +18,68 @@ const BALANCE_SUFFIX: &str = "ba";
 const PLEDGE_SUFFIX: &str = "bo";
 const GATEWAY_SUFFIX: &str = "ga";
 
+fn generate_storage_key(storage: &mut dyn Storage) -> Result<u32, ContractError> {
+    let key = KEY.may_load(storage)?.unwrap_or(0) + 1;
+    KEY.save(storage, &key)?;
+    Ok(key)
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Account {
-    address: Addr,
+    owner_address: Addr,
+    staking_address: Option<Addr>,
     start_time: Timestamp,
     periods: Vec<VestingPeriod>,
     coin: Coin,
-    delegations_key: String,
-    balance_key: String,
-    mixnode_pledge_key: String,
-    gateway_pledge_key: String,
+    storage_key: String,
 }
 
 impl Account {
     pub fn new(
-        address: Addr,
+        owner_address: Addr,
+        staking_address: Option<Addr>,
         coin: Coin,
         start_time: Timestamp,
         periods: Vec<VestingPeriod>,
         storage: &mut dyn Storage,
     ) -> Result<Self, ContractError> {
+        let storage_key = generate_storage_key(storage)?.to_string();
         let amount = coin.amount;
         let account = Account {
-            address: address.to_owned(),
+            owner_address,
+            staking_address,
             start_time,
             periods,
             coin,
-            delegations_key: format!("{}_{}", address, DELEGATIONS_SUFFIX),
-            balance_key: format!("{}_{}", address, BALANCE_SUFFIX),
-            mixnode_pledge_key: format!("{}_{}", address, PLEDGE_SUFFIX),
-            gateway_pledge_key: format!("{}_{}", address, GATEWAY_SUFFIX),
+            storage_key,
         };
         save_account(&account, storage)?;
         account.save_balance(amount, storage)?;
         Ok(account)
     }
 
-    pub fn address(&self) -> Addr {
-        self.address.clone()
+    pub fn delegations_key(&self) -> String {
+        format!("{}{}", self.storage_key, DELEGATIONS_SUFFIX)
+    }
+
+    pub fn balance_key(&self) -> String {
+        format!("{}{}", self.storage_key, BALANCE_SUFFIX)
+    }
+
+    pub fn mixnode_pledge_key(&self) -> String {
+        format!("{}{}", self.storage_key, PLEDGE_SUFFIX)
+    }
+
+    pub fn gateway_pledge_key(&self) -> String {
+        format!("{}{}", self.storage_key, GATEWAY_SUFFIX)
+    }
+
+    pub fn owner_address(&self) -> Addr {
+        self.owner_address.clone()
+    }
+
+    pub fn staking_address(&self) -> Option<&Addr> {
+        self.staking_address.as_ref()
     }
 
     #[allow(dead_code)]
@@ -100,10 +124,9 @@ impl Account {
     }
 
     pub fn load_balance(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
-        Ok(self
-            .balance()
-            .may_load(storage)?
-            .unwrap_or_else(Uint128::zero))
+        let key = self.balance_key();
+        let balance = Item::new(&key);
+        Ok(balance.may_load(storage)?.unwrap_or_else(Uint128::zero))
     }
 
     pub fn save_balance(
@@ -111,18 +134,18 @@ impl Account {
         amount: Uint128,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        Ok(self.balance().save(storage, &amount)?)
-    }
-
-    fn balance(&self) -> Item<Uint128> {
-        Item::new(self.balance_key.as_ref())
+        let key = self.balance_key();
+        let balance = Item::new(&key);
+        Ok(balance.save(storage, &amount)?)
     }
 
     pub fn load_mixnode_pledge(
         &self,
         storage: &dyn Storage,
     ) -> Result<Option<PledgeData>, ContractError> {
-        Ok(self.mixnode_pledge().may_load(storage)?)
+        let key = self.mixnode_pledge_key();
+        let mixnode_pledge = Item::new(&key);
+        Ok(mixnode_pledge.may_load(storage)?)
     }
 
     pub fn save_mixnode_pledge(
@@ -130,23 +153,25 @@ impl Account {
         pledge: PledgeData,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        Ok(self.mixnode_pledge().save(storage, &pledge)?)
+        let key = self.mixnode_pledge_key();
+        let mixnode_pledge = Item::new(&key);
+        Ok(mixnode_pledge.save(storage, &pledge)?)
     }
 
-    pub fn remove_mixnode_bond(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
-        self.mixnode_pledge().remove(storage);
+    pub fn remove_mixnode_pledge(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
+        let key = self.mixnode_pledge_key();
+        let mixnode_pledge: Item<PledgeData> = Item::new(&key);
+        mixnode_pledge.remove(storage);
         Ok(())
-    }
-
-    fn mixnode_pledge(&self) -> Item<PledgeData> {
-        Item::new(self.mixnode_pledge_key.as_ref())
     }
 
     pub fn load_gateway_pledge(
         &self,
         storage: &dyn Storage,
     ) -> Result<Option<PledgeData>, ContractError> {
-        Ok(self.gateway_pledge().may_load(storage)?)
+        let key = self.gateway_pledge_key();
+        let gateway_pledge = Item::new(&key);
+        Ok(gateway_pledge.may_load(storage)?)
     }
 
     pub fn save_gateway_pledge(
@@ -154,27 +179,25 @@ impl Account {
         pledge: PledgeData,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        Ok(self.gateway_pledge().save(storage, &pledge)?)
+        let key = self.gateway_pledge_key();
+        let gateway_pledge = Item::new(&key);
+        Ok(gateway_pledge.save(storage, &pledge)?)
     }
 
-    pub fn remove_gateway_bond(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
-        self.gateway_pledge().remove(storage);
+    pub fn remove_gateway_pledge(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
+        let key = self.gateway_pledge_key();
+        let gateway_pledge: Item<PledgeData> = Item::new(&key);
+        gateway_pledge.remove(storage);
         Ok(())
-    }
-
-    fn gateway_pledge(&self) -> Item<PledgeData> {
-        Item::new(self.gateway_pledge_key.as_ref())
-    }
-
-    fn delegations(&self) -> Map<(&[u8], u64), Uint128> {
-        Map::new(self.delegations_key.as_ref())
     }
 
     // Returns block_time part of the delegation key
     pub fn delegation_keys_for_mix(&self, mix: &str, storage: &dyn Storage) -> Vec<u64> {
-        self.delegations()
-            .prefix_de(mix.as_bytes())
-            .keys_de(storage, None, None, Order::Ascending)
+        let key = self.delegations_key();
+        let delegations: Map<(&[u8], u64), Uint128> = Map::new(&key);
+        delegations
+            .prefix(mix.as_bytes())
+            .keys(storage, None, None, Order::Ascending)
             // Scan will blow up on first error
             .scan((), |_, x| x.ok())
             .collect::<Vec<u64>>()
@@ -191,10 +214,12 @@ impl Account {
     ) -> Result<Vec<Uint128>, ContractError> {
         let mix_bytes = mix.as_bytes();
         let keys = self.delegation_keys_for_mix(&mix, storage);
+        let delegations_key = self.delegations_key();
+        let delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_key);
 
         let mut delegation_amounts = Vec::new();
         for key in keys {
-            delegation_amounts.push(self.delegations().load(storage, (mix_bytes, key))?)
+            delegation_amounts.push(delegations.load(storage, (mix_bytes, key))?)
         }
 
         Ok(delegation_amounts)
@@ -213,8 +238,9 @@ impl Account {
     }
 
     pub fn total_delegations(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
-        Ok(self
-            .delegations()
+        let delegations_key = self.delegations_key();
+        let delegations: Map<(&[u8], u64), Uint128> = Map::new(&delegations_key);
+        Ok(delegations
             .range(storage, None, None, Order::Ascending)
             .scan((), |_, x| x.ok())
             .fold(Uint128::zero(), |acc, (_, x)| acc + x))

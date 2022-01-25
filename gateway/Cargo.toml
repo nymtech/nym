@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-gateway"
-version = "0.11.0"
+version = "0.12.1"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 rust-version = "1.56"
@@ -39,7 +39,7 @@ coconut-interface = { path = "../common/coconut-interface" , optional = true}
 credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
-erc20-bridge-contract = { path = "../common/erc20-bridge-contract" }
+bandwidth-claim-contract = { path = "../common/bandwidth-claim-contract" }
 gateway-requests = { path = "gateway-requests" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
@@ -52,7 +52,9 @@ version-checker = { path = "../common/version-checker" }
 
 [features]
 coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coconut"]
+eth = []
 
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }

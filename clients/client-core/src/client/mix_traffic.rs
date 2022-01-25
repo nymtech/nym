@@ -6,7 +6,6 @@ use futures::StreamExt;
 use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
-use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 pub type BatchMixMessageSender = mpsc::UnboundedSender<Vec<MixPacket>>;
@@ -72,8 +71,8 @@ impl MixTrafficController {
         }
     }
 
-    pub fn start(mut self, handle: &Handle) -> JoinHandle<()> {
-        handle.spawn(async move {
+    pub fn start(mut self) -> JoinHandle<()> {
+        tokio::spawn(async move {
             self.run().await;
         })
     }

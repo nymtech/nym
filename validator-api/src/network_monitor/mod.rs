@@ -6,8 +6,8 @@ use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use std::sync::Arc;
 
-use crate::cache::ValidatorCache;
 use crate::config::Config;
+use crate::contract_cache::ValidatorCache;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -90,6 +90,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             Arc::clone(&identity_keypair),
             self.config.get_gateway_sending_rate(),
             bandwidth_controller,
+            self.config.get_testnet_mode(),
         );
 
         let received_processor = new_received_processor(
@@ -157,6 +158,7 @@ fn new_packet_sender(
     local_identity: Arc<identity::KeyPair>,
     max_sending_rate: usize,
     bandwidth_controller: BandwidthController,
+    testnet_mode: bool,
 ) -> PacketSender {
     PacketSender::new(
         gateways_status_updater,
@@ -166,6 +168,7 @@ fn new_packet_sender(
         config.get_max_concurrent_gateway_clients(),
         max_sending_rate,
         bandwidth_controller,
+        testnet_mode,
     )
 }
 

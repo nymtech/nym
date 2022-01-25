@@ -5,7 +5,7 @@ use crate::error::ContractError;
 use crate::gateways::storage as gateways_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::{Addr, Deps, Storage};
-use mixnet_contract::IdentityKeyRef;
+use mixnet_contract_common::IdentityKeyRef;
 
 pub fn generate_storage_key(address: &Addr, proxy: Option<&Addr>) -> Vec<u8> {
     if let Some(proxy) = &proxy {

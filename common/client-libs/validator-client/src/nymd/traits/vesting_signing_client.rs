@@ -8,7 +8,7 @@ use crate::nymd::fee::helpers::Operation;
 use crate::nymd::{cosmwasm_coin_to_cosmos_coin, NymdClient};
 use async_trait::async_trait;
 use cosmwasm_std::Coin;
-use mixnet_contract::{Gateway, IdentityKey, IdentityKeyRef, MixNode};
+use mixnet_contract_common::{Gateway, IdentityKey, IdentityKeyRef, MixNode};
 use vesting_contract::messages::ExecuteMsg as VestingExecuteMsg;
 
 #[async_trait]
@@ -64,7 +64,8 @@ pub trait VestingSigningClient {
 
     async fn create_periodic_vesting_account(
         &self,
-        address: &str,
+        owner_address: &str,
+        staking_address: Option<String>,
         start_time: Option<u64>,
         amount: Coin,
     ) -> Result<ExecuteResult, NymdError>;
@@ -271,13 +272,15 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
     }
     async fn create_periodic_vesting_account(
         &self,
-        address: &str,
+        owner_address: &str,
+        staking_address: Option<String>,
         start_time: Option<u64>,
         amount: Coin,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.operation_fee(Operation::CreatePeriodicVestingAccount);
         let req = VestingExecuteMsg::CreateAccount {
-            address: address.to_string(),
+            owner_address: owner_address.to_string(),
+            staking_address,
             start_time,
         };
         self.client

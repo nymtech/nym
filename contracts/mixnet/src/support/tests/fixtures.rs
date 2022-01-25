@@ -1,7 +1,5 @@
-use crate::contract::{
-    DEFAULT_SYBIL_RESISTANCE_PERCENT, INITIAL_MIXNODE_PLEDGE, INITIAL_REWARD_POOL,
-    INTERVAL_REWARD_PERCENT,
-};
+use crate::constants::{INTERVAL_REWARD_PERCENT, SYBIL_RESISTANCE_PERCENT};
+use crate::contract::{INITIAL_MIXNODE_PLEDGE, INITIAL_REWARD_POOL};
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::{mixnodes::storage::StoredMixnodeBond, support::tests};
 use config::defaults::{DENOM, TOTAL_SUPPLY};
@@ -85,7 +83,7 @@ pub fn node_rewarding_params_fixture(uptime: u128) -> NodeRewardParams {
         0,
         TOTAL_SUPPLY - INITIAL_REWARD_POOL,
         uptime,
-        DEFAULT_SYBIL_RESISTANCE_PERCENT,
+        SYBIL_RESISTANCE_PERCENT,
         true,
         10,
     )

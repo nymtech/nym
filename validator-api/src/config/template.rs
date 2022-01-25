@@ -99,13 +99,6 @@ enabled = {{ rewarding.enabled }}
 # Mnemonic (currently of the network monitor) used for rewarding
 mnemonic = '{{ rewarding.mnemonic }}'
 
-# Datetime of the first rewarding interval of the current length used for referencing
-# starting time of any subsequent interval.
-first_rewarding_interval = '{{ rewarding.first_rewarding_interval }}'
-
-# Current length of the interval. If modified `first_rewarding_interval` should also get changed.
-interval_length = '{{ rewarding.interval_length }}'
-
 # Specifies the minimum percentage of monitor test run data present in order to
 # distribute rewards for given interval.
 # Note, only values in range 0-100 are valid

@@ -43,12 +43,6 @@ export type ContractStateParams = {
   mixnode_active_set_size: number;
 };
 
-export type RewardingIntervalResponse = {
-  current_rewarding_interval_starting_block: number;
-  current_rewarding_interval_nonce: number;
-  rewarding_in_progress: boolean;
-};
-
 export type LayerDistribution = {
   gateways: number;
   layer1: number;
@@ -135,6 +129,7 @@ export type MixNode = {
   sphinx_key: string;
   identity_key: string;
   version: string;
+  profit_margin_percent: number;
 };
 
 export type GatewayBond = {

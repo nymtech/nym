@@ -22,7 +22,7 @@ where
 
     let hkdf = Hkdf::<D>::new(salt, ikm);
     let mut okm = vec![0u8; okm_length];
-    hkdf.expand(info.unwrap_or_else(|| &[]), &mut okm)?;
+    hkdf.expand(info.unwrap_or(&[]), &mut okm)?;
 
     Ok(okm)
 }

@@ -13,6 +13,7 @@ mod coin;
 mod config;
 mod error;
 mod menu;
+mod network;
 mod operations;
 mod state;
 mod utils;
@@ -30,6 +31,7 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       mixnet::account::connect_with_mnemonic,
       mixnet::account::create_new_account,
+      mixnet::account::switch_network,
       mixnet::account::get_balance,
       mixnet::admin::get_contract_settings,
       mixnet::admin::update_contract_settings,
@@ -69,6 +71,7 @@ fn main() {
       validator_api::status::mixnode_status,
       validator_api::status::mixnode_reward_estimation,
       validator_api::status::mixnode_stake_saturation,
+      validator_api::status::mixnode_inclusion_probability,
     ])
     .menu(Menu::new().add_default_app_submenu_if_macos())
     .run(tauri::generate_context!())
@@ -80,6 +83,7 @@ mod test {
   ts_rs::export! {
     mixnet_contract_common::MixNode => "../src/types/rust/mixnode.ts",
     crate::coin::Coin => "../src/types/rust/coin.ts",
+    crate::network::Network => "../src/types/rust/network.ts",
     crate::mixnet::account::Balance => "../src/types/rust/balance.ts",
     mixnet_contract_common::Gateway => "../src/types/rust/gateway.ts",
     crate::mixnet::send::TauriTxResult => "../src/types/rust/tauritxresult.ts",
@@ -88,11 +92,13 @@ mod test {
     crate::coin::Denom => "../src/types/rust/denom.ts",
     crate::utils::DelegationResult => "../src/types/rust/delegationresult.ts",
     crate::mixnet::account::Account => "../src/types/rust/account.ts",
+    crate::mixnet::account::CreatedAccount => "../src/types/rust/createdaccount.ts",
     crate::mixnet::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts",
     validator_client::models::CoreNodeStatusResponse => "../src/types/corenodestatusresponse.ts",
     validator_client::models::MixnodeStatus => "../src/types/rust/mixnodestatus.ts",
     validator_client::models::MixnodeStatusResponse => "../src/types/rust/mixnodestatusresponse.ts",
     validator_client::models::RewardEstimationResponse => "../src/types/rust/rewardestimationresponse.ts",
     validator_client::models::StakeSaturationResponse => "../src/types/rust/stakesaturaionresponse.ts",
+    validator_client::models::InclusionProbabilityResponse => "../src/types/rust/inclusionprobabilityresponse.ts",
   }
 }

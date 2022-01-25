@@ -77,6 +77,7 @@ impl Config {
     }
 }
 
+#[must_use]
 pub struct ConfigBuilder(Config);
 
 impl ConfigBuilder {

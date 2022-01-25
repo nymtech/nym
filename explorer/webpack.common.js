@@ -25,9 +25,14 @@ module.exports = {
         use: ['style-loader', 'css-loader'],
       },
       {
-        test: /\.(png|jpe?g|gif|svg|eot|ttf|woff|woff2|md)$/i,
+        test: /\.(png|jpe?g|gif|svg|md)$/i,
         // More information here https://webpack.js.org/guides/asset-modules/
         type: 'asset',
+      },
+      {
+        // See https://webpack.js.org/guides/asset-management/#loading-fonts
+        test: /\.(woff|woff2|eot|ttf|otf)$/i,
+        type: 'asset/resource',
       },
       {
         test: /\.ya?ml$/,

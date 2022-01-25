@@ -8,27 +8,31 @@ use serde::{Deserialize, Serialize};
 use mixnet_contract_common::MixNodeBond;
 
 use crate::country_statistics::country_nodes_distribution::{
-    ConcurrentCountryNodesDistribution, CountryNodesDistribution,
+    CountryNodesDistribution, ThreadsafeCountryNodesDistribution,
 };
+use crate::gateways::models::ThreadsafeGatewayCache;
 use crate::mix_node::models::ThreadsafeMixNodeCache;
 use crate::mix_nodes::location::LocationCache;
-use crate::mix_nodes::models::ThreadsafeMixNodesResult;
+use crate::mix_nodes::models::ThreadsafeMixNodesCache;
 use crate::ping::models::ThreadsafePingCache;
+use crate::validators::models::ThreadsafeValidatorCache;
 
 // TODO: change to an environment variable with a default value
 const STATE_FILE: &str = "explorer-api-state.json";
 
 #[derive(Clone)]
 pub struct ExplorerApiState {
-    pub(crate) country_node_distribution: ConcurrentCountryNodesDistribution,
-    pub(crate) mix_nodes: ThreadsafeMixNodesResult,
-    pub(crate) mix_node_cache: ThreadsafeMixNodeCache,
-    pub(crate) ping_cache: ThreadsafePingCache,
+    pub(crate) country_node_distribution: ThreadsafeCountryNodesDistribution,
+    pub(crate) gateways: ThreadsafeGatewayCache,
+    pub(crate) mixnode: ThreadsafeMixNodeCache,
+    pub(crate) mixnodes: ThreadsafeMixNodesCache,
+    pub(crate) ping: ThreadsafePingCache,
+    pub(crate) validators: ThreadsafeValidatorCache,
 }
 
 impl ExplorerApiState {
     pub(crate) async fn get_mix_node(&self, pubkey: &str) -> Option<MixNodeBond> {
-        self.mix_nodes.get_mixnode(pubkey).await
+        self.mixnodes.get_mixnode(pubkey).await
     }
 }
 
@@ -61,14 +65,16 @@ impl ExplorerApiStateContext {
                 info!("Loaded state from file {:?}: {:?}", json_file, state);
                 ExplorerApiState {
                     country_node_distribution:
-                        ConcurrentCountryNodesDistribution::new_from_distribution(
+                        ThreadsafeCountryNodesDistribution::new_from_distribution(
                             state.country_node_distribution,
                         ),
-                    mix_nodes: ThreadsafeMixNodesResult::new_with_location_cache(
+                    gateways: ThreadsafeGatewayCache::new(),
+                    mixnode: ThreadsafeMixNodeCache::new(),
+                    mixnodes: ThreadsafeMixNodesCache::new_with_location_cache(
                         state.location_cache,
                     ),
-                    mix_node_cache: ThreadsafeMixNodeCache::new(),
-                    ping_cache: ThreadsafePingCache::new(),
+                    ping: ThreadsafePingCache::new(),
+                    validators: ThreadsafeValidatorCache::new(),
                 }
             }
             _ => {
@@ -78,10 +84,12 @@ impl ExplorerApiStateContext {
                 );
 
                 ExplorerApiState {
-                    country_node_distribution: ConcurrentCountryNodesDistribution::new(),
-                    mix_nodes: ThreadsafeMixNodesResult::new(),
-                    mix_node_cache: ThreadsafeMixNodeCache::new(),
-                    ping_cache: ThreadsafePingCache::new(),
+                    country_node_distribution: ThreadsafeCountryNodesDistribution::new(),
+                    gateways: ThreadsafeGatewayCache::new(),
+                    mixnode: ThreadsafeMixNodeCache::new(),
+                    mixnodes: ThreadsafeMixNodesCache::new(),
+                    ping: ThreadsafePingCache::new(),
+                    validators: ThreadsafeValidatorCache::new(),
                 }
             }
         }
@@ -93,7 +101,7 @@ impl ExplorerApiStateContext {
         let file = File::create(json_file_path).expect("unable to create state json file");
         let state = ExplorerApiStateOnDisk {
             country_node_distribution: self.inner.country_node_distribution.get_all().await,
-            location_cache: self.inner.mix_nodes.get_location_cache().await,
+            location_cache: self.inner.mixnodes.get_locations().await,
             as_at: Utc::now(),
         };
         serde_json::to_writer(file, &state).expect("error writing state to disk");

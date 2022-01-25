@@ -66,7 +66,7 @@ pub async fn mixnode_bond_details(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Option<MixNodeBond>, BackendError> {
   let guard = state.read().await;
-  let client = guard.client()?;
+  let client = guard.current_client()?;
   let bond = client.nymd.owns_mixnode(client.nymd.address()).await?;
   Ok(bond)
 }
@@ -76,7 +76,7 @@ pub async fn gateway_bond_details(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Option<GatewayBond>, BackendError> {
   let guard = state.read().await;
-  let client = guard.client()?;
+  let client = guard.current_client()?;
   let bond = client.nymd.owns_gateway(client.nymd.address()).await?;
   Ok(bond)
 }

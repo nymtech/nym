@@ -25,7 +25,6 @@ pin-project = "1.0"
 pretty_env_logger = "0.4"
 rand-07 = { package = "rand", version = "0.7" } # required for compatibility
 rand = "0.8"
-rand_chacha = "0.3.1"
 reqwest = { version = "0.11", features = ["json"] }
 rocket = { version = "0.5.0-rc.1", features = ["json"] }
 serde = "1.0"
@@ -55,6 +54,9 @@ validator-client = { path="../common/client-libs/validator-client", features = [
 version-checker = { path="../common/version-checker" }
 coconut-interface = { path = "../common/coconut-interface", optional = true }
 credentials = { path = "../common/credentials", optional = true }
+# validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
+console-subscriber = { version = "0.1.1", optional = true}
+cfg-if = "1.0"
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
@@ -63,3 +65,6 @@ coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }
+
+[dev-dependencies]
+attohttpc = {version = "0.18.0", features = ["json"]}

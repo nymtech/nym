@@ -56,6 +56,12 @@ declare module '@mui/material/styles' {
       background: string;
       hover: string;
     };
+    mixnodes: {
+      status: {
+        active: string;
+        standby: string;
+      };
+    };
   }
 
   /**
@@ -86,6 +92,13 @@ declare module '@mui/material/styles' {
       };
       footer: {
         socialIcons: string;
+      };
+      mixnodes: {
+        status: {
+          active: string;
+          standby: string;
+          inactive: string;
+        };
       };
     };
   }

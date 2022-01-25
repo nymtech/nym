@@ -38,28 +38,18 @@ pub enum ExecuteMsg {
         mix_identity: IdentityKey,
     },
 
-    BeginMixnodeRewarding {
-        // nonce of the current rewarding interval
-        rewarding_interval_nonce: u32,
-    },
-
-    FinishMixnodeRewarding {
-        // nonce of the current rewarding interval
-        rewarding_interval_nonce: u32,
-    },
-
     RewardMixnode {
         identity: IdentityKey,
         // percentage value in range 0-100
         params: NodeRewardParams,
 
-        // nonce of the current rewarding interval
-        rewarding_interval_nonce: u32,
+        // id of the current rewarding interval
+        interval_id: u32,
     },
     RewardNextMixDelegators {
         mix_identity: IdentityKey,
-        // nonce of the current rewarding interval
-        rewarding_interval_nonce: u32,
+        // id of the current rewarding interval
+        interval_id: u32,
     },
     DelegateToMixnodeOnBehalf {
         mix_identity: IdentityKey,
@@ -85,6 +75,11 @@ pub enum ExecuteMsg {
     UnbondGatewayOnBehalf {
         owner: String,
     },
+    WriteRewardedSet {
+        rewarded_set: Vec<IdentityKey>,
+        expected_active_set_size: u32,
+    },
+    AdvanceCurrentInterval {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -106,7 +101,6 @@ pub enum QueryMsg {
         address: String,
     },
     StateParams {},
-    CurrentRewardingInterval {},
     // gets all [paged] delegations in the entire network
     // TODO: do we even want that?
     GetAllNetworkDelegations {
@@ -137,12 +131,24 @@ pub enum QueryMsg {
     LayerDistribution {},
     GetRewardPool {},
     GetCirculatingSupply {},
-    GetEpochRewardPercent {},
+    GetIntervalRewardPercent {},
     GetSybilResistancePercent {},
     GetRewardingStatus {
         mix_identity: IdentityKey,
-        rewarding_interval_nonce: u32,
+        interval_id: u32,
     },
+    GetRewardedSet {
+        height: Option<u64>,
+        start_after: Option<IdentityKey>,
+        limit: Option<u32>,
+    },
+    GetRewardedSetHeightsForInterval {
+        interval_id: u32,
+    },
+    GetRewardedSetUpdateDetails {},
+    GetCurrentRewardedSetHeight {},
+    GetCurrentInterval {},
+    GetRewardedSetRefreshBlocks {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

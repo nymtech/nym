@@ -3,7 +3,7 @@
 
 use crate::config::template::config_template;
 use config::defaults::{
-    default_api_endpoints, DEFAULT_EPOCH_LENGTH, DEFAULT_FIRST_EPOCH_START,
+    default_api_endpoints, DEFAULT_FIRST_INTERVAL_START, DEFAULT_INTERVAL_LENGTH,
     DEFAULT_MIXNET_CONTRACT_ADDRESS,
 };
 use config::NymConfig;
@@ -261,18 +261,18 @@ pub struct Rewarding {
     /// Mnemonic (currently of the network monitor) used for rewarding
     mnemonic: String,
 
-    /// Datetime of the first rewarding epoch of the current length used for referencing
-    /// starting time of any subsequent epoch.
-    first_rewarding_epoch: OffsetDateTime,
+    /// Datetime of the first rewarding interval of the current length used for referencing
+    /// starting time of any subsequent interval.
+    first_rewarding_interval: OffsetDateTime,
 
-    /// Current length of the epoch. If modified `first_rewarding_epoch` should also get changed.
+    /// Current length of the interval. If modified `first_rewarding_interval` should also get changed.
     #[serde(with = "humantime_serde")]
-    epoch_length: Duration,
+    interval_length: Duration,
 
     /// Specifies the minimum percentage of monitor test run data present in order to
-    /// distribute rewards for given epoch.
+    /// distribute rewards for given interval.
     /// Note, only values in range 0-100 are valid
-    minimum_epoch_monitor_threshold: u8,
+    minimum_interval_monitor_threshold: u8,
 }
 
 impl Default for Rewarding {
@@ -280,9 +280,9 @@ impl Default for Rewarding {
         Rewarding {
             enabled: false,
             mnemonic: String::default(),
-            first_rewarding_epoch: DEFAULT_FIRST_EPOCH_START,
-            epoch_length: DEFAULT_EPOCH_LENGTH,
-            minimum_epoch_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
+            first_rewarding_interval: DEFAULT_FIRST_INTERVAL_START,
+            interval_length: DEFAULT_INTERVAL_LENGTH,
+            minimum_interval_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
         }
     }
 }
@@ -338,18 +338,18 @@ impl Config {
         self
     }
 
-    pub fn with_first_rewarding_epoch(mut self, first_epoch: OffsetDateTime) -> Self {
-        self.rewarding.first_rewarding_epoch = first_epoch;
+    pub fn with_first_rewarding_interval(mut self, first_interval: OffsetDateTime) -> Self {
+        self.rewarding.first_rewarding_interval = first_interval;
         self
     }
 
-    pub fn with_epoch_length(mut self, epoch_length: Duration) -> Self {
-        self.rewarding.epoch_length = epoch_length;
+    pub fn with_interval_length(mut self, interval_length: Duration) -> Self {
+        self.rewarding.interval_length = interval_length;
         self
     }
 
-    pub fn with_minimum_epoch_monitor_threshold(mut self, threshold: u8) -> Self {
-        self.rewarding.minimum_epoch_monitor_threshold = threshold;
+    pub fn with_minimum_interval_monitor_threshold(mut self, threshold: u8) -> Self {
+        self.rewarding.minimum_interval_monitor_threshold = threshold;
         self
     }
 
@@ -462,15 +462,17 @@ impl Config {
         self.network_monitor.all_validator_apis.clone()
     }
 
-    pub fn get_first_rewarding_epoch(&self) -> OffsetDateTime {
-        self.rewarding.first_rewarding_epoch
+    // TODO: Is this needed?
+    #[allow(dead_code)]
+    pub fn get_first_rewarding_interval(&self) -> OffsetDateTime {
+        self.rewarding.first_rewarding_interval
     }
 
-    pub fn get_epoch_length(&self) -> Duration {
-        self.rewarding.epoch_length
+    pub fn get_interval_length(&self) -> Duration {
+        self.rewarding.interval_length
     }
 
-    pub fn get_minimum_epoch_monitor_threshold(&self) -> u8 {
-        self.rewarding.minimum_epoch_monitor_threshold
+    pub fn get_minimum_interval_monitor_threshold(&self) -> u8 {
+        self.rewarding.minimum_interval_monitor_threshold
     }
 }

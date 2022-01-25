@@ -15,10 +15,10 @@ pub use fee::gas_price::GasPrice;
 use fee::helpers::Operation;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
-    IdentityKey, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
+    IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
     MixnetContractVersion, MixnodeRewardingStatusResponse, PagedAllDelegationsResponse,
     PagedDelegatorDelegationsResponse, PagedGatewayResponse, PagedMixDelegationsResponse,
-    PagedMixnodeResponse, QueryMsg, RewardingIntervalResponse,
+    PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
 };
 use serde::Serialize;
 use std::convert::TryInto;
@@ -27,9 +27,12 @@ pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::fee::Fee;
 use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
+pub use cosmrs::rpc::endpoint::validators::Response as ValidatorResponse;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
+pub use cosmrs::rpc::Paging;
 pub use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::hash;
+pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
@@ -57,16 +60,16 @@ pub struct NymdClient<C> {
 impl NymdClient<QueryNymdClient> {
     pub fn connect<U>(
         endpoint: U,
-        mixnet_contract_address: AccountId,
-        vesting_contract_address: AccountId,
+        mixnet_contract_address: Option<AccountId>,
+        vesting_contract_address: Option<AccountId>,
     ) -> Result<NymdClient<QueryNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         Ok(NymdClient {
             client: QueryNymdClient::new(endpoint)?,
-            mixnet_contract_address: Some(mixnet_contract_address),
-            vesting_contract_address: Some(vesting_contract_address),
+            mixnet_contract_address,
+            vesting_contract_address,
             client_address: None,
             custom_gas_limits: Default::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
@@ -234,6 +237,17 @@ impl<C> NymdClient<C> {
             .map(|block| block.block_id.hash)
     }
 
+    pub async fn get_validators(
+        &self,
+        height: u64,
+        paging: Paging,
+    ) -> Result<ValidatorResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.client.validators(height as u32, paging).await?)
+    }
+
     pub async fn get_balance(
         &self,
         address: &AccountId,
@@ -253,6 +267,13 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         self.get_balance(address, self.denom()?).await
+    }
+
+    pub async fn get_total_supply(&self) -> Result<Vec<Coin>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client.get_total_supply().await
     }
 
     pub async fn get_contract_settings(&self) -> Result<ContractStateParams, NymdError>
@@ -275,30 +296,60 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn get_current_rewarding_interval(
-        &self,
-    ) -> Result<RewardingIntervalResponse, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::CurrentRewardingInterval {};
-        self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
-            .await
-    }
-
     pub async fn get_rewarding_status(
         &self,
         mix_identity: mixnet_contract_common::IdentityKey,
-        rewarding_interval_nonce: u32,
+        interval_id: u32,
     ) -> Result<MixnodeRewardingStatusResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::GetRewardingStatus {
             mix_identity,
-            rewarding_interval_nonce,
+            interval_id,
         };
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn query_current_rewarded_set_height(&self) -> Result<u64, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetCurrentRewardedSetHeight {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn query_current_rewarded_set_update_details(
+        &self,
+    ) -> Result<RewardedSetUpdateDetails, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetRewardedSetUpdateDetails {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_rewarded_set_identities_paged(
+        &self,
+        start_after: Option<IdentityKey>,
+        page_limit: Option<u32>,
+        height: Option<u64>,
+    ) -> Result<PagedRewardedSetResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetRewardedSet {
+            height,
+            start_after,
+            limit: page_limit,
+        };
+
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
@@ -309,6 +360,16 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::LayerDistribution {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_current_interval(&self) -> Result<Interval, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetCurrentInterval {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
@@ -344,11 +405,11 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn get_epoch_reward_percent(&self) -> Result<u8, NymdError>
+    pub async fn get_interval_reward_percent(&self) -> Result<u8, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetEpochRewardPercent {};
+        let request = QueryMsg::GetIntervalRewardPercent {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
@@ -1101,41 +1162,38 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn begin_mixnode_rewarding(
-        &self,
-        rewarding_interval_nonce: u32,
-    ) -> Result<ExecuteResult, NymdError>
+    pub async fn advance_current_interval(&self) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::BeginMixnodeRewarding);
+        let fee = self.operation_fee(Operation::AdvanceCurrentInterval);
 
-        let req = ExecuteMsg::BeginMixnodeRewarding {
-            rewarding_interval_nonce,
-        };
+        let req = ExecuteMsg::AdvanceCurrentInterval {};
         self.client
             .execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
-                "Beginning mixnode rewarding procedure",
+                "Advancing current interval",
                 Vec::new(),
             )
             .await
     }
 
-    pub async fn finish_mixnode_rewarding(
+    pub async fn write_rewarded_set(
         &self,
-        rewarding_interval_nonce: u32,
+        rewarded_set: Vec<IdentityKey>,
+        expected_active_set_size: u32,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::FinishMixnodeRewarding);
+        let fee = self.operation_fee(Operation::WriteRewardedSet);
 
-        let req = ExecuteMsg::FinishMixnodeRewarding {
-            rewarding_interval_nonce,
+        let req = ExecuteMsg::WriteRewardedSet {
+            rewarded_set,
+            expected_active_set_size,
         };
         self.client
             .execute(
@@ -1143,7 +1201,7 @@ impl<C> NymdClient<C> {
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
-                "Finishing mixnode rewarding procedure",
+                "Writing rewarded set",
                 Vec::new(),
             )
             .await

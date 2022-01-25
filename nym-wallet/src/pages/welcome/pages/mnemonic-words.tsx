@@ -6,10 +6,12 @@ import { TMnemonicWords } from '../types'
 export const MnemonicWords = ({
   mnemonicWords,
   onNext,
+  onPrev,
 }: {
   mnemonicWords?: TMnemonicWords
   page: 'create account'
   onNext: () => void
+  onPrev: () => void
 }) => {
   return (
     <>
@@ -20,6 +22,15 @@ export const MnemonicWords = ({
       <WordTiles mnemonicWords={mnemonicWords} showIndex />
       <Button variant="contained" color="primary" disableElevation size="large" onClick={onNext}>
         Verify mnemonic
+      </Button>
+      <Button
+        variant="outlined"
+        disableElevation
+        size="large"
+        onClick={onPrev}
+        sx={{ color: 'common.white', border: '1px solid white', '&:hover': { border: '1px solid white' } }}
+      >
+        Back
       </Button>
     </>
   )

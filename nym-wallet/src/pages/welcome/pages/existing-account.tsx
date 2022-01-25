@@ -4,7 +4,7 @@ import { Subtitle } from '../components'
 import { ClientContext } from '../../../context/main'
 import { signInWithMnemonic } from '../../../requests'
 
-export const ExistingAccount: React.FC<{ page: 'existing account' }> = () => {
+export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () => void }> = ({ onPrev }) => {
   const [mnemonic, setMnemonic] = useState<string>()
   const [inputError, setInputError] = useState<string>()
   const [isLoading, setIsLoading] = useState(false)
@@ -38,6 +38,16 @@ export const ExistingAccount: React.FC<{ page: 'existing account' }> = () => {
       )}
       <Button variant="contained" size="large" fullWidth onClick={handleSignIn}>
         Next
+      </Button>
+      <Button
+        variant="outlined"
+        disableElevation
+        size="large"
+        onClick={onPrev}
+        fullWidth
+        sx={{ color: 'common.white', border: '1px solid white', '&:hover': { border: '1px solid white' } }}
+      >
+        Back
       </Button>
     </Stack>
   )

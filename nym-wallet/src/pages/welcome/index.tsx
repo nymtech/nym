@@ -54,6 +54,7 @@ export const Welcome = () => {
             <MnemonicWords
               mnemonicWords={mnemonicWords}
               onNext={() => setPage('verify mnemonic')}
+              onPrev={() => setPage('welcome')}
               page="create account"
             />
             <VerifyMnemonic
@@ -62,7 +63,7 @@ export const Welcome = () => {
               page="verify mnemonic"
             />
             <CreatePassword page="create password" />
-            <ExistingAccount page="existing account" />
+            <ExistingAccount page="existing account" onPrev={() => setPage('welcome')} />
           </RenderPage>
         </Stack>
       </Box>

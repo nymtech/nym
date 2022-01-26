@@ -133,7 +133,6 @@ mod tests {
         crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
         SphinxPacket, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };
-    // use tokio::sync::Mutex;
 
     #[derive(Default)]
     struct TestClient {

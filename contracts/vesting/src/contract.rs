@@ -288,16 +288,8 @@ fn try_create_periodic_vesting_account(
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    cfg_if::cfg_if! {
-        if #[cfg(test)] {
-            if info.sender != "admin" {
-                return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
-            }
-        } else {
-            if info.sender != ADMIN.load(deps.storage)? {
-                return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
-            }
-        }
+    if info.sender != ADMIN.load(deps.storage)? {
+        return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
 
     let coin = validate_funds(&info.funds)?;

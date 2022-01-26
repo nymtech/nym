@@ -11,7 +11,7 @@ pub mod helpers {
         let mut deps = mock_dependencies();
         let msg = InitMsg {};
         let env = mock_env();
-        let info = mock_info("creator", &[]);
+        let info = mock_info("admin", &[]);
         instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
         return deps;
     }

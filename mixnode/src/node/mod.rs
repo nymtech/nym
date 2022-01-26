@@ -188,11 +188,15 @@ impl MixNode {
     ) -> PacketDelayForwardSender {
         info!("Starting packet delay-forwarder...");
 
-        let mut packet_forwarder = DelayForwarder::new(
+        let client_config = mixnet_client::Config::new(
             self.config.get_packet_forwarding_initial_backoff(),
             self.config.get_packet_forwarding_maximum_backoff(),
             self.config.get_initial_connection_timeout(),
             self.config.get_maximum_connection_buffer_size(),
+        );
+
+        let mut packet_forwarder = DelayForwarder::new(
+            mixnet_client::Client::new(client_config),
             node_stats_update_sender,
         );
 

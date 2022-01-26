@@ -7,7 +7,7 @@ use futures::StreamExt;
 use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, TimerError};
 use nymsphinx::forwarding::packet::MixPacket;
 use std::io;
-use tokio::time::{Duration, Instant};
+use tokio::time::Instant;
 
 // Delay + MixPacket vs Instant + MixPacket
 
@@ -17,34 +17,27 @@ pub(crate) type PacketDelayForwardSender = mpsc::UnboundedSender<(MixPacket, Opt
 type PacketDelayForwardReceiver = mpsc::UnboundedReceiver<(MixPacket, Option<Instant>)>;
 
 /// Entity responsible for delaying received sphinx packet and forwarding it to next node.
-pub(crate) struct DelayForwarder {
+pub(crate) struct DelayForwarder<C>
+where
+    C: mixnet_client::SendWithoutResponse,
+{
     delay_queue: NonExhaustiveDelayQueue<MixPacket>,
-    mixnet_client: mixnet_client::Client,
+    mixnet_client: C,
     packet_sender: PacketDelayForwardSender,
     packet_receiver: PacketDelayForwardReceiver,
     node_stats_update_sender: UpdateSender,
 }
 
-impl DelayForwarder {
-    pub(crate) fn new(
-        initial_reconnection_backoff: Duration,
-        maximum_reconnection_backoff: Duration,
-        initial_connection_timeout: Duration,
-        maximum_connection_buffer_size: usize,
-        node_stats_update_sender: UpdateSender,
-    ) -> Self {
-        let client_config = mixnet_client::Config::new(
-            initial_reconnection_backoff,
-            maximum_reconnection_backoff,
-            initial_connection_timeout,
-            maximum_connection_buffer_size,
-        );
-
+impl<C> DelayForwarder<C>
+where
+    C: mixnet_client::SendWithoutResponse,
+{
+    pub(crate) fn new(client: C, node_stats_update_sender: UpdateSender) -> DelayForwarder<C> {
         let (packet_sender, packet_receiver) = mpsc::unbounded();
 
-        DelayForwarder {
+        DelayForwarder::<C> {
             delay_queue: NonExhaustiveDelayQueue::new(),
-            mixnet_client: mixnet_client::Client::new(client_config),
+            mixnet_client: client,
             packet_sender,
             packet_receiver,
             node_stats_update_sender,

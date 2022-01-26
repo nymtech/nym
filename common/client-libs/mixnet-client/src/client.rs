@@ -41,6 +41,17 @@ impl Config {
     }
 }
 
+pub trait SendWithoutResponse {
+    // Without response in this context means we will not listen for anything we might get back (not
+    // that we should get anything), including any possible io errors
+    fn send_without_response(
+        &mut self,
+        address: NymNodeRoutingAddress,
+        packet: SphinxPacket,
+        packet_mode: PacketMode,
+    ) -> io::Result<()>;
+}
+
 pub struct Client {
     conn_new: HashMap<NymNodeRoutingAddress, ConnectionSender>,
     config: Config,
@@ -186,10 +197,10 @@ impl Client {
             .await
         });
     }
+}
 
-    // without response in this context means we will not listen for anything we might get back
-    // (not that we should get anything), including any possible io errors
-    pub fn send_without_response(
+impl SendWithoutResponse for Client {
+    fn send_without_response(
         &mut self,
         address: NymNodeRoutingAddress,
         packet: SphinxPacket,

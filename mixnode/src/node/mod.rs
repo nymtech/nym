@@ -27,11 +27,11 @@ use std::process;
 use std::sync::Arc;
 use version_checker::parse_version;
 
-pub(crate) mod http;
+mod http;
 mod listener;
 pub(crate) mod node_description;
-pub(crate) mod node_statistics;
-pub(crate) mod packet_delayforwarder;
+mod node_statistics;
+mod packet_delayforwarder;
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {

@@ -3,18 +3,18 @@
 
 use std::process;
 
-use crate::config::Config;
-use clap::{Args, Subcommand};
+use crate::{config::Config, Cli};
+use clap::Subcommand;
 use colored::Colorize;
 use crypto::bech32_address_validation;
 use url::Url;
 
-pub(crate) mod describe;
-pub(crate) mod init;
-pub(crate) mod node_details;
-pub(crate) mod run;
-pub(crate) mod sign;
-pub(crate) mod upgrade;
+mod describe;
+mod init;
+mod node_details;
+mod run;
+mod sign;
+mod upgrade;
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -47,6 +47,17 @@ struct OverrideConfig {
     announce_host: Option<String>,
     validators: Option<String>,
     wallet_address: Option<String>,
+}
+
+pub(crate) async fn execute(args: Cli) {
+    match &args.command {
+        Commands::Describe(m) => describe::execute(m),
+        Commands::Init(m) => init::execute(m).await,
+        Commands::Run(m) => run::execute(m).await,
+        Commands::Sign(m) => sign::execute(m),
+        Commands::Upgrade(m) => upgrade::execute(m),
+        Commands::NodeDetails(m) => node_details::execute(m),
+    }
 }
 
 fn parse_validators(raw: &str) -> Vec<Url> {
@@ -99,6 +110,25 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     config
 }
 
+// this only checks compatibility between config the binary. It does not take into consideration
+// network version. It might do so in the future.
+pub(crate) fn version_check(cfg: &Config) -> bool {
+    let binary_version = env!("CARGO_PKG_VERSION");
+    let config_version = cfg.get_version();
+    if binary_version != config_version {
+        warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
+        if version_checker::is_minor_version_compatible(binary_version, config_version) {
+            info!("but they are still semver compatible. However, consider running the `upgrade` command");
+            true
+        } else {
+            error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
+            false
+        }
+    } else {
+        true
+    }
+}
+
 /// Ensures that a given bech32 address is valid, or exits
 pub(crate) fn validate_bech32_address_or_exit(address: &str) {
     if let Err(bech32_address_validation::Bech32Error::DecodeFailed(err)) =
@@ -117,24 +147,5 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
         println!("{}", error_message);
         println!("Exiting...");
         process::exit(1);
-    }
-}
-
-// this only checks compatibility between config the binary. It does not take into consideration
-// network version. It might do so in the future.
-pub(crate) fn version_check(cfg: &Config) -> bool {
-    let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = cfg.get_version();
-    if binary_version != config_version {
-        warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
-        if version_checker::is_minor_version_compatible(binary_version, config_version) {
-            info!("but they are still semver compatible. However, consider running the `upgrade` command");
-            true
-        } else {
-            error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
-            false
-        }
-    } else {
-        true
     }
 }

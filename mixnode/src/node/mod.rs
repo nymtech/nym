@@ -1,7 +1,6 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::sign::load_identity_keys;
 use crate::commands::validate_bech32_address_or_exit;
 use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
@@ -60,7 +59,7 @@ impl MixNode {
     }
 
     /// Loads identity keys stored on disk
-    fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
+    pub(crate) fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
         let identity_keypair: identity::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
@@ -85,7 +84,7 @@ impl MixNode {
     /// Exits if the address isn't valid (which should protect against manual edits).
     fn generate_owner_signature(&self) -> String {
         let pathfinder = MixNodePathfinder::new_from_config(&self.config);
-        let identity_keypair = load_identity_keys(&pathfinder);
+        let identity_keypair = Self::load_identity_keys(&pathfinder);
         let address = self.config.get_wallet_address();
         validate_bech32_address_or_exit(address);
         let verification_code = identity_keypair.private_key().sign_text(address);

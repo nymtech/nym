@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use network_defaults::{DEFAULT_FIRST_INTERVAL_START, DEFAULT_INTERVAL_LENGTH};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
@@ -232,16 +231,6 @@ impl Display for Interval {
             full_hours,
             rem
         )
-    }
-}
-
-impl Default for Interval {
-    fn default() -> Self {
-        Interval {
-            id: 0,
-            start: DEFAULT_FIRST_INTERVAL_START,
-            length: DEFAULT_INTERVAL_LENGTH,
-        }
     }
 }
 

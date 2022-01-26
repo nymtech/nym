@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::constants;
 use crate::delegations::storage as delegations_storage;
 use crate::error::ContractError;
 use crate::interval::storage as interval_storage;
@@ -116,7 +117,7 @@ fn reward_mix_delegators(
             // and for each of them increase the stake proportionally to the reward
             // if at least `MINIMUM_BLOCK_AGE_FOR_REWARDING` blocks have been created
             // since they delegated
-            if delegation.block_height + storage::MINIMUM_BLOCK_AGE_FOR_REWARDING
+            if delegation.block_height + constants::MINIMUM_BLOCK_AGE_FOR_REWARDING
                 <= params.node_reward_params().reward_blockstamp()
             {
                 let reward = params.determine_delegation_reward(delegation.amount.amount);
@@ -244,7 +245,7 @@ pub(crate) fn try_reward_mixnode(
     };
 
     // check if node is old enough for rewarding
-    if current_bond.block_height + storage::MINIMUM_BLOCK_AGE_FOR_REWARDING > env.block.height {
+    if current_bond.block_height + constants::MINIMUM_BLOCK_AGE_FOR_REWARDING > env.block.height {
         storage::REWARDING_STATUS.save(
             deps.storage,
             (interval_id, mix_identity.clone()),
@@ -323,7 +324,7 @@ pub(crate) fn try_reward_mixnode(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::DEFAULT_SYBIL_RESISTANCE_PERCENT;
+    use crate::constants::SYBIL_RESISTANCE_PERCENT;
     use crate::delegations::transactions::try_delegate_to_mixnode;
     use crate::error::ContractError;
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
@@ -517,7 +518,7 @@ pub mod tests {
             .unwrap();
 
         // delegation happens later, but not later enough
-        env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+        env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
 
         delegations_storage::delegations()
             .save(
@@ -609,7 +610,7 @@ pub mod tests {
         );
 
         // reward happens now, both for node owner and delegators
-        env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+        env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
         test_helpers::update_env_and_progress_interval(&mut env, deps.as_mut().storage);
 
         let pledge_before_rewarding =
@@ -659,7 +660,8 @@ pub mod tests {
 
     #[test]
     fn test_tokenomics_rewarding() {
-        use crate::contract::{INITIAL_REWARD_POOL, INTERVAL_REWARD_PERCENT};
+        use crate::constants::INTERVAL_REWARD_PERCENT;
+        use crate::contract::INITIAL_REWARD_POOL;
 
         type U128 = fixed::types::U75F53;
 
@@ -701,7 +703,7 @@ pub mod tests {
         .unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-        env.block.height += 2 * storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+        env.block.height += 2 * constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
         let mix_1 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, &node_identity)
             .unwrap()
@@ -715,7 +717,7 @@ pub mod tests {
             0,
             circulating_supply,
             mix_1_uptime,
-            DEFAULT_SYBIL_RESISTANCE_PERCENT,
+            SYBIL_RESISTANCE_PERCENT,
             true,
             active_set_work_factor,
         );
@@ -841,7 +843,7 @@ pub mod tests {
                 .unwrap();
             }
 
-            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             let res = try_reward_mixnode(
@@ -908,7 +910,7 @@ pub mod tests {
                 .unwrap();
             }
 
-            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             let res = try_reward_mixnode(
@@ -975,7 +977,7 @@ pub mod tests {
                 .unwrap();
             }
 
-            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             let res = try_reward_mixnode(
@@ -1049,7 +1051,7 @@ pub mod tests {
             .unwrap();
         }
 
-        env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING + 1;
+        env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING + 1;
         let mut node_rewarding_params = tests::fixtures::node_rewarding_params_fixture(100);
         node_rewarding_params.set_reward_blockstamp(env.block.height);
 
@@ -1104,7 +1106,7 @@ pub mod tests {
             .unwrap();
         }
 
-        env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING + 1;
+        env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING + 1;
         let mut node_rewarding_params = tests::fixtures::node_rewarding_params_fixture(100);
         node_rewarding_params.set_reward_blockstamp(env.block.height);
 
@@ -1231,7 +1233,7 @@ pub mod tests {
                 deps.as_mut(),
             );
 
-            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             try_reward_mixnode(
                 deps.as_mut(),
@@ -1277,7 +1279,7 @@ pub mod tests {
                 .unwrap();
             }
 
-            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
             test_helpers::update_env_and_progress_interval(&mut env, deps.as_mut().storage);
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
@@ -1354,7 +1356,7 @@ pub mod tests {
                 .unwrap();
             }
 
-            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             try_reward_mixnode(
@@ -1444,7 +1446,7 @@ pub mod tests {
                 .unwrap();
             }
 
-            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             // update some delegations (on 'main' page and the secondary call)
             try_delegate_to_mixnode(

@@ -1,6 +1,15 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::{validator_api, ValidatorClientError};
+use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
+use url::Url;
+use validator_api_requests::models::{
+    CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
+    StakeSaturationResponse,
+};
+
 #[cfg(feature = "nymd-client")]
 use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
@@ -8,25 +17,15 @@ use crate::nymd::{
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::ContractStateParams;
 
-use crate::{validator_api, ValidatorClientError};
-use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
-    Delegation, Interval, MixnetContractVersion, MixnodeRewardingStatusResponse,
+    Delegation, IdentityKey, Interval, MixnetContractVersion, MixnodeRewardingStatusResponse,
+    RewardedSetNodeStatus, RewardedSetUpdateDetails,
 };
-use mixnet_contract_common::{
-    GatewayBond, IdentityKey, IdentityKeyRef, MixNodeBond, RewardedSetNodeStatus,
-    RewardedSetUpdateDetails,
-};
-
+#[cfg(feature = "nymd-client")]
 use std::collections::{HashMap, HashSet};
 #[cfg(feature = "nymd-client")]
 use std::str::FromStr;
-use url::Url;
-use validator_api_requests::models::{
-    CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse,
-};
 
 #[cfg(feature = "nymd-client")]
 #[must_use]
@@ -268,6 +267,13 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.nymd.get_sybil_resistance_percent().await?)
+    }
+
+    pub async fn get_active_set_work_factor(&self) -> Result<u8, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_active_set_work_factor().await?)
     }
 
     pub async fn get_interval_reward_percent(&self) -> Result<u8, ValidatorClientError>

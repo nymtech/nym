@@ -34,8 +34,8 @@ pub(crate) mod tests {
 
     #[cfg(test)]
     mod querying_for_rewarding_status {
-        use super::storage;
         use super::*;
+        use crate::constants;
         use crate::delegations::transactions::try_delegate_to_mixnode;
         use crate::rewards::transactions::{
             try_reward_mixnode, try_reward_next_mixnode_delegators,
@@ -103,7 +103,7 @@ pub(crate) mod tests {
                 deps.as_mut(),
             );
 
-            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
             try_reward_mixnode(
@@ -151,7 +151,7 @@ pub(crate) mod tests {
                 .unwrap();
             }
 
-            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
             test_helpers::update_env_and_progress_interval(&mut env, deps.as_mut().storage);
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
@@ -214,7 +214,7 @@ pub(crate) mod tests {
                 .unwrap();
             }
 
-            env.block.height += storage::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+            env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
 

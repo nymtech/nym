@@ -28,6 +28,7 @@ bs58 = "0.4.0"
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
+time = { version = "0.3", features = ["macros"] }
 
 [dev-dependencies]
 cosmwasm-schema = "1.0.0-beta3"
@@ -35,7 +36,6 @@ fixed = "1.1"
 rand_chacha = "0.2"
 rand = "0.7"
 crypto = { path = "../../common/crypto" }
-time = "0.3"
 
 [build-dependencies]
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc"] }

@@ -15,7 +15,7 @@ pub fn query_current_interval(storage: &dyn Storage) -> Result<Interval, Contrac
 }
 
 pub(crate) fn query_rewarded_set_refresh_minimum_blocks() -> u64 {
-    crate::contract::REWARDED_SET_REFRESH_BLOCKS
+    crate::constants::REWARDED_SET_REFRESH_BLOCKS
 }
 
 pub fn query_rewarded_set_heights_for_interval(
@@ -415,7 +415,7 @@ mod tests {
         // returns whatever is in the correct environment
         assert_eq!(
             RewardedSetUpdateDetails {
-                refresh_rate_blocks: crate::contract::REWARDED_SET_REFRESH_BLOCKS,
+                refresh_rate_blocks: crate::constants::REWARDED_SET_REFRESH_BLOCKS,
                 last_refreshed_block: current_height,
                 current_height: env.block.height
             },

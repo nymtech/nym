@@ -1,23 +1,12 @@
-import React, { useContext, useEffect, useState } from 'react'
-import {
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Divider,
-  Grid,
-  LinearProgress,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material'
-import { AccessTimeOutlined, PercentOutlined } from '@mui/icons-material'
+import React, { useContext, useState } from 'react'
+import { Box, Button, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material'
+import { PercentOutlined } from '@mui/icons-material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
 import { InfoTooltip } from '../../components/InfoToolTip'
-import { TMixnodeBondDetails } from '../../types'
+import { InclusionProbabilityResponse, TMixnodeBondDetails } from '../../types'
 import { validationSchema } from './validationSchema'
-import { getGasFee, updateMixnode } from '../../requests'
+import { updateMixnode } from '../../requests'
 import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 import { Fee } from '../../components'
 
@@ -29,15 +18,16 @@ export const SystemVariables = ({
   mixnodeDetails,
   saturation,
   rewardEstimation,
+  inclusionProbability,
   onUpdate,
 }: {
   mixnodeDetails: TMixnodeBondDetails['mix_node']
   saturation: number
   rewardEstimation: number
+  inclusionProbability: InclusionProbabilityResponse
   onUpdate: () => void
 }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>()
-  const [configFee, setConfigFee] = useState<string>()
 
   const {
     register,
@@ -89,14 +79,14 @@ export const SystemVariables = ({
           />
 
           <DataField
-            title="Chance of being in the active set"
+            title="Estimated chance of being in the active set"
             info="Probability of getting selected in the reward set (active and standby nodes) in the next epoch. The more your stake, the higher the chances to be selected"
-            Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
+            Indicator={<PercentIndicator value={inclusionProbability.in_active} />}
           />
           <DataField
-            title="Chance of being in the standby set"
+            title="Estimated chance of being in the standby set"
             info="Probability of getting selected in the reward set (active and standby nodes) in the next epoch. The more your stake, the higher the chances to be selected"
-            Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
+            Indicator={<PercentIndicator value={inclusionProbability.in_reserve} />}
           />
 
           <DataField

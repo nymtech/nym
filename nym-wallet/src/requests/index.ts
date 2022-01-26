@@ -8,6 +8,7 @@ import {
   InclusionProbabilityResponse,
   MixNode,
   MixnodeStatusResponse,
+  Network,
   Operation,
   RewardEstimationResponse,
   StakeSaturationResponse,
@@ -102,3 +103,5 @@ export const updateMixnode = async ({ profitMarginPercent }: { profitMarginPerce
 
 export const getInclusionProbability = async (identity: string): Promise<InclusionProbabilityResponse> =>
   await invoke('mixnode_inclusion_probability', { identity })
+
+export const selectNetwork = async(network: Network) => await invoke("switch_network", {network})

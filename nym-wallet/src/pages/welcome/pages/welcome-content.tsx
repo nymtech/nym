@@ -2,14 +2,11 @@ import React from 'react'
 import { Button, Stack } from '@mui/material'
 import { SubtitleSlick, Title } from '../components'
 
-export const WelcomeContent = ({
-  onUseExisting,
-  onCreateAccountComplete,
-}: {
+export const WelcomeContent: React.FC<{
   page: 'welcome'
   onUseExisting: () => void
   onCreateAccountComplete: () => void
-}) => {
+}> = ({ onUseExisting, onCreateAccountComplete }) => {
   return (
     <>
       <Title title="Welcome to NYM" />
@@ -29,7 +26,11 @@ export const WelcomeContent = ({
           fullWidth
           variant="outlined"
           size="large"
-          sx={{ color: 'common.white', border: '1px solid white', '&:hover': { border: '1px solid white' } }}
+          sx={{
+            color: 'common.white',
+            border: '1px solid white',
+            '&:hover': { border: '1px solid white', '&:hover': { background: 'none' } },
+          }}
           onClick={onUseExisting}
           disableRipple
         >

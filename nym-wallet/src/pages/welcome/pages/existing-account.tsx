@@ -4,31 +4,27 @@ import { Subtitle } from '../components'
 import { ClientContext } from '../../../context/main'
 import { signInWithMnemonic } from '../../../requests'
 
-export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () => void }> = ({ onPrev }) => {
+export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () => void }> = ({ children, onPrev }) => {
   const [mnemonic, setMnemonic] = useState<string>()
   const [inputError, setInputError] = useState<string>()
-  const [isLoading, setIsLoading] = useState(false)
 
   const { logIn } = useContext(ClientContext)
 
   const handleSignIn = async (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault()
 
-    setIsLoading(true)
     setInputError(undefined)
 
     try {
       const res = await signInWithMnemonic(mnemonic || '')
-      setIsLoading(false)
       logIn(res)
     } catch (e: any) {
-      setIsLoading(false)
       setInputError(e)
     }
   }
 
   return (
-    <Stack spacing={3} sx={{ width: 400 }} alignItems="center">
+    <Stack spacing={2} sx={{ width: 400 }} alignItems="center">
       <Subtitle subtitle="Enter your mnemonic from existing wallet" />
       <TextField value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} multiline rows={5} fullWidth />
       {inputError && (
@@ -36,6 +32,7 @@ export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () =>
           {inputError}
         </Alert>
       )}
+        {children}
       <Button variant="contained" size="large" fullWidth onClick={handleSignIn}>
         Next
       </Button>

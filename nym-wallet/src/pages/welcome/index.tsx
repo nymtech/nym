@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { Box } from '@mui/system'
 import { Stack } from '@mui/material'
-import { WelcomeContent, VerifyMnemonic, MnemonicWords, CreatePassword, ExistingAccount } from './pages'
+import { WelcomeContent, VerifyMnemonic, MnemonicWords, CreatePassword, ExistingAccount, SelectNetwork } from './pages'
 import { NymLogo } from '../../components'
 import { TMnemonicWords, TPages } from './types'
 import { RenderPage } from './components'
+import { CreateAccountContent } from './_legacy_create-account'
 
-const mnemonic =
+const testMnemonic =
   'futuristic big receptive caption saw hug odd spoon internal dime bike rake helpless left distribution gusty eyes beg enormous word influence trashy pets curl'
 
 const mnemonicToArray = (mnemonic: string): TMnemonicWords =>
@@ -19,7 +20,7 @@ export const Welcome = () => {
   const [mnemonicWords, setMnemonicWords] = useState<TMnemonicWords>()
 
   useEffect(() => {
-    const mnemonicArray = mnemonicToArray(mnemonic)
+    const mnemonicArray = mnemonicToArray(testMnemonic)
     setMnemonicWords(mnemonicArray)
   }, [])
 
@@ -48,10 +49,12 @@ export const Welcome = () => {
           <RenderPage page={page}>
             <WelcomeContent
               onUseExisting={() => setPage('existing account')}
-              onCreateAccountComplete={() => setPage('create account')}
+              onCreateAccountComplete={() => setPage('legacy create account')}
               page="welcome"
             />
-            <MnemonicWords
+
+            <CreateAccountContent page="legacy create account" showSignIn={() => setPage('welcome')} />
+            {/* <MnemonicWords
               mnemonicWords={mnemonicWords}
               onNext={() => setPage('verify mnemonic')}
               onPrev={() => setPage('welcome')}
@@ -62,8 +65,12 @@ export const Welcome = () => {
               onComplete={() => setPage('create password')}
               page="verify mnemonic"
             />
-            <CreatePassword page="create password" />
-            <ExistingAccount page="existing account" onPrev={() => setPage('welcome')} />
+            <CreatePassword page="create password" /> */}
+            <ExistingAccount page="existing account" onPrev={() => setPage('welcome')}>
+              <SelectNetwork
+                page="select network"
+              />
+            </ExistingAccount>
           </RenderPage>
         </Stack>
       </Box>

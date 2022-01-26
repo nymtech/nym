@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mixnode::DelegatorRewardParams;
-use crate::Layer;
+use crate::{Layer, RewardedSetNodeStatus};
 use cosmwasm_std::{Addr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -27,19 +27,12 @@ impl LayerDistribution {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
-pub struct RewardingIntervalResponse {
-    pub current_rewarding_interval_starting_block: u64,
-    pub current_rewarding_interval_nonce: u32,
-    pub rewarding_in_progress: bool,
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ContractStateParams {
-    // so currently epoch_length is being unused and validator API performs rewarding
-    // based on its own epoch length config value. I guess that's fine for time being
+    // so currently interval_length is being unused and validator API performs rewarding
+    // based on its own interval length config value. I guess that's fine for time being
     // however, in the future, the contract constant should be controlling it instead.
-    // pub epoch_length: u32, // length of a rewarding epoch/interval, expressed in hours
+    // pub interval_length: u32, // length of a rewarding interval/interval, expressed in hours
     pub minimum_mixnode_pledge: Uint128, // minimum amount a mixnode must pledge to get into the system
     pub minimum_gateway_pledge: Uint128, // minimum amount a gateway must pledge to get into the system
 
@@ -50,7 +43,6 @@ pub struct ContractStateParams {
     // subset of rewarded mixnodes that are actively receiving mix traffic
     // used to handle shorter-term (e.g. hourly) fluctuations of demand
     pub mixnode_active_set_size: u32,
-    pub active_set_work_factor: u8,
 }
 
 impl Display for ContractStateParams {
@@ -75,11 +67,6 @@ impl Display for ContractStateParams {
             f,
             "mixnode active set size: {}",
             self.mixnode_active_set_size
-        )?;
-        write!(
-            f,
-            "mixnode active set work factor: {}",
-            self.active_set_work_factor
         )
     }
 }
@@ -136,3 +123,23 @@ pub struct MixnetContractVersion {
 pub type IdentityKey = String;
 pub type IdentityKeyRef<'a> = &'a str;
 pub type SphinxKey = String;
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct PagedRewardedSetResponse {
+    pub identities: Vec<(IdentityKey, RewardedSetNodeStatus)>,
+    pub start_next_after: Option<IdentityKey>,
+    pub at_height: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct RewardedSetUpdateDetails {
+    pub refresh_rate_blocks: u64,
+    pub last_refreshed_block: u64,
+    pub current_height: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct IntervalRewardedSetHeightsResponse {
+    pub interval_id: u32,
+    pub heights: Vec<u64>,
+}

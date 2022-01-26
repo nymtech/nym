@@ -7,6 +7,7 @@ import { validationSchema } from './validationSchema'
 import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 import { delegate, majorToMinor } from '../../requests'
 import { checkHasEnoughFunds } from '../../utils'
+import { Fee } from '../../components'
 
 type TDelegateForm = {
   nodeType: EnumNodeType
@@ -21,11 +22,9 @@ const defaultValues: TDelegateForm = {
 }
 
 export const DelegateForm = ({
-  fees,
   onError,
   onSuccess,
 }: {
-  fees: TFee
   onError: (message?: string) => void
   onSuccess: (details: { amount: string; address: string }) => void
 }) => {
@@ -103,10 +102,8 @@ export const DelegateForm = ({
               }}
             />
           </Grid>
-          <Grid item xs={12}>
-            <Typography sx={{ color: 'nym.fee' }}>
-              Fee for this transaction: {`${fees.mixnode.amount}  ${MAJOR_CURRENCY}`}
-            </Typography>
+          <Grid item>
+            <Fee feeType="DelegateToMixnode" />
           </Grid>
         </Grid>
       </Box>

@@ -27,6 +27,7 @@ export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({ sho
     setError(undefined)
     try {
       const res = await createAccount()
+      console.log(res)
       setTimeout(() => {
         setAccountDetails(res)
         setIsLoading(false)
@@ -66,7 +67,7 @@ export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({ sho
       <Box sx={{ textAlign: 'center' }}>
         <Typography sx={{ color: 'common.white' }}>Address:</Typography>
         <Typography sx={{ color: 'common.white' }} data-testid="wallet-address">
-          {accountDetails?.client_address}
+          {accountDetails?.account.client_address}
         </Typography>
       </Box>
       {error && (

@@ -9,8 +9,8 @@ import {
   TableRow,
 } from '@mui/material';
 import { cellStyles } from './Universal-DataGrid';
-import { MixnodeRowType } from '../utils/index';
 import { currencyToString } from '../utils/currency';
+import { MixnodeRowType } from './MixNodes';
 
 export type ColumnsType = {
   field: string;
@@ -43,7 +43,7 @@ export const DetailTable: React.FC<{
       <TableHead>
         <TableRow>
           {columnsData?.map(({ field, title, flex }) => (
-            <TableCell key={field} sx={{ fontWeight: 'bold', flex }}>
+            <TableCell key={field} sx={{ fontSize: 14, fontWeight: 600, flex }}>
               {title}
             </TableCell>
           ))}
@@ -65,6 +65,7 @@ export const DetailTable: React.FC<{
                   ...cellStyles,
                   padding: 2,
                   width: 200,
+                  fontSize: 14,
                 }}
                 data-testid={`${_.title.replace(/ /g, '-')}-value`}
               >

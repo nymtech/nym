@@ -1,24 +1,45 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mix_node::models::{NodeDescription, NodeStats};
-use crate::mix_nodes::delegations::{get_mixnode_delegations, get_single_mixnode_delegations};
-use crate::state::ExplorerApiStateContext;
-use mixnet_contract_common::Delegation;
 use reqwest::Error as ReqwestError;
+use rocket::response::status::NotFound;
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 use rocket_okapi::okapi::openapi3::OpenApi;
 use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
 
+use mixnet_contract_common::Delegation;
+
+use crate::mix_node::models::{NodeDescription, NodeStats, PrettyDetailedMixNodeBond};
+use crate::mix_nodes::delegations::{get_mixnode_delegations, get_single_mixnode_delegations};
+use crate::state::ExplorerApiStateContext;
+
 pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
     openapi_get_routes_spec![
         settings: get_delegations,
+        get_by_id,
         get_all_delegations,
         get_description,
         get_stats,
     ]
+}
+
+#[openapi(tag = "mix_nodes")]
+#[get("/<pubkey>")]
+pub(crate) async fn get_by_id(
+    pubkey: &str,
+    state: &State<ExplorerApiStateContext>,
+) -> Result<Json<PrettyDetailedMixNodeBond>, NotFound<String>> {
+    match state
+        .inner
+        .mixnodes
+        .get_detailed_mixnode_by_id(pubkey)
+        .await
+    {
+        Some(mixnode) => Ok(Json(mixnode)),
+        None => Err(NotFound("Mixnode not found".to_string())),
+    }
 }
 
 #[openapi(tag = "mix_node")]
@@ -39,13 +60,7 @@ pub(crate) async fn get_description(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<NodeDescription>> {
-    match state
-        .inner
-        .mix_node_cache
-        .clone()
-        .get_description(pubkey)
-        .await
-    {
+    match state.inner.mixnode.clone().get_description(pubkey).await {
         Some(cache_value) => {
             trace!("Returning cached value for {}", pubkey);
             Some(Json(cache_value))
@@ -64,7 +79,7 @@ pub(crate) async fn get_description(
                             // cache the response and return as the HTTP response
                             state
                                 .inner
-                                .mix_node_cache
+                                .mixnode
                                 .set_description(pubkey, response.clone())
                                 .await;
                             Some(Json(response))
@@ -90,7 +105,7 @@ pub(crate) async fn get_stats(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<NodeStats>> {
-    match state.inner.mix_node_cache.get_node_stats(pubkey).await {
+    match state.inner.mixnode.get_node_stats(pubkey).await {
         Some(cache_value) => {
             trace!("Returning cached value for {}", pubkey);
             Some(Json(cache_value))
@@ -106,7 +121,7 @@ pub(crate) async fn get_stats(
                             // cache the response and return as the HTTP response
                             state
                                 .inner
-                                .mix_node_cache
+                                .mixnode
                                 .set_node_stats(pubkey, response.clone())
                                 .await;
                             Some(Json(response))

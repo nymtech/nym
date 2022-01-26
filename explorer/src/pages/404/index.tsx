@@ -38,7 +38,7 @@ export const Page404: React.FC = () => {
             </Typography>
             <Button
               sx={{
-                fontWeight: 'bold',
+                fontWeight: 600,
                 bgcolor: theme.palette.primary.main,
                 color: theme.palette.secondary.main,
               }}

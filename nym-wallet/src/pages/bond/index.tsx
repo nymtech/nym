@@ -1,33 +1,27 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { Alert, Box, Button, CircularProgress } from '@mui/material'
 import { BondForm } from './BondForm'
+import { SuccessView } from './SuccessView'
 import { NymCard } from '../../components'
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
 import { Layout } from '../../layouts'
-import { getGasFee, unbond } from '../../requests'
-import { TFee } from '../../types'
+import { unbond } from '../../requests'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { ClientContext } from '../../context/main'
 import { Bond as BondIcon } from '../../svg-icons/bond'
-import { SuccessView } from './SuccessView'
 
 export const Bond = () => {
   const [status, setStatus] = useState(EnumRequestStatus.initial)
   const [error, setError] = useState<string>()
   const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>()
-  const [fees, setFees] = useState<TFee>()
 
   const { checkOwnership, ownership } = useCheckOwnership()
-  const { userBalance } = useContext(ClientContext)
+  const { userBalance, getBondDetails } = useContext(ClientContext)
 
   useEffect(() => {
     if (status === EnumRequestStatus.initial) {
       const initialiseForm = async () => {
         await checkOwnership()
-        setFees({
-          mixnode: await getGasFee('BondMixnode'),
-          gateway: await getGasFee('BondGateway'),
-        })
         setStatus(EnumRequestStatus.initial)
       }
       initialiseForm()
@@ -37,27 +31,35 @@ export const Bond = () => {
   return (
     <Layout>
       <NymCard title="Bond" subheader="Bond a node or gateway" noPadding Icon={BondIcon}>
+        {status === EnumRequestStatus.initial && (
+          <Box sx={{ px: 3, mb: 1 }}>
+            <Alert severity="warning">Always ensure you leave yourself enough funds to UNBOND</Alert>
+          </Box>
+        )}
         {ownership?.hasOwnership && (
-          <Alert
-            severity="warning"
-            action={
-              <Button
-                disabled={status === EnumRequestStatus.loading}
-                onClick={async () => {
-                  setStatus(EnumRequestStatus.loading)
-                  await unbond(ownership.nodeType!)
-                  userBalance.fetchBalance()
-                  setStatus(EnumRequestStatus.initial)
-                }}
-                data-testid="unBond"
-              >
-                Unbond
-              </Button>
-            }
-            style={{ margin: 2 }}
-          >
-            {`Looks like you already have a ${ownership.nodeType} bonded.`}
-          </Alert>
+          <Box sx={{ px: 3 }}>
+            <Alert
+              severity="info"
+              action={
+                <Button
+                  disabled={status === EnumRequestStatus.loading}
+                  onClick={async () => {
+                    setStatus(EnumRequestStatus.loading)
+                    await unbond(ownership.nodeType!)
+                    await getBondDetails()
+                    await userBalance.fetchBalance()
+                    setStatus(EnumRequestStatus.initial)
+                  }}
+                  data-testid="unBond"
+                  color="inherit"
+                >
+                  Unbond
+                </Button>
+              }
+            >
+              {`Looks like you already have a ${ownership.nodeType} bonded.`}
+            </Alert>
+          </Box>
         )}
         {status === EnumRequestStatus.loading && (
           <Box
@@ -72,7 +74,6 @@ export const Bond = () => {
         )}
         {status === EnumRequestStatus.initial && (
           <BondForm
-            fees={!ownership.hasOwnership ? fees : undefined}
             onError={(e?: string) => {
               setError(e)
               setStatus(EnumRequestStatus.error)

@@ -65,7 +65,11 @@ export const DarkLightSwitchDesktop: React.FC<{ defaultChecked: boolean }> = ({
 }) => {
   const { toggleMode } = useMainContext();
   return (
-    <Button onClick={() => toggleMode()} data-testid="switch-button">
+    <Button
+      sx={{ paddingLeft: 0 }}
+      onClick={() => toggleMode()}
+      data-testid="switch-button"
+    >
       <DarkLightSwitch defaultChecked={defaultChecked} />
     </Button>
   );

@@ -4,11 +4,28 @@ extern crate rocket;
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::{crate_version, App, ArgMatches};
+use clap::{crate_version, Parser};
+use lazy_static::lazy_static;
 
 mod commands;
 mod config;
 mod node;
+
+lazy_static! {
+    pub static ref LONG_ABOUT: String = long_version();
+}
+
+// Helper for passing LONG_ABOUT to clap
+fn long_about() -> &'static str {
+    &LONG_ABOUT
+}
+
+#[derive(Parser)]
+#[clap(author = "Nymtech", version, about, long_about = Some(long_about()))]
+struct Cli {
+    #[clap(subcommand)]
+    command: commands::Commands,
+}
 
 #[tokio::main]
 async fn main() {
@@ -16,36 +33,19 @@ async fn main() {
     setup_logging();
     println!("{}", banner());
 
-    let arg_matches = App::new("Nym Mixnode")
-        .version(crate_version!())
-        .long_version(&*long_version())
-        .author("Nymtech")
-        .about("Implementation of a Loopix-based Mixnode")
-        .subcommand(commands::describe::command_args())
-        .subcommand(commands::init::command_args())
-        .subcommand(commands::run::command_args())
-        .subcommand(commands::upgrade::command_args())
-        .subcommand(commands::sign::command_args())
-        .subcommand(commands::node_details::command_args())
-        .get_matches();
-
-    execute(arg_matches).await;
+    let args = Cli::parse();
+    execute(args).await;
 }
 
-async fn execute(matches: ArgMatches<'static>) {
-    match matches.subcommand() {
-        ("describe", Some(m)) => commands::describe::execute(m),
-        ("init", Some(m)) => commands::init::execute(m.clone()).await,
-        ("run", Some(m)) => commands::run::execute(m.clone()).await,
-        ("sign", Some(m)) => commands::sign::execute(m),
-        ("upgrade", Some(m)) => commands::upgrade::execute(m),
-        ("node-details", Some(m)) => commands::node_details::execute(m),
-        _ => println!("{}", usage()),
+async fn execute(args: Cli) {
+    match &args.command {
+        commands::Commands::Describe(m) => commands::describe::execute(m),
+        commands::Commands::Init(m) => commands::init::execute(m).await,
+        commands::Commands::Run(m) => commands::run::execute(m).await,
+        commands::Commands::Sign(m) => commands::sign::execute(m),
+        commands::Commands::Upgrade(m) => commands::upgrade::execute(m),
+        commands::Commands::NodeDetails(m) => commands::node_details::execute(m),
     }
-}
-
-fn usage() -> &'static str {
-    "usage: --help to see available options.\n\n"
 }
 
 fn banner() -> String {

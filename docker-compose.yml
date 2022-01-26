@@ -1,6 +1,6 @@
 version: '3.7'
 x-bech32-prefix: &BECH32_PREFIX
-        punk
+        nymt
 x-wasmd-version: &WASMD_VERSION
         v0.21.0
 x-wasmd-commit-hash: &WASMD_COMMIT_HASH

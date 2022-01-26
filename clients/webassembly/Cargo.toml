@@ -20,7 +20,7 @@ coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
 [dependencies]
 futures = "0.3"
 serde = { version = "1.0", features = ["derive"] }
-wasm-bindgen = { version = "0.2", features = ["serde-serialize"]  }
+wasm-bindgen = { version = "=0.2.78", features = ["serde-serialize"]  }
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
@@ -32,7 +32,7 @@ credentials = { path = "../../common/credentials", optional = true }
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
-gateway-client = { path = "../../common/client-libs/gateway-client" }
+gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm"] }
 validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 wasm-utils = { path = "../../common/wasm-utils" }
 

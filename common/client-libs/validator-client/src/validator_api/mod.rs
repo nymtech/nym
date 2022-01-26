@@ -6,10 +6,11 @@ use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use url::Url;
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse,
+    CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
+    RewardEstimationResponse, StakeSaturationResponse,
 };
 
 pub mod error;
@@ -96,6 +97,23 @@ impl Client {
     pub async fn get_rewarded_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorAPIError> {
         self.query_validator_api(
             &[routes::API_VERSION, routes::MIXNODES, routes::REWARDED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_probs_mixnode_rewarded(
+        &self,
+        mixnode_id: &str,
+    ) -> Result<HashMap<String, f32>, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::MIXNODES,
+                routes::REWARDED,
+                routes::INCLUSION_CHANCE,
+                mixnode_id,
+            ],
             NO_PARAMS,
         )
         .await
@@ -208,6 +226,23 @@ impl Client {
                 routes::MIXNODE,
                 identity,
                 routes::STAKE_SATURATION,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_mixnode_inclusion_probability(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<InclusionProbabilityResponse, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS_ROUTES,
+                routes::MIXNODE,
+                identity,
+                routes::INCLUSION_CHANCE,
             ],
             NO_PARAMS,
         )

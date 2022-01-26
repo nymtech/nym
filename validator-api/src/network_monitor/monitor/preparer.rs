@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cache::ValidatorCache;
+use crate::contract_cache::ValidatorCache;
 use crate::network_monitor::chunker::Chunker;
 use crate::network_monitor::monitor::sender::GatewayPackets;
 use crate::network_monitor::test_packet::{NodeType, TestPacket};
@@ -185,7 +185,7 @@ impl PacketPreparer {
         let initialisation_backoff = Duration::from_secs(30);
         loop {
             let gateways = self.validator_cache.gateways().await;
-            let mixnodes = self.validator_cache.rewarded_mixnodes().await;
+            let mixnodes = self.validator_cache.rewarded_set().await;
 
             if gateways.into_inner().len() < minimum_full_routes {
                 info!(
@@ -227,7 +227,7 @@ impl PacketPreparer {
     async fn get_rewarded_nodes(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
         info!(target: "Monitor", "Obtaining network topology...");
 
-        let mixnodes = self.validator_cache.rewarded_mixnodes().await.into_inner();
+        let mixnodes = self.validator_cache.rewarded_set().await.into_inner();
         let gateways = self.validator_cache.gateways().await.into_inner();
 
         (mixnodes, gateways)
@@ -262,12 +262,12 @@ impl PacketPreparer {
         n: usize,
         blacklist: &mut HashSet<String>,
     ) -> Option<Vec<TestRoute>> {
-        let rewarded_mixnodes = self.validator_cache.rewarded_mixnodes().await.into_inner();
+        let rewarded_set = self.validator_cache.rewarded_set().await.into_inner();
         let gateways = self.validator_cache.gateways().await.into_inner();
 
         // separate mixes into layers for easier selection
         let mut layered_mixes = HashMap::new();
-        for rewarded_mix in rewarded_mixnodes {
+        for rewarded_mix in rewarded_set {
             // filter out mixes on the blacklist
             if blacklist.contains(&rewarded_mix.mix_node.identity_key) {
                 continue;
@@ -450,14 +450,13 @@ impl PacketPreparer {
         test_nonce: u64,
         test_routes: &[TestRoute],
     ) -> PreparedPackets {
-        // only test mixnodes that are rewarded, i.e. that will be rewarded in this epoch.
+        // only test mixnodes that are rewarded, i.e. that will be rewarded in this interval.
         // (remember that "idle" nodes are still part of that set)
         // we don't care about other nodes, i.e. nodes that are bonded but will not get
         // any reward during the current rewarding interval
-        let (rewarded_mixnodes, all_gateways) = self.get_rewarded_nodes().await;
+        let (rewarded_set, all_gateways) = self.get_rewarded_nodes().await;
 
-        let (mixes, invalid_mixnodes) =
-            self.filter_outdated_and_malformed_mixnodes(rewarded_mixnodes);
+        let (mixes, invalid_mixnodes) = self.filter_outdated_and_malformed_mixnodes(rewarded_set);
         let (gateways, invalid_gateways) =
             self.filter_outdated_and_malformed_gateways(all_gateways);
 

@@ -28,6 +28,7 @@ pub(crate) fn stage_full() -> AdHoc {
                 routes::get_mixnode_status,
                 routes::get_mixnode_reward_estimation,
                 routes::get_mixnode_stake_saturation,
+                routes::get_mixnode_inclusion_probability,
             ],
         )
     })
@@ -42,6 +43,7 @@ pub(crate) fn stage_minimal() -> AdHoc {
             routes![
                 routes::get_mixnode_status,
                 routes::get_mixnode_stake_saturation,
+                routes::get_mixnode_inclusion_probability,
             ],
         )
     })

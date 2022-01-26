@@ -7,7 +7,8 @@ use crate::state::State;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use validator_client::models::{
-  CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse,
+  CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
+  RewardEstimationResponse, StakeSaturationResponse,
 };
 
 #[tauri::command]
@@ -64,6 +65,18 @@ pub async fn mixnode_stake_saturation(
   Ok(
     api_client!(state)
       .get_mixnode_stake_saturation(identity)
+      .await?,
+  )
+}
+
+#[tauri::command]
+pub async fn mixnode_inclusion_probability(
+  identity: &str,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<InclusionProbabilityResponse, BackendError> {
+  Ok(
+    api_client!(state)
+      .get_mixnode_inclusion_probability(identity)
       .await?,
   )
 }

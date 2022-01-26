@@ -54,6 +54,7 @@ impl From<NymTopologyError> for PreparationError {
 /// an optional reply-SURB, padding it to appropriate length, encrypting its content,
 /// and chunking into appropriate size [`Fragment`]s.
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
+#[must_use]
 pub struct MessagePreparer<R: CryptoRng + Rng> {
     /// Instance of a cryptographically secure random number generator.
     rng: R,
@@ -386,13 +387,7 @@ where
         // (note: surb_ack_bytes contains SURB_ACK_FIRST_HOP || SURB_ACK_DATA )
         let packet_payload: Vec<_> = surb_ack_bytes
             .into_iter()
-            .chain(
-                reply_surb
-                    .encryption_key()
-                    .compute_digest()
-                    .to_vec()
-                    .into_iter(),
-            )
+            .chain(reply_surb.encryption_key().compute_digest().iter().copied())
             .chain(reply_content.into_iter())
             .collect();
 

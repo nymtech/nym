@@ -5,13 +5,13 @@ use tokio::sync::RwLock;
 pub type CountryNodesDistribution = HashMap<String, u32>;
 
 #[derive(Clone)]
-pub struct ConcurrentCountryNodesDistribution {
+pub struct ThreadsafeCountryNodesDistribution {
     inner: Arc<RwLock<CountryNodesDistribution>>,
 }
 
-impl ConcurrentCountryNodesDistribution {
+impl ThreadsafeCountryNodesDistribution {
     pub(crate) fn new() -> Self {
-        ConcurrentCountryNodesDistribution {
+        ThreadsafeCountryNodesDistribution {
             inner: Arc::new(RwLock::new(CountryNodesDistribution::new())),
         }
     }
@@ -19,7 +19,7 @@ impl ConcurrentCountryNodesDistribution {
     pub(crate) fn new_from_distribution(
         country_node_distribution: CountryNodesDistribution,
     ) -> Self {
-        ConcurrentCountryNodesDistribution {
+        ThreadsafeCountryNodesDistribution {
             inner: Arc::new(RwLock::new(country_node_distribution)),
         }
     }

@@ -5,7 +5,7 @@ use crate::{IdentityKey, SphinxKey};
 use az::CheckedCast;
 use cosmwasm_std::{coin, Addr, Coin, Uint128};
 use log::error;
-use network_defaults::DEFAULT_OPERATOR_EPOCH_COST;
+use network_defaults::DEFAULT_OPERATOR_INTERVAL_COST;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -16,6 +16,19 @@ type U128 = fixed::types::U75F53; // u128 with 18 significant digits
 
 fixed::const_fixed_from_int! {
     const ONE: U128 = 1;
+}
+
+#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+pub enum RewardedSetNodeStatus {
+    Active,
+    Standby,
+}
+
+impl RewardedSetNodeStatus {
+    pub fn is_active(&self) -> bool {
+        matches!(self, RewardedSetNodeStatus::Active)
+    }
 }
 
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
@@ -133,7 +146,7 @@ impl NodeRewardParams {
     }
 
     pub fn operator_cost(&self) -> U128 {
-        U128::from_num(self.uptime.u128() / 100u128 * DEFAULT_OPERATOR_EPOCH_COST as u128)
+        U128::from_num(self.uptime.u128() / 100u128 * DEFAULT_OPERATOR_INTERVAL_COST as u128)
     }
 
     pub fn set_reward_blockstamp(&mut self, blockstamp: u64) {
@@ -325,7 +338,7 @@ impl MixNodeBond {
         &self.mix_node
     }
 
-    pub fn total_stake(&self) -> Option<u128> {
+    pub fn total_bond(&self) -> Option<u128> {
         if self.pledge_amount.denom != self.total_delegation.denom {
             None
         } else {

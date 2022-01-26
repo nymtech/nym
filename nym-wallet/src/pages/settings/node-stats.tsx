@@ -7,7 +7,7 @@ export const NodeStats = ({ mixnodeId }: { mixnodeId?: string }) => {
   return (
     <Stack spacing={2} sx={{ p: 4 }}>
       <Typography>All your node stats are available on the link below</Typography>
-      <Link href={`${urls.networkExplorer}/network-components/mixnodes/${mixnodeId}`} target="_blank">
+      <Link href={`${urls.networkExplorer}/network-components/mixnode/${mixnodeId}`} target="_blank">
         <Button endIcon={<OpenInNew />}>Network Explorer</Button>
       </Link>
     </Stack>

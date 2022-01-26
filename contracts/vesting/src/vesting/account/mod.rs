@@ -196,8 +196,8 @@ impl Account {
         let key = self.delegations_key();
         let delegations: Map<(&[u8], u64), Uint128> = Map::new(&key);
         delegations
-            .prefix_de(mix.as_bytes())
-            .keys_de(storage, None, None, Order::Ascending)
+            .prefix(mix.as_bytes())
+            .keys(storage, None, None, Order::Ascending)
             // Scan will blow up on first error
             .scan((), |_, x| x.ok())
             .collect::<Vec<u64>>()

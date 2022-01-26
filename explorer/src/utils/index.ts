@@ -1,10 +1,6 @@
 /* eslint-disable camelcase */
 import { MutableRefObject } from 'react';
-import {
-  CountryData,
-  GatewayResponse,
-  MixNodeResponse,
-} from 'src/typeDefs/explorer-api';
+import { CountryData } from 'src/typeDefs/explorer-api';
 import { registerLocale, getName } from 'i18n-iso-countries';
 
 registerLocale(require('i18n-iso-countries/langs/en.json'));
@@ -18,26 +14,6 @@ export function scrollToRef(
 ): void {
   if (ref?.current) ref.current.scrollIntoView();
 }
-
-export type MixnodeRowType = {
-  id: string;
-  owner: string;
-  location: string;
-  identity_key: string;
-  bond: number;
-  self_percentage: string;
-  host: string;
-  layer: string;
-};
-
-export type GatewayRowType = {
-  id: string;
-  owner: string;
-  identity_key: string;
-  bond: number;
-  host: string;
-  location: string;
-};
 
 export type CountryDataRowType = {
   id: number;
@@ -63,40 +39,4 @@ export function countryDataToGridRow(
 
   const sorted = formatted.sort((a, b) => (a.nodes < b.nodes ? 1 : -1));
   return sorted;
-}
-
-export function mixnodeToGridRow(arrayOfMixnodes: MixNodeResponse): any {
-  return !arrayOfMixnodes
-    ? []
-    : arrayOfMixnodes.map((mn) => {
-        const pledge = Number(mn.pledge_amount.amount) || 0;
-        const delegations = Number(mn.total_delegation.amount) || 0;
-        const totalBond = pledge + delegations;
-        const selfPercentage = ((pledge * 100) / totalBond).toFixed(2);
-        return {
-          id: mn.owner,
-          owner: mn.owner,
-          identity_key: mn.mix_node.identity_key || '',
-          bond: totalBond || 0,
-          location: mn?.location?.country_name || '',
-          self_percentage: selfPercentage,
-          host: mn?.mix_node?.host || '',
-          layer: mn?.layer || '',
-        };
-      });
-}
-
-export function gatewayToGridRow(
-  arrayOfGateways: GatewayResponse,
-): GatewayRowType[] {
-  return !arrayOfGateways
-    ? []
-    : arrayOfGateways.map((gw) => ({
-        id: gw.owner,
-        owner: gw.owner,
-        identity_key: gw.gateway.identity_key || '',
-        location: gw?.gateway?.location || '',
-        bond: gw.pledge_amount.amount || 0,
-        host: gw.gateway.host || '',
-      }));
 }

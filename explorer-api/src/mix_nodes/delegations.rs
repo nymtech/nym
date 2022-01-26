@@ -4,7 +4,7 @@
 use mixnet_contract_common::Delegation;
 
 pub(crate) async fn get_single_mixnode_delegations(pubkey: &str) -> Vec<Delegation> {
-    let client = super::utils::new_nymd_client();
+    let client = crate::client::new_nymd_client();
     let delegates = match client
         .get_all_nymd_single_mixnode_delegations(pubkey.to_string())
         .await
@@ -19,7 +19,7 @@ pub(crate) async fn get_single_mixnode_delegations(pubkey: &str) -> Vec<Delegati
 }
 
 pub(crate) async fn get_mixnode_delegations() -> Vec<Delegation> {
-    let client = super::utils::new_nymd_client();
+    let client = crate::client::new_nymd_client();
     let delegates = match client.get_all_network_delegations().await {
         Ok(result) => result,
         Err(e) => {

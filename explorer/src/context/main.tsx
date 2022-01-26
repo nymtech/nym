@@ -13,51 +13,41 @@ import {
   StatsResponse,
   StatusResponse,
   UptimeStoryResponse,
+  MixNodeDescriptionResponse,
+  MixnodeStatus,
+  SummaryOverviewResponse,
 } from 'src/typeDefs/explorer-api';
 import { Api } from '../api';
 import { navOptionType, originalNavOptions } from './nav';
 
-interface State {
-  mode: PaletteMode;
-  toggleMode: () => void;
-  navState: navOptionType[];
-  updateNavState: (id: number) => void;
-  mixnodes?: ApiState<MixNodeResponse>;
-  fetchMixnodes: () => void;
-  filterMixnodes: (arg: MixNodeResponse) => void;
-  gateways?: ApiState<GatewayResponse>;
-  validators?: ApiState<ValidatorsResponse>;
+interface StateData {
+  summaryOverview?: ApiState<SummaryOverviewResponse>;
   block?: ApiState<BlockResponse>;
   countryData?: ApiState<CountryDataResponse>;
+  gateways?: ApiState<GatewayResponse>;
   globalError?: string | undefined;
-  mixnodeDetailInfo?: ApiState<MixNodeResponse>;
-  fetchMixnodeById: (arg: string) => void;
-  fetchDelegationsById: (arg: string) => void;
-  delegations?: ApiState<DelegationsResponse>;
-  stats?: ApiState<StatsResponse>;
-  fetchStatsById: (arg: string) => void;
-  status?: ApiState<StatusResponse>;
-  fetchStatusById: (arg: string) => void;
-  fetchUptimeStoryById: (arg: string) => void;
-  uptimeStory?: ApiState<UptimeStoryResponse>;
+  mixnodes?: ApiState<MixNodeResponse>;
+  mode: PaletteMode;
+  navState: navOptionType[];
+  validators?: ApiState<ValidatorsResponse>;
 }
+
+interface StateApi {
+  fetchMixnodes: (status?: MixnodeStatus) => void;
+  filterMixnodes: (mixnodes: MixNodeResponse) => void;
+  toggleMode: () => void;
+  updateNavState: (id: number) => void;
+}
+
+type State = StateData & StateApi;
 
 export const MainContext = React.createContext<State>({
   mode: 'dark',
   updateNavState: () => null,
   navState: originalNavOptions,
-  fetchMixnodeById: () => null,
   toggleMode: () => undefined,
-  fetchDelegationsById: () => null,
-  fetchStatsById: () => null,
-  fetchStatusById: () => null,
-  fetchUptimeStoryById: () => null,
   filterMixnodes: () => null,
   fetchMixnodes: () => null,
-  status: { data: undefined, isLoading: false, error: undefined },
-  stats: { data: undefined, isLoading: false, error: undefined },
-  mixnodeDetailInfo: { data: undefined, isLoading: false, error: undefined },
-  delegations: { data: undefined, isLoading: false, error: undefined },
 });
 
 export const useMainContext = (): React.ContextType<typeof MainContext> =>
@@ -75,6 +65,8 @@ export const MainContextProvider: React.FC = ({ children }) => {
   const [globalError, setGlobalError] = React.useState<string>();
 
   // various APIs for Overview page
+  const [summaryOverview, setSummaryOverview] =
+    React.useState<ApiState<SummaryOverviewResponse>>();
   const [mixnodes, setMixnodes] = React.useState<ApiState<MixNodeResponse>>();
   const [gateways, setGateways] = React.useState<ApiState<GatewayResponse>>();
   const [validators, setValidators] =
@@ -82,119 +74,30 @@ export const MainContextProvider: React.FC = ({ children }) => {
   const [block, setBlock] = React.useState<ApiState<BlockResponse>>();
   const [countryData, setCountryData] =
     React.useState<ApiState<CountryDataResponse>>();
-  const [mixnodeDetailInfo, setMixnodeDetailInfo] =
-    React.useState<ApiState<MixNodeResponse>>();
-
-  // various APIs for Detail page
-  const [delegations, setDelegations] =
-    React.useState<ApiState<DelegationsResponse>>();
-  const [status, setStatus] = React.useState<ApiState<StatusResponse>>();
-  const [stats, setStats] = React.useState<ApiState<StatsResponse>>();
-  const [uptimeStory, setUptimeStory] =
-    React.useState<ApiState<UptimeStoryResponse>>();
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
-  const fetchUptimeStoryById = async (id: string) => {
-    setUptimeStory({
-      data: uptimeStory?.data,
-      isLoading: true,
-      error: uptimeStory?.error,
-    });
+  const fetchOverviewSummary = async () => {
     try {
-      const data = await Api.fetchUptimeStoryById(id);
-      setUptimeStory({ data, isLoading: false });
+      const data = await Api.fetchOverviewSummary();
+      setSummaryOverview({ data, isLoading: false });
     } catch (error) {
-      setUptimeStory({
+      setSummaryOverview({
         error:
-          error instanceof Error ? error : new Error('Uptime Story api fail'),
+          error instanceof Error
+            ? error
+            : new Error('Overview summary api fail'),
         isLoading: false,
       });
     }
   };
-  const fetchDelegationsById = async (id: string) => {
-    setDelegations({ data: delegations?.data, isLoading: true });
-    try {
-      const data = await Api.fetchDelegationsById(id);
-      setDelegations({ data, isLoading: false });
-    } catch (error) {
-      setDelegations({
-        error:
-          error instanceof Error ? error : new Error('Delegations api fail'),
-        isLoading: false,
-      });
-    }
-  };
-  const fetchStatusById = async (id: string) => {
-    setStatus({ data: status?.data, isLoading: true, error: status?.error });
-    try {
-      const data = await Api.fetchStatusById(id);
-      setStatus({ data, isLoading: false });
-    } catch (error) {
-      setStatus({
-        error: error instanceof Error ? error : new Error('Status api fail'),
-        isLoading: false,
-      });
-    }
-  };
-  const fetchStatsById = async (id: string) => {
-    setStats({ data: stats?.data, isLoading: true, error: stats?.error });
-    try {
-      const data = await Api.fetchStatsById(id);
-      setStats({ data, isLoading: false });
-    } catch (error) {
-      setStats({
-        error: error instanceof Error ? error : new Error('Stats api fail'),
-        isLoading: false,
-      });
-    }
-  };
-  const fetchMixnodeById = async (id: string) => {
-    setMixnodeDetailInfo({ data: mixnodeDetailInfo?.data, isLoading: true });
 
-    // 1. if mixnode data already exists filter down to this ID
-    if (mixnodes && mixnodes.data) {
-      const [matchedToID] = mixnodes.data.filter(
-        (eachMixnode: MixNodeResponseItem) =>
-          eachMixnode.mix_node.identity_key === id,
-      );
-
-      // b) SUCCESS | if there *IS* a matched ID in mixnodes
-      if (matchedToID) {
-        setMixnodeDetailInfo({ data: [matchedToID], isLoading: false });
-      }
-      // b) FAIL | if there is no matching ID in mixnodes
-      if (!matchedToID) {
-        setGlobalError(MIXNODE_API_ERROR);
-        setMixnodeDetailInfo({
-          isLoading: false,
-          error: new Error(MIXNODE_API_ERROR),
-        });
-      }
-    } else {
-      // 2. if mixnode data DOESN'T already exist, fetch this specific ID's information.
-      try {
-        const data = await Api.fetchMixnodeByID(id);
-        // a) fetches from cache^, then API, then filters down then dumps in `mixnodes` context.
-        if (data) {
-          setMixnodeDetailInfo({ data: [data], isLoading: false });
-        } else {
-          throw Error('api failed to retrieve mixnode via id');
-        }
-        // NOTE: Only returning mixnodes api info at the moment. Other `ping` api required also.
-      } catch (error) {
-        setGlobalError(MIXNODE_API_ERROR);
-        setMixnodeDetailInfo({
-          isLoading: false,
-          error: new Error(MIXNODE_API_ERROR),
-        });
-      }
-    }
-  };
-  const fetchMixnodes = async () => {
+  const fetchMixnodes = async (status?: MixnodeStatus) => {
     setMixnodes((d) => ({ ...d, isLoading: true }));
     try {
-      const data = await Api.fetchMixnodes();
+      const data = status
+        ? await Api.fetchMixnodesActiveSetByStatus(status)
+        : await Api.fetchMixnodes();
       setMixnodes({ data, isLoading: false });
     } catch (error) {
       setMixnodes({
@@ -262,7 +165,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
   };
   React.useEffect(() => {
     Promise.all([
-      fetchMixnodes(),
+      fetchOverviewSummary(),
       fetchGateways(),
       fetchValidators(),
       fetchBlock(),
@@ -273,28 +176,19 @@ export const MainContextProvider: React.FC = ({ children }) => {
   return (
     <MainContext.Provider
       value={{
-        mode,
-        updateNavState,
-        navState,
-        toggleMode,
-        mixnodes,
-        filterMixnodes,
-        fetchMixnodes,
-        gateways,
-        validators,
         block,
         countryData,
+        fetchMixnodes,
+        filterMixnodes,
+        gateways,
         globalError,
-        mixnodeDetailInfo,
-        fetchMixnodeById,
-        fetchDelegationsById,
-        delegations,
-        stats,
-        fetchStatsById,
-        status,
-        fetchStatusById,
-        uptimeStory,
-        fetchUptimeStoryById,
+        mixnodes,
+        mode,
+        navState,
+        summaryOverview,
+        toggleMode,
+        updateNavState,
+        validators,
       }}
     >
       {children}

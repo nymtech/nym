@@ -4,18 +4,17 @@
 #[macro_use]
 extern crate rocket;
 
-use crate::cache::ValidatorCacheRefresher;
 use crate::config::Config;
+use crate::contract_cache::ValidatorCacheRefresher;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
-use crate::rewarding::epoch::Epoch;
 use crate::rewarding::Rewarder;
 use crate::storage::ValidatorApiStorage;
 use ::config::NymConfig;
 use anyhow::Result;
-use cache::ValidatorCache;
 use clap::{crate_version, App, Arg, ArgMatches};
+use contract_cache::ValidatorCache;
 use log::{info, warn};
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
@@ -24,20 +23,21 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use std::process;
 use std::sync::Arc;
 use std::time::Duration;
-use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
 use tokio::sync::Notify;
 use url::Url;
 use validator_client::nymd::SigningNymdClient;
+use validator_client::ValidatorClientError;
 
+use crate::rewarded_set_updater::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
 use coconut::InternalSignRequest;
 
-pub(crate) mod cache;
 pub(crate) mod config;
+pub(crate) mod contract_cache;
 mod network_monitor;
 mod node_status_api;
 pub(crate) mod nymd_client;
+mod rewarded_set_updater;
 mod rewarding;
 pub(crate) mod storage;
 
@@ -64,8 +64,6 @@ const ETH_ENDPOINT: &str = "eth_endpoint";
 #[cfg(not(feature = "coconut"))]
 const ETH_PRIVATE_KEY: &str = "eth_private_key";
 
-const EPOCH_LENGTH_ARG: &str = "epoch-length";
-const FIRST_REWARDING_EPOCH_ARG: &str = "first-epoch";
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 
 fn parse_validators(raw: &str) -> Vec<Url> {
@@ -164,22 +162,8 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name(FIRST_REWARDING_EPOCH_ARG)
-                .help("Datetime specifying beginning of the first rewarding epoch of this length. It must be a valid rfc3339 datetime.")
-                .takes_value(true)
-                .long(FIRST_REWARDING_EPOCH_ARG)
-                .requires(REWARDING_ENABLED)
-        )
-        .arg(
-            Arg::with_name(EPOCH_LENGTH_ARG)
-                .help("Length of the current rewarding epoch in hours")
-                .takes_value(true)
-                .long(EPOCH_LENGTH_ARG)
-                .requires(REWARDING_ENABLED)
-        )
-        .arg(
             Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
-                .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given epoch.")
+                .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.")
                 .takes_value(true)
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
                 .requires(REWARDING_ENABLED)
@@ -281,20 +265,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_mnemonic(mnemonic)
     }
 
-    if let Some(rewarding_epoch_datetime) = matches.value_of(FIRST_REWARDING_EPOCH_ARG) {
-        let first_epoch = OffsetDateTime::parse(rewarding_epoch_datetime, &Rfc3339)
-            .expect("Provided first epoch is not a valid rfc3339 datetime!");
-        config = config.with_first_rewarding_epoch(first_epoch)
-    }
-
-    if let Some(epoch_length) = matches
-        .value_of(EPOCH_LENGTH_ARG)
-        .map(|len| len.parse::<u64>())
-    {
-        let epoch_length = epoch_length.expect("Provided epoch length is not a number!");
-        config = config.with_epoch_length(Duration::from_secs(epoch_length * 60 * 60));
-    }
-
     if let Some(monitor_threshold) = matches
         .value_of(REWARDING_MONITOR_THRESHOLD_ARG)
         .map(|t| t.parse::<u8>())
@@ -302,10 +272,10 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         let monitor_threshold =
             monitor_threshold.expect("Provided monitor threshold is not a number!");
         assert!(
-            !(monitor_threshold > 100),
+            monitor_threshold <= 100,
             "Provided monitor threshold is greater than 100!"
         );
-        config = config.with_minimum_epoch_monitor_threshold(monitor_threshold)
+        config = config.with_minimum_interval_monitor_threshold(monitor_threshold)
     }
 
     #[cfg(feature = "coconut")]
@@ -388,52 +358,45 @@ fn setup_network_monitor<'a>(
     ))
 }
 
-fn expected_monitor_test_runs(config: &Config) -> usize {
-    let epoch_length = config.get_epoch_length();
+fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usize {
     let test_delay = config.get_network_monitor_run_interval();
 
     // this is just a rough estimate. In real world there will be slightly fewer test runs
     // as they are not instantaneous and hence do not happen exactly every test_delay
-    (epoch_length.as_secs() / test_delay.as_secs()) as usize
+    (interval_length.as_secs() / test_delay.as_secs()) as usize
 }
 
-fn setup_rewarder(
+async fn setup_rewarder(
     config: &Config,
-    first_epoch: Epoch,
     rocket: &Rocket<Ignite>,
     nymd_client: &Client<SigningNymdClient>,
-) -> Option<Rewarder> {
+) -> Result<Option<Rewarder>, ValidatorClientError> {
     if config.get_rewarding_enabled() && config.get_network_monitor_enabled() {
         // get instances of managed states
         let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
         let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
+        let rewarding_interval_length = nymd_client.get_current_interval().await?.length();
 
-        Some(Rewarder::new(
+        Ok(Some(Rewarder::new(
             nymd_client.clone(),
             validator_cache,
             node_status_storage,
-            first_epoch,
-            expected_monitor_test_runs(config),
-            config.get_minimum_epoch_monitor_threshold(),
-        ))
+            expected_monitor_test_runs(config, rewarding_interval_length),
+            config.get_minimum_interval_monitor_threshold(),
+        )))
     } else if config.get_rewarding_enabled() {
         warn!("Cannot enable rewarding with the network monitor being disabled");
-        None
+        Ok(None)
     } else {
-        None
+        Ok(None)
     }
 }
 
-async fn setup_rocket(
-    config: &Config,
-    first_epoch: Epoch,
-    liftoff_notify: Arc<Notify>,
-) -> Result<Rocket<Ignite>> {
+async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Rocket<Ignite>> {
     // let's build our rocket!
     let rocket = rocket::build()
         .attach(setup_cors()?)
         .attach(setup_liftoff_notify(liftoff_notify))
-        .manage(first_epoch)
         .attach(ValidatorCache::stage());
 
     #[cfg(feature = "coconut")]
@@ -492,15 +455,10 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             .map_err(|err| err.into());
     }
 
-    let first_epoch = Epoch::new(
-        config.get_first_rewarding_epoch(),
-        config.get_epoch_length(),
-    );
-
     let liftoff_notify = Arc::new(Notify::new());
 
     // let's build our rocket!
-    let rocket = setup_rocket(&config, first_epoch, Arc::clone(&liftoff_notify)).await?;
+    let rocket = setup_rocket(&config, Arc::clone(&liftoff_notify)).await?;
     let monitor_builder = setup_network_monitor(&config, system_version, &rocket);
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
@@ -508,11 +466,14 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     // if network monitor is disabled, we're not going to be sending any rewarding hence
     // we're not starting signing client
     if config.get_network_monitor_enabled() {
+        let rewarded_set_update_notify = Arc::new(Notify::new());
+
         let nymd_client = Client::new_signing(&config);
         let validator_cache_refresher = ValidatorCacheRefresher::new(
             nymd_client.clone(),
             config.get_caching_interval(),
             validator_cache.clone(),
+            Some(Arc::clone(&rewarded_set_update_notify)),
         );
 
         // spawn our cacher
@@ -524,8 +485,20 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         let uptime_updater = HistoricalUptimeUpdater::new(storage);
         tokio::spawn(async move { uptime_updater.run().await });
 
-        if let Some(rewarder) = setup_rewarder(&config, first_epoch, &rocket, &nymd_client) {
+        if let Some(rewarder) = setup_rewarder(&config, &rocket, &nymd_client).await? {
             info!("Periodic rewarding is starting...");
+
+            let rewarded_set_updater = RewardedSetUpdater::new(
+                nymd_client.clone(),
+                rewarded_set_update_notify,
+                validator_cache.clone(),
+            );
+
+            // spawn rewarded set updater
+            tokio::spawn(async move { rewarded_set_updater.run().await });
+
+            // only update rewarded set if we're also distributing rewards
+
             tokio::spawn(async move { rewarder.run().await });
         } else {
             info!("Periodic rewarding is disabled.");
@@ -536,6 +509,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             nymd_client,
             config.get_caching_interval(),
             validator_cache,
+            None,
         );
 
         // spawn our cacher
@@ -569,6 +543,11 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("Starting validator api...");
+
+    cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
+        // instriment tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
+        console_subscriber::init();
+    }}
 
     setup_logging();
     let args = parse_args();

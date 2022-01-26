@@ -4,7 +4,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
-    #[error("{} - {0}", line!())]
+    #[error("{0}")]
     Std(#[from] StdError),
     #[error("Account does not exist - {0}")]
     NoAccountForAddress(String),

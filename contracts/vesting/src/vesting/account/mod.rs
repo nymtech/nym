@@ -2,11 +2,12 @@ use super::{PledgeData, VestingPeriod};
 use crate::contract::NUM_VESTING_PERIODS;
 use crate::errors::ContractError;
 use crate::storage::{
-    load_balance, load_bond_pledge, load_delegations_all, load_delegations_for_mix,
-    load_gateway_pledge, remove_bond_pledge, remove_delegation, remove_gateway_pledge,
-    save_account, save_balance, save_bond_pledge, save_gateway_pledge, KEY,
+    load_balance, load_bond_pledge, load_gateway_pledge, remove_bond_pledge, remove_delegation,
+    remove_gateway_pledge, save_account, save_balance, save_bond_pledge, save_gateway_pledge,
+    DELEGATIONS, KEY,
 };
-use cosmwasm_std::{Addr, Coin, Storage, Timestamp, Uint128};
+use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
+use cw_storage_plus::Bound;
 use mixnet_contract_common::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -159,56 +160,68 @@ impl Account {
         remove_gateway_pledge(self.storage_key(), storage)
     }
 
-    // Returns block_time part of the delegation key
-    pub fn delegation_block_times_for_mix(
-        &self,
-        mix: &str,
-        storage: &dyn Storage,
-    ) -> Result<Vec<u64>, ContractError> {
-        let delegations = load_delegations_for_mix(self.storage_key(), mix, storage)?;
-        Ok(delegations
-            .into_iter()
-            .map(|delegation| delegation.0)
-            .collect::<Vec<u64>>())
-    }
-
-    pub fn any_delegation_for_mix(
-        &self,
-        mix: &str,
-        storage: &dyn Storage,
-    ) -> Result<bool, ContractError> {
-        Ok(!self
-            .delegation_block_times_for_mix(mix, storage)?
-            .is_empty())
+    pub fn any_delegation_for_mix(&self, mix: &str, storage: &dyn Storage) -> bool {
+        DELEGATIONS
+            .prefix((self.storage_key(), mix.to_string()))
+            .range(storage, None, None, Order::Ascending)
+            .next()
+            .is_some()
     }
 
     pub fn remove_delegations_for_mix(
         &self,
-        mix: IdentityKey,
+        mix: &str,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        let delgation_keys = self.delegation_block_times_for_mix(&mix, storage)?;
-        for key in delgation_keys {
-            remove_delegation((self.storage_key(), mix.as_bytes(), key), storage)?;
+        let limit = 50;
+        let mut start_after = None;
+        let mut block_heights = Vec::new();
+        let mut prev_len = 0;
+        // TODO: Test this
+        loop {
+            block_heights.extend(
+                DELEGATIONS
+                    .prefix((self.storage_key(), mix.to_string()))
+                    .keys(storage, start_after, None, Order::Ascending)
+                    .take(limit)
+                    .filter_map(|key| key.ok()),
+            );
+
+            if prev_len == block_heights.len() {
+                break;
+            }
+
+            prev_len = block_heights.len();
+
+            start_after = block_heights.last().map(|last| Bound::exclusive_int(*last));
+            if start_after.is_none() {
+                break;
+            }
+        }
+
+        for block_height in block_heights {
+            remove_delegation((self.storage_key(), mix.to_string(), block_height), storage)?;
         }
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub fn total_delegations_for_mix(
         &self,
         mix: IdentityKey,
         storage: &dyn Storage,
     ) -> Result<Uint128, ContractError> {
-        Ok(load_delegations_for_mix(self.storage_key(), &mix, storage)?
-            .iter()
-            .fold(Uint128::zero(), |acc, (_key, val)| acc + *val))
+        Ok(DELEGATIONS
+            .prefix((self.storage_key(), mix))
+            .range(storage, None, None, Order::Ascending)
+            .filter_map(|x| x.ok())
+            .fold(Uint128::zero(), |acc, (_key, val)| acc + val))
     }
 
     pub fn total_delegations(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
-        let delegations = load_delegations_all(self.storage_key(), storage)?;
-        Ok(delegations
-            .into_iter()
-            .fold(Uint128::zero(), |acc, x| acc + x.1))
+        Ok(DELEGATIONS
+            .sub_prefix(self.storage_key())
+            .range(storage, None, None, Order::Ascending)
+            .filter_map(|x| x.ok())
+            .fold(Uint128::zero(), |acc, (_key, val)| acc + val))
     }
 }

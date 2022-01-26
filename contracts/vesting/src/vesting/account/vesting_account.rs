@@ -1,9 +1,9 @@
 use crate::contract::NUM_VESTING_PERIODS;
 use crate::errors::ContractError;
-use crate::storage::{delete_account, load_delegations_all, save_account};
+use crate::storage::{delete_account, save_account, DELEGATIONS};
 use crate::traits::VestingAccount;
 use config::defaults::DENOM;
-use cosmwasm_std::{Addr, Coin, Env, Storage, Timestamp, Uint128};
+use cosmwasm_std::{Addr, Coin, Env, Order, Storage, Timestamp, Uint128};
 
 use super::Account;
 
@@ -115,8 +115,10 @@ impl VestingAccount for Account {
         let max_vested = self.tokens_per_period()? * period as u128;
         let start_time = self.periods[period].start_time;
 
-        let coin = load_delegations_all(self.storage_key(), storage)?
-            .into_iter()
+        let coin = DELEGATIONS
+            .sub_prefix(self.storage_key())
+            .range(storage, None, None, Order::Ascending)
+            .filter_map(|x| x.ok())
             .filter(|((_mix, block_time), _amount)| *block_time < start_time)
             .fold(Uint128::zero(), |acc, ((_mix, _block_time), amount)| {
                 acc + amount

@@ -1,9 +1,11 @@
 use crate::errors::ContractError;
 use crate::vesting::Account;
 use crate::vesting::PledgeData;
-use cosmwasm_std::Order;
 use cosmwasm_std::{Addr, Api, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
+use mixnet_contract_common::IdentityKey;
+
+type BlockHeight = u64;
 
 pub const KEY: Item<u32> = Item::new("key");
 const ACCOUNTS: Map<String, Account> = Map::new("acc");
@@ -11,11 +13,11 @@ const ACCOUNTS: Map<String, Account> = Map::new("acc");
 const BALANCES: Map<u32, Uint128> = Map::new("blc");
 const BOND_PLEDGES: Map<u32, PledgeData> = Map::new("bnd");
 const GATEWAY_PLEDGES: Map<u32, PledgeData> = Map::new("gtw");
-const DELEGATIONS: Map<(u32, &[u8], u64), Uint128> = Map::new("dlg");
+pub const DELEGATIONS: Map<(u32, IdentityKey, BlockHeight), Uint128> = Map::new("dlg");
 pub const ADMIN: Item<String> = Item::new("adm");
 
 pub fn save_delegation(
-    key: (u32, &[u8], u64),
+    key: (u32, IdentityKey, BlockHeight),
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
@@ -24,35 +26,11 @@ pub fn save_delegation(
 }
 
 pub fn remove_delegation(
-    key: (u32, &[u8], u64),
+    key: (u32, IdentityKey, BlockHeight),
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
     DELEGATIONS.remove(storage, key);
     Ok(())
-}
-
-#[allow(clippy::type_complexity)]
-pub fn load_delegations_all(
-    key: u32,
-    storage: &dyn Storage,
-) -> Result<Vec<((Vec<u8>, u64), Uint128)>, ContractError> {
-    Ok(DELEGATIONS
-        .sub_prefix(key)
-        .range(storage, None, None, Order::Ascending)
-        .scan((), |_, x| x.ok())
-        .collect())
-}
-
-pub fn load_delegations_for_mix(
-    key: u32,
-    mix_identity: &str,
-    storage: &dyn Storage,
-) -> Result<Vec<(u64, Uint128)>, ContractError> {
-    Ok(DELEGATIONS
-        .prefix((key, mix_identity.as_bytes()))
-        .range(storage, None, None, Order::Ascending)
-        .scan((), |_, x| x.ok())
-        .collect())
 }
 
 pub fn delete_account(address: &Addr, storage: &mut dyn Storage) -> Result<(), ContractError> {

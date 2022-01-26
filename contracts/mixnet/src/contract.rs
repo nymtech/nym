@@ -336,6 +336,7 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
         pub minimum_gateway_pledge: Uint128,
         pub mixnode_rewarded_set_size: u32,
         pub mixnode_active_set_size: u32,
+        #[serde(default)]
         pub active_set_work_factor: u8,
     }
 
@@ -344,8 +345,11 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
         pub owner: Addr, // only the owner account can update state
         pub rewarding_validator_address: Addr,
         pub params: OldContractStateParams,
+        #[serde(default)]
         pub rewarding_interval_starting_block: u64,
+        #[serde(default)]
         pub latest_rewarding_interval_nonce: u32,
+        #[serde(default)]
         pub rewarding_in_progress: bool,
     }
 

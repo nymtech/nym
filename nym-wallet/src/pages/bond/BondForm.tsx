@@ -18,7 +18,7 @@ import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { bond, majorToMinor } from '../../requests'
 import { validationSchema } from './validationSchema'
 import { Gateway, MixNode } from '../../types'
-import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
+import { ClientContext } from '../../context/main'
 import { Fee } from '../../components'
 
 type TBondFormFields = {
@@ -96,7 +96,7 @@ export const BondForm = ({
     defaultValues,
   })
 
-  const { userBalance, getBondDetails } = useContext(ClientContext)
+  const { userBalance, currency, getBondDetails } = useContext(ClientContext)
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
   const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions)
@@ -188,7 +188,7 @@ export const BondForm = ({
               error={!!errors.amount}
               helperText={errors.amount?.message}
               InputProps={{
-                endAdornment: <InputAdornment position="end">{MAJOR_CURRENCY}</InputAdornment>,
+                endAdornment: <InputAdornment position="end">{currency?.major}</InputAdornment>,
               }}
               disabled={disabled}
             />

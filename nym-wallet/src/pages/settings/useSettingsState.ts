@@ -19,7 +19,7 @@ export const useSettingsState = (shouldUpdate: boolean) => {
   })
 
   const { mixnodeDetails } = useContext(ClientContext)
-  console.log(inclusionProbability)
+
   const getStatus = async () => {
     if (mixnodeDetails?.mix_node.identity_key) {
       const status = await getMixnodeStatus(mixnodeDetails?.mix_node.identity_key)

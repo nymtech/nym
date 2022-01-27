@@ -15,14 +15,14 @@ type PacketDataReceiver = mpsc::UnboundedReceiver<PacketEvent>;
 type PacketDataSender = mpsc::UnboundedSender<PacketEvent>;
 
 #[derive(Clone)]
-pub(crate) struct NodeStatsWrapper {
+pub(crate) struct SharedNodeStats {
     inner: Arc<RwLock<NodeStats>>,
 }
 
-impl NodeStatsWrapper {
+impl SharedNodeStats {
     pub(crate) fn new() -> Self {
         let now = SystemTime::now();
-        NodeStatsWrapper {
+        SharedNodeStats {
             inner: Arc::new(RwLock::new(NodeStats {
                 update_time: now,
                 previous_update_time: now,
@@ -269,14 +269,14 @@ impl UpdateSender {
 struct StatsUpdater {
     updating_delay: Duration,
     current_packet_data: CurrentPacketData,
-    current_stats: NodeStatsWrapper,
+    current_stats: SharedNodeStats,
 }
 
 impl StatsUpdater {
     fn new(
         updating_delay: Duration,
         current_packet_data: CurrentPacketData,
-        current_stats: NodeStatsWrapper,
+        current_stats: SharedNodeStats,
     ) -> Self {
         StatsUpdater {
             updating_delay,
@@ -303,11 +303,11 @@ impl StatsUpdater {
 // since we have the http endpoint now?
 struct PacketStatsConsoleLogger {
     logging_delay: Duration,
-    stats: NodeStatsWrapper,
+    stats: SharedNodeStats,
 }
 
 impl PacketStatsConsoleLogger {
-    fn new(logging_delay: Duration, stats: NodeStatsWrapper) -> Self {
+    fn new(logging_delay: Duration, stats: SharedNodeStats) -> Self {
         PacketStatsConsoleLogger {
             logging_delay,
             stats,
@@ -405,14 +405,14 @@ pub struct Controller {
     stats_updater: StatsUpdater,
 
     /// Pointer to the current node stats
-    node_stats: NodeStatsWrapper,
+    node_stats: SharedNodeStats,
 }
 
 impl Controller {
     pub(crate) fn new(logging_delay: Duration, stats_updating_delay: Duration) -> Self {
         let (sender, receiver) = mpsc::unbounded();
         let shared_packet_data = CurrentPacketData::new();
-        let shared_node_stats = NodeStatsWrapper::new();
+        let shared_node_stats = SharedNodeStats::new();
 
         Controller {
             update_handler: UpdateHandler::new(shared_packet_data.clone(), receiver),
@@ -427,8 +427,8 @@ impl Controller {
         }
     }
 
-    pub(crate) fn get_node_stats_data_pointer(&self) -> NodeStatsWrapper {
-        NodeStatsWrapper {
+    pub(crate) fn get_node_stats_data_pointer(&self) -> SharedNodeStats {
+        SharedNodeStats {
             inner: Arc::clone(&self.node_stats.inner),
         }
     }

@@ -1,6 +1,7 @@
-use crate::commands::*;
 use crate::config::Config;
 use crate::node::node_description::NodeDescription;
+use clap::Args;
+use colored::Colorize;
 use config::NymConfig;
 use std::io;
 use std::io::Write;

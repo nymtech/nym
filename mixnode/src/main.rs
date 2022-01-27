@@ -34,18 +34,7 @@ async fn main() {
     println!("{}", banner());
 
     let args = Cli::parse();
-    execute(args).await;
-}
-
-async fn execute(args: Cli) {
-    match &args.command {
-        commands::Commands::Describe(m) => commands::describe::execute(m),
-        commands::Commands::Init(m) => commands::init::execute(m).await,
-        commands::Commands::Run(m) => commands::run::execute(m).await,
-        commands::Commands::Sign(m) => commands::sign::execute(m),
-        commands::Commands::Upgrade(m) => commands::upgrade::execute(m),
-        commands::Commands::NodeDetails(m) => commands::node_details::execute(m),
-    }
+    commands::execute(args).await;
 }
 
 fn banner() -> String {

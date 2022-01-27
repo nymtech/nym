@@ -3904,6 +3904,8 @@ dependencies = [
  "mixnode-common",
  "nonexhaustive-delayqueue",
  "nymsphinx",
+ "nymsphinx-params",
+ "nymsphinx-types",
  "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",

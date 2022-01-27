@@ -50,5 +50,8 @@ version-checker = { path="../common/version-checker" }
 [dev-dependencies]
 serial_test = "0.5"
 
+nymsphinx-types = { path = "../common/nymsphinx/types" }
+nymsphinx-params = { path = "../common/nymsphinx/params" }
+
 [build-dependencies]
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }

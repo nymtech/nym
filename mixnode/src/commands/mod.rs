@@ -110,25 +110,6 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     config
 }
 
-// this only checks compatibility between config the binary. It does not take into consideration
-// network version. It might do so in the future.
-pub(crate) fn version_check(cfg: &Config) -> bool {
-    let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = cfg.get_version();
-    if binary_version != config_version {
-        warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
-        if version_checker::is_minor_version_compatible(binary_version, config_version) {
-            info!("but they are still semver compatible. However, consider running the `upgrade` command");
-            true
-        } else {
-            error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
-            false
-        }
-    } else {
-        true
-    }
-}
-
 /// Ensures that a given bech32 address is valid, or exits
 pub(crate) fn validate_bech32_address_or_exit(address: &str) {
     if let Err(bech32_address_validation::Bech32Error::DecodeFailed(err)) =
@@ -147,5 +128,24 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
         println!("{}", error_message);
         println!("Exiting...");
         process::exit(1);
+    }
+}
+
+// this only checks compatibility between config the binary. It does not take into consideration
+// network version. It might do so in the future.
+pub(crate) fn version_check(cfg: &Config) -> bool {
+    let binary_version = env!("CARGO_PKG_VERSION");
+    let config_version = cfg.get_version();
+    if binary_version != config_version {
+        warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
+        if version_checker::is_minor_version_compatible(binary_version, config_version) {
+            info!("but they are still semver compatible. However, consider running the `upgrade` command");
+            true
+        } else {
+            error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
+            false
+        }
+    } else {
+        true
     }
 }

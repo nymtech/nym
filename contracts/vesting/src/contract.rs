@@ -4,7 +4,7 @@ use crate::storage::{account_from_address, ADMIN, MIXNET_CONTRACT_ADDRESS};
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
-use crate::vesting::{populate_vesting_periods, Account};
+use crate::vesting::{populate_vesting_periods, Account, PledgeData};
 use config::defaults::DENOM;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
@@ -388,14 +388,25 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             deps,
         )?),
         QueryMsg::GetAccount { address } => to_binary(&try_get_account(&address, deps)?),
+        QueryMsg::GetMixnode { address } => to_binary(&try_get_mixnode(&address, deps)?),
+        QueryMsg::GetGateway { address } => to_binary(&try_get_gateway(&address, deps)?),
     };
 
     Ok(query_res?)
 }
 
-pub fn try_get_account(address: &str, deps: Deps) -> Result<Option<Account>, ContractError> {
+pub fn try_get_mixnode(address: &str, deps: Deps) -> Result<Option<PledgeData>, ContractError> {
     let account = account_from_address(address, deps.storage, deps.api)?;
-    Ok(Some(account))
+    account.load_mixnode_pledge(deps.storage)
+}
+
+pub fn try_get_gateway(address: &str, deps: Deps) -> Result<Option<PledgeData>, ContractError> {
+    let account = account_from_address(address, deps.storage, deps.api)?;
+    account.load_gateway_pledge(deps.storage)
+}
+
+pub fn try_get_account(address: &str, deps: Deps) -> Result<Account, ContractError> {
+    account_from_address(address, deps.storage, deps.api)
 }
 
 pub fn try_get_locked_coins(

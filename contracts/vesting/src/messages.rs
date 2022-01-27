@@ -124,4 +124,10 @@ pub enum QueryMsg {
     GetAccount {
         address: String,
     },
+    GetMixnode {
+        address: String,
+    },
+    GetGateway {
+        address: String,
+    },
 }

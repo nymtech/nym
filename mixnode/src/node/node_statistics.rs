@@ -447,3 +447,34 @@ impl Controller {
         self.update_sender
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn node_stats_reported_are_received() {
+        let logging_delay = Duration::from_millis(10);
+        let stats_updating_delay = Duration::from_millis(10);
+        let node_stats_controller = Controller::new(logging_delay, stats_updating_delay);
+
+        let node_stats_pointer = node_stats_controller.get_node_stats_data_pointer();
+        let update_sender = node_stats_controller.start();
+
+        // Pass input
+        update_sender.report_sent("foo".to_string());
+        update_sender.report_sent("foo".to_string());
+
+        tokio::time::sleep(Duration::from_millis(20)).await;
+
+        // Get output (stats)
+        let stats = node_stats_pointer.read().await;
+        assert_eq!(
+            &stats.packets_sent_since_startup.get("foo"),
+            &Some(&2u64),
+        );
+        assert_eq!(&stats.packets_sent_since_last_update.len(), &1);
+        assert_eq!(&stats.packets_received_since_startup, &0u64);
+        assert!(&stats.packets_explicitly_dropped_since_startup.is_empty());
+    }
+}

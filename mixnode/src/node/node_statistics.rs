@@ -469,12 +469,12 @@ mod tests {
         update_sender.report_sent("foo".to_string());
         update_sender.report_sent("foo".to_string());
 
-        tokio::time::sleep(Duration::from_millis(20)).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
 
         // Get output (stats)
         let stats = node_stats_pointer.read().await;
         assert_eq!(&stats.packets_sent_since_startup.get("foo"), &Some(&2u64),);
-        assert_eq!(&stats.packets_sent_since_last_update.len(), &1);
+        assert_eq!(&stats.packets_sent_since_last_update.len(), &0);
         assert_eq!(&stats.packets_received_since_startup, &0u64);
         assert!(&stats.packets_explicitly_dropped_since_startup.is_empty());
     }

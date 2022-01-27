@@ -16,6 +16,10 @@ pub(crate) struct Run {
     #[clap(long)]
     host: Option<String>,
 
+    /// The wallet address you will use to bond this mixnode, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
+    #[clap(long)]
+    wallet_address: Option<String>,
+
     /// The port on which the mixnode will be listening for mix packets
     #[clap(long)]
     mix_port: Option<u16>,
@@ -35,10 +39,6 @@ pub(crate) struct Run {
     /// Comma separated list of rest endpoints of the validators
     #[clap(long)]
     validators: Option<String>,
-
-    /// The wallet address you will use to bond this mixnode, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
-    #[clap(long)]
-    wallet_address: Option<String>,
 }
 
 impl From<Run> for OverrideConfig {
@@ -46,12 +46,12 @@ impl From<Run> for OverrideConfig {
         OverrideConfig {
             id: run_config.id,
             host: run_config.host,
+            wallet_address: run_config.wallet_address,
             mix_port: run_config.mix_port,
             verloc_port: run_config.verloc_port,
             http_api_port: run_config.http_api_port,
             announce_host: run_config.announce_host,
             validators: run_config.validators,
-            wallet_address: run_config.wallet_address,
         }
     }
 }

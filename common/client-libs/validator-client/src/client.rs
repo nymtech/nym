@@ -6,21 +6,26 @@ use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
 #[cfg(feature = "nymd-client")]
-use mixnet_contract::ContractStateParams;
+use mixnet_contract_common::ContractStateParams;
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 #[cfg(feature = "nymd-client")]
-use mixnet_contract::{
+use mixnet_contract_common::{
     Delegation, MixnetContractVersion, MixnodeRewardingStatusResponse, RewardingIntervalResponse,
 };
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 
 #[cfg(feature = "nymd-client")]
 use std::str::FromStr;
 use url::Url;
+use validator_api_requests::models::{
+    CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
+    StakeSaturationResponse,
+};
 
 #[cfg(feature = "nymd-client")]
+#[must_use]
 pub struct Config {
     api_url: Url,
     nymd_url: Url,
@@ -208,7 +213,7 @@ impl<C> Client<C> {
 
     pub async fn get_rewarding_status(
         &self,
-        mix_identity: mixnet_contract::IdentityKey,
+        mix_identity: mixnet_contract_common::IdentityKey,
         rewarding_interval_nonce: u32,
     ) -> Result<MixnodeRewardingStatusResponse, ValidatorClientError>
     where
@@ -297,8 +302,8 @@ impl<C> Client<C> {
 
     pub async fn get_all_nymd_single_mixnode_delegations(
         &self,
-        identity: mixnet_contract::IdentityKey,
-    ) -> Result<Vec<mixnet_contract::Delegation>, ValidatorClientError>
+        identity: mixnet_contract_common::IdentityKey,
+    ) -> Result<Vec<mixnet_contract_common::Delegation>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -420,12 +425,67 @@ impl ApiClient {
         Ok(self.validator_api.get_active_mixnodes().await?)
     }
 
+    pub async fn get_cached_rewarded_mixnodes(
+        &self,
+    ) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
+        Ok(self.validator_api.get_rewarded_mixnodes().await?)
+    }
+
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
         Ok(self.validator_api.get_mixnodes().await?)
     }
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.validator_api.get_gateways().await?)
+    }
+
+    pub async fn get_gateway_core_status_count(
+        &self,
+        identity: IdentityKeyRef<'_>,
+        since: Option<i64>,
+    ) -> Result<CoreNodeStatusResponse, ValidatorClientError> {
+        Ok(self
+            .validator_api
+            .get_gateway_core_status_count(identity, since)
+            .await?)
+    }
+
+    pub async fn get_mixnode_core_status_count(
+        &self,
+        identity: IdentityKeyRef<'_>,
+        since: Option<i64>,
+    ) -> Result<CoreNodeStatusResponse, ValidatorClientError> {
+        Ok(self
+            .validator_api
+            .get_mixnode_core_status_count(identity, since)
+            .await?)
+    }
+
+    pub async fn get_mixnode_status(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<MixnodeStatusResponse, ValidatorClientError> {
+        Ok(self.validator_api.get_mixnode_status(identity).await?)
+    }
+
+    pub async fn get_mixnode_reward_estimation(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<RewardEstimationResponse, ValidatorClientError> {
+        Ok(self
+            .validator_api
+            .get_mixnode_reward_estimation(identity)
+            .await?)
+    }
+
+    pub async fn get_mixnode_stake_saturation(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<StakeSaturationResponse, ValidatorClientError> {
+        Ok(self
+            .validator_api
+            .get_mixnode_stake_saturation(identity)
+            .await?)
     }
 
     pub async fn blind_sign(

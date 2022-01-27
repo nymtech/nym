@@ -1,5 +1,5 @@
 [package]
-name = "mixnet-contracts"
+name = "mixnet-contract"
 version = "0.1.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2018"
@@ -16,13 +16,13 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mixnet-contract = { path = "../../common/mixnet-contract" }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 config = { path = "../../common/config"}
 vesting-contract = { path = "../vesting" }
 
-cosmwasm-std = "1.0.0-beta3"
-cosmwasm-storage = "1.0.0-beta3"
-cw-storage-plus = "0.10.3"
+cosmwasm-std = "1.0.0-beta4"
+cosmwasm-storage = "1.0.0-beta4"
+cw-storage-plus = "0.11.1"
 
 bs58 = "0.4.0"
 schemars = "0.8"

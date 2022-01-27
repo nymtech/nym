@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::Addr;
-use mixnet_contract::ContractStateParams;
+use mixnet_contract_common::ContractStateParams;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

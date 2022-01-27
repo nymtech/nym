@@ -1,6 +1,6 @@
-use crate::client;
 use crate::coin::Coin;
 use crate::error::BackendError;
+use crate::nymd_client;
 use crate::state::State;
 use crate::{Gateway, MixNode};
 use std::convert::TryInto;
@@ -15,7 +15,7 @@ pub async fn vesting_bond_gateway(
   owner_signature: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  client!(state)
+  nymd_client!(state)
     .vesting_bond_gateway(gateway, &owner_signature, pledge.try_into()?)
     .await?;
   Ok(())
@@ -25,7 +25,7 @@ pub async fn vesting_bond_gateway(
 pub async fn vesting_unbond_gateway(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  client!(state).vesting_unbond_gateway().await?;
+  nymd_client!(state).vesting_unbond_gateway().await?;
   Ok(())
 }
 
@@ -33,7 +33,7 @@ pub async fn vesting_unbond_gateway(
 pub async fn vesting_unbond_mixnode(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  client!(state).vesting_unbond_mixnode().await?;
+  nymd_client!(state).vesting_unbond_mixnode().await?;
   Ok(())
 }
 
@@ -44,7 +44,7 @@ pub async fn vesting_bond_mixnode(
   pledge: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  client!(state)
+  nymd_client!(state)
     .vesting_bond_mixnode(mixnode, &owner_signature, pledge.try_into()?)
     .await?;
   Ok(())

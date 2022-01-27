@@ -3,8 +3,11 @@ use crate::traits::DelegatingAccount;
 use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
 use cosmwasm_std::{wasm_execute, Coin, Env, Order, Response, Storage, Timestamp, Uint128};
 use cw_storage_plus::Map;
-use mixnet_contract::ExecuteMsg as MixnetExecuteMsg;
-use mixnet_contract::IdentityKey;
+use mixnet_contract_common::ExecuteMsg as MixnetExecuteMsg;
+use mixnet_contract_common::IdentityKey;
+use vesting_contract_common::events::{
+    new_vesting_delegation_event, new_vesting_undelegation_event,
+};
 
 use super::Account;
 
@@ -34,8 +37,8 @@ impl DelegatingAccount for Account {
         self.track_delegation(env.block.time, mix_identity, current_balance, coin, storage)?;
 
         Ok(Response::new()
-            .add_attribute("action", "delegate to mixnode on behalf")
-            .add_message(delegate_to_mixnode))
+            .add_message(delegate_to_mixnode)
+            .add_event(new_vesting_delegation_event()))
     }
 
     fn try_undelegate_from_mixnode(
@@ -64,8 +67,8 @@ impl DelegatingAccount for Account {
         )?;
 
         Ok(Response::new()
-            .add_attribute("action", "undelegate to mixnode on behalf")
-            .add_message(undelegate_from_mixnode))
+            .add_message(undelegate_from_mixnode)
+            .add_event(new_vesting_undelegation_event()))
     }
 
     fn track_delegation(
@@ -108,8 +111,8 @@ impl DelegatingAccount for Account {
 
         // Iterate over keys matching the prefix and remove them from the map
         let block_times = delegations
-            .prefix_de(mix_bytes)
-            .keys_de(storage, None, None, Order::Ascending)
+            .prefix(mix_bytes)
+            .keys(storage, None, None, Order::Ascending)
             // Scan will blow up on first error
             .scan((), |_, x| x.ok())
             .collect::<Vec<u64>>();

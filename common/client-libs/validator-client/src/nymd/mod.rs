@@ -13,7 +13,7 @@ use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
 use cosmwasm_std::{Coin, Uint128};
 pub use fee::gas_price::GasPrice;
 use fee::helpers::Operation;
-use mixnet_contract::{
+use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
     IdentityKey, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
     MixnetContractVersion, MixnodeRewardingStatusResponse, PagedAllDelegationsResponse,
@@ -289,7 +289,7 @@ impl<C> NymdClient<C> {
 
     pub async fn get_rewarding_status(
         &self,
-        mix_identity: mixnet_contract::IdentityKey,
+        mix_identity: mixnet_contract_common::IdentityKey,
         rewarding_interval_nonce: u32,
     ) -> Result<MixnodeRewardingStatusResponse, NymdError>
     where
@@ -768,6 +768,31 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Unbonding mixnode on behalf from rust!",
+                Vec::new(),
+            )
+            .await
+    }
+
+    /// Update the configuration of a mixnode. Right now, only possible for profit margin.
+    pub async fn update_mixnode_config(
+        &self,
+        profit_margin_percent: u8,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::UpdateMixnodeConfig);
+
+        let req = ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Updating mixnode configuration from rust!",
                 Vec::new(),
             )
             .await

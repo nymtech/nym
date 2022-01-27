@@ -28,7 +28,7 @@ pub mod test_helpers {
     use cosmwasm_std::{Addr, StdResult, Storage};
     use cosmwasm_std::{Empty, MemoryStorage};
     use cw_storage_plus::PrimaryKey;
-    use mixnet_contract::{Delegation, Gateway, IdentityKeyRef, InstantiateMsg, MixNode};
+    use mixnet_contract_common::{Delegation, Gateway, IdentityKeyRef, InstantiateMsg, MixNode};
     use rand::thread_rng;
 
     pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
@@ -81,7 +81,7 @@ pub mod test_helpers {
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg {
-            rewarding_validator_address: config::defaults::REWARDING_VALIDATOR_ADDRESS.to_string(),
+            rewarding_validator_address: config::defaults::DEFAULT_REWARDING_VALIDATOR.to_string(),
         };
         let env = mock_env();
         let info = mock_info("creator", &[]);

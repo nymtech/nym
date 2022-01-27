@@ -302,7 +302,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         let monitor_threshold =
             monitor_threshold.expect("Provided monitor threshold is not a number!");
         assert!(
-            !(monitor_threshold > 100),
+            monitor_threshold <= 100,
             "Provided monitor threshold is greater than 100!"
         );
         config = config.with_minimum_epoch_monitor_threshold(monitor_threshold)
@@ -399,6 +399,7 @@ fn expected_monitor_test_runs(config: &Config) -> usize {
 
 fn setup_rewarder(
     config: &Config,
+    first_epoch: Epoch,
     rocket: &Rocket<Ignite>,
     nymd_client: &Client<SigningNymdClient>,
 ) -> Option<Rewarder> {
@@ -407,10 +408,6 @@ fn setup_rewarder(
         let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
         let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
-        let first_epoch = Epoch::new(
-            config.get_first_rewarding_epoch(),
-            config.get_epoch_length(),
-        );
         Some(Rewarder::new(
             nymd_client.clone(),
             validator_cache,
@@ -427,11 +424,16 @@ fn setup_rewarder(
     }
 }
 
-async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Rocket<Ignite>> {
+async fn setup_rocket(
+    config: &Config,
+    first_epoch: Epoch,
+    liftoff_notify: Arc<Notify>,
+) -> Result<Rocket<Ignite>> {
     // let's build our rocket!
     let rocket = rocket::build()
         .attach(setup_cors()?)
         .attach(setup_liftoff_notify(liftoff_notify))
+        .manage(first_epoch)
         .attach(ValidatorCache::stage());
 
     #[cfg(feature = "coconut")]
@@ -440,13 +442,17 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
     // see if we should start up network monitor and if so, attach the node status api
     if config.get_network_monitor_enabled() {
         Ok(rocket
-            .attach(node_status_api::stage(
+            .attach(storage::ValidatorApiStorage::stage(
                 config.get_node_status_api_database_path(),
             ))
+            .attach(node_status_api::stage_full())
             .ignite()
             .await?)
     } else {
-        Ok(rocket.ignite().await?)
+        Ok(rocket
+            .attach(node_status_api::stage_minimal())
+            .ignite()
+            .await?)
     }
 }
 
@@ -486,10 +492,15 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             .map_err(|err| err.into());
     }
 
+    let first_epoch = Epoch::new(
+        config.get_first_rewarding_epoch(),
+        config.get_epoch_length(),
+    );
+
     let liftoff_notify = Arc::new(Notify::new());
 
     // let's build our rocket!
-    let rocket = setup_rocket(&config, Arc::clone(&liftoff_notify)).await?;
+    let rocket = setup_rocket(&config, first_epoch, Arc::clone(&liftoff_notify)).await?;
     let monitor_builder = setup_network_monitor(&config, system_version, &rocket);
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
@@ -513,7 +524,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         let uptime_updater = HistoricalUptimeUpdater::new(storage);
         tokio::spawn(async move { uptime_updater.run().await });
 
-        if let Some(rewarder) = setup_rewarder(&config, &rocket, &nymd_client) {
+        if let Some(rewarder) = setup_rewarder(&config, first_epoch, &rocket, &nymd_client) {
             info!("Periodic rewarding is starting...");
             tokio::spawn(async move { rewarder.run().await });
         } else {
@@ -558,6 +569,11 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("Starting validator api...");
+
+    cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
+        // instriment tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
+        console_subscriber::init();
+    }}
 
     setup_logging();
     let args = parse_args();

@@ -148,9 +148,9 @@ impl SharedKeys {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         self.encryption_key
-            .to_vec()
-            .into_iter()
-            .chain(self.mac_key.to_vec().into_iter())
+            .iter()
+            .copied()
+            .chain(self.mac_key.iter().copied())
             .collect()
     }
 

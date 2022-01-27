@@ -5,16 +5,63 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use url::Url;
 
+pub mod all;
 pub mod eth_contract;
-#[cfg(network = "milhon")]
-pub mod milhon;
-#[cfg(network = "sandbox")]
-pub mod sandbox;
+mod milhon;
+mod qa;
+mod sandbox;
 
-#[cfg(network = "milhon")]
-pub use milhon::*;
-#[cfg(network = "sandbox")]
-pub use sandbox::*;
+cfg_if::cfg_if! {
+    if #[cfg(network = "milhon")] {
+        pub const BECH32_PREFIX: &str = milhon::BECH32_PREFIX;
+        pub const DENOM: &str = milhon::DENOM;
+
+        pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = milhon::MIXNET_CONTRACT_ADDRESS;
+        pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = milhon::VESTING_CONTRACT_ADDRESS;
+        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = milhon::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
+        pub const DEFAULT_REWARDING_VALIDATOR_ADDRESS: &str = milhon::REWARDING_VALIDATOR_ADDRESS;
+
+        pub fn default_validators() -> Vec<ValidatorDetails> {
+            milhon::validators()
+        }
+
+        pub fn default_network() -> all::Network {
+            all::Network::MILHON
+        }
+    } else if #[cfg(network = "qa")] {
+        pub const BECH32_PREFIX: &str = qa::BECH32_PREFIX;
+        pub const DENOM: &str = qa::DENOM;
+
+        pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = qa::MIXNET_CONTRACT_ADDRESS;
+        pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = qa::VESTING_CONTRACT_ADDRESS;
+        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
+        pub const DEFAULT_REWARDING_VALIDATOR: &str = qa::REWARDING_VALIDATOR_ADDRESS;
+
+        pub fn default_validators() -> Vec<ValidatorDetails> {
+            qa::validators()
+        }
+
+        pub fn default_network() -> all::Network {
+            all::Network::QA
+        }
+    } else if #[cfg(network = "sandbox")] {
+        pub const BECH32_PREFIX: &str = sandbox::BECH32_PREFIX;
+        pub const DENOM: &str = sandbox::DENOM;
+
+        pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = sandbox::MIXNET_CONTRACT_ADDRESS;
+        pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = sandbox::VESTING_CONTRACT_ADDRESS;
+        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
+        pub const DEFAULT_REWARDING_VALIDATOR: &str = sandbox::REWARDING_VALIDATOR_ADDRESS;
+
+        pub fn default_validators() -> Vec<ValidatorDetails> {
+            sandbox::validators()
+        }
+
+        pub fn default_network() -> all::Network {
+            all::Network::SANDBOX
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ValidatorDetails {
@@ -47,25 +94,6 @@ impl ValidatorDetails {
     }
 }
 
-#[cfg(network = "milhon")]
-pub fn default_validators() -> Vec<ValidatorDetails> {
-    vec![
-        ValidatorDetails::new(
-            "https://testnet-milhon-validator1.nymtech.net",
-            Some("https://testnet-milhon-validator1.nymtech.net/api"),
-        ),
-        ValidatorDetails::new("https://testnet-milhon-validator2.nymtech.net", None),
-    ]
-}
-
-#[cfg(network = "sandbox")]
-pub fn default_validators() -> Vec<ValidatorDetails> {
-    vec![ValidatorDetails::new(
-        "https://sandbox-validator.nymtech.net",
-        Some("https://sandbox-validator.nymtech.net/api"),
-    )]
-}
-
 pub fn default_nymd_endpoints() -> Vec<Url> {
     default_validators()
         .iter()
@@ -79,6 +107,13 @@ pub fn default_api_endpoints() -> Vec<Url> {
         .filter_map(|validator| validator.api_url())
         .collect()
 }
+
+pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
+    hex_literal::hex!("9fEE3e28c17dbB87310A51F13C4fbf4331A6f102");
+// Name of the event triggered by the eth contract. If the event name is changed,
+// this would also need to be changed; It is currently tested against the json abi
+pub const ETH_EVENT_NAME: &str = "Burned";
+pub const ETH_BURN_FUNCTION_NAME: &str = "burnTokenForAccessCode";
 
 // Ethereum constants used for token bridge
 /// How much bandwidth (in bytes) one token can buy

@@ -39,7 +39,7 @@ time = { version = "0.3", features = ["serde-human-readable", "parsing"]}
 anyhow = "1"
 getset = "0.1.1"
 
-rocket_sync_db_pools = {version = "0.1.0-rc.1", default-features = false}
+rocket_sync_db_pools = { version = "0.1.0-rc.1", default-features = false }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
 
 
@@ -47,13 +47,17 @@ sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros"
 config = { path = "../common/config" }
 crypto = { path="../common/crypto" }
 gateway-client = { path="../common/client-libs/gateway-client" }
-mixnet-contract = { path="../common/mixnet-contract" }
+mixnet-contract-common = { path= "../common/cosmwasm-smart-contracts/mixnet-contract" }
 nymsphinx = { path="../common/nymsphinx" }
 topology = { path="../common/topology" }
+validator-api-requests = { path = "validator-api-requests" }
 validator-client = { path="../common/client-libs/validator-client", features = ["nymd-client"] }
 version-checker = { path="../common/version-checker" }
 coconut-interface = { path = "../common/coconut-interface", optional = true }
 credentials = { path = "../common/credentials", optional = true }
+# validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
+console-subscriber = { version = "0.1.1", optional = true}
+cfg-if = "1.0"
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
@@ -62,3 +66,6 @@ coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }
+
+[dev-dependencies]
+attohttpc = {version = "0.18.0", features = ["json"]}

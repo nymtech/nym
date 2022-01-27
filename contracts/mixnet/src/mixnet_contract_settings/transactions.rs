@@ -6,7 +6,8 @@ use crate::error::ContractError;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;
-use mixnet_contract::ContractStateParams;
+use mixnet_contract_common::events::new_settings_update_event;
+use mixnet_contract_common::ContractStateParams;
 
 pub(crate) fn try_update_contract_settings(
     deps: DepsMut,
@@ -34,10 +35,12 @@ pub(crate) fn try_update_contract_settings(
         return Err(ContractError::InvalidActiveSetSize);
     }
 
+    let response = Response::new().add_event(new_settings_update_event(&state.params, &params));
+
     state.params = params;
     storage::CONTRACT_STATE.save(deps.storage, &state)?;
 
-    Ok(Response::default())
+    Ok(response)
 }
 
 #[cfg(test)]
@@ -49,7 +52,7 @@ pub mod tests {
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::Response;
-    use mixnet_contract::ContractStateParams;
+    use mixnet_contract_common::ContractStateParams;
 
     #[test]
     fn updating_contract_settings() {
@@ -63,14 +66,13 @@ pub mod tests {
             active_set_work_factor: 10,
         };
 
+        let initial_params = storage::CONTRACT_STATE
+            .load(deps.as_ref().storage)
+            .unwrap()
+            .params;
+
         // sanity check to ensure new_params are different than the default ones
-        assert_ne!(
-            new_params,
-            storage::CONTRACT_STATE
-                .load(deps.as_ref().storage)
-                .unwrap()
-                .params
-        );
+        assert_ne!(new_params, initial_params);
 
         // cannot be updated from non-owner account
         let info = mock_info("not-the-creator", &[]);
@@ -80,7 +82,10 @@ pub mod tests {
         // but works fine from the creator account
         let info = mock_info("creator", &[]);
         let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
-        assert_eq!(res, Ok(Response::default()));
+        assert_eq!(
+            res,
+            Ok(Response::new().add_event(new_settings_update_event(&initial_params, &new_params)))
+        );
 
         // and the state is actually updated
         let current_state = storage::CONTRACT_STATE.load(deps.as_ref().storage).unwrap();
@@ -90,21 +95,21 @@ pub mod tests {
         let info = mock_info("creator", &[]);
         let mut new_params = current_state.params.clone();
         new_params.mixnode_rewarded_set_size = new_params.mixnode_active_set_size - 1;
-        let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
+        let res = try_update_contract_settings(deps.as_mut(), info, new_params);
         assert_eq!(Err(ContractError::InvalidActiveSetSize), res);
 
         // error is thrown for 0 size rewarded set
         let info = mock_info("creator", &[]);
         let mut new_params = current_state.params.clone();
         new_params.mixnode_rewarded_set_size = 0;
-        let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
+        let res = try_update_contract_settings(deps.as_mut(), info, new_params);
         assert_eq!(Err(ContractError::ZeroRewardedSet), res);
 
         // error is thrown for 0 size active set
         let info = mock_info("creator", &[]);
-        let mut new_params = current_state.params.clone();
+        let mut new_params = current_state.params;
         new_params.mixnode_active_set_size = 0;
-        let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
+        let res = try_update_contract_settings(deps.as_mut(), info, new_params);
         assert_eq!(Err(ContractError::ZeroActiveSet), res);
     }
 }

@@ -5,8 +5,8 @@ use super::storage;
 use crate::error::ContractError;
 use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::{Addr, Storage, Uint128};
-use mixnet_contract::mixnode::DelegatorRewardParams;
-use mixnet_contract::{
+use mixnet_contract_common::mixnode::DelegatorRewardParams;
+use mixnet_contract_common::{
     IdentityKey, IdentityKeyRef, PendingDelegatorRewarding, RewardingResult, RewardingStatus,
 };
 
@@ -64,7 +64,7 @@ pub(crate) fn update_rewarding_status(
     if let Some(next_start) = next_start {
         storage::REWARDING_STATUS.save(
             storage,
-            (rewarding_interval_nonce.into(), mix_identity),
+            (rewarding_interval_nonce, mix_identity),
             &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
                 running_results: rewarding_results,
                 next_start,
@@ -74,7 +74,7 @@ pub(crate) fn update_rewarding_status(
     } else {
         storage::REWARDING_STATUS.save(
             storage,
-            (rewarding_interval_nonce.into(), mix_identity),
+            (rewarding_interval_nonce, mix_identity),
             &RewardingStatus::Complete(rewarding_results),
         )?;
     }

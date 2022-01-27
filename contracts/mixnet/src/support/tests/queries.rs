@@ -4,7 +4,7 @@ use cosmwasm_std::{
     testing::{mock_env, MockApi, MockQuerier, MockStorage},
     Addr, Coin, OwnedDeps,
 };
-use mixnet_contract::{
+use mixnet_contract_common::{
     GatewayBond, MixNodeBond, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
 };
 

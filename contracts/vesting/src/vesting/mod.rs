@@ -46,7 +46,7 @@ mod tests {
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, Addr, Coin, Timestamp, Uint128};
-    use mixnet_contract::{Gateway, MixNode};
+    use mixnet_contract_common::{Gateway, MixNode};
 
     #[test]
     fn test_account_creation() {
@@ -78,10 +78,7 @@ mod tests {
         // Test key collision avoidance
 
         let account_again = vesting_account_fixture(&mut deps.storage, &env);
-        assert_eq!(
-            created_account.balance_key(),
-            "5032709489228919411ba".to_string()
-        );
+        assert_eq!(created_account.balance_key(), "1ba".to_string());
         assert_ne!(created_account.balance_key(), account_again.balance_key());
     }
 
@@ -127,7 +124,7 @@ mod tests {
         let msg = ExecuteMsg::WithdrawVestedCoins {
             amount: Coin {
                 amount: Uint128::new(1),
-                denom: "nym".to_string(),
+                denom: DENOM.to_string(),
             },
         };
         let info = mock_info("new_owner", &[]);

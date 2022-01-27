@@ -102,7 +102,7 @@ export const SendWizard = () => {
 
   return (
     <FormProvider {...methods}>
-      <Box sx={{ pt: 3 }}>
+      <Box>
         <Stepper
           activeStep={activeStep}
           sx={{
@@ -138,9 +138,7 @@ export const SendWizard = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
-            borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-            bgcolor: 'grey.100',
-            p: 2,
+            p: 3,
           }}
         >
           {activeStep === 1 && (
@@ -149,12 +147,13 @@ export const SendWizard = () => {
             </Button>
           )}
           <Button
-            variant={activeStep > 0 ? 'contained' : 'text'}
-            color={activeStep > 0 ? 'primary' : 'inherit'}
+            variant="contained"
+            color="primary"
             disableElevation
             data-testid="button"
             onClick={activeStep === 0 ? handleNextStep : activeStep === 1 ? handleSend : handleFinish}
             disabled={!!(methods.formState.errors.amount || methods.formState.errors.to || isLoading)}
+            size="large"
           >
             {activeStep === 0 ? 'Next' : activeStep === 1 ? 'Send' : 'Finish'}
           </Button>

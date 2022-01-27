@@ -9,8 +9,13 @@ use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::helpers;
 use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
 use cw_storage_plus::{Bound, PrimaryKey};
-use mixnet_contract::mixnode::{DelegatorRewardParams, NodeRewardParams};
-use mixnet_contract::{
+use mixnet_contract_common::events::{
+    new_begin_rewarding_event, new_finish_rewarding_event, new_mix_delegators_rewarding_event,
+    new_mix_operator_rewarding_event, new_not_found_mix_operator_rewarding_event,
+    new_too_fresh_bond_mix_operator_rewarding_event, new_zero_uptime_mix_operator_rewarding_event,
+};
+use mixnet_contract_common::mixnode::{DelegatorRewardParams, NodeRewardParams};
+use mixnet_contract_common::{
     IdentityKey, RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 
@@ -106,10 +111,7 @@ pub(crate) fn try_begin_mixnode_rewarding(
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
 
-    Ok(Response::new().add_attribute(
-        "rewarding interval nonce",
-        rewarding_interval_nonce.to_string(),
-    ))
+    Ok(Response::new().add_event(new_begin_rewarding_event(rewarding_interval_nonce)))
 }
 
 fn reward_mix_delegators(
@@ -199,7 +201,7 @@ pub(crate) fn try_reward_next_mixnode_delegators(
 
     match storage::REWARDING_STATUS.may_load(
         deps.storage,
-        (rewarding_interval_nonce.into(), mix_identity.clone()),
+        (rewarding_interval_nonce, mix_identity.clone()),
     )? {
         None => {
             // we haven't called 'regular' try_reward_mixnode, i.e. the operator itself
@@ -232,21 +234,26 @@ pub(crate) fn try_reward_next_mixnode_delegators(
             let mut rewarding_results = next_page_info.running_results;
             rewarding_results.total_delegator_reward += delegation_rewarding_result.total_rewarded;
 
-            let round_increase = delegation_rewarding_result.total_rewarded.to_string();
+            let round_increase = delegation_rewarding_result.total_rewarded;
             let more_delegators = delegation_rewarding_result.start_next.is_some();
 
             helpers::update_rewarding_status(
                 deps.storage,
                 rewarding_interval_nonce,
-                mix_identity,
+                mix_identity.clone(),
                 rewarding_results,
                 delegation_rewarding_result.start_next,
                 next_page_info.rewarding_params,
             )?;
 
-            Ok(Response::new()
-                .add_attribute("current round delegation increase", round_increase)
-                .add_attribute("more delegators to reward", more_delegators.to_string()))
+            Ok(
+                Response::new().add_event(new_mix_delegators_rewarding_event(
+                    rewarding_interval_nonce,
+                    &mix_identity,
+                    round_increase,
+                    more_delegators,
+                )),
+            )
         }
     }
 }
@@ -264,7 +271,7 @@ pub(crate) fn try_reward_mixnode(
     // check if the mixnode hasn't been rewarded in this rewarding interval already
     match storage::REWARDING_STATUS.may_load(
         deps.storage,
-        (rewarding_interval_nonce.into(), mix_identity.clone()),
+        (rewarding_interval_nonce, mix_identity.clone()),
     )? {
         None => (),
         Some(RewardingStatus::Complete(_)) => {
@@ -283,68 +290,91 @@ pub(crate) fn try_reward_mixnode(
     let current_bond = match mixnodes_storage::read_full_mixnode_bond(deps.storage, &mix_identity)?
     {
         Some(bond) => bond,
-        None => return Ok(Response::new().add_attribute("result", "bond not found")),
+        None => {
+            return Ok(
+                Response::new().add_event(new_not_found_mix_operator_rewarding_event(
+                    rewarding_interval_nonce,
+                    &mix_identity,
+                )),
+            )
+        }
     };
 
-    let mut node_reward = "0".to_string();
-    let mut operator_reward = Uint128::zero();
-    let mut total_delegation_increase = Uint128::zero();
-    let mut more_delegators = false;
-
-    // check if node is old enough for rewarding and if its uptime is non-zero
-    if current_bond.block_height + storage::MINIMUM_BLOCK_AGE_FOR_REWARDING <= env.block.height
-        && params.uptime() > 0
-    {
-        let mut node_reward_params = params;
-        node_reward_params.set_reward_blockstamp(env.block.height);
-
-        let operator_reward_result = current_bond.reward(&node_reward_params);
-        node_reward = operator_reward_result.reward().to_string();
-
-        // Omitting the price per packet function now, it follows that base operator reward is the node_reward
-        operator_reward = Uint128::new(current_bond.operator_reward(&node_reward_params));
-
-        let delegator_params = DelegatorRewardParams::new(&current_bond, node_reward_params);
-        let delegation_rewarding_result =
-            reward_mix_delegators(deps.storage, mix_identity.clone(), None, delegator_params)?;
-
-        helpers::update_post_rewarding_storage(
-            deps.storage,
-            &mix_identity,
-            operator_reward,
-            delegation_rewarding_result.total_rewarded,
-        )?;
-
-        let rewarding_results = RewardingResult {
-            operator_reward,
-            total_delegator_reward: delegation_rewarding_result.total_rewarded,
-        };
-
-        total_delegation_increase = rewarding_results.total_delegator_reward;
-        more_delegators = delegation_rewarding_result.start_next.is_some();
-
-        helpers::update_rewarding_status(
-            deps.storage,
-            rewarding_interval_nonce,
-            mix_identity,
-            rewarding_results,
-            delegation_rewarding_result.start_next,
-            delegator_params,
-        )?;
-    } else {
-        // node is not eligible for rewarding, so we're done immediately
+    // check if node is old enough for rewarding
+    if current_bond.block_height + storage::MINIMUM_BLOCK_AGE_FOR_REWARDING > env.block.height {
         storage::REWARDING_STATUS.save(
             deps.storage,
-            (rewarding_interval_nonce.into(), mix_identity),
+            (rewarding_interval_nonce, mix_identity.clone()),
             &RewardingStatus::Complete(Default::default()),
         )?;
+
+        return Ok(
+            Response::new().add_event(new_too_fresh_bond_mix_operator_rewarding_event(
+                rewarding_interval_nonce,
+                &mix_identity,
+            )),
+        );
     }
 
-    Ok(Response::new()
-        .add_attribute("node reward", node_reward)
-        .add_attribute("operator reward", operator_reward)
-        .add_attribute("total delegation increase", total_delegation_increase)
-        .add_attribute("more delegators to reward", more_delegators.to_string()))
+    // check if it has non-zero uptime
+    if params.uptime() == 0 {
+        storage::REWARDING_STATUS.save(
+            deps.storage,
+            (rewarding_interval_nonce, mix_identity.clone()),
+            &RewardingStatus::Complete(Default::default()),
+        )?;
+
+        return Ok(
+            Response::new().add_event(new_zero_uptime_mix_operator_rewarding_event(
+                rewarding_interval_nonce,
+                &mix_identity,
+            )),
+        );
+    }
+
+    let mut node_reward_params = params;
+    node_reward_params.set_reward_blockstamp(env.block.height);
+
+    let node_reward_result = current_bond.reward(&node_reward_params);
+
+    // Omitting the price per packet function now, it follows that base operator reward is the node_reward
+    let operator_reward = Uint128::new(current_bond.operator_reward(&node_reward_params));
+
+    let delegator_params = DelegatorRewardParams::new(&current_bond, node_reward_params);
+    let delegation_rewarding_result =
+        reward_mix_delegators(deps.storage, mix_identity.clone(), None, delegator_params)?;
+
+    helpers::update_post_rewarding_storage(
+        deps.storage,
+        &mix_identity,
+        operator_reward,
+        delegation_rewarding_result.total_rewarded,
+    )?;
+
+    let rewarding_results = RewardingResult {
+        operator_reward,
+        total_delegator_reward: delegation_rewarding_result.total_rewarded,
+    };
+    let total_delegator_reward = rewarding_results.total_delegator_reward;
+    let further_delegations = delegation_rewarding_result.start_next.is_some();
+
+    helpers::update_rewarding_status(
+        deps.storage,
+        rewarding_interval_nonce,
+        mix_identity.clone(),
+        rewarding_results,
+        delegation_rewarding_result.start_next,
+        delegator_params,
+    )?;
+
+    Ok(Response::new().add_event(new_mix_operator_rewarding_event(
+        rewarding_interval_nonce,
+        &mix_identity,
+        node_reward_result,
+        operator_reward,
+        total_delegator_reward,
+        further_delegations,
+    )))
 }
 
 pub(crate) fn try_finish_mixnode_rewarding(
@@ -374,7 +404,7 @@ pub(crate) fn try_finish_mixnode_rewarding(
     state.rewarding_in_progress = false;
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
 
-    Ok(Response::new())
+    Ok(Response::new().add_event(new_finish_rewarding_event(rewarding_interval_nonce)))
 }
 
 #[cfg(test)]
@@ -394,11 +424,15 @@ pub mod tests {
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Coin;
-    use cosmwasm_std::{attr, Order};
+    use cosmwasm_std::Order;
     use cosmwasm_std::{coin, coins, Addr, Uint128};
-    use mixnet_contract::mixnode::NodeRewardParams;
-    use mixnet_contract::{Delegation, MixNode};
-    use mixnet_contract::{IdentityKey, Layer};
+    use mixnet_contract_common::events::{
+        must_find_attribute, BOND_TOO_FRESH_VALUE, DISTRIBUTED_DELEGATION_REWARDS_KEY,
+        FURTHER_DELEGATIONS_TO_REWARD_KEY, NO_REWARD_REASON_KEY, OPERATOR_REWARDING_EVENT_TYPE,
+        OPERATOR_REWARD_KEY, TOTAL_MIXNODE_REWARD_KEY,
+    };
+    use mixnet_contract_common::mixnode::NodeRewardParams;
+    use mixnet_contract_common::{Delegation, IdentityKey, Layer, MixNode};
 
     #[cfg(test)]
     mod beginning_mixnode_rewarding {
@@ -426,7 +460,7 @@ pub mod tests {
 
             let res = try_begin_mixnode_rewarding(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 1,
             );
@@ -452,7 +486,7 @@ pub mod tests {
 
             let res = try_begin_mixnode_rewarding(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 2,
             );
@@ -547,7 +581,7 @@ pub mod tests {
 
             let res = try_begin_mixnode_rewarding(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 43,
             );
@@ -774,9 +808,9 @@ pub mod tests {
 
         let res = try_reward_mixnode(
             deps.as_mut(),
-            env.clone(),
+            env,
             info,
-            node_identity.clone(),
+            node_identity,
             tests::fixtures::node_rewarding_params_fixture(100),
             1,
         );
@@ -836,9 +870,9 @@ pub mod tests {
 
         let res = try_reward_mixnode(
             deps.as_mut(),
-            env.clone(),
+            env,
             info,
-            node_identity.clone(),
+            node_identity,
             tests::fixtures::node_rewarding_params_fixture(100),
             1,
         );
@@ -900,7 +934,7 @@ pub mod tests {
             deps.as_mut(),
             env,
             info,
-            node_identity.clone(),
+            node_identity,
             tests::fixtures::node_rewarding_params_fixture(100),
             2,
         );
@@ -923,14 +957,13 @@ pub mod tests {
         let initial_delegation = 20000_000000;
         let mixnode_bond = StoredMixnodeBond {
             pledge_amount: coin(initial_bond, DENOM),
-            owner: node_owner.clone(),
+            owner: node_owner,
             layer: Layer::One,
             block_height: env.block.height,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
                 ..tests::fixtures::mix_node_fixture()
             },
-            profit_margin_percent: Some(10),
             proxy: None,
         };
 
@@ -988,13 +1021,11 @@ pub mod tests {
                 .unwrap()
                 .u128()
         );
-
-        assert_eq!(res.attributes[0], attr("node reward", "0"));
-        assert_eq!(res.attributes[1], attr("operator reward", "0"));
-        assert_eq!(res.attributes[2], attr("total delegation increase", "0"));
+        assert_eq!(1, res.events.len());
+        assert_eq!(OPERATOR_REWARDING_EVENT_TYPE, res.events[0].ty);
         assert_eq!(
-            res.attributes[3],
-            attr("more delegators to reward", false.to_string())
+            BOND_TOO_FRESH_VALUE,
+            must_find_attribute(&res.events[0], NO_REWARD_REASON_KEY)
         );
 
         // reward can happen now, but only for bonded node
@@ -1027,12 +1058,18 @@ pub mod tests {
                 .u128()
         );
 
-        assert_ne!(res.attributes[0], attr("node reward", "0"));
-        assert_ne!(res.attributes[1], attr("operator reward", "0"));
-        assert_eq!(res.attributes[2], attr("total delegation increase", "0"));
+        assert_eq!(1, res.events.len());
+        let event = &res.events[0];
+        assert_eq!(OPERATOR_REWARDING_EVENT_TYPE, event.ty);
+        assert_ne!("0", must_find_attribute(event, TOTAL_MIXNODE_REWARD_KEY));
+        assert_ne!("0", must_find_attribute(event, OPERATOR_REWARD_KEY));
         assert_eq!(
-            res.attributes[3],
-            attr("more delegators to reward", false.to_string())
+            "0",
+            must_find_attribute(event, DISTRIBUTED_DELEGATION_REWARDS_KEY)
+        );
+        assert_eq!(
+            false.to_string(),
+            must_find_attribute(event, FURTHER_DELEGATIONS_TO_REWARD_KEY)
         );
 
         // reward happens now, both for node owner and delegators
@@ -1047,7 +1084,7 @@ pub mod tests {
         try_begin_mixnode_rewarding(deps.as_mut(), env.clone(), info.clone(), 3).unwrap();
         let res = try_reward_mixnode(
             deps.as_mut(),
-            env.clone(),
+            env,
             info.clone(),
             node_identity.clone(),
             tests::fixtures::node_rewarding_params_fixture(100),
@@ -1070,12 +1107,18 @@ pub mod tests {
                 > initial_delegation
         );
 
-        assert_ne!(res.attributes[0], attr("node reward", "0"));
-        assert_ne!(res.attributes[1], attr("operator reward", "0"));
-        assert_ne!(res.attributes[2], attr("total delegation increase", "0"));
+        assert_eq!(1, res.events.len());
+        let event = &res.events[0];
+        assert_eq!(OPERATOR_REWARDING_EVENT_TYPE, event.ty);
+        assert_ne!("0", must_find_attribute(event, TOTAL_MIXNODE_REWARD_KEY));
+        assert_ne!("0", must_find_attribute(event, OPERATOR_REWARD_KEY));
+        assert_ne!(
+            "0",
+            must_find_attribute(event, DISTRIBUTED_DELEGATION_REWARDS_KEY)
+        );
         assert_eq!(
-            res.attributes[3],
-            attr("more delegators to reward", false.to_string())
+            false.to_string(),
+            must_find_attribute(event, FURTHER_DELEGATIONS_TO_REWARD_KEY)
         );
     }
 
@@ -1198,7 +1241,7 @@ pub mod tests {
         );
         assert_eq!(
             mixnodes_storage::TOTAL_DELEGATION
-                .load(&deps.storage, &node_identity.clone())
+                .load(&deps.storage, &node_identity)
                 .unwrap()
                 .u128(),
             pre_reward_delegation + mix1_delegator1_reward + mix1_delegator2_reward
@@ -1214,7 +1257,7 @@ pub mod tests {
 
         // it's all correctly saved
         match storage::REWARDING_STATUS
-            .load(deps.as_ref().storage, (1.into(), node_identity.clone()))
+            .load(deps.as_ref().storage, (1u32, node_identity))
             .unwrap()
         {
             RewardingStatus::Complete(result) => assert_eq!(
@@ -1244,6 +1287,7 @@ pub mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
+            #[allow(clippy::inconsistent_digit_grouping)]
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
 
@@ -1263,7 +1307,7 @@ pub mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{}", i),
-                        &vec![coin(delegation_value, DENOM)],
+                        &[coin(delegation_value, DENOM)],
                     ),
                     node_identity.clone(),
                 )
@@ -1291,8 +1335,8 @@ pub mod tests {
             )
             .unwrap();
             assert_eq!(
-                res.attributes[3],
-                attr("more delegators to reward", false.to_string())
+                false.to_string(),
+                must_find_attribute(&res.events[0], FURTHER_DELEGATIONS_TO_REWARD_KEY)
             );
 
             try_finish_mixnode_rewarding(
@@ -1325,6 +1369,7 @@ pub mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
+            #[allow(clippy::inconsistent_digit_grouping)]
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
 
@@ -1344,7 +1389,7 @@ pub mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{}", i),
-                        &vec![coin(delegation_value, DENOM)],
+                        &[coin(delegation_value, DENOM)],
                     ),
                     node_identity.clone(),
                 )
@@ -1372,8 +1417,8 @@ pub mod tests {
             )
             .unwrap();
             assert_eq!(
-                res.attributes[3],
-                attr("more delegators to reward", false.to_string())
+                false.to_string(),
+                must_find_attribute(&res.events[0], FURTHER_DELEGATIONS_TO_REWARD_KEY)
             );
 
             try_finish_mixnode_rewarding(
@@ -1406,6 +1451,7 @@ pub mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
+            #[allow(clippy::inconsistent_digit_grouping)]
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
 
@@ -1425,7 +1471,7 @@ pub mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{:04}", i),
-                        &vec![coin(delegation_value, DENOM)],
+                        &[coin(delegation_value, DENOM)],
                     ),
                     node_identity.clone(),
                 )
@@ -1453,8 +1499,8 @@ pub mod tests {
             )
             .unwrap();
             assert_eq!(
-                res.attributes[3],
-                attr("more delegators to reward", true.to_string())
+                true.to_string(),
+                must_find_attribute(&res.events[0], FURTHER_DELEGATIONS_TO_REWARD_KEY)
             );
 
             try_finish_mixnode_rewarding(
@@ -1477,7 +1523,7 @@ pub mod tests {
 
             let delegation = test_helpers::read_delegation(
                 &deps.storage,
-                node_identity.clone(),
+                node_identity,
                 format!("delegator{:04}", MIXNODE_DELEGATORS_PAGE_LIMIT),
             )
             .unwrap();
@@ -1493,6 +1539,8 @@ pub mod tests {
         let mut env = mock_env();
 
         let node_owner: Addr = Addr::unchecked("bob");
+
+        #[allow(clippy::inconsistent_digit_grouping)]
         let node_identity = test_helpers::add_mixnode(
             node_owner.as_str(),
             coins(10000_000_000, DENOM),
@@ -1512,7 +1560,7 @@ pub mod tests {
                 env.clone(),
                 mock_info(
                     &*format!("delegator{:04}", i),
-                    &vec![coin(base_delegation, DENOM)],
+                    &[coin(base_delegation, DENOM)],
                 ),
                 node_identity.clone(),
             )
@@ -1531,7 +1579,7 @@ pub mod tests {
         for delegation in delegations_storage::delegations()
             .idx
             .mixnode
-            .prefix(node_identity.clone())
+            .prefix(node_identity)
             .range(deps.as_ref().storage, None, None, Order::Ascending)
         {
             actual_reward +=
@@ -1546,6 +1594,8 @@ pub mod tests {
 
         // with paging
         let node_owner: Addr = Addr::unchecked("alice");
+
+        #[allow(clippy::inconsistent_digit_grouping)]
         let node_identity = test_helpers::add_mixnode(
             node_owner.as_str(),
             coins(10000_000_000, DENOM),
@@ -1565,7 +1615,7 @@ pub mod tests {
                 env.clone(),
                 mock_info(
                     &*format!("delegator{:04}", i),
-                    &vec![coin(base_delegation, DENOM)],
+                    &[coin(base_delegation, DENOM)],
                 ),
                 node_identity.clone(),
             )
@@ -1585,7 +1635,7 @@ pub mod tests {
             .idx
             .mixnode
             .prefix(node_identity.clone())
-            .range(deps.as_ref().storage, None, None, Order::Ascending)
+            .range_raw(deps.as_ref().storage, None, None, Order::Ascending)
         {
             let (primary_key, delegation) = delegation.unwrap();
             let delegator_reward = Uint128::new(delegation.amount.amount.u128() - base_delegation);
@@ -1629,7 +1679,7 @@ pub mod tests {
         for delegation in delegations_storage::delegations()
             .idx
             .mixnode
-            .prefix(node_identity.clone())
+            .prefix(node_identity)
             .range(deps.as_ref().storage, Some(start), None, Order::Ascending)
         {
             actual_reward +=
@@ -1686,7 +1736,7 @@ pub mod tests {
 
             try_begin_mixnode_rewarding(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 mock_info(rewarding_validator_address.as_ref(), &[]),
                 1,
             )
@@ -1718,6 +1768,8 @@ pub mod tests {
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
             let node_owner: Addr = Addr::unchecked("alice");
+
+            #[allow(clippy::inconsistent_digit_grouping)]
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
                 coins(10000_000_000, DENOM),
@@ -1753,7 +1805,7 @@ pub mod tests {
 
             assert_eq!(
                 Err(ContractError::MixnodeAlreadyRewarded {
-                    identity: node_identity.clone()
+                    identity: node_identity
                 }),
                 res
             );
@@ -1767,6 +1819,8 @@ pub mod tests {
 
             // there was another page of delegators, but they were already dealt with
             let node_owner: Addr = Addr::unchecked("bob");
+
+            #[allow(clippy::inconsistent_digit_grouping)]
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
                 coins(10000_000_000, DENOM),
@@ -1777,10 +1831,7 @@ pub mod tests {
                 try_delegate_to_mixnode(
                     deps.as_mut(),
                     env.clone(),
-                    mock_info(
-                        &*format!("delegator{:04}", i),
-                        &vec![coin(2000_000000, DENOM)],
-                    ),
+                    mock_info(&*format!("delegator{:04}", i), &[coin(2000_000000, DENOM)]),
                     node_identity.clone(),
                 )
                 .unwrap();
@@ -1799,7 +1850,7 @@ pub mod tests {
 
             try_reward_mixnode(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 info,
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),
@@ -1825,7 +1876,7 @@ pub mod tests {
 
             assert_eq!(
                 Err(ContractError::MixnodeAlreadyRewarded {
-                    identity: node_identity.clone()
+                    identity: node_identity
                 }),
                 res
             );
@@ -1848,6 +1899,7 @@ pub mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
+            #[allow(clippy::inconsistent_digit_grouping)]
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
 
@@ -1869,7 +1921,7 @@ pub mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{:04}", i),
-                        &vec![coin(delegation_value, DENOM)],
+                        &[coin(delegation_value, DENOM)],
                     ),
                     node_identity.clone(),
                 )
@@ -1889,7 +1941,7 @@ pub mod tests {
 
             try_reward_mixnode(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 info,
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),
@@ -1945,6 +1997,7 @@ pub mod tests {
                 .unwrap();
             let rewarding_validator_address = current_state.rewarding_validator_address;
 
+            #[allow(clippy::inconsistent_digit_grouping)]
             let mix_bond = Uint128::new(10000_000_000);
             let delegation_value = 2000_000000;
 
@@ -1966,7 +2019,7 @@ pub mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{:04}", i),
-                        &vec![coin(delegation_value, DENOM)],
+                        &[coin(delegation_value, DENOM)],
                     ),
                     node_identity.clone(),
                 )
@@ -1979,7 +2032,7 @@ pub mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 env.clone(),
-                mock_info("delegator0123", &vec![coin(delegation_value, DENOM)]),
+                mock_info("delegator0123", &[coin(delegation_value, DENOM)]),
                 node_identity.clone(),
             )
             .unwrap();
@@ -1989,7 +2042,7 @@ pub mod tests {
                 env.clone(),
                 mock_info(
                     &*format!("delegator{:04}", 123 + MIXNODE_DELEGATORS_PAGE_LIMIT),
-                    &vec![coin(delegation_value, DENOM)],
+                    &[coin(delegation_value, DENOM)],
                 ),
                 node_identity.clone(),
             )
@@ -2008,7 +2061,7 @@ pub mod tests {
 
             try_reward_mixnode(
                 deps.as_mut(),
-                env.clone(),
+                env,
                 info,
                 node_identity.clone(),
                 tests::fixtures::node_rewarding_params_fixture(100),

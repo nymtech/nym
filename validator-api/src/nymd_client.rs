@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::rewarding::{error::RewardingError, MixnodeToReward};
+use crate::rewarding::{error::RewardingError, EpochRewardParams, MixnodeToReward};
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
-use mixnet_contract::{
+use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond,
     MixnodeRewardingStatusResponse, RewardingIntervalResponse, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
@@ -98,34 +98,6 @@ impl<C> Client<C> {
         Ok(time)
     }
 
-    pub(crate) async fn get_reward_pool(&self) -> Result<u128, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.0.read().await.get_reward_pool().await?)
-    }
-
-    pub(crate) async fn get_circulating_supply(&self) -> Result<u128, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.0.read().await.get_circulating_supply().await?)
-    }
-
-    pub(crate) async fn get_sybil_resistance_percent(&self) -> Result<u8, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.0.read().await.get_sybil_resistance_percent().await?)
-    }
-
-    pub(crate) async fn get_epoch_reward_percent(&self) -> Result<u8, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.0.read().await.get_epoch_reward_percent().await?)
-    }
-
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -158,9 +130,34 @@ impl<C> Client<C> {
         self.0.read().await.get_current_rewarding_interval().await
     }
 
+    pub(crate) async fn get_current_epoch_reward_params(
+        &self,
+    ) -> Result<EpochRewardParams, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let this = self.0.read().await;
+
+        let state = this.get_contract_settings().await?;
+        let reward_pool = this.get_reward_pool().await?;
+        let epoch_reward_percent = this.get_epoch_reward_percent().await?;
+
+        let epoch_reward_params = EpochRewardParams {
+            reward_pool,
+            circulating_supply: this.get_circulating_supply().await?,
+            sybil_resistance_percent: this.get_sybil_resistance_percent().await?,
+            rewarded_set_size: state.mixnode_rewarded_set_size,
+            active_set_size: state.mixnode_active_set_size,
+            period_reward_pool: (reward_pool / 100) * epoch_reward_percent as u128,
+            active_set_work_factor: state.active_set_work_factor,
+        };
+
+        Ok(epoch_reward_params)
+    }
+
     pub(crate) async fn get_rewarding_status(
         &self,
-        mix_identity: mixnet_contract::IdentityKey,
+        mix_identity: mixnet_contract_common::IdentityKey,
         rewarding_interval_nonce: u32,
     ) -> Result<MixnodeRewardingStatusResponse, ValidatorClientError>
     where

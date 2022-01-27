@@ -6,6 +6,7 @@ import { validationSchema } from './validationSchema'
 import { EnumNodeType, TDelegation, TFee } from '../../types'
 import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
 import { undelegate } from '../../requests'
+import { Fee } from '../../components'
 
 type TFormData = {
   nodeType: EnumNodeType
@@ -60,7 +61,7 @@ export const UndelegateForm = ({
 
   return (
     <FormControl fullWidth>
-      <Box sx={{ p: 4 }}>
+      <Box sx={{ p: 3 }}>
         <Grid container spacing={3} direction="column">
           <Grid item xs={12}>
             <Controller
@@ -89,9 +90,7 @@ export const UndelegateForm = ({
             />
           </Grid>
           <Grid item xs={12}>
-            <Typography sx={{ color: 'nym.fee' }}>
-              Fee for this transaction: {`${fees.mixnode.amount} ${MAJOR_CURRENCY}`}{' '}
-            </Typography>
+            <Fee feeType="UndelegateFromMixnode" />
           </Grid>
         </Grid>
       </Box>
@@ -100,9 +99,8 @@ export const UndelegateForm = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-          bgcolor: 'grey.100',
-          p: 2,
+          p: 3,
+          pt: 0,
         }}
       >
         <Button
@@ -114,6 +112,7 @@ export const UndelegateForm = ({
           disableElevation
           disabled={isSubmitting}
           endIcon={isSubmitting && <CircularProgress size={20} />}
+          size="large"
         >
           Undelegate stake
         </Button>

@@ -1,6 +1,7 @@
 import * as Yup from 'yup'
 import { MAJOR_CURRENCY } from '../../context/main'
 import {
+  checkHasEnoughFunds,
   isValidHostname,
   validateAmount,
   validateKey,
@@ -28,11 +29,19 @@ export const validationSchema = Yup.object().shape({
   profitMarginPercent: Yup.number().required('Profit Percentage is required').min(0).max(100),
   amount: Yup.string()
     .required('An amount is required')
-    .test('valid-amount', `A valid amount is required (min 100 ${MAJOR_CURRENCY})`, function (value) {
-      return validateAmount(value || '', '100000000')
-      // minimum amount needs to come from the backend - replace when available
-    }),
+    .test('valid-amount', `Pledge error`, async function (value) {
+      const isValid = await validateAmount(value || '', '100000000')
 
+      if (!isValid) {
+        return this.createError({ message: `A valid amount is required (min 100 ${MAJOR_CURRENCY})` })
+      } else {
+        const hasEnough = await checkHasEnoughFunds(value || '')
+        if (!hasEnough) {
+          return this.createError({ message: 'Not enough funds in wallet' })
+        }
+      }
+      return true
+    }),
   host: Yup.string()
     .required('A host is required')
     .test('valid-host', 'A valid host is required', function (value) {

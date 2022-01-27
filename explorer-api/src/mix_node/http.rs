@@ -1,16 +1,16 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::mix_node::models::{NodeDescription, NodeStats};
+use crate::mix_nodes::delegations::{get_mixnode_delegations, get_single_mixnode_delegations};
+use crate::state::ExplorerApiStateContext;
+use mixnet_contract_common::Delegation;
 use reqwest::Error as ReqwestError;
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 use rocket_okapi::okapi::openapi3::OpenApi;
 use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
-use serde::Serialize;
-
-use mixnet_contract::{Addr, Coin, Delegation, Layer, MixNode};
-
-use crate::mix_node::models::{NodeDescription, NodeStats};
-use crate::mix_nodes::{get_mixnode_delegations, get_single_mixnode_delegations, Location};
-use crate::state::ExplorerApiStateContext;
 
 pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
     openapi_get_routes_spec![
@@ -19,16 +19,6 @@ pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, 
         get_description,
         get_stats,
     ]
-}
-
-#[derive(Clone, Debug, Serialize, JsonSchema)]
-pub(crate) struct PrettyMixNodeBondWithLocation {
-    pub location: Option<Location>,
-    pub pledge_amount: Coin,
-    pub total_delegation: Coin,
-    pub owner: Addr,
-    pub layer: Layer,
-    pub mix_node: MixNode,
 }
 
 #[openapi(tag = "mix_node")]

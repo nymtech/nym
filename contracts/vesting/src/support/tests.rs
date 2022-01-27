@@ -1,7 +1,7 @@
 #[cfg(test)]
 pub mod helpers {
-    use crate::contract::{instantiate, NUM_VESTING_PERIODS};
-    use crate::messages::InitMsg;
+    use crate::contract::instantiate;
+    use crate::messages::{InitMsg, VestingSpecification};
     use crate::vesting::{populate_vesting_periods, Account};
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
@@ -20,7 +20,8 @@ pub mod helpers {
 
     pub fn vesting_account_fixture(storage: &mut dyn Storage, env: &Env) -> Account {
         let start_time = env.block.time;
-        let periods = populate_vesting_periods(start_time.seconds(), NUM_VESTING_PERIODS);
+        let periods =
+            populate_vesting_periods(start_time.seconds(), VestingSpecification::default());
 
         Account::new(
             Addr::unchecked("owner"),

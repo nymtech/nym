@@ -1,4 +1,3 @@
-use crate::contract::VESTING_PERIOD;
 use cosmwasm_std::{Timestamp, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -6,14 +5,17 @@ use serde::{Deserialize, Serialize};
 mod account;
 pub use account::*;
 
+use crate::messages::VestingSpecification;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct VestingPeriod {
     pub start_time: u64,
+    pub period_seconds: u32,
 }
 
 impl VestingPeriod {
     pub fn end_time(&self) -> Timestamp {
-        Timestamp::from_seconds(self.start_time + VESTING_PERIOD)
+        Timestamp::from_seconds(self.start_time + self.period_seconds as u64)
     }
 }
 
@@ -23,11 +25,15 @@ pub struct PledgeData {
     block_time: Timestamp,
 }
 
-pub fn populate_vesting_periods(start_time: u64, n: usize) -> Vec<VestingPeriod> {
-    let mut periods = Vec::with_capacity(n as usize);
-    for i in 0..n {
+pub fn populate_vesting_periods(
+    start_time: u64,
+    vesting_spec: VestingSpecification,
+) -> Vec<VestingPeriod> {
+    let mut periods = Vec::with_capacity(vesting_spec.num_periods() as usize);
+    for i in 0..vesting_spec.num_periods() {
         let period = VestingPeriod {
-            start_time: start_time + i as u64 * VESTING_PERIOD,
+            start_time: start_time + i as u64 * vesting_spec.period_seconds() as u64,
+            period_seconds: vesting_spec.period_seconds(),
         };
         periods.push(period);
     }
@@ -36,7 +42,7 @@ pub fn populate_vesting_periods(start_time: u64, n: usize) -> Vec<VestingPeriod>
 
 #[cfg(test)]
 mod tests {
-    use crate::contract::{execute, NUM_VESTING_PERIODS, VESTING_PERIOD};
+    use crate::contract::execute;
     use crate::messages::ExecuteMsg;
     use crate::storage::load_account;
     use crate::support::tests::helpers::{init_contract, vesting_account_fixture};
@@ -56,7 +62,7 @@ mod tests {
         let msg = ExecuteMsg::CreateAccount {
             owner_address: "owner".to_string(),
             staking_address: Some("staking".to_string()),
-            start_time: None,
+            vesting_spec: None,
         };
         let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
         assert!(response.is_err());
@@ -165,17 +171,18 @@ mod tests {
     fn test_period_logic() {
         let mut deps = init_contract();
         let env = mock_env();
+        let num_vesting_periods = 8;
+        let vesting_period = 3 * 30 * 86400;
 
         let account = vesting_account_fixture(&mut deps.storage, &env);
 
-        assert_eq!(account.periods().len(), NUM_VESTING_PERIODS as usize);
-        assert_eq!(account.periods().len(), 8);
+        assert_eq!(account.periods().len(), num_vesting_periods as usize);
 
         let current_period = account.get_current_vesting_period(Timestamp::from_seconds(0));
         assert_eq!(0, current_period);
 
         let block_time =
-            Timestamp::from_seconds(account.start_time().seconds() + VESTING_PERIOD + 1);
+            Timestamp::from_seconds(account.start_time().seconds() + vesting_period + 1);
         let current_period = account.get_current_vesting_period(block_time);
         assert_eq!(current_period, 1);
         let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
@@ -183,19 +190,19 @@ mod tests {
         assert_eq!(
             vested_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128
+                account.get_original_vesting().amount.u128() / num_vesting_periods as u128
             )
         );
         assert_eq!(
             vesting_coins.amount,
             Uint128::new(
                 account.get_original_vesting().amount.u128()
-                    - account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128
+                    - account.get_original_vesting().amount.u128() / num_vesting_periods as u128
             )
         );
 
         let block_time =
-            Timestamp::from_seconds(account.start_time().seconds() + 5 * VESTING_PERIOD + 1);
+            Timestamp::from_seconds(account.start_time().seconds() + 5 * vesting_period + 1);
         let current_period = account.get_current_vesting_period(block_time);
         assert_eq!(current_period, 5);
         let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
@@ -203,7 +210,7 @@ mod tests {
         assert_eq!(
             vested_coins.amount,
             Uint128::new(
-                5 * account.get_original_vesting().amount.u128() / NUM_VESTING_PERIODS as u128
+                5 * account.get_original_vesting().amount.u128() / num_vesting_periods as u128
             )
         );
         assert_eq!(
@@ -211,7 +218,7 @@ mod tests {
             Uint128::new(
                 account.get_original_vesting().amount.u128()
                     - 5 * account.get_original_vesting().amount.u128()
-                        / NUM_VESTING_PERIODS as u128
+                        / num_vesting_periods as u128
             )
         );
     }

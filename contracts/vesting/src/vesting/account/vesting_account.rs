@@ -1,4 +1,3 @@
-use crate::contract::NUM_VESTING_PERIODS;
 use crate::errors::ContractError;
 use crate::storage::{delete_account, save_account, DELEGATIONS};
 use crate::traits::VestingAccount;
@@ -97,7 +96,7 @@ impl VestingAccount for Account {
     }
 
     fn get_end_time(&self) -> Timestamp {
-        self.periods[(NUM_VESTING_PERIODS - 1) as usize].end_time()
+        self.periods[(self.num_vesting_periods() - 1) as usize].end_time()
     }
 
     fn get_original_vesting(&self) -> Coin {

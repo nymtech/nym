@@ -13,6 +13,27 @@ pub struct InitMsg {
 #[serde(rename_all = "snake_case")]
 pub struct MigrateMsg {}
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Default)]
+pub struct VestingSpecification {
+    start_time: Option<u64>,
+    period_seconds: Option<u32>,
+    num_periods: Option<u32>,
+}
+
+impl VestingSpecification {
+    pub fn start_time(&self) -> Option<u64> {
+        self.start_time
+    }
+
+    pub fn period_seconds(&self) -> u32 {
+        self.period_seconds.unwrap_or(3 * 30 * 86400)
+    }
+
+    pub fn num_periods(&self) -> u32 {
+        self.num_periods.unwrap_or(8)
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
@@ -26,7 +47,7 @@ pub enum ExecuteMsg {
     CreateAccount {
         owner_address: String,
         staking_address: Option<String>,
-        start_time: Option<u64>,
+        vesting_spec: Option<VestingSpecification>,
     },
     WithdrawVestedCoins {
         amount: Coin,

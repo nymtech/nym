@@ -6,7 +6,14 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "./CosmosToken.sol";
+import "./TestCosmosToken.sol";
+
+/**
+* This is a slightly modified version of the gravity bridge contract 
+* which I have done for unit testing. 
+* 
+* All that has been changed is ___ 
+*/
 
 error InvalidSignature();
 error InvalidValsetNonce(uint256 newNonce, uint256 currentNonce);
@@ -63,7 +70,7 @@ struct Signature {
 	bytes32 s;
 }
 
-contract Gravity is ReentrancyGuard {
+contract TestGravity is ReentrancyGuard {
 	using SafeERC20 for IERC20;
 
 	// The number of 'votes' required to execute a valset
@@ -593,8 +600,9 @@ contract Gravity is ReentrancyGuard {
 		string calldata _symbol,
 		uint8 _decimals
 	) external {
-		// Deploy an ERC20 with entire supply granted to Gravity.sol
-		CosmosERC20 erc20 = new CosmosERC20(address(this), _name, _symbol, _decimals);
+		// NOTE this is an edit made for the nym codebase unit tests - in the canonical bridge it is the entire token supply
+		// Deploy an ERC20 with half of entire supply granted to Gravity.sol
+		TestCosmosERC20 erc20 = new TestCosmosERC20(address(this), _name, _symbol, _decimals);
 
 		// Fire an event to let the Cosmos module know
 		state_lastEventNonce = state_lastEventNonce + 1;

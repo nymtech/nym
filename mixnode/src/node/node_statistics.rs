@@ -458,7 +458,7 @@ mod tests {
 
     #[tokio::test]
     async fn node_stats_reported_are_received() {
-        let logging_delay = Duration::from_millis(10);
+        let logging_delay = Duration::from_millis(30);
         let stats_updating_delay = Duration::from_millis(10);
         let node_stats_controller = Controller::new(logging_delay, stats_updating_delay);
 
@@ -469,7 +469,7 @@ mod tests {
         update_sender.report_sent("foo".to_string());
         update_sender.report_sent("foo".to_string());
 
-        tokio::time::sleep(Duration::from_millis(50)).await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
 
         // Get output (stats)
         let stats = node_stats_pointer.read().await;

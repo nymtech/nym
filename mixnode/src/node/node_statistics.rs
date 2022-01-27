@@ -205,6 +205,7 @@ impl CurrentPacketData {
     }
 }
 
+// Worker that listens to a channel and updates the shared current packet data
 struct UpdateHandler {
     current_data: CurrentPacketData,
     update_receiver: PacketDataReceiver,
@@ -233,6 +234,7 @@ impl UpdateHandler {
     }
 }
 
+// Channel to report statistics
 #[derive(Clone)]
 pub struct UpdateSender(PacketDataSender);
 
@@ -266,6 +268,8 @@ impl UpdateSender {
     }
 }
 
+// Worker that periodically updates the shared node stats from the current packet data buffer that
+// the `UpdateHandler` updates.
 struct StatsUpdater {
     updating_delay: Duration,
     current_packet_data: CurrentPacketData,

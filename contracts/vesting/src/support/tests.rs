@@ -9,9 +9,11 @@ pub mod helpers {
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();
-        let msg = InitMsg {};
+        let msg = InitMsg {
+            mixnet_contract_address: "test".to_string(),
+        };
         let env = mock_env();
-        let info = mock_info("creator", &[]);
+        let info = mock_info("admin", &[]);
         instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
         return deps;
     }

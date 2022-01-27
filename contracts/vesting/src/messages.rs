@@ -5,13 +5,20 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct InitMsg {}
+pub struct InitMsg {
+    pub(crate) mixnet_contract_address: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct MigrateMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     DelegateToMixnode {
         mix_identity: IdentityKey,
+        amount: Coin,
     },
     UndelegateFromMixnode {
         mix_identity: IdentityKey,
@@ -32,6 +39,7 @@ pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
         owner_signature: String,
+        amount: Coin,
     },
     UnbondMixnode {},
     TrackUnbondMixnode {
@@ -41,6 +49,7 @@ pub enum ExecuteMsg {
     BondGateway {
         gateway: Gateway,
         owner_signature: String,
+        amount: Coin,
     },
     UnbondGateway {},
     TrackUnbondGateway {
@@ -90,5 +99,8 @@ pub enum QueryMsg {
     GetDelegatedVesting {
         block_time: Option<Timestamp>,
         vesting_account_address: String,
+    },
+    GetAccount {
+        address: String,
     },
 }

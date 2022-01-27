@@ -36,7 +36,7 @@ pub fn populate_vesting_periods(start_time: u64, n: usize) -> Vec<VestingPeriod>
 
 #[cfg(test)]
 mod tests {
-    use crate::contract::{execute, ADMIN_ADDRESS, NUM_VESTING_PERIODS, VESTING_PERIOD};
+    use crate::contract::{execute, NUM_VESTING_PERIODS, VESTING_PERIOD};
     use crate::messages::ExecuteMsg;
     use crate::storage::load_account;
     use crate::support::tests::helpers::{init_contract, vesting_account_fixture};
@@ -61,7 +61,7 @@ mod tests {
         let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
         assert!(response.is_err());
 
-        let info = mock_info(ADMIN_ADDRESS, &coins(1_000_000_000_000, DENOM));
+        let info = mock_info("admin", &coins(1_000_000_000_000, DENOM));
         let _response = execute(deps.as_mut(), env.clone(), info, msg.clone());
         let created_account = load_account(&Addr::unchecked("owner"), &deps.storage)
             .unwrap()
@@ -78,8 +78,8 @@ mod tests {
         // Test key collision avoidance
 
         let account_again = vesting_account_fixture(&mut deps.storage, &env);
-        assert_eq!(created_account.balance_key(), "1ba".to_string());
-        assert_ne!(created_account.balance_key(), account_again.balance_key());
+        assert_eq!(created_account.storage_key(), 1);
+        assert_ne!(created_account.storage_key(), account_again.storage_key());
     }
 
     #[test]

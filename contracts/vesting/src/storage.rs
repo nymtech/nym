@@ -15,6 +15,7 @@ const BOND_PLEDGES: Map<u32, PledgeData> = Map::new("bnd");
 const GATEWAY_PLEDGES: Map<u32, PledgeData> = Map::new("gtw");
 pub const DELEGATIONS: Map<(u32, IdentityKey, BlockHeight), Uint128> = Map::new("dlg");
 pub const ADMIN: Item<String> = Item::new("adm");
+pub const MIXNET_CONTRACT_ADDRESS: Item<String> = Item::new("mix");
 
 pub fn save_delegation(
     key: (u32, IdentityKey, BlockHeight),

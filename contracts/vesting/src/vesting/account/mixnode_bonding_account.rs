@@ -1,7 +1,7 @@
 use super::PledgeData;
 use crate::errors::ContractError;
+use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::MixnodeBondingAccount;
-use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 use vesting_contract_common::events::{
@@ -47,7 +47,8 @@ impl MixnodeBondingAccount for Account {
 
         let new_balance = Uint128::new(current_balance.u128() - pledge.amount.u128());
 
-        let bond_mixnode_mag = wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![pledge])?;
+        let bond_mixnode_mag =
+            wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![pledge])?;
 
         self.save_balance(new_balance, storage)?;
         self.save_mixnode_pledge(pledge_data, storage)?;
@@ -63,7 +64,7 @@ impl MixnodeBondingAccount for Account {
         };
 
         if self.load_mixnode_pledge(storage)?.is_some() {
-            let unbond_msg = wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![])?;
+            let unbond_msg = wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
 
             Ok(Response::new()
                 .add_message(unbond_msg)

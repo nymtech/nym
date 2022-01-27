@@ -1,11 +1,11 @@
 use crate::errors::ContractError;
 use crate::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
-use crate::storage::{account_from_address, ADMIN};
+use crate::storage::{account_from_address, ADMIN, MIXNET_CONTRACT_ADDRESS};
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
 use crate::vesting::{populate_vesting_periods, Account};
-use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
+use config::defaults::DENOM;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Timestamp, Uint128,
@@ -28,10 +28,11 @@ pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    _msg: InitMsg,
+    msg: InitMsg,
 ) -> Result<Response, ContractError> {
     // ADMIN is set to the address that instantiated the contract, TODO: make this updatable
     ADMIN.save(deps.storage, &info.sender.to_string())?;
+    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &msg.mixnet_contract_address)?;
     Ok(Response::default())
 }
 
@@ -204,7 +205,7 @@ pub fn try_track_unbond_gateway(
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    if info.sender != DEFAULT_MIXNET_CONTRACT_ADDRESS {
+    if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
         return Err(ContractError::NotMixnetContract(info.sender));
     }
     let account = account_from_address(owner, deps.storage, deps.api)?;
@@ -236,7 +237,7 @@ pub fn try_track_unbond_mixnode(
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    if info.sender != DEFAULT_MIXNET_CONTRACT_ADDRESS {
+    if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
         return Err(ContractError::NotMixnetContract(info.sender));
     }
     let account = account_from_address(owner, deps.storage, deps.api)?;
@@ -251,7 +252,7 @@ fn try_track_undelegation(
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    if info.sender != DEFAULT_MIXNET_CONTRACT_ADDRESS {
+    if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
         return Err(ContractError::NotMixnetContract(info.sender));
     }
     let account = account_from_address(address, deps.storage, deps.api)?;

@@ -23,7 +23,7 @@ pub trait DelegatingAccount {
     // the account's original vesting balance.
     fn track_delegation(
         &self,
-        block_time: u64,
+        block_height: u64,
         mix_identity: IdentityKey,
         // Save some gas by passing it in
         current_balance: Uint128,

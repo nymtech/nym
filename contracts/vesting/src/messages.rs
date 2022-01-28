@@ -21,6 +21,18 @@ pub struct VestingSpecification {
 }
 
 impl VestingSpecification {
+    pub fn new(
+        start_time: Option<u64>,
+        period_seconds: Option<u64>,
+        num_periods: Option<u64>,
+    ) -> Self {
+        Self {
+            start_time,
+            period_seconds,
+            num_periods,
+        }
+    }
+
     pub fn start_time(&self) -> Option<u64> {
         self.start_time
     }

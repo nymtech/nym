@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::node_statistics::UpdateSender;
+use crate::node::statistics::PacketEventReporter;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, TimerError};
@@ -25,14 +25,14 @@ where
     mixnet_client: C,
     packet_sender: PacketDelayForwardSender,
     packet_receiver: PacketDelayForwardReceiver,
-    node_stats_update_sender: UpdateSender,
+    node_stats_update_sender: PacketEventReporter,
 }
 
 impl<C> DelayForwarder<C>
 where
     C: mixnet_client::SendWithoutResponse,
 {
-    pub(crate) fn new(client: C, node_stats_update_sender: UpdateSender) -> DelayForwarder<C> {
+    pub(crate) fn new(client: C, node_stats_update_sender: PacketEventReporter) -> DelayForwarder<C> {
         let (packet_sender, packet_receiver) = mpsc::unbounded();
 
         DelayForwarder::<C> {
@@ -191,7 +191,7 @@ mod tests {
     async fn packets_received_are_forwarded() {
         // Wire up the DelayForwarder
         let (stats_sender, _stats_receiver) = mpsc::unbounded();
-        let node_stats_update_sender = UpdateSender::new(stats_sender);
+        let node_stats_update_sender = PacketEventReporter::new(stats_sender);
         let client = TestClient::default();
         let client_packets_sent = client.packets_sent.clone();
         let mut delay_forwarder = DelayForwarder::new(client, node_stats_update_sender);

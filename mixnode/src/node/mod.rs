@@ -14,8 +14,8 @@ use crate::node::listener::connection_handler::packet_processing::PacketProcesso
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
-use crate::node::node_statistics::NodeStatsWrapper;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
+use crate::node::statistics::{NodeStatsTasks, PacketEventReporter, SharedNodeStats};
 use ::crypto::asymmetric::{encryption, identity};
 use config::NymConfig;
 use log::{error, info, warn};
@@ -30,8 +30,8 @@ use version_checker::parse_version;
 mod http;
 mod listener;
 pub(crate) mod node_description;
-mod node_statistics;
 mod packet_delayforwarder;
+mod statistics;
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
@@ -120,50 +120,21 @@ impl MixNode {
         );
     }
 
-    fn start_http_api(
-        &self,
-        atomic_verloc_result: AtomicVerlocResult,
-        node_stats_pointer: NodeStatsWrapper,
-    ) {
-        info!("Starting HTTP API on http://localhost:8000");
-
-        let mut config = rocket::config::Config::release_default();
-
-        // bind to the same address as we are using for mixnodes
-        config.address = self.config.get_listening_address();
-        config.port = self.config.get_http_api_port();
-
-        let verloc_state = VerlocState::new(atomic_verloc_result);
-        let descriptor = self.descriptor.clone();
-
-        tokio::spawn(async move {
-            rocket::build()
-                .configure(config)
-                .mount("/", routes![verlocRoute, description, stats])
-                .register("/", catchers![not_found])
-                .manage(verloc_state)
-                .manage(descriptor)
-                .manage(node_stats_pointer)
-                .launch()
-                .await
-        });
-    }
-
-    fn start_node_stats_controller(&self) -> (NodeStatsWrapper, node_statistics::UpdateSender) {
-        info!("Starting node stats controller...");
-        let controller = node_statistics::Controller::new(
+    fn start_node_stats_tasks(&self) -> (SharedNodeStats, PacketEventReporter) {
+        info!("Starting node stats ...");
+        let node_stats_tasks = NodeStatsTasks::new(
             self.config.get_node_stats_logging_delay(),
             self.config.get_node_stats_updating_delay(),
         );
-        let node_stats_pointer = controller.get_node_stats_data_pointer();
-        let update_sender = controller.start();
+        let shared_node_stats = node_stats_tasks.get_shared_node_stats();
+        let packet_event_reporter = node_stats_tasks.start();
 
-        (node_stats_pointer, update_sender)
+        (shared_node_stats, packet_event_reporter)
     }
 
     fn start_socket_listener(
         &self,
-        node_stats_update_sender: node_statistics::UpdateSender,
+        node_stats_update_sender: PacketEventReporter,
         delay_forwarding_channel: PacketDelayForwardSender,
     ) {
         info!("Starting socket listener...");
@@ -183,7 +154,7 @@ impl MixNode {
 
     fn start_packet_delay_forwarder(
         &mut self,
-        node_stats_update_sender: node_statistics::UpdateSender,
+        node_stats_update_sender: PacketEventReporter,
     ) -> PacketDelayForwardSender {
         info!("Starting packet delay-forwarder...");
 
@@ -244,6 +215,35 @@ impl MixNode {
         atomic_verloc_results
     }
 
+    fn start_http_api(
+        &self,
+        atomic_verloc_result: AtomicVerlocResult,
+        node_stats_pointer: SharedNodeStats,
+    ) {
+        info!("Starting HTTP API on http://localhost:8000");
+
+        let mut config = rocket::config::Config::release_default();
+
+        // bind to the same address as we are using for mixnodes
+        config.address = self.config.get_listening_address();
+        config.port = self.config.get_http_api_port();
+
+        let verloc_state = VerlocState::new(atomic_verloc_result);
+        let descriptor = self.descriptor.clone();
+
+        tokio::spawn(async move {
+            rocket::build()
+                .configure(config)
+                .mount("/", routes![verlocRoute, description, stats])
+                .register("/", catchers![not_found])
+                .manage(verloc_state)
+                .manage(descriptor)
+                .manage(node_stats_pointer)
+                .launch()
+                .await
+        });
+    }
+
     // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
         let endpoints = self.config.get_validator_api_endpoints();
@@ -295,13 +295,13 @@ impl MixNode {
             }
         }
 
-        let (node_stats_pointer, node_stats_update_sender) = self.start_node_stats_controller();
+        let (shared_node_stats, packet_event_reporter) = self.start_node_stats_tasks();
         let delay_forwarding_channel =
-            self.start_packet_delay_forwarder(node_stats_update_sender.clone());
-        self.start_socket_listener(node_stats_update_sender, delay_forwarding_channel);
+            self.start_packet_delay_forwarder(packet_event_reporter.clone());
+        self.start_socket_listener(packet_event_reporter, delay_forwarding_channel);
 
         let atomic_verloc_results = self.start_verloc_measurements();
-        self.start_http_api(atomic_verloc_results, node_stats_pointer);
+        self.start_http_api(atomic_verloc_results, shared_node_stats);
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
         self.wait_for_interrupt().await

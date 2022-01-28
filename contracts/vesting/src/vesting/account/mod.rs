@@ -1,5 +1,4 @@
 use super::{PledgeData, VestingPeriod};
-use crate::contract::NUM_VESTING_PERIODS;
 use crate::errors::ContractError;
 use crate::storage::{
     load_balance, load_bond_pledge, load_gateway_pledge, remove_bond_pledge, remove_delegation,
@@ -57,6 +56,10 @@ impl Account {
         Ok(account)
     }
 
+    pub fn num_vesting_periods(&self) -> usize {
+        self.periods.len()
+    }
+
     pub fn storage_key(&self) -> u32 {
         self.storage_key
     }
@@ -81,11 +84,11 @@ impl Account {
 
     pub fn tokens_per_period(&self) -> Result<u128, ContractError> {
         let amount = self.coin.amount.u128();
-        if amount < NUM_VESTING_PERIODS as u128 {
+        if amount < self.num_vesting_periods() as u128 {
             Err(ContractError::ImprobableVestingAmount(amount))
         } else {
             // Remainder tokens will be lumped into the last period.
-            Ok(amount / NUM_VESTING_PERIODS as u128)
+            Ok(amount / self.num_vesting_periods() as u128)
         }
     }
 

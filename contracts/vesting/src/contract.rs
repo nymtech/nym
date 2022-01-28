@@ -1,10 +1,10 @@
 use crate::errors::ContractError;
-use crate::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
+use crate::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification};
 use crate::storage::{account_from_address, ADMIN, MIXNET_CONTRACT_ADDRESS};
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
-use crate::vesting::{populate_vesting_periods, Account};
+use crate::vesting::{populate_vesting_periods, Account, PledgeData};
 use config::defaults::DENOM;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
@@ -16,12 +16,6 @@ use vesting_contract_common::events::{
     new_staking_address_update_event, new_track_gateway_unbond_event,
     new_track_mixnode_unbond_event, new_track_undelegation_event, new_vested_coins_withdraw_event,
 };
-
-// We're using a 24 month vesting period with 3 months sub-periods.
-// There are 8 three month periods in two years
-// and duration of a single period is 30 days.
-pub const NUM_VESTING_PERIODS: usize = 8;
-pub const VESTING_PERIOD: u64 = 3 * 30 * 86400;
 
 #[entry_point]
 pub fn instantiate(
@@ -59,11 +53,11 @@ pub fn execute(
         ExecuteMsg::CreateAccount {
             owner_address,
             staking_address,
-            start_time,
+            vesting_spec,
         } => try_create_periodic_vesting_account(
             &owner_address,
             staking_address,
-            start_time,
+            vesting_spec,
             info,
             env,
             deps,
@@ -284,7 +278,7 @@ fn try_undelegate_from_mixnode(
 fn try_create_periodic_vesting_account(
     owner_address: &str,
     staking_address: Option<String>,
-    start_time: Option<u64>,
+    vesting_spec: Option<VestingSpecification>,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
@@ -293,6 +287,8 @@ fn try_create_periodic_vesting_account(
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
 
+    let vesting_spec = vesting_spec.unwrap_or_default();
+
     let coin = validate_funds(&info.funds)?;
     let owner_address = deps.api.addr_validate(owner_address)?;
     let staking_address = if let Some(staking_address) = staking_address {
@@ -300,8 +296,11 @@ fn try_create_periodic_vesting_account(
     } else {
         None
     };
-    let start_time = start_time.unwrap_or_else(|| env.block.time.seconds());
-    let periods = populate_vesting_periods(start_time, NUM_VESTING_PERIODS);
+    let start_time = vesting_spec
+        .start_time()
+        .unwrap_or_else(|| env.block.time.seconds());
+
+    let periods = populate_vesting_periods(start_time, vesting_spec);
 
     let start_time = Timestamp::from_seconds(start_time);
     Account::new(
@@ -389,14 +388,25 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             deps,
         )?),
         QueryMsg::GetAccount { address } => to_binary(&try_get_account(&address, deps)?),
+        QueryMsg::GetMixnode { address } => to_binary(&try_get_mixnode(&address, deps)?),
+        QueryMsg::GetGateway { address } => to_binary(&try_get_gateway(&address, deps)?),
     };
 
     Ok(query_res?)
 }
 
-pub fn try_get_account(address: &str, deps: Deps) -> Result<Option<Account>, ContractError> {
+pub fn try_get_mixnode(address: &str, deps: Deps) -> Result<Option<PledgeData>, ContractError> {
     let account = account_from_address(address, deps.storage, deps.api)?;
-    Ok(Some(account))
+    account.load_mixnode_pledge(deps.storage)
+}
+
+pub fn try_get_gateway(address: &str, deps: Deps) -> Result<Option<PledgeData>, ContractError> {
+    let account = account_from_address(address, deps.storage, deps.api)?;
+    account.load_gateway_pledge(deps.storage)
+}
+
+pub fn try_get_account(address: &str, deps: Deps) -> Result<Account, ContractError> {
+    account_from_address(address, deps.storage, deps.api)
 }
 
 pub fn try_get_locked_coins(

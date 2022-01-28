@@ -41,12 +41,12 @@ pub(crate) enum Commands {
 struct OverrideConfig {
     id: String,
     host: Option<String>,
+    wallet_address: Option<String>,
     mix_port: Option<u16>,
     verloc_port: Option<u16>,
     http_api_port: Option<u16>,
     announce_host: Option<String>,
     validators: Option<String>,
-    wallet_address: Option<String>,
 }
 
 pub(crate) async fn execute(args: Cli) {

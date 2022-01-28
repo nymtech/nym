@@ -49,6 +49,7 @@ version-checker = { path="../common/version-checker" }
 
 [dev-dependencies]
 serial_test = "0.5"
+tokio = { version="1.8", features = ["rt-multi-thread", "net", "signal", "test-util"] }
 
 [build-dependencies]
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }

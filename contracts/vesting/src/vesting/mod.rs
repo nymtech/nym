@@ -10,7 +10,7 @@ use crate::messages::VestingSpecification;
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct VestingPeriod {
     pub start_time: u64,
-    pub period_seconds: u32,
+    pub period_seconds: u64,
 }
 
 impl VestingPeriod {
@@ -32,7 +32,7 @@ pub fn populate_vesting_periods(
     let mut periods = Vec::with_capacity(vesting_spec.num_periods() as usize);
     for i in 0..vesting_spec.num_periods() {
         let period = VestingPeriod {
-            start_time: start_time + i as u64 * vesting_spec.period_seconds() as u64,
+            start_time: start_time + i as u64 * vesting_spec.period_seconds(),
             period_seconds: vesting_spec.period_seconds(),
         };
         periods.push(period);

@@ -59,8 +59,8 @@ pub trait VestingQueryClient {
     ) -> Result<Coin, NymdError>;
 
     async fn get_account(&self, address: &str) -> Result<Account, NymdError>;
-    async fn mixnode_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError>;
-    async fn gateway_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError>;
+    async fn get_mixnode_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError>;
+    async fn get_gateway_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError>;
 }
 
 #[async_trait]
@@ -188,7 +188,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             .query_contract_smart(self.vesting_contract_address()?, &request)
             .await
     }
-    async fn mixnode_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError> {
+    async fn get_mixnode_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError> {
         let request = VestingQueryMsg::GetMixnode {
             address: address.to_string(),
         };
@@ -196,7 +196,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             .query_contract_smart(self.vesting_contract_address()?, &request)
             .await
     }
-    async fn gateway_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError> {
+    async fn get_gateway_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError> {
         let request = VestingQueryMsg::GetGateway {
             address: address.to_string(),
         };

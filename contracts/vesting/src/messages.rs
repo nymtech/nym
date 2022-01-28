@@ -16,8 +16,8 @@ pub struct MigrateMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Default)]
 pub struct VestingSpecification {
     start_time: Option<u64>,
-    period_seconds: Option<u32>,
-    num_periods: Option<u32>,
+    period_seconds: Option<u64>,
+    num_periods: Option<u64>,
 }
 
 impl VestingSpecification {
@@ -25,11 +25,11 @@ impl VestingSpecification {
         self.start_time
     }
 
-    pub fn period_seconds(&self) -> u32 {
+    pub fn period_seconds(&self) -> u64 {
         self.period_seconds.unwrap_or(3 * 30 * 86400)
     }
 
-    pub fn num_periods(&self) -> u32 {
+    pub fn num_periods(&self) -> u64 {
         self.num_periods.unwrap_or(8)
     }
 }

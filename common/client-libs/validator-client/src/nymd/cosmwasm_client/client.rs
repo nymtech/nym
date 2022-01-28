@@ -151,6 +151,11 @@ pub trait CosmWasmClient: rpc::Client {
 
             raw_balances.append(&mut res.balances);
             if let Some(pagination_info) = res.pagination {
+                if pagination_info.next_key.is_empty()
+                    || pagination_info.total == raw_balances.len() as u64
+                {
+                    break;
+                }
                 pagination = Some(create_pagination(pagination_info.next_key))
             } else {
                 break;
@@ -183,6 +188,11 @@ pub trait CosmWasmClient: rpc::Client {
 
             supply.append(&mut res.supply);
             if let Some(pagination_info) = res.pagination {
+                if pagination_info.next_key.is_empty()
+                    || pagination_info.total == supply.len() as u64
+                {
+                    break;
+                }
                 pagination = Some(create_pagination(pagination_info.next_key))
             } else {
                 break;
@@ -275,6 +285,11 @@ pub trait CosmWasmClient: rpc::Client {
 
             raw_codes.append(&mut res.code_infos);
             if let Some(pagination_info) = res.pagination {
+                if pagination_info.next_key.is_empty()
+                    || pagination_info.total == raw_codes.len() as u64
+                {
+                    break;
+                }
                 pagination = Some(create_pagination(pagination_info.next_key))
             } else {
                 break;
@@ -320,6 +335,11 @@ pub trait CosmWasmClient: rpc::Client {
 
             raw_contracts.append(&mut res.contracts);
             if let Some(pagination_info) = res.pagination {
+                if pagination_info.next_key.is_empty()
+                    || pagination_info.total == raw_contracts.len() as u64
+                {
+                    break;
+                }
                 pagination = Some(create_pagination(pagination_info.next_key))
             } else {
                 break;
@@ -376,6 +396,11 @@ pub trait CosmWasmClient: rpc::Client {
 
             raw_entries.append(&mut res.entries);
             if let Some(pagination_info) = res.pagination {
+                if pagination_info.next_key.is_empty()
+                    || pagination_info.total == raw_entries.len() as u64
+                {
+                    break;
+                }
                 pagination = Some(create_pagination(pagination_info.next_key))
             } else {
                 break;

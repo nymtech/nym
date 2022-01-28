@@ -49,6 +49,9 @@ impl VestingSpecification {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    UpdateMixnetAddress {
+        address: String,
+    },
     DelegateToMixnode {
         mix_identity: IdentityKey,
         amount: Coin,

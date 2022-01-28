@@ -43,6 +43,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::UpdateMixnetAddress { address } => {
+            try_update_mixnet_address(address, info, deps)
+        }
         ExecuteMsg::DelegateToMixnode {
             mix_identity,
             amount,
@@ -97,7 +100,20 @@ pub fn execute(
     }
 }
 
-// Only owner
+// Only contract admin, set at init
+pub fn try_update_mixnet_address(
+    address: String,
+    info: MessageInfo,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
+    if info.sender != ADMIN.load(deps.storage)? {
+        return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
+    }
+    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &address)?;
+    Ok(Response::default())
+}
+
+// Only contract owner of vesting account
 pub fn try_withdraw_vested_coins(
     amount: Coin,
     env: Env,

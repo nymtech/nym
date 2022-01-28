@@ -11,6 +11,7 @@ panic = "abort"
 
 [workspace]
 
+resolver = "2"
 members = [
     "clients/client-core",
     "clients/native",

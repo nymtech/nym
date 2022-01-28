@@ -15,9 +15,9 @@ pub struct MigrateMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Default)]
 pub struct VestingSpecification {
-    start_time: Option<u64>,
-    period_seconds: Option<u32>,
-    num_periods: Option<u32>,
+    pub start_time: Option<u64>,
+    pub period_seconds: Option<u32>,
+    pub num_periods: Option<u32>,
 }
 
 impl VestingSpecification {

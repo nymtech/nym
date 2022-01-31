@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api'
 import {
+  Account,
   Balance,
   Coin,
   DelegationResult,
@@ -22,7 +23,7 @@ import {
 
 export const createAccount = async (): Promise<TCreateAccount> => await invoke('create_new_account')
 
-export const signInWithMnemonic = async (mnemonic: string): Promise<TSignInWithMnemonic> =>
+export const signInWithMnemonic = async (mnemonic: string): Promise<Account> =>
   await invoke('connect_with_mnemonic', { mnemonic })
 
 export const minorToMajor = async (amount: string): Promise<Coin> => await invoke('minor_to_major', { amount })
@@ -104,4 +105,4 @@ export const updateMixnode = async ({ profitMarginPercent }: { profitMarginPerce
 export const getInclusionProbability = async (identity: string): Promise<InclusionProbabilityResponse> =>
   await invoke('mixnode_inclusion_probability', { identity })
 
-export const selectNetwork = async(network: Network) => await invoke("switch_network", {network})
+export const selectNetwork = async (network: Network): Promise<Account> => await invoke('switch_network', { network })

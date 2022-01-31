@@ -4,7 +4,7 @@ import { Subtitle } from '../components'
 import { ClientContext } from '../../../context/main'
 import { signInWithMnemonic } from '../../../requests'
 
-export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () => void }> = ({ children, onPrev }) => {
+export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () => void }> = ({ onPrev }) => {
   const [mnemonic, setMnemonic] = useState<string>()
   const [inputError, setInputError] = useState<string>()
 
@@ -16,8 +16,8 @@ export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () =>
     setInputError(undefined)
 
     try {
-      const res = await signInWithMnemonic(mnemonic || '')
-      logIn(res)
+      signInWithMnemonic(mnemonic || '')
+      logIn()
     } catch (e: any) {
       setInputError(e)
     }
@@ -32,7 +32,7 @@ export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () =>
           {inputError}
         </Alert>
       )}
-        {children}
+
       <Button variant="contained" size="large" fullWidth onClick={handleSignIn}>
         Next
       </Button>

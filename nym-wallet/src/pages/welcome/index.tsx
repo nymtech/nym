@@ -19,10 +19,10 @@ export const Welcome = () => {
   const [page, setPage] = useState<TPages>('welcome')
   const [mnemonicWords, setMnemonicWords] = useState<TMnemonicWords>()
 
-  useEffect(() => {
-    const mnemonicArray = mnemonicToArray(testMnemonic)
-    setMnemonicWords(mnemonicArray)
-  }, [])
+  // useEffect(() => {
+  //   const mnemonicArray = mnemonicToArray(testMnemonic)
+  //   setMnemonicWords(mnemonicArray)
+  // }, [])
 
   return (
     <Box
@@ -66,11 +66,7 @@ export const Welcome = () => {
               page="verify mnemonic"
             />
             <CreatePassword page="create password" /> */}
-            <ExistingAccount page="existing account" onPrev={() => setPage('welcome')}>
-              <SelectNetwork
-                page="select network"
-              />
-            </ExistingAccount>
+            <ExistingAccount page="existing account" onPrev={() => setPage('welcome')} />
           </RenderPage>
         </Stack>
       </Box>

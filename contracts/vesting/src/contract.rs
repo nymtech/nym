@@ -1,11 +1,11 @@
 use crate::errors::ContractError;
-use crate::messages::{ExecuteMsg, InitMsg, QueryMsg};
-use crate::storage::account_from_address;
+use crate::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification};
+use crate::storage::{account_from_address, ADMIN, MIXNET_CONTRACT_ADDRESS};
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
-use crate::vesting::{populate_vesting_periods, Account};
-use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DENOM};
+use crate::vesting::{populate_vesting_periods, Account, PledgeData};
+use config::defaults::DENOM;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Timestamp, Uint128,
@@ -17,21 +17,21 @@ use vesting_contract_common::events::{
     new_track_mixnode_unbond_event, new_track_undelegation_event, new_vested_coins_withdraw_event,
 };
 
-// We're using a 24 month vesting period with 3 months sub-periods.
-// There are 8 three month periods in two years
-// and duration of a single period is 30 days.
-pub const NUM_VESTING_PERIODS: usize = 8;
-pub const VESTING_PERIOD: u64 = 3 * 30 * 86400;
-// Address of the account set to be contract admin
-pub const ADMIN_ADDRESS: &str = "admin";
-
 #[entry_point]
 pub fn instantiate(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
-    _msg: InitMsg,
+    info: MessageInfo,
+    msg: InitMsg,
 ) -> Result<Response, ContractError> {
+    // ADMIN is set to the address that instantiated the contract, TODO: make this updatable
+    ADMIN.save(deps.storage, &info.sender.to_string())?;
+    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &msg.mixnet_contract_address)?;
+    Ok(Response::default())
+}
+
+#[entry_point]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Response::default())
 }
 
@@ -43,20 +43,21 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::DelegateToMixnode { mix_identity } => {
-            try_delegate_to_mixnode(mix_identity, info, env, deps)
-        }
+        ExecuteMsg::DelegateToMixnode {
+            mix_identity,
+            amount,
+        } => try_delegate_to_mixnode(mix_identity, amount, info, env, deps),
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
             try_undelegate_from_mixnode(mix_identity, info, deps)
         }
         ExecuteMsg::CreateAccount {
             owner_address,
             staking_address,
-            start_time,
+            vesting_spec,
         } => try_create_periodic_vesting_account(
             &owner_address,
             staking_address,
-            start_time,
+            vesting_spec,
             info,
             env,
             deps,
@@ -72,7 +73,8 @@ pub fn execute(
         ExecuteMsg::BondMixnode {
             mix_node,
             owner_signature,
-        } => try_bond_mixnode(mix_node, owner_signature, info, env, deps),
+            amount,
+        } => try_bond_mixnode(mix_node, owner_signature, amount, info, env, deps),
         ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
         ExecuteMsg::TrackUnbondMixnode { owner, amount } => {
             try_track_unbond_mixnode(&owner, amount, info, deps)
@@ -80,7 +82,8 @@ pub fn execute(
         ExecuteMsg::BondGateway {
             gateway,
             owner_signature,
-        } => try_bond_gateway(gateway, owner_signature, info, env, deps),
+            amount,
+        } => try_bond_gateway(gateway, owner_signature, amount, info, env, deps),
         ExecuteMsg::UnbondGateway {} => try_unbond_gateway(info, deps),
         ExecuteMsg::TrackUnbondGateway { owner, amount } => {
             try_track_unbond_gateway(&owner, amount, info, deps)
@@ -175,11 +178,12 @@ fn try_update_staking_address(
 pub fn try_bond_gateway(
     gateway: Gateway,
     owner_signature: String,
+    amount: Coin,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let pledge = validate_funds(&info.funds)?;
+    let pledge = validate_funds(&[amount])?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_bond_gateway(gateway, owner_signature, pledge, &env, deps.storage)
 }
@@ -195,7 +199,7 @@ pub fn try_track_unbond_gateway(
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    if info.sender != DEFAULT_MIXNET_CONTRACT_ADDRESS {
+    if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
         return Err(ContractError::NotMixnetContract(info.sender));
     }
     let account = account_from_address(owner, deps.storage, deps.api)?;
@@ -206,11 +210,12 @@ pub fn try_track_unbond_gateway(
 pub fn try_bond_mixnode(
     mix_node: MixNode,
     owner_signature: String,
+    amount: Coin,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let pledge = validate_funds(&info.funds)?;
+    let pledge = validate_funds(&[amount])?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_bond_mixnode(mix_node, owner_signature, pledge, &env, deps.storage)
 }
@@ -226,7 +231,7 @@ pub fn try_track_unbond_mixnode(
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    if info.sender != DEFAULT_MIXNET_CONTRACT_ADDRESS {
+    if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
         return Err(ContractError::NotMixnetContract(info.sender));
     }
     let account = account_from_address(owner, deps.storage, deps.api)?;
@@ -241,7 +246,7 @@ fn try_track_undelegation(
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    if info.sender != DEFAULT_MIXNET_CONTRACT_ADDRESS {
+    if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
         return Err(ContractError::NotMixnetContract(info.sender));
     }
     let account = account_from_address(address, deps.storage, deps.api)?;
@@ -251,11 +256,12 @@ fn try_track_undelegation(
 
 fn try_delegate_to_mixnode(
     mix_identity: IdentityKey,
+    amount: Coin,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    let amount = validate_funds(&info.funds)?;
+    let amount = validate_funds(&[amount])?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
 }
@@ -272,14 +278,17 @@ fn try_undelegate_from_mixnode(
 fn try_create_periodic_vesting_account(
     owner_address: &str,
     staking_address: Option<String>,
-    start_time: Option<u64>,
+    vesting_spec: Option<VestingSpecification>,
     info: MessageInfo,
     env: Env,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
-    if info.sender != ADMIN_ADDRESS {
+    if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
+
+    let vesting_spec = vesting_spec.unwrap_or_default();
+
     let coin = validate_funds(&info.funds)?;
     let owner_address = deps.api.addr_validate(owner_address)?;
     let staking_address = if let Some(staking_address) = staking_address {
@@ -287,8 +296,11 @@ fn try_create_periodic_vesting_account(
     } else {
         None
     };
-    let start_time = start_time.unwrap_or_else(|| env.block.time.seconds());
-    let periods = populate_vesting_periods(start_time, NUM_VESTING_PERIODS);
+    let start_time = vesting_spec
+        .start_time()
+        .unwrap_or_else(|| env.block.time.seconds());
+
+    let periods = populate_vesting_periods(start_time, vesting_spec);
 
     let start_time = Timestamp::from_seconds(start_time);
     Account::new(
@@ -375,9 +387,26 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
             env,
             deps,
         )?),
+        QueryMsg::GetAccount { address } => to_binary(&try_get_account(&address, deps)?),
+        QueryMsg::GetMixnode { address } => to_binary(&try_get_mixnode(&address, deps)?),
+        QueryMsg::GetGateway { address } => to_binary(&try_get_gateway(&address, deps)?),
     };
 
     Ok(query_res?)
+}
+
+pub fn try_get_mixnode(address: &str, deps: Deps) -> Result<Option<PledgeData>, ContractError> {
+    let account = account_from_address(address, deps.storage, deps.api)?;
+    account.load_mixnode_pledge(deps.storage)
+}
+
+pub fn try_get_gateway(address: &str, deps: Deps) -> Result<Option<PledgeData>, ContractError> {
+    let account = account_from_address(address, deps.storage, deps.api)?;
+    account.load_gateway_pledge(deps.storage)
+}
+
+pub fn try_get_account(address: &str, deps: Deps) -> Result<Account, ContractError> {
+    account_from_address(address, deps.storage, deps.api)
 }
 
 pub fn try_get_locked_coins(

@@ -2,7 +2,7 @@ import React from 'react'
 import { Box } from '@mui/material'
 import { Nav } from '../components'
 import Logo from '../images/logo-background.svg'
-import { AppBar, NetworkDisplay } from '../components'
+import { AppBar } from '../components'
 
 export const ApplicationLayout: React.FC = ({ children }) => {
   return (
@@ -33,7 +33,6 @@ export const ApplicationLayout: React.FC = ({ children }) => {
           </Box>
           <Nav />
         </Box>
-        <NetworkDisplay />
       </Box>
       <Box
         sx={{

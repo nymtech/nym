@@ -3,7 +3,7 @@ import { AppBar as MuiAppBar, Divider, Grid, IconButton, Toolbar, Typography, us
 import { Box } from '@mui/system'
 import { Logout } from '@mui/icons-material'
 import { ClientContext } from '../context/main'
-import { CopyToClipboard } from '.'
+import { CopyToClipboard, NetworkSelector } from '.'
 import { Node as NodeIcon } from '../svg-icons/node'
 
 export const AppBar = () => {
@@ -31,7 +31,10 @@ export const AppBar = () => {
               </>
             )}
           </Grid>
-          <Grid item container justifyContent="flex-end" xs={3} spacing={2}>
+          <Grid item container justifyContent="flex-end" xs={5} spacing={2}>
+            <Grid item>
+              <NetworkSelector />
+            </Grid>
             <Grid item>
               <IconButton
                 onClick={handleShowSettings}

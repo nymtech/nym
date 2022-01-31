@@ -35,5 +35,7 @@ export const useCheckOwnership = () => {
     }
   }, [])
 
+  console.log(ownership)
+
   return { isLoading, error, ownership, checkOwnership }
 }

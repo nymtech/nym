@@ -34,7 +34,7 @@ export const WelcomeContent: React.FC<{
           onClick={onUseExisting}
           disableRipple
         >
-          Use Existing Account
+          Sign in
         </Button>
       </Stack>
     </>

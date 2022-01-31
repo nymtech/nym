@@ -53,7 +53,7 @@ export const Welcome = () => {
               page="welcome"
             />
 
-            <CreateAccountContent page="legacy create account" showSignIn={() => setPage('welcome')} />
+            <CreateAccountContent page="legacy create account" showSignIn={() => setPage('existing account')} />
             {/* <MnemonicWords
               mnemonicWords={mnemonicWords}
               onNext={() => setPage('verify mnemonic')}

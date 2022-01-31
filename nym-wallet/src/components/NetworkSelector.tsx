@@ -1,10 +1,13 @@
 import React, { useState, useContext } from 'react'
 import { Button, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover } from '@mui/material'
-import { CheckSharp, FiberManualRecord, KeyboardArrowDown } from '@mui/icons-material'
+import { CheckSharp, KeyboardArrowDown } from '@mui/icons-material'
 import { ClientContext } from '../context/main'
 import { Network } from 'src/types'
 
-const networks: Network[] = ['SANDBOX', 'QA']
+const networks: { networkName: Network; name: string }[] = [
+  { networkName: 'SANDBOX', name: 'Testnet Sandbox' },
+  { networkName: 'QA', name: 'Testnet QA' },
+]
 
 export const NetworkSelector = () => {
   const { network, switchNetwork } = useContext(ClientContext)
@@ -31,7 +34,7 @@ export const NetworkSelector = () => {
         onClick={handleClick}
         endIcon={<KeyboardArrowDown sx={{ color: (theme) => `1px solid ${theme.palette.nym.background.dark}` }} />}
       >
-        {network}
+        {networks.find((n) => n.networkName === network)?.name}
       </Button>
       <Popover
         open={Boolean(anchorEl)}
@@ -44,14 +47,14 @@ export const NetworkSelector = () => {
       >
         <List>
           <ListSubheader>Network selection</ListSubheader>
-          {networks.map((networkOption) => (
+          {networks.map(({ name, networkName }) => (
             <NetworkItem
-              key={networkOption}
-              title={networkOption}
-              isSelected={networkOption === network}
+              key={networkName}
+              title={name}
+              isSelected={networkName === network}
               onSelect={() => {
                 handleClose()
-                switchNetwork(networkOption)
+                switchNetwork(networkName)
               }}
             />
           ))}
@@ -61,7 +64,7 @@ export const NetworkSelector = () => {
   )
 }
 
-const NetworkItem: React.FC<{ title: Network; isSelected: boolean; onSelect: () => void }> = ({
+const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () => void }> = ({
   title,
   isSelected,
   onSelect,

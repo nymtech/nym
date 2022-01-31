@@ -4,6 +4,7 @@ import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance'
 import { config } from '../../config'
 import { getMixnodeBondDetails, selectNetwork } from '../requests'
 import { currencyMap } from '../utils'
+import { useHistory } from 'react-router-dom'
 
 export const { ADMIN_ADDRESS } = config
 
@@ -41,6 +42,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [mode, setMode] = useState<'light' | 'dark'>('light')
 
   const userBalance = useGetBalance()
+  const history = useHistory()
 
   useEffect(() => {
     if (clientDetails) {
@@ -63,10 +65,10 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     setCurrency(currencyMap(network))
   }
 
-  console.log({ clientDetails, mixnodeDetails })
   const logOut = () => {
     setClientDetails(undefined)
     userBalance.clearBalance()
+    history.push('/balance')
   }
 
   const handleShowAdmin = () => setShowAdmin((show) => !show)

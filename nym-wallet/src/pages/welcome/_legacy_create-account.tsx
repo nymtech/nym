@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import { Alert, Button, Card, CardActions, CardContent, CardHeader, Stack, Typography } from '@mui/material'
-import { Box } from '@mui/system'
-import { ArrowBack } from '@mui/icons-material'
 import { createAccount } from '../../requests'
 import { TCreateAccount } from '../../types'
 import { CopyToClipboard } from '../../components'
@@ -46,26 +44,13 @@ export const CreateAccountContent: React.FC<{ page: 'legacy create account'; sho
           <CopyToClipboard text={accountDetails?.mnemonic || ''} light />
         </CardActions>
       </Card>
-      <Box sx={{ textAlign: 'center' }}>
-        <Typography sx={{ color: 'common.white' }}>Address:</Typography>
-        <Typography sx={{ color: 'common.white' }} data-testid="wallet-address">
-          {accountDetails?.account.client_address}
-        </Typography>
-      </Box>
       {error && (
         <Alert severity="error" variant="outlined">
           {error}
         </Alert>
       )}
-      <Button
-        variant="contained"
-        onClick={showSignIn}
-        data-testid="sign-in-button"
-        startIcon={<ArrowBack />}
-        size="large"
-        sx={{ width: 360 }}
-      >
-        Back to Sign in
+      <Button variant="contained" onClick={showSignIn} data-testid="sign-in-button" size="large" sx={{ width: 360 }}>
+        Sign in
       </Button>
     </Stack>
   )

@@ -16,7 +16,7 @@ export const Bond = () => {
   const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>()
 
   const { checkOwnership, ownership } = useCheckOwnership()
-  const { userBalance, getBondDetails, network } = useContext(ClientContext)
+  const { userBalance, getBondDetails } = useContext(ClientContext)
 
   useEffect(() => {
     if (status === EnumRequestStatus.initial) {
@@ -26,7 +26,7 @@ export const Bond = () => {
       }
       initialiseForm()
     }
-  }, [status, network])
+  }, [status])
 
   return (
     <Layout>

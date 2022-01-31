@@ -2,7 +2,7 @@ import React, { createContext, useEffect, useState } from 'react'
 import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types'
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance'
 import { config } from '../../config'
-import { getMixnodeBondDetails, selectNetwork } from '../requests'
+import { getMixnodeBondDetails, selectNetwork, signOut } from '../requests'
 import { currencyMap } from '../utils'
 import { useHistory } from 'react-router-dom'
 
@@ -65,10 +65,11 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     setCurrency(currencyMap(network))
   }
 
-  const logOut = () => {
+  const logOut = async () => {
     setClientDetails(undefined)
-    userBalance.clearBalance()
+    setNetwork('SANDBOX')
     history.push('/balance')
+    await signOut()
   }
 
   const handleShowAdmin = () => setShowAdmin((show) => !show)

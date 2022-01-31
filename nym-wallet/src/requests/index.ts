@@ -18,13 +18,14 @@ import {
   TCreateAccount,
   TMixnodeBondDetails,
   TPagedDelegations,
-  TSignInWithMnemonic,
 } from '../types'
 
 export const createAccount = async (): Promise<TCreateAccount> => await invoke('create_new_account')
 
 export const signInWithMnemonic = async (mnemonic: string): Promise<Account> =>
   await invoke('connect_with_mnemonic', { mnemonic })
+
+export const signOut = async () => await invoke('logout')
 
 export const minorToMajor = async (amount: string): Promise<Coin> => await invoke('minor_to_major', { amount })
 

@@ -8,7 +8,7 @@ use crate::vesting::{populate_vesting_periods, Account, PledgeData};
 use config::defaults::DENOM;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Timestamp, Uint128,
+    Response, Timestamp, Uint128, Reply, ContractResult
 };
 use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use vesting_contract_common::events::{
@@ -16,6 +16,22 @@ use vesting_contract_common::events::{
     new_staking_address_update_event, new_track_gateway_unbond_event,
     new_track_mixnode_unbond_event, new_track_undelegation_event, new_vested_coins_withdraw_event,
 };
+
+#[entry_point]
+pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, String> { 
+    let mut response = Response::new();
+    match msg.result {
+        ContractResult::Ok(reply) => {
+            for event in reply.events {
+                response = response.add_event(event);
+            }
+        },
+        ContractResult::Err(err) => {
+            return Err(err.into());
+        }
+    }
+    Ok(response)
+}
 
 #[entry_point]
 pub fn instantiate(

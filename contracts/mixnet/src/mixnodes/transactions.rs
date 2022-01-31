@@ -9,7 +9,7 @@ use crate::mixnodes::storage::StoredMixnodeBond;
 use crate::support::helpers::{ensure_no_existing_bond, validate_node_identity_signature};
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
+    wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
 };
 use mixnet_contract_common::events::{new_mixnode_bonding_event, new_mixnode_unbonding_event};
 use mixnet_contract_common::MixNode;
@@ -192,7 +192,7 @@ pub(crate) fn _try_remove_mixnode(
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
 
-    let mut response = Response::new().add_message(return_tokens);
+    let mut response = Response::new();
 
     if let Some(proxy) = &proxy {
         let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
@@ -200,9 +200,11 @@ pub(crate) fn _try_remove_mixnode(
             amount: mixnode_bond.pledge_amount(),
         };
 
-        let track_unbond_message = wasm_execute(proxy, &msg, coins(0, DENOM))?;
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![])?;
         response = response.add_message(track_unbond_message);
     }
+
+    let response = response.add_message(return_tokens);
 
     Ok(response.add_event(new_mixnode_unbonding_event(
         &owner,

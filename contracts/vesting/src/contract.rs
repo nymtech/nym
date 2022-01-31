@@ -1,5 +1,4 @@
 use crate::errors::ContractError;
-use crate::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification};
 use crate::storage::{account_from_address, ADMIN, MIXNET_CONTRACT_ADDRESS};
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
@@ -7,8 +6,8 @@ use crate::traits::{
 use crate::vesting::{populate_vesting_periods, Account, PledgeData};
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Timestamp, Uint128, Reply, ContractResult
+    coin, entry_point, to_binary, BankMsg, Coin, ContractResult, Deps, DepsMut, Env, MessageInfo,
+    QueryResponse, Reply, Response, Timestamp, Uint128,
 };
 use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use vesting_contract_common::events::{
@@ -16,18 +15,19 @@ use vesting_contract_common::events::{
     new_staking_address_update_event, new_track_gateway_unbond_event,
     new_track_mixnode_unbond_event, new_track_undelegation_event, new_vested_coins_withdraw_event,
 };
+use vesting_contract_common::messages::{
+    ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
+};
 
 #[entry_point]
-pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, String> { 
-    let mut response = Response::new();
+pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, String> {
+    let response = Response::new();
     match msg.result {
-        ContractResult::Ok(reply) => {
-            for event in reply.events {
-                response = response.add_event(event);
-            }
-        },
+        ContractResult::Ok(_reply) => {
+            {}
+        }
         ContractResult::Err(err) => {
-            return Err(err.into());
+            return Err(err);
         }
     }
     Ok(response)

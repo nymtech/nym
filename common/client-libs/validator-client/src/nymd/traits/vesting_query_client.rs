@@ -6,9 +6,8 @@ use crate::nymd::error::NymdError;
 use crate::nymd::NymdClient;
 use async_trait::async_trait;
 use cosmwasm_std::{Coin, Timestamp};
-use vesting_contract::messages::QueryMsg as VestingQueryMsg;
-use vesting_contract::vesting::Account;
-use vesting_contract::vesting::PledgeData;
+use vesting_contract::vesting::{Account, PledgeData};
+use vesting_contract_common::messages::QueryMsg as VestingQueryMsg;
 
 #[async_trait]
 pub trait VestingQueryClient {

@@ -9,7 +9,7 @@ use cosmwasm_std::{coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, Messa
 use cw_storage_plus::PrimaryKey;
 use mixnet_contract_common::events::{new_delegation_event, new_undelegation_event};
 use mixnet_contract_common::{Delegation, IdentityKey};
-use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
+use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 fn validate_delegation_stake(mut delegation: Vec<Coin>) -> Result<Coin, ContractError> {
     // check if anything was put as delegation

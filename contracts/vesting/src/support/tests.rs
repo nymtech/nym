@@ -1,11 +1,11 @@
 #[cfg(test)]
 pub mod helpers {
     use crate::contract::instantiate;
-    use crate::messages::{InitMsg, VestingSpecification};
     use crate::vesting::{populate_vesting_periods, Account};
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
     use cosmwasm_std::{Addr, Coin, Empty, Env, MemoryStorage, OwnedDeps, Storage, Uint128};
+    use vesting_contract_common::messages::{InitMsg, VestingSpecification};
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 mod account;
 pub use account::*;
 
-use crate::messages::VestingSpecification;
+use vesting_contract_common::messages::VestingSpecification;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct VestingPeriod {
@@ -43,7 +43,6 @@ pub fn populate_vesting_periods(
 #[cfg(test)]
 mod tests {
     use crate::contract::execute;
-    use crate::messages::ExecuteMsg;
     use crate::storage::load_account;
     use crate::support::tests::helpers::{init_contract, vesting_account_fixture};
     use crate::traits::DelegatingAccount;
@@ -53,6 +52,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::{Gateway, MixNode};
+    use vesting_contract_common::messages::ExecuteMsg;
 
     #[test]
     fn test_account_creation() {

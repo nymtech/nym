@@ -13,7 +13,7 @@ use cosmwasm_std::{
 };
 use mixnet_contract_common::events::{new_mixnode_bonding_event, new_mixnode_unbonding_event};
 use mixnet_contract_common::MixNode;
-use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
+use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub fn try_add_mixnode(
     deps: DepsMut,
@@ -200,7 +200,7 @@ pub(crate) fn _try_remove_mixnode(
             amount: mixnode_bond.pledge_amount(),
         };
 
-        let track_unbond_message = wasm_execute(proxy, &msg, vec![])?;
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![Coin::new(1, DENOM)])?;
         response = response.add_message(track_unbond_message);
     }
 

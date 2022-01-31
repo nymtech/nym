@@ -33,6 +33,7 @@ fn main() {
       mixnet::account::create_new_account,
       mixnet::account::switch_network,
       mixnet::account::get_balance,
+      mixnet::account::logout,
       mixnet::admin::get_contract_settings,
       mixnet::admin::update_contract_settings,
       mixnet::bond::bond_gateway,

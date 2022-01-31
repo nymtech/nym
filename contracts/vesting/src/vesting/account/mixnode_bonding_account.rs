@@ -2,12 +2,12 @@ use super::PledgeData;
 use crate::errors::ContractError;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::MixnodeBondingAccount;
-use config::defaults::DENOM;
-use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, SubMsg, Uint128};
+use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 use vesting_contract_common::events::{
     new_vesting_mixnode_bonding_event, new_vesting_mixnode_unbonding_event,
 };
+use vesting_contract_common::one_unym;
 
 use super::Account;
 
@@ -68,13 +68,11 @@ impl MixnodeBondingAccount for Account {
             let unbond_msg = wasm_execute(
                 MIXNET_CONTRACT_ADDRESS.load(storage)?,
                 &msg,
-                vec![Coin::new(1, DENOM)],
+                vec![one_unym()],
             )?;
 
-            let sub_msg_wrap = SubMsg::reply_always(unbond_msg, 1);
-
             Ok(Response::new()
-                .add_submessage(sub_msg_wrap)
+                .add_message(unbond_msg)
                 .add_event(new_vesting_mixnode_unbonding_event()))
         } else {
             Err(ContractError::NoBondFound(

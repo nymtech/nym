@@ -2,13 +2,13 @@ use crate::errors::ContractError;
 use crate::storage::save_delegation;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::DelegatingAccount;
-use config::defaults::DENOM;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::ExecuteMsg as MixnetExecuteMsg;
 use mixnet_contract_common::IdentityKey;
 use vesting_contract_common::events::{
     new_vesting_delegation_event, new_vesting_undelegation_event,
 };
+use vesting_contract_common::one_unym;
 
 use super::Account;
 
@@ -70,10 +70,7 @@ impl DelegatingAccount for Account {
         let undelegate_from_mixnode = wasm_execute(
             MIXNET_CONTRACT_ADDRESS.load(storage)?,
             &msg,
-            vec![Coin {
-                amount: Uint128::new(0),
-                denom: DENOM.to_string(),
-            }],
+            vec![one_unym()],
         )?;
 
         Ok(Response::new()

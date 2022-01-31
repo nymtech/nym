@@ -6,8 +6,8 @@ use crate::traits::{
 use crate::vesting::{populate_vesting_periods, Account, PledgeData};
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    coin, entry_point, to_binary, BankMsg, Coin, ContractResult, Deps, DepsMut, Env, MessageInfo,
-    QueryResponse, Reply, Response, Timestamp, Uint128,
+    coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    Response, Timestamp, Uint128,
 };
 use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use vesting_contract_common::events::{
@@ -18,20 +18,6 @@ use vesting_contract_common::events::{
 use vesting_contract_common::messages::{
     ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
 };
-
-#[entry_point]
-pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, String> {
-    let response = Response::new();
-    match msg.result {
-        ContractResult::Ok(_reply) => {
-            {}
-        }
-        ContractResult::Err(err) => {
-            return Err(err);
-        }
-    }
-    Ok(response)
-}
 
 #[entry_point]
 pub fn instantiate(
@@ -343,14 +329,31 @@ fn try_create_periodic_vesting_account(
         periods,
         deps.storage,
     )?;
-    Ok(
-        Response::new().add_event(new_periodic_vesting_account_event(
-            &owner_address,
-            &coin,
-            &staking_address,
-            start_time,
-        )),
-    )
+
+    let mut response = Response::new();
+
+    let send_tokens_owner = BankMsg::Send {
+        to_address: owner_address.as_str().to_string(),
+        amount: vec![Coin::new(1_000_000, DENOM)],
+    };
+
+    response = response.add_message(send_tokens_owner);
+
+    if let Some(staking_address) = staking_address.as_ref() {
+        let send_tokens_staking = BankMsg::Send {
+            to_address: staking_address.clone().as_str().to_string(),
+            amount: vec![Coin::new(1_000_000, DENOM)],
+        };
+
+        response = response.add_message(send_tokens_staking);
+    }
+
+    Ok(response.add_event(new_periodic_vesting_account_event(
+        &owner_address,
+        &coin,
+        &staking_address,
+        start_time,
+    )))
 }
 
 #[entry_point]

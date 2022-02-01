@@ -112,6 +112,12 @@ pub async fn switch_network(
   Ok(account)
 }
 
+#[tauri::command]
+pub async fn logout(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<(), BackendError> {
+  state.write().await.logout();
+  Ok(())
+}
+
 fn random_mnemonic() -> Mnemonic {
   let mut rng = rand::thread_rng();
   Mnemonic::generate_in_with(&mut rng, Language::English, 24).unwrap()
@@ -130,8 +136,8 @@ async fn _connect_with_mnemonic(
         validator_client::Config::new(
           config.get_nymd_validator_url(network),
           config.get_validator_api_url(network),
-          Some(config.get_mixnet_contract_address(network)),
-          Some(config.get_vesting_contract_address(network)),
+          config.get_mixnet_contract_address(network),
+          config.get_vesting_contract_address(network),
         ),
         mnemonic.clone(),
       ) {

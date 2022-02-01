@@ -312,7 +312,7 @@ impl Config {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct MixNode {
+struct MixNode {
     /// Version of the mixnode for which this configuration was created.
     #[serde(default = "missing_string_value")]
     version: String,
@@ -410,11 +410,11 @@ impl Default for MixNode {
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Logging {}
+struct Logging {}
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Verloc {
+struct Verloc {
     /// Specifies number of echo packets sent to each node during a measurement run.
     packets_per_node: usize,
 
@@ -454,7 +454,7 @@ impl Default for Verloc {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct Debug {
+struct Debug {
     /// Delay between each subsequent node statistics being logged to the console
     #[serde(with = "humantime_serde")]
     node_stats_logging_delay: Duration,

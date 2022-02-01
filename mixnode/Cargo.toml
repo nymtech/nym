@@ -10,8 +10,8 @@ authors = [
     "Drazen Urch <durch@users.noreply.github.com>",
 ]
 description = "Implementation of a Loopix-based Mixnode"
-edition = "2018"
-rust-version = "1.56"
+edition = "2021"
+rust-version = "1.58.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -49,6 +49,9 @@ version-checker = { path="../common/version-checker" }
 
 [dev-dependencies]
 serial_test = "0.5"
+
+nymsphinx-types = { path = "../common/nymsphinx/types" }
+nymsphinx-params = { path = "../common/nymsphinx/params" }
 
 [build-dependencies]
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }

@@ -15,8 +15,8 @@
 * @futurechimp @mmsinclair
 
 # Rust rules:
-*.rs @durch @futurechimp @jstuczyn @neacsu
-Cargo.* @durch @futurechimp @jstuczyn @neacsu
+*.rs @durch @futurechimp @jstuczyn @neacsu @octol
+Cargo.* @durch @futurechimp @jstuczyn @neacsu @octol
 
 # JS rules:
 *.js @mmsinclair @fmtabbara @Aid19801

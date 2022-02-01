@@ -3,13 +3,16 @@
 
 use std::convert::TryFrom;
 
-use crate::commands::*;
+use crate::commands::validate_bech32_address_or_exit;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
+use crate::node::MixNode;
 use anyhow::{anyhow, Result};
-use clap::ArgGroup;
+use clap::{ArgGroup, Args};
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
+
+use super::version_check;
 
 #[derive(Args, Clone)]
 #[clap(group(ArgGroup::new("sign").required(true).args(&["address", "text"])))]
@@ -47,15 +50,6 @@ impl TryFrom<Sign> for SignedTarget {
             Err(anyhow!("Error: missing signed target flag"))
         }
     }
-}
-
-pub fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
-    let identity_keypair: identity::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
-        pathfinder.private_identity_key().to_owned(),
-        pathfinder.public_identity_key().to_owned(),
-    ))
-    .expect("Failed to read stored identity key files");
-    identity_keypair
 }
 
 fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) {
@@ -109,7 +103,7 @@ pub(crate) fn execute(args: &Sign) {
         }
     };
     let pathfinder = MixNodePathfinder::new_from_config(&config);
-    let identity_keypair = load_identity_keys(&pathfinder);
+    let identity_keypair = MixNode::load_identity_keys(&pathfinder);
 
     match signed_target {
         SignedTarget::Text(text) => print_signed_text(identity_keypair.private_key(), &text),

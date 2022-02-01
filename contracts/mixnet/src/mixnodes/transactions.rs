@@ -222,14 +222,43 @@ pub(crate) fn try_update_mixnode_config(
     profit_margin_percent: u8,
 ) -> Result<Response, ContractError> {
     let owner = deps.api.addr_validate(info.sender.as_ref())?;
-    let mix_identity = storage::mixnodes()
+    _try_update_mixnode_config(deps, env, profit_margin_percent, owner, None)
+}
+
+pub(crate) fn try_update_mixnode_config_on_behalf(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    profit_margin_percent: u8,
+    owner: String,
+) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(&owner)?;
+    let proxy = deps.api.addr_validate(info.sender.as_ref())?;
+    _try_update_mixnode_config(deps, env, profit_margin_percent, owner, Some(proxy))
+}
+
+pub(crate) fn _try_update_mixnode_config(
+    deps: DepsMut,
+    env: Env,
+    profit_margin_percent: u8,
+    owner: Addr,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
+    let mixnode_bond = storage::mixnodes()
         .idx
         .owner
         .item(deps.storage, owner.clone())?
         .ok_or(ContractError::NoAssociatedMixNodeBond { owner })?
-        .1
-        .identity()
-        .clone();
+        .1;
+
+    if proxy != mixnode_bond.proxy {
+        return Err(ContractError::ProxyMismatch {
+            existing: mixnode_bond
+                .proxy
+                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+            incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+        });
+    }
 
     // We don't have to check lower bound as its an u8
     if profit_margin_percent > 100 {
@@ -238,7 +267,7 @@ pub(crate) fn try_update_mixnode_config(
         ));
     }
 
-    storage::mixnodes().update(deps.storage, &mix_identity, |mixnode_bond_opt| {
+    storage::mixnodes().update(deps.storage, mixnode_bond.identity(), |mixnode_bond_opt| {
         mixnode_bond_opt
             .map(|mut mixnode_bond| {
                 mixnode_bond.mix_node.profit_margin_percent = profit_margin_percent;
@@ -248,7 +277,19 @@ pub(crate) fn try_update_mixnode_config(
             .ok_or(ContractError::NoBondFound)
     })?;
 
-    Ok(Response::new())
+    let mut response = Response::new();
+
+    if let Some(proxy) = proxy {
+        // Returns one_unym proxy had to send in order to execute the contract to contract transaction, this is potentially leaky as anyone can say that they're a proxy,
+        // and they could potentially leak 1 unym per transaction, altough I'm pretty sure transaction fees make that silly.
+        let return_one_unymt = BankMsg::Send {
+            to_address: proxy.as_str().to_string(),
+            amount: vec![one_unym()],
+        };
+        response = response.add_message(return_one_unymt);
+    }
+
+    Ok(response)
 }
 
 fn validate_mixnode_pledge(

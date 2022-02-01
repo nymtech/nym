@@ -6,12 +6,34 @@ use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 use vesting_contract_common::events::{
     new_vesting_mixnode_bonding_event, new_vesting_mixnode_unbonding_event,
+    new_vesting_update_mixnode_config_event,
 };
 use vesting_contract_common::one_unym;
 
 use super::Account;
 
 impl MixnodeBondingAccount for Account {
+    fn try_update_mixnode_config(
+        &self,
+        profit_margin_percent: u8,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError> {
+        let msg = MixnetExecuteMsg::UpdateMixnodeConfigOnBehalf {
+            profit_margin_percent,
+            owner: self.owner_address().into_string(),
+        };
+
+        let update_mixnode_config_msg = wasm_execute(
+            MIXNET_CONTRACT_ADDRESS.load(storage)?,
+            &msg,
+            vec![one_unym()],
+        )?;
+
+        Ok(Response::new()
+            .add_message(update_mixnode_config_msg)
+            .add_event(new_vesting_update_mixnode_config_event()))
+    }
+
     fn try_bond_mixnode(
         &self,
         mix_node: MixNode,

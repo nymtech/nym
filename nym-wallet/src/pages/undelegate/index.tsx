@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { NymCard } from '../../components'
 import { UndelegateForm } from './UndelegateForm'
 import { Layout } from '../../layouts'
@@ -7,6 +7,7 @@ import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
 import { getGasFee, getReverseMixDelegations } from '../../requests'
 import { TFee, TPagedDelegations } from '../../types'
 import { Undelegate as UndelegateIcon } from '../../svg-icons'
+import { ClientContext } from '../../context/main'
 
 export const Undelegate = () => {
   const [message, setMessage] = useState<string>()
@@ -15,9 +16,11 @@ export const Undelegate = () => {
   const [fees, setFees] = useState<TFee>()
   const [pagedDelegations, setPagesDelegations] = useState<TPagedDelegations>()
 
+  const { clientDetails } = useContext(ClientContext)
+
   useEffect(() => {
     initialize()
-  }, [])
+  }, [clientDetails])
 
   const initialize = async () => {
     setIsLoading(true)

@@ -57,8 +57,9 @@ pub async fn connect_with_mnemonic(
 pub async fn get_balance(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Balance, BackendError> {
+  let denom = state.read().await.current_network().denom();
   match nymd_client!(state)
-    .get_mixnet_balance(nymd_client!(state).address())
+    .get_balance(nymd_client!(state).address(), denom)
     .await
   {
     Ok(Some(coin)) => {
@@ -98,11 +99,12 @@ pub async fn switch_network(
   let account = {
     let r_state = state.read().await;
     let client = r_state.client(network)?;
+    let denom = network.denom();
 
     Account::new(
       client.nymd.mixnet_contract_address()?.to_string(),
       client.nymd.address().to_string(),
-      client.nymd.denom()?.try_into()?,
+      denom.try_into()?,
     )
   };
 
@@ -150,7 +152,7 @@ async fn _connect_with_mnemonic(
       default_account = Some(Account::new(
         client.nymd.mixnet_contract_address()?.to_string(),
         client.nymd.address().to_string(),
-        client.nymd.denom()?.try_into()?,
+        network.denom().try_into()?,
       ));
     }
 

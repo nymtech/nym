@@ -5,9 +5,9 @@ use url::Url;
 
 pub mod all;
 pub mod eth_contract;
-mod mainnet;
-mod qa;
-mod sandbox;
+pub mod mainnet;
+pub mod qa;
+pub mod sandbox;
 
 cfg_if::cfg_if! {
     if #[cfg(network = "mainnet")] {

@@ -1,12 +1,15 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use cosmrs::Denom;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::str::FromStr;
 use strum::EnumIter;
 
 use crate::error::BackendError;
 use config::defaults::all::Network as ConfigNetwork;
+use config::defaults::{mainnet, qa, sandbox};
 
 #[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -15,6 +18,17 @@ pub enum Network {
   QA,
   SANDBOX,
   MAINNET,
+}
+
+impl Network {
+  pub fn denom(&self) -> Denom {
+    match self {
+      // network defaults should be correctly formatted
+      Network::QA => Denom::from_str(qa::DENOM).unwrap(),
+      Network::SANDBOX => Denom::from_str(sandbox::DENOM).unwrap(),
+      Network::MAINNET => Denom::from_str(mainnet::DENOM).unwrap(),
+    }
+  }
 }
 
 impl Default for Network {

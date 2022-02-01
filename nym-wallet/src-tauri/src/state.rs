@@ -39,6 +39,10 @@ impl State {
   pub fn set_network(&mut self, network: Network) {
     self.current_network = network;
   }
+
+  pub fn logout(&mut self) {
+    self.signing_clients = HashMap::new();
+  }
 }
 
 #[macro_export]

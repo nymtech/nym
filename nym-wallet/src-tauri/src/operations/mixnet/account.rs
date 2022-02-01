@@ -112,6 +112,12 @@ pub async fn switch_network(
   Ok(account)
 }
 
+#[tauri::command]
+pub async fn logout(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<(), BackendError> {
+  state.write().await.logout();
+  Ok(())
+}
+
 fn random_mnemonic() -> Mnemonic {
   let mut rng = rand::thread_rng();
   Mnemonic::generate_in_with(&mut rng, Language::English, 24).unwrap()

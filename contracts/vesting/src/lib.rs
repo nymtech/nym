@@ -4,4 +4,4 @@ pub mod messages;
 mod storage;
 mod support;
 mod traits;
-mod vesting;
+pub mod vesting;

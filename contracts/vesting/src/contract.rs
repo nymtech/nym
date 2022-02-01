@@ -304,6 +304,12 @@ fn try_create_periodic_vesting_account(
     if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
+    let account_exists = account_from_address(owner_address, deps.storage, deps.api).is_ok();
+    if account_exists {
+        return Err(ContractError::AccountAlreadyExists(
+            owner_address.to_string(),
+        ));
+    }
 
     let vesting_spec = vesting_spec.unwrap_or_default();
 

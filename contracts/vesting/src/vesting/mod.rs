@@ -64,11 +64,12 @@ mod tests {
             staking_address: Some("staking".to_string()),
             vesting_spec: None,
         };
-        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        // Try creating an account when not admin
+        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
         assert!(response.is_err());
 
         let info = mock_info("admin", &coins(1_000_000_000_000, DENOM));
-        let _response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
         let created_account = load_account(&Addr::unchecked("owner"), &deps.storage)
             .unwrap()
             .unwrap();
@@ -81,7 +82,9 @@ mod tests {
             created_account.load_balance(&deps.storage).unwrap(),
             Uint128::new(1_000_000_000_000)
         );
-        // Test key collision avoidance
+        // Try create the same account again
+        let _response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        assert!(response.is_err());
 
         let account_again = vesting_account_fixture(&mut deps.storage, &env);
         assert_eq!(created_account.storage_key(), 1);

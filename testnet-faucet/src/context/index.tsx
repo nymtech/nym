@@ -4,7 +4,7 @@ import ClientValidator, {
 } from '@nymproject/nym-validator-client'
 
 export const urls = {
-  blockExplorer: 'https://testnet-milhon-blocks.nymtech.net',
+  blockExplorer: 'https://sanbox-blocks.nymtech.net',
 }
 
 type TGlobalContext = {

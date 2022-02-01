@@ -23,6 +23,7 @@ credentials = { path = "../../credentials" }
 crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
 nymsphinx = { path = "../../nymsphinx" }
+pemstore = { path = "../../pemstore" }
 coconut-interface = { path = "../../coconut-interface", optional = true }
 network-defaults = { path = "../../network-defaults" }
 

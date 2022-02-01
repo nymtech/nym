@@ -290,7 +290,7 @@ where
 
         self.increase_bandwidth(bandwidth_value as i64).await?;
         let available_total = self.get_available_bandwidth().await?;
-        debug!("Increased bandwidth for client: {:?}", self.client.address);
+        println!("Increased bandwidth for client: {:?}", self.client.address);
 
         Ok(ServerResponse::Bandwidth { available_total })
     }

@@ -2268,6 +2268,7 @@ dependencies = [
  "log",
  "network-defaults",
  "nymsphinx",
+ "pemstore",
  "rand 0.7.3",
  "secp256k1",
  "thiserror",

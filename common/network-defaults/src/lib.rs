@@ -109,7 +109,7 @@ pub fn default_api_endpoints() -> Vec<Url> {
 }
 
 pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
-    hex_literal::hex!("9fEE3e28c17dbB87310A51F13C4fbf4331A6f102");
+    hex_literal::hex!("B3BF30DD53044c9050B7309031Bbf26b2cecF3be");
 // Name of the event triggered by the eth contract. If the event name is changed,
 // this would also need to be changed; It is currently tested against the json abi
 pub const ETH_EVENT_NAME: &str = "BBCredentialPurchased";
@@ -119,7 +119,7 @@ pub const ETH_BURN_FUNCTION_NAME: &str = "generateBasicBandwidthCredential";
 /// How much bandwidth (in bytes) one token can buy
 const BYTES_PER_TOKEN: u64 = 1024 * 1024 * 1024;
 /// How many ERC20 tokens should be burned to buy bandwidth
-pub const TOKENS_TO_BURN: u64 = 10;
+pub const TOKENS_TO_BURN: u64 = 1;
 /// Default bandwidth (in bytes) that we try to buy
 pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
 

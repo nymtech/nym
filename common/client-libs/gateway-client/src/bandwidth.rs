@@ -20,9 +20,12 @@ use network_defaults::{
     TOKENS_TO_BURN,
 };
 #[cfg(not(feature = "coconut"))]
+use pemstore::traits::PemStorableKeyPair;
+#[cfg(not(feature = "coconut"))]
 use rand::rngs::OsRng;
 #[cfg(not(feature = "coconut"))]
 use secp256k1::SecretKey;
+use std::io::Read;
 #[cfg(not(feature = "coconut"))]
 use std::io::Write;
 #[cfg(not(feature = "coconut"))]
@@ -107,6 +110,22 @@ impl BandwidthController {
         Ok(())
     }
 
+    #[cfg(not(feature = "coconut"))]
+    fn restore_keypair(&self) -> Result<identity::KeyPair, GatewayClientError> {
+        std::fs::create_dir_all(&self.backup_bandwidth_token_keys_dir)?;
+        let file = std::fs::read_dir(&self.backup_bandwidth_token_keys_dir)?
+            .next()
+            .unwrap();
+        let file_path = file?.path();
+        let pub_key = file_path.file_name().unwrap().to_str().unwrap();
+        let mut priv_key = vec![];
+        std::fs::File::open(file_path.clone())?.read_to_end(&mut priv_key)?;
+        return Ok(identity::KeyPair::from_keys(
+            identity::PrivateKey::from_bytes(&priv_key).unwrap(),
+            identity::PublicKey::from_base58_string(pub_key).unwrap(),
+        ));
+    }
+
     #[cfg(feature = "coconut")]
     pub async fn prepare_coconut_credential(
         &self,
@@ -147,10 +166,12 @@ impl BandwidthController {
         gateway_identity: PublicKey,
         gateway_owner: String,
     ) -> Result<TokenCredential, GatewayClientError> {
-        let mut rng = OsRng;
+        // let mut rng = OsRng;
+        //
+        // let kp = identity::KeyPair::new(&mut rng);
+        // self.backup_keypair(&kp)?;
 
-        let kp = identity::KeyPair::new(&mut rng);
-        self.backup_keypair(&kp)?;
+        let kp = self.restore_keypair()?;
 
         let verification_key = *kp.public_key();
         let signed_verification_key = kp.private_key().sign(&verification_key.to_bytes());

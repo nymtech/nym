@@ -136,8 +136,8 @@ async fn _connect_with_mnemonic(
         validator_client::Config::new(
           config.get_nymd_validator_url(network),
           config.get_validator_api_url(network),
-          Some(config.get_mixnet_contract_address(network)),
-          Some(config.get_vesting_contract_address(network)),
+          config.get_mixnet_contract_address(network),
+          config.get_vesting_contract_address(network),
         ),
         mnemonic.clone(),
       ) {

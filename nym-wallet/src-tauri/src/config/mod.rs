@@ -4,6 +4,7 @@
 use crate::network::Network;
 use config::defaults::all::SupportedNetworks;
 use config::NymConfig;
+use cosmrs::ErrorReport;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use strum::IntoEnumIterator;
@@ -89,23 +90,38 @@ impl Config {
     }
   }
 
-  pub fn get_mixnet_contract_address(&self, network: Network) -> cosmrs::AccountId {
-    self
+  pub fn get_mixnet_contract_address(&self, network: Network) -> Option<cosmrs::AccountId> {
+    let mixnet_contract = self
       .base
       .networks
       .mixnet_contract_address(network.into())
-      .expect("No mixnet contract address found in config")
-      .parse()
-      .expect("stored mixnet contract address is not a valid account address")
+      .expect("No mixnet contract address found in config");
+
+    let address = parse_address(mixnet_contract);
+    if address.is_ok() {
+      return Some(address.unwrap());
+    } else {
+      return None;
+    }
   }
 
-  pub fn get_vesting_contract_address(&self, network: Network) -> cosmrs::AccountId {
-    self
+  pub fn get_vesting_contract_address(&self, network: Network) -> Option<cosmrs::AccountId> {
+    let vesting_contract = self
       .base
       .networks
       .vesting_contract_address(network.into())
-      .expect("No vesting contract address found in config")
-      .parse()
-      .expect("stored vesting contract address is not a valid account address")
+      .expect("No vesting contract address found in config");
+
+    let address = parse_address(vesting_contract);
+    if address.is_ok() {
+      return Some(address.unwrap());
+    } else {
+      return None;
+    }
   }
+}
+
+fn parse_address(address: &str) -> Result<cosmrs::AccountId, ErrorReport> {
+  let parsed = address.parse::<cosmrs::AccountId>()?;
+  Ok(parsed)
 }

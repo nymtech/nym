@@ -14,6 +14,7 @@ use config::defaults::all::Network as ConfigNetwork;
 pub enum Network {
   QA,
   SANDBOX,
+  MAINNET,
 }
 
 impl Default for Network {
@@ -28,6 +29,7 @@ impl Into<ConfigNetwork> for Network {
     match self {
       Network::QA => ConfigNetwork::QA,
       Network::SANDBOX => ConfigNetwork::SANDBOX,
+      Network::MAINNET => ConfigNetwork::MAINNET,
     }
   }
 }
@@ -39,6 +41,7 @@ impl TryFrom<ConfigNetwork> for Network {
     match value {
       ConfigNetwork::QA => Ok(Network::QA),
       ConfigNetwork::SANDBOX => Ok(Network::SANDBOX),
+      ConfigNetwork::MAINNET => Ok(Network::MAINNET),
       _ => Err(BackendError::NetworkNotSupported(value)),
     }
   }

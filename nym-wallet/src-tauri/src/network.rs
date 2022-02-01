@@ -42,7 +42,6 @@ impl TryFrom<ConfigNetwork> for Network {
       ConfigNetwork::QA => Ok(Network::QA),
       ConfigNetwork::SANDBOX => Ok(Network::SANDBOX),
       ConfigNetwork::MAINNET => Ok(Network::MAINNET),
-      _ => Err(BackendError::NetworkNotSupported(value)),
     }
   }
 }

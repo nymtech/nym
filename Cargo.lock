@@ -7660,6 +7660,7 @@ dependencies = [
  "url",
  "validator-api-requests",
  "vesting-contract",
+ "vesting-contract-common",
 ]
 
 [[package]]
@@ -7734,7 +7735,12 @@ dependencies = [
 name = "vesting-contract-common"
 version = "0.1.0"
 dependencies = [
+ "config",
  "cosmwasm-std",
+ "cw-storage-plus",
+ "mixnet-contract-common",
+ "schemars",
+ "serde",
 ]
 
 [[package]]

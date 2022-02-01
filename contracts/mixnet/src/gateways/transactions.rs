@@ -7,11 +7,12 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::support::helpers::{ensure_no_existing_bond, validate_node_identity_signature};
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
+    wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
 };
 use mixnet_contract_common::events::{new_gateway_bonding_event, new_gateway_unbonding_event};
 use mixnet_contract_common::{Gateway, GatewayBond, Layer};
-use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
+use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
+use vesting_contract_common::one_unym;
 
 pub fn try_add_gateway(
     deps: DepsMut,
@@ -176,7 +177,7 @@ pub(crate) fn _try_remove_gateway(
             amount: gateway_bond.pledge_amount(),
         };
 
-        let track_unbond_message = wasm_execute(proxy, &msg, coins(0, DENOM))?;
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_unym()])?;
         response = response.add_message(track_unbond_message);
     }
 

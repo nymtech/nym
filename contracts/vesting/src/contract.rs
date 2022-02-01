@@ -1,5 +1,4 @@
 use crate::errors::ContractError;
-use crate::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification};
 use crate::storage::{account_from_address, ADMIN, MIXNET_CONTRACT_ADDRESS};
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
@@ -15,6 +14,9 @@ use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
     new_track_mixnode_unbond_event, new_track_undelegation_event, new_vested_coins_withdraw_event,
+};
+use vesting_contract_common::messages::{
+    ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
 };
 
 #[entry_point]
@@ -43,6 +45,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::UpdateMixnetAddress { address } => {
+            try_update_mixnet_address(address, info, deps)
+        }
         ExecuteMsg::DelegateToMixnode {
             mix_identity,
             amount,
@@ -97,7 +102,20 @@ pub fn execute(
     }
 }
 
-// Only owner
+// Only contract admin, set at init
+pub fn try_update_mixnet_address(
+    address: String,
+    info: MessageInfo,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
+    if info.sender != ADMIN.load(deps.storage)? {
+        return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
+    }
+    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &address)?;
+    Ok(Response::default())
+}
+
+// Only contract owner of vesting account
 pub fn try_withdraw_vested_coins(
     amount: Coin,
     env: Env,
@@ -311,14 +329,31 @@ fn try_create_periodic_vesting_account(
         periods,
         deps.storage,
     )?;
-    Ok(
-        Response::new().add_event(new_periodic_vesting_account_event(
-            &owner_address,
-            &coin,
-            &staking_address,
-            start_time,
-        )),
-    )
+
+    let mut response = Response::new();
+
+    let send_tokens_owner = BankMsg::Send {
+        to_address: owner_address.as_str().to_string(),
+        amount: vec![Coin::new(1_000_000, DENOM)],
+    };
+
+    response = response.add_message(send_tokens_owner);
+
+    if let Some(staking_address) = staking_address.as_ref() {
+        let send_tokens_staking = BankMsg::Send {
+            to_address: staking_address.clone().as_str().to_string(),
+            amount: vec![Coin::new(1_000_000, DENOM)],
+        };
+
+        response = response.add_message(send_tokens_staking);
+    }
+
+    Ok(response.add_event(new_periodic_vesting_account_event(
+        &owner_address,
+        &coin,
+        &staking_address,
+        start_time,
+    )))
 }
 
 #[entry_point]

@@ -7,6 +7,7 @@ use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, Gateway};
 use vesting_contract_common::events::{
     new_vesting_gateway_bonding_event, new_vesting_gateway_unbonding_event,
 };
+use vesting_contract_common::one_unym;
 
 use super::Account;
 
@@ -64,7 +65,11 @@ impl GatewayBondingAccount for Account {
         };
 
         if let Some(_bond) = self.load_gateway_pledge(storage)? {
-            let unbond_msg = wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
+            let unbond_msg = wasm_execute(
+                MIXNET_CONTRACT_ADDRESS.load(storage)?,
+                &msg,
+                vec![one_unym()],
+            )?;
 
             Ok(Response::new()
                 .add_message(unbond_msg)

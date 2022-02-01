@@ -9,7 +9,8 @@ use cosmwasm_std::{coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, Messa
 use cw_storage_plus::PrimaryKey;
 use mixnet_contract_common::events::{new_delegation_event, new_undelegation_event};
 use mixnet_contract_common::{Delegation, IdentityKey};
-use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
+use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
+use vesting_contract_common::one_unym;
 
 fn validate_delegation_stake(mut delegation: Vec<Coin>) -> Result<Coin, ContractError> {
     // check if anything was put as delegation
@@ -212,7 +213,7 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
                     amount: old_delegation.amount.clone(),
                 });
 
-                let track_undelegation_msg = wasm_execute(proxy, &msg, coins(0, DENOM))?;
+                let track_undelegation_msg = wasm_execute(proxy, &msg, vec![one_unym()])?;
 
                 response = response.add_message(track_undelegation_msg);
             }

@@ -33,6 +33,7 @@ use std::str::FromStr;
 #[cfg(not(feature = "coconut"))]
 use web3::{
     contract::{Contract, Options},
+    ethabi::Token,
     transports::Http,
     types::{Address, Bytes, U256, U64},
     Web3,
@@ -219,7 +220,7 @@ impl BandwidthController {
                     U256::from(TOKENS_TO_BURN),
                     U256::from(&verification_key.to_bytes()),
                     Bytes(signed_verification_key.to_bytes().to_vec()),
-                    Bytes(gateway_owner.into_bytes()),
+                    Token::String(gateway_owner),
                 ),
                 Options::default(),
                 confirmations,

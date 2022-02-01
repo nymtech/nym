@@ -3,13 +3,15 @@
 
 use crate::error::BackendError;
 use aes_gcm::aead::generic_array::ArrayLength;
-use aes_gcm::aead::{Aead, NewAead};
+use aes_gcm::aead::{Aead, NewAead, Payload};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use argon2::{
   password_hash::rand_core::{OsRng, RngCore},
   Algorithm, Argon2, Params, Version,
 };
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::convert::TryFrom;
+use std::marker::PhantomData;
 
 const MEMORY_COST: u32 = 16 * 1024;
 const ITERATIONS: u32 = 3;
@@ -19,16 +21,24 @@ const OUTPUT_LENGTH: usize = 32;
 // as per Argon2 recommendation
 const SALT_LEN: usize = 16;
 
+// AES256GCM Nonce is 96 bit long.
+const IV_LEN: usize = 12;
+
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct EncryptedData {
+pub(crate) struct EncryptedData<T> {
   #[serde(with = "base64")]
   ciphertext: Vec<u8>,
   #[serde(with = "base64")]
   salt: Vec<u8>,
   #[serde(with = "base64")]
   iv: Vec<u8>,
+
+  #[serde(skip)]
+  _marker: PhantomData<T>,
 }
 
+// helper to make Vec<u8> serialization use base64 representation to make it human readable
+// so that it would be easier for users to copy contents from the disk if they wanted to use it elsewhere
 mod base64 {
   use serde::{Deserialize, Deserializer, Serializer};
 
@@ -39,6 +49,32 @@ mod base64 {
   pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
     let s = <&str>::deserialize(deserializer)?;
     base64::decode(s).map_err(serde::de::Error::custom)
+  }
+}
+
+impl<T> EncryptedData<T> {
+  pub(crate) fn encrypt_struct(data: &T, password: &str) -> Result<Self, BackendError>
+  where
+    T: Serialize,
+  {
+    encrypt_struct(data, password)
+  }
+
+  pub(crate) fn decrypt_struct(&self, password: &str) -> Result<T, BackendError>
+  where
+    T: for<'a> Deserialize<'a>,
+  {
+    decrypt_struct(self, password)
+  }
+}
+
+impl EncryptedData<Vec<u8>> {
+  pub(crate) fn encrypt_data(data: &[u8], password: &str) -> Result<Self, BackendError> {
+    encrypt_data(data, password)
+  }
+
+  pub(crate) fn decrypt_data(&self, password: &str) -> Result<Vec<u8>, BackendError> {
+    decrypt_data(self, password)
   }
 }
 
@@ -57,79 +93,143 @@ where
   Ok(key)
 }
 
-pub(crate) fn encrypt(data: &[u8], password: &str) -> Result<EncryptedData, BackendError> {
+fn random_salt_and_iv() -> ([u8; SALT_LEN], [u8; IV_LEN]) {
   let mut rng = OsRng;
 
   let mut salt = [0u8; SALT_LEN];
   rng.fill_bytes(&mut salt);
 
-  let key = derive_cipher_key(password, &salt)?;
-
-  let mut iv = Nonce::default();
+  let mut iv = [0u8; IV_LEN];
   rng.fill_bytes(&mut iv);
 
-  let cipher = Aes256Gcm::new(&key);
+  (salt, iv)
+}
 
-  let ciphertext = cipher
-    .encrypt(&iv, data)
-    .map_err(|_| BackendError::EncryptionError)?;
+fn encrypt(data: &[u8], password: &str, salt: &[u8], iv: &[u8]) -> Result<Vec<u8>, BackendError> {
+  let key = derive_cipher_key(password, salt)?;
+  let cipher = Aes256Gcm::new(&key);
+  cipher
+    .encrypt(Nonce::from_slice(iv), data)
+    .map_err(|_| BackendError::EncryptionError)
+}
+
+fn decrypt(
+  ciphertext: &[u8],
+  password: &str,
+  salt: &[u8],
+  iv: &[u8],
+) -> Result<Vec<u8>, BackendError> {
+  let key = derive_cipher_key(password, salt)?;
+  let cipher = Aes256Gcm::new(&key);
+  cipher
+    .decrypt(Nonce::from_slice(iv), ciphertext)
+    .map_err(|_| BackendError::DecryptionError)
+}
+
+pub(crate) fn encrypt_data(
+  data: &[u8],
+  password: &str,
+) -> Result<EncryptedData<Vec<u8>>, BackendError> {
+  let (salt, iv) = random_salt_and_iv();
+  let ciphertext = encrypt(data, password, &salt, iv.as_slice())?;
 
   Ok(EncryptedData {
     ciphertext,
     salt: salt.to_vec(),
     iv: iv.to_vec(),
+    _marker: Default::default(),
   })
 }
 
-pub(crate) fn decrypt(
-  encrypted_data: &EncryptedData,
+pub(crate) fn encrypt_struct<T>(data: &T, password: &str) -> Result<EncryptedData<T>, BackendError>
+where
+  T: Serialize,
+{
+  let bytes = serde_json::to_vec(data).map_err(|_| BackendError::EncryptionError)?;
+
+  let (salt, iv) = random_salt_and_iv();
+  let ciphertext = encrypt(&bytes, password, &salt, iv.as_slice())?;
+
+  Ok(EncryptedData {
+    ciphertext,
+    salt: salt.to_vec(),
+    iv: iv.to_vec(),
+    _marker: Default::default(),
+  })
+}
+
+pub(crate) fn decrypt_data(
+  encrypted_data: &EncryptedData<Vec<u8>>,
   password: &str,
 ) -> Result<Vec<u8>, BackendError> {
-  let key = derive_cipher_key(password, &encrypted_data.salt)?;
-  let cipher = Aes256Gcm::new(&key);
+  decrypt(
+    &encrypted_data.ciphertext,
+    password,
+    &encrypted_data.salt,
+    &encrypted_data.iv,
+  )
+}
 
-  cipher
-    .decrypt(
-      Nonce::from_slice(&encrypted_data.iv),
-      encrypted_data.ciphertext.as_ref(),
-    )
-    .map_err(|_| BackendError::DecryptionError)
+pub(crate) fn decrypt_struct<T>(
+  encrypted_data: &EncryptedData<T>,
+  password: &str,
+) -> Result<T, BackendError>
+where
+  T: for<'a> Deserialize<'a>,
+{
+  let bytes = decrypt(
+    &encrypted_data.ciphertext,
+    password,
+    &encrypted_data.salt,
+    &encrypted_data.iv,
+  )?;
+
+  serde_json::from_slice(&bytes).map_err(|_| BackendError::DecryptionError)
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
 
+  #[derive(Serialize, Deserialize, PartialEq, Debug)]
+  struct Data {
+    mnemonic: String,
+    hd_path: String,
+  }
+
   #[test]
-  fn data_encryption() {
+  fn struct_encryption() {
     let password = "my-super-secret-password";
-    let payload = b"my secret message";
+    let data = Data {
+      mnemonic: "my secret mnemonic".to_string(),
+      hd_path: "totally-valid-hd-path".to_string(),
+    };
 
     let wrong_password = "brute-force-attempt-1";
 
-    let mut encrypted_data = encrypt(payload, password).unwrap();
-    let recovered = decrypt(&encrypted_data, password).unwrap();
-    assert_eq!(payload.to_vec(), recovered);
+    let mut encrypted_data = encrypt_struct(&data, password).unwrap();
+    let recovered = decrypt_struct(&encrypted_data, password).unwrap();
+    assert_eq!(data, recovered);
 
     // decryption with wrong password fails
-    assert!(decrypt(&encrypted_data, wrong_password).is_err());
+    assert!(decrypt_struct(&encrypted_data, wrong_password).is_err());
 
     // decryption fails if ciphertext got malformed
     encrypted_data.ciphertext[3] ^= 123;
-    assert!(decrypt(&encrypted_data, wrong_password).is_err());
+    assert!(decrypt_struct(&encrypted_data, wrong_password).is_err());
 
     // restore the ciphertext (for test purposes)
     encrypted_data.ciphertext[3] ^= 123;
 
     // decryption fails if salt got malformed (it would result in incorrect key being derived)
     encrypted_data.salt[3] ^= 123;
-    assert!(decrypt(&encrypted_data, password).is_err());
+    assert!(decrypt_struct(&encrypted_data, password).is_err());
 
     // restore the salt (for test purposes)
     encrypted_data.salt[3] ^= 123;
 
     // decryption fails if iv got malformed
     encrypted_data.iv[3] ^= 123;
-    assert!(decrypt(&encrypted_data, password).is_err());
+    assert!(decrypt_struct(&encrypted_data, password).is_err());
   }
 }

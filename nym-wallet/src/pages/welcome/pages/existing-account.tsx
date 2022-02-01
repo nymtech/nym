@@ -34,7 +34,7 @@ export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () =>
       )}
 
       <Button variant="contained" size="large" fullWidth onClick={handleSignIn}>
-        Next
+        Sign in
       </Button>
       <Button
         variant="outlined"

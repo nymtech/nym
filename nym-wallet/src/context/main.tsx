@@ -52,13 +52,18 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const refreshAccount = async () => {
-      await logIn()
+      await loadAccount()
       userBalance.fetchBalance()
     }
     refreshAccount()
   }, [network])
 
   const logIn = async () => {
+    await loadAccount()
+    history.push('/balance')
+  }
+
+  const loadAccount = async () => {
     const clientDetails = await selectNetwork(network)
     await getBondDetails()
     setClientDetails(clientDetails)
@@ -68,7 +73,6 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const logOut = async () => {
     setClientDetails(undefined)
     setNetwork('SANDBOX')
-    history.push('/balance')
     await signOut()
   }
 

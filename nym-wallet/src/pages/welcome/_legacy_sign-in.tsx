@@ -19,9 +19,9 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
     setInputError(undefined)
 
     try {
-      const res = await signInWithMnemonic(mnemonic || '')
+      await signInWithMnemonic(mnemonic || '')
       setIsLoading(false)
-      logIn(res)
+      logIn()
     } catch (e: any) {
       setIsLoading(false)
       setInputError(e)

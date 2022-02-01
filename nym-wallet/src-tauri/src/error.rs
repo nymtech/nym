@@ -35,6 +35,15 @@ pub enum BackendError {
     #[from]
     source: ValidatorAPIError,
   },
+  #[error("{source}")]
+  KeyDerivationError {
+    #[from]
+    source: argon2::Error,
+  },
+  #[error("failed to encrypt the given data with the provided password")]
+  EncryptionError,
+  #[error("failed to decrypt the given data with the provided password")]
+  DecryptionError,
   #[error("Client has not been initialized yet, connect with mnemonic to initialize")]
   ClientNotInitialized,
   #[error("No balance available for address {0}")]

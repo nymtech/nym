@@ -1,13 +1,12 @@
 import React, { createContext, useEffect, useState } from 'react'
-import { useHistory } from 'react-router-dom'
 import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types'
-
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance'
 import { config } from '../../config'
-import { getMixnodeBondDetails, selectNetwork } from '../requests'
+import { getMixnodeBondDetails, selectNetwork, signOut } from '../requests'
 import { currencyMap } from '../utils'
+import { useHistory } from 'react-router-dom'
 
-export const { MAJOR_CURRENCY, MINOR_CURRENCY, ADMIN_ADDRESS } = config
+export const { ADMIN_ADDRESS } = config
 
 export const urls = (network: Network) => ({
   blockExplorer: `https://${network}-blocks.nymtech.net`,
@@ -27,7 +26,7 @@ type TClientContext = {
   getBondDetails: () => Promise<void>
   handleShowSettings: () => void
   handleShowAdmin: () => void
-  logIn: (clientDetails: Account) => void
+  logIn: () => void
   logOut: () => void
 }
 
@@ -42,26 +41,39 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [showSettings, setShowSettings] = useState(false)
   const [mode, setMode] = useState<'light' | 'dark'>('light')
 
-  const history = useHistory()
   const userBalance = useGetBalance()
+  const history = useHistory()
 
   useEffect(() => {
     if (clientDetails) {
       userBalance.fetchBalance()
-      history.push('/balance')
     }
   }, [clientDetails, userBalance.fetchBalance])
 
-  const logIn = async (clientDetails: Account) => {
+  useEffect(() => {
+    const refreshAccount = async () => {
+      await loadAccount()
+      userBalance.fetchBalance()
+    }
+    refreshAccount()
+  }, [network])
+
+  const logIn = async () => {
+    await loadAccount()
+    history.push('/balance')
+  }
+
+  const loadAccount = async () => {
+    const clientDetails = await selectNetwork(network)
     await getBondDetails()
-    await selectNetwork(network)
     setClientDetails(clientDetails)
     setCurrency(currencyMap(network))
   }
 
-  const logOut = () => {
+  const logOut = async () => {
     setClientDetails(undefined)
-    userBalance.clearBalance()
+    setNetwork('SANDBOX')
+    await signOut()
   }
 
   const handleShowAdmin = () => setShowAdmin((show) => !show)

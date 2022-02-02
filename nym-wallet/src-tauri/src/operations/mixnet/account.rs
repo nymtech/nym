@@ -66,11 +66,10 @@ pub async fn get_balance(
       let coin = Coin::new(
         &coin.amount.to_string(),
         &Denom::from_str(&coin.denom.to_string())?,
-      )
-      .to_major();
+      );
       Ok(Balance {
         coin: coin.clone(),
-        printable_balance: format!("{} {}", coin.amount(), &denom.as_ref()[1..]),
+        printable_balance: format!("{} {}", coin.to_major().amount(), &denom.as_ref()[1..]),
       })
     }
     Ok(None) => Err(BackendError::NoBalance(

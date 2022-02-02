@@ -14,7 +14,7 @@ use crate::node::listener::connection_handler::packet_processing::PacketProcesso
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
-use crate::node::node_statistics::NodeStatsWrapper;
+use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use ::crypto::asymmetric::{encryption, identity};
 use config::NymConfig;
@@ -123,7 +123,7 @@ impl MixNode {
     fn start_http_api(
         &self,
         atomic_verloc_result: AtomicVerlocResult,
-        node_stats_pointer: NodeStatsWrapper,
+        node_stats_pointer: SharedNodeStats,
     ) {
         info!("Starting HTTP API on http://localhost:8000");
 
@@ -149,7 +149,7 @@ impl MixNode {
         });
     }
 
-    fn start_node_stats_controller(&self) -> (NodeStatsWrapper, node_statistics::UpdateSender) {
+    fn start_node_stats_controller(&self) -> (SharedNodeStats, node_statistics::UpdateSender) {
         info!("Starting node stats controller...");
         let controller = node_statistics::Controller::new(
             self.config.get_node_stats_logging_delay(),

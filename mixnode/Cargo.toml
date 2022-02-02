@@ -49,6 +49,7 @@ version-checker = { path="../common/version-checker" }
 
 [dev-dependencies]
 serial_test = "0.5"
+tokio = { version="1.8", features = ["rt-multi-thread", "net", "signal", "test-util"] }
 
 nymsphinx-types = { path = "../common/nymsphinx/types" }
 nymsphinx-params = { path = "../common/nymsphinx/params" }

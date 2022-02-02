@@ -4,13 +4,23 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{milhon, qa, sandbox, ValidatorDetails};
+use crate::{mainnet, qa, sandbox, ValidatorDetails};
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum Network {
-    MILHON,
     QA,
     SANDBOX,
+    MAINNET,
+}
+
+impl Network {
+    pub fn bech32_prefix(&self) -> String {
+        match self {
+            Self::QA => String::from(qa::BECH32_PREFIX),
+            Self::SANDBOX => String::from(sandbox::BECH32_PREFIX),
+            Self::MAINNET => String::from(mainnet::BECH32_PREFIX),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -35,36 +45,23 @@ impl SupportedNetworks {
 
         for network in support {
             match network {
-                Network::MILHON => networks.insert(
-                    Network::MILHON,
+                Network::MAINNET => networks.insert(
+                    Network::MAINNET,
                     NetworkDetails {
-                        bech32_prefix: String::from(milhon::BECH32_PREFIX),
-                        denom: String::from(milhon::DENOM),
-                        mixnet_contract_address: String::from(milhon::MIXNET_CONTRACT_ADDRESS),
-                        vesting_contract_address: String::from(milhon::VESTING_CONTRACT_ADDRESS),
+                        bech32_prefix: String::from(mainnet::BECH32_PREFIX),
+                        denom: String::from(mainnet::DENOM),
+                        mixnet_contract_address: String::from(mainnet::MIXNET_CONTRACT_ADDRESS),
+                        vesting_contract_address: String::from(mainnet::VESTING_CONTRACT_ADDRESS),
                         bandwidth_claim_contract_address: String::from(
-                            milhon::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+                            mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
                         ),
                         rewarding_validator_address: String::from(
-                            milhon::REWARDING_VALIDATOR_ADDRESS,
+                            mainnet::REWARDING_VALIDATOR_ADDRESS,
                         ),
-                        validators: milhon::validators(),
+                        validators: mainnet::validators(),
                     },
                 ),
-                Network::QA => networks.insert(
-                    Network::QA,
-                    NetworkDetails {
-                        bech32_prefix: String::from(qa::BECH32_PREFIX),
-                        denom: String::from(qa::DENOM),
-                        mixnet_contract_address: String::from(qa::MIXNET_CONTRACT_ADDRESS),
-                        vesting_contract_address: String::from(qa::VESTING_CONTRACT_ADDRESS),
-                        bandwidth_claim_contract_address: String::from(
-                            qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-                        ),
-                        rewarding_validator_address: String::from(qa::REWARDING_VALIDATOR_ADDRESS),
-                        validators: qa::validators(),
-                    },
-                ),
+
                 Network::SANDBOX => networks.insert(
                     Network::SANDBOX,
                     NetworkDetails {
@@ -79,6 +76,20 @@ impl SupportedNetworks {
                             sandbox::REWARDING_VALIDATOR_ADDRESS,
                         ),
                         validators: sandbox::validators(),
+                    },
+                ),
+                Network::QA => networks.insert(
+                    Network::QA,
+                    NetworkDetails {
+                        bech32_prefix: String::from(qa::BECH32_PREFIX),
+                        denom: String::from(qa::DENOM),
+                        mixnet_contract_address: String::from(qa::MIXNET_CONTRACT_ADDRESS),
+                        vesting_contract_address: String::from(qa::VESTING_CONTRACT_ADDRESS),
+                        bandwidth_claim_contract_address: String::from(
+                            qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+                        ),
+                        rewarding_validator_address: String::from(qa::REWARDING_VALIDATOR_ADDRESS),
+                        validators: qa::validators(),
                     },
                 ),
             };

@@ -3,12 +3,12 @@ import { AppBar as MuiAppBar, Divider, Grid, IconButton, Toolbar, Typography, us
 import { Box } from '@mui/system'
 import { Logout } from '@mui/icons-material'
 import { ClientContext } from '../context/main'
-import { CopyToClipboard } from '.'
+import { CopyToClipboard, NetworkSelector } from '.'
 import { Node as NodeIcon } from '../svg-icons/node'
 
 export const AppBar = () => {
   const { userBalance, clientDetails, showSettings, logOut, handleShowSettings } = useContext(ClientContext)
-  const matches = useMediaQuery('(min-width: 769px)')
+  const matches = useMediaQuery('(min-width: 900px)')
 
   return (
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'nym.background.light' }}>
@@ -31,7 +31,10 @@ export const AppBar = () => {
               </>
             )}
           </Grid>
-          <Grid item container justifyContent="flex-end" xs={3} spacing={2}>
+          <Grid item container justifyContent="flex-end" md={12} lg={5} spacing={2}>
+            <Grid item>
+              <NetworkSelector />
+            </Grid>
             <Grid item>
               <IconButton
                 onClick={handleShowSettings}

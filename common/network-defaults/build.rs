@@ -3,7 +3,7 @@
 
 fn main() {
     match option_env!("NETWORK") {
-        Some("milhon") => println!("cargo:rustc-cfg=network=\"milhon\"",),
+        Some("mainnet") => println!("cargo:rustc-cfg=network=\"mainnet\"",),
         None | Some("sandbox") => println!("cargo:rustc-cfg=network=\"sandbox\"",),
         Some("qa") => println!("cargo:rustc-cfg=network=\"qa\""),
         _ => panic!("No such network"),

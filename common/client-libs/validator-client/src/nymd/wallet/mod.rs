@@ -62,13 +62,15 @@ impl DirectSecp256k1HdWallet {
     }
 
     /// Restores a wallet from the given BIP39 mnemonic using default options.
-    pub fn from_mnemonic(mnemonic: bip39::Mnemonic) -> Result<Self, NymdError> {
-        DirectSecp256k1HdWalletBuilder::new().build(mnemonic)
+    pub fn from_mnemonic(prefix: String, mnemonic: bip39::Mnemonic) -> Result<Self, NymdError> {
+        DirectSecp256k1HdWalletBuilder::new()
+            .with_prefix(prefix)
+            .build(mnemonic)
     }
 
-    pub fn generate(word_count: usize) -> Result<Self, NymdError> {
+    pub fn generate(prefix: String, word_count: usize) -> Result<Self, NymdError> {
         let mneomonic = bip39::Mnemonic::generate(word_count)?;
-        Self::from_mnemonic(mneomonic)
+        Self::from_mnemonic(prefix, mneomonic)
     }
 
     fn derive_keypair(&self, hd_path: &DerivationPath) -> Result<Secp256k1Keypair, NymdError> {
@@ -203,7 +205,7 @@ impl DirectSecp256k1HdWalletBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use network_defaults::BECH32_PREFIX;
+    use network_defaults::{default_network, BECH32_PREFIX};
 
     #[test]
     fn generating_account_addresses() {
@@ -228,7 +230,9 @@ mod tests {
         ];
 
         for (mnemonic, address) in mnemonic_address.into_iter() {
-            let wallet = DirectSecp256k1HdWallet::from_mnemonic(mnemonic.parse().unwrap()).unwrap();
+            let prefix = default_network().bech32_prefix();
+            let wallet =
+                DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.parse().unwrap()).unwrap();
             assert_eq!(
                 wallet.try_derive_accounts().unwrap()[0].address,
                 address.parse().unwrap()

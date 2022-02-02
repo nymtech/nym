@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useState } from 'react'
 import { Alert, Box, Dialog } from '@mui/material'
 import { NymCard } from '../../components'
 import { ClientContext } from '../../context/main'

@@ -17,6 +17,9 @@ mod network;
 mod operations;
 mod state;
 mod utils;
+// temporarily until it is actually used
+#[allow(unused)]
+mod wallet_storage;
 
 use crate::menu::AddDefaultSubmenus;
 use crate::operations::mixnet;

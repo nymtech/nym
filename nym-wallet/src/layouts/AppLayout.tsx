@@ -2,7 +2,7 @@ import React from 'react'
 import { Box } from '@mui/material'
 import { Nav } from '../components'
 import Logo from '../images/logo-background.svg'
-import { AppBar } from '../components/AppBar'
+import { AppBar } from '../components'
 
 export const ApplicationLayout: React.FC = ({ children }) => {
   return (
@@ -23,12 +23,16 @@ export const ApplicationLayout: React.FC = ({ children }) => {
           py: 4,
           px: 5,
         }}
+        display="flex"
+        flexDirection="column"
+        justifyContent="space-between"
       >
-        <Box sx={{ mb: 3 }}>
-          <Logo width={45} />
+        <Box>
+          <Box sx={{ mb: 3 }}>
+            <Logo width={45} />
+          </Box>
+          <Nav />
         </Box>
-
-        <Nav />
       </Box>
       <Box
         sx={{

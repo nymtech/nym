@@ -29,6 +29,10 @@ url = "2.2"
 rand = "0.6.5"
 eyre = "0.6.5"
 
+aes-gcm = "0.9.4"
+argon2 = { version = "0.3.2", features = ["std"] }
+base64 = "0.13"
+zeroize = "1.4.3"
 
 cosmrs = { version = "0.4.1", features = ["rpc", "bip32", "cosmwasm"] }
 cosmwasm-std = "1.0.0-beta3"
@@ -43,6 +47,7 @@ credentials = { path = "../../common/credentials" }
 
 [dev-dependencies]
 ts-rs = "5.1"
+tempfile = "3.3.0"
 
 [dev-dependencies.mixnet-contract-common]
 path = "../../common/cosmwasm-smart-contracts/mixnet-contract"

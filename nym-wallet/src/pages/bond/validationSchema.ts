@@ -1,5 +1,4 @@
 import * as Yup from 'yup'
-import { MAJOR_CURRENCY } from '../../context/main'
 import {
   checkHasEnoughFunds,
   isValidHostname,
@@ -33,7 +32,7 @@ export const validationSchema = Yup.object().shape({
       const isValid = await validateAmount(value || '', '100000000')
 
       if (!isValid) {
-        return this.createError({ message: `A valid amount is required (min 100 ${MAJOR_CURRENCY})` })
+        return this.createError({ message: `A valid amount is required (min 100)` })
       } else {
         const hasEnough = await checkHasEnoughFunds(value || '')
         if (!hasEnough) {

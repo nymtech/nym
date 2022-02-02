@@ -97,12 +97,7 @@ impl Config {
       .mixnet_contract_address(network.into())
       .expect("No mixnet contract address found in config");
 
-    let address = parse_address(mixnet_contract);
-    if address.is_ok() {
-      return Some(address.unwrap());
-    } else {
-      return None;
-    }
+    parse_address(mixnet_contract).ok()
   }
 
   pub fn get_vesting_contract_address(&self, network: Network) -> Option<cosmrs::AccountId> {
@@ -112,12 +107,7 @@ impl Config {
       .vesting_contract_address(network.into())
       .expect("No vesting contract address found in config");
 
-    let address = parse_address(vesting_contract);
-    if address.is_ok() {
-      return Some(address.unwrap());
-    } else {
-      return None;
-    }
+    parse_address(vesting_contract).ok()
   }
 }
 

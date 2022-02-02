@@ -5,7 +5,7 @@ use super::storage;
 use cosmwasm_std::{Deps, StdResult};
 use mixnet_contract_common::{ContractStateParams, MixnetContractVersion};
 
-pub(crate) fn query_contract_settings_params(deps: Deps) -> StdResult<ContractStateParams> {
+pub(crate) fn query_contract_settings_params(deps: Deps<'_>) -> StdResult<ContractStateParams> {
     storage::CONTRACT_STATE
         .load(deps.storage)
         .map(|settings| settings.params)

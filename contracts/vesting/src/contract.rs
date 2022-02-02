@@ -21,7 +21,7 @@ use vesting_contract_common::messages::{
 
 #[entry_point]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     _env: Env,
     info: MessageInfo,
     msg: InitMsg,
@@ -33,13 +33,13 @@ pub fn instantiate(
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Response::default())
 }
 
 #[entry_point]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -106,7 +106,7 @@ pub fn execute(
 pub fn try_update_mixnet_address(
     address: String,
     info: MessageInfo,
-    deps: DepsMut,
+    deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
@@ -120,7 +120,7 @@ pub fn try_withdraw_vested_coins(
     amount: Coin,
     env: Env,
     info: MessageInfo,
-    deps: DepsMut,
+    deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     if amount.denom != DENOM {
         return Err(ContractError::WrongDenom(amount.denom, DENOM.to_string()));
@@ -162,7 +162,7 @@ pub fn try_withdraw_vested_coins(
 fn try_transfer_ownership(
     to_address: String,
     info: MessageInfo,
-    deps: DepsMut,
+    deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     let address = info.sender.clone();
     let to_address = deps.api.addr_validate(&to_address)?;
@@ -178,7 +178,7 @@ fn try_transfer_ownership(
 fn try_update_staking_address(
     to_address: Option<String>,
     info: MessageInfo,
-    deps: DepsMut,
+    deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     let address = info.sender.clone();
     let to_address = to_address.and_then(|x| deps.api.addr_validate(&x).ok());
@@ -199,14 +199,14 @@ pub fn try_bond_gateway(
     amount: Coin,
     info: MessageInfo,
     env: Env,
-    deps: DepsMut,
+    deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     let pledge = validate_funds(&[amount])?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_bond_gateway(gateway, owner_signature, pledge, &env, deps.storage)
 }
 
-pub fn try_unbond_gateway(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
+pub fn try_unbond_gateway(info: MessageInfo, deps: DepsMut<'_>) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_unbond_gateway(deps.storage)
 }
@@ -215,7 +215,7 @@ pub fn try_track_unbond_gateway(
     owner: &str,
     amount: Coin,
     info: MessageInfo,
-    deps: DepsMut,
+    deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
         return Err(ContractError::NotMixnetContract(info.sender));
@@ -231,14 +231,14 @@ pub fn try_bond_mixnode(
     amount: Coin,
     info: MessageInfo,
     env: Env,
-    deps: DepsMut,
+    deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     let pledge = validate_funds(&[amount])?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_bond_mixnode(mix_node, owner_signature, pledge, &env, deps.storage)
 }
 
-pub fn try_unbond_mixnode(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
+pub fn try_unbond_mixnode(info: MessageInfo, deps: DepsMut<'_>) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_unbond_mixnode(deps.storage)
 }
@@ -247,7 +247,7 @@ pub fn try_track_unbond_mixnode(
     owner: &str,
     amount: Coin,
     info: MessageInfo,
-    deps: DepsMut,
+    deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
         return Err(ContractError::NotMixnetContract(info.sender));
@@ -262,7 +262,7 @@ fn try_track_undelegation(
     mix_identity: IdentityKey,
     amount: Coin,
     info: MessageInfo,
-    deps: DepsMut,
+    deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
         return Err(ContractError::NotMixnetContract(info.sender));
@@ -277,7 +277,7 @@ fn try_delegate_to_mixnode(
     amount: Coin,
     info: MessageInfo,
     env: Env,
-    deps: DepsMut,
+    deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     let amount = validate_funds(&[amount])?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
@@ -287,7 +287,7 @@ fn try_delegate_to_mixnode(
 fn try_undelegate_from_mixnode(
     mix_identity: IdentityKey,
     info: MessageInfo,
-    deps: DepsMut,
+    deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_undelegate_from_mixnode(mix_identity, deps.storage)
@@ -299,7 +299,7 @@ fn try_create_periodic_vesting_account(
     vesting_spec: Option<VestingSpecification>,
     info: MessageInfo,
     env: Env,
-    deps: DepsMut,
+    deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
@@ -357,7 +357,7 @@ fn try_create_periodic_vesting_account(
 }
 
 #[entry_point]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::LockedCoins {
             vesting_account_address,
@@ -430,17 +430,17 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
     Ok(query_res?)
 }
 
-pub fn try_get_mixnode(address: &str, deps: Deps) -> Result<Option<PledgeData>, ContractError> {
+pub fn try_get_mixnode(address: &str, deps: Deps<'_>) -> Result<Option<PledgeData>, ContractError> {
     let account = account_from_address(address, deps.storage, deps.api)?;
     account.load_mixnode_pledge(deps.storage)
 }
 
-pub fn try_get_gateway(address: &str, deps: Deps) -> Result<Option<PledgeData>, ContractError> {
+pub fn try_get_gateway(address: &str, deps: Deps<'_>) -> Result<Option<PledgeData>, ContractError> {
     let account = account_from_address(address, deps.storage, deps.api)?;
     account.load_gateway_pledge(deps.storage)
 }
 
-pub fn try_get_account(address: &str, deps: Deps) -> Result<Account, ContractError> {
+pub fn try_get_account(address: &str, deps: Deps<'_>) -> Result<Account, ContractError> {
     account_from_address(address, deps.storage, deps.api)
 }
 
@@ -448,7 +448,7 @@ pub fn try_get_locked_coins(
     vesting_account_address: &str,
     block_time: Option<Timestamp>,
     env: Env,
-    deps: Deps,
+    deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.locked_coins(block_time, &env, deps.storage)
@@ -458,7 +458,7 @@ pub fn try_get_spendable_coins(
     vesting_account_address: &str,
     block_time: Option<Timestamp>,
     env: Env,
-    deps: Deps,
+    deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.spendable_coins(block_time, &env, deps.storage)
@@ -468,7 +468,7 @@ pub fn try_get_vested_coins(
     vesting_account_address: &str,
     block_time: Option<Timestamp>,
     env: Env,
-    deps: Deps,
+    deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_vested_coins(block_time, &env)
@@ -478,7 +478,7 @@ pub fn try_get_vesting_coins(
     vesting_account_address: &str,
     block_time: Option<Timestamp>,
     env: Env,
-    deps: Deps,
+    deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_vesting_coins(block_time, &env)
@@ -486,7 +486,7 @@ pub fn try_get_vesting_coins(
 
 pub fn try_get_start_time(
     vesting_account_address: &str,
-    deps: Deps,
+    deps: Deps<'_>,
 ) -> Result<Timestamp, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     Ok(account.get_start_time())
@@ -494,7 +494,7 @@ pub fn try_get_start_time(
 
 pub fn try_get_end_time(
     vesting_account_address: &str,
-    deps: Deps,
+    deps: Deps<'_>,
 ) -> Result<Timestamp, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     Ok(account.get_end_time())
@@ -502,7 +502,7 @@ pub fn try_get_end_time(
 
 pub fn try_get_original_vesting(
     vesting_account_address: &str,
-    deps: Deps,
+    deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     Ok(account.get_original_vesting())
@@ -512,7 +512,7 @@ pub fn try_get_delegated_free(
     block_time: Option<Timestamp>,
     vesting_account_address: &str,
     env: Env,
-    deps: Deps,
+    deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_delegated_free(block_time, &env, deps.storage)
@@ -522,7 +522,7 @@ pub fn try_get_delegated_vesting(
     block_time: Option<Timestamp>,
     vesting_account_address: &str,
     env: Env,
-    deps: Deps,
+    deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_delegated_vesting(block_time, &env, deps.storage)

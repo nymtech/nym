@@ -25,7 +25,7 @@ pub(crate) mod string_rfc3339_offset_date_time {
     impl<'de> Visitor<'de> for Rfc3339OffsetDateTimeVisitor {
         type Value = OffsetDateTime;
 
-        fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+        fn expecting(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
             formatter.write_str("an rfc3339 `OffsetDateTime`")
         }
 
@@ -218,7 +218,7 @@ impl Interval {
 }
 
 impl Display for Interval {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let length = self.length().as_secs();
         let full_hours = length / 3600;
         let rem = length % 3600;

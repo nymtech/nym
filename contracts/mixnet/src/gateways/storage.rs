@@ -46,7 +46,7 @@ mod tests {
     // currently this is only used in tests but may become useful later on
     pub(crate) fn read_gateway_pledge_amount(
         storage: &dyn Storage,
-        identity: IdentityKeyRef,
+        identity: IdentityKeyRef<'_>,
     ) -> StdResult<cosmwasm_std::Uint128> {
         let node = storage::gateways().load(storage, identity)?;
         Ok(node.pledge_amount.amount)

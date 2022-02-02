@@ -7,15 +7,15 @@ use mixnet_contract_common::IdentityKey;
 
 type BlockHeight = u64;
 
-pub const KEY: Item<u32> = Item::new("key");
-const ACCOUNTS: Map<String, Account> = Map::new("acc");
+pub const KEY: Item<'_, u32> = Item::new("key");
+const ACCOUNTS: Map<'_, String, Account> = Map::new("acc");
 // Holds data related to individual accounts
-const BALANCES: Map<u32, Uint128> = Map::new("blc");
-const BOND_PLEDGES: Map<u32, PledgeData> = Map::new("bnd");
-const GATEWAY_PLEDGES: Map<u32, PledgeData> = Map::new("gtw");
-pub const DELEGATIONS: Map<(u32, IdentityKey, BlockHeight), Uint128> = Map::new("dlg");
-pub const ADMIN: Item<String> = Item::new("adm");
-pub const MIXNET_CONTRACT_ADDRESS: Item<String> = Item::new("mix");
+const BALANCES: Map<'_, u32, Uint128> = Map::new("blc");
+const BOND_PLEDGES: Map<'_, u32, PledgeData> = Map::new("bnd");
+const GATEWAY_PLEDGES: Map<'_, u32, PledgeData> = Map::new("gtw");
+pub const DELEGATIONS: Map<'_, (u32, IdentityKey, BlockHeight), Uint128> = Map::new("dlg");
+pub const ADMIN: Item<'_, String> = Item::new("adm");
+pub const MIXNET_CONTRACT_ADDRESS: Item<'_, String> = Item::new("mix");
 
 pub fn save_delegation(
     key: (u32, IdentityKey, BlockHeight),

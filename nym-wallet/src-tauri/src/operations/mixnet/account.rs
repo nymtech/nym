@@ -59,17 +59,18 @@ pub async fn get_balance(
 ) -> Result<Balance, BackendError> {
   let denom = state.read().await.current_network().denom();
   match nymd_client!(state)
-    .get_balance(nymd_client!(state).address(), denom)
+    .get_balance(nymd_client!(state).address(), denom.clone())
     .await
   {
     Ok(Some(coin)) => {
       let coin = Coin::new(
         &coin.amount.to_string(),
         &Denom::from_str(&coin.denom.to_string())?,
-      );
+      )
+      .to_major();
       Ok(Balance {
         coin: coin.clone(),
-        printable_balance: coin.to_major().to_string(),
+        printable_balance: format!("{} {}", coin.amount(), &denom.as_ref()[1..]),
       })
     }
     Ok(None) => Err(BackendError::NoBalance(

@@ -4,7 +4,6 @@
 use crate::network::Network;
 use config::defaults::all::SupportedNetworks;
 use config::NymConfig;
-use cosmrs::ErrorReport;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use strum::IntoEnumIterator;
@@ -91,27 +90,22 @@ impl Config {
   }
 
   pub fn get_mixnet_contract_address(&self, network: Network) -> Option<cosmrs::AccountId> {
-    let mixnet_contract = self
+    self
       .base
       .networks
       .mixnet_contract_address(network.into())
-      .expect("No mixnet contract address found in config");
-
-    parse_address(mixnet_contract).ok()
+      .expect("No mixnet contract address found in config")
+      .parse()
+      .ok()
   }
 
   pub fn get_vesting_contract_address(&self, network: Network) -> Option<cosmrs::AccountId> {
-    let vesting_contract = self
+    self
       .base
       .networks
       .vesting_contract_address(network.into())
-      .expect("No vesting contract address found in config");
-
-    parse_address(vesting_contract).ok()
+      .expect("No vesting contract address found in config")
+      .parse()
+      .ok()
   }
-}
-
-fn parse_address(address: &str) -> Result<cosmrs::AccountId, ErrorReport> {
-  let parsed = address.parse::<cosmrs::AccountId>()?;
-  Ok(parsed)
 }

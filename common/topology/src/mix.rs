@@ -33,7 +33,7 @@ impl From<identity::Ed25519RecoveryError> for MixnodeConversionError {
 }
 
 impl Display for MixnodeConversionError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             MixnodeConversionError::InvalidIdentityKey(err) => write!(
                 f,

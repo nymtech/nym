@@ -15,7 +15,7 @@ use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_unym;
 
 pub fn try_add_gateway(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     gateway: Gateway,
@@ -40,7 +40,7 @@ pub fn try_add_gateway(
 }
 
 pub fn try_add_gateway_on_behalf(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     gateway: Gateway,
@@ -67,7 +67,7 @@ pub fn try_add_gateway_on_behalf(
 }
 
 pub(crate) fn _try_add_gateway(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     gateway: Gateway,
     pledge: Coin,
@@ -120,7 +120,7 @@ pub(crate) fn _try_add_gateway(
 }
 
 pub fn try_remove_gateway_on_behalf(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, ContractError> {
@@ -128,12 +128,12 @@ pub fn try_remove_gateway_on_behalf(
     _try_remove_gateway(deps, &owner, Some(proxy))
 }
 
-pub fn try_remove_gateway(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+pub fn try_remove_gateway(deps: DepsMut<'_>, info: MessageInfo) -> Result<Response, ContractError> {
     _try_remove_gateway(deps, info.sender.as_ref(), None)
 }
 
 pub(crate) fn _try_remove_gateway(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     owner: &str,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {

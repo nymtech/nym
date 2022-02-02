@@ -36,7 +36,7 @@ fn validate_delegation_stake(mut delegation: Vec<Coin>) -> Result<Coin, Contract
 }
 
 pub(crate) fn try_delegate_to_mixnode(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     mix_identity: IdentityKey,
@@ -48,7 +48,7 @@ pub(crate) fn try_delegate_to_mixnode(
 }
 
 pub(crate) fn try_delegate_to_mixnode_on_behalf(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     mix_identity: IdentityKey,
@@ -68,7 +68,7 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
 }
 
 pub(crate) fn _try_delegate_to_mixnode(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     mix_identity: IdentityKey,
     delegate: &str,
@@ -132,7 +132,7 @@ pub(crate) fn _try_delegate_to_mixnode(
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     info: MessageInfo,
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
@@ -140,7 +140,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     info: MessageInfo,
     mix_identity: IdentityKey,
     delegate: String,
@@ -149,7 +149,7 @@ pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
 }
 
 pub(crate) fn _try_remove_delegation_from_mixnode(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     mix_identity: IdentityKey,
     delegate: &str,
     proxy: Option<Addr>,

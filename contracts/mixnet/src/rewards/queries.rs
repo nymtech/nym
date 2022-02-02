@@ -6,16 +6,16 @@ use cosmwasm_std::Uint128;
 use cosmwasm_std::{Deps, StdResult};
 use mixnet_contract_common::{IdentityKey, MixnodeRewardingStatusResponse};
 
-pub(crate) fn query_reward_pool(deps: Deps) -> StdResult<Uint128> {
+pub(crate) fn query_reward_pool(deps: Deps<'_>) -> StdResult<Uint128> {
     storage::REWARD_POOL.load(deps.storage)
 }
 
-pub(crate) fn query_circulating_supply(deps: Deps) -> StdResult<Uint128> {
+pub(crate) fn query_circulating_supply(deps: Deps<'_>) -> StdResult<Uint128> {
     storage::circulating_supply(deps.storage)
 }
 
 pub(crate) fn query_rewarding_status(
-    deps: Deps,
+    deps: Deps<'_>,
     mix_identity: IdentityKey,
     interval_id: u32,
 ) -> StdResult<MixnodeRewardingStatusResponse> {

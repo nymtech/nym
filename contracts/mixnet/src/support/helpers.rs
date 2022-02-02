@@ -48,10 +48,10 @@ pub(crate) fn ensure_no_existing_bond(
 }
 
 pub(crate) fn validate_node_identity_signature(
-    deps: Deps,
+    deps: Deps<'_>,
     owner: &Addr,
     signature: String,
-    identity: IdentityKeyRef,
+    identity: IdentityKeyRef<'_>,
 ) -> Result<(), ContractError> {
     let owner_bytes = owner.as_bytes();
 

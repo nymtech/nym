@@ -8,7 +8,7 @@ use crate::storage::{payments, status, Status};
 use bandwidth_claim_contract::payment::{LinkPaymentData, Payment};
 
 pub(crate) fn link_payment(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     _env: Env,
     _info: MessageInfo,
     data: LinkPaymentData,

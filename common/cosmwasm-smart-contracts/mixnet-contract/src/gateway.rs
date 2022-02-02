@@ -98,7 +98,7 @@ impl PartialOrd for GatewayBond {
 }
 
 impl Display for GatewayBond {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "amount: {} {}, owner: {}, identity: {}",

@@ -142,7 +142,7 @@ fn reward_mix_delegators(
 }
 
 pub(crate) fn try_reward_next_mixnode_delegators(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     info: MessageInfo,
     mix_identity: IdentityKey,
     interval_id: u32,
@@ -206,7 +206,7 @@ pub(crate) fn try_reward_next_mixnode_delegators(
 }
 
 pub(crate) fn try_reward_mixnode(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     mix_identity: IdentityKey,

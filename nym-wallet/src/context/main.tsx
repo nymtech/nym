@@ -73,9 +73,9 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const loadAccount = async (network: Network) => {
     try {
       const clientDetails = await selectNetwork(network)
+      console.log(clientDetails)
       setClientDetails(clientDetails)
     } catch (e) {
-      console.log(e)
     } finally {
       setCurrency(currencyMap(network))
     }

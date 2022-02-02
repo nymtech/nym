@@ -1,9 +1,9 @@
 import React, { useContext, useEffect, useState } from 'react'
+import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
 import { NymCard } from '../../components'
 import { UndelegateForm } from './UndelegateForm'
 import { Layout } from '../../layouts'
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
-import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
 import { getGasFee, getReverseMixDelegations } from '../../requests'
 import { TFee, TPagedDelegations } from '../../types'
 import { Undelegate as UndelegateIcon } from '../../svg-icons'
@@ -36,9 +36,9 @@ export const Undelegate = () => {
       })
 
       setPagesDelegations(mixnodeDelegations)
-    } catch {
+    } catch (e) {
       setStatus(EnumRequestStatus.error)
-      setMessage('An error occured when initialising the page')
+      setMessage(e as string)
     }
 
     setIsLoading(false)

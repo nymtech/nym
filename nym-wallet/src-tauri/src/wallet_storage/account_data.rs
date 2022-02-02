@@ -9,7 +9,7 @@ use zeroize::Zeroize;
 use zeroize::Zeroizing;
 
 // future-proofing
-#[derive(Serialize, Deserialize, Zeroize)]
+#[derive(Serialize, Deserialize, Debug, Zeroize)]
 #[serde(untagged)]
 #[zeroize(drop)]
 pub(crate) enum StoredAccount {
@@ -26,11 +26,23 @@ impl StoredAccount {
   }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct MnemonicAccount {
   mnemonic: bip39::Mnemonic,
   #[serde(with = "display_hd_path")]
   hd_path: DerivationPath,
+}
+
+// we only ever want to expose those getters in the test code
+#[cfg(test)]
+impl MnemonicAccount {
+  pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
+    &self.mnemonic
+  }
+
+  pub(crate) fn hd_path(&self) -> &DerivationPath {
+    &self.hd_path
+  }
 }
 
 impl Zeroize for MnemonicAccount {

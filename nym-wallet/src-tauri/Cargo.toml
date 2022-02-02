@@ -47,6 +47,7 @@ credentials = { path = "../../common/credentials" }
 
 [dev-dependencies]
 ts-rs = "5.1"
+tempfile = "3.3.0"
 
 [dev-dependencies.mixnet-contract-common]
 path = "../../common/cosmwasm-smart-contracts/mixnet-contract"

@@ -46,6 +46,22 @@ impl<T> Drop for EncryptedData<T> {
   }
 }
 
+// we only ever want to expose those getters in the test code
+#[cfg(test)]
+impl<T> EncryptedData<T> {
+  pub(crate) fn ciphertext(&self) -> &[u8] {
+    &self.ciphertext
+  }
+
+  pub(crate) fn salt(&self) -> &[u8] {
+    &self.salt
+  }
+
+  pub(crate) fn iv(&self) -> &[u8] {
+    &self.iv
+  }
+}
+
 // helper to make Vec<u8> serialization use base64 representation to make it human readable
 // so that it would be easier for users to copy contents from the disk if they wanted to use it elsewhere
 mod base64 {

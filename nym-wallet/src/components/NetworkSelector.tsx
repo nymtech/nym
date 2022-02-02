@@ -5,8 +5,8 @@ import { ClientContext } from '../context/main'
 import { Network } from 'src/types'
 
 const networks: { networkName: Network; name: string }[] = [
+  { networkName: 'MAINNET', name: 'Nym Mainnet' },
   { networkName: 'SANDBOX', name: 'Testnet Sandbox' },
-  { networkName: 'QA', name: 'Testnet QA' },
 ]
 
 export const NetworkSelector = () => {
@@ -25,13 +25,19 @@ export const NetworkSelector = () => {
   return (
     <>
       <Button
-        variant="outlined"
-        sx={{
-          color: (theme) => `${theme.palette.nym.background.dark}`,
-          border: (theme) => `1px solid ${theme.palette.nym.background.dark}`,
-          '&:hover': { border: (theme) => `1px solid ${theme.palette.nym.background.dark}` },
-        }}
+        variant={network === 'MAINNET' ? 'contained' : 'outlined'}
+        color="primary"
+        sx={
+          network !== 'MAINNET'
+            ? {
+                color: (theme) => `${theme.palette.nym.background.dark}`,
+                border: (theme) => `1px solid ${theme.palette.nym.background.dark}`,
+                '&:hover': { border: (theme) => `1px solid ${theme.palette.nym.background.dark}` },
+              }
+            : {}
+        }
         onClick={handleClick}
+        disableElevation
         endIcon={<KeyboardArrowDown sx={{ color: (theme) => `1px solid ${theme.palette.nym.background.dark}` }} />}
       >
         {networks.find((n) => n.networkName === network)?.name}

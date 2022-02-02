@@ -20,13 +20,13 @@ type TClientContext = {
   userBalance: TUseuserBalance
   showAdmin: boolean
   showSettings: boolean
-  network: Network
+  network?: Network
   currency?: TCurrency
   switchNetwork: (network: Network) => void
   getBondDetails: () => Promise<void>
   handleShowSettings: () => void
   handleShowAdmin: () => void
-  logIn: () => void
+  logIn: (network: Network) => void
   logOut: () => void
 }
 
@@ -35,7 +35,7 @@ export const ClientContext = createContext({} as TClientContext)
 export const ClientContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [clientDetails, setClientDetails] = useState<Account>()
   const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>()
-  const [network, setNetwork] = useState<Network>('SANDBOX')
+  const [network, setNetwork] = useState<Network | undefined>()
   const [currency, setCurrency] = useState<TCurrency>()
   const [showAdmin, setShowAdmin] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -52,27 +52,38 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const refreshAccount = async () => {
-      await loadAccount()
-      userBalance.fetchBalance()
+      if (network) {
+        await loadAccount(network)
+        await getBondDetails()
+        userBalance.fetchBalance()
+      }
     }
     refreshAccount()
   }, [network])
 
-  const logIn = async () => {
-    await loadAccount()
-    history.push('/balance')
+  const logIn = async (network: Network) => {
+    try {
+      setNetwork(network)
+      history.push('/balance')
+    } catch (e) {
+      console.log({ e })
+    }
   }
 
-  const loadAccount = async () => {
-    const clientDetails = await selectNetwork(network)
-    await getBondDetails()
-    setClientDetails(clientDetails)
-    setCurrency(currencyMap(network))
+  const loadAccount = async (network: Network) => {
+    try {
+      const clientDetails = await selectNetwork(network)
+      setClientDetails(clientDetails)
+    } catch (e) {
+      console.log(e)
+    } finally {
+      setCurrency(currencyMap(network))
+    }
   }
 
   const logOut = async () => {
     setClientDetails(undefined)
-    setNetwork('SANDBOX')
+    setNetwork(undefined)
     await signOut()
   }
 
@@ -80,8 +91,12 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const handleShowSettings = () => setShowSettings((show) => !show)
 
   const getBondDetails = async () => {
-    const mixnodeDetails = await getMixnodeBondDetails()
-    setMixnodeDetails(mixnodeDetails)
+    try {
+      const mixnodeDetails = await getMixnodeBondDetails()
+      setMixnodeDetails(mixnodeDetails)
+    } catch (e) {
+      console.log(e)
+    }
   }
 
   const switchNetwork = (network: Network) => setNetwork(network)

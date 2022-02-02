@@ -61,8 +61,8 @@ export const useSettingsState = (shouldUpdate: boolean) => {
     if (shouldUpdate && mixnodeDetails?.mix_node.identity_key) {
       getStatus(mixnodeDetails?.mix_node.identity_key)
       getStakeSaturation(mixnodeDetails?.mix_node.identity_key)
-      // getRewardEstimation(mixnodeDetails?.mix_node.identity_key)
-      // getMixnodeInclusionProbability(mixnodeDetails?.mix_node.identity_key)
+      getRewardEstimation(mixnodeDetails?.mix_node.identity_key)
+      getMixnodeInclusionProbability(mixnodeDetails?.mix_node.identity_key)
     } else {
       reset()
     }

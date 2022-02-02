@@ -73,7 +73,6 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const loadAccount = async (network: Network) => {
     try {
       const clientDetails = await selectNetwork(network)
-      console.log(clientDetails)
       setClientDetails(clientDetails)
     } catch (e) {
     } finally {
@@ -91,6 +90,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const handleShowSettings = () => setShowSettings((show) => !show)
 
   const getBondDetails = async () => {
+    setMixnodeDetails(undefined)
     try {
       const mixnodeDetails = await getMixnodeBondDetails()
       setMixnodeDetails(mixnodeDetails)

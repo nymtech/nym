@@ -42,4 +42,6 @@ pub enum ContractError {
     NotOwner(String),
     #[error("VESTING ({}): Invalid address: {0}", line!())]
     InvalidAddress(String),
+    #[error("VESTING ({}): Account already exists: {0}", line!())]
+    AccountAlreadyExists(String),
 }

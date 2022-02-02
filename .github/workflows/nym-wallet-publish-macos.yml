@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Check the release tag starts with `nym-wallet-`
-        if: startsWith(github.ref, 'refs/tags/nym-wallet-')
+        if: !startsWith(github.ref, 'refs/tags/nym-wallet-')
         uses: actions/github-script@v3
         with:
           script: |

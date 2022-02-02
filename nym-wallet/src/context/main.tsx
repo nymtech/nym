@@ -75,7 +75,6 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       const clientDetails = await selectNetwork(network)
       setClientDetails(clientDetails)
     } catch (e) {
-      console.log(e)
     } finally {
       setCurrency(currencyMap(network))
     }
@@ -91,6 +90,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const handleShowSettings = () => setShowSettings((show) => !show)
 
   const getBondDetails = async () => {
+    setMixnodeDetails(undefined)
     try {
       const mixnodeDetails = await getMixnodeBondDetails()
       setMixnodeDetails(mixnodeDetails)

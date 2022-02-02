@@ -8,7 +8,7 @@ import { Node as NodeIcon } from '../svg-icons/node'
 
 export const AppBar = () => {
   const { userBalance, clientDetails, showSettings, logOut, handleShowSettings } = useContext(ClientContext)
-  const matches = useMediaQuery('(min-width: 769px)')
+  const matches = useMediaQuery('(min-width: 900px)')
 
   return (
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'nym.background.light' }}>
@@ -31,7 +31,7 @@ export const AppBar = () => {
               </>
             )}
           </Grid>
-          <Grid item container justifyContent="flex-end" xs={5} spacing={2}>
+          <Grid item container justifyContent="flex-end" md={12} lg={5} spacing={2}>
             <Grid item>
               <NetworkSelector />
             </Grid>

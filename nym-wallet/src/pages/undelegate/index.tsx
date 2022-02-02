@@ -23,6 +23,7 @@ export const Undelegate = () => {
   }, [clientDetails])
 
   const initialize = async () => {
+    setStatus(EnumRequestStatus.initial)
     setIsLoading(true)
 
     try {

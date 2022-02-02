@@ -3,12 +3,14 @@ import { ClientContext } from '../context/main'
 import { checkGatewayOwnership, checkMixnodeOwnership } from '../requests'
 import { EnumNodeType, TNodeOwnership } from '../types'
 
+const initial = {
+  hasOwnership: false,
+  nodeType: undefined,
+}
+
 export const useCheckOwnership = () => {
   const { clientDetails } = useContext(ClientContext)
-  const [ownership, setOwnership] = useState<TNodeOwnership>({
-    hasOwnership: false,
-    nodeType: undefined,
-  })
+  const [ownership, setOwnership] = useState<TNodeOwnership>(initial)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -34,6 +36,8 @@ export const useCheckOwnership = () => {
       setOwnership(status)
     } catch (e) {
       setError(e as string)
+      setIsLoading(false)
+      setOwnership(initial)
     }
   }, [])
 

@@ -86,4 +86,4 @@ The output will compile different types of binaries dependent on your hardware /
 │   │─  nym-wallet_*_.msi
 ```
 
-For instructions on how to release the wallet, please see [RELEASE.md](./RELEASE.md).
+For instructions on how to release the wallet, please see [RELEASE.md](./docs/release/RELEASE.md).

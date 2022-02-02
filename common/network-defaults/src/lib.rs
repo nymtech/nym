@@ -5,26 +5,26 @@ use url::Url;
 
 pub mod all;
 pub mod eth_contract;
-mod milhon;
-mod qa;
-mod sandbox;
+pub mod mainnet;
+pub mod qa;
+pub mod sandbox;
 
 cfg_if::cfg_if! {
-    if #[cfg(network = "milhon")] {
-        pub const BECH32_PREFIX: &str = milhon::BECH32_PREFIX;
-        pub const DENOM: &str = milhon::DENOM;
+    if #[cfg(network = "mainnet")] {
+        pub const BECH32_PREFIX: &str = mainnet::BECH32_PREFIX;
+        pub const DENOM: &str = mainnet::DENOM;
 
-        pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = milhon::MIXNET_CONTRACT_ADDRESS;
-        pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = milhon::VESTING_CONTRACT_ADDRESS;
-        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = milhon::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
-        pub const DEFAULT_REWARDING_VALIDATOR_ADDRESS: &str = milhon::REWARDING_VALIDATOR_ADDRESS;
+        pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = mainnet::MIXNET_CONTRACT_ADDRESS;
+        pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = mainnet::VESTING_CONTRACT_ADDRESS;
+        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
+        pub const DEFAULT_REWARDING_VALIDATOR_ADDRESS: &str = mainnet::REWARDING_VALIDATOR_ADDRESS;
 
         pub fn default_validators() -> Vec<ValidatorDetails> {
-            milhon::validators()
+            mainnet::validators()
         }
 
         pub fn default_network() -> all::Network {
-            all::Network::MILHON
+            all::Network::MAINNET
         }
     } else if #[cfg(network = "qa")] {
         pub const BECH32_PREFIX: &str = qa::BECH32_PREFIX;

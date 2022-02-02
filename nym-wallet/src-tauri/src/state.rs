@@ -40,6 +40,10 @@ impl State {
     self.current_network = network;
   }
 
+  pub fn current_network(&self) -> Network {
+    self.current_network
+  }
+
   pub fn logout(&mut self) {
     self.signing_clients = HashMap::new();
   }

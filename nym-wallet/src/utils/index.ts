@@ -112,7 +112,7 @@ export const currencyMap = (network: Network) => {
   } as TCurrency
 
   switch (network) {
-    case 'QA':
+    case 'MAINNET':
       currency.minor = 'unym'
       currency.major = 'nym'
       break

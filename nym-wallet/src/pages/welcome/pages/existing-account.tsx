@@ -17,7 +17,7 @@ export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () =>
 
     try {
       await signInWithMnemonic(mnemonic || '')
-      logIn()
+      logIn('MAINNET')
     } catch (e: any) {
       setInputError(e)
     }

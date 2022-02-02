@@ -6,7 +6,7 @@ authors = ["you"]
 license = ""
 repository = ""
 default-run = "nym_wallet"
-edition = "2018"
+edition = "2021"
 build = "src/build.rs"
 rust-version = "1.56"
 

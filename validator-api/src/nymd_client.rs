@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use crate::rewarding::{error::RewardingError, IntervalRewardParams, MixnodeToReward};
-use config::defaults::DEFAULT_VALIDATOR_API_PORT;
+use config::defaults::{default_network, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, GatewayBond, IdentityKey, Interval, MixNodeBond,
     MixnodeRewardingStatusResponse, RewardedSetNodeStatus, RewardedSetUpdateDetails,
@@ -37,6 +37,7 @@ impl Client<QueryNymdClient> {
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
+        let network = default_network();
 
         let mixnet_contract = config
             .get_mixnet_contract_address()
@@ -44,7 +45,7 @@ impl Client<QueryNymdClient> {
             .expect("the mixnet contract address is invalid!");
 
         let client_config =
-            validator_client::Config::new(nymd_url, api_url, Some(mixnet_contract), None);
+            validator_client::Config::new(network, nymd_url, api_url, Some(mixnet_contract), None);
         let inner =
             validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!");
 
@@ -60,6 +61,7 @@ impl Client<SigningNymdClient> {
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
+        let network = default_network();
 
         let mixnet_contract = config
             .get_mixnet_contract_address()
@@ -71,7 +73,7 @@ impl Client<SigningNymdClient> {
             .expect("the mnemonic is invalid!");
 
         let client_config =
-            validator_client::Config::new(nymd_url, api_url, Some(mixnet_contract), None);
+            validator_client::Config::new(network, nymd_url, api_url, Some(mixnet_contract), None);
         let inner = validator_client::Client::new_signing(client_config, mnemonic)
             .expect("Failed to connect to nymd!");
 

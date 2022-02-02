@@ -26,7 +26,7 @@
       "copyright": "Copyright © 2021-2022 Nym Technologies SA",
       "category": "Business",
       "shortDescription": "Nym desktop wallet allows you to manage your Nym tokens",
-      "longDescription": "The Nym wallet allows you to manage your Nym tokens and to stake on mixnodes, gateways and validators.",
+      "longDescription": "",
       "deb": {
         "depends": [],
         "useBootstrapper": false

@@ -136,6 +136,7 @@ async fn _connect_with_mnemonic(
       let config = state.read().await.config();
       match validator_client::Client::new_signing(
         validator_client::Config::new(
+          network.into(),
           config.get_nymd_validator_url(network),
           config.get_validator_api_url(network),
           config.get_mixnet_contract_address(network),

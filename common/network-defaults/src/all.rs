@@ -6,11 +6,21 @@ use std::collections::HashMap;
 
 use crate::{mainnet, qa, sandbox, ValidatorDetails};
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum Network {
     QA,
     SANDBOX,
     MAINNET,
+}
+
+impl Network {
+    pub fn bech32_prefix(&self) -> String {
+        match self {
+            Self::QA => String::from(qa::BECH32_PREFIX),
+            Self::SANDBOX => String::from(sandbox::BECH32_PREFIX),
+            Self::MAINNET => String::from(mainnet::BECH32_PREFIX),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

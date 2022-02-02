@@ -106,6 +106,7 @@ impl NymdClient<SigningNymdClient> {
     }
 
     pub fn connect_with_mnemonic<U>(
+        network: config::defaults::all::Network,
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
         vesting_contract_address: Option<AccountId>,
@@ -115,7 +116,8 @@ impl NymdClient<SigningNymdClient> {
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
-        let wallet = DirectSecp256k1HdWallet::from_mnemonic(mnemonic)?;
+        let prefix = network.bech32_prefix();
+        let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?;
         let client_address = wallet
             .try_derive_accounts()?
             .into_iter()

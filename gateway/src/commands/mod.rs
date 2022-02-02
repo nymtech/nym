@@ -3,8 +3,8 @@
 
 use std::process;
 
-use crate::config::Config;
-use clap::ArgMatches;
+use crate::{config::Config, Cli};
+use clap::Subcommand;
 use colored::Colorize;
 use crypto::bech32_address_validation;
 use url::Url;
@@ -15,29 +15,65 @@ pub(crate) mod run;
 pub(crate) mod sign;
 pub(crate) mod upgrade;
 
-pub(crate) const ID_ARG_NAME: &str = "id";
-pub(crate) const HOST_ARG_NAME: &str = "host";
-pub(crate) const MIX_PORT_ARG_NAME: &str = "mix-port";
-pub(crate) const CLIENTS_PORT_ARG_NAME: &str = "clients-port";
-pub(crate) const VALIDATOR_APIS_ARG_NAME: &str = "validator-apis";
-#[cfg(not(feature = "coconut"))]
-pub(crate) const VALIDATORS_ARG_NAME: &str = "validators";
-#[cfg(not(feature = "coconut"))]
-pub(crate) const COSMOS_MNEMONIC: &str = "mnemonic";
-#[cfg(not(feature = "coconut"))]
-pub(crate) const ETH_ENDPOINT: &str = "eth_endpoint";
-pub(crate) const ANNOUNCE_HOST_ARG_NAME: &str = "announce-host";
-pub(crate) const DATASTORE_PATH: &str = "datastore";
-pub(crate) const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
-pub(crate) const WALLET_ADDRESS: &str = "wallet-address";
-
-#[cfg(not(feature = "coconut"))]
+#[cfg(all(feature = "eth", not(feature = "coconut")))]
 const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
-#[cfg(not(feature = "coconut"))]
+#[cfg(all(feature = "eth", not(feature = "coconut")))]
 const DEFAULT_VALIDATOR_ENDPOINT: &str = "http://localhost:26657";
 // A dummy mnemonic
-#[cfg(not(feature = "coconut"))]
+#[cfg(all(feature = "eth", not(feature = "coconut")))]
 const DEFAULT_MNEMONIC: &str = "typical regret aware used tennis noise resource crisp defy join donate orient army item immense clean emerge globe gift chronic loan flat enter egg";
+
+#[derive(Subcommand)]
+pub(crate) enum Commands {
+    /// Initialise the gateway
+    Init(init::Init),
+
+    /// Show details of this gateway
+    NodeDetails(node_details::NodeDetails),
+
+    /// Starts the gateway
+    Run(run::Run),
+
+    /// Sign text to prove ownership of this mixnode
+    Sign(sign::Sign),
+
+    /// Try to upgrade the gateway
+    Upgrade(upgrade::Upgrade),
+}
+
+// Configuration that can be overridden.
+pub(crate) struct OverrideConfig {
+    id: String,
+    host: Option<String>,
+    wallet_address: Option<String>,
+    mix_port: Option<u16>,
+    clients_port: Option<u16>,
+    datastore: Option<String>,
+    announce_host: Option<String>,
+    validator_apis: Option<String>,
+
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    testnet_mode: bool,
+
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    eth_endpoint: Option<String>,
+
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    validators: Option<String>,
+
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    mnemonic: Option<String>,
+}
+
+pub(crate) async fn execute(args: Cli) {
+    match &args.command {
+        Commands::Init(m) => init::execute(m).await,
+        Commands::NodeDetails(m) => node_details::execute(m).await,
+        Commands::Run(m) => run::execute(m).await,
+        Commands::Sign(m) => sign::execute(m),
+        Commands::Upgrade(m) => upgrade::execute(m).await,
+    }
+}
 
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
@@ -50,82 +86,72 @@ fn parse_validators(raw: &str) -> Vec<Url> {
         .collect()
 }
 
-pub(crate) fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
+pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     let mut was_host_overridden = false;
-    if let Some(host) = matches.value_of(HOST_ARG_NAME) {
+    if let Some(host) = args.host {
         config = config.with_listening_address(host);
         was_host_overridden = true;
     }
 
-    if let Some(mix_port) = matches
-        .value_of(MIX_PORT_ARG_NAME)
-        .map(|port| port.parse::<u16>())
-    {
-        if let Err(err) = mix_port {
-            // if port was overridden, it must be parsable
-            panic!("Invalid port value provided - {:?}", err);
-        }
-        config = config.with_mix_port(mix_port.unwrap());
+    if let Some(mix_port) = args.mix_port {
+        config = config.with_mix_port(mix_port);
     }
 
-    if let Some(clients_port) = matches
-        .value_of(CLIENTS_PORT_ARG_NAME)
-        .map(|port| port.parse::<u16>())
-    {
-        if let Err(err) = clients_port {
-            // if port was overridden, it must be parsable
-            panic!("Invalid port value provided - {:?}", err);
-        }
-        config = config.with_clients_port(clients_port.unwrap());
+    if let Some(clients_port) = args.clients_port {
+        config = config.with_clients_port(clients_port);
     }
 
-    if let Some(announce_host) = matches.value_of(ANNOUNCE_HOST_ARG_NAME) {
+    if let Some(announce_host) = args.announce_host {
         config = config.with_announce_address(announce_host);
     } else if was_host_overridden {
         // make sure our 'mix-announce-host' always defaults to 'mix-host'
-        config = config.announce_host_from_listening_host()
+        config = config.announce_host_from_listening_host();
     }
 
-    if let Some(raw_validators) = matches.value_of(VALIDATOR_APIS_ARG_NAME) {
-        config = config.with_custom_validator_apis(parse_validators(raw_validators));
+    if let Some(raw_validators) = args.validator_apis {
+        config = config.with_custom_validator_apis(parse_validators(&raw_validators));
     }
 
-    #[cfg(not(feature = "coconut"))]
-    if let Some(raw_validators) = matches.value_of(VALIDATORS_ARG_NAME) {
-        config = config.with_custom_validator_nymd(parse_validators(raw_validators));
-    } else {
-        config = config.with_custom_validator_nymd(parse_validators(DEFAULT_VALIDATOR_ENDPOINT));
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    if let Some(cosmos_mnemonic) = matches.value_of(COSMOS_MNEMONIC) {
-        config = config.with_cosmos_mnemonic(String::from(cosmos_mnemonic));
-    } else {
-        config = config.with_cosmos_mnemonic(String::from(DEFAULT_MNEMONIC));
-    }
-
-    if let Some(datastore_path) = matches.value_of(DATASTORE_PATH) {
-        config = config.with_custom_persistent_store(datastore_path);
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    if let Some(eth_endpoint) = matches.value_of(ETH_ENDPOINT) {
-        config = config.with_eth_endpoint(String::from(eth_endpoint));
-    } else {
-        config = config.with_eth_endpoint(String::from(DEFAULT_ETH_ENDPOINT));
-    }
-
-    if let Some(wallet_address) = matches.value_of(WALLET_ADDRESS) {
+    if let Some(wallet_address) = args.wallet_address {
         let trimmed = wallet_address.trim();
         validate_bech32_address_or_exit(trimmed);
         config = config.with_wallet_address(trimmed);
     }
 
-    if !cfg!(feature = "eth") || matches.is_present(TESTNET_MODE_ARG_NAME) {
-        config.with_testnet_mode(true)
-    } else {
-        config
+    if let Some(datastore_path) = args.datastore {
+        config = config.with_custom_persistent_store(datastore_path);
     }
+
+    // Set the test mode to always on, except if build with `feature = eth`, then we check the flag
+    config = config.with_testnet_mode(true);
+
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    {
+        if args.testnet_mode {
+            config = config.with_testnet_mode(true);
+        }
+
+        if let Some(raw_validators) = args.validators {
+            config = config.with_custom_validator_nymd(parse_validators(&raw_validators));
+        } else {
+            config =
+                config.with_custom_validator_nymd(parse_validators(DEFAULT_VALIDATOR_ENDPOINT));
+        }
+
+        if let Some(cosmos_mnemonic) = args.mnemonic {
+            config = config.with_cosmos_mnemonic(String::from(cosmos_mnemonic));
+        } else {
+            config = config.with_cosmos_mnemonic(String::from(DEFAULT_MNEMONIC));
+        }
+
+        if let Some(eth_endpoint) = args.eth_endpoint {
+            config = config.with_eth_endpoint(eth_endpoint);
+        } else {
+            config = config.with_eth_endpoint(String::from(DEFAULT_ETH_ENDPOINT));
+        }
+    }
+
+    config
 }
 
 /// Ensures that a given bech32 address is valid, or exits

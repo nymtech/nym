@@ -68,9 +68,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.44"
+version = "1.0.53"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61604a8f862e1d5c3229fdd78f8b02c68dcf73a4c4b05fd636d12240aaa242c1"
+checksum = "94a45b455c14666b85fc40a019e8ab9eb75e3a124e05494f5397122bc9eb06e0"
 
 [[package]]
 name = "app"
@@ -3845,10 +3845,11 @@ dependencies = [
 name = "nym-gateway"
 version = "0.12.1"
 dependencies = [
+ "anyhow",
  "bandwidth-claim-contract",
  "bip39",
  "bs58",
- "clap 2.33.3",
+ "clap 3.0.10",
  "coconut-interface",
  "colored",
  "config",
@@ -3866,6 +3867,7 @@ dependencies = [
  "mixnode-common",
  "network-defaults",
  "nymsphinx",
+ "once_cell",
  "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",

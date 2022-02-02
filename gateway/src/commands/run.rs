@@ -1,82 +1,94 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::*;
-use crate::config::Config;
-use crate::node::Gateway;
-use clap::{App, Arg, ArgMatches};
+use crate::{
+    commands::{override_config, version_check, OverrideConfig},
+    config::Config,
+    node::Gateway,
+};
+use clap::Args;
 use config::NymConfig;
 use log::*;
 
-pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
-    let app = App::new("run")
-        .about("Starts the gateway")
-        .arg(
-            Arg::with_name(ID_ARG_NAME)
-                .long(ID_ARG_NAME)
-                .help("Id of the gateway we want to run")
-                .takes_value(true)
-                .required(true),
-        )
-        // the rest of arguments are optional, they are used to override settings in config file
-        .arg(
-            Arg::with_name(HOST_ARG_NAME)
-                .long(HOST_ARG_NAME)
-                .help("The custom host on which the gateway will be running for receiving sphinx packets")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(MIX_PORT_ARG_NAME)
-                .long(MIX_PORT_ARG_NAME)
-                .help("The port on which the gateway will be listening for sphinx packets")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(CLIENTS_PORT_ARG_NAME)
-                .long(CLIENTS_PORT_ARG_NAME)
-                .help("The port on which the gateway will be listening for clients gateway-requests")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(ANNOUNCE_HOST_ARG_NAME)
-                .long(ANNOUNCE_HOST_ARG_NAME)
-                .help("The host that will be reported to the directory server")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(DATASTORE_PATH)
-                .long(DATASTORE_PATH)
-                .help("Path to sqlite database containing all gateway persistent data")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(VALIDATOR_APIS_ARG_NAME)
-                .long(VALIDATOR_APIS_ARG_NAME)
-                .help("Comma separated list of endpoints of the validators APIs")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(TESTNET_MODE_ARG_NAME)
-                .long(TESTNET_MODE_ARG_NAME)
-                .help("Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement")
-        );
+#[derive(Args, Clone)]
+pub struct Run {
+    /// Id of the gateway we want to run
+    #[clap(long)]
+    id: String,
 
+    /// The custom host on which the gateway will be running for receiving sphinx packets
+    #[clap(long)]
+    host: Option<String>,
+
+    /// The wallet address you will use to bond this gateway, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
+    #[clap(long)]
+    wallet_address: Option<String>,
+
+    /// The port on which the gateway will be listening for sphinx packets
+    #[clap(long)]
+    mix_port: Option<u16>,
+
+    /// The port on which the gateway will be listening for clients gateway-requests
+    #[clap(long)]
+    clients_port: Option<u16>,
+
+    /// The host that will be reported to the directory server
+    #[clap(long)]
+    announce_host: Option<String>,
+
+    /// Path to sqlite database containing all gateway persistent data
+    #[clap(long)]
+    datastore: Option<String>,
+
+    /// Comma separated list of endpoints of the validators APIs
+    #[clap(long)]
+    validator_apis: Option<String>,
+
+    /// Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement
+    #[clap(long)]
+    testnet_mode: bool,
+
+    /// URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens
     #[cfg(not(feature = "coconut"))]
-        let app = app
-        .arg(Arg::with_name(ETH_ENDPOINT)
-            .long(ETH_ENDPOINT)
-            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
-            .takes_value(true))
-        .arg(Arg::with_name(VALIDATORS_ARG_NAME)
-            .long(VALIDATORS_ARG_NAME)
-            .help("Comma separated list of endpoints of the validator")
-            .takes_value(true))
-        .arg(Arg::with_name(COSMOS_MNEMONIC)
-            .long(COSMOS_MNEMONIC)
-            .help("Cosmos wallet mnemonic")
-            .takes_value(true));
+    #[clap(long)]
+    eth_endpoint: Option<String>,
 
-    app
+    /// Comma separated list of endpoints of the validator
+    #[cfg(not(feature = "coconut"))]
+    #[clap(long)]
+    validators: Option<String>,
+
+    /// Cosmos wallet mnemonic
+    #[cfg(not(feature = "coconut"))]
+    #[clap(long)]
+    mnemonic: Option<String>,
+}
+
+impl From<Run> for OverrideConfig {
+    fn from(run_config: Run) -> Self {
+        OverrideConfig {
+            id: run_config.id,
+            host: run_config.host,
+            wallet_address: run_config.wallet_address,
+            mix_port: run_config.mix_port,
+            clients_port: run_config.clients_port,
+            datastore: run_config.datastore,
+            announce_host: run_config.announce_host,
+            validator_apis: run_config.validator_apis,
+
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            testnet_mode: run_config.testnet_mode,
+
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            eth_endpoint: run_config.eth_endpoint,
+
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            validators: run_config.validators,
+
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            mnemonic: run_config.mnemonic,
+        }
+    }
 }
 
 fn show_binding_warning(address: String) {
@@ -94,20 +106,22 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-pub async fn execute(matches: ArgMatches<'static>) {
-    let id = matches.value_of(ID_ARG_NAME).unwrap();
+pub async fn execute(args: &Run) {
+    println!("Starting gateway {}...", args.id);
 
-    println!("Starting gateway {}...", id);
-
-    let mut config = match Config::load_from_file(Some(id)) {
+    let mut config = match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => cfg,
         Err(err) => {
-            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
+            error!(
+                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})",
+                args.id,
+                err,
+            );
             return;
         }
     };
 
-    config = override_config(config, &matches);
+    config = override_config(config, OverrideConfig::from(args.clone()));
 
     if !version_check(&config) {
         error!("failed the local version check");

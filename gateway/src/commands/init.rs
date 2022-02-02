@@ -1,97 +1,100 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::*;
-use crate::config::persistence::pathfinder::GatewayPathfinder;
-use crate::config::Config;
-use crate::node::Gateway;
-use clap::{App, Arg, ArgMatches};
+use crate::{
+    commands::{override_config, OverrideConfig},
+    config::{persistence::pathfinder::GatewayPathfinder, Config},
+    node::Gateway,
+};
+use clap::Args;
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 
-pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
-    let app = App::new("init")
-        .about("Initialise the gateway")
-        .arg(
-            Arg::with_name(ID_ARG_NAME)
-                .long(ID_ARG_NAME)
-                .help("Id of the gateway we want to create config for.")
-                .takes_value(true)
-                .required(true),
-        )
-        .arg(
-            Arg::with_name(HOST_ARG_NAME)
-                .long(HOST_ARG_NAME)
-                .help("The custom host on which the gateway will be running for receiving sphinx packets")
-                .takes_value(true)
-                .required(true),
-        )
-        .arg(
-            Arg::with_name(MIX_PORT_ARG_NAME)
-                .long(MIX_PORT_ARG_NAME)
-                .help("The port on which the gateway will be listening for sphinx packets")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(CLIENTS_PORT_ARG_NAME)
-                .long(CLIENTS_PORT_ARG_NAME)
-                .help("The port on which the gateway will be listening for clients gateway-requests")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(ANNOUNCE_HOST_ARG_NAME)
-                .long(ANNOUNCE_HOST_ARG_NAME)
-                .help("The host that will be reported to the directory server")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(DATASTORE_PATH)
-                .long(DATASTORE_PATH)
-                .help("Path to sqlite database containing all gateway persistent data")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(VALIDATOR_APIS_ARG_NAME)
-                .long(VALIDATOR_APIS_ARG_NAME)
-                .help("Comma separated list of endpoints of the validators APIs")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(WALLET_ADDRESS)
-            .long(WALLET_ADDRESS)
-            .help("The wallet address you will use to bond this gateway, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9")
-            .takes_value(true)
-            .required(true)
-        );
+#[derive(Args, Clone)]
+pub struct Init {
+    /// Id of the gateway we want to create config for
+    #[clap(long)]
+    id: String,
 
-    #[cfg(feature = "eth")]
-    #[cfg(not(feature = "coconut"))]
-    let app = app
-        .arg(
-            Arg::with_name(TESTNET_MODE_ARG_NAME)
-                .long(TESTNET_MODE_ARG_NAME)
-                .help("Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement")
-        )
-        .arg(Arg::with_name(ETH_ENDPOINT)
-            .long(ETH_ENDPOINT)
-            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
-            .takes_value(true)
-            .required(true))
-        .arg(Arg::with_name(VALIDATORS_ARG_NAME)
-            .long(VALIDATORS_ARG_NAME)
-            .help("Comma separated list of endpoints of the validator")
-            .takes_value(true))
-        .arg(Arg::with_name(COSMOS_MNEMONIC)
-            .long(COSMOS_MNEMONIC)
-            .help("Cosmos wallet mnemonic")
-            .takes_value(true)
-            .required(true));
+    /// The custom host on which the gateway will be running for receiving sphinx packets
+    #[clap(long)]
+    host: String,
 
-    app
+    /// The wallet address you will use to bond this gateway, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
+    #[clap(long)]
+    wallet_address: String,
+
+    /// The port on which the gateway will be listening for sphinx packets
+    #[clap(long)]
+    mix_port: Option<u16>,
+
+    /// The port on which the gateway will be listening for clients gateway-requests
+    #[clap(long)]
+    clients_port: Option<u16>,
+
+    /// The host that will be reported to the directory server
+    #[clap(long)]
+    announce_host: Option<String>,
+
+    /// Path to sqlite database containing all gateway persistent data
+    #[clap(long)]
+    datastore: Option<String>,
+
+    /// Comma separated list of endpoints of the validators APIs
+    #[clap(long)]
+    validator_apis: Option<String>,
+
+    /// Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[clap(long)]
+    testnet_mode: bool,
+
+    /// URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[clap(long)]
+    eth_endpoint: String,
+
+    /// Comma separated list of endpoints of the validator
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[clap(long)]
+    validators: Option<String>,
+
+    /// Cosmos wallet mnemonic
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[clap(long)]
+    mnemonic: String,
 }
 
-pub async fn execute(matches: ArgMatches<'static>) {
-    let id = matches.value_of(ID_ARG_NAME).unwrap();
+impl From<Init> for OverrideConfig {
+    fn from(init_config: Init) -> Self {
+        OverrideConfig {
+            id: init_config.id,
+            host: Some(init_config.host),
+            wallet_address: Some(init_config.wallet_address),
+            mix_port: init_config.mix_port,
+            clients_port: init_config.clients_port,
+            datastore: init_config.datastore,
+            announce_host: init_config.announce_host,
+            validator_apis: init_config.validator_apis,
+
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            testnet_mode: init_config.testnet_mode,
+
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            eth_endpoint: Some(init_config.eth_endpoint),
+
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            validators: init_config.validators,
+
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            mnemonic: Some(init_config.mnemonic),
+        }
+    }
+}
+
+pub async fn execute(args: &Init) {
+    let override_config_fields = OverrideConfig::from(args.clone());
+    let id = &override_config_fields.id;
     println!("Initialising gateway {}...", id);
 
     let already_init = if Config::default_config_file_path(Some(id)).exists() {
@@ -103,7 +106,7 @@ pub async fn execute(matches: ArgMatches<'static>) {
 
     let mut config = Config::new(id);
 
-    config = override_config(config, &matches);
+    config = override_config(config, override_config_fields);
 
     // if gateway was already initialised, don't generate new keys
     if !already_init {
@@ -140,5 +143,5 @@ pub async fn execute(matches: ArgMatches<'static>) {
     println!("Saved configuration file to {:?}", config_save_location);
     println!("Gateway configuration completed.\n\n\n");
 
-    Gateway::new(config).await.print_node_details()
+    Gateway::new(config).await.print_node_details();
 }

@@ -132,19 +132,19 @@ impl Config {
         self
     }
 
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
     pub fn with_custom_validator_nymd(mut self, validator_nymd_urls: Vec<Url>) -> Self {
         self.gateway.validator_nymd_urls = validator_nymd_urls;
         self
     }
 
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
     pub fn with_cosmos_mnemonic(mut self, cosmos_mnemonic: String) -> Self {
         self.gateway.cosmos_mnemonic = cosmos_mnemonic;
         self
     }
 
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
     pub fn with_eth_endpoint(mut self, eth_endpoint: String) -> Self {
         self.gateway.eth_endpoint = eth_endpoint;
         self

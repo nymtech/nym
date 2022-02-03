@@ -7,6 +7,7 @@
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.5.3",
     "hardhat": "^2.6.4",
+    "hardhat-gas-reporter": "^1.0.7",
     "solidity-coverage": "^0.7.17"
   },
   "dependencies": {

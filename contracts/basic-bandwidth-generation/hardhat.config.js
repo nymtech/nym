@@ -2,6 +2,7 @@ require("@nomiclabs/hardhat-etherscan");
 require("@nomiclabs/hardhat-truffle5");
 require("@nomiclabs/hardhat-web3");
 require("@nomiclabs/hardhat-ethers");
+require("hardhat-gas-reporter");
 require('dotenv').config({ path: require('find-config')('.env') });
 
 /**
@@ -18,6 +19,11 @@ module.exports = {
   // paths: {
   //   artifacts: "./artifacts/contracts"
   // },
+  gasReporter: {
+    currency: 'EUR',
+    gasPrice: 21, 
+    token: 'GWEI'
+  },
   networks: {
    localhost: {
       url: "http://127.0.0.1:8545"

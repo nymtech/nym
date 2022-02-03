@@ -21,8 +21,7 @@ module.exports = {
   // },
   gasReporter: {
     currency: 'EUR',
-    gasPrice: 21, 
-    token: 'GWEI'
+    gasPrice: 78
   },
   networks: {
    localhost: {

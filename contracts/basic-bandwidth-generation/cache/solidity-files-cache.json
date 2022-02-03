@@ -580,6 +580,44 @@
       "artifacts": [
         "Strings"
       ]
+    },
+    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/BandwidthGeneratorNoGravity.sol": {
+      "lastModificationDate": 1643900677524,
+      "contentHash": "4211e4c7907b037c3b01eb2981cc4934",
+      "sourceName": "contracts/BandwidthGeneratorNoGravity.sol",
+      "solcConfig": {
+        "version": "0.8.10",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./CosmosToken.sol",
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/math/SafeMath.sol"
+      ],
+      "versionPragmas": [
+        "0.8.10"
+      ],
+      "artifacts": [
+        "BandwidthGeneratorNoGravity"
+      ]
     }
   }
 }

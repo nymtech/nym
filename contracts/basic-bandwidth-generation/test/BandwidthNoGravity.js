@@ -56,9 +56,6 @@ contract('BandwidthGenerator', (accounts) => {
     it("returns the correct erc20 address", async () => {
         expect((await bandwidthGenerator.erc20()).toString()).to.equal((erc20token.address).toString());
     });
-    // it("returns the correct gravity address", async () => {
-    //     expect((await bandwidthGenerator.gravityBridge()).toString()).to.equal((gravity.address).toString());
-    // });
     it("returns the correct initial BytesPerToken ratio", async () => {
         expect((await bandwidthGenerator.BytesPerToken()).toString()).to.equal((initialRatio).toString());
     });
@@ -77,12 +74,6 @@ contract('BandwidthGenerator', (accounts) => {
           "BandwidthGenerator: erc20 address cannot be null"
         )
     });
-    // it("cannot be deployed with invalid gravity bridge address (zero address)", async () => {
-    //   expectRevert(
-    //     BandwidthGenerator.new(erc20token.address, constants.ZERO_ADDRESS), 
-    //     "BandwidthGenerator: gravity bridge address cannot be null"
-    //   )
-    // });
   });
 
   context(">> generateBasicBandwidthCredential()", () => {
@@ -117,13 +108,6 @@ contract('BandwidthGenerator', (accounts) => {
         to: bandwidthGenerator.address,
       });
 
-    //   await expectEvent.inTransaction(tx.tx, gravity, 'SendToCosmosEvent', {
-    //     _tokenContract: erc20token.address,
-    //     _sender: bandwidthGenerator.address,
-    //     _destination: cosmosRecipient,
-    //     _amount: halfTokenAmount
-    //   });
-
       expect((await erc20token.balanceOf(bandwidthGenerator.address)).toString()).to.equal(halfTokenAmount.toString());
       expect((await erc20token.balanceOf(user)).toString()).to.equal(halfTokenAmount.toString());
     });
@@ -154,14 +138,6 @@ contract('BandwidthGenerator', (accounts) => {
         from: user,
         to: bandwidthGenerator.address,
       });
-
-    //   await expectEvent.inTransaction(tx.tx, gravity, 'SendToCosmosEvent', {
-    //     _tokenContract: erc20token.address,
-    //     _sender: bandwidthGenerator.address,
-    //     _destination: cosmosRecipient,
-    //     _amount: unevenTokenAmount
-    //   });
-    // });
 
     it("reverts when signed verification key !=64 bytes", async () => {
       await erc20token.approve(bandwidthGenerator.address,(halfTokenAmount),{ from: user }); 
@@ -218,12 +194,6 @@ contract('BandwidthGenerator', (accounts) => {
         to: bandwidthGenerator.address,
       });
 
-    //   await expectEvent.inTransaction(tx.tx, gravity, 'SendToCosmosEvent', {
-    //     _tokenContract: erc20token.address,
-    //     _sender: bandwidthGenerator.address,
-    //     _destination: cosmosRecipient,
-    //     _amount: oneToken
-    //   });       
     });
   });  
   context(">>credential generation admin switch", () => {

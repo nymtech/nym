@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 /** 
  * @title BandwidthGenerator
  * @dev   Contract for generating Basic Bandwidth Credentials (BBCs) on the Nym cosmos blockchain, 
- *        using ERC20 representations of NYM as payment. Utilises the Gravity Bridge for cross-chain payment. 
+ *        using ERC20 representations of NYM as payment. 
  * 
  *        Credential generation can be switched on/off by the contract owner.
  *        

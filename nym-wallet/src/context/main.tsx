@@ -8,10 +8,16 @@ import { useHistory } from 'react-router-dom'
 
 export const { ADMIN_ADDRESS } = config
 
-export const urls = (network: Network) => ({
-  blockExplorer: `https://${network}-blocks.nymtech.net`,
-  networkExplorer: `https://${network}-explorer.nymtech.net`,
-})
+export const urls = (network: Network) =>
+  network === 'MAINNET'
+    ? {
+        blockExplorer: 'https://blocks.nymtech.net',
+        networkExplorer: 'https://explorer.nymtech.net',
+      }
+    : {
+        blockExplorer: `https://${network}-blocks.nymtech.net`,
+        networkExplorer: `https://${network}-explorer.nymtech.net`,
+      }
 
 type TClientContext = {
   mode: 'light' | 'dark'

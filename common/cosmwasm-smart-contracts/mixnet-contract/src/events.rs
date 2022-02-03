@@ -52,6 +52,8 @@ pub const NEW_MIXNODE_ACTIVE_SET_SIZE_KEY: &str = "new_mixnode_active_set_size";
 pub const INTERVAL_ID_KEY: &str = "interval_id";
 pub const TOTAL_MIXNODE_REWARD_KEY: &str = "total_node_reward";
 pub const OPERATOR_REWARD_KEY: &str = "operator_reward";
+pub const TOTAL_PLEDGE_KEY: &str = "pledge";
+pub const TOTAL_DELEGATIONS_KEY: &str = "delegated";
 pub const LAMBDA_KEY: &str = "lambda";
 pub const SIGMA_KEY: &str = "sigma";
 pub const DISTRIBUTED_DELEGATION_REWARDS_KEY: &str = "distributed_delegation_rewards";
@@ -271,10 +273,13 @@ pub fn new_zero_uptime_mix_operator_rewarding_event(
         .add_attribute(NO_REWARD_REASON_KEY, ZERO_UPTIME_VALUE)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn new_mix_operator_rewarding_event(
     interval_id: u32,
     identity: IdentityKeyRef<'_>,
     node_reward_result: NodeRewardResult,
+    node_pledge: Uint128,
+    node_delegation: Uint128,
     operator_reward: Uint128,
     delegation_rewards_distributed: Uint128,
     further_delegations: bool,
@@ -282,6 +287,8 @@ pub fn new_mix_operator_rewarding_event(
     Event::new(OPERATOR_REWARDING_EVENT_TYPE)
         .add_attribute(INTERVAL_ID_KEY, interval_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
+        .add_attribute(TOTAL_PLEDGE_KEY, node_pledge)
+        .add_attribute(TOTAL_DELEGATIONS_KEY, node_delegation)
         .add_attribute(
             TOTAL_MIXNODE_REWARD_KEY,
             node_reward_result.reward().to_string(),

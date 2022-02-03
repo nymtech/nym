@@ -1,14 +1,20 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::*;
 use crate::config::{missing_string_value, Config};
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use config::defaults::default_api_endpoints;
 use config::NymConfig;
 use std::fmt::Display;
 use std::process;
 use version_checker::Version;
+
+#[derive(Args)]
+pub(crate) struct Upgrade {
+    /// Id of the nym-mixnode we want to upgrade
+    #[clap(long)]
+    id: String,
+}
 
 #[allow(dead_code)]
 fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> ! {
@@ -50,16 +56,6 @@ fn unsupported_upgrade(config_version: &Version, package_version: &Version) -> !
     process::exit(1)
 }
 
-pub fn command_args<'a, 'b>() -> App<'a, 'b> {
-    App::new("upgrade").about("Try to upgrade the mixnode").arg(
-        Arg::with_name(ID_ARG_NAME)
-            .long(ID_ARG_NAME)
-            .help("Id of the nym-mixnode we want to upgrade")
-            .takes_value(true)
-            .required(true),
-    )
-}
-
 fn parse_config_version(config: &Config) -> Version {
     let version = Version::parse(config.get_version()).unwrap_or_else(|err| {
         eprintln!("failed to parse client version! - {:?}", err);
@@ -96,7 +92,7 @@ fn parse_package_version() -> Version {
 
 fn minor_0_12_upgrade(
     config: Config,
-    _matches: &ArgMatches,
+    _args: &Upgrade,
     config_version: &Version,
     package_version: &Version,
 ) -> Config {
@@ -128,7 +124,7 @@ fn minor_0_12_upgrade(
     upgraded_config
 }
 
-fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version) {
+fn do_upgrade(mut config: Config, args: &Upgrade, package_version: Version) {
     loop {
         let config_version = parse_config_version(&config);
 
@@ -140,7 +136,7 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
         config = match config_version.major {
             0 => match config_version.minor {
                 9 | 10 => outdated_upgrade(&config_version, &package_version),
-                11 => minor_0_12_upgrade(config, matches, &config_version, &package_version),
+                11 => minor_0_12_upgrade(config, args, &config_version, &package_version),
                 _ => unsupported_upgrade(&config_version, &package_version),
             },
             _ => unsupported_upgrade(&config_version, &package_version),
@@ -148,12 +144,10 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
     }
 }
 
-pub fn execute(matches: &ArgMatches) {
+pub(crate) fn execute(args: &Upgrade) {
     let package_version = parse_package_version();
 
-    let id = matches.value_of(ID_ARG_NAME).unwrap();
-
-    let existing_config = Config::load_from_file(Some(id)).unwrap_or_else(|err| {
+    let existing_config = Config::load_from_file(Some(&args.id)).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {:?}", err);
         process::exit(1)
     });
@@ -163,5 +157,5 @@ pub fn execute(matches: &ArgMatches) {
         process::exit(1);
     }
 
-    do_upgrade(existing_config, matches, package_version)
+    do_upgrade(existing_config, args, package_version)
 }

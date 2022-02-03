@@ -1,12 +1,13 @@
 use super::PledgeData;
 use crate::errors::ContractError;
+use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::GatewayBondingAccount;
-use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, Gateway};
 use vesting_contract_common::events::{
     new_vesting_gateway_bonding_event, new_vesting_gateway_unbonding_event,
 };
+use vesting_contract_common::one_unym;
 
 use super::Account;
 
@@ -47,7 +48,8 @@ impl GatewayBondingAccount for Account {
 
         let new_balance = Uint128::new(current_balance.u128() - pledge.amount.u128());
 
-        let bond_gateway_msg = wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![pledge])?;
+        let bond_gateway_msg =
+            wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![pledge])?;
 
         self.save_balance(new_balance, storage)?;
         self.save_gateway_pledge(pledge_data, storage)?;
@@ -63,7 +65,11 @@ impl GatewayBondingAccount for Account {
         };
 
         if let Some(_bond) = self.load_gateway_pledge(storage)? {
-            let unbond_msg = wasm_execute(DEFAULT_MIXNET_CONTRACT_ADDRESS, &msg, vec![])?;
+            let unbond_msg = wasm_execute(
+                MIXNET_CONTRACT_ADDRESS.load(storage)?,
+                &msg,
+                vec![one_unym()],
+            )?;
 
             Ok(Response::new()
                 .add_message(unbond_msg)

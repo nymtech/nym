@@ -4,4 +4,4 @@
 pub mod client;
 pub mod forwarder;
 
-pub use client::{Client, Config};
+pub use client::{Client, Config, SendWithoutResponse};

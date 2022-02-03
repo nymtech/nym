@@ -2,9 +2,9 @@ import React, { useContext } from 'react'
 import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField, Typography } from '@mui/material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
-import { EnumNodeType, TFee } from '../../types'
+import { EnumNodeType } from '../../types'
 import { validationSchema } from './validationSchema'
-import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
+import { ClientContext } from '../../context/main'
 import { delegate, majorToMinor } from '../../requests'
 import { checkHasEnoughFunds } from '../../utils'
 import { Fee } from '../../components'
@@ -41,7 +41,7 @@ export const DelegateForm = ({
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
 
-  const { userBalance } = useContext(ClientContext)
+  const { userBalance, currency } = useContext(ClientContext)
 
   const onSubmit = async (data: TDelegateForm) => {
     const hasEnoughFunds = await checkHasEnoughFunds(data.amount)
@@ -98,7 +98,7 @@ export const DelegateForm = ({
               error={!!errors.amount}
               helperText={errors?.amount?.message}
               InputProps={{
-                endAdornment: <InputAdornment position="end">{MAJOR_CURRENCY}</InputAdornment>,
+                endAdornment: <InputAdornment position="end">{currency?.major}</InputAdornment>,
               }}
             />
           </Grid>

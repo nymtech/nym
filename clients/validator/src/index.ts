@@ -180,8 +180,8 @@ export default class ValidatorClient implements INymClient {
     return this.client.getSybilResistancePercent(this.mixnetContract);
   }
 
-  public async getEpochRewardPercent(): Promise<number> {
-    return this.client.getEpochRewardPercent(this.mixnetContract);
+  public async getIntervalRewardPercent(): Promise<number> {
+    return this.client.getIntervalRewardPercent(this.mixnetContract);
   }
 
   public async getAllNymdMixnodes(): Promise<MixNodeBond[]> {

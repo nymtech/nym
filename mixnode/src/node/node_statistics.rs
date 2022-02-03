@@ -15,14 +15,14 @@ type PacketDataReceiver = mpsc::UnboundedReceiver<PacketEvent>;
 type PacketDataSender = mpsc::UnboundedSender<PacketEvent>;
 
 #[derive(Clone)]
-pub(crate) struct NodeStatsWrapper {
+pub(crate) struct SharedNodeStats {
     inner: Arc<RwLock<NodeStats>>,
 }
 
-impl NodeStatsWrapper {
+impl SharedNodeStats {
     pub(crate) fn new() -> Self {
         let now = SystemTime::now();
-        NodeStatsWrapper {
+        SharedNodeStats {
             inner: Arc::new(RwLock::new(NodeStats {
                 update_time: now,
                 previous_update_time: now,
@@ -205,6 +205,7 @@ impl CurrentPacketData {
     }
 }
 
+// Worker that listens to a channel and updates the shared current packet data
 struct UpdateHandler {
     current_data: CurrentPacketData,
     update_receiver: PacketDataReceiver,
@@ -233,6 +234,7 @@ impl UpdateHandler {
     }
 }
 
+// Channel to report statistics
 #[derive(Clone)]
 pub struct UpdateSender(PacketDataSender);
 
@@ -266,17 +268,19 @@ impl UpdateSender {
     }
 }
 
+// Worker that periodically updates the shared node stats from the current packet data buffer that
+// the `UpdateHandler` updates.
 struct StatsUpdater {
     updating_delay: Duration,
     current_packet_data: CurrentPacketData,
-    current_stats: NodeStatsWrapper,
+    current_stats: SharedNodeStats,
 }
 
 impl StatsUpdater {
     fn new(
         updating_delay: Duration,
         current_packet_data: CurrentPacketData,
-        current_stats: NodeStatsWrapper,
+        current_stats: SharedNodeStats,
     ) -> Self {
         StatsUpdater {
             updating_delay,
@@ -303,11 +307,11 @@ impl StatsUpdater {
 // since we have the http endpoint now?
 struct PacketStatsConsoleLogger {
     logging_delay: Duration,
-    stats: NodeStatsWrapper,
+    stats: SharedNodeStats,
 }
 
 impl PacketStatsConsoleLogger {
-    fn new(logging_delay: Duration, stats: NodeStatsWrapper) -> Self {
+    fn new(logging_delay: Duration, stats: SharedNodeStats) -> Self {
         PacketStatsConsoleLogger {
             logging_delay,
             stats,
@@ -405,14 +409,14 @@ pub struct Controller {
     stats_updater: StatsUpdater,
 
     /// Pointer to the current node stats
-    node_stats: NodeStatsWrapper,
+    node_stats: SharedNodeStats,
 }
 
 impl Controller {
     pub(crate) fn new(logging_delay: Duration, stats_updating_delay: Duration) -> Self {
         let (sender, receiver) = mpsc::unbounded();
         let shared_packet_data = CurrentPacketData::new();
-        let shared_node_stats = NodeStatsWrapper::new();
+        let shared_node_stats = SharedNodeStats::new();
 
         Controller {
             update_handler: UpdateHandler::new(shared_packet_data.clone(), receiver),
@@ -427,8 +431,8 @@ impl Controller {
         }
     }
 
-    pub(crate) fn get_node_stats_data_pointer(&self) -> NodeStatsWrapper {
-        NodeStatsWrapper {
+    pub(crate) fn get_node_stats_data_pointer(&self) -> SharedNodeStats {
+        SharedNodeStats {
             inner: Arc::clone(&self.node_stats.inner),
         }
     }
@@ -445,5 +449,41 @@ impl Controller {
         tokio::spawn(async move { console_logger.run().await });
 
         self.update_sender
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn node_stats_reported_are_received() {
+        let logging_delay = Duration::from_millis(20);
+        let stats_updating_delay = Duration::from_millis(10);
+        let node_stats_controller = Controller::new(logging_delay, stats_updating_delay);
+
+        let node_stats_pointer = node_stats_controller.get_node_stats_data_pointer();
+        let update_sender = node_stats_controller.start();
+        tokio::time::pause();
+
+        // Pass input
+        update_sender.report_sent("foo".to_string());
+        update_sender.report_sent("foo".to_string());
+        tokio::task::yield_now().await;
+
+        tokio::time::advance(Duration::from_secs(1)).await;
+        tokio::task::yield_now().await;
+
+        // Get output (stats)
+        let stats = node_stats_pointer.read().await;
+        assert_eq!(&stats.packets_sent_since_startup.get("foo"), &Some(&2u64));
+        assert_eq!(&stats.packets_sent_since_startup.len(), &1);
+        assert_eq!(
+            &stats.packets_sent_since_last_update.get("foo"),
+            &Some(&2u64)
+        );
+        assert_eq!(&stats.packets_sent_since_last_update.len(), &1);
+        assert_eq!(&stats.packets_received_since_startup, &0u64);
+        assert!(&stats.packets_explicitly_dropped_since_startup.is_empty());
     }
 }

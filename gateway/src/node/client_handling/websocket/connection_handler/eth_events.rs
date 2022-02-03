@@ -43,6 +43,7 @@ impl ERC20Bridge {
         let mnemonic =
             Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
         let nymd_client = NymdClient::connect_with_mnemonic(
+            config::defaults::default_network(),
             nymd_url.as_ref(),
             AccountId::from_str(DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS).ok(),
             None,

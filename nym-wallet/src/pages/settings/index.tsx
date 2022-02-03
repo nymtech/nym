@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useState } from 'react'
 import { Alert, Box, Dialog } from '@mui/material'
 import { NymCard } from '../../components'
 import { ClientContext } from '../../context/main'
@@ -16,7 +16,7 @@ export const Settings = () => {
   const [selectedTab, setSelectedTab] = useState(0)
 
   const { mixnodeDetails, showSettings, handleShowSettings, getBondDetails } = useContext(ClientContext)
-  const { status, saturation, rewardEstimation } = useSettingsState(showSettings)
+  const { status, saturation, rewardEstimation, inclusionProbability } = useSettingsState(showSettings)
 
   const handleTabChange = (_: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab)
 
@@ -46,6 +46,7 @@ export const Settings = () => {
               saturation={saturation}
               rewardEstimation={rewardEstimation}
               onUpdate={getBondDetails}
+              inclusionProbability={inclusionProbability}
             />
           )}
           {selectedTab === 2 && mixnodeDetails && <NodeStats mixnodeId={mixnodeDetails.mix_node.identity_key} />}

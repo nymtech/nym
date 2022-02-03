@@ -1,32 +1,30 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
-use time::OffsetDateTime;
 use url::Url;
 
 pub mod all;
 pub mod eth_contract;
-mod milhon;
-mod qa;
-mod sandbox;
+pub mod mainnet;
+pub mod qa;
+pub mod sandbox;
 
 cfg_if::cfg_if! {
-    if #[cfg(network = "milhon")] {
-        pub const BECH32_PREFIX: &str = milhon::BECH32_PREFIX;
-        pub const DENOM: &str = milhon::DENOM;
+    if #[cfg(network = "mainnet")] {
+        pub const BECH32_PREFIX: &str = mainnet::BECH32_PREFIX;
+        pub const DENOM: &str = mainnet::DENOM;
 
-        pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = milhon::MIXNET_CONTRACT_ADDRESS;
-        pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = milhon::VESTING_CONTRACT_ADDRESS;
-        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = milhon::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
-        pub const DEFAULT_REWARDING_VALIDATOR_ADDRESS: &str = milhon::REWARDING_VALIDATOR_ADDRESS;
+        pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = mainnet::MIXNET_CONTRACT_ADDRESS;
+        pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = mainnet::VESTING_CONTRACT_ADDRESS;
+        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
+        pub const DEFAULT_REWARDING_VALIDATOR_ADDRESS: &str = mainnet::REWARDING_VALIDATOR_ADDRESS;
 
         pub fn default_validators() -> Vec<ValidatorDetails> {
-            milhon::validators()
+            mainnet::validators()
         }
 
         pub fn default_network() -> all::Network {
-            all::Network::MILHON
+            all::Network::MAINNET
         }
     } else if #[cfg(network = "qa")] {
         pub const BECH32_PREFIX: &str = qa::BECH32_PREFIX;
@@ -152,10 +150,9 @@ pub const DEFAULT_VALIDATOR_API_PORT: u16 = 8080;
 pub const VALIDATOR_API_VERSION: &str = "v1";
 
 // REWARDING
-pub const DEFAULT_FIRST_EPOCH_START: OffsetDateTime = time::macros::datetime!(2021-08-23 12:00 UTC);
-pub const DEFAULT_EPOCH_LENGTH: Duration = Duration::from_secs(24 * 60 * 60 * 30); // 30 days
-/// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate epoch costs to Nyms. We'll also assume a cost of 40$ per epoch(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
-pub const DEFAULT_OPERATOR_EPOCH_COST: u64 = 40_000_000; // 40$/(30 days) at 1 Nym == 1$
+
+/// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate interval costs to Nyms. We'll also assume a cost of 40$ per interval(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
+pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 40_000_000; // 40$/(30 days) at 1 Nym == 1$
 
 // TODO: is there a way to get this from the chain
 pub const TOTAL_SUPPLY: u128 = 1_000_000_000_000_000;

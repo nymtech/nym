@@ -203,7 +203,7 @@ impl BandwidthController {
                 &self.eth_private_key,
             )
             .await?;
-        if Some(U64::from(0)) == recipt.status {
+        if Some(U64::from(0u64)) == recipt.status {
             Err(GatewayClientError::BurnTokenError(
                 web3::Error::InvalidResponse(format!(
                     "Transaction status is 0 (failure): {:?}",

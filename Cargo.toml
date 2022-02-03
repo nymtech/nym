@@ -11,13 +11,13 @@ panic = "abort"
 
 [workspace]
 
+resolver = "2"
 members = [
     "clients/client-core",
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
     "clients/tauri-client/src-tauri",
-    "clients/webassembly",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
@@ -60,7 +60,6 @@ members = [
 default-members = [
     "clients/native",
     "clients/socks5",
-#    "clients/webassembly",
     "gateway",
     "service-providers/network-requester",
     "mixnode",
@@ -68,4 +67,4 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "tokenomics-py"]
+exclude = ["explorer", "contracts", "tokenomics-py", "clients/webassembly"]

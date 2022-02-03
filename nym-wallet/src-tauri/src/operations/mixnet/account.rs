@@ -32,6 +32,13 @@ impl Account {
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Serialize, Deserialize)]
+pub struct CreatedAccount {
+  account: Account,
+  mnemonic: String,
+}
+
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Serialize, Deserialize)]
 pub struct Balance {
   coin: Coin,
   printable_balance: String,
@@ -50,8 +57,9 @@ pub async fn connect_with_mnemonic(
 pub async fn get_balance(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Balance, BackendError> {
+  let denom = state.read().await.current_network().denom();
   match nymd_client!(state)
-    .get_mixnet_balance(nymd_client!(state).address())
+    .get_balance(nymd_client!(state).address(), denom.clone())
     .await
   {
     Ok(Some(coin)) => {
@@ -61,7 +69,7 @@ pub async fn get_balance(
       );
       Ok(Balance {
         coin: coin.clone(),
-        printable_balance: coin.to_major().to_string(),
+        printable_balance: format!("{} {}", coin.to_major().amount(), &denom.as_ref()[1..]),
       })
     }
     Ok(None) => Err(BackendError::NoBalance(
@@ -74,10 +82,13 @@ pub async fn get_balance(
 #[tauri::command]
 pub async fn create_new_account(
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<Account, BackendError> {
+) -> Result<CreatedAccount, BackendError> {
   let rand_mnemonic = random_mnemonic();
   let account = connect_with_mnemonic(rand_mnemonic.to_string(), state).await?;
-  Ok(account)
+  Ok(CreatedAccount {
+    account,
+    mnemonic: rand_mnemonic.to_string(),
+  })
 }
 
 #[tauri::command]
@@ -88,11 +99,12 @@ pub async fn switch_network(
   let account = {
     let r_state = state.read().await;
     let client = r_state.client(network)?;
+    let denom = network.denom();
 
     Account::new(
       client.nymd.mixnet_contract_address()?.to_string(),
       client.nymd.address().to_string(),
-      client.nymd.denom()?.try_into()?,
+      denom.try_into()?,
     )
   };
 
@@ -100,6 +112,12 @@ pub async fn switch_network(
   w_state.set_network(network);
 
   Ok(account)
+}
+
+#[tauri::command]
+pub async fn logout(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<(), BackendError> {
+  state.write().await.logout();
+  Ok(())
 }
 
 fn random_mnemonic() -> Mnemonic {
@@ -118,10 +136,11 @@ async fn _connect_with_mnemonic(
       let config = state.read().await.config();
       match validator_client::Client::new_signing(
         validator_client::Config::new(
+          network.into(),
           config.get_nymd_validator_url(network),
           config.get_validator_api_url(network),
-          Some(config.get_mixnet_contract_address(network)),
-          Some(config.get_vesting_contract_address(network)),
+          config.get_mixnet_contract_address(network),
+          config.get_vesting_contract_address(network),
         ),
         mnemonic.clone(),
       ) {
@@ -134,7 +153,7 @@ async fn _connect_with_mnemonic(
       default_account = Some(Account::new(
         client.nymd.mixnet_contract_address()?.to_string(),
         client.nymd.address().to_string(),
-        client.nymd.denom()?.try_into()?,
+        network.denom().try_into()?,
       ));
     }
 
@@ -142,7 +161,6 @@ async fn _connect_with_mnemonic(
     w_state.add_client(network, client);
   }
 
-  default_account.ok_or(BackendError::NetworkNotSupported(
-    config::defaults::default_network(),
-  ))
+  default_account
+    .ok_or_else(|| BackendError::NetworkNotSupported(config::defaults::default_network()))
 }

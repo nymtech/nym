@@ -41,6 +41,11 @@ pub enum Operation {
     WithdrawVestedCoins,
     TrackUndelegation,
     CreatePeriodicVestingAccount,
+
+    AdvanceCurrentInterval,
+    WriteRewardedSet,
+    ClearRewardedSet,
+    UpdateMixnetAddress,
 }
 
 pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
@@ -78,6 +83,10 @@ impl fmt::Display for Operation {
             Operation::WithdrawVestedCoins => f.write_str("WithdrawVestedCoins"),
             Operation::TrackUndelegation => f.write_str("TrackUndelegation"),
             Operation::CreatePeriodicVestingAccount => f.write_str("CreatePeriodicVestingAccount"),
+            Operation::AdvanceCurrentInterval => f.write_str("AdvanceCurrentInterval"),
+            Operation::WriteRewardedSet => f.write_str("WriteRewardedSet"),
+            Operation::ClearRewardedSet => f.write_str("ClearRewardedSet"),
+            Operation::UpdateMixnetAddress => f.write_str("UpdateMixnetAddress"),
         }
     }
 }
@@ -115,6 +124,10 @@ impl Operation {
             Operation::WithdrawVestedCoins => 175_000u64.into(),
             Operation::TrackUndelegation => 175_000u64.into(),
             Operation::CreatePeriodicVestingAccount => 175_000u64.into(),
+            Operation::AdvanceCurrentInterval => 175_000u64.into(),
+            Operation::WriteRewardedSet => 175_000u64.into(),
+            Operation::ClearRewardedSet => 175_000u64.into(),
+            Operation::UpdateMixnetAddress => 80_000u64.into(),
         }
     }
 

@@ -12,7 +12,7 @@ use mixnet_contract_common::{
 
 pub(crate) fn update_post_rewarding_storage(
     storage: &mut dyn Storage,
-    mix_identity: IdentityKeyRef,
+    mix_identity: IdentityKeyRef<'_>,
     operator_reward: Uint128,
     delegators_reward: Uint128,
 ) -> Result<(), ContractError> {
@@ -55,7 +55,7 @@ pub(crate) fn update_post_rewarding_storage(
 
 pub(crate) fn update_rewarding_status(
     storage: &mut dyn Storage,
-    rewarding_interval_nonce: u32,
+    interval_id: u32,
     mix_identity: IdentityKey,
     rewarding_results: RewardingResult,
     next_start: Option<Addr>,
@@ -64,7 +64,7 @@ pub(crate) fn update_rewarding_status(
     if let Some(next_start) = next_start {
         storage::REWARDING_STATUS.save(
             storage,
-            (rewarding_interval_nonce, mix_identity),
+            (interval_id, mix_identity),
             &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
                 running_results: rewarding_results,
                 next_start,
@@ -74,7 +74,7 @@ pub(crate) fn update_rewarding_status(
     } else {
         storage::REWARDING_STATUS.save(
             storage,
-            (rewarding_interval_nonce, mix_identity),
+            (interval_id, mix_identity),
             &RewardingStatus::Complete(rewarding_results),
         )?;
     }

@@ -66,7 +66,7 @@ impl Delegation {
 }
 
 impl Display for Delegation {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{} delegated towards {} by {} at block {}",

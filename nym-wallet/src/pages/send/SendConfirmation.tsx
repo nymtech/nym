@@ -1,7 +1,7 @@
 import React, { useContext } from 'react'
 import { Box, CircularProgress, Link, Typography } from '@mui/material'
 import { SendError } from './SendError'
-import { ClientContext, MAJOR_CURRENCY, urls } from '../../context/main'
+import { ClientContext, urls } from '../../context/main'
 import { SuccessReponse } from '../../components'
 import { TransactionDetails } from '../../components/TransactionDetails'
 import { TransactionDetails as TTransactionDetails } from '../../types'
@@ -15,7 +15,7 @@ export const SendConfirmation = ({
   error?: string
   isLoading: boolean
 }) => {
-  const { userBalance, clientDetails } = useContext(ClientContext)
+  const { userBalance, currency, network } = useContext(ClientContext)
   return (
     <Box
       sx={{
@@ -35,7 +35,7 @@ export const SendConfirmation = ({
             subtitle={
               <>
                 Check the transaction hash{' '}
-                <Link href={`${urls.blockExplorer}/transactions/${data.tx_hash}`} target="_blank">
+                <Link href={`${urls(network).blockExplorer}/transactions/${data.tx_hash}`} target="_blank">
                   here
                 </Link>
               </>
@@ -49,7 +49,7 @@ export const SendConfirmation = ({
           <TransactionDetails
             details={[
               { primary: 'Recipient', secondary: data.to_address },
-              { primary: 'Amount', secondary: `${data.amount.amount} ${MAJOR_CURRENCY}` },
+              { primary: 'Amount', secondary: `${data.amount.amount} ${currency?.major}` },
             ]}
           />
         </>

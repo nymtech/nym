@@ -1,59 +1,62 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::*;
+use crate::commands::{override_config, version_check};
 use crate::config::Config;
 use crate::node::MixNode;
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use config::NymConfig;
 
-pub fn command_args<'a, 'b>() -> App<'a, 'b> {
-    App::new("run")
-        .about("Starts the mixnode")
-        .arg(
-            Arg::with_name(ID_ARG_NAME)
-                .long(ID_ARG_NAME)
-                .help("Id of the nym-mixnode we want to run")
-                .takes_value(true)
-                .required(true),
-        )
-        // the rest of arguments are optional, they are used to override settings in config file
-        .arg(
-            Arg::with_name(HOST_ARG_NAME)
-                .long(HOST_ARG_NAME)
-                .help("The custom host on which the mixnode will be running")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(MIX_PORT_ARG_NAME)
-                .long(MIX_PORT_ARG_NAME)
-                .help("The port on which the mixnode will be listening for mix packets")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(VERLOC_PORT_ARG_NAME)
-                .long(VERLOC_PORT_ARG_NAME)
-                .help("The port on which the mixnode will be listening for verloc packets")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(HTTP_API_PORT_ARG_NAME)
-                .long(HTTP_API_PORT_ARG_NAME)
-                .help("The port on which the mixnode will be listening for http requests")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(ANNOUNCE_HOST_ARG_NAME)
-                .long(ANNOUNCE_HOST_ARG_NAME)
-                .help("The host that will be reported to the directory server")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(VALIDATORS_ARG_NAME)
-                .long(VALIDATORS_ARG_NAME)
-                .help("Comma separated list of rest endpoints of the validators")
-                .takes_value(true),
-        )
+use super::OverrideConfig;
+
+#[derive(Args, Clone)]
+pub(crate) struct Run {
+    /// Id of the nym-mixnode we want to run
+    #[clap(long)]
+    id: String,
+
+    /// The custom host on which the mixnode will be running
+    #[clap(long)]
+    host: Option<String>,
+
+    /// The wallet address you will use to bond this mixnode, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
+    #[clap(long)]
+    wallet_address: Option<String>,
+
+    /// The port on which the mixnode will be listening for mix packets
+    #[clap(long)]
+    mix_port: Option<u16>,
+
+    /// The port on which the mixnode will be listening for verloc packets
+    #[clap(long)]
+    verloc_port: Option<u16>,
+
+    /// The port on which the mixnode will be listening for http requests
+    #[clap(long)]
+    http_api_port: Option<u16>,
+
+    /// The host that will be reported to the directory server
+    #[clap(long)]
+    announce_host: Option<String>,
+
+    /// Comma separated list of rest endpoints of the validators
+    #[clap(long)]
+    validators: Option<String>,
+}
+
+impl From<Run> for OverrideConfig {
+    fn from(run_config: Run) -> Self {
+        OverrideConfig {
+            id: run_config.id,
+            host: run_config.host,
+            wallet_address: run_config.wallet_address,
+            mix_port: run_config.mix_port,
+            verloc_port: run_config.verloc_port,
+            http_api_port: run_config.http_api_port,
+            announce_host: run_config.announce_host,
+            validators: run_config.validators,
+        }
+    }
 }
 
 fn show_binding_warning(address: String) {
@@ -71,20 +74,22 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-pub async fn execute(matches: ArgMatches<'static>) {
-    let id = matches.value_of(ID_ARG_NAME).unwrap();
+pub(crate) async fn execute(args: &Run) {
+    println!("Starting mixnode {}...", args.id);
 
-    println!("Starting mixnode {}...", id);
-
-    let mut config = match Config::load_from_file(Some(id)) {
+    let mut config = match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => cfg,
         Err(err) => {
-            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
+            error!(
+                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})",
+                args.id,
+                err
+            );
             return;
         }
     };
 
-    config = override_config(config, &matches);
+    config = override_config(config, OverrideConfig::from(args.clone()));
 
     if !version_check(&config) {
         error!("failed the local version check");

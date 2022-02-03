@@ -1,7 +1,7 @@
 [package]
 name = "coconut-interface"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 description = "Crutch library until there is proper SerDe support for coconut structs"
 
 [dependencies]

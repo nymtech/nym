@@ -1,24 +1,13 @@
-import React, { useContext, useEffect, useState } from 'react'
-import {
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Divider,
-  Grid,
-  LinearProgress,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material'
-import { AccessTimeOutlined, PercentOutlined } from '@mui/icons-material'
+import React, { useContext, useState } from 'react'
+import { Box, Button, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material'
+import { PercentOutlined } from '@mui/icons-material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
 import { InfoTooltip } from '../../components/InfoToolTip'
-import { TMixnodeBondDetails } from '../../types'
+import { InclusionProbabilityResponse, TMixnodeBondDetails } from '../../types'
 import { validationSchema } from './validationSchema'
-import { getGasFee, updateMixnode } from '../../requests'
-import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
+import { updateMixnode } from '../../requests'
+import { ClientContext } from '../../context/main'
 import { Fee } from '../../components'
 
 type TFormData = {
@@ -29,15 +18,16 @@ export const SystemVariables = ({
   mixnodeDetails,
   saturation,
   rewardEstimation,
+  inclusionProbability,
   onUpdate,
 }: {
   mixnodeDetails: TMixnodeBondDetails['mix_node']
   saturation: number
   rewardEstimation: number
+  inclusionProbability: InclusionProbabilityResponse
   onUpdate: () => void
 }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>()
-  const [configFee, setConfigFee] = useState<string>()
 
   const {
     register,
@@ -48,7 +38,7 @@ export const SystemVariables = ({
     defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString() },
   })
 
-  const { userBalance } = useContext(ClientContext)
+  const { userBalance, currency } = useContext(ClientContext)
 
   const onSubmit = async (data: TFormData) => {
     try {
@@ -83,20 +73,20 @@ export const SystemVariables = ({
             info="Estimated reward per epoch for this profit margin if your node is selected in the active set."
             Indicator={
               <Typography sx={{ color: (theme) => theme.palette.nym.fee, fontWeight: '600' }}>
-                {rewardEstimation} {MAJOR_CURRENCY}
+                {rewardEstimation} {currency?.major}
               </Typography>
             }
           />
 
           <DataField
-            title="Chance of being in the active set"
+            title="Estimated chance of being in the active set"
             info="Probability of getting selected in the reward set (active and standby nodes) in the next epoch. The more your stake, the higher the chances to be selected"
-            Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
+            Indicator={<PercentIndicator value={inclusionProbability.in_active} />}
           />
           <DataField
-            title="Chance of being in the standby set"
+            title="Estimated chance of being in the standby set"
             info="Probability of getting selected in the reward set (active and standby nodes) in the next epoch. The more your stake, the higher the chances to be selected"
-            Indicator={<Chip label="Coming soon" icon={<AccessTimeOutlined fontSize="small" />} />}
+            Indicator={<PercentIndicator value={inclusionProbability.in_reserve} />}
           />
 
           <DataField
@@ -118,7 +108,7 @@ export const SystemVariables = ({
         {nodeUpdateResponse === 'success' ? (
           <Typography sx={{ color: 'success.main', fontWeight: 600 }}>Node successfully updated</Typography>
         ) : nodeUpdateResponse === 'failed' ? (
-          <Typography sx={{ color: 'error.main', fontWeight: 600 }}>Node updated failed</Typography>
+          <Typography sx={{ color: 'error.main', fontWeight: 600 }}>Node update failed</Typography>
         ) : (
           <Fee feeType="UpdateMixnodeConfig" />
         )}

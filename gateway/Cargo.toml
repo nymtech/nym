@@ -5,7 +5,7 @@
 name = "nym-gateway"
 version = "0.12.1"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
-edition = "2018"
+edition = "2021"
 rust-version = "1.56"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

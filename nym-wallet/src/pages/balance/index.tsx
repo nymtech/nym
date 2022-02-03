@@ -7,7 +7,7 @@ import { Layout } from '../../layouts'
 import { ClientContext, urls } from '../../context/main'
 
 export const Balance = () => {
-  const { userBalance, clientDetails } = useContext(ClientContext)
+  const { userBalance, clientDetails, network } = useContext(ClientContext)
 
   useEffect(() => {
     userBalance.fetchBalance()
@@ -37,7 +37,7 @@ export const Balance = () => {
           <Grid item>
             <Link
               sx={{ pl: 1 }}
-              href={`${urls.blockExplorer}/account/${clientDetails?.client_address}`}
+              href={`${urls(network).blockExplorer}/account/${clientDetails?.client_address}`}
               target="_blank"
             >
               <Button endIcon={<OpenInNew />}>Last transactions</Button>

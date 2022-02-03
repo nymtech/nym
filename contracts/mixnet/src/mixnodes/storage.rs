@@ -17,7 +17,7 @@ const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
 pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;
 pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
-pub(crate) const TOTAL_DELEGATION: Map<IdentityKeyRef, Uint128> =
+pub(crate) const TOTAL_DELEGATION: Map<'_, IdentityKeyRef<'_>, Uint128> =
     Map::new(TOTAL_DELEGATION_NAMESPACE);
 
 pub(crate) struct MixnodeBondIndex<'a> {
@@ -96,7 +96,7 @@ impl StoredMixnodeBond {
 }
 
 impl Display for StoredMixnodeBond {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "amount: {}, owner: {}, identity: {}",
@@ -107,7 +107,7 @@ impl Display for StoredMixnodeBond {
 
 pub(crate) fn read_full_mixnode_bond(
     storage: &dyn Storage,
-    mix_identity: IdentityKeyRef,
+    mix_identity: IdentityKeyRef<'_>,
 ) -> StdResult<Option<MixNodeBond>> {
     let stored_bond = mixnodes().may_load(storage, mix_identity)?;
     match stored_bond {

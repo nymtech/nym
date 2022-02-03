@@ -17,6 +17,9 @@ mod network;
 mod operations;
 mod state;
 mod utils;
+// temporarily until it is actually used
+#[allow(unused)]
+mod wallet_storage;
 
 use crate::menu::AddDefaultSubmenus;
 use crate::operations::mixnet;
@@ -33,6 +36,7 @@ fn main() {
       mixnet::account::create_new_account,
       mixnet::account::switch_network,
       mixnet::account::get_balance,
+      mixnet::account::logout,
       mixnet::admin::get_contract_settings,
       mixnet::admin::update_contract_settings,
       mixnet::bond::bond_gateway,
@@ -71,6 +75,7 @@ fn main() {
       validator_api::status::mixnode_status,
       validator_api::status::mixnode_reward_estimation,
       validator_api::status::mixnode_stake_saturation,
+      validator_api::status::mixnode_inclusion_probability,
     ])
     .menu(Menu::new().add_default_app_submenu_if_macos())
     .run(tauri::generate_context!())
@@ -91,11 +96,13 @@ mod test {
     crate::coin::Denom => "../src/types/rust/denom.ts",
     crate::utils::DelegationResult => "../src/types/rust/delegationresult.ts",
     crate::mixnet::account::Account => "../src/types/rust/account.ts",
+    crate::mixnet::account::CreatedAccount => "../src/types/rust/createdaccount.ts",
     crate::mixnet::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts",
     validator_client::models::CoreNodeStatusResponse => "../src/types/corenodestatusresponse.ts",
     validator_client::models::MixnodeStatus => "../src/types/rust/mixnodestatus.ts",
     validator_client::models::MixnodeStatusResponse => "../src/types/rust/mixnodestatusresponse.ts",
     validator_client::models::RewardEstimationResponse => "../src/types/rust/rewardestimationresponse.ts",
     validator_client::models::StakeSaturationResponse => "../src/types/rust/stakesaturaionresponse.ts",
+    validator_client::models::InclusionProbabilityResponse => "../src/types/rust/inclusionprobabilityresponse.ts",
   }
 }

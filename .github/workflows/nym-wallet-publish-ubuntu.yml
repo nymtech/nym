@@ -1,0 +1,46 @@
+name: Publish Nym Wallet (Ubuntu)
+on:
+  release:
+    types: [created]
+
+defaults:
+  run:
+    working-directory: nym-wallet
+
+jobs:
+  publish-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Tauri dependencies
+        run: >
+          sudo apt-get update &&
+          sudo apt-get install -y webkit2gtk-4.0
+      - name: Check the release tag starts with `nym-wallet-`
+        if: startsWith(github.ref, 'refs/tags/nym-wallet-') == false
+        uses: actions/github-script@v3
+        with:
+          script: |
+            core.setFailed('Release tag did not start with nym-wallet-...')
+
+      - name: Node v16
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.x
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Install app dependencies and build it
+        run: yarn && yarn build
+
+      - name: Upload to release based on tag name
+        uses: softprops/action-gh-release@v1
+        with:
+          files: nym-wallet/target/release/bundle/appimage/*.AppImage

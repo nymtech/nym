@@ -30,7 +30,7 @@ impl CountryStatisticsDistributionTask {
 
     /// Retrieves the current list of mixnodes from the validators and calculates how many nodes are in each country
     async fn calculate_nodes_per_country(&mut self) {
-        let cache = self.state.inner.mix_nodes.get_location_cache().await;
+        let cache = self.state.inner.mixnodes.get_locations().await;
 
         let three_letter_iso_country_codes: Vec<String> = cache
             .values()

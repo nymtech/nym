@@ -9,10 +9,12 @@ use crate::nymd::{cosmwasm_coin_to_cosmos_coin, NymdClient};
 use async_trait::async_trait;
 use cosmwasm_std::Coin;
 use mixnet_contract_common::{Gateway, IdentityKey, IdentityKeyRef, MixNode};
-use vesting_contract::messages::ExecuteMsg as VestingExecuteMsg;
+use vesting_contract_common::messages::{ExecuteMsg as VestingExecuteMsg, VestingSpecification};
 
 #[async_trait]
 pub trait VestingSigningClient {
+    async fn update_mixnet_address(&self, address: &str) -> Result<ExecuteResult, NymdError>;
+
     async fn vesting_bond_gateway(
         &self,
         gateway: Gateway,
@@ -66,7 +68,7 @@ pub trait VestingSigningClient {
         &self,
         owner_address: &str,
         staking_address: Option<String>,
-        start_time: Option<u64>,
+        vesting_spec: Option<VestingSpecification>,
         amount: Coin,
     ) -> Result<ExecuteResult, NymdError>;
 }
@@ -83,6 +85,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         let req = VestingExecuteMsg::BondGateway {
             gateway,
             owner_signature: owner_signature.to_string(),
+            amount: pledge,
         };
         self.client
             .execute(
@@ -91,7 +94,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 &req,
                 fee,
                 "VestingContract::BondGateway",
-                vec![cosmwasm_coin_to_cosmos_coin(pledge)],
+                vec![],
             )
             .await
     }
@@ -143,6 +146,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         let req = VestingExecuteMsg::BondMixnode {
             mix_node,
             owner_signature: owner_signature.to_string(),
+            amount: pledge,
         };
         self.client
             .execute(
@@ -151,7 +155,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 &req,
                 fee,
                 "VestingContract::BondMixnode",
-                vec![cosmwasm_coin_to_cosmos_coin(pledge)],
+                vec![],
             )
             .await
     }
@@ -239,6 +243,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         let fee = self.operation_fee(Operation::DelegateToMixnode);
         let req = VestingExecuteMsg::DelegateToMixnode {
             mix_identity: mix_identity.into(),
+            amount: amount.clone(),
         };
         self.client
             .execute(
@@ -247,7 +252,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 &req,
                 fee,
                 "VestingContract::DeledateToMixnode",
-                vec![cosmwasm_coin_to_cosmos_coin(amount.to_owned())],
+                vec![],
             )
             .await
     }
@@ -274,14 +279,14 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         &self,
         owner_address: &str,
         staking_address: Option<String>,
-        start_time: Option<u64>,
+        vesting_spec: Option<VestingSpecification>,
         amount: Coin,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.operation_fee(Operation::CreatePeriodicVestingAccount);
         let req = VestingExecuteMsg::CreateAccount {
             owner_address: owner_address.to_string(),
             staking_address,
-            start_time,
+            vesting_spec,
         };
         self.client
             .execute(
@@ -291,6 +296,23 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 fee,
                 "VestingContract::CreatePeriodicVestingAccount",
                 vec![cosmwasm_coin_to_cosmos_coin(amount)],
+            )
+            .await
+    }
+
+    async fn update_mixnet_address(&self, address: &str) -> Result<ExecuteResult, NymdError> {
+        let fee = self.operation_fee(Operation::UpdateMixnetAddress);
+        let req = VestingExecuteMsg::UpdateMixnetAddress {
+            address: address.to_string(),
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.vesting_contract_address()?,
+                &req,
+                fee,
+                "VestingContract::UpdateMixnetAddress",
+                vec![],
             )
             .await
     }

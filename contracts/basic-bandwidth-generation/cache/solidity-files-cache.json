@@ -582,8 +582,8 @@
       ]
     },
     "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/BandwidthGeneratorNoGravity.sol": {
-      "lastModificationDate": 1643900677524,
-      "contentHash": "4211e4c7907b037c3b01eb2981cc4934",
+      "lastModificationDate": 1643901424616,
+      "contentHash": "40fd76f0e2a50c029fe39f133d05309f",
       "sourceName": "contracts/BandwidthGeneratorNoGravity.sol",
       "solcConfig": {
         "version": "0.8.10",

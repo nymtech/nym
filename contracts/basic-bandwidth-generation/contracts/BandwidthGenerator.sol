@@ -16,7 +16,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
  *        Credentials represent a certain amount of bandwidth which can be sent through the Nym Mixnet. 
  *        By default 1 NYM = 1 GB of bandwidth. The `BytesPerToken` amount can be adjusted by the contract owner. 
  *        The amount of bandwidth bought is calculated according to the following formula: 
- *        `(Token amount in 'wei' / 10**18) * BytesPerToken`
+ *        `(Token amount in 'wei' / 10**6) * BytesPerToken`
  */ 
 contract BandwidthGenerator is Ownable {
 
@@ -107,7 +107,7 @@ contract BandwidthGenerator is Ownable {
 
     function bandwidthFromToken(uint256 _amount) public view returns (uint256) {
         uint256 amountMulBytes = _amount.mul(BytesPerToken);
-        return amountMulBytes.div(10**6); // was 10**18, changed to 10**6 because of cosmos decimals 
+        return amountMulBytes.div(10**6); 
     }
 
 }

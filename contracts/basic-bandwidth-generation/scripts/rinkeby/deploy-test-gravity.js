@@ -4,22 +4,24 @@ const contracts = require("../../contractAddresses.json");
 const fs = require('file-system');
 
 async function main() {
-    const BandwidthGenerator = await ethers.getContractFactory("BandwidthGenerator");
-    // if this is failing, check whether the ERC20 address has been manually added to the contract addresses json file 
-    const bandwidthGenerator = await BandwidthGenerator.deploy(
-        contracts.rinkeby.NYM_ERC20, 
-        contracts.rinkeby.TEST_GRAVITY
-    ); 
+    const [deployer] = await ethers.getSigners();
+    console.log(deployer.address); 
+    console.log(constants.ZERO_BYTES32); 
+    const Gravity = await ethers.getContractFactory("TestGravity");
+    // deploy with args from unit tests 
+    const gravity = await Gravity.deploy(
+        constants.ZERO_BYTES32, 
+        [deployer.address], 
+        [2863311531]
+    );
 
-    console.log("deploying..."); 
-
-    contracts.rinkeby.BANDWIDTH_GENERATOR = bandwidthGenerator.address;
+    contracts.rinkeby.TEST_GRAVITY = gravity.address;
     // the location of the json file is relative to where you are running the script from - run from root of directory 
     fs.writeFileSync('./contractAddresses.json', JSON.stringify(contracts), (err) => {
         if (err) throw err;
     });
     
-    console.log(`...bandwidthGenerator.sol deployed at ${bandwidthGenerator.address}`); 
+    console.log(`gravity.sol deployed at ${gravity.address}`); 
 }
   
 main()

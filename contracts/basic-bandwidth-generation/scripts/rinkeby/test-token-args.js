@@ -1,7 +1,6 @@
-// arguments for verification of gravity contract via hardhat-etherscan plugin
 module.exports = [
-    "0xe58c12f8bA4a28e87841b10BdEdf80A47F86BA9B",
-    "test", 
-    "tst",
+    "0x8383D4741e926549c9B42938B512A0fbF6Ccc8A0",
+    "testn", 
+    "testn",
     6
 ];

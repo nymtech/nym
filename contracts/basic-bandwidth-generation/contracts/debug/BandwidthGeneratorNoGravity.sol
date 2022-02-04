@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.10;
 
-import "./CosmosToken.sol";
-// import "./Gravity.sol";
+import "../CosmosToken.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "hardhat/console.sol";
 
 /** 
  * @title BandwidthGenerator
@@ -23,7 +23,6 @@ contract BandwidthGeneratorNoGravity is Ownable {
     using SafeMath for uint256; 
 
     CosmosERC20 public erc20;
-    // Gravity     public gravityBridge; 
     uint256     public BytesPerToken; 
     bool        public credentialGenerationEnabled;
     
@@ -52,9 +51,7 @@ contract BandwidthGeneratorNoGravity is Ownable {
      */
     constructor(CosmosERC20 _erc20) {
         require(address(_erc20) != address(0),         "BandwidthGenerator: erc20 address cannot be null"); 
-        // require(address(_gravityBridge) != address(0), "BandwidthGenerator: gravity bridge address cannot be null"); 
         erc20 = _erc20;
-        // gravityBridge = _gravityBridge; 
         BytesPerToken = 1073741824; // default amount set at deployment: 1 erc20NYM = 1073741824 Bytes = 1GB
         credentialGenerationEnabled = true;
     }
@@ -87,15 +84,12 @@ contract BandwidthGeneratorNoGravity is Ownable {
      * @param _cosmosRecipient        Address of the recipient of payment on Nym Cosmos Blockchain.
      */    
     function generateBasicBandwidthCredential(uint256 _amount, uint256 _verificationKey, bytes memory _signedVerificationKey, string calldata _cosmosRecipient) public checkEnabled {
-        require(_signedVerificationKey.length == 64, "BandwidthGenerator: Signature doesn't have 64 bytes");
+        // temporarily removed this check
+        // require(_signedVerificationKey.length == 64, "BandwidthGenerator: Signature doesn't have 64 bytes");
         erc20.transferFrom(msg.sender, address(this), _amount);
-        // erc20.approve(address(gravityBridge), _amount); 
-        // gravityBridge.sendToCosmos(
-		//     address(erc20),
-		//     _cosmosRecipient,    
-		//     _amount
-	    // );
+        console.log(_amount);
         uint256 bandwidth = bandwidthFromToken(_amount);
+        console.log(bandwidth); 
         emit BBCredentialPurchased(
             bandwidth, 
             _verificationKey, 
@@ -106,7 +100,8 @@ contract BandwidthGeneratorNoGravity is Ownable {
 
     function bandwidthFromToken(uint256 _amount) public view returns (uint256) {
         uint256 amountMulBytes = _amount.mul(BytesPerToken);
-        return amountMulBytes.div(10**18); 
+        // return amountMulBytes.div(10**18); 
+        return amountMulBytes.div(10**6);
     }
 
 }

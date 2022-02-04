@@ -16,7 +16,7 @@ contract('BandwidthGenerator', (accounts) => {
   let cosmosRecipient = "nymt1f06hzmwf9chqewkpv93ajk6tayzp4784m2da9x"; // random sandbox testnet address
   let initialRatio = 1073741824; // 1073741824 bytes = 1GB
   let newRatio; 
-  let tokenAmount = 100000000; 
+  let tokenAmount = 100000000; // not using toWei as comsos erc20 token has 6 decimals instead of standard 18
   let halfTokenAmount = 50000000;
   let unevenTokenAmount = 11500000; 
   let oneToken = 1000000;
@@ -103,7 +103,7 @@ contract('BandwidthGenerator', (accounts) => {
             { from: user }
       );
 
-      let expectedBandwidthInMB = ((halfTokenAmount/10**6)*initialRatio); // 50 * (1024*1024*1024) bytes = 51200MB = 50GB of bandwidth
+      let expectedBandwidthInMB = ((halfTokenAmount/10**6)*initialRatio); 
 
       await expectEvent.inTransaction(tx.tx, bandwidthGenerator, 'BBCredentialPurchased', {
         Bandwidth: expectedBandwidthInMB.toString(), 
@@ -128,9 +128,6 @@ contract('BandwidthGenerator', (accounts) => {
       expect((await erc20token.balanceOf(user)).toString()).to.equal(halfTokenAmount.toString());
     });
 
-    /**
-     * This can be out by a float still with amounts such as '.1'
-     */
     it("it transfers for uneven token amounts", async () => {
       let tx = await bandwidthGenerator.generateBasicBandwidthCredential(
         unevenTokenAmount,
@@ -163,7 +160,7 @@ contract('BandwidthGenerator', (accounts) => {
       });
     });
 
-    it.skip("reverts when signed verification key !=64 bytes", async () => {
+    it("reverts when signed verification key !=64 bytes", async () => {
       await erc20token.approve(bandwidthGenerator.address,(halfTokenAmount),{ from: user }); 
 
       await expectRevert(
@@ -222,7 +219,7 @@ contract('BandwidthGenerator', (accounts) => {
         _tokenContract: erc20token.address,
         _sender: bandwidthGenerator.address,
         _destination: cosmosRecipient,
-        _amount: oneToken
+        _amount: oneToken.toString()
       });       
     });
   });  

@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/BandwidthGenerator.sol": {
-      "lastModificationDate": 1643627584891,
-      "contentHash": "642b72e2d50d565db7bc994cace3f5a0",
+      "lastModificationDate": 1643986468117,
+      "contentHash": "1f4bbbb31f9012a87c619219c14b6529",
       "sourceName": "contracts/BandwidthGenerator.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -582,8 +582,8 @@
       ]
     },
     "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/BandwidthGeneratorNoGravity.sol": {
-      "lastModificationDate": 1643901424616,
-      "contentHash": "40fd76f0e2a50c029fe39f133d05309f",
+      "lastModificationDate": 1643985412193,
+      "contentHash": "973f6312352e196a40bc6aba31df58e4",
       "sourceName": "contracts/BandwidthGeneratorNoGravity.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -610,13 +610,48 @@
       "imports": [
         "./CosmosToken.sol",
         "@openzeppelin/contracts/access/Ownable.sol",
-        "@openzeppelin/contracts/utils/math/SafeMath.sol"
+        "@openzeppelin/contracts/utils/math/SafeMath.sol",
+        "hardhat/console.sol"
       ],
       "versionPragmas": [
         "0.8.10"
       ],
       "artifacts": [
         "BandwidthGeneratorNoGravity"
+      ]
+    },
+    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/node_modules/hardhat/console.sol": {
+      "lastModificationDate": 1641812555138,
+      "contentHash": "cc4777addd464ea56fa35b1c45df0591",
+      "sourceName": "hardhat/console.sol",
+      "solcConfig": {
+        "version": "0.8.10",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.4.22 <0.9.0"
+      ],
+      "artifacts": [
+        "console"
       ]
     }
   }

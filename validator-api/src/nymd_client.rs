@@ -279,24 +279,22 @@ impl<C> Client<C> {
 
         // reward rest of delegators (if applicable)
         if node.total_delegations > MIXNODE_DELEGATORS_PAGE_LIMIT {
+            // the first 'batch' of delegators has been rewarded while rewarding the operator
             let mut remaining_delegators = node.total_delegations - MIXNODE_DELEGATORS_PAGE_LIMIT;
             let delegator_rewarding_msg = (
                 node.to_next_delegator_reward_execute_msg(interval_id),
                 vec![],
             );
 
-            loop {
+            while remaining_delegators > 0 {
                 let delegators_in_call = remaining_delegators.min(MIXNODE_DELEGATORS_PAGE_LIMIT);
                 let msgs = vec![delegator_rewarding_msg.clone()];
                 let memo = format!("rewarding another {} delegators", delegators_in_call);
                 self.execute_multiple_with_retry(msgs, Default::default(), memo)
                     .await?;
 
-                if remaining_delegators <= MIXNODE_DELEGATORS_PAGE_LIMIT {
-                    break;
-                }
-
-                remaining_delegators -= MIXNODE_DELEGATORS_PAGE_LIMIT;
+                remaining_delegators =
+                    remaining_delegators.saturating_sub(MIXNODE_DELEGATORS_PAGE_LIMIT)
             }
         }
 

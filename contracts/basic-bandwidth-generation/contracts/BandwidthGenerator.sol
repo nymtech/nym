@@ -88,7 +88,7 @@ contract BandwidthGenerator is Ownable {
      * @param _cosmosRecipient        Address of the recipient of payment on Nym Cosmos Blockchain.
      */    
     function generateBasicBandwidthCredential(uint256 _amount, uint256 _verificationKey, bytes memory _signedVerificationKey, string calldata _cosmosRecipient) public checkEnabled {
-        // require(_signedVerificationKey.length == 64, "BandwidthGenerator: Signature doesn't have 64 bytes");
+        require(_signedVerificationKey.length == 64, "BandwidthGenerator: Signature doesn't have 64 bytes");
         erc20.transferFrom(msg.sender, address(this), _amount);
         erc20.approve(address(gravityBridge), _amount); 
         gravityBridge.sendToCosmos(

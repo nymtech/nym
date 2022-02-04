@@ -29,6 +29,7 @@ npx hardhat run scripts/rinkeby/deploy-test-gravity.js --network rinkeby
 npx hardhat verify --constructor-args ./scripts/rinkeby/gravity-args.js  --network rinkeby CONTRACT_ADDRESS
 # Create a token on Gravity etherscan interface with `deployERC20()` - remember to fill in the deployed contract address in `./contractAddresses.json`
 # verify token contract 
+# mint yourself some tokens 
 # `approve()` bandwidth generator contract with amount of tokens you want to send. Remember this token has ONLY 6 DECIMALS, not 18 as is usual with Eth tokens
 
 # deploy the bandwidthGenerator contract: 

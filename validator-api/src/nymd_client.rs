@@ -268,10 +268,6 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        // determine how many times we are going to have to call the delegator rewarding,
-        // note that it doesn't include the "base" call to `RewardMixnode` that rewards one page
-        let further_calls = node.total_delegations / MIXNODE_DELEGATORS_PAGE_LIMIT;
-
         // start with the base call to reward operator and first page of delegators
         let msgs = vec![(node.to_reward_execute_msg(interval_id), vec![])];
         let memo = format!(
@@ -281,20 +277,27 @@ impl<C> Client<C> {
         self.execute_multiple_with_retry(msgs, Default::default(), memo)
             .await?;
 
-        // reward rest of delegators
-        let mut remaining_delegators = node.total_delegations - MIXNODE_DELEGATORS_PAGE_LIMIT;
-        let delegator_rewarding_msg = (
-            node.to_next_delegator_reward_execute_msg(interval_id),
-            vec![],
-        );
-        for _ in 0..further_calls {
-            let delegators_in_call = remaining_delegators.min(MIXNODE_DELEGATORS_PAGE_LIMIT);
-            let msgs = vec![delegator_rewarding_msg.clone()];
-            let memo = format!("rewarding another {} delegators", delegators_in_call);
-            self.execute_multiple_with_retry(msgs, Default::default(), memo)
-                .await?;
+        // reward rest of delegators (if applicable)
+        if node.total_delegations > MIXNODE_DELEGATORS_PAGE_LIMIT {
+            let mut remaining_delegators = node.total_delegations - MIXNODE_DELEGATORS_PAGE_LIMIT;
+            let delegator_rewarding_msg = (
+                node.to_next_delegator_reward_execute_msg(interval_id),
+                vec![],
+            );
 
-            remaining_delegators -= MIXNODE_DELEGATORS_PAGE_LIMIT;
+            loop {
+                let delegators_in_call = remaining_delegators.min(MIXNODE_DELEGATORS_PAGE_LIMIT);
+                let msgs = vec![delegator_rewarding_msg.clone()];
+                let memo = format!("rewarding another {} delegators", delegators_in_call);
+                self.execute_multiple_with_retry(msgs, Default::default(), memo)
+                    .await?;
+
+                if remaining_delegators <= MIXNODE_DELEGATORS_PAGE_LIMIT {
+                    break;
+                }
+
+                remaining_delegators -= MIXNODE_DELEGATORS_PAGE_LIMIT;
+            }
         }
 
         Ok(())

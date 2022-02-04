@@ -45,21 +45,22 @@ pub struct Run {
     validator_apis: Option<String>,
 
     /// Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
     testnet_mode: bool,
 
     /// URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
     eth_endpoint: Option<String>,
 
     /// Comma separated list of endpoints of the validator
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
     validators: Option<String>,
 
     /// Cosmos wallet mnemonic
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
     mnemonic: Option<String>,
 }

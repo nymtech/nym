@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::error::NymdError;
-use cosmrs::proto::cosmos::base::query::v1beta1::PageRequest;
+use cosmrs::proto::cosmos::base::query::v1beta1::{PageRequest, PageResponse};
 use cosmrs::rpc::endpoint::broadcast;
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -52,4 +52,16 @@ pub(crate) fn create_pagination(key: Vec<u8>) -> PageRequest {
         limit: 0,
         count_total: false,
     }
+}
+
+pub(crate) fn next_page_key(pagination_info: Option<PageResponse>) -> Option<Vec<u8>> {
+    if let Some(next_page_info) = pagination_info {
+        // it turns out, even though `PageResponse` is always returned wrapped in an `Option`,
+        // the `next_key` can still be empty, so check whether we actually need to perform another call
+        if !next_page_info.next_key.is_empty() {
+            return Some(next_page_info.next_key);
+        }
+    }
+
+    None
 }

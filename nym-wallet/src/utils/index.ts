@@ -105,20 +105,20 @@ export const randomNumberBetween = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min + 1) + min)
 }
 
-export const currencyMap = (network: Network) => {
+export const currencyMap = (network?: Network) => {
   let currency = {
-    minor: 'unym',
-    major: 'nym',
+    minor: 'UNYM',
+    major: 'NYM',
   } as TCurrency
 
   switch (network) {
     case 'MAINNET':
-      currency.minor = 'unym'
-      currency.major = 'nym'
+      currency.minor = 'UNYM'
+      currency.major = 'NYM'
       break
     case 'SANDBOX':
-      currency.minor = 'unymt'
-      currency.major = 'nymt'
+      currency.minor = 'UNYMT'
+      currency.major = 'NYMT'
       break
   }
 

@@ -46,6 +46,9 @@ export const VestingCard = () => {
           <VestingTable />
         </Grid>
       </Grid>
+      <pre style={{ background: 'black', color: 'white', padding: 15 }}>
+        {JSON.stringify(userBalance.tokenAllocation)}
+      </pre>
     </NymCard>
   )
 }

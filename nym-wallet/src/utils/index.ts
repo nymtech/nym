@@ -124,3 +124,11 @@ export const currencyMap = (network?: Network) => {
 
   return currency
 }
+
+export const splice = (start: number, deleteCount: number, address?: string) => {
+  if (address) {
+    const array = address.split('')
+    array.splice(start, deleteCount, '...')
+    return array.join('')
+  }
+}

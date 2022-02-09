@@ -14,7 +14,7 @@ export type TUseuserBalance = {
   isLoading: boolean
   fetchBalance: () => void
   clearBalance: () => void
-  fetchTokenAllocation: (address: string) => Promise<void>
+  handleRefresh: () => void
 }
 
 export const useGetBalance = (address?: string): TUseuserBalance => {
@@ -69,6 +69,10 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
   const clearTokenAllocation = () => setTokenAllocation(undefined)
 
   useEffect(() => {
+    handleRefresh(address)
+  }, [address])
+
+  const handleRefresh = (address?: string) => {
     if (address) {
       fetchBalance()
       fetchTokenAllocation(address)
@@ -76,7 +80,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
       clearBalance()
       clearTokenAllocation()
     }
-  }, [address])
+  }
 
   return {
     error,
@@ -84,7 +88,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     balance,
     tokenAllocation,
     fetchBalance,
-    fetchTokenAllocation,
     clearBalance,
+    handleRefresh,
   }
 }

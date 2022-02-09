@@ -3,6 +3,7 @@ import { Grid, InputAdornment, TextField, Typography } from '@mui/material'
 import { useFormContext } from 'react-hook-form'
 import { ClientContext } from '../../context/main'
 import { Fee } from '../../components'
+import { splice } from '../..//utils'
 
 export const SendForm = () => {
   const {
@@ -14,7 +15,7 @@ export const SendForm = () => {
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <Typography variant="body2">Your address: {clientDetails?.client_address}</Typography>
+        <Typography variant="body2">Your address: {splice(4, 35, clientDetails?.client_address)}</Typography>
       </Grid>
 
       <Grid item xs={12}>

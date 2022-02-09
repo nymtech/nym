@@ -5,6 +5,7 @@ import { Logout } from '@mui/icons-material'
 import { ClientContext } from '../context/main'
 import { CopyToClipboard, NetworkSelector } from '.'
 import { Node as NodeIcon } from '../svg-icons/node'
+import { splice } from '../utils'
 
 export const AppBar = () => {
   const { userBalance, clientDetails, showSettings, logOut, handleShowSettings } = useContext(ClientContext)
@@ -24,7 +25,7 @@ export const AppBar = () => {
                 <Grid item>
                   <AppBarItem
                     primaryText="Address"
-                    secondaryText={clientDetails?.client_address}
+                    secondaryText={splice(4, 35, clientDetails?.client_address)}
                     Action={<CopyToClipboard text={clientDetails?.client_address} iconButton />}
                   />
                 </Grid>

@@ -5,6 +5,7 @@ import { CopyToClipboard, NymCard } from '../../components'
 import { Layout } from '../../layouts'
 import { ClientContext } from '../../context/main'
 import { ArrowBack } from '@mui/icons-material'
+import { splice } from '../../utils'
 
 export const Receive = () => {
   const { clientDetails, currency } = useContext(ClientContext)
@@ -26,7 +27,7 @@ export const Receive = () => {
               }}
               component="span"
             >
-              Your address: {clientDetails?.client_address}
+              Your address: {splice(4, 35, clientDetails?.client_address)}
             </Typography>
             <CopyToClipboard text={clientDetails?.client_address || ''} iconButton />
           </Box>

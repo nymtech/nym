@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api'
 import { Balance, Coin } from '../types'
-import { getVestingCoins, getVestedCoins, getLockedCoins, minorToMajor, getSpendableCoins } from '../requests'
+import { getVestingCoins, getVestedCoins, getLockedCoins, getSpendableCoins, originalVesting } from '../requests'
 
 type TTokenAllocation = {
-  [key in 'vesting' | 'vested' | 'locked' | 'spendable']: Coin['amount']
+  [key in 'vesting' | 'vested' | 'locked' | 'spendable' | 'original']: Coin['amount']
 }
 
 export type TUseuserBalance = {
@@ -14,7 +14,7 @@ export type TUseuserBalance = {
   isLoading: boolean
   fetchBalance: () => void
   clearBalance: () => void
-  handleRefresh: () => void
+  fetchTokenAllocation: () => void
 }
 
 export const useGetBalance = (address?: string): TUseuserBalance => {
@@ -26,43 +26,43 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
   const fetchBalance = useCallback(async () => {
     setIsLoading(true)
     setError(undefined)
-    invoke('get_balance')
-      .then((balance) => {
-        setBalance(balance as Balance)
-      })
-      .catch(setError)
-    setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
+    try {
+      const balance = await invoke('get_balance')
+      setBalance(balance as Balance)
+    } catch (error) {
+      setError(error as string)
+    } finally {
+      setTimeout(() => {
+        setIsLoading(false)
+      }, 1000)
+    }
   }, [])
 
-  const fetchTokenAllocation = async (address: string) => {
-    console.log(address)
-    try {
-      const [vestingCoins, vestedCoins, lockedCoins, spendableCoins] = await Promise.all([
-        getVestingCoins(address),
-        getVestedCoins(address),
-        getLockedCoins(address),
-        getSpendableCoins(address),
-      ])
+  const fetchTokenAllocation = async () => {
+    setIsLoading(true)
+    if (address) {
+      try {
+        const [originalVestingValue, vestingCoins, vestedCoins, lockedCoins, spendableCoins] = await Promise.all([
+          originalVesting(address),
+          getVestingCoins(address),
+          getVestedCoins(address),
+          getLockedCoins(address),
+          getSpendableCoins(address),
+        ])
 
-      const [vestingCoinsMajor, vestedCoinsMajor, lockedCoinsMajor, spendableCoinsMajor] = await Promise.all([
-        minorToMajor(vestingCoins.amount),
-        minorToMajor(vestedCoins.amount),
-        minorToMajor(lockedCoins.amount),
-        minorToMajor(spendableCoins.amount),
-      ])
-
-      setTokenAllocation({
-        vesting: vestingCoinsMajor.amount,
-        vested: vestedCoinsMajor.amount,
-        locked: lockedCoinsMajor.amount,
-        spendable: spendableCoinsMajor.amount,
-      })
-    } catch (e) {
-      console.log(e)
-      clearTokenAllocation()
+        setTokenAllocation({
+          original: originalVestingValue.amount,
+          vesting: vestingCoins.amount,
+          vested: vestedCoins.amount,
+          locked: lockedCoins.amount,
+          spendable: spendableCoins.amount,
+        })
+      } catch (e) {
+        console.log(e)
+        clearTokenAllocation()
+      }
     }
+    setIsLoading(false)
   }
 
   const clearBalance = () => setBalance(undefined)
@@ -75,7 +75,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
   const handleRefresh = (address?: string) => {
     if (address) {
       fetchBalance()
-      fetchTokenAllocation(address)
+      fetchTokenAllocation()
     } else {
       clearBalance()
       clearTokenAllocation()
@@ -89,6 +89,6 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     tokenAllocation,
     fetchBalance,
     clearBalance,
-    handleRefresh,
+    fetchTokenAllocation,
   }
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useContext, useState } from 'react'
 import {
   Alert,
+  CircularProgress,
   Grid,
   LinearProgress,
   Table,
@@ -10,13 +11,16 @@ import {
   TableRow,
   Typography,
   Box,
+  Button,
 } from '@mui/material'
 import { InfoOutlined } from '@mui/icons-material'
 import { NymCard } from '../../components'
 import { ClientContext } from '../../context/main'
+import { withdrawVestedCoins } from '../../requests'
 
 export const VestingCard = () => {
   const { userBalance, currency } = useContext(ClientContext)
+  const [isLoading, setIsLoading] = useState(false)
   return (
     <NymCard title="Unvested tokens" data-testid="check-unvested-tokens" Icon={InfoOutlined}>
       <Grid container direction="column" spacing={2}>
@@ -49,19 +53,43 @@ export const VestingCard = () => {
       <pre style={{ background: 'black', color: 'white', padding: 15 }}>
         {JSON.stringify(userBalance.tokenAllocation)}
       </pre>
+      {userBalance.tokenAllocation?.spendable !== '0' && (
+        <Box display="flex" justifyContent="flex-end" alignItems="center">
+          <Button
+            variant="contained"
+            onClick={async () => {
+              setIsLoading(true)
+              try {
+                await withdrawVestedCoins(userBalance.tokenAllocation?.spendable!)
+                await userBalance.fetchBalance()
+                await userBalance.fetchTokenAllocation()
+              } catch (e) {
+                console.log(e)
+              } finally {
+                setIsLoading(false)
+              }
+            }}
+            endIcon={isLoading && <CircularProgress size={16} color="inherit" />}
+            disabled={isLoading}
+            disableElevation
+          >
+            Release Tokens
+          </Button>
+        </Box>
+      )}
     </NymCard>
   )
 }
 
-const columnsHeaders = ['Unvested', 'Period', 'Amount', 'Vested']
+const columnsHeaders = ['Vesting', 'Period', 'Amount', 'Vested']
 const VestingTable = () => {
   const { userBalance, currency } = useContext(ClientContext)
   const [vestedPercentage, setVestedPercentage] = useState(0)
 
   const calculatPercentage = () => {
     const { tokenAllocation } = userBalance
-    if (tokenAllocation?.vesting && tokenAllocation.vested) {
-      const percentage = Math.round((+tokenAllocation.vesting / +tokenAllocation.vested) * 100)
+    if (tokenAllocation?.vesting && tokenAllocation.vested && tokenAllocation.vested !== '0') {
+      const percentage = Math.round((+tokenAllocation.vested / +tokenAllocation.original) * 100)
       setVestedPercentage(percentage)
     } else {
       setVestedPercentage(0)
@@ -85,7 +113,7 @@ const VestingTable = () => {
           </TableRow>
           <TableRow>
             <TableCell sx={{ borderBottom: 'none' }}>
-              {userBalance.tokenAllocation?.vested || 'n/a'} {currency?.major}
+              {userBalance.tokenAllocation?.vesting || 'n/a'} {currency?.major}
             </TableCell>
             <TableCell sx={{ borderBottom: 'none' }}></TableCell>
             <TableCell sx={{ borderBottom: 'none' }}>
@@ -103,7 +131,7 @@ const VestingTable = () => {
               </Box>
             </TableCell>
             <TableCell sx={{ borderBottom: 'none' }}>
-              {userBalance.tokenAllocation?.vesting || 'n/a'} {currency?.major}
+              {userBalance.tokenAllocation?.vested || 'n/a'} {currency?.major}
             </TableCell>
           </TableRow>
         </TableHead>

@@ -3,9 +3,8 @@ import { AppBar as MuiAppBar, Divider, Grid, IconButton, Toolbar, Typography, us
 import { Box } from '@mui/system'
 import { Logout } from '@mui/icons-material'
 import { ClientContext } from '../context/main'
-import { CopyToClipboard, NetworkSelector } from '.'
+import { ClientAddress, NetworkSelector } from '.'
 import { Node as NodeIcon } from '../svg-icons/node'
-import { splice } from '../utils'
 
 export const AppBar = () => {
   const { userBalance, clientDetails, showSettings, logOut, handleShowSettings } = useContext(ClientContext)
@@ -23,11 +22,9 @@ export const AppBar = () => {
               <>
                 <Divider orientation="vertical" variant="middle" flexItem sx={{ mr: 1 }} />
                 <Grid item>
-                  <AppBarItem
-                    primaryText="Address"
-                    secondaryText={splice(4, 35, clientDetails?.client_address)}
-                    Action={<CopyToClipboard text={clientDetails?.client_address} iconButton />}
-                  />
+                  <Box sx={{ ml: 1 }}>
+                    <ClientAddress withCopy />
+                  </Box>
                 </Grid>
               </>
             )}

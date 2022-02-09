@@ -1,21 +1,20 @@
 import React, { useContext } from 'react'
-import { Grid, InputAdornment, TextField, Typography } from '@mui/material'
+import { Grid, InputAdornment, TextField } from '@mui/material'
 import { useFormContext } from 'react-hook-form'
 import { ClientContext } from '../../context/main'
-import { Fee } from '../../components'
-import { splice } from '../..//utils'
+import { Fee, ClientAddress } from '../../components'
 
 export const SendForm = () => {
   const {
     register,
     formState: { errors },
   } = useFormContext()
-  const { clientDetails, currency } = useContext(ClientContext)
+  const { currency } = useContext(ClientContext)
 
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <Typography variant="body2">Your address: {splice(4, 35, clientDetails?.client_address)}</Typography>
+        <ClientAddress withCopy />
       </Grid>
 
       <Grid item xs={12}>

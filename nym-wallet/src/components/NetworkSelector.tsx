@@ -7,6 +7,7 @@ import { Network } from 'src/types'
 const networks: { networkName: Network; name: string }[] = [
   { networkName: 'MAINNET', name: 'Nym Mainnet' },
   { networkName: 'SANDBOX', name: 'Testnet Sandbox' },
+  { networkName: 'QA', name: 'QA' },
 ]
 
 export const NetworkSelector = () => {

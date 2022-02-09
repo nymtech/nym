@@ -2,7 +2,7 @@ import React, { createContext, useEffect, useState } from 'react'
 import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types'
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance'
 import { config } from '../../config'
-import { getMixnodeBondDetails, selectNetwork, signOut } from '../requests'
+import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signOut } from '../requests'
 import { currencyMap } from '../utils'
 import { useHistory } from 'react-router-dom'
 
@@ -28,11 +28,13 @@ type TClientContext = {
   showSettings: boolean
   network?: Network
   currency?: TCurrency
+  isLoading: boolean
+  error?: string
   switchNetwork: (network: Network) => void
   getBondDetails: () => Promise<void>
   handleShowSettings: () => void
   handleShowAdmin: () => void
-  logIn: (network: Network) => void
+  logIn: (mnemonic: string) => void
   logOut: () => void
 }
 
@@ -46,15 +48,11 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [showAdmin, setShowAdmin] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [mode, setMode] = useState<'light' | 'dark'>('light')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string>()
 
-  const userBalance = useGetBalance()
+  const userBalance = useGetBalance(clientDetails?.client_address)
   const history = useHistory()
-
-  useEffect(() => {
-    if (clientDetails) {
-      userBalance.fetchBalance()
-    }
-  }, [clientDetails, userBalance.fetchBalance])
 
   useEffect(() => {
     const refreshAccount = async () => {
@@ -67,12 +65,16 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     refreshAccount()
   }, [network])
 
-  const logIn = async (network: Network) => {
+  const logIn = async (mnemonic: string) => {
     try {
-      setNetwork(network)
+      setIsLoading(true)
+      await signInWithMnemonic(mnemonic || '')
+      await getBondDetails()
+      setNetwork('QA')
       history.push('/balance')
     } catch (e) {
-      console.log({ e })
+      setIsLoading(false)
+      setError(e as string)
     }
   }
 
@@ -89,6 +91,8 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const logOut = async () => {
     setClientDetails(undefined)
     setNetwork(undefined)
+    setError(undefined)
+    setIsLoading(false)
     await signOut()
   }
 
@@ -111,6 +115,8 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     <ClientContext.Provider
       value={{
         mode,
+        isLoading,
+        error,
         clientDetails,
         mixnodeDetails,
         userBalance,

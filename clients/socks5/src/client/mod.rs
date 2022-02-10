@@ -35,7 +35,7 @@ use crate::socks::{
     server::SphinxSocksServer,
 };
 
-pub(crate) mod config;
+pub mod config;
 
 pub struct NymClient {
     /// Client configuration options, including, among other things, packet sending rates,

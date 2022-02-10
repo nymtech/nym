@@ -11,13 +11,13 @@ pub(crate) const ETH_ENDPOINT_ARG_NAME: &str = "eth_endpoint";
 #[cfg(not(feature = "coconut"))]
 pub(crate) const ETH_PRIVATE_KEY_ARG_NAME: &str = "eth_private_key";
 #[cfg(not(feature = "coconut"))]
-pub(crate) const DEFAULT_ETH_ENDPOINT: &str =
+pub const DEFAULT_ETH_ENDPOINT: &str =
     "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
 #[cfg(not(feature = "coconut"))]
-pub(crate) const DEFAULT_ETH_PRIVATE_KEY: &str =
+pub const DEFAULT_ETH_PRIVATE_KEY: &str =
     "0000000000000000000000000000000000000000000000000000000000000001";
 
-pub(crate) mod init;
+pub mod init;
 pub(crate) mod run;
 pub(crate) mod upgrade;
 

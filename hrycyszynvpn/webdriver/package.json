@@ -1,0 +1,27 @@
+{
+  "name": "hrycyszynvpn_tests",
+  "version": "1.0.0",
+  "private": false,
+  "license": "MIT",
+  "scripts": {
+    "test:runall": "wdio run wdio.conf.cjs",
+    "test:sendreceive": "wdio run wdio.conf.cjs --suite sendreceive",
+    "test:home": "wdio run wdio.conf.cjs --suite home",
+    "test:bond": "wdio run wdio.conf.cjs --suite bond",
+    "test:delegate": "wdio run wdio.conf.cjs --suite delegate",
+    "test:newuser": "wdio run wdio.conf.cjs --suite newuser",
+    "run:prettier": "prettier --write ."
+  },
+  "dependencies": {
+    "@types/node": "^16.11.0",
+    "@wdio/allure-reporter": "^7.16.1",
+    "@wdio/cli": "^7.9.1",
+    "@zxing/browser": "^0.0.9"
+  },
+  "devDependencies": {
+    "@wdio/local-runner": "^7.14.1",
+    "@wdio/mocha-framework": "^7.14.1",
+    "@wdio/spec-reporter": "^7.14.1",
+    "prettier": "2.4.1"
+  }
+}

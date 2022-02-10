@@ -36,7 +36,7 @@ use nymsphinx::receiver::ReconstructedMessage;
 use crate::client::config::{Config, SocketType};
 use crate::websocket;
 
-pub(crate) mod config;
+pub mod config;
 
 pub struct NymClient {
     /// Client configuration options, including, among other things, packet sending rates,

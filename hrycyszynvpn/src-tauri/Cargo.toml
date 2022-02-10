@@ -1,0 +1,73 @@
+[package]
+name = "hrycyszynvpn"
+version = "1.0.0"
+description = "Hrycyszyn VPN"
+authors = ["you"]
+license = ""
+repository = ""
+default-run = "hrycyszynvpn"
+edition = "2021"
+build = "src/build.rs"
+rust-version = "1.56"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1.0.0-rc.3", features = [] }
+
+[dependencies]
+clap = "2.33.0"
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+strum = { version = "0.23", features = ["derive"] }
+tauri = { version = "1.0.0-rc.3", features = ["shell-open", "system-tray"] }
+tokio = { version = "1.10", features = ["sync"] }
+log = "0.4"
+pretty_env_logger = "0.4"
+dirs = "4.0"
+bip39 = "1.0"
+thiserror = "1.0"
+tendermint-rpc = "0.23.0"
+url = "2.2"
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+eyre = "0.6.5"
+
+aes-gcm = "0.9.4"
+argon2 = { version = "0.3.2", features = ["std"] }
+base64 = "0.13"
+zeroize = "1.4.3"
+
+cosmrs = { version = "0.4.1", features = ["rpc", "bip32", "cosmwasm"] }
+cosmwasm-std = "1.0.0-beta3"
+
+#nym-client = { path = "../../clients/native" }
+#client-core = { path = "../../clients/client-core" }
+#nym-socks5-client = { path = "../../clients/socks5" }
+#nym-network-requester = { path = "../../service-providers/network-requester"}
+#nymsphinx = { path = "../../common/nymsphinx" }
+#validator-client = { path = "../../common/client-libs/validator-client", features = [
+#    "nymd-client",
+#] }
+#mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
+#config = { path = "../../common/config" }
+#coconut-interface = { path = "../../common/coconut-interface" }
+#credentials = { path = "../../common/credentials" }
+#version-checker = { path = "../../common/version-checker" }
+#network-defaults = { path = "../../common/network-defaults" }
+
+
+[dev-dependencies]
+ts-rs = "5.1"
+tempfile = "3.3.0"
+
+#[dev-dependencies.mixnet-contract-common]
+#path = "../../common/cosmwasm-smart-contracts/mixnet-contract"
+#features = ["ts-rs"]
+#
+#[dev-dependencies.validator-client]
+#path = "../../common/client-libs/validator-client"
+#features = ["typescript-types"]
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

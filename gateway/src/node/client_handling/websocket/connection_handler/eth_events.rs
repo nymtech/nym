@@ -175,7 +175,7 @@ impl Detokenize for Burned {
     where
         Self: Sized,
     {
-        if tokens.len() != 3 {
+        if tokens.len() != 4 {
             return Err(Error::InvalidOutputType(format!(
                 "Expected three elements, got: {:?}",
                 tokens

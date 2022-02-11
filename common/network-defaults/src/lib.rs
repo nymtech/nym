@@ -109,7 +109,7 @@ pub fn default_api_endpoints() -> Vec<Url> {
 }
 
 pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
-    hex_literal::hex!("B3BF30DD53044c9050B7309031Bbf26b2cecF3be");
+    hex_literal::hex!("8e0DcFF7F3085235C32E845f3667aEB3f1e83133");
 // Name of the event triggered by the eth contract. If the event name is changed,
 // this would also need to be changed; It is currently tested against the json abi
 pub const ETH_EVENT_NAME: &str = "BBCredentialPurchased";

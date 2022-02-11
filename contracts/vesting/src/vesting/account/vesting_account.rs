@@ -4,7 +4,7 @@ use crate::traits::VestingAccount;
 use config::defaults::DENOM;
 use cosmwasm_std::{Addr, Coin, Env, Order, Storage, Timestamp, Uint128};
 
-use super::Account;
+use super::{Account, Period};
 
 impl VestingAccount for Account {
     fn locked_coins(
@@ -61,17 +61,15 @@ impl VestingAccount for Account {
         let period = self.get_current_vesting_period(block_time);
 
         let amount = match period {
-            // We're in the first period, or the vesting has not started yet.
-            0 => Coin {
+            Period::Before => Coin {
                 amount: Uint128::new(0),
                 denom: DENOM.to_string(),
             },
-            // We always have 8 vesting periods, so periods 1-7 are special
-            1..=7 => Coin {
-                amount: Uint128::new(self.tokens_per_period()? * period as u128),
+            Period::In(idx) => Coin {
+                amount: Uint128::new(self.tokens_per_period()? * idx as u128),
                 denom: DENOM.to_string(),
             },
-            _ => Coin {
+            Period::After => Coin {
                 amount: self.coin.amount,
                 denom: DENOM.to_string(),
             },
@@ -111,8 +109,12 @@ impl VestingAccount for Account {
     ) -> Result<Coin, ContractError> {
         let block_time = block_time.unwrap_or(env.block.time);
         let period = self.get_current_vesting_period(block_time);
-        let max_vested = self.tokens_per_period()? * period as u128;
-        let start_time = self.periods[period].start_time;
+        let max_vested = self.get_vested_coins(Some(block_time), env)?;
+        let start_time = match period {
+            Period::Before => 0,
+            Period::After => u64::MAX,
+            Period::In(idx) => self.periods[idx as usize].start_time,
+        };
 
         let coin = DELEGATIONS
             .sub_prefix(self.storage_key())
@@ -123,7 +125,7 @@ impl VestingAccount for Account {
                 acc + amount
             });
 
-        let amount = Uint128::new(coin.u128().min(max_vested));
+        let amount = Uint128::new(coin.u128().min(max_vested.amount.u128()));
 
         Ok(Coin {
             amount,
@@ -157,8 +159,12 @@ impl VestingAccount for Account {
     ) -> Result<Coin, ContractError> {
         let block_time = block_time.unwrap_or(env.block.time);
         let period = self.get_current_vesting_period(block_time);
-        let max_vested = self.tokens_per_period()? * period as u128;
-        let start_time = self.periods[period].start_time;
+        let max_vested = self.get_vested_coins(Some(block_time), env)?;
+        let start_time = match period {
+            Period::Before => 0,
+            Period::After => u64::MAX,
+            Period::In(idx) => self.periods[idx as usize].start_time,
+        };
 
         let amount = if let Some(bond) = self
             .load_mixnode_pledge(storage)?
@@ -173,7 +179,7 @@ impl VestingAccount for Account {
             Uint128::zero()
         };
 
-        let amount = Uint128::new(amount.u128().min(max_vested));
+        let amount = Uint128::new(amount.u128().min(max_vested.amount.u128()));
 
         Ok(Coin {
             amount,

@@ -48,6 +48,7 @@ mod tests {
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
+    use crate::vesting::Period;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, Addr, Coin, Timestamp, Uint128};
@@ -182,12 +183,12 @@ mod tests {
         assert_eq!(account.periods().len(), num_vesting_periods as usize);
 
         let current_period = account.get_current_vesting_period(Timestamp::from_seconds(0));
-        assert_eq!(0, current_period);
+        assert_eq!(Period::Before, current_period);
 
         let block_time =
             Timestamp::from_seconds(account.start_time().seconds() + vesting_period + 1);
         let current_period = account.get_current_vesting_period(block_time);
-        assert_eq!(current_period, 1);
+        assert_eq!(current_period, Period::In(1));
         let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
         let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
         assert_eq!(
@@ -207,7 +208,7 @@ mod tests {
         let block_time =
             Timestamp::from_seconds(account.start_time().seconds() + 5 * vesting_period + 1);
         let current_period = account.get_current_vesting_period(block_time);
-        assert_eq!(current_period, 5);
+        assert_eq!(current_period, Period::In(5));
         let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
         let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
         assert_eq!(
@@ -224,6 +225,19 @@ mod tests {
                         / num_vesting_periods as u128
             )
         );
+        let vesting_over_period = num_vesting_periods + 1;
+        let block_time = Timestamp::from_seconds(
+            account.start_time().seconds() + vesting_over_period * vesting_period + 1,
+        );
+        let current_period = account.get_current_vesting_period(block_time);
+        assert_eq!(current_period, Period::After);
+        let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
+        let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
+        assert_eq!(
+            vested_coins.amount,
+            Uint128::new(account.get_original_vesting().amount.u128())
+        );
+        assert_eq!(vesting_coins.amount, Uint128::zero());
     }
 
     #[test]

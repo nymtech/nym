@@ -45,6 +45,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        } => try_update_mixnode_config(profit_margin_percent, info, deps),
         ExecuteMsg::UpdateMixnetAddress { address } => {
             try_update_mixnet_address(address, info, deps)
         }
@@ -100,6 +103,15 @@ pub fn execute(
             try_update_staking_address(to_address, info, deps)
         }
     }
+}
+
+pub fn try_update_mixnode_config(
+    profit_margin_percent: u8,
+    info: MessageInfo,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    account.try_update_mixnode_config(profit_margin_percent, deps.storage)
 }
 
 // Only contract admin, set at init

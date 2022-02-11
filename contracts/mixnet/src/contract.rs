@@ -122,6 +122,16 @@ pub fn execute(
             info,
             profit_margin_percent,
         ),
+        ExecuteMsg::UpdateMixnodeConfigOnBehalf {
+            profit_margin_percent,
+            owner,
+        } => crate::mixnodes::transactions::try_update_mixnode_config_on_behalf(
+            deps,
+            env,
+            info,
+            profit_margin_percent,
+            owner,
+        ),
         ExecuteMsg::BondGateway {
             gateway,
             owner_signature,

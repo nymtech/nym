@@ -15,6 +15,7 @@ pub const VESTING_GATEWAY_BONDING_EVENT_TYPE: &str = "vesting_gateway_bonding";
 pub const VESTING_GATEWAY_UNBONDING_EVENT_TYPE: &str = "vesting_gateway_unbonding";
 pub const VESTING_MIXNODE_BONDING_EVENT_TYPE: &str = "vesting_mixnode_bonding";
 pub const VESTING_MIXNODE_UNBONDING_EVENT_TYPE: &str = "vesting_mixnode_unbonding";
+pub const VESTING_UPDATE_MIXNODE_CONFIG_EVENT_TYPE: &str = "vesting_update_mixnode_config";
 
 pub const TRACK_MIXNODE_UNBOND_EVENT_TYPE: &str = "track_mixnode_unbond";
 pub const TRACK_GATEWAY_UNBOND_EVENT_TYPE: &str = "track_gateway_unbond";
@@ -106,6 +107,10 @@ pub fn new_vesting_gateway_unbonding_event() -> Event {
 
 pub fn new_vesting_mixnode_bonding_event() -> Event {
     Event::new(VESTING_MIXNODE_BONDING_EVENT_TYPE)
+}
+
+pub fn new_vesting_update_mixnode_config_event() -> Event {
+    Event::new(VESTING_UPDATE_MIXNODE_CONFIG_EVENT_TYPE)
 }
 
 pub fn new_vesting_mixnode_unbonding_event() -> Event {

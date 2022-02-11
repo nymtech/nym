@@ -19,6 +19,12 @@ pub trait MixnodeBondingAccount {
         amount: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError>;
+
+    fn try_update_mixnode_config(
+        &self,
+        profit_margin_percent: u8,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError>;
 }
 
 pub trait GatewayBondingAccount {

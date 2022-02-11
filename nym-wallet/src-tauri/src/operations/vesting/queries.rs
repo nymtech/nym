@@ -6,6 +6,9 @@ use cosmwasm_std::Timestamp;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use validator_client::nymd::VestingQueryClient;
+use vesting_contract_common::Period;
+
+use super::PledgeData;
 
 #[tauri::command]
 pub async fn locked_coins(
@@ -142,5 +145,43 @@ pub async fn delegated_vesting(
       )
       .await?
       .into(),
+  )
+}
+
+#[tauri::command]
+pub async fn vesting_get_mixnode_pledge(
+  address: &str,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Option<PledgeData>, BackendError> {
+  Ok(
+    nymd_client!(state)
+      .get_mixnode_pledge(address)
+      .await?
+      .and_then(PledgeData::and_then),
+  )
+}
+
+#[tauri::command]
+pub async fn vesting_get_gateway_pledge(
+  address: &str,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Option<PledgeData>, BackendError> {
+  Ok(
+    nymd_client!(state)
+      .get_gateway_pledge(address)
+      .await?
+      .and_then(PledgeData::and_then),
+  )
+}
+
+#[tauri::command]
+pub async fn get_current_vesting_period(
+  address: &str,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Period, BackendError> {
+  Ok(
+    nymd_client!(state)
+      .get_current_vesting_period(address)
+      .await?,
   )
 }

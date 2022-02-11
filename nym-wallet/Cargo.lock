@@ -2915,6 +2915,7 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
+ "vesting-contract-common",
  "zeroize",
 ]
 
@@ -5510,6 +5511,7 @@ dependencies = [
  "mixnet-contract-common",
  "schemars",
  "serde",
+ "ts-rs",
 ]
 
 [[package]]

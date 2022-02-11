@@ -6,8 +6,8 @@ use crate::nymd::error::NymdError;
 use crate::nymd::NymdClient;
 use async_trait::async_trait;
 use cosmwasm_std::{Coin, Timestamp};
-use vesting_contract::vesting::{Account, PledgeData};
-use vesting_contract_common::messages::QueryMsg as VestingQueryMsg;
+use vesting_contract::vesting::Account;
+use vesting_contract_common::{messages::QueryMsg as VestingQueryMsg, Period, PledgeData};
 
 #[async_trait]
 pub trait VestingQueryClient {
@@ -60,6 +60,10 @@ pub trait VestingQueryClient {
     async fn get_account(&self, address: &str) -> Result<Account, NymdError>;
     async fn get_mixnode_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError>;
     async fn get_gateway_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError>;
+    async fn get_current_vesting_period(
+        &self,
+        vesting_account_address: &str,
+    ) -> Result<Period, NymdError>;
 }
 
 #[async_trait]
@@ -197,6 +201,15 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
     }
     async fn get_gateway_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError> {
         let request = VestingQueryMsg::GetGateway {
+            address: address.to_string(),
+        };
+        self.client
+            .query_contract_smart(self.vesting_contract_address()?, &request)
+            .await
+    }
+
+    async fn get_current_vesting_period(&self, address: &str) -> Result<Period, NymdError> {
+        let request = VestingQueryMsg::GetCurrentVestingPeriod {
             address: address.to_string(),
         };
         self.client

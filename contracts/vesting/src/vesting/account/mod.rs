@@ -1,4 +1,4 @@
-use super::{PledgeData, VestingPeriod};
+use super::VestingPeriod;
 use crate::errors::ContractError;
 use crate::storage::{
     load_balance, load_bond_pledge, load_gateway_pledge, remove_bond_pledge, remove_delegation,
@@ -10,7 +10,7 @@ use cw_storage_plus::Bound;
 use mixnet_contract_common::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vesting_contract_common::Period;
+use vesting_contract_common::{Period, PledgeData};
 
 mod delegating_account;
 mod gateway_bonding_account;

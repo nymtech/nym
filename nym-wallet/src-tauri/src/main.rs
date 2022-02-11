@@ -70,6 +70,9 @@ fn main() {
       vesting::queries::original_vesting,
       vesting::queries::delegated_free,
       vesting::queries::delegated_vesting,
+      vesting::queries::vesting_get_mixnode_pledge,
+      vesting::queries::vesting_get_gateway_pledge,
+      vesting::queries::get_current_vesting_period,
       validator_api::status::mixnode_core_node_status,
       validator_api::status::gateway_core_node_status,
       validator_api::status::mixnode_status,
@@ -104,5 +107,7 @@ mod test {
     validator_client::models::RewardEstimationResponse => "../src/types/rust/rewardestimationresponse.ts",
     validator_client::models::StakeSaturationResponse => "../src/types/rust/stakesaturaionresponse.ts",
     validator_client::models::InclusionProbabilityResponse => "../src/types/rust/inclusionprobabilityresponse.ts",
+    vesting_contract_common::Period => "../src/types/rust/period.ts",
+    crate::vesting::PledgeData => "../src/types/rust/pledgedata.ts",
   }
 }

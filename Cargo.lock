@@ -7741,6 +7741,7 @@ dependencies = [
  "mixnet-contract-common",
  "schemars",
  "serde",
+ "ts-rs",
 ]
 
 [[package]]

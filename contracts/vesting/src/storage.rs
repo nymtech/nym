@@ -1,9 +1,9 @@
 use crate::errors::ContractError;
 use crate::vesting::Account;
-use crate::vesting::PledgeData;
 use cosmwasm_std::{Addr, Api, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::IdentityKey;
+use vesting_contract_common::PledgeData;
 
 type BlockHeight = u64;
 

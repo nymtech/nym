@@ -41,6 +41,7 @@ validator-client = { path = "../../common/client-libs/validator-client", feature
     "nymd-client",
 ] }
 mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 config = { path = "../../common/config" }
 coconut-interface = { path = "../../common/coconut-interface" }
 credentials = { path = "../../common/credentials" }
@@ -56,6 +57,10 @@ features = ["ts-rs"]
 [dev-dependencies.validator-client]
 path = "../../common/client-libs/validator-client"
 features = ["typescript-types"]
+
+[dev-dependencies.vesting-contract-common]
+path = "../../common/cosmwasm-smart-contracts/vesting-contract"
+features = ["ts-rs"]
 
 [features]
 default = ["custom-protocol"]

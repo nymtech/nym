@@ -3,7 +3,7 @@ use crate::storage::{account_from_address, ADMIN, MIXNET_CONTRACT_ADDRESS};
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
-use crate::vesting::{populate_vesting_periods, Account, PledgeData};
+use crate::vesting::{populate_vesting_periods, Account};
 use config::defaults::DENOM;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
@@ -18,7 +18,7 @@ use vesting_contract_common::events::{
 use vesting_contract_common::messages::{
     ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
 };
-use vesting_contract_common::Period;
+use vesting_contract_common::{Period, PledgeData};
 
 #[entry_point]
 pub fn instantiate(

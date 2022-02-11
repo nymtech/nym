@@ -11,4 +11,5 @@ mixnet-contract-common = { path = "../mixnet-contract" }
 serde = { version = "1.0", features = ["derive"] }
 schemars = "0.8"
 cw-storage-plus = "0.11.1"
-config = {path = "../../config"}
+config = { path = "../../config" }
+ts-rs = { version = "*", optional = true }

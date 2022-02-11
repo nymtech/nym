@@ -1,4 +1,4 @@
-use cosmwasm_std::{Timestamp, Uint128};
+use cosmwasm_std::Timestamp;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -17,12 +17,6 @@ impl VestingPeriod {
     pub fn end_time(&self) -> Timestamp {
         Timestamp::from_seconds(self.start_time + self.period_seconds as u64)
     }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct PledgeData {
-    amount: Uint128,
-    block_time: Timestamp,
 }
 
 pub fn populate_vesting_periods(
@@ -410,7 +404,7 @@ mod tests {
         assert!(err.is_err());
 
         let pledge = account.load_mixnode_pledge(&deps.storage).unwrap().unwrap();
-        assert_eq!(Uint128::new(500_000_000_000), pledge.amount);
+        assert_eq!(Uint128::new(500_000_000_000), pledge.amount().amount);
 
         // Current period -> block_time: None
         let bonded_free = account.get_pledged_free(None, &env, &deps.storage).unwrap();
@@ -419,7 +413,10 @@ mod tests {
         let bonded_vesting = account
             .get_pledged_vesting(None, &env, &deps.storage)
             .unwrap();
-        assert_eq!(pledge.amount - bonded_free.amount, bonded_vesting.amount);
+        assert_eq!(
+            pledge.amount().amount - bonded_free.amount,
+            bonded_vesting.amount
+        );
 
         // All periods
         for (i, period) in account.periods().iter().enumerate() {
@@ -431,7 +428,8 @@ mod tests {
                 )
                 .unwrap();
             assert_eq!(
-                (account.tokens_per_period().unwrap() * i as u128).min(pledge.amount.u128()),
+                (account.tokens_per_period().unwrap() * i as u128)
+                    .min(pledge.amount().amount.u128()),
                 bonded_free.amount.u128()
             );
 
@@ -442,7 +440,10 @@ mod tests {
                     &deps.storage,
                 )
                 .unwrap();
-            assert_eq!(pledge.amount - bonded_free.amount, bonded_vesting.amount);
+            assert_eq!(
+                pledge.amount().amount - bonded_free.amount,
+                bonded_vesting.amount
+            );
         }
 
         let bonded_free = account
@@ -452,7 +453,7 @@ mod tests {
                 &deps.storage,
             )
             .unwrap();
-        assert_eq!(pledge.amount, bonded_free.amount);
+        assert_eq!(pledge.amount().amount, bonded_free.amount);
 
         let bonded_vesting = account
             .get_pledged_vesting(
@@ -523,7 +524,7 @@ mod tests {
         assert!(err.is_err());
 
         let pledge = account.load_gateway_pledge(&deps.storage).unwrap().unwrap();
-        assert_eq!(Uint128::new(500_000_000_000), pledge.amount);
+        assert_eq!(Uint128::new(500_000_000_000), pledge.amount().amount);
 
         // Current period -> block_time: None
         let bonded_free = account.get_pledged_free(None, &env, &deps.storage).unwrap();
@@ -532,7 +533,10 @@ mod tests {
         let bonded_vesting = account
             .get_pledged_vesting(None, &env, &deps.storage)
             .unwrap();
-        assert_eq!(pledge.amount - bonded_free.amount, bonded_vesting.amount);
+        assert_eq!(
+            pledge.amount().amount - bonded_free.amount,
+            bonded_vesting.amount
+        );
 
         // All periods
         for (i, period) in account.periods().iter().enumerate() {
@@ -544,7 +548,8 @@ mod tests {
                 )
                 .unwrap();
             assert_eq!(
-                (account.tokens_per_period().unwrap() * i as u128).min(pledge.amount.u128()),
+                (account.tokens_per_period().unwrap() * i as u128)
+                    .min(pledge.amount().amount.u128()),
                 bonded_free.amount.u128()
             );
 
@@ -555,7 +560,10 @@ mod tests {
                     &deps.storage,
                 )
                 .unwrap();
-            assert_eq!(pledge.amount - bonded_free.amount, bonded_vesting.amount);
+            assert_eq!(
+                pledge.amount().amount - bonded_free.amount,
+                bonded_vesting.amount
+            );
         }
 
         let bonded_free = account
@@ -565,7 +573,7 @@ mod tests {
                 &deps.storage,
             )
             .unwrap();
-        assert_eq!(pledge.amount, bonded_free.amount);
+        assert_eq!(pledge.amount().amount, bonded_free.amount);
 
         let bonded_vesting = account
             .get_pledged_vesting(

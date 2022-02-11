@@ -39,7 +39,8 @@ flate2 = { version = "1.0.20", optional = true }
 sha2 = { version = "0.9.5", optional = true }
 itertools = { version = "0.10", optional = true }
 cosmwasm-std = { version = "1.0.0-beta3", optional = true }
-ts-rs = { version = "5.1", optional = true }
+# Leaving it as * so that it inherits whatever the wallet is using
+ts-rs = { version = "*", optional = true }
 
 [features]
 nymd-client = [

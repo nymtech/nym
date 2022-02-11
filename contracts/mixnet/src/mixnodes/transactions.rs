@@ -14,7 +14,7 @@ use cosmwasm_std::{
 use mixnet_contract_common::events::{new_mixnode_bonding_event, new_mixnode_unbonding_event};
 use mixnet_contract_common::MixNode;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
-use vesting_contract_common::one_unym;
+use vesting_contract_common::one_ucoin;
 
 pub fn try_add_mixnode(
     deps: DepsMut,
@@ -201,7 +201,7 @@ pub(crate) fn _try_remove_mixnode(
             amount: mixnode_bond.pledge_amount(),
         };
 
-        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_unym()])?;
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
         response = response.add_message(track_unbond_message);
     }
 
@@ -280,13 +280,13 @@ pub(crate) fn _try_update_mixnode_config(
     let mut response = Response::new();
 
     if let Some(proxy) = proxy {
-        // Returns one_unym proxy had to send in order to execute the contract to contract transaction, this is potentially leaky as anyone can say that they're a proxy,
+        // Returns one_ucoin proxy had to send in order to execute the contract to contract transaction, this is potentially leaky as anyone can say that they're a proxy,
         // and they could potentially leak 1 unym per transaction, altough I'm pretty sure transaction fees make that silly.
-        let return_one_unymt = BankMsg::Send {
+        let return_one_ucoint = BankMsg::Send {
             to_address: proxy.as_str().to_string(),
-            amount: vec![one_unym()],
+            amount: vec![one_ucoin()],
         };
-        response = response.add_message(return_one_unymt);
+        response = response.add_message(return_one_ucoint);
     }
 
     Ok(response)

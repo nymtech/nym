@@ -6,6 +6,6 @@ use cosmwasm_std::Coin;
 pub mod events;
 pub mod messages;
 
-pub fn one_unym() -> Coin {
+pub fn one_ucoin() -> Coin {
     Coin::new(1, DENOM)
 }

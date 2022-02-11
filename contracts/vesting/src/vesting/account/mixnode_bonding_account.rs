@@ -8,7 +8,7 @@ use vesting_contract_common::events::{
     new_vesting_mixnode_bonding_event, new_vesting_mixnode_unbonding_event,
     new_vesting_update_mixnode_config_event,
 };
-use vesting_contract_common::one_unym;
+use vesting_contract_common::one_ucoin;
 
 use super::Account;
 
@@ -26,7 +26,7 @@ impl MixnodeBondingAccount for Account {
         let update_mixnode_config_msg = wasm_execute(
             MIXNET_CONTRACT_ADDRESS.load(storage)?,
             &msg,
-            vec![one_unym()],
+            vec![one_ucoin()],
         )?;
 
         Ok(Response::new()
@@ -90,7 +90,7 @@ impl MixnodeBondingAccount for Account {
             let unbond_msg = wasm_execute(
                 MIXNET_CONTRACT_ADDRESS.load(storage)?,
                 &msg,
-                vec![one_unym()],
+                vec![one_ucoin()],
             )?;
 
             Ok(Response::new()

@@ -17,7 +17,7 @@ async function main() {
 
     console.log('...contract successfully deployed...'); 
 
-    contracts.mainnet.BANDWIDTH_GENERATOR = bandwidthGenerator.address;
+    contracts.mainnet.BANDWIDTH_GENERATOR_NYMT = bandwidthGenerator.address;
     // the location of the json file is relative to where you are running the script from - run from root of directory 
     fs.writeFileSync('./contractAddresses.json', JSON.stringify(contracts), (err) => {
         if (err) throw err;

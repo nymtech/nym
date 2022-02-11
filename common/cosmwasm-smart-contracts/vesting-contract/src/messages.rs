@@ -148,4 +148,7 @@ pub enum QueryMsg {
     GetGateway {
         address: String,
     },
+    GetCurrentVestingPeriod {
+        address: String,
+    },
 }

@@ -48,12 +48,12 @@ mod tests {
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
-    use crate::vesting::Period;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::{Gateway, MixNode};
     use vesting_contract_common::messages::ExecuteMsg;
+    use vesting_contract_common::Period;
 
     #[test]
     fn test_account_creation() {

@@ -10,6 +10,7 @@ use cw_storage_plus::Bound;
 use mixnet_contract_common::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use vesting_contract_common::Period;
 
 mod delegating_account;
 mod gateway_bonding_account;
@@ -20,13 +21,6 @@ fn generate_storage_key(storage: &mut dyn Storage) -> Result<u32, ContractError>
     let key = KEY.may_load(storage)?.unwrap_or(0) + 1;
     KEY.save(storage, &key)?;
     Ok(key)
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Period {
-    Before,
-    In(usize),
-    After,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

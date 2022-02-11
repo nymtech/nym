@@ -18,6 +18,7 @@ use vesting_contract_common::events::{
 use vesting_contract_common::messages::{
     ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
 };
+use vesting_contract_common::Period;
 
 #[entry_point]
 pub fn instantiate(
@@ -443,9 +444,21 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetAccount { address } => to_binary(&try_get_account(&address, deps)?),
         QueryMsg::GetMixnode { address } => to_binary(&try_get_mixnode(&address, deps)?),
         QueryMsg::GetGateway { address } => to_binary(&try_get_gateway(&address, deps)?),
+        QueryMsg::GetCurrentVestingPeriod { address } => {
+            to_binary(&try_get_current_vesting_period(&address, deps, env)?)
+        }
     };
 
     Ok(query_res?)
+}
+
+pub fn try_get_current_vesting_period(
+    address: &str,
+    deps: Deps<'_>,
+    env: Env,
+) -> Result<Period, ContractError> {
+    let account = account_from_address(address, deps.storage, deps.api)?;
+    Ok(account.get_current_vesting_period(env.block.time))
 }
 
 pub fn try_get_mixnode(address: &str, deps: Deps<'_>) -> Result<Option<PledgeData>, ContractError> {

@@ -39,3 +39,32 @@ impl PledgeData {
         Self { amount, block_time }
     }
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct OriginalVestingResponse {
+    amount: Coin,
+    number_of_periods: usize,
+    period_duration: u64,
+}
+
+impl OriginalVestingResponse {
+    pub fn amount(&self) -> Coin {
+        self.amount.clone()
+    }
+
+    pub fn number_of_periods(&self) -> usize {
+        self.number_of_periods
+    }
+
+    pub fn period_duration(&self) -> u64 {
+        self.period_duration
+    }
+
+    pub fn new(amount: Coin, number_of_periods: usize, period_duration: u64) -> Self {
+        Self {
+            amount,
+            number_of_periods,
+            period_duration,
+        }
+    }
+}

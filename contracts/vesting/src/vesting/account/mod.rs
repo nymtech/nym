@@ -61,6 +61,10 @@ impl Account {
         self.periods.len()
     }
 
+    pub fn period_duration(&self) -> u64 {
+        self.periods.get(0).unwrap().period_seconds
+    }
+
     pub fn storage_key(&self) -> u32 {
         self.storage_key
     }

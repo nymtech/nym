@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 use validator_client::nymd::VestingQueryClient;
 use vesting_contract_common::Period;
 
-use super::PledgeData;
+use super::{OriginalVestingResponse, PledgeData};
 
 #[tauri::command]
 pub async fn locked_coins(
@@ -105,7 +105,7 @@ pub async fn vesting_end_time(
 pub async fn original_vesting(
   vesting_account_address: &str,
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<Coin, BackendError> {
+) -> Result<OriginalVestingResponse, BackendError> {
   Ok(
     nymd_client!(state)
       .original_vesting(vesting_account_address)

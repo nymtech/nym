@@ -188,14 +188,15 @@ mod tests {
         assert_eq!(
             vested_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount.u128() / num_vesting_periods as u128
+                account.get_original_vesting().amount().amount.u128() / num_vesting_periods as u128
             )
         );
         assert_eq!(
             vesting_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount.u128()
-                    - account.get_original_vesting().amount.u128() / num_vesting_periods as u128
+                account.get_original_vesting().amount().amount.u128()
+                    - account.get_original_vesting().amount().amount.u128()
+                        / num_vesting_periods as u128
             )
         );
 
@@ -208,14 +209,15 @@ mod tests {
         assert_eq!(
             vested_coins.amount,
             Uint128::new(
-                5 * account.get_original_vesting().amount.u128() / num_vesting_periods as u128
+                5 * account.get_original_vesting().amount().amount.u128()
+                    / num_vesting_periods as u128
             )
         );
         assert_eq!(
             vesting_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount.u128()
-                    - 5 * account.get_original_vesting().amount.u128()
+                account.get_original_vesting().amount().amount.u128()
+                    - 5 * account.get_original_vesting().amount().amount.u128()
                         / num_vesting_periods as u128
             )
         );
@@ -229,7 +231,7 @@ mod tests {
         let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
         assert_eq!(
             vested_coins.amount,
-            Uint128::new(account.get_original_vesting().amount.u128())
+            Uint128::new(account.get_original_vesting().amount().amount.u128())
         );
         assert_eq!(vesting_coins.amount, Uint128::zero());
     }

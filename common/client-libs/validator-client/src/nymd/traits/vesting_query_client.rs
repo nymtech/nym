@@ -7,7 +7,9 @@ use crate::nymd::NymdClient;
 use async_trait::async_trait;
 use cosmwasm_std::{Coin, Timestamp};
 use vesting_contract::vesting::Account;
-use vesting_contract_common::{messages::QueryMsg as VestingQueryMsg, Period, PledgeData};
+use vesting_contract_common::{
+    messages::QueryMsg as VestingQueryMsg, OriginalVestingResponse, Period, PledgeData,
+};
 
 #[async_trait]
 pub trait VestingQueryClient {
@@ -43,7 +45,10 @@ pub trait VestingQueryClient {
     async fn vesting_end_time(&self, vesting_account_address: &str)
         -> Result<Timestamp, NymdError>;
 
-    async fn original_vesting(&self, vesting_account_address: &str) -> Result<Coin, NymdError>;
+    async fn original_vesting(
+        &self,
+        vesting_account_address: &str,
+    ) -> Result<OriginalVestingResponse, NymdError>;
 
     async fn delegated_free(
         &self,
@@ -146,7 +151,10 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             .await
     }
 
-    async fn original_vesting(&self, vesting_account_address: &str) -> Result<Coin, NymdError> {
+    async fn original_vesting(
+        &self,
+        vesting_account_address: &str,
+    ) -> Result<OriginalVestingResponse, NymdError> {
         let request = VestingQueryMsg::GetOriginalVesting {
             vesting_account_address: vesting_account_address.to_string(),
         };

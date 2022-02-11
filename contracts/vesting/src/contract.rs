@@ -18,7 +18,7 @@ use vesting_contract_common::events::{
 use vesting_contract_common::messages::{
     ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
 };
-use vesting_contract_common::{Period, PledgeData};
+use vesting_contract_common::{OriginalVestingResponse, Period, PledgeData};
 
 #[entry_point]
 pub fn instantiate(
@@ -534,7 +534,7 @@ pub fn try_get_end_time(
 pub fn try_get_original_vesting(
     vesting_account_address: &str,
     deps: Deps<'_>,
-) -> Result<Coin, ContractError> {
+) -> Result<OriginalVestingResponse, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     Ok(account.get_original_vesting())
 }

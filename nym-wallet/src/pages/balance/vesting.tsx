@@ -23,12 +23,16 @@ export const VestingCard = () => {
   const { userBalance, currency } = useContext(ClientContext)
   const [isLoading, setIsLoading] = useState(false)
 
-  const { enqueueSnackbar } = useSnackbar()
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar()
 
   const refreshBalances = async () => {
     await userBalance.fetchBalance()
     await userBalance.fetchTokenAllocation()
   }
+
+  useEffect(() => {
+    return () => closeSnackbar()
+  }, [])
 
   return (
     <NymCard
@@ -79,8 +83,9 @@ export const VestingCard = () => {
           <VestingTable />
         </Grid>
       </Grid>
-      <Box display="flex" justifyContent="flex-end" alignItems="center">
+      <Box display="flex" justifyContent="flex-end" alignItems="center" sx={{ mt: 2 }}>
         <Button
+          size="large"
           variant="contained"
           onClick={async () => {
             setIsLoading(true)

@@ -43,12 +43,14 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     if (address) {
       try {
         const [originalVestingValue, vestingCoins, vestedCoins, lockedCoins, spendableCoins] = await Promise.all([
-          originalVesting(address),
+          Promise.resolve({amount: "100"}),
           getVestingCoins(address),
           getVestedCoins(address),
           getLockedCoins(address),
           getSpendableCoins(address),
         ])
+
+        console.log(originalVestingValue, vestingCoins)
 
         setTokenAllocation({
           original: originalVestingValue.amount,

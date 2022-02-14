@@ -100,6 +100,8 @@ jobs:
     steps:
       - name: Collect jobs status
         uses: technote-space/workflow-conclusion-action@v2
+      - name: Check out repository code
+        uses: actions/checkout@v2
       - name: Keybase - Node Install
         #if: env.WORKFLOW_CONCLUSION == 'failure'
         if: env.WORKFLOW_CONCLUSION == 'success'

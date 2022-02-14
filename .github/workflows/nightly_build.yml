@@ -2,7 +2,7 @@ name: Nightly builds
 
 on:
   schedule:
-    - cron: '25 13 * * *'
+    - cron: '10 15 * * *'
 jobs:
   matrix_prep:
     runs-on: ubuntu-latest
@@ -94,13 +94,20 @@ jobs:
         with:
           command: clippy
           args: --features=coconut -- -D warnings
+  notification:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect jobs status
+        uses: technote-space/workflow-conclusion-action@v2
       - name: Keybase - Node Install
-        #if: ${{ job.status != 'success' }}
-        runs-on: ubuntu-latest
+        #if: env.WORKFLOW_CONCLUSION == 'failure'
+        if: env.WORKFLOW_CONCLUSION == 'success'
         run: npm install
         working-directory: .github/workflows/support-files/messages
       - name: Keybase - Send Notification
-        #if: ${{ job.status != 'success' }}
+        #if: env.WORKFLOW_CONCLUSION == 'failure'
+        if: env.WORKFLOW_CONCLUSION == 'success'
         env:
           NYM_PROJECT_NAME: "Nym nightly build"
           GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
@@ -109,7 +116,7 @@ jobs:
           KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
           KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
           KEYBASE_NYM_CHANNEL: "ci-nightly"
-          IS_SUCCESS: "${{ job.status == 'success' }}"
+          IS_SUCCESS: "${{ env.WORKFLOW_CONCLUSION == 'success' }}"
         uses: docker://keybaseio/client:stable-node
         with:
           args: .github/workflows/support-files/messages/entry_point_notifications.sh

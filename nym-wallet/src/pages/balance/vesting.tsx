@@ -18,6 +18,7 @@ import { useSnackbar } from 'notistack'
 import { NymCard } from '../../components'
 import { ClientContext } from '../../context/main'
 import { withdrawVestedCoins } from '../../requests'
+import { Period } from '../../types'
 
 export const VestingCard = () => {
   const { userBalance, currency } = useContext(ClientContext)
@@ -151,7 +152,8 @@ const VestingTable = () => {
             <TableCell sx={{ borderBottom: 'none' }}>
               {userBalance.tokenAllocation?.vesting || 'n/a'} {currency?.major}
             </TableCell>
-            <TableCell sx={{ borderBottom: 'none' }}>{userBalance.originalVesting?.number_of_periods}</TableCell>
+            <TableCell align="left" sx={{ borderBottom: 'none' }}>
+            {vestingPeriod(userBalance.currentVestingPeriod, userBalance.originalVesting?.number_of_periods)}</TableCell>
             <TableCell sx={{ borderBottom: 'none' }}>
               <Box display="flex" alignItems="center" gap={1}>
                 <Typography
@@ -174,4 +176,14 @@ const VestingTable = () => {
       </Table>
     </TableContainer>
   )
+}
+
+
+const vestingPeriod = (current?:Period, original?: number ) => {
+
+  if (current === "After") return "Complete"
+
+  if (typeof current === "object" && typeof original === "number") return `${current.In + 1}/${original}`
+
+  return "N/A"
 }

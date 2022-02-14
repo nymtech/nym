@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api'
 import bs58 from 'bs58'
 import { minor, valid } from 'semver'
 import { userBalance, majorToMinor, getGasFee } from '../requests'
-import { Coin, Network, TCurrency } from '../types'
+import { Coin, Network, Period, TCurrency } from '../types'
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key

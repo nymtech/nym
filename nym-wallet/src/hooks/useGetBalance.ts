@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api'
-import { Balance, Coin, OriginalVestingResponse } from '../types'
-import { getVestingCoins, getVestedCoins, getLockedCoins, getSpendableCoins, getOriginalVesting } from '../requests'
+import { Balance, Coin, OriginalVestingResponse, Period } from '../types'
+import {
+  getVestingCoins,
+  getVestedCoins,
+  getLockedCoins,
+  getSpendableCoins,
+  getOriginalVesting,
+  getCurrentVestingPeriod,
+} from '../requests'
 
 type TTokenAllocation = {
-  [key in 'vesting' | 'vested' | 'locked' | 'spendable' ]: Coin['amount']
+  [key in 'vesting' | 'vested' | 'locked' | 'spendable']: Coin['amount']
 }
 
 export type TUseuserBalance = {
@@ -12,6 +19,7 @@ export type TUseuserBalance = {
   balance?: Balance
   tokenAllocation?: TTokenAllocation
   originalVesting?: OriginalVestingResponse
+  currentVestingPeriod?: Period
   isLoading: boolean
   fetchBalance: () => void
   clearBalance: () => void
@@ -23,6 +31,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
   const [error, setError] = useState<string>()
   const [tokenAllocation, setTokenAllocation] = useState<TTokenAllocation>()
   const [originalVesting, setOriginalVesting] = useState<OriginalVestingResponse>()
+  const [currentVestingPeriod, setCurrentVestingPeriod] = useState<Period>()
   const [isLoading, setIsLoading] = useState(false)
 
   const fetchBalance = useCallback(async () => {
@@ -44,22 +53,26 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     setIsLoading(true)
     if (address) {
       try {
-        const [originalVestingValue, vestingCoins, vestedCoins, lockedCoins, spendableCoins] = await Promise.all([
-          getOriginalVesting(address),
-          getVestingCoins(address),
-          getVestedCoins(address),
-          getLockedCoins(address),
-          getSpendableCoins(address),
-        ])
+        const [originalVestingValue, vestingCoins, vestedCoins, lockedCoins, spendableCoins, currentVestingPeriod] =
+          await Promise.all([
+            getOriginalVesting(address),
+            getVestingCoins(address),
+            getVestedCoins(address),
+            getLockedCoins(address),
+            getSpendableCoins(address),
+            getCurrentVestingPeriod(address),
+          ])
 
         setOriginalVesting(originalVestingValue)
-
+        setCurrentVestingPeriod(currentVestingPeriod)
         setTokenAllocation({
           vesting: vestingCoins.amount,
           vested: vestedCoins.amount,
           locked: lockedCoins.amount,
           spendable: spendableCoins.amount,
         })
+
+        console.log(currentVestingPeriod)
       } catch (e) {
         clearTokenAllocation()
         clearOriginalVesting()
@@ -93,6 +106,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     balance,
     tokenAllocation,
     originalVesting,
+    currentVestingPeriod,
     fetchBalance,
     clearBalance,
     fetchTokenAllocation,

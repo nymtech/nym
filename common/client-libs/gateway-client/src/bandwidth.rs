@@ -17,7 +17,7 @@ use network_defaults::BANDWIDTH_VALUE;
 #[cfg(not(feature = "coconut"))]
 use network_defaults::{
     eth_contract::ETH_JSON_ABI, ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS, ETH_MIN_BLOCK_DEPTH,
-    TOKENS_TO_BURN,
+    UTOKENS_TO_BURN,
 };
 #[cfg(not(feature = "coconut"))]
 use pemstore::traits::PemStorableKeyPair;
@@ -217,7 +217,7 @@ impl BandwidthController {
             .signed_call_with_confirmations(
                 ETH_BURN_FUNCTION_NAME,
                 (
-                    U256::from(TOKENS_TO_BURN),
+                    U256::from(UTOKENS_TO_BURN),
                     U256::from(&verification_key.to_bytes()),
                     Bytes(signed_verification_key.to_bytes().to_vec()),
                     Token::String(gateway_owner),

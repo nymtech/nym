@@ -123,9 +123,9 @@ const VestingTable = () => {
   const [vestedPercentage, setVestedPercentage] = useState(0)
 
   const calculatPercentage = () => {
-    const { tokenAllocation } = userBalance
-    if (tokenAllocation?.vesting && tokenAllocation.vested && tokenAllocation.vested !== '0') {
-      const percentage = Math.round((+tokenAllocation.vested / +tokenAllocation.original) * 100)
+    const { tokenAllocation, originalVesting } = userBalance
+    if (tokenAllocation?.vesting && tokenAllocation.vested && tokenAllocation.vested !== '0' && originalVesting) {
+      const percentage = Math.round((+tokenAllocation.vested / +originalVesting?.amount.amount) * 100)
       setVestedPercentage(percentage)
     } else {
       setVestedPercentage(0)
@@ -151,7 +151,7 @@ const VestingTable = () => {
             <TableCell sx={{ borderBottom: 'none' }}>
               {userBalance.tokenAllocation?.vesting || 'n/a'} {currency?.major}
             </TableCell>
-            <TableCell sx={{ borderBottom: 'none' }}></TableCell>
+            <TableCell sx={{ borderBottom: 'none' }}>{userBalance.originalVesting?.number_of_periods}</TableCell>
             <TableCell sx={{ borderBottom: 'none' }}>
               <Box display="flex" alignItems="center" gap={1}>
                 <Typography

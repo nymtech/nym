@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api'
 import { majorToMinor, minorToMajor } from '.'
-import { Coin } from '../types'
+import { Coin, OriginalVestingResponse } from '../types'
 
 export const getLockedCoins = async (address: string): Promise<Coin> => {
   const res: Coin = await invoke('locked_coins', { address })
@@ -21,9 +21,10 @@ export const getVestedCoins = async (vestingAccountAddress: string): Promise<Coi
   return await minorToMajor(res.amount)
 }
 
-export const originalVesting = async (vestingAccountAddress: string): Promise<Coin> => {
-  const res: Coin = await invoke('original_vesting', { vestingAccountAddress })
-  return await minorToMajor(res.amount)
+export const getOriginalVesting = async (vestingAccountAddress: string): Promise<OriginalVestingResponse> => {
+  const res: OriginalVestingResponse = await invoke('original_vesting', { vestingAccountAddress })
+  const majorValue =  await minorToMajor(res.amount.amount)
+  return {...res, amount: majorValue}
 }
 
 export const withdrawVestedCoins = async (amount: string) => {

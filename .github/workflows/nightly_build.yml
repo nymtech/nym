@@ -2,7 +2,7 @@ name: Nightly builds
 
 on:
   schedule:
-    - cron: '10 15 * * *'
+    - cron: '20 17 * * *'
 jobs:
   matrix_prep:
     runs-on: ubuntu-latest

@@ -2,7 +2,7 @@ name: Nightly builds
 
 on:
   schedule:
-    - cron: '14 8 * * *'
+    - cron: '25 11 * * *'
 jobs:
   matrix_prep:
     runs-on: ubuntu-latest
@@ -21,6 +21,7 @@ jobs:
     strategy:
       matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.rust == 'nightly' || matrix.rust == 'beta' || matrix.rust == 'stable' }}
     steps:
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev squashfs-tools
@@ -101,6 +102,8 @@ jobs:
         #if: ${{ job.status != 'success' }}
         env:
           NYM_PROJECT_NAME: "Nym nightly build"
+          GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
+          GIT_BRANCH: "${GITHUB_REF##*/}"
           KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
           KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
           KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"

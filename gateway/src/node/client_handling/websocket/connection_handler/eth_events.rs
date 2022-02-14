@@ -203,19 +203,24 @@ impl Detokenize for Burned {
                 verification_key.len()
             ))
         })?;
-        let remaining_bytes = tokens.get(2).unwrap().clone().into_bytes().ok_or_else(|| {
-            Error::InvalidOutputType(String::from("Expected Bytes for the last two fields"))
-        })?;
-        let signed_verification_key = Signature::from_bytes(&remaining_bytes[..SIGNATURE_LENGTH])
-            .map_err(|_| {
-            Error::InvalidOutputType(format!(
-                "Expected signature of {} bytes, got: {}",
-                SIGNATURE_LENGTH,
-                remaining_bytes.len()
-            ))
-        })?;
-        let cosmos_recipient = String::from_utf8(remaining_bytes[SIGNATURE_LENGTH..].to_vec())
-            .map_err(|_| {
+        let signed_verification_key =
+            tokens.get(2).unwrap().clone().into_bytes().ok_or_else(|| {
+                Error::InvalidOutputType(String::from("Expected Bytes for the last two fields"))
+            })?;
+        let signed_verification_key =
+            Signature::from_bytes(&signed_verification_key[..SIGNATURE_LENGTH]).map_err(|_| {
+                Error::InvalidOutputType(format!(
+                    "Expected signature of {} bytes, got: {}",
+                    SIGNATURE_LENGTH,
+                    signed_verification_key.len()
+                ))
+            })?;
+        let cosmos_recipient = tokens
+            .get(3)
+            .unwrap()
+            .clone()
+            .into_string()
+            .ok_or_else(|| {
                 Error::InvalidOutputType(String::from("Expected utf8 encoded owner address"))
             })?;
 

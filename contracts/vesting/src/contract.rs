@@ -3,7 +3,7 @@ use crate::storage::{account_from_address, ADMIN, MIXNET_CONTRACT_ADDRESS};
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
-use crate::vesting::{populate_vesting_periods, Account, PledgeData};
+use crate::vesting::{populate_vesting_periods, Account};
 use config::defaults::DENOM;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
@@ -18,6 +18,7 @@ use vesting_contract_common::events::{
 use vesting_contract_common::messages::{
     ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
 };
+use vesting_contract_common::{OriginalVestingResponse, Period, PledgeData};
 
 #[entry_point]
 pub fn instantiate(
@@ -443,9 +444,21 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetAccount { address } => to_binary(&try_get_account(&address, deps)?),
         QueryMsg::GetMixnode { address } => to_binary(&try_get_mixnode(&address, deps)?),
         QueryMsg::GetGateway { address } => to_binary(&try_get_gateway(&address, deps)?),
+        QueryMsg::GetCurrentVestingPeriod { address } => {
+            to_binary(&try_get_current_vesting_period(&address, deps, env)?)
+        }
     };
 
     Ok(query_res?)
+}
+
+pub fn try_get_current_vesting_period(
+    address: &str,
+    deps: Deps<'_>,
+    env: Env,
+) -> Result<Period, ContractError> {
+    let account = account_from_address(address, deps.storage, deps.api)?;
+    Ok(account.get_current_vesting_period(env.block.time))
 }
 
 pub fn try_get_mixnode(address: &str, deps: Deps<'_>) -> Result<Option<PledgeData>, ContractError> {
@@ -521,7 +534,7 @@ pub fn try_get_end_time(
 pub fn try_get_original_vesting(
     vesting_account_address: &str,
     deps: Deps<'_>,
-) -> Result<Coin, ContractError> {
+) -> Result<OriginalVestingResponse, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     Ok(account.get_original_vesting())
 }

@@ -34,10 +34,7 @@ impl GatewayBondingAccount for Account {
                 self.owner_address().as_str().to_string(),
             ));
         } else {
-            PledgeData {
-                block_time: env.block.time,
-                amount: pledge.amount,
-            }
+            PledgeData::new(pledge.clone(), env.block.time)
         };
 
         let msg = MixnetExecuteMsg::BondGatewayOnBehalf {

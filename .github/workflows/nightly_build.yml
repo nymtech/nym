@@ -96,7 +96,7 @@ jobs:
           args: --features=coconut -- -D warnings
       - name: Keybase - Node Install
         #if: ${{ job.status != 'success' }}
-		runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
         run: npm install
         working-directory: .github/workflows/support-files/messages
       - name: Keybase - Send Notification

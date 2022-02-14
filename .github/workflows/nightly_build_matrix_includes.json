@@ -1,0 +1,50 @@
+[
+  {
+    "os":"ubuntu-latest",
+    "rust":"stable",
+    "runOnEvent":"schedule"
+  },
+
+  {
+    "os":"windows-latest",
+    "rust":"stable",
+    "runOnEvent":"schedule"
+  },
+  {
+    "os":"macos-latest",
+    "rust":"stable",
+    "runOnEvent":"schedule"
+  },
+
+  {
+    "os":"ubuntu-latest",
+    "rust":"beta",
+    "runOnEvent":"schedule"
+  },
+  {
+    "os":"windows-latest",
+    "rust":"beta",
+    "runOnEvent":"schedule"
+  },
+  {
+    "os":"macos-latest",
+    "rust":"beta",
+    "runOnEvent":"schedule"
+  },
+
+  {
+    "os":"ubuntu-latest",
+    "rust":"nightly",
+    "runOnEvent":"schedule"
+  },
+  {
+    "os":"windows-latest",
+    "rust":"nightly",
+    "runOnEvent":"schedule"
+  },
+  {
+    "os":"macos-latest",
+    "rust":"nightly",
+    "runOnEvent":"schedule"
+  }
+]

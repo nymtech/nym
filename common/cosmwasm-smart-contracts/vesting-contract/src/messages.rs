@@ -49,6 +49,9 @@ impl VestingSpecification {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    UpdateMixnodeConfig {
+        profit_margin_percent: u8,
+    },
     UpdateMixnetAddress {
         address: String,
     },
@@ -143,6 +146,9 @@ pub enum QueryMsg {
         address: String,
     },
     GetGateway {
+        address: String,
+    },
+    GetCurrentVestingPeriod {
         address: String,
     },
 }

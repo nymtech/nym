@@ -13,6 +13,11 @@ use vesting_contract_common::messages::{ExecuteMsg as VestingExecuteMsg, Vesting
 
 #[async_trait]
 pub trait VestingSigningClient {
+    async fn vesting_update_mixnode_config(
+        &self,
+        profix_margin_percent: u8,
+    ) -> Result<ExecuteResult, NymdError>;
+
     async fn update_mixnet_address(&self, address: &str) -> Result<ExecuteResult, NymdError>;
 
     async fn vesting_bond_gateway(
@@ -312,6 +317,26 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 &req,
                 fee,
                 "VestingContract::UpdateMixnetAddress",
+                vec![],
+            )
+            .await
+    }
+
+    async fn vesting_update_mixnode_config(
+        &self,
+        profit_margin_percent: u8,
+    ) -> Result<ExecuteResult, NymdError> {
+        let fee = self.operation_fee(Operation::UpdateMixnodeConfig);
+        let req = VestingExecuteMsg::UpdateMixnodeConfig {
+            profit_margin_percent,
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.vesting_contract_address()?,
+                &req,
+                fee,
+                "VestingContract::UpdateMixnetConfig",
                 vec![],
             )
             .await

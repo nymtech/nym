@@ -1,4 +1,4 @@
-use cosmwasm_std::{Timestamp, Uint128};
+use cosmwasm_std::Timestamp;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -17,12 +17,6 @@ impl VestingPeriod {
     pub fn end_time(&self) -> Timestamp {
         Timestamp::from_seconds(self.start_time + self.period_seconds as u64)
     }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct PledgeData {
-    amount: Uint128,
-    block_time: Timestamp,
 }
 
 pub fn populate_vesting_periods(
@@ -53,6 +47,7 @@ mod tests {
     use cosmwasm_std::{coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::{Gateway, MixNode};
     use vesting_contract_common::messages::ExecuteMsg;
+    use vesting_contract_common::Period;
 
     #[test]
     fn test_account_creation() {
@@ -182,48 +177,63 @@ mod tests {
         assert_eq!(account.periods().len(), num_vesting_periods as usize);
 
         let current_period = account.get_current_vesting_period(Timestamp::from_seconds(0));
-        assert_eq!(0, current_period);
+        assert_eq!(Period::Before, current_period);
 
         let block_time =
             Timestamp::from_seconds(account.start_time().seconds() + vesting_period + 1);
         let current_period = account.get_current_vesting_period(block_time);
-        assert_eq!(current_period, 1);
+        assert_eq!(current_period, Period::In(1));
         let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
         let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
         assert_eq!(
             vested_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount.u128() / num_vesting_periods as u128
+                account.get_original_vesting().amount().amount.u128() / num_vesting_periods as u128
             )
         );
         assert_eq!(
             vesting_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount.u128()
-                    - account.get_original_vesting().amount.u128() / num_vesting_periods as u128
+                account.get_original_vesting().amount().amount.u128()
+                    - account.get_original_vesting().amount().amount.u128()
+                        / num_vesting_periods as u128
             )
         );
 
         let block_time =
             Timestamp::from_seconds(account.start_time().seconds() + 5 * vesting_period + 1);
         let current_period = account.get_current_vesting_period(block_time);
-        assert_eq!(current_period, 5);
+        assert_eq!(current_period, Period::In(5));
         let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
         let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
         assert_eq!(
             vested_coins.amount,
             Uint128::new(
-                5 * account.get_original_vesting().amount.u128() / num_vesting_periods as u128
+                5 * account.get_original_vesting().amount().amount.u128()
+                    / num_vesting_periods as u128
             )
         );
         assert_eq!(
             vesting_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount.u128()
-                    - 5 * account.get_original_vesting().amount.u128()
+                account.get_original_vesting().amount().amount.u128()
+                    - 5 * account.get_original_vesting().amount().amount.u128()
                         / num_vesting_periods as u128
             )
         );
+        let vesting_over_period = num_vesting_periods + 1;
+        let block_time = Timestamp::from_seconds(
+            account.start_time().seconds() + vesting_over_period * vesting_period + 1,
+        );
+        let current_period = account.get_current_vesting_period(block_time);
+        assert_eq!(current_period, Period::After);
+        let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
+        let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
+        assert_eq!(
+            vested_coins.amount,
+            Uint128::new(account.get_original_vesting().amount().amount.u128())
+        );
+        assert_eq!(vesting_coins.amount, Uint128::zero());
     }
 
     #[test]
@@ -396,7 +406,7 @@ mod tests {
         assert!(err.is_err());
 
         let pledge = account.load_mixnode_pledge(&deps.storage).unwrap().unwrap();
-        assert_eq!(Uint128::new(500_000_000_000), pledge.amount);
+        assert_eq!(Uint128::new(500_000_000_000), pledge.amount().amount);
 
         // Current period -> block_time: None
         let bonded_free = account.get_pledged_free(None, &env, &deps.storage).unwrap();
@@ -405,7 +415,10 @@ mod tests {
         let bonded_vesting = account
             .get_pledged_vesting(None, &env, &deps.storage)
             .unwrap();
-        assert_eq!(pledge.amount - bonded_free.amount, bonded_vesting.amount);
+        assert_eq!(
+            pledge.amount().amount - bonded_free.amount,
+            bonded_vesting.amount
+        );
 
         // All periods
         for (i, period) in account.periods().iter().enumerate() {
@@ -417,7 +430,8 @@ mod tests {
                 )
                 .unwrap();
             assert_eq!(
-                (account.tokens_per_period().unwrap() * i as u128).min(pledge.amount.u128()),
+                (account.tokens_per_period().unwrap() * i as u128)
+                    .min(pledge.amount().amount.u128()),
                 bonded_free.amount.u128()
             );
 
@@ -428,7 +442,10 @@ mod tests {
                     &deps.storage,
                 )
                 .unwrap();
-            assert_eq!(pledge.amount - bonded_free.amount, bonded_vesting.amount);
+            assert_eq!(
+                pledge.amount().amount - bonded_free.amount,
+                bonded_vesting.amount
+            );
         }
 
         let bonded_free = account
@@ -438,7 +455,7 @@ mod tests {
                 &deps.storage,
             )
             .unwrap();
-        assert_eq!(pledge.amount, bonded_free.amount);
+        assert_eq!(pledge.amount().amount, bonded_free.amount);
 
         let bonded_vesting = account
             .get_pledged_vesting(
@@ -509,7 +526,7 @@ mod tests {
         assert!(err.is_err());
 
         let pledge = account.load_gateway_pledge(&deps.storage).unwrap().unwrap();
-        assert_eq!(Uint128::new(500_000_000_000), pledge.amount);
+        assert_eq!(Uint128::new(500_000_000_000), pledge.amount().amount);
 
         // Current period -> block_time: None
         let bonded_free = account.get_pledged_free(None, &env, &deps.storage).unwrap();
@@ -518,7 +535,10 @@ mod tests {
         let bonded_vesting = account
             .get_pledged_vesting(None, &env, &deps.storage)
             .unwrap();
-        assert_eq!(pledge.amount - bonded_free.amount, bonded_vesting.amount);
+        assert_eq!(
+            pledge.amount().amount - bonded_free.amount,
+            bonded_vesting.amount
+        );
 
         // All periods
         for (i, period) in account.periods().iter().enumerate() {
@@ -530,7 +550,8 @@ mod tests {
                 )
                 .unwrap();
             assert_eq!(
-                (account.tokens_per_period().unwrap() * i as u128).min(pledge.amount.u128()),
+                (account.tokens_per_period().unwrap() * i as u128)
+                    .min(pledge.amount().amount.u128()),
                 bonded_free.amount.u128()
             );
 
@@ -541,7 +562,10 @@ mod tests {
                     &deps.storage,
                 )
                 .unwrap();
-            assert_eq!(pledge.amount - bonded_free.amount, bonded_vesting.amount);
+            assert_eq!(
+                pledge.amount().amount - bonded_free.amount,
+                bonded_vesting.amount
+            );
         }
 
         let bonded_free = account
@@ -551,7 +575,7 @@ mod tests {
                 &deps.storage,
             )
             .unwrap();
-        assert_eq!(pledge.amount, bonded_free.amount);
+        assert_eq!(pledge.amount().amount, bonded_free.amount);
 
         let bonded_vesting = account
             .get_pledged_vesting(

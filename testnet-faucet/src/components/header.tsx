@@ -25,9 +25,6 @@ export const Header = () => {
             </Typography>
           )}
         </Grid>
-        <Grid item xs={12} md={6}>
-          <Balance />
-        </Grid>
       </Grid>
     </Box>
   )

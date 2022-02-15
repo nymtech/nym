@@ -33,12 +33,14 @@ export const Form = () => {
     useContext(GlobalContext)
 
   const onSubmit: SubmitHandler<TFormData> = async (data) => {
-    const nymts = getCoinValue(data.amount)
-    await requestTokens({
-      address: data.address,
-      unymts: nymts.toString(),
-      nymts: data.amount,
-    })
+    if (+data.amount < 101) {
+      const nymts = getCoinValue(data.amount)
+      await requestTokens({
+        address: data.address,
+        unymts: nymts.toString(),
+        nymts: data.amount,
+      })
+    }
     resetForm()
   }
 
@@ -60,7 +62,7 @@ export const Form = () => {
         disabled={isSubmitting}
       />
       <TextField
-        label="Amount (NYMT)"
+        label="Amount (max 101 NYMT)"
         fullWidth
         {...register('amount')}
         sx={{ mb: 2 }}

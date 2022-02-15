@@ -7,5 +7,6 @@ export const getCoinValue = (raw: string): number => {
 
 export const validAmount = (amount: string): boolean => {
   if (isNaN(+amount)) return false
+  if (+amount > 101) return false
   return true
 }

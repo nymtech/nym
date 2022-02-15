@@ -2,6 +2,7 @@ import { createContext, useEffect, useState } from 'react'
 import ClientValidator, {
   nativeToPrintable,
 } from '@nymproject/nym-validator-client'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 
 export const urls = {
   blockExplorer: 'https://sandbox-blocks.nymtech.net',
@@ -25,7 +26,8 @@ type TGlobalContext = {
 
 export const GlobalContext = createContext({} as TGlobalContext)
 
-const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } = process.env
+const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } =
+  process.env
 
 export enum EnumRequestType {
   balance = 'balance',
@@ -57,6 +59,8 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     )
     setValidator(Validator)
   }
+
+  const [lsState, setLsState] = useLocalStorage<boolean>('hasUsedFaucet', false)
 
   useEffect(() => {
     if (loadingState.isLoading) {
@@ -95,16 +99,23 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     nymts: string
   }) => {
     setTokenTransfer(undefined)
-    setLoadingState({ isLoading: true, requestType: EnumRequestType.tokens })
-    try {
-      await validator?.send(ACCOUNT_ADDRESS, address, [
-        { amount: unymts, denom: 'unymt' },
-      ])
-      setTokenTransfer({ address, amount: nymts })
-    } catch (e) {
-      setError(`An error occured during the transfer request: ${e}`)
-    } finally {
-      setLoadingState({ isLoading: false, requestType: undefined })
+    if (!lsState) {
+      setLoadingState({ isLoading: true, requestType: EnumRequestType.tokens })
+      try {
+        await validator?.send(ACCOUNT_ADDRESS, address, [
+          { amount: unymts, denom: 'unymt' },
+        ])
+        setTokenTransfer({ address, amount: nymts })
+        setLsState(true)
+      } catch (e) {
+        setError(
+          'The faucet is currently running dry. Please try again in a minute.'
+        )
+      } finally {
+        setLoadingState({ isLoading: false, requestType: undefined })
+      }
+    } else {
+      setError('Funds are no longer available')
     }
   }
 
@@ -123,3 +134,5 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     </GlobalContext.Provider>
   )
 }
+
+// 1 min > 101 nymt

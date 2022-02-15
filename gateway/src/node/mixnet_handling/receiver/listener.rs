@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
+use crate::node::storage::Storage;
 use log::*;
 use std::net::SocketAddr;
 use std::process;
@@ -17,7 +18,10 @@ impl Listener {
         Listener { address }
     }
 
-    pub(crate) async fn run(&mut self, connection_handler: ConnectionHandler) {
+    pub(crate) async fn run<S>(&mut self, connection_handler: ConnectionHandler<S>)
+    where
+        S: Storage + 'static,
+    {
         info!("Starting mixnet listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
@@ -38,7 +42,10 @@ impl Listener {
         }
     }
 
-    pub(crate) fn start(mut self, connection_handler: ConnectionHandler) -> JoinHandle<()> {
+    pub(crate) fn start<S>(mut self, connection_handler: ConnectionHandler<S>) -> JoinHandle<()>
+    where
+        S: Storage + 'static,
+    {
         info!("Running mix listener on {:?}", self.address.to_string());
 
         tokio::spawn(async move { self.run(connection_handler).await })

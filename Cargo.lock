@@ -3847,6 +3847,7 @@ name = "nym-gateway"
 version = "0.12.1"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bandwidth-claim-contract",
  "bip39",
  "bs58",

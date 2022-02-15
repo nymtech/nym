@@ -7,7 +7,7 @@ use crate::config::Config;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
-use crate::node::storage::PersistentStorage;
+use crate::node::storage::Storage;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
@@ -29,19 +29,25 @@ pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
 pub(crate) mod storage;
 
-pub struct Gateway {
+pub(crate) struct Gateway<S: Storage> {
     config: Config,
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     sphinx_keypair: Arc<encryption::KeyPair>,
-    storage: PersistentStorage,
+    storage: S,
 }
 
-impl Gateway {
+impl<S> Gateway<S>
+where
+    S: Storage + 'static,
+{
+    /// Construct from the given `Config` instance.
+    // TODO: consider extracting out the storage construction from `Gateway` to uncouple further.
+    // That would probably also mean removing the `init` function from the `Storage` trait.
     pub async fn new(config: Config) -> Self {
-        let storage = Self::initialise_storage(&config).await;
         let pathfinder = GatewayPathfinder::new_from_config(&config);
+        let storage = Self::initialise_storage(&config).await;
 
         Gateway {
             config,
@@ -51,10 +57,25 @@ impl Gateway {
         }
     }
 
-    async fn initialise_storage(config: &Config) -> PersistentStorage {
+    #[cfg(test)]
+    pub async fn new_from_keys_and_storage(
+        config: Config,
+        identity_keypair: identity::KeyPair,
+        sphinx_keypair: encryption::KeyPair,
+        storage: S,
+    ) -> Self {
+        Gateway {
+            config,
+            identity_keypair: Arc::new(identity_keypair),
+            sphinx_keypair: Arc::new(sphinx_keypair),
+            storage,
+        }
+    }
+
+    async fn initialise_storage(config: &Config) -> S {
         let path = config.get_persistent_store_path();
         let retrieval_limit = config.get_message_retrieval_limit();
-        match PersistentStorage::init(path, retrieval_limit).await {
+        match S::init(path, retrieval_limit).await {
             Err(err) => panic!("failed to initialise gateway storage - {}", err),
             Ok(storage) => storage,
         }

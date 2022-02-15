@@ -3,7 +3,7 @@
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
-use crate::node::storage::PersistentStorage;
+use crate::node::storage::Storage;
 use crypto::asymmetric::identity;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
@@ -52,12 +52,14 @@ impl Listener {
 
     // TODO: change the signature to pub(crate) async fn run(&self, handler: Handler)
 
-    pub(crate) async fn run(
+    pub(crate) async fn run<S>(
         &mut self,
         outbound_mix_sender: MixForwardingSender,
-        storage: PersistentStorage,
+        storage: S,
         active_clients_store: ActiveClientsStore,
-    ) {
+    ) where
+        S: Storage + 'static,
+    {
         info!("Starting websocket listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
@@ -93,12 +95,15 @@ impl Listener {
         }
     }
 
-    pub(crate) fn start(
+    pub(crate) fn start<S>(
         mut self,
         outbound_mix_sender: MixForwardingSender,
-        storage: PersistentStorage,
+        storage: S,
         active_clients_store: ActiveClientsStore,
-    ) -> JoinHandle<()> {
+    ) -> JoinHandle<()>
+    where
+        S: Storage + 'static,
+    {
         tokio::spawn(async move {
             self.run(outbound_mix_sender, storage, active_clients_store)
                 .await

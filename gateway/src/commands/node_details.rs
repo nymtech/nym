@@ -1,7 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{config::Config, node::Gateway};
+use crate::{
+    config::Config,
+    node::{storage::PersistentStorage, Gateway},
+};
 use clap::Args;
 use config::NymConfig;
 use log::error;
@@ -26,5 +29,7 @@ pub async fn execute(args: &NodeDetails) {
         }
     };
 
-    Gateway::new(config).await.print_node_details();
+    Gateway::<PersistentStorage>::new(config)
+        .await
+        .print_node_details();
 }

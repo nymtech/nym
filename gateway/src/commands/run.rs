@@ -4,7 +4,7 @@
 use crate::{
     commands::{override_config, version_check, OverrideConfig},
     config::Config,
-    node::Gateway,
+    node::{storage::PersistentStorage, Gateway},
 };
 use clap::Args;
 use config::NymConfig;
@@ -68,7 +68,6 @@ pub struct Run {
 impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
-            id: run_config.id,
             host: run_config.host,
             wallet_address: run_config.wallet_address,
             mix_port: run_config.mix_port,
@@ -133,7 +132,7 @@ pub async fn execute(args: &Run) {
         show_binding_warning(config.get_listening_address().to_string());
     }
 
-    let mut gateway = Gateway::new(config).await;
+    let mut gateway = Gateway::<PersistentStorage>::new(config).await;
     println!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");

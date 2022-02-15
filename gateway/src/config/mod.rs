@@ -416,11 +416,11 @@ impl Default for Gateway {
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Logging {}
+struct Logging {}
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct Debug {
+struct Debug {
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
     #[serde(with = "humantime_serde")]

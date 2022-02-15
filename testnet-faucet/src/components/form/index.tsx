@@ -12,7 +12,7 @@ import { useForm, SubmitHandler } from 'react-hook-form'
 import { validationSchema } from './validationSchema'
 import { getCoinValue } from '../../utils'
 import { EnumRequestType, GlobalContext } from '../../context'
-import { TokenTransfer } from '../token-transfer'
+import { TokenTransferComplete } from '../token-transfer'
 
 type TFormData = {
   address: string
@@ -32,8 +32,7 @@ export const Form = ({ withInputField }: { withInputField?: boolean }) => {
     defaultValues: { address: '', amount: '101' },
   })
 
-  const { requestTokens, loadingState, tokenTransfer, error } =
-    useContext(GlobalContext)
+  const { requestTokens, loadingState, error } = useContext(GlobalContext)
 
   const resetForm = () => {
     setValue('address', '')
@@ -99,12 +98,7 @@ export const Form = ({ withInputField }: { withInputField?: boolean }) => {
         </Button>
       </Box>
       {error && <Alert severity="error">{error}</Alert>}
-      {tokenTransfer && (
-        <TokenTransfer
-          address={tokenTransfer.address}
-          amount={tokenTransfer.amount}
-        />
-      )}
+      <TokenTransferComplete />
     </Box>
   )
 }

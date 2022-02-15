@@ -1,8 +1,8 @@
-all: clippy-all test wasm fmt
-happy: clippy-happy test fmt
+test: fmt clippy-all test wasm
+happy: fmt clippy-happy test
 clippy-all: clippy-all-main clippy-all-contracts clippy-all-wallet
 clippy-happy: clippy-happy-main clippy-happy-contracts clippy-happy-wallet
-test: test-main test-contracts test-wallet
+cargo-test: test-main test-contracts test-wallet
 fmt: fmt-main fmt-contracts fmt-wallet
 
 clippy-happy-main:

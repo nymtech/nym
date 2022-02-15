@@ -19,7 +19,7 @@ type TFormData = {
   amount: string
 }
 
-export const Form = () => {
+export const Form = ({ withInputField }: { withInputField?: boolean }) => {
   const matches = useMediaQuery('(max-width:500px)')
 
   const {
@@ -27,26 +27,27 @@ export const Form = () => {
     handleSubmit,
     setValue,
     formState: { errors, isSubmitting },
-  } = useForm({ resolver: yupResolver(validationSchema) })
+  } = useForm({
+    resolver: yupResolver(validationSchema),
+    defaultValues: { address: '', amount: '101' },
+  })
 
   const { requestTokens, loadingState, tokenTransfer, error } =
     useContext(GlobalContext)
 
-  const onSubmit: SubmitHandler<TFormData> = async (data) => {
-    if (+data.amount < 101) {
-      const nymts = getCoinValue(data.amount)
-      await requestTokens({
-        address: data.address,
-        unymts: nymts.toString(),
-        nymts: data.amount,
-      })
-    }
-    resetForm()
-  }
-
   const resetForm = () => {
     setValue('address', '')
-    setValue('amount', '')
+    setValue('amount', '101')
+  }
+
+  const onSubmit: SubmitHandler<TFormData> = async (data) => {
+    const nymts = getCoinValue(data.amount)
+    await requestTokens({
+      address: data.address,
+      unymts: nymts.toString(),
+      nymts: data.amount,
+    })
+    resetForm()
   }
 
   return (
@@ -61,16 +62,18 @@ export const Form = () => {
         data-testid="address"
         disabled={isSubmitting}
       />
+
       <TextField
         label="Amount (max 101 NYMT)"
         fullWidth
         {...register('amount')}
-        sx={{ mb: 2 }}
+        sx={{ mb: 2, display: withInputField ? 'block' : 'none' }}
         helperText={errors?.amount?.message}
         error={!!errors.amount}
         data-testid={'punk-amounts'}
         disabled={isSubmitting}
       />
+
       <Box
         sx={{
           mb: 5,
@@ -92,7 +95,7 @@ export const Form = () => {
           disabled={loadingState.isLoading}
           data-testid="request-token-button"
         >
-          Request Tokens
+          Request 101 NYMT
         </Button>
       </Box>
       {error && <Alert severity="error">{error}</Alert>}

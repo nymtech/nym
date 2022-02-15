@@ -3,6 +3,7 @@ import ClientValidator, {
   nativeToPrintable,
 } from '@nymproject/nym-validator-client'
 import { useLocalStorage } from '../hooks/useLocalStorage'
+import { handleError } from '../utils'
 
 export const urls = {
   blockExplorer: 'https://sandbox-blocks.nymtech.net',
@@ -63,18 +64,12 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
   const [lsState, setLsState] = useLocalStorage<boolean>('hasUsedFaucet', false)
 
   useEffect(() => {
-    if (loadingState.isLoading) {
-      setError(undefined)
-    }
-  }, [loadingState])
-
-  useEffect(() => {
     getValidator()
   }, [])
 
   useEffect(() => {
-    if (validator || tokenTransfer) getBalance()
-  }, [validator, tokenTransfer])
+    if (error) console.error(error)
+  }, [error])
 
   const getBalance = async () => {
     setLoadingState({ isLoading: true, requestType: EnumRequestType.balance })
@@ -89,6 +84,15 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     }
   }
 
+  useEffect(() => {
+    if (validator || tokenTransfer) getBalance()
+  }, [validator, tokenTransfer])
+
+  const resetGlobalState = () => {
+    setError(undefined)
+    setTokenTransfer(undefined)
+  }
+
   const requestTokens = async ({
     address,
     unymts,
@@ -98,9 +102,9 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     unymts: string
     nymts: string
   }) => {
-    setTokenTransfer(undefined)
+    resetGlobalState()
+    setLoadingState({ isLoading: true, requestType: EnumRequestType.tokens })
     if (!lsState) {
-      setLoadingState({ isLoading: true, requestType: EnumRequestType.tokens })
       try {
         await validator?.send(ACCOUNT_ADDRESS, address, [
           { amount: unymts, denom: 'unymt' },
@@ -108,15 +112,13 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
         setTokenTransfer({ address, amount: nymts })
         setLsState(true)
       } catch (e) {
-        setError(
-          'The faucet is currently running dry. Please try again in a minute.'
-        )
-      } finally {
-        setLoadingState({ isLoading: false, requestType: undefined })
+        console.log(e)
+        setError(handleError(e as Error))
       }
     } else {
-      setError('Funds are no longer available')
+      setError('Tokens are no longer available')
     }
+    setLoadingState({ isLoading: false, requestType: undefined })
   }
 
   return (
@@ -134,5 +136,3 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     </GlobalContext.Provider>
   )
 }
-
-// 1 min > 101 nymt

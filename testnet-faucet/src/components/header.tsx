@@ -1,6 +1,5 @@
 import { Grid, Typography, useMediaQuery } from '@mui/material'
 import { Box } from '@mui/system'
-import { Balance } from './balance'
 
 export const Header = () => {
   const matches = useMediaQuery('(min-width: 500px)')

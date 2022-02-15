@@ -248,8 +248,6 @@ where
             &self.client.shared_keys,
             iv,
         )?;
-        debug!("Received bandwidth increase request.");
-        debug!("Verifying the credential refers to this gateway");
         if !self
             .inner
             .check_local_identity(&credential.gateway_identity())
@@ -257,7 +255,6 @@ where
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
 
-        debug!("Verifying signature");
         if !credential.verify_signature() {
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
@@ -267,7 +264,6 @@ where
             .erc20_bridge
             .verify_eth_events(credential.verification_key())
             .await?;
-        debug!("Check that the gateway owner is the one that's getting paid...");
         self.inner
             .erc20_bridge
             .verify_gateway_owner(gateway_owner, &credential.gateway_identity())
@@ -290,7 +286,6 @@ where
 
         self.increase_bandwidth(bandwidth_value as i64).await?;
         let available_total = self.get_available_bandwidth().await?;
-        println!("Increased bandwidth for client: {:?}", self.client.address);
 
         Ok(ServerResponse::Bandwidth { available_total })
     }

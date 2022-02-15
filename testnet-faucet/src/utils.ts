@@ -1,6 +1,6 @@
 import { printableBalanceToNative } from '@nymproject/nym-validator-client/dist/currency'
 
-export const getCoinValue = (raw: string): number => {
+export const majorToMinor = (raw: string): number => {
   const native = printableBalanceToNative(raw)
   return parseInt(native)
 }

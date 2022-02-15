@@ -10,7 +10,7 @@ import { Box } from '@mui/system'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm, SubmitHandler } from 'react-hook-form'
 import { validationSchema } from './validationSchema'
-import { getCoinValue } from '../../utils'
+import { majorToMinor } from '../../utils'
 import { EnumRequestType, GlobalContext } from '../../context'
 import { TokenTransferComplete } from '../token-transfer'
 
@@ -40,10 +40,10 @@ export const Form = ({ withInputField }: { withInputField?: boolean }) => {
   }
 
   const onSubmit: SubmitHandler<TFormData> = async (data) => {
-    const nymts = getCoinValue(data.amount)
+    const unymts = majorToMinor(data.amount)
     await requestTokens({
       address: data.address,
-      unymts: nymts.toString(),
+      unymts: unymts.toString(),
       nymts: data.amount,
     })
     resetForm()

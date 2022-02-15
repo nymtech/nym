@@ -1,5 +1,6 @@
 import { Grid, Typography, useMediaQuery } from '@mui/material'
 import { Box } from '@mui/system'
+import { Balance } from './balance'
 
 export const Header = () => {
   const matches = useMediaQuery('(min-width: 500px)')
@@ -23,6 +24,9 @@ export const Header = () => {
               Tokens to your address
             </Typography>
           )}
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Balance />
         </Grid>
       </Grid>
     </Box>

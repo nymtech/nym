@@ -5,6 +5,9 @@ import ClientValidator, {
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { handleError } from '../utils'
 
+const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } =
+  process.env
+
 export const urls = {
   blockExplorer: 'https://sandbox-blocks.nymtech.net',
 }
@@ -23,22 +26,20 @@ type TGlobalContext = {
   balance?: string
   tokenTransfer?: { address: string; amount: string }
   error?: string
-}
-
-export const GlobalContext = createContext({} as TGlobalContext)
-
-const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } =
-  process.env
-
-export enum EnumRequestType {
-  balance = 'balance',
-  tokens = 'tokens',
+  hasMadePreviousRequest: boolean
 }
 
 type TLoadingState = {
   isLoading: boolean
   requestType?: EnumRequestType
 }
+
+export enum EnumRequestType {
+  balance = 'balance',
+  tokens = 'tokens',
+}
+
+export const GlobalContext = createContext({} as TGlobalContext)
 
 export const GlobalContextProvider: React.FC = ({ children }) => {
   const [validator, setValidator] = useState<ClientValidator>()
@@ -61,8 +62,6 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     setValidator(Validator)
   }
 
-  const [lsState, setLsState] = useLocalStorage<boolean>('hasUsedFaucet', false)
-
   useEffect(() => {
     getValidator()
   }, [])
@@ -70,6 +69,9 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
   useEffect(() => {
     if (error) console.error(error)
   }, [error])
+
+  const [hasMadePreviousRequest, setHasMadePreviousRequest] =
+    useLocalStorage<boolean>('hasUsedFaucet', false)
 
   const getBalance = async () => {
     setLoadingState({ isLoading: true, requestType: EnumRequestType.balance })
@@ -104,20 +106,21 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
   }) => {
     resetGlobalState()
     setLoadingState({ isLoading: true, requestType: EnumRequestType.tokens })
-    if (!lsState) {
+
+    if (!hasMadePreviousRequest) {
       try {
         await validator?.send(ACCOUNT_ADDRESS, address, [
           { amount: unymts, denom: 'unymt' },
         ])
         setTokenTransfer({ address, amount: nymts })
-        setLsState(true)
+        setHasMadePreviousRequest(true)
       } catch (e) {
-        console.log(e)
         setError(handleError(e as Error))
       }
     } else {
       setError('Tokens are no longer available')
     }
+
     setLoadingState({ isLoading: false, requestType: undefined })
   }
 
@@ -130,6 +133,7 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
         balance,
         tokenTransfer,
         error,
+        hasMadePreviousRequest,
       }}
     >
       {children}

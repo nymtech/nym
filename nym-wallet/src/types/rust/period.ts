@@ -1,0 +1,1 @@
+export type Period = "Before" | number | "After";

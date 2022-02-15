@@ -10,7 +10,7 @@ use mixnet_contract_common::events::new_settings_update_event;
 use mixnet_contract_common::ContractStateParams;
 
 pub(crate) fn try_update_contract_settings(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     info: MessageInfo,
     params: ContractStateParams,
 ) -> Result<Response, ContractError> {
@@ -63,7 +63,6 @@ pub mod tests {
             minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: 100,
             mixnode_active_set_size: 50,
-            active_set_work_factor: 10,
         };
 
         let initial_params = storage::CONTRACT_STATE

@@ -1,4 +1,5 @@
 use serde::{Serialize, Serializer};
+use std::io;
 use thiserror::Error;
 use validator_client::nymd::error::NymdError;
 use validator_client::validator_api::error::ValidatorAPIError;
@@ -35,6 +36,25 @@ pub enum BackendError {
     #[from]
     source: ValidatorAPIError,
   },
+  #[error("{source}")]
+  KeyDerivationError {
+    #[from]
+    source: argon2::Error,
+  },
+  #[error("{source}")]
+  IOError {
+    #[from]
+    source: io::Error,
+  },
+  #[error("{source}")]
+  SerdeJsonError {
+    #[from]
+    source: serde_json::Error,
+  },
+  #[error("failed to encrypt the given data with the provided password")]
+  EncryptionError,
+  #[error("failed to decrypt the given data with the provided password")]
+  DecryptionError,
   #[error("Client has not been initialized yet, connect with mnemonic to initialize")]
   ClientNotInitialized,
   #[error("No balance available for address {0}")]
@@ -43,6 +63,8 @@ pub enum BackendError {
   InvalidDenom(String),
   #[error("The provided network is not supported (yet)")]
   NetworkNotSupported(config::defaults::all::Network),
+  #[error("Could not access the local data storage directory")]
+  UnknownStorageDirectory,
 }
 
 impl Serialize for BackendError {
@@ -50,6 +72,6 @@ impl Serialize for BackendError {
   where
     S: Serializer,
   {
-    serializer.serialize_str(&self.to_string())
+    serializer.collect_str(self)
   }
 }

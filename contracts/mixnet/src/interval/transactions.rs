@@ -10,7 +10,7 @@ use mixnet_contract_common::events::{new_advance_interval_event, new_change_rewa
 use mixnet_contract_common::IdentityKey;
 
 pub fn try_write_rewarded_set(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     rewarded_set: Vec<IdentityKey>,
@@ -42,10 +42,10 @@ pub fn try_write_rewarded_set(
     let last_update = storage::CURRENT_REWARDED_SET_HEIGHT.load(deps.storage)?;
     let block_height = env.block.height;
 
-    if last_update + crate::contract::REWARDED_SET_REFRESH_BLOCKS > block_height {
+    if last_update + crate::constants::REWARDED_SET_REFRESH_BLOCKS > block_height {
         return Err(ContractError::TooFrequentRewardedSetUpdate {
             last_update,
-            minimum_delay: crate::contract::REWARDED_SET_REFRESH_BLOCKS,
+            minimum_delay: crate::constants::REWARDED_SET_REFRESH_BLOCKS,
             current_height: block_height,
         });
     }
@@ -176,7 +176,7 @@ mod tests {
         assert_eq!(
             Err(ContractError::TooFrequentRewardedSetUpdate {
                 last_update,
-                minimum_delay: crate::contract::REWARDED_SET_REFRESH_BLOCKS,
+                minimum_delay: crate::constants::REWARDED_SET_REFRESH_BLOCKS,
                 current_height: last_update + 1,
             }),
             try_write_rewarded_set(
@@ -189,7 +189,7 @@ mod tests {
         );
 
         // after successful rewarded set write, all internal storage structures are updated appropriately
-        env.block.height = last_update + crate::contract::REWARDED_SET_REFRESH_BLOCKS;
+        env.block.height = last_update + crate::constants::REWARDED_SET_REFRESH_BLOCKS;
         let expected_response = Response::new().add_event(new_change_rewarded_set_event(
             current_state.params.mixnode_active_set_size,
             current_state.params.mixnode_rewarded_set_size,

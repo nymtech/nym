@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { Typography } from '@mui/material'
-import { MAJOR_CURRENCY } from '../context/main'
 import { Operation } from '../types'
 import { getGasFee } from '../requests'
+import { ClientContext } from '../context/main'
 
 export const Fee = ({ feeType }: { feeType: Operation }) => {
   const [fee, setFee] = useState<string>()
+  const {currency} = useContext(ClientContext)
 
   const getFee = async () => {
     const fee = await getGasFee(feeType)
@@ -19,7 +20,7 @@ export const Fee = ({ feeType }: { feeType: Operation }) => {
   if (fee) {
     return (
       <Typography sx={{ color: 'nym.fee', fontWeight: 600 }}>
-        Fee for this transaction: {`${fee} ${MAJOR_CURRENCY}`}{' '}
+        Fee for this transaction: {`${fee} ${currency?.major}`}{' '}
       </Typography>
     )
   }

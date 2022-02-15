@@ -24,7 +24,7 @@ fn calculate_start_value<B: AsRef<[u8]>>(start_after: Option<B>) -> Option<Vec<u
 }
 
 pub fn query_payments_paged(
-    deps: Deps,
+    deps: Deps<'_>,
     start_after: Option<PublicKey>,
     limit: Option<u32>,
 ) -> StdResult<PagedPaymentResponse> {

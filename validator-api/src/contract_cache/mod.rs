@@ -321,7 +321,13 @@ impl ValidatorCacheInner {
             rewarded_set: Cache::default(),
             active_set: Cache::default(),
             current_reward_params: Cache::new(IntervalRewardParams::new_empty()),
-            current_interval: Cache::default(),
+            // setting it to a dummy value on creation is fine, as nothing will be able to ready from it
+            // since 'initialised' flag won't be set
+            current_interval: Cache::new(Interval::new(
+                u32::MAX,
+                OffsetDateTime::UNIX_EPOCH,
+                Duration::default(),
+            )),
         }
     }
 }

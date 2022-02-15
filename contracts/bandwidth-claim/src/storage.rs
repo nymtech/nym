@@ -19,15 +19,15 @@ pub enum Status {
     Spent,
 }
 
-pub fn payments(storage: &mut dyn Storage) -> Bucket<Payment> {
+pub fn payments(storage: &mut dyn Storage) -> Bucket<'_, Payment> {
     bucket(storage, PREFIX_PAYMENTS)
 }
 
-pub fn payments_read(storage: &dyn Storage) -> ReadonlyBucket<Payment> {
+pub fn payments_read(storage: &dyn Storage) -> ReadonlyBucket<'_, Payment> {
     bucket_read(storage, PREFIX_PAYMENTS)
 }
 
-pub fn status(storage: &mut dyn Storage) -> Bucket<Status> {
+pub fn status(storage: &mut dyn Storage) -> Bucket<'_, Status> {
     bucket(storage, PREFIX_STATUS)
 }
 

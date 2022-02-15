@@ -89,23 +89,36 @@ impl Config {
     }
   }
 
-  pub fn get_mixnet_contract_address(&self, network: Network) -> cosmrs::AccountId {
+  pub fn get_mixnet_contract_address(&self, network: Network) -> Option<cosmrs::AccountId> {
     self
       .base
       .networks
       .mixnet_contract_address(network.into())
       .expect("No mixnet contract address found in config")
       .parse()
-      .expect("stored mixnet contract address is not a valid account address")
+      .ok()
   }
 
-  pub fn get_vesting_contract_address(&self, network: Network) -> cosmrs::AccountId {
+  pub fn get_vesting_contract_address(&self, network: Network) -> Option<cosmrs::AccountId> {
     self
       .base
       .networks
       .vesting_contract_address(network.into())
       .expect("No vesting contract address found in config")
       .parse()
-      .expect("stored vesting contract address is not a valid account address")
+      .ok()
+  }
+
+  pub fn get_bandwidth_claim_contract_address(
+    &self,
+    network: Network,
+  ) -> Option<cosmrs::AccountId> {
+    self
+      .base
+      .networks
+      .bandwidth_claim_contract_address(network.into())
+      .expect("No bandwidth claim contract address found in config")
+      .parse()
+      .ok()
   }
 }

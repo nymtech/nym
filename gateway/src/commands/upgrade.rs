@@ -96,7 +96,7 @@ fn parse_package_version() -> Version {
 
 fn minor_0_12_upgrade(
     config: Config,
-    _matches: &ArgMatches,
+    _matches: &ArgMatches<'_>,
     config_version: &Version,
     package_version: &Version,
 ) -> Config {
@@ -128,7 +128,7 @@ fn minor_0_12_upgrade(
     upgraded_config
 }
 
-fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version) {
+fn do_upgrade(mut config: Config, matches: &ArgMatches<'_>, package_version: Version) {
     loop {
         let config_version = parse_config_version(&config);
 

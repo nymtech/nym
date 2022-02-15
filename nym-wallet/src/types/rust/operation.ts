@@ -27,4 +27,5 @@ export type Operation =
   | "CreatePeriodicVestingAccount"
   | "AdvanceCurrentInterval"
   | "WriteRewardedSet"
-  | "ClearRewardedSet";
+  | "ClearRewardedSet"
+  | "UpdateMixnetAddress";

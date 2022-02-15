@@ -80,7 +80,7 @@ fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
     )
 }
 
-pub fn execute(matches: &ArgMatches) {
+pub fn execute(matches: &ArgMatches<'_>) {
     let id = matches.value_of(ID_ARG_NAME).unwrap();
 
     let config = match Config::load_from_file(Some(id)) {

@@ -10,7 +10,7 @@ use mixnet_contract_common::{
 };
 
 pub(crate) fn query_gateways_paged(
-    deps: Deps,
+    deps: Deps<'_>,
     start_after: Option<IdentityKey>,
     limit: Option<u32>,
 ) -> StdResult<PagedGatewayResponse> {
@@ -31,7 +31,7 @@ pub(crate) fn query_gateways_paged(
 }
 
 pub(crate) fn query_owns_gateway(
-    deps: Deps,
+    deps: Deps<'_>,
     address: String,
 ) -> StdResult<GatewayOwnershipResponse> {
     let validated_addr = deps.api.addr_validate(&address)?;

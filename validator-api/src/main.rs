@@ -23,8 +23,6 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use std::process;
 use std::sync::Arc;
 use std::time::Duration;
-use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
 use tokio::sync::Notify;
 use url::Url;
 use validator_client::nymd::SigningNymdClient;
@@ -66,8 +64,6 @@ const ETH_ENDPOINT: &str = "eth_endpoint";
 #[cfg(not(feature = "coconut"))]
 const ETH_PRIVATE_KEY: &str = "eth_private_key";
 
-const INTERVAL_LENGTH_ARG: &str = "interval-length";
-const FIRST_REWARDING_INTERVAL_ARG: &str = "first-interval";
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 
 fn parse_validators(raw: &str) -> Vec<Url> {
@@ -166,20 +162,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name(FIRST_REWARDING_INTERVAL_ARG)
-                .help("Datetime specifying beginning of the first rewarding interval of this length. It must be a valid rfc3339 datetime.")
-                .takes_value(true)
-                .long(FIRST_REWARDING_INTERVAL_ARG)
-                .requires(REWARDING_ENABLED)
-        )
-        .arg(
-            Arg::with_name(INTERVAL_LENGTH_ARG)
-                .help("Length of the current rewarding interval in hours")
-                .takes_value(true)
-                .long(INTERVAL_LENGTH_ARG)
-                .requires(REWARDING_ENABLED)
-        )
-        .arg(
             Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
                 .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.")
                 .takes_value(true)
@@ -251,7 +233,7 @@ fn setup_logging() {
         .init();
 }
 
-fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
+fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
     if matches.is_present(MONITORING_ENABLED) {
         config = config.with_network_monitor_enabled(true)
     }
@@ -281,20 +263,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
 
     if let Some(mnemonic) = matches.value_of(MNEMONIC_ARG) {
         config = config.with_mnemonic(mnemonic)
-    }
-
-    if let Some(rewarding_interval_datetime) = matches.value_of(FIRST_REWARDING_INTERVAL_ARG) {
-        let first_interval = OffsetDateTime::parse(rewarding_interval_datetime, &Rfc3339)
-            .expect("Provided first interval is not a valid rfc3339 datetime!");
-        config = config.with_first_rewarding_interval(first_interval)
-    }
-
-    if let Some(interval_length) = matches
-        .value_of(INTERVAL_LENGTH_ARG)
-        .map(|len| len.parse::<u64>())
-    {
-        let interval_length = interval_length.expect("Provided interval length is not a number!");
-        config = config.with_interval_length(Duration::from_secs(interval_length * 60 * 60));
     }
 
     if let Some(monitor_threshold) = matches
@@ -390,8 +358,7 @@ fn setup_network_monitor<'a>(
     ))
 }
 
-fn expected_monitor_test_runs(config: &Config) -> usize {
-    let interval_length = config.get_interval_length();
+fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usize {
     let test_delay = config.get_network_monitor_run_interval();
 
     // this is just a rough estimate. In real world there will be slightly fewer test runs
@@ -408,12 +375,13 @@ async fn setup_rewarder(
         // get instances of managed states
         let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
         let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
+        let rewarding_interval_length = nymd_client.get_current_interval().await?.length();
 
         Ok(Some(Rewarder::new(
             nymd_client.clone(),
             validator_cache,
             node_status_storage,
-            expected_monitor_test_runs(config),
+            expected_monitor_test_runs(config, rewarding_interval_length),
             config.get_minimum_interval_monitor_threshold(),
         )))
     } else if config.get_rewarding_enabled() {

@@ -2,7 +2,7 @@
 name = "mixnet-contract-common"
 version = "0.1.0"
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -12,7 +12,8 @@ cosmwasm-std = "1.0.0-beta3"
 serde = { version = "1.0", features = ["derive"] }
 serde_repr = "0.1"
 schemars = "0.8"
-ts-rs = { version = "5.1", optional = true }
+# Leaving it as * so that it inherits whatever the wallet is using
+ts-rs = { version = "*", optional = true }
 thiserror = "1.0"
 network-defaults = { path = "../../network-defaults" }
 fixed = { version = "1.1", features = ["serde"] }
@@ -21,6 +22,10 @@ log = "0.4.14"
 time = { version = "0.3.6", features = ["parsing", "formatting"] }
 
 contracts-common = { path = "../contracts-common" }
+
+[dev-dependencies]
+time = { version = "0.3.5", features = ["serde", "macros"] }
+
 
 [features]
 default = []

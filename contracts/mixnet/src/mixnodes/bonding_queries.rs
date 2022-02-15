@@ -9,7 +9,7 @@ use mixnet_contract_common::{
 };
 
 pub fn query_mixnodes_paged(
-    deps: Deps,
+    deps: Deps<'_>,
     start_after: Option<IdentityKey>,
     limit: Option<u32>,
 ) -> StdResult<PagedMixnodeResponse> {
@@ -39,7 +39,7 @@ pub fn query_mixnodes_paged(
     Ok(PagedMixnodeResponse::new(nodes, limit, start_next_after))
 }
 
-pub fn query_owns_mixnode(deps: Deps, address: String) -> StdResult<MixOwnershipResponse> {
+pub fn query_owns_mixnode(deps: Deps<'_>, address: String) -> StdResult<MixOwnershipResponse> {
     let validated_addr = deps.api.addr_validate(&address)?;
     let stored_bond = storage::mixnodes()
         .idx

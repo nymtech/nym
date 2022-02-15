@@ -21,7 +21,7 @@ use bandwidth_claim_contract::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, Quer
 /// `msg` is the contract initialization message, sort of like a constructor call.
 #[entry_point]
 pub fn instantiate(
-    _deps: DepsMut,
+    _deps: DepsMut<'_>,
     _env: Env,
     _info: MessageInfo,
     _msg: InstantiateMsg,
@@ -32,7 +32,7 @@ pub fn instantiate(
 /// Handle an incoming message
 #[entry_point]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -43,7 +43,7 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetPayments { start_after, limit } => {
             to_binary(&queries::query_payments_paged(deps, start_after, limit)?)
@@ -54,7 +54,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
 }
 

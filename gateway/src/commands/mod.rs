@@ -50,7 +50,7 @@ fn parse_validators(raw: &str) -> Vec<Url> {
         .collect()
 }
 
-pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
+pub(crate) fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
     let mut was_host_overridden = false;
     if let Some(host) = matches.value_of(HOST_ARG_NAME) {
         config = config.with_listening_address(host);

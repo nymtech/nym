@@ -1,6 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::{
+    ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, REWARDING_INTERVAL_LENGTH,
+    SYBIL_RESISTANCE_PERCENT,
+};
 use crate::delegations::queries::query_all_network_delegations_paged;
 use crate::delegations::queries::query_delegator_delegations_paged;
 use crate::delegations::queries::query_mixnode_delegation;
@@ -26,13 +30,13 @@ use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status,
 };
 use crate::rewards::storage as rewards_storage;
-
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
 use mixnet_contract_common::{
     ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
 };
+use time::OffsetDateTime;
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_PLEDGE: Uint128 = Uint128::new(100_000_000);
@@ -44,11 +48,10 @@ pub const INITIAL_MIXNODE_REWARDED_SET_SIZE: u32 = 200;
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
 pub const INITIAL_REWARD_POOL: u128 = 250_000_000_000_000;
-pub const INTERVAL_REWARD_PERCENT: u8 = 2; // Used to calculate interval reward pool
-pub const DEFAULT_SYBIL_RESISTANCE_PERCENT: u8 = 30;
-pub const DEFAULT_ACTIVE_SET_WORK_FACTOR: u8 = 10;
+pub const INITIAL_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 
-pub const REWARDED_SET_REFRESH_BLOCKS: u64 = 720; // with blocktime being approximately 5s, it should be roughly 1h
+pub const DEFAULT_FIRST_INTERVAL_START: OffsetDateTime =
+    time::macros::datetime!(2022-01-01 12:00 UTC);
 
 fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> ContractState {
     ContractState {
@@ -59,7 +62,6 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
             minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
-            active_set_work_factor: DEFAULT_ACTIVE_SET_WORK_FACTOR,
         },
     }
 }
@@ -71,18 +73,20 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
 /// `msg` is the contract initialization message, sort of like a constructor call.
 #[entry_point]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let state = default_initial_state(info.sender, rewarding_validator_address);
+    let rewarding_interval =
+        Interval::new(0, DEFAULT_FIRST_INTERVAL_START, REWARDING_INTERVAL_LENGTH);
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
-    interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
+    interval_storage::CURRENT_INTERVAL.save(deps.storage, &rewarding_interval)?;
     interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Response::default())
@@ -91,7 +95,7 @@ pub fn instantiate(
 /// Handle an incoming message
 #[entry_point]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -117,6 +121,16 @@ pub fn execute(
             env,
             info,
             profit_margin_percent,
+        ),
+        ExecuteMsg::UpdateMixnodeConfigOnBehalf {
+            profit_margin_percent,
+            owner,
+        } => crate::mixnodes::transactions::try_update_mixnode_config_on_behalf(
+            deps,
+            env,
+            info,
+            profit_margin_percent,
+            owner,
         ),
         ExecuteMsg::BondGateway {
             gateway,
@@ -233,7 +247,7 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetContractVersion {} => to_binary(&query_contract_version()),
         QueryMsg::GetMixNodes { start_after, limit } => {
@@ -278,7 +292,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
         QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
         QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
         QueryMsg::GetIntervalRewardPercent {} => to_binary(&INTERVAL_REWARD_PERCENT),
-        QueryMsg::GetSybilResistancePercent {} => to_binary(&DEFAULT_SYBIL_RESISTANCE_PERCENT),
+        QueryMsg::GetSybilResistancePercent {} => to_binary(&SYBIL_RESISTANCE_PERCENT),
+        QueryMsg::GetActiveSetWorkFactor {} => to_binary(&ACTIVE_SET_WORK_FACTOR),
         QueryMsg::GetRewardingStatus {
             mix_identity,
             interval_id,
@@ -311,7 +326,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
     Ok(query_res?)
 }
 #[entry_point]
-pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     use cw_storage_plus::Item;
     use serde::{Deserialize, Serialize};
 
@@ -322,30 +337,50 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> Result<Response, Co
        3. removal of rewarding_in_progress field from ContractState
        4. interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
        5. interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
+       6. removal of active_set_work_factor fields from ContractStateParams
     */
+
+    #[derive(Serialize, Deserialize)]
+    pub struct OldContractStateParams {
+        pub minimum_mixnode_pledge: Uint128,
+        pub minimum_gateway_pledge: Uint128,
+        pub mixnode_rewarded_set_size: u32,
+        pub mixnode_active_set_size: u32,
+        pub active_set_work_factor: u8,
+    }
 
     #[derive(Serialize, Deserialize)]
     struct OldContractState {
         pub owner: Addr, // only the owner account can update state
         pub rewarding_validator_address: Addr,
-        pub params: ContractStateParams,
+        pub params: OldContractStateParams,
         pub rewarding_interval_starting_block: u64,
         pub latest_rewarding_interval_nonce: u32,
         pub rewarding_in_progress: bool,
     }
 
-    let old_contract_state: Item<OldContractState> = Item::new("config");
+    let old_contract_state: Item<'_, OldContractState> = Item::new("config");
 
     let old_state = old_contract_state.load(deps.storage)?;
+
+    let new_params = mixnet_contract_common::ContractStateParams {
+        minimum_mixnode_pledge: old_state.params.minimum_mixnode_pledge,
+        minimum_gateway_pledge: old_state.params.minimum_mixnode_pledge,
+        mixnode_rewarded_set_size: old_state.params.mixnode_rewarded_set_size,
+        mixnode_active_set_size: old_state.params.mixnode_active_set_size,
+    };
+
     let new_state = crate::mixnet_contract_settings::models::ContractState {
         owner: old_state.owner,
         rewarding_validator_address: old_state.rewarding_validator_address,
-        params: old_state.params,
+        params: new_params,
     };
+    let rewarding_interval =
+        Interval::new(0, DEFAULT_FIRST_INTERVAL_START, REWARDING_INTERVAL_LENGTH);
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &new_state)?;
 
-    interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
+    interval_storage::CURRENT_INTERVAL.save(deps.storage, &rewarding_interval)?;
     interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Default::default())

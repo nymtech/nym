@@ -111,6 +111,7 @@ impl NymdClient<SigningNymdClient> {
     }
 
     pub fn connect_with_mnemonic<U>(
+        network: config::defaults::all::Network,
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
         vesting_contract_address: Option<AccountId>,
@@ -121,7 +122,8 @@ impl NymdClient<SigningNymdClient> {
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
-        let wallet = DirectSecp256k1HdWallet::from_mnemonic(mnemonic)?;
+        let prefix = network.bech32_prefix();
+        let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?;
         let client_address = wallet
             .try_derive_accounts()?
             .into_iter()
@@ -272,16 +274,6 @@ impl<C> NymdClient<C> {
         self.client.get_balance(address, denom).await
     }
 
-    pub async fn get_mixnet_balance(
-        &self,
-        address: &AccountId,
-    ) -> Result<Option<CosmosCoin>, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.get_balance(address, self.denom()?).await
-    }
-
     pub async fn get_total_supply(&self) -> Result<Vec<Coin>, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -413,6 +405,16 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::GetSybilResistancePercent {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_active_set_work_factor(&self) -> Result<u8, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetActiveSetWorkFactor {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await

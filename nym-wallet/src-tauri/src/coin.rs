@@ -1,6 +1,7 @@
 // This should be moved out of the wallet, and used as a primary coin type throughout the codebase
 
 use crate::error::BackendError;
+use crate::network::Network;
 use ::config::defaults::DENOM;
 use cosmrs::Decimal;
 use cosmrs::Denom as CosmosDenom;
@@ -11,6 +12,7 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
+use strum::IntoEnumIterator;
 use validator_client::nymd::{CosmosCoin, GasPrice};
 
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -36,13 +38,15 @@ impl FromStr for Denom {
 
   fn from_str(s: &str) -> Result<Denom, BackendError> {
     let s = s.to_lowercase();
-    if s == DENOM.to_lowercase() || s == "minor" {
-      Ok(Denom::Minor)
-    } else if s == DENOM[1..].to_lowercase() || s == "major" {
-      Ok(Denom::Major)
-    } else {
-      Err(BackendError::InvalidDenom(s))
+    for network in Network::iter() {
+      let denom = network.denom();
+      if s == denom.as_ref().to_lowercase() || s == "minor" {
+        return Ok(Denom::Minor);
+      } else if s == denom.as_ref()[1..].to_lowercase() || s == "major" {
+        return Ok(Denom::Major);
+      }
     }
+    Err(BackendError::InvalidDenom(s))
   }
 }
 

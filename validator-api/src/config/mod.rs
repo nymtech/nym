@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use config::defaults::{
-    default_api_endpoints, DEFAULT_FIRST_INTERVAL_START, DEFAULT_INTERVAL_LENGTH,
-    DEFAULT_MIXNET_CONTRACT_ADDRESS,
-};
+use config::defaults::{default_api_endpoints, DEFAULT_MIXNET_CONTRACT_ADDRESS};
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
-use time::OffsetDateTime;
 use url::Url;
 
 #[cfg(feature = "coconut")]
@@ -261,14 +257,6 @@ pub struct Rewarding {
     /// Mnemonic (currently of the network monitor) used for rewarding
     mnemonic: String,
 
-    /// Datetime of the first rewarding interval of the current length used for referencing
-    /// starting time of any subsequent interval.
-    first_rewarding_interval: OffsetDateTime,
-
-    /// Current length of the interval. If modified `first_rewarding_interval` should also get changed.
-    #[serde(with = "humantime_serde")]
-    interval_length: Duration,
-
     /// Specifies the minimum percentage of monitor test run data present in order to
     /// distribute rewards for given interval.
     /// Note, only values in range 0-100 are valid
@@ -280,8 +268,6 @@ impl Default for Rewarding {
         Rewarding {
             enabled: false,
             mnemonic: String::default(),
-            first_rewarding_interval: DEFAULT_FIRST_INTERVAL_START,
-            interval_length: DEFAULT_INTERVAL_LENGTH,
             minimum_interval_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
         }
     }
@@ -335,16 +321,6 @@ impl Config {
 
     pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
         self.network_monitor.all_validator_apis = validator_api_urls;
-        self
-    }
-
-    pub fn with_first_rewarding_interval(mut self, first_interval: OffsetDateTime) -> Self {
-        self.rewarding.first_rewarding_interval = first_interval;
-        self
-    }
-
-    pub fn with_interval_length(mut self, interval_length: Duration) -> Self {
-        self.rewarding.interval_length = interval_length;
         self
     }
 
@@ -460,16 +436,6 @@ impl Config {
     #[cfg(feature = "coconut")]
     pub fn get_all_validator_api_endpoints(&self) -> Vec<Url> {
         self.network_monitor.all_validator_apis.clone()
-    }
-
-    // TODO: Is this needed?
-    #[allow(dead_code)]
-    pub fn get_first_rewarding_interval(&self) -> OffsetDateTime {
-        self.rewarding.first_rewarding_interval
-    }
-
-    pub fn get_interval_length(&self) -> Duration {
-        self.rewarding.interval_length
     }
 
     pub fn get_minimum_interval_monitor_threshold(&self) -> u8 {

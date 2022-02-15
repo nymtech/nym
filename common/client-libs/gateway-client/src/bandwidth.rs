@@ -25,9 +25,8 @@ use pemstore::traits::PemStorableKeyPair;
 use rand::rngs::OsRng;
 #[cfg(not(feature = "coconut"))]
 use secp256k1::SecretKey;
-use std::io::Read;
 #[cfg(not(feature = "coconut"))]
-use std::io::Write;
+use std::io::{Read, Write};
 #[cfg(not(feature = "coconut"))]
 use std::str::FromStr;
 #[cfg(not(feature = "coconut"))]

@@ -58,3 +58,5 @@ export type TCurrency = {
   minor: 'UNYM' | 'UNYMT'
   major: 'NYM' | 'NYMT'
 }
+
+export type Period = 'Before' | { In: number } | 'After'

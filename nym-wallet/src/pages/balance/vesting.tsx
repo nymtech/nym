@@ -67,8 +67,8 @@ export const VestingCard = () => {
             </Typography>
           </Grid>
           <Grid item>
-            <Box display="flex" alignItems="center" justifyContent="center">
-              <Typography variant="subtitle2" sx={{ color: 'grey.500' }}>
+            <Box display="flex" alignItems="center" justifyContent="center" sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: 'grey.500', mr: 0.5 }}>
                 Transferable tokens
               </Typography>
               <InfoTooltip title="Unlocked tokens that are available to transfer to your balance" light />

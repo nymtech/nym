@@ -153,7 +153,8 @@ const VestingTable = () => {
           </TableRow>
           <TableRow>
             <TableCell sx={{ borderBottom: 'none' }}>
-              {userBalance.tokenAllocation?.vesting || 'n/a'} {currency?.major}
+              {userBalance.tokenAllocation?.vesting || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
+              {currency?.major}
             </TableCell>
             <TableCell align="left" sx={{ borderBottom: 'none' }}>
               {vestingPeriod(userBalance.currentVestingPeriod, userBalance.originalVesting?.number_of_periods)}
@@ -173,7 +174,8 @@ const VestingTable = () => {
               </Box>
             </TableCell>
             <TableCell sx={{ borderBottom: 'none' }}>
-              {userBalance.tokenAllocation?.vested || 'n/a'} {currency?.major}
+              {userBalance.tokenAllocation?.vested || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
+              {currency?.major}
             </TableCell>
           </TableRow>
         </TableHead>

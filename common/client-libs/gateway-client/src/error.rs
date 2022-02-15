@@ -27,7 +27,7 @@ pub enum GatewayClientError {
     NetworkErrorWasm(JsValue),
 
     #[cfg(not(feature = "coconut"))]
-    #[error("Could not backup keypair - {0}")]
+    #[error("Keypair IO error - {0}")]
     IOError(#[from] std::io::Error),
 
     #[cfg(not(feature = "coconut"))]

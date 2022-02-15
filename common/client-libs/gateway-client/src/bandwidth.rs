@@ -116,9 +116,15 @@ impl BandwidthController {
     fn restore_keypair(&self) -> Result<identity::KeyPair, GatewayClientError> {
         std::fs::create_dir_all(&self.backup_bandwidth_token_keys_dir)?;
         let file = std::fs::read_dir(&self.backup_bandwidth_token_keys_dir)?
+            .filter(|entry| {
+                entry
+                    .as_ref()
+                    .map(|entry| entry.path().is_file())
+                    .unwrap_or(false)
+            })
             .next()
-            .unwrap();
-        let file_path = file?.path();
+            .unwrap_or(Err(std::io::Error::from(std::io::ErrorKind::NotFound)))?;
+        let file_path = file.path();
         let pub_key = file_path.file_name().unwrap().to_str().unwrap();
         let mut priv_key = vec![];
         std::fs::File::open(file_path.clone())?.read_to_end(&mut priv_key)?;
@@ -126,6 +132,20 @@ impl BandwidthController {
             identity::PrivateKey::from_bytes(&priv_key).unwrap(),
             identity::PublicKey::from_base58_string(pub_key).unwrap(),
         ));
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    fn mark_keypair_as_spent(&self, keypair: &identity::KeyPair) -> Result<(), GatewayClientError> {
+        let mut spent_dir = self.backup_bandwidth_token_keys_dir.clone();
+        spent_dir.push("spent");
+        std::fs::create_dir_all(&spent_dir)?;
+        let file_path_old = self
+            .backup_bandwidth_token_keys_dir
+            .join(keypair.public_key().to_base58_string());
+        let file_path_new = spent_dir.join(keypair.public_key().to_base58_string());
+        std::fs::rename(file_path_old, file_path_new)?;
+
+        Ok(())
     }
 
     #[cfg(feature = "coconut")]
@@ -168,17 +188,23 @@ impl BandwidthController {
         gateway_identity: PublicKey,
         gateway_owner: String,
     ) -> Result<TokenCredential, GatewayClientError> {
-        // let mut rng = OsRng;
-        //
-        // let kp = identity::KeyPair::new(&mut rng);
-        // self.backup_keypair(&kp)?;
-
-        let kp = self.restore_keypair()?;
+        let kp = match self.restore_keypair() {
+            Ok(kp) => kp,
+            Err(e) => {
+                log::info!("Could not restore any previous keypair: {}. Creating a new one and saving it to disk.", e);
+                let mut rng = OsRng;
+                let kp = identity::KeyPair::new(&mut rng);
+                self.backup_keypair(&kp)?;
+                kp
+            }
+        };
 
         let verification_key = *kp.public_key();
         let signed_verification_key = kp.private_key().sign(&verification_key.to_bytes());
         self.buy_token_credential(verification_key, signed_verification_key, gateway_owner)
             .await?;
+
+        self.mark_keypair_as_spent(&kp)?;
 
         let message: Vec<u8> = verification_key
             .to_bytes()

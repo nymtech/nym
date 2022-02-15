@@ -29,7 +29,7 @@ export const Balance = () => {
               variant="h6"
               data-testid="punk-balance-message"
             >
-              {balance} PUNKS
+              {balance} NYMT
             </Typography>
           </Typography>
         }

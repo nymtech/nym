@@ -4,18 +4,18 @@ import ClientValidator, {
 } from '@nymproject/nym-validator-client'
 
 export const urls = {
-  blockExplorer: 'https://sanbox-blocks.nymtech.net',
+  blockExplorer: 'https://sandbox-blocks.nymtech.net',
 }
 
 type TGlobalContext = {
   getBalance: () => void
   requestTokens: ({
     address,
-    upunks,
+    unymts,
   }: {
     address: string
-    upunks: string
-    punks: string
+    unymts: string
+    nymts: string
   }) => void
   loadingState: TLoadingState
   balance?: string
@@ -53,7 +53,7 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
       VALIDATOR_ADDRESS,
       MNEMONIC,
       [TESTNET_URL_1],
-      'punk'
+      'nymt'
     )
     setValidator(Validator)
   }
@@ -76,8 +76,8 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     setLoadingState({ isLoading: true, requestType: EnumRequestType.balance })
     try {
       const balance = await validator?.getBalance(ACCOUNT_ADDRESS)
-      const punks = nativeToPrintable(balance?.amount || '')
-      setBalance(punks)
+      const tokens = nativeToPrintable(balance?.amount || '')
+      setBalance(tokens)
     } catch (e) {
       setError(`An error occured while getting the balance: ${e}`)
     } finally {
@@ -87,20 +87,20 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
 
   const requestTokens = async ({
     address,
-    upunks,
-    punks,
+    unymts,
+    nymts,
   }: {
     address: string
-    upunks: string
-    punks: string
+    unymts: string
+    nymts: string
   }) => {
     setTokenTransfer(undefined)
     setLoadingState({ isLoading: true, requestType: EnumRequestType.tokens })
     try {
       await validator?.send(ACCOUNT_ADDRESS, address, [
-        { amount: upunks, denom: 'upunk' },
+        { amount: unymts, denom: 'unymt' },
       ])
-      setTokenTransfer({ address, amount: punks })
+      setTokenTransfer({ address, amount: nymts })
     } catch (e) {
       setError(`An error occured during the transfer request: ${e}`)
     } finally {

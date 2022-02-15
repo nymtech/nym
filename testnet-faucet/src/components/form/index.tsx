@@ -26,20 +26,18 @@ export const Form = () => {
     register,
     handleSubmit,
     setValue,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm({ resolver: yupResolver(validationSchema) })
-
-  console.log(errors)
 
   const { requestTokens, loadingState, tokenTransfer, error } =
     useContext(GlobalContext)
 
   const onSubmit: SubmitHandler<TFormData> = async (data) => {
-    const upunks = getCoinValue(data.amount)
+    const nymts = getCoinValue(data.amount)
     await requestTokens({
       address: data.address,
-      upunks: upunks.toString(),
-      punks: data.amount,
+      unymts: nymts.toString(),
+      nymts: data.amount,
     })
     resetForm()
   }
@@ -55,19 +53,21 @@ export const Form = () => {
         label="Address"
         fullWidth
         {...register('address')}
-        sx={{ mb: 1 }}
+        sx={{ mb: 2 }}
         helperText={errors?.address?.message}
         error={!!errors.address}
         data-testid="address"
+        disabled={isSubmitting}
       />
       <TextField
-        label="Amount (PUNKS)"
+        label="Amount (NYMT)"
         fullWidth
         {...register('amount')}
-        sx={{ mb: 1 }}
+        sx={{ mb: 2 }}
         helperText={errors?.amount?.message}
         error={!!errors.amount}
         data-testid={'punk-amounts'}
+        disabled={isSubmitting}
       />
       <Box
         sx={{

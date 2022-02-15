@@ -21,7 +21,7 @@ export const TokenTransfer = ({
         title={
           <>
             <Typography component="span" variant="h5">
-              Successfully transferred {amount} PUNKS to
+              Successfully transferred {amount} NYMT to
             </Typography>{' '}
             <Link
               target="_blank"

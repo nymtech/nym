@@ -280,7 +280,7 @@ impl<T: NymConfig> Default for Config<T> {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 struct GatewayEndpoint {
     /// gateway_id specifies ID of the gateway to which the client should send messages.
     /// If initially omitted, a random gateway will be chosen from the available topology.
@@ -291,16 +291,6 @@ struct GatewayEndpoint {
 
     /// Address of the gateway listener to which all client requests should be sent.
     gateway_listener: String,
-}
-
-impl Default for GatewayEndpoint {
-    fn default() -> Self {
-        GatewayEndpoint {
-            gateway_id: Default::default(),
-            gateway_owner: Default::default(),
-            gateway_listener: Default::default(),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

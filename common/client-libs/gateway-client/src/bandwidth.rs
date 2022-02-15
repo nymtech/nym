@@ -116,22 +116,21 @@ impl BandwidthController {
     fn restore_keypair(&self) -> Result<identity::KeyPair, GatewayClientError> {
         std::fs::create_dir_all(&self.backup_bandwidth_token_keys_dir)?;
         let file = std::fs::read_dir(&self.backup_bandwidth_token_keys_dir)?
-            .filter(|entry| {
+            .find(|entry| {
                 entry
                     .as_ref()
                     .map(|entry| entry.path().is_file())
                     .unwrap_or(false)
             })
-            .next()
-            .unwrap_or(Err(std::io::Error::from(std::io::ErrorKind::NotFound)))?;
+            .unwrap_or_else(|| Err(std::io::Error::from(std::io::ErrorKind::NotFound)))?;
         let file_path = file.path();
         let pub_key = file_path.file_name().unwrap().to_str().unwrap();
         let mut priv_key = vec![];
         std::fs::File::open(file_path.clone())?.read_to_end(&mut priv_key)?;
-        return Ok(identity::KeyPair::from_keys(
+        Ok(identity::KeyPair::from_keys(
             identity::PrivateKey::from_bytes(&priv_key).unwrap(),
             identity::PublicKey::from_base58_string(pub_key).unwrap(),
-        ));
+        ))
     }
 
     #[cfg(not(feature = "coconut"))]

@@ -34,8 +34,9 @@ use std::str::FromStr;
 use web3::{
     contract::{Contract, Options},
     ethabi::Token,
+    signing::{Key, SecretKeyRef},
     transports::Http,
-    types::{Address, Bytes, U256, U64},
+    types::{Address, U256, U64},
     Web3,
 };
 
@@ -212,17 +213,35 @@ impl BandwidthController {
             "Waiting for Ethereum transaction. This should take about {} seconds",
             confirmations * 15 + 10
         );
+        let mut options = Options::default();
+        let estimation = self
+            .contract
+            .estimate_gas(
+                ETH_BURN_FUNCTION_NAME,
+                (
+                    Token::Uint(U256::from(UTOKENS_TO_BURN)),
+                    Token::Uint(U256::from(&verification_key.to_bytes())),
+                    Token::Bytes(signed_verification_key.to_bytes().to_vec()),
+                    Token::String(gateway_owner.clone()),
+                ),
+                SecretKeyRef::from(&self.eth_private_key).address(),
+                options.clone(),
+            )
+            .await?;
+        options.gas = Some(estimation);
+        log::info!("Calling ETH function in 10 seconds with an estimated gas of {}. Kill the process if you want to abort", estimation);
+        std::thread::sleep(std::time::Duration::from_secs(10));
         let recipt = self
             .contract
             .signed_call_with_confirmations(
                 ETH_BURN_FUNCTION_NAME,
                 (
-                    U256::from(UTOKENS_TO_BURN),
-                    U256::from(&verification_key.to_bytes()),
-                    Bytes(signed_verification_key.to_bytes().to_vec()),
+                    Token::Uint(U256::from(UTOKENS_TO_BURN)),
+                    Token::Uint(U256::from(&verification_key.to_bytes())),
+                    Token::Bytes(signed_verification_key.to_bytes().to_vec()),
                     Token::String(gateway_owner),
                 ),
-                Options::default(),
+                options,
                 confirmations,
                 &self.eth_private_key,
             )

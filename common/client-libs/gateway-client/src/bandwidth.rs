@@ -232,10 +232,10 @@ impl BandwidthController {
         } else {
             ETH_MIN_BLOCK_DEPTH
         };
-        // 15 seconds per confirmation block + 10 seconds of network overhead
+        // 15 seconds per confirmation block + 10 seconds of network overhead + 10 seconds of wait for kill
         log::info!(
             "Waiting for Ethereum transaction. This should take about {} seconds",
-            confirmations * 15 + 10
+            confirmations * 15 + 20
         );
         let mut options = Options::default();
         let estimation = self

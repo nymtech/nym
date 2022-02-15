@@ -1,9 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::*;
 use crate::config::Config;
 use crate::node::MixNode;
+use clap::Args;
 use config::NymConfig;
 
 #[derive(Args)]

@@ -1,27 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(feature = "nymd-client")]
-use crate::nymd::{
-    error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
-};
-#[cfg(feature = "nymd-client")]
-use mixnet_contract_common::ContractStateParams;
-
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-#[cfg(feature = "nymd-client")]
-use mixnet_contract_common::{
-    Delegation, Interval, MixnetContractVersion, MixnodeRewardingStatusResponse,
-};
-use mixnet_contract_common::{
-    GatewayBond, IdentityKey, IdentityKeyRef, MixNodeBond, RewardedSetNodeStatus,
-    RewardedSetUpdateDetails,
-};
-
-use std::collections::{HashMap, HashSet};
-#[cfg(feature = "nymd-client")]
-use std::str::FromStr;
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use url::Url;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
@@ -29,8 +11,26 @@ use validator_api_requests::models::{
 };
 
 #[cfg(feature = "nymd-client")]
+use crate::nymd::{
+    error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
+};
+#[cfg(feature = "nymd-client")]
+use mixnet_contract_common::ContractStateParams;
+
+#[cfg(feature = "nymd-client")]
+use mixnet_contract_common::{
+    Delegation, IdentityKey, Interval, MixnetContractVersion, MixnodeRewardingStatusResponse,
+    RewardedSetNodeStatus, RewardedSetUpdateDetails,
+};
+#[cfg(feature = "nymd-client")]
+use std::collections::{HashMap, HashSet};
+#[cfg(feature = "nymd-client")]
+use std::str::FromStr;
+
+#[cfg(feature = "nymd-client")]
 #[must_use]
 pub struct Config {
+    network: network_defaults::all::Network,
     api_url: Url,
     nymd_url: Url,
     mixnet_contract_address: Option<cosmrs::AccountId>,
@@ -45,12 +45,14 @@ pub struct Config {
 #[cfg(feature = "nymd-client")]
 impl Config {
     pub fn new(
+        network: network_defaults::all::Network,
         nymd_url: Url,
         api_url: Url,
         mixnet_contract_address: Option<cosmrs::AccountId>,
         vesting_contract_address: Option<cosmrs::AccountId>,
     ) -> Self {
         Config {
+            network,
             nymd_url,
             mixnet_contract_address,
             vesting_contract_address,
@@ -85,6 +87,7 @@ impl Config {
 
 #[cfg(feature = "nymd-client")]
 pub struct Client<C> {
+    network: network_defaults::all::Network,
     mixnet_contract_address: Option<cosmrs::AccountId>,
     vesting_contract_address: Option<cosmrs::AccountId>,
     mnemonic: Option<bip39::Mnemonic>,
@@ -107,6 +110,7 @@ impl Client<SigningNymdClient> {
     ) -> Result<Client<SigningNymdClient>, ValidatorClientError> {
         let validator_api_client = validator_api::Client::new(config.api_url.clone());
         let nymd_client = NymdClient::connect_with_mnemonic(
+            config.network,
             config.nymd_url.as_str(),
             config.mixnet_contract_address.clone(),
             config.vesting_contract_address.clone(),
@@ -115,6 +119,7 @@ impl Client<SigningNymdClient> {
         )?;
 
         Ok(Client {
+            network: config.network,
             mixnet_contract_address: config.mixnet_contract_address,
             vesting_contract_address: config.vesting_contract_address,
             mnemonic: Some(mnemonic),
@@ -129,6 +134,7 @@ impl Client<SigningNymdClient> {
 
     pub fn change_nymd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
         self.nymd = NymdClient::connect_with_mnemonic(
+            self.network,
             new_endpoint.as_ref(),
             self.mixnet_contract_address.clone(),
             self.vesting_contract_address.clone(),
@@ -156,6 +162,7 @@ impl Client<QueryNymdClient> {
         )?;
 
         Ok(Client {
+            network: config.network,
             mixnet_contract_address: config.mixnet_contract_address,
             vesting_contract_address: config.vesting_contract_address,
             mnemonic: None,

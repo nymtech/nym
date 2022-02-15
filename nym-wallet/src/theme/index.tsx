@@ -17,3 +17,13 @@ export const NymWalletTheme: React.FC = ({ children }) => {
     </ThemeProvider>
   )
 }
+
+export const WelcomeTheme: React.FC = ({ children }) => {
+  const theme = createTheme(getDesignTokens('dark'))
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      {children}
+    </ThemeProvider>
+  )
+}

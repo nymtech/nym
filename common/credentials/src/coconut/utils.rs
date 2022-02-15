@@ -28,7 +28,7 @@ use crate::error::Error;
 /// use credentials::obtain_aggregate_verification_key;
 ///
 /// async fn example() -> Result<(), ParseError> {
-///     let validators = vec!["https://testnet-milhon-validator1.nymtech.net/api".parse()?, "https://testnet-milhon-validator2.nymtech.net/api".parse()?];
+///     let validators = vec!["https://sandbox-validator1.nymtech.net/api".parse()?, "https://sandbox-validator2.nymtech.net/api".parse()?];
 ///     let aggregated_key = obtain_aggregate_verification_key(&validators).await;
 ///     // deal with the obtained Result
 ///     Ok(())

@@ -12,7 +12,7 @@ use mixnet_contract_common::{
 
 pub(crate) fn update_post_rewarding_storage(
     storage: &mut dyn Storage,
-    mix_identity: IdentityKeyRef,
+    mix_identity: IdentityKeyRef<'_>,
     operator_reward: Uint128,
     delegators_reward: Uint128,
 ) -> Result<(), ContractError> {

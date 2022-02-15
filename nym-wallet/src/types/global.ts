@@ -53,3 +53,8 @@ export type TMixnodeBondDetails = {
   mix_node: MixNode
   proxy: any
 }
+
+export type TCurrency = {
+  minor: 'unym' | 'unymt'
+  major: 'nym' | 'nymt'
+}

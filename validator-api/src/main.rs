@@ -233,7 +233,7 @@ fn setup_logging() {
         .init();
 }
 
-fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
+fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
     if matches.is_present(MONITORING_ENABLED) {
         config = config.with_network_monitor_enabled(true)
     }

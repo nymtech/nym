@@ -32,7 +32,7 @@ fn parse_validators(raw: &str) -> Vec<Url> {
         .collect()
 }
 
-pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
+pub(crate) fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
     if let Some(raw_validators) = matches.value_of("validators") {
         config
             .get_base_mut()

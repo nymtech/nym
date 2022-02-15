@@ -9,7 +9,7 @@ authors = [
     "Jędrzej Stuczyński <andrew@nymtech.net>",
     "Drazen Urch <durch@users.noreply.github.com>",
 ]
-edition = "2018"
+edition = "2021"
 rust-version = "1.56"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -10,7 +10,7 @@ use mixnet_contract_common::events::{new_advance_interval_event, new_change_rewa
 use mixnet_contract_common::IdentityKey;
 
 pub fn try_write_rewarded_set(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     rewarded_set: Vec<IdentityKey>,

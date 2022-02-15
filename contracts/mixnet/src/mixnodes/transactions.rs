@@ -9,14 +9,15 @@ use crate::mixnodes::storage::StoredMixnodeBond;
 use crate::support::helpers::{ensure_no_existing_bond, validate_node_identity_signature};
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
+    wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
 };
 use mixnet_contract_common::events::{new_mixnode_bonding_event, new_mixnode_unbonding_event};
 use mixnet_contract_common::MixNode;
-use vesting_contract::messages::ExecuteMsg as VestingContractExecuteMsg;
+use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
+use vesting_contract_common::one_ucoin;
 
 pub fn try_add_mixnode(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     mix_node: MixNode,
@@ -41,7 +42,7 @@ pub fn try_add_mixnode(
 }
 
 pub fn try_add_mixnode_on_behalf(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     mix_node: MixNode,
@@ -68,7 +69,7 @@ pub fn try_add_mixnode_on_behalf(
 }
 
 fn _try_add_mixnode(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     mix_node: MixNode,
     pledge_amount: Coin,
@@ -143,7 +144,7 @@ fn _try_add_mixnode(
 }
 
 pub fn try_remove_mixnode_on_behalf(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, ContractError> {
@@ -151,12 +152,12 @@ pub fn try_remove_mixnode_on_behalf(
     _try_remove_mixnode(deps, &owner, Some(proxy))
 }
 
-pub fn try_remove_mixnode(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+pub fn try_remove_mixnode(deps: DepsMut<'_>, info: MessageInfo) -> Result<Response, ContractError> {
     _try_remove_mixnode(deps, info.sender.as_ref(), None)
 }
 
 pub(crate) fn _try_remove_mixnode(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     owner: &str,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
@@ -192,7 +193,7 @@ pub(crate) fn _try_remove_mixnode(
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
 
-    let mut response = Response::new().add_message(return_tokens);
+    let mut response = Response::new();
 
     if let Some(proxy) = &proxy {
         let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
@@ -200,9 +201,11 @@ pub(crate) fn _try_remove_mixnode(
             amount: mixnode_bond.pledge_amount(),
         };
 
-        let track_unbond_message = wasm_execute(proxy, &msg, coins(0, DENOM))?;
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
         response = response.add_message(track_unbond_message);
     }
+
+    let response = response.add_message(return_tokens);
 
     Ok(response.add_event(new_mixnode_unbonding_event(
         &owner,
@@ -213,20 +216,49 @@ pub(crate) fn _try_remove_mixnode(
 }
 
 pub(crate) fn try_update_mixnode_config(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     profit_margin_percent: u8,
 ) -> Result<Response, ContractError> {
     let owner = deps.api.addr_validate(info.sender.as_ref())?;
-    let mix_identity = storage::mixnodes()
+    _try_update_mixnode_config(deps, env, profit_margin_percent, owner, None)
+}
+
+pub(crate) fn try_update_mixnode_config_on_behalf(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    profit_margin_percent: u8,
+    owner: String,
+) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(&owner)?;
+    let proxy = deps.api.addr_validate(info.sender.as_ref())?;
+    _try_update_mixnode_config(deps, env, profit_margin_percent, owner, Some(proxy))
+}
+
+pub(crate) fn _try_update_mixnode_config(
+    deps: DepsMut,
+    env: Env,
+    profit_margin_percent: u8,
+    owner: Addr,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
+    let mixnode_bond = storage::mixnodes()
         .idx
         .owner
         .item(deps.storage, owner.clone())?
         .ok_or(ContractError::NoAssociatedMixNodeBond { owner })?
-        .1
-        .identity()
-        .clone();
+        .1;
+
+    if proxy != mixnode_bond.proxy {
+        return Err(ContractError::ProxyMismatch {
+            existing: mixnode_bond
+                .proxy
+                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+            incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+        });
+    }
 
     // We don't have to check lower bound as its an u8
     if profit_margin_percent > 100 {
@@ -235,7 +267,7 @@ pub(crate) fn try_update_mixnode_config(
         ));
     }
 
-    storage::mixnodes().update(deps.storage, &mix_identity, |mixnode_bond_opt| {
+    storage::mixnodes().update(deps.storage, mixnode_bond.identity(), |mixnode_bond_opt| {
         mixnode_bond_opt
             .map(|mut mixnode_bond| {
                 mixnode_bond.mix_node.profit_margin_percent = profit_margin_percent;
@@ -245,7 +277,19 @@ pub(crate) fn try_update_mixnode_config(
             .ok_or(ContractError::NoBondFound)
     })?;
 
-    Ok(Response::new())
+    let mut response = Response::new();
+
+    if let Some(proxy) = proxy {
+        // Returns one_ucoin proxy had to send in order to execute the contract to contract transaction, this is potentially leaky as anyone can say that they're a proxy,
+        // and they could potentially leak 1 unym per transaction, altough I'm pretty sure transaction fees make that silly.
+        let return_one_ucoint = BankMsg::Send {
+            to_address: proxy.as_str().to_string(),
+            amount: vec![one_ucoin()],
+        };
+        response = response.add_message(return_one_ucoint);
+    }
+
+    Ok(response)
 }
 
 fn validate_mixnode_pledge(

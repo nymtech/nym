@@ -2,7 +2,7 @@
 name = "validator-client"
 version = "0.1.0"
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
-edition = "2018"
+edition = "2021"
 rust-version = "1.56"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -10,6 +10,7 @@ rust-version = "1.56"
 [dependencies]
 base64 = "0.13"
 mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract" }
+vesting-contract-common = { path= "../../cosmwasm-smart-contracts/vesting-contract" }
 vesting-contract = { path = "../../../contracts/vesting" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -38,7 +39,8 @@ flate2 = { version = "1.0.20", optional = true }
 sha2 = { version = "0.9.5", optional = true }
 itertools = { version = "0.10", optional = true }
 cosmwasm-std = { version = "1.0.0-beta3", optional = true }
-ts-rs = { version = "5.1", optional = true }
+# Leaving it as * so that it inherits whatever the wallet is using
+ts-rs = { version = "*", optional = true }
 
 [features]
 nymd-client = [

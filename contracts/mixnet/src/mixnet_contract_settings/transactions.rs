@@ -10,7 +10,7 @@ use mixnet_contract_common::events::new_settings_update_event;
 use mixnet_contract_common::ContractStateParams;
 
 pub(crate) fn try_update_contract_settings(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     info: MessageInfo,
     params: ContractStateParams,
 ) -> Result<Response, ContractError> {

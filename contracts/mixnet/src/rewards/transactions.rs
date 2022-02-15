@@ -142,7 +142,7 @@ fn reward_mix_delegators(
 }
 
 pub(crate) fn try_reward_next_mixnode_delegators(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     info: MessageInfo,
     mix_identity: IdentityKey,
     interval_id: u32,
@@ -206,7 +206,7 @@ pub(crate) fn try_reward_next_mixnode_delegators(
 }
 
 pub(crate) fn try_reward_mixnode(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     mix_identity: IdentityKey,
@@ -259,6 +259,9 @@ pub(crate) fn try_reward_mixnode(
             )),
         );
     }
+
+    let node_pledge = current_bond.pledge_amount.amount;
+    let node_delegation = current_bond.total_delegation.amount;
 
     // check if it has non-zero uptime
     if params.uptime() == 0 {
@@ -315,6 +318,8 @@ pub(crate) fn try_reward_mixnode(
         interval_id,
         &mix_identity,
         node_reward_result,
+        node_pledge,
+        node_delegation,
         operator_reward,
         total_delegator_reward,
         further_delegations,

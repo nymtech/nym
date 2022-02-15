@@ -508,7 +508,7 @@ impl PartialOrd for MixNodeBond {
 }
 
 impl Display for MixNodeBond {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "amount: {} {}, owner: {}, identity: {}",

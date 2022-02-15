@@ -7,7 +7,7 @@ import { InfoTooltip } from '../../components/InfoToolTip'
 import { InclusionProbabilityResponse, TMixnodeBondDetails } from '../../types'
 import { validationSchema } from './validationSchema'
 import { updateMixnode } from '../../requests'
-import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
+import { ClientContext } from '../../context/main'
 import { Fee } from '../../components'
 
 type TFormData = {
@@ -38,7 +38,7 @@ export const SystemVariables = ({
     defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString() },
   })
 
-  const { userBalance } = useContext(ClientContext)
+  const { userBalance, currency } = useContext(ClientContext)
 
   const onSubmit = async (data: TFormData) => {
     try {
@@ -73,7 +73,7 @@ export const SystemVariables = ({
             info="Estimated reward per epoch for this profit margin if your node is selected in the active set."
             Indicator={
               <Typography sx={{ color: (theme) => theme.palette.nym.fee, fontWeight: '600' }}>
-                {rewardEstimation} {MAJOR_CURRENCY}
+                {rewardEstimation} {currency?.major}
               </Typography>
             }
           />
@@ -108,7 +108,7 @@ export const SystemVariables = ({
         {nodeUpdateResponse === 'success' ? (
           <Typography sx={{ color: 'success.main', fontWeight: 600 }}>Node successfully updated</Typography>
         ) : nodeUpdateResponse === 'failed' ? (
-          <Typography sx={{ color: 'error.main', fontWeight: 600 }}>Node updated failed</Typography>
+          <Typography sx={{ color: 'error.main', fontWeight: 600 }}>Node update failed</Typography>
         ) : (
           <Fee feeType="UpdateMixnodeConfig" />
         )}

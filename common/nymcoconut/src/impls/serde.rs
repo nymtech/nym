@@ -23,7 +23,7 @@ macro_rules! impl_serde {
         impl<'de> Visitor<'de> for $visitor {
             type Value = $struct;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write!(formatter, "A base58 encoded struct")
             }
 

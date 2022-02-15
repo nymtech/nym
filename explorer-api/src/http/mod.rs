@@ -66,7 +66,7 @@ fn configure_rocket(state: ExplorerApiStateContext) -> Rocket<Build> {
 }
 
 #[catch(404)]
-pub(crate) fn not_found(req: &Request) -> String {
+pub(crate) fn not_found(req: &Request<'_>) -> String {
     format!("I couldn't find '{}'. Try something else?", req.uri())
 }
 

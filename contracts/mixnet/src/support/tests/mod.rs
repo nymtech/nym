@@ -33,7 +33,7 @@ pub mod test_helpers {
     use mixnet_contract_common::{Delegation, Gateway, IdentityKeyRef, InstantiateMsg, MixNode};
     use rand::thread_rng;
 
-    pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
+    pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut<'_>) -> String {
         let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
         let owner_signature = keypair
             .private_key()
@@ -57,7 +57,7 @@ pub mod test_helpers {
         key
     }
 
-    pub fn add_gateway(sender: &str, stake: Vec<Coin>, deps: DepsMut) -> String {
+    pub fn add_gateway(sender: &str, stake: Vec<Coin>, deps: DepsMut<'_>) -> String {
         let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
         let owner_signature = keypair
             .private_key()
@@ -94,7 +94,7 @@ pub mod test_helpers {
     // currently not used outside tests
     pub(crate) fn read_mixnode_pledge_amount(
         storage: &dyn Storage,
-        identity: IdentityKeyRef,
+        identity: IdentityKeyRef<'_>,
     ) -> StdResult<cosmwasm_std::Uint128> {
         let node = mixnodes_storage::mixnodes().load(storage, identity)?;
         Ok(node.pledge_amount.amount)

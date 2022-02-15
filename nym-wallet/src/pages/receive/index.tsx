@@ -3,15 +3,15 @@ import QRCode from 'qrcode.react'
 import { Alert, Box, Stack, Typography } from '@mui/material'
 import { CopyToClipboard, NymCard } from '../../components'
 import { Layout } from '../../layouts'
-import { ClientContext, MAJOR_CURRENCY } from '../../context/main'
+import { ClientContext } from '../../context/main'
 import { ArrowBack } from '@mui/icons-material'
 
 export const Receive = () => {
-  const { clientDetails } = useContext(ClientContext)
+  const { clientDetails, currency } = useContext(ClientContext)
 
   return (
     <Layout>
-      <NymCard title={`Receive ${MAJOR_CURRENCY}`} Icon={ArrowBack}>
+      <NymCard title={`Receive ${currency?.major}`} Icon={ArrowBack}>
         <Stack spacing={3} alignItems="center">
           <Alert severity="info" data-testid="receive-nym" sx={{ width: '100%' }}>
             You can receive tokens by providing this address to the sender
@@ -31,7 +31,7 @@ export const Receive = () => {
             <CopyToClipboard text={clientDetails?.client_address || ''} iconButton />
           </Box>
 
-          {clientDetails && <QRCode data-testid="qr-code" value={clientDetails.client_address} />}
+          {clientDetails && <QRCode data-testid="qr-code" value={clientDetails?.client_address} />}
         </Stack>
       </NymCard>
     </Layout>

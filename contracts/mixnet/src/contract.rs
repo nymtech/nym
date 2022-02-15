@@ -73,7 +73,7 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
 /// `msg` is the contract initialization message, sort of like a constructor call.
 #[entry_point]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
@@ -95,7 +95,7 @@ pub fn instantiate(
 /// Handle an incoming message
 #[entry_point]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -121,6 +121,16 @@ pub fn execute(
             env,
             info,
             profit_margin_percent,
+        ),
+        ExecuteMsg::UpdateMixnodeConfigOnBehalf {
+            profit_margin_percent,
+            owner,
+        } => crate::mixnodes::transactions::try_update_mixnode_config_on_behalf(
+            deps,
+            env,
+            info,
+            profit_margin_percent,
+            owner,
         ),
         ExecuteMsg::BondGateway {
             gateway,
@@ -237,7 +247,7 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetContractVersion {} => to_binary(&query_contract_version()),
         QueryMsg::GetMixNodes { start_after, limit } => {
@@ -317,7 +327,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, Contr
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
 }
 

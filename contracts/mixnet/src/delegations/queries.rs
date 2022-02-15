@@ -13,7 +13,7 @@ use mixnet_contract_common::{
 };
 
 pub(crate) fn query_all_network_delegations_paged(
-    deps: Deps,
+    deps: Deps<'_>,
     start_after: Option<(IdentityKey, String)>,
     limit: Option<u32>,
 ) -> StdResult<PagedAllDelegationsResponse> {
@@ -42,7 +42,7 @@ pub(crate) fn query_all_network_delegations_paged(
 }
 
 pub(crate) fn query_delegator_delegations_paged(
-    deps: Deps,
+    deps: Deps<'_>,
     delegation_owner: String,
     start_after: Option<IdentityKey>,
     limit: Option<u32>,
@@ -76,7 +76,7 @@ pub(crate) fn query_delegator_delegations_paged(
 
 // queries for delegation value of given address for particular node
 pub(crate) fn query_mixnode_delegation(
-    deps: Deps,
+    deps: Deps<'_>,
     mix_identity: IdentityKey,
     delegator: String,
 ) -> Result<Delegation, ContractError> {
@@ -92,7 +92,7 @@ pub(crate) fn query_mixnode_delegation(
 }
 
 pub(crate) fn query_mixnode_delegations_paged(
-    deps: Deps,
+    deps: Deps<'_>,
     mix_identity: IdentityKey,
     start_after: Option<String>,
     limit: Option<u32>,

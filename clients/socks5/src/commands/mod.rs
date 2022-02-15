@@ -54,18 +54,10 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> C
     #[cfg(not(feature = "coconut"))]
     if let Some(eth_endpoint) = matches.value_of(ETH_ENDPOINT_ARG_NAME) {
         config.get_base_mut().with_eth_endpoint(eth_endpoint);
-    } else {
-        config
-            .get_base_mut()
-            .with_eth_endpoint(DEFAULT_ETH_ENDPOINT);
     }
     #[cfg(not(feature = "coconut"))]
     if let Some(eth_private_key) = matches.value_of(ETH_PRIVATE_KEY_ARG_NAME) {
         config.get_base_mut().with_eth_private_key(eth_private_key);
-    } else {
-        config
-            .get_base_mut()
-            .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY);
     }
 
     if !cfg!(feature = "eth") || matches.is_present(TESTNET_MODE_ARG_NAME) {

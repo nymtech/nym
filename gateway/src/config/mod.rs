@@ -115,7 +115,7 @@ impl Config {
         }
 
         if self.gateway.persistent_storage.as_os_str().is_empty() {
-            self.gateway.persistent_storage = self::Gateway::default_database_path(&id)
+            self.gateway.persistent_storage = self::Gateway::default_database_path(&id);
         }
 
         self.gateway.id = id;
@@ -153,12 +153,12 @@ impl Config {
     pub fn with_listening_address<S: Into<String>>(mut self, listening_address: S) -> Self {
         let listening_address_string = listening_address.into();
         if let Ok(ip_addr) = listening_address_string.parse() {
-            self.gateway.listening_address = ip_addr
+            self.gateway.listening_address = ip_addr;
         } else {
             error!(
                 "failed to change listening address. the provided value ({}) was invalid",
                 listening_address_string
-            )
+            );
         }
         self
     }

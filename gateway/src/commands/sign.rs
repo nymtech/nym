@@ -1,48 +1,52 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::*;
-use crate::config::{persistence::pathfinder::GatewayPathfinder, Config};
-use clap::{App, Arg, ArgMatches};
-use colored::Colorize;
+use crate::{
+    commands::{validate_bech32_address_or_exit, version_check},
+    config::{persistence::pathfinder::GatewayPathfinder, Config},
+};
+use anyhow::{anyhow, Result};
+use clap::{ArgGroup, Args};
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
 
-const SIGN_TEXT_ARG_NAME: &str = "text";
-const SIGN_ADDRESS_ARG_NAME: &str = "address";
+#[derive(Args, Clone)]
+#[clap(group(ArgGroup::new("sign").required(true).args(&["address", "text"])))]
+pub struct Sign {
+    /// The id of the mixnode you want to sign with
+    #[clap(long)]
+    id: String,
 
-pub fn command_args<'a, 'b>() -> App<'a, 'b> {
-    let cmd = App::new("sign")
-        .about("Sign text to prove ownership of this mixnode")
-        .arg(
-            Arg::with_name(ID_ARG_NAME)
-                .long(ID_ARG_NAME)
-                .help("The id of the mixnode you want to sign with")
-                .takes_value(true)
-                .required(true),
-        )
-        .arg(
-            Arg::with_name(SIGN_TEXT_ARG_NAME)
-                .long(SIGN_TEXT_ARG_NAME)
-                .help("Signs an arbitrary piece of text with your identity key")
-                .takes_value(true)
-                .conflicts_with(SIGN_ADDRESS_ARG_NAME),
-        );
+    /// Signs your blockchain address with your identity key
+    #[clap(long)]
+    address: Option<String>,
 
-    let mut address_sign_cmd = Arg::with_name(SIGN_ADDRESS_ARG_NAME)
-        .long(SIGN_ADDRESS_ARG_NAME)
-        .help("Signs your blockchain address with your identity key")
-        .takes_value(true)
-        .conflicts_with(SIGN_TEXT_ARG_NAME);
+    /// Signs an arbitrary piece of text with your identity key
+    #[clap(long)]
+    text: Option<String>,
+}
 
-    if cfg!(feature = "coconut") {
-        // without coconut feature, we shall just take our mnemonic
-        // and derive address from it
-        address_sign_cmd = address_sign_cmd.takes_value(true);
+enum SignedTarget {
+    Text(String),
+    Address(String),
+}
+
+impl TryFrom<Sign> for SignedTarget {
+    type Error = anyhow::Error;
+
+    fn try_from(args: Sign) -> Result<Self, Self::Error> {
+        if let Some(text) = args.text {
+            Ok(SignedTarget::Text(text))
+        } else if let Some(address) = args.address {
+            Ok(SignedTarget::Address(address))
+        } else {
+            // This is unreachable, and hopefully clap will support it explicitly by outputting an
+            // enum from the ArgGroup in the future.
+            // See: https://github.com/clap-rs/clap/issues/2621
+            Err(anyhow!("Error: missing signed target flag"))
+        }
     }
-
-    cmd.arg(address_sign_cmd)
 }
 
 pub fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
@@ -54,7 +58,7 @@ pub fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
     identity_keypair
 }
 
-fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) -> String {
+fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) {
     let trimmed = raw_address.trim();
     validate_bech32_address_or_exit(trimmed);
     let signature = private_key.sign_text(trimmed);
@@ -63,7 +67,6 @@ fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) -
         "The base58-encoded signature on '{}' is: {}",
         trimmed, signature
     );
-    signature
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
@@ -77,16 +80,18 @@ fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
     println!(
         "The base58-encoded signature on '{}' is: {}",
         text, signature
-    )
+    );
 }
 
-pub fn execute(matches: &ArgMatches<'_>) {
-    let id = matches.value_of(ID_ARG_NAME).unwrap();
-
-    let config = match Config::load_from_file(Some(id)) {
+pub fn execute(args: &Sign) {
+    let config = match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => cfg,
         Err(err) => {
-            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
+            error!(
+                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})",
+                args.id,
+                err
+            );
             return;
         }
     };
@@ -96,19 +101,18 @@ pub fn execute(matches: &ArgMatches<'_>) {
         return;
     }
 
+    let signed_target = match SignedTarget::try_from(args.clone()) {
+        Ok(s) => s,
+        Err(err) => {
+            error!("{}", err);
+            return;
+        }
+    };
     let pathfinder = GatewayPathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);
 
-    if let Some(text) = matches.value_of(SIGN_TEXT_ARG_NAME) {
-        print_signed_text(identity_keypair.private_key(), text)
-    } else if let Some(address) = matches.value_of(SIGN_ADDRESS_ARG_NAME) {
-        print_signed_address(identity_keypair.private_key(), address);
-    } else {
-        let error_message = format!(
-            "You must specify either '--{}' or '--{}' argument!",
-            SIGN_TEXT_ARG_NAME, SIGN_ADDRESS_ARG_NAME
-        )
-        .red();
-        println!("{}", error_message);
+    match signed_target {
+        SignedTarget::Text(text) => print_signed_text(identity_keypair.private_key(), &text),
+        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), &addr),
     }
 }

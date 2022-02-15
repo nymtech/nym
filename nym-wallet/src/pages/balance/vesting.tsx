@@ -15,7 +15,7 @@ import {
 } from '@mui/material'
 import { InfoOutlined, Refresh } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
-import { NymCard } from '../../components'
+import { NymCard, InfoTooltip } from '../../components'
 import { ClientContext } from '../../context/main'
 import { withdrawVestedCoins } from '../../requests'
 import { Period } from '../../types'
@@ -37,7 +37,7 @@ export const VestingCard = () => {
 
   return (
     <NymCard
-      title="Unvested tokens"
+      title="Vesting Schedule"
       data-testid="check-unvested-tokens"
       Icon={InfoOutlined}
       Action={
@@ -55,7 +55,7 @@ export const VestingCard = () => {
         <Grid item container spacing={3}>
           <Grid item>
             <Typography variant="subtitle2" sx={{ color: 'grey.500', ml: 2, mb: 1 }}>
-              Vested tokens
+              Unlocked tokens
             </Typography>
             <Typography
               data-testid="refresh-success"
@@ -67,9 +67,12 @@ export const VestingCard = () => {
             </Typography>
           </Grid>
           <Grid item>
-            <Typography variant="subtitle2" sx={{ color: 'grey.500', ml: 2, mb: 1 }}>
-              Releasable tokens
-            </Typography>
+            <Box display="flex" alignItems="center" justifyContent="center">
+              <Typography variant="subtitle2" sx={{ color: 'grey.500' }}>
+                Transferable tokens
+              </Typography>
+              <InfoTooltip title="Unlocked tokens that are available to transfer to your balance" light />
+            </Box>
             <Typography
               data-testid="refresh-success"
               sx={{ ml: 2, color: 'nym.background.dark' }}
@@ -99,7 +102,7 @@ export const VestingCard = () => {
               })
             } catch (e) {
               console.log(e)
-              enqueueSnackbar('Token release failed. You may not have releasable funds at this time', {
+              enqueueSnackbar('Token transfer failed. You may not have any transferable tokens at this time', {
                 variant: 'error',
                 preventDuplicate: true,
               })
@@ -111,14 +114,14 @@ export const VestingCard = () => {
           disabled={isLoading}
           disableElevation
         >
-          Release Tokens
+          Transfer
         </Button>
       </Box>
     </NymCard>
   )
 }
 
-const columnsHeaders = ['Vesting', 'Period', 'Percentage Vested', 'Vested']
+const columnsHeaders = ['Locked', 'Period', 'Percentage Vested', 'Unlocked']
 const VestingTable = () => {
   const { userBalance, currency } = useContext(ClientContext)
   const [vestedPercentage, setVestedPercentage] = useState(0)
@@ -153,7 +156,8 @@ const VestingTable = () => {
               {userBalance.tokenAllocation?.vesting || 'n/a'} {currency?.major}
             </TableCell>
             <TableCell align="left" sx={{ borderBottom: 'none' }}>
-            {vestingPeriod(userBalance.currentVestingPeriod, userBalance.originalVesting?.number_of_periods)}</TableCell>
+              {vestingPeriod(userBalance.currentVestingPeriod, userBalance.originalVesting?.number_of_periods)}
+            </TableCell>
             <TableCell sx={{ borderBottom: 'none' }}>
               <Box display="flex" alignItems="center" gap={1}>
                 <Typography
@@ -178,12 +182,10 @@ const VestingTable = () => {
   )
 }
 
+const vestingPeriod = (current?: Period, original?: number) => {
+  if (current === 'After') return 'Complete'
 
-const vestingPeriod = (current?:Period, original?: number ) => {
+  if (typeof current === 'object' && typeof original === 'number') return `${current.In + 1}/${original}`
 
-  if (current === "After") return "Complete"
-
-  if (typeof current === "object" && typeof original === "number") return `${current.In + 1}/${original}`
-
-  return "N/A"
+  return 'N/A'
 }

@@ -1,15 +1,17 @@
+import React from 'react'
 import { InfoOutlined } from '@mui/icons-material'
 import { Tooltip, TooltipProps } from '@mui/material'
-import React from 'react'
 
 export const InfoTooltip = ({
   title,
-  placement = 'bottom',
+  tooltipPlacement = 'bottom',
+  light,
 }: {
   title: string
-  placement?: TooltipProps['placement']
+  tooltipPlacement?: TooltipProps['placement']
+  light?: boolean
 }) => (
-  <Tooltip title={title} arrow placement={placement}>
-    <InfoOutlined fontSize="small" />
+  <Tooltip title={title} arrow placement={tooltipPlacement}>
+    <InfoOutlined fontSize="small" sx={{ color: light ? 'grey.500' : undefined }} />
   </Tooltip>
 )

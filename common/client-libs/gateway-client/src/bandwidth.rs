@@ -258,7 +258,7 @@ impl BandwidthController {
             .await?;
         options.gas = Some(estimation);
         log::info!("Calling ETH function in 10 seconds with an estimated gas of {}. Kill the process if you want to abort", estimation);
-        std::thread::sleep(std::time::Duration::from_secs(10));
+        tokio::time::sleep(tokio::time::Duration::from_secs(10));
         let recipt = self
             .contract
             .signed_call_with_confirmations(

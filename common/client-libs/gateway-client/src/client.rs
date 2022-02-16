@@ -20,6 +20,7 @@ use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
+use network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nymsphinx::forwarding::packet::MixPacket;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
@@ -591,15 +592,10 @@ impl GatewayClient {
             return Err(GatewayClientError::NotAuthenticated);
         }
         if self.estimate_required_bandwidth(&packets) > self.bandwidth_remaining {
-            // Try to claim more bandwidth first, and return an error only if that is still not
-            // enough (the current granularity for bandwidth should be sufficient)
-            self.claim_bandwidth().await?;
-            if self.estimate_required_bandwidth(&packets) > self.bandwidth_remaining {
-                return Err(GatewayClientError::NotEnoughBandwidth(
-                    self.estimate_required_bandwidth(&packets),
-                    self.bandwidth_remaining,
-                ));
-            }
+            return Err(GatewayClientError::NotEnoughBandwidth(
+                self.estimate_required_bandwidth(&packets),
+                self.bandwidth_remaining,
+            ));
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -666,15 +662,10 @@ impl GatewayClient {
             return Err(GatewayClientError::NotAuthenticated);
         }
         if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
-            // Try to claim more bandwidth first, and return an error only if that is still not
-            // enough
-            self.claim_bandwidth().await?;
-            if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
-                return Err(GatewayClientError::NotEnoughBandwidth(
-                    mix_packet.sphinx_packet().len() as i64,
-                    self.bandwidth_remaining,
-                ));
-            }
+            return Err(GatewayClientError::NotEnoughBandwidth(
+                mix_packet.sphinx_packet().len() as i64,
+                self.bandwidth_remaining,
+            ));
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -743,6 +734,12 @@ impl GatewayClient {
             self.establish_connection().await?;
         }
         let shared_key = self.perform_initial_authentication().await?;
+
+        if self.bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
+            info!("Claiming more bandwidth for your tokens. This will use {} token(s) from your wallet. \
+            Stop the process now if you don't want that to happen.", TOKENS_TO_BURN);
+            self.claim_bandwidth().await?;
+        }
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

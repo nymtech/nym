@@ -6,6 +6,7 @@ use crate::network_monitor::monitor::gateway_clients_cache::{
 };
 use crate::network_monitor::monitor::gateways_pinger::GatewayPinger;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
+use config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -26,9 +27,6 @@ use std::time::Duration;
 use gateway_client::bandwidth::BandwidthController;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
-
-// If we're below 10MB of bandwidth, claim some more
-const REMAINING_BANDWIDTH_THRESHOLD: i64 = 10 * 1000 * 1000;
 
 pub(crate) struct GatewayPackets {
     /// Network address of the target gateway if wanted to be accessed by the client.
@@ -342,11 +340,10 @@ impl PacketSender {
         client: &mut GatewayClient,
     ) -> Result<(), GatewayClientError> {
         if client.remaining_bandwidth() < REMAINING_BANDWIDTH_THRESHOLD {
-            info!(
-                "Client to gateway {} is running out of bandwidth... Claiming some more...",
-                client.gateway_identity().to_base58_string()
-            );
-            client.claim_bandwidth().await
+            Err(GatewayClientError::NotEnoughBandwidth(
+                REMAINING_BANDWIDTH_THRESHOLD,
+                client.remaining_bandwidth(),
+            ))
         } else {
             Ok(())
         }

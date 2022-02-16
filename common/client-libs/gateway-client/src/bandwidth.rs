@@ -143,9 +143,9 @@ impl BandwidthController {
         let file_path = file.path();
         let pub_key = file_path
             .file_name()
-            .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))?
             .to_str()
-            .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?;
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))?;
         let mut priv_key = vec![];
         std::fs::File::open(file_path.clone())?.read_to_end(&mut priv_key)?;
         Ok(identity::KeyPair::from_keys(
@@ -210,8 +210,7 @@ impl BandwidthController {
     ) -> Result<TokenCredential, GatewayClientError> {
         let kp = match self.restore_keypair() {
             Ok(kp) => kp,
-            Err(e) => {
-                log::info!("Could not restore any previous keypair: {}. Creating a new one and saving it to disk.", e);
+            Err(_) => {
                 let mut rng = OsRng;
                 let kp = identity::KeyPair::new(&mut rng);
                 self.backup_keypair(&kp)?;
@@ -274,7 +273,15 @@ impl BandwidthController {
             .await?;
         options.gas = Some(estimation);
         log::info!("Calling ERC20 approve in 10 seconds with an estimated gas of {}. Kill the process if you want to abort", estimation);
+        #[cfg(not(target_arch = "wasm32"))]
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+        #[cfg(target_arch = "wasm32")]
+        if let Err(err) = fluvio_wasm_timer::Delay::new(std::time::Duration::from_secs(10)).await {
+            log::error!(
+                "the timer has gone away while waiting for possible kill! - {}",
+                err
+            );
+        }
         let recipt = self
             .erc20_contract
             .signed_call_with_confirmations(
@@ -318,8 +325,19 @@ impl BandwidthController {
             )
             .await?;
         options.gas = Some(estimation);
-        log::info!("Generating bandwidth on ETH contract in 10 seconds with an estimated gas of {}. Kill the process if you want to abort", estimation);
+        log::info!("Generating bandwidth on ETH contract in 10 seconds with an estimated gas of {}. \
+         Kill the process if you want to abort. Keep in mind that if you abort now, you'll still have \
+         some tokens approved for bandwidth spending from the previous action. \
+         If you don't want that, you'll need to manually decreaseAllowance to revert the approval.", estimation);
+        #[cfg(not(target_arch = "wasm32"))]
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+        #[cfg(target_arch = "wasm32")]
+        if let Err(err) = fluvio_wasm_timer::Delay::new(std::time::Duration::from_secs(10)).await {
+            log::error!(
+                "the timer has gone away while waiting for possible kill! - {}",
+                err
+            );
+        }
         let recipt = self
             .contract
             .signed_call_with_confirmations(
@@ -369,7 +387,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_contract() {
+    fn parse_erc20_contract() {
         let transport =
             Http::new("https://rinkeby.infura.io/v3/00000000000000000000000000000000").unwrap();
         let web3 = web3::Web3::new(transport);

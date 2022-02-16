@@ -1,0 +1,5 @@
+node_modules
+.idea
+
+# don't commit the lock file to avoid cross-platform issues
+package-lock.json

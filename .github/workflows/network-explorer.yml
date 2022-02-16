@@ -41,9 +41,10 @@ jobs:
         EXCLUDE: "/dist/, /node_modules/"
     - name: Keybase - Node Install
       run: npm install
-      working-directory: .github/workflows/support-files/messages
+      working-directory: .github/workflows/support-files
     - name: Keybase - Send Notification
       env:
+        NYM_NOTIFICATION_KIND: network-explorer
         NYM_PROJECT_NAME: "Network Explorer"
         NYM_CI_WWW_BASE: "${{ secrets.NYM_CI_WWW_BASE }}"
         NYM_CI_WWW_LOCATION: "network-explorer-${{ env.GITHUB_REF_SLUG }}"
@@ -56,4 +57,4 @@ jobs:
         IS_SUCCESS: "${{ job.status == 'success' }}"
       uses: docker://keybaseio/client:stable-node
       with:
-        args: .github/workflows/support-files/messages/entry_point_notifications.sh
+        args: .github/workflows/support-files/notifications/entry_point.sh

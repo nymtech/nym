@@ -16,8 +16,9 @@ use crypto::asymmetric::identity::PublicKey;
 use network_defaults::BANDWIDTH_VALUE;
 #[cfg(not(feature = "coconut"))]
 use network_defaults::{
-    eth_contract::ETH_JSON_ABI, ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS, ETH_MIN_BLOCK_DEPTH,
-    UTOKENS_TO_BURN,
+    eth_contract::ETH_ERC20_JSON_ABI, eth_contract::ETH_JSON_ABI, ETH_BURN_FUNCTION_NAME,
+    ETH_CONTRACT_ADDRESS, ETH_ERC20_APPROVE_FUNCTION_NAME, ETH_ERC20_CONTRACT_ADDRESS,
+    ETH_MIN_BLOCK_DEPTH, TOKENS_TO_BURN, UTOKENS_TO_BURN,
 };
 #[cfg(not(feature = "coconut"))]
 use pemstore::traits::PemStorableKeyPair;
@@ -54,6 +55,19 @@ pub fn eth_contract(web3: Web3<Http>) -> Contract<Http> {
     .expect("Invalid json abi")
 }
 
+#[cfg(not(feature = "coconut"))]
+pub fn eth_erc20_contract(web3: Web3<Http>) -> Contract<Http> {
+    Contract::from_json(
+        web3.eth(),
+        Address::from(ETH_ERC20_CONTRACT_ADDRESS),
+        json::parse(ETH_ERC20_JSON_ABI)
+            .expect("Invalid json abi")
+            .dump()
+            .as_bytes(),
+    )
+    .expect("Invalid json abi")
+}
+
 #[derive(Clone)]
 pub struct BandwidthController {
     #[cfg(feature = "coconut")]
@@ -62,6 +76,8 @@ pub struct BandwidthController {
     identity: PublicKey,
     #[cfg(not(feature = "coconut"))]
     contract: Contract<Http>,
+    #[cfg(not(feature = "coconut"))]
+    erc20_contract: Contract<Http>,
     #[cfg(not(feature = "coconut"))]
     eth_private_key: SecretKey,
     #[cfg(not(feature = "coconut"))]
@@ -88,12 +104,14 @@ impl BandwidthController {
             Http::new(&eth_endpoint).map_err(|_| GatewayClientError::InvalidURL(eth_endpoint))?;
         let web3 = web3::Web3::new(transport);
         // Fail early, on invalid abi
-        let contract = eth_contract(web3);
+        let contract = eth_contract(web3.clone());
+        let erc20_contract = eth_erc20_contract(web3);
         let eth_private_key = secp256k1::SecretKey::from_str(&eth_private_key)
             .map_err(|_| GatewayClientError::InvalidEthereumPrivateKey)?;
 
         Ok(BandwidthController {
             contract,
+            erc20_contract,
             eth_private_key,
             backup_bandwidth_token_keys_dir,
         })
@@ -236,11 +254,54 @@ impl BandwidthController {
         } else {
             ETH_MIN_BLOCK_DEPTH
         };
-        // 15 seconds per confirmation block + 10 seconds of network overhead + 10 seconds of wait for kill
+        // 15 seconds per confirmation block + 10 seconds of network overhead + 20 seconds of wait for kill
         log::info!(
             "Waiting for Ethereum transaction. This should take about {} seconds",
-            confirmations * 15 + 20
+            (confirmations + 1) * 15 + 30
         );
+        let mut options = Options::default();
+        let estimation = self
+            .erc20_contract
+            .estimate_gas(
+                ETH_ERC20_APPROVE_FUNCTION_NAME,
+                (
+                    Token::Address(Address::from(ETH_CONTRACT_ADDRESS)),
+                    Token::Uint(U256::from(UTOKENS_TO_BURN)),
+                ),
+                SecretKeyRef::from(&self.eth_private_key).address(),
+                options.clone(),
+            )
+            .await?;
+        options.gas = Some(estimation);
+        log::info!("Calling ERC20 approve in 10 seconds with an estimated gas of {}. Kill the process if you want to abort", estimation);
+        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+        let recipt = self
+            .erc20_contract
+            .signed_call_with_confirmations(
+                ETH_ERC20_APPROVE_FUNCTION_NAME,
+                (
+                    Token::Address(Address::from(ETH_CONTRACT_ADDRESS)),
+                    Token::Uint(U256::from(UTOKENS_TO_BURN)),
+                ),
+                options,
+                1, // One confirmation is enough, as we'll be consuming the approved token next anyway
+                &self.eth_private_key,
+            )
+            .await?;
+        if Some(U64::from(0u64)) == recipt.status {
+            return Err(GatewayClientError::BurnTokenError(
+                web3::Error::InvalidResponse(format!(
+                    "Approve transaction status is 0 (failure): {:?}",
+                    recipt.logs,
+                )),
+            ));
+        } else {
+            log::info!(
+                "Approved {} tokens for bandwidth use on Ethereum",
+                TOKENS_TO_BURN
+            );
+        }
+
         let mut options = Options::default();
         let estimation = self
             .contract
@@ -257,8 +318,8 @@ impl BandwidthController {
             )
             .await?;
         options.gas = Some(estimation);
-        log::info!("Calling ETH function in 10 seconds with an estimated gas of {}. Kill the process if you want to abort", estimation);
-        tokio::time::sleep(tokio::time::Duration::from_secs(10));
+        log::info!("Generating bandwidth on ETH contract in 10 seconds with an estimated gas of {}. Kill the process if you want to abort", estimation);
+        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
         let recipt = self
             .contract
             .signed_call_with_confirmations(
@@ -305,6 +366,15 @@ mod tests {
         let web3 = web3::Web3::new(transport);
         // test no panic occurs
         eth_contract(web3);
+    }
+
+    #[test]
+    fn parse_contract() {
+        let transport =
+            Http::new("https://rinkeby.infura.io/v3/00000000000000000000000000000000").unwrap();
+        let web3 = web3::Web3::new(transport);
+        // test no panic occurs
+        eth_erc20_contract(web3);
     }
 
     #[test]

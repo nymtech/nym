@@ -10,7 +10,9 @@ pub(crate) const MIXNET_CONTRACT_ADDRESS: &str = "nymt14hj2tavq8fpesdwxxcu44rty3
 pub(crate) const VESTING_CONTRACT_ADDRESS: &str = "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
 pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
     "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
-pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
+pub(crate) const _ETH_CONTRACT_ADDRESS: [u8; 20] =
+    hex_literal::hex!("0000000000000000000000000000000000000000");
+pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("0000000000000000000000000000000000000000");
 pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "nymt1dn52nx8wv9wkqmrvj6tcmdzh4es6jt8tr7f6j9";
 

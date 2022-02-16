@@ -6,8 +6,8 @@ use crate::ValidatorDetails;
 pub(crate) const BECH32_PREFIX: &str = "nymt";
 pub const DENOM: &str = "unymt";
 
-pub(crate) const MIXNET_CONTRACT_ADDRESS: &str = "nymt14hj2tavq8fpesdwxxcu44rty3hh90vhuysqrsr";
-pub(crate) const VESTING_CONTRACT_ADDRESS: &str = "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
+pub(crate) const MIXNET_CONTRACT_ADDRESS: &str = "nymt17x6pt4msccvawgxjeg5nmnygttu56tftg5l6j3";
+pub(crate) const VESTING_CONTRACT_ADDRESS: &str = "nymt1t4dmskxea0avvrj8xtmu66hv7dkyg9s8059t3c";
 pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
     "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
 pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "nymt1dn52nx8wv9wkqmrvj6tcmdzh4es6jt8tr7f6j9";

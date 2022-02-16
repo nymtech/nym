@@ -2,7 +2,7 @@ name: Tests builds
 
 on:
   schedule:
-    - cron: '30 12 * * *'
+    - cron: '00 13 * * *'
 jobs:
   build:
     runs-on: [ self-hosted, custom-linux-gcp ]

@@ -118,7 +118,7 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
         setError(handleError(e as Error))
       }
     } else {
-      setError('Tokens are no longer available')
+      setError('Tokens are not currently available')
     }
 
     setLoadingState({ isLoading: false, requestType: undefined })

@@ -125,9 +125,9 @@ impl BandwidthController {
         let file_path = file.path();
         let pub_key = file_path
             .file_name()
-            .ok_or(std::io::ErrorKind::NotFound)?
+            .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?
             .to_str()
-            .ok_or(std::io::ErrorKind::NotFound)?;
+            .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?;
         let mut priv_key = vec![];
         std::fs::File::open(file_path.clone())?.read_to_end(&mut priv_key)?;
         Ok(identity::KeyPair::from_keys(

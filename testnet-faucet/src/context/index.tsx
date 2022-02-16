@@ -2,8 +2,8 @@ import { createContext, useEffect, useState } from 'react'
 import ClientValidator, {
   nativeToPrintable,
 } from '@nymproject/nym-validator-client'
-import { useLocalStorage } from '../hooks/useLocalStorage'
 import { handleError } from '../utils'
+import { useCookie } from '..//hooks/useCookie'
 
 const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } =
   process.env
@@ -70,8 +70,10 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     if (error) console.error(error)
   }, [error])
 
-  const [hasMadePreviousRequest, setHasMadePreviousRequest] =
-    useLocalStorage<boolean>('hasUsedFaucet', false)
+  const [hasMadePreviousRequest, setHasMadePreviousRequest] = useCookie(
+    'hasUsedFaucet',
+    false
+  )
 
   const getBalance = async () => {
     setLoadingState({ isLoading: true, requestType: EnumRequestType.balance })
@@ -113,7 +115,7 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
           { amount: unymts, denom: 'unymt' },
         ])
         setTokenTransfer({ address, amount: nymts })
-        setHasMadePreviousRequest(true)
+        setHasMadePreviousRequest(true, 1)
       } catch (e) {
         setError(handleError(e as Error))
       }

@@ -26,7 +26,7 @@ type TGlobalContext = {
   balance?: string
   tokenTransfer?: { address: string; amount: string }
   error?: string
-  hasMadePreviousRequest: boolean
+  tokensAreAvailable: boolean
 }
 
 type TLoadingState = {
@@ -124,6 +124,9 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     setLoadingState({ isLoading: false, requestType: undefined })
   }
 
+  const tokensAreAvailable =
+    !hasMadePreviousRequest && Boolean(balance && +balance >= 101)
+
   return (
     <GlobalContext.Provider
       value={{
@@ -133,7 +136,7 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
         balance,
         tokenTransfer,
         error,
-        hasMadePreviousRequest,
+        tokensAreAvailable,
       }}
     >
       {children}

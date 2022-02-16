@@ -32,7 +32,8 @@ export const Form = ({ withInputField }: { withInputField?: boolean }) => {
     defaultValues: { address: '', amount: '101' },
   })
 
-  const { requestTokens, loadingState, error } = useContext(GlobalContext)
+  const { requestTokens, loadingState, error, tokensAreAvailable } =
+    useContext(GlobalContext)
 
   const resetForm = () => {
     setValue('address', '')
@@ -91,7 +92,7 @@ export const Form = ({ withInputField }: { withInputField?: boolean }) => {
               <CircularProgress size={20} color="inherit" />
             )
           }
-          disabled={loadingState.isLoading}
+          disabled={loadingState.isLoading || !tokensAreAvailable}
           data-testid="request-token-button"
         >
           Request 101 NYMT

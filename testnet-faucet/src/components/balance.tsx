@@ -4,12 +4,8 @@ import { GlobalContext } from '../context'
 import { CancelOutlined, CheckCircleOutline } from '@mui/icons-material'
 
 export const Balance = () => {
-  const { balance, hasMadePreviousRequest, getBalance } =
-    useContext(GlobalContext)
-
-  const tokensAreAvailable =
-    !hasMadePreviousRequest || (balance && +balance < 101)
-
+  const { tokensAreAvailable, balance } = useContext(GlobalContext)
+  console.log(balance)
   return (
     <Card
       sx={{

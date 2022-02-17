@@ -53,7 +53,7 @@ export const Form = ({ withInputField }: { withInputField?: boolean }) => {
   return (
     <Box>
       <TextField
-        label="Address"
+        label="Enter your wallet address"
         fullWidth
         {...register('address')}
         sx={{ mb: 2 }}

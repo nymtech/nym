@@ -2,40 +2,44 @@ import { createContext, useEffect, useState } from 'react'
 import ClientValidator, {
   nativeToPrintable,
 } from '@nymproject/nym-validator-client'
+import { handleError } from '../utils'
+import { useCookie } from '..//hooks/useCookie'
+
+const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } =
+  process.env
 
 export const urls = {
-  blockExplorer: 'https://sanbox-blocks.nymtech.net',
+  blockExplorer: 'https://sandbox-blocks.nymtech.net',
 }
 
 type TGlobalContext = {
   getBalance: () => void
   requestTokens: ({
     address,
-    upunks,
+    unymts,
   }: {
     address: string
-    upunks: string
-    punks: string
+    unymts: string
+    nymts: string
   }) => void
   loadingState: TLoadingState
   balance?: string
   tokenTransfer?: { address: string; amount: string }
   error?: string
-}
-
-export const GlobalContext = createContext({} as TGlobalContext)
-
-const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } = process.env
-
-export enum EnumRequestType {
-  balance = 'balance',
-  tokens = 'tokens',
+  tokensAreAvailable: boolean
 }
 
 type TLoadingState = {
   isLoading: boolean
   requestType?: EnumRequestType
 }
+
+export enum EnumRequestType {
+  balance = 'balance',
+  tokens = 'tokens',
+}
+
+export const GlobalContext = createContext({} as TGlobalContext)
 
 export const GlobalContextProvider: React.FC = ({ children }) => {
   const [validator, setValidator] = useState<ClientValidator>()
@@ -53,31 +57,30 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
       VALIDATOR_ADDRESS,
       MNEMONIC,
       [TESTNET_URL_1],
-      'punk'
+      'nymt'
     )
     setValidator(Validator)
   }
-
-  useEffect(() => {
-    if (loadingState.isLoading) {
-      setError(undefined)
-    }
-  }, [loadingState])
 
   useEffect(() => {
     getValidator()
   }, [])
 
   useEffect(() => {
-    if (validator || tokenTransfer) getBalance()
-  }, [validator, tokenTransfer])
+    if (error) console.error(error)
+  }, [error])
+
+  const [hasMadePreviousRequest, setHasMadePreviousRequest] = useCookie(
+    'hasUsedFaucet',
+    false
+  )
 
   const getBalance = async () => {
     setLoadingState({ isLoading: true, requestType: EnumRequestType.balance })
     try {
       const balance = await validator?.getBalance(ACCOUNT_ADDRESS)
-      const punks = nativeToPrintable(balance?.amount || '')
-      setBalance(punks)
+      const tokens = nativeToPrintable(balance?.amount || '')
+      setBalance(tokens)
     } catch (e) {
       setError(`An error occured while getting the balance: ${e}`)
     } finally {
@@ -85,28 +88,46 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
     }
   }
 
+  useEffect(() => {
+    if (validator || tokenTransfer) getBalance()
+  }, [validator, tokenTransfer])
+
+  const resetGlobalState = () => {
+    setError(undefined)
+    setTokenTransfer(undefined)
+  }
+
   const requestTokens = async ({
     address,
-    upunks,
-    punks,
+    unymts,
+    nymts,
   }: {
     address: string
-    upunks: string
-    punks: string
+    unymts: string
+    nymts: string
   }) => {
-    setTokenTransfer(undefined)
+    resetGlobalState()
     setLoadingState({ isLoading: true, requestType: EnumRequestType.tokens })
-    try {
-      await validator?.send(ACCOUNT_ADDRESS, address, [
-        { amount: upunks, denom: 'upunk' },
-      ])
-      setTokenTransfer({ address, amount: punks })
-    } catch (e) {
-      setError(`An error occured during the transfer request: ${e}`)
-    } finally {
-      setLoadingState({ isLoading: false, requestType: undefined })
+
+    if (!hasMadePreviousRequest) {
+      try {
+        await validator?.send(ACCOUNT_ADDRESS, address, [
+          { amount: unymts, denom: 'unymt' },
+        ])
+        setTokenTransfer({ address, amount: nymts })
+        setHasMadePreviousRequest(true, 1)
+      } catch (e) {
+        setError(handleError(e as Error))
+      }
+    } else {
+      setError('Tokens are not currently available')
     }
+
+    setLoadingState({ isLoading: false, requestType: undefined })
   }
+
+  const tokensAreAvailable =
+    !hasMadePreviousRequest && Boolean(balance && +balance >= 101)
 
   return (
     <GlobalContext.Provider
@@ -117,6 +138,7 @@ export const GlobalContextProvider: React.FC = ({ children }) => {
         balance,
         tokenTransfer,
         error,
+        tokensAreAvailable,
       }}
     >
       {children}

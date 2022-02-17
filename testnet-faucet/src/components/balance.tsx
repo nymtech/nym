@@ -1,17 +1,11 @@
 import { useContext } from 'react'
-import {
-  Card,
-  CardHeader,
-  CircularProgress,
-  IconButton,
-  Typography,
-} from '@mui/material'
-import RefreshIcon from '@mui/icons-material/Refresh'
-import { GlobalContext, EnumRequestType } from '../context'
+import { Card, CardHeader, Typography } from '@mui/material'
+import { GlobalContext } from '../context'
+import { CancelOutlined, CheckCircleOutline } from '@mui/icons-material'
 
 export const Balance = () => {
-  const { balance, loadingState, getBalance } = useContext(GlobalContext)
-
+  const { tokensAreAvailable, balance } = useContext(GlobalContext)
+  console.log(balance)
   return (
     <Card
       sx={{
@@ -22,25 +16,21 @@ export const Balance = () => {
     >
       <CardHeader
         title={
-          <Typography variant="h6">
-            The current faucet balance is{' '}
-            <Typography
-              component="span"
-              variant="h6"
-              data-testid="punk-balance-message"
-            >
-              {balance} PUNKS
-            </Typography>
+          <Typography
+            component="span"
+            variant="h6"
+            data-testid="nymt-balance-message"
+          >
+            {tokensAreAvailable
+              ? 'Tokens are available'
+              : 'Tokens are not currently available'}
           </Typography>
         }
         action={
-          loadingState.isLoading &&
-          loadingState.requestType === EnumRequestType.balance ? (
-            <CircularProgress size={12} />
+          tokensAreAvailable ? (
+            <CheckCircleOutline fontSize="large" color="success" />
           ) : (
-            <IconButton onClick={getBalance}>
-              <RefreshIcon />
-            </IconButton>
+            <CancelOutlined fontSize="large" color="error" />
           )
         }
       />

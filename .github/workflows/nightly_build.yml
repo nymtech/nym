@@ -2,7 +2,7 @@ name: Nightly builds
 
 on:
   schedule:
-    - cron: '20 17 * * *'
+    - cron: '14 4 * * *'
 jobs:
   matrix_prep:
     runs-on: ubuntu-latest
@@ -103,13 +103,11 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Keybase - Node Install
-        #if: env.WORKFLOW_CONCLUSION == 'failure'
-        if: env.WORKFLOW_CONCLUSION == 'success'
+        if: env.WORKFLOW_CONCLUSION == 'failure'
         run: npm install
         working-directory: .github/workflows/support-files
       - name: Keybase - Send Notification
-        #if: env.WORKFLOW_CONCLUSION == 'failure'
-        if: env.WORKFLOW_CONCLUSION == 'success'
+        if: env.WORKFLOW_CONCLUSION == 'failure'
         env:
           NYM_NOTIFICATION_KIND: nightly
           NYM_PROJECT_NAME: "Nym nightly build"

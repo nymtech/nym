@@ -106,11 +106,12 @@ jobs:
         #if: env.WORKFLOW_CONCLUSION == 'failure'
         if: env.WORKFLOW_CONCLUSION == 'success'
         run: npm install
-        working-directory: .github/workflows/support-files/messages
+        working-directory: .github/workflows/support-files
       - name: Keybase - Send Notification
         #if: env.WORKFLOW_CONCLUSION == 'failure'
         if: env.WORKFLOW_CONCLUSION == 'success'
         env:
+          NYM_NOTIFICATION_KIND: nightly
           NYM_PROJECT_NAME: "Nym nightly build"
           GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
           GIT_BRANCH: "${GITHUB_REF##*/}"
@@ -121,4 +122,4 @@ jobs:
           IS_SUCCESS: "${{ env.WORKFLOW_CONCLUSION == 'success' }}"
         uses: docker://keybaseio/client:stable-node
         with:
-          args: .github/workflows/support-files/messages/entry_point_notifications.sh
+          args: .github/workflows/support-files/notifications/entry_point.sh

@@ -7,13 +7,13 @@ export const Header = () => {
   return (
     <Box sx={{ mb: 3, mt: 3 }}>
       <Grid container spacing={1}>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={8}>
           <Typography
             variant="h4"
             sx={{ fontWeight: 'light' }}
             data-testid="token-faucet"
           >
-            Nym token faucet
+            Nym testnet Sandbox faucet
           </Typography>
           {matches && (
             <Typography
@@ -21,11 +21,11 @@ export const Header = () => {
               variant="h3"
               sx={{ fontWeight: 'light' }}
             >
-              Tokens to your address
+              NYMT tokens to your address
             </Typography>
           )}
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={4}>
           <Balance />
         </Grid>
       </Grid>

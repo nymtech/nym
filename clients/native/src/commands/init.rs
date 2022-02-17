@@ -136,6 +136,7 @@ async fn register_with_gateway(
     let mut gateway_client = GatewayClient::new_init(
         gateway.clients_address(),
         gateway.identity_key,
+        gateway.owner.clone(),
         our_identity.clone(),
         timeout,
     );
@@ -255,15 +256,14 @@ pub async fn execute(matches: ArgMatches<'static>) {
             chosen_gateway_id,
         )
         .await;
-        config
-            .get_base_mut()
-            .with_gateway_id(gateway_details.identity_key.to_base58_string());
         let shared_keys =
             register_with_gateway(&gateway_details, key_manager.identity_keypair()).await;
 
-        config
-            .get_base_mut()
-            .with_gateway_listener(gateway_details.clients_address());
+        config.get_base_mut().with_gateway_endpoint(
+            gateway_details.identity_key.to_base58_string(),
+            gateway_details.owner.clone(),
+            gateway_details.clients_address(),
+        );
         key_manager.insert_gateway_shared_key(shared_keys);
 
         let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());

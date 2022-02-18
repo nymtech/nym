@@ -1,5 +1,6 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect, useLayoutEffect } from 'react'
 import ReactDOM from 'react-dom'
+import { appWindow, LogicalSize } from '@tauri-apps/api/window'
 import { ErrorBoundary } from 'react-error-boundary'
 import { BrowserRouter as Router } from 'react-router-dom'
 import { Routes } from './routes'
@@ -12,6 +13,14 @@ import { Settings } from './pages'
 
 const App = () => {
   const { clientDetails } = useContext(ClientContext)
+  const setWindowSize = async () => {
+    await appWindow.setSize(new LogicalSize(screen.width, screen.height))
+  }
+
+  useLayoutEffect(() => {
+    setWindowSize()
+  }, [])
+
   return !clientDetails ? (
     <WelcomeTheme>
       <Welcome />

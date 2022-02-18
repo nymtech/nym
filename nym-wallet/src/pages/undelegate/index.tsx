@@ -2,12 +2,12 @@ import React, { useContext, useEffect, useState } from 'react'
 import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
 import { NymCard } from '../../components'
 import { UndelegateForm } from './UndelegateForm'
-import { Layout } from '../../layouts'
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
 import { getGasFee, getReverseMixDelegations } from '../../requests'
 import { TFee, TPagedDelegations } from '../../types'
 import { Undelegate as UndelegateIcon } from '../../svg-icons'
 import { ClientContext } from '../../context/main'
+import { PageLayout } from '../../layouts'
 
 export const Undelegate = () => {
   const [message, setMessage] = useState<string>()
@@ -46,7 +46,7 @@ export const Undelegate = () => {
   }
 
   return (
-    <Layout>
+    <PageLayout>
       <NymCard title="Undelegate" subheader="Undelegate from a mixnode" Icon={UndelegateIcon} noPadding>
         {isLoading && (
           <Box
@@ -117,6 +117,6 @@ export const Undelegate = () => {
           )}
         </>
       </NymCard>
-    </Layout>
+    </PageLayout>
   )
 }

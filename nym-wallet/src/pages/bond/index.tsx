@@ -4,11 +4,11 @@ import { BondForm } from './BondForm'
 import { SuccessView } from './SuccessView'
 import { NymCard } from '../../components'
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
-import { Layout } from '../../layouts'
 import { unbond } from '../../requests'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { ClientContext } from '../../context/main'
 import { Bond as BondIcon } from '../../svg-icons/bond'
+import { PageLayout } from '../../layouts'
 
 export const Bond = () => {
   const [status, setStatus] = useState(EnumRequestStatus.initial)
@@ -29,7 +29,7 @@ export const Bond = () => {
   }, [status])
 
   return (
-    <Layout>
+    <PageLayout>
       <NymCard title="Bond" subheader="Bond a node or gateway" noPadding Icon={BondIcon}>
         {status === EnumRequestStatus.initial && (
           <Box sx={{ px: 3, mb: 1 }}>
@@ -117,6 +117,6 @@ export const Bond = () => {
           </>
         )}
       </NymCard>
-    </Layout>
+    </PageLayout>
   )
 }

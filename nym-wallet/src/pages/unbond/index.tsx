@@ -1,11 +1,11 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { Alert, Box, Button, CircularProgress } from '@mui/material'
 import { Fee, NymCard } from '../../components'
-import { Layout } from '../../layouts'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { ClientContext } from '../../context/main'
 import { unbond } from '../../requests'
 import { Unbond as UnbondIcon } from '../../svg-icons'
+import { PageLayout } from '../../layouts'
 
 export const Unbond = () => {
   const [isLoading, setIsLoading] = useState(false)
@@ -20,7 +20,7 @@ export const Unbond = () => {
   }, [ownership.hasOwnership, checkOwnership])
 
   return (
-    <Layout>
+    <PageLayout>
       <NymCard title="Unbond" subheader="Unbond a mixnode or gateway" noPadding Icon={UnbondIcon}>
         {ownership?.hasOwnership ? (
           <>
@@ -33,7 +33,7 @@ export const Unbond = () => {
                   disabled={isLoading}
                   onClick={async () => {
                     setIsLoading(true)
-                    await unbond(ownership.nodeType)
+                    await unbond(ownership.nodeType!)
                     await userBalance.fetchBalance()
                     await getBondDetails()
                     await checkOwnership()
@@ -71,6 +71,6 @@ export const Unbond = () => {
           </Box>
         )}
       </NymCard>
-    </Layout>
+    </PageLayout>
   )
 }

@@ -1,17 +1,16 @@
 import React, { useContext } from 'react'
 import QRCode from 'qrcode.react'
-import { Alert, Box, Stack, Typography } from '@mui/material'
-import { ClientAddress, CopyToClipboard, NymCard } from '../../components'
-import { Layout } from '../../layouts'
+import { Alert, Box, Stack } from '@mui/material'
+import { ClientAddress, NymCard } from '../../components'
 import { ClientContext } from '../../context/main'
 import { ArrowBack } from '@mui/icons-material'
-import { splice } from '../../utils'
+import { PageLayout } from '../../layouts'
 
 export const Receive = () => {
   const { clientDetails, currency } = useContext(ClientContext)
 
   return (
-    <Layout>
+    <PageLayout>
       <NymCard title={`Receive ${currency?.major}`} Icon={ArrowBack}>
         <Stack spacing={3} alignItems="center">
           <Alert severity="info" data-testid="receive-nym" sx={{ width: '100%' }}>
@@ -20,10 +19,9 @@ export const Receive = () => {
           <Box>
             <ClientAddress withCopy />
           </Box>
-
           {clientDetails && <QRCode data-testid="qr-code" value={clientDetails?.client_address} />}
         </Stack>
       </NymCard>
-    </Layout>
+    </PageLayout>
   )
 }

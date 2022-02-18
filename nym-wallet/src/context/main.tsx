@@ -8,7 +8,7 @@ import { useHistory } from 'react-router-dom'
 
 export const { ADMIN_ADDRESS } = config
 
-export const urls = (network: Network) =>
+export const urls = (network?: Network) =>
   network === 'MAINNET'
     ? {
         blockExplorer: 'https://blocks.nymtech.net',

@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react'
 import { Button, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover } from '@mui/material'
-import { CheckSharp, KeyboardArrowDown } from '@mui/icons-material'
+import { ArrowDropDown, CheckSharp } from '@mui/icons-material'
 import { ClientContext } from '../context/main'
 import { Network } from 'src/types'
 
@@ -26,20 +26,12 @@ export const NetworkSelector = () => {
   return (
     <>
       <Button
-        variant={network === 'MAINNET' ? 'contained' : 'outlined'}
+        variant="text"
         color="primary"
-        sx={
-          network !== 'MAINNET'
-            ? {
-                color: (theme) => `${theme.palette.nym.background.dark}`,
-                border: (theme) => `1px solid ${theme.palette.nym.background.dark}`,
-                '&:hover': { border: (theme) => `1px solid ${theme.palette.nym.background.dark}` },
-              }
-            : {}
-        }
+        sx={{ color: (theme) => `${theme.palette.nym.background.dark}` }}
         onClick={handleClick}
         disableElevation
-        endIcon={<KeyboardArrowDown sx={{ color: (theme) => `1px solid ${theme.palette.nym.background.dark}` }} />}
+        endIcon={<ArrowDropDown sx={{ color: (theme) => `1px solid ${theme.palette.nym.background.dark}` }} />}
       >
         {networks.find((n) => n.networkName === network)?.name}
       </Button>

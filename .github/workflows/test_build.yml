@@ -25,11 +25,13 @@ jobs:
         with:
           command: build
           args: --all
+      - name: Create archive.tar
+        run: tar cf archive.tar target/
       - name: Archive builds artifacts
         uses: actions/upload-artifact@v2
         with:
           name: rust_builds
-          path: target/
+          path: archive.tar
           retention-days: 7
   tests:
     runs-on: [ self-hosted, custom-linux-exoscale ]
@@ -38,7 +40,9 @@ jobs:
       - name: Download a single artifact
         uses: actions/download-artifact@v2
         with:
-          name: rust_build
+          name: rust_builds
+      - name: Untar archive.tar
+        run: tar xf archive.tar
       - name: Run all tests
         uses: actions-rs/cargo@v1
         with:

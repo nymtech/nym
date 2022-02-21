@@ -25,45 +25,22 @@ jobs:
         with:
           command: build
           args: --all
-
+      - name: Archive builds artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: rust_builds
+          path: target/
+          retention-days: 7
+  tests:
+    runs-on: [ self-hosted, custom-linux-exoscale ]
+    needs: build
+    steps:
+      - name: Download a single artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: rust_build
       - name: Run all tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --all
-
-      - name: Check formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
-      - uses: actions-rs/clippy-check@v1
-        name: Clippy checks
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
-
-      - name: Run clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
-
-      - name: Build all binaries with coconut enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --all --features=coconut
-
-      - name: Run all tests with coconut enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all --features=coconut
-
-      - name: Run clippy with coconut enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --features=coconut -- -D warnings

@@ -15,12 +15,12 @@ pub(crate) mod run;
 pub(crate) mod sign;
 pub(crate) mod upgrade;
 
-#[cfg(not(feature = "coconut"))]
+#[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
 const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
-#[cfg(not(feature = "coconut"))]
+#[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
 const DEFAULT_VALIDATOR_ENDPOINT: &str = "http://localhost:26657";
 // A dummy mnemonic
-#[cfg(not(feature = "coconut"))]
+#[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
 const DEFAULT_MNEMONIC: &str = "typical regret aware used tennis noise resource crisp defy join donate orient army item immense clean emerge globe gift chronic loan flat enter egg";
 
 #[derive(Subcommand)]
@@ -122,8 +122,7 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         config = config.with_custom_persistent_store(datastore_path);
     }
 
-    // These default values are available even when building with `feature = "eth"`.
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
     {
         config = config.with_custom_validator_nymd(parse_validators(DEFAULT_VALIDATOR_ENDPOINT));
         config = config.with_cosmos_mnemonic(String::from(DEFAULT_MNEMONIC));

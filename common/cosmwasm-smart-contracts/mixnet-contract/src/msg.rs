@@ -50,11 +50,11 @@ pub enum ExecuteMsg {
         // id of the current rewarding interval
         interval_id: u32,
     },
-    RewardNextMixDelegators {
-        mix_identity: IdentityKey,
-        // id of the current rewarding interval
-        interval_id: u32,
-    },
+    // RewardNextMixDelegators {
+    //     mix_identity: IdentityKey,
+    //     // id of the current rewarding interval
+    //     interval_id: u32,
+    // },
     DelegateToMixnodeOnBehalf {
         mix_identity: IdentityKey,
         delegate: String,

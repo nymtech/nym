@@ -73,8 +73,7 @@ impl Display for ContractStateParams {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RewardingResult {
-    pub operator_reward: Uint128,
-    pub total_delegator_reward: Uint128,
+    pub node_reward: Uint128,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

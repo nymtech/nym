@@ -57,27 +57,32 @@ pub(crate) fn update_rewarding_status(
     storage: &mut dyn Storage,
     interval_id: u32,
     mix_identity: IdentityKey,
-    rewarding_results: RewardingResult,
-    next_start: Option<Addr>,
-    delegators_rewarding_params: DelegatorRewardParams,
+    rewarding_result: RewardingResult,
 ) -> Result<(), ContractError> {
-    if let Some(next_start) = next_start {
-        storage::REWARDING_STATUS.save(
-            storage,
-            (interval_id, mix_identity),
-            &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
-                running_results: rewarding_results,
-                next_start,
-                rewarding_params: delegators_rewarding_params,
-            }),
-        )?;
-    } else {
-        storage::REWARDING_STATUS.save(
-            storage,
-            (interval_id, mix_identity),
-            &RewardingStatus::Complete(rewarding_results),
-        )?;
-    }
+    // FIXME: Delete commented code, once refactoring is done
+    // if let Some(next_start) = next_start {
+    //     storage::REWARDING_STATUS.save(
+    //         storage,
+    //         (interval_id, mix_identity),
+    //         &RewardingStatus::PendingNextDelegatorPage(PendingDelegatorRewarding {
+    //             running_results: rewarding_results,
+    //             next_start,
+    //             rewarding_params: delegators_rewarding_params,
+    //         }),
+    //     )?;
+    // } else {
+    //     storage::REWARDING_STATUS.save(
+    //         storage,
+    //         (interval_id, mix_identity),
+    //         &RewardingStatus::Complete(rewarding_results),
+    //     )?;
+    // }
+
+    storage::REWARDING_STATUS.save(
+        storage,
+        (interval_id, mix_identity),
+        &RewardingStatus::Complete(rewarding_result),
+    )?;
 
     Ok(())
 }

@@ -114,12 +114,12 @@ impl MixnodeToReward {
         }
     }
 
-    pub(crate) fn to_next_delegator_reward_execute_msg(&self, interval_id: u32) -> ExecuteMsg {
-        ExecuteMsg::RewardNextMixDelegators {
-            mix_identity: self.identity.clone(),
-            interval_id,
-        }
-    }
+    // pub(crate) fn to_next_delegator_reward_execute_msg(&self, interval_id: u32) -> ExecuteMsg {
+    //     ExecuteMsg::RewardNextMixDelegators {
+    //         mix_identity: self.identity.clone(),
+    //         interval_id,
+    //     }
+    // }
 }
 
 pub(crate) struct FailedMixnodeRewardChunkDetails {
@@ -460,6 +460,7 @@ impl Rewarder {
         }
     }
 
+    // FIXME: Delete after refactoring is done
     /// For each mixnode on the list, try to "continue" rewarding its delegators.
     /// Note: due to the checks inside the smart contract, it's impossible to accidentally
     /// reward the same mixnode (or delegator) twice during particular rewarding interval.
@@ -469,28 +470,28 @@ impl Rewarder {
     ///
     /// * `nodes`: mixnodes which delegators did not receive all rewards in this interval.
     /// * `interval_id`: nonce associated with the current rewarding interval.
-    async fn reward_missed_delegators(&self, nodes: &[MixnodeToReward], interval_id: u32) {
-        let mut total_resent = 0;
-        for missed_node in nodes {
-            total_resent += 1;
-            info!(
-                "Sending rewarding transaction for missed delegators ({} / {} mixnodes re-checked)",
-                total_resent,
-                nodes.len()
-            );
+    // async fn reward_missed_delegators(&self, nodes: &[MixnodeToReward], interval_id: u32) {
+    //     let mut total_resent = 0;
+    //     for missed_node in nodes {
+    //         total_resent += 1;
+    //         info!(
+    //             "Sending rewarding transaction for missed delegators ({} / {} mixnodes re-checked)",
+    //             total_resent,
+    //             nodes.len()
+    //         );
 
-            if let Err(err) = self
-                .nymd_client
-                .reward_mix_delegators(missed_node, interval_id)
-                .await
-            {
-                warn!(
-                    "failed to attempt to reward missed delegators of node {} - {}",
-                    missed_node.identity, err
-                )
-            }
-        }
-    }
+    //         if let Err(err) = self
+    //             .nymd_client
+    //             .reward_mix_delegators(missed_node, interval_id)
+    //             .await
+    //         {
+    //             warn!(
+    //                 "failed to attempt to reward missed delegators of node {} - {}",
+    //                 missed_node.identity, err
+    //             )
+    //         }
+    //     }
+    // }
 
     /// Using the list of active mixnode and gateways, determine which of them are eligible for
     /// rewarding and distribute the rewards.
@@ -538,10 +539,11 @@ impl Rewarder {
                     .await;
             }
 
-            if !pending_delegators.is_empty() {
-                self.reward_missed_delegators(&pending_delegators, interval.id())
-                    .await;
-            }
+            // FIXME: Delete after refactoring is done
+            // if !pending_delegators.is_empty() {
+            //     self.reward_missed_delegators(&pending_delegators, interval.id())
+            //         .await;
+            // }
 
             // no point in verifying EVERYTHING again, just check the nodes that went through retries
             nodes_to_verify = unrewarded;

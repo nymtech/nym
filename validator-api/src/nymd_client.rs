@@ -290,48 +290,48 @@ impl<C> Client<C> {
             .await?;
 
         // reward rest of delegators (if applicable)
-        if node.total_delegations > MIXNODE_DELEGATORS_PAGE_LIMIT {
-            // the first 'batch' of delegators has been rewarded while rewarding the operator
-            let mut remaining_delegators = node.total_delegations - MIXNODE_DELEGATORS_PAGE_LIMIT;
-            let delegator_rewarding_msg = (
-                node.to_next_delegator_reward_execute_msg(interval_id),
-                vec![],
-            );
+        // if node.total_delegations > MIXNODE_DELEGATORS_PAGE_LIMIT {
+        //     // the first 'batch' of delegators has been rewarded while rewarding the operator
+        //     let mut remaining_delegators = node.total_delegations - MIXNODE_DELEGATORS_PAGE_LIMIT;
+        //     let delegator_rewarding_msg = (
+        //         node.to_next_delegator_reward_execute_msg(interval_id),
+        //         vec![],
+        //     );
 
-            while remaining_delegators > 0 {
-                let delegators_in_call = remaining_delegators.min(MIXNODE_DELEGATORS_PAGE_LIMIT);
-                let msgs = vec![delegator_rewarding_msg.clone()];
-                let memo = format!("rewarding another {} delegators", delegators_in_call);
-                self.execute_multiple_with_retry(msgs, Default::default(), memo)
-                    .await?;
+        //     while remaining_delegators > 0 {
+        //         let delegators_in_call = remaining_delegators.min(MIXNODE_DELEGATORS_PAGE_LIMIT);
+        //         let msgs = vec![delegator_rewarding_msg.clone()];
+        //         let memo = format!("rewarding another {} delegators", delegators_in_call);
+        //         self.execute_multiple_with_retry(msgs, Default::default(), memo)
+        //             .await?;
 
-                remaining_delegators =
-                    remaining_delegators.saturating_sub(MIXNODE_DELEGATORS_PAGE_LIMIT)
-            }
-        }
+        //         remaining_delegators =
+        //             remaining_delegators.saturating_sub(MIXNODE_DELEGATORS_PAGE_LIMIT)
+        //     }
+        // }
 
         Ok(())
     }
 
-    pub(crate) async fn reward_mix_delegators(
-        &self,
-        node: &MixnodeToReward,
-        interval_id: u32,
-    ) -> Result<(), RewardingError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        // the fee is a tricky subject here because we don't know exactly how many delegators we missed,
-        // let's aim for the worst case scenario and assume it was the entire page
-        let delegator_rewarding_msg = (
-            node.to_next_delegator_reward_execute_msg(interval_id),
-            vec![],
-        );
+    // pub(crate) async fn reward_mix_delegators(
+    //     &self,
+    //     node: &MixnodeToReward,
+    //     interval_id: u32,
+    // ) -> Result<(), RewardingError>
+    // where
+    //     C: SigningCosmWasmClient + Sync,
+    // {
+    //     // the fee is a tricky subject here because we don't know exactly how many delegators we missed,
+    //     // let's aim for the worst case scenario and assume it was the entire page
+    //     let delegator_rewarding_msg = (
+    //         node.to_next_delegator_reward_execute_msg(interval_id),
+    //         vec![],
+    //     );
 
-        let memo = "rewarding delegators".to_string();
-        self.execute_multiple_with_retry(vec![delegator_rewarding_msg], Default::default(), memo)
-            .await
-    }
+    //     let memo = "rewarding delegators".to_string();
+    //     self.execute_multiple_with_retry(vec![delegator_rewarding_msg], Default::default(), memo)
+    //         .await
+    // }
 
     pub(crate) async fn reward_mixnodes_with_single_page_of_delegators(
         &self,

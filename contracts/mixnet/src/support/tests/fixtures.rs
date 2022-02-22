@@ -3,7 +3,7 @@ use crate::contract::{INITIAL_MIXNODE_PLEDGE, INITIAL_REWARD_POOL};
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::{mixnodes::storage::StoredMixnodeBond, support::tests};
 use config::defaults::{DENOM, TOTAL_SUPPLY};
-use cosmwasm_std::{coin, Addr, Coin};
+use cosmwasm_std::{coin, Addr, Coin, Uint128};
 use mixnet_contract_common::mixnode::NodeRewardParams;
 use mixnet_contract_common::{Gateway, GatewayBond, Layer, MixNode};
 
@@ -57,6 +57,7 @@ pub(crate) fn stored_mixnode_bond_fixture(owner: &str) -> mixnodes_storage::Stor
             ..super::fixtures::mix_node_fixture()
         },
         None,
+        Uint128::zero(),
     )
 }
 

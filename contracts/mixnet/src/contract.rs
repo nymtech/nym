@@ -172,15 +172,15 @@ pub fn execute(
                 mix_identity,
             )
         }
-        ExecuteMsg::RewardNextMixDelegators {
-            mix_identity,
-            interval_id,
-        } => crate::rewards::transactions::try_reward_next_mixnode_delegators(
-            deps,
-            info,
-            mix_identity,
-            interval_id,
-        ),
+        // ExecuteMsg::RewardNextMixDelegators {
+        //     mix_identity,
+        //     interval_id,
+        // } => crate::rewards::transactions::try_reward_next_mixnode_delegators(
+        //     deps,
+        //     info,
+        //     mix_identity,
+        //     interval_id,
+        // ),
         ExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_identity,
             delegate,

@@ -124,4 +124,7 @@ pub enum ContractError {
         interval_start: i64,
         interval_end: i64,
     },
+
+    #[error("Could not cast reward to a u128, this should be impossible, at {}", line!())]
+    CastError,
 }

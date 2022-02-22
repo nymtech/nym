@@ -34,7 +34,7 @@ pub(crate) fn save_rewarded_set(
 ) -> StdResult<()> {
     for (i, identity) in entries.into_iter().enumerate() {
         // first k nodes are active
-        let set_status = if i < active_set_size as usize {
+        let set_status = if i < active_set_size as usize { 
             RewardedSetNodeStatus::Active
         } else {
             RewardedSetNodeStatus::Standby

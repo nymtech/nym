@@ -50,6 +50,21 @@ pub(crate) struct StoredMixnodeBond {
     pub block_height: u64,
     pub mix_node: MixNode,
     pub proxy: Option<Addr>,
+    pub accumulated_rewards: Uint128,
+}
+
+impl From<MixNodeBond> for StoredMixnodeBond {
+    fn from(mixnode_bond: MixNodeBond) -> StoredMixnodeBond {
+        StoredMixnodeBond {
+            pledge_amount: mixnode_bond.pledge_amount,
+            owner: mixnode_bond.owner,
+            layer: mixnode_bond.layer,
+            block_height: mixnode_bond.block_height,
+            mix_node: mixnode_bond.mix_node,
+            proxy: mixnode_bond.proxy,
+            accumulated_rewards: mixnode_bond.accumulated_rewards,
+        }
+    }
 }
 
 impl StoredMixnodeBond {
@@ -60,6 +75,7 @@ impl StoredMixnodeBond {
         block_height: u64,
         mix_node: MixNode,
         proxy: Option<Addr>,
+        accumulated_rewards: Uint128,
     ) -> Self {
         StoredMixnodeBond {
             pledge_amount,
@@ -68,6 +84,7 @@ impl StoredMixnodeBond {
             block_height,
             mix_node,
             proxy,
+            accumulated_rewards,
         }
     }
 
@@ -83,6 +100,7 @@ impl StoredMixnodeBond {
             block_height: self.block_height,
             mix_node: self.mix_node,
             proxy: self.proxy,
+            accumulated_rewards: self.accumulated_rewards,
         }
     }
 
@@ -125,6 +143,7 @@ pub(crate) fn read_full_mixnode_bond(
                 block_height: stored_bond.block_height,
                 mix_node: stored_bond.mix_node,
                 proxy: stored_bond.proxy,
+                accumulated_rewards: stored_bond.accumulated_rewards,
             }))
         }
     }
@@ -177,6 +196,7 @@ mod tests {
                 ..tests::fixtures::mix_node_fixture()
             },
             proxy: None,
+            accumulated_rewards: Uint128::zero(),
         };
 
         storage::mixnodes()

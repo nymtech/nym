@@ -280,9 +280,6 @@ pub fn new_mix_operator_rewarding_event(
     node_reward_result: NodeRewardResult,
     node_pledge: Uint128,
     node_delegation: Uint128,
-    operator_reward: Uint128,
-    delegation_rewards_distributed: Uint128,
-    further_delegations: bool,
 ) -> Event {
     Event::new(OPERATOR_REWARDING_EVENT_TYPE)
         .add_attribute(INTERVAL_ID_KEY, interval_id.to_string())
@@ -295,15 +292,6 @@ pub fn new_mix_operator_rewarding_event(
         )
         .add_attribute(LAMBDA_KEY, node_reward_result.lambda().to_string())
         .add_attribute(SIGMA_KEY, node_reward_result.sigma().to_string())
-        .add_attribute(OPERATOR_REWARD_KEY, operator_reward)
-        .add_attribute(
-            DISTRIBUTED_DELEGATION_REWARDS_KEY,
-            delegation_rewards_distributed,
-        )
-        .add_attribute(
-            FURTHER_DELEGATIONS_TO_REWARD_KEY,
-            further_delegations.to_string(),
-        )
 }
 
 pub fn new_mix_delegators_rewarding_event(

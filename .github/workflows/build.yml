@@ -11,6 +11,7 @@ on:
 jobs:
   build:
     runs-on: [ self-hosted, custom-linux-exoscale ]
+    # Enable sccache
     env:
       RUSTC_WRAPPER: /home/ubuntu/.cargo/bin/sccache
     steps:

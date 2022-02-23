@@ -21,6 +21,14 @@ impl Network {
             Self::MAINNET => String::from(mainnet::BECH32_PREFIX),
         }
     }
+
+    pub fn denom(&self) -> String {
+        match self {
+            Self::QA => String::from(qa::DENOM),
+            Self::SANDBOX => String::from(sandbox::DENOM),
+            Self::MAINNET => String::from(mainnet::DENOM),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

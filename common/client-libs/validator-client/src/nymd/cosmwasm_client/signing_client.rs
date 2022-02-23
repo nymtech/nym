@@ -644,7 +644,7 @@ impl Client {
     pub fn connect_with_signer<U>(
         endpoint: U,
         signer: DirectSecp256k1HdWallet,
-        gas_price: Option<GasPrice>,
+        gas_price: GasPrice,
     ) -> Result<Self, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
@@ -653,7 +653,7 @@ impl Client {
         Ok(Client {
             rpc_client,
             signer,
-            gas_price: gas_price.unwrap_or_default(),
+            gas_price,
         })
     }
 }

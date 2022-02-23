@@ -88,7 +88,7 @@ impl NymdClient<SigningNymdClient> {
         vesting_contract_address: Option<AccountId>,
         erc20_bridge_contract_address: Option<AccountId>,
         signer: DirectSecp256k1HdWallet,
-        gas_price: Option<GasPrice>,
+        gas_price: GasPrice,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
@@ -123,12 +123,14 @@ impl NymdClient<SigningNymdClient> {
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         let prefix = network.bech32_prefix();
+        let denom = network.denom();
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?;
         let client_address = wallet
             .try_derive_accounts()?
             .into_iter()
             .map(|account| account.address)
             .collect();
+        let gas_price = gas_price.unwrap_or(GasPrice::default(denom)?);
 
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, wallet, gas_price)?,
@@ -162,6 +164,7 @@ impl<C> NymdClient<C> {
     }
 
     // now the question is as follows: will denom always be in the format of `u{prefix}`?
+    // WIP(JON): No. This needs updating
     pub fn denom(&self) -> Result<Denom, NymdError> {
         Ok(format!("u{}", self.mixnet_contract_address()?.prefix())
             .parse()

@@ -361,7 +361,7 @@ mod test {
   fn coin_to_cosmoswasm() {
     let network_denom = CosmosDenom::from_str("unym").unwrap();
     for amount in amounts() {
-      let coin: Coin = Coin::minor(amount).into();
+      let coin = Coin::minor(amount);
       let cosmoswasm_coin: CosmWasmCoin = coin.into_cosmwasm_coin(&network_denom).unwrap();
       assert_eq!(
         cosmoswasm_coin,
@@ -372,7 +372,7 @@ mod test {
         Coin::minor(amount)
       );
 
-      let coin: Coin = Coin::major(amount).into();
+      let coin = Coin::major(amount);
       let cosmoswasm_coin: CosmWasmCoin = coin.into_cosmwasm_coin(&network_denom).unwrap();
       assert_eq!(
         cosmoswasm_coin,
@@ -389,7 +389,7 @@ mod test {
   fn coin_to_cosmos() {
     let network_denom = CosmosDenom::from_str("unym").unwrap();
     for amount in amounts() {
-      let coin: Coin = Coin::minor(amount).into();
+      let coin = Coin::minor(amount);
       let cosmos_coin: CosmosCoin = coin.into_cosmos_coin(&network_denom).unwrap();
       assert_eq!(
         cosmos_coin,
@@ -400,7 +400,7 @@ mod test {
       );
       assert_eq!(Coin::try_from(cosmos_coin).unwrap(), Coin::minor(amount));
 
-      let coin: Coin = Coin::major(amount).into();
+      let coin = Coin::major(amount);
       let cosmos_coin: CosmosCoin = coin.into_cosmos_coin(&network_denom).unwrap();
       assert_eq!(
         cosmos_coin,

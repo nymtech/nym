@@ -116,7 +116,7 @@ impl<C> Client<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.0.read().await.get_current_interval().await?)
+        self.0.read().await.get_current_interval().await
     }
 
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>

@@ -20,7 +20,7 @@ pub async fn delegate_to_mixnode(
     .delegate_to_mixnode(identity, &delegation)
     .await?;
   Ok(DelegationResult::new(
-    &nymd_client!(state).address().to_string(),
+    nymd_client!(state).address().as_ref(),
     identity,
     Some(delegation.into()),
   ))
@@ -35,7 +35,7 @@ pub async fn undelegate_from_mixnode(
     .remove_mixnode_delegation(identity)
     .await?;
   Ok(DelegationResult::new(
-    &nymd_client!(state).address().to_string(),
+    nymd_client!(state).address().as_ref(),
     identity,
     None,
   ))

@@ -252,7 +252,7 @@ impl<C> Client<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.nymd.get_mixnet_contract_version().await?)
+        self.nymd.get_mixnet_contract_version().await
     }
 
     pub async fn get_rewarding_status(

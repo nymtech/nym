@@ -1,7 +1,5 @@
 name: Test Build
-
 on: workflow_dispatch
-
 jobs:
   build:
     runs-on: [ self-hosted, custom-linux-exoscale ]

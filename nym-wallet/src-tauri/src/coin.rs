@@ -165,7 +165,7 @@ impl Coin {
   // Helper function that returns the local denom in terms of the specified network denom.
   fn denom_as_string(&self, network_denom: &CosmosDenom) -> Result<String, BackendError> {
     // Currently there is the widespread assumption that network denomination is always in
-    // `Denom::Minor`, and prefixed with 'u'.
+    // `Denom::Minor`, and starts with 'u'.
     let network_denom = network_denom.to_string();
     if !network_denom.starts_with('u') {
       return Err(BackendError::InvalidNetworkDenom(network_denom));

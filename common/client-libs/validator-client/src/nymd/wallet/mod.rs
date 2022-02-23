@@ -105,6 +105,8 @@ impl DirectSecp256k1HdWallet {
         self.secret.to_string()
     }
 
+    //pub fn prefix(
+
     pub fn sign_direct_with_account(
         &self,
         signer: &AccountData,

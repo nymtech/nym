@@ -74,7 +74,7 @@ impl NymdClient<QueryNymdClient> {
             vesting_contract_address,
             erc20_bridge_contract_address,
             client_address: None,
-            custom_gas_limits: Default::default(),
+            custom_gas_limits: HashMap::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
     }
@@ -105,7 +105,7 @@ impl NymdClient<SigningNymdClient> {
             vesting_contract_address,
             erc20_bridge_contract_address,
             client_address: Some(client_address),
-            custom_gas_limits: Default::default(),
+            custom_gas_limits: HashMap::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
     }
@@ -138,7 +138,7 @@ impl NymdClient<SigningNymdClient> {
             vesting_contract_address,
             erc20_bridge_contract_address,
             client_address: Some(client_address),
-            custom_gas_limits: Default::default(),
+            custom_gas_limits: HashMap::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
     }
@@ -163,12 +163,11 @@ impl<C> NymdClient<C> {
             .ok_or(NymdError::NoContractAddressAvailable)
     }
 
-    // now the question is as follows: will denom always be in the format of `u{prefix}`?
-    // WIP(JON): No. This needs updating
-    pub fn denom(&self) -> Result<Denom, NymdError> {
-        Ok(format!("u{}", self.mixnet_contract_address()?.prefix())
-            .parse()
-            .unwrap())
+    pub fn denom(&self) -> &Denom
+    where
+        C: SigningCosmWasmClient,
+    {
+        &self.gas_price().denom
     }
 
     pub fn address(&self) -> &AccountId

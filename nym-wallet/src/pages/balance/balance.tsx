@@ -23,7 +23,7 @@ export const BalanceCard = () => {
           {!userBalance.error && (
             <Typography
               data-testid="refresh-success"
-              sx={{ p: 2, color: 'nym.background.dark' }}
+              sx={{ color: 'nym.background.dark' }}
               variant="h5"
               fontWeight="700"
             >
@@ -33,11 +33,7 @@ export const BalanceCard = () => {
         </Grid>
         {network && (
           <Grid item>
-            <Link
-              sx={{ pl: 1 }}
-              href={`${urls(network).blockExplorer}/account/${clientDetails?.client_address}`}
-              target="_blank"
-            >
+            <Link href={`${urls(network).blockExplorer}/account/${clientDetails?.client_address}`} target="_blank">
               <Button endIcon={<OpenInNew />}>Last transactions</Button>
             </Link>
           </Grid>

@@ -2,7 +2,6 @@ import React, { useEffect, useContext, useState } from 'react'
 import {
   IconButton,
   CircularProgress,
-  Grid,
   LinearProgress,
   Table,
   TableCell,
@@ -13,6 +12,7 @@ import {
   Box,
   Button,
   TableCellProps,
+  Grid,
 } from '@mui/material'
 import { InfoOutlined, Refresh } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
@@ -52,15 +52,9 @@ export const VestingCard = () => {
         </IconButton>
       }
     >
-      <Grid container direction="column" spacing={3}>
-        <Grid item>
-          <VestingSchedule />
-        </Grid>
-        <Grid item>
-          <TokenTransfer />
-        </Grid>
-      </Grid>
-      <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mt: 2 }}>
+      <VestingSchedule />
+      <TokenTransfer />
+      <Box display="flex" justifyContent="space-between" alignItems="center">
         <Fee feeType="Send" />
         <Button
           size="large"
@@ -172,39 +166,28 @@ const vestingPeriod = (current?: Period, original?: number) => {
 const TokenTransfer = () => {
   const { userBalance, currency } = useContext(ClientContext)
   return (
-    <Box sx={{ p: 1 }}>
-      <Grid container direction="column" spacing={3}>
-        <Grid item>
-          <Title
-            title="Transfer unlocked tokens"
-            Icon={() => {
-              return (
-                <Box sx={{ display: 'flex', mr: 1 }}>
-                  <InfoTooltip title="Unlocked tokens that are available to transfer to your balance" size="medium" />
-                </Box>
-              )
-            }}
-          />
-        </Grid>
-
-        <Grid container item spacing={1} direction="column">
-          <Grid item>
-            <Typography variant="subtitle2" sx={{ color: 'grey.500', mr: 0.5 }}>
-              Transferable tokens
-            </Typography>
-          </Grid>
-          <Grid item>
-            <Typography
-              data-testid="refresh-success"
-              sx={{ color: 'nym.background.dark' }}
-              variant="h5"
-              fontWeight="700"
-            >
-              {userBalance.tokenAllocation?.spendable || 'n/a'} {currency?.major}
-            </Typography>
-          </Grid>
-        </Grid>
+    <Grid container sx={{ my: 2 }} direction="column" spacing={2}>
+      <Grid item>
+        <Title
+          title="Transfer unlocked tokens"
+          Icon={() => {
+            return (
+              <Box sx={{ display: 'flex', mr: 1 }}>
+                <InfoTooltip title="Unlocked tokens that are available to transfer to your balance" size="medium" />
+              </Box>
+            )
+          }}
+        />
       </Grid>
-    </Box>
+      <Grid item>
+        <Typography variant="subtitle2" sx={{ color: 'grey.500', mt: 2 }}>
+          Transferable tokens
+        </Typography>
+
+        <Typography data-testid="refresh-success" sx={{ color: 'nym.background.dark' }} variant="h5" fontWeight="700">
+          {userBalance.tokenAllocation?.spendable || 'n/a'} {currency?.major}
+        </Typography>
+      </Grid>
+    </Grid>
   )
 }

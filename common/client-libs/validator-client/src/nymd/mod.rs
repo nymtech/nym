@@ -163,13 +163,6 @@ impl<C> NymdClient<C> {
             .ok_or(NymdError::NoContractAddressAvailable)
     }
 
-    pub fn denom(&self) -> &Denom
-    where
-        C: SigningCosmWasmClient,
-    {
-        &self.gas_price().denom
-    }
-
     pub fn address(&self) -> &AccountId
     where
         C: SigningCosmWasmClient,

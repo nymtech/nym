@@ -4,7 +4,6 @@
 use crate::{
     commands::{override_config, OverrideConfig},
     config::{persistence::pathfinder::GatewayPathfinder, Config},
-    node::{storage::PersistentStorage, Gateway},
 };
 use clap::Args;
 use config::NymConfig;
@@ -145,14 +144,14 @@ pub async fn execute(args: &Init) {
     println!("Saved configuration file to {:?}", config_save_location);
     println!("Gateway configuration completed.\n\n\n");
 
-    Gateway::<PersistentStorage>::new(config)
+    crate::node::create_gateway(config)
         .await
         .print_node_details();
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::node::storage::InMemStorage;
+    use crate::node::{storage::InMemStorage, Gateway};
 
     use super::*;
 

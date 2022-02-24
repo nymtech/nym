@@ -25,9 +25,26 @@ use coconut_interface::VerificationKey;
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
 
+use self::storage::PersistentStorage;
+
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
 pub(crate) mod storage;
+
+/// Wire up and create Gateway instance
+pub(crate) async fn create_gateway(config: Config) -> Gateway<PersistentStorage> {
+    let storage = initialise_storage(&config).await;
+    Gateway::new(config, storage).await
+}
+
+async fn initialise_storage(config: &Config) -> PersistentStorage {
+    let path = config.get_persistent_store_path();
+    let retrieval_limit = config.get_message_retrieval_limit();
+    match PersistentStorage::init(path, retrieval_limit).await {
+        Err(err) => panic!("failed to initialise gateway storage - {}", err),
+        Ok(storage) => storage,
+    }
+}
 
 pub(crate) struct Gateway<St: Storage> {
     config: Config,
@@ -43,11 +60,9 @@ where
     St: Storage + 'static,
 {
     /// Construct from the given `Config` instance.
-    // TODO: consider extracting out the storage construction from `Gateway` to uncouple further.
-    // That would probably also mean removing the `init` function from the `Storage` trait.
-    pub async fn new(config: Config) -> Self {
+    pub async fn new(config: Config, storage: St) -> Self {
         let pathfinder = GatewayPathfinder::new_from_config(&config);
-        let storage = Self::initialise_storage(&config).await;
+        // let storage = Self::initialise_storage(&config).await;
 
         Gateway {
             config,
@@ -69,15 +84,6 @@ where
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
-        }
-    }
-
-    async fn initialise_storage(config: &Config) -> St {
-        let path = config.get_persistent_store_path();
-        let retrieval_limit = config.get_message_retrieval_limit();
-        match St::init(path, retrieval_limit).await {
-            Err(err) => panic!("failed to initialise gateway storage - {}", err),
-            Ok(storage) => storage,
         }
     }
 

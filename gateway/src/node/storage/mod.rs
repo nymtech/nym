@@ -21,17 +21,6 @@ mod shared_keys;
 
 #[async_trait]
 pub(crate) trait Storage: Clone + Send + Sync {
-    /// Initialises `Storage` using the provided path.
-    ///
-    /// # Arguments
-    ///
-    /// * `database_path`: path to the database.
-    /// * `message_retrieval_limit`: maximum number of stored client messages that can be retrieved at once.
-    async fn init<P: AsRef<Path> + Send>(
-        database_path: P,
-        message_retrieval_limit: i64,
-    ) -> Result<Self, StorageError>;
-
     /// Inserts provided derived shared keys into the database.
     /// If keys previously existed for the provided client, they are overwritten with the new data.
     ///
@@ -155,9 +144,14 @@ pub(crate) struct PersistentStorage {
     bandwidth_manager: BandwidthManager,
 }
 
-#[async_trait]
-impl Storage for PersistentStorage {
-    async fn init<P: AsRef<Path> + Send>(
+impl PersistentStorage {
+    /// Initialises `PersistentStorage` using the provided path.
+    ///
+    /// # Arguments
+    ///
+    /// * `database_path`: path to the database.
+    /// * `message_retrieval_limit`: maximum number of stored client messages that can be retrieved at once.
+    pub async fn init<P: AsRef<Path> + Send>(
         database_path: P,
         message_retrieval_limit: i64,
     ) -> Result<Self, StorageError> {
@@ -196,6 +190,10 @@ impl Storage for PersistentStorage {
             bandwidth_manager: BandwidthManager::new(connection_pool),
         })
     }
+}
+
+#[async_trait]
+impl Storage for PersistentStorage {
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
@@ -309,18 +307,20 @@ impl Storage for PersistentStorage {
 }
 
 /// In-memory implementation of `Storage`. The intention is primarily in testing environments.
+#[cfg(test)]
 #[derive(Clone)]
 pub(crate) struct InMemStorage;
 
-#[async_trait]
-impl Storage for InMemStorage {
-    async fn init<P: AsRef<Path> + Send>(
-        _database_path: P,
-        _message_retrieval_limit: i64,
-    ) -> Result<Self, StorageError> {
+#[cfg(test)]
+impl InMemStorage {
+    async fn init<P: AsRef<Path> + Send>() -> Result<Self, StorageError> {
         todo!()
     }
+}
 
+#[cfg(test)]
+#[async_trait]
+impl Storage for InMemStorage {
     async fn insert_shared_keys(
         &self,
         _client_address: DestinationAddressBytes,

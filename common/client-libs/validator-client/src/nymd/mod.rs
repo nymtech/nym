@@ -130,7 +130,7 @@ impl NymdClient<SigningNymdClient> {
             .into_iter()
             .map(|account| account.address)
             .collect();
-        let gas_price = gas_price.unwrap_or(GasPrice::default(denom)?);
+        let gas_price = gas_price.unwrap_or(GasPrice::new_with_default_price(denom)?);
 
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, wallet, gas_price)?,

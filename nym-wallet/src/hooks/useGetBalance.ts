@@ -71,12 +71,9 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
           locked: lockedCoins.amount,
           spendable: spendableCoins.amount,
         })
-
-        console.log(currentVestingPeriod)
       } catch (e) {
         clearTokenAllocation()
         clearOriginalVesting()
-        console.log(e)
       }
     }
     setIsLoading(false)

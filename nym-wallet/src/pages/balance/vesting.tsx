@@ -22,7 +22,7 @@ import { withdrawVestedCoins } from '../../requests'
 import { Period } from '../../types'
 
 export const VestingCard = () => {
-  const { userBalance, currency } = useContext(ClientContext)
+  const { userBalance } = useContext(ClientContext)
   const [isLoading, setIsLoading] = useState(false)
 
   const { enqueueSnackbar, closeSnackbar } = useSnackbar()

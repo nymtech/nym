@@ -15,7 +15,7 @@ export const Balance = () => {
     <PageLayout>
       <Box display="flex" flexDirection="column" gap={2}>
         <BalanceCard />
-        <VestingCard />
+        {userBalance.originalVesting && <VestingCard />}
       </Box>
     </PageLayout>
   )

@@ -16,7 +16,7 @@ import {
 } from '@mui/material'
 import { InfoOutlined, Refresh } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
-import { NymCard, InfoTooltip, Title } from '../../components'
+import { NymCard, InfoTooltip, Title, Fee } from '../../components'
 import { ClientContext } from '../../context/main'
 import { withdrawVestedCoins } from '../../requests'
 import { Period } from '../../types'
@@ -60,7 +60,8 @@ export const VestingCard = () => {
           <TokenTransfer />
         </Grid>
       </Grid>
-      <Box display="flex" justifyContent="flex-end" alignItems="center" sx={{ mt: 2 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mt: 2 }}>
+        <Fee feeType="Send" />
         <Button
           size="large"
           variant="contained"

@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api'
+import { appWindow } from '@tauri-apps/api/window'
 import bs58 from 'bs58'
 import { minor, valid } from 'semver'
 import { userBalance, majorToMinor, getGasFee } from '../requests'
@@ -123,4 +124,8 @@ export const currencyMap = (network: Network) => {
   }
 
   return currency
+}
+
+export const maximizeWindow = async () => {
+  await appWindow.maximize()
 }

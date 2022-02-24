@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useLayoutEffect } from 'react'
 import ReactDOM from 'react-dom'
-import { appWindow, LogicalSize } from '@tauri-apps/api/window'
 import { ErrorBoundary } from 'react-error-boundary'
 import { BrowserRouter as Router } from 'react-router-dom'
 import { Routes } from './routes'
@@ -10,15 +9,13 @@ import { Admin, Welcome } from './pages'
 import { ErrorFallback } from './components'
 import { NymWalletTheme, WelcomeTheme } from './theme'
 import { Settings } from './pages'
+import { maximizeWindow } from './utils'
 
 const App = () => {
   const { clientDetails } = useContext(ClientContext)
-  const setWindowSize = async () => {
-    await appWindow.setSize(new LogicalSize(screen.width, screen.height))
-  }
 
   useLayoutEffect(() => {
-    setWindowSize()
+    maximizeWindow()
   }, [])
 
   return !clientDetails ? (

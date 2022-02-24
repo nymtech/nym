@@ -20,7 +20,7 @@ mod models;
 mod shared_keys;
 
 #[async_trait]
-pub(crate) trait Storage: Clone + Send + Sync {
+pub(crate) trait Storage: Send + Sync {
     /// Inserts provided derived shared keys into the database.
     /// If keys previously existed for the provided client, they are overwritten with the new data.
     ///

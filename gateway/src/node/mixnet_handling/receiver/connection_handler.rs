@@ -32,7 +32,7 @@ pub(crate) struct ConnectionHandler<St: Storage> {
     ack_sender: MixForwardingSender,
 }
 
-impl<St: Storage> Clone for ConnectionHandler<St> {
+impl<St: Storage + Clone> Clone for ConnectionHandler<St> {
     fn clone(&self) -> Self {
         // remove stale entries from the cache while cloning
         let mut clients_store_cache = HashMap::with_capacity(self.clients_store_cache.capacity());

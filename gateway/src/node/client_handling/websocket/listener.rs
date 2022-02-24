@@ -58,7 +58,7 @@ impl Listener {
         storage: St,
         active_clients_store: ActiveClientsStore,
     ) where
-        St: Storage + 'static,
+        St: Storage + Clone + 'static,
     {
         info!("Starting websocket listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
@@ -102,7 +102,7 @@ impl Listener {
         active_clients_store: ActiveClientsStore,
     ) -> JoinHandle<()>
     where
-        St: Storage + 'static,
+        St: Storage + Clone + 'static,
     {
         tokio::spawn(async move {
             self.run(outbound_mix_sender, storage, active_clients_store)

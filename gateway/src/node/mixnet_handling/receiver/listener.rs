@@ -20,7 +20,7 @@ impl Listener {
 
     pub(crate) async fn run<St>(&mut self, connection_handler: ConnectionHandler<St>)
     where
-        St: Storage + 'static,
+        St: Storage + Clone + 'static,
     {
         info!("Starting mixnet listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
@@ -44,7 +44,7 @@ impl Listener {
 
     pub(crate) fn start<St>(mut self, connection_handler: ConnectionHandler<St>) -> JoinHandle<()>
     where
-        St: Storage + 'static,
+        St: Storage + Clone + 'static,
     {
         info!("Running mix listener on {:?}", self.address.to_string());
 

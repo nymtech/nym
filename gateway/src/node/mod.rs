@@ -57,7 +57,7 @@ pub(crate) struct Gateway<St: Storage> {
 
 impl<St> Gateway<St>
 where
-    St: Storage + 'static,
+    St: Storage + Clone + 'static,
 {
     /// Construct from the given `Config` instance.
     pub async fn new(config: Config, storage: St) -> Self {

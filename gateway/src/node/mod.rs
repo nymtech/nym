@@ -29,18 +29,18 @@ pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
 pub(crate) mod storage;
 
-pub(crate) struct Gateway<S: Storage> {
+pub(crate) struct Gateway<St: Storage> {
     config: Config,
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     sphinx_keypair: Arc<encryption::KeyPair>,
-    storage: S,
+    storage: St,
 }
 
-impl<S> Gateway<S>
+impl<St> Gateway<St>
 where
-    S: Storage + 'static,
+    St: Storage + 'static,
 {
     /// Construct from the given `Config` instance.
     // TODO: consider extracting out the storage construction from `Gateway` to uncouple further.
@@ -62,7 +62,7 @@ where
         config: Config,
         identity_keypair: identity::KeyPair,
         sphinx_keypair: encryption::KeyPair,
-        storage: S,
+        storage: St,
     ) -> Self {
         Gateway {
             config,
@@ -72,10 +72,10 @@ where
         }
     }
 
-    async fn initialise_storage(config: &Config) -> S {
+    async fn initialise_storage(config: &Config) -> St {
         let path = config.get_persistent_store_path();
         let retrieval_limit = config.get_message_retrieval_limit();
-        match S::init(path, retrieval_limit).await {
+        match St::init(path, retrieval_limit).await {
             Err(err) => panic!("failed to initialise gateway storage - {}", err),
             Ok(storage) => storage,
         }

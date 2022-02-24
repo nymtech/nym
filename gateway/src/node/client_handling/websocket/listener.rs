@@ -52,13 +52,13 @@ impl Listener {
 
     // TODO: change the signature to pub(crate) async fn run(&self, handler: Handler)
 
-    pub(crate) async fn run<S>(
+    pub(crate) async fn run<St>(
         &mut self,
         outbound_mix_sender: MixForwardingSender,
-        storage: S,
+        storage: St,
         active_clients_store: ActiveClientsStore,
     ) where
-        S: Storage + 'static,
+        St: Storage + 'static,
     {
         info!("Starting websocket listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
@@ -95,14 +95,14 @@ impl Listener {
         }
     }
 
-    pub(crate) fn start<S>(
+    pub(crate) fn start<St>(
         mut self,
         outbound_mix_sender: MixForwardingSender,
-        storage: S,
+        storage: St,
         active_clients_store: ActiveClientsStore,
     ) -> JoinHandle<()>
     where
-        S: Storage + 'static,
+        St: Storage + 'static,
     {
         tokio::spawn(async move {
             self.run(outbound_mix_sender, storage, active_clients_store)

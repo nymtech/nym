@@ -18,9 +18,9 @@ impl Listener {
         Listener { address }
     }
 
-    pub(crate) async fn run<S>(&mut self, connection_handler: ConnectionHandler<S>)
+    pub(crate) async fn run<St>(&mut self, connection_handler: ConnectionHandler<St>)
     where
-        S: Storage + 'static,
+        St: Storage + 'static,
     {
         info!("Starting mixnet listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
@@ -42,9 +42,9 @@ impl Listener {
         }
     }
 
-    pub(crate) fn start<S>(mut self, connection_handler: ConnectionHandler<S>) -> JoinHandle<()>
+    pub(crate) fn start<St>(mut self, connection_handler: ConnectionHandler<St>) -> JoinHandle<()>
     where
-        S: Storage + 'static,
+        St: Storage + 'static,
     {
         info!("Running mix listener on {:?}", self.address.to_string());
 

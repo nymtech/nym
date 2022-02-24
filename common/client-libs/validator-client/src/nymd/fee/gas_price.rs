@@ -84,7 +84,7 @@ mod tests {
     #[test]
     fn default_gas_price_is_valid() {
         let denom = "unym".parse().unwrap();
-        let _ = GasPrice::default(denom);
+        let _ = GasPrice::new_with_default_price(denom);
     }
 
     #[test]

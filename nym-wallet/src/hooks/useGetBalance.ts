@@ -62,7 +62,6 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
             getSpendableCoins(address),
             getCurrentVestingPeriod(address),
           ])
-
         setOriginalVesting(originalVestingValue)
         setCurrentVestingPeriod(currentVestingPeriod)
         setTokenAllocation({
@@ -74,6 +73,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
       } catch (e) {
         clearTokenAllocation()
         clearOriginalVesting()
+        console.error(e)
       }
     }
     setIsLoading(false)

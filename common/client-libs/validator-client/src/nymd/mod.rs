@@ -52,6 +52,7 @@ pub struct NymdClient<C> {
     client: C,
     mixnet_contract_address: Option<AccountId>,
     vesting_contract_address: Option<AccountId>,
+    erc20_bridge_contract_address: Option<AccountId>,
     client_address: Option<Vec<AccountId>>,
     custom_gas_limits: HashMap<Operation, Gas>,
     simulated_gas_multiplier: f32,
@@ -62,6 +63,7 @@ impl NymdClient<QueryNymdClient> {
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
         vesting_contract_address: Option<AccountId>,
+        erc20_bridge_contract_address: Option<AccountId>,
     ) -> Result<NymdClient<QueryNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
@@ -70,6 +72,7 @@ impl NymdClient<QueryNymdClient> {
             client: QueryNymdClient::new(endpoint)?,
             mixnet_contract_address,
             vesting_contract_address,
+            erc20_bridge_contract_address,
             client_address: None,
             custom_gas_limits: Default::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
@@ -83,6 +86,7 @@ impl NymdClient<SigningNymdClient> {
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
         vesting_contract_address: Option<AccountId>,
+        erc20_bridge_contract_address: Option<AccountId>,
         signer: DirectSecp256k1HdWallet,
         gas_price: Option<GasPrice>,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
@@ -99,6 +103,7 @@ impl NymdClient<SigningNymdClient> {
             client: SigningNymdClient::connect_with_signer(endpoint, signer, gas_price)?,
             mixnet_contract_address,
             vesting_contract_address,
+            erc20_bridge_contract_address,
             client_address: Some(client_address),
             custom_gas_limits: Default::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
@@ -110,6 +115,7 @@ impl NymdClient<SigningNymdClient> {
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
         vesting_contract_address: Option<AccountId>,
+        erc20_bridge_contract_address: Option<AccountId>,
         mnemonic: bip39::Mnemonic,
         gas_price: Option<GasPrice>,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
@@ -128,6 +134,7 @@ impl NymdClient<SigningNymdClient> {
             client: SigningNymdClient::connect_with_signer(endpoint, wallet, gas_price)?,
             mixnet_contract_address,
             vesting_contract_address,
+            erc20_bridge_contract_address,
             client_address: Some(client_address),
             custom_gas_limits: Default::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
@@ -144,6 +151,12 @@ impl<C> NymdClient<C> {
 
     pub fn vesting_contract_address(&self) -> Result<&AccountId, NymdError> {
         self.vesting_contract_address
+            .as_ref()
+            .ok_or(NymdError::NoContractAddressAvailable)
+    }
+
+    pub fn erc20_bridge_contract_address(&self) -> Result<&AccountId, NymdError> {
+        self.erc20_bridge_contract_address
             .as_ref()
             .ok_or(NymdError::NoContractAddressAvailable)
     }

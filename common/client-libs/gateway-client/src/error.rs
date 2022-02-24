@@ -8,7 +8,7 @@ use tungstenite::Error as WsError;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
 #[cfg(not(feature = "coconut"))]
-use web3::Error as Web3Error;
+use web3::{contract::Error as Web3ContractError, Error as Web3Error};
 
 #[derive(Debug, Error)]
 pub enum GatewayClientError {
@@ -27,12 +27,16 @@ pub enum GatewayClientError {
     NetworkErrorWasm(JsValue),
 
     #[cfg(not(feature = "coconut"))]
-    #[error("Could not backup keypair - {0}")]
+    #[error("Keypair IO error - {0}")]
     IOError(#[from] std::io::Error),
 
     #[cfg(not(feature = "coconut"))]
     #[error("Could not burn ERC20 token in Ethereum smart contract - {0}")]
     BurnTokenError(#[from] Web3Error),
+
+    #[cfg(not(feature = "coconut"))]
+    #[error("Could not run web3 contract - {0}")]
+    Web3ContractError(#[from] Web3ContractError),
 
     #[cfg(not(feature = "coconut"))]
     #[error("Invalid Ethereum private key")]

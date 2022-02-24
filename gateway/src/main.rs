@@ -1,46 +1,38 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::{crate_version, App, ArgMatches};
+use clap::{crate_version, Parser};
+use once_cell::sync::OnceCell;
 
 mod commands;
 mod config;
 mod node;
+
+static LONG_ABOUT: OnceCell<String> = OnceCell::new();
+
+// Helper for passing LONG_ABOUT to clap
+fn long_about() -> &'static str {
+    LONG_ABOUT.get().expect("Failed to get long about text")
+}
+
+#[derive(Parser)]
+#[clap(author = "Nymtech", version, about, long_about = Some(long_about()))]
+struct Cli {
+    #[clap(subcommand)]
+    command: commands::Commands,
+}
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
     setup_logging();
     println!("{}", banner());
+    LONG_ABOUT
+        .set(long_version())
+        .expect("Failed to set long about text");
 
-    let arg_matches = App::new("Nym Mixnet Gateway")
-        .version(crate_version!())
-        .long_version(&*long_version())
-        .author("Nymtech")
-        .about("Implementation of the Nym Mixnet Gateway")
-        .subcommand(commands::init::command_args())
-        .subcommand(commands::run::command_args())
-        .subcommand(commands::sign::command_args())
-        .subcommand(commands::upgrade::command_args())
-        .subcommand(commands::node_details::command_args())
-        .get_matches();
-
-    execute(arg_matches).await;
-}
-
-async fn execute(matches: ArgMatches<'static>) {
-    match matches.subcommand() {
-        ("init", Some(m)) => commands::init::execute(m.clone()).await,
-        ("run", Some(m)) => commands::run::execute(m.clone()).await,
-        ("upgrade", Some(m)) => commands::upgrade::execute(m.clone()).await,
-        ("sign", Some(m)) => commands::sign::execute(m),
-        ("node-details", Some(m)) => commands::node_details::execute(m.clone()).await,
-        _ => println!("{}", usage()),
-    }
-}
-
-fn usage() -> &'static str {
-    "usage: --help to see available options.\n\n"
+    let args = Cli::parse();
+    commands::execute(args).await;
 }
 
 fn banner() -> String {

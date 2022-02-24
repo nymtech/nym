@@ -2,7 +2,7 @@ name: Nightly builds
 
 on:
   schedule:
-    - cron: '14 8 * * *'
+    - cron: '14 4 * * *'
 jobs:
   matrix_prep:
     runs-on: ubuntu-latest
@@ -21,6 +21,7 @@ jobs:
     strategy:
       matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.rust == 'nightly' || matrix.rust == 'beta' || matrix.rust == 'stable' }}
     steps:
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev squashfs-tools
@@ -93,19 +94,28 @@ jobs:
         with:
           command: clippy
           args: --features=coconut -- -D warnings
+  notification:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect jobs status
+        uses: technote-space/workflow-conclusion-action@v2
+      - name: Check out repository code
+        uses: actions/checkout@v2
       - name: Keybase - Node Install
-        #if: ${{ job.status != 'success' }}
         run: npm install
-        working-directory: .github/workflows/support-files/messages
+        working-directory: .github/workflows/support-files
       - name: Keybase - Send Notification
-        #if: ${{ job.status != 'success' }}
         env:
+          NYM_NOTIFICATION_KIND: nightly
           NYM_PROJECT_NAME: "Nym nightly build"
+          GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
+          GIT_BRANCH: "${GITHUB_REF##*/}"
           KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
           KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
           KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
           KEYBASE_NYM_CHANNEL: "ci-nightly"
-          IS_SUCCESS: "${{ job.status == 'success' }}"
+          IS_SUCCESS: "${{ env.WORKFLOW_CONCLUSION == 'success' }}"
         uses: docker://keybaseio/client:stable-node
         with:
-          args: .github/workflows/support-files/messages/entry_point_notifications.sh
+          args: .github/workflows/support-files/notifications/entry_point.sh

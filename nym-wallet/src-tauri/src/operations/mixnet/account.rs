@@ -141,6 +141,7 @@ async fn _connect_with_mnemonic(
           config.get_validator_api_url(network),
           config.get_mixnet_contract_address(network),
           config.get_vesting_contract_address(network),
+          config.get_bandwidth_claim_contract_address(network),
         ),
         mnemonic.clone(),
       ) {

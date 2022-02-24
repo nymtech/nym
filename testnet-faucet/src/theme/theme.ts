@@ -2,7 +2,6 @@ import { PaletteMode } from '@mui/material'
 import {
   PaletteOptions,
   NymPalette,
-  NetworkExplorerPalette,
   ThemeOptions,
   createTheme,
   NymPaletteVariant,

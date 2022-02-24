@@ -12,10 +12,11 @@ import {
   Typography,
   Box,
   Button,
+  TableCellProps,
 } from '@mui/material'
 import { InfoOutlined, Refresh } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
-import { NymCard, InfoTooltip } from '../../components'
+import { NymCard, InfoTooltip, Title } from '../../components'
 import { ClientContext } from '../../context/main'
 import { withdrawVestedCoins } from '../../requests'
 import { Period } from '../../types'
@@ -52,39 +53,11 @@ export const VestingCard = () => {
       }
     >
       <Grid container direction="column" spacing={3}>
-        <Grid item container spacing={3}>
-          <Grid item>
-            <Typography variant="subtitle2" sx={{ color: 'grey.500', ml: 2, mb: 1 }}>
-              Unlocked tokens
-            </Typography>
-            <Typography
-              data-testid="refresh-success"
-              sx={{ ml: 2, color: 'nym.background.dark' }}
-              variant="h5"
-              fontWeight="700"
-            >
-              {userBalance.tokenAllocation?.vested || 'n/a'} {currency?.major}
-            </Typography>
-          </Grid>
-          <Grid item>
-            <Box display="flex" alignItems="center" justifyContent="center" sx={{ mb: 1 }}>
-              <Typography variant="subtitle2" sx={{ color: 'grey.500', mr: 0.5 }}>
-                Transferable tokens
-              </Typography>
-              <InfoTooltip title="Unlocked tokens that are available to transfer to your balance" light />
-            </Box>
-            <Typography
-              data-testid="refresh-success"
-              sx={{ ml: 2, color: 'nym.background.dark' }}
-              variant="h5"
-              fontWeight="700"
-            >
-              {userBalance.tokenAllocation?.spendable || 'n/a'} {currency?.major}
-            </Typography>
-          </Grid>
+        <Grid item>
+          <VestingSchedule />
         </Grid>
         <Grid item>
-          <VestingTable />
+          <TokenTransfer />
         </Grid>
       </Grid>
       <Box display="flex" justifyContent="flex-end" alignItems="center" sx={{ mt: 2 }}>
@@ -96,7 +69,7 @@ export const VestingCard = () => {
             try {
               await withdrawVestedCoins(userBalance.tokenAllocation?.spendable!)
               await refreshBalances()
-              enqueueSnackbar('Token release succeeded', {
+              enqueueSnackbar('Token transfer succeeded', {
                 variant: 'success',
                 preventDuplicate: true,
               })
@@ -121,8 +94,14 @@ export const VestingCard = () => {
   )
 }
 
-const columnsHeaders = ['Locked', 'Period', 'Percentage Vested', 'Unlocked']
-const VestingTable = () => {
+const columnsHeaders: Array<{ title: string; align: TableCellProps['align'] }> = [
+  { title: 'Locked', align: 'left' },
+  { title: 'Period', align: 'left' },
+  { title: 'Percentage Vested', align: 'left' },
+  { title: 'Unlocked', align: 'right' },
+]
+
+const VestingSchedule = () => {
   const { userBalance, currency } = useContext(ClientContext)
   const [vestedPercentage, setVestedPercentage] = useState(0)
 
@@ -146,8 +125,8 @@ const VestingTable = () => {
         <TableHead>
           <TableRow>
             {columnsHeaders.map((header) => (
-              <TableCell key={header} sx={{ color: 'grey.500' }}>
-                {header}
+              <TableCell key={header.title} sx={{ color: 'grey.500' }} align={header.align}>
+                {header.title}
               </TableCell>
             ))}
           </TableRow>
@@ -161,19 +140,16 @@ const VestingTable = () => {
             </TableCell>
             <TableCell sx={{ borderBottom: 'none' }}>
               <Box display="flex" alignItems="center" gap={1}>
-                <Typography
-                  variant="caption"
-                  sx={{ color: 'nym.fee', fontWeight: 600 }}
-                >{`${vestedPercentage}%`}</Typography>
+                <Typography variant="caption">{`${vestedPercentage}%`}</Typography>
                 <LinearProgress
-                  sx={{ flexBasis: '99%', color: 'nym.fee' }}
+                  sx={{ flexBasis: '99%' }}
                   variant="determinate"
                   value={vestedPercentage}
                   color="inherit"
                 />
               </Box>
             </TableCell>
-            <TableCell sx={{ borderBottom: 'none' }}>
+            <TableCell sx={{ borderBottom: 'none' }} align="right">
               {userBalance.tokenAllocation?.vested || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
               {currency?.major}
             </TableCell>
@@ -190,4 +166,44 @@ const vestingPeriod = (current?: Period, original?: number) => {
   if (typeof current === 'object' && typeof original === 'number') return `${current.In + 1}/${original}`
 
   return 'N/A'
+}
+
+const TokenTransfer = () => {
+  const { userBalance, currency } = useContext(ClientContext)
+  return (
+    <Box sx={{ p: 1 }}>
+      <Grid container direction="column" spacing={3}>
+        <Grid item>
+          <Title
+            title="Transfer unlocked tokens"
+            Icon={() => {
+              return (
+                <Box sx={{ display: 'flex', mr: 1 }}>
+                  <InfoTooltip title="Unlocked tokens that are available to transfer to your balance" size="medium" />
+                </Box>
+              )
+            }}
+          />
+        </Grid>
+
+        <Grid container item spacing={1} direction="column">
+          <Grid item>
+            <Typography variant="subtitle2" sx={{ color: 'grey.500', mr: 0.5 }}>
+              Transferable tokens
+            </Typography>
+          </Grid>
+          <Grid item>
+            <Typography
+              data-testid="refresh-success"
+              sx={{ color: 'nym.background.dark' }}
+              variant="h5"
+              fontWeight="700"
+            >
+              {userBalance.tokenAllocation?.spendable || 'n/a'} {currency?.major}
+            </Typography>
+          </Grid>
+        </Grid>
+      </Grid>
+    </Box>
+  )
 }

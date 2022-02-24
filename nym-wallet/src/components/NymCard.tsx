@@ -1,6 +1,7 @@
 import React from 'react'
 import { Box, Card, CardContent, CardHeader } from '@mui/material'
 import { styled } from '@mui/material/styles'
+import { Title } from './Title'
 
 export const NymCard: React.FC<{
   title: string | React.ReactElement
@@ -13,14 +14,9 @@ export const NymCard: React.FC<{
     <Card variant="outlined" sx={{ overflow: 'auto' }}>
       <CardHeader
         sx={{ p: 3, color: 'nym.background.dark' }}
-        title={
-          <Box display="flex" alignItems="center">
-            {Icon && <Icon sx={{ mr: 1 }} />} {title}
-          </Box>
-        }
+        title={<Title title={title} Icon={Icon} />}
         subheader={subheader}
         data-testid={title}
-        titleTypographyProps={{ variant: 'h5' }}
         subheaderTypographyProps={{ variant: 'subtitle1' }}
         action={<Box sx={{ mt: 1, mr: 1 }}>{Action}</Box>}
       />

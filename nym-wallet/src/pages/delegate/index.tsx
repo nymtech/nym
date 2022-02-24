@@ -4,7 +4,6 @@ import { DelegateForm } from './DelegateForm'
 import { NymCard } from '../../components'
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
 import { SuccessView } from './SuccessView'
-import { Delegate as DelegateIcon } from '../../svg-icons'
 import { urls, ClientContext } from '../../context/main'
 import { PageLayout } from '../../layouts'
 
@@ -17,13 +16,7 @@ export const Delegate = () => {
 
   return (
     <PageLayout>
-      <NymCard
-        title="Delegate"
-        subheader="Delegate to mixnode"
-        noPadding
-        data-testid="delegateCard"
-        Icon={DelegateIcon}
-      >
+      <NymCard title="Delegate" subheader="Delegate to mixnode" noPadding data-testid="delegateCard">
         <>
           {status === EnumRequestStatus.initial && (
             <Box sx={{ px: 3, mb: 1 }}>

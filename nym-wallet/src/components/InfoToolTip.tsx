@@ -6,12 +6,14 @@ export const InfoTooltip = ({
   title,
   tooltipPlacement = 'bottom',
   light,
+  size = 'small',
 }: {
   title: string
   tooltipPlacement?: TooltipProps['placement']
   light?: boolean
+  size?: 'small' | 'medium' | 'large'
 }) => (
   <Tooltip title={title} arrow placement={tooltipPlacement}>
-    <InfoOutlined fontSize="small" sx={{ color: light ? 'grey.500' : undefined }} />
+    <InfoOutlined fontSize={size} sx={{ color: light ? 'grey.500' : undefined }} />
   </Tooltip>
 )

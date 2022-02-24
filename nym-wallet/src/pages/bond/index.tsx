@@ -7,7 +7,6 @@ import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus
 import { unbond } from '../../requests'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { ClientContext } from '../../context/main'
-import { Bond as BondIcon } from '../../svg-icons/bond'
 import { PageLayout } from '../../layouts'
 
 export const Bond = () => {
@@ -30,7 +29,7 @@ export const Bond = () => {
 
   return (
     <PageLayout>
-      <NymCard title="Bond" subheader="Bond a node or gateway" noPadding Icon={BondIcon}>
+      <NymCard title="Bond" subheader="Bond a node or gateway" noPadding>
         {status === EnumRequestStatus.initial && (
           <Box sx={{ px: 3, mb: 1 }}>
             <Alert severity="warning">Always ensure you leave yourself enough funds to UNBOND</Alert>

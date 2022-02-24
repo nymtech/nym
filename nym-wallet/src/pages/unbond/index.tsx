@@ -4,7 +4,6 @@ import { Fee, NymCard } from '../../components'
 import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { ClientContext } from '../../context/main'
 import { unbond } from '../../requests'
-import { Unbond as UnbondIcon } from '../../svg-icons'
 import { PageLayout } from '../../layouts'
 
 export const Unbond = () => {
@@ -21,7 +20,7 @@ export const Unbond = () => {
 
   return (
     <PageLayout>
-      <NymCard title="Unbond" subheader="Unbond a mixnode or gateway" noPadding Icon={UnbondIcon}>
+      <NymCard title="Unbond" subheader="Unbond a mixnode or gateway" noPadding>
         {ownership?.hasOwnership ? (
           <>
             <Alert

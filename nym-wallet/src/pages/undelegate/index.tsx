@@ -5,7 +5,6 @@ import { UndelegateForm } from './UndelegateForm'
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
 import { getGasFee, getReverseMixDelegations } from '../../requests'
 import { TFee, TPagedDelegations } from '../../types'
-import { Undelegate as UndelegateIcon } from '../../svg-icons'
 import { ClientContext } from '../../context/main'
 import { PageLayout } from '../../layouts'
 
@@ -47,7 +46,7 @@ export const Undelegate = () => {
 
   return (
     <PageLayout>
-      <NymCard title="Undelegate" subheader="Undelegate from a mixnode" Icon={UndelegateIcon} noPadding>
+      <NymCard title="Undelegate" subheader="Undelegate from a mixnode" noPadding>
         {isLoading && (
           <Box
             sx={{

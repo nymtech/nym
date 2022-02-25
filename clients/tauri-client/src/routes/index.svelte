@@ -24,7 +24,7 @@
       idx: idx,
       validatorUrls: validator_urls,
     });
-    alert(response);
+    qrVisible = !response;
   }
 
   async function deleteCredential(idx) {

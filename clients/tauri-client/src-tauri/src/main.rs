@@ -9,9 +9,11 @@ use tokio::sync::RwLock;
 use url::Url;
 
 use coconut_interface::{
-  self, hash_to_scalar, Attribute, Credential, Parameters, Signature, Theta, VerificationKey,
+  self, hash_to_scalar, Attribute, Base58, Bytable, Credential, Parameters, Signature, Theta,
+  VerificationKey,
 };
-use credentials::{obtain_aggregate_signature, obtain_aggregate_verification_key};
+use credentials::coconut::bandwidth::{obtain_signature, BandwidthVoucherAttributes};
+use credentials::obtain_aggregate_verification_key;
 
 struct State {
   signatures: Vec<Signature>,
@@ -145,13 +147,14 @@ async fn verify_credential(
   // the API needs to be improved but at least it should compile (in theory)
   let verification_key =
     get_aggregated_verification_key(validator_urls.clone(), state.clone()).await?;
+  println!("Verification key {:?}", verification_key.to_bs58());
   let theta = prove_credential(idx, validator_urls, state.clone()).await?;
 
   let state = state.read().await;
 
   let public_attributes_bytes = vec![
-    state.voucher_value.to_bytes().to_vec(),
-    state.voucher_info.to_bytes().to_vec(),
+    state.voucher_value.to_byte_vec(),
+    state.voucher_info.to_byte_vec(),
   ];
 
   let credential = Credential::new(
@@ -172,19 +175,24 @@ async fn get_credential(
   validator_urls: Vec<String>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Vec<Signature>, String> {
-  let guard = state.read().await;
-  let parsed_urls = parse_url_validators(&validator_urls)?;
-  let public_attributes = vec![guard.voucher_value, guard.voucher_info];
-  let private_attributes = vec![guard.serial_number, guard.binding_number];
+  let signature = {
+    let guard = state.read().await;
+    let parsed_urls = parse_url_validators(&validator_urls)?;
+    let bandwidth_credential_attributes = BandwidthVoucherAttributes {
+      serial_number: guard.serial_number,
+      binding_number: guard.binding_number,
+      voucher_value: guard.voucher_value,
+      voucher_info: guard.voucher_info,
+    };
 
-  let signature = obtain_aggregate_signature(
-    &guard.params,
-    &public_attributes,
-    &private_attributes,
-    &parsed_urls,
-  )
-  .await
-  .map_err(|err| format!("failed to obtain aggregate signature - {:?}", err))?;
+    obtain_signature(
+      &guard.params,
+      &bandwidth_credential_attributes,
+      &parsed_urls,
+    )
+    .await
+    .map_err(|err| format!("failed to obtain aggregate signature - {:?}", err))?
+  };
 
   let mut state = state.write().await;
   state.signatures.push(signature);
@@ -192,8 +200,23 @@ async fn get_credential(
 }
 
 fn main() {
-  let public_attributes = vec![b"public_key".to_vec()];
-  let private_attributes = vec![b"private_key".to_vec()];
+  let params = coconut_interface::Parameters::new(4).unwrap();
+  let bandwidth_credential_attributes = BandwidthVoucherAttributes {
+    serial_number: params.random_scalar(),
+    binding_number: params.random_scalar(),
+    voucher_value: hash_to_scalar(1024u64.to_be_bytes()),
+    voucher_info: hash_to_scalar("BandwidthVoucher"),
+  };
+  let public_attributes = bandwidth_credential_attributes
+    .get_public_attributes()
+    .iter()
+    .map(|attr| attr.to_byte_vec())
+    .collect();
+  let private_attributes = bandwidth_credential_attributes
+    .get_private_attributes()
+    .iter()
+    .map(|attr| attr.to_byte_vec())
+    .collect();
   tauri::Builder::default()
     .manage(Arc::new(RwLock::new(State::init(
       public_attributes,

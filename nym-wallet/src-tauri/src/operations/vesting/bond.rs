@@ -3,6 +3,7 @@ use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
 use crate::{Gateway, MixNode};
+
 use std::convert::TryInto;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -46,6 +47,17 @@ pub async fn vesting_bond_mixnode(
 ) -> Result<(), BackendError> {
   nymd_client!(state)
     .vesting_bond_mixnode(mixnode, &owner_signature, pledge.try_into()?)
+    .await?;
+  Ok(())
+}
+
+#[tauri::command]
+pub async fn withdraw_vested_coins(
+  amount: Coin,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), BackendError> {
+  nymd_client!(state)
+    .withdraw_vested_coins(amount.try_into()?)
     .await?;
   Ok(())
 }

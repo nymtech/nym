@@ -1,8 +1,8 @@
 import React from 'react'
-import { Box } from '@mui/material'
-import { Nav } from '../components'
+import { Box, Container } from '@mui/material'
 import Logo from '../images/logo-background.svg'
-import { AppBar } from '../components'
+import { AppBar, Nav } from '../components'
+import { PageLayout } from '.'
 
 export const ApplicationLayout: React.FC = ({ children }) => {
   return (
@@ -34,17 +34,10 @@ export const ApplicationLayout: React.FC = ({ children }) => {
           <Nav />
         </Box>
       </Box>
-      <Box
-        sx={{
-          bgcolor: 'nym.background.light',
-          overflow: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
+      <Container>
         <AppBar />
         {children}
-      </Box>
+      </Container>
     </Box>
   )
 }

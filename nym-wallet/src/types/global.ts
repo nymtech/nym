@@ -55,6 +55,8 @@ export type TMixnodeBondDetails = {
 }
 
 export type TCurrency = {
-  minor: 'unym' | 'unymt'
-  major: 'nym' | 'nymt'
+  minor: 'UNYM' | 'UNYMT'
+  major: 'NYM' | 'NYMT'
 }
+
+export type Period = 'Before' | { In: number } | 'After'

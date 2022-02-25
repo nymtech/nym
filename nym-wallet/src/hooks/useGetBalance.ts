@@ -23,6 +23,7 @@ export type TUseuserBalance = {
   isLoading: boolean
   fetchBalance: () => void
   clearBalance: () => void
+  clearAll: () => void
   fetchTokenAllocation: () => void
 }
 
@@ -83,6 +84,12 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
   const clearTokenAllocation = () => setTokenAllocation(undefined)
   const clearOriginalVesting = () => setOriginalVesting(undefined)
 
+  const clearAll = () => {
+    clearBalance()
+    clearTokenAllocation()
+    clearOriginalVesting()
+  }
+
   useEffect(() => {
     handleRefresh(address)
   }, [address])
@@ -92,8 +99,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
       fetchBalance()
       fetchTokenAllocation()
     } else {
-      clearBalance()
-      clearTokenAllocation()
+      clearAll()
     }
   }
 
@@ -106,6 +112,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     currentVestingPeriod,
     fetchBalance,
     clearBalance,
+    clearAll,
     fetchTokenAllocation,
   }
 }

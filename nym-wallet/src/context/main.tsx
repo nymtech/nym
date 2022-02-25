@@ -93,6 +93,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     setNetwork(undefined)
     setError(undefined)
     setIsLoading(false)
+    userBalance.clearAll()
     await signOut()
   }
 

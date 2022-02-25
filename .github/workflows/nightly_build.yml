@@ -109,6 +109,7 @@ jobs:
         env:
           NYM_NOTIFICATION_KIND: nightly
           NYM_PROJECT_NAME: "Nym nightly build"
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
           GIT_BRANCH: "${GITHUB_REF##*/}"
           KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"

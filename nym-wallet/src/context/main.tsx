@@ -6,7 +6,7 @@ import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signOut } fro
 import { currencyMap } from '../utils'
 import { useHistory } from 'react-router-dom'
 
-export const { ADMIN_ADDRESS } = config
+export const { ADMIN_ADDRESS, IS_DEV_MODE } = config
 
 export const urls = (network?: Network) =>
   network === 'MAINNET'
@@ -70,7 +70,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       setIsLoading(true)
       await signInWithMnemonic(mnemonic || '')
       await getBondDetails()
-      setNetwork('QA')
+      setNetwork('MAINNET')
       history.push('/balance')
     } catch (e) {
       setIsLoading(false)

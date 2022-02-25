@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react'
 import { Button, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover } from '@mui/material'
 import { ArrowDropDown, CheckSharp } from '@mui/icons-material'
-import { ClientContext } from '../context/main'
+import { ClientContext, IS_DEV_MODE } from '../context/main'
 import { Network } from 'src/types'
 
 const networks: { networkName: Network; name: string }[] = [
@@ -46,17 +46,19 @@ export const NetworkSelector = () => {
       >
         <List>
           <ListSubheader>Network selection</ListSubheader>
-          {networks.map(({ name, networkName }) => (
-            <NetworkItem
-              key={networkName}
-              title={name}
-              isSelected={networkName === network}
-              onSelect={() => {
-                handleClose()
-                switchNetwork(networkName)
-              }}
-            />
-          ))}
+          {networks
+            .filter((network) => !(!IS_DEV_MODE && network.networkName === 'QA'))
+            .map(({ name, networkName }) => (
+              <NetworkItem
+                key={networkName}
+                title={name}
+                isSelected={networkName === network}
+                onSelect={() => {
+                  handleClose()
+                  switchNetwork(networkName)
+                }}
+              />
+            ))}
         </List>
       </Popover>
     </>

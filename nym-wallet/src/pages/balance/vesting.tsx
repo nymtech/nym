@@ -100,7 +100,7 @@ const VestingSchedule = () => {
   const { userBalance, currency } = useContext(ClientContext)
   const [vestedPercentage, setVestedPercentage] = useState(0)
 
-  const calculatPercentage = () => {
+  const calculatePercentage = () => {
     const { tokenAllocation, originalVesting } = userBalance
     if (tokenAllocation?.vesting && tokenAllocation.vested && tokenAllocation.vested !== '0' && originalVesting) {
       const percentage = Math.round((+tokenAllocation.vested / +originalVesting?.amount.amount) * 100)
@@ -111,8 +111,8 @@ const VestingSchedule = () => {
   }
 
   useEffect(() => {
-    calculatPercentage()
-  }, [userBalance.tokenAllocation, calculatPercentage])
+    calculatePercentage()
+  }, [userBalance.tokenAllocation, calculatePercentage])
 
   return (
     <TableContainer>

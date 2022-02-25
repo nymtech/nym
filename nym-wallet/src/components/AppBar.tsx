@@ -36,21 +36,3 @@ export const AppBar = () => {
     </MuiAppBar>
   )
 }
-
-// const AppBarItem: React.FC<{
-//   primaryText: string
-//   secondaryText?: string
-//   Action?: React.ReactNode
-// }> = ({ primaryText, secondaryText = '', Action }) => {
-//   return (
-//     <Box sx={{ p: 1, mr: 1 }}>
-//       <Typography variant="body2" component="span" sx={{ color: 'grey.600' }}>
-//         {primaryText}:
-//       </Typography>{' '}
-//       <Typography variant="body2" component="span" color="nym.background.dark" sx={{ mr: 1 }}>
-//         {secondaryText}
-//       </Typography>
-//       {Action}
-//     </Box>
-//   )
-// }

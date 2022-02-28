@@ -23,7 +23,7 @@ export const BalanceCard = () => {
           {!userBalance.error && (
             <Typography
               data-testid="refresh-success"
-              sx={{ color: 'nym.background.dark' }}
+              sx={{ color: 'nym.background.dark', textTransform: 'uppercase' }}
               variant="h5"
               fontWeight="700"
             >

@@ -86,7 +86,7 @@ pub fn instantiate(
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
-    interval_storage::CURRENT_INTERVAL.save(deps.storage, &rewarding_interval)?;
+    interval_storage::save_interval(deps.storage, &rewarding_interval)?;
     interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Response::default())

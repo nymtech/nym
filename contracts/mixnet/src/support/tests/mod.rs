@@ -131,8 +131,7 @@ pub mod test_helpers {
     pub(crate) fn update_env_and_progress_interval(env: &mut Env, storage: &mut dyn Storage) {
         // make sure current block time is within the expected next interval
         env.block.time = Timestamp::from_seconds(
-            (interval_storage::CURRENT_INTERVAL
-                .load(storage)
+            (interval_storage::current_interval(storage)
                 .unwrap()
                 .next_interval()
                 .start_unix_timestamp()

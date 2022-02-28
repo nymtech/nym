@@ -11,7 +11,7 @@ use mixnet_contract_common::{
 };
 
 pub fn query_current_interval(storage: &dyn Storage) -> Result<Interval, ContractError> {
-    Ok(storage::CURRENT_INTERVAL.load(storage)?)
+    Ok(storage::current_interval(storage)?)
 }
 
 pub(crate) fn query_rewarded_set_refresh_minimum_blocks() -> u64 {

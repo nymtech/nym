@@ -50,7 +50,7 @@ pub fn try_write_rewarded_set(
         });
     }
 
-    let current_interval = storage::CURRENT_INTERVAL.load(deps.storage)?.id();
+    let current_interval = storage::current_interval(deps.storage)?.id();
     let num_nodes = rewarded_set.len();
 
     storage::save_rewarded_set(deps.storage, block_height, active_set_size, rewarded_set)?;
@@ -79,7 +79,7 @@ pub fn try_advance_interval(
     // in theory, we could have just changed the state and relied on its reversal upon failed
     // execution, but better safe than sorry and do not modify the state at all unless we know
     // all checks have succeeded.
-    let current_interval = storage::CURRENT_INTERVAL.load(storage)?;
+    let current_interval = storage::current_interval(storage)?;
     let next_interval = current_interval.next_interval();
 
     if next_interval.start_unix_timestamp() > env.block.time.seconds() as i64 {
@@ -98,7 +98,7 @@ pub fn try_advance_interval(
         });
     }
 
-    storage::CURRENT_INTERVAL.save(storage, &next_interval)?;
+    storage::save_interval(storage, &next_interval)?;
 
     Ok(Response::new().add_event(new_advance_interval_event(next_interval)))
 }
@@ -255,9 +255,7 @@ mod tests {
             Duration::from_secs(60 * 60 * 720),
         );
         let next_interval = current_interval.next_interval();
-        storage::CURRENT_INTERVAL
-            .save(deps.as_mut().storage, &current_interval)
-            .unwrap();
+        storage::save_interval(deps.as_mut().storage, &current_interval).unwrap();
 
         // fails if the current interval hasn't finished yet i.e. the new interval hasn't begun
         env.block.time = Timestamp::from_seconds(1641081600);
@@ -297,9 +295,7 @@ mod tests {
 
         // interval way back in the past (i.e. 'somebody' failed to advance it for a long time)
         env.block.time = Timestamp::from_seconds(1672531200);
-        storage::CURRENT_INTERVAL
-            .save(deps.as_mut().storage, &current_interval)
-            .unwrap();
+        storage::save_interval(deps.as_mut().storage, &current_interval).unwrap();
         let expected_new_interval = current_interval.next_interval();
         let expected_response =
             Response::new().add_event(new_advance_interval_event(expected_new_interval));

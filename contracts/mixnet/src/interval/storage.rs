@@ -5,6 +5,8 @@ use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::{IdentityKey, Interval, RewardedSetNodeStatus};
 
+use crate::error::ContractError;
+
 // type aliases for better reasoning for storage keys
 // (I found it helpful)
 type BlockHeight = u64;
@@ -14,7 +16,7 @@ type IntervalId = u32;
 pub(crate) const REWARDED_NODE_DEFAULT_PAGE_LIMIT: u32 = 1000;
 pub(crate) const REWARDED_NODE_MAX_PAGE_LIMIT: u32 = 1500;
 
-pub(crate) const CURRENT_INTERVAL: Item<'_, Interval> = Item::new("cep");
+const CURRENT_INTERVAL: Item<'_, Interval> = Item::new("cep");
 pub(crate) const CURRENT_REWARDED_SET_HEIGHT: Item<'_, BlockHeight> = Item::new("crh");
 
 // I've changed the `()` data to an `u8` as after serializing `()` is represented as "null",
@@ -26,6 +28,18 @@ pub(crate) const REWARDED_SET_HEIGHTS_FOR_INTERVAL: Map<'_, (IntervalId, BlockHe
 pub(crate) const REWARDED_SET: Map<'_, (BlockHeight, IdentityKey), RewardedSetNodeStatus> =
     Map::new("rs");
 
+pub(crate) const INTERVALS: Map<'_, IntervalId, Interval> = Map::new("ins");
+
+pub fn save_interval(storage: &mut dyn Storage, interval: &Interval) -> Result<(), ContractError> {
+    CURRENT_INTERVAL.save(storage, interval)?;
+    INTERVALS.save(storage, interval.id(), interval)?;
+    Ok(())
+}
+
+pub fn current_interval(storage: &dyn Storage) -> Result<Interval, ContractError> {
+    Ok(CURRENT_INTERVAL.load(storage)?)
+}
+
 pub(crate) fn save_rewarded_set(
     storage: &mut dyn Storage,
     height: BlockHeight,
@@ -34,7 +48,7 @@ pub(crate) fn save_rewarded_set(
 ) -> StdResult<()> {
     for (i, identity) in entries.into_iter().enumerate() {
         // first k nodes are active
-        let set_status = if i < active_set_size as usize { 
+        let set_status = if i < active_set_size as usize {
             RewardedSetNodeStatus::Active
         } else {
             RewardedSetNodeStatus::Standby

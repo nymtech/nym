@@ -52,7 +52,7 @@ fn verify_rewarding_state(
         return Err(ContractError::Unauthorized);
     }
 
-    let current_interval = interval_storage::CURRENT_INTERVAL.load(storage)?;
+    let current_interval = interval_storage::current_interval(storage)?;
 
     // make sure the transaction is sent for the correct interval
     // (guard ourselves against somebody trying to send stale results;

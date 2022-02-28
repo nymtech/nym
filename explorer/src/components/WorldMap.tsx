@@ -35,6 +35,7 @@ export const WorldMap: React.FC<MapProps> = ({
       return scaleLinear<string, string>()
         .domain([
           0,
+          1,
           heighestNumberOfNodes / 4,
           heighestNumberOfNodes / 2,
           heighestNumberOfNodes,

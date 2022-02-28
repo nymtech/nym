@@ -37,11 +37,13 @@ impl Credential {
 
     pub fn verify(&self, verification_key: &VerificationKey) -> bool {
         let params = Parameters::new(self.n_params).unwrap();
-        let public_attributes = self
-            .public_attributes
-            .iter()
-            .map(hash_to_scalar)
-            .collect::<Vec<Attribute>>();
+        let mut public_attributes = vec![];
+        for attr in &self.public_attributes {
+            match Attribute::try_from_byte_slice(attr) {
+                Ok(attr) => public_attributes.push(attr),
+                Err(_) => return false,
+            }
+        }
         nymcoconut::verify_credential(&params, verification_key, &self.theta, &public_attributes)
     }
 }

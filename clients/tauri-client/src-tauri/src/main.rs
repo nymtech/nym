@@ -9,7 +9,8 @@ use tokio::sync::RwLock;
 use url::Url;
 
 use coconut_interface::{
-  self, hash_to_scalar, Attribute, Credential, Parameters, Signature, Theta, VerificationKey,
+  self, hash_to_scalar, Attribute, Bytable, Credential, Parameters, Signature, Theta,
+  VerificationKey,
 };
 use credentials::{obtain_aggregate_signature, obtain_aggregate_verification_key};
 

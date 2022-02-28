@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, fmt, str::FromStr};
 
 use crate::{mainnet, qa, sandbox, ValidatorDetails};
 
@@ -50,6 +50,16 @@ impl FromStr for Network {
             _ => Err(NetworkDefaultsError::MalformedNetworkProvided(
                 s.to_string(),
             )),
+        }
+    }
+}
+
+impl fmt::Display for Network {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Network::QA => f.write_str("QA"),
+            Network::SANDBOX => f.write_str("Sandbox"),
+            Network::MAINNET => f.write_str("Mainnet"),
         }
     }
 }

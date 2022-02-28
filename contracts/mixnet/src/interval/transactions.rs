@@ -61,6 +61,9 @@ pub fn try_write_rewarded_set(
     )?;
     storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &block_height)?;
 
+    // Save current mixnodes state for rewarding purposes, ie changes during the current epoch will not affect reward payouts
+    crate::mixnodes::storage::mixnodes().add_checkpoint(deps.storage, block_height)?;
+
     Ok(Response::new().add_event(new_change_rewarded_set_event(
         state.params.mixnode_active_set_size,
         state.params.mixnode_rewarded_set_size,

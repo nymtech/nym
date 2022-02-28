@@ -3,7 +3,7 @@
 
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Map, UniqueIndex};
+use cw_storage_plus::{Index, IndexList, IndexedSnapshotMap, Map, Strategy, UniqueIndex};
 use mixnet_contract_common::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -11,6 +11,8 @@ use std::fmt::{Display, Formatter};
 // storage prefixes
 const TOTAL_DELEGATION_NAMESPACE: &str = "td";
 const MIXNODES_PK_NAMESPACE: &str = "mn";
+const MIXNODES_PK_CHECKPOINTS: &str = "mn__check";
+const MIXNODES_PK_CHANGELOG: &str = "mn__change";
 const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
 
 // paged retrieval limits for all queries and transactions
@@ -35,11 +37,17 @@ impl<'a> IndexList<StoredMixnodeBond> for MixnodeBondIndex<'a> {
 
 // mixnodes() is the storage access function.
 pub(crate) fn mixnodes<'a>(
-) -> IndexedMap<'a, IdentityKeyRef<'a>, StoredMixnodeBond, MixnodeBondIndex<'a>> {
+) -> IndexedSnapshotMap<'a, IdentityKeyRef<'a>, StoredMixnodeBond, MixnodeBondIndex<'a>> {
     let indexes = MixnodeBondIndex {
         owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
     };
-    IndexedMap::new(MIXNODES_PK_NAMESPACE, indexes)
+    IndexedSnapshotMap::new(
+        MIXNODES_PK_NAMESPACE,
+        MIXNODES_PK_CHECKPOINTS,
+        MIXNODES_PK_CHANGELOG,
+        Strategy::Never,
+        indexes,
+    )
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -164,8 +172,8 @@ mod tests {
         let mut storage = MockStorage::new();
         let bond1 = tests::fixtures::stored_mixnode_bond_fixture("owner1");
         let bond2 = tests::fixtures::stored_mixnode_bond_fixture("owner2");
-        mixnodes().save(&mut storage, "bond1", &bond1).unwrap();
-        mixnodes().save(&mut storage, "bond2", &bond2).unwrap();
+        mixnodes().save(&mut storage, "bond1", &bond1, 1).unwrap();
+        mixnodes().save(&mut storage, "bond2", &bond2, 1).unwrap();
 
         let res1 = mixnodes().load(&storage, "bond1").unwrap();
         let res2 = mixnodes().load(&storage, "bond2").unwrap();
@@ -200,7 +208,7 @@ mod tests {
         };
 
         storage::mixnodes()
-            .save(&mut mock_storage, &node_identity, &mixnode_bond)
+            .save(&mut mock_storage, &node_identity, &mixnode_bond, 1)
             .unwrap();
 
         assert_eq!(

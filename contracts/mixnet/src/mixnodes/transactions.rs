@@ -117,13 +117,13 @@ fn _try_add_mixnode(
         env.block.height,
         mix_node,
         proxy.clone(),
-        Uint128::zero()
+        Uint128::zero(),
     );
 
     // technically we don't have to set the total_delegation bucket, but it makes things easier
     // in different places that we can guarantee that if node exists, so does the data behind the total delegation
     let identity = stored_bond.identity();
-    storage::mixnodes().save(deps.storage, identity, &stored_bond)?;
+    storage::mixnodes().save(deps.storage, identity, &stored_bond, env.block.height)?;
 
     // if this is a fresh mixnode - write 0 total delegation, otherwise, don't touch it since the node has just rebonded
     if storage::TOTAL_DELEGATION
@@ -145,19 +145,25 @@ fn _try_add_mixnode(
 }
 
 pub fn try_remove_mixnode_on_behalf(
+    env: Env,
     deps: DepsMut<'_>,
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, ContractError> {
     let proxy = info.sender;
-    _try_remove_mixnode(deps, &owner, Some(proxy))
+    _try_remove_mixnode(env, deps, &owner, Some(proxy))
 }
 
-pub fn try_remove_mixnode(deps: DepsMut<'_>, info: MessageInfo) -> Result<Response, ContractError> {
-    _try_remove_mixnode(deps, info.sender.as_ref(), None)
+pub fn try_remove_mixnode(
+    env: Env,
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    _try_remove_mixnode(env, deps, info.sender.as_ref(), None)
 }
 
 pub(crate) fn _try_remove_mixnode(
+    env: Env,
     deps: DepsMut<'_>,
     owner: &str,
     proxy: Option<Addr>,
@@ -189,7 +195,7 @@ pub(crate) fn _try_remove_mixnode(
     };
 
     // remove the bond
-    storage::mixnodes().remove(deps.storage, mixnode_bond.identity())?;
+    storage::mixnodes().remove(deps.storage, mixnode_bond.identity(), env.block.height)?;
 
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
@@ -268,15 +274,20 @@ pub(crate) fn _try_update_mixnode_config(
         ));
     }
 
-    storage::mixnodes().update(deps.storage, mixnode_bond.identity(), |mixnode_bond_opt| {
-        mixnode_bond_opt
-            .map(|mut mixnode_bond| {
-                mixnode_bond.mix_node.profit_margin_percent = profit_margin_percent;
-                mixnode_bond.block_height = env.block.height;
-                mixnode_bond
-            })
-            .ok_or(ContractError::NoBondFound)
-    })?;
+    storage::mixnodes().update(
+        deps.storage,
+        mixnode_bond.identity(),
+        env.block.height,
+        |mixnode_bond_opt| {
+            mixnode_bond_opt
+                .map(|mut mixnode_bond| {
+                    mixnode_bond.mix_node.profit_margin_percent = profit_margin_percent;
+                    mixnode_bond.block_height = env.block.height;
+                    mixnode_bond
+                })
+                .ok_or(ContractError::NoBondFound)
+        },
+    )?;
 
     let mut response = Response::new();
 

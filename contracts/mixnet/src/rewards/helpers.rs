@@ -4,13 +4,14 @@
 use super::storage;
 use crate::error::ContractError;
 use crate::mixnodes::storage as mixnodes_storage;
-use cosmwasm_std::{Addr, Storage, Uint128};
+use cosmwasm_std::{Addr, Storage, Uint128, Env};
 use mixnet_contract_common::mixnode::DelegatorRewardParams;
 use mixnet_contract_common::{
     IdentityKey, IdentityKeyRef, PendingDelegatorRewarding, RewardingResult, RewardingStatus,
 };
 
 pub(crate) fn update_post_rewarding_storage(
+    env: Env,
     storage: &mut dyn Storage,
     mix_identity: IdentityKeyRef<'_>,
     operator_reward: Uint128,
@@ -22,7 +23,7 @@ pub(crate) fn update_post_rewarding_storage(
 
     // update pledge
     if operator_reward > Uint128::zero() {
-        mixnodes_storage::mixnodes().update(storage, mix_identity, |current_bond| {
+        mixnodes_storage::mixnodes().update(storage, mix_identity, env.block.height, |current_bond| {
             match current_bond {
                 None => Err(ContractError::MixNodeBondNotFound {
                     identity: mix_identity.to_string(),

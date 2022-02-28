@@ -364,7 +364,7 @@ mod tests {
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
-            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
+            try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
             assert_eq!(
                 Err(ContractError::MixNodeBondNotFound {
                     identity: identity.clone()
@@ -387,7 +387,7 @@ mod tests {
                 tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
-            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
+            try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
                 tests::fixtures::good_mixnode_pledge(),
@@ -591,7 +591,7 @@ mod tests {
                 identity.clone(),
             )
             .unwrap();
-            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
+            try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
             assert_eq!(
                 Err(ContractError::MixNodeBondNotFound {
                     identity: identity.clone()
@@ -714,7 +714,7 @@ mod tests {
                 identity.clone(),
             )
             .unwrap();
-            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
+            try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
 
             let expected = Delegation::new(
                 delegation_owner.clone(),
@@ -865,7 +865,7 @@ mod tests {
                     &identity,
                 ));
 
-            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
+            try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
             assert_eq!(
                 Ok(expected_response),
                 try_remove_delegation_from_mixnode(

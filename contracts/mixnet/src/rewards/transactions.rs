@@ -298,7 +298,12 @@ pub(crate) fn try_reward_mixnode(
     // technically we don't have to set the total_delegation bucket, but it makes things easier
     // in different places that we can guarantee that if node exists, so does the data behind the total delegation
     let identity = stored_bond.identity();
-    crate::mixnodes::storage::mixnodes().save(deps.storage, identity, &stored_bond)?;
+    crate::mixnodes::storage::mixnodes().save(
+        deps.storage,
+        identity,
+        &stored_bond,
+        env.block.height,
+    )?;
 
     // FIXME: Delete commented code, after introducing lazy reward claims
     // INFO: No eager rewarding for operators and delegators anymore
@@ -316,7 +321,9 @@ pub(crate) fn try_reward_mixnode(
     //     delegation_rewarding_result.total_rewarded,
     // )?;
 
-    let rewarding_result = RewardingResult { node_reward: Uint128::new(node_reward) };
+    let rewarding_result = RewardingResult {
+        node_reward: Uint128::new(node_reward),
+    };
     // let total_delegator_reward = rewarding_results.total_delegator_reward;
     // let further_delegations = delegation_rewarding_result.start_next.is_some();
 
@@ -523,7 +530,12 @@ pub mod tests {
         };
 
         mixnodes_storage::mixnodes()
-            .save(deps.as_mut().storage, &node_identity, &mixnode_bond)
+            .save(
+                deps.as_mut().storage,
+                &node_identity,
+                &mixnode_bond,
+                env.block.height,
+            )
             .unwrap();
         mixnodes_storage::TOTAL_DELEGATION
             .save(

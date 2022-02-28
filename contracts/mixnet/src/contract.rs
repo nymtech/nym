@@ -112,7 +112,7 @@ pub fn execute(
             owner_signature,
         ),
         ExecuteMsg::UnbondMixnode {} => {
-            crate::mixnodes::transactions::try_remove_mixnode(deps, info)
+            crate::mixnodes::transactions::try_remove_mixnode(env, deps, info)
         }
         ExecuteMsg::UpdateMixnodeConfig {
             profit_margin_percent,
@@ -213,7 +213,7 @@ pub fn execute(
             owner_signature,
         ),
         ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
-            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, info, owner)
+            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(env, deps, info, owner)
         }
         ExecuteMsg::BondGatewayOnBehalf {
             gateway,

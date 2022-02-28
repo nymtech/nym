@@ -3,7 +3,7 @@
   import {onMount} from "svelte";
   import QRious from "qrious";
 
-  const validator_urls = ["http://localhost:8080"];
+  const validator_urls = ["http://localhost:8080", "http://localhost:8081", "http://localhost:8082"];
   let signatures = [];
   let qrVisible = false;
 

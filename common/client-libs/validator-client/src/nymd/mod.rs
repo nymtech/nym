@@ -83,21 +83,24 @@ impl NymdClient<QueryNymdClient> {
 impl NymdClient<SigningNymdClient> {
     // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
     pub fn connect_with_signer<U>(
+        network: config::defaults::all::Network,
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
         vesting_contract_address: Option<AccountId>,
         erc20_bridge_contract_address: Option<AccountId>,
         signer: DirectSecp256k1HdWallet,
-        gas_price: GasPrice,
+        gas_price: Option<GasPrice>,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
+        let denom = network.denom();
         let client_address = signer
             .try_derive_accounts()?
             .into_iter()
             .map(|account| account.address)
             .collect();
+        let gas_price = gas_price.unwrap_or(GasPrice::new_with_default_price(denom)?);
 
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, signer, gas_price)?,

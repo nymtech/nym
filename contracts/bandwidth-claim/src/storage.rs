@@ -11,6 +11,7 @@ use bandwidth_claim_contract::payment::Payment;
 // buckets
 const PREFIX_PAYMENTS: &[u8] = b"payments";
 const PREFIX_STATUS: &[u8] = b"status";
+const PREFIX_COCONUT: &[u8] = b"coconut";
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub enum Status {
@@ -29,6 +30,14 @@ pub fn payments_read(storage: &dyn Storage) -> ReadonlyBucket<'_, Payment> {
 
 pub fn status(storage: &mut dyn Storage) -> Bucket<'_, Status> {
     bucket(storage, PREFIX_STATUS)
+}
+
+pub fn coconut(storage: &mut dyn Storage) -> Bucket<'_, Payment> {
+    bucket(storage, PREFIX_COCONUT)
+}
+
+pub fn coconut_read(storage: &dyn Storage) -> ReadonlyBucket<'_, Payment> {
+    bucket_read(storage, PREFIX_COCONUT)
 }
 
 #[cfg(test)]

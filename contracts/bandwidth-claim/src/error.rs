@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use config::defaults::DENOM;
+
 use cosmwasm_std::{StdError, VerificationError};
 use thiserror::Error;
 
@@ -24,4 +26,13 @@ pub enum ContractError {
 
     #[error("The payment is not properly signed")]
     BadSignature,
+
+    #[error("Received multiple coin types")]
+    MultipleDenoms,
+
+    #[error("No coin was sent for voucher")]
+    NoCoin,
+
+    #[error("Wrong coin denomination, you must send {}", DENOM)]
+    WrongDenom,
 }

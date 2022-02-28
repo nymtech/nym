@@ -39,6 +39,7 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::LinkPayment { data } => transactions::link_payment(deps, env, info, data),
+        ExecuteMsg::BuyBandwidth {} => transactions::buy_bandwidth(deps, env, info),
     }
 }
 

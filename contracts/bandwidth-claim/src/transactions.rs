@@ -1,11 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
-use crate::storage::{payments, status, Status};
+use crate::storage::{coconut, payments, status, Status};
+use bandwidth_claim_contract::events::{VOUCHER_ACQUIRED_EVENT_TYPE, VOUCHER_VALUE};
 use bandwidth_claim_contract::payment::{LinkPaymentData, Payment};
+use config::defaults::DENOM;
 
 pub(crate) fn link_payment(
     deps: DepsMut<'_>,
@@ -42,6 +44,27 @@ pub(crate) fn link_payment(
     )?;
 
     Ok(Response::default())
+}
+
+pub(crate) fn buy_bandwidth(
+    _deps: DepsMut<'_>,
+    _env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    if info.funds.is_empty() {
+        return Err(ContractError::NoCoin);
+    }
+    if info.funds.len() > 1 {
+        return Err(ContractError::MultipleDenoms);
+    }
+    if info.funds[0].denom != DENOM {
+        return Err(ContractError::WrongDenom);
+    }
+
+    let voucher_value = info.funds.last().unwrap();
+    let event =
+        Event::new(VOUCHER_ACQUIRED_EVENT_TYPE).add_attribute(VOUCHER_VALUE, voucher_value.amount);
+    Ok(Response::new().add_event(event))
 }
 
 #[cfg(test)]

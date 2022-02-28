@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd_client::Client;
-use crate::rewarding::IntervalRewardParams;
+use mixnet_contract_common::reward_params::IntervalRewardParams;
 use ::time::OffsetDateTime;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;

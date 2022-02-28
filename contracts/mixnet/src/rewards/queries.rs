@@ -75,7 +75,7 @@ pub(crate) mod tests {
                 env,
                 info,
                 node_identity.clone(),
-                tests::fixtures::node_rewarding_params_fixture(100),
+                tests::fixtures::rewarding_params_fixture(100),
                 0,
             )
             .unwrap();
@@ -112,7 +112,7 @@ pub(crate) mod tests {
                 env.clone(),
                 info,
                 node_identity.clone(),
-                tests::fixtures::node_rewarding_params_fixture(100),
+                tests::fixtures::rewarding_params_fixture(100),
                 0,
             )
             .unwrap();
@@ -158,7 +158,7 @@ pub(crate) mod tests {
                 env,
                 info.clone(),
                 node_identity.clone(),
-                tests::fixtures::node_rewarding_params_fixture(100),
+                tests::fixtures::rewarding_params_fixture(100),
                 1,
             )
             .unwrap();

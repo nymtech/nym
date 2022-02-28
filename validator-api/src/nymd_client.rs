@@ -5,9 +5,9 @@ use crate::config::Config;
 use crate::rewarding::{error::RewardingError, IntervalRewardParams, MixnodeToReward};
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::{
-    ContractStateParams, Delegation, ExecuteMsg, GatewayBond, IdentityKey, Interval, MixNodeBond,
-    MixnodeRewardingStatusResponse, RewardedSetNodeStatus, RewardedSetUpdateDetails,
-    MIXNODE_DELEGATORS_PAGE_LIMIT,
+    reward_params::IntervalRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
+    IdentityKey, Interval, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
+    RewardedSetUpdateDetails, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
 use serde::Serialize;
 use std::sync::Arc;
@@ -157,15 +157,14 @@ impl<C> Client<C> {
         let reward_pool = this.get_reward_pool().await?;
         let interval_reward_percent = this.get_interval_reward_percent().await?;
 
-        let interval_reward_params = IntervalRewardParams {
-            reward_pool,
-            circulating_supply: this.get_circulating_supply().await?,
-            sybil_resistance_percent: this.get_sybil_resistance_percent().await?,
-            rewarded_set_size: state.mixnode_rewarded_set_size,
-            active_set_size: state.mixnode_active_set_size,
-            period_reward_pool: (reward_pool / 100) * interval_reward_percent as u128,
-            active_set_work_factor: this.get_active_set_work_factor().await?,
-        };
+        let interval_reward_params = IntervalRewardParams::new(
+            (reward_pool / 100) * interval_reward_percent as u128,
+            state.mixnode_rewarded_set_size as u128,
+            state.mixnode_active_set_size as u128,
+            this.get_circulating_supply().await?,
+            this.get_sybil_resistance_percent().await?,
+            this.get_active_set_work_factor().await?,
+        );
 
         Ok(interval_reward_params)
     }

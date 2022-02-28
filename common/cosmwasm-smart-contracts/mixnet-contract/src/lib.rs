@@ -8,6 +8,7 @@ mod gateway;
 mod interval;
 pub mod mixnode;
 mod msg;
+pub mod reward_params;
 mod types;
 
 pub const MIXNODE_DELEGATORS_PAGE_LIMIT: usize = 250;
@@ -24,3 +25,9 @@ pub use mixnode::{
 };
 pub use msg::*;
 pub use types::*;
+
+type U128 = fixed::types::U75F53;
+
+fixed::const_fixed_from_int! {
+    const ONE: U128 = 1;
+}

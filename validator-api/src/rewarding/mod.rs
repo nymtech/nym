@@ -11,7 +11,7 @@ use crate::storage::models::{
 use crate::storage::ValidatorApiStorage;
 use config::defaults::DEFAULT_NETWORK;
 use log::{error, info};
-use mixnet_contract_common::mixnode::NodeRewardParams;
+use mixnet_contract_common::reward_params::{NodeRewardParams, RewardParams, IntervalRewardParams};
 use mixnet_contract_common::{
     ExecuteMsg, IdentityKey, Interval, MixNodeBond, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
@@ -24,70 +24,6 @@ use tokio::time::sleep;
 use validator_client::nymd::SigningNymdClient;
 
 pub(crate) mod error;
-
-#[derive(Copy, Clone)]
-pub(crate) struct IntervalRewardParams {
-    pub(crate) reward_pool: u128,
-    pub(crate) circulating_supply: u128,
-    pub(crate) sybil_resistance_percent: u8,
-    pub(crate) rewarded_set_size: u32,
-    pub(crate) active_set_size: u32,
-    pub(crate) period_reward_pool: u128,
-    pub(crate) active_set_work_factor: u8,
-}
-
-impl IntervalRewardParams {
-    // technically it's identical to what would have been derived with a Default implementation,
-    // however, I prefer to be explicit about it, as a `Default::default` value makes no sense
-    // apart from the `ValidatorCacheInner` context, where this value is not going to be touched anyway
-    // (it's guarded behind an `initialised` flag)
-    pub(crate) fn new_empty() -> Self {
-        IntervalRewardParams {
-            reward_pool: 0,
-            circulating_supply: 0,
-            sybil_resistance_percent: 0,
-            rewarded_set_size: 0,
-            active_set_size: 0,
-            period_reward_pool: 0,
-            active_set_work_factor: 0,
-        }
-    }
-
-    pub(crate) fn estimate_reward(
-        &self,
-        node: &MixNodeBond,
-        uptime: u8,
-        in_active_set: bool,
-    ) -> Result<(u64, u64, u64), RewardingError> {
-        let node_reward_params = NodeRewardParams::new(
-            self.period_reward_pool,
-            self.rewarded_set_size.into(),
-            self.active_set_size.into(),
-            0,
-            self.circulating_supply,
-            uptime.into(),
-            self.sybil_resistance_percent,
-            in_active_set,
-            self.active_set_work_factor,
-        );
-
-        let total_node_reward = node.reward(&node_reward_params);
-        let operator_reward = node.operator_reward(&node_reward_params);
-        let delegators_reward =
-            node.reward_delegation(node.total_delegation().amount, &node_reward_params);
-
-        Ok((
-            total_node_reward
-                .reward()
-                .checked_to_num::<u128>()
-                .unwrap_or_default()
-                .try_into()?,
-            operator_reward.try_into()?,
-            delegators_reward.try_into()?,
-        ))
-    }
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct MixnodeToReward {
     pub(crate) identity: IdentityKey,
@@ -96,11 +32,11 @@ pub(crate) struct MixnodeToReward {
     pub(crate) total_delegations: usize,
 
     /// Node absolute uptime over total active set uptime
-    pub(crate) params: NodeRewardParams,
+    pub(crate) params: RewardParams,
 }
 
 impl MixnodeToReward {
-    fn params(&self) -> NodeRewardParams {
+    fn params(&self) -> RewardParams {
         self.params
     }
 }
@@ -249,21 +185,12 @@ impl Rewarder {
                 )
                 .await?;
 
+            let node_reward_params = NodeRewardParams::new(0,uptime.u8().into(),active_set.contains(rewarded_node.identity()));
+            
             eligible_nodes.push(MixnodeToReward {
                 identity: rewarded_node.identity().clone(),
                 total_delegations,
-                params: NodeRewardParams::new(
-                    interval_reward_params.period_reward_pool,
-                    interval_reward_params.rewarded_set_size.into(),
-                    interval_reward_params.active_set_size.into(),
-                    // Reward blockstamp gets set in the contract call
-                    0,
-                    interval_reward_params.circulating_supply,
-                    uptime.u8().into(),
-                    interval_reward_params.sybil_resistance_percent,
-                    active_set.contains(rewarded_node.identity()),
-                    interval_reward_params.active_set_work_factor,
-                ),
+                params: RewardParams::new(interval_reward_params, node_reward_params),
             })
         }
 

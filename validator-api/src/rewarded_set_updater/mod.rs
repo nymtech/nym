@@ -84,8 +84,8 @@ impl RewardedSetUpdater {
             .await
             .into_inner();
 
-        let rewarded_set_size = rewarding_params.rewarded_set_size;
-        let active_set_size = rewarding_params.active_set_size;
+        let rewarded_set_size = rewarding_params.rewarded_set_size() as u32;
+        let active_set_size = rewarding_params.active_set_size() as u32;
 
         // note that top k nodes are in the active set
         let new_rewarded_set = self.determine_rewarded_set(all_nodes, rewarded_set_size);

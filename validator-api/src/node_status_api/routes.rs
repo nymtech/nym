@@ -7,6 +7,7 @@ use crate::node_status_api::models::{
 };
 use crate::storage::ValidatorApiStorage;
 use crate::ValidatorCache;
+use mixnet_contract_common::reward_params::{NodeRewardParams, RewardParams};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
@@ -128,8 +129,9 @@ pub(crate) async fn get_mixnode_reward_estimation(
             )
             .await
             .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))?;
-
-        match interval_reward_params.estimate_reward(&bond, uptime.u8(), status.is_active()) {
+        let node_reward_params = NodeRewardParams::new(0, uptime.u8() as u128, status.is_active());
+        let reward_params = RewardParams::new(interval_reward_params, node_reward_params);
+        match bond.estimate_reward(&reward_params) {
             Ok((
                 estimated_total_node_reward,
                 estimated_operator_reward,
@@ -171,8 +173,8 @@ pub(crate) async fn get_mixnode_stake_saturation(
         let interval_reward_params = interval_reward_params.into_inner();
 
         let saturation = bond.stake_saturation(
-            interval_reward_params.circulating_supply,
-            interval_reward_params.rewarded_set_size,
+            interval_reward_params.circulating_supply(),
+            interval_reward_params.rewarded_set_size() as u32,
         );
 
         Ok(Json(StakeSaturationResponse {
@@ -201,8 +203,8 @@ pub(crate) async fn get_mixnode_inclusion_probability(
             as f64;
 
         let rewarding_params = cache.interval_reward_params().await.into_inner();
-        let rewarded_set_size = rewarding_params.rewarded_set_size as f64;
-        let active_set_size = rewarding_params.active_set_size as f64;
+        let rewarded_set_size = rewarding_params.rewarded_set_size() as f64;
+        let active_set_size = rewarding_params.active_set_size() as f64;
 
         let prob_one_draw =
             target_mixnode.total_bond().unwrap_or_default() as f64 / total_bonded_tokens;

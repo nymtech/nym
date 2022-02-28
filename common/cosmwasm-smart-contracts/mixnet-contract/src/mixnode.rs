@@ -5,18 +5,14 @@ use crate::{IdentityKey, SphinxKey};
 use az::CheckedCast;
 use cosmwasm_std::{coin, Addr, Coin, Uint128};
 use log::error;
-use network_defaults::DEFAULT_OPERATOR_INTERVAL_COST;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::cmp::Ordering;
 use std::fmt::Display;
-
-type U128 = fixed::types::U75F53; // u128 with 18 significant digits
-
-fixed::const_fixed_from_int! {
-    const ONE: U128 = 1;
-}
+use crate::reward_params::RewardParams;
+use crate::{U128, ONE};
+use crate::error::MixnetContractError;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(
@@ -87,112 +83,6 @@ impl From<Layer> for String {
     }
 }
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
-pub struct NodeRewardParams {
-    period_reward_pool: Uint128,
-    rewarded_set_size: Uint128,
-    active_set_size: Uint128,
-    reward_blockstamp: u64,
-    circulating_supply: Uint128,
-    uptime: Uint128,
-    sybil_resistance_percent: u8,
-    in_active_set: bool,
-    active_set_work_factor: u8,
-}
-
-impl NodeRewardParams {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        period_reward_pool: u128,
-        rewarded_set_size: u128,
-        active_set_size: u128,
-        reward_blockstamp: u64,
-        circulating_supply: u128,
-        uptime: u128,
-        sybil_resistance_percent: u8,
-        in_active_set: bool,
-        active_set_work_factor: u8,
-    ) -> NodeRewardParams {
-        NodeRewardParams {
-            period_reward_pool: Uint128::new(period_reward_pool),
-            rewarded_set_size: Uint128::new(rewarded_set_size),
-            active_set_size: Uint128::new(active_set_size),
-            reward_blockstamp,
-            circulating_supply: Uint128::new(circulating_supply),
-            uptime: Uint128::new(uptime),
-            sybil_resistance_percent,
-            in_active_set,
-            active_set_work_factor,
-        }
-    }
-
-    pub fn omega(&self) -> U128 {
-        // As per keybase://chat/nymtech#tokeneconomics/1179
-        let denom = self.active_set_work_factor() * U128::from_num(self.rewarded_set_size())
-            - (self.active_set_work_factor() - ONE) * U128::from_num(self.idle_nodes().u128());
-
-        if self.in_active_set() {
-            // work_active = factor / (factor * self.network.k[month] - (factor - 1) * idle_nodes)
-            self.active_set_work_factor() / denom * self.rewarded_set_size()
-        } else {
-            // work_idle = 1 / (factor * self.network.k[month] - (factor - 1) * idle_nodes)
-            ONE / denom * self.rewarded_set_size()
-        }
-    }
-
-    pub fn idle_nodes(&self) -> Uint128 {
-        self.rewarded_set_size - self.active_set_size
-    }
-
-    pub fn active_set_work_factor(&self) -> U128 {
-        U128::from_num(self.active_set_work_factor)
-    }
-
-    pub fn in_active_set(&self) -> bool {
-        self.in_active_set
-    }
-
-    pub fn performance(&self) -> U128 {
-        U128::from_num(self.uptime.u128()) / U128::from_num(100)
-    }
-
-    pub fn operator_cost(&self) -> U128 {
-        U128::from_num(self.uptime.u128() / 100u128 * DEFAULT_OPERATOR_INTERVAL_COST as u128)
-    }
-
-    pub fn set_reward_blockstamp(&mut self, blockstamp: u64) {
-        self.reward_blockstamp = blockstamp;
-    }
-
-    pub fn period_reward_pool(&self) -> u128 {
-        self.period_reward_pool.u128()
-    }
-
-    pub fn rewarded_set_size(&self) -> u128 {
-        self.rewarded_set_size.u128()
-    }
-
-    pub fn circulating_supply(&self) -> u128 {
-        self.circulating_supply.u128()
-    }
-
-    pub fn reward_blockstamp(&self) -> u64 {
-        self.reward_blockstamp
-    }
-
-    pub fn uptime(&self) -> u128 {
-        self.uptime.u128()
-    }
-
-    pub fn one_over_k(&self) -> U128 {
-        ONE / U128::from_num(self.rewarded_set_size.u128())
-    }
-
-    pub fn alpha(&self) -> U128 {
-        U128::from_num(self.sybil_resistance_percent) / U128::from_num(100)
-    }
-}
-
 // cosmwasm's limited serde doesn't work with U128 directly
 #[allow(non_snake_case)]
 pub mod fixed_U128_as_string {
@@ -226,7 +116,7 @@ pub mod fixed_U128_as_string {
 // everything required to reward delegator of given mixnode
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct DelegatorRewardParams {
-    node_reward_params: NodeRewardParams,
+    reward_params: RewardParams,
 
     // to be completely honest I don't understand all consequences of using `#[schemars(with = "String")]`
     // for U128 here, but it seems that CosmWasm is using the same attribute for their Uint128
@@ -242,19 +132,19 @@ pub struct DelegatorRewardParams {
 }
 
 impl DelegatorRewardParams {
-    pub fn new(mixnode_bond: &MixNodeBond, node_reward_params: NodeRewardParams) -> Self {
+    pub fn new(mixnode_bond: &MixNodeBond, reward_params: RewardParams) -> Self {
         DelegatorRewardParams {
-            sigma: mixnode_bond.sigma(&node_reward_params),
+            sigma: mixnode_bond.sigma(&reward_params),
             profit_margin: mixnode_bond.profit_margin(),
-            node_profit: mixnode_bond.node_profit(&node_reward_params),
-            node_reward_params,
+            node_profit: mixnode_bond.node_profit(&reward_params),
+            reward_params,
         }
     }
 
     pub fn determine_delegation_reward(&self, delegation_amount: Uint128) -> u128 {
         // change all values into their fixed representations
         let delegation_amount = U128::from_num(delegation_amount.u128());
-        let circulating_supply = U128::from_num(self.node_reward_params.circulating_supply());
+        let circulating_supply = U128::from_num(self.reward_params.circulating_supply());
 
         let scaled_delegation_amount = delegation_amount / circulating_supply;
         let delegator_reward =
@@ -272,8 +162,8 @@ impl DelegatorRewardParams {
         }
     }
 
-    pub fn node_reward_params(&self) -> &NodeRewardParams {
-        &self.node_reward_params
+    pub fn node_reward_params(&self) -> RewardParams {
+        self.reward_params
     }
 }
 
@@ -307,7 +197,7 @@ pub struct MixNodeBond {
     pub block_height: u64,
     pub mix_node: MixNode,
     pub proxy: Option<Addr>,
-    pub accumulated_rewards: Uint128
+    pub accumulated_rewards: Uint128,
 }
 
 impl MixNodeBond {
@@ -327,7 +217,7 @@ impl MixNodeBond {
             block_height,
             mix_node,
             proxy,
-            accumulated_rewards: Uint128::zero()
+            accumulated_rewards: Uint128::zero(),
         }
     }
 
@@ -377,21 +267,40 @@ impl MixNodeBond {
             / U128::from_num(circulating_supply)
     }
 
-    pub fn lambda(&self, params: &NodeRewardParams) -> U128 {
+    pub fn lambda(&self, params: &RewardParams) -> U128 {
         // Ratio of a bond to the token circulating supply
         let pledge_to_circulating_supply_ratio =
             self.pledge_to_circulating_supply(params.circulating_supply());
         pledge_to_circulating_supply_ratio.min(params.one_over_k())
     }
 
-    pub fn sigma(&self, params: &NodeRewardParams) -> U128 {
+    pub fn sigma(&self, params: &RewardParams) -> U128 {
         // Ratio of a delegation to the the token circulating supply
         let total_bond_to_circulating_supply_ratio =
             self.total_bond_to_circulating_supply(params.circulating_supply());
         total_bond_to_circulating_supply_ratio.min(params.one_over_k())
     }
 
-    pub fn reward(&self, params: &NodeRewardParams) -> NodeRewardResult {
+    pub fn estimate_reward(
+        &self,
+        params: &RewardParams,
+    ) -> Result<(u64, u64, u64), MixnetContractError> {
+        let total_node_reward = self.reward(params);
+        let operator_reward = self.operator_reward(params);
+        let delegators_reward = self.reward_delegation(self.total_delegation().amount, params);
+
+        Ok((
+            total_node_reward
+                .reward()
+                .checked_to_num::<u128>()
+                .unwrap_or_default()
+                .try_into()?,
+            operator_reward.try_into()?,
+            delegators_reward.try_into()?,
+        ))
+    }
+
+    pub fn reward(&self, params: &RewardParams) -> NodeRewardResult {
         let lambda = self.lambda(params);
         let sigma = self.sigma(params);
 
@@ -408,7 +317,7 @@ impl MixNodeBond {
         }
     }
 
-    pub fn node_profit(&self, params: &NodeRewardParams) -> U128 {
+    pub fn node_profit(&self, params: &RewardParams) -> U128 {
         if self.reward(params).reward() < params.operator_cost() {
             U128::from_num(0)
         } else {
@@ -416,7 +325,7 @@ impl MixNodeBond {
         }
     }
 
-    pub fn operator_reward(&self, params: &NodeRewardParams) -> u128 {
+    pub fn operator_reward(&self, params: &RewardParams) -> u128 {
         let reward = self.reward(params);
         let profit = if reward.reward < params.operator_cost() {
             U128::from_num(0)
@@ -442,7 +351,7 @@ impl MixNodeBond {
         }
     }
 
-    pub fn sigma_ratio(&self, params: &NodeRewardParams) -> U128 {
+    pub fn sigma_ratio(&self, params: &RewardParams) -> U128 {
         if self.total_bond_to_circulating_supply(params.circulating_supply()) < params.one_over_k()
         {
             self.total_bond_to_circulating_supply(params.circulating_supply())
@@ -451,7 +360,7 @@ impl MixNodeBond {
         }
     }
 
-    pub fn reward_delegation(&self, delegation_amount: Uint128, params: &NodeRewardParams) -> u128 {
+    pub fn reward_delegation(&self, delegation_amount: Uint128, params: &RewardParams) -> u128 {
         let reward_params = DelegatorRewardParams::new(self, *params);
         reward_params.determine_delegation_reward(delegation_amount)
     }

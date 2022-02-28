@@ -112,5 +112,7 @@ mod test {
     vesting_contract_common::Period => "../src/types/rust/period.ts",
     crate::vesting::PledgeData => "../src/types/rust/pledgedata.ts",
     crate::vesting::OriginalVestingResponse => "../src/types/rust/originalvestingresponse.ts",
+    crate::vesting::VestingAccountInfo => "../src/types/rust/vestingaccountinfo.ts",
+    crate::vesting::VestingPeriod => "../src/types/rust/vestingperiod.ts",
   }
 }

@@ -34,13 +34,13 @@ test-wallet:
 	cargo test --manifest-path nym-wallet/Cargo.toml --all-features
 
 build-main:
-	cargo build 
+	cargo build --all
 
 build-contracts:
-	cargo build --manifest-path contracts/Cargo.toml
+	cargo build --manifest-path contracts/Cargo.toml --all
 
 build-wallet:
-	cargo build --manifest-path nym-wallet/Cargo.toml
+	cargo build --manifest-path nym-wallet/Cargo.toml --all
 
 fmt-main:
 	cargo fmt --all

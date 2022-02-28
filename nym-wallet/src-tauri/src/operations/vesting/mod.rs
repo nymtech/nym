@@ -1,5 +1,7 @@
 use crate::coin::Coin;
 use serde::{Deserialize, Serialize};
+use vesting_contract::vesting::Account as VestingAccount;
+use vesting_contract::vesting::VestingPeriod as VestingVestingPeriod;
 use vesting_contract_common::OriginalVestingResponse as VestingOriginalVestingResponse;
 use vesting_contract_common::PledgeData as VestingPledgeData;
 
@@ -43,6 +45,48 @@ impl From<VestingOriginalVestingResponse> for OriginalVestingResponse {
       amount: data.amount().into(),
       number_of_periods: data.number_of_periods(),
       period_duration: data.period_duration(),
+    }
+  }
+}
+
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct VestingAccountInfo {
+  owner_address: String,
+  staking_address: Option<String>,
+  start_time: u64,
+  periods: Vec<VestingPeriod>,
+  coin: Coin,
+}
+
+impl From<VestingAccount> for VestingAccountInfo {
+  fn from(account: VestingAccount) -> Self {
+    let mut periods = Vec::new();
+    for period in account.periods() {
+      periods.push(period.into());
+    }
+    Self {
+      owner_address: account.owner_address().to_string(),
+      staking_address: account.staking_address().map(|a| a.to_string()),
+      start_time: account.start_time().seconds(),
+      periods,
+      coin: account.coin().into(),
+    }
+  }
+}
+
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct VestingPeriod {
+  start_time: u64,
+  period_seconds: u64,
+}
+
+impl From<VestingVestingPeriod> for VestingPeriod {
+  fn from(period: VestingVestingPeriod) -> Self {
+    Self {
+      start_time: period.start_time,
+      period_seconds: period.period_seconds,
     }
   }
 }

@@ -2915,6 +2915,7 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
+ "vesting-contract",
  "vesting-contract-common",
  "zeroize",
 ]

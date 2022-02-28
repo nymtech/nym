@@ -57,6 +57,10 @@ impl Account {
         Ok(account)
     }
 
+    pub fn coin(&self) -> Coin {
+        self.coin.clone()
+    }
+
     pub fn num_vesting_periods(&self) -> usize {
         self.periods.len()
     }

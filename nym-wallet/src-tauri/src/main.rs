@@ -70,6 +70,7 @@ fn main() {
       vesting::delegate::vesting_undelegate_from_mixnode,
       vesting::queries::delegated_free,
       vesting::queries::delegated_vesting,
+      vesting::queries::get_account_info,
       vesting::queries::get_current_vesting_period,
       vesting::queries::locked_coins,
       vesting::queries::original_vesting,

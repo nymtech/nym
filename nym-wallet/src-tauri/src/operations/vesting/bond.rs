@@ -61,8 +61,6 @@ pub async fn withdraw_vested_coins(
 ) -> Result<(), BackendError> {
   let denom = state.read().await.current_network().denom();
   let amount = amount.into_cosmwasm_coin(&denom)?;
-  nymd_client!(state)
-    .withdraw_vested_coins(amount.try_into()?)
-    .await?;
+  nymd_client!(state).withdraw_vested_coins(amount).await?;
   Ok(())
 }

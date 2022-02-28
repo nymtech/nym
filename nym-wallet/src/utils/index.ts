@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api'
 import bs58 from 'bs58'
 import { minor, valid } from 'semver'
 import { userBalance, majorToMinor, getGasFee } from '../requests'
-import { Coin, Network, TCurrency } from '../types'
+import { Coin, Network, Period, TCurrency } from '../types'
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key
@@ -105,22 +105,30 @@ export const randomNumberBetween = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min + 1) + min)
 }
 
-export const currencyMap = (network: Network) => {
+export const currencyMap = (network?: Network) => {
   let currency = {
-    minor: 'unym',
-    major: 'nym',
+    minor: 'UNYM',
+    major: 'NYM',
   } as TCurrency
 
   switch (network) {
     case 'MAINNET':
-      currency.minor = 'unym'
-      currency.major = 'nym'
+      currency.minor = 'UNYM'
+      currency.major = 'NYM'
       break
     case 'SANDBOX':
-      currency.minor = 'unymt'
-      currency.major = 'nymt'
+      currency.minor = 'UNYMT'
+      currency.major = 'NYMT'
       break
   }
 
   return currency
+}
+
+export const splice = (start: number, deleteCount: number, address?: string) => {
+  if (address) {
+    const array = address.split('')
+    array.splice(start, deleteCount, '...')
+    return array.join('')
+  }
 }

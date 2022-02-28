@@ -4,7 +4,6 @@
 use crate::{
     commands::{override_config, OverrideConfig},
     config::{persistence::pathfinder::GatewayPathfinder, Config},
-    node::Gateway,
 };
 use clap::Args;
 use config::NymConfig;
@@ -68,7 +67,6 @@ pub struct Init {
 impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
-            id: init_config.id,
             host: Some(init_config.host),
             wallet_address: Some(init_config.wallet_address),
             mix_port: init_config.mix_port,
@@ -93,20 +91,23 @@ impl From<Init> for OverrideConfig {
 }
 
 pub async fn execute(args: &Init) {
-    let override_config_fields = OverrideConfig::from(args.clone());
-    let id = &override_config_fields.id;
-    println!("Initialising gateway {}...", id);
+    println!("Initialising gateway {}...", args.id);
 
-    let already_init = if Config::default_config_file_path(Some(id)).exists() {
-        println!("Gateway \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
+    let already_init = if Config::default_config_file_path(Some(&args.id)).exists() {
+        println!(
+            "Gateway \"{}\" was already initialised before! Config information will be \
+            overwritten (but keys will be kept)!",
+            args.id
+        );
         true
     } else {
         false
     };
 
-    let mut config = Config::new(id);
+    let override_config_fields = OverrideConfig::from(args.clone());
 
-    config = override_config(config, override_config_fields);
+    // Initialising the config structure is just overriding a default constructed one
+    let config = override_config(Config::new(&args.id), override_config_fields);
 
     // if gateway was already initialised, don't generate new keys
     if !already_init {
@@ -143,5 +144,44 @@ pub async fn execute(args: &Init) {
     println!("Saved configuration file to {:?}", config_save_location);
     println!("Gateway configuration completed.\n\n\n");
 
-    Gateway::new(config).await.print_node_details();
+    crate::node::create_gateway(config)
+        .await
+        .print_node_details();
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::node::{storage::InMemStorage, Gateway};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn create_gateway_with_in_mem_storage() {
+        let args = Init {
+            id: "foo-id".to_string(),
+            host: "foo-host".to_string(),
+            wallet_address: "nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9".to_string(),
+            mix_port: Some(42),
+            clients_port: Some(43),
+            announce_host: Some("foo-announce-host".to_string()),
+            datastore: Some("foo-datastore".to_string()),
+            validator_apis: None,
+        };
+
+        let config = Config::new(&args.id);
+        let config = override_config(config, OverrideConfig::from(args.clone()));
+
+        let (identity_keys, sphinx_keys) = {
+            let mut rng = rand::rngs::OsRng;
+            (
+                identity::KeyPair::new(&mut rng),
+                encryption::KeyPair::new(&mut rng),
+            )
+        };
+
+        // The test is really if this instantiates with InMemStorage without panics
+        let _gateway =
+            Gateway::new_from_keys_and_storage(config, identity_keys, sphinx_keys, InMemStorage)
+                .await;
+    }
 }

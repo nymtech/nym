@@ -2,6 +2,7 @@ import React, { useContext } from 'react'
 import ReactDOM from 'react-dom'
 import { ErrorBoundary } from 'react-error-boundary'
 import { BrowserRouter as Router } from 'react-router-dom'
+import { SnackbarProvider } from 'notistack'
 import { Routes } from './routes'
 import { ClientContext, ClientContextProvider } from './context/main'
 import { ApplicationLayout } from './layouts'
@@ -31,9 +32,16 @@ const AppWrapper = () => {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <Router>
-        <ClientContextProvider>
-          <App />
-        </ClientContextProvider>
+        <SnackbarProvider
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+        >
+          <ClientContextProvider>
+            <App />
+          </ClientContextProvider>
+        </SnackbarProvider>
       </Router>
     </ErrorBoundary>
   )

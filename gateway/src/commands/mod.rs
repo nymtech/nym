@@ -43,7 +43,6 @@ pub(crate) enum Commands {
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    id: String,
     host: Option<String>,
     wallet_address: Option<String>,
     mix_port: Option<u16>,

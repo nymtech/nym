@@ -2,34 +2,23 @@ import React, { useContext, useState } from 'react'
 import { Alert, Button, Stack, TextField } from '@mui/material'
 import { Subtitle } from '../components'
 import { ClientContext } from '../../../context/main'
-import { signInWithMnemonic } from '../../../requests'
 
 export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () => void }> = ({ onPrev }) => {
-  const [mnemonic, setMnemonic] = useState<string>()
-  const [inputError, setInputError] = useState<string>()
+  const [mnemonic, setMnemonic] = useState<string>('')
 
-  const { logIn } = useContext(ClientContext)
-
+  const { logIn, error } = useContext(ClientContext)
   const handleSignIn = async (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault()
-
-    setInputError(undefined)
-
-    try {
-      await signInWithMnemonic(mnemonic || '')
-      logIn('MAINNET')
-    } catch (e: any) {
-      setInputError(e)
-    }
+    logIn(mnemonic)
   }
 
   return (
     <Stack spacing={2} sx={{ width: 400 }} alignItems="center">
       <Subtitle subtitle="Enter your mnemonic from existing wallet" />
       <TextField value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} multiline rows={5} fullWidth />
-      {inputError && (
+      {error && (
         <Alert severity="error" variant="outlined" data-testid="error" sx={{ color: 'error.light', width: '100%' }}>
-          {inputError}
+          {error}
         </Alert>
       )}
 

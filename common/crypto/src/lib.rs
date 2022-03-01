@@ -16,6 +16,7 @@ pub use generic_array;
 // etc. algorithms and import them elsewhere as needed via common/crypto
 pub use aes;
 pub use blake3;
+pub use ctr;
 
 // TODO: this function uses all three modules: asymmetric crypto, symmetric crypto and derives key...,
 // so I don't know where to put it...

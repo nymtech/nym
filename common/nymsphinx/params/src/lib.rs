@@ -1,8 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crypto::aes::Aes128Ctr;
+use crypto::aes::Aes128;
 use crypto::blake3;
+use crypto::ctr;
+
+type Aes128Ctr = ctr::Ctr64LE<Aes128>;
 
 // Re-export for ease of use
 pub use packet_modes::PacketMode;

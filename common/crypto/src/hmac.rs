@@ -1,24 +1,23 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use digest::{BlockInput, FixedOutput, Reset, Update};
-use generic_array::{typenum::Unsigned, ArrayLength, GenericArray};
-use hmac::{crypto_mac, Hmac, Mac, NewMac};
+use hmac::{
+    digest::{crypto_common::BlockSizeUser, Digest, Output},
+    Mac, SimpleHmac,
+};
 
 pub use hmac;
 
-// Type alias for ease of use so that it would not require explicit import of crypto_mac or Hmac
-pub type HmacOutput<D> = crypto_mac::Output<Hmac<D>>;
+// TODO: We should probably change it to use some sealed trait to allow for both `Hmac` and `SimpleHmac`
+pub type HmacOutput<D> = Output<SimpleHmac<D>>;
 
 /// Compute keyed hmac
 pub fn compute_keyed_hmac<D>(key: &[u8], data: &[u8]) -> HmacOutput<D>
 where
-    D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
-    D::BlockSize: ArrayLength<u8>,
-    D::OutputSize: ArrayLength<u8>,
+    D: Digest + BlockSizeUser,
 {
-    let mut hmac =
-        Hmac::<D>::new_from_slice(key).expect("HMAC should be able to take key of any size!");
+    let mut hmac = SimpleHmac::<D>::new_from_slice(key)
+        .expect("HMAC was instantiated with a key of an invalid size!");
     hmac.update(data);
     hmac.finalize()
 }
@@ -26,33 +25,29 @@ where
 /// Compute keyed hmac and performs constant time equality check with the provided tag value.
 pub fn recompute_keyed_hmac_and_verify_tag<D>(key: &[u8], data: &[u8], tag: &[u8]) -> bool
 where
-    D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
-    D::BlockSize: ArrayLength<u8>,
-    D::OutputSize: ArrayLength<u8>,
+    D: Digest,
 {
-    let mut hmac =
-        Hmac::<D>::new_from_slice(key).expect("HMAC should be able to take key of any size!");
+    let mut hmac = SimpleHmac::<D>::new_from_slice(key)
+        .expect("HMAC was instantiated with a key of an invalid size!");
     hmac.update(data);
     // note, under the hood ct_eq is called
     hmac.verify(tag).is_ok()
 }
 
-/// Verifies tag of an hmac output.
-pub fn verify_tag<D>(tag: &[u8], out: HmacOutput<D>) -> bool
-where
-    D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
-    D::BlockSize: ArrayLength<u8>,
-    D::OutputSize: ArrayLength<u8>,
-{
-    if tag.len() != D::OutputSize::to_usize() {
-        return false;
-    }
-
-    let tag_bytes = GenericArray::clone_from_slice(tag);
-    let tag_out = HmacOutput::new(tag_bytes);
-    // note, under the hood ct_eq is called
-    out == tag_out
-}
+// /// Verifies tag of an hmac output.
+// pub fn verify_tag<D>(tag: &[u8], out: HmacOutput<D>) -> bool
+// where
+//     D: Digest,
+// {
+//     if tag.len() != D::output_size() {
+//         return false;
+//     }
+//
+//     let tag_bytes = GenericArray::clone_from_slice(tag);
+//
+//     // note, under the hood ct_eq is called
+//     out == tag_out
+// }
 
 #[cfg(test)]
 mod tests {
@@ -76,9 +71,9 @@ mod tests {
             &output_tag
         ));
 
-        assert!(verify_tag::<blake3::Hasher>(
-            &output_tag,
-            compute_keyed_hmac::<blake3::Hasher>(&key, msg)
-        ));
+        // assert!(verify_tag::<blake3::Hasher>(
+        //     &output_tag,
+        //     compute_keyed_hmac::<blake3::Hasher>(&key, msg)
+        // ));
     }
 }

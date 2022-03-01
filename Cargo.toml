@@ -17,7 +17,6 @@ members = [
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
-    "clients/tauri-client/src-tauri",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",

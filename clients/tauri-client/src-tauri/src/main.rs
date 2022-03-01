@@ -27,17 +27,9 @@ struct State {
 }
 
 impl State {
-  fn init(public_attributes_bytes: Vec<Vec<u8>>, private_attributes_bytes: Vec<Vec<u8>>) -> State {
-    let n_attributes = (public_attributes_bytes.len() + private_attributes_bytes.len()) as u32;
+  fn init(public_attributes: Vec<Attribute>, private_attributes: Vec<Attribute>) -> State {
+    let n_attributes = (public_attributes.len() + private_attributes.len()) as u32;
     let params = Parameters::new(n_attributes).unwrap();
-    let public_attributes = public_attributes_bytes
-      .iter()
-      .map(hash_to_scalar)
-      .collect::<Vec<Attribute>>();
-    let private_attributes = private_attributes_bytes
-      .iter()
-      .map(hash_to_scalar)
-      .collect::<Vec<Attribute>>();
     State {
       signatures: Vec::new(),
       n_attributes,
@@ -207,20 +199,10 @@ fn main() {
     voucher_value: hash_to_scalar(1024u64.to_be_bytes()),
     voucher_info: hash_to_scalar("BandwidthVoucher"),
   };
-  let public_attributes = bandwidth_credential_attributes
-    .get_public_attributes()
-    .iter()
-    .map(|attr| attr.to_byte_vec())
-    .collect();
-  let private_attributes = bandwidth_credential_attributes
-    .get_private_attributes()
-    .iter()
-    .map(|attr| attr.to_byte_vec())
-    .collect();
   tauri::Builder::default()
     .manage(Arc::new(RwLock::new(State::init(
-      public_attributes,
-      private_attributes,
+      bandwidth_credential_attributes.get_public_attributes(),
+      bandwidth_credential_attributes.get_private_attributes(),
     ))))
     .invoke_handler(tauri::generate_handler![
       get_credential,

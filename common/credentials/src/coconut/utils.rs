@@ -147,7 +147,7 @@ pub async fn obtain_aggregate_signature(
     attributes.extend_from_slice(public_attributes);
 
     let mut indices: Vec<u64> = Vec::with_capacity(validators_partial_vks.len());
-    for i in 1..validators_partial_vks.len() {
+    for i in 0..validators_partial_vks.len() {
         indices.push(i as u64);
     }
     let verification_key =

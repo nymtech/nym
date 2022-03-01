@@ -46,6 +46,9 @@ config = { path = "../../common/config" }
 coconut-interface = { path = "../../common/coconut-interface" }
 credentials = { path = "../../common/credentials" }
 
+# Used for Type conversion, can be extracted but its a lot of work
+vesting-contract = { path = "../../contracts/vesting" }
+
 [dev-dependencies]
 ts-rs = "5.1"
 tempfile = "3.3.0"

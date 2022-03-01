@@ -1,3 +1,4 @@
+use super::VestingAccountInfo;
 use crate::coin::Coin;
 use crate::error::BackendError;
 use crate::nymd_client;
@@ -184,4 +185,12 @@ pub async fn get_current_vesting_period(
       .get_current_vesting_period(address)
       .await?,
   )
+}
+
+#[tauri::command]
+pub async fn get_account_info(
+  address: &str,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<VestingAccountInfo, BackendError> {
+  Ok(nymd_client!(state).get_account(address).await?.into())
 }

@@ -70,6 +70,7 @@ fn main() {
       vesting::delegate::vesting_undelegate_from_mixnode,
       vesting::queries::delegated_free,
       vesting::queries::delegated_vesting,
+      vesting::queries::get_account_info,
       vesting::queries::get_current_vesting_period,
       vesting::queries::locked_coins,
       vesting::queries::original_vesting,
@@ -111,5 +112,7 @@ mod test {
     vesting_contract_common::Period => "../src/types/rust/period.ts",
     crate::vesting::PledgeData => "../src/types/rust/pledgedata.ts",
     crate::vesting::OriginalVestingResponse => "../src/types/rust/originalvestingresponse.ts",
+    crate::vesting::VestingAccountInfo => "../src/types/rust/vestingaccountinfo.ts",
+    crate::vesting::VestingPeriod => "../src/types/rust/vestingperiod.ts",
   }
 }

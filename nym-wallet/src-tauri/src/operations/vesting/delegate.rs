@@ -3,8 +3,6 @@ use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
 use crate::utils::DelegationResult;
-use cosmwasm_std::Coin as CosmWasmCoin;
-use std::convert::TryInto;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use validator_client::nymd::VestingSigningClient;
@@ -15,7 +13,8 @@ pub async fn vesting_delegate_to_mixnode(
   amount: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationResult, BackendError> {
-  let delegation: CosmWasmCoin = amount.try_into()?;
+  let denom = state.read().await.current_network().denom();
+  let delegation = amount.into_cosmwasm_coin(&denom)?;
   nymd_client!(state)
     .vesting_delegate_to_mixnode(identity, &delegation)
     .await?;

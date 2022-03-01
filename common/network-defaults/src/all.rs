@@ -2,9 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt, str::FromStr};
 
 use crate::{mainnet, qa, sandbox, ValidatorDetails};
+
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum NetworkDefaultsError {
+    #[error("The provided network was invalid")]
+    MalformedNetworkProvided(String),
+}
 
 #[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum Network {
@@ -19,6 +27,39 @@ impl Network {
             Self::QA => String::from(qa::BECH32_PREFIX),
             Self::SANDBOX => String::from(sandbox::BECH32_PREFIX),
             Self::MAINNET => String::from(mainnet::BECH32_PREFIX),
+        }
+    }
+
+    pub fn denom(&self) -> String {
+        match self {
+            Self::QA => String::from(qa::DENOM),
+            Self::SANDBOX => String::from(sandbox::DENOM),
+            Self::MAINNET => String::from(mainnet::DENOM),
+        }
+    }
+}
+
+impl FromStr for Network {
+    type Err = NetworkDefaultsError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "qa" => Ok(Network::QA),
+            "sandbox" => Ok(Network::SANDBOX),
+            "mainnet" => Ok(Network::MAINNET),
+            _ => Err(NetworkDefaultsError::MalformedNetworkProvided(
+                s.to_string(),
+            )),
+        }
+    }
+}
+
+impl fmt::Display for Network {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Network::QA => f.write_str("QA"),
+            Network::SANDBOX => f.write_str("Sandbox"),
+            Network::MAINNET => f.write_str("Mainnet"),
         }
     }
 }

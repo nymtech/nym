@@ -89,7 +89,13 @@ const networkExplorerPalette = (
     /** world map styles */
     map: {
       stroke: '#333333',
-      fills: ['#EFEFEF', '#FBE7E1', '#F7D1C6', '#F09379'],
+      fills: [
+        'rgba(255,255,255,0.2)',
+        '#EFEFEF',
+        '#FBE7E1',
+        '#F7D1C6',
+        '#F09379',
+      ],
     },
     background: {
       tertiary: variant.mode === 'light' ? '#F4F8FA' : '#323C51',

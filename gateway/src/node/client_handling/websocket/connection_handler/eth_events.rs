@@ -19,10 +19,7 @@ use bandwidth_claim_contract::payment::LinkPaymentData;
 use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity::{PublicKey, Signature, SIGNATURE_LENGTH};
 use gateway_client::bandwidth::eth_contract;
-use network_defaults::{
-    DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS, DEFAULT_MIXNET_CONTRACT_ADDRESS, ETH_EVENT_NAME,
-    ETH_MIN_BLOCK_DEPTH,
-};
+use network_defaults::{ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
 use validator_client::nymd::{AccountId, NymdClient, SigningNymdClient};
 
 pub(crate) struct ERC20Bridge {
@@ -41,12 +38,18 @@ impl ERC20Bridge {
             .expect("The list of validators is empty");
         let mnemonic =
             Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
+        let default_network = config::defaults::DEFAULT_NETWORK;
         let nymd_client = NymdClient::connect_with_mnemonic(
-            config::defaults::default_network(),
+            default_network,
+            // config::defaults::DEFAULT_NETWORK,
             nymd_url.as_ref(),
-            AccountId::from_str(DEFAULT_MIXNET_CONTRACT_ADDRESS).ok(),
+            // AccountId::from_str(DEFAULT_MIXNET_CONTRACT_ADDRESS).ok(),
+            // WIP(JON): remove me, overriding default with default is not needed
+            AccountId::from_str(default_network.mixnet_contract_address()).ok(),
+            // Some(default_network.mixnet_contract_address().clone()),
             None,
-            AccountId::from_str(DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS).ok(),
+            // AccountId::from_str(DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS).ok(),
+            AccountId::from_str(default_network.bandwidth_claim_contract_address()).ok(),
             mnemonic,
             None,
         )

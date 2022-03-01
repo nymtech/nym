@@ -1,6 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-use config::defaults::DENOM;
+
 use cosmwasm_std::{Coin, Timestamp};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ pub mod events;
 pub mod messages;
 
 pub fn one_ucoin() -> Coin {
-    Coin::new(1, DENOM)
+    Coin::new(1, config::defaults::DENOM)
 }
 
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]

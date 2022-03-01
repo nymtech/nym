@@ -196,7 +196,7 @@ fn main() {
   let bandwidth_credential_attributes = BandwidthVoucherAttributes {
     serial_number: params.random_scalar(),
     binding_number: params.random_scalar(),
-    voucher_value: hash_to_scalar(1024u64.to_be_bytes()),
+    voucher_value: Attribute::from(1000000u64),
     voucher_info: hash_to_scalar("BandwidthVoucher"),
   };
   tauri::Builder::default()

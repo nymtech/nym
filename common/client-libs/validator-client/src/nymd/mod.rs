@@ -46,6 +46,7 @@ pub mod error;
 pub mod fee;
 pub mod traits;
 pub mod wallet;
+use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 
 #[derive(Debug)]
 pub struct NymdClient<C> {
@@ -272,6 +273,13 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         self.client.get_balance(address, denom).await
+    }
+
+    pub async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client.get_tx(id).await
     }
 
     pub async fn get_total_supply(&self) -> Result<Vec<Coin>, NymdError>

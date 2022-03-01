@@ -15,6 +15,7 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bip39 = "1.0.1"
 clap = "2.33.0"
 dirs = "3.0"
 dotenv = "0.15.0"
@@ -47,6 +48,7 @@ config = { path = "../common/config" }
 crypto = { path="../common/crypto" }
 gateway-client = { path="../common/client-libs/gateway-client" }
 mixnet-contract-common = { path= "../common/cosmwasm-smart-contracts/mixnet-contract" }
+bandwidth-claim-contract = { path= "../common/bandwidth-claim-contract" }
 nymsphinx = { path="../common/nymsphinx" }
 topology = { path="../common/topology" }
 validator-api-requests = { path = "validator-api-requests" }

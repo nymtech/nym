@@ -213,6 +213,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "coconut-dkg"
+version = "0.1.0"
+dependencies = [
+ "coconut-dkg-common",
+ "config",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-storage-plus",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "coconut-dkg-common"
+version = "0.1.0"
+dependencies = [
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "config"
 version = "0.1.0"
 dependencies = [

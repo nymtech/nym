@@ -6,10 +6,60 @@ use coconut_interface::{
     BlindedSignatureResponse, KeyPair, Parameters, VerificationKeyResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
+use dkg::secure_channel;
 use getset::{CopyGetters, Getters};
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use validator_client::nymd::AccountId;
+
+mod dealer;
+mod issuer;
+
+// temp
+
+// make sure keys are zeroized on drop
+struct SecretKey(Vec<()>);
+struct VerificationKey(Vec<()>);
+
+pub(crate) struct Config {
+    dkg_contract: AccountId,
+}
+
+enum IssuerState {
+    // has only secure channel keypair
+    PreDkg,
+
+    // has node id
+    DuringDkg,
+
+    // has actual coconut keys
+    PostDkg,
+}
+
+pub(crate) struct CredentialIssuer {
+    config: Config,
+
+    // by seeing how it looks, we'll probably need some wrapper with an inner field
+    partial_secret_key: Arc<RwLock<Option<SecretKey>>>,
+    partial_verification_key: Arc<RwLock<Option<VerificationKey>>>,
+
+    // this would need to be stored somewhere
+    secure_channel_keys: secure_channel::KeyPair,
+}
+
+impl CredentialIssuer {
+    pub(crate) fn new() -> CredentialIssuer {
+        todo!()
+    }
+
+    pub(crate) fn perform_initial_something() {}
+}
+
+// everything below will be refactored and move elsewhere, but for time being I'm not touch them
+// as I don't want to deal with broken builds (just yet)
 
 #[derive(Getters, CopyGetters, Debug)]
 pub(crate) struct InternalSignRequest {

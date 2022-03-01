@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use hmac::{
-    digest::{crypto_common::BlockSizeUser, Digest, Output},
+    digest::{crypto_common::BlockSizeUser, CtOutput, Digest, Output},
     Mac, SimpleHmac,
 };
 
 pub use hmac;
 
 // TODO: We should probably change it to use some sealed trait to allow for both `Hmac` and `SimpleHmac`
-pub type HmacOutput<D> = Output<SimpleHmac<D>>;
+pub type HmacOutput<D> = CtOutput<SimpleHmac<D>>;
 
 /// Compute keyed hmac
 pub fn compute_keyed_hmac<D>(key: &[u8], data: &[u8]) -> HmacOutput<D>
@@ -25,29 +25,29 @@ where
 /// Compute keyed hmac and performs constant time equality check with the provided tag value.
 pub fn recompute_keyed_hmac_and_verify_tag<D>(key: &[u8], data: &[u8], tag: &[u8]) -> bool
 where
-    D: Digest,
+    D: Digest + BlockSizeUser,
 {
     let mut hmac = SimpleHmac::<D>::new_from_slice(key)
         .expect("HMAC was instantiated with a key of an invalid size!");
     hmac.update(data);
+
+    let tag_arr = Output::<D>::from_slice(tag);
     // note, under the hood ct_eq is called
-    hmac.verify(tag).is_ok()
+    hmac.verify(tag_arr).is_ok()
 }
 
-// /// Verifies tag of an hmac output.
-// pub fn verify_tag<D>(tag: &[u8], out: HmacOutput<D>) -> bool
-// where
-//     D: Digest,
-// {
-//     if tag.len() != D::output_size() {
-//         return false;
-//     }
-//
-//     let tag_bytes = GenericArray::clone_from_slice(tag);
-//
-//     // note, under the hood ct_eq is called
-//     out == tag_out
-// }
+/// Verifies tag of an hmac output.
+pub fn verify_tag<D>(tag: &[u8], out: HmacOutput<D>) -> bool
+where
+    D: Digest + BlockSizeUser,
+{
+    if tag.len() != <D as Digest>::output_size() {
+        return false;
+    }
+
+    let tag_arr = Output::<D>::from_slice(tag);
+    out == tag_arr.into()
+}
 
 #[cfg(test)]
 mod tests {
@@ -71,9 +71,9 @@ mod tests {
             &output_tag
         ));
 
-        // assert!(verify_tag::<blake3::Hasher>(
-        //     &output_tag,
-        //     compute_keyed_hmac::<blake3::Hasher>(&key, msg)
-        // ));
+        assert!(verify_tag::<blake3::Hasher>(
+            &output_tag,
+            compute_keyed_hmac::<blake3::Hasher>(&key, msg)
+        ));
     }
 }

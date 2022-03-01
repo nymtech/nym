@@ -1,8 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cipher::{Iv, KeyIvInit, StreamCipher};
-use generic_array::{typenum::Unsigned, GenericArray};
+use cipher::{generic_array::GenericArray, Iv, KeyIvInit, StreamCipher};
 use rand::{CryptoRng, RngCore};
 
 // re-export this for ease of use
@@ -52,13 +51,13 @@ pub fn iv_from_slice<C>(b: &[u8]) -> &IV<C>
 where
     C: KeyIvInit,
 {
-    if b.len() != C::NonceSize::to_usize() {
+    if b.len() != C::iv_size() {
         // `from_slice` would have caused a panic about this issue anyway.
         // Now we at least have slightly more information
         panic!(
             "Tried to convert {} bytes to IV. Expected {}",
             b.len(),
-            C::NonceSize::to_usize()
+            C::iv_size()
         )
     }
     GenericArray::from_slice(b)

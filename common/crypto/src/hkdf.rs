@@ -3,8 +3,12 @@
 
 use hkdf::{hmac::digest::Digest, Hkdf};
 
+pub use hkdf::HmacImpl;
+
+// pub struct Hkdf<H: OutputSizeUser, I: HmacImpl<H> = Hmac<H>> {
+
 /// Perform HKDF `extract` then `expand` as a single step.
-pub fn extract_then_expand<D>(
+pub fn extract_then_expand<D, I>(
     salt: Option<&[u8]>,
     ikm: &[u8],
     info: Option<&[u8]>,
@@ -12,11 +16,12 @@ pub fn extract_then_expand<D>(
 ) -> Result<Vec<u8>, hkdf::InvalidLength>
 where
     D: Digest,
+    I: HmacImpl<D>,
 {
     // TODO: this would need to change if we ever needed the generated pseudorandom key, but
     // realistically I don't see any reasons why we might need it
 
-    let hkdf = Hkdf::<D>::new(salt, ikm);
+    let hkdf = Hkdf::<D, I>::new(salt, ikm);
     let mut okm = vec![0u8; okm_length];
     hkdf.expand(info.unwrap_or(&[]), &mut okm)?;
 

@@ -1,4 +1,4 @@
-use config::defaults;
+use config::defaults::DEFAULT_NETWORK;
 use subtle_encoding::bech32;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,12 +18,12 @@ pub fn try_bech32_decode(address: &str) -> Result<String, Bech32Error> {
 pub fn validate_bech32_prefix(address: &str) -> Result<(), Bech32Error> {
     let prefix = try_bech32_decode(address)?;
 
-    if prefix == defaults::BECH32_PREFIX {
+    if prefix == DEFAULT_NETWORK.bech32_prefix() {
         Ok(())
     } else {
         Err(Bech32Error::WrongPrefix(format!(
             "your bech32 address prefix should be {}, not {}",
-            defaults::BECH32_PREFIX,
+            DEFAULT_NETWORK.bech32_prefix(),
             prefix
         )))
     }

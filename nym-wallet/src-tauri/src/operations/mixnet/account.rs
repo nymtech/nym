@@ -129,7 +129,7 @@ async fn _connect_with_mnemonic(
   mnemonic: Mnemonic,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
-  let default_network = Network::try_from(config::defaults::default_network())?;
+  let default_network = Network::try_from(config::defaults::DEFAULT_NETWORK)?;
   let mut default_account = None;
   for network in Network::iter() {
     let client = {
@@ -162,6 +162,7 @@ async fn _connect_with_mnemonic(
     w_state.add_client(network, client);
   }
 
-  default_account
-    .ok_or_else(|| BackendError::NetworkNotSupported(config::defaults::default_network()))
+  default_account.ok_or(BackendError::NetworkNotSupported(
+    config::defaults::DEFAULT_NETWORK,
+  ))
 }

@@ -1,11 +1,9 @@
-use network_defaults::{
-    default_api_endpoints, default_network, default_nymd_endpoints, DEFAULT_MIXNET_CONTRACT_ADDRESS,
-};
+use network_defaults::{default_api_endpoints, default_nymd_endpoints, DEFAULT_NETWORK};
 use validator_client::nymd::QueryNymdClient;
 
 pub(crate) fn new_nymd_client() -> validator_client::Client<QueryNymdClient> {
-    let network = default_network();
-    let mixnet_contract = DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string();
+    let network = DEFAULT_NETWORK;
+    let mixnet_contract = network.mixnet_contract_address().to_string();
     let nymd_url = default_nymd_endpoints()[0].clone();
     let api_url = default_api_endpoints()[0].clone();
 

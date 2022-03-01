@@ -3735,6 +3735,7 @@ version = "0.1.0"
 dependencies = [
  "cfg-if 1.0.0",
  "hex-literal",
+ "once_cell",
  "serde",
  "thiserror",
  "url",

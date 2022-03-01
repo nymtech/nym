@@ -72,7 +72,7 @@ impl FromStr for GasPrice {
 }
 
 impl GasPrice {
-    pub fn new_with_default_price(denom: String) -> Result<Self, NymdError> {
+    pub fn new_with_default_price(denom: &str) -> Result<Self, NymdError> {
         format!("{}{}", defaults::GAS_PRICE_AMOUNT, denom).parse()
     }
 }
@@ -83,8 +83,8 @@ mod tests {
 
     #[test]
     fn default_gas_price_is_valid() {
-        let denom = "unym".parse().unwrap();
-        let _ = GasPrice::new_with_default_price(denom);
+        let denom = "unym";
+        GasPrice::new_with_default_price(denom).unwrap();
     }
 
     #[test]

@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::AckKey;
-use crypto::generic_array::typenum::Unsigned;
-use crypto::symmetric::stream_cipher::{self, encrypt, iv_from_slice, random_iv, NewCipher};
+use crypto::symmetric::stream_cipher::{self, encrypt, iv_from_slice, random_iv, IvSizeUser};
 use nymsphinx_params::{
     packet_sizes::PacketSize, AckEncryptionAlgorithm, SerializedFragmentIdentifier, FRAG_ID_LEN,
 };
@@ -33,7 +32,7 @@ pub fn recover_identifier(
         return None;
     }
 
-    let iv_size = <AckEncryptionAlgorithm as NewCipher>::NonceSize::to_usize();
+    let iv_size = AckEncryptionAlgorithm::iv_size();
     let iv = iv_from_slice::<AckEncryptionAlgorithm>(&iv_id_ciphertext[..iv_size]);
 
     let id = stream_cipher::decrypt::<AckEncryptionAlgorithm>(

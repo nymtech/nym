@@ -1,10 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crypto::generic_array::typenum::Unsigned;
 use log::*;
 use nymsphinx::anonymous_replies::{
-    encryption_key::EncryptionKeyDigest, encryption_key::Unsigned, SurbEncryptionKey,
-    SurbEncryptionKeySize,
+    encryption_key::EncryptionKeyDigest, SurbEncryptionKey, SurbEncryptionKeySize,
 };
 use std::path::Path;
 
@@ -43,7 +43,7 @@ impl ReplyKeyStorage {
         // if this fails it means we have some database corruption and we
         // absolutely can't continue
 
-        if key_bytes_ref.len() != SurbEncryptionKeySize::to_usize() {
+        if key_bytes_ref.len() != SurbEncryptionKeySize::USIZE {
             error!("REPLY KEY STORAGE DATA CORRUPTION - ENCRYPTION KEY HAS INVALID LENGTH");
             panic!("REPLY KEY STORAGE DATA CORRUPTION - ENCRYPTION KEY HAS INVALID LENGTH");
         }

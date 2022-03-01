@@ -4,7 +4,6 @@ use crate::nymd_client;
 use crate::state::State;
 use crate::{Gateway, MixNode};
 use mixnet_contract_common::{GatewayBond, MixNodeBond};
-use std::convert::TryInto;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -15,8 +14,10 @@ pub async fn bond_gateway(
   owner_signature: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
+  let denom = state.read().await.current_network().denom();
+  let pledge = pledge.into_cosmwasm_coin(&denom)?;
   nymd_client!(state)
-    .bond_gateway(gateway, owner_signature, pledge.try_into()?)
+    .bond_gateway(gateway, owner_signature, pledge)
     .await?;
   Ok(())
 }
@@ -44,8 +45,10 @@ pub async fn bond_mixnode(
   pledge: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
+  let denom = state.read().await.current_network().denom();
+  let pledge = pledge.into_cosmwasm_coin(&denom)?;
   nymd_client!(state)
-    .bond_mixnode(mixnode, owner_signature, pledge.try_into()?)
+    .bond_mixnode(mixnode, owner_signature, pledge)
     .await?;
   Ok(())
 }

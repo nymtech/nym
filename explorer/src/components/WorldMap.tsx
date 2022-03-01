@@ -12,7 +12,7 @@ import ReactTooltip from 'react-tooltip';
 import { ApiState, CountryDataResponse } from 'src/typeDefs/explorer-api';
 import { CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import MAP_TOPOJSON from '../assets/ne_110m_admin_0_countries.json';
+import MAP_TOPOJSON from '../assets/world-110m.json';
 
 type MapProps = {
   userLocation?: [number, number];

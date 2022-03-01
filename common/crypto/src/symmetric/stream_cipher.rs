@@ -1,11 +1,12 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cipher::{generic_array::GenericArray, Iv, KeyIvInit, StreamCipher};
+use cipher::{generic_array::GenericArray, Iv, StreamCipher};
+pub use cipher::{IvSizeUser, KeyIvInit, KeySizeUser};
 use rand::{CryptoRng, RngCore};
 
 // re-export this for ease of use
-pub use cipher::Key;
+pub use cipher::Key as CipherKey;
 
 // SECURITY:
 // TODO: note that this is not the most secure approach here
@@ -20,12 +21,12 @@ pub use cipher::Key;
 #[allow(clippy::upper_case_acronyms)]
 pub type IV<C> = Iv<C>;
 
-pub fn generate_key<C, R>(rng: &mut R) -> Key<C>
+pub fn generate_key<C, R>(rng: &mut R) -> CipherKey<C>
 where
     C: KeyIvInit,
     R: RngCore + CryptoRng,
 {
-    let mut key = GenericArray::default();
+    let mut key = CipherKey::<C>::default();
     rng.fill_bytes(&mut key);
     key
 }
@@ -35,7 +36,7 @@ where
     C: KeyIvInit,
     R: RngCore + CryptoRng,
 {
-    let mut iv = GenericArray::default();
+    let mut iv = IV::<C>::default();
     rng.fill_bytes(&mut iv);
     iv
 }
@@ -44,7 +45,7 @@ pub fn zero_iv<C>() -> IV<C>
 where
     C: KeyIvInit,
 {
-    GenericArray::default()
+    Iv::<C>::default()
 }
 
 pub fn iv_from_slice<C>(b: &[u8]) -> &IV<C>
@@ -67,7 +68,7 @@ where
 // However, do we really expect to ever need it?
 
 #[inline]
-pub fn encrypt<C>(key: &Key<C>, iv: &IV<C>, data: &[u8]) -> Vec<u8>
+pub fn encrypt<C>(key: &CipherKey<C>, iv: &IV<C>, data: &[u8]) -> Vec<u8>
 where
     C: StreamCipher + KeyIvInit,
 {
@@ -77,7 +78,7 @@ where
 }
 
 #[inline]
-pub fn encrypt_in_place<C>(key: &Key<C>, iv: &IV<C>, data: &mut [u8])
+pub fn encrypt_in_place<C>(key: &CipherKey<C>, iv: &IV<C>, data: &mut [u8])
 where
     C: StreamCipher + KeyIvInit,
 {
@@ -86,7 +87,7 @@ where
 }
 
 #[inline]
-pub fn decrypt<C>(key: &Key<C>, iv: &IV<C>, ciphertext: &[u8]) -> Vec<u8>
+pub fn decrypt<C>(key: &CipherKey<C>, iv: &IV<C>, ciphertext: &[u8]) -> Vec<u8>
 where
     C: StreamCipher + KeyIvInit,
 {
@@ -96,7 +97,7 @@ where
 }
 
 #[inline]
-pub fn decrypt_in_place<C>(key: &Key<C>, iv: &IV<C>, data: &mut [u8])
+pub fn decrypt_in_place<C>(key: &CipherKey<C>, iv: &IV<C>, data: &mut [u8])
 where
     C: StreamCipher + KeyIvInit,
 {

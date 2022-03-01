@@ -1,10 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::encryption_key::{
-    SurbEncryptionKey, SurbEncryptionKeyError, SurbEncryptionKeySize, Unsigned,
-};
-use crypto::Digest;
+use crate::encryption_key::{SurbEncryptionKey, SurbEncryptionKeyError, SurbEncryptionKeySize};
+use crypto::{generic_array::typenum::Unsigned, Digest};
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_params::packet_sizes::PacketSize;
@@ -65,7 +63,7 @@ pub struct ReplySurb {
 // Serialize + Deserialize is not really used anymore (it was for a CBOR experiment)
 // however, if we decided we needed it again, it's already here
 impl Serialize for ReplySurb {
-    fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -139,7 +137,7 @@ impl ReplySurb {
 
         // the SURB itself consists of SURB_header, first hop address and set of payload keys
         // (note extra 1 for the gateway)
-        SurbEncryptionKeySize::to_usize()
+        SurbEncryptionKeySize::USIZE
             + HEADER_SIZE
             + NODE_ADDRESS_LENGTH
             + (1 + mix_hops as usize) * PAYLOAD_KEY_SIZE
@@ -160,9 +158,9 @@ impl ReplySurb {
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ReplySurbError> {
         let encryption_key =
-            SurbEncryptionKey::try_from_bytes(&bytes[..SurbEncryptionKeySize::to_usize()])?;
+            SurbEncryptionKey::try_from_bytes(&bytes[..SurbEncryptionKeySize::USIZE])?;
 
-        let surb = match SURB::from_bytes(&bytes[SurbEncryptionKeySize::to_usize()..]) {
+        let surb = match SURB::from_bytes(&bytes[SurbEncryptionKeySize::USIZE..]) {
             Err(err) => return Err(ReplySurbError::RecoveryError(err)),
             Ok(surb) => surb,
         };

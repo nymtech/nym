@@ -9,7 +9,7 @@ pub mod hmac;
 pub mod shared_key;
 pub mod symmetric;
 
-pub use digest::Digest;
+pub use digest::{Digest, OutputSizeUser};
 pub use generic_array;
 
 // with the below my idea was to try to introduce having a single place of importing all hashing, encryption,

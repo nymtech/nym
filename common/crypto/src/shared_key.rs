@@ -6,10 +6,12 @@ use crate::hkdf;
 use cipher::{Key, KeyIvInit, StreamCipher};
 use digest::crypto_common::BlockSizeUser;
 use digest::Digest;
+#[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
 
 /// Generate an ephemeral encryption keypair and perform diffie-hellman to establish
 /// shared key with the remote.
+#[cfg(feature = "rand")]
 pub fn new_ephemeral_shared_key<C, D, R>(
     rng: &mut R,
     remote_key: &encryption::PublicKey,

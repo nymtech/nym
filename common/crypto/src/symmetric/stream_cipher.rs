@@ -1,8 +1,9 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cipher::{generic_array::GenericArray, Iv, StreamCipher};
+use cipher::{Iv, StreamCipher};
 pub use cipher::{IvSizeUser, KeyIvInit, KeySizeUser};
+#[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
 
 // re-export this for ease of use
@@ -21,6 +22,7 @@ pub use cipher::Key as CipherKey;
 #[allow(clippy::upper_case_acronyms)]
 pub type IV<C> = Iv<C>;
 
+#[cfg(feature = "rand")]
 pub fn generate_key<C, R>(rng: &mut R) -> CipherKey<C>
 where
     C: KeyIvInit,
@@ -31,6 +33,7 @@ where
     key
 }
 
+#[cfg(feature = "rand")]
 pub fn random_iv<C, R>(rng: &mut R) -> IV<C>
 where
     C: KeyIvInit,
@@ -61,7 +64,7 @@ where
             C::iv_size()
         )
     }
-    GenericArray::from_slice(b)
+    IV::<C>::from_slice(b)
 }
 
 // TODO: there's really no way to use more parts of the keystream if it was required at some point.
@@ -108,7 +111,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::OsRng;
+    use rand_chacha::rand_core::SeedableRng;
 
     #[cfg(test)]
     mod aes_ctr128 {
@@ -125,7 +128,8 @@ mod tests {
 
         #[test]
         fn decryption_is_reciprocal_to_encryption() {
-            let mut rng = OsRng;
+            let dummy_seed = [1u8; 32];
+            let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
             let arr_input = [42; 200];
             let vec_input = vec![123, 200];
@@ -148,7 +152,8 @@ mod tests {
 
         #[test]
         fn in_place_variants_work_same_way() {
-            let mut rng = OsRng;
+            let dummy_seed = [1u8; 32];
+            let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
             let mut data = [42; 200];
             let original_data = data;

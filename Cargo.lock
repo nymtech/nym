@@ -1162,10 +1162,10 @@ dependencies = [
  "generic-array 0.14.4",
  "hkdf 0.12.3",
  "hmac 0.12.1",
- "log",
  "nymsphinx-types",
  "pemstore",
  "rand 0.7.3",
+ "rand_chacha 0.2.2",
  "subtle-encoding",
  "x25519-dalek",
 ]

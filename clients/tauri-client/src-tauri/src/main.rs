@@ -249,6 +249,18 @@ async fn verify_credential(
     .unwrap();
   println!("Remote check: {}", remote_check);
 
+  let req = cw3_flex_multisig::msg::ExecuteMsg::Execute { proposal_id };
+  nymd_client
+    .execute(
+      &AccountId::from_str("nymt1qwlgtx52gsdu7dtp0cekka5zehdl0uj3vqx3jd").unwrap(),
+      &req,
+      Default::default(),
+      "",
+      vec![],
+    )
+    .await
+    .unwrap();
+
   Ok(remote_check)
 }
 

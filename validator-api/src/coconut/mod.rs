@@ -4,9 +4,9 @@
 use bandwidth_claim_contract::events::{VOUCHER_ACQUIRED_EVENT_TYPE, VOUCHER_VALUE};
 use bip39::Mnemonic;
 use coconut_interface::{
-    elgamal::PublicKey, Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature,
-    BlindedSignatureResponse, KeyPair, Parameters, VerificationKeyResponse, VerifyCredentialBody,
-    VerifyCredentialResponse,
+    elgamal::PublicKey, Attribute, Base58, BlindSignRequest, BlindSignRequestBody,
+    BlindedSignature, BlindedSignatureResponse, Credential, KeyPair, Parameters, VerificationKey,
+    VerificationKeyResponse, VerifyCredentialResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
 use getset::{CopyGetters, Getters};
@@ -139,10 +139,19 @@ pub async fn get_verification_key(key_pair: &State<KeyPair>) -> Json<Verificatio
     Json(VerificationKeyResponse::new(key_pair.verification_key()))
 }
 
-#[post("/verify-credential", data = "<_verify_credential_request_body>")]
+#[post("/verify-credential", data = "<verify_credential_body>")]
 pub async fn post_verify_credential(
-    _verify_credential_request_body: Json<VerifyCredentialBody>,
-    _key_pair: &State<KeyPair>,
+    verify_credential_body: Json<Credential>,
+    key_pair: &State<KeyPair>,
 ) -> Json<VerifyCredentialResponse> {
-    Json(VerifyCredentialResponse { response: true })
+    println!(
+        "Using verification key: {:?}",
+        key_pair.verification_key().to_bs58()
+    );
+    let aggregated_verification_key = VerificationKey::try_from_bs58("4V4dv1G1sXaCndCUa8EBEubWZaxiHFJknBBakyKzPZGoGcGawyYgNoRBb2ipEckJA8hbmKETimkQZAdTjydUG1je3CVKnFh6xviFgE6SEUmKAyWVyT74MgagTdcEir5437kz7msyYnBa6eUznb2wsxQYjJHegZQs2BrEXjXbTn2pr4Nh1wcX6KYTUNTh5XfBHrhTWwDfmN7Smk2ta6hRPxroG3nFtzzUnswthtowBe5dhyJNV8AMaJ8uVmeSt6kk3uyy1T78LzCTC8nHTmgg91HRWLkNcimQFvbSLLiDsxoFLFKZ6hWw6cwXsToZ76xVyGCtKygBg2UMWdDHJwPR4QHypqrS8rbmxtXdhuBde1g5cKrppfwkLm5z9dRcnDpx8yuNszHc8vwdd66c8CP8yMdTaoyd9vpvmr1WRmX5bBJbbVLUG4N2jc91DcupmedPvEUgut7M75r5wW5GheK8jTQfAikJytYQFrY5oEMLq2f5PGAcjLCpqTLiMGJwHsJYxfGtmiPh17z6ogNN5A3FqW9sUT7gJfnLk6y1vPk1EJcRxFX22kH5bemBZRvF5JLb777SQS34gRSEYSfssNpAZfjyXDE4iuv5KX7m1UK1JP6FnyFw8FQx7BtAH6ydA2H3dCsoVPP9apTDPvMUcff4CQo29cH").unwrap();
+    let response = verify_credential_body
+        .0
+        .verify(&aggregated_verification_key);
+    println!("Sending response: {}", response);
+    Json(VerifyCredentialResponse { response })
 }

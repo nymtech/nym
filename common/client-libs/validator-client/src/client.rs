@@ -3,7 +3,7 @@
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse, VerifyCredentialBody,
+    BlindSignRequestBody, BlindedSignatureResponse, Credential, VerificationKeyResponse,
     VerifyCredentialResponse,
 };
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
@@ -577,7 +577,7 @@ impl<C> Client<C> {
 
     pub async fn verify_credential(
         &self,
-        request_body: &VerifyCredentialBody,
+        request_body: &Credential,
     ) -> Result<VerifyCredentialResponse, ValidatorClientError> {
         Ok(self.validator_api.verify_credential(request_body).await?)
     }
@@ -686,7 +686,7 @@ impl ApiClient {
 
     pub async fn verify_credential(
         &self,
-        request_body: &VerifyCredentialBody,
+        request_body: &Credential,
     ) -> Result<VerifyCredentialResponse, ValidatorClientError> {
         Ok(self.validator_api.verify_credential(request_body).await?)
     }

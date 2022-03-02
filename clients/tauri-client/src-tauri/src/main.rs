@@ -178,7 +178,6 @@ async fn verify_credential(
 
   let state = state.read().await;
 
-  let public_attributes = vec![state.voucher_value, state.voucher_info];
   let public_attributes_bytes = vec![
     state.voucher_value.to_byte_vec(),
     state.voucher_info.to_byte_vec(),
@@ -193,15 +192,15 @@ async fn verify_credential(
       .get(idx)
       .ok_or("Got invalid signature idx")?,
   );
+  println!("Using verification key: {:?}", verification_key.to_bs58());
   let local_check = credential.verify(&verification_key);
   println!("Local check: {}", local_check);
   if !local_check {
     return Ok(false);
   }
-  let remote_check =
-    verify_credential_remote(state.n_attributes, public_attributes, &parsed_urls, &theta)
-      .await
-      .unwrap();
+  let remote_check = verify_credential_remote(&parsed_urls, credential)
+    .await
+    .unwrap();
   println!("Remote check: {}", remote_check);
 
   Ok(remote_check)

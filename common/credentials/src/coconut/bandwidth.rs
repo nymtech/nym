@@ -7,7 +7,7 @@
 // it's the simplest possible case
 
 use coconut_interface::{
-    Credential, Parameters, PrivateAttribute, PublicAttribute, Signature, Theta, VerificationKey,
+    Credential, Parameters, PrivateAttribute, PublicAttribute, Signature, VerificationKey,
 };
 use network_defaults::BANDWIDTH_VALUE;
 use url::Url;
@@ -64,12 +64,10 @@ pub async fn obtain_signature(
 }
 
 pub async fn verify_credential_remote(
-    n_params: u32,
-    public_attributes: Vec<PublicAttribute>,
     validators: &[Url],
-    theta: &Theta,
+    credential: Credential,
 ) -> Result<bool, Error> {
-    obtain_aggregate_verify_credential(validators, n_params, theta, &public_attributes).await
+    obtain_aggregate_verify_credential(validators, credential).await
 }
 
 pub fn prepare_for_spending(

@@ -4,7 +4,7 @@
 use coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
     prove_bandwidth_credential, Attribute, BlindSignRequestBody, Credential, Parameters, Signature,
-    SignatureShare, Theta, VerificationKey, VerifyCredentialBody,
+    SignatureShare, VerificationKey,
 };
 use url::Url;
 
@@ -56,15 +56,14 @@ pub async fn obtain_aggregate_verification_key(
         indices.push(id as u64);
         shares.push(response.key);
     }
+    let ret = aggregate_verification_keys(&shares, Some(&indices))?;
 
-    Ok(aggregate_verification_keys(&shares, Some(&indices))?)
+    Ok(ret)
 }
 
 pub async fn obtain_aggregate_verify_credential(
     validators: &[Url],
-    n_params: u32,
-    theta: &Theta,
-    public_attributes: &[Attribute],
+    credential: Credential,
 ) -> Result<bool, Error> {
     if validators.is_empty() {
         return Err(Error::NoValidatorsAvailable);
@@ -72,20 +71,13 @@ pub async fn obtain_aggregate_verify_credential(
 
     let mut ret = true;
 
-    let verify_credential_request_body =
-        VerifyCredentialBody::new(n_params, theta, public_attributes);
-
     let mut client = validator_client::ApiClient::new(validators[0].clone());
-    let response = client
-        .verify_credential(&verify_credential_request_body)
-        .await?;
+    let response = client.verify_credential(&credential).await?;
     ret &= response.response;
 
     for validator_url in validators.iter().skip(1) {
         client.change_validator_api(validator_url.clone());
-        let response = client
-            .verify_credential(&verify_credential_request_body)
-            .await?;
+        let response = client.verify_credential(&credential).await?;
         ret &= response.response;
     }
 

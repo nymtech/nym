@@ -5,7 +5,8 @@ use bandwidth_claim_contract::events::{VOUCHER_ACQUIRED_EVENT_TYPE, VOUCHER_VALU
 use bip39::Mnemonic;
 use coconut_interface::{
     elgamal::PublicKey, Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature,
-    BlindedSignatureResponse, KeyPair, Parameters, VerificationKeyResponse,
+    BlindedSignatureResponse, KeyPair, Parameters, VerificationKeyResponse, VerifyCredentialBody,
+    VerifyCredentialResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
 use getset::{CopyGetters, Getters};
@@ -50,7 +51,11 @@ impl InternalSignRequest {
             rocket.manage(key_pair).mount(
                 // this format! is so ugly...
                 format!("/{}", VALIDATOR_API_VERSION),
-                routes![post_blind_sign, get_verification_key],
+                routes![
+                    post_blind_sign,
+                    get_verification_key,
+                    post_verify_credential
+                ],
             )
         })
     }
@@ -132,4 +137,12 @@ pub async fn post_blind_sign(
 #[get("/verification-key")]
 pub async fn get_verification_key(key_pair: &State<KeyPair>) -> Json<VerificationKeyResponse> {
     Json(VerificationKeyResponse::new(key_pair.verification_key()))
+}
+
+#[post("/verify-credential", data = "<_verify_credential_request_body>")]
+pub async fn post_verify_credential(
+    _verify_credential_request_body: Json<VerifyCredentialBody>,
+    _key_pair: &State<KeyPair>,
+) -> Json<VerifyCredentialResponse> {
+    Json(VerifyCredentialResponse { response: true })
 }

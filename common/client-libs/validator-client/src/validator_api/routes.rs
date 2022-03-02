@@ -12,6 +12,7 @@ pub const REWARDED: &str = "rewarded";
 
 pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
 pub const COCONUT_VERIFICATION_KEY: &str = "verification-key";
+pub const COCONUT_VERIFY_CREDENTIAL: &str = "verify-credential";
 
 pub const STATUS_ROUTES: &str = "status";
 pub const MIXNODE: &str = "mixnode";

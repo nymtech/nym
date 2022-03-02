@@ -7,14 +7,16 @@
 // it's the simplest possible case
 
 use coconut_interface::{
-    Credential, Parameters, PrivateAttribute, PublicAttribute, Signature, VerificationKey,
+    Credential, Parameters, PrivateAttribute, PublicAttribute, Signature, Theta, VerificationKey,
 };
 use network_defaults::BANDWIDTH_VALUE;
 use url::Url;
 
 use crate::error::Error;
 
-use super::utils::{obtain_aggregate_signature, prepare_credential_for_spending};
+use super::utils::{
+    obtain_aggregate_signature, obtain_aggregate_verify_credential, prepare_credential_for_spending,
+};
 
 pub const PUBLIC_ATTRIBUTES: u32 = 2;
 pub const PRIVATE_ATTRIBUTES: u32 = 2;
@@ -59,6 +61,15 @@ pub async fn obtain_signature(
         tx_hash,
     )
     .await
+}
+
+pub async fn verify_credential_remote(
+    n_params: u32,
+    public_attributes: Vec<PublicAttribute>,
+    validators: &[Url],
+    theta: &Theta,
+) -> Result<bool, Error> {
+    obtain_aggregate_verify_credential(validators, n_params, theta, &public_attributes).await
 }
 
 pub fn prepare_for_spending(

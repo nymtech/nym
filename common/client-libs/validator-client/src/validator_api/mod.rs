@@ -3,7 +3,10 @@
 
 use crate::validator_api::error::ValidatorAPIError;
 use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
-use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
+use coconut_interface::{
+    BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse, VerifyCredentialBody,
+    VerifyCredentialResponse,
+};
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -267,6 +270,18 @@ impl Client {
         self.query_validator_api(
             &[routes::API_VERSION, routes::COCONUT_VERIFICATION_KEY],
             NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn verify_credential(
+        &self,
+        request_body: &VerifyCredentialBody,
+    ) -> Result<VerifyCredentialResponse, ValidatorAPIError> {
+        self.post_validator_api(
+            &[routes::API_VERSION, routes::COCONUT_VERIFY_CREDENTIAL],
+            NO_PARAMS,
+            request_body,
         )
         .await
     }

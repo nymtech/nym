@@ -15,7 +15,9 @@ use coconut_interface::{
   self, hash_to_scalar, Attribute, Base58, Bytable, Credential, Parameters, Signature, Theta,
   VerificationKey,
 };
-use credentials::coconut::bandwidth::{obtain_signature, BandwidthVoucherAttributes};
+use credentials::coconut::bandwidth::{
+  obtain_signature, verify_credential_remote, BandwidthVoucherAttributes,
+};
 use credentials::obtain_aggregate_verification_key;
 use validator_client::nymd::{AccountId, CosmosCoin, Decimal, Denom, NymdClient};
 
@@ -170,11 +172,13 @@ async fn verify_credential(
   // the API needs to be improved but at least it should compile (in theory)
   let verification_key =
     get_aggregated_verification_key(validator_urls.clone(), state.clone()).await?;
+  let parsed_urls = parse_url_validators(&validator_urls)?;
   println!("Verification key {:?}", verification_key.to_bs58());
   let theta = prove_credential(idx, validator_urls, state.clone()).await?;
 
   let state = state.read().await;
 
+  let public_attributes = vec![state.voucher_value, state.voucher_info];
   let public_attributes_bytes = vec![
     state.voucher_value.to_byte_vec(),
     state.voucher_info.to_byte_vec(),
@@ -182,15 +186,25 @@ async fn verify_credential(
 
   let credential = Credential::new(
     state.n_attributes,
-    theta,
+    theta.clone(),
     public_attributes_bytes,
     state
       .signatures
       .get(idx)
       .ok_or("Got invalid signature idx")?,
   );
+  let local_check = credential.verify(&verification_key);
+  println!("Local check: {}", local_check);
+  if !local_check {
+    return Ok(false);
+  }
+  let remote_check =
+    verify_credential_remote(state.n_attributes, public_attributes, &parsed_urls, &theta)
+      .await
+      .unwrap();
+  println!("Remote check: {}", remote_check);
 
-  Ok(credential.verify(&verification_key))
+  Ok(remote_check)
 }
 
 #[tauri::command]

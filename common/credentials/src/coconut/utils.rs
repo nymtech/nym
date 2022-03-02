@@ -4,7 +4,7 @@
 use coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
     prove_bandwidth_credential, Attribute, BlindSignRequestBody, Credential, Parameters, Signature,
-    SignatureShare, VerificationKey,
+    SignatureShare, Theta, VerificationKey, VerifyCredentialBody,
 };
 use url::Url;
 
@@ -58,6 +58,38 @@ pub async fn obtain_aggregate_verification_key(
     }
 
     Ok(aggregate_verification_keys(&shares, Some(&indices))?)
+}
+
+pub async fn obtain_aggregate_verify_credential(
+    validators: &[Url],
+    n_params: u32,
+    theta: &Theta,
+    public_attributes: &[Attribute],
+) -> Result<bool, Error> {
+    if validators.is_empty() {
+        return Err(Error::NoValidatorsAvailable);
+    }
+
+    let mut ret = true;
+
+    let verify_credential_request_body =
+        VerifyCredentialBody::new(n_params, theta, public_attributes);
+
+    let mut client = validator_client::ApiClient::new(validators[0].clone());
+    let response = client
+        .verify_credential(&verify_credential_request_body)
+        .await?;
+    ret &= response.response;
+
+    for validator_url in validators.iter().skip(1) {
+        client.change_validator_api(validator_url.clone());
+        let response = client
+            .verify_credential(&verify_credential_request_body)
+            .await?;
+        ret &= response.response;
+    }
+
+    Ok(ret)
 }
 
 async fn obtain_partial_credential(

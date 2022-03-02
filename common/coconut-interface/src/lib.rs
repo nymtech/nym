@@ -146,3 +146,8 @@ impl VerificationKeyResponse {
         VerificationKeyResponse { key }
     }
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct VerifyCredentialResponse {
+    pub response: bool,
+}

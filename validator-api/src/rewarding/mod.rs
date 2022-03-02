@@ -11,7 +11,7 @@ use crate::storage::models::{
 use crate::storage::ValidatorApiStorage;
 use config::defaults::DEFAULT_NETWORK;
 use log::{error, info};
-use mixnet_contract_common::reward_params::{NodeRewardParams, RewardParams, IntervalRewardParams};
+use mixnet_contract_common::reward_params::{IntervalRewardParams, NodeRewardParams, RewardParams};
 use mixnet_contract_common::{
     ExecuteMsg, IdentityKey, Interval, MixNodeBond, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
@@ -29,7 +29,7 @@ pub(crate) struct MixnodeToReward {
     pub(crate) identity: IdentityKey,
 
     /// Total number of individual addresses that have delegated to this particular node
-    pub(crate) total_delegations: usize,
+    // pub(crate) total_delegations: usize,
 
     /// Node absolute uptime over total active set uptime
     pub(crate) params: RewardParams,
@@ -156,7 +156,7 @@ impl Rewarder {
         // 3. for each of them determine their uptime for the interval
         // 4. for each of them determine if they're currently in the active set
         // TODO: step 4 will definitely need to change.
-        let all_nodes = self.validator_cache.mixnodes().await.into_inner();
+        // let all_nodes = self.validator_cache.mixnodes().await.into_inner();
         let active_set = self
             .validator_cache
             .active_set()
@@ -166,16 +166,19 @@ impl Rewarder {
             .map(|bond| bond.mix_node.identity_key)
             .collect::<HashSet<_>>();
 
-        let mut nodes_with_delegations = Vec::with_capacity(all_nodes.len());
-        for node in all_nodes {
-            let delegator_count = self
-                .get_mixnode_delegators_count(node.mix_node.identity_key.clone())
-                .await?;
-            nodes_with_delegations.push((node, delegator_count));
-        }
+        let rewarded_set = self.validator_cache.rewarded_set().await.into_inner();
 
-        let mut eligible_nodes = Vec::with_capacity(nodes_with_delegations.len());
-        for (rewarded_node, total_delegations) in nodes_with_delegations.into_iter() {
+        // This is redundant the rewarded set already selects for the best nodes, so this feels quite wasteful gas wise
+        // let mut nodes_with_delegations = Vec::with_capacity(all_nodes.len());
+        // for node in all_nodes {
+        //     let delegator_count = self
+        //         .get_mixnode_delegators_count(node.mix_node.identity_key.clone())
+        //         .await?;
+        //     nodes_with_delegations.push((node, delegator_count));
+        // }
+
+        let mut eligible_nodes = Vec::with_capacity(rewarded_set.len());
+        for rewarded_node in rewarded_set.into_iter() {
             let uptime = self
                 .storage
                 .get_average_mixnode_uptime_in_interval(
@@ -185,11 +188,14 @@ impl Rewarder {
                 )
                 .await?;
 
-            let node_reward_params = NodeRewardParams::new(0,uptime.u8().into(),active_set.contains(rewarded_node.identity()));
-            
+            let node_reward_params = NodeRewardParams::new(
+                0,
+                uptime.u8().into(),
+                active_set.contains(rewarded_node.identity()),
+            );
+
             eligible_nodes.push(MixnodeToReward {
                 identity: rewarded_node.identity().clone(),
-                total_delegations,
                 params: RewardParams::new(interval_reward_params, node_reward_params),
             })
         }
@@ -257,6 +263,7 @@ impl Rewarder {
         }
     }
 
+    // FIXME: Remove dead code
     /// Using the list of mixnodes eligible for rewards, chunks it into pre-defined sized-chunks
     /// and gives out the rewards by calling the smart contract.
     ///
@@ -297,88 +304,111 @@ impl Rewarder {
 
         // nodes with > MIXNODE_DELEGATORS_PAGE_LIMIT delegators that have to be treated in a special way,
         // because we cannot batch them together
-        let mut individually_rewarded = Vec::new();
+        // let mut individually_rewarded = Vec::new();
 
         // sets of nodes that together they have < MIXNODE_DELEGATORS_PAGE_LIMIT delegators
-        let mut batch_rewarded = vec![vec![]];
-        let mut current_batch_i = 0;
-        let mut current_batch_total = 0;
+        // let mut batch_rewarded = vec![vec![]];
+        // let mut current_batch_i = 0;
+        // let mut current_batch_total = 0;
 
         // right now put mixes into batches super naively, if it doesn't fit into the current one,
         // create a new one.
-        for mix in eligible_mixnodes {
-            // if mixnode has uptime of 0, no rewarding will actually happen regardless of number of delegators,
-            // so we can just batch it with the current batch
-            if mix.params.uptime() == 0 {
-                batch_rewarded[current_batch_i].push(mix.clone());
-                continue;
-            }
+        // for mix in eligible_mixnodes {
+        //     batch_rewarded[current_batch_i].push(mix.clone());
+        //     // if mixnode has uptime of 0, no rewarding will actually happen regardless of number of delegators,
+        //     // so we can just batch it with the current batch
+        //     if mix.params.uptime() == 0 {
+        //         batch_rewarded[current_batch_i].push(mix.clone());
+        //         continue;
+        //     }
 
-            if mix.total_delegations > MIXNODE_DELEGATORS_PAGE_LIMIT {
-                individually_rewarded.push(mix)
-            } else if current_batch_total + mix.total_delegations < MIXNODE_DELEGATORS_PAGE_LIMIT {
-                batch_rewarded[current_batch_i].push(mix.clone());
-                current_batch_total += mix.total_delegations;
-            } else {
-                batch_rewarded.push(vec![mix.clone()]);
-                current_batch_i += 1;
-                current_batch_total = 0;
-            }
-        }
+        //     if mix.total_delegations > MIXNODE_DELEGATORS_PAGE_LIMIT {
+        //         individually_rewarded.push(mix)
+        //     } else if current_batch_total + mix.total_delegations < MIXNODE_DELEGATORS_PAGE_LIMIT {
+        //         batch_rewarded[current_batch_i].push(mix.clone());
+        //         current_batch_total += mix.total_delegations;
+        //     } else {
+        //         batch_rewarded.push(vec![mix.clone()]);
+        //         current_batch_i += 1;
+        //         current_batch_total = 0;
+        //     }
+        // }
 
         let mut total_rewarded = 0;
 
         // start rewarding, first the nodes that are dealt with individually, i.e. nodes that
         // need to have their own special blocks due to number of delegators
-        for mix in individually_rewarded {
-            if let Err(err) = self
-                .nymd_client
-                .reward_mixnode_and_all_delegators(mix, interval_id)
-                .await
-            {
-                // this is a super weird edge case that we didn't catch change to sequence and
-                // resent rewards unnecessarily, but the mempool saved us from executing it again
-                // however, still we want to wait until we're sure we're into the next block
-                if !err.is_tendermint_duplicate() {
-                    error!("failed to reward mixnode with all delegators... - {}", err);
-                    failed_chunks.push(FailedMixnodeRewardChunkDetails {
-                        possibly_unrewarded: vec![mix.clone()],
-                        error_message: err.to_string(),
-                    });
-                }
-                sleep(Duration::from_secs(11)).await;
-            }
+        // for mix in individually_rewarded {
+        //     if let Err(err) = self
+        //         .nymd_client
+        //         .reward_mixnode_and_all_delegators(mix, interval_id)
+        //         .await
+        //     {
+        //         // this is a super weird edge case that we didn't catch change to sequence and
+        //         // resent rewards unnecessarily, but the mempool saved us from executing it again
+        //         // however, still we want to wait until we're sure we're into the next block
+        //         if !err.is_tendermint_duplicate() {
+        //             error!("failed to reward mixnode with all delegators... - {}", err);
+        //             failed_chunks.push(FailedMixnodeRewardChunkDetails {
+        //                 possibly_unrewarded: vec![mix.clone()],
+        //                 error_message: err.to_string(),
+        //             });
+        //         }
+        //         sleep(Duration::from_secs(11)).await;
+        //     }
 
-            total_rewarded += 1;
-            self.print_rewarding_progress(total_rewarded, eligible_mixnodes.len(), retry);
+        //     total_rewarded += 1;
+        //     self.print_rewarding_progress(total_rewarded, eligible_mixnodes.len(), retry);
+        // }
+
+        // FIXME: Refactor semantics to make sense in the context of rewarding all nodes
+        if let Err(err) = self
+            .nymd_client
+            .reward_mixnodes(&eligible_mixnodes, interval_id)
+            .await
+        {
+            // this is a super weird edge case that we didn't catch change to sequence and
+            // resent rewards unnecessarily, but the mempool saved us from executing it again
+            // however, still we want to wait until we're sure we're into the next block
+            if !err.is_tendermint_duplicate() {
+                error!("failed to reward mixnodes... - {}", err);
+                failed_chunks.push(FailedMixnodeRewardChunkDetails {
+                    possibly_unrewarded: eligible_mixnodes.to_vec(),
+                    error_message: err.to_string(),
+                });
+            }
+            sleep(Duration::from_secs(11)).await;
         }
+
+        total_rewarded += eligible_mixnodes.len();
+        self.print_rewarding_progress(total_rewarded, eligible_mixnodes.len(), retry);
 
         // then we move onto the chunks
-        for mix_chunk in batch_rewarded {
-            if mix_chunk.is_empty() {
-                continue;
-            }
-            if let Err(err) = self
-                .nymd_client
-                .reward_mixnodes_with_single_page_of_delegators(&mix_chunk, interval_id)
-                .await
-            {
-                // this is a super weird edge case that we didn't catch change to sequence and
-                // resent rewards unnecessarily, but the mempool saved us from executing it again
-                // however, still we want to wait until we're sure we're into the next block
-                if !err.is_tendermint_duplicate() {
-                    error!("failed to reward mixnodes... - {}", err);
-                    failed_chunks.push(FailedMixnodeRewardChunkDetails {
-                        possibly_unrewarded: mix_chunk.to_vec(),
-                        error_message: err.to_string(),
-                    });
-                }
-                sleep(Duration::from_secs(11)).await;
-            }
+        // for mix_chunk in batch_rewarded {
+        //     if mix_chunk.is_empty() {
+        //         continue;
+        //     }
+        //     if let Err(err) = self
+        //         .nymd_client
+        //         .reward_mixnodes_with_single_page_of_delegators(&mix_chunk, interval_id)
+        //         .await
+        //     {
+        //         // this is a super weird edge case that we didn't catch change to sequence and
+        //         // resent rewards unnecessarily, but the mempool saved us from executing it again
+        //         // however, still we want to wait until we're sure we're into the next block
+        //         if !err.is_tendermint_duplicate() {
+        //             error!("failed to reward mixnodes... - {}", err);
+        //             failed_chunks.push(FailedMixnodeRewardChunkDetails {
+        //                 possibly_unrewarded: mix_chunk.to_vec(),
+        //                 error_message: err.to_string(),
+        //             });
+        //         }
+        //         sleep(Duration::from_secs(11)).await;
+        //     }
 
-            total_rewarded += mix_chunk.len();
-            self.print_rewarding_progress(total_rewarded, eligible_mixnodes.len(), retry);
-        }
+        //     total_rewarded += mix_chunk.len();
+        //     self.print_rewarding_progress(total_rewarded, eligible_mixnodes.len(), retry);
+        // }
 
         if failed_chunks.is_empty() {
             None

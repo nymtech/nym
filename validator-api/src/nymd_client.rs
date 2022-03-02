@@ -332,7 +332,7 @@ impl<C> Client<C> {
     //         .await
     // }
 
-    pub(crate) async fn reward_mixnodes_with_single_page_of_delegators(
+    pub(crate) async fn reward_mixnodes(
         &self,
         nodes: &[MixnodeToReward],
         interval_id: u32,

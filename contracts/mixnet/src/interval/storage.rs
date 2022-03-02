@@ -3,7 +3,7 @@
 
 use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::{IdentityKey, Interval, RewardedSetNodeStatus, reward_params::NodeEpochRewards};
+use mixnet_contract_common::{IdentityKey, IdentityKeyRef, Interval, RewardedSetNodeStatus, reward_params::NodeEpochRewards};
 
 use crate::error::ContractError;
 
@@ -28,7 +28,7 @@ pub(crate) const REWARDED_SET_HEIGHTS_FOR_INTERVAL: Map<'_, (IntervalId, BlockHe
 pub(crate) const REWARDED_SET: Map<'_, (BlockHeight, IdentityKey), RewardedSetNodeStatus> =
     Map::new("rs");
 
-pub(crate) const NODE_EPOCH_REWARDS: Map<'_, (BlockHeight, IdentityKey), NodeEpochRewards> = Map::new("ner");
+pub(crate) const NODE_EPOCH_REWARDS: Map<'_, (BlockHeight, IdentityKeyRef), NodeEpochRewards> = Map::new("ner");
 
 pub(crate) const INTERVALS: Map<'_, IntervalId, Interval> = Map::new("ins");
 

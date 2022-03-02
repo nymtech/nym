@@ -4,7 +4,7 @@
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedSnapshotMap, Map, Strategy, UniqueIndex};
-use mixnet_contract_common::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond};
+use mixnet_contract_common::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond, reward_params::RewardParams};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -59,6 +59,7 @@ pub(crate) struct StoredMixnodeBond {
     pub mix_node: MixNode,
     pub proxy: Option<Addr>,
     pub accumulated_rewards: Uint128,
+    pub reward_params: Option<RewardParams>
 }
 
 impl From<MixNodeBond> for StoredMixnodeBond {
@@ -71,6 +72,7 @@ impl From<MixNodeBond> for StoredMixnodeBond {
             mix_node: mixnode_bond.mix_node,
             proxy: mixnode_bond.proxy,
             accumulated_rewards: mixnode_bond.accumulated_rewards,
+            reward_params: None
         }
     }
 }

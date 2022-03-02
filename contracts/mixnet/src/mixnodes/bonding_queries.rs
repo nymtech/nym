@@ -17,7 +17,7 @@ pub fn query_mixnodes_paged(
         .unwrap_or(storage::BOND_PAGE_DEFAULT_LIMIT)
         .min(storage::BOND_PAGE_MAX_LIMIT) as usize;
 
-    let start = start_after.map(Bound::exclusive);
+    let start = start_after.as_deref().map(Bound::exclusive);
 
     let nodes = storage::mixnodes()
         .range(deps.storage, start, None, Order::Ascending)

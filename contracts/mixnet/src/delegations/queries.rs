@@ -53,7 +53,7 @@ pub(crate) fn query_delegator_delegations_paged(
         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
     let start = start_after
-        .map(|mix_identity| Bound::Exclusive((mix_identity, validated_owner.clone()).joined_key()));
+        .map(|mix_identity| Bound::ExclusiveRaw((mix_identity, validated_owner.clone()).joined_key()));
 
     let delegations = storage::delegations()
         .idx
@@ -104,7 +104,7 @@ pub(crate) fn query_mixnode_delegations_paged(
     let start = start_after
         .map(|addr| deps.api.addr_validate(&addr))
         .transpose()?
-        .map(|addr| Bound::Exclusive((mix_identity.clone(), addr).joined_key()));
+        .map(|addr| Bound::ExclusiveRaw((mix_identity.clone(), addr).joined_key()));
 
     let delegations = storage::delegations()
         .idx

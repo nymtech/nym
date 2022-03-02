@@ -24,6 +24,7 @@ use zeroize::Zeroize;
 lazy_static! {
     static ref PAIRING_BASE: Gt =
         bls12_381::pairing(&G1Affine::generator(), &G2Affine::generator());
+    static ref G2_GENERATOR_PREPARED: G2Prepared = G2Prepared::from(G2Affine::generator());
 }
 
 // TODO:
@@ -60,10 +61,12 @@ pub(crate) fn hash_g2<M: AsRef<[u8]>>(msg: M, dst: &[u8]) -> G2Projective {
     <G2Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(msg, dst)
 }
 
-struct Share(Scalar);
-
 type Chunk = u16;
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct Share(Scalar);
+
+#[derive(Clone, Copy, Default)]
 struct ShareEncryptionPlaintext {
     chunks: [Chunk; NUM_CHUNKS],
 }
@@ -74,8 +77,8 @@ pub const NUM_CHUNKS: usize = 16;
 pub const SCALAR_SIZE: usize = 32;
 pub const CHUNK_MAX: usize = 1 << (CHUNK_BYTES << 3);
 
-impl From<&Share> for ShareEncryptionPlaintext {
-    fn from(share: &Share) -> ShareEncryptionPlaintext {
+impl From<Share> for ShareEncryptionPlaintext {
+    fn from(share: Share) -> ShareEncryptionPlaintext {
         let mut chunks = [0; NUM_CHUNKS];
         let bytes = share.0.to_bytes();
 
@@ -88,12 +91,10 @@ impl From<&Share> for ShareEncryptionPlaintext {
     }
 }
 
-struct TempError;
+impl TryFrom<ShareEncryptionPlaintext> for Share {
+    type Error = DkgError;
 
-impl TryFrom<&ShareEncryptionPlaintext> for Share {
-    type Error = TempError;
-
-    fn try_from(plaintext: &ShareEncryptionPlaintext) -> Result<Share, Self::Error> {
+    fn try_from(plaintext: ShareEncryptionPlaintext) -> Result<Share, Self::Error> {
         let mut bytes = [0u8; SCALAR_SIZE];
         for (chunk, chunk_bytes) in plaintext
             .chunks
@@ -106,7 +107,7 @@ impl TryFrom<&ShareEncryptionPlaintext> for Share {
 
         Option::from(Scalar::from_bytes(&bytes))
             .map(Share)
-            .ok_or(TempError)
+            .ok_or(DkgError::MalformedShare)
     }
 }
 
@@ -151,7 +152,7 @@ pub struct Ciphertext {
     pub ciphertext_chunks: Vec<[G1Projective; NUM_CHUNKS]>,
 }
 
-struct TempSingleChunkCiphertext {
+struct SingleChunkCiphertext {
     r: G1Projective,
     s: G1Projective,
     z: G2Projective,
@@ -274,7 +275,7 @@ fn encrypt_chunk(
     epoch: &Epoch,
     params: &Params,
     mut rng: impl RngCore,
-) -> TempSingleChunkCiphertext {
+) -> SingleChunkCiphertext {
     let g1 = G1Projective::generator();
 
     // $r,s \leftarrow \mathbb{Z}_p$
@@ -293,14 +294,12 @@ fn encrypt_chunk(
     // let z = epoch.evaluate_f(params) + params.h * rand_s;
     let z = params.h * rand_s;
 
-    TempSingleChunkCiphertext { r, s, z, c }
+    SingleChunkCiphertext { r, s, z, c }
 }
 
-// for now completely ignore the optimisation for encrypting multiple shares at once
-fn encrypt_share(
-    m: ShareEncryptionPlaintext,
-    pk: PublicKey,
-    epoch: Epoch,
+fn encrypt_shares(
+    shares: &[(Share, &PublicKey)],
+    epoch: &Epoch,
     params: &Params,
     mut rng: impl RngCore,
 ) -> Ciphertext {
@@ -310,13 +309,12 @@ fn encrypt_share(
     let mut rand_rs = Vec::with_capacity(NUM_CHUNKS);
     let mut rand_ss = Vec::with_capacity(NUM_CHUNKS);
 
-    // ciphertext data
     let mut rs = Vec::with_capacity(NUM_CHUNKS);
     let mut ss = Vec::with_capacity(NUM_CHUNKS);
-    let mut cs = Vec::with_capacity(NUM_CHUNKS);
     let mut zs = Vec::with_capacity(NUM_CHUNKS);
 
-    for chunk in m.chunks.iter() {
+    // generate relevant re-usable pseudorandom data
+    for _ in 0..NUM_CHUNKS {
         let rand_r = Scalar::random(&mut rng);
         let rand_s = Scalar::random(&mut rng);
 
@@ -325,8 +323,8 @@ fn encrypt_share(
         // g1^s
         let s = g1 * rand_s;
 
-        let c = pk.0 * rand_r + g1 * Scalar::from(*chunk as u64);
-        // let z = epoch.evaluate_f(params) + params.h * rand_s;
+        // z will require additional fancy operations to make it work 'properly', but at the current
+        // step it's fine
         let z = params.h * rand_s;
 
         rand_rs.push(rand_r);
@@ -334,61 +332,93 @@ fn encrypt_share(
 
         rs.push(r);
         ss.push(s);
-        cs.push(c);
         zs.push(z);
     }
 
-    // we know the conversions must succeed since `ShareEncryptionPlaintext` must also have `NUM_CHUNKS` chunks
+    // produce per-chunk ciphertexts
+    let mut cc = Vec::with_capacity(shares.len());
+
+    for (share, pk) in shares {
+        let m: ShareEncryptionPlaintext = (*share).into();
+
+        let mut ci = Vec::with_capacity(NUM_CHUNKS);
+
+        for (j, chunk) in m.chunks.iter().enumerate() {
+            let c = pk.0 * rand_rs[j] + g1 * Scalar::from(*chunk as u64);
+            ci.push(c)
+        }
+
+        // the conversion must succeed since we must have EXACTLY `NUM_CHUNKS` elements
+        cc.push(ci.try_into().unwrap())
+    }
+
+    // the conversions here must also succeed since the other vecs also have `NUM_CHUNKS` elements
     Ciphertext {
         r: rs.try_into().unwrap(),
         s: ss.try_into().unwrap(),
         z: zs.try_into().unwrap(),
-        ciphertext_chunks: vec![cs.try_into().unwrap()],
+        ciphertext_chunks: cc,
     }
+
+    // ciphertext data
+
+    // let mut cs = Vec::with_capacity(NUM_CHUNKS);
+    // let mut zs = Vec::with_capacity(NUM_CHUNKS);
+    //
+    // for chunk in m.chunks.iter() {
+    //     let rand_r = Scalar::random(&mut rng);
+    //     let rand_s = Scalar::random(&mut rng);
+    //
+    //     // g1^r
+    //     let r = g1 * rand_r;
+    //     // g1^s
+    //     let s = g1 * rand_s;
+    //
+    //     let c = pk.0 * rand_r + g1 * Scalar::from(*chunk as u64);
+    //     // let z = epoch.evaluate_f(params) + params.h * rand_s;
+    //     let z = params.h * rand_s;
+    //
+    //     rand_rs.push(rand_r);
+    //     rand_ss.push(rand_s);
+    //
+    //     rs.push(r);
+    //     ss.push(s);
+    //     cs.push(c);
+    //     zs.push(z);
+    // }
+    //
+    // // we know the conversions must succeed since `ShareEncryptionPlaintext` must also have `NUM_CHUNKS` chunks
+    // Ciphertext {
+    //     r: rs.try_into().unwrap(),
+    //     s: ss.try_into().unwrap(),
+    //     z: zs.try_into().unwrap(),
+    //     ciphertext_chunks: vec![cs.try_into().unwrap()],
+    // }
 }
 
 #[inline]
 fn decrypt_chunk(
     dk: &DecryptionKey,
-    // i: usize,
-    ciphertext: &TempSingleChunkCiphertext,
+    r: &G1Projective,
+    s: &G1Projective,
+    z: &G2Projective,
+    c: &G1Projective,
     epoch: &Epoch,
     associated_data: &[u8],
 ) -> Result<Chunk, DkgError> {
-    // find some node in dk? I guess assume we have the correct one for now?
-    //
-    // some assertions here; for now ignore
+    // TODO: if we go with forward secrecy then we presumably need to evolve dk
 
-    // M = e(C,g2) * e(R, b)^-1 * e(a, Z), * e(S,e)^-1
-    // for now ignore possible optimisations from multi miller loops etc
-
-    /*
-               let mut m = pair::ate2(&g2, c, &bneg, spec_r);
-           m.mul(&pair::ate2(z, &dk.a, &eneg, s));
-           pair::fexp(&m)
-    */
-    // gt1 = e(C, g2)
-    // gt2 = e(R, b)^-1
-    // gt3 = e(a, Z),
-    // gt4 = e(S, e)^-1
     let b_neg = dk.nodes[0].b.neg().to_affine();
     let e_neg = dk.nodes[0].e.neg().to_affine();
-
-    // TODO: keep G2 generator in prepared form
+    let z_affine = z.to_affine();
 
     // M = e(C, g2) • e(R, b)^-1 • e(a, Z) • e(S, e)^-1
     // compute the miller loop separately to only perform a single final exponentiation
     let miller = bls12_381::multi_miller_loop(&[
-        (
-            &ciphertext.c.to_affine(),
-            &G2Prepared::from(G2Affine::generator()),
-        ),
-        (&ciphertext.r.to_affine(), &G2Prepared::from(b_neg)),
-        (
-            &dk.nodes[0].a.to_affine(),
-            &G2Prepared::from(ciphertext.z.to_affine()),
-        ),
-        (&ciphertext.s.to_affine(), &G2Prepared::from(e_neg)),
+        (&c.to_affine(), &G2_GENERATOR_PREPARED),
+        (&r.to_affine(), &G2Prepared::from(b_neg)),
+        (&dk.nodes[0].a.to_affine(), &G2Prepared::from(z_affine)),
+        (&s.to_affine(), &G2Prepared::from(e_neg)),
     ]);
     let m = miller.final_exponentiation();
 
@@ -396,10 +426,32 @@ fn decrypt_chunk(
 }
 
 fn decrypt_share(
-    dk: DecryptionKey,
-    ciphertext: Ciphertext,
-) -> Result<ShareEncryptionPlaintext, DkgError> {
-    todo!()
+    dk: &DecryptionKey,
+    // in the case of multiple receivers, specifies which index of ciphertext chunks should be used
+    i: usize,
+    ciphertext: &Ciphertext,
+    epoch: &Epoch,
+    associated_data: &[u8],
+) -> Result<Share, DkgError> {
+    let mut plaintext = ShareEncryptionPlaintext::default();
+
+    if i >= ciphertext.ciphertext_chunks.len() {
+        return Err(DkgError::UnavailableCiphertext(i));
+    }
+
+    for j in 0..NUM_CHUNKS {
+        plaintext.chunks[j] = decrypt_chunk(
+            dk,
+            &ciphertext.r[j],
+            &ciphertext.s[j],
+            &ciphertext.z[j],
+            &ciphertext.ciphertext_chunks[i][j],
+            epoch,
+            associated_data,
+        )?;
+    }
+
+    plaintext.try_into()
 }
 
 /// Attempts to solve the discrete log problem g^m, where g is in the Gt group and
@@ -476,12 +528,45 @@ mod tests {
         let (public_key, decryption_key) = keygen(&[], &params, &mut rng);
         let epoch = Epoch::new(0);
 
-        for i in 0u64..10 {
+        for i in 0u64..100 {
             let m = ((rng.next_u64() + i) % CHUNK_MAX as u64) as Chunk;
             let ciphertext = encrypt_chunk(&m, &public_key, &epoch, &params, &mut rng);
 
-            let recovered = decrypt_chunk(&decryption_key, &ciphertext, &epoch, &[]).unwrap();
+            let recovered = decrypt_chunk(
+                &decryption_key,
+                &ciphertext.r,
+                &ciphertext.s,
+                &ciphertext.z,
+                &ciphertext.c,
+                &epoch,
+                &[],
+            )
+            .unwrap();
             assert_eq!(m, recovered);
+        }
+    }
+
+    #[test]
+    fn share_decryption_20() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let params = setup();
+
+        let (public_key1, decryption_key1) = keygen(&[], &params, &mut rng);
+        let (public_key2, decryption_key2) = keygen(&[], &params, &mut rng);
+        let epoch = Epoch::new(0);
+
+        for _ in 0..10 {
+            let m1 = Share(Scalar::random(&mut rng));
+            let m2 = Share(Scalar::random(&mut rng));
+            let shares = &[(m1, &public_key1), (m2, &public_key2)];
+
+            let ciphertext = encrypt_shares(shares, &epoch, &params, &mut rng);
+
+            let recovered1 = decrypt_share(&decryption_key1, 0, &ciphertext, &epoch, &[]).unwrap();
+            let recovered2 = decrypt_share(&decryption_key2, 1, &ciphertext, &epoch, &[]).unwrap();
+            assert_eq!(m1, recovered1);
+            assert_eq!(m2, recovered2);
         }
     }
 }

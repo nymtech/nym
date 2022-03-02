@@ -13,4 +13,10 @@ pub enum DkgError {
 
     #[error("Could not solve the discrete log")]
     UnsolvableDiscreteLog,
+
+    #[error("Received share is malformed")]
+    MalformedShare,
+
+    #[error("The share encrypted under index {0} doesn't exist")]
+    UnavailableCiphertext(usize),
 }

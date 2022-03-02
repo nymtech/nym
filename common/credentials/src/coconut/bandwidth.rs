@@ -46,11 +46,19 @@ pub async fn obtain_signature(
     params: &Parameters,
     attributes: &BandwidthVoucherAttributes,
     validators: &[Url],
+    tx_hash: String,
 ) -> Result<Signature, Error> {
     let public_attributes = attributes.get_public_attributes();
     let private_attributes = attributes.get_private_attributes();
 
-    obtain_aggregate_signature(params, &public_attributes, &private_attributes, validators).await
+    obtain_aggregate_signature(
+        params,
+        &public_attributes,
+        &private_attributes,
+        validators,
+        tx_hash,
+    )
+    .await
 }
 
 pub fn prepare_for_spending(

@@ -90,6 +90,7 @@ pub struct BlindSignRequestBody {
     public_attributes: Vec<String>,
     #[getset(get = "pub")]
     total_params: u32,
+    tx_hash: String,
 }
 
 impl BlindSignRequestBody {
@@ -98,6 +99,7 @@ impl BlindSignRequestBody {
         public_key: &nymcoconut::PublicKey,
         public_attributes: &[Attribute],
         total_params: u32,
+        tx_hash: String,
     ) -> BlindSignRequestBody {
         BlindSignRequestBody {
             blind_sign_request: blind_sign_request.clone(),
@@ -107,6 +109,7 @@ impl BlindSignRequestBody {
                 .map(|attr| attr.to_bs58())
                 .collect(),
             total_params,
+            tx_hash,
         }
     }
 
@@ -115,6 +118,10 @@ impl BlindSignRequestBody {
             .iter()
             .map(|x| Attribute::try_from_bs58(x).unwrap())
             .collect()
+    }
+
+    pub fn tx_hash(&self) -> &str {
+        &self.tx_hash
     }
 }
 

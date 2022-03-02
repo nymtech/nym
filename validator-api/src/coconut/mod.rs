@@ -87,11 +87,9 @@ pub async fn post_blind_sign(
         None,
     )
     .expect("Could not create nymd client");
+    println!("Looking at tx {}", blind_sign_request_body.0.tx_hash());
     let response = nymd_client
-        .get_tx(
-            Hash::from_str("7CFAC90461CE017C9D8F987CF15FD3297A32E82B882B14A2A706F2B368355A12")
-                .unwrap(),
-        )
+        .get_tx(Hash::from_str(blind_sign_request_body.0.tx_hash()).unwrap())
         .await
         .unwrap();
     println!("Events: {:?}", response.tx_result.events);

@@ -21,6 +21,7 @@ use validator_client::nymd::{AccountId, CosmosCoin, Decimal, Denom, NymdClient};
 
 struct State {
   signatures: Vec<Signature>,
+  last_tx_hash: String,
   n_attributes: u32,
   params: Parameters,
   serial_number: Attribute,
@@ -36,6 +37,7 @@ impl State {
     let params = Parameters::new(n_attributes).unwrap();
     State {
       signatures: Vec::new(),
+      last_tx_hash: String::new(),
       n_attributes,
       params,
       serial_number: private_attributes[0],
@@ -59,7 +61,7 @@ fn parse_url_validators(raw: &[String]) -> Result<Vec<Url>, String> {
 }
 
 #[tauri::command]
-async fn deposit_funds(_state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<String, String> {
+async fn deposit_funds(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<String, String> {
   let nymd_url = Url::from_str("http://127.0.0.1:26657").unwrap();
   let mnemonic = Mnemonic::from_str(&"sun surge soon stomach flavor country gorilla dress oblige stamp attract hip soldier agree steel prize nuclear know enjoy arm bargain always theme matter").unwrap();
   let nymd_client = NymdClient::connect_with_mnemonic(
@@ -77,7 +79,7 @@ async fn deposit_funds(_state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<S
     denom: Denom::from_str(network_defaults::sandbox::DENOM).unwrap(),
     amount: Decimal::from(1000000u64),
   }];
-  let tx = nymd_client
+  let last_tx_hash = nymd_client
     .execute(
       nymd_client.erc20_bridge_contract_address().unwrap(),
       &req,
@@ -87,9 +89,12 @@ async fn deposit_funds(_state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<S
     )
     .await
     .unwrap()
-    .transaction_hash;
-  println!("Tx hash: {}", tx);
-  Ok(tx.to_string())
+    .transaction_hash
+    .to_string();
+  println!("Tx hash: {}", last_tx_hash);
+  let mut state = state.write().await;
+  state.last_tx_hash = last_tx_hash.clone();
+  Ok(last_tx_hash)
 }
 
 #[tauri::command]
@@ -207,6 +212,7 @@ async fn get_credential(
       &guard.params,
       &bandwidth_credential_attributes,
       &parsed_urls,
+      guard.last_tx_hash.clone(),
     )
     .await
     .map_err(|err| format!("failed to obtain aggregate signature - {:?}", err))?

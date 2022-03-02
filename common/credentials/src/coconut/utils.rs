@@ -66,6 +66,7 @@ async fn obtain_partial_credential(
     private_attributes: &[Attribute],
     client: &validator_client::ApiClient,
     validator_vk: &VerificationKey,
+    tx_hash: String,
 ) -> Result<Signature, Error> {
     let elgamal_keypair = coconut_interface::elgamal_keygen(params);
     let blind_sign_request = prepare_blind_sign(
@@ -80,6 +81,7 @@ async fn obtain_partial_credential(
         elgamal_keypair.public_key(),
         public_attributes,
         (public_attributes.len() + private_attributes.len()) as u32,
+        tx_hash,
     );
 
     let blinded_signature = client
@@ -104,6 +106,7 @@ pub async fn obtain_aggregate_signature(
     public_attributes: &[Attribute],
     private_attributes: &[Attribute],
     validators: &[Url],
+    tx_hash: String,
 ) -> Result<Signature, Error> {
     if validators.is_empty() {
         return Err(Error::NoValidatorsAvailable);
@@ -122,6 +125,7 @@ pub async fn obtain_aggregate_signature(
         private_attributes,
         &client,
         &validator_partial_vk.key,
+        tx_hash.clone(),
     )
     .await?;
     shares.push(SignatureShare::new(first, 0));
@@ -136,6 +140,7 @@ pub async fn obtain_aggregate_signature(
             private_attributes,
             &client,
             &validator_partial_vk.key,
+            tx_hash.clone(),
         )
         .await?;
         let share = SignatureShare::new(signature, id as u64);

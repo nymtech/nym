@@ -189,6 +189,7 @@ impl BandwidthController {
             &params,
             &bandwidth_credential_attributes,
             &self.validator_endpoints,
+            String::new(),
         )
         .await?;
         // the above would presumably be loaded from a file

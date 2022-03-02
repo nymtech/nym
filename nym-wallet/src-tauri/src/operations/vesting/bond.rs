@@ -3,7 +3,7 @@ use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
 use crate::{Gateway, MixNode};
-use std::convert::TryInto;
+
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use validator_client::nymd::VestingSigningClient;
@@ -15,8 +15,10 @@ pub async fn vesting_bond_gateway(
   owner_signature: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
+  let denom = state.read().await.current_network().denom();
+  let pledge = pledge.into_cosmwasm_coin(&denom)?;
   nymd_client!(state)
-    .vesting_bond_gateway(gateway, &owner_signature, pledge.try_into()?)
+    .vesting_bond_gateway(gateway, &owner_signature, pledge)
     .await?;
   Ok(())
 }
@@ -44,8 +46,21 @@ pub async fn vesting_bond_mixnode(
   pledge: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
+  let denom = state.read().await.current_network().denom();
+  let pledge = pledge.into_cosmwasm_coin(&denom)?;
   nymd_client!(state)
-    .vesting_bond_mixnode(mixnode, &owner_signature, pledge.try_into()?)
+    .vesting_bond_mixnode(mixnode, &owner_signature, pledge)
     .await?;
+  Ok(())
+}
+
+#[tauri::command]
+pub async fn withdraw_vested_coins(
+  amount: Coin,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), BackendError> {
+  let denom = state.read().await.current_network().denom();
+  let amount = amount.into_cosmwasm_coin(&denom)?;
+  nymd_client!(state).withdraw_vested_coins(amount).await?;
   Ok(())
 }

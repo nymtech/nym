@@ -17,6 +17,8 @@ cfg_if::cfg_if! {
         pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = mainnet::MIXNET_CONTRACT_ADDRESS;
         pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = mainnet::VESTING_CONTRACT_ADDRESS;
         pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
+        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
+        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
         pub const DEFAULT_REWARDING_VALIDATOR_ADDRESS: &str = mainnet::REWARDING_VALIDATOR_ADDRESS;
 
         pub fn default_validators() -> Vec<ValidatorDetails> {
@@ -33,6 +35,8 @@ cfg_if::cfg_if! {
         pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = qa::MIXNET_CONTRACT_ADDRESS;
         pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = qa::VESTING_CONTRACT_ADDRESS;
         pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
+        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_CONTRACT_ADDRESS;
+        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_ERC20_CONTRACT_ADDRESS;
         pub const DEFAULT_REWARDING_VALIDATOR: &str = qa::REWARDING_VALIDATOR_ADDRESS;
 
         pub fn default_validators() -> Vec<ValidatorDetails> {
@@ -49,6 +53,8 @@ cfg_if::cfg_if! {
         pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = sandbox::MIXNET_CONTRACT_ADDRESS;
         pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = sandbox::VESTING_CONTRACT_ADDRESS;
         pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
+        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_CONTRACT_ADDRESS;
+        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_ERC20_CONTRACT_ADDRESS;
         pub const DEFAULT_REWARDING_VALIDATOR: &str = sandbox::REWARDING_VALIDATOR_ADDRESS;
 
         pub fn default_validators() -> Vec<ValidatorDetails> {
@@ -106,18 +112,22 @@ pub fn default_api_endpoints() -> Vec<Url> {
         .collect()
 }
 
-pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
-    hex_literal::hex!("9fEE3e28c17dbB87310A51F13C4fbf4331A6f102");
 // Name of the event triggered by the eth contract. If the event name is changed,
 // this would also need to be changed; It is currently tested against the json abi
-pub const ETH_EVENT_NAME: &str = "Burned";
-pub const ETH_BURN_FUNCTION_NAME: &str = "burnTokenForAccessCode";
+pub const ETH_EVENT_NAME: &str = "BBCredentialPurchased";
+pub const ETH_BURN_FUNCTION_NAME: &str = "generateBasicBandwidthCredential";
+pub const ETH_ERC20_APPROVE_FUNCTION_NAME: &str = "approve";
 
 // Ethereum constants used for token bridge
 /// How much bandwidth (in bytes) one token can buy
 const BYTES_PER_TOKEN: u64 = 1024 * 1024 * 1024;
+
+/// Threshold for claiming more bandwidth: 1 MB
+pub const REMAINING_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024;
 /// How many ERC20 tokens should be burned to buy bandwidth
-pub const TOKENS_TO_BURN: u64 = 10;
+pub const TOKENS_TO_BURN: u64 = 1;
+/// How many ERC20 utokens should be burned to buy bandwidth
+pub const UTOKENS_TO_BURN: u64 = TOKENS_TO_BURN * 1000000;
 /// Default bandwidth (in bytes) that we try to buy
 pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
 

@@ -59,12 +59,6 @@ eth_endpoint = '{{ client.eth_endpoint }}'
 
 ##### additional client config options #####
 
-# ID of the gateway from which the client should be fetching messages.
-gateway_id = '{{ client.gateway_id }}'
-
-# Address of the gateway listener to which all client requests should be sent.
-gateway_listener = '{{ client.gateway_listener }}'
-
 # A gateway specific, optional, base58 stringified shared key used for
 # communication with particular gateway.
 gateway_shared_key_file = '{{ client.gateway_shared_key_file }}'
@@ -77,6 +71,17 @@ ack_key_file = '{{ client.ack_key_file }}'
 
 # Absolute path to the home Nym Clients directory.
 nym_root_directory = '{{ client.nym_root_directory }}'
+
+[client.gateway_endpoint]
+# ID of the gateway from which the client should be fetching messages.
+gateway_id = '{{ client.gateway_endpoint.gateway_id }}'
+
+# Address of the gateway owner to which the client should send messages.
+gateway_owner = '{{ client.gateway_endpoint.gateway_owner }}'
+
+# Address of the gateway listener to which all client requests should be sent.
+gateway_listener = '{{ client.gateway_endpoint.gateway_listener }}'
+
 
 
 ##### socket config options #####

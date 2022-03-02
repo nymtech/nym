@@ -2767,6 +2767,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "hex-literal",
  "serde",
+ "thiserror",
  "url",
 ]
 
@@ -2915,6 +2916,8 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
+ "vesting-contract",
+ "vesting-contract-common",
  "zeroize",
 ]
 
@@ -5510,6 +5513,7 @@ dependencies = [
  "mixnet-contract-common",
  "schemars",
  "serde",
+ "ts-rs",
 ]
 
 [[package]]

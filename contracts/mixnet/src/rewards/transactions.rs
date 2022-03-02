@@ -260,6 +260,9 @@ pub(crate) fn try_reward_mixnode(
         );
     }
 
+    let node_pledge = current_bond.pledge_amount.amount;
+    let node_delegation = current_bond.total_delegation.amount;
+
     // check if it has non-zero uptime
     if params.uptime() == 0 {
         storage::REWARDING_STATUS.save(
@@ -315,6 +318,8 @@ pub(crate) fn try_reward_mixnode(
         interval_id,
         &mix_identity,
         node_reward_result,
+        node_pledge,
+        node_delegation,
         operator_reward,
         total_delegator_reward,
         further_delegations,

@@ -132,7 +132,7 @@ const DataField = ({ title, info, Indicator }: { title: string; info: string; In
   <Grid container justifyContent="space-between">
     <Grid item xs={12} md={6}>
       <Box display="flex" alignItems="center">
-        <InfoTooltip title={info} placement="right" />
+        <InfoTooltip title={info} tooltipPlacement="right" />
         <Typography sx={{ ml: 1 }}>{title}</Typography>
       </Box>
     </Grid>

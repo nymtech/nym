@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd::cosmwasm_client::helpers::create_pagination;
+use crate::nymd::cosmwasm_client::helpers::{create_pagination, next_page_key};
 use crate::nymd::cosmwasm_client::types::{
     Account, Code, CodeDetails, Contract, ContractCodeHistoryEntry, ContractCodeId,
     SequenceResponse, SimulateResponse,
@@ -150,8 +150,8 @@ pub trait CosmWasmClient: rpc::Client {
                 .await?;
 
             raw_balances.append(&mut res.balances);
-            if let Some(pagination_info) = res.pagination {
-                pagination = Some(create_pagination(pagination_info.next_key))
+            if let Some(next_key) = next_page_key(res.pagination) {
+                pagination = Some(create_pagination(next_key))
             } else {
                 break;
             }
@@ -182,8 +182,8 @@ pub trait CosmWasmClient: rpc::Client {
                 .await?;
 
             supply.append(&mut res.supply);
-            if let Some(pagination_info) = res.pagination {
-                pagination = Some(create_pagination(pagination_info.next_key))
+            if let Some(next_key) = next_page_key(res.pagination) {
+                pagination = Some(create_pagination(next_key))
             } else {
                 break;
             }
@@ -274,8 +274,8 @@ pub trait CosmWasmClient: rpc::Client {
                 .await?;
 
             raw_codes.append(&mut res.code_infos);
-            if let Some(pagination_info) = res.pagination {
-                pagination = Some(create_pagination(pagination_info.next_key))
+            if let Some(next_key) = next_page_key(res.pagination) {
+                pagination = Some(create_pagination(next_key))
             } else {
                 break;
             }
@@ -319,8 +319,8 @@ pub trait CosmWasmClient: rpc::Client {
                 .await?;
 
             raw_contracts.append(&mut res.contracts);
-            if let Some(pagination_info) = res.pagination {
-                pagination = Some(create_pagination(pagination_info.next_key))
+            if let Some(next_key) = next_page_key(res.pagination) {
+                pagination = Some(create_pagination(next_key))
             } else {
                 break;
             }
@@ -375,8 +375,8 @@ pub trait CosmWasmClient: rpc::Client {
                 .await?;
 
             raw_entries.append(&mut res.entries);
-            if let Some(pagination_info) = res.pagination {
-                pagination = Some(create_pagination(pagination_info.next_key))
+            if let Some(next_key) = next_page_key(res.pagination) {
+                pagination = Some(create_pagination(next_key))
             } else {
                 break;
             }

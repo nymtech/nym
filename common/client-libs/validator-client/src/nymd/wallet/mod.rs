@@ -57,15 +57,13 @@ pub struct DirectSecp256k1HdWallet {
 }
 
 impl DirectSecp256k1HdWallet {
-    pub fn builder() -> DirectSecp256k1HdWalletBuilder {
-        DirectSecp256k1HdWalletBuilder::default()
+    pub fn builder(prefix: String) -> DirectSecp256k1HdWalletBuilder {
+        DirectSecp256k1HdWalletBuilder::new(prefix)
     }
 
     /// Restores a wallet from the given BIP39 mnemonic using default options.
     pub fn from_mnemonic(prefix: String, mnemonic: bip39::Mnemonic) -> Result<Self, NymdError> {
-        DirectSecp256k1HdWalletBuilder::new()
-            .with_prefix(prefix)
-            .build(mnemonic)
+        DirectSecp256k1HdWalletBuilder::new(prefix).build(mnemonic)
     }
 
     pub fn generate(prefix: String, word_count: usize) -> Result<Self, NymdError> {
@@ -147,19 +145,13 @@ pub struct DirectSecp256k1HdWalletBuilder {
     prefix: String,
 }
 
-impl Default for DirectSecp256k1HdWalletBuilder {
-    fn default() -> Self {
+impl DirectSecp256k1HdWalletBuilder {
+    pub fn new(prefix: String) -> Self {
         DirectSecp256k1HdWalletBuilder {
             bip39_password: String::new(),
             hd_paths: vec![defaults::COSMOS_DERIVATION_PATH.parse().unwrap()],
-            prefix: defaults::BECH32_PREFIX.to_string(),
+            prefix,
         }
-    }
-}
-
-impl DirectSecp256k1HdWalletBuilder {
-    pub fn new() -> Self {
-        Default::default()
     }
 
     pub fn with_bip39_password<S: Into<String>>(mut self, password: S) -> Self {

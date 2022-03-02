@@ -52,6 +52,7 @@ pub struct NymdClient<C> {
     client: C,
     mixnet_contract_address: Option<AccountId>,
     vesting_contract_address: Option<AccountId>,
+    erc20_bridge_contract_address: Option<AccountId>,
     client_address: Option<Vec<AccountId>>,
     custom_gas_limits: HashMap<Operation, Gas>,
     simulated_gas_multiplier: f32,
@@ -62,6 +63,7 @@ impl NymdClient<QueryNymdClient> {
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
         vesting_contract_address: Option<AccountId>,
+        erc20_bridge_contract_address: Option<AccountId>,
     ) -> Result<NymdClient<QueryNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
@@ -70,8 +72,9 @@ impl NymdClient<QueryNymdClient> {
             client: QueryNymdClient::new(endpoint)?,
             mixnet_contract_address,
             vesting_contract_address,
+            erc20_bridge_contract_address,
             client_address: None,
-            custom_gas_limits: Default::default(),
+            custom_gas_limits: HashMap::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
     }
@@ -80,27 +83,32 @@ impl NymdClient<QueryNymdClient> {
 impl NymdClient<SigningNymdClient> {
     // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
     pub fn connect_with_signer<U>(
+        network: config::defaults::all::Network,
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
         vesting_contract_address: Option<AccountId>,
+        erc20_bridge_contract_address: Option<AccountId>,
         signer: DirectSecp256k1HdWallet,
         gas_price: Option<GasPrice>,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
+        let denom = network.denom();
         let client_address = signer
             .try_derive_accounts()?
             .into_iter()
             .map(|account| account.address)
             .collect();
+        let gas_price = gas_price.unwrap_or(GasPrice::new_with_default_price(denom)?);
 
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, signer, gas_price)?,
             mixnet_contract_address,
             vesting_contract_address,
+            erc20_bridge_contract_address,
             client_address: Some(client_address),
-            custom_gas_limits: Default::default(),
+            custom_gas_limits: HashMap::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
     }
@@ -110,6 +118,7 @@ impl NymdClient<SigningNymdClient> {
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
         vesting_contract_address: Option<AccountId>,
+        erc20_bridge_contract_address: Option<AccountId>,
         mnemonic: bip39::Mnemonic,
         gas_price: Option<GasPrice>,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
@@ -117,19 +126,22 @@ impl NymdClient<SigningNymdClient> {
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         let prefix = network.bech32_prefix();
+        let denom = network.denom();
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?;
         let client_address = wallet
             .try_derive_accounts()?
             .into_iter()
             .map(|account| account.address)
             .collect();
+        let gas_price = gas_price.unwrap_or(GasPrice::new_with_default_price(denom)?);
 
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, wallet, gas_price)?,
             mixnet_contract_address,
             vesting_contract_address,
+            erc20_bridge_contract_address,
             client_address: Some(client_address),
-            custom_gas_limits: Default::default(),
+            custom_gas_limits: HashMap::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
     }
@@ -148,11 +160,10 @@ impl<C> NymdClient<C> {
             .ok_or(NymdError::NoContractAddressAvailable)
     }
 
-    // now the question is as follows: will denom always be in the format of `u{prefix}`?
-    pub fn denom(&self) -> Result<Denom, NymdError> {
-        Ok(format!("u{}", self.mixnet_contract_address()?.prefix())
-            .parse()
-            .unwrap())
+    pub fn erc20_bridge_contract_address(&self) -> Result<&AccountId, NymdError> {
+        self.erc20_bridge_contract_address
+            .as_ref()
+            .ok_or(NymdError::NoContractAddressAvailable)
     }
 
     pub fn address(&self) -> &AccountId

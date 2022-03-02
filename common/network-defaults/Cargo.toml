@@ -10,4 +10,5 @@ edition = "2021"
 cfg-if = "1.0.0"
 hex-literal = "0.3.3"
 serde = {version = "1.0", features = ["derive"]}
+thiserror = "1.0"
 url = "2.2"

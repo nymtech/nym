@@ -12,7 +12,7 @@ use super::OverrideConfig;
 
 #[derive(Args, Clone)]
 pub(crate) struct Init {
-    /// Initialise the mixnode
+    /// Id of the mixnode we want to create config for
     #[clap(long)]
     id: String,
 

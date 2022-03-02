@@ -7,7 +7,6 @@ import {
   createTheme,
   NymPaletteVariant,
 } from '@mui/material/styles'
-import { number } from 'yup'
 
 //-----------------------------------------------------------------------------------------------
 // Nym palette type definitions

@@ -44,8 +44,14 @@ impl Client<QueryNymdClient> {
             .parse()
             .expect("the mixnet contract address is invalid!");
 
-        let client_config =
-            validator_client::Config::new(network, nymd_url, api_url, Some(mixnet_contract), None);
+        let client_config = validator_client::Config::new(
+            network,
+            nymd_url,
+            api_url,
+            Some(mixnet_contract),
+            None,
+            None,
+        );
         let inner =
             validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!");
 
@@ -72,8 +78,14 @@ impl Client<SigningNymdClient> {
             .parse()
             .expect("the mnemonic is invalid!");
 
-        let client_config =
-            validator_client::Config::new(network, nymd_url, api_url, Some(mixnet_contract), None);
+        let client_config = validator_client::Config::new(
+            network,
+            nymd_url,
+            api_url,
+            Some(mixnet_contract),
+            None,
+            None,
+        );
         let inner = validator_client::Client::new_signing(client_config, mnemonic)
             .expect("Failed to connect to nymd!");
 
@@ -104,7 +116,7 @@ impl<C> Client<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.0.read().await.get_current_interval().await?)
+        self.0.read().await.get_current_interval().await
     }
 
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
@@ -268,10 +280,6 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        // determine how many times we are going to have to call the delegator rewarding,
-        // note that it doesn't include the "base" call to `RewardMixnode` that rewards one page
-        let further_calls = node.total_delegations / MIXNODE_DELEGATORS_PAGE_LIMIT;
-
         // start with the base call to reward operator and first page of delegators
         let msgs = vec![(node.to_reward_execute_msg(interval_id), vec![])];
         let memo = format!(
@@ -281,20 +289,25 @@ impl<C> Client<C> {
         self.execute_multiple_with_retry(msgs, Default::default(), memo)
             .await?;
 
-        // reward rest of delegators
-        let mut remaining_delegators = node.total_delegations - MIXNODE_DELEGATORS_PAGE_LIMIT;
-        let delegator_rewarding_msg = (
-            node.to_next_delegator_reward_execute_msg(interval_id),
-            vec![],
-        );
-        for _ in 0..further_calls {
-            let delegators_in_call = remaining_delegators.min(MIXNODE_DELEGATORS_PAGE_LIMIT);
-            let msgs = vec![delegator_rewarding_msg.clone()];
-            let memo = format!("rewarding another {} delegators", delegators_in_call);
-            self.execute_multiple_with_retry(msgs, Default::default(), memo)
-                .await?;
+        // reward rest of delegators (if applicable)
+        if node.total_delegations > MIXNODE_DELEGATORS_PAGE_LIMIT {
+            // the first 'batch' of delegators has been rewarded while rewarding the operator
+            let mut remaining_delegators = node.total_delegations - MIXNODE_DELEGATORS_PAGE_LIMIT;
+            let delegator_rewarding_msg = (
+                node.to_next_delegator_reward_execute_msg(interval_id),
+                vec![],
+            );
 
-            remaining_delegators -= MIXNODE_DELEGATORS_PAGE_LIMIT;
+            while remaining_delegators > 0 {
+                let delegators_in_call = remaining_delegators.min(MIXNODE_DELEGATORS_PAGE_LIMIT);
+                let msgs = vec![delegator_rewarding_msg.clone()];
+                let memo = format!("rewarding another {} delegators", delegators_in_call);
+                self.execute_multiple_with_retry(msgs, Default::default(), memo)
+                    .await?;
+
+                remaining_delegators =
+                    remaining_delegators.saturating_sub(MIXNODE_DELEGATORS_PAGE_LIMIT)
+            }
         }
 
         Ok(())

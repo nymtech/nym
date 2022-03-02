@@ -10,65 +10,70 @@ import { Box } from '@mui/system'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm, SubmitHandler } from 'react-hook-form'
 import { validationSchema } from './validationSchema'
-import { getCoinValue } from '../../utils'
+import { majorToMinor } from '../../utils'
 import { EnumRequestType, GlobalContext } from '../../context'
-import { TokenTransfer } from '../token-transfer'
+import { TokenTransferComplete } from '../token-transfer'
 
 type TFormData = {
   address: string
   amount: string
 }
 
-export const Form = () => {
+export const Form = ({ withInputField }: { withInputField?: boolean }) => {
   const matches = useMediaQuery('(max-width:500px)')
 
   const {
     register,
     handleSubmit,
     setValue,
-    formState: { errors },
-  } = useForm({ resolver: yupResolver(validationSchema) })
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: yupResolver(validationSchema),
+    defaultValues: { address: '', amount: '101' },
+  })
 
-  console.log(errors)
-
-  const { requestTokens, loadingState, tokenTransfer, error } =
+  const { requestTokens, loadingState, error, tokensAreAvailable } =
     useContext(GlobalContext)
-
-  const onSubmit: SubmitHandler<TFormData> = async (data) => {
-    const upunks = getCoinValue(data.amount)
-    await requestTokens({
-      address: data.address,
-      upunks: upunks.toString(),
-      punks: data.amount,
-    })
-    resetForm()
-  }
 
   const resetForm = () => {
     setValue('address', '')
-    setValue('amount', '')
+    setValue('amount', '101')
+  }
+
+  const onSubmit: SubmitHandler<TFormData> = async (data) => {
+    const unymts = majorToMinor(data.amount)
+    await requestTokens({
+      address: data.address,
+      unymts: unymts.toString(),
+      nymts: data.amount,
+    })
+    resetForm()
   }
 
   return (
     <Box>
       <TextField
-        label="Address"
+        label="Enter your wallet address"
         fullWidth
         {...register('address')}
-        sx={{ mb: 1 }}
+        sx={{ mb: 2 }}
         helperText={errors?.address?.message}
         error={!!errors.address}
         data-testid="address"
+        disabled={isSubmitting}
       />
+
       <TextField
-        label="Amount (PUNKS)"
+        label="Amount (max 101 NYMT)"
         fullWidth
         {...register('amount')}
-        sx={{ mb: 1 }}
+        sx={{ mb: 2, display: withInputField ? 'block' : 'none' }}
         helperText={errors?.amount?.message}
         error={!!errors.amount}
         data-testid={'punk-amounts'}
+        disabled={isSubmitting}
       />
+
       <Box
         sx={{
           mb: 5,
@@ -87,19 +92,14 @@ export const Form = () => {
               <CircularProgress size={20} color="inherit" />
             )
           }
-          disabled={loadingState.isLoading}
+          disabled={loadingState.isLoading || !tokensAreAvailable}
           data-testid="request-token-button"
         >
-          Request Tokens
+          Request 101 NYMT
         </Button>
       </Box>
       {error && <Alert severity="error">{error}</Alert>}
-      {tokenTransfer && (
-        <TokenTransfer
-          address={tokenTransfer.address}
-          amount={tokenTransfer.amount}
-        />
-      )}
+      <TokenTransferComplete />
     </Box>
   )
 }

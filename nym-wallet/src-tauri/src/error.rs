@@ -61,6 +61,8 @@ pub enum BackendError {
   NoBalance(String),
   #[error("{0} is not a valid denomination string")]
   InvalidDenom(String),
+  #[error("{0} is not a valid network denomination string")]
+  InvalidNetworkDenom(String),
   #[error("The provided network is not supported (yet)")]
   NetworkNotSupported(config::defaults::all::Network),
   #[error("Could not access the local data storage directory")]

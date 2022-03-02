@@ -882,6 +882,7 @@ dependencies = [
  "cfg-if",
  "hex-literal",
  "serde",
+ "thiserror",
  "url",
 ]
 

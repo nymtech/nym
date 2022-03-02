@@ -9,6 +9,8 @@ use rand::{CryptoRng, Rng};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
 
+use crate::node::storage::Storage;
+
 pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
 
@@ -64,10 +66,11 @@ impl InitialAuthResult {
     }
 }
 
-pub(crate) async fn handle_connection<R, S>(mut handle: FreshHandler<R, S>)
+pub(crate) async fn handle_connection<R, S, St>(mut handle: FreshHandler<R, S, St>)
 where
     R: Rng + CryptoRng,
     S: AsyncRead + AsyncWrite + Unpin + Send,
+    St: Storage,
 {
     if let Err(err) = handle.perform_websocket_handshake().await {
         warn!(

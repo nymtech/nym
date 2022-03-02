@@ -1,4 +1,4 @@
-use super::{PledgeData, VestingPeriod};
+use super::VestingPeriod;
 use crate::errors::ContractError;
 use crate::storage::{
     load_balance, load_bond_pledge, load_gateway_pledge, remove_bond_pledge, remove_delegation,
@@ -10,6 +10,7 @@ use cw_storage_plus::Bound;
 use mixnet_contract_common::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use vesting_contract_common::{Period, PledgeData};
 
 mod delegating_account;
 mod gateway_bonding_account;
@@ -56,8 +57,16 @@ impl Account {
         Ok(account)
     }
 
+    pub fn coin(&self) -> Coin {
+        self.coin.clone()
+    }
+
     pub fn num_vesting_periods(&self) -> usize {
         self.periods.len()
+    }
+
+    pub fn period_duration(&self) -> u64 {
+        self.periods.get(0).unwrap().period_seconds
     }
 
     pub fn storage_key(&self) -> u32 {
@@ -92,24 +101,23 @@ impl Account {
         }
     }
 
-    pub fn get_current_vesting_period(&self, block_time: Timestamp) -> usize {
+    pub fn get_current_vesting_period(&self, block_time: Timestamp) -> Period {
         // Returns the index of the next vesting period. Unless the current time is somehow in the past or vesting has not started yet.
         // In case vesting is over it will always return NUM_VESTING_PERIODS.
-        let period = match self
-            .periods
-            .iter()
-            .map(|period| period.start_time)
-            .collect::<Vec<u64>>()
-            .binary_search(&block_time.seconds())
-        {
-            Ok(u) => u,
-            Err(u) => u,
-        };
 
-        if period > 0 {
-            period - 1
+        if block_time.seconds() < self.periods.first().unwrap().start_time {
+            Period::Before
+        } else if self.periods.last().unwrap().end_time() < block_time {
+            Period::After
         } else {
-            0
+            let mut index = 0;
+            for period in &self.periods {
+                if block_time < period.end_time() {
+                    break;
+                }
+                index += 1;
+            }
+            Period::In(index)
         }
     }
 

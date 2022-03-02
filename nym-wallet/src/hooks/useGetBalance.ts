@@ -8,7 +8,9 @@ import {
   getSpendableCoins,
   getOriginalVesting,
   getCurrentVestingPeriod,
+  getVestingAccountInfo,
 } from '../requests'
+import { VestingAccountInfo } from 'src/types/rust/vestingaccountinfo'
 
 type TTokenAllocation = {
   [key in 'vesting' | 'vested' | 'locked' | 'spendable']: Coin['amount']
@@ -20,6 +22,7 @@ export type TUseuserBalance = {
   tokenAllocation?: TTokenAllocation
   originalVesting?: OriginalVestingResponse
   currentVestingPeriod?: Period
+  vestingAccountInfo?: VestingAccountInfo
   isLoading: boolean
   fetchBalance: () => void
   clearBalance: () => void
@@ -33,6 +36,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
   const [tokenAllocation, setTokenAllocation] = useState<TTokenAllocation>()
   const [originalVesting, setOriginalVesting] = useState<OriginalVestingResponse>()
   const [currentVestingPeriod, setCurrentVestingPeriod] = useState<Period>()
+  const [vestingAccountInfo, setVestingAccountInfo] = useState<VestingAccountInfo>()
   const [isLoading, setIsLoading] = useState(false)
 
   const fetchBalance = useCallback(async () => {
@@ -54,15 +58,23 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     setIsLoading(true)
     if (address) {
       try {
-        const [originalVestingValue, vestingCoins, vestedCoins, lockedCoins, spendableCoins, currentVestingPeriod] =
-          await Promise.all([
-            getOriginalVesting(address),
-            getVestingCoins(address),
-            getVestedCoins(address),
-            getLockedCoins(address),
-            getSpendableCoins(address),
-            getCurrentVestingPeriod(address),
-          ])
+        const [
+          originalVestingValue,
+          vestingCoins,
+          vestedCoins,
+          lockedCoins,
+          spendableCoins,
+          currentVestingPeriod,
+          vestingAccountInfo,
+        ] = await Promise.all([
+          getOriginalVesting(address),
+          getVestingCoins(address),
+          getVestedCoins(address),
+          getLockedCoins(address),
+          getSpendableCoins(address),
+          getCurrentVestingPeriod(address),
+          getVestingAccountInfo(address),
+        ])
         setOriginalVesting(originalVestingValue)
         setCurrentVestingPeriod(currentVestingPeriod)
         setTokenAllocation({
@@ -71,6 +83,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
           locked: lockedCoins.amount,
           spendable: spendableCoins.amount,
         })
+        setVestingAccountInfo(vestingAccountInfo)
       } catch (e) {
         clearTokenAllocation()
         clearOriginalVesting()
@@ -110,6 +123,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     tokenAllocation,
     originalVesting,
     currentVestingPeriod,
+    vestingAccountInfo,
     fetchBalance,
     clearBalance,
     clearAll,

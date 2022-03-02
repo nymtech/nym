@@ -20,6 +20,7 @@ import { NymCard, InfoTooltip, Title, Fee } from '../../components'
 import { ClientContext } from '../../context/main'
 import { withdrawVestedCoins } from '../../requests'
 import { Period } from '../../types'
+import { VestingTimeline } from './components/vesting-timeline'
 
 export const VestingCard = () => {
   const { userBalance } = useContext(ClientContext)
@@ -55,7 +56,7 @@ export const VestingCard = () => {
       <VestingSchedule />
       <TokenTransfer />
       <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Fee feeType="Send" />
+        {userBalance.tokenAllocation?.spendable !== '0' ? <Fee feeType="Send" /> : <div />}
         <Button
           size="large"
           variant="contained"
@@ -79,7 +80,7 @@ export const VestingCard = () => {
             }
           }}
           endIcon={isLoading && <CircularProgress size={16} color="inherit" />}
-          disabled={isLoading}
+          disabled={isLoading || userBalance.tokenAllocation?.spendable === '0'}
           disableElevation
         >
           Transfer
@@ -103,8 +104,9 @@ const VestingSchedule = () => {
   const calculatePercentage = () => {
     const { tokenAllocation, originalVesting } = userBalance
     if (tokenAllocation?.vesting && tokenAllocation.vested && tokenAllocation.vested !== '0' && originalVesting) {
-      const percentage = Math.round((+tokenAllocation.vested / +originalVesting?.amount.amount) * 100)
-      setVestedPercentage(percentage)
+      const percentage = (+tokenAllocation.vested / +originalVesting?.amount.amount) * 100
+      const rounded = percentage.toFixed(2)
+      setVestedPercentage(+rounded)
     } else {
       setVestedPercentage(0)
     }
@@ -135,13 +137,8 @@ const VestingSchedule = () => {
             </TableCell>
             <TableCell sx={{ borderBottom: 'none' }}>
               <Box display="flex" alignItems="center" gap={1}>
-                <Typography variant="caption">{`${vestedPercentage}%`}</Typography>
-                <LinearProgress
-                  sx={{ flexBasis: '99%' }}
-                  variant="determinate"
-                  value={vestedPercentage}
-                  color="inherit"
-                />
+                <Typography variant="body2">{`${vestedPercentage}%`}</Typography>
+                <VestingTimeline percentageComplete={vestedPercentage} />
               </Box>
             </TableCell>
             <TableCell sx={{ borderBottom: 'none' }} align="right">

@@ -183,7 +183,7 @@ async fn verify_credential(
     state.voucher_info.to_byte_vec(),
   ];
 
-  let credential = Credential::new(
+  let mut credential = Credential::new(
     state.n_attributes,
     theta.clone(),
     public_attributes_bytes,
@@ -191,6 +191,7 @@ async fn verify_credential(
       .signatures
       .get(idx)
       .ok_or("Got invalid signature idx")?,
+    0,
   );
   println!("Using verification key: {:?}", verification_key.to_bs58());
   let local_check = credential.verify(&verification_key);
@@ -198,6 +199,51 @@ async fn verify_credential(
   if !local_check {
     return Ok(false);
   }
+
+  let mnemonic = Mnemonic::from_str("sun surge soon stomach flavor country gorilla dress oblige stamp attract hip soldier agree steel prize nuclear know enjoy arm bargain always theme matter").unwrap();
+  let nymd_url = Url::from_str("http://127.0.0.1:26657").unwrap();
+  let nymd_client = NymdClient::connect_with_mnemonic(
+    network_defaults::all::Network::SANDBOX,
+    nymd_url.as_ref(),
+    None,
+    None,
+    AccountId::from_str("nymt14hj2tavq8fpesdwxxcu44rty3hh90vhuysqrsr").ok(),
+    mnemonic,
+    None,
+  )
+  .expect("Could not create nymd client");
+  let req = cw3_flex_multisig::msg::ExecuteMsg::Propose {
+    title: "Spend coconut".to_string(),
+    description: "Propose to spend a coconut cred".to_string(),
+    msgs: vec![],
+    latest: None,
+  };
+  let tx = nymd_client
+    .execute(
+      &AccountId::from_str("nymt1qwlgtx52gsdu7dtp0cekka5zehdl0uj3vqx3jd").unwrap(),
+      &req,
+      Default::default(),
+      "",
+      vec![],
+    )
+    .await
+    .unwrap();
+  let event = tx.logs[0]
+    .events
+    .iter()
+    .find(|event| event.ty == "wasm")
+    .unwrap();
+  let proposal_id = u64::from_str(
+    &event
+      .attributes
+      .iter()
+      .find(|attr| attr.key == "proposal_id")
+      .unwrap()
+      .value,
+  )
+  .unwrap();
+  println!("Got proposal id {}", proposal_id);
+  credential.set_proposal_id(proposal_id);
   let remote_check = verify_credential_remote(&parsed_urls, credential)
     .await
     .unwrap();

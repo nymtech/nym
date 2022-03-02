@@ -15,6 +15,7 @@ build = "src/build.rs"
 tauri-build = { version = "1.0.0-beta.2" }
 
 [dependencies]
+cw3-flex-multisig = "0.12.1"
 bip39 = "1.0.1"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }

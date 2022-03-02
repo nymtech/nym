@@ -212,5 +212,6 @@ pub fn prepare_credential_for_spending(
         theta,
         public_attributes,
         signature,
+        0,
     ))
 }

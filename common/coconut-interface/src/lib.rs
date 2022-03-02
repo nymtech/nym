@@ -1,12 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use getset::{CopyGetters, Getters};
+use getset::{CopyGetters, Getters, Setters};
 use serde::{Deserialize, Serialize};
 
 pub use nymcoconut::*;
 
-#[derive(Serialize, Deserialize, Getters, CopyGetters, Clone)]
+#[derive(Serialize, Deserialize, Getters, CopyGetters, Setters, Clone)]
 pub struct Credential {
     #[getset(get = "pub")]
     n_params: u32,
@@ -15,6 +15,8 @@ pub struct Credential {
     public_attributes: Vec<Vec<u8>>,
     #[getset(get = "pub")]
     signature: Signature,
+    #[getset(get = "pub", set = "pub")]
+    proposal_id: u64,
 }
 impl Credential {
     pub fn new(
@@ -22,12 +24,14 @@ impl Credential {
         theta: Theta,
         public_attributes: Vec<Vec<u8>>,
         signature: &Signature,
+        proposal_id: u64,
     ) -> Credential {
         Credential {
             n_params,
             theta,
             public_attributes,
             signature: *signature,
+            proposal_id,
         }
     }
 

@@ -15,6 +15,8 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+cw3-flex-multisig = "0.12.1"
+cw3 = "0.12.1"
 bip39 = "1.0.1"
 clap = "2.33.0"
 dirs = "3.0"

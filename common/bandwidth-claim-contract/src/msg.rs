@@ -15,6 +15,7 @@ pub struct InstantiateMsg {}
 pub enum ExecuteMsg {
     LinkPayment { data: LinkPaymentData },
     BuyBandwidth {},
+    SpendCredential { amount: u64 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

@@ -4,6 +4,7 @@
 )]
 
 use bip39::Mnemonic;
+use cosmwasm_std::{to_binary, CosmosMsg, WasmMsg};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -71,7 +72,7 @@ async fn deposit_funds(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<St
     nymd_url.as_ref(),
     None,
     None,
-    AccountId::from_str("nymt14hj2tavq8fpesdwxxcu44rty3hh90vhuysqrsr").ok(),
+    AccountId::from_str("nymt1sthrn5ep8ls5vzz8f9gp89khhmedahhdqdmmps").ok(),
     mnemonic,
     None,
   )
@@ -207,7 +208,7 @@ async fn verify_credential(
     nymd_url.as_ref(),
     None,
     None,
-    AccountId::from_str("nymt14hj2tavq8fpesdwxxcu44rty3hh90vhuysqrsr").ok(),
+    AccountId::from_str("nymt1sthrn5ep8ls5vzz8f9gp89khhmedahhdqdmmps").ok(),
     mnemonic,
     None,
   )
@@ -215,7 +216,11 @@ async fn verify_credential(
   let req = cw3_flex_multisig::msg::ExecuteMsg::Propose {
     title: "Spend coconut".to_string(),
     description: "Propose to spend a coconut cred".to_string(),
-    msgs: vec![],
+    msgs: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+      contract_addr: "nymt1sthrn5ep8ls5vzz8f9gp89khhmedahhdqdmmps".to_string(),
+      msg: to_binary(&ExecuteMsg::SpendCredential { amount: 1000000u64 }).unwrap(),
+      funds: vec![],
+    })],
     latest: None,
   };
   let tx = nymd_client

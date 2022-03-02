@@ -79,6 +79,7 @@ dependencies = [
  "bandwidth-claim-contract",
  "bip39",
  "coconut-interface",
+ "cosmwasm-std",
  "credentials",
  "cw3-flex-multisig",
  "network-defaults",

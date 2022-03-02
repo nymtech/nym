@@ -35,4 +35,7 @@ pub enum ContractError {
 
     #[error("Wrong coin denomination, you must send {}", DENOM)]
     WrongDenom,
+
+    #[error("The sender is not authorized to perform this action")]
+    Unauthorized,
 }

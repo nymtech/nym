@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response};
+use cosmwasm_std::{Addr, BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
 use crate::storage::{coconut, payments, status, Status};
@@ -65,6 +65,22 @@ pub(crate) fn buy_bandwidth(
     let event =
         Event::new(VOUCHER_ACQUIRED_EVENT_TYPE).add_attribute(VOUCHER_VALUE, voucher_value.amount);
     Ok(Response::new().add_event(event))
+}
+
+pub(crate) fn spend_credential(
+    _deps: DepsMut<'_>,
+    _env: Env,
+    info: MessageInfo,
+    amount: u64,
+) -> Result<Response, ContractError> {
+    if info.sender != Addr::unchecked(String::from("nymt1qwlgtx52gsdu7dtp0cekka5zehdl0uj3vqx3jd")) {
+        return Err(ContractError::Unauthorized);
+    }
+    let return_tokens = BankMsg::Send {
+        to_address: String::from("nymt1t6p4dl8nnlftvehz3jsklrd0aw458p4l6n9n4t"),
+        amount: vec![Coin::new(amount as u128, DENOM)],
+    };
+    Ok(Response::new().add_message(return_tokens))
 }
 
 #[cfg(test)]

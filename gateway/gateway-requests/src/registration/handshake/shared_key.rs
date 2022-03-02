@@ -7,7 +7,7 @@ use crypto::generic_array::{
     GenericArray,
 };
 use crypto::hmac::{compute_keyed_hmac, recompute_keyed_hmac_and_verify_tag};
-use crypto::symmetric::stream_cipher::{self, CipherKey, NewCipher, IV};
+use crypto::symmetric::stream_cipher::{self, CipherKey, KeySizeUser, IV};
 use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
 use pemstore::traits::PemStorableKey;
 use std::fmt::{self, Display, Formatter};
@@ -17,7 +17,7 @@ pub type SharedKeySize = Sum<EncryptionKeySize, MacKeySize>;
 
 // we're using 16 byte long key in sphinx, so let's use the same one here
 type MacKeySize = U16;
-type EncryptionKeySize = <GatewayEncryptionAlgorithm as NewCipher>::KeySize;
+type EncryptionKeySize = <GatewayEncryptionAlgorithm as KeySizeUser>::KeySize;
 
 /// Shared key used when computing MAC for messages exchanged between client and its gateway.
 pub type MacKey = GenericArray<u8, MacKeySize>;

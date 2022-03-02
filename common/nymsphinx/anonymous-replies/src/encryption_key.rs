@@ -1,21 +1,20 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use crypto::generic_array::typenum::Unsigned;
 use crypto::{
     crypto_hash,
-    generic_array::GenericArray,
-    symmetric::stream_cipher::{generate_key, CipherKey, NewCipher},
-    Digest,
+    generic_array::{typenum::Unsigned, GenericArray},
+    symmetric::stream_cipher::{generate_key, CipherKey, KeySizeUser},
+    OutputSizeUser,
 };
 use nymsphinx_params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorithm};
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 
 pub type EncryptionKeyDigest =
-    GenericArray<u8, <ReplySurbKeyDigestAlgorithm as Digest>::OutputSize>;
+    GenericArray<u8, <ReplySurbKeyDigestAlgorithm as OutputSizeUser>::OutputSize>;
 
-pub type SurbEncryptionKeySize = <ReplySurbEncryptionAlgorithm as NewCipher>::KeySize;
+pub type SurbEncryptionKeySize = <ReplySurbEncryptionAlgorithm as KeySizeUser>::KeySize;
 
 #[derive(Clone, Debug)]
 pub struct SurbEncryptionKey(CipherKey<ReplySurbEncryptionAlgorithm>);
@@ -45,7 +44,7 @@ impl SurbEncryptionKey {
     }
 
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, SurbEncryptionKeyError> {
-        if bytes.len() != SurbEncryptionKeySize::to_usize() {
+        if bytes.len() != SurbEncryptionKeySize::USIZE {
             return Err(SurbEncryptionKeyError::BytesOfInvalidLengthError);
         }
 

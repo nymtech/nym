@@ -1,8 +1,20 @@
-use crate::{ONE, U128};
+use crate::{mixnode::StoredNodeRewardResult, ONE, U128};
 use cosmwasm_std::Uint128;
 use network_defaults::DEFAULT_OPERATOR_INTERVAL_COST;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+pub struct NodeEpochRewards {
+    params: RewardParams,
+    result: StoredNodeRewardResult,
+}
+
+impl NodeEpochRewards {
+    pub fn new(params: RewardParams, result: StoredNodeRewardResult) -> Self {
+        Self { params, result }
+    }
+}
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct IntervalRewardParams {

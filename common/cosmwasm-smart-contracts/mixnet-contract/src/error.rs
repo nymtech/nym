@@ -11,4 +11,6 @@ pub enum MixnetContractError {
         #[from]
         source: std::num::TryFromIntError,
     },
+    #[error("Error casting from U128")]
+    CastError,
 }

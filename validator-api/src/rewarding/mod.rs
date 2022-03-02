@@ -334,8 +334,6 @@ impl Rewarder {
         //     }
         // }
 
-        let mut total_rewarded = 0;
-
         // start rewarding, first the nodes that are dealt with individually, i.e. nodes that
         // need to have their own special blocks due to number of delegators
         // for mix in individually_rewarded {
@@ -361,7 +359,6 @@ impl Rewarder {
         //     self.print_rewarding_progress(total_rewarded, eligible_mixnodes.len(), retry);
         // }
 
-        // FIXME: Refactor semantics to make sense in the context of rewarding all nodes
         if let Err(err) = self
             .nymd_client
             .reward_mixnodes(&eligible_mixnodes, interval_id)
@@ -380,7 +377,7 @@ impl Rewarder {
             sleep(Duration::from_secs(11)).await;
         }
 
-        total_rewarded += eligible_mixnodes.len();
+        let total_rewarded = eligible_mixnodes.len();
         self.print_rewarding_progress(total_rewarded, eligible_mixnodes.len(), retry);
 
         // then we move onto the chunks

@@ -5,7 +5,7 @@ use super::storage;
 use crate::constants;
 use crate::delegations::storage as delegations_storage;
 use crate::error::ContractError;
-use crate::interval::storage as interval_storage;
+use crate::interval::storage::{self as interval_storage, NODE_EPOCH_REWARDS};
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
 use crate::rewards::helpers;
@@ -17,8 +17,10 @@ use mixnet_contract_common::events::{
     new_not_found_mix_operator_rewarding_event, new_too_fresh_bond_mix_operator_rewarding_event,
     new_zero_uptime_mix_operator_rewarding_event,
 };
-use mixnet_contract_common::mixnode::DelegatorRewardParams;
-use mixnet_contract_common::reward_params::{RewardParams, IntervalRewardParams, NodeRewardParams};
+use mixnet_contract_common::mixnode::{DelegatorRewardParams, StoredNodeRewardResult};
+use mixnet_contract_common::reward_params::{
+    IntervalRewardParams, NodeEpochRewards, NodeRewardParams, RewardParams,
+};
 use mixnet_contract_common::{IdentityKey, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT};
 
 // FIXME: Clean up
@@ -288,13 +290,9 @@ pub(crate) fn try_reward_mixnode(
     node_reward_params.set_reward_blockstamp(env.block.height);
 
     let node_reward_result = current_bond.reward(&node_reward_params);
+    let stored_node_result: StoredNodeRewardResult = node_reward_result.try_into()?;
 
-    let node_reward: u128 = node_reward_result
-        .reward()
-        .checked_cast()
-        .ok_or(ContractError::CastError)?;
-
-    current_bond.accumulated_rewards += Uint128::new(node_reward);
+    current_bond.accumulated_rewards += stored_node_result.reward();
     let stored_bond: StoredMixnodeBond = current_bond.into();
     // technically we don't have to set the total_delegation bucket, but it makes things easier
     // in different places that we can guarantee that if node exists, so does the data behind the total delegation
@@ -305,6 +303,16 @@ pub(crate) fn try_reward_mixnode(
         &stored_bond,
         env.block.height,
     )?;
+
+    let node_epoch_rewards = NodeEpochRewards::new(node_reward_params, stored_node_result);
+
+    NODE_EPOCH_REWARDS.save(
+        deps.storage,
+        (env.block.height, mix_identity.clone()),
+        &node_epoch_rewards,
+    )?;
+
+    // Note: reward pool should be increased only on reward claims
 
     // FIXME: Delete commented code, after introducing lazy reward claims
     // INFO: No eager rewarding for operators and delegators anymore
@@ -323,7 +331,7 @@ pub(crate) fn try_reward_mixnode(
     // )?;
 
     let rewarding_result = RewardingResult {
-        node_reward: Uint128::new(node_reward),
+        node_reward: stored_node_result.reward(),
     };
     // let total_delegator_reward = rewarding_results.total_delegator_reward;
     // let further_delegations = delegation_rewarding_result.start_next.is_some();
@@ -366,7 +374,9 @@ pub mod tests {
         FURTHER_DELEGATIONS_TO_REWARD_KEY, NO_REWARD_REASON_KEY, OPERATOR_REWARDING_EVENT_TYPE,
         OPERATOR_REWARD_KEY, TOTAL_MIXNODE_REWARD_KEY,
     };
-    use mixnet_contract_common::reward_params::{IntervalRewardParams, RewardParams, NodeRewardParams};
+    use mixnet_contract_common::reward_params::{
+        IntervalRewardParams, NodeRewardParams, RewardParams,
+    };
     use mixnet_contract_common::{Delegation, IdentityKey, Layer, MixNode};
 
     #[test]
@@ -748,18 +758,9 @@ pub mod tests {
             active_set_work_factor,
         );
 
-        let node_reward_params = NodeRewardParams::new(
-            0,
-            mix_1_uptime,
-            true,
-        );
+        let node_reward_params = NodeRewardParams::new(0, mix_1_uptime, true);
 
-        
-
-        let mut params = RewardParams::new(
-            interval_reward_params,
-            node_reward_params,
-        );
+        let mut params = RewardParams::new(interval_reward_params, node_reward_params);
 
         params.set_reward_blockstamp(env.block.height);
 
@@ -777,15 +778,20 @@ pub mod tests {
         );
         assert_eq!(mix_1_reward_result.reward().int(), 186562237u128);
 
-        let mix1_operator_profit = mix_1.operator_reward(&params);
+        let mix1_operator_reward = mix_1.operator_reward(&params);
 
         let mix1_delegator1_reward = mix_1.reward_delegation(Uint128::new(8000_000000), &params);
 
         let mix1_delegator2_reward = mix_1.reward_delegation(Uint128::new(2000_000000), &params);
 
-        assert_eq!(mix1_operator_profit, 120609230);
+        assert_eq!(mix1_operator_reward, 120609230);
         assert_eq!(mix1_delegator1_reward, 52762405);
         assert_eq!(mix1_delegator2_reward, 13190601);
+
+        assert_eq!(
+            mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward + 1,
+            mix_1_reward_result.reward().int()
+        );
 
         let pre_reward_bond =
             test_helpers::read_mixnode_pledge_amount(&deps.storage, &node_identity)
@@ -811,7 +817,7 @@ pub mod tests {
                 .u128()
                 + mixnode.accumulated_rewards.u128(),
             pre_reward_bond
-                + mix1_operator_profit
+                + mix1_operator_reward
                 + mix1_delegator1_reward
                 + mix1_delegator2_reward
                 + 1 // There is a rounding error here it seems
@@ -828,7 +834,7 @@ pub mod tests {
             storage::REWARD_POOL.load(&deps.storage).unwrap().u128()
                 - mixnode.accumulated_rewards.u128(),
             INITIAL_REWARD_POOL
-                - (mix1_operator_profit + mix1_delegator1_reward + mix1_delegator2_reward)
+                - (mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward)
                 - 1 // Same rounding error, its 1 ucoin, it will manifest/correct when the rewards are claimed
         );
 

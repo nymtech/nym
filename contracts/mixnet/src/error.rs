@@ -3,7 +3,7 @@
 
 use config::defaults::DENOM;
 use cosmwasm_std::{Addr, StdError};
-use mixnet_contract_common::IdentityKey;
+use mixnet_contract_common::{IdentityKey, error::MixnetContractError};
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.
@@ -127,4 +127,9 @@ pub enum ContractError {
 
     #[error("Could not cast reward to a u128, this should be impossible, at {}", line!())]
     CastError,
+    #[error("{source}")]
+    MixnetCommonError {
+        #[from]
+        source: MixnetContractError,
+    }
 }

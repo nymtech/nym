@@ -482,24 +482,24 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         // setup our daily uptime updater. Note that if network monitor is disabled, then we have
         // no data for the updates and hence we don't need to start it up
         let storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
-        let uptime_updater = HistoricalUptimeUpdater::new(storage);
+        let uptime_updater = HistoricalUptimeUpdater::new(storage.clone());
         tokio::spawn(async move { uptime_updater.run().await });
 
         if let Some(rewarder) = setup_rewarder(&config, &rocket, &nymd_client).await? {
             info!("Periodic rewarding is starting...");
 
-            let rewarded_set_updater = RewardedSetUpdater::new(
+            let mut rewarded_set_updater = RewardedSetUpdater::new(
                 nymd_client.clone(),
                 rewarded_set_update_notify,
                 validator_cache.clone(),
+                storage
             );
 
             // spawn rewarded set updater
-            tokio::spawn(async move { rewarded_set_updater.run().await });
+            tokio::spawn(async move { rewarded_set_updater.run().await.unwrap() });
 
             // only update rewarded set if we're also distributing rewards
-
-            tokio::spawn(async move { rewarder.run().await });
+            // tokio::spawn(async move { rewarder.run().await });
         } else {
             info!("Periodic rewarding is disabled.");
         }

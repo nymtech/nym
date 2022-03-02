@@ -7,7 +7,7 @@ use validator_client::nymd::error::NymdError;
 use validator_client::ValidatorClientError;
 
 #[derive(Debug, Error)]
-pub(crate) enum RewardingError {
+pub enum RewardingError {
     #[error("Could not distribute rewards as the contract address was unspecified")]
     UnspecifiedContractAddress,
 

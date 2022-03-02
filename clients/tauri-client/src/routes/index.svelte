@@ -6,6 +6,7 @@
   const validator_urls = ["http://localhost:8080", "http://localhost:8081", "http://localhost:8082"];
   let signatures = [];
   let qrVisible = false;
+  let tx_hash = "";
 
   async function getCredential() {
     signatures = await invoke("get_credential", {
@@ -13,10 +14,8 @@
     });
   }
 
-  async function randomiseCredential(idx) {
-    signatures = await invoke("randomise_credential", {
-      idx: idx,
-    });
+  async function depositFunds() {
+    tx_hash = await invoke("deposit_funds");
   }
 
   async function verifyCredential(idx) {
@@ -58,6 +57,7 @@
   <title>Coconut</title>
 </svelte:head>
 
+<button class="btn btn-success" on:click={depositFunds}>Deposit</button>
 <button class="btn btn-success" on:click={getCredential}>Get Credential</button>
 <hr />
 <table class="table table-dark">
@@ -67,11 +67,6 @@
       <td>
         <div class="btn-group" role="group" aria-label="Basic example">
           <button
-            class="btn btn-primary"
-            on:click={() => {
-              randomiseCredential(idx);
-            }}>Randomize</button
-          ><button
             class="btn btn-danger"
             on:click={() => {
               deleteCredential(idx);

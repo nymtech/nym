@@ -3,8 +3,11 @@
   windows_subsystem = "windows"
 )]
 
+use bip39::Mnemonic;
+use std::str::FromStr;
 use std::sync::Arc;
 
+use bandwidth_claim_contract::msg::ExecuteMsg;
 use tokio::sync::RwLock;
 use url::Url;
 
@@ -14,6 +17,7 @@ use coconut_interface::{
 };
 use credentials::coconut::bandwidth::{obtain_signature, BandwidthVoucherAttributes};
 use credentials::obtain_aggregate_verification_key;
+use validator_client::nymd::{AccountId, CosmosCoin, Decimal, Denom, NymdClient};
 
 struct State {
   signatures: Vec<Signature>,
@@ -55,15 +59,37 @@ fn parse_url_validators(raw: &[String]) -> Result<Vec<Url>, String> {
 }
 
 #[tauri::command]
-async fn randomise_credential(
-  idx: usize,
-  state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<Vec<Signature>, String> {
-  let mut state = state.write().await;
-  let signature = state.signatures.remove(idx);
-  let (new_signature, _) = signature.randomise(&state.params);
-  state.signatures.insert(idx, new_signature);
-  Ok(state.signatures.clone())
+async fn deposit_funds(_state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<String, String> {
+  let nymd_url = Url::from_str("http://127.0.0.1:26657").unwrap();
+  let mnemonic = Mnemonic::from_str(&"sun surge soon stomach flavor country gorilla dress oblige stamp attract hip soldier agree steel prize nuclear know enjoy arm bargain always theme matter").unwrap();
+  let nymd_client = NymdClient::connect_with_mnemonic(
+    network_defaults::all::Network::SANDBOX,
+    nymd_url.as_ref(),
+    None,
+    None,
+    AccountId::from_str("nymt14hj2tavq8fpesdwxxcu44rty3hh90vhuysqrsr").ok(),
+    mnemonic,
+    None,
+  )
+  .expect("Could not create nymd client");
+  let req = ExecuteMsg::BuyBandwidth {};
+  let funds = vec![CosmosCoin {
+    denom: Denom::from_str(network_defaults::sandbox::DENOM).unwrap(),
+    amount: Decimal::from(1000000u64),
+  }];
+  let tx = nymd_client
+    .execute(
+      nymd_client.erc20_bridge_contract_address().unwrap(),
+      &req,
+      Default::default(),
+      "",
+      funds,
+    )
+    .await
+    .unwrap()
+    .transaction_hash;
+  println!("Tx hash: {}", tx);
+  Ok(tx.to_string())
 }
 
 #[tauri::command]
@@ -206,7 +232,7 @@ fn main() {
     ))))
     .invoke_handler(tauri::generate_handler![
       get_credential,
-      randomise_credential,
+      deposit_funds,
       delete_credential,
       list_credentials,
       verify_credential

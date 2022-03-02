@@ -82,7 +82,7 @@ pub async fn post_blind_sign(
         nymd_url.as_ref(),
         None,
         None,
-        AccountId::from_str("").ok(),
+        AccountId::from_str("nymt14hj2tavq8fpesdwxxcu44rty3hh90vhuysqrsr").ok(),
         mnemonic,
         None,
     )

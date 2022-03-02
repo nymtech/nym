@@ -121,6 +121,10 @@ export const currencyMap = (network?: Network) => {
       currency.minor = 'UNYMT'
       currency.major = 'NYMT'
       break
+    case 'QA':
+      currency.minor = 'UNYMT'
+      currency.major = 'NYMT'
+      break
   }
 
   return currency

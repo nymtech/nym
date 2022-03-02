@@ -19,7 +19,7 @@ import { bond, majorToMinor } from '../../requests'
 import { validationSchema } from './validationSchema'
 import { Gateway, MixNode } from '../../types'
 import { ClientContext } from '../../context/main'
-import { Fee } from '../../components'
+import { Fee, TokenPoolSelector } from '../../components'
 
 type TBondFormFields = {
   withAdvancedOptions: boolean
@@ -175,6 +175,12 @@ export const BondForm = ({
               disabled={disabled}
             />
           </Grid>
+
+          {userBalance.originalVesting && (
+            <Grid item xs={12}>
+              <TokenPoolSelector onSelect={(pool) => console.log(pool)} />
+            </Grid>
+          )}
 
           <Grid item xs={12} sm={6}>
             <TextField

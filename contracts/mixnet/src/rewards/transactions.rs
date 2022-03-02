@@ -5,11 +5,12 @@ use super::storage;
 use crate::constants;
 use crate::delegations::storage as delegations_storage;
 use crate::error::ContractError;
-use crate::interval::storage::{self as interval_storage, NODE_EPOCH_REWARDS};
+use crate::interval::storage::{self as interval_storage};
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::mixnodes::storage::mixnodes;
 use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
 use crate::rewards::helpers;
-use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128, Order};
+use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Order, Response, StdResult, Storage, Uint128};
 use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract_common::events::{
     new_mix_delegators_rewarding_event, new_mix_operator_rewarding_event,
@@ -21,7 +22,6 @@ use mixnet_contract_common::reward_params::{
     IntervalRewardParams, NodeEpochRewards, NodeRewardParams, RewardParams,
 };
 use mixnet_contract_common::{IdentityKey, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT};
-use crate::mixnodes::storage::mixnodes;
 
 // FIXME: Clean up
 #[allow(unused_imports)]
@@ -41,6 +41,15 @@ async fn compound_delegator_reward(
     owner_address: String,
     mix_identity: IdentityKey,
 ) -> Result<(), ContractError> {
+    if mixnodes_storage::mixnodes()
+        .may_load(storage, &mix_identity)?
+        .is_none()
+    {
+        return Err(ContractError::MixNodeBondNotFound {
+            identity: mix_identity,
+        });
+    }
+
     let last_claimed_height = storage::REWARD_CLAIMED_HEIGHT
         .load(storage, (owner_address, mix_identity.clone()))
         .unwrap_or(0);
@@ -54,12 +63,13 @@ async fn compound_delegator_reward(
         .collect::<Vec<u64>>();
 
     let mix_identity_ref = mix_identity.as_str();
-        
+
     for height in checkpoints_for_mix {
         // Verify that checkpoint height is the same as mixnode snapshot --- FIXME: store reward_params in the StoredMixnodeBond
-        // This can't fail, as we've just loaded those heights for the mix_identity 
-        let mix = mixnodes().may_load_at_height(storage, mix_identity_ref, height)?.unwrap();
-        let reward_params = NODE_EPOCH_REWARDS.load(storage, (height, mix_identity_ref))?;
+        // This can't fail, as we've just loaded those heights for the mix_identity
+        let bond = mixnodes()
+            .may_load_at_height(storage, mix_identity_ref, height)?
+            .unwrap();
     }
 
     Ok(())
@@ -325,7 +335,7 @@ pub(crate) fn try_reward_mixnode(
     let stored_node_result: StoredNodeRewardResult = node_reward_result.try_into()?;
 
     current_bond.accumulated_rewards += stored_node_result.reward();
-    let stored_bond: StoredMixnodeBond = current_bond.into();
+    let mut stored_bond: StoredMixnodeBond = current_bond.into();
     // technically we don't have to set the total_delegation bucket, but it makes things easier
     // in different places that we can guarantee that if node exists, so does the data behind the total delegation
     let identity = stored_bond.identity();
@@ -336,13 +346,10 @@ pub(crate) fn try_reward_mixnode(
         env.block.height,
     )?;
 
-    let node_epoch_rewards = NodeEpochRewards::new(node_reward_params, stored_node_result);
-
-    NODE_EPOCH_REWARDS.save(
-        deps.storage,
-        (env.block.height, &mix_identity),
-        &node_epoch_rewards,
-    )?;
+    stored_bond.epoch_rewards = Some(NodeEpochRewards::new(
+        node_reward_params,
+        stored_node_result,
+    ));
 
     // Take rewards out of the rewarding pool
     storage::decr_reward_pool(deps.storage, stored_node_result.reward())?;
@@ -572,6 +579,7 @@ pub mod tests {
             },
             proxy: None,
             accumulated_rewards: Uint128::zero(),
+            epoch_rewards: None,
         };
 
         mixnodes_storage::mixnodes()
@@ -596,7 +604,7 @@ pub mod tests {
         delegations_storage::delegations()
             .save(
                 deps.as_mut().storage,
-                (node_identity.clone(), "delegator").joined_key(),
+                (node_identity.clone(), "delegator".into(), env.block.height),
                 &Delegation::new(
                     Addr::unchecked("delegator"),
                     node_identity.clone(),
@@ -1185,116 +1193,6 @@ pub mod tests {
             //     }),
             //     res
             // );
-        }
-
-        #[test]
-        fn ignores_delegators_that_updated_their_pledge_in_the_meantime() {
-            // setup: bond > page limit delegators, reward operator + first batch
-            let mut deps = test_helpers::init_contract();
-            let mut env = mock_env();
-            let current_state = mixnet_params_storage::CONTRACT_STATE
-                .load(deps.as_mut().storage)
-                .unwrap();
-            let rewarding_validator_address = current_state.rewarding_validator_address;
-
-            #[allow(clippy::inconsistent_digit_grouping)]
-            let mix_bond = Uint128::new(10000_000_000);
-            let delegation_value = 2000_000000;
-
-            let total_delegators = MIXNODE_DELEGATORS_PAGE_LIMIT + 123;
-
-            let node_owner: Addr = Addr::unchecked("alice");
-            let node_identity = test_helpers::add_mixnode(
-                node_owner.as_str(),
-                vec![Coin {
-                    denom: DENOM.to_string(),
-                    amount: mix_bond,
-                }],
-                deps.as_mut(),
-            );
-
-            for i in 0..total_delegators {
-                try_delegate_to_mixnode(
-                    deps.as_mut(),
-                    env.clone(),
-                    mock_info(
-                        &*format!("delegator{:04}", i),
-                        &[coin(delegation_value, DENOM)],
-                    ),
-                    node_identity.clone(),
-                )
-                .unwrap();
-            }
-
-            env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
-
-            // update some delegations (on 'main' page and the secondary call)
-            try_delegate_to_mixnode(
-                deps.as_mut(),
-                env.clone(),
-                mock_info("delegator0123", &[coin(delegation_value, DENOM)]),
-                node_identity.clone(),
-            )
-            .unwrap();
-
-            try_delegate_to_mixnode(
-                deps.as_mut(),
-                env.clone(),
-                mock_info(
-                    &*format!("delegator{:04}", 123 + MIXNODE_DELEGATORS_PAGE_LIMIT),
-                    &[coin(delegation_value, DENOM)],
-                ),
-                node_identity.clone(),
-            )
-            .unwrap();
-
-            env.block.height += 123;
-
-            let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-            try_reward_mixnode(
-                deps.as_mut(),
-                env,
-                info,
-                node_identity.clone(),
-                tests::fixtures::rewarding_params_fixture(100),
-                0,
-            )
-            .unwrap();
-
-            // we have 3 pages in total, so we have to call this twice
-            // try_reward_next_mixnode_delegators(
-            //     deps.as_mut(),
-            //     mock_info(rewarding_validator_address.as_ref(), &[]),
-            //     node_identity.clone(),
-            //     0,
-            // )
-            // .unwrap();
-
-            let expected = test_helpers::read_delegation(
-                &deps.storage,
-                node_identity.clone(),
-                "delegator0001",
-            )
-            .unwrap()
-            .amount;
-
-            for i in 0..total_delegators {
-                // everyone was rewarded (and the same amount, because they all delegated the same amount)
-                let delegation = test_helpers::read_delegation(
-                    &deps.storage,
-                    node_identity.clone(),
-                    format!("delegator{:04}", i),
-                )
-                .unwrap();
-
-                if i == 123 || i == 123 + MIXNODE_DELEGATORS_PAGE_LIMIT {
-                    assert_eq!(delegation.amount.amount, Uint128::new(2 * delegation_value))
-                } else {
-                    // Lazy system will not increase delegation amount
-                    assert_eq!(delegation.amount.amount, Uint128::new(delegation_value));
-                    assert_eq!(expected, delegation.amount)
-                }
-            }
         }
     }
 }

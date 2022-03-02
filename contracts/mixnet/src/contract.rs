@@ -288,7 +288,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetDelegationDetails {
             mix_identity,
             delegator,
-        } => to_binary(&query_mixnode_delegation(deps, mix_identity, delegator)?),
+        } => to_binary(&query_mixnode_delegation(deps.storage, deps.api, mix_identity, delegator)?),
         QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
         QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
         QueryMsg::GetIntervalRewardPercent {} => to_binary(&INTERVAL_REWARD_PERCENT),

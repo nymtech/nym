@@ -92,7 +92,6 @@ pub fn new_delegation_event(
 pub fn new_undelegation_event(
     delegator: &Addr,
     proxy: &Option<Addr>,
-    old_delegation: &Delegation,
     mix_identity: IdentityKeyRef<'_>,
 ) -> Event {
     let mut event = Event::new(UNDELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
@@ -103,11 +102,11 @@ pub fn new_undelegation_event(
 
     // coin implements Display trait and we use that implementation here
     event
-        .add_attribute(AMOUNT_KEY, old_delegation.amount.to_string())
-        .add_attribute(
-            DELEGATION_HEIGHT_KEY,
-            old_delegation.block_height.to_string(),
-        )
+        // .add_attribute(AMOUNT_KEY, old_delegation.amount.to_string())
+        // .add_attribute(
+        //     DELEGATION_HEIGHT_KEY,
+        //     old_delegation.block_height.to_string(),
+        // )
         .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
 }
 

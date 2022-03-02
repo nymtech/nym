@@ -58,6 +58,7 @@ pub(crate) fn stored_mixnode_bond_fixture(owner: &str) -> mixnodes_storage::Stor
         },
         None,
         Uint128::zero(),
+        None
     )
 }
 

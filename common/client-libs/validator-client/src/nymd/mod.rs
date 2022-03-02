@@ -496,7 +496,7 @@ impl<C> NymdClient<C> {
     pub async fn get_mix_delegations_paged(
         &self,
         mix_identity: IdentityKey,
-        start_after: Option<String>,
+        start_after: Option<(String, u64)>,
         page_limit: Option<u32>,
     ) -> Result<PagedMixDelegationsResponse, NymdError>
     where
@@ -515,7 +515,7 @@ impl<C> NymdClient<C> {
     /// Gets list of all mixnode delegations on particular page.
     pub async fn get_all_network_delegations_paged(
         &self,
-        start_after: Option<(IdentityKey, String)>,
+        start_after: Option<(IdentityKey, Vec<u8>, u64)>,
         page_limit: Option<u32>,
     ) -> Result<PagedAllDelegationsResponse, NymdError>
     where

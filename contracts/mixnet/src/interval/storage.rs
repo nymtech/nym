@@ -28,8 +28,6 @@ pub(crate) const REWARDED_SET_HEIGHTS_FOR_INTERVAL: Map<'_, (IntervalId, BlockHe
 pub(crate) const REWARDED_SET: Map<'_, (BlockHeight, IdentityKey), RewardedSetNodeStatus> =
     Map::new("rs");
 
-pub(crate) const NODE_EPOCH_REWARDS: Map<'_, (BlockHeight, IdentityKeyRef), NodeEpochRewards> = Map::new("ner");
-
 pub(crate) const INTERVALS: Map<'_, IntervalId, Interval> = Map::new("ins");
 
 pub fn save_interval(storage: &mut dyn Storage, interval: &Interval) -> Result<(), ContractError> {

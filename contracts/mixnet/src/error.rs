@@ -69,7 +69,7 @@ pub enum ContractError {
     #[error("MIXNET ({}): Could not find any delegation information associated with mixnode {identity} for {address}", line!())]
     NoMixnodeDelegationFound {
         identity: IdentityKey,
-        address: Addr,
+        address: String,
     },
 
     #[error("MIXNET ({}): We tried to remove more funds then are available in the Reward pool. Wanted to remove {to_remove}, but have only {reward_pool}", line!())]

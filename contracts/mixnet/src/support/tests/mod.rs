@@ -114,17 +114,18 @@ pub mod test_helpers {
         };
 
         delegations_storage::delegations()
-            .save(storage, delegation.storage_key().joined_key(), &delegation)
+            .save(storage, delegation.storage_key(), &delegation)
             .unwrap();
     }
 
     pub(crate) fn read_delegation(
         storage: &dyn Storage,
         mix: impl Into<String>,
-        owner: impl Into<String>,
+        owner: impl Into<Vec<u8>>,
+        block_height: u64,
     ) -> Option<Delegation> {
         delegations_storage::delegations()
-            .may_load(storage, (mix.into(), owner.into()).joined_key())
+            .may_load(storage, (mix.into(), owner.into(), block_height))
             .unwrap()
     }
 

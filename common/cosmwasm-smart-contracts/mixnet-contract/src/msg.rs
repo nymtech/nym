@@ -7,6 +7,9 @@ use crate::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+type BlockHeight = u64;
+type DelegateAddress = Vec<u8>;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
@@ -108,7 +111,7 @@ pub enum QueryMsg {
     // gets all [paged] delegations in the entire network
     // TODO: do we even want that?
     GetAllNetworkDelegations {
-        start_after: Option<(IdentityKey, String)>,
+        start_after: Option<(IdentityKey, DelegateAddress, BlockHeight)>,
         limit: Option<u32>,
     },
     // gets all [paged] delegations associated with particular mixnode
@@ -116,7 +119,7 @@ pub enum QueryMsg {
         mix_identity: IdentityKey,
         // since `start_after` is user-provided input, we can't use `Addr` as we
         // can't guarantee it's validated.
-        start_after: Option<String>,
+        start_after: Option<(String, u64)>,
         limit: Option<u32>,
     },
     // gets all [paged] delegations associated with particular delegator

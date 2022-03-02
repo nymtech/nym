@@ -118,6 +118,7 @@ fn _try_add_mixnode(
         mix_node,
         proxy.clone(),
         Uint128::zero(),
+        None
     );
 
     // technically we don't have to set the total_delegation bucket, but it makes things easier

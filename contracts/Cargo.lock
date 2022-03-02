@@ -218,9 +218,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-crypto"
-version = "1.0.0-beta4"
+version = "1.0.0-beta5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f903ebbabc0d4880dbc76148efb8be8fc29fa4bf294c440c3d70da1c8bcafff7"
+checksum = "8904127a5b9e325ef5d6b2b3f997dcd74943cd35097139b1a4d15b1b6bccae66"
 dependencies = [
  "digest 0.9.0",
  "ed25519-zebra",
@@ -231,9 +231,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
-version = "1.0.0-beta4"
+version = "1.0.0-beta5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "832bebef577ecb394603de8e2bf0de429b74aa364e17dec18e15ce37e71b0cae"
+checksum = "a14364ac4d9d085867929d0cf3e94b1d2100121ce02c33c72961406830002613"
 dependencies = [
  "syn",
 ]
@@ -250,9 +250,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-std"
-version = "1.0.0-beta4"
+version = "1.0.0-beta5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6238c45840cc9de5a39f0f619e3a4f7c38c5d2c6ac9e3e4d72751ee045e6d7da"
+checksum = "e2ece12e5bbde434b93937d7b2107e6291f11d69ffa72398c50e8bab41d451d3"
 dependencies = [
  "base64",
  "cosmwasm-crypto",
@@ -362,6 +362,17 @@ name = "cw-storage-plus"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d7ee1963302b0ac2a9d42fe0faec826209c17452bfd36fbfd9d002a88929261"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw-storage-plus"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c087ff98fb0475db4c2b5298a5fd12b2848d2854b39d1115d930ee6da24d1eed"
 dependencies = [
  "cosmwasm-std",
  "schemars",
@@ -811,7 +822,7 @@ dependencies = [
  "cosmwasm-std",
  "cosmwasm-storage",
  "crypto",
- "cw-storage-plus",
+ "cw-storage-plus 0.12.1",
  "fixed",
  "mixnet-contract-common",
  "rand",
@@ -1513,7 +1524,7 @@ version = "0.1.0"
 dependencies = [
  "config",
  "cosmwasm-std",
- "cw-storage-plus",
+ "cw-storage-plus 0.12.1",
  "mixnet-contract-common",
  "schemars",
  "serde",
@@ -1527,7 +1538,7 @@ version = "0.1.0"
 dependencies = [
  "config",
  "cosmwasm-std",
- "cw-storage-plus",
+ "cw-storage-plus 0.11.1",
  "mixnet-contract-common",
  "schemars",
  "serde",

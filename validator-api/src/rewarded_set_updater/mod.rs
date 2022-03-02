@@ -212,7 +212,7 @@ impl RewardedSetUpdater {
             .interval_reward_params()
             .await
             .into_inner();
-
+        // Reward all the nodes in the still current, soon to be previous rewarded set
         self.reward_current_rewarded_set(&interval_reward_params)
             .await?;
 

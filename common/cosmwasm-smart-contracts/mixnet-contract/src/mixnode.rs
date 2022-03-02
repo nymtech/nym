@@ -289,11 +289,12 @@ impl MixNodeBond {
         &self.mix_node
     }
 
+    // Takes into account accumulated rewards as well as current pledge and delegation amounts
     pub fn total_bond(&self) -> Option<u128> {
         if self.pledge_amount.denom != self.total_delegation.denom {
             None
         } else {
-            Some(self.pledge_amount.amount.u128() + self.total_delegation.amount.u128())
+            Some(self.pledge_amount.amount.u128() + self.total_delegation.amount.u128() + self.accumulated_rewards.u128())
         }
     }
 
@@ -306,6 +307,10 @@ impl MixNodeBond {
             * U128::from_num(rewarded_set_size)
     }
 
+    // FIXME: There is an effect here when adding accumulted rewards to the total bond, ie accumulated rewards will not
+    // affect lambda, but will affect sigma, in turn over time, if left unclaimed operator rewards will not compound, but
+    // behave similarly to delegations.
+    // The question is should this be taken into account when calculating operator rewards?
     pub fn pledge_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
         U128::from_num(self.pledge_amount().amount.u128()) / U128::from_num(circulating_supply)
     }
@@ -335,6 +340,7 @@ impl MixNodeBond {
     ) -> Result<(u64, u64, u64), MixnetContractError> {
         let total_node_reward = self.reward(params);
         let operator_reward = self.operator_reward(params);
+        // FIXME: This overestimates the reward by a lot, it should take a Uint128 and return estiamte for that
         let delegators_reward = self.reward_delegation(self.total_delegation().amount, params);
 
         Ok((

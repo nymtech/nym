@@ -5,7 +5,9 @@ use crate::error::ContractError;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::support::helpers::generate_storage_key;
 use config::defaults::DENOM;
-use cosmwasm_std::{coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{
+    coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
+};
 use cw_storage_plus::PrimaryKey;
 use mixnet_contract_common::events::{new_delegation_event, new_undelegation_event};
 use mixnet_contract_common::{Delegation, IdentityKey};
@@ -88,7 +90,7 @@ pub(crate) fn _try_delegate_to_mixnode(
     }
 
     let maybe_proxy_storage = generate_storage_key(&delegate, proxy.as_ref());
-    let storage_key = (mix_identity.clone(), maybe_proxy_storage).joined_key();
+    let storage_key = (mix_identity.clone(), maybe_proxy_storage, env.block.height);
 
     // update total_delegation of this node
     mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
@@ -157,74 +159,67 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
     let delegate = deps.api.addr_validate(delegate)?;
     let delegation_map = storage::delegations();
     let maybe_proxy_storage = generate_storage_key(&delegate, proxy.as_ref());
-    let storage_key = (mix_identity.clone(), maybe_proxy_storage).joined_key();
+    let storage_key = (mix_identity.clone(), maybe_proxy_storage.clone());
 
-    match delegation_map.may_load(deps.storage, storage_key.clone())? {
-        None => Err(ContractError::NoMixnodeDelegationFound {
+    // Might want to introduce paging here
+    let delegation_heights = delegation_map
+        .prefix(storage_key)
+        .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .filter_map(|v| v.ok())
+        .collect::<Vec<u64>>();
+
+    if delegation_heights.is_empty() {
+        return Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
-            address: delegate,
-        }),
-        Some(old_delegation) => {
-            // remove all delegation associated with this delegator
-            if proxy != old_delegation.proxy {
-                return Err(ContractError::ProxyMismatch {
-                    existing: old_delegation
-                        .proxy
-                        .map_or_else(|| "None".to_string(), |a| a.to_string()),
-                    incoming: proxy.map_or_else(|| "None".to_string(), |a| a.to_string()),
-                });
-            }
-            // remove old delegation data from the store
-            // note for reviewers: I'm using `replace` as `remove` is just `may_load` followed by `replace`
-            // and we've already performed `may_load` and have access to pre-existing data
-            delegation_map.replace(deps.storage, storage_key, None, Some(&old_delegation))?;
-
-            // send delegated funds back to the delegation owner
-            let return_tokens = BankMsg::Send {
-                to_address: proxy.as_ref().unwrap_or(&delegate).to_string(),
-                amount: coins(
-                    old_delegation.amount.amount.u128(),
-                    old_delegation.amount.denom.clone(),
-                ),
-            };
-
-            // update total_delegation of this node
-            mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
-                deps.storage,
-                &mix_identity,
-                |total_delegation| {
-                    // the first unwrap is fine because the delegation information MUST exist, otherwise we would
-                    // have never gotten here in the first place
-                    // the second unwrap is also fine because we should NEVER underflow here,
-                    // if we do, it means we have some serious error in our logic
-                    Ok(total_delegation
-                        .unwrap()
-                        .checked_sub(old_delegation.amount.amount)
-                        .unwrap())
-                },
-            )?;
-
-            let mut response = Response::new().add_message(return_tokens);
-
-            if let Some(proxy) = &proxy {
-                let msg = Some(VestingContractExecuteMsg::TrackUndelegation {
-                    owner: delegate.as_str().to_string(),
-                    mix_identity: mix_identity.clone(),
-                    amount: old_delegation.amount.clone(),
-                });
-
-                let track_undelegation_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
-
-                response = response.add_message(track_undelegation_msg);
-            }
-            Ok(response.add_event(new_undelegation_event(
-                &delegate,
-                &proxy,
-                &old_delegation,
-                &mix_identity,
-            )))
-        }
+            address: delegate.to_string(),
+        });
     }
+
+    let mut total_delegation = Uint128::zero();
+    let mut denom = "".to_string();
+
+    for h in delegation_heights {
+        let storage_key = (mix_identity.clone(), maybe_proxy_storage.clone(), h);
+        let delegation = delegation_map.load(deps.storage, storage_key.clone())?;
+        total_delegation += delegation.amount.amount;
+        denom = delegation.amount.denom.clone();
+        delegation_map.replace(deps.storage, storage_key, None, Some(&delegation))?;
+    }
+
+    let return_tokens = BankMsg::Send {
+        to_address: proxy.as_ref().unwrap_or(&delegate).to_string(),
+        amount: coins(total_delegation.u128(), denom.clone()),
+    };
+
+    mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+        deps.storage,
+        &mix_identity,
+        |total_node_delegation| {
+            // the first unwrap is fine because the delegation information MUST exist, otherwise we would
+            // have never gotten here in the first place
+            // the second unwrap is also fine because we should NEVER underflow here,
+            // if we do, it means we have some serious error in our logic
+            Ok(total_node_delegation
+                .unwrap()
+                .checked_sub(total_delegation)
+                .unwrap())
+        },
+    )?;
+
+    let mut response = Response::new().add_message(return_tokens);
+
+    if let Some(proxy) = &proxy {
+        let msg = Some(VestingContractExecuteMsg::TrackUndelegation {
+            owner: delegate.as_str().to_string(),
+            mix_identity: mix_identity.clone(),
+            amount: Coin::new(total_delegation.u128(), denom),
+        });
+
+        let track_undelegation_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+
+        response = response.add_message(track_undelegation_msg);
+    }
+    Ok(response.add_event(new_undelegation_event(&delegate, &proxy, &mix_identity)))
 }
 
 #[cfg(test)]
@@ -342,7 +337,13 @@ mod tests {
 
             assert_eq!(
                 expected,
-                test_helpers::read_delegation(&deps.storage, &identity, delegation_owner).unwrap()
+                test_helpers::read_delegation(
+                    &deps.storage,
+                    &identity,
+                    delegation_owner.as_bytes(),
+                    mock_env().block.height
+                )
+                .unwrap()
             );
 
             // node's "total_delegation" is increased
@@ -413,7 +414,13 @@ mod tests {
 
             assert_eq!(
                 expected,
-                test_helpers::read_delegation(&deps.storage, &identity, delegation_owner).unwrap()
+                test_helpers::read_delegation(
+                    &deps.storage,
+                    &identity,
+                    delegation_owner.as_bytes(),
+                    mock_env().block.height
+                )
+                .unwrap()
             );
 
             // node's "total_delegation" is increased
@@ -462,7 +469,13 @@ mod tests {
 
             assert_eq!(
                 expected,
-                test_helpers::read_delegation(&deps.storage, &identity, delegation_owner).unwrap()
+                test_helpers::read_delegation(
+                    &deps.storage,
+                    &identity,
+                    delegation_owner.as_bytes(),
+                    mock_env().block.height
+                )
+                .unwrap()
             );
 
             // node's "total_delegation" is sum of both
@@ -493,16 +506,21 @@ mod tests {
             env2.block.height = updated_height;
             try_delegate_to_mixnode(
                 deps.as_mut(),
-                env1,
+                env1.clone(),
                 mock_info(delegation_owner.as_str(), &[delegation.clone()]),
                 identity.clone(),
             )
             .unwrap();
             assert_eq!(
                 initial_height,
-                test_helpers::read_delegation(&deps.storage, &identity, &delegation_owner)
-                    .unwrap()
-                    .block_height
+                test_helpers::read_delegation(
+                    &deps.storage,
+                    &identity,
+                    delegation_owner.as_bytes(),
+                    env1.block.height
+                )
+                .unwrap()
+                .block_height
             );
             try_delegate_to_mixnode(
                 deps.as_mut(),
@@ -512,11 +530,19 @@ mod tests {
             )
             .unwrap();
 
-            let updated =
-                test_helpers::read_delegation(&deps.storage, &identity, &delegation_owner).unwrap();
+            let delegations = crate::delegations::queries::query_mixnode_delegation(
+                &deps.storage,
+                &deps.api,
+                identity,
+                delegation_owner.to_string(),
+            )
+            .unwrap();
 
-            assert_eq!(delegation.amount + delegation.amount, updated.amount.amount);
-            assert_eq!(updated_height, updated.block_height);
+            let total_delegation = delegations
+                .iter()
+                .fold(Uint128::zero(), |acc, d| acc + d.amount.amount);
+
+            assert_eq!(delegation.amount + delegation.amount, total_delegation);
         }
 
         #[test]
@@ -540,7 +566,7 @@ mod tests {
             env2.block.height = second_height;
             try_delegate_to_mixnode(
                 deps.as_mut(),
-                env1,
+                env1.clone(),
                 mock_info(delegation_owner1.as_str(), &[delegation1]),
                 identity.clone(),
             )
@@ -548,13 +574,18 @@ mod tests {
 
             assert_eq!(
                 initial_height,
-                test_helpers::read_delegation(&deps.storage, &identity, &delegation_owner1)
-                    .unwrap()
-                    .block_height
+                test_helpers::read_delegation(
+                    &deps.storage,
+                    &identity,
+                    delegation_owner1.as_bytes(),
+                    env1.block.height
+                )
+                .unwrap()
+                .block_height
             );
             try_delegate_to_mixnode(
                 deps.as_mut(),
-                env2,
+                env2.clone(),
                 mock_info(delegation_owner2.as_str(), &[delegation2]),
                 identity.clone(),
             )
@@ -562,15 +593,25 @@ mod tests {
 
             assert_eq!(
                 initial_height,
-                test_helpers::read_delegation(&deps.storage, &identity, &delegation_owner1)
-                    .unwrap()
-                    .block_height
+                test_helpers::read_delegation(
+                    &deps.storage,
+                    &identity,
+                    delegation_owner1.as_bytes(),
+                    env1.block.height
+                )
+                .unwrap()
+                .block_height
             );
             assert_eq!(
                 second_height,
-                test_helpers::read_delegation(&deps.storage, identity, &delegation_owner2)
-                    .unwrap()
-                    .block_height
+                test_helpers::read_delegation(
+                    &deps.storage,
+                    identity,
+                    delegation_owner2.as_bytes(),
+                    env2.block.height
+                )
+                .unwrap()
+                .block_height
             );
         }
 
@@ -654,11 +695,23 @@ mod tests {
 
             assert_eq!(
                 expected1,
-                test_helpers::read_delegation(&deps.storage, identity1, &delegation_owner).unwrap()
+                test_helpers::read_delegation(
+                    &deps.storage,
+                    identity1,
+                    delegation_owner.as_bytes(),
+                    mock_env().block.height
+                )
+                .unwrap()
             );
             assert_eq!(
                 expected2,
-                test_helpers::read_delegation(&deps.storage, identity2, &delegation_owner).unwrap()
+                test_helpers::read_delegation(
+                    &deps.storage,
+                    identity2,
+                    delegation_owner.as_bytes(),
+                    mock_env().block.height
+                )
+                .unwrap()
             );
         }
 
@@ -726,7 +779,8 @@ mod tests {
 
             assert_eq!(
                 expected,
-                test_helpers::read_delegation(&deps.storage, identity, delegation_owner).unwrap()
+                test_helpers::read_delegation(&deps.storage, identity, delegation_owner.as_bytes(), mock_env().block.height)
+                    .unwrap()
             )
         }
     }
@@ -759,7 +813,7 @@ mod tests {
             assert_eq!(
                 Err(ContractError::NoMixnodeDelegationFound {
                     identity: identity.clone(),
-                    address: delegation_owner.clone(),
+                    address: delegation_owner.to_string(),
                 }),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
@@ -787,7 +841,8 @@ mod tests {
             )
             .unwrap();
             let delegation = query_mixnode_delegation(
-                deps.as_ref(),
+                &deps.storage,
+                &deps.api,
                 identity.clone(),
                 delegation_owner.clone().into_string(),
             )
@@ -798,12 +853,7 @@ mod tests {
                     to_address: delegation_owner.clone().into(),
                     amount: coins(100, DENOM),
                 })
-                .add_event(new_undelegation_event(
-                    &delegation_owner,
-                    &None,
-                    &delegation,
-                    &identity,
-                ));
+                .add_event(new_undelegation_event(&delegation_owner, &None, &identity));
 
             assert_eq!(
                 Ok(expected_response),
@@ -816,7 +866,7 @@ mod tests {
             assert!(storage::delegations()
                 .may_load(
                     &deps.storage,
-                    (identity.clone(), delegation_owner).joined_key(),
+                    (identity.clone(), delegation_owner.as_bytes().to_vec(), 0),
                 )
                 .unwrap()
                 .is_none());
@@ -848,7 +898,8 @@ mod tests {
             )
             .unwrap();
             let delegation = query_mixnode_delegation(
-                deps.as_ref(),
+                &deps.storage,
+                &deps.api,
                 identity.clone(),
                 delegation_owner.clone().into_string(),
             )
@@ -858,12 +909,7 @@ mod tests {
                     to_address: delegation_owner.clone().into(),
                     amount: coins(100, DENOM),
                 })
-                .add_event(new_undelegation_event(
-                    &delegation_owner,
-                    &None,
-                    &delegation,
-                    &identity,
-                ));
+                .add_event(new_undelegation_event(&delegation_owner, &None, &identity));
 
             try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
             assert_eq!(
@@ -875,9 +921,13 @@ mod tests {
                 )
             );
 
-            assert!(
-                test_helpers::read_delegation(&deps.storage, identity, delegation_owner).is_none()
-            );
+            assert!(test_helpers::read_delegation(
+                &deps.storage,
+                identity,
+                delegation_owner.as_bytes(),
+                mock_env().block.height
+            )
+            .is_none());
         }
 
         #[test]

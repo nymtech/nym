@@ -118,7 +118,6 @@ pub struct SupportedNetworks {
 
 impl SupportedNetworks {
     pub fn new(support: Vec<Network>) -> Self {
-        // let mut networks: HashMap<Network, NetworkDetails> = HashMap::new();
         let mut networks = HashMap::new();
 
         for network in support {

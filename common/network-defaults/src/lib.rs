@@ -11,8 +11,9 @@ pub mod mainnet;
 pub mod qa;
 pub mod sandbox;
 
-// Thes set of defaults that are decided at compile time
-// Keep DENOM around mostly for use in contracts. (TODO: consider moving it there?)
+// The set of defaults that are decided at compile time. Ideally we want to reduce these to a
+// minimum.
+// Keep DENOM around mostly for use in contracts. (TODO: consider moving it there, or renaming?)
 cfg_if::cfg_if! {
     if #[cfg(network = "mainnet")] {
         pub const DEFAULT_NETWORK: all::Network = all::Network::MAINNET;

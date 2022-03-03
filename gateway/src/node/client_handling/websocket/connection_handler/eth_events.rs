@@ -3,6 +3,7 @@
 
 use bip39::core::str::FromStr;
 use bip39::Mnemonic;
+use config::defaults::DEFAULT_NETWORK;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use url::Url;
@@ -38,18 +39,12 @@ impl ERC20Bridge {
             .expect("The list of validators is empty");
         let mnemonic =
             Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
-        let default_network = config::defaults::DEFAULT_NETWORK;
         let nymd_client = NymdClient::connect_with_mnemonic(
-            default_network,
-            // config::defaults::DEFAULT_NETWORK,
+            DEFAULT_NETWORK,
             nymd_url.as_ref(),
-            // AccountId::from_str(DEFAULT_MIXNET_CONTRACT_ADDRESS).ok(),
-            // WIP(JON): remove me, overriding default with default is not needed
-            AccountId::from_str(default_network.mixnet_contract_address()).ok(),
-            // Some(default_network.mixnet_contract_address().clone()),
+            AccountId::from_str(DEFAULT_NETWORK.mixnet_contract_address()).ok(),
             None,
-            // AccountId::from_str(DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS).ok(),
-            AccountId::from_str(default_network.bandwidth_claim_contract_address()).ok(),
+            AccountId::from_str(DEFAULT_NETWORK.bandwidth_claim_contract_address()).ok(),
             mnemonic,
             None,
         )

@@ -3,7 +3,6 @@ use validator_client::nymd::QueryNymdClient;
 
 pub(crate) fn new_nymd_client() -> validator_client::Client<QueryNymdClient> {
     let network = DEFAULT_NETWORK;
-    // WIP(JON): remove me, should pick up from network variable passed as first argument
     let mixnet_contract = network.mixnet_contract_address().to_string();
     let nymd_url = default_nymd_endpoints()[0].clone();
     let api_url = default_api_endpoints()[0].clone();

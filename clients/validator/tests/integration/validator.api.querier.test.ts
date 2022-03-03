@@ -13,6 +13,8 @@ describe("init the validator api querier", () => {
       //all mixnodes will have their owners address
       let response = await client.getRewardedMixnodes();
 
+      console.log(response);
+
       //this is dependany on config and network amend shortly
       response.forEach((Node) => {
         expect(Node.owner.length).toStrictEqual(43);

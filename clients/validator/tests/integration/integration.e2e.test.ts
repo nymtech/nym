@@ -164,8 +164,6 @@ describe("long running e2e tests", () => {
   test.only("delegate to mixnode, then undelegate", async () => {
 
       const pledge = buildCoin("100000000", config.CURRENCY_DENOM)
-      const getBalance = await validatorClient.getBalance(config.USER_WALLET_ADDRESS);
-      console.log(getBalance);
 
       try {
           response = await validatorClient.delegateToMixNode(

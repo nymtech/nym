@@ -13,23 +13,24 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.0.0-rc.3", features = [] }
+tauri-build = { version = "=1.0.0-rc.2", features = [] }
+
+tauri-codegen = "=1.0.0-rc.1"
+tauri-macros = "=1.0.0-rc.1"
+core-graphics = "=0.22.2"
 
 [dependencies]
-clap = "2.33.0"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 strum = { version = "0.23", features = ["derive"] }
-tauri = { version = "1.0.0-rc.3", features = ["shell-open", "system-tray"] }
+tauri = { version = "=1.0.0-rc.2", features = ["shell-open", "system-tray"] }
 tokio = { version = "1.10", features = ["sync"] }
-log = "0.4"
-pretty_env_logger = "0.4"
 dirs = "4.0"
 bip39 = "1.0"
 thiserror = "1.0"
 tendermint-rpc = "0.23.0"
 url = "2.2"
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand = "0.6.5"
 eyre = "0.6.5"
 
 aes-gcm = "0.9.4"

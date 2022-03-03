@@ -2,13 +2,9 @@ import { Mock, Times } from "moq.ts";
 import { INymdQuery } from "../../src/query-client";
 
 describe("nym-client mocks", () => {
-  beforeAll(() => {});
-
-  afterEach(() => {});
-
-  test.only("nymd mocks", async () => {
+  test.only("gets interval rewarding percent", async () => {
     let contract = "mixnet_contract";
-    let response = Promise.resolve(Number(200));
+    let response = Promise.resolve(Number(2));
 
     const client = new Mock<INymdQuery>()
       .setup((nym) => nym.getIntervalRewardPercent(contract))

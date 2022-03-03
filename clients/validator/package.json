@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "jest --coverage --verbose false",
+    "test": "jest --verbose false",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "docs": "typedoc --out docs src/index.ts"

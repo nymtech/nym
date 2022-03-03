@@ -1,7 +1,7 @@
 import validator from "../../src/index";
 import { ExecuteResult } from "@cosmjs/cosmwasm-stargate";
-import { Coin } from "@cosmjs/proto-signing";
 import { config } from "../test-utils/config";
+import {buildCoin, buildWallet, profitPercentage} from "../test-utils/utils"
 import {
   Gateway,
   GatewayOwnershipResponse,
@@ -26,7 +26,7 @@ beforeEach(async () => {
 });
 
 describe("long running e2e tests", () => {
-  test.only("token transfer", async () => {
+  test.skip("token transfer", async () => {
     try {
       //make sure there's enough balance in the wallet
       
@@ -61,7 +61,7 @@ describe("long running e2e tests", () => {
     }
   });
 
-  test.only("update mixnode profit percentage", async () => {
+  test.skip("update mixnode profit percentage", async () => {
       const nodeIdentity = config.MIXNODE_IDENTITY;
       const profitPercent = profitPercentage();
 
@@ -81,7 +81,7 @@ describe("long running e2e tests", () => {
       expect(ownsMixNode.mixnode?.mix_node.profit_margin_percent).toStrictEqual(profitPercent);
   });
 
-  test.only("unbond and bond mixnode", async () => {
+  test.skip("unbond and bond mixnode", async () => {
 
       try {
           await validatorClient.unbondMixNode("auto", "unbond-mixnode");
@@ -161,7 +161,7 @@ describe("long running e2e tests", () => {
       expect(ownsGateway.address).toStrictEqual(config.USER_WALLET_ADDRESS);
   });
 
-  test.only("delegate to mixnode, then undelegate", async () => {
+  test.skip("delegate to mixnode, then undelegate", async () => {
 
       const pledge = buildCoin("100000000", config.CURRENCY_DENOM)
 
@@ -171,6 +171,7 @@ describe("long running e2e tests", () => {
               pledge,
               "auto"
           );
+          //todo - we can assert the events for responses
           response.logs.forEach((log) => {
               console.log(log.events);
               console.log(log.log);
@@ -186,8 +187,7 @@ describe("long running e2e tests", () => {
               "auto"
           );
 
-          //see output of events
-          //remove shortly
+        //todo - we can assert the events for responses
           unbond.logs.forEach((logs) => {
               logs.events.forEach((events) => {
                   console.log(events.type);
@@ -199,27 +199,3 @@ describe("long running e2e tests", () => {
       }
   });
 });
-
-const profitPercentage = (): number => {
-  return Math.floor(Math.random() * 100) + 1;
-};
-
-
-const buildCoin = (amount: string, denomination: string): Coin => {
-  return {
-    denom: `u${denomination}`,
-    amount: amount,
-  };
-};
-
-const buildWallet = async (): Promise<string> => {
-    let mnemonic = validator.randomMnemonic();
-   
-    const randomAddress = await validator.mnemonicToAddress(
-      mnemonic,
-      config.NETWORK_BECH
-    );
-    console.log(randomAddress);
-    return randomAddress;
-  };
-  

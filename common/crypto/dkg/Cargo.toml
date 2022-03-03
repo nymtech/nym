@@ -22,6 +22,7 @@ serde = "1.0"
 serde_derive = "1.0"
 thiserror = "1.0"
 zeroize = { version = "1.4", features = ["zeroize_derive"] }
+rand_chacha = "0.3"
 
 [dependencies.group]
 version = "0.11"
@@ -32,4 +33,4 @@ version = "0.11"
 default-features = false
 
 [dev-dependencies]
-rand_chacha = "0.3"
+#rand_chacha = "0.3"

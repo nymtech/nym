@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::DkgError;
+use crate::utils::hash_g2;
 use bitvec::vec::BitVec;
 use bitvec::view::BitView;
 use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve};
@@ -13,6 +14,9 @@ use rand_core::RngCore;
 use std::collections::HashMap;
 use std::ops::Neg;
 use zeroize::Zeroize;
+
+pub mod proof_chunking;
+pub mod proof_discrete_log;
 
 // lambda - height of tree with 2^lambda leaves
 // tau - node path?; root has empty path with l = 0, while for a leaf l = lambda
@@ -28,8 +32,9 @@ lazy_static! {
     static ref DEFAULT_BSGS_TABLE: BabyStepGiantStepLookup = BabyStepGiantStepLookup::default();
 }
 
-// TODO:
-const SETUP_DOMAIN: &[u8] = b"QUUX-V01-CS02-with-BLS12381G2_XMD:SHA-256_SSWU_RO_";
+// Domain tries to follow guidelines specified by:
+// https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
+const SETUP_DOMAIN: &[u8] = b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381G2_XMD:SHA-256_SSWU_RO_SETUP";
 
 #[derive(Clone)]
 struct Epoch(BitVec<u32>);
@@ -58,12 +63,6 @@ impl Epoch {
     }
 }
 
-pub(crate) fn hash_g2<M: AsRef<[u8]>>(msg: M, dst: &[u8]) -> G2Projective {
-    <G2Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(msg, dst)
-}
-
-type Chunk = u16;
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 struct Share(Scalar);
 
@@ -72,11 +71,20 @@ struct ShareEncryptionPlaintext {
     chunks: [Chunk; NUM_CHUNKS],
 }
 
+pub type Chunk = u16;
+
 // note: CHUNK_BYTES * NUM_CHUNKS must equal to SCALAR_SIZE
 pub const CHUNK_BYTES: usize = 2;
 pub const NUM_CHUNKS: usize = 16;
 pub const SCALAR_SIZE: usize = 32;
 pub const CHUNK_MAX: usize = 1 << (CHUNK_BYTES << 3);
+
+// pub type Chunk = u32;
+//
+// pub const CHUNK_BYTES: usize = 4;
+// pub const NUM_CHUNKS: usize = 8;
+// pub const SCALAR_SIZE: usize = 32;
+// pub const CHUNK_MAX: usize = 1 << (CHUNK_BYTES << 3);
 
 impl From<Share> for ShareEncryptionPlaintext {
     fn from(share: Share) -> ShareEncryptionPlaintext {

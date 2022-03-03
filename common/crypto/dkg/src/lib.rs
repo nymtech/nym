@@ -13,6 +13,7 @@ mod interpolation;
 // secure channel encryption scheme, but I would assume that the top-level API would
 // remain more or less the same
 pub mod secure_channel;
+pub(crate) mod utils;
 
 pub struct Share(Scalar);
 

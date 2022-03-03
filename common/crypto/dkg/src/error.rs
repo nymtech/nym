@@ -19,4 +19,10 @@ pub enum DkgError {
 
     #[error("The share encrypted under index {0} doesn't exist")]
     UnavailableCiphertext(usize),
+
+    #[error("The provided lookup table is mismatched")]
+    MismatchedLookupTable,
+
+    #[error("Failed to verify proof of discrete logarithm")]
+    InvalidProofOfDiscreteLog,
 }

@@ -25,6 +25,7 @@ lazy_static! {
     static ref PAIRING_BASE: Gt =
         bls12_381::pairing(&G1Affine::generator(), &G2Affine::generator());
     static ref G2_GENERATOR_PREPARED: G2Prepared = G2Prepared::from(G2Affine::generator());
+    static ref DEFAULT_BSGS_TABLE: BabyStepGiantStepLookup = BabyStepGiantStepLookup::default();
 }
 
 // TODO:
@@ -212,11 +213,7 @@ fn setup() -> Params {
 }
 
 // produces public key and a decryption key for the root of the tree
-fn keygen(
-    _some_weird_data_arg: &[u8],
-    params: &Params,
-    mut rng: impl RngCore,
-) -> (PublicKey, DecryptionKey) {
+fn keygen(params: &Params, mut rng: impl RngCore) -> (PublicKey, DecryptionKey) {
     let g1 = G1Projective::generator();
     let g2 = G2Projective::generator();
 
@@ -404,7 +401,7 @@ fn decrypt_chunk(
     z: &G2Projective,
     c: &G1Projective,
     epoch: &Epoch,
-    associated_data: &[u8],
+    lookup_table: Option<&BabyStepGiantStepLookup>,
 ) -> Result<Chunk, DkgError> {
     // TODO: if we go with forward secrecy then we presumably need to evolve dk
 
@@ -422,7 +419,7 @@ fn decrypt_chunk(
     ]);
     let m = miller.final_exponentiation();
 
-    baby_step_giant_step(&m, &PAIRING_BASE)
+    baby_step_giant_step(&m, &PAIRING_BASE, lookup_table)
 }
 
 fn decrypt_share(
@@ -431,7 +428,7 @@ fn decrypt_share(
     i: usize,
     ciphertext: &Ciphertext,
     epoch: &Epoch,
-    associated_data: &[u8],
+    lookup_table: Option<&BabyStepGiantStepLookup>,
 ) -> Result<Share, DkgError> {
     let mut plaintext = ShareEncryptionPlaintext::default();
 
@@ -447,11 +444,69 @@ fn decrypt_share(
             &ciphertext.z[j],
             &ciphertext.ciphertext_chunks[i][j],
             epoch,
-            associated_data,
+            lookup_table,
         )?;
     }
 
     plaintext.try_into()
+}
+
+pub struct BabyStepGiantStepLookup {
+    base: Gt,
+    m: Chunk,
+    lookup: HashMap<[u8; 576], Chunk>,
+}
+
+impl BabyStepGiantStepLookup {
+    pub fn precompute(base: &Gt) -> Self {
+        let mut lookup = HashMap::new();
+        let mut g = Gt::identity();
+
+        // 1. m ← Ceiling(√n)
+        let m = (CHUNK_MAX as f32).sqrt().ceil() as Chunk;
+
+        // 2. For all j where 0 ≤ j < m:
+        for j in 0..m {
+            // Compute α^j and store the pair (j, α^j) in a table.
+            lookup.insert(g.to_uncompressed(), j);
+            g += base;
+        }
+
+        BabyStepGiantStepLookup {
+            base: *base,
+            m,
+            lookup,
+        }
+    }
+
+    fn try_solve(&self, target: &Gt) -> Result<Chunk, DkgError> {
+        // 3. Compute α^{−m}
+        let m_neg = Scalar::from(self.m as u64).neg();
+        let alpha_m = self.base * m_neg;
+
+        // 4. γ ← β. (set γ = β)
+        let mut gamma = *target;
+
+        // 5. For all i where 0 ≤ i < m:
+        for i in 0..self.m {
+            // 1. Check to see if γ is the second component (αj) of any pair in the table.
+            if let Some(j) = self.lookup.get(&gamma.to_uncompressed()) {
+                // 2. If so, return im + j.
+                return Ok(i * self.m + j);
+            } else {
+                // 3. If not, γ ← γ • α^{−m}.
+                gamma += alpha_m;
+            }
+        }
+
+        Err(DkgError::UnsolvableDiscreteLog)
+    }
+}
+
+impl Default for BabyStepGiantStepLookup {
+    fn default() -> Self {
+        BabyStepGiantStepLookup::precompute(&PAIRING_BASE)
+    }
 }
 
 /// Attempts to solve the discrete log problem g^m, where g is in the Gt group and
@@ -463,40 +518,24 @@ fn decrypt_share(
 ///
 /// * `target`: the result of the exponentiation, M in M = g^m,
 /// * `base`: the base used for exponentiation, g in M = g^m
-pub fn baby_step_giant_step(target: &Gt, base: &Gt) -> Result<Chunk, DkgError> {
-    let mut lookup = HashMap::new();
-    let mut g = Gt::identity();
+/// * `lookup_table`: precomputed table containing (j, α^j) pairs
+pub fn baby_step_giant_step(
+    target: &Gt,
+    base: &Gt,
+    lookup_table: Option<&BabyStepGiantStepLookup>,
+) -> Result<Chunk, DkgError> {
+    if let Some(lookup_table) = lookup_table {
+        // compute expected m to make sure the provided lookup is valid
+        let m = (CHUNK_MAX as f32).sqrt().ceil() as Chunk;
 
-    // 1. m ← Ceiling(√n)
-    let m = (CHUNK_MAX as f32).sqrt().ceil() as Chunk;
-
-    // 2. For all j where 0 ≤ j < m:
-    for j in 0..m {
-        // Compute α^j and store the pair (j, α^j) in a table.
-        lookup.insert(g.to_uncompressed(), j);
-        g += base;
-    }
-
-    // 3. Compute α^{−m}
-    let m_neg = Scalar::from(m as u64).neg();
-    let alpha_m = base * m_neg;
-
-    // 4. γ ← β. (set γ = β)
-    let mut gamma = *target;
-
-    // 5. For all i where 0 ≤ i < m:
-    for i in 0..m {
-        // 1. Check to see if γ is the second component (αj) of any pair in the table.
-        if let Some(j) = lookup.get(&gamma.to_uncompressed()) {
-            // 2. If so, return im + j.
-            return Ok(i * m + j);
-        } else {
-            // 3. If not, γ ← γ • α^{−m}.
-            gamma += alpha_m;
+        if &lookup_table.base != base || lookup_table.lookup.len() != m as usize {
+            return Err(DkgError::MismatchedLookupTable);
         }
-    }
 
-    Err(DkgError::UnsolvableDiscreteLog)
+        lookup_table.try_solve(target)
+    } else {
+        BabyStepGiantStepLookup::precompute(base).try_solve(target)
+    }
 }
 
 #[cfg(test)]
@@ -506,7 +545,7 @@ mod tests {
     use rand_core::SeedableRng;
 
     #[test]
-    fn baby_giant_100() {
+    fn baby_giant_100_without_table() {
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
@@ -515,7 +554,29 @@ mod tests {
             let x = (rng.next_u64() + i) % CHUNK_MAX as u64;
             let target = base * Scalar::from(x);
 
-            assert_eq!(baby_step_giant_step(&target, &base).unwrap(), x as Chunk);
+            assert_eq!(
+                baby_step_giant_step(&target, &base, None).unwrap(),
+                x as Chunk
+            );
+        }
+    }
+
+    #[test]
+    fn baby_giant_100_with_table() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let base = Gt::random(&mut rng);
+        let lookup_table = BabyStepGiantStepLookup::precompute(&base);
+        let table = Some(&lookup_table);
+
+        for i in 0u64..100 {
+            let x = (rng.next_u64() + i) % CHUNK_MAX as u64;
+            let target = base * Scalar::from(x);
+
+            assert_eq!(
+                baby_step_giant_step(&target, &base, table).unwrap(),
+                x as Chunk
+            );
         }
     }
 
@@ -525,7 +586,7 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
         let params = setup();
 
-        let (public_key, decryption_key) = keygen(&[], &params, &mut rng);
+        let (public_key, decryption_key) = keygen(&params, &mut rng);
         let epoch = Epoch::new(0);
 
         for i in 0u64..100 {
@@ -539,7 +600,7 @@ mod tests {
                 &ciphertext.z,
                 &ciphertext.c,
                 &epoch,
-                &[],
+                Some(&DEFAULT_BSGS_TABLE),
             )
             .unwrap();
             assert_eq!(m, recovered);
@@ -552,9 +613,11 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
         let params = setup();
 
-        let (public_key1, decryption_key1) = keygen(&[], &params, &mut rng);
-        let (public_key2, decryption_key2) = keygen(&[], &params, &mut rng);
+        let (public_key1, decryption_key1) = keygen(&params, &mut rng);
+        let (public_key2, decryption_key2) = keygen(&params, &mut rng);
         let epoch = Epoch::new(0);
+
+        let lookup_table = &DEFAULT_BSGS_TABLE;
 
         for _ in 0..10 {
             let m1 = Share(Scalar::random(&mut rng));
@@ -563,8 +626,12 @@ mod tests {
 
             let ciphertext = encrypt_shares(shares, &epoch, &params, &mut rng);
 
-            let recovered1 = decrypt_share(&decryption_key1, 0, &ciphertext, &epoch, &[]).unwrap();
-            let recovered2 = decrypt_share(&decryption_key2, 1, &ciphertext, &epoch, &[]).unwrap();
+            let recovered1 =
+                decrypt_share(&decryption_key1, 0, &ciphertext, &epoch, Some(lookup_table))
+                    .unwrap();
+            let recovered2 =
+                decrypt_share(&decryption_key2, 1, &ciphertext, &epoch, Some(lookup_table))
+                    .unwrap();
             assert_eq!(m1, recovered1);
             assert_eq!(m2, recovered2);
         }

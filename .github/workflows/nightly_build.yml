@@ -56,6 +56,12 @@ jobs:
           command: fmt
           args: --all -- --check
 
+      - name: Reclaim some disk space (because Windows is being annoying)
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: clean
+
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks
         with:
@@ -69,13 +75,8 @@ jobs:
           command: clippy
           args: -- -D warnings
 
-#        COCONUT stuff
-      - name: Reclaim some disk space (because Windows is being annoying)
-        uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' }}
-        with:
-          command: clean
 
+      # COCONUT stuff
       - name: Build all binaries with coconut enabled
         uses: actions-rs/cargo@v1
         with:

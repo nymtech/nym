@@ -5,7 +5,7 @@ export const config = {
     VESTING_CONTRACT: process.env.VESTING_CONTRACT as string,
     USER_MNEMONIC: process.env.USER_MNEMONIC as string,
     USER_WALLET_ADDRESS: process.env.USER_WALLET_ADDRESS as string,
-    CURRENCY_PREFIX: process.env.CURRENCY_PREFIX as string,
+    CURRENCY_DENOM: process.env.CURRENCY_DENOM as string,
     CHAIN_ID: process.env.CHAIN_ID as string,
     MIXNODE_IDENTITY: process.env.MIXNODE_IDENTITY as string,
     MIXNODE_SPHINX_KEY: process.env.MIXNODE_SPHINX_KEY as string,
@@ -18,4 +18,6 @@ export const config = {
     GATEWAY_LOCATION: process.env.GATEWAY_LOCATION as string,
     GATEWAY_HOST: process.env.GATEWAY_HOST as string,
     GATEWAY_VERSION: process.env.GATEWAY_VERSION as string,
-}
+    NETWORK_BECH: process.env.NETWORK_BECH as string,
+  };
+  

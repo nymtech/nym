@@ -2780,7 +2780,6 @@ name = "network-defaults"
 version = "0.1.0"
 dependencies = [
  "cfg-if 1.0.0",
- "cosmrs",
  "hex-literal",
  "once_cell",
  "serde",

@@ -108,4 +108,17 @@ impl Config {
       .parse()
       .ok()
   }
+
+  pub fn get_bandwidth_claim_contract_address(
+    &self,
+    network: Network,
+  ) -> Option<cosmrs::AccountId> {
+    self
+      .base
+      .networks
+      .bandwidth_claim_contract_address(network.into())
+      .expect("No bandwidth claim contract address found in config")
+      .parse()
+      .ok()
+  }
 }

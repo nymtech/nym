@@ -4,11 +4,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "format": "prettier --write send_message.js"
+    "dev": "node dev.js",
+    "format": "prettier --write **/*.js"
   },
   "dependencies": {
+    "dotenv": "^16.0.0",
     "handlebars": "^4.7.7",
-    "keybase-bot": "^3.6.1"
+    "keybase-bot": "^3.6.1",
+    "octokit": "^1.7.1"
   },
   "devDependencies": {
     "prettier": "2.3.2"

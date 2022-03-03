@@ -4,6 +4,7 @@
 use crate::node::client_handling::websocket::connection_handler::{ClientDetails, FreshHandler};
 use crate::node::client_handling::websocket::message_receiver::MixMessageReceiver;
 use crate::node::storage::error::StorageError;
+use crate::node::storage::Storage;
 use futures::StreamExt;
 use gateway_requests::iv::IVConversionError;
 use gateway_requests::types::{BinaryRequest, ServerResponse};
@@ -89,14 +90,14 @@ impl IntoWSMessage for Result<ServerResponse, RequestHandlingError> {
     }
 }
 
-pub(crate) struct AuthenticatedHandler<R, S> {
-    inner: FreshHandler<R, S>,
+pub(crate) struct AuthenticatedHandler<R, S, St> {
+    inner: FreshHandler<R, S, St>,
     client: ClientDetails,
     mix_receiver: MixMessageReceiver,
 }
 
 // explicitly remove handle from the global store upon being dropped
-impl<R, S> Drop for AuthenticatedHandler<R, S> {
+impl<R, S, St> Drop for AuthenticatedHandler<R, S, St> {
     fn drop(&mut self) {
         self.inner
             .active_clients_store
@@ -104,10 +105,11 @@ impl<R, S> Drop for AuthenticatedHandler<R, S> {
     }
 }
 
-impl<R, S> AuthenticatedHandler<R, S>
+impl<R, S, St> AuthenticatedHandler<R, S, St>
 where
     // TODO: those trait bounds here don't really make sense....
     R: Rng + CryptoRng,
+    St: Storage,
 {
     /// Upgrades `FreshHandler` into the Authenticated variant implying the client is now authenticated
     /// and thus allowed to perform more actions with the gateway, such as redeeming bandwidth or
@@ -119,7 +121,7 @@ where
     /// * `client`: details (i.e. address and shared keys) of the registered client
     /// * `mix_receiver`: channel used for receiving messages from the mixnet destined for this client.
     pub(crate) fn upgrade(
-        fresh: FreshHandler<R, S>,
+        fresh: FreshHandler<R, S, St>,
         client: ClientDetails,
         mix_receiver: MixMessageReceiver,
     ) -> Self {
@@ -248,15 +250,25 @@ where
             &self.client.shared_keys,
             iv,
         )?;
+        if !self
+            .inner
+            .check_local_identity(&credential.gateway_identity())
+        {
+            return Err(RequestHandlingError::InvalidBandwidthCredential);
+        }
 
-        debug!("Received bandwidth increase request. Verifying signature");
         if !credential.verify_signature() {
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
         debug!("Verifying Ethereum for token burn...");
-        self.inner
+        let gateway_owner = self
+            .inner
             .erc20_bridge
             .verify_eth_events(credential.verification_key())
+            .await?;
+        self.inner
+            .erc20_bridge
+            .verify_gateway_owner(gateway_owner, &credential.gateway_identity())
             .await?;
         debug!("Claim the token on Cosmos, to make sure it's not spent twice...");
         self.inner.erc20_bridge.claim_token(&credential).await?;
@@ -276,7 +288,6 @@ where
 
         self.increase_bandwidth(bandwidth_value as i64).await?;
         let available_total = self.get_available_bandwidth().await?;
-        debug!("Increased bandwidth for client: {:?}", self.client.address);
 
         Ok(ServerResponse::Bandwidth { available_total })
     }
@@ -401,6 +412,7 @@ where
     pub(crate) async fn listen_for_requests(mut self)
     where
         S: AsyncRead + AsyncWrite + Unpin,
+        St: Storage,
     {
         trace!("Started listening for ALL incoming requests...");
 

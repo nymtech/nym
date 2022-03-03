@@ -16,22 +16,27 @@ use crypto::asymmetric::identity::PublicKey;
 use network_defaults::BANDWIDTH_VALUE;
 #[cfg(not(feature = "coconut"))]
 use network_defaults::{
-    eth_contract::ETH_JSON_ABI, ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS, ETH_MIN_BLOCK_DEPTH,
-    TOKENS_TO_BURN,
+    eth_contract::ETH_ERC20_JSON_ABI, eth_contract::ETH_JSON_ABI, ETH_BURN_FUNCTION_NAME,
+    ETH_CONTRACT_ADDRESS, ETH_ERC20_APPROVE_FUNCTION_NAME, ETH_ERC20_CONTRACT_ADDRESS,
+    ETH_MIN_BLOCK_DEPTH, TOKENS_TO_BURN, UTOKENS_TO_BURN,
 };
+#[cfg(not(feature = "coconut"))]
+use pemstore::traits::PemStorableKeyPair;
 #[cfg(not(feature = "coconut"))]
 use rand::rngs::OsRng;
 #[cfg(not(feature = "coconut"))]
 use secp256k1::SecretKey;
 #[cfg(not(feature = "coconut"))]
-use std::io::Write;
+use std::io::{Read, Write};
 #[cfg(not(feature = "coconut"))]
 use std::str::FromStr;
 #[cfg(not(feature = "coconut"))]
 use web3::{
     contract::{Contract, Options},
+    ethabi::Token,
+    signing::{Key, SecretKeyRef},
     transports::Http,
-    types::{Address, Bytes, U256, U64},
+    types::{Address, U256, U64},
     Web3,
 };
 
@@ -50,6 +55,19 @@ pub fn eth_contract(web3: Web3<Http>) -> Contract<Http> {
     .expect("Invalid json abi")
 }
 
+#[cfg(not(feature = "coconut"))]
+pub fn eth_erc20_contract(web3: Web3<Http>) -> Contract<Http> {
+    Contract::from_json(
+        web3.eth(),
+        Address::from(ETH_ERC20_CONTRACT_ADDRESS),
+        json::parse(ETH_ERC20_JSON_ABI)
+            .expect("Invalid json abi")
+            .dump()
+            .as_bytes(),
+    )
+    .expect("Invalid json abi")
+}
+
 #[derive(Clone)]
 pub struct BandwidthController {
     #[cfg(feature = "coconut")]
@@ -58,6 +76,8 @@ pub struct BandwidthController {
     identity: PublicKey,
     #[cfg(not(feature = "coconut"))]
     contract: Contract<Http>,
+    #[cfg(not(feature = "coconut"))]
+    erc20_contract: Contract<Http>,
     #[cfg(not(feature = "coconut"))]
     eth_private_key: SecretKey,
     #[cfg(not(feature = "coconut"))]
@@ -84,12 +104,14 @@ impl BandwidthController {
             Http::new(&eth_endpoint).map_err(|_| GatewayClientError::InvalidURL(eth_endpoint))?;
         let web3 = web3::Web3::new(transport);
         // Fail early, on invalid abi
-        let contract = eth_contract(web3);
+        let contract = eth_contract(web3.clone());
+        let erc20_contract = eth_erc20_contract(web3);
         let eth_private_key = secp256k1::SecretKey::from_str(&eth_private_key)
             .map_err(|_| GatewayClientError::InvalidEthereumPrivateKey)?;
 
         Ok(BandwidthController {
             contract,
+            erc20_contract,
             eth_private_key,
             backup_bandwidth_token_keys_dir,
         })
@@ -103,6 +125,45 @@ impl BandwidthController {
             .join(keypair.public_key().to_base58_string());
         let mut file = std::fs::File::create(file_path)?;
         file.write_all(&keypair.private_key().to_bytes())?;
+
+        Ok(())
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    fn restore_keypair(&self) -> Result<identity::KeyPair, GatewayClientError> {
+        std::fs::create_dir_all(&self.backup_bandwidth_token_keys_dir)?;
+        let file = std::fs::read_dir(&self.backup_bandwidth_token_keys_dir)?
+            .find(|entry| {
+                entry
+                    .as_ref()
+                    .map(|entry| entry.path().is_file())
+                    .unwrap_or(false)
+            })
+            .unwrap_or_else(|| Err(std::io::Error::from(std::io::ErrorKind::NotFound)))?;
+        let file_path = file.path();
+        let pub_key = file_path
+            .file_name()
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))?
+            .to_str()
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))?;
+        let mut priv_key = vec![];
+        std::fs::File::open(file_path.clone())?.read_to_end(&mut priv_key)?;
+        Ok(identity::KeyPair::from_keys(
+            identity::PrivateKey::from_bytes(&priv_key).unwrap(),
+            identity::PublicKey::from_base58_string(pub_key).unwrap(),
+        ))
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    fn mark_keypair_as_spent(&self, keypair: &identity::KeyPair) -> Result<(), GatewayClientError> {
+        let mut spent_dir = self.backup_bandwidth_token_keys_dir.clone();
+        spent_dir.push("spent");
+        std::fs::create_dir_all(&spent_dir)?;
+        let file_path_old = self
+            .backup_bandwidth_token_keys_dir
+            .join(keypair.public_key().to_base58_string());
+        let file_path_new = spent_dir.join(keypair.public_key().to_base58_string());
+        std::fs::rename(file_path_old, file_path_new)?;
 
         Ok(())
     }
@@ -145,16 +206,24 @@ impl BandwidthController {
     pub async fn prepare_token_credential(
         &self,
         gateway_identity: PublicKey,
+        gateway_owner: String,
     ) -> Result<TokenCredential, GatewayClientError> {
-        let mut rng = OsRng;
-
-        let kp = identity::KeyPair::new(&mut rng);
-        self.backup_keypair(&kp)?;
+        let kp = match self.restore_keypair() {
+            Ok(kp) => kp,
+            Err(_) => {
+                let mut rng = OsRng;
+                let kp = identity::KeyPair::new(&mut rng);
+                self.backup_keypair(&kp)?;
+                kp
+            }
+        };
 
         let verification_key = *kp.public_key();
         let signed_verification_key = kp.private_key().sign(&verification_key.to_bytes());
-        self.buy_token_credential(verification_key, signed_verification_key)
+        self.buy_token_credential(verification_key, signed_verification_key, gateway_owner)
             .await?;
+
+        self.mark_keypair_as_spent(&kp)?;
 
         let message: Vec<u8> = verification_key
             .to_bytes()
@@ -177,28 +246,109 @@ impl BandwidthController {
         &self,
         verification_key: PublicKey,
         signed_verification_key: identity::Signature,
+        gateway_owner: String,
     ) -> Result<(), GatewayClientError> {
-        // 0 means a transaction failure, 1 means success
         let confirmations = if cfg!(debug_assertions) {
             1
         } else {
             ETH_MIN_BLOCK_DEPTH
         };
-        // 15 seconds per confirmation block + 10 seconds of network overhead
+        // 15 seconds per confirmation block + 10 seconds of network overhead + 20 seconds of wait for kill
         log::info!(
             "Waiting for Ethereum transaction. This should take about {} seconds",
-            confirmations * 15 + 10
+            (confirmations + 1) * 15 + 30
         );
+        let mut options = Options::default();
+        let estimation = self
+            .erc20_contract
+            .estimate_gas(
+                ETH_ERC20_APPROVE_FUNCTION_NAME,
+                (
+                    Token::Address(Address::from(ETH_CONTRACT_ADDRESS)),
+                    Token::Uint(U256::from(UTOKENS_TO_BURN)),
+                ),
+                SecretKeyRef::from(&self.eth_private_key).address(),
+                options.clone(),
+            )
+            .await?;
+        options.gas = Some(estimation);
+        log::info!("Calling ERC20 approve in 10 seconds with an estimated gas of {}. Kill the process if you want to abort", estimation);
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+        #[cfg(target_arch = "wasm32")]
+        if let Err(err) = fluvio_wasm_timer::Delay::new(std::time::Duration::from_secs(10)).await {
+            log::error!(
+                "the timer has gone away while waiting for possible kill! - {}",
+                err
+            );
+        }
+        let recipt = self
+            .erc20_contract
+            .signed_call_with_confirmations(
+                ETH_ERC20_APPROVE_FUNCTION_NAME,
+                (
+                    Token::Address(Address::from(ETH_CONTRACT_ADDRESS)),
+                    Token::Uint(U256::from(UTOKENS_TO_BURN)),
+                ),
+                options,
+                1, // One confirmation is enough, as we'll be consuming the approved token next anyway
+                &self.eth_private_key,
+            )
+            .await?;
+        if Some(U64::from(0u64)) == recipt.status {
+            return Err(GatewayClientError::BurnTokenError(
+                web3::Error::InvalidResponse(format!(
+                    "Approve transaction status is 0 (failure): {:?}",
+                    recipt.logs,
+                )),
+            ));
+        } else {
+            log::info!(
+                "Approved {} tokens for bandwidth use on Ethereum",
+                TOKENS_TO_BURN
+            );
+        }
+
+        let mut options = Options::default();
+        let estimation = self
+            .contract
+            .estimate_gas(
+                ETH_BURN_FUNCTION_NAME,
+                (
+                    Token::Uint(U256::from(UTOKENS_TO_BURN)),
+                    Token::Uint(U256::from(&verification_key.to_bytes())),
+                    Token::Bytes(signed_verification_key.to_bytes().to_vec()),
+                    Token::String(gateway_owner.clone()),
+                ),
+                SecretKeyRef::from(&self.eth_private_key).address(),
+                options.clone(),
+            )
+            .await?;
+        options.gas = Some(estimation);
+        log::info!("Generating bandwidth on ETH contract in 10 seconds with an estimated gas of {}. \
+         Kill the process if you want to abort. Keep in mind that if you abort now, you'll still have \
+         some tokens approved for bandwidth spending from the previous action. \
+         If you don't want that, you'll need to manually decreaseAllowance to revert the approval.", estimation);
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+        #[cfg(target_arch = "wasm32")]
+        if let Err(err) = fluvio_wasm_timer::Delay::new(std::time::Duration::from_secs(10)).await {
+            log::error!(
+                "the timer has gone away while waiting for possible kill! - {}",
+                err
+            );
+        }
         let recipt = self
             .contract
             .signed_call_with_confirmations(
                 ETH_BURN_FUNCTION_NAME,
                 (
-                    U256::from(TOKENS_TO_BURN),
-                    U256::from(&verification_key.to_bytes()),
-                    Bytes(signed_verification_key.to_bytes().to_vec()),
+                    Token::Uint(U256::from(UTOKENS_TO_BURN)),
+                    Token::Uint(U256::from(&verification_key.to_bytes())),
+                    Token::Bytes(signed_verification_key.to_bytes().to_vec()),
+                    Token::String(gateway_owner),
                 ),
-                Options::default(),
+                options,
                 confirmations,
                 &self.eth_private_key,
             )
@@ -234,6 +384,15 @@ mod tests {
         let web3 = web3::Web3::new(transport);
         // test no panic occurs
         eth_contract(web3);
+    }
+
+    #[test]
+    fn parse_erc20_contract() {
+        let transport =
+            Http::new("https://rinkeby.infura.io/v3/00000000000000000000000000000000").unwrap();
+        let web3 = web3::Web3::new(transport);
+        // test no panic occurs
+        eth_erc20_contract(web3);
     }
 
     #[test]

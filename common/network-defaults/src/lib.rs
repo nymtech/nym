@@ -1,5 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -9,57 +11,78 @@ pub mod mainnet;
 pub mod qa;
 pub mod sandbox;
 
+// The set of defaults that are decided at compile time. Ideally we want to reduce these to a
+// minimum.
+// Keep DENOM around mostly for use in contracts. (TODO: consider moving it there, or renaming?)
 cfg_if::cfg_if! {
     if #[cfg(network = "mainnet")] {
-        pub const BECH32_PREFIX: &str = mainnet::BECH32_PREFIX;
+        pub const DEFAULT_NETWORK: all::Network = all::Network::MAINNET;
         pub const DENOM: &str = mainnet::DENOM;
 
-        pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = mainnet::MIXNET_CONTRACT_ADDRESS;
-        pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = mainnet::VESTING_CONTRACT_ADDRESS;
-        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
-        pub const DEFAULT_REWARDING_VALIDATOR_ADDRESS: &str = mainnet::REWARDING_VALIDATOR_ADDRESS;
+        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
+        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
 
-        pub fn default_validators() -> Vec<ValidatorDetails> {
-            mainnet::validators()
-        }
-
-        pub fn default_network() -> all::Network {
-            all::Network::MAINNET
-        }
     } else if #[cfg(network = "qa")] {
-        pub const BECH32_PREFIX: &str = qa::BECH32_PREFIX;
+        pub const DEFAULT_NETWORK: all::Network = all::Network::QA;
         pub const DENOM: &str = qa::DENOM;
 
-        pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = qa::MIXNET_CONTRACT_ADDRESS;
-        pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = qa::VESTING_CONTRACT_ADDRESS;
-        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
-        pub const DEFAULT_REWARDING_VALIDATOR: &str = qa::REWARDING_VALIDATOR_ADDRESS;
+        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_CONTRACT_ADDRESS;
+        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_ERC20_CONTRACT_ADDRESS;
 
-        pub fn default_validators() -> Vec<ValidatorDetails> {
-            qa::validators()
-        }
-
-        pub fn default_network() -> all::Network {
-            all::Network::QA
-        }
     } else if #[cfg(network = "sandbox")] {
-        pub const BECH32_PREFIX: &str = sandbox::BECH32_PREFIX;
+        pub const DEFAULT_NETWORK: all::Network = all::Network::SANDBOX;
         pub const DENOM: &str = sandbox::DENOM;
 
-        pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = sandbox::MIXNET_CONTRACT_ADDRESS;
-        pub const DEFAULT_VESTING_CONTRACT_ADDRESS: &str = sandbox::VESTING_CONTRACT_ADDRESS;
-        pub const DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str = sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS;
-        pub const DEFAULT_REWARDING_VALIDATOR: &str = sandbox::REWARDING_VALIDATOR_ADDRESS;
-
-        pub fn default_validators() -> Vec<ValidatorDetails> {
-            sandbox::validators()
-        }
-
-        pub fn default_network() -> all::Network {
-            all::Network::SANDBOX
-        }
+        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_CONTRACT_ADDRESS;
+        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_ERC20_CONTRACT_ADDRESS;
     }
 }
+
+// Since these are lazily constructed, we can afford to switch some of them to stronger types in the
+// future. If we do this, and also get rid of the references we could potentially unify with
+// `NetworkDetails`.
+#[derive(Debug)]
+pub struct DefaultNetworkDetails<'a> {
+    bech32_prefix: &'a str,
+    denom: &'a str,
+    mixnet_contract_address: &'a str,
+    vesting_contract_address: &'a str,
+    bandwidth_claim_contract_address: &'a str,
+    rewarding_validator_address: &'a str,
+    validators: Vec<ValidatorDetails>,
+}
+
+static MAINNET_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> =
+    Lazy::new(|| DefaultNetworkDetails {
+        bech32_prefix: mainnet::BECH32_PREFIX,
+        denom: mainnet::DENOM,
+        mixnet_contract_address: mainnet::MIXNET_CONTRACT_ADDRESS,
+        vesting_contract_address: mainnet::VESTING_CONTRACT_ADDRESS,
+        bandwidth_claim_contract_address: mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+        rewarding_validator_address: mainnet::REWARDING_VALIDATOR_ADDRESS,
+        validators: mainnet::validators(),
+    });
+
+static SANDBOX_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> =
+    Lazy::new(|| DefaultNetworkDetails {
+        bech32_prefix: sandbox::BECH32_PREFIX,
+        denom: sandbox::DENOM,
+        mixnet_contract_address: sandbox::MIXNET_CONTRACT_ADDRESS,
+        vesting_contract_address: sandbox::VESTING_CONTRACT_ADDRESS,
+        bandwidth_claim_contract_address: sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+        rewarding_validator_address: sandbox::REWARDING_VALIDATOR_ADDRESS,
+        validators: sandbox::validators(),
+    });
+
+static QA_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> = Lazy::new(|| DefaultNetworkDetails {
+    bech32_prefix: qa::BECH32_PREFIX,
+    denom: qa::DENOM,
+    mixnet_contract_address: qa::MIXNET_CONTRACT_ADDRESS,
+    vesting_contract_address: qa::VESTING_CONTRACT_ADDRESS,
+    bandwidth_claim_contract_address: qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+    rewarding_validator_address: qa::REWARDING_VALIDATOR_ADDRESS,
+    validators: qa::validators(),
+});
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ValidatorDetails {
@@ -93,31 +116,35 @@ impl ValidatorDetails {
 }
 
 pub fn default_nymd_endpoints() -> Vec<Url> {
-    default_validators()
-        .iter()
+    DEFAULT_NETWORK
+        .validators()
         .map(|validator| validator.nymd_url())
         .collect()
 }
 
 pub fn default_api_endpoints() -> Vec<Url> {
-    default_validators()
-        .iter()
+    DEFAULT_NETWORK
+        .validators()
         .filter_map(|validator| validator.api_url())
         .collect()
 }
 
-pub const ETH_CONTRACT_ADDRESS: [u8; 20] =
-    hex_literal::hex!("9fEE3e28c17dbB87310A51F13C4fbf4331A6f102");
 // Name of the event triggered by the eth contract. If the event name is changed,
 // this would also need to be changed; It is currently tested against the json abi
-pub const ETH_EVENT_NAME: &str = "Burned";
-pub const ETH_BURN_FUNCTION_NAME: &str = "burnTokenForAccessCode";
+pub const ETH_EVENT_NAME: &str = "BBCredentialPurchased";
+pub const ETH_BURN_FUNCTION_NAME: &str = "generateBasicBandwidthCredential";
+pub const ETH_ERC20_APPROVE_FUNCTION_NAME: &str = "approve";
 
 // Ethereum constants used for token bridge
 /// How much bandwidth (in bytes) one token can buy
 const BYTES_PER_TOKEN: u64 = 1024 * 1024 * 1024;
+
+/// Threshold for claiming more bandwidth: 1 MB
+pub const REMAINING_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024;
 /// How many ERC20 tokens should be burned to buy bandwidth
-pub const TOKENS_TO_BURN: u64 = 10;
+pub const TOKENS_TO_BURN: u64 = 1;
+/// How many ERC20 utokens should be burned to buy bandwidth
+pub const UTOKENS_TO_BURN: u64 = TOKENS_TO_BURN * 1000000;
 /// Default bandwidth (in bytes) that we try to buy
 pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
 

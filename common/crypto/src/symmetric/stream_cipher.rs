@@ -1,12 +1,13 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cipher::{Nonce, StreamCipher};
-use generic_array::{typenum::Unsigned, GenericArray};
+use cipher::{Iv, StreamCipher};
+pub use cipher::{IvSizeUser, KeyIvInit, KeySizeUser};
+#[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
 
 // re-export this for ease of use
-pub use cipher::{CipherKey, NewCipher};
+pub use cipher::Key as CipherKey;
 
 // SECURITY:
 // TODO: note that this is not the most secure approach here
@@ -19,49 +20,51 @@ pub use cipher::{CipherKey, NewCipher};
 
 // I think 'IV' looks better than 'Iv', feel free to change that.
 #[allow(clippy::upper_case_acronyms)]
-pub type IV<C> = Nonce<C>;
+pub type IV<C> = Iv<C>;
 
+#[cfg(feature = "rand")]
 pub fn generate_key<C, R>(rng: &mut R) -> CipherKey<C>
 where
-    C: NewCipher,
+    C: KeyIvInit,
     R: RngCore + CryptoRng,
 {
-    let mut key = GenericArray::default();
+    let mut key = CipherKey::<C>::default();
     rng.fill_bytes(&mut key);
     key
 }
 
+#[cfg(feature = "rand")]
 pub fn random_iv<C, R>(rng: &mut R) -> IV<C>
 where
-    C: NewCipher,
+    C: KeyIvInit,
     R: RngCore + CryptoRng,
 {
-    let mut iv = GenericArray::default();
+    let mut iv = IV::<C>::default();
     rng.fill_bytes(&mut iv);
     iv
 }
 
 pub fn zero_iv<C>() -> IV<C>
 where
-    C: NewCipher,
+    C: KeyIvInit,
 {
-    GenericArray::default()
+    Iv::<C>::default()
 }
 
 pub fn iv_from_slice<C>(b: &[u8]) -> &IV<C>
 where
-    C: NewCipher,
+    C: KeyIvInit,
 {
-    if b.len() != C::NonceSize::to_usize() {
+    if b.len() != C::iv_size() {
         // `from_slice` would have caused a panic about this issue anyway.
         // Now we at least have slightly more information
         panic!(
             "Tried to convert {} bytes to IV. Expected {}",
             b.len(),
-            C::NonceSize::to_usize()
+            C::iv_size()
         )
     }
-    GenericArray::from_slice(b)
+    IV::<C>::from_slice(b)
 }
 
 // TODO: there's really no way to use more parts of the keystream if it was required at some point.
@@ -70,7 +73,7 @@ where
 #[inline]
 pub fn encrypt<C>(key: &CipherKey<C>, iv: &IV<C>, data: &[u8]) -> Vec<u8>
 where
-    C: StreamCipher + NewCipher,
+    C: StreamCipher + KeyIvInit,
 {
     let mut ciphertext = data.to_vec();
     encrypt_in_place::<C>(key, iv, &mut ciphertext);
@@ -80,7 +83,7 @@ where
 #[inline]
 pub fn encrypt_in_place<C>(key: &CipherKey<C>, iv: &IV<C>, data: &mut [u8])
 where
-    C: StreamCipher + NewCipher,
+    C: StreamCipher + KeyIvInit,
 {
     let mut cipher = C::new(key, iv);
     cipher.apply_keystream(data)
@@ -89,7 +92,7 @@ where
 #[inline]
 pub fn decrypt<C>(key: &CipherKey<C>, iv: &IV<C>, ciphertext: &[u8]) -> Vec<u8>
 where
-    C: StreamCipher + NewCipher,
+    C: StreamCipher + KeyIvInit,
 {
     let mut data = ciphertext.to_vec();
     decrypt_in_place::<C>(key, iv, &mut data);
@@ -99,7 +102,7 @@ where
 #[inline]
 pub fn decrypt_in_place<C>(key: &CipherKey<C>, iv: &IV<C>, data: &mut [u8])
 where
-    C: StreamCipher + NewCipher,
+    C: StreamCipher + KeyIvInit,
 {
     let mut cipher = C::new(key, iv);
     cipher.apply_keystream(data)
@@ -108,12 +111,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::OsRng;
+    use rand_chacha::rand_core::SeedableRng;
 
     #[cfg(test)]
     mod aes_ctr128 {
         use super::*;
-        use aes::Aes128Ctr;
+        type Aes128Ctr = ctr::Ctr64LE<aes::Aes128>;
 
         #[test]
         fn zero_iv_is_actually_zero() {
@@ -125,7 +128,8 @@ mod tests {
 
         #[test]
         fn decryption_is_reciprocal_to_encryption() {
-            let mut rng = OsRng;
+            let dummy_seed = [1u8; 32];
+            let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
             let arr_input = [42; 200];
             let vec_input = vec![123, 200];
@@ -148,7 +152,8 @@ mod tests {
 
         #[test]
         fn in_place_variants_work_same_way() {
-            let mut rng = OsRng;
+            let dummy_seed = [1u8; 32];
+            let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
             let mut data = [42; 200];
             let original_data = data;

@@ -6,7 +6,7 @@ use crate::node::client_handling::websocket::connection_handler::{
     AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
 };
 use crate::node::storage::error::StorageError;
-use crate::node::storage::PersistentStorage;
+use crate::node::storage::Storage;
 use crypto::asymmetric::identity;
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::{
@@ -68,14 +68,14 @@ impl InitialAuthenticationError {
     }
 }
 
-pub(crate) struct FreshHandler<R, S> {
+pub(crate) struct FreshHandler<R, S, St> {
     rng: R,
     local_identity: Arc<identity::KeyPair>,
     pub(crate) testnet_mode: bool,
     pub(crate) active_clients_store: ActiveClientsStore,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
-    pub(crate) storage: PersistentStorage,
+    pub(crate) storage: St,
 
     #[cfg(feature = "coconut")]
     pub(crate) aggregated_verification_key: VerificationKey,
@@ -84,9 +84,10 @@ pub(crate) struct FreshHandler<R, S> {
     pub(crate) erc20_bridge: Arc<ERC20Bridge>,
 }
 
-impl<R, S> FreshHandler<R, S>
+impl<R, S, St> FreshHandler<R, S, St>
 where
     R: Rng + CryptoRng,
+    St: Storage,
 {
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
@@ -99,7 +100,7 @@ where
         testnet_mode: bool,
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
-        storage: PersistentStorage,
+        storage: St,
         active_clients_store: ActiveClientsStore,
         #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
         #[cfg(not(feature = "coconut"))] erc20_bridge: Arc<ERC20Bridge>,
@@ -117,6 +118,15 @@ where
             #[cfg(not(feature = "coconut"))]
             erc20_bridge,
         }
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    /// Check that the local identity matches a given identity.
+    pub(crate) fn check_local_identity(
+        &self,
+        identity: &crypto::asymmetric::identity::PublicKey,
+    ) -> bool {
+        self.local_identity.public_key().eq(identity)
     }
 
     /// Attempts to perform websocket handshake with the remote and upgrades the raw TCP socket
@@ -534,7 +544,7 @@ where
     // TODO: somehow cleanup this method
     pub(crate) async fn perform_initial_authentication(
         mut self,
-    ) -> Option<AuthenticatedHandler<R, S>>
+    ) -> Option<AuthenticatedHandler<R, S, St>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {

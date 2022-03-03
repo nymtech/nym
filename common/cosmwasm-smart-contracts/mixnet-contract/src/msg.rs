@@ -23,6 +23,10 @@ pub enum ExecuteMsg {
     UpdateMixnodeConfig {
         profit_margin_percent: u8,
     },
+    UpdateMixnodeConfigOnBehalf {
+        profit_margin_percent: u8,
+        owner: String,
+    },
     BondGateway {
         gateway: Gateway,
         owner_signature: String,

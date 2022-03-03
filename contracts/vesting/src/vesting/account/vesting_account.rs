@@ -3,8 +3,9 @@ use crate::storage::{delete_account, save_account, DELEGATIONS};
 use crate::traits::VestingAccount;
 use config::defaults::DENOM;
 use cosmwasm_std::{Addr, Coin, Env, Order, Storage, Timestamp, Uint128};
+use vesting_contract_common::{OriginalVestingResponse, Period};
 
-use super::{Account, Period};
+use super::Account;
 
 impl VestingAccount for Account {
     fn locked_coins(
@@ -83,7 +84,7 @@ impl VestingAccount for Account {
         env: &Env,
     ) -> Result<Coin, ContractError> {
         Ok(Coin {
-            amount: self.get_original_vesting().amount
+            amount: self.get_original_vesting().amount().amount
                 - self.get_vested_coins(block_time, env)?.amount,
             denom: DENOM.to_string(),
         })
@@ -97,8 +98,12 @@ impl VestingAccount for Account {
         self.periods[(self.num_vesting_periods() - 1) as usize].end_time()
     }
 
-    fn get_original_vesting(&self) -> Coin {
-        self.coin.clone()
+    fn get_original_vesting(&self) -> OriginalVestingResponse {
+        OriginalVestingResponse::new(
+            self.coin.clone(),
+            self.num_vesting_periods(),
+            self.period_duration(),
+        )
     }
 
     fn get_delegated_free(
@@ -170,8 +175,8 @@ impl VestingAccount for Account {
             .load_mixnode_pledge(storage)?
             .or(self.load_gateway_pledge(storage)?)
         {
-            if bond.block_time.seconds() < start_time {
-                bond.amount
+            if bond.block_time().seconds() < start_time {
+                bond.amount().amount
             } else {
                 Uint128::zero()
             }
@@ -200,7 +205,7 @@ impl VestingAccount for Account {
             .load_mixnode_pledge(storage)?
             .or(self.load_gateway_pledge(storage)?)
         {
-            let amount = bond.amount - bonded_free.amount;
+            let amount = bond.amount().amount - bonded_free.amount;
             Ok(Coin {
                 amount,
                 denom: DENOM.to_string(),

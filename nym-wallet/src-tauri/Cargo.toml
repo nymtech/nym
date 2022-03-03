@@ -13,13 +13,13 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.0.0-beta.4" }
+tauri-build = { version = "1.0.0-rc.3", features = [] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 strum = { version = "0.23", features = ["derive"] }
-tauri = { version = "1.0.0-beta.8", features = ["shell-open"] }
+tauri = { version = "1.0.0-rc.3", features = ["clipboard-all", "shell-open", "window-maximize"] }
 tokio = { version = "1.10", features = ["sync"] }
 dirs = "4.0"
 bip39 = "1.0"
@@ -41,9 +41,13 @@ validator-client = { path = "../../common/client-libs/validator-client", feature
     "nymd-client",
 ] }
 mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 config = { path = "../../common/config" }
 coconut-interface = { path = "../../common/coconut-interface" }
 credentials = { path = "../../common/credentials" }
+
+# Used for Type conversion, can be extracted but its a lot of work
+vesting-contract = { path = "../../contracts/vesting" }
 
 [dev-dependencies]
 ts-rs = "5.1"
@@ -56,6 +60,10 @@ features = ["ts-rs"]
 [dev-dependencies.validator-client]
 path = "../../common/client-libs/validator-client"
 features = ["typescript-types"]
+
+[dev-dependencies.vesting-contract-common]
+path = "../../common/cosmwasm-smart-contracts/vesting-contract"
+features = ["ts-rs"]
 
 [features]
 default = ["custom-protocol"]

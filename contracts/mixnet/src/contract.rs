@@ -122,6 +122,16 @@ pub fn execute(
             info,
             profit_margin_percent,
         ),
+        ExecuteMsg::UpdateMixnodeConfigOnBehalf {
+            profit_margin_percent,
+            owner,
+        } => crate::mixnodes::transactions::try_update_mixnode_config_on_behalf(
+            deps,
+            env,
+            info,
+            profit_margin_percent,
+            owner,
+        ),
         ExecuteMsg::BondGateway {
             gateway,
             owner_signature,
@@ -315,64 +325,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 
     Ok(query_res?)
 }
+
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    use cw_storage_plus::Item;
-    use serde::{Deserialize, Serialize};
-
-    // needed migration:
-    /*
-       1. removal of rewarding_interval_starting_block field from ContractState
-       2. removal of latest_rewarding_interval_nonce field from ContractState
-       3. removal of rewarding_in_progress field from ContractState
-       4. interval_storage::CURRENT_INTERVAL.save(deps.storage, &Interval::default())?;
-       5. interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
-       6. removal of active_set_work_factor fields from ContractStateParams
-    */
-
-    #[derive(Serialize, Deserialize)]
-    pub struct OldContractStateParams {
-        pub minimum_mixnode_pledge: Uint128,
-        pub minimum_gateway_pledge: Uint128,
-        pub mixnode_rewarded_set_size: u32,
-        pub mixnode_active_set_size: u32,
-        pub active_set_work_factor: u8,
-    }
-
-    #[derive(Serialize, Deserialize)]
-    struct OldContractState {
-        pub owner: Addr, // only the owner account can update state
-        pub rewarding_validator_address: Addr,
-        pub params: OldContractStateParams,
-        pub rewarding_interval_starting_block: u64,
-        pub latest_rewarding_interval_nonce: u32,
-        pub rewarding_in_progress: bool,
-    }
-
-    let old_contract_state: Item<'_, OldContractState> = Item::new("config");
-
-    let old_state = old_contract_state.load(deps.storage)?;
-
-    let new_params = mixnet_contract_common::ContractStateParams {
-        minimum_mixnode_pledge: old_state.params.minimum_mixnode_pledge,
-        minimum_gateway_pledge: old_state.params.minimum_mixnode_pledge,
-        mixnode_rewarded_set_size: old_state.params.mixnode_rewarded_set_size,
-        mixnode_active_set_size: old_state.params.mixnode_active_set_size,
-    };
-
-    let new_state = crate::mixnet_contract_settings::models::ContractState {
-        owner: old_state.owner,
-        rewarding_validator_address: old_state.rewarding_validator_address,
-        params: new_params,
-    };
-    let rewarding_interval =
-        Interval::new(0, DEFAULT_FIRST_INTERVAL_START, REWARDING_INTERVAL_LENGTH);
-
-    mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &new_state)?;
-
-    interval_storage::CURRENT_INTERVAL.save(deps.storage, &rewarding_interval)?;
-    interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
-
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
 }
 
@@ -380,7 +335,7 @@ pub fn migrate(deps: DepsMut<'_>, env: Env, _msg: MigrateMsg) -> Result<Response
 pub mod tests {
     use super::*;
     use crate::support::tests;
-    use config::defaults::DENOM;
+    use config::defaults::{DEFAULT_NETWORK, DENOM};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
     use mixnet_contract_common::PagedMixnodeResponse;
@@ -390,7 +345,7 @@ pub mod tests {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let msg = InstantiateMsg {
-            rewarding_validator_address: config::defaults::DEFAULT_REWARDING_VALIDATOR.to_string(),
+            rewarding_validator_address: DEFAULT_NETWORK.rewarding_validator_address().to_string(),
         };
         let info = mock_info("creator", &[]);
 

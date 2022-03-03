@@ -3,7 +3,6 @@ use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
 use serde::{Deserialize, Serialize};
-use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
 use tendermint_rpc::endpoint::broadcast::tx_commit::Response;
@@ -50,7 +49,8 @@ pub async fn send(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TauriTxResult, BackendError> {
   let address = AccountId::from_str(address)?;
-  let cosmos_amount: CosmosCoin = amount.clone().try_into()?;
+  let network_denom = state.read().await.current_network().denom();
+  let cosmos_amount: CosmosCoin = amount.clone().into_cosmos_coin(&network_denom)?;
   let result = nymd_client!(state)
     .send(&address, vec![cosmos_amount], memo)
     .await?;

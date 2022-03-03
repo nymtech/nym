@@ -1,8 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crypto::generic_array::{typenum::Unsigned, GenericArray};
-use crypto::symmetric::stream_cipher::{generate_key, CipherKey, NewCipher};
+use crypto::symmetric::stream_cipher::{generate_key, CipherKey, KeySizeUser};
 use nymsphinx_params::AckEncryptionAlgorithm;
 use pemstore::traits::PemStorableKey;
 use rand::{CryptoRng, RngCore};
@@ -33,11 +32,14 @@ impl AckKey {
     }
 
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, AckKeyConversionError> {
-        if bytes.len() != <AckEncryptionAlgorithm as NewCipher>::KeySize::to_usize() {
+        if bytes.len() != AckEncryptionAlgorithm::key_size() {
             return Err(AckKeyConversionError::BytesOfInvalidLengthError);
         }
 
-        Ok(AckKey(GenericArray::clone_from_slice(bytes)))
+        // Ok(AckKey(GenericArray::clone_from_slice(bytes)))
+        Ok(AckKey(
+            CipherKey::<AckEncryptionAlgorithm>::clone_from_slice(bytes),
+        ))
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

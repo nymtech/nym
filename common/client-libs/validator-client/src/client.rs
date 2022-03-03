@@ -4,6 +4,7 @@
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
+use network_defaults::DEFAULT_NETWORK;
 use url::Url;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
@@ -29,12 +30,14 @@ use std::str::FromStr;
 
 #[cfg(feature = "nymd-client")]
 #[must_use]
+#[derive(Debug)]
 pub struct Config {
     network: network_defaults::all::Network,
     api_url: Url,
     nymd_url: Url,
     mixnet_contract_address: Option<cosmrs::AccountId>,
     vesting_contract_address: Option<cosmrs::AccountId>,
+    erc20_bridge_contract_address: Option<cosmrs::AccountId>,
 
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
@@ -50,12 +53,14 @@ impl Config {
         api_url: Url,
         mixnet_contract_address: Option<cosmrs::AccountId>,
         vesting_contract_address: Option<cosmrs::AccountId>,
+        erc20_bridge_contract_address: Option<cosmrs::AccountId>,
     ) -> Self {
         Config {
             network,
             nymd_url,
             mixnet_contract_address,
             vesting_contract_address,
+            erc20_bridge_contract_address,
             api_url,
             mixnode_page_limit: None,
             gateway_page_limit: None,
@@ -90,6 +95,7 @@ pub struct Client<C> {
     network: network_defaults::all::Network,
     mixnet_contract_address: Option<cosmrs::AccountId>,
     vesting_contract_address: Option<cosmrs::AccountId>,
+    erc20_bridge_contract_address: Option<cosmrs::AccountId>,
     mnemonic: Option<bip39::Mnemonic>,
 
     mixnode_page_limit: Option<u32>,
@@ -114,6 +120,7 @@ impl Client<SigningNymdClient> {
             config.nymd_url.as_str(),
             config.mixnet_contract_address.clone(),
             config.vesting_contract_address.clone(),
+            config.erc20_bridge_contract_address.clone(),
             mnemonic.clone(),
             None,
         )?;
@@ -122,6 +129,7 @@ impl Client<SigningNymdClient> {
             network: config.network,
             mixnet_contract_address: config.mixnet_contract_address,
             vesting_contract_address: config.vesting_contract_address,
+            erc20_bridge_contract_address: config.erc20_bridge_contract_address,
             mnemonic: Some(mnemonic),
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
@@ -138,6 +146,7 @@ impl Client<SigningNymdClient> {
             new_endpoint.as_ref(),
             self.mixnet_contract_address.clone(),
             self.vesting_contract_address.clone(),
+            self.erc20_bridge_contract_address.clone(),
             self.mnemonic.clone().unwrap(),
             None,
         )?;
@@ -152,19 +161,29 @@ impl Client<QueryNymdClient> {
         let nymd_client = NymdClient::connect(
             config.nymd_url.as_str(),
             Some(config.mixnet_contract_address.clone().unwrap_or_else(|| {
-                cosmrs::AccountId::from_str(network_defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS)
-                    .unwrap()
+                cosmrs::AccountId::from_str(DEFAULT_NETWORK.mixnet_contract_address()).unwrap()
             })),
             Some(config.vesting_contract_address.clone().unwrap_or_else(|| {
-                cosmrs::AccountId::from_str(network_defaults::DEFAULT_VESTING_CONTRACT_ADDRESS)
-                    .unwrap()
+                cosmrs::AccountId::from_str(DEFAULT_NETWORK.vesting_contract_address()).unwrap()
             })),
+            Some(
+                config
+                    .erc20_bridge_contract_address
+                    .clone()
+                    .unwrap_or_else(|| {
+                        cosmrs::AccountId::from_str(
+                            DEFAULT_NETWORK.bandwidth_claim_contract_address(),
+                        )
+                        .unwrap()
+                    }),
+            ),
         )?;
 
         Ok(Client {
             network: config.network,
             mixnet_contract_address: config.mixnet_contract_address,
             vesting_contract_address: config.vesting_contract_address,
+            erc20_bridge_contract_address: config.erc20_bridge_contract_address,
             mnemonic: None,
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
@@ -180,6 +199,7 @@ impl Client<QueryNymdClient> {
             new_endpoint.as_ref(),
             self.mixnet_contract_address.clone(),
             self.vesting_contract_address.clone(),
+            self.erc20_bridge_contract_address.clone(),
         )?;
         Ok(())
     }
@@ -232,7 +252,7 @@ impl<C> Client<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.nymd.get_mixnet_contract_version().await?)
+        self.nymd.get_mixnet_contract_version().await
     }
 
     pub async fn get_rewarding_status(

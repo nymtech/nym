@@ -5,7 +5,6 @@ use crate::state::State;
 use crate::utils::DelegationResult;
 use cosmwasm_std::Coin as CosmWasmCoin;
 use mixnet_contract_common::PagedDelegatorDelegationsResponse;
-use std::convert::TryInto;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -15,12 +14,13 @@ pub async fn delegate_to_mixnode(
   amount: Coin,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationResult, BackendError> {
-  let delegation: CosmWasmCoin = amount.try_into()?;
+  let denom = state.read().await.current_network().denom();
+  let delegation: CosmWasmCoin = amount.into_cosmwasm_coin(&denom)?;
   nymd_client!(state)
     .delegate_to_mixnode(identity, &delegation)
     .await?;
   Ok(DelegationResult::new(
-    &nymd_client!(state).address().to_string(),
+    nymd_client!(state).address().as_ref(),
     identity,
     Some(delegation.into()),
   ))
@@ -35,7 +35,7 @@ pub async fn undelegate_from_mixnode(
     .remove_mixnode_delegation(identity)
     .await?;
   Ok(DelegationResult::new(
-    &nymd_client!(state).address().to_string(),
+    nymd_client!(state).address().as_ref(),
     identity,
     None,
   ))

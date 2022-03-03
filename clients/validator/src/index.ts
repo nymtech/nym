@@ -64,15 +64,23 @@ export default class ValidatorClient implements INymClient {
 
   readonly vestingContract: string;
 
+  readonly mainnetDenom = "unym";
+
+  readonly mainnetPrefix = "n";
+
   private constructor(
     client: SigningClient | QueryClient,
     prefix: string,
     mixnetContract: string,
-    vestingContract: string,
+    vestingContract: string
   ) {
     this.client = client;
     this.prefix = prefix;
-    this.denom = `u${prefix}`;
+    if (prefix == this.mainnetPrefix) {
+      this.denom = this.mainnetDenom;
+    } else {
+      this.denom = `u${prefix}`;
+    }
 
     this.mixnetContract = mixnetContract;
     this.vestingContract = vestingContract;

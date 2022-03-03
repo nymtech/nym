@@ -2,9 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt, ops::Deref, str::FromStr};
 
-use crate::{mainnet, qa, sandbox, ValidatorDetails};
+use crate::{
+    DefaultNetworkDetails, ValidatorDetails, MAINNET_DEFAULTS, QA_DEFAULTS, SANDBOX_DEFAULTS,
+};
+
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum NetworkDefaultsError {
+    #[error("The provided network was invalid")]
+    MalformedNetworkProvided(String),
+}
 
 #[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum Network {
@@ -14,11 +24,64 @@ pub enum Network {
 }
 
 impl Network {
-    pub fn bech32_prefix(&self) -> String {
+    fn details(&self) -> &DefaultNetworkDetails<'_> {
         match self {
-            Self::QA => String::from(qa::BECH32_PREFIX),
-            Self::SANDBOX => String::from(sandbox::BECH32_PREFIX),
-            Self::MAINNET => String::from(mainnet::BECH32_PREFIX),
+            Self::QA => &QA_DEFAULTS,
+            Self::SANDBOX => &SANDBOX_DEFAULTS,
+            Self::MAINNET => &MAINNET_DEFAULTS,
+        }
+    }
+
+    pub fn bech32_prefix(&self) -> &str {
+        self.details().bech32_prefix
+    }
+
+    pub fn denom(&self) -> &str {
+        self.details().denom
+    }
+
+    pub fn mixnet_contract_address(&self) -> &str {
+        self.details().mixnet_contract_address
+    }
+
+    pub fn vesting_contract_address(&self) -> &str {
+        self.details().vesting_contract_address
+    }
+
+    pub fn bandwidth_claim_contract_address(&self) -> &str {
+        self.details().bandwidth_claim_contract_address
+    }
+
+    pub fn rewarding_validator_address(&self) -> &str {
+        self.details().rewarding_validator_address
+    }
+
+    pub fn validators(&self) -> impl Iterator<Item = &ValidatorDetails> {
+        self.details().validators.iter()
+    }
+}
+
+impl FromStr for Network {
+    type Err = NetworkDefaultsError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "qa" => Ok(Network::QA),
+            "sandbox" => Ok(Network::SANDBOX),
+            "mainnet" => Ok(Network::MAINNET),
+            _ => Err(NetworkDefaultsError::MalformedNetworkProvided(
+                s.to_string(),
+            )),
+        }
+    }
+}
+
+impl fmt::Display for Network {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Network::QA => f.write_str("QA"),
+            Network::SANDBOX => f.write_str("Sandbox"),
+            Network::MAINNET => f.write_str("Mainnet"),
         }
     }
 }
@@ -34,6 +97,20 @@ pub struct NetworkDetails {
     validators: Vec<ValidatorDetails>,
 }
 
+impl From<&DefaultNetworkDetails<'_>> for NetworkDetails {
+    fn from(details: &DefaultNetworkDetails) -> Self {
+        NetworkDetails {
+            bech32_prefix: details.bech32_prefix.into(),
+            denom: details.denom.into(),
+            mixnet_contract_address: details.mixnet_contract_address.into(),
+            vesting_contract_address: details.vesting_contract_address.into(),
+            bandwidth_claim_contract_address: details.bandwidth_claim_contract_address.into(),
+            rewarding_validator_address: details.rewarding_validator_address.into(),
+            validators: details.validators.clone(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SupportedNetworks {
     networks: HashMap<Network, NetworkDetails>,
@@ -45,53 +122,13 @@ impl SupportedNetworks {
 
         for network in support {
             match network {
-                Network::MAINNET => networks.insert(
-                    Network::MAINNET,
-                    NetworkDetails {
-                        bech32_prefix: String::from(mainnet::BECH32_PREFIX),
-                        denom: String::from(mainnet::DENOM),
-                        mixnet_contract_address: String::from(mainnet::MIXNET_CONTRACT_ADDRESS),
-                        vesting_contract_address: String::from(mainnet::VESTING_CONTRACT_ADDRESS),
-                        bandwidth_claim_contract_address: String::from(
-                            mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-                        ),
-                        rewarding_validator_address: String::from(
-                            mainnet::REWARDING_VALIDATOR_ADDRESS,
-                        ),
-                        validators: mainnet::validators(),
-                    },
-                ),
-
-                Network::SANDBOX => networks.insert(
-                    Network::SANDBOX,
-                    NetworkDetails {
-                        bech32_prefix: String::from(sandbox::BECH32_PREFIX),
-                        denom: String::from(sandbox::DENOM),
-                        mixnet_contract_address: String::from(sandbox::MIXNET_CONTRACT_ADDRESS),
-                        vesting_contract_address: String::from(sandbox::VESTING_CONTRACT_ADDRESS),
-                        bandwidth_claim_contract_address: String::from(
-                            sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-                        ),
-                        rewarding_validator_address: String::from(
-                            sandbox::REWARDING_VALIDATOR_ADDRESS,
-                        ),
-                        validators: sandbox::validators(),
-                    },
-                ),
-                Network::QA => networks.insert(
-                    Network::QA,
-                    NetworkDetails {
-                        bech32_prefix: String::from(qa::BECH32_PREFIX),
-                        denom: String::from(qa::DENOM),
-                        mixnet_contract_address: String::from(qa::MIXNET_CONTRACT_ADDRESS),
-                        vesting_contract_address: String::from(qa::VESTING_CONTRACT_ADDRESS),
-                        bandwidth_claim_contract_address: String::from(
-                            qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-                        ),
-                        rewarding_validator_address: String::from(qa::REWARDING_VALIDATOR_ADDRESS),
-                        validators: qa::validators(),
-                    },
-                ),
+                Network::MAINNET => {
+                    networks.insert(Network::MAINNET, MAINNET_DEFAULTS.deref().into())
+                }
+                Network::SANDBOX => {
+                    networks.insert(Network::SANDBOX, SANDBOX_DEFAULTS.deref().into())
+                }
+                Network::QA => networks.insert(Network::QA, QA_DEFAULTS.deref().into()),
             };
         }
         SupportedNetworks { networks }

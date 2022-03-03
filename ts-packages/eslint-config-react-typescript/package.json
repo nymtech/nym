@@ -1,0 +1,59 @@
+{
+  "name": "@nymproject/eslint-config-react-typescript",
+  "description": "Import the default eslint config for nym",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "peerDependencies": {
+    "react": "17",
+    "react-dom": "17",
+    "eslint": ">= 8",
+    "@typescript-eslint/eslint-plugin": ">= 5",
+    "@typescript-eslint/parser": ">= 5",
+    "eslint-config-airbnb": ">= 19",
+    "eslint-config-prettier": ">= 8",
+    "eslint-import-resolver-root-import": ">= 1",
+    "eslint-plugin-import": ">= 2",
+    "eslint-plugin-jest": ">= 26.1.1",
+    "eslint-plugin-jsx-a11y": ">= 6",
+    "eslint-plugin-prettier": ">= 4",
+    "eslint-plugin-react": ">= 7",
+    "eslint-plugin-react-hooks": ">= 4"
+  },
+  "devDependencies": {
+    "eslint": "^8.10.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "prettier": "^2.5.1",
+    "@typescript-eslint/eslint-plugin": "^5.13.0",
+    "@typescript-eslint/parser": "^5.13.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-import-resolver-root-import": "^1.0.4",
+    "eslint-plugin-import": "^2.25.4",
+    "eslint-plugin-jest": "^26.1.1",
+    "eslint-plugin-jsx-a11y": "^6.5.1",
+    "eslint-plugin-react": "^7.29.2",
+    "eslint-plugin-react-hooks": "^4.3.0",
+    "typescript": "^4.6.2",
+    "ts-jest": "^27.0.5",
+    "jest": "^27.1.0",
+    "babel-plugin-root-import": "^5.1.0"
+  },
+  "eslintConfig" : {
+    "plugins": ["prettier"],
+    "extends": ["eslint:recommended", "plugin:prettier/recommended"],
+    "rules": {
+      "prettier/prettier": "error"
+    },
+    "root":  true,
+    "env": {
+      "browser": false,
+      "es6": false,
+      "node": true
+    }
+  },
+  "scripts": {
+    "lint": "eslint *.js",
+    "lint:fix": "eslint *.js --fix"
+  }
+}

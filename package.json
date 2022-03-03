@@ -1,0 +1,16 @@
+{
+  "name": "@nymproject/nymsphere",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache 2.0",
+  "workspaces": [
+    "ts-packages/*",
+    "nym-wallet"
+  ],
+  "scripts": {
+    "build": "lerna run --scope @nymproject/mui-theme --scope @nymproject/react build --stream"
+  },
+  "devDependencies": {
+    "lerna": "^4.0.0"
+  }
+}

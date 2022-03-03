@@ -1,13 +1,12 @@
 import { Coin } from "@cosmjs/proto-signing";
 import { Mock, Times } from "moq.ts";
 import ValidatorClient from "../../src/index";
-import { DeliverTxResponse, logs } from "@cosmjs/stargate";
 import { Gateway, MixNode } from "../../src/types";
-import { ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { config } from "../test-utils/config";
 import { buildWallet, buildCoin, profitPercentage } from "../test-utils/utils";
 import { promiseExecuteResult } from "../test-utils/expectedResults";
-
+import { promiseTxResult } from "../test-utils/expectedResults"
+ 
 describe("mock validator client tests", () => {
   test.skip("token transfer", async () => {
 
@@ -18,17 +17,7 @@ describe("mock validator client tests", () => {
 
     const coin = buildCoin("50000", "nymt");
 
-    let transaction = Promise.resolve(<DeliverTxResponse>{
-      code: 0,
-      height: 1208302,
-      rawLog: "[]",
-      transactionHash:
-        "9C7BF465AB5CAB0D62446CBB251CF89CD173A640C5DE8DBC14A4BB950916114E",
-      gasUsed: 65042,
-      gasWanted: 67977,
-    });
-
-    console.log(transaction);
+    let transaction = promiseTxResult();
 
     let mockClient = new Mock<ValidatorClient>()
       .setup((nym) => nym.send(recipientAddress, [coin], "auto", "test")).returns(transaction);

@@ -10,6 +10,7 @@ pub mod delegate;
 pub mod queries;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/pledgedata.ts"))]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PledgeData {
   pub amount: Coin,
@@ -32,6 +33,10 @@ impl PledgeData {
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+  test,
+  ts(export, export_to = "../src/types/rust/originalvestingresponse.ts")
+)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OriginalVestingResponse {
   amount: Coin,
@@ -50,6 +55,10 @@ impl From<VestingOriginalVestingResponse> for OriginalVestingResponse {
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+  test,
+  ts(export, export_to = "../src/types/rust/vestingaccountinfo.ts")
+)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VestingAccountInfo {
   owner_address: String,
@@ -76,6 +85,7 @@ impl From<VestingAccount> for VestingAccountInfo {
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/vestingperiod.ts"))]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VestingPeriod {
   start_time: u64,

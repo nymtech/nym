@@ -1,4 +1,2 @@
-export interface CoreNodeStatusResponse {
-  identity: string;
-  count: number;
-}
+
+export interface CoreNodeStatusResponse { identity: string, count: number, }

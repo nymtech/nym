@@ -8,7 +8,7 @@ repository = ""
 default-run = "nym_wallet"
 edition = "2021"
 build = "src/build.rs"
-rust-version = "1.56"
+rust-version = "1.58"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,7 +23,11 @@ core-graphics = "=0.22.2"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 strum = { version = "0.23", features = ["derive"] }
-tauri = { version = "=1.0.0-rc.2", features = ["clipboard-all", "shell-open", "window-maximize"] }
+tauri = { version = "=1.0.0-rc.2", features = [
+    "clipboard-all",
+    "shell-open",
+    "window-maximize",
+] }
 tokio = { version = "1.10", features = ["sync"] }
 dirs = "4.0"
 bip39 = "1.0"
@@ -49,25 +53,12 @@ vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vestin
 config = { path = "../../common/config" }
 coconut-interface = { path = "../../common/coconut-interface" }
 credentials = { path = "../../common/credentials" }
-
 # Used for Type conversion, can be extracted but its a lot of work
 vesting-contract = { path = "../../contracts/vesting" }
 
 [dev-dependencies]
-ts-rs = "5.1"
+ts-rs = "6.1.2"
 tempfile = "3.3.0"
-
-[dev-dependencies.mixnet-contract-common]
-path = "../../common/cosmwasm-smart-contracts/mixnet-contract"
-features = ["ts-rs"]
-
-[dev-dependencies.validator-client]
-path = "../../common/client-libs/validator-client"
-features = ["typescript-types"]
-
-[dev-dependencies.vesting-contract-common]
-path = "../../common/cosmwasm-smart-contracts/vesting-contract"
-features = ["ts-rs"]
 
 [features]
 default = ["custom-protocol"]

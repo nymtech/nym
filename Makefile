@@ -25,7 +25,7 @@ clippy-all-wallet:
 	cargo clippy --manifest-path nym-wallet/Cargo.toml --all-features -- -D warnings
 
 test-main:
-	cargo test --all-features
+	cargo test --all-features --all
 
 test-contracts:
 	cargo test --manifest-path contracts/Cargo.toml --all-features

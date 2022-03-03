@@ -13,6 +13,7 @@ use config::defaults::{mainnet, qa, sandbox};
 
 #[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/network.ts"))]
 #[derive(Copy, Clone, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
 pub enum Network {
   QA,

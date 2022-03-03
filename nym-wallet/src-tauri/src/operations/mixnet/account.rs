@@ -13,6 +13,7 @@ use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/account.ts"))]
 #[derive(Serialize, Deserialize)]
 pub struct Account {
   contract_address: String,
@@ -31,6 +32,7 @@ impl Account {
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/createdaccount.ts"))]
 #[derive(Serialize, Deserialize)]
 pub struct CreatedAccount {
   account: Account,
@@ -38,6 +40,7 @@ pub struct CreatedAccount {
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/balance.ts"))]
 #[derive(Serialize, Deserialize)]
 pub struct Balance {
   coin: Coin,

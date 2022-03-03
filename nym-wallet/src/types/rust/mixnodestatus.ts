@@ -1,1 +1,2 @@
-export type MixnodeStatus = "Active" | "Standby" | "Inactive" | "NotFound";
+
+export type MixnodeStatus = "active" | "standby" | "inactive" | "not_found";

@@ -18,7 +18,14 @@ fixed::const_fixed_from_int! {
     const ONE: U128 = 1;
 }
 
-#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(
+        export,
+        export_to = "../../../nym-wallet/src/types/rust/rewardedsetnodestatus.ts"
+    )
+)]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub enum RewardedSetNodeStatus {
     Active,
@@ -31,7 +38,11 @@ impl RewardedSetNodeStatus {
     }
 }
 
-#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(export, export_to = "../../../nym-wallet/src/types/rust/mixnode.ts")
+)]
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct MixNode {
     pub host: String,

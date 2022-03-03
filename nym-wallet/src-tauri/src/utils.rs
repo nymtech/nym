@@ -59,6 +59,7 @@ pub async fn outdated_get_approximate_fee(
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/delegationresult.ts"))]
 #[derive(Serialize, Deserialize)]
 pub struct DelegationResult {
   source_address: String,

@@ -1,1 +1,2 @@
-export type Period = "Before" | number | "After";
+
+export type Period = "Before" | { In: number } | "After";

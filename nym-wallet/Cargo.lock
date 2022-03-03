@@ -2818,6 +2818,7 @@ dependencies = [
  "tendermint-rpc",
  "thiserror",
  "tokio",
+ "toml",
  "ts-rs",
  "url",
  "validator-client",

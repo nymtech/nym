@@ -86,7 +86,7 @@ impl fmt::Display for Network {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NetworkDetails {
     bech32_prefix: String,
     denom: String,
@@ -111,7 +111,7 @@ impl From<&DefaultNetworkDetails<'_>> for NetworkDetails {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct SupportedNetworks {
     networks: HashMap<Network, NetworkDetails>,
 }

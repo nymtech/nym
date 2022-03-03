@@ -19,22 +19,23 @@ tauri-codegen = "=1.0.0-rc.1"
 tauri-macros = "=1.0.0-rc.1"
 
 [dependencies]
-serde_json = "1.0"
+bip39 = "1.0"
+dirs = "4.0"
+eyre = "0.6.5"
+rand = "0.6.5"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 strum = { version = "0.23", features = ["derive"] }
 tauri = { version = "=1.0.0-rc.2", features = [
     "clipboard-all",
     "shell-open",
     "window-maximize",
 ] }
-tokio = { version = "1.10", features = ["sync"] }
-dirs = "4.0"
-bip39 = "1.0"
-thiserror = "1.0"
 tendermint-rpc = "0.23.0"
+thiserror = "1.0"
+tokio = { version = "1.10", features = ["sync"] }
+toml = "0.5.8"
 url = "2.2"
-rand = "0.6.5"
-eyre = "0.6.5"
 
 aes-gcm = "0.9.4"
 argon2 = { version = "0.3.2", features = ["std"] }

@@ -84,7 +84,7 @@ static QA_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> = Lazy::new(|| DefaultN
     validators: qa::validators(),
 });
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
     pub nymd_url: String,

@@ -49,6 +49,12 @@
       "active": false
     },
     "allowlist": {
+      "window": {
+        "maximize": true  
+      },
+      "clipboard": {
+        "all": true
+      },
       "shell": {
         "open": true
       }

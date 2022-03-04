@@ -3,8 +3,8 @@
 
 use coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
-    prove_bandwidth_credential, Attribute, BlindSignRequestBody, Credential, Parameters, Signature,
-    SignatureShare, VerificationKey,
+    prove_bandwidth_credential, Attribute, Base58, BlindSignRequest, BlindSignRequestBody,
+    Credential, ElGamalKeyPair, Parameters, Signature, SignatureShare, VerificationKey,
 };
 use url::Url;
 
@@ -47,13 +47,13 @@ pub async fn obtain_aggregate_verification_key(
     let mut client = validator_client::ApiClient::new(validators[0].clone());
     let response = client.get_coconut_verification_key().await?;
 
-    indices.push(0);
+    indices.push(1);
     shares.push(response.key);
 
     for (id, validator_url) in validators.iter().enumerate().skip(1) {
         client.change_validator_api(validator_url.clone());
         let response = client.get_coconut_verification_key().await?;
-        indices.push(id as u64);
+        indices.push((id + 1) as u64);
         shares.push(response.key);
     }
     let ret = aggregate_verification_keys(&shares, Some(&indices))?;
@@ -90,18 +90,12 @@ async fn obtain_partial_credential(
     private_attributes: &[Attribute],
     client: &validator_client::ApiClient,
     validator_vk: &VerificationKey,
+    blind_sign_request: &BlindSignRequest,
+    elgamal_keypair: &ElGamalKeyPair,
     tx_hash: String,
 ) -> Result<Signature, Error> {
-    let elgamal_keypair = coconut_interface::elgamal_keygen(params);
-    let blind_sign_request = prepare_blind_sign(
-        params,
-        &elgamal_keypair,
-        private_attributes,
-        public_attributes,
-    )?;
-
     let blind_sign_request_body = BlindSignRequestBody::new(
-        &blind_sign_request,
+        blind_sign_request,
         elgamal_keypair.public_key(),
         public_attributes,
         (public_attributes.len() + private_attributes.len()) as u32,
@@ -143,16 +137,26 @@ pub async fn obtain_aggregate_signature(
     let validator_partial_vk = client.get_coconut_verification_key().await?;
     validators_partial_vks.push(validator_partial_vk.key.clone());
 
+    let elgamal_keypair = coconut_interface::elgamal_keygen(params);
+    let blind_sign_request = prepare_blind_sign(
+        params,
+        &elgamal_keypair,
+        private_attributes,
+        public_attributes,
+    )?;
+
     let first = obtain_partial_credential(
         params,
         public_attributes,
         private_attributes,
         &client,
         &validator_partial_vk.key,
+        &blind_sign_request,
+        &elgamal_keypair,
         tx_hash.clone(),
     )
     .await?;
-    shares.push(SignatureShare::new(first, 0));
+    shares.push(SignatureShare::new(first, 1));
 
     for (id, validator_url) in validators.iter().enumerate().skip(1) {
         client.change_validator_api(validator_url.clone());
@@ -164,10 +168,12 @@ pub async fn obtain_aggregate_signature(
             private_attributes,
             &client,
             &validator_partial_vk.key,
+            &blind_sign_request,
+            &elgamal_keypair,
             tx_hash.clone(),
         )
         .await?;
-        let share = SignatureShare::new(signature, id as u64);
+        let share = SignatureShare::new(signature, (id + 1) as u64);
         shares.push(share)
     }
 
@@ -177,10 +183,11 @@ pub async fn obtain_aggregate_signature(
 
     let mut indices: Vec<u64> = Vec::with_capacity(validators_partial_vks.len());
     for i in 0..validators_partial_vks.len() {
-        indices.push(i as u64);
+        indices.push((i + 1) as u64);
     }
     let verification_key =
         aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref()))?;
+    println!("Verification key: {}", verification_key.to_bs58());
 
     Ok(aggregate_signature_shares(
         params,

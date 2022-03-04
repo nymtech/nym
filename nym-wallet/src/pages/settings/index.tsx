@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { Alert, Box, Dialog } from '@mui/material'
 import { NymCard } from '../../components'
 import { ClientContext } from '../../context/main'
@@ -15,10 +15,14 @@ const tabs = ['Profile', 'System variables', 'Node stats']
 export const Settings = () => {
   const [selectedTab, setSelectedTab] = useState(0)
 
-  const { mixnodeDetails, showSettings, handleShowSettings, getBondDetails } = useContext(ClientContext)
+  const { mixnodeDetails, showSettings, getBondDetails, handleShowSettings } = useContext(ClientContext)
   const { status, saturation, rewardEstimation, inclusionProbability } = useSettingsState(showSettings)
 
   const handleTabChange = (_: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab)
+
+  useEffect(() => {
+    getBondDetails()
+  }, [showSettings, selectedTab])
 
   return showSettings ? (
     <Dialog open={true} onClose={handleShowSettings} maxWidth="md" fullWidth>
@@ -39,13 +43,11 @@ export const Settings = () => {
               You don't currently have a node running
             </Alert>
           )}
-          {selectedTab === 0 && mixnodeDetails && <Profile />}
-          {selectedTab === 1 && mixnodeDetails && (
+          {selectedTab === 0 && <Profile />}
+          {selectedTab === 1 && (
             <SystemVariables
-              mixnodeDetails={mixnodeDetails.mix_node}
               saturation={saturation}
               rewardEstimation={rewardEstimation}
-              onUpdate={getBondDetails}
               inclusionProbability={inclusionProbability}
             />
           )}

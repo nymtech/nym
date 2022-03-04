@@ -25,4 +25,7 @@ pub enum DkgError {
 
     #[error("Failed to verify proof of discrete logarithm")]
     InvalidProofOfDiscreteLog,
+
+    #[error("Tried to construct proof of sharing with an invalid instance")]
+    MalformedProofOfSharingInstance,
 }

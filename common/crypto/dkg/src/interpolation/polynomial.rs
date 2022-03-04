@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bls12_381::Scalar;
+use bls12_381::{G2Projective, Scalar};
 use ff::Field;
 use rand_core::RngCore;
 use std::borrow::Borrow;
@@ -35,6 +35,12 @@ impl Polynomial {
         Polynomial {
             coefficients: Vec::new(),
         }
+    }
+
+    /// Returns public coefficients associated with this polynomial.
+    pub fn public_coefficients(&self) -> Vec<G2Projective> {
+        let g2 = G2Projective::generator();
+        self.coefficients.iter().map(|a_i| g2 * a_i).collect()
     }
 
     /// Evaluates the polynomial at point x.

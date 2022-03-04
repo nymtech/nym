@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useState } from 'react'
 import { ClientContext } from '../context/main'
-import { checkGatewayOwnership, checkMixnodeOwnership, getPledgeInfo } from '../requests'
+import { checkGatewayOwnership, checkMixnodeOwnership, getVestingPledgeInfo } from '../requests'
 import { EnumNodeType, TNodeOwnership, PledgeData } from '../types'
 
 const initial = {
@@ -24,7 +24,7 @@ export const useCheckOwnership = () => {
       if (ownsMixnode) {
         status.hasOwnership = true
         status.nodeType = EnumNodeType.mixnode
-        status.vestingPledge = await getPledgeInfo({
+        status.vestingPledge = await getVestingPledgeInfo({
           address: clientDetails?.client_address!,
           type: EnumNodeType.mixnode,
         })
@@ -33,7 +33,7 @@ export const useCheckOwnership = () => {
       if (ownsGateway) {
         status.hasOwnership = true
         status.nodeType = EnumNodeType.gateway
-        status.vestingPledge = await getPledgeInfo({
+        status.vestingPledge = await getVestingPledgeInfo({
           address: clientDetails?.client_address!,
           type: EnumNodeType.gateway,
         })

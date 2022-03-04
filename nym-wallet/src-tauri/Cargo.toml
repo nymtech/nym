@@ -17,7 +17,6 @@ tauri-build = { version = "=1.0.0-rc.2", features = [] }
 
 tauri-codegen = "=1.0.0-rc.1"
 tauri-macros = "=1.0.0-rc.1"
-core-graphics = "=0.22.2"
 
 [dependencies]
 serde_json = "1.0"

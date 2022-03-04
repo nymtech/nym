@@ -2800,7 +2800,6 @@ dependencies = [
  "bip39",
  "coconut-interface",
  "config",
- "core-graphics",
  "cosmrs",
  "cosmwasm-std",
  "credentials",

@@ -1,4 +1,4 @@
-import { Coin, Denom, MixNode } from '.'
+import { Coin, Denom, Gateway, MixNode, PledgeData } from '.'
 
 export enum EnumNodeType {
   mixnode = 'mixnode',
@@ -8,6 +8,7 @@ export enum EnumNodeType {
 export type TNodeOwnership = {
   hasOwnership: boolean
   nodeType?: EnumNodeType
+  vestingPledge?: PledgeData
 }
 
 export type TClientDetails = {
@@ -52,6 +53,13 @@ export type TMixnodeBondDetails = {
   block_height: number
   mix_node: MixNode
   proxy: any
+}
+
+export type TBondArgs = {
+  type: EnumNodeType
+  data: MixNode | Gateway
+  pledge: Coin
+  ownerSignature: string
 }
 
 export type TCurrency = {

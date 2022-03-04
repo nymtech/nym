@@ -1,7 +1,16 @@
 import { invoke } from '@tauri-apps/api'
 import { VestingAccountInfo } from 'src/types/rust/vestingaccountinfo'
 import { majorToMinor, minorToMajor } from '.'
-import { Coin, DelegationResult, OriginalVestingResponse, Period } from '../types'
+import {
+  Coin,
+  DelegationResult,
+  EnumNodeType,
+  Gateway,
+  MixNode,
+  OriginalVestingResponse,
+  Period,
+  PledgeData,
+} from '../types'
 
 export const getLockedCoins = async (address: string): Promise<Coin> => {
   const res: Coin = await invoke('locked_coins', { address })
@@ -36,6 +45,20 @@ export const withdrawVestedCoins = async (amount: string) => {
 export const getCurrentVestingPeriod = async (address: string): Promise<Period> =>
   await invoke('get_current_vesting_period', { address })
 
+export const vestingBond = async ({
+  type,
+  data,
+  pledge,
+  ownerSignature,
+}: {
+  type: EnumNodeType
+  data: MixNode | Gateway
+  pledge: Coin
+  ownerSignature: string
+}): Promise<any> => await invoke(`vesting_bond_${type}`, { [type]: data, ownerSignature, pledge })
+
+export const vestingUnbond = async (type: EnumNodeType) => await invoke(`vesting_unbond_${type}`)
+
 export const vestingDelegateToMixnode = async ({
   identity,
   amount,
@@ -49,3 +72,14 @@ export const vestingUnelegateFromMixnode = async (identity: string): Promise<Del
 
 export const getVestingAccountInfo = async (address: string): Promise<VestingAccountInfo> =>
   await invoke('get_account_info', { address })
+
+export const getVestingPledgeInfo = async ({
+  address,
+  type,
+}: {
+  address?: string
+  type: EnumNodeType
+}): Promise<PledgeData> => await invoke(`vesting_get_${type}_pledge`, { address })
+
+export const vestingUpdateMixnode = async (profitMarginPercent: number) =>
+  await invoke('vesting_update_mixnode', { profitMarginPercent })

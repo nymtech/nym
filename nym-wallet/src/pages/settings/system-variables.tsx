@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { Box, Button, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material'
 import { PercentOutlined } from '@mui/icons-material'
 import { yupResolver } from '@hookform/resolvers/yup'
@@ -6,28 +6,23 @@ import { useForm } from 'react-hook-form'
 import { InfoTooltip } from '../../components/InfoToolTip'
 import { InclusionProbabilityResponse, TMixnodeBondDetails } from '../../types'
 import { validationSchema } from './validationSchema'
-import { updateMixnode } from '../../requests'
+import { updateMixnode, vestingUpdateMixnode } from '../../requests'
+import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 import { ClientContext } from '../../context/main'
 import { Fee } from '../../components'
 
-type TFormData = {
-  profitMarginPercent: number
-}
-
 export const SystemVariables = ({
-  mixnodeDetails,
   saturation,
   rewardEstimation,
   inclusionProbability,
-  onUpdate,
 }: {
-  mixnodeDetails: TMixnodeBondDetails['mix_node']
   saturation: number
   rewardEstimation: number
   inclusionProbability: InclusionProbabilityResponse
-  onUpdate: () => void
 }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>()
+  const { currency, mixnodeDetails, getBondDetails } = useContext(ClientContext)
+  const { ownership } = useCheckOwnership()
 
   const {
     register,
@@ -35,22 +30,25 @@ export const SystemVariables = ({
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(validationSchema),
-    defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString() },
+    defaultValues: { profitMarginPercent: mixnodeDetails?.mix_node.profit_margin_percent },
   })
 
-  const { userBalance, currency } = useContext(ClientContext)
-
-  const onSubmit = async (data: TFormData) => {
-    try {
-      await updateMixnode({ profitMarginPercent: data.profitMarginPercent })
-      await userBalance.fetchBalance()
-      onUpdate()
-      setNodeUpdateResponse('success')
-    } catch (e) {
-      setNodeUpdateResponse('failed')
-      console.log(e)
+  const onSubmit = async (
+    profitMarginPercent: number | undefined,
+    cb: (profitMarginPercent: number) => Promise<any>,
+  ) => {
+    if (profitMarginPercent) {
+      try {
+        await cb(profitMarginPercent)
+        setNodeUpdateResponse('success')
+      } catch (e) {
+        setNodeUpdateResponse('failed')
+        console.log(e)
+      }
     }
   }
+
+  if (!mixnodeDetails) return null
 
   return (
     <>
@@ -115,7 +113,9 @@ export const SystemVariables = ({
         <Button
           variant="contained"
           color="primary"
-          onClick={handleSubmit(onSubmit)}
+          onClick={handleSubmit((data) =>
+            onSubmit(data.profitMarginPercent, ownership.vestingPledge ? vestingUpdateMixnode : updateMixnode),
+          )}
           disableElevation
           endIcon={isSubmitting && <CircularProgress size={20} />}
           disabled={Object.keys(errors).length > 0 || isSubmitting}

@@ -59,10 +59,12 @@ export const useSettingsState = (shouldUpdate: boolean) => {
 
   useEffect(() => {
     if (shouldUpdate && mixnodeDetails?.mix_node.identity_key) {
-      getStatus(mixnodeDetails?.mix_node.identity_key)
-      getStakeSaturation(mixnodeDetails?.mix_node.identity_key)
-      getRewardEstimation(mixnodeDetails?.mix_node.identity_key)
-      getMixnodeInclusionProbability(mixnodeDetails?.mix_node.identity_key)
+      ;(async () => {
+        await getStatus(mixnodeDetails?.mix_node.identity_key)
+        await getStakeSaturation(mixnodeDetails?.mix_node.identity_key)
+        await getRewardEstimation(mixnodeDetails?.mix_node.identity_key)
+        await getMixnodeInclusionProbability(mixnodeDetails?.mix_node.identity_key)
+      })()
     } else {
       reset()
     }

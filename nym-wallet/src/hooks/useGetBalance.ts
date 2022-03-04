@@ -96,11 +96,13 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
   const clearBalance = () => setBalance(undefined)
   const clearTokenAllocation = () => setTokenAllocation(undefined)
   const clearOriginalVesting = () => setOriginalVesting(undefined)
+  const clearVestingAccountInfo = () => setVestingAccountInfo(undefined)
 
   const clearAll = () => {
     clearBalance()
     clearTokenAllocation()
     clearOriginalVesting()
+    clearVestingAccountInfo()
   }
 
   useEffect(() => {

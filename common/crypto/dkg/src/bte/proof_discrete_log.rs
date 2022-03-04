@@ -11,7 +11,7 @@ use zeroize::Zeroize;
 // Domain tries to follow guidelines specified by:
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
 const DISCRETE_LOG_DOMAIN: &[u8] =
-    b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381_XMD:SHA-256_SSWU_RO_DISCRETE_LOG";
+    b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381_XMD:SHA-256_SSWU_RO_PROOF_DISCRETE_LOG";
 
 pub struct ProofOfDiscreteLog {
     rand_commitment: G1Projective,

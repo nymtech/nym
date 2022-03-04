@@ -5,6 +5,7 @@ import { config } from '../../config'
 import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signOut } from '../requests'
 import { currencyMap } from '../utils'
 import { useHistory } from 'react-router-dom'
+import { useSnackbar } from 'notistack'
 
 export const { ADMIN_ADDRESS, IS_DEV_MODE } = config
 
@@ -53,13 +54,14 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
 
   const userBalance = useGetBalance(clientDetails?.client_address)
   const history = useHistory()
+  const { enqueueSnackbar } = useSnackbar()
 
   useEffect(() => {
     const refreshAccount = async () => {
       if (network) {
         await loadAccount(network)
         await getBondDetails()
-        userBalance.fetchBalance()
+        await userBalance.fetchBalance()
       }
     }
     refreshAccount()
@@ -71,10 +73,21 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       await signInWithMnemonic(mnemonic || '')
       await getBondDetails()
       setNetwork('MAINNET')
-      history.push('/balance')
     } catch (e) {
       setIsLoading(false)
       setError(e as string)
+    } finally {
+      history.push('/balance')
+    }
+  }
+
+  const getBondDetails = async () => {
+    setMixnodeDetails(undefined)
+    try {
+      const mixnodeDetails = await getMixnodeBondDetails()
+      setMixnodeDetails(mixnodeDetails)
+    } catch (e) {
+      console.log(`Error fetching bond details ${e}`)
     }
   }
 
@@ -83,32 +96,27 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       const clientDetails = await selectNetwork(network)
       setClientDetails(clientDetails)
     } catch (e) {
+      enqueueSnackbar('Error loading account', { variant: 'error' })
+      console.log(`Load account error ${e}`)
     } finally {
       setCurrency(currencyMap(network))
     }
   }
 
   const logOut = async () => {
+    userBalance.clearAll()
     setClientDetails(undefined)
     setNetwork(undefined)
     setError(undefined)
     setIsLoading(false)
-    userBalance.clearAll()
+    setMixnodeDetails(undefined)
     await signOut()
+    enqueueSnackbar('Successfully logged out', { variant: 'success' })
   }
 
   const handleShowAdmin = () => setShowAdmin((show) => !show)
-  const handleShowSettings = () => setShowSettings((show) => !show)
 
-  const getBondDetails = async () => {
-    setMixnodeDetails(undefined)
-    try {
-      const mixnodeDetails = await getMixnodeBondDetails()
-      setMixnodeDetails(mixnodeDetails)
-    } catch (e) {
-      console.log(e)
-    }
-  }
+  const handleShowSettings = () => setShowSettings((show) => !show)
 
   const switchNetwork = (network: Network) => setNetwork(network)
 

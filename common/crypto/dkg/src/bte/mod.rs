@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::bte::proof_discrete_log::ProofOfDiscreteLog;
 use crate::error::DkgError;
 use crate::utils::hash_g2;
 use bitvec::vec::BitVec;
@@ -171,6 +172,25 @@ struct SingleChunkCiphertext {
 #[derive(Debug, Clone)]
 pub struct PublicKey(pub(crate) G1Projective);
 
+impl PublicKey {
+    pub fn verify(&self, proof: &ProofOfDiscreteLog) -> bool {
+        proof.verify(&self.0)
+    }
+}
+
+// TODO: that will need to be moved elsewhere
+
+pub struct PublicKeyWithProof {
+    key: PublicKey,
+    proof: ProofOfDiscreteLog,
+}
+
+impl PublicKeyWithProof {
+    pub fn verify(&self) -> bool {
+        self.key.verify(&self.proof)
+    }
+}
+
 pub struct DecryptionKey {
     // TODO: why not just a single node?
     nodes: Vec<Node>,
@@ -221,14 +241,16 @@ fn setup() -> Params {
 }
 
 // produces public key and a decryption key for the root of the tree
-fn keygen(params: &Params, mut rng: impl RngCore) -> (PublicKey, DecryptionKey) {
+fn keygen(params: &Params, mut rng: impl RngCore) -> (PublicKeyWithProof, DecryptionKey) {
     let g1 = G1Projective::generator();
     let g2 = G2Projective::generator();
 
-    let x = Scalar::random(&mut rng);
+    let mut x = Scalar::random(&mut rng);
     let y = g1 * x;
 
-    let rho = Scalar::random(&mut rng);
+    let proof = ProofOfDiscreteLog::construct(&mut rng, &y, &x);
+
+    let mut rho = Scalar::random(&mut rng);
 
     let a = g1 * rho;
     let b = g2 * x;
@@ -238,7 +260,7 @@ fn keygen(params: &Params, mut rng: impl RngCore) -> (PublicKey, DecryptionKey) 
 
     let dk = DecryptionKey {
         nodes: vec![Node {
-            tau: Default::default(),
+            epoch: Epoch::new(0),
             a,
             b,
             ds,
@@ -246,24 +268,20 @@ fn keygen(params: &Params, mut rng: impl RngCore) -> (PublicKey, DecryptionKey) 
         }],
     };
 
-    let pk = PublicKey(y);
+    let public_key = PublicKey(y);
+    let key_with_proof = PublicKeyWithProof {
+        key: public_key,
+        proof,
+    };
 
-    //dk = g1^rho, g2^x, f_i^rho, h^rho
+    x.zeroize();
+    rho.zeroize();
 
-    // x <- getRandomZp
-    // rho <- getRandomZp
-    // let y = g1^x
-    // let pk = (y, pi_dlog)
-    // let dk = (g1^rho, g2^x * f0^rho, f1^rho, ..., f_lambda^rho, h^rho)
-    // return (pk, dk)
-
-    // TODO: proofs of knowledge and all of that
-
-    (pk, dk)
+    (key_with_proof, dk)
 }
 
-fn verify_key(pk: PublicKey) -> bool {
-    false
+fn verify_key(pk: &PublicKey, proof: &ProofOfDiscreteLog) -> bool {
+    proof.verify(&pk.0)
 }
 
 // evolve?
@@ -599,7 +617,7 @@ mod tests {
 
         for i in 0u64..100 {
             let m = ((rng.next_u64() + i) % CHUNK_MAX as u64) as Chunk;
-            let ciphertext = encrypt_chunk(&m, &public_key, &epoch, &params, &mut rng);
+            let ciphertext = encrypt_chunk(&m, &public_key.key, &epoch, &params, &mut rng);
 
             let recovered = decrypt_chunk(
                 &decryption_key,
@@ -630,7 +648,7 @@ mod tests {
         for _ in 0..10 {
             let m1 = Share(Scalar::random(&mut rng));
             let m2 = Share(Scalar::random(&mut rng));
-            let shares = &[(m1, &public_key1), (m2, &public_key2)];
+            let shares = &[(m1, &public_key1.key), (m2, &public_key2.key)];
 
             let ciphertext = encrypt_shares(shares, &epoch, &params, &mut rng);
 

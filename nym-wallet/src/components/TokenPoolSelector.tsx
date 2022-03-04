@@ -1,20 +1,28 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { FormControl, InputLabel, ListItemText, MenuItem, Select, SelectChangeEvent } from '@mui/material'
 import { ClientContext } from '../context/main'
+import { useCheckOwnership } from '../hooks/useCheckOwnership'
 
-type TPoolOption = 'balance' | 'locked' | ''
+type TPoolOption = 'balance' | 'locked'
 
 export const TokenPoolSelector: React.FC<{ onSelect: (pool: TPoolOption) => void }> = ({ onSelect }) => {
-  const [value, setValue] = useState<TPoolOption>('')
+  const [value, setValue] = useState<TPoolOption>('balance')
   const {
-    userBalance: { tokenAllocation, balance },
+    userBalance: { tokenAllocation, balance, fetchBalance, fetchTokenAllocation },
     currency,
   } = useContext(ClientContext)
 
+  const { ownership } = useCheckOwnership()
+
   useEffect(() => {
-    if (value !== '') {
-      onSelect(value)
-    }
+    ;(async () => {
+      await fetchBalance()
+      await fetchTokenAllocation()
+    })()
+  }, [])
+
+  useEffect(() => {
+    onSelect(value)
   }, [value])
 
   const handleChange = (e: SelectChangeEvent) => setValue(e.target.value as TPoolOption)
@@ -22,7 +30,7 @@ export const TokenPoolSelector: React.FC<{ onSelect: (pool: TPoolOption) => void
   return (
     <FormControl fullWidth>
       <InputLabel>Token pool</InputLabel>
-      <Select label="Token Pool" onChange={handleChange} value={value}>
+      <Select label="Token Pool" onChange={handleChange} value={value} disabled={ownership.hasOwnership}>
         <MenuItem value="balance">
           <ListItemText
             primary="Balance"

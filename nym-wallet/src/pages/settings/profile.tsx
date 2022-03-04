@@ -5,6 +5,9 @@ import { ClientContext } from '../../context/main'
 
 export const Profile = () => {
   const { mixnodeDetails } = useContext(ClientContext)
+
+  if (!mixnodeDetails) return null
+
   return (
     <>
       <Box sx={{ p: 3 }}>

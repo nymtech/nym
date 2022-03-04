@@ -19,6 +19,7 @@ export const WelcomeContent: React.FC<{
           disableElevation
           size="large"
           onClick={onCreateAccountComplete}
+          data-testid="createAccount"
         >
           Create Account
         </Button>
@@ -33,6 +34,7 @@ export const WelcomeContent: React.FC<{
           }}
           onClick={onUseExisting}
           disableRipple
+          data-testid="signIn"
         >
           Sign in
         </Button>

@@ -15,14 +15,14 @@ export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () =>
   return (
     <Stack spacing={2} sx={{ width: 400 }} alignItems="center">
       <Subtitle subtitle="Enter your mnemonic from existing wallet" />
-      <TextField value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} multiline rows={5} fullWidth />
+      <TextField value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} data-testid="enterMnemonic" multiline rows={5} fullWidth />
       {error && (
         <Alert severity="error" variant="outlined" data-testid="error" sx={{ color: 'error.light', width: '100%' }}>
           {error}
         </Alert>
       )}
 
-      <Button variant="contained" size="large" fullWidth onClick={handleSignIn}>
+      <Button variant="contained" data-testid="signIn" size="large" fullWidth onClick={handleSignIn}>
         Sign in
       </Button>
       <Button
@@ -32,6 +32,7 @@ export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () =>
         onClick={onPrev}
         fullWidth
         sx={{ color: 'common.white', border: '1px solid white', '&:hover': { border: '1px solid white' } }}
+        data-testid="backButton"
       >
         Back
       </Button>

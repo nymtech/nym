@@ -33,3 +33,5 @@
 //     let elapsed = std::time::SystemTime::now();
 //     println!("took {:?}", elapsed.duration_since(now));
 // }
+
+fn main() {}

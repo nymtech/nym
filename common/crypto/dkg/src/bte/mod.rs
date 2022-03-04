@@ -18,6 +18,7 @@ use zeroize::Zeroize;
 
 pub mod proof_chunking;
 pub mod proof_discrete_log;
+pub mod proof_sharing;
 
 // lambda - height of tree with 2^lambda leaves
 // tau - node path?; root has empty path with l = 0, while for a leaf l = lambda
@@ -61,6 +62,14 @@ impl Epoch {
             .filter(|(i, _)| *i)
             .map(|(_, f_i)| f_i)
             .fold(params.f0, |acc, f_i| acc + f_i)
+    }
+}
+
+impl Zeroize for Epoch {
+    fn zeroize(&mut self) {
+        for v in self.0.as_raw_mut_slice() {
+            v.zeroize()
+        }
     }
 }
 
@@ -121,22 +130,6 @@ impl TryFrom<ShareEncryptionPlaintext> for Share {
     }
 }
 
-// impl Share {
-//     fn into_chunks(self) -> Vec1
-// }
-
-// impl From<Epoch> for Tau {
-//     fn from(epoch: Epoch) -> Self {
-//         todo!()
-//     }
-// }
-
-// impl From<Tau> for Epoch {
-//     fn from(tau: Tau) -> Self {
-//         todo!()
-//     }
-// }
-
 const MAX_EPOCHS_EXP: usize = 32;
 
 pub struct Params {
@@ -196,14 +189,16 @@ pub struct DecryptionKey {
     nodes: Vec<Node>,
 }
 
-impl DecryptionKey {}
+impl DecryptionKey {
+    fn update(&mut self) {
+        //
+    }
+}
 
-// #[derive(Zeroize)]
-// #[zeroize(drop)]
+#[derive(Zeroize)]
+#[zeroize(drop)]
 pub(crate) struct Node {
-    // or epoch?
-    // TODO: big or little endian?
-    tau: BitVec<u32>,
+    epoch: Epoch,
 
     // g1^rho
     a: G1Projective,
@@ -430,6 +425,8 @@ fn decrypt_chunk(
     lookup_table: Option<&BabyStepGiantStepLookup>,
 ) -> Result<Chunk, DkgError> {
     // TODO: if we go with forward secrecy then we presumably need to evolve dk
+
+    // TODO2: verify the pairing from descryption 1.1.5, i.e. e(g1, Z_j) = e(R_j, f0*PROD(fi^ti) * e(Oj, h)
 
     let b_neg = dk.nodes[0].b.neg().to_affine();
     let e_neg = dk.nodes[0].e.neg().to_affine();

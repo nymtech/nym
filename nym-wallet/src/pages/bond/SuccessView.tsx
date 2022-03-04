@@ -2,15 +2,22 @@ import React, { useContext } from 'react'
 import { Box } from '@mui/system'
 import { SuccessReponse, TransactionDetails } from '../../components'
 import { ClientContext } from '../../context/main'
+import { useCheckOwnership } from '../../hooks/useCheckOwnership'
 
 export const SuccessView: React.FC<{ details?: { amount: string; address: string } }> = ({ details }) => {
   const { userBalance, currency } = useContext(ClientContext)
+  const { ownership } = useCheckOwnership()
+
   return (
     <>
       <SuccessReponse
         title="Bonding Complete"
         subtitle="Successfully bonded to node with following details"
-        caption={`Your current balance is: ${userBalance.balance?.printable_balance}`}
+        caption={
+          ownership.vestingPledge
+            ? `Your current locked balance is: ${userBalance.tokenAllocation?.locked}${currency?.major}`
+            : `Your current balance is: ${userBalance.balance?.printable_balance}`
+        }
       />
       {details && (
         <Box sx={{ mt: 2 }}>

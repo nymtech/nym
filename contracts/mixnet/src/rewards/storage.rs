@@ -14,7 +14,10 @@ pub(crate) const REWARD_POOL: Item<'_, Uint128> = Item::new("pool");
 // TODO: Do we need a migration for this?
 pub(crate) const REWARDING_STATUS: Map<'_, (u32, IdentityKey), RewardingStatus> = Map::new("rm");
 
-pub(crate) const REWARD_CLAIMED_HEIGHT: Map<'_, (Address, IdentityKey), BlockHeight> = Map::new("rch");
+pub(crate) const DELEGATOR_REWARD_CLAIMED_HEIGHT: Map<'_, (Address, IdentityKey), BlockHeight> =
+    Map::new("drc");
+pub(crate) const OPERATOR_REWARD_CLAIMED_HEIGHT: Map<'_, (Address, IdentityKey), BlockHeight> =
+    Map::new("orc");
 
 #[allow(dead_code)]
 pub fn incr_reward_pool(

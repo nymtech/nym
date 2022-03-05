@@ -131,5 +131,10 @@ pub enum ContractError {
     MixnetCommonError {
         #[from]
         source: MixnetContractError,
-    }
+    },
+    #[error("No rewards to claim for mixnode {identity} for delegate {delegate}")]
+    NoRewardsToClaim {
+        identity: String,
+        delegate: String,
+    },
 }

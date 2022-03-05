@@ -127,7 +127,7 @@ impl RewardedSetUpdater {
 
         if let Err(err) = self
             .nymd_client
-            .reward_mixnodes(&eligible_mixnodes, self.epoch.id())
+            .reward_mixnodes(eligible_mixnodes, self.epoch.id())
             .await
         {
             // this is a super weird edge case that we didn't catch change to sequence and
@@ -196,7 +196,7 @@ impl RewardedSetUpdater {
 
             eligible_nodes.push(MixnodeToReward {
                 identity: rewarded_node.identity().clone(),
-                params: RewardParams::new(interval_reward_params.clone(), node_reward_params),
+                params: RewardParams::new(*interval_reward_params, node_reward_params),
             })
         }
 

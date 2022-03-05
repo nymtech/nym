@@ -1,17 +1,22 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::storage;
+use super::storage::{self, DELEGATOR_REWARD_CLAIMED_HEIGHT};
 use crate::constants;
 use crate::delegations::storage as delegations_storage;
+use crate::delegations::transactions::{_try_delegate_to_mixnode, try_delegate_to_mixnode};
 use crate::error::ContractError;
 use crate::interval::storage::{self as interval_storage};
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage::mixnodes;
 use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
 use crate::rewards::helpers;
-use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Order, Response, StdResult, Storage, Uint128};
+use config::defaults::DENOM;
+use cosmwasm_std::{
+    Addr, Api, Coin, DepsMut, Env, MessageInfo, Order, Response, StdResult, Storage, Uint128,
+};
 use cw_storage_plus::{Bound, PrimaryKey};
+use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_mix_delegators_rewarding_event, new_mix_operator_rewarding_event,
     new_not_found_mix_operator_rewarding_event, new_too_fresh_bond_mix_operator_rewarding_event,
@@ -21,58 +26,196 @@ use mixnet_contract_common::mixnode::{DelegatorRewardParams, StoredNodeRewardRes
 use mixnet_contract_common::reward_params::{
     IntervalRewardParams, NodeEpochRewards, NodeRewardParams, RewardParams,
 };
-use mixnet_contract_common::{IdentityKey, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT};
+use mixnet_contract_common::{
+    Delegation, IdentityKey, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
+};
 
 // FIXME: Clean up
 #[allow(unused_imports)]
 use mixnet_contract_common::RewardingResult;
 
-#[derive(Debug)]
-struct MixDelegationRewardingResult {
-    total_rewarded: Uint128,
-    start_next: Option<Addr>,
-}
+// #[derive(Debug)]
+// struct MixDelegationRewardingResult {
+//     total_rewarded: Uint128,
+//     start_next: Option<Addr>,
+// }
 
-// Figure out when is the last time reward go claimed
-// Decrease accumulated rewards
-// Increase delegation
-async fn compound_delegator_reward(
+pub fn compound_operator_reward(
     storage: &mut dyn Storage,
-    owner_address: String,
-    mix_identity: IdentityKey,
+    block_height: u64,
+    owner: &Addr,
 ) -> Result<(), ContractError> {
-    if mixnodes_storage::mixnodes()
-        .may_load(storage, &mix_identity)?
-        .is_none()
-    {
-        return Err(ContractError::MixNodeBondNotFound {
-            identity: mix_identity,
-        });
-    }
+    let bond = match mixnodes().idx.owner.item(storage, owner.to_owned())? {
+        Some(record) => record.1,
+        None => {
+            // Return if bond does not exist
+            return Ok(())
+        }
+    };
+    let mut updated_bond = bond.clone();
+    let reward = calculate_operator_reward(storage, owner, &bond)?;
+    updated_bond.accumulated_rewards -= reward;
+    updated_bond.pledge_amount.amount += reward;
+    mixnodes().replace(storage, bond.identity(), Some(&updated_bond), Some(&bond), block_height)?;
 
-    let last_claimed_height = storage::REWARD_CLAIMED_HEIGHT
-        .load(storage, (owner_address, mix_identity.clone()))
-        .unwrap_or(0);
-
-    let checkpoints_for_mix = mixnodes()
-        .changelog()
-        .prefix(&mix_identity)
-        .keys(storage, None, None, Order::Ascending)
-        .filter_map(|height| height.ok())
-        .filter(|height| *height > last_claimed_height)
-        .collect::<Vec<u64>>();
-
-    let mix_identity_ref = mix_identity.as_str();
-
-    for height in checkpoints_for_mix {
-        // Verify that checkpoint height is the same as mixnode snapshot --- FIXME: store reward_params in the StoredMixnodeBond
-        // This can't fail, as we've just loaded those heights for the mix_identity
-        let bond = mixnodes()
-            .may_load_at_height(storage, mix_identity_ref, height)?
-            .unwrap();
-    }
+    DELEGATOR_REWARD_CLAIMED_HEIGHT.save(
+        storage,
+        (bond.identity().to_string(), owner.to_string()),
+        &block_height,
+    )?;
 
     Ok(())
+}
+
+fn calculate_operator_reward(
+    storage: &dyn Storage,
+    owner: &Addr,
+    bond: &StoredMixnodeBond,
+) -> Result<Uint128, ContractError> {
+    let last_claimed_height = storage::OPERATOR_REWARD_CLAIMED_HEIGHT
+        .load(storage, (owner.to_string(), bond.identity().to_string()))
+        .unwrap_or(0);
+
+    let accumulated_rewards = mixnodes()
+        .changelog()
+        .prefix(&bond.identity().to_string())
+        .keys(storage, None, None, Order::Ascending)
+        .filter_map(|height| height.ok())
+        .filter(|height| last_claimed_height <= *height)
+        .fold(
+            Ok(Uint128::zero()),
+            |acc, height| -> Result<Uint128, ContractError> {
+                let accumulated_reward = acc?;
+                if let Some(bond) =
+                    mixnodes().may_load_at_height(storage, bond.identity().as_str(), height)?
+                {
+                    if let Some(epoch_rewards) = bond.epoch_rewards {
+                        // Compound rewards from previous heights
+                        let reward_at_height = epoch_rewards.delegation_reward(
+                            bond.pledge_amount().amount + accumulated_reward,
+                            bond.profit_margin(),
+                        )?;
+                        return Ok(accumulated_reward + reward_at_height);
+                    }
+                };
+                Ok(accumulated_reward)
+            },
+        )?;
+    Ok(accumulated_rewards)
+}
+
+// TODO:
+// Add reward collection to undeleagation
+
+// calculate_delegator_reward
+// - figure out when is the last time reward go claimed
+// - calculate current rewards
+// compound_delegator_reward
+// - decrease node accumulated rewards
+// - increase delegation
+
+pub fn compound_delegator_reward(
+    env: Env,
+    api: &dyn Api,
+    storage: &mut dyn Storage,
+    owner_address: &str,
+    mix_identity: &str,
+) -> Result<Uint128, ContractError> {
+    let block_height = env.block.height;
+    let reward = calculate_delegator_reward(storage, owner_address, mix_identity)?;
+    match _try_delegate_to_mixnode(
+        storage,
+        api,
+        env,
+        mix_identity,
+        owner_address,
+        Coin {
+            amount: reward,
+            denom: DENOM.to_string(),
+        },
+        None,
+    ) {
+        // Node exists all is well, life goes on
+        Ok(_) => {
+            if let Some(mut bond) = mixnodes().may_load(storage, mix_identity)? {
+                bond.accumulated_rewards -= reward;
+                mixnodes().save(storage, mix_identity, &bond, block_height)?;
+            }
+        }
+        // Its fine to fail here as it means there is no bond to delegate to, we'll just return the reward to the caller
+        Err(_) => {}
+    };
+
+    DELEGATOR_REWARD_CLAIMED_HEIGHT.save(
+        storage,
+        (mix_identity.to_string(), owner_address.to_string()),
+        &block_height,
+    )?;
+
+    Ok(reward)
+}
+
+// TODO: Test
+// + last_reward_claimed_height is updated
+// + last_reward_claimed height is correctly used
+fn calculate_delegator_reward(
+    storage: &dyn Storage,
+    owner_address: &str,
+    mix_identity: &str,
+) -> Result<Uint128, ContractError> {
+    let last_claimed_height = storage::DELEGATOR_REWARD_CLAIMED_HEIGHT
+        .load(
+            storage,
+            (owner_address.to_string(), mix_identity.to_string()),
+        )
+        .unwrap_or(0);
+
+    // Get delegations newer then last_claimed_height, it would be nice to also fold this into the iteration bellow but it should be ok for now, as
+    // I doubt folks refresh their delegations often
+    let delegations = delegations_storage::delegations()
+        .prefix((mix_identity.to_string(), owner_address.as_bytes().to_vec()))
+        .range(storage, None, None, Order::Descending)
+        .filter_map(|record| record.ok())
+        .filter(|(height, _)| last_claimed_height <= *height)
+        .map(|(_, delegation)| delegation)
+        .collect::<Vec<Delegation>>();
+
+    // This is a bit gnarly, but we want to avoid loading all heights, the loading mixnodes, so we're doing it all in the iterator
+    let accumulated_rewards = mixnodes()
+        .changelog()
+        .prefix(mix_identity)
+        .keys(storage, None, None, Order::Ascending)
+        .filter_map(|height| height.ok())
+        .filter(|height| last_claimed_height <= *height)
+        .fold(
+            Ok(Uint128::zero()),
+            |acc, height| -> Result<Uint128, ContractError> {
+                let accumulated_reward = acc?;
+                let delegation_at_height = delegations
+                    .iter()
+                    .filter(|d| height <= d.block_height)
+                    .fold(Uint128::zero(), |total, delegation| {
+                        total + delegation.amount.amount
+                    });
+                if delegation_at_height != Uint128::zero() {
+                    if let Some(bond) =
+                        mixnodes().may_load_at_height(storage, mix_identity, height)?
+                    {
+                        if let Some(epoch_rewards) = bond.epoch_rewards {
+                            // Compound rewards from previous heights
+                            let reward_at_height = epoch_rewards.delegation_reward(
+                                delegation_at_height + accumulated_reward,
+                                bond.profit_margin(),
+                            )?;
+                            return Ok(accumulated_reward + reward_at_height);
+                        }
+                    }
+                };
+                Ok(accumulated_reward)
+            },
+        )?;
+
+    Ok(accumulated_rewards)
 }
 
 /// Checks whether under the current context, any rewarding-related functionalities can be called.

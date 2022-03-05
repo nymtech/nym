@@ -6,9 +6,9 @@ use crate::mixnodes::storage as mixnodes_storage;
 use crate::support::helpers::generate_storage_key;
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
+    coins, wasm_execute, Addr, Api, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Storage,
+    Uint128,
 };
-use cw_storage_plus::PrimaryKey;
 use mixnet_contract_common::events::{new_delegation_event, new_undelegation_event};
 use mixnet_contract_common::{Delegation, IdentityKey};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
@@ -46,7 +46,15 @@ pub(crate) fn try_delegate_to_mixnode(
     // check if the delegation contains any funds of the appropriate denomination
     let amount = validate_delegation_stake(info.funds)?;
 
-    _try_delegate_to_mixnode(deps, env, mix_identity, info.sender.as_str(), amount, None)
+    _try_delegate_to_mixnode(
+        deps.storage,
+        deps.api,
+        env,
+        &mix_identity,
+        info.sender.as_str(),
+        amount,
+        None,
+    )
 }
 
 pub(crate) fn try_delegate_to_mixnode_on_behalf(
@@ -60,9 +68,10 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     let amount = validate_delegation_stake(info.funds)?;
 
     _try_delegate_to_mixnode(
-        deps,
+        deps.storage,
+        deps.api,
         env,
-        mix_identity,
+        &mix_identity,
         &delegate,
         amount,
         Some(info.sender),
@@ -70,32 +79,37 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
 }
 
 pub(crate) fn _try_delegate_to_mixnode(
-    deps: DepsMut<'_>,
+    storage: &mut dyn Storage,
+    api: &dyn Api,
     env: Env,
-    mix_identity: IdentityKey,
+    mix_identity: &str,
     delegate: &str,
     amount: Coin,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
-    let delegate = deps.api.addr_validate(delegate)?;
+    let delegate = api.addr_validate(delegate)?;
 
     // check if the target node actually exists
     if mixnodes_storage::mixnodes()
-        .may_load(deps.storage, &mix_identity)?
+        .may_load(storage, mix_identity)?
         .is_none()
     {
         return Err(ContractError::MixNodeBondNotFound {
-            identity: mix_identity,
+            identity: mix_identity.to_string(),
         });
     }
 
     let maybe_proxy_storage = generate_storage_key(&delegate, proxy.as_ref());
-    let storage_key = (mix_identity.clone(), maybe_proxy_storage, env.block.height);
+    let storage_key = (
+        mix_identity.to_string(),
+        maybe_proxy_storage,
+        env.block.height,
+    );
 
     // update total_delegation of this node
     mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
-        deps.storage,
-        &mix_identity,
+        storage,
+        mix_identity,
         |total_delegation| {
             // since we know that the target node exists and because the total_delegation bucket
             // entry is created whenever the node itself is added, the unwrap here is fine
@@ -106,7 +120,7 @@ pub(crate) fn _try_delegate_to_mixnode(
 
     // update [or create new] delegation of this delegator
     storage::delegations().update::<_, ContractError>(
-        deps.storage,
+        storage,
         storage_key,
         |existing_delegation| {
             Ok(match existing_delegation {
@@ -116,7 +130,7 @@ pub(crate) fn _try_delegate_to_mixnode(
                 }
                 None => Delegation::new(
                     delegate.to_owned(),
-                    mix_identity.clone(),
+                    mix_identity.to_string(),
                     amount.clone(),
                     env.block.height,
                     proxy.clone(),
@@ -129,29 +143,32 @@ pub(crate) fn _try_delegate_to_mixnode(
         &delegate,
         &proxy,
         &amount,
-        &mix_identity,
+        mix_identity,
     )))
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
-    _try_remove_delegation_from_mixnode(deps, mix_identity, info.sender.as_str(), None)
+    _try_remove_delegation_from_mixnode(deps, env, mix_identity, info.sender.as_str(), None)
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     mix_identity: IdentityKey,
     delegate: String,
 ) -> Result<Response, ContractError> {
-    _try_remove_delegation_from_mixnode(deps, mix_identity, &delegate, Some(info.sender))
+    _try_remove_delegation_from_mixnode(deps, env, mix_identity, &delegate, Some(info.sender))
 }
 
 pub(crate) fn _try_remove_delegation_from_mixnode(
     deps: DepsMut<'_>,
+    env: Env,
     mix_identity: IdentityKey,
     delegate: &str,
     proxy: Option<Addr>,
@@ -160,6 +177,28 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
     let delegation_map = storage::delegations();
     let maybe_proxy_storage = generate_storage_key(&delegate, proxy.as_ref());
     let storage_key = (mix_identity.clone(), maybe_proxy_storage.clone());
+
+    let any_delegations = delegation_map
+        .prefix(storage_key.clone())
+        .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .filter_map(|v| v.ok())
+        .next()
+        .is_some();
+
+    if !any_delegations {
+        return Err(ContractError::NoMixnodeDelegationFound {
+            identity: mix_identity.clone(),
+            address: delegate.to_string(),
+        });
+    }
+
+    let reward = crate::rewards::transactions::compound_delegator_reward(
+        env,
+        deps.api,
+        deps.storage,
+        delegate.as_str(),
+        &mix_identity,
+    )?;
 
     // Might want to introduce paging here
     let delegation_heights = delegation_map
@@ -176,19 +215,22 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
     }
 
     let mut total_delegation = Uint128::zero();
-    let mut denom = "".to_string();
+
+    if crate::mixnodes::storage::mixnodes().may_load(deps.storage, &mix_identity)?.is_none() {
+        // Since the mixnode is no longer bonded the reward did not compound and we need to manually add it to the total
+        total_delegation = reward;
+    }
 
     for h in delegation_heights {
         let storage_key = (mix_identity.clone(), maybe_proxy_storage.clone(), h);
         let delegation = delegation_map.load(deps.storage, storage_key.clone())?;
         total_delegation += delegation.amount.amount;
-        denom = delegation.amount.denom.clone();
         delegation_map.replace(deps.storage, storage_key, None, Some(&delegation))?;
     }
 
     let return_tokens = BankMsg::Send {
         to_address: proxy.as_ref().unwrap_or(&delegate).to_string(),
-        amount: coins(total_delegation.u128(), denom.clone()),
+        amount: coins(total_delegation.u128(), DENOM),
     };
 
     mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
@@ -212,7 +254,7 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
         let msg = Some(VestingContractExecuteMsg::TrackUndelegation {
             owner: delegate.as_str().to_string(),
             mix_identity: mix_identity.clone(),
-            amount: Coin::new(total_delegation.u128(), denom),
+            amount: Coin::new(total_delegation.u128(), DENOM),
         });
 
         let track_undelegation_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
@@ -779,8 +821,13 @@ mod tests {
 
             assert_eq!(
                 expected,
-                test_helpers::read_delegation(&deps.storage, identity, delegation_owner.as_bytes(), mock_env().block.height)
-                    .unwrap()
+                test_helpers::read_delegation(
+                    &deps.storage,
+                    identity,
+                    delegation_owner.as_bytes(),
+                    mock_env().block.height
+                )
+                .unwrap()
             )
         }
     }
@@ -793,6 +840,7 @@ mod tests {
         use cosmwasm_std::testing::mock_info;
         use cosmwasm_std::Addr;
         use cosmwasm_std::Uint128;
+        use rand::rngs::mock;
 
         use crate::mixnodes::transactions::try_remove_mixnode;
         use crate::support::tests;
@@ -803,6 +851,7 @@ mod tests {
         #[test]
         fn fails_if_delegation_never_existed() {
             let mut deps = test_helpers::init_contract();
+            let env = mock_env();
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
@@ -817,6 +866,7 @@ mod tests {
                 }),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
+                    env,
                     mock_info(delegation_owner.as_str(), &[]),
                     identity,
                 )
@@ -827,6 +877,7 @@ mod tests {
         fn succeeds_if_delegation_existed() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
+            let env = mock_env();
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
                 tests::fixtures::good_mixnode_pledge(),
@@ -859,6 +910,7 @@ mod tests {
                 Ok(expected_response),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
+                    env,
                     mock_info(delegation_owner.as_str(), &[]),
                     identity.clone(),
                 )
@@ -884,6 +936,7 @@ mod tests {
         fn succeeds_if_delegation_existed_even_if_node_unbonded() {
             let mut deps = test_helpers::init_contract();
             let mixnode_owner = "bob";
+            let env = mock_env();
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
                 tests::fixtures::good_mixnode_pledge(),
@@ -916,6 +969,7 @@ mod tests {
                 Ok(expected_response),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
+                    env,
                     mock_info(delegation_owner.as_str(), &[]),
                     identity.clone(),
                 )
@@ -933,6 +987,7 @@ mod tests {
         #[test]
         fn total_delegation_is_preserved_if_only_some_undelegate() {
             let mut deps = test_helpers::init_contract();
+            let env = mock_env();
             let mixnode_owner = "bob";
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
@@ -960,6 +1015,7 @@ mod tests {
             // sender1 undelegates
             try_remove_delegation_from_mixnode(
                 deps.as_mut(),
+                env,
                 mock_info(delegation_owner1.as_str(), &[]),
                 identity.clone(),
             )

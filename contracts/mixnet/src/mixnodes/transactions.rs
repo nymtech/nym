@@ -118,7 +118,7 @@ fn _try_add_mixnode(
         mix_node,
         proxy.clone(),
         Uint128::zero(),
-        None
+        None,
     );
 
     // technically we don't have to set the total_delegation bucket, but it makes things easier
@@ -170,6 +170,8 @@ pub(crate) fn _try_remove_mixnode(
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
     let owner = deps.api.addr_validate(owner)?;
+
+    crate::rewards::transactions::compound_operator_reward(deps.storage, env.block.height, &owner)?;
 
     // try to find the node of the sender
     let mixnode_bond = match storage::mixnodes()
@@ -620,7 +622,7 @@ pub mod tests {
                 .add_event(new_mixnode_unbonding_event(
                     &Addr::unchecked("fred"),
                     &None,
-                    &tests::fixtures::good_gateway_pledge()[0],
+                    &tests::fixtures::good_mixnode_pledge()[0],
                     &fred_identity,
                 ));
 
@@ -628,6 +630,7 @@ pub mod tests {
 
         // only 1 node now exists, owned by bob:
         let mix_node_bonds = tests::queries::get_mix_nodes(&mut deps);
+
         assert_eq!(1, mix_node_bonds.len());
         assert_eq!(&Addr::unchecked("bob"), mix_node_bonds[0].owner());
     }
@@ -655,7 +658,9 @@ pub mod tests {
         let info = mock_info("mix-owner", &[]);
         let msg = ExecuteMsg::UnbondMixnode {};
 
-        assert!(execute(deps.as_mut(), mock_env(), info, msg).is_ok());
+        let response = execute(deps.as_mut(), mock_env(), info, msg);
+
+        assert!(response.is_ok());
 
         assert!(storage::mixnodes()
             .idx

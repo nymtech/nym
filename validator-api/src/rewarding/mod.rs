@@ -136,18 +136,13 @@ impl Rewarder {
 
         info!("Rewarding pool stats");
         info!(
-            "-- Reward pool: {} {}",
-            interval_reward_params.reward_pool,
-            DEFAULT_NETWORK.denom()
-        );
-        info!(
             "---- Interval reward pool: {} {}",
-            interval_reward_params.period_reward_pool,
+            interval_reward_params.period_reward_pool(),
             DEFAULT_NETWORK.denom()
         );
         info!(
             "-- Circulating supply: {} {}",
-            interval_reward_params.circulating_supply,
+            interval_reward_params.circulating_supply(),
             DEFAULT_NETWORK.denom()
         );
 
@@ -361,7 +356,7 @@ impl Rewarder {
 
         if let Err(err) = self
             .nymd_client
-            .reward_mixnodes(&eligible_mixnodes, interval_id)
+            .reward_mixnodes(eligible_mixnodes, interval_id)
             .await
         {
             // this is a super weird edge case that we didn't catch change to sequence and

@@ -26,7 +26,7 @@ pub use mixnode::{
 pub use msg::*;
 pub use types::*;
 
-type U128 = fixed::types::U75F53;
+pub type U128 = fixed::types::U75F53;
 
 fixed::const_fixed_from_int! {
     const ONE: U128 = 1;

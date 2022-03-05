@@ -7,6 +7,7 @@ use cw_storage_plus::{Index, IndexList, IndexedSnapshotMap, Map, Strategy, Uniqu
 use mixnet_contract_common::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond, reward_params::{RewardParams, NodeEpochRewards}};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use mixnet_contract_common::U128;
 
 // storage prefixes
 const TOTAL_DELEGATION_NAMESPACE: &str = "td";
@@ -78,6 +79,7 @@ impl From<MixNodeBond> for StoredMixnodeBond {
 }
 
 impl StoredMixnodeBond {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         pledge_amount: Coin,
         owner: Addr,
@@ -122,6 +124,10 @@ impl StoredMixnodeBond {
 
     pub(crate) fn pledge_amount(&self) -> Coin {
         self.pledge_amount.clone()
+    }
+
+    pub fn profit_margin(&self) -> U128 {
+        U128::from_num(self.mix_node.profit_margin_percent) / U128::from_num(100)
     }
 }
 

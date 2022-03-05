@@ -21,7 +21,7 @@ pub(crate) fn query_all_network_delegations_paged(
         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
 
-    let start = start_after.map(|start| start).map(Bound::exclusive);
+    let start = start_after.map(Bound::exclusive);
 
     let delegations = storage::delegations()
         .range(deps.storage, start, None, Order::Ascending)

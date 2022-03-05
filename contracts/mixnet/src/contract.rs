@@ -168,6 +168,7 @@ pub fn execute(
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
             crate::delegations::transactions::try_remove_delegation_from_mixnode(
                 deps,
+                env,
                 info,
                 mix_identity,
             )
@@ -196,6 +197,7 @@ pub fn execute(
             delegate,
         } => crate::delegations::transactions::try_remove_delegation_from_mixnode_on_behalf(
             deps,
+            env,
             info,
             mix_identity,
             delegate,

@@ -1,4 +1,5 @@
-use crate::{mixnode::StoredNodeRewardResult, ONE, U128};
+use crate::{error::MixnetContractError, mixnode::StoredNodeRewardResult, ONE, U128};
+use az::CheckedCast;
 use cosmwasm_std::Uint128;
 use network_defaults::DEFAULT_OPERATOR_INTERVAL_COST;
 use schemars::JsonSchema;
@@ -13,6 +14,74 @@ pub struct NodeEpochRewards {
 impl NodeEpochRewards {
     pub fn new(params: RewardParams, result: StoredNodeRewardResult) -> Self {
         Self { params, result }
+    }
+
+    pub fn sigma(&self) -> Uint128 {
+        self.result.sigma()
+    }
+
+    pub fn lambda(&self) -> Uint128 {
+        self.result.lambda()
+    }
+
+    pub fn params(&self) -> RewardParams {
+        self.params.clone()
+    }
+
+    pub fn reward(&self) -> Uint128 {
+        self.result.reward()
+    }
+
+    pub fn operator_cost(&self) -> U128 {
+        self.params.operator_cost()
+    }
+
+    pub fn node_profit(&self) -> U128 {
+        let reward = U128::from_num(self.reward().u128());
+        if reward < self.operator_cost() {
+            U128::from_num(0u128)
+        } else {
+            reward - self.operator_cost()
+        }
+    }
+
+    pub fn operator_reward(&self, profit_margin: U128) -> Result<Uint128, MixnetContractError> {
+        let reward = self.node_profit();
+        let operator_base_reward = reward.min(self.operator_cost());
+        let operator_reward = (profit_margin
+            + (ONE - profit_margin) * U128::from_num(self.lambda().u128())
+                / U128::from_num(self.sigma().u128()))
+            * reward;
+
+        let reward = (operator_reward + operator_base_reward).max(U128::from_num(0u128));
+
+        if let Some(int_reward) = reward.checked_cast() {
+            Ok(Uint128::new(int_reward))
+        } else {
+            Err(MixnetContractError::CastError)
+        }
+    }
+
+    pub fn delegation_reward(
+        &self,
+        delegation_amount: Uint128,
+        profit_margin: U128,
+    ) -> Result<Uint128, MixnetContractError> {
+        // change all values into their fixed representations
+        let delegation_amount = U128::from_num(delegation_amount.u128());
+        let circulating_supply = U128::from_num(self.params.circulating_supply());
+
+        let scaled_delegation_amount = delegation_amount / circulating_supply;
+        let delegator_reward = (ONE - profit_margin) * scaled_delegation_amount
+            / U128::from_num(self.sigma().u128())
+            * self.node_profit();
+
+        let reward = delegator_reward.max(U128::ZERO);
+        if let Some(int_reward) = reward.checked_cast() {
+            Ok(Uint128::new(int_reward))
+        } else {
+            Err(MixnetContractError::CastError)
+        }
     }
 }
 

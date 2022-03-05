@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::rewarding::{error::RewardingError, IntervalRewardParams, MixnodeToReward};
+use crate::rewarding::{error::RewardingError, MixnodeToReward};
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::{
     reward_params::IntervalRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,

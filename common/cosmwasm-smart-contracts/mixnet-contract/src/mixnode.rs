@@ -2,7 +2,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::error::MixnetContractError;
-use crate::reward_params::RewardParams;
+use crate::reward_params::{self, RewardParams, NodeEpochRewards};
 use crate::{IdentityKey, SphinxKey};
 use crate::{ONE, U128};
 use az::CheckedCast;
@@ -132,11 +132,16 @@ pub struct DelegatorRewardParams {
 }
 
 impl DelegatorRewardParams {
-    pub fn new(mixnode_bond: &MixNodeBond, reward_params: RewardParams) -> Self {
+    pub fn new(
+        sigma: U128,
+        profit_margin: U128,
+        node_profit: U128,
+        reward_params: RewardParams,
+    ) -> Self {
         DelegatorRewardParams {
-            sigma: mixnode_bond.sigma(&reward_params),
-            profit_margin: mixnode_bond.profit_margin(),
-            node_profit: mixnode_bond.node_profit(&reward_params),
+            sigma,
+            profit_margin,
+            node_profit,
             reward_params,
         }
     }
@@ -294,7 +299,11 @@ impl MixNodeBond {
         if self.pledge_amount.denom != self.total_delegation.denom {
             None
         } else {
-            Some(self.pledge_amount.amount.u128() + self.total_delegation.amount.u128() + self.accumulated_rewards.u128())
+            Some(
+                self.pledge_amount.amount.u128()
+                    + self.total_delegation.amount.u128()
+                    + self.accumulated_rewards.u128(),
+            )
         }
     }
 
@@ -415,7 +424,12 @@ impl MixNodeBond {
     }
 
     pub fn reward_delegation(&self, delegation_amount: Uint128, params: &RewardParams) -> u128 {
-        let reward_params = DelegatorRewardParams::new(self, *params);
+        let reward_params = DelegatorRewardParams::new(
+            self.sigma(params),
+            self.profit_margin(),
+            self.node_profit(params),
+            params.to_owned(),
+        );
         reward_params.determine_delegation_reward(delegation_amount)
     }
 }

@@ -49,14 +49,20 @@ pub fn compound_operator_reward(
         Some(record) => record.1,
         None => {
             // Return if bond does not exist
-            return Ok(())
+            return Ok(());
         }
     };
     let mut updated_bond = bond.clone();
     let reward = calculate_operator_reward(storage, owner, &bond)?;
     updated_bond.accumulated_rewards -= reward;
     updated_bond.pledge_amount.amount += reward;
-    mixnodes().replace(storage, bond.identity(), Some(&updated_bond), Some(&bond), block_height)?;
+    mixnodes().replace(
+        storage,
+        bond.identity(),
+        Some(&updated_bond),
+        Some(&bond),
+        block_height,
+    )?;
 
     DELEGATOR_REWARD_CLAIMED_HEIGHT.save(
         storage,
@@ -115,18 +121,17 @@ fn calculate_operator_reward(
 // - increase delegation
 
 pub fn compound_delegator_reward(
-    env: Env,
+    block_height: u64,
     api: &dyn Api,
     storage: &mut dyn Storage,
     owner_address: &str,
     mix_identity: &str,
 ) -> Result<Uint128, ContractError> {
-    let block_height = env.block.height;
     let reward = calculate_delegator_reward(storage, owner_address, mix_identity)?;
     match _try_delegate_to_mixnode(
         storage,
         api,
-        env,
+        block_height,
         mix_identity,
         owner_address,
         Coin {
@@ -925,6 +930,8 @@ pub mod tests {
             node_identity.clone(),
         )
         .unwrap();
+
+        crate::delegations::transactions::try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         env.block.height += 2 * constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;

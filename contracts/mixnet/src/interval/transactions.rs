@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::delegations::transactions::{try_reconcile_all_delegation_events};
 use crate::error::ContractError;
 use crate::error::ContractError::IntervalNotInProgress;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
@@ -9,6 +10,9 @@ use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::events::{new_advance_interval_event, new_change_rewarded_set_event};
 use mixnet_contract_common::IdentityKey;
 
+// We've distributed the rewards to the rewarded set from the validator api before making this call (implicit order, should be solved in the future)
+// We now write the new rewarded set, snapshot the mixnodes and finally reconcile all delegations and undelegations. That way the rewards for the previous
+// epoch will be calculated correctly as the delegations and undelegations from the previous epoch will only take effect in the next (current) one.
 pub fn try_write_rewarded_set(
     deps: DepsMut<'_>,
     env: Env,
@@ -61,8 +65,11 @@ pub fn try_write_rewarded_set(
     )?;
     storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &block_height)?;
 
-    // Save current mixnodes state for rewarding purposes, ie changes during the current epoch will not affect reward payouts
+    // Save state after the rewards have been distributed with the state as it was at the start of the epoch
     crate::mixnodes::storage::mixnodes().add_checkpoint(deps.storage, block_height)?;
+
+    // FIXME: This will have to run in a single function as the ordering between delegations and undelegations must be preserved.
+    let delegations_response = try_reconcile_all_delegation_events(deps.storage, deps.api)?;
 
     Ok(Response::new().add_event(new_change_rewarded_set_event(
         state.params.mixnode_active_set_size,

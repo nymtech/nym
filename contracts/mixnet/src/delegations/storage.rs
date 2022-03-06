@@ -1,13 +1,15 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
-use mixnet_contract_common::{Addr, Delegation, IdentityKey};
+use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex, Map};
+use mixnet_contract_common::{Addr, Delegation, IdentityKey, mixnode::DelegationEvent};
 
 // storage prefixes
 const DELEGATION_PK_NAMESPACE: &str = "dl";
 const DELEGATION_OWNER_IDX_NAMESPACE: &str = "dlo";
 const DELEGATION_MIXNODE_IDX_NAMESPACE: &str = "dlm";
+
+pub const PENDING_DELEGATION_EVENTS: Map<(BlockHeight, IdentityKey, OwnerAddress), DelegationEvent> = Map::new("pend");
 
 // paged retrieval limits for all queries and transactions
 pub(crate) const DELEGATION_PAGE_MAX_LIMIT: u32 = 500;

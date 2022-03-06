@@ -2,8 +2,8 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::error::MixnetContractError;
-use crate::reward_params::{self, RewardParams, NodeEpochRewards};
-use crate::{IdentityKey, SphinxKey};
+use crate::reward_params::{self, NodeEpochRewards, RewardParams};
+use crate::{IdentityKey, SphinxKey, Delegation};
 use crate::{ONE, U128};
 use az::CheckedCast;
 use cosmwasm_std::{coin, Addr, Coin, Uint128};
@@ -22,7 +22,7 @@ use std::fmt::Display;
         export_to = "../../../nym-wallet/src/types/rust/rewardedsetnodestatus.ts"
     )
 )]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 pub enum RewardedSetNodeStatus {
     Active,
     Standby,
@@ -31,6 +31,52 @@ pub enum RewardedSetNodeStatus {
 impl RewardedSetNodeStatus {
     pub fn is_active(&self) -> bool {
         matches!(self, RewardedSetNodeStatus::Active)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
+pub enum DelegationEvent {
+    Delegate(Delegation),
+    Undelegate(PendingUndelegate),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
+pub struct PendingUndelegate {
+    mix_identity: IdentityKey,
+    delegate: Addr,
+    proxy: Option<Addr>,
+    block_height: u64,
+}
+
+impl PendingUndelegate {
+    pub fn new(
+        mix_identity: IdentityKey,
+        delegate: Addr,
+        proxy: Option<Addr>,
+        block_height: u64,
+    ) -> Self {
+        Self {
+            mix_identity,
+            delegate,
+            proxy,
+            block_height,
+        }
+    }
+
+    pub fn mix_identity(&self) -> IdentityKey {
+        self.mix_identity.clone()
+    }
+
+    pub fn delegate(&self) -> Addr {
+        self.delegate.clone()
+    }
+
+    pub fn proxy(&self) -> Option<Addr> {
+        self.proxy.clone()
+    }
+
+    pub fn block_height(&self) -> u64 {
+        self.block_height
     }
 }
 

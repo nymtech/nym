@@ -9,7 +9,9 @@ pub use contracts_common::events::*;
 
 // event types
 pub const DELEGATION_EVENT_TYPE: &str = "delegation";
+pub const PENDING_DELEGATION_EVENT_TYPE: &str = "pending_delegation";
 pub const UNDELEGATION_EVENT_TYPE: &str = "undelegation";
+pub const PENDING_UNDELEGATION_EVENT_TYPE: &str = "pending_undelegation";
 pub const GATEWAY_BONDING_EVENT_TYPE: &str = "gateway_bonding";
 pub const GATEWAY_UNBONDING_EVENT_TYPE: &str = "gateway_unbonding";
 pub const MIXNODE_BONDING_EVENT_TYPE: &str = "mixnode_bonding";
@@ -89,10 +91,29 @@ pub fn new_delegation_event(
         .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
 }
 
+pub fn new_pending_delegation_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    amount: &Coin,
+    mix_identity: IdentityKeyRef<'_>,
+) -> Event {
+    let mut event = Event::new(PENDING_DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+}
+
 pub fn new_undelegation_event(
     delegator: &Addr,
     proxy: &Option<Addr>,
     mix_identity: IdentityKeyRef<'_>,
+    amount: Uint128,
 ) -> Event {
     let mut event = Event::new(UNDELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
 
@@ -102,12 +123,24 @@ pub fn new_undelegation_event(
 
     // coin implements Display trait and we use that implementation here
     event
-        // .add_attribute(AMOUNT_KEY, old_delegation.amount.to_string())
-        // .add_attribute(
-        //     DELEGATION_HEIGHT_KEY,
-        //     old_delegation.block_height.to_string(),
-        // )
+        .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+}
+
+pub fn new_pending_undelegation_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    mix_identity: IdentityKeyRef<'_>,
+) -> Event {
+    let mut event =
+        Event::new(PENDING_UNDELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event.add_attribute(DELEGATION_TARGET_KEY, mix_identity)
 }
 
 pub fn new_gateway_bonding_event(

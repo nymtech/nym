@@ -123,7 +123,7 @@ pub type IdentityKey = String;
 pub type IdentityKeyRef<'a> = &'a str;
 pub type SphinxKey = String;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct PagedRewardedSetResponse {
     pub identities: Vec<(IdentityKey, RewardedSetNodeStatus)>,
     pub start_next_after: Option<IdentityKey>,

@@ -102,7 +102,11 @@ impl RewardedSetUpdater {
         interval_reward_params: &IntervalRewardParams,
     ) -> Result<(), RewardingError> {
         let to_reward = self.nodes_to_reward(interval_reward_params).await?;
-        let _failures = self.distribute_rewards(&to_reward, false);
+        let failures = self.distribute_rewards(&to_reward, false).await;
+        error!(
+            "Failed to reward {} nodes",
+            failures.unwrap_or(Vec::new()).len()
+        );
         Ok(())
     }
 

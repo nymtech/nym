@@ -133,7 +133,7 @@ impl<C> ValidatorCacheRefresher<C> {
 
         let interval_rewarding_params = self
             .nymd_client
-            .get_current_interval_reward_params()
+            .get_current_epoch_reward_params()
             .await?;
         let current_interval = self.nymd_client.get_current_interval().await?;
 

@@ -79,7 +79,7 @@ pub fn good_gateway_pledge() -> Vec<Coin> {
 // when exact values are irrelevant and what matters is the action of rewarding
 pub fn rewarding_params_fixture(uptime: u128) -> RewardParams {
     let interval_reward_params = IntervalRewardParams::new(
-        (INITIAL_REWARD_POOL / 100) * INTERVAL_REWARD_PERCENT as u128,
+        (INITIAL_REWARD_POOL / 100 / 720) * INTERVAL_REWARD_PERCENT as u128,
         50 as u128,
         25 as u128,
         TOTAL_SUPPLY - INITIAL_REWARD_POOL,

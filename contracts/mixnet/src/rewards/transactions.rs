@@ -989,8 +989,8 @@ pub mod tests {
             .load(deps.as_ref().storage)
             .unwrap();
         let rewarding_validator_address = current_state.rewarding_validator_address;
-        let period_reward_pool = (INITIAL_REWARD_POOL / 100) * INTERVAL_REWARD_PERCENT as u128;
-        assert_eq!(period_reward_pool, 5_000_000_000_000);
+        let period_reward_pool = (INITIAL_REWARD_POOL / 100 / 720) * INTERVAL_REWARD_PERCENT as u128;
+        assert_eq!(period_reward_pool, 6_944_444_444);
         let rewarded_set_size = 200; // Imagining our reward set size is 200
         let active_set_size = 100;
         let active_set_work_factor = 10;
@@ -1061,7 +1061,7 @@ pub mod tests {
             mix_1_reward_result.lambda(),
             U128::from_num(0.0000133333333333f64)
         );
-        assert_eq!(mix_1_reward_result.reward().int(), 186562237u128);
+        assert_eq!(mix_1_reward_result.reward().int(), 259114u128);
 
         let mix1_operator_reward = mix_1.operator_reward(&params);
 
@@ -1069,9 +1069,9 @@ pub mod tests {
 
         let mix1_delegator2_reward = mix_1.reward_delegation(Uint128::new(2000_000000), &params);
 
-        assert_eq!(mix1_operator_reward, 120609230);
-        assert_eq!(mix1_delegator1_reward, 52762405);
-        assert_eq!(mix1_delegator2_reward, 13190601);
+        assert_eq!(mix1_operator_reward, 167513);
+        assert_eq!(mix1_delegator1_reward, 73280);
+        assert_eq!(mix1_delegator2_reward, 18320);
 
         assert_eq!(
             mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward + 1,

@@ -131,7 +131,7 @@ impl Rewarder {
     ) -> Result<Vec<MixnodeToReward>, RewardingError> {
         let interval_reward_params = self
             .nymd_client
-            .get_current_interval_reward_params()
+            .get_current_epoch_reward_params()
             .await?;
 
         info!("Rewarding pool stats");

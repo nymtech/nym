@@ -145,7 +145,7 @@ impl<C> Client<C> {
         self.0.read().await.get_contract_settings().await
     }
 
-    pub(crate) async fn get_current_interval_reward_params(
+    pub(crate) async fn get_current_epoch_reward_params(
         &self,
     ) -> Result<IntervalRewardParams, ValidatorClientError>
     where
@@ -158,7 +158,7 @@ impl<C> Client<C> {
         let interval_reward_percent = this.get_interval_reward_percent().await?;
 
         let interval_reward_params = IntervalRewardParams::new(
-            (reward_pool / 100) * interval_reward_percent as u128,
+            (reward_pool / 100 / 720) * interval_reward_percent as u128,
             state.mixnode_rewarded_set_size as u128,
             state.mixnode_active_set_size as u128,
             this.get_circulating_supply().await?,

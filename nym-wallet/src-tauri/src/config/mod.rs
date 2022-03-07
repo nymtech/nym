@@ -87,32 +87,27 @@ impl NymConfig for Config {
 }
 
 impl Config {
-  pub fn get_nymd_validator_url(&self, network: WalletNetwork) -> Url {
-    // TODO make this a random choice
-    if let Some(Some(validator_details)) = self
-      .base
-      .networks
-      .validators(network.into())
-      .map(|validators| validators.first())
-    {
-      validator_details.nymd_url()
-    } else {
-      panic!("No validators found in config")
-    }
+  pub fn get_nymd_validator_url(&self, network: WalletNetwork) -> Option<Url> {
+    // TODO: for now we pick the first one
+    self
+      .network
+      .validators(network)
+      .chain(self.base.networks.validators(network.into()))
+      .map(|x| x.nymd_url())
+      .next()
   }
 
-  pub fn get_validator_api_url(&self, network: WalletNetwork) -> Url {
-    // TODO make this a random choice
-    if let Some(Some(validator_details)) = self
-      .base
-      .networks
-      .validators(network.into())
-      .map(|validators| validators.first())
-    {
-      validator_details.api_url().expect("no api url provided")
-    } else {
-      panic!("No validators found in config")
-    }
+  pub fn get_validator_api_url(&self, network: WalletNetwork) -> Option<Url> {
+    // TODO: for now we pick the first one
+    // NOTE: we are explictly picking the API URL for the first configured validator, not the first
+    // API URL out of all validators.
+    self
+      .network
+      .validators(network)
+      .chain(self.base.networks.validators(network.into()))
+      .map(|x| x.api_url())
+      .next()
+      .flatten()
   }
 
   pub fn get_mixnet_contract_address(&self, network: WalletNetwork) -> Option<cosmrs::AccountId> {
@@ -159,26 +154,40 @@ struct Network {
   qa: Option<Vec<ValidatorDetails>>,
 }
 
+impl Network {
+  fn validators(&self, network: WalletNetwork) -> impl Iterator<Item = &ValidatorDetails> {
+    match network {
+      WalletNetwork::MAINNET => self.mainnet.as_ref(),
+      WalletNetwork::SANDBOX => self.sandbox.as_ref(),
+      WalletNetwork::QA => self.qa.as_ref(),
+    }
+    .into_iter()
+    .flatten()
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
-  use config::defaults::all::Network as NetworkConfig;
 
   fn test_config() -> Config {
     Config {
       base: Base::default(),
       network: Network {
         mainnet: Some(vec![
-          // Add the default one, although the hardcoded default isn't intended to be included in
-          // the config file.
-          NetworkConfig::MAINNET.validators().next().unwrap().clone(),
-          // An additional one
           ValidatorDetails {
-            nymd_url: "https://42".to_string(),
+            nymd_url: "https://foo".to_string(),
             api_url: None,
           },
+          ValidatorDetails {
+            nymd_url: "https://baz".to_string(),
+            api_url: Some("https://baz/api".to_string()),
+          },
         ]),
-        sandbox: Some(NetworkConfig::SANDBOX.validators().cloned().collect()),
+        sandbox: Some(vec![ValidatorDetails {
+          nymd_url: "https://bar".to_string(),
+          api_url: Some("https://bar/api".to_string()),
+        }]),
         qa: None,
       },
     }
@@ -189,15 +198,15 @@ mod tests {
     assert_eq!(
       toml::to_string_pretty(&test_config()).unwrap(),
       r#"[[network.mainnet]]
-nymd_url = 'https://rpc.nyx.nodes.guru/'
-api_url = 'https://api.nyx.nodes.guru/'
+nymd_url = 'https://foo'
 
 [[network.mainnet]]
-nymd_url = 'https://42'
+nymd_url = 'https://baz'
+api_url = 'https://baz/api'
 
 [[network.sandbox]]
-nymd_url = 'https://sandbox-validator.nymtech.net'
-api_url = 'https://sandbox-validator.nymtech.net/api'
+nymd_url = 'https://bar'
+api_url = 'https://bar/api'
 "#
     );
   }
@@ -207,5 +216,40 @@ api_url = 'https://sandbox-validator.nymtech.net/api'
     let config_str = toml::to_string_pretty(&config).unwrap();
     let config_from_toml = toml::from_str(&config_str).unwrap();
     assert_eq!(config, config_from_toml);
+  }
+
+  #[test]
+  fn get_urls_parsed_from_config() {
+    let config = test_config();
+
+    let nymd_url = config
+      .get_nymd_validator_url(WalletNetwork::MAINNET)
+      .unwrap();
+    assert_eq!(nymd_url.to_string(), "https://foo/".to_string());
+
+    // The first entry is missing an API URL
+    let api_url = config.get_validator_api_url(WalletNetwork::MAINNET);
+    assert_eq!(api_url, None);
+  }
+
+  #[test]
+  fn get_urls_from_defaults() {
+    let config = Config::default();
+
+    let nymd_url = config
+      .get_nymd_validator_url(WalletNetwork::MAINNET)
+      .unwrap();
+    assert_eq!(
+      nymd_url.to_string(),
+      "https://rpc.nyx.nodes.guru/".to_string()
+    );
+
+    let api_url = config
+      .get_validator_api_url(WalletNetwork::MAINNET)
+      .unwrap();
+    assert_eq!(
+      api_url.to_string(),
+      "https://api.nyx.nodes.guru/".to_string()
+    );
   }
 }

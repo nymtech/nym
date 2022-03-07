@@ -170,9 +170,11 @@ impl SupportedNetworks {
             .map(|network_details| network_details.rewarding_validator_address.as_str())
     }
 
-    pub fn validators(&self, network: Network) -> Option<&Vec<ValidatorDetails>> {
+    pub fn validators(&self, network: Network) -> impl Iterator<Item = &ValidatorDetails> {
         self.networks
             .get(&network)
             .map(|network_details| &network_details.validators)
+            .into_iter()
+            .flatten()
     }
 }

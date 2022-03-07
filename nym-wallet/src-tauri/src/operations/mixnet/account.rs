@@ -137,11 +137,17 @@ async fn _connect_with_mnemonic(
   for network in Network::iter() {
     let client = {
       let config = state.read().await.config();
+      let nymd_url = config
+        .get_nymd_validator_url(network)
+        .ok_or(BackendError::NoNymdValidatorConfigured)?;
+      let api_url = config
+        .get_validator_api_url(network)
+        .ok_or(BackendError::NoValidatorApiUrlConfigured)?;
       match validator_client::Client::new_signing(
         validator_client::Config::new(
           network.into(),
-          config.get_nymd_validator_url(network),
-          config.get_validator_api_url(network),
+          nymd_url,
+          api_url,
           config.get_mixnet_contract_address(network),
           config.get_vesting_contract_address(network),
           config.get_bandwidth_claim_contract_address(network),

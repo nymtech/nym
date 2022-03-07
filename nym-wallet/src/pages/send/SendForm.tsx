@@ -14,10 +14,6 @@ export const SendForm = () => {
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <ClientAddress withCopy />
-      </Grid>
-
-      <Grid item xs={12}>
         <TextField
           {...register('to')}
           required

@@ -361,7 +361,7 @@ export const BondForm = ({
               )}
             </>
           )}
-          <Grid item>
+          <Grid item xs={12}>
             {!disabled ? <Fee feeType={EnumNodeType.mixnode ? 'BondMixnode' : 'BondGateway'} /> : <div />}
           </Grid>
         </Grid>

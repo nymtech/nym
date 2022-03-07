@@ -44,7 +44,7 @@ const defaultValues = {
   tokenPool: 'balance',
   identityKey: '',
   sphinxKey: '',
-  ownerSignature: '2bgKcS1bSSvBsMbYZu3N5yqQZc3m6C7refxaYpMfUNDgv3K1EKi78cq9To2KJc8XxwFpfzeZKmaFgjwHNR4yiPW',
+  ownerSignature: '',
   amount: '',
   host: '',
   version: '',

@@ -6,7 +6,7 @@ use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer};
 use cosmwasm_std::{Addr, Coin, Event, Uint128};
 
 pub use contracts_common::events::*;
-
+// FIXME: This should becoma an Enum
 // event types
 pub const DELEGATION_EVENT_TYPE: &str = "delegation";
 pub const PENDING_DELEGATION_EVENT_TYPE: &str = "pending_delegation";
@@ -21,6 +21,7 @@ pub const OPERATOR_REWARDING_EVENT_TYPE: &str = "mix_rewarding";
 pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
 pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
 pub const ADVANCE_INTERVAL_EVENT_TYPE: &str = "advance_interval";
+pub const ADVANCE_EPOCH_EVENT_TYPE: &str = "advance_epoch";
 pub const COMPOUND_DELEGATOR_REWARD_EVENT_TYPE: &str = "compound_delegator_reward";
 pub const COMPOUND_OPERATOR_REWARD_EVENT_TYPE: &str = "compound_operator_reward";
 pub const SNAPSHOT_MIXNODES_EVENT: &str = "snapshot_mixnodes";
@@ -75,6 +76,7 @@ pub const NODES_IN_REWARDED_SET_KEY: &str = "nodes_in_rewarded_set";
 pub const CURRENT_INTERVAL_ID_KEY: &str = "current_interval";
 
 pub const NEW_CURRENT_INTERVAL_KEY: &str = "new_current_interval";
+pub const NEW_CURRENT_EPOCH_KEY: &str = "new_current_epoch";
 pub const BLOCK_HEIGHT_KEY: &str = "block_height";
 pub const CHECKPOINT_MIXNODES_EVENT: &str = "checkpoint_mixnodes";
 
@@ -399,3 +401,9 @@ pub fn new_advance_interval_event(interval: Interval) -> Event {
     Event::new(ADVANCE_INTERVAL_EVENT_TYPE)
         .add_attribute(NEW_CURRENT_INTERVAL_KEY, interval.to_string())
 }
+
+pub fn new_advance_epoch_event(interval: Interval) -> Event {
+    Event::new(ADVANCE_EPOCH_EVENT_TYPE)
+        .add_attribute(NEW_CURRENT_EPOCH_KEY, interval.to_string())
+}
+

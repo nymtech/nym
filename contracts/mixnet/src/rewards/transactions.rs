@@ -25,7 +25,7 @@ use mixnet_contract_common::events::{
 };
 use mixnet_contract_common::mixnode::{DelegatorRewardParams, StoredNodeRewardResult};
 use mixnet_contract_common::reward_params::{
-    IntervalRewardParams, NodeEpochRewards, NodeRewardParams, RewardParams,
+    EpochRewardParams, NodeEpochRewards, NodeRewardParams, RewardParams,
 };
 use mixnet_contract_common::{
     Delegation, IdentityKey, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
@@ -497,12 +497,15 @@ pub(crate) fn try_reward_mixnode(
     info: MessageInfo,
     mix_identity: IdentityKey,
     params: RewardParams,
-    interval_id: u32,
+    epoch_id: u32,
 ) -> Result<Response, ContractError> {
-    verify_rewarding_state(deps.storage, info, interval_id)?;
+    verify_rewarding_state(deps.storage, info, epoch_id)?;
+
+    // TODO: pull epoch reward params from storage and remove them from reward params
+    let epoch_reward_params = crate::interval::storage::current_epoch_reward_params(deps.storage)?;
 
     // check if the mixnode hasn't been rewarded in this rewarding interval already
-    match storage::REWARDING_STATUS.may_load(deps.storage, (interval_id, mix_identity.clone()))? {
+    match storage::REWARDING_STATUS.may_load(deps.storage, (epoch_id, mix_identity.clone()))? {
         None => (),
         Some(RewardingStatus::Complete(_)) => {
             return Err(ContractError::MixnodeAlreadyRewarded {
@@ -523,7 +526,7 @@ pub(crate) fn try_reward_mixnode(
             None => {
                 return Ok(
                     Response::new().add_event(new_not_found_mix_operator_rewarding_event(
-                        interval_id,
+                        epoch_id,
                         &mix_identity,
                     )),
                 )
@@ -534,13 +537,13 @@ pub(crate) fn try_reward_mixnode(
     if current_bond.block_height + constants::MINIMUM_BLOCK_AGE_FOR_REWARDING > env.block.height {
         storage::REWARDING_STATUS.save(
             deps.storage,
-            (interval_id, mix_identity.clone()),
+            (epoch_id, mix_identity.clone()),
             &RewardingStatus::Complete(Default::default()),
         )?;
 
         return Ok(
             Response::new().add_event(new_too_fresh_bond_mix_operator_rewarding_event(
-                interval_id,
+                epoch_id,
                 &mix_identity,
             )),
         );
@@ -553,13 +556,13 @@ pub(crate) fn try_reward_mixnode(
     if params.uptime() == 0 {
         storage::REWARDING_STATUS.save(
             deps.storage,
-            (interval_id, mix_identity.clone()),
+            (epoch_id, mix_identity.clone()),
             &RewardingStatus::Complete(Default::default()),
         )?;
 
         return Ok(
             Response::new().add_event(new_zero_uptime_mix_operator_rewarding_event(
-                interval_id,
+                epoch_id,
                 &mix_identity,
             )),
         );
@@ -615,13 +618,13 @@ pub(crate) fn try_reward_mixnode(
 
     helpers::update_rewarding_status(
         deps.storage,
-        interval_id,
+        epoch_id,
         mix_identity.clone(),
         rewarding_result,
     )?;
 
     Ok(Response::new().add_event(new_mix_operator_rewarding_event(
-        interval_id,
+        epoch_id,
         &mix_identity,
         node_reward_result,
         node_pledge,
@@ -632,7 +635,7 @@ pub(crate) fn try_reward_mixnode(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::constants::SYBIL_RESISTANCE_PERCENT;
+    use crate::constants::{SYBIL_RESISTANCE_PERCENT, EPOCHS_IN_INTERVAL};
     use crate::delegations::transactions::try_delegate_to_mixnode;
     use crate::error::ContractError;
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
@@ -653,7 +656,7 @@ pub mod tests {
         OPERATOR_REWARD_KEY, TOTAL_MIXNODE_REWARD_KEY,
     };
     use mixnet_contract_common::reward_params::{
-        IntervalRewardParams, NodeRewardParams, RewardParams,
+        EpochRewardParams, NodeRewardParams, RewardParams,
     };
     use mixnet_contract_common::{Delegation, IdentityKey, Layer, MixNode};
 
@@ -989,7 +992,7 @@ pub mod tests {
             .load(deps.as_ref().storage)
             .unwrap();
         let rewarding_validator_address = current_state.rewarding_validator_address;
-        let period_reward_pool = (INITIAL_REWARD_POOL / 100 / 720) * INTERVAL_REWARD_PERCENT as u128;
+        let period_reward_pool = (INITIAL_REWARD_POOL / 100 / EPOCHS_IN_INTERVAL as u128) * INTERVAL_REWARD_PERCENT as u128;
         assert_eq!(period_reward_pool, 6_944_444_444);
         let rewarded_set_size = 200; // Imagining our reward set size is 200
         let active_set_size = 100;
@@ -1034,7 +1037,7 @@ pub mod tests {
             .unwrap();
         let mix_1_uptime = 100;
 
-        let interval_reward_params = IntervalRewardParams::new(
+        let interval_reward_params = EpochRewardParams::new(
             period_reward_pool,
             rewarded_set_size,
             active_set_size,

@@ -4,7 +4,7 @@ use crate::mixnodes::storage as mixnodes_storage;
 use crate::{mixnodes::storage::StoredMixnodeBond, support::tests};
 use config::defaults::{DENOM, TOTAL_SUPPLY};
 use cosmwasm_std::{coin, Addr, Coin, Uint128};
-use mixnet_contract_common::reward_params::{IntervalRewardParams, NodeRewardParams, RewardParams};
+use mixnet_contract_common::reward_params::{EpochRewardParams, NodeRewardParams, RewardParams};
 use mixnet_contract_common::{Gateway, GatewayBond, Layer, MixNode};
 
 pub fn mix_node_fixture() -> MixNode {
@@ -78,8 +78,8 @@ pub fn good_gateway_pledge() -> Vec<Coin> {
 
 // when exact values are irrelevant and what matters is the action of rewarding
 pub fn rewarding_params_fixture(uptime: u128) -> RewardParams {
-    let interval_reward_params = IntervalRewardParams::new(
-        (INITIAL_REWARD_POOL / 100 / 720) * INTERVAL_REWARD_PERCENT as u128,
+    let interval_reward_params = EpochRewardParams::new(
+        (INITIAL_REWARD_POOL / 100 / crate::constants::EPOCHS_IN_INTERVAL as u128) * INTERVAL_REWARD_PERCENT as u128,
         50 as u128,
         25 as u128,
         TOTAL_SUPPLY - INITIAL_REWARD_POOL,

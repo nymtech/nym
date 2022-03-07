@@ -245,6 +245,9 @@ pub fn execute(
         ExecuteMsg::AdvanceCurrentInterval {} => {
             crate::interval::transactions::try_advance_interval(env, deps.storage)
         }
+        ExecuteMsg::AdvanceCurrentEpoch {} => {
+            crate::interval::transactions::try_advance_epoch(env, deps.storage)
+        }
         ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
             crate::rewards::transactions::try_compound_delegator_reward(
                 deps,
@@ -256,21 +259,30 @@ pub fn execute(
         ExecuteMsg::CompoundOperatorReward {} => {
             crate::rewards::transactions::try_compound_operator_reward(deps, env, info)
         }
-        ExecuteMsg::CompoundDelegatorRewardOnBehalf { owner, mix_identity } => {
-            crate::rewards::transactions::try_compound_delegator_reward_on_behalf(
-                deps, env, info, owner, mix_identity,
-            )
-        },
+        ExecuteMsg::CompoundDelegatorRewardOnBehalf {
+            owner,
+            mix_identity,
+        } => crate::rewards::transactions::try_compound_delegator_reward_on_behalf(
+            deps,
+            env,
+            info,
+            owner,
+            mix_identity,
+        ),
         ExecuteMsg::CompoundOperatorRewardOnBehalf { owner } => {
             crate::rewards::transactions::try_compound_operator_reward_on_behalf(
                 deps, env, info, owner,
             )
-        },
+        }
         ExecuteMsg::ReconcileDelegations {} => {
             crate::delegations::transactions::try_reconcile_all_delegation_events(deps, info)
         }
         ExecuteMsg::CheckpointMixnodes {} => {
-            crate::mixnodes::transactions::try_checkpoint_mixnodes(deps.storage, env.block.height, info)
+            crate::mixnodes::transactions::try_checkpoint_mixnodes(
+                deps.storage,
+                env.block.height,
+                info,
+            )
         }
     }
 }
@@ -355,6 +367,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetRewardedSetRefreshBlocks {} => {
             to_binary(&query_rewarded_set_refresh_minimum_blocks())
         }
+        QueryMsg::GetEpochsInInterval {} => to_binary(&crate::constants::EPOCHS_IN_INTERVAL),
     };
 
     Ok(query_res?)

@@ -283,6 +283,13 @@ impl<C> Client<C> {
         Ok(self.nymd.get_current_interval().await?)
     }
 
+    pub async fn get_epochs_in_interval(&self) -> Result<u64, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_epochs_in_interval().await?)
+    }
+
     pub async fn get_circulating_supply(&self) -> Result<u128, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,

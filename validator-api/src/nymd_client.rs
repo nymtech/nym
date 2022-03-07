@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::rewarding::{error::RewardingError, MixnodeToReward};
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::{
-    reward_params::IntervalRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
+    reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
     IdentityKey, Interval, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
     RewardedSetUpdateDetails, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
@@ -147,7 +147,7 @@ impl<C> Client<C> {
 
     pub(crate) async fn get_current_epoch_reward_params(
         &self,
-    ) -> Result<IntervalRewardParams, ValidatorClientError>
+    ) -> Result<EpochRewardParams, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -157,8 +157,9 @@ impl<C> Client<C> {
         let reward_pool = this.get_reward_pool().await?;
         let interval_reward_percent = this.get_interval_reward_percent().await?;
 
-        let interval_reward_params = IntervalRewardParams::new(
-            (reward_pool / 100 / 720) * interval_reward_percent as u128,
+        let epoch_reward_params = EpochRewardParams::new(
+            (reward_pool / 100 / this.get_epochs_in_interval().await? as u128)
+                * interval_reward_percent as u128,
             state.mixnode_rewarded_set_size as u128,
             state.mixnode_active_set_size as u128,
             this.get_circulating_supply().await?,
@@ -166,7 +167,7 @@ impl<C> Client<C> {
             this.get_active_set_work_factor().await?,
         );
 
-        Ok(interval_reward_params)
+        Ok(epoch_reward_params)
     }
 
     pub(crate) async fn get_rewarding_status(
@@ -251,6 +252,14 @@ impl<C> Client<C> {
         C: SigningCosmWasmClient + Sync,
     {
         self.0.write().await.nymd.advance_current_interval().await?;
+        Ok(())
+    }
+
+    pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0.write().await.nymd.advance_current_epoch().await?;
         Ok(())
     }
 

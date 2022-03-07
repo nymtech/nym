@@ -125,6 +125,13 @@ pub enum ContractError {
         interval_end: i64,
     },
 
+    #[error("MIXNET ({}): Can't change to the desired interval as it's not in progress yet. It starts at {epoch_start} and finishes at {epoch_end}, while the current block time is {current_block_time}", line!())]
+    EpochNotInProgress {
+        current_block_time: u64,
+        epoch_start: i64,
+        epoch_end: i64,
+    },
+
     #[error("Could not cast reward to a u128, this should be impossible, at {}", line!())]
     CastError,
     #[error("{source}")]

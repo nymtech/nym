@@ -9,7 +9,8 @@ use crate::nymd::cosmwasm_client::types::{
 use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::rpc::endpoint::broadcast;
-use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
+use cosmrs::rpc::Error as TendermintRpcError;
+use cosmrs::rpc::HttpClientUrl;
 use cosmwasm_std::{Coin, Uint128};
 pub use fee::gas_price::GasPrice;
 use fee::helpers::Operation;
@@ -383,6 +384,16 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::GetRewardPool {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_epochs_in_interval(&self) -> Result<u64, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetEpochsInInterval {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
@@ -1170,6 +1181,25 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Updating contract state from rust!",
+                Vec::new(),
+            )
+            .await
+    }
+
+    pub async fn advance_current_epoch(&self) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::AdvanceCurrentEpoch);
+
+        let req = ExecuteMsg::AdvanceCurrentEpoch {};
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Advance current epoch",
                 Vec::new(),
             )
             .await

@@ -414,7 +414,7 @@ impl MixNodeBond {
         let sigma = self.sigma(params);
 
         let reward = params.performance()
-            * params.period_reward_pool()
+            * params.epoch_reward_pool()
             * (sigma * params.omega()
                 + params.alpha() * lambda * sigma * params.rewarded_set_size())
             / (ONE + params.alpha());

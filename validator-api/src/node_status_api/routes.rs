@@ -116,7 +116,7 @@ pub(crate) async fn get_mixnode_reward_estimation(
 ) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
     let (bond, status) = cache.mixnode_details(&identity).await;
     if let Some(bond) = bond {
-        let interval_reward_params = cache.interval_reward_params().await;
+        let interval_reward_params = cache.epoch_reward_params().await;
         let as_at = interval_reward_params.timestamp();
         let interval_reward_params = interval_reward_params.into_inner();
 
@@ -168,7 +168,7 @@ pub(crate) async fn get_mixnode_stake_saturation(
 ) -> Result<Json<StakeSaturationResponse>, ErrorResponse> {
     let (bond, _) = cache.mixnode_details(&identity).await;
     if let Some(bond) = bond {
-        let interval_reward_params = cache.interval_reward_params().await;
+        let interval_reward_params = cache.epoch_reward_params().await;
         let as_at = interval_reward_params.timestamp();
         let interval_reward_params = interval_reward_params.into_inner();
 
@@ -202,7 +202,7 @@ pub(crate) async fn get_mixnode_inclusion_probability(
             .fold(0u128, |acc, x| acc + x.total_bond().unwrap_or_default())
             as f64;
 
-        let rewarding_params = cache.interval_reward_params().await.into_inner();
+        let rewarding_params = cache.epoch_reward_params().await.into_inner();
         let rewarded_set_size = rewarding_params.rewarded_set_size() as f64;
         let active_set_size = rewarding_params.active_set_size() as f64;
 

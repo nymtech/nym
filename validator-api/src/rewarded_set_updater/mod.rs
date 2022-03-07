@@ -17,7 +17,7 @@ use crate::nymd_client::Client;
 use crate::rewarding::error::RewardingError;
 use crate::rewarding::MixnodeToReward;
 use crate::storage::ValidatorApiStorage;
-use mixnet_contract_common::reward_params::{IntervalRewardParams, NodeRewardParams, RewardParams};
+use mixnet_contract_common::reward_params::{EpochRewardParams, NodeRewardParams, RewardParams};
 use mixnet_contract_common::{IdentityKey, Interval, MixNodeBond};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
@@ -99,9 +99,9 @@ impl RewardedSetUpdater {
 
     async fn reward_current_rewarded_set(
         &self,
-        interval_reward_params: &IntervalRewardParams,
+        epoch_reward_params: &EpochRewardParams,
     ) -> Result<(), RewardingError> {
-        let to_reward = self.nodes_to_reward(interval_reward_params).await?;
+        let to_reward = self.nodes_to_reward(epoch_reward_params).await?;
         let failures = self.distribute_rewards(&to_reward, false).await;
         error!(
             "Failed to reward {} nodes",
@@ -159,7 +159,7 @@ impl RewardedSetUpdater {
 
     async fn nodes_to_reward(
         &self,
-        interval_reward_params: &IntervalRewardParams,
+        interval_reward_params: &EpochRewardParams,
     ) -> Result<Vec<MixnodeToReward>, RewardingError> {
         let active_set = self
             .validator_cache
@@ -171,15 +171,6 @@ impl RewardedSetUpdater {
             .collect::<HashSet<_>>();
 
         let rewarded_set = self.validator_cache.rewarded_set().await.into_inner();
-
-        // This is redundant the rewarded set already selects for the best nodes, so this feels quite wasteful gas wise
-        // let mut nodes_with_delegations = Vec::with_capacity(all_nodes.len());
-        // for node in all_nodes {
-        //     let delegator_count = self
-        //         .get_mixnode_delegators_count(node.mix_node.identity_key.clone())
-        //         .await?;
-        //     nodes_with_delegations.push((node, delegator_count));
-        // }
 
         let mut eligible_nodes = Vec::with_capacity(rewarded_set.len());
         for rewarded_node in rewarded_set.into_iter() {
@@ -207,17 +198,17 @@ impl RewardedSetUpdater {
         Ok(eligible_nodes)
     }
 
-    // TODO: verify correctness without the rewarder running
+    // This is where the epoch gets advanced, and all epoch related transactions originate
     async fn update_rewarded_set(&self) -> Result<(), RewardingError> {
         // we know the entries are not stale, as a matter of fact they were JUST updated, since we got notified
         let all_nodes = self.validator_cache.mixnodes().await.into_inner();
-        let interval_reward_params = self
+        let epoch_reward_params = self
             .validator_cache
-            .interval_reward_params()
+            .epoch_reward_params()
             .await
             .into_inner();
         // Reward all the nodes in the still current, soon to be previous rewarded set
-        self.reward_current_rewarded_set(&interval_reward_params)
+        self.reward_current_rewarded_set(&epoch_reward_params)
             .await?;
 
         // Reconcile delegations from the previous epoch
@@ -230,8 +221,13 @@ impl RewardedSetUpdater {
             log::error!("failed to checkpoint mixnodes - {}", err);
         }
 
-        let rewarded_set_size = interval_reward_params.rewarded_set_size() as u32;
-        let active_set_size = interval_reward_params.active_set_size() as u32;
+        // Snapshot mixnodes for the next epoch
+        if let Err(err) = self.nymd_client.advance_current_epoch().await {
+            log::error!("failed to advance_epoch - {}", err);
+        }
+
+        let rewarded_set_size = epoch_reward_params.rewarded_set_size() as u32;
+        let active_set_size = epoch_reward_params.active_set_size() as u32;
 
         // note that top k nodes are in the active set
         let new_rewarded_set = self.determine_rewarded_set(all_nodes, rewarded_set_size);
@@ -253,7 +249,7 @@ impl RewardedSetUpdater {
         loop {
             // wait until the cache refresher determined its time to update the rewarded/active sets
             self.update_rewarded_set_notify.notified().await;
-            self.epoch = self.epoch.next_interval();
+            self.epoch = self.epoch.next();
             self.update_rewarded_set().await?;
         }
         #[allow(unreachable_code)]

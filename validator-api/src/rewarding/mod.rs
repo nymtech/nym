@@ -11,7 +11,7 @@ use crate::storage::models::{
 use crate::storage::ValidatorApiStorage;
 use config::defaults::DEFAULT_NETWORK;
 use log::{error, info};
-use mixnet_contract_common::reward_params::{IntervalRewardParams, NodeRewardParams, RewardParams};
+use mixnet_contract_common::reward_params::{EpochRewardParams, NodeRewardParams, RewardParams};
 use mixnet_contract_common::{
     ExecuteMsg, IdentityKey, Interval, MixNodeBond, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
@@ -137,7 +137,7 @@ impl Rewarder {
         info!("Rewarding pool stats");
         info!(
             "---- Interval reward pool: {} {}",
-            interval_reward_params.period_reward_pool(),
+            interval_reward_params.epoch_reward_pool(),
             DEFAULT_NETWORK.denom()
         );
         info!(

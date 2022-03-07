@@ -100,6 +100,7 @@ pub enum ExecuteMsg {
         expected_active_set_size: u32,
     },
     AdvanceCurrentInterval {},
+    AdvanceCurrentEpoch {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -170,6 +171,7 @@ pub enum QueryMsg {
     GetCurrentRewardedSetHeight {},
     GetCurrentInterval {},
     GetRewardedSetRefreshBlocks {},
+    GetEpochsInInterval {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

@@ -86,8 +86,8 @@ impl NodeEpochRewards {
 }
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
-pub struct IntervalRewardParams {
-    period_reward_pool: Uint128,
+pub struct EpochRewardParams {
+    epoch_reward_pool: Uint128,
     rewarded_set_size: Uint128,
     active_set_size: Uint128,
     circulating_supply: Uint128,
@@ -95,17 +95,17 @@ pub struct IntervalRewardParams {
     active_set_work_factor: u8,
 }
 
-impl IntervalRewardParams {
+impl EpochRewardParams {
     pub fn new(
-        period_reward_pool: u128,
+        epoch_reward_pool: u128,
         rewarded_set_size: u128,
         active_set_size: u128,
         circulating_supply: u128,
         sybil_resistance_percent: u8,
         active_set_work_factor: u8,
-    ) -> IntervalRewardParams {
-        IntervalRewardParams {
-            period_reward_pool: Uint128::new(period_reward_pool),
+    ) -> EpochRewardParams {
+        EpochRewardParams {
+            epoch_reward_pool: Uint128::new(epoch_reward_pool),
             rewarded_set_size: Uint128::new(rewarded_set_size),
             active_set_size: Uint128::new(active_set_size),
             circulating_supply: Uint128::new(circulating_supply),
@@ -119,8 +119,8 @@ impl IntervalRewardParams {
     // apart from the `ValidatorCacheInner` context, where this value is not going to be touched anyway
     // (it's guarded behind an `initialised` flag)
     pub fn new_empty() -> Self {
-        IntervalRewardParams {
-            period_reward_pool: Uint128::new(0),
+        EpochRewardParams {
+            epoch_reward_pool: Uint128::new(0),
             circulating_supply: Uint128::new(0),
             sybil_resistance_percent: 0,
             rewarded_set_size: Uint128::new(0),
@@ -141,8 +141,8 @@ impl IntervalRewardParams {
         self.circulating_supply.u128()
     }
 
-    pub fn period_reward_pool(&self) -> u128 {
-        self.period_reward_pool.u128()
+    pub fn epoch_reward_pool(&self) -> u128 {
+        self.epoch_reward_pool.u128()
     }
 }
 
@@ -165,13 +165,13 @@ impl NodeRewardParams {
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct RewardParams {
-    interval: IntervalRewardParams,
+    epoch: EpochRewardParams,
     node: NodeRewardParams,
 }
 
 impl RewardParams {
-    pub fn new(interval: IntervalRewardParams, node: NodeRewardParams) -> RewardParams {
-        RewardParams { interval, node }
+    pub fn new(epoch: EpochRewardParams, node: NodeRewardParams) -> RewardParams {
+        RewardParams { epoch, node }
     }
 
     pub fn omega(&self) -> U128 {
@@ -189,11 +189,11 @@ impl RewardParams {
     }
 
     pub fn idle_nodes(&self) -> Uint128 {
-        self.interval.rewarded_set_size - self.interval.active_set_size
+        self.epoch.rewarded_set_size - self.epoch.active_set_size
     }
 
     pub fn active_set_work_factor(&self) -> U128 {
-        U128::from_num(self.interval.active_set_work_factor)
+        U128::from_num(self.epoch.active_set_work_factor)
     }
 
     pub fn in_active_set(&self) -> bool {
@@ -212,16 +212,16 @@ impl RewardParams {
         self.node.reward_blockstamp = blockstamp;
     }
 
-    pub fn period_reward_pool(&self) -> u128 {
-        self.interval.period_reward_pool.u128()
+    pub fn epoch_reward_pool(&self) -> u128 {
+        self.epoch.epoch_reward_pool.u128()
     }
 
     pub fn rewarded_set_size(&self) -> u128 {
-        self.interval.rewarded_set_size.u128()
+        self.epoch.rewarded_set_size.u128()
     }
 
     pub fn circulating_supply(&self) -> u128 {
-        self.interval.circulating_supply.u128()
+        self.epoch.circulating_supply.u128()
     }
 
     pub fn reward_blockstamp(&self) -> u64 {
@@ -233,10 +233,10 @@ impl RewardParams {
     }
 
     pub fn one_over_k(&self) -> U128 {
-        ONE / U128::from_num(self.interval.rewarded_set_size.u128())
+        ONE / U128::from_num(self.epoch.rewarded_set_size.u128())
     }
 
     pub fn alpha(&self) -> U128 {
-        U128::from_num(self.interval.sybil_resistance_percent) / U128::from_num(100)
+        U128::from_num(self.epoch.sybil_resistance_percent) / U128::from_num(100)
     }
 }

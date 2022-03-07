@@ -134,7 +134,7 @@ pub mod test_helpers {
         env.block.time = Timestamp::from_seconds(
             (interval_storage::current_interval(storage)
                 .unwrap()
-                .next_interval()
+                .next()
                 .start_unix_timestamp()
                 + 123) as u64,
         );

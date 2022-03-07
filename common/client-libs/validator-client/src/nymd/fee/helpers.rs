@@ -47,6 +47,7 @@ pub enum Operation {
     CreatePeriodicVestingAccount,
 
     AdvanceCurrentInterval,
+    AdvanceCurrentEpoch,
     WriteRewardedSet,
     ClearRewardedSet,
     UpdateMixnetAddress,
@@ -95,6 +96,7 @@ impl fmt::Display for Operation {
             Operation::UpdateMixnetAddress => f.write_str("UpdateMixnetAddress"),
             Operation::CheckpointMixnodes => f.write_str("CheckpointMixnodes"),
             Operation::ReconcileDelegations => f.write_str("ReconcileDelegations"),
+            Operation::AdvanceCurrentEpoch => f.write_str("AdvanceCurrentEpoch"),
         }
     }
 }
@@ -138,6 +140,7 @@ impl Operation {
             Operation::UpdateMixnetAddress => 80_000u64.into(),
             Operation::CheckpointMixnodes => 175_000u64.into(),
             Operation::ReconcileDelegations => 500_000u64.into(),
+            Operation::AdvanceCurrentEpoch => 175_000u64.into(),
         }
     }
 

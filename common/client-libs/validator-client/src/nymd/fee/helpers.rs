@@ -50,6 +50,8 @@ pub enum Operation {
     WriteRewardedSet,
     ClearRewardedSet,
     UpdateMixnetAddress,
+    CheckpointMixnodes,
+    ReconcileDelegations
 }
 
 pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
@@ -91,6 +93,8 @@ impl fmt::Display for Operation {
             Operation::WriteRewardedSet => f.write_str("WriteRewardedSet"),
             Operation::ClearRewardedSet => f.write_str("ClearRewardedSet"),
             Operation::UpdateMixnetAddress => f.write_str("UpdateMixnetAddress"),
+            Operation::CheckpointMixnodes => f.write_str("CheckpointMixnodes"),
+            Operation::ReconcileDelegations => f.write_str("ReconcileDelegations"),
         }
     }
 }
@@ -132,6 +136,8 @@ impl Operation {
             Operation::WriteRewardedSet => 175_000u64.into(),
             Operation::ClearRewardedSet => 175_000u64.into(),
             Operation::UpdateMixnetAddress => 80_000u64.into(),
+            Operation::CheckpointMixnodes => 175_000u64.into(),
+            Operation::ReconcileDelegations => 500_000u64.into(),
         }
     }
 

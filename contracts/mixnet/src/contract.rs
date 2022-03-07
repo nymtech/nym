@@ -245,6 +245,33 @@ pub fn execute(
         ExecuteMsg::AdvanceCurrentInterval {} => {
             crate::interval::transactions::try_advance_interval(env, deps.storage)
         }
+        ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
+            crate::rewards::transactions::try_compound_delegator_reward(
+                deps,
+                env,
+                info,
+                mix_identity,
+            )
+        }
+        ExecuteMsg::CompoundOperatorReward {} => {
+            crate::rewards::transactions::try_compound_operator_reward(deps, env, info)
+        }
+        ExecuteMsg::CompoundDelegatorRewardOnBehalf { owner, mix_identity } => {
+            crate::rewards::transactions::try_compound_delegator_reward_on_behalf(
+                deps, env, info, owner, mix_identity,
+            )
+        },
+        ExecuteMsg::CompoundOperatorRewardOnBehalf { owner } => {
+            crate::rewards::transactions::try_compound_operator_reward_on_behalf(
+                deps, env, info, owner,
+            )
+        },
+        ExecuteMsg::ReconcileDelegations {} => {
+            crate::delegations::transactions::try_reconcile_all_delegation_events(deps, info)
+        }
+        ExecuteMsg::CheckpointMixnodes {} => {
+            crate::mixnodes::transactions::try_checkpoint_mixnodes(deps.storage, env.block.height, info)
+        }
     }
 }
 
@@ -290,7 +317,12 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetDelegationDetails {
             mix_identity,
             delegator,
-        } => to_binary(&query_mixnode_delegation(deps.storage, deps.api, mix_identity, delegator)?),
+        } => to_binary(&query_mixnode_delegation(
+            deps.storage,
+            deps.api,
+            mix_identity,
+            delegator,
+        )?),
         QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
         QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
         QueryMsg::GetIntervalRewardPercent {} => to_binary(&INTERVAL_REWARD_PERCENT),

@@ -220,6 +220,16 @@ impl RewardedSetUpdater {
         self.reward_current_rewarded_set(&interval_reward_params)
             .await?;
 
+        // Reconcile delegations from the previous epoch
+        if let Err(err) = self.nymd_client.reconcile_delegations().await {
+            log::error!("failed to reconcile delegations - {}", err);
+        }
+
+        // Snapshot mixnodes for the next epoch
+        if let Err(err) = self.nymd_client.checkpoint_mixnodes().await {
+            log::error!("failed to checkpoint mixnodes - {}", err);
+        }
+
         let rewarded_set_size = interval_reward_params.rewarded_set_size() as u32;
         let active_set_size = interval_reward_params.active_set_size() as u32;
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::delegations::transactions::{try_reconcile_all_delegation_events};
+use crate::delegations::transactions::try_reconcile_all_delegation_events;
 use crate::error::ContractError;
 use crate::error::ContractError::IntervalNotInProgress;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
@@ -64,12 +64,6 @@ pub fn try_write_rewarded_set(
         &0u8,
     )?;
     storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &block_height)?;
-
-    // Save state after the rewards have been distributed with the state as it was at the start of the epoch
-    crate::mixnodes::storage::mixnodes().add_checkpoint(deps.storage, block_height)?;
-
-    // FIXME: This will have to run in a single function as the ordering between delegations and undelegations must be preserved.
-    let delegations_response = try_reconcile_all_delegation_events(deps.storage, deps.api)?;
 
     Ok(Response::new().add_event(new_change_rewarded_set_event(
         state.params.mixnode_active_set_size,

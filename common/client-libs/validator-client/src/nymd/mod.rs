@@ -1194,6 +1194,44 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn reconcile_delegations(&self) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::ReconcileDelegations);
+
+        let req = ExecuteMsg::ReconcileDelegations {};
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Reconciling delegation events",
+                Vec::new(),
+            )
+            .await
+    }
+
+    pub async fn checkpoint_mixnodes(&self) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::CheckpointMixnodes);
+
+        let req = ExecuteMsg::CheckpointMixnodes {};
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Snapshotting mixnodes",
+                Vec::new(),
+            )
+            .await
+    }
+
     pub async fn write_rewarded_set(
         &self,
         rewarded_set: Vec<IdentityKey>,

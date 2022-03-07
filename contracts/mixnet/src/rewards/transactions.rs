@@ -18,6 +18,7 @@ use cosmwasm_std::{
 use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
+    new_compound_delegator_reward_event, new_compound_operator_reward_event,
     new_mix_delegators_rewarding_event, new_mix_operator_rewarding_event,
     new_not_found_mix_operator_rewarding_event, new_too_fresh_bond_mix_operator_rewarding_event,
     new_zero_uptime_mix_operator_rewarding_event,
@@ -40,18 +41,51 @@ use mixnet_contract_common::RewardingResult;
 //     start_next: Option<Addr>,
 // }
 
-pub fn compound_operator_reward(
+pub fn try_compound_operator_reward_on_behalf(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    owner: String,
+) -> Result<Response, ContractError> {
+    let proxy = deps.api.addr_validate(info.sender.as_str())?;
+    let owner = deps.api.addr_validate(&owner)?;
+
+    let reward =
+        _try_compound_operator_reward(deps.storage, env.block.height, &owner, Some(proxy))?;
+
+    Ok(Response::new().add_event(new_compound_operator_reward_event(&owner, reward)))
+}
+
+pub fn try_compound_operator_reward(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(info.sender.as_str())?;
+    let reward = _try_compound_operator_reward(deps.storage, env.block.height, &owner, None)?;
+
+    Ok(Response::new().add_event(new_compound_operator_reward_event(&owner, reward)))
+}
+
+pub fn _try_compound_operator_reward(
     storage: &mut dyn Storage,
     block_height: u64,
     owner: &Addr,
-) -> Result<(), ContractError> {
+    proxy: Option<Addr>,
+) -> Result<Uint128, ContractError> {
     let bond = match mixnodes().idx.owner.item(storage, owner.to_owned())? {
         Some(record) => record.1,
         None => {
             // Return if bond does not exist
-            return Ok(());
+            return Ok(Uint128::zero());
         }
     };
+
+    if bond.proxy != proxy {
+        // Return if proxy is not the same as the bond proxy
+        return Ok(Uint128::zero());
+    }
+
     let mut updated_bond = bond.clone();
     let reward = calculate_operator_reward(storage, owner, &bond)?;
     updated_bond.accumulated_rewards -= reward;
@@ -70,7 +104,7 @@ pub fn compound_operator_reward(
         &block_height,
     )?;
 
-    Ok(())
+    Ok(reward)
 }
 
 fn calculate_operator_reward(
@@ -120,12 +154,67 @@ fn calculate_operator_reward(
 // - decrease node accumulated rewards
 // - increase delegation
 
-pub fn compound_delegator_reward(
+pub fn try_compound_delegator_reward_on_behalf(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    owner: String,
+    mix_identity: IdentityKey,
+) -> Result<Response, ContractError> {
+    let proxy = deps.api.addr_validate(info.sender.as_str())?;
+    let owner = deps.api.addr_validate(&owner)?;
+    let reward = _try_compound_delegator_reward(
+        env.block.height,
+        deps.api,
+        deps.storage,
+        owner.as_str(),
+        &mix_identity,
+        Some(proxy.clone()),
+    )?;
+
+    Ok(
+        Response::new().add_event(new_compound_delegator_reward_event(
+            &owner,
+            &Some(proxy),
+            reward,
+            &mix_identity,
+        )),
+    )
+}
+
+pub fn try_compound_delegator_reward(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    mix_identity: IdentityKey,
+) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(info.sender.as_str())?;
+    let reward = _try_compound_delegator_reward(
+        env.block.height,
+        deps.api,
+        deps.storage,
+        owner.as_str(),
+        &mix_identity,
+        None,
+    )?;
+
+    Ok(
+        Response::new().add_event(new_compound_delegator_reward_event(
+            &info.sender,
+            &None,
+            reward,
+            &mix_identity,
+        )),
+    )
+}
+
+pub fn _try_compound_delegator_reward(
     block_height: u64,
     api: &dyn Api,
     storage: &mut dyn Storage,
     owner_address: &str,
     mix_identity: &str,
+    proxy: Option<Addr>,
 ) -> Result<Uint128, ContractError> {
     let reward = calculate_delegator_reward(storage, owner_address, mix_identity)?;
     match _try_delegate_to_mixnode(
@@ -138,7 +227,7 @@ pub fn compound_delegator_reward(
             amount: reward,
             denom: DENOM.to_string(),
         },
-        None,
+        proxy,
     ) {
         // Node exists all is well, life goes on
         Ok(_) => {
@@ -931,7 +1020,11 @@ pub mod tests {
         )
         .unwrap();
 
-        crate::delegations::transactions::try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+        crate::delegations::transactions::_try_reconcile_all_delegation_events(
+            &mut deps.storage,
+            &deps.api,
+        )
+        .unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         env.block.height += 2 * constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;

@@ -18,6 +18,19 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    ReconcileDelegations {},
+    CheckpointMixnodes {},
+    CompoundOperatorRewardOnBehalf {
+        owner: String,
+    },
+    CompoundDelegatorRewardOnBehalf {
+        owner: String,
+        mix_identity: IdentityKey,
+    },
+    CompoundOperatorReward {},
+    CompoundDelegatorReward {
+        mix_identity: IdentityKey,
+    },
     BondMixnode {
         mix_node: MixNode,
         owner_signature: String,

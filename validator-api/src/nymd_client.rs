@@ -254,6 +254,22 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    pub(crate) async fn checkpoint_mixnodes(&self) -> Result<(), ValidatorClientError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0.write().await.nymd.checkpoint_mixnodes().await?;
+        Ok(())
+    }
+
+    pub(crate) async fn reconcile_delegations(&self) -> Result<(), ValidatorClientError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0.write().await.nymd.reconcile_delegations().await?;
+        Ok(())
+    }
+
     pub(crate) async fn write_rewarded_set(
         &self,
         rewarded_set: Vec<IdentityKey>,

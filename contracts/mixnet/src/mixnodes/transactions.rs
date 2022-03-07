@@ -9,12 +9,30 @@ use crate::mixnodes::storage::StoredMixnodeBond;
 use crate::support::helpers::{ensure_no_existing_bond, validate_node_identity_signature};
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
+    wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Storage, Uint128,
 };
-use mixnet_contract_common::events::{new_mixnode_bonding_event, new_mixnode_unbonding_event};
+use mixnet_contract_common::events::{
+    new_mixnode_bonding_event, new_mixnode_unbonding_event, new_checkpoint_mixnodes_event,
+};
 use mixnet_contract_common::MixNode;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_ucoin;
+
+pub fn try_checkpoint_mixnodes(
+    storage: &mut dyn Storage,
+    block_height: u64,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let state = mixnet_params_storage::CONTRACT_STATE.load(storage)?;
+    // check if this is executed by the permitted validator, if not reject the transaction
+    if info.sender != state.rewarding_validator_address {
+        return Err(ContractError::Unauthorized);
+    }
+
+    crate::mixnodes::storage::mixnodes().add_checkpoint(storage, block_height)?;
+
+    Ok(Response::new().add_event(new_checkpoint_mixnodes_event(block_height)))
+}
 
 pub fn try_add_mixnode(
     deps: DepsMut<'_>,
@@ -171,7 +189,12 @@ pub(crate) fn _try_remove_mixnode(
 ) -> Result<Response, ContractError> {
     let owner = deps.api.addr_validate(owner)?;
 
-    crate::rewards::transactions::compound_operator_reward(deps.storage, env.block.height, &owner)?;
+    crate::rewards::transactions::_try_compound_operator_reward(
+        deps.storage,
+        env.block.height,
+        &owner,
+        None,
+    )?;
 
     // try to find the node of the sender
     let mixnode_bond = match storage::mixnodes()

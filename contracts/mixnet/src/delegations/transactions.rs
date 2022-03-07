@@ -13,13 +13,28 @@ use mixnet_contract_common::events::{
     new_delegation_event, new_pending_delegation_event, new_pending_undelegation_event,
     new_undelegation_event,
 };
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use mixnet_contract_common::mixnode::{DelegationEvent, PendingUndelegate};
 use mixnet_contract_common::{Delegation, IdentityKey};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_ucoin;
 
+
+pub fn try_reconcile_all_delegation_events(
+    deps: DepsMut<'_>,
+    info: MessageInfo
+) -> Result<Response, ContractError> {
+    let state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
+    // check if this is executed by the permitted validator, if not reject the transaction
+    if info.sender != state.rewarding_validator_address {
+        return Err(ContractError::Unauthorized);
+    }
+
+    _try_reconcile_all_delegation_events(deps.storage, deps.api)
+}
+
 // TODO: Error handling?
-pub(crate) fn try_reconcile_all_delegation_events(
+pub(crate) fn _try_reconcile_all_delegation_events(
     storage: &mut dyn Storage,
     api: &dyn Api,
 ) -> Result<Response, ContractError> {
@@ -254,12 +269,13 @@ pub(crate) fn try_reconcile_undelegation(
         });
     }
 
-    let reward = crate::rewards::transactions::compound_delegator_reward(
+    let reward = crate::rewards::transactions::_try_compound_delegator_reward(
         pending_undelegate.block_height(),
         api,
         storage,
         pending_undelegate.delegate().as_str(),
         &pending_undelegate.mix_identity(),
+        None
     )?;
 
     // Might want to introduce paging here
@@ -484,7 +500,7 @@ mod tests {
             )
             .is_ok());
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             let expected = Delegation::new(
                 delegation_owner.clone(),
@@ -563,7 +579,7 @@ mod tests {
             )
             .is_ok());
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             let expected = Delegation::new(
                 delegation_owner.clone(),
@@ -626,7 +642,7 @@ mod tests {
             )
             .unwrap();
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             // let expected = Delegation::new(
             //     delegation_owner.clone(),
@@ -681,7 +697,7 @@ mod tests {
             )
             .unwrap();
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             assert_eq!(
                 initial_height,
@@ -702,7 +718,7 @@ mod tests {
             )
             .unwrap();
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             let delegations = crate::delegations::queries::query_mixnode_delegation(
                 &deps.storage,
@@ -746,7 +762,7 @@ mod tests {
             )
             .unwrap();
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             assert_eq!(
                 initial_height,
@@ -767,7 +783,7 @@ mod tests {
             )
             .unwrap();
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             assert_eq!(
                 initial_height,
@@ -855,7 +871,7 @@ mod tests {
             )
             .is_ok());
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             let expected1 = Delegation::new(
                 delegation_owner.clone(),
@@ -920,7 +936,7 @@ mod tests {
                 identity.clone(),
             )
             .is_ok());
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             // node's "total_delegation" is sum of both
             assert_eq!(
@@ -950,7 +966,7 @@ mod tests {
             )
             .unwrap();
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
 
@@ -1038,7 +1054,7 @@ mod tests {
             )
             .unwrap();
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             let delegation = query_mixnode_delegation(
                 &deps.storage,
@@ -1107,7 +1123,7 @@ mod tests {
             )
             .unwrap();
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             let delegation = query_mixnode_delegation(
                 &deps.storage,
@@ -1141,7 +1157,7 @@ mod tests {
                 )
             );
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             assert!(test_helpers::read_delegation(
                 &deps.storage,
@@ -1174,7 +1190,7 @@ mod tests {
             )
             .is_ok());
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
@@ -1184,7 +1200,7 @@ mod tests {
             )
             .is_ok());
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             // sender1 undelegates
             try_remove_delegation_from_mixnode(
@@ -1195,7 +1211,7 @@ mod tests {
             )
             .unwrap();
 
-            try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
             // but total delegation should still equal to what sender2 sent
             // node's "total_delegation" is sum of both
             assert_eq!(

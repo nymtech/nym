@@ -154,7 +154,6 @@ pub struct NodeRewardParams {
 }
 
 impl NodeRewardParams {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(reward_blockstamp: u64, uptime: u128, in_active_set: bool) -> NodeRewardParams {
         NodeRewardParams {
             reward_blockstamp,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mixnode::NodeRewardResult;
-use crate::{ContractStateParams, Delegation, IdentityKeyRef, Interval, Layer};
+use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer};
 use cosmwasm_std::{Addr, Coin, Event, Uint128};
 
 pub use contracts_common::events::*;
@@ -21,6 +21,9 @@ pub const OPERATOR_REWARDING_EVENT_TYPE: &str = "mix_rewarding";
 pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
 pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
 pub const ADVANCE_INTERVAL_EVENT_TYPE: &str = "advance_interval";
+pub const COMPOUND_DELEGATOR_REWARD_EVENT_TYPE: &str = "compound_delegator_reward";
+pub const COMPOUND_OPERATOR_REWARD_EVENT_TYPE: &str = "compound_operator_reward";
+pub const SNAPSHOT_MIXNODES_EVENT: &str = "snapshot_mixnodes";
 
 // attributes that are used in multiple places
 pub const OWNER_KEY: &str = "owner";
@@ -72,6 +75,13 @@ pub const NODES_IN_REWARDED_SET_KEY: &str = "nodes_in_rewarded_set";
 pub const CURRENT_INTERVAL_ID_KEY: &str = "current_interval";
 
 pub const NEW_CURRENT_INTERVAL_KEY: &str = "new_current_interval";
+pub const BLOCK_HEIGHT_KEY: &str = "block_height";
+pub const CHECKPOINT_MIXNODES_EVENT: &str = "checkpoint_mixnodes";
+
+pub fn new_checkpoint_mixnodes_event(block_height: u64) -> Event {
+    Event::new(CHECKPOINT_MIXNODES_EVENT)
+        .add_attribute(BLOCK_HEIGHT_KEY, format!("{}", block_height))
+}
 
 pub fn new_delegation_event(
     delegator: &Addr,
@@ -97,7 +107,8 @@ pub fn new_pending_delegation_event(
     amount: &Coin,
     mix_identity: IdentityKeyRef<'_>,
 ) -> Event {
-    let mut event = Event::new(PENDING_DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+    let mut event =
+        Event::new(PENDING_DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
 
     if let Some(proxy) = proxy {
         event = event.add_attribute(PROXY_KEY, proxy)
@@ -107,6 +118,31 @@ pub fn new_pending_delegation_event(
     event
         .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+}
+
+pub fn new_compound_operator_reward_event(owner: &Addr, amount: Uint128) -> Event {
+    let event = Event::new(COMPOUND_OPERATOR_REWARD_EVENT_TYPE).add_attribute(OWNER_KEY, owner);
+    event.add_attribute(AMOUNT_KEY, amount.to_string())
+}
+
+pub fn new_compound_delegator_reward_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    amount: Uint128,
+    mix_identity: IdentityKeyRef<'_>,
+) -> Event {
+    let mut event =
+        Event::new(COMPOUND_DELEGATOR_REWARD_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+        .add_attribute(DELEGATOR_KEY, delegator)
 }
 
 pub fn new_undelegation_event(

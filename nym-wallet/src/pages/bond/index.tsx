@@ -112,6 +112,10 @@ export const Bond = () => {
                 onClick={() => {
                   setStatus(EnumRequestStatus.initial)
                 }}
+                variant="contained"
+                color="primary"
+                size="large"
+                disableElevation
               >
                 {status === EnumRequestStatus.error ? 'Again?' : 'Finish'}
               </Button>

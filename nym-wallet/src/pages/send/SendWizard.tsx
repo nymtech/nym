@@ -126,7 +126,7 @@ export const SendWizard = () => {
           }}
         >
           {activeStep === 0 ? (
-            <SendForm transferFee={transferFee} />
+            <SendForm />
           ) : activeStep === 1 ? (
             <SendReview transferFee={transferFee} />
           ) : (

@@ -1,4 +1,4 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect } from 'react'
 import {
   Box,
   Button,
@@ -91,13 +91,18 @@ export const BondForm = ({
     handleSubmit,
     setValue,
     watch,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<TBondFormFields>({
     resolver: yupResolver(validationSchema),
     defaultValues,
   })
 
-  const { userBalance, currency } = useContext(ClientContext)
+  const { userBalance, currency, clientDetails } = useContext(ClientContext)
+
+  useEffect(() => {
+    reset()
+  }, [clientDetails])
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
   const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions)

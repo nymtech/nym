@@ -1,6 +1,7 @@
 import * as Yup from 'yup'
 import {
   checkHasEnoughFunds,
+  checkHasEnoughLockedTokens,
   isValidHostname,
   validateAmount,
   validateKey,
@@ -34,15 +35,21 @@ export const validationSchema = Yup.object().shape({
     .required('An amount is required')
     .test('valid-amount', `Pledge error`, async function (value) {
       const isValid = await validateAmount(value || '', '100000000')
+      const hasEnoughBalance = await checkHasEnoughFunds(value || '')
+      const hasEnoughLocked = await checkHasEnoughLockedTokens(value || '')
 
       if (!isValid) {
         return this.createError({ message: `A valid amount is required (min 100)` })
-      } else {
-        const hasEnough = await checkHasEnoughFunds(value || '')
-        if (!hasEnough) {
-          return this.createError({ message: 'Not enough funds in wallet' })
-        }
       }
+
+      if (this.parent.tokenPool === 'balance' && !hasEnoughBalance) {
+        return this.createError({ message: 'Not enough funds in wallet' })
+      }
+
+      if (this.parent.tokenPool === 'locked' && !hasEnoughLocked) {
+        return this.createError({ message: 'Not enough locked tokens' })
+      }
+
       return true
     }),
 

@@ -12,8 +12,8 @@ import {
   PledgeData,
 } from '../types'
 
-export const getLockedCoins = async (address: string): Promise<Coin> => {
-  const res: Coin = await invoke('locked_coins', { address })
+export const getLockedCoins = async (): Promise<Coin> => {
+  const res: Coin = await invoke('locked_coins')
   return await minorToMajor(res.amount)
 }
 export const getSpendableCoins = async (vestingAccountAddress?: string): Promise<Coin> => {
@@ -79,7 +79,13 @@ export const getVestingPledgeInfo = async ({
 }: {
   address?: string
   type: EnumNodeType
-}): Promise<PledgeData> => await invoke(`vesting_get_${type}_pledge`, { address })
+}): Promise<PledgeData | undefined> => {
+  try {
+    return await invoke(`vesting_get_${type}_pledge`, { address })
+  } catch (e) {
+    return undefined
+  }
+}
 
 export const vestingUpdateMixnode = async (profitMarginPercent: number) =>
   await invoke('vesting_update_mixnode', { profitMarginPercent })

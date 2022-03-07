@@ -13,13 +13,15 @@ use super::{OriginalVestingResponse, PledgeData};
 
 #[tauri::command]
 pub async fn locked_coins(
-  address: &str,
   block_time: Option<u64>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
   Ok(
     nymd_client!(state)
-      .locked_coins(address, block_time.map(Timestamp::from_seconds))
+      .locked_coins(
+        &nymd_client!(state).address().to_string(),
+        block_time.map(Timestamp::from_seconds),
+      )
       .await?
       .into(),
   )

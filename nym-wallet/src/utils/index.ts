@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api'
 import { appWindow } from '@tauri-apps/api/window'
 import bs58 from 'bs58'
 import { minor, valid } from 'semver'
-import { userBalance, majorToMinor } from '../requests'
+import { userBalance, majorToMinor, getLockedCoins } from '../requests'
 import { Coin, Network, Period, TCurrency } from '../types'
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
@@ -94,6 +94,16 @@ export const checkHasEnoughFunds = async (allocationValue: string) => {
     const walletValue = await userBalance()
     const minorValue = await majorToMinor(allocationValue)
     const remainingBalance = +walletValue.coin.amount - +minorValue.amount
+    return isGreaterThan(remainingBalance, 0)
+  } catch (e) {
+    console.log(e)
+  }
+}
+
+export const checkHasEnoughLockedTokens = async (allocationValue: string) => {
+  try {
+    const lockedTokens = await getLockedCoins()
+    const remainingBalance = +lockedTokens.amount - +allocationValue
     return isGreaterThan(remainingBalance, 0)
   } catch (e) {
     console.log(e)

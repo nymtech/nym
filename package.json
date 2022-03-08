@@ -5,7 +5,8 @@
   "license": "Apache 2.0",
   "workspaces": [
     "ts-packages/*",
-    "nym-wallet"
+    "nym-wallet",
+    "explorer"
   ],
   "scripts": {
     "build": "lerna run --scope @nymproject/mui-theme --scope @nymproject/react build --stream",

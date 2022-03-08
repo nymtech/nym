@@ -191,7 +191,7 @@ impl RewardedSetUpdater {
 
             eligible_nodes.push(MixnodeToReward {
                 identity: rewarded_node.identity().clone(),
-                params: RewardParams::new(*interval_reward_params, node_reward_params),
+                params: node_reward_params,
             })
         }
 

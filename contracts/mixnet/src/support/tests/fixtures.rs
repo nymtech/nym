@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::constants::{INTERVAL_REWARD_PERCENT, SYBIL_RESISTANCE_PERCENT};
 use crate::contract::{INITIAL_MIXNODE_PLEDGE, INITIAL_REWARD_POOL};
 use crate::mixnodes::storage as mixnodes_storage;
@@ -5,7 +7,8 @@ use crate::{mixnodes::storage::StoredMixnodeBond, support::tests};
 use config::defaults::{DENOM, TOTAL_SUPPLY};
 use cosmwasm_std::{coin, Addr, Coin, Uint128};
 use mixnet_contract_common::reward_params::{EpochRewardParams, NodeRewardParams, RewardParams};
-use mixnet_contract_common::{Gateway, GatewayBond, Layer, MixNode};
+use mixnet_contract_common::{Gateway, GatewayBond, Layer, MixNode, Interval};
+use time::OffsetDateTime;
 
 pub fn mix_node_fixture() -> MixNode {
     MixNode {
@@ -90,4 +93,12 @@ pub fn rewarding_params_fixture(uptime: u128) -> RewardParams {
     let node_reward_params = NodeRewardParams::new(0, uptime, true);
 
     RewardParams::new(interval_reward_params, node_reward_params)
+}
+
+pub fn node_reward_params_fixture(uptime: u128) -> NodeRewardParams {
+    NodeRewardParams::new(0, uptime, true)
+}
+
+pub fn epoch_fixture() -> Interval {
+    Interval::new(1, OffsetDateTime::now_utc(), Duration::from_secs(3600))
 }

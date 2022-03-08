@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::reward_params::RewardParams;
+use crate::reward_params::{RewardParams, NodeRewardParams};
 use crate::ContractStateParams;
 use crate::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
@@ -61,7 +61,7 @@ pub enum ExecuteMsg {
     RewardMixnode {
         identity: IdentityKey,
         // percentage value in range 0-100
-        params: RewardParams,
+        params: NodeRewardParams,
 
         // id of the current rewarding interval
         interval_id: u32,

@@ -15,6 +15,7 @@ use mixnet_contract_common::reward_params::{EpochRewardParams, NodeRewardParams,
 use mixnet_contract_common::{
     ExecuteMsg, IdentityKey, Interval, MixNodeBond, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
 };
+use nymsphinx::Node;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::process;
@@ -32,11 +33,11 @@ pub(crate) struct MixnodeToReward {
     // pub(crate) total_delegations: usize,
 
     /// Node absolute uptime over total active set uptime
-    pub(crate) params: RewardParams,
+    pub(crate) params: NodeRewardParams,
 }
 
 impl MixnodeToReward {
-    fn params(&self) -> RewardParams {
+    fn params(&self) -> NodeRewardParams {
         self.params
     }
 }
@@ -191,7 +192,7 @@ impl Rewarder {
 
             eligible_nodes.push(MixnodeToReward {
                 identity: rewarded_node.identity().clone(),
-                params: RewardParams::new(interval_reward_params, node_reward_params),
+                params: node_reward_params,
             })
         }
 

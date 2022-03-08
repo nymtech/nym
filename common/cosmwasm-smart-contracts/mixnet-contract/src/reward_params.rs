@@ -7,13 +7,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct NodeEpochRewards {
-    params: RewardParams,
+    params: NodeRewardParams,
     result: StoredNodeRewardResult,
+    epoch_id: u32
 }
 
 impl NodeEpochRewards {
-    pub fn new(params: RewardParams, result: StoredNodeRewardResult) -> Self {
-        Self { params, result }
+    pub fn new(params: NodeRewardParams, result: StoredNodeRewardResult, epoch_id: u32) -> Self {
+        Self { params, result, epoch_id }
+    }
+
+    pub fn epoch_id(&self) -> u32 {
+        self.epoch_id
     }
 
     pub fn sigma(&self) -> Uint128 {
@@ -24,7 +29,7 @@ impl NodeEpochRewards {
         self.result.lambda()
     }
 
-    pub fn params(&self) -> RewardParams {
+    pub fn params(&self) -> NodeRewardParams {
         self.params.clone()
     }
 
@@ -33,7 +38,7 @@ impl NodeEpochRewards {
     }
 
     pub fn operator_cost(&self) -> U128 {
-        self.params.operator_cost()
+        U128::from_num(self.params.uptime.u128() / 100u128 * DEFAULT_OPERATOR_INTERVAL_COST as u128)
     }
 
     pub fn node_profit(&self) -> U128 {
@@ -66,10 +71,11 @@ impl NodeEpochRewards {
         &self,
         delegation_amount: Uint128,
         profit_margin: U128,
+        epoch_reward_params: EpochRewardParams
     ) -> Result<Uint128, MixnetContractError> {
         // change all values into their fixed representations
         let delegation_amount = U128::from_num(delegation_amount.u128());
-        let circulating_supply = U128::from_num(self.params.circulating_supply());
+        let circulating_supply = U128::from_num(epoch_reward_params.circulating_supply());
 
         let scaled_delegation_amount = delegation_amount / circulating_supply;
         let delegator_reward = (ONE - profit_margin) * scaled_delegation_amount
@@ -161,12 +167,24 @@ impl NodeRewardParams {
             in_active_set,
         }
     }
+
+    pub fn operator_cost(&self) -> U128 {
+        U128::from_num(self.uptime.u128() / 100u128 * DEFAULT_OPERATOR_INTERVAL_COST as u128)
+    }
+
+    pub fn uptime(&self) -> u128 {
+        self.uptime.u128()
+    }
+
+    pub fn set_reward_blockstamp(&mut self, blockstamp: u64) {
+        self.reward_blockstamp = blockstamp;
+    }
 }
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct RewardParams {
-    epoch: EpochRewardParams,
-    node: NodeRewardParams,
+    pub epoch: EpochRewardParams,
+    pub node: NodeRewardParams,
 }
 
 impl RewardParams {
@@ -202,10 +220,6 @@ impl RewardParams {
 
     pub fn performance(&self) -> U128 {
         U128::from_num(self.node.uptime.u128()) / U128::from_num(100)
-    }
-
-    pub fn operator_cost(&self) -> U128 {
-        U128::from_num(self.node.uptime.u128() / 100u128 * DEFAULT_OPERATOR_INTERVAL_COST as u128)
     }
 
     pub fn set_reward_blockstamp(&mut self, blockstamp: u64) {

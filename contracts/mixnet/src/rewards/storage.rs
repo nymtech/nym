@@ -23,6 +23,11 @@ type EpochId = u32;
 
 pub(crate) const EPOCH_REWARD_PARAMS: Map<'_, EpochId, EpochRewardParams> = Map::new("epr");
 
+pub fn epoch_reward_params_for_id(storage: &dyn Storage, id: EpochId) -> StdResult<EpochRewardParams> {
+    EPOCH_REWARD_PARAMS.load(storage, id)
+
+}
+
 #[allow(dead_code)]
 pub fn incr_reward_pool(
     amount: Uint128,

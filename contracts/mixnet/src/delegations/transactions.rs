@@ -239,7 +239,6 @@ pub struct ReconcileUndelegateResponse {
     event: Event,
 }
 
-#[must_use]
 pub(crate) fn try_reconcile_undelegation(
     storage: &mut dyn Storage,
     api: &dyn Api,

@@ -35,11 +35,10 @@ pub(crate) mod tests {
     #[cfg(test)]
     mod querying_for_rewarding_status {
         use super::*;
-        use crate::constants;
+        use crate::interval::storage::{save_epoch, save_epoch_reward_params};
+        use crate::{constants, support::tests::fixtures::epoch_fixture};
         use crate::delegations::transactions::try_delegate_to_mixnode;
-        use crate::rewards::transactions::{
-            try_reward_mixnode,
-        };
+        use crate::rewards::transactions::try_reward_mixnode;
         use config::defaults::DENOM;
         use cosmwasm_std::{coin, Addr};
         use mixnet_contract_common::{
@@ -75,7 +74,7 @@ pub(crate) mod tests {
                 env,
                 info,
                 node_identity.clone(),
-                tests::fixtures::rewarding_params_fixture(100),
+                tests::fixtures::node_reward_params_fixture(100),
                 0,
             )
             .unwrap();
@@ -107,12 +106,17 @@ pub(crate) mod tests {
             env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+
+            let epoch = epoch_fixture();
+            save_epoch(&mut deps.storage, &epoch).unwrap();
+            save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
+
             try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
                 info,
                 node_identity.clone(),
-                tests::fixtures::rewarding_params_fixture(100),
+                tests::fixtures::node_reward_params_fixture(100),
                 0,
             )
             .unwrap();
@@ -122,10 +126,7 @@ pub(crate) mod tests {
 
             match res.status.unwrap() {
                 RewardingStatus::Complete(result) => {
-                    assert_ne!(
-                        RewardingResult::default().node_reward,
-                        result.node_reward
-                    );
+                    assert_ne!(RewardingResult::default().node_reward, result.node_reward);
                 }
                 _ => unreachable!(),
             }
@@ -158,7 +159,7 @@ pub(crate) mod tests {
                 env,
                 info.clone(),
                 node_identity.clone(),
-                tests::fixtures::rewarding_params_fixture(100),
+                tests::fixtures::node_reward_params_fixture(100),
                 1,
             )
             .unwrap();
@@ -172,10 +173,7 @@ pub(crate) mod tests {
 
             match res.status.unwrap() {
                 RewardingStatus::Complete(result) => {
-                    assert_ne!(
-                        RewardingResult::default().node_reward,
-                        result.node_reward
-                    );
+                    assert_ne!(RewardingResult::default().node_reward, result.node_reward);
                 }
                 _ => unreachable!(),
             }

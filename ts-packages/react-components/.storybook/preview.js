@@ -1,4 +1,5 @@
 import { NymThemeProvider } from '@nymproject/mui-theme';
+import { Box, Paper } from '@mui/material';
 
 export const parameters = {
   actions: { argTypesRegex: "^on[A-Z].*" },
@@ -10,26 +11,32 @@ export const parameters = {
   },
 }
 
-export const globalTypes = {
-  theme: {
-    name: 'Theme',
-    description: 'Global theme for components',
-    defaultValue: 'light',
-    toolbar: {
-      icon: 'circlehollow',
-      // Array of plain string values or MenuItem shape (see below)
-      items: ['light', 'dark'],
-      // Property that specifies if the name of the item will be displayed
-      showName: true,
-    },
-  },
-};
-
 const withThemeProvider=(Story,context)=>{
   return (
-    <NymThemeProvider mode={context.globals.theme}>
-      <Story {...context} />
-    </NymThemeProvider>
+    <div style={{ display: 'grid', height: '100%',
+      gridTemplateColumns: '50% 50%' }}>
+      <div>
+        <NymThemeProvider mode="light">
+          <Box p={4} sx={{ display: 'grid', gridTemplateRows: '80vh 2rem', background: (theme) => theme.palette.background.default, color: (theme) => theme.palette.text.primary }}>
+            <Box sx={{ overflowY: 'auto' }}>
+              <Story {...context} />
+            </Box>
+            <h4 style={{ textAlign: 'center'}}>Light mode</h4>
+          </Box>
+        </NymThemeProvider>
+      </div>
+      <div>
+        <NymThemeProvider mode="dark">
+          <Box p={4} sx={{ display: 'grid', gridTemplateRows: '80vh 2rem', background: (theme) => theme.palette.background.default, color: (theme) => theme.palette.text.primary }}>
+            <Box sx={{ overflowY: 'auto' }}>
+              <Story {...context} />
+            </Box>
+            <h4 style={{ textAlign: 'center'}}>Dark mode</h4>
+          </Box>
+        </NymThemeProvider>
+      </div>
+    </div>
   )
 }
+
 export const decorators = [withThemeProvider];

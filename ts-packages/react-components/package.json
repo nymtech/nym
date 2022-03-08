@@ -14,10 +14,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.17.5",
-    "@mui/material": "^5.0.1",
-    "@mui/styles": "^5.0.1",
-    "@mui/system": "^5.0.1",
     "@nymproject/eslint-config-react-typescript": "^1.0.0",
+    "@mui/lab": "^5.0.0-alpha.72",
     "@storybook/addon-actions": "^6.4.19",
     "@storybook/addon-essentials": "^6.4.19",
     "@storybook/addon-interactions": "^6.4.19",
@@ -27,6 +25,7 @@
     "@storybook/react": "^6.4.19",
     "@storybook/testing-library": "^0.0.9",
     "@svgr/webpack": "^6.1.1",
+    "@types/flat": "^5.0.2",
     "@types/react": "^17.0.39",
     "@typescript-eslint/eslint-plugin": "^5.13.0",
     "@typescript-eslint/parser": "^5.13.0",
@@ -58,5 +57,7 @@
     "storybook": "start-storybook -p 6006",
     "storybook:build": "build-storybook"
   },
-  "dependencies": {}
+  "dependencies": {
+    "flat": "^5.0.2"
+  }
 }

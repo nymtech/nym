@@ -9,7 +9,6 @@ use crate::contract_cache::ValidatorCacheRefresher;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
-use crate::rewarding::Rewarder;
 use crate::storage::ValidatorApiStorage;
 use ::config::NymConfig;
 use anyhow::Result;
@@ -38,7 +37,6 @@ mod network_monitor;
 mod node_status_api;
 pub(crate) mod nymd_client;
 mod rewarded_set_updater;
-mod rewarding;
 pub(crate) mod storage;
 
 #[cfg(feature = "coconut")]
@@ -366,32 +364,6 @@ fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usi
     (interval_length.as_secs() / test_delay.as_secs()) as usize
 }
 
-async fn setup_rewarder(
-    config: &Config,
-    rocket: &Rocket<Ignite>,
-    nymd_client: &Client<SigningNymdClient>,
-) -> Result<Option<Rewarder>, ValidatorClientError> {
-    if config.get_rewarding_enabled() && config.get_network_monitor_enabled() {
-        // get instances of managed states
-        let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
-        let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
-        let rewarding_interval_length = nymd_client.get_current_interval().await?.length();
-
-        Ok(Some(Rewarder::new(
-            nymd_client.clone(),
-            validator_cache,
-            node_status_storage,
-            expected_monitor_test_runs(config, rewarding_interval_length),
-            config.get_minimum_interval_monitor_threshold(),
-        )))
-    } else if config.get_rewarding_enabled() {
-        warn!("Cannot enable rewarding with the network monitor being disabled");
-        Ok(None)
-    } else {
-        Ok(None)
-    }
-}
-
 async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Rocket<Ignite>> {
     // let's build our rocket!
     let rocket = rocket::build()
@@ -485,24 +457,15 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         let uptime_updater = HistoricalUptimeUpdater::new(storage.clone());
         tokio::spawn(async move { uptime_updater.run().await });
 
-        if let Some(rewarder) = setup_rewarder(&config, &rocket, &nymd_client).await? {
-            info!("Periodic rewarding is starting...");
+        let mut rewarded_set_updater = RewardedSetUpdater::new(
+            nymd_client,
+            rewarded_set_update_notify,
+            validator_cache.clone(),
+            storage
+        );
 
-            let mut rewarded_set_updater = RewardedSetUpdater::new(
-                nymd_client.clone(),
-                rewarded_set_update_notify,
-                validator_cache.clone(),
-                storage
-            );
-
-            // spawn rewarded set updater
-            tokio::spawn(async move { rewarded_set_updater.run().await.unwrap() });
-
-            // only update rewarded set if we're also distributing rewards
-            // tokio::spawn(async move { rewarder.run().await });
-        } else {
-            info!("Periodic rewarding is disabled.");
-        }
+        // spawn rewarded set updater
+        tokio::spawn(async move { rewarded_set_updater.run().await.unwrap() });
     } else {
         let nymd_client = Client::new_query(&config);
         let validator_cache_refresher = ValidatorCacheRefresher::new(

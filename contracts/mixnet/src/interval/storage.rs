@@ -4,8 +4,7 @@
 use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::{
-    reward_params::{EpochRewardParams, NodeEpochRewards},
-    IdentityKey, IdentityKeyRef, Interval, RewardedSetNodeStatus,
+    reward_params::EpochRewardParams, IdentityKey, Interval, RewardedSetNodeStatus,
 };
 
 use crate::{error::ContractError, support::helpers::epoch_reward_params};

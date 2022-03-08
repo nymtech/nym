@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::storage::{self, PENDING_DELEGATION_EVENTS};
 use crate::error::ContractError;
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::support::helpers::generate_storage_key;
 use config::defaults::DENOM;
@@ -10,19 +11,16 @@ use cosmwasm_std::{
     Response, Storage, Uint128, WasmMsg,
 };
 use mixnet_contract_common::events::{
-    new_delegation_event, new_pending_delegation_event, new_pending_undelegation_event,
-    new_undelegation_event,
+    new_pending_delegation_event, new_pending_undelegation_event, new_undelegation_event,
 };
-use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use mixnet_contract_common::mixnode::{DelegationEvent, PendingUndelegate};
 use mixnet_contract_common::{Delegation, IdentityKey};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_ucoin;
 
-
 pub fn try_reconcile_all_delegation_events(
     deps: DepsMut<'_>,
-    info: MessageInfo
+    info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
     // check if this is executed by the permitted validator, if not reject the transaction
@@ -274,7 +272,7 @@ pub(crate) fn try_reconcile_undelegation(
         storage,
         pending_undelegate.delegate().as_str(),
         &pending_undelegate.mix_identity(),
-        None
+        None,
     )?;
 
     // Might want to introduce paging here
@@ -462,7 +460,6 @@ mod tests {
         use cosmwasm_std::testing::mock_env;
         use cosmwasm_std::testing::mock_info;
         use cosmwasm_std::Addr;
-        use rand::rngs::mock;
 
         #[test]
         fn fails_if_node_doesnt_exist() {
@@ -620,7 +617,7 @@ mod tests {
             let delegation_owner = Addr::unchecked("sender");
             let delegation1 = coin(100, DENOM);
             let delegation2 = coin(50, DENOM);
-            
+
             let mut env = mock_env();
 
             try_delegate_to_mixnode(
@@ -630,7 +627,7 @@ mod tests {
                 identity.clone(),
             )
             .unwrap();
-            
+
             env.block.height += 1;
 
             try_delegate_to_mixnode(

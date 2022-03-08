@@ -2,7 +2,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::error::MixnetContractError;
-use crate::reward_params::{self, NodeEpochRewards, RewardParams};
+use crate::reward_params::{RewardParams};
 use crate::{IdentityKey, SphinxKey, Delegation};
 use crate::{ONE, U128};
 use az::CheckedCast;
@@ -362,7 +362,7 @@ impl MixNodeBond {
             * U128::from_num(rewarded_set_size)
     }
 
-    // FIXME: There is an effect here when adding accumulted rewards to the total bond, ie accumulated rewards will not
+    // TODO: There is an effect here when adding accumulted rewards to the total bond, ie accumulated rewards will not
     // affect lambda, but will affect sigma, in turn over time, if left unclaimed operator rewards will not compound, but
     // behave similarly to delegations.
     // The question is should this be taken into account when calculating operator rewards?
@@ -395,7 +395,7 @@ impl MixNodeBond {
     ) -> Result<(u64, u64, u64), MixnetContractError> {
         let total_node_reward = self.reward(params);
         let operator_reward = self.operator_reward(params);
-        // FIXME: This overestimates the reward by a lot, it should take a Uint128 and return estiamte for that
+        // TODO: This overestimates the reward by a lot, it should take a Uint128 and return estiamte for that
         let delegators_reward = self.reward_delegation(self.total_delegation().amount, params);
 
         Ok((

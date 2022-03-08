@@ -14,10 +14,8 @@
 
 use crate::contract_cache::ValidatorCache;
 use crate::nymd_client::Client;
-use crate::rewarding::error::RewardingError;
-use crate::rewarding::MixnodeToReward;
 use crate::storage::ValidatorApiStorage;
-use mixnet_contract_common::reward_params::{EpochRewardParams, NodeRewardParams, RewardParams};
+use mixnet_contract_common::reward_params::NodeRewardParams;
 use mixnet_contract_common::{IdentityKey, Interval, MixNodeBond};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
@@ -28,6 +26,38 @@ use time::OffsetDateTime;
 use tokio::sync::Notify;
 use tokio::time::sleep;
 use validator_client::nymd::SigningNymdClient;
+use mixnet_contract_common::ExecuteMsg;
+
+pub(crate) mod error;
+
+use error::RewardingError;
+
+#[derive(Debug, Clone)]
+pub(crate) struct MixnodeToReward {
+    pub(crate) identity: IdentityKey,
+
+    /// Total number of individual addresses that have delegated to this particular node
+    // pub(crate) total_delegations: usize,
+
+    /// Node absolute uptime over total active set uptime
+    pub(crate) params: NodeRewardParams,
+}
+
+impl MixnodeToReward {
+    fn params(&self) -> NodeRewardParams {
+        self.params
+    }
+
+    pub(crate) fn to_reward_execute_msg(&self, interval_id: u32) -> ExecuteMsg {
+        ExecuteMsg::RewardMixnode {
+            identity: self.identity.clone(),
+            params: self.params(),
+            interval_id,
+        }
+    }
+}
+
+
 
 pub(crate) struct FailedMixnodeRewardChunkDetails {
     possibly_unrewarded: Vec<MixnodeToReward>,
@@ -99,13 +129,12 @@ impl RewardedSetUpdater {
 
     async fn reward_current_rewarded_set(
         &self,
-        epoch_reward_params: &EpochRewardParams,
     ) -> Result<(), RewardingError> {
-        let to_reward = self.nodes_to_reward(epoch_reward_params).await?;
+        let to_reward = self.nodes_to_reward().await?;
         let failures = self.distribute_rewards(&to_reward, false).await;
         error!(
             "Failed to reward {} nodes",
-            failures.unwrap_or(Vec::new()).len()
+            failures.unwrap_or_default().len()
         );
         Ok(())
     }
@@ -159,7 +188,6 @@ impl RewardedSetUpdater {
 
     async fn nodes_to_reward(
         &self,
-        interval_reward_params: &EpochRewardParams,
     ) -> Result<Vec<MixnodeToReward>, RewardingError> {
         let active_set = self
             .validator_cache
@@ -208,7 +236,7 @@ impl RewardedSetUpdater {
             .await
             .into_inner();
         // Reward all the nodes in the still current, soon to be previous rewarded set
-        self.reward_current_rewarded_set(&epoch_reward_params)
+        self.reward_current_rewarded_set()
             .await?;
 
         // Reconcile delegations from the previous epoch

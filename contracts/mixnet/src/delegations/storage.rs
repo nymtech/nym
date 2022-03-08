@@ -77,7 +77,6 @@ mod tests {
         use config::defaults::DENOM;
         use cosmwasm_std::testing::mock_env;
         use cosmwasm_std::{coin, Order};
-        use cw_storage_plus::PrimaryKey;
         use mixnet_contract_common::Delegation;
 
         #[test]

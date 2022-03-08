@@ -29,7 +29,6 @@ pub mod test_helpers {
     use cosmwasm_std::{coin, Env, Timestamp};
     use cosmwasm_std::{Addr, StdResult, Storage};
     use cosmwasm_std::{Empty, MemoryStorage};
-    use cw_storage_plus::PrimaryKey;
     use mixnet_contract_common::{Delegation, Gateway, IdentityKeyRef, InstantiateMsg, MixNode};
     use rand::thread_rng;
 

@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::reward_params::{RewardParams, NodeRewardParams};
+use crate::reward_params::NodeRewardParams;
 use crate::ContractStateParams;
 use crate::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;

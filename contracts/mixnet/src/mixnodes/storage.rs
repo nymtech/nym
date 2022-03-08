@@ -4,7 +4,7 @@
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedSnapshotMap, Map, Strategy, UniqueIndex};
-use mixnet_contract_common::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond, reward_params::{RewardParams, NodeEpochRewards}};
+use mixnet_contract_common::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond, reward_params::NodeEpochRewards};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use mixnet_contract_common::U128;

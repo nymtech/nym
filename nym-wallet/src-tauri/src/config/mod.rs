@@ -7,7 +7,6 @@ use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::{fs, io, path::PathBuf};
 use strum::IntoEnumIterator;
-use url::Url;
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -87,27 +86,14 @@ impl NymConfig for Config {
 }
 
 impl Config {
-  pub fn get_nymd_validator_url(&self, network: WalletNetwork) -> Option<Url> {
-    // TODO: for now we pick the first one
+  pub fn get_validators(
+    &self,
+    network: WalletNetwork,
+  ) -> impl Iterator<Item = &ValidatorDetails> + '_ {
     self
       .network
       .validators(network)
       .chain(self.base.networks.validators(network.into()))
-      .map(|x| x.nymd_url())
-      .next()
-  }
-
-  pub fn get_validator_api_url(&self, network: WalletNetwork) -> Option<Url> {
-    // TODO: for now we pick the first one
-    // NOTE: we are explictly picking the API URL for the first configured validator, not the first
-    // API URL out of all validators.
-    self
-      .network
-      .validators(network)
-      .chain(self.base.networks.validators(network.into()))
-      .map(|x| x.api_url())
-      .next()
-      .flatten()
   }
 
   pub fn get_mixnet_contract_address(&self, network: WalletNetwork) -> Option<cosmrs::AccountId> {
@@ -223,12 +209,17 @@ api_url = 'https://bar/api'
     let config = test_config();
 
     let nymd_url = config
-      .get_nymd_validator_url(WalletNetwork::MAINNET)
+      .get_validators(WalletNetwork::MAINNET)
+      .next()
+      .map(ValidatorDetails::nymd_url)
       .unwrap();
     assert_eq!(nymd_url.to_string(), "https://foo/".to_string());
 
     // The first entry is missing an API URL
-    let api_url = config.get_validator_api_url(WalletNetwork::MAINNET);
+    let api_url = config
+      .get_validators(WalletNetwork::MAINNET)
+      .next()
+      .and_then(ValidatorDetails::api_url);
     assert_eq!(api_url, None);
   }
 
@@ -237,7 +228,9 @@ api_url = 'https://bar/api'
     let config = Config::default();
 
     let nymd_url = config
-      .get_nymd_validator_url(WalletNetwork::MAINNET)
+      .get_validators(WalletNetwork::MAINNET)
+      .next()
+      .map(ValidatorDetails::nymd_url)
       .unwrap();
     assert_eq!(
       nymd_url.to_string(),
@@ -245,7 +238,9 @@ api_url = 'https://bar/api'
     );
 
     let api_url = config
-      .get_validator_api_url(WalletNetwork::MAINNET)
+      .get_validators(WalletNetwork::MAINNET)
+      .next()
+      .and_then(ValidatorDetails::api_url)
       .unwrap();
     assert_eq!(
       api_url.to_string(),

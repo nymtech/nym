@@ -2816,6 +2816,7 @@ dependencies = [
  "credentials",
  "dirs",
  "eyre",
+ "futures",
  "mixnet-contract-common",
  "rand 0.6.5",
  "serde",

@@ -83,7 +83,7 @@ impl NymdClient<QueryNymdClient> {
 
 impl NymdClient<SigningNymdClient> {
     // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
-    pub fn connect_with_signer<U>(
+    pub fn connect_with_signer<U: Clone>(
         network: config::defaults::all::Network,
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
@@ -114,7 +114,7 @@ impl NymdClient<SigningNymdClient> {
         })
     }
 
-    pub fn connect_with_mnemonic<U>(
+    pub fn connect_with_mnemonic<U: Clone>(
         network: config::defaults::all::Network,
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,

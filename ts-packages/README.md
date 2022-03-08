@@ -53,3 +53,9 @@ Our React components have a Storybook in [react-components](./react-components):
 cd ts-packages/react-components
 yarn storybook
 ```
+
+## Development
+
+Watch mode is available in some packages with `yarn watch`.
+
+See [mui-theme](./mui-theme/README.md) for an example.

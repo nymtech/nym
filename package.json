@@ -8,9 +8,14 @@
     "nym-wallet"
   ],
   "scripts": {
-    "build": "lerna run --scope @nymproject/mui-theme --scope @nymproject/react build --stream"
+    "build": "lerna run --scope @nymproject/mui-theme --scope @nymproject/react build --stream",
+    "build:react-example": "lerna run --scope @nymproject/react-webpack-with-theme-example build --stream",
+    "build:playground": "lerna run --scope @nymproject/react storybook:build --stream",
+    "build:ci": "yarn build && run-p build:react-example build:playground && yarn build:ci:collect-artifacts",
+    "build:ci:collect-artifacts": "mkdir -p ts-packages/dist && mv ts-packages/react-components/storybook-static ts-packages/dist/storybook && mv ts-packages/react-webpack-with-theme-example/dist ts-packages/dist/example"
   },
   "devDependencies": {
-    "lerna": "^4.0.0"
+    "lerna": "^4.0.0",
+    "npm-run-all": "^4.1.5"
   }
 }

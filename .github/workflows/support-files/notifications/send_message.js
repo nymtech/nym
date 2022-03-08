@@ -3,7 +3,7 @@ require('dotenv').config();
 const Bot = require('keybase-bot');
 
 let context = {
-  kinds: ['network-explorer', 'nightly'],
+  kinds: ['ts-packages', 'network-explorer', 'nightly'],
 };
 
 /**

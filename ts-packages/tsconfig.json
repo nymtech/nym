@@ -1,0 +1,46 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": false,
+    "declaration": true,
+    "declarationMap": true,
+    "jsx": "react-jsx",
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@assets/*": ["../assets/*"]
+    },
+  },
+  "exclude": [
+    "jest.config.js",
+    "webpack.config.js",
+    "webpack.prod.js",
+    "webpack.common.js",
+    "node_modules",
+    "**/node_modules",
+    "dist",
+    "**/dist",
+    "scripts",
+    "jest",
+    "__tests__",
+    "**/__tests__",
+    "__jest__",
+    "**/__jest__",
+    "config/*"
+  ]
+}

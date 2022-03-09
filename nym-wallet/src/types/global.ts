@@ -62,6 +62,12 @@ export type TBondArgs = {
   ownerSignature: string
 }
 
+export type TDelegateArgs = {
+  type: EnumNodeType
+  identity: string
+  amount: Coin
+}
+
 export type TCurrency = {
   minor: 'UNYM' | 'UNYMT'
   major: 'NYM' | 'NYMT'

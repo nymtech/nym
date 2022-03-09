@@ -12,11 +12,10 @@ import {
 } from '@mui/material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
-import { EnumNodeType } from '../../types/global'
 import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 import { bond, vestingBond, majorToMinor } from '../../requests'
 import { validationSchema } from './validationSchema'
-import { Gateway, MixNode, TBondArgs } from '../../types'
+import { Gateway, MixNode, TBondArgs, EnumNodeType } from '../../types'
 import { ClientContext } from '../../context/main'
 import { Fee, TokenPoolSelector } from '../../components'
 
@@ -107,7 +106,7 @@ export const BondForm = ({
   const watchNodeType = watch('nodeType', defaultValues.nodeType)
   const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions)
 
-  const onSubmit = async (data: TBondFormFields, cb: (data: TBondArgs) => Promise<any>) => {
+  const onSubmit = async (data: TBondFormFields, cb: (data: TBondArgs) => Promise<void>) => {
     const formattedData = formatData(data)
     const pledge = await majorToMinor(data.amount)
 

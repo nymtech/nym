@@ -3,7 +3,7 @@ happy: fmt clippy-happy test
 clippy-all: clippy-all-main clippy-all-contracts clippy-all-wallet
 clippy-happy: clippy-happy-main clippy-happy-contracts clippy-happy-wallet
 cargo-test: test-main test-contracts test-wallet
-build: build-main build-contracts build-wallet
+build: build-contracts build-wallet build-main 
 fmt: fmt-main fmt-contracts fmt-wallet
 
 clippy-happy-main:
@@ -25,7 +25,7 @@ clippy-all-wallet:
 	cargo clippy --manifest-path nym-wallet/Cargo.toml --all-features -- -D warnings
 
 test-main:
-	cargo test --all-features
+	cargo test --all-features --all
 
 test-contracts:
 	cargo test --manifest-path contracts/Cargo.toml --all-features

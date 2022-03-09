@@ -12,7 +12,11 @@ pub fn one_ucoin() -> Coin {
     Coin::new(1, DENOM)
 }
 
-#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(export, export_to = "../../../nym-wallet/src/types/rust/period.ts")
+)]
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone, JsonSchema)]
 pub enum Period {
     Before,

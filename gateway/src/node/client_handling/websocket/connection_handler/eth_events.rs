@@ -3,6 +3,7 @@
 
 use bip39::core::str::FromStr;
 use bip39::Mnemonic;
+use config::defaults::DEFAULT_NETWORK;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use url::Url;
@@ -19,10 +20,7 @@ use bandwidth_claim_contract::payment::LinkPaymentData;
 use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity::{PublicKey, Signature, SIGNATURE_LENGTH};
 use gateway_client::bandwidth::eth_contract;
-use network_defaults::{
-    DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS, DEFAULT_MIXNET_CONTRACT_ADDRESS, ETH_EVENT_NAME,
-    ETH_MIN_BLOCK_DEPTH,
-};
+use network_defaults::{ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
 use validator_client::nymd::{AccountId, NymdClient, SigningNymdClient};
 
 pub(crate) struct ERC20Bridge {
@@ -42,11 +40,11 @@ impl ERC20Bridge {
         let mnemonic =
             Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
         let nymd_client = NymdClient::connect_with_mnemonic(
-            config::defaults::default_network(),
+            DEFAULT_NETWORK,
             nymd_url.as_ref(),
-            AccountId::from_str(DEFAULT_MIXNET_CONTRACT_ADDRESS).ok(),
+            AccountId::from_str(DEFAULT_NETWORK.mixnet_contract_address()).ok(),
             None,
-            AccountId::from_str(DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS).ok(),
+            AccountId::from_str(DEFAULT_NETWORK.bandwidth_claim_contract_address()).ok(),
             mnemonic,
             None,
         )

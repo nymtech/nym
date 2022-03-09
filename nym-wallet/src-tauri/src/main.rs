@@ -87,33 +87,3 @@ fn main() {
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
-
-#[cfg(test)]
-mod test {
-  ts_rs::export! {
-    mixnet_contract_common::MixNode => "../src/types/rust/mixnode.ts",
-    crate::coin::Coin => "../src/types/rust/coin.ts",
-    crate::network::Network => "../src/types/rust/network.ts",
-    crate::mixnet::account::Balance => "../src/types/rust/balance.ts",
-    mixnet_contract_common::Gateway => "../src/types/rust/gateway.ts",
-    crate::mixnet::send::TauriTxResult => "../src/types/rust/tauritxresult.ts",
-    crate::mixnet::send::TransactionDetails => "../src/types/rust/transactiondetails.ts",
-    validator_client::nymd::fee::helpers::Operation => "../src/types/rust/operation.ts",
-    crate::coin::Denom => "../src/types/rust/denom.ts",
-    crate::utils::DelegationResult => "../src/types/rust/delegationresult.ts",
-    crate::mixnet::account::Account => "../src/types/rust/account.ts",
-    crate::mixnet::account::CreatedAccount => "../src/types/rust/createdaccount.ts",
-    crate::mixnet::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts",
-    validator_client::models::CoreNodeStatusResponse => "../src/types/corenodestatusresponse.ts",
-    validator_client::models::MixnodeStatus => "../src/types/rust/mixnodestatus.ts",
-    validator_client::models::MixnodeStatusResponse => "../src/types/rust/mixnodestatusresponse.ts",
-    validator_client::models::RewardEstimationResponse => "../src/types/rust/rewardestimationresponse.ts",
-    validator_client::models::StakeSaturationResponse => "../src/types/rust/stakesaturaionresponse.ts",
-    validator_client::models::InclusionProbabilityResponse => "../src/types/rust/inclusionprobabilityresponse.ts",
-    vesting_contract_common::Period => "../src/types/rust/period.ts",
-    crate::vesting::PledgeData => "../src/types/rust/pledgedata.ts",
-    crate::vesting::OriginalVestingResponse => "../src/types/rust/originalvestingresponse.ts",
-    crate::vesting::VestingAccountInfo => "../src/types/rust/vestingaccountinfo.ts",
-    crate::vesting::VestingPeriod => "../src/types/rust/vestingperiod.ts",
-  }
-}

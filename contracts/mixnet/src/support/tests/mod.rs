@@ -17,7 +17,7 @@ pub mod test_helpers {
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::transactions::try_add_mixnode;
     use crate::support::tests;
-    use config::defaults::DENOM;
+    use config::defaults::{DEFAULT_NETWORK, DENOM};
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::mock_info;
@@ -83,7 +83,7 @@ pub mod test_helpers {
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg {
-            rewarding_validator_address: config::defaults::DEFAULT_REWARDING_VALIDATOR.to_string(),
+            rewarding_validator_address: DEFAULT_NETWORK.rewarding_validator_address().to_string(),
         };
         let env = mock_env();
         let info = mock_info("creator", &[]);

@@ -4,6 +4,7 @@
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
+use network_defaults::DEFAULT_NETWORK;
 use url::Url;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
@@ -29,6 +30,7 @@ use std::str::FromStr;
 
 #[cfg(feature = "nymd-client")]
 #[must_use]
+#[derive(Debug)]
 pub struct Config {
     network: network_defaults::all::Network,
     api_url: Url,
@@ -159,12 +161,10 @@ impl Client<QueryNymdClient> {
         let nymd_client = NymdClient::connect(
             config.nymd_url.as_str(),
             Some(config.mixnet_contract_address.clone().unwrap_or_else(|| {
-                cosmrs::AccountId::from_str(network_defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS)
-                    .unwrap()
+                cosmrs::AccountId::from_str(DEFAULT_NETWORK.mixnet_contract_address()).unwrap()
             })),
             Some(config.vesting_contract_address.clone().unwrap_or_else(|| {
-                cosmrs::AccountId::from_str(network_defaults::DEFAULT_VESTING_CONTRACT_ADDRESS)
-                    .unwrap()
+                cosmrs::AccountId::from_str(DEFAULT_NETWORK.vesting_contract_address()).unwrap()
             })),
             Some(
                 config
@@ -172,7 +172,7 @@ impl Client<QueryNymdClient> {
                     .clone()
                     .unwrap_or_else(|| {
                         cosmrs::AccountId::from_str(
-                            network_defaults::DEFAULT_BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+                            DEFAULT_NETWORK.bandwidth_claim_contract_address(),
                         )
                         .unwrap()
                     }),

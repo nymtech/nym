@@ -7,7 +7,11 @@ use cosmrs::Coin;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(export, export_to = "../../../nym-wallet/src/types/rust/operation.ts")
+)]
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Operation {
     Upload,

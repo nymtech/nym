@@ -5,7 +5,11 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(export, export_to = "../../nym-wallet/src/types/rust/mixnodestatus.ts")
+)]
 #[serde(rename_all = "snake_case")]
 pub enum MixnodeStatus {
     Active,   // in both the active set and the rewarded set
@@ -21,20 +25,41 @@ impl MixnodeStatus {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(
+        export,
+        export_to = "../../nym-wallet/src/types/rust/corenodestatusresponse.ts"
+    )
+)]
 pub struct CoreNodeStatusResponse {
     pub identity: String,
     pub count: i32,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(
+        export,
+        export_to = "../../nym-wallet/src/types/rust/mixnodestatusresponse.ts"
+    )
+)]
 pub struct MixnodeStatusResponse {
     pub status: MixnodeStatus,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(
+        export,
+        export_to = "../../nym-wallet/src/types/rust/rewardestimationresponse.ts"
+    )
+)]
 pub struct RewardEstimationResponse {
     pub estimated_total_node_reward: u64,
     pub estimated_operator_reward: u64,
@@ -47,14 +72,28 @@ pub struct RewardEstimationResponse {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(
+        export,
+        export_to = "../../nym-wallet/src/types/rust/stakesaturationresponse.ts"
+    )
+)]
 pub struct StakeSaturationResponse {
     pub saturation: f32,
     pub as_at: i64,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(
+        export,
+        export_to = "../../nym-wallet/src/types/rust/inclusionprobabilityresponse.ts"
+    )
+)]
 pub struct InclusionProbabilityResponse {
     pub in_active: f32,
     pub in_reserve: f32,

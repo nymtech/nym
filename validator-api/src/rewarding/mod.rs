@@ -9,7 +9,7 @@ use crate::storage::models::{
     FailedMixnodeRewardChunk, PossiblyUnrewardedMixnode, RewardingReport,
 };
 use crate::storage::ValidatorApiStorage;
-use config::defaults::DENOM;
+use config::defaults::DEFAULT_NETWORK;
 use log::{error, info};
 use mixnet_contract_common::mixnode::NodeRewardParams;
 use mixnet_contract_common::{
@@ -201,15 +201,18 @@ impl Rewarder {
         info!("Rewarding pool stats");
         info!(
             "-- Reward pool: {} {}",
-            interval_reward_params.reward_pool, DENOM
+            interval_reward_params.reward_pool,
+            DEFAULT_NETWORK.denom()
         );
         info!(
             "---- Interval reward pool: {} {}",
-            interval_reward_params.period_reward_pool, DENOM
+            interval_reward_params.period_reward_pool,
+            DEFAULT_NETWORK.denom()
         );
         info!(
             "-- Circulating supply: {} {}",
-            interval_reward_params.circulating_supply, DENOM
+            interval_reward_params.circulating_supply,
+            DEFAULT_NETWORK.denom()
         );
 
         // 1. get list of all currently bonded nodes

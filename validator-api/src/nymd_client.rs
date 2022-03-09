@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use crate::rewarding::{error::RewardingError, IntervalRewardParams, MixnodeToReward};
-use config::defaults::{default_network, DEFAULT_VALIDATOR_API_PORT};
+use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, GatewayBond, IdentityKey, Interval, MixNodeBond,
     MixnodeRewardingStatusResponse, RewardedSetNodeStatus, RewardedSetUpdateDetails,
@@ -37,7 +37,7 @@ impl Client<QueryNymdClient> {
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
-        let network = default_network();
+        let network = DEFAULT_NETWORK;
 
         let mixnet_contract = config
             .get_mixnet_contract_address()
@@ -67,7 +67,7 @@ impl Client<SigningNymdClient> {
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
-        let network = default_network();
+        let network = DEFAULT_NETWORK;
 
         let mixnet_contract = config
             .get_mixnet_contract_address()

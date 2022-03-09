@@ -13,6 +13,7 @@ use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/account.ts"))]
 #[derive(Serialize, Deserialize)]
 pub struct Account {
   contract_address: String,
@@ -31,6 +32,7 @@ impl Account {
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/createdaccount.ts"))]
 #[derive(Serialize, Deserialize)]
 pub struct CreatedAccount {
   account: Account,
@@ -38,6 +40,7 @@ pub struct CreatedAccount {
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/balance.ts"))]
 #[derive(Serialize, Deserialize)]
 pub struct Balance {
   coin: Coin,
@@ -129,16 +132,22 @@ async fn _connect_with_mnemonic(
   mnemonic: Mnemonic,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
-  let default_network = Network::try_from(config::defaults::default_network())?;
+  let default_network = Network::try_from(config::defaults::DEFAULT_NETWORK)?;
   let mut default_account = None;
   for network in Network::iter() {
     let client = {
       let config = state.read().await.config();
+      let nymd_url = config
+        .get_nymd_validator_url(network)
+        .ok_or(BackendError::NoNymdValidatorConfigured)?;
+      let api_url = config
+        .get_validator_api_url(network)
+        .ok_or(BackendError::NoValidatorApiUrlConfigured)?;
       match validator_client::Client::new_signing(
         validator_client::Config::new(
           network.into(),
-          config.get_nymd_validator_url(network),
-          config.get_validator_api_url(network),
+          nymd_url,
+          api_url,
           config.get_mixnet_contract_address(network),
           config.get_vesting_contract_address(network),
           config.get_bandwidth_claim_contract_address(network),
@@ -162,6 +171,7 @@ async fn _connect_with_mnemonic(
     w_state.add_client(network, client);
   }
 
-  default_account
-    .ok_or_else(|| BackendError::NetworkNotSupported(config::defaults::default_network()))
+  default_account.ok_or(BackendError::NetworkNotSupported(
+    config::defaults::DEFAULT_NETWORK,
+  ))
 }

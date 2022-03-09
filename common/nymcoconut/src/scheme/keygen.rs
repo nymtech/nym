@@ -316,9 +316,8 @@ impl VerificationKey {
     pub fn to_bytes(&self) -> Vec<u8> {
         let beta_g1_len = self.beta_g1.len() as u64;
         let beta_g2_len = self.beta_g2.len() as u64;
-        let mut bytes = Vec::with_capacity(
-            96 + 8 + beta_g1_len as usize * 48 + beta_g2_len as usize * 96,
-        );
+        let mut bytes =
+            Vec::with_capacity(96 + 8 + beta_g1_len as usize * 48 + beta_g2_len as usize * 96);
 
         bytes.extend_from_slice(&self.alpha.to_affine().to_compressed());
 

@@ -217,6 +217,18 @@ impl<'b> Add<&'b VerificationKey> for VerificationKey {
             "trying to add verification keys generated for different number of attributes [G2]"
         );
 
+        assert_eq!(
+            self.beta_g1.len(),
+            self.beta_g2.len(),
+            "this key is incorrect - the number of elements G1 and G2 does not match"
+        );
+
+        assert_eq!(
+            rhs.beta_g1.len(),
+            rhs.beta_g2.len(),
+            "they key you want to add is incorrect - the number of elements G1 and G2 does not match"
+        );
+
         VerificationKey {
             alpha: self.alpha + rhs.alpha,
             beta_g1: self

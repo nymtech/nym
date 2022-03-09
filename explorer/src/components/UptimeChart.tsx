@@ -2,8 +2,8 @@ import * as React from 'react';
 import { CircularProgress, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Chart } from 'react-google-charts';
-import { ApiState, UptimeStoryResponse } from 'src/typeDefs/explorer-api';
 import { format } from 'date-fns';
+import { ApiState, UptimeStoryResponse } from '../typeDefs/explorer-api';
 
 interface ChartProps {
   title?: string;
@@ -17,15 +17,8 @@ type FormattedDateRecord = [string, number];
 type FormattedChartHeadings = string[];
 type FormattedChartData = [FormattedChartHeadings | FormattedDateRecord];
 
-export const UptimeChart: React.FC<ChartProps> = ({
-  title,
-  xLabel,
-  yLabel,
-  uptimeStory,
-  loading,
-}) => {
-  const [formattedChartData, setFormattedChartData] =
-    React.useState<FormattedChartData>();
+export const UptimeChart: React.FC<ChartProps> = ({ title, xLabel, yLabel, uptimeStory, loading }) => {
+  const [formattedChartData, setFormattedChartData] = React.useState<FormattedChartData>();
   const theme = useTheme();
   const color = theme.palette.text.primary;
   React.useEffect(() => {
@@ -68,12 +61,8 @@ export const UptimeChart: React.FC<ChartProps> = ({
           }
           options={{
             backgroundColor:
-              theme.palette.mode === 'dark'
-                ? theme.palette.nym.networkExplorer.background.tertiary
-                : undefined,
-            color: uptimeStory.error
-              ? 'rgba(255, 255, 255, 0.4)'
-              : 'rgba(255, 255, 255, 1)',
+              theme.palette.mode === 'dark' ? theme.palette.nym.networkExplorer.background.tertiary : undefined,
+            color: uptimeStory.error ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 1)',
             colors: ['#FB7A21'],
             legend: {
               textStyle: {

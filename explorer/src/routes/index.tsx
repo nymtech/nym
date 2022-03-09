@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Route, Switch, Redirect } from 'react-router-dom';
-import { PageOverview } from 'src/pages/Overview';
-import { PageMixnodesMap } from 'src/pages/MixnodesMap';
+import { PageOverview } from '../pages/Overview';
+import { PageMixnodesMap } from '../pages/MixnodesMap';
 import { Page404 } from '../pages/404';
 import { NetworkComponentsRoutes } from './network-components';
 

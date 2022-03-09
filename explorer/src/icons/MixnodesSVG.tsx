@@ -6,36 +6,14 @@ export const MixnodesSVG: React.FC = () => {
   const color = theme.palette.text.primary;
 
   return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 26 26"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width="24" height="24" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M23.0437 13.0291H2.97681" stroke={color} strokeMiterlimit="10" />
       <path d="M23.0437 2.99512H2.97681" stroke={color} strokeMiterlimit="10" />
       <path d="M23.0437 23.0625H2.97681" stroke={color} strokeMiterlimit="10" />
-      <path
-        d="M2.97681 23.0621L23.0437 2.99512"
-        stroke={color}
-        strokeMiterlimit="10"
-      />
-      <path
-        d="M23.0437 23.0621L2.97681 2.99512"
-        stroke={color}
-        strokeMiterlimit="10"
-      />
-      <path
-        d="M13.0103 23.0621L23.0437 2.99512"
-        stroke={color}
-        strokeMiterlimit="10"
-      />
-      <path
-        d="M2.97681 2.99512L13.0103 23.0621"
-        stroke={color}
-        strokeMiterlimit="10"
-      />
+      <path d="M2.97681 23.0621L23.0437 2.99512" stroke={color} strokeMiterlimit="10" />
+      <path d="M23.0437 23.0621L2.97681 2.99512" stroke={color} strokeMiterlimit="10" />
+      <path d="M13.0103 23.0621L23.0437 2.99512" stroke={color} strokeMiterlimit="10" />
+      <path d="M2.97681 2.99512L13.0103 23.0621" stroke={color} strokeMiterlimit="10" />
       <path
         d="M13.0099 13.0289L23.0437 23.0621L13.0099 2.99512L2.97681 23.0621L13.0099 2.99512"
         stroke={color}

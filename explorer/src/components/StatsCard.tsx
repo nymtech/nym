@@ -11,14 +11,7 @@ interface StatsCardProps {
   onClick?: () => void;
   color?: string;
 }
-export const StatsCard: React.FC<StatsCardProps> = ({
-  icon,
-  title,
-  count,
-  onClick,
-  errorMsg,
-  color: colorProp,
-}) => {
+export const StatsCard: React.FC<StatsCardProps> = ({ icon, title, count, onClick, errorMsg, color: colorProp }) => {
   const theme = useTheme();
   const color = colorProp || theme.palette.text.primary;
   return (
@@ -38,21 +31,10 @@ export const StatsCard: React.FC<StatsCardProps> = ({
         <Box display="flex" alignItems="center" color={color}>
           <Box display="flex">
             {icon}
-            <Typography
-              ml={3}
-              mr={0.75}
-              fontSize="inherit"
-              fontWeight="inherit"
-              data-testid={`${title}-amount`}
-            >
+            <Typography ml={3} mr={0.75} fontSize="inherit" fontWeight="inherit" data-testid={`${title}-amount`}>
               {count === undefined || count === null ? '' : count}
             </Typography>
-            <Typography
-              mr={1}
-              fontSize="inherit"
-              fontWeight="inherit"
-              data-testid={title}
-            >
+            <Typography mr={1} fontSize="inherit" fontWeight="inherit" data-testid={title}>
               {title}
             </Typography>
           </Box>

@@ -1,17 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import * as React from 'react';
 import { scaleLinear } from 'd3-scale';
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  Marker,
-  ZoomableGroup,
-} from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
-import { ApiState, CountryDataResponse } from 'src/typeDefs/explorer-api';
 import { CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { ApiState, CountryDataResponse } from '../typeDefs/explorer-api';
 import MAP_TOPOJSON from '../assets/world-110m.json';
 
 type MapProps = {
@@ -20,35 +14,21 @@ type MapProps = {
   loading: boolean;
 };
 
-export const WorldMap: React.FC<MapProps> = ({
-  countryData,
-  userLocation,
-  loading,
-}) => {
+export const WorldMap: React.FC<MapProps> = ({ countryData, userLocation, loading }) => {
   const { palette } = useTheme();
 
   const colorScale = React.useMemo(() => {
     if (countryData?.data) {
-      const heighestNumberOfNodes = Math.max(
-        ...Object.values(countryData.data).map((country) => country.nodes),
-      );
+      const heighestNumberOfNodes = Math.max(...Object.values(countryData.data).map((country) => country.nodes));
       return scaleLinear<string, string>()
-        .domain([
-          0,
-          1,
-          heighestNumberOfNodes / 4,
-          heighestNumberOfNodes / 2,
-          heighestNumberOfNodes,
-        ])
+        .domain([0, 1, heighestNumberOfNodes / 4, heighestNumberOfNodes / 2, heighestNumberOfNodes])
         .range(palette.nym.networkExplorer.map.fills)
         .unknown(palette.nym.networkExplorer.map.fills[0]);
     }
     return () => palette.nym.networkExplorer.map.fills[0];
   }, [countryData, palette]);
 
-  const [tooltipContent, setTooltipContent] = React.useState<string | null>(
-    null,
-  );
+  const [tooltipContent, setTooltipContent] = React.useState<string | null>(null);
 
   if (loading) {
     return <CircularProgress />;

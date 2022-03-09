@@ -1,24 +1,17 @@
 import * as React from 'react';
 import { PaletteMode } from '@mui/material';
-import { MIXNODE_API_ERROR } from 'src/api/constants';
 import {
+  ApiState,
+  BlockResponse,
   CountryDataResponse,
   GatewayResponse,
   MixNodeResponse,
-  ValidatorsResponse,
-  BlockResponse,
-  ApiState,
-  MixNodeResponseItem,
-  DelegationsResponse,
-  StatsResponse,
-  StatusResponse,
-  UptimeStoryResponse,
-  MixNodeDescriptionResponse,
   MixnodeStatus,
   SummaryOverviewResponse,
-} from 'src/typeDefs/explorer-api';
+  ValidatorsResponse,
+} from '../typeDefs/explorer-api';
 import { Api } from '../api';
-import { navOptionType, originalNavOptions } from './nav';
+import { NavOptionType, originalNavOptions } from './nav';
 
 interface StateData {
   summaryOverview?: ApiState<SummaryOverviewResponse>;
@@ -28,7 +21,7 @@ interface StateData {
   globalError?: string | undefined;
   mixnodes?: ApiState<MixNodeResponse>;
   mode: PaletteMode;
-  navState: navOptionType[];
+  navState: NavOptionType[];
   validators?: ApiState<ValidatorsResponse>;
 }
 
@@ -50,30 +43,25 @@ export const MainContext = React.createContext<State>({
   fetchMixnodes: () => null,
 });
 
-export const useMainContext = (): React.ContextType<typeof MainContext> =>
-  React.useContext<State>(MainContext);
+export const useMainContext = (): React.ContextType<typeof MainContext> => React.useContext<State>(MainContext);
 
 export const MainContextProvider: React.FC = ({ children }) => {
   // light/dark mode
   const [mode, setMode] = React.useState<PaletteMode>('dark');
 
   // nav state
-  const [navState, updateNav] =
-    React.useState<navOptionType[]>(originalNavOptions);
+  const [navState, updateNav] = React.useState<NavOptionType[]>(originalNavOptions);
 
   // global / banner error messaging
-  const [globalError, setGlobalError] = React.useState<string>();
+  const [globalError] = React.useState<string>();
 
   // various APIs for Overview page
-  const [summaryOverview, setSummaryOverview] =
-    React.useState<ApiState<SummaryOverviewResponse>>();
+  const [summaryOverview, setSummaryOverview] = React.useState<ApiState<SummaryOverviewResponse>>();
   const [mixnodes, setMixnodes] = React.useState<ApiState<MixNodeResponse>>();
   const [gateways, setGateways] = React.useState<ApiState<GatewayResponse>>();
-  const [validators, setValidators] =
-    React.useState<ApiState<ValidatorsResponse>>();
+  const [validators, setValidators] = React.useState<ApiState<ValidatorsResponse>>();
   const [block, setBlock] = React.useState<ApiState<BlockResponse>>();
-  const [countryData, setCountryData] =
-    React.useState<ApiState<CountryDataResponse>>();
+  const [countryData, setCountryData] = React.useState<ApiState<CountryDataResponse>>();
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
@@ -83,10 +71,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
       setSummaryOverview({ data, isLoading: false });
     } catch (error) {
       setSummaryOverview({
-        error:
-          error instanceof Error
-            ? error
-            : new Error('Overview summary api fail'),
+        error: error instanceof Error ? error : new Error('Overview summary api fail'),
         isLoading: false,
       });
     }
@@ -95,9 +80,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
   const fetchMixnodes = async (status?: MixnodeStatus) => {
     setMixnodes((d) => ({ ...d, isLoading: true }));
     try {
-      const data = status
-        ? await Api.fetchMixnodesActiveSetByStatus(status)
-        : await Api.fetchMixnodes();
+      const data = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
       setMixnodes({ data, isLoading: false });
     } catch (error) {
       setMixnodes({
@@ -126,8 +109,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
       setValidators({ data, isLoading: false });
     } catch (error) {
       setValidators({
-        error:
-          error instanceof Error ? error : new Error('Validators api fail'),
+        error: error instanceof Error ? error : new Error('Validators api fail'),
         isLoading: false,
       });
     }
@@ -150,8 +132,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
       setCountryData({ data: res, isLoading: false });
     } catch (error) {
       setCountryData({
-        error:
-          error instanceof Error ? error : new Error('Country Data api fail'),
+        error: error instanceof Error ? error : new Error('Country Data api fail'),
         isLoading: false,
       });
     }
@@ -164,34 +145,27 @@ export const MainContextProvider: React.FC = ({ children }) => {
     updateNav(updated);
   };
   React.useEffect(() => {
-    Promise.all([
-      fetchOverviewSummary(),
-      fetchGateways(),
-      fetchValidators(),
-      fetchBlock(),
-      fetchCountryData(),
-    ]);
+    Promise.all([fetchOverviewSummary(), fetchGateways(), fetchValidators(), fetchBlock(), fetchCountryData()]);
   }, []);
 
-  return (
-    <MainContext.Provider
-      value={{
-        block,
-        countryData,
-        fetchMixnodes,
-        filterMixnodes,
-        gateways,
-        globalError,
-        mixnodes,
-        mode,
-        navState,
-        summaryOverview,
-        toggleMode,
-        updateNavState,
-        validators,
-      }}
-    >
-      {children}
-    </MainContext.Provider>
+  const state = React.useMemo<State>(
+    () => ({
+      block,
+      countryData,
+      fetchMixnodes,
+      filterMixnodes,
+      gateways,
+      globalError,
+      mixnodes,
+      mode,
+      navState,
+      summaryOverview,
+      toggleMode,
+      updateNavState,
+      validators,
+    }),
+    [block, countryData, gateways, globalError, mixnodes, mode, navState, summaryOverview, validators],
   );
+
+  return <MainContext.Provider value={state}>{children}</MainContext.Provider>;
 };

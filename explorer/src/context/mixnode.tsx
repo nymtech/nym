@@ -7,12 +7,9 @@ import {
   StatsResponse,
   StatusResponse,
   UptimeStoryResponse,
-} from 'src/typeDefs/explorer-api';
+} from '../typeDefs/explorer-api';
 import { Api } from '../api';
-import {
-  mixNodeResponseItemToMixnodeRowType,
-  MixnodeRowType,
-} from '../components/MixNodes';
+import { mixNodeResponseItemToMixnodeRowType, MixnodeRowType } from '../components/MixNodes';
 
 /**
  * This context provides the state for a single mixnode by identity key.
@@ -41,24 +38,20 @@ interface MixnodeContextProviderProps {
  * Provides a state context for a mixnode by identity
  * @param mixNodeIdentityKey   The identity key of the mixnode
  */
-export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({
-  mixNodeIdentityKey,
-  children,
-}) => {
-  const [mixNode, fetchMixnodeById, clearMixnodeById] = useApiState<
-    MixNodeResponseItem | undefined
-  >(mixNodeIdentityKey, Api.fetchMixnodeByID, 'Failed to fetch mixnode by id');
+export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ mixNodeIdentityKey, children }) => {
+  const [mixNode, fetchMixnodeById, clearMixnodeById] = useApiState<MixNodeResponseItem | undefined>(
+    mixNodeIdentityKey,
+    Api.fetchMixnodeByID,
+    'Failed to fetch mixnode by id',
+  );
 
-  const [mixNodeRow, setMixnodeRow] = React.useState<
-    MixnodeRowType | undefined
-  >();
+  const [mixNodeRow, setMixnodeRow] = React.useState<MixnodeRowType | undefined>();
 
-  const [delegations, fetchDelegations, clearDelegations] =
-    useApiState<DelegationsResponse>(
-      mixNodeIdentityKey,
-      Api.fetchDelegationsById,
-      'Failed to fetch delegations for mixnode',
-    );
+  const [delegations, fetchDelegations, clearDelegations] = useApiState<DelegationsResponse>(
+    mixNodeIdentityKey,
+    Api.fetchDelegationsById,
+    'Failed to fetch delegations for mixnode',
+  );
 
   const [status, fetchStatus, clearStatus] = useApiState<StatusResponse>(
     mixNodeIdentityKey,
@@ -72,19 +65,17 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({
     'Failed to fetch mixnode stats',
   );
 
-  const [description, fetchDescription, clearDescription] =
-    useApiState<MixNodeDescriptionResponse>(
-      mixNodeIdentityKey,
-      Api.fetchMixnodeDescriptionById,
-      'Failed to fetch mixnode description',
-    );
+  const [description, fetchDescription, clearDescription] = useApiState<MixNodeDescriptionResponse>(
+    mixNodeIdentityKey,
+    Api.fetchMixnodeDescriptionById,
+    'Failed to fetch mixnode description',
+  );
 
-  const [uptimeStory, fetchUptimeHistory, clearUptimeHistory] =
-    useApiState<UptimeStoryResponse>(
-      mixNodeIdentityKey,
-      Api.fetchUptimeStoryById,
-      'Failed to fetch mixnode uptime history',
-    );
+  const [uptimeStory, fetchUptimeHistory, clearUptimeHistory] = useApiState<UptimeStoryResponse>(
+    mixNodeIdentityKey,
+    Api.fetchUptimeStoryById,
+    'Failed to fetch mixnode uptime history',
+  );
 
   React.useEffect(() => {
     // when the identity key changes, remove all previous data
@@ -102,19 +93,22 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({
         return;
       }
       setMixnodeRow(mixNodeResponseItemToMixnodeRowType(value.data));
-      Promise.all([
-        fetchDelegations(),
-        fetchStatus(),
-        fetchStats(),
-        fetchDescription(),
-        fetchUptimeHistory(),
-      ]);
+      Promise.all([fetchDelegations(), fetchStatus(), fetchStats(), fetchDescription(), fetchUptimeHistory()]);
     });
   }, [mixNodeIdentityKey]);
 
-  return (
-    <MixnodeContext.Provider
-      value={{
+  const state = React.useMemo<MixnodeState>(
+    () => ({
+      delegations,
+      mixNode,
+      mixNodeRow,
+      description,
+      stats,
+      status,
+      uptimeStory,
+    }),
+    [
+      {
         delegations,
         mixNode,
         mixNodeRow,
@@ -122,11 +116,11 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({
         stats,
         status,
         uptimeStory,
-      }}
-    >
-      {children}
-    </MixnodeContext.Provider>
+      },
+    ],
   );
+
+  return <MixnodeContext.Provider value={state}>{children}</MixnodeContext.Provider>;
 };
 
 /**

@@ -62,9 +62,7 @@ export enum MixnodeStatusWithAll {
   all = 'all', // any status
 }
 
-export const toMixnodeStatus = (
-  status?: MixnodeStatusWithAll,
-): MixnodeStatus | undefined => {
+export const toMixnodeStatus = (status?: MixnodeStatusWithAll): MixnodeStatus | undefined => {
   if (!status || status === MixnodeStatusWithAll.all) {
     return undefined;
   }

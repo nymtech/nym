@@ -1,52 +1,21 @@
 const path = require('path');
-const webpack = require('webpack');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
-const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
-const WebpackFavicons = require('webpack-favicons');
-const Dotenv = require('dotenv-webpack');
+const { mergeWithRules } = require('webpack-merge');
+const { webpackCommon } = require('@nymproject/webpack');
 
-module.exports = {
-  entry: './src/index.tsx',
+module.exports = mergeWithRules({
   module: {
-    rules: [
-      {
-        test: /\.tsx?$/,
-        use: 'ts-loader',
-        exclude: /node_modules/,
-      },
-      {
-        test: /\.mdx?$/,
-        use: ['babel-loader', './webpack/plugins/mdx-loader'],
-      },
-      {
-        test: /\.css$/i,
-        use: ['style-loader', 'css-loader'],
-      },
-      {
-        test: /\.(png|jpe?g|gif|svg|md)$/i,
-        // More information here https://webpack.js.org/guides/asset-modules/
-        type: 'asset',
-      },
-      {
-        // See https://webpack.js.org/guides/asset-management/#loading-fonts
-        test: /\.(woff|woff2|eot|ttf|otf)$/i,
-        type: 'asset/resource',
-      },
-      {
-        test: /\.ya?ml$/,
-        type: 'json',
-        use: 'yaml-loader',
-      },
-    ],
+    rules: {
+      test: 'match',
+      use: 'replace',
+    },
+  },
+})(webpackCommon(__dirname), {
+  entry: path.resolve(__dirname, 'src/index.tsx'),
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    publicPath: '/',
   },
   resolve: {
-    extensions: ['.tsx', '.ts', '.js'],
-    plugins: [new TsconfigPathsPlugin()],
-    alias: {
-      'react/jsx-runtime': require.resolve('react/jsx-runtime'),
-    },
     fallback: {
       fs: false,
       tls: false,
@@ -57,38 +26,6 @@ module.exports = {
       crypto: false,
       net: false,
       zlib: false,
-    },
-  },
-  plugins: [
-    new webpack.ProvidePlugin({
-      Buffer: ['buffer', 'Buffer'],
-    }),
-
-    new CleanWebpackPlugin(),
-
-    new HtmlWebpackPlugin({
-      filename: 'index.html',
-      template: path.resolve(__dirname, 'src/index.html'),
-    }),
-
-    new ForkTsCheckerWebpackPlugin({
-      typescript: {
-        mode: 'write-references',
-        diagnosticOptions: {
-          semantic: true,
-          syntactic: true,
-        },
-      },
-    }),
-
-    new WebpackFavicons({
-      src: 'src/logo.svg',
-    }),
-
-    new Dotenv(),
-  ],
-  output: {
-    path: path.resolve(__dirname, 'dist'),
-    publicPath: '/',
-  },
-};
+    }
+  }
+});

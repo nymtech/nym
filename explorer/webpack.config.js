@@ -13,7 +13,6 @@ module.exports = mergeWithRules({
   },
 })(commonConfig, {
   mode: 'development',
-  entry: './src/index.tsx',
   devtool: 'inline-source-map',
   module: {
     rules: [
@@ -29,20 +28,6 @@ module.exports = mergeWithRules({
           // If you need type checking, `ForkTsCheckerWebpackPlugin` is an alternative.
           transpileOnly: true,
         },
-      },
-      {
-        test: /\.css$/i,
-        use: ['style-loader', 'css-loader'],
-      },
-      {
-        test: /\.(png|jpe?g|gif|svg|eot|ttf|woff|woff2)$/i,
-        // More information here https://webpack.js.org/guides/asset-modules/
-        type: 'asset',
-      },
-      {
-        test: /\.ya?ml$/,
-        type: 'json',
-        use: 'yaml-loader',
       },
     ],
   },

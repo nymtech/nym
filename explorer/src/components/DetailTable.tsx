@@ -1,13 +1,5 @@
 import * as React from 'react';
-import {
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-} from '@mui/material';
+import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import { cellStyles } from './Universal-DataGrid';
 import { currencyToString } from '../utils/currency';
 import { MixnodeRowType } from './MixNodes';
@@ -51,10 +43,7 @@ export const DetailTable: React.FC<{
       </TableHead>
       <TableBody>
         {rows.map((eachRow) => (
-          <TableRow
-            key={eachRow.id}
-            sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-          >
+          <TableRow key={eachRow.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
             {columnsData?.map((_, index) => (
               <TableCell
                 key={_.title}
@@ -69,10 +58,7 @@ export const DetailTable: React.FC<{
                 }}
                 data-testid={`${_.title.replace(/ /g, '-')}-value`}
               >
-                {formatCellValues(
-                  eachRow[columnsData[index].field],
-                  columnsData[index].field,
-                )}
+                {formatCellValues(eachRow[columnsData[index].field], columnsData[index].field)}
               </TableCell>
             ))}
           </TableRow>

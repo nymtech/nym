@@ -391,7 +391,7 @@ where
                     .encryption_key()
                     .compute_digest()
                     .to_vec()
-                    .into_iter(),
+                    .into_iter()
             )
             .chain(reply_content.into_iter())
             .collect();

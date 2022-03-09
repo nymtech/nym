@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use coconut_interface::{
-    elgamal::PublicKey, Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature,
+    Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature,
     BlindedSignatureResponse, KeyPair, Parameters, VerificationKeyResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;

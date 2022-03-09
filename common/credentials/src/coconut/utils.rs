@@ -67,13 +67,11 @@ async fn obtain_partial_credential(
     client: &validator_client::ApiClient,
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
-    let elgamal_keypair = coconut_interface::elgamal_keygen(params);
     let (pedersen_commitments_openings, blind_sign_request) =
         prepare_blind_sign(params, private_attributes, public_attributes)?;
 
     let blind_sign_request_body = BlindSignRequestBody::new(
         &blind_sign_request,
-        elgamal_keypair.public_key(),
         public_attributes,
         (public_attributes.len() + private_attributes.len()) as u32,
     );

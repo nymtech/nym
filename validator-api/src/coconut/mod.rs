@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use coconut_interface::{
-    Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature,
-    BlindedSignatureResponse, KeyPair, Parameters, VerificationKeyResponse,
+    Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
+    KeyPair, Parameters, VerificationKeyResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
 use getset::{CopyGetters, Getters};

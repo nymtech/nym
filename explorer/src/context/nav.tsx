@@ -1,20 +1,20 @@
 import * as React from 'react';
-import { BIG_DIPPER } from 'src/api/constants';
+import { BIG_DIPPER } from '../api/constants';
 import { OverviewSVG } from '../icons/OverviewSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 
-export type navOptionType = {
+export type NavOptionType = {
   id: number;
   isActive?: boolean;
   url: string;
   title: string;
   Icon?: React.ReactNode;
-  nested?: navOptionType[];
+  nested?: NavOptionType[];
   isExpandedChild?: boolean;
 };
 
-export const originalNavOptions: navOptionType[] = [
+export const originalNavOptions: NavOptionType[] = [
   {
     id: 0,
     isActive: false,

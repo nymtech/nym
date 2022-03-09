@@ -2,8 +2,8 @@ import * as React from 'react';
 import { Box, Button, Grid, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useHistory } from 'react-router-dom';
-import { useMainContext } from 'src/context/main';
-import { NymLogoSVG } from 'src/icons/NymLogoSVG';
+import { NymLogo } from '@nymproject/react';
+import { useMainContext } from '../../context/main';
 
 export const Page404: React.FC = () => {
   const history = useHistory();
@@ -21,18 +21,13 @@ export const Page404: React.FC = () => {
               alignItems: 'center',
               justifyContent: 'space-evenly',
               flexDirection: 'column',
-              background:
-                mode === 'dark'
-                  ? theme.palette.secondary.dark
-                  : theme.palette.primary.light,
+              background: mode === 'dark' ? theme.palette.secondary.dark : theme.palette.primary.light,
               borderRadius: 10,
             }}
           >
-            <NymLogoSVG />
+            <NymLogo height="40px" width="40px" />
             <Typography variant="h2">Oh No!</Typography>
-            <Typography variant="body1">
-              It looks like you might be lost.
-            </Typography>
+            <Typography variant="body1">It looks like you might be lost.</Typography>
             <Typography variant="body1" textAlign="center">
               Please try the link again or navigate back to{' '}
             </Typography>

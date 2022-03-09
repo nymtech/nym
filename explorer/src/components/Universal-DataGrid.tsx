@@ -1,11 +1,6 @@
 import * as React from 'react';
 import { makeStyles } from '@mui/styles';
-import {
-  DataGrid,
-  GridColDef,
-  useGridApiContext,
-  useGridState,
-} from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiContext, useGridState } from '@mui/x-data-grid';
 import Pagination from '@mui/material/Pagination';
 import { SxProps } from '@mui/system';
 import { LinearProgress } from '@mui/material';
@@ -30,7 +25,7 @@ export const cellStyles: SxProps = {
   whiteSpace: 'break-spaces',
 };
 
-function CustomPagination() {
+const CustomPagination = () => {
   const apiRef = useGridApiContext();
   const [state] = useGridState(apiRef);
 
@@ -46,7 +41,7 @@ function CustomPagination() {
       onChange={(event, value) => apiRef.current.setPage(value - 1)}
     />
   );
-}
+};
 
 type DataGridProps = {
   columns: GridColDef[];
@@ -55,13 +50,7 @@ type DataGridProps = {
   rows: any;
   loading?: boolean;
 };
-export const UniversalDataGrid: React.FC<DataGridProps> = ({
-  rows,
-  columns,
-  loading,
-  pagination,
-  pageSize,
-}) => {
+export const UniversalDataGrid: React.FC<DataGridProps> = ({ rows, columns, loading, pagination, pageSize }) => {
   if (loading) return <LinearProgress />;
   if (!loading)
     return (

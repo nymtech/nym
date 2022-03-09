@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react'
 import { Button, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover } from '@mui/material'
 import { ArrowDropDown, CheckSharp } from '@mui/icons-material'
 import { ClientContext, IS_DEV_MODE } from '../context/main'
-import { Network } from 'src/types'
+import { Network } from '../types'
 
 const networks: { networkName: Network; name: string }[] = [
   { networkName: 'MAINNET', name: 'Nym Mainnet' },
@@ -10,7 +10,7 @@ const networks: { networkName: Network; name: string }[] = [
   { networkName: 'QA', name: 'QA' },
 ]
 
-export const NetworkSelector = () => {
+export function NetworkSelector() {
   const { network, switchNetwork } = useContext(ClientContext)
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)

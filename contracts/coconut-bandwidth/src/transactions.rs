@@ -1,18 +1,38 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
 use coconut_bandwidth_contract::deposit::DepositData;
+use coconut_bandwidth_contract::events::{
+    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_VALUE, DEPOSIT_VERIFICATION_KEY,
+};
+use config::defaults::DENOM;
 
 pub(crate) fn deposit_funds(
     _deps: DepsMut<'_>,
     _env: Env,
-    _info: MessageInfo,
-    _data: DepositData,
+    info: MessageInfo,
+    data: DepositData,
 ) -> Result<Response, ContractError> {
-    Ok(Response::default())
+    if info.funds.is_empty() {
+        return Err(ContractError::NoCoin);
+    }
+    if info.funds.len() > 1 {
+        return Err(ContractError::MultipleDenoms);
+    }
+    if info.funds[0].denom != DENOM {
+        return Err(ContractError::WrongDenom);
+    }
+
+    let voucher_value = info.funds.last().unwrap();
+    let event = Event::new(DEPOSITED_FUNDS_EVENT_TYPE)
+        .add_attribute(DEPOSIT_VALUE, voucher_value.amount)
+        .add_attribute(DEPOSIT_VERIFICATION_KEY, data.verification_key())
+        .add_attribute(DEPOSIT_ENCRYPTION_KEY, data.encryption_key());
+
+    Ok(Response::new().add_event(event))
 }
 
 // #[cfg(test)]

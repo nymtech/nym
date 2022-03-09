@@ -17,4 +17,12 @@ impl DepositData {
             encryption_key,
         }
     }
+
+    pub fn verification_key(&self) -> &str {
+        &self.verification_key
+    }
+
+    pub fn encryption_key(&self) -> &str {
+        &self.encryption_key
+    }
 }

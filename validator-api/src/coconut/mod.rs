@@ -19,8 +19,6 @@ pub(crate) struct InternalSignRequest {
     #[getset(get)]
     public_attributes: Vec<Attribute>,
     #[getset(get)]
-    public_key: PublicKey,
-    #[getset(get)]
     blind_sign_request: BlindSignRequest,
 }
 
@@ -28,13 +26,11 @@ impl InternalSignRequest {
     pub fn new(
         total_params: u32,
         public_attributes: Vec<Attribute>,
-        public_key: PublicKey,
         blind_sign_request: BlindSignRequest,
     ) -> InternalSignRequest {
         InternalSignRequest {
             total_params,
             public_attributes,
-            public_key,
             blind_sign_request,
         }
     }
@@ -55,7 +51,6 @@ fn blind_sign(request: InternalSignRequest, key_pair: &KeyPair) -> BlindedSignat
     coconut_interface::blind_sign(
         &params,
         &key_pair.secret_key(),
-        request.public_key(),
         request.blind_sign_request(),
         request.public_attributes(),
     )
@@ -72,7 +67,6 @@ pub async fn post_blind_sign(
     let internal_request = InternalSignRequest::new(
         *blind_sign_request_body.total_params(),
         blind_sign_request_body.public_attributes(),
-        blind_sign_request_body.public_key().clone(),
         blind_sign_request_body.blind_sign_request().clone(),
     );
     let blinded_signature = blind_sign(internal_request, key_pair);

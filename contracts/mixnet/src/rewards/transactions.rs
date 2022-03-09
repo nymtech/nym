@@ -101,7 +101,7 @@ fn calculate_operator_reward(
 
     let accumulated_rewards = mixnodes()
         .changelog()
-        .prefix(&bond.identity().to_string())
+        .prefix(bond.identity())
         .keys(storage, None, None, Order::Ascending)
         .filter_map(|height| height.ok())
         .filter(|height| last_claimed_height <= *height)

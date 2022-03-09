@@ -33,6 +33,7 @@ impl TryFrom<&[u8]> for SecretKey {
     type Error = CoconutError;
 
     fn try_from(bytes: &[u8]) -> Result<SecretKey> {
+        // There should be x and at least one y
         if bytes.len() < 32 * 2 + 8 || (bytes.len() - 8) % 32 != 0 {
             return Err(CoconutError::DeserializationInvalidLength {
                 actual: bytes.len(),
@@ -125,28 +126,28 @@ impl TryFrom<&[u8]> for VerificationKey {
     type Error = CoconutError;
 
     fn try_from(bytes: &[u8]) -> Result<VerificationKey> {
-        // There should be at least alpha, one betaG1 and one betaG2
+        // There should be at least alpha, one betaG1 and one betaG2 and their length
         if bytes.len() < 96 * 2 + 48 + 8 || (bytes.len() - 8 - 96) % (96 + 48) != 0 {
             return Err(CoconutError::DeserializationInvalidLength {
                 actual: bytes.len(),
                 modulus_target: bytes.len() - 8 - 96,
                 target: 96 * 2 + 48 + 8,
                 modulus: 96 + 48,
-                object: "secret key".to_string(),
+                object: "verification key".to_string(),
             });
         }
 
         // this conversion will not fail as we are taking the same length of data
         let alpha_bytes: [u8; 96] = bytes[..96].try_into().unwrap();
-        let beta_len = u64::from_le_bytes(bytes[96..104].try_into().unwrap());
+        let betas_len = u64::from_le_bytes(bytes[96..104].try_into().unwrap());
 
         let actual_betas_len = (bytes.len() - 104) / (96 + 48);
 
-        if beta_len as usize != actual_betas_len {
+        if betas_len as usize != actual_betas_len {
             return Err(
                 CoconutError::Deserialization(
                     format!("Tried to deserialize verification key with inconsistent betas len (expected {}, got {})",
-                            beta_len, actual_betas_len
+                            betas_len, actual_betas_len
                     )));
         }
 
@@ -157,9 +158,9 @@ impl TryFrom<&[u8]> for VerificationKey {
             ),
         )?;
 
-        let mut beta_g1 = Vec::with_capacity(beta_len as usize);
+        let mut beta_g1 = Vec::with_capacity(betas_len as usize);
         let mut beta_g1_end: u64 = 0;
-        for i in 0..beta_len {
+        for i in 0..betas_len {
             let start = (104 + i * 48) as usize;
             let end = (start + 48) as usize;
             let beta_i_bytes = bytes[start..end].try_into().unwrap();
@@ -174,10 +175,10 @@ impl TryFrom<&[u8]> for VerificationKey {
             beta_g1.push(beta_i)
         }
 
-        let mut beta_g2 = Vec::with_capacity(beta_len as usize);
-        for i in 0..beta_len {
+        let mut beta_g2 = Vec::with_capacity(betas_len as usize);
+        for i in 0..betas_len {
             let start = (beta_g1_end + i * 96) as usize;
-            let end = start + 96;
+            let end = (start + 96) as usize;
             let beta_i_bytes = bytes[start..end].try_into().unwrap();
             let beta_i = try_deserialize_g2_projective(
                 &beta_i_bytes,
@@ -316,7 +317,7 @@ impl VerificationKey {
         let beta_g1_len = self.beta_g1.len() as u64;
         let beta_g2_len = self.beta_g2.len() as u64;
         let mut bytes = Vec::with_capacity(
-            8 + (beta_g1_len + 1) as usize * 48 + (beta_g2_len + 1) as usize + 96,
+            96 + 8 + beta_g1_len as usize * 48 + beta_g2_len as usize * 96,
         );
 
         bytes.extend_from_slice(&self.alpha.to_affine().to_compressed());

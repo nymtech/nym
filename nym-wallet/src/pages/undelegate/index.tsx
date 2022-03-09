@@ -12,7 +12,6 @@ export const Undelegate = () => {
   const [message, setMessage] = useState<string>()
   const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial)
   const [isLoading, setIsLoading] = useState(true)
-  const [fees, setFees] = useState<TFee>()
   const [pagedDelegations, setPagesDelegations] = useState<TPagedDelegations>()
 
   const { clientDetails } = useContext(ClientContext)
@@ -26,15 +25,7 @@ export const Undelegate = () => {
     setIsLoading(true)
 
     try {
-      const [mixnodeFee, mixnodeDelegations] = await Promise.all([
-        getGasFee('UndelegateFromMixnode'),
-        getReverseMixDelegations(),
-      ])
-
-      setFees({
-        mixnode: mixnodeFee,
-      })
-
+      const mixnodeDelegations = await getReverseMixDelegations()
       setPagesDelegations(mixnodeDelegations)
     } catch (e) {
       setStatus(EnumRequestStatus.error)
@@ -59,9 +50,8 @@ export const Undelegate = () => {
           </Box>
         )}
         <>
-          {status === EnumRequestStatus.initial && fees && pagedDelegations && (
+          {status === EnumRequestStatus.initial && pagedDelegations && (
             <UndelegateForm
-              fees={fees}
               delegations={pagedDelegations?.delegations}
               onError={(message) => {
                 setMessage(message)

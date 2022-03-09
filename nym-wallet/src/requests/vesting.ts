@@ -68,7 +68,7 @@ export const vestingDelegateToMixnode = async ({
 }): Promise<DelegationResult> => await invoke('vesting_delegate_to_mixnode', { identity, amount })
 
 export const vestingUnelegateFromMixnode = async (identity: string): Promise<DelegationResult> =>
-  await invoke('vesting_delegate_to_mixnode', { identity })
+  await invoke('vesting_undelegate_from_mixnode', { identity })
 
 export const getVestingAccountInfo = async (address: string): Promise<VestingAccountInfo> =>
   await invoke('get_account_info', { address })

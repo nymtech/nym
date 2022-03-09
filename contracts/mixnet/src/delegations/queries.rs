@@ -113,8 +113,9 @@ pub(crate) fn query_mixnode_delegations_paged(
         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
 
-    let start = start_after
-        .map(|(addr, height)| Bound::ExclusiveRaw((mix_identity.clone(), addr.as_bytes(), height).joined_key()));
+    let start = start_after.map(|(addr, height)| {
+        Bound::ExclusiveRaw((mix_identity.clone(), addr.as_bytes(), height).joined_key())
+    });
 
     let delegations = storage::delegations()
         .idx
@@ -125,7 +126,9 @@ pub(crate) fn query_mixnode_delegations_paged(
         .map(|record| record.map(|r| r.1))
         .collect::<StdResult<Vec<_>>>()?;
 
-    let start_next_after = delegations.last().map(|delegation| (delegation.owner(), delegation.block_height()));
+    let start_next_after = delegations
+        .last()
+        .map(|delegation| (delegation.owner(), delegation.block_height()));
 
     Ok(PagedMixDelegationsResponse::new(
         delegations,
@@ -259,9 +262,9 @@ pub(crate) mod tests {
             let start_after = page1.start_next_after.unwrap();
             assert_eq!(2, page1.delegations.len());
             assert_eq!(("200".to_string(), 12345), start_after);
-            
+
             // retrieving the next page should start after the last key on this page
-            
+
             let page2 = query_mixnode_delegations_paged(
                 deps.as_ref(),
                 node_identity.clone(),

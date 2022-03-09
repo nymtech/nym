@@ -35,10 +35,10 @@ pub(crate) mod tests {
     #[cfg(test)]
     mod querying_for_rewarding_status {
         use super::*;
-        use crate::interval::storage::{save_epoch, save_epoch_reward_params};
-        use crate::{constants, support::tests::fixtures::epoch_fixture};
         use crate::delegations::transactions::try_delegate_to_mixnode;
+        use crate::interval::storage::{save_epoch, save_epoch_reward_params};
         use crate::rewards::transactions::try_reward_mixnode;
+        use crate::{constants, support::tests::fixtures::epoch_fixture};
         use config::defaults::DENOM;
         use cosmwasm_std::{coin, Addr};
         use mixnet_contract_common::{

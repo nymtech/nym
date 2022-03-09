@@ -4,10 +4,12 @@
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedSnapshotMap, Map, Strategy, UniqueIndex};
-use mixnet_contract_common::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond, reward_params::NodeEpochRewards};
+use mixnet_contract_common::U128;
+use mixnet_contract_common::{
+    reward_params::NodeEpochRewards, Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
-use mixnet_contract_common::U128;
 
 // storage prefixes
 const TOTAL_DELEGATION_NAMESPACE: &str = "td";
@@ -60,7 +62,7 @@ pub(crate) struct StoredMixnodeBond {
     pub mix_node: MixNode,
     pub proxy: Option<Addr>,
     pub accumulated_rewards: Uint128,
-    pub epoch_rewards: Option<NodeEpochRewards>
+    pub epoch_rewards: Option<NodeEpochRewards>,
 }
 
 impl From<MixNodeBond> for StoredMixnodeBond {
@@ -73,7 +75,7 @@ impl From<MixNodeBond> for StoredMixnodeBond {
             mix_node: mixnode_bond.mix_node,
             proxy: mixnode_bond.proxy,
             accumulated_rewards: mixnode_bond.accumulated_rewards,
-            epoch_rewards: None
+            epoch_rewards: None,
         }
     }
 }
@@ -88,7 +90,7 @@ impl StoredMixnodeBond {
         mix_node: MixNode,
         proxy: Option<Addr>,
         accumulated_rewards: Uint128,
-        epoch_rewards: Option<NodeEpochRewards>
+        epoch_rewards: Option<NodeEpochRewards>,
     ) -> Self {
         StoredMixnodeBond {
             pledge_amount,
@@ -98,7 +100,7 @@ impl StoredMixnodeBond {
             mix_node,
             proxy,
             accumulated_rewards,
-            epoch_rewards
+            epoch_rewards,
         }
     }
 
@@ -215,7 +217,7 @@ mod tests {
             },
             proxy: None,
             accumulated_rewards: Uint128::zero(),
-            epoch_rewards: None
+            epoch_rewards: None,
         };
 
         storage::mixnodes()

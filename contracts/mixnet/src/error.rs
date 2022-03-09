@@ -3,7 +3,7 @@
 
 use config::defaults::DENOM;
 use cosmwasm_std::{Addr, StdError};
-use mixnet_contract_common::{IdentityKey, error::MixnetContractError};
+use mixnet_contract_common::{error::MixnetContractError, IdentityKey};
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.
@@ -140,8 +140,5 @@ pub enum ContractError {
         source: MixnetContractError,
     },
     #[error("No rewards to claim for mixnode {identity} for delegate {delegate}")]
-    NoRewardsToClaim {
-        identity: String,
-        delegate: String,
-    },
+    NoRewardsToClaim { identity: String, delegate: String },
 }

@@ -11,9 +11,8 @@ pub enum RewardingError {
     #[error("Could not distribute rewards as the contract address was unspecified")]
     UnspecifiedContractAddress,
 
-    #[error("There were no mixnodes to reward (network is dead)")]
-    NoMixnodesToReward,
-
+    // #[error("There were no mixnodes to reward (network is dead)")]
+    // NoMixnodesToReward,
     #[error("Failed to execute the smart contract - {0}")]
     ContractExecutionFailure(NymdError),
 

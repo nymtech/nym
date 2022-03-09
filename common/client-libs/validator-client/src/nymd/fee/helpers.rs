@@ -52,7 +52,7 @@ pub enum Operation {
     ClearRewardedSet,
     UpdateMixnetAddress,
     CheckpointMixnodes,
-    ReconcileDelegations
+    ReconcileDelegations,
 }
 
 pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {

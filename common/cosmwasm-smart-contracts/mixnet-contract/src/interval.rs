@@ -305,10 +305,7 @@ mod tests {
 
         // interval just before
         let fake_now = first_interval.start - Duration::from_secs(123);
-        assert_eq!(
-            first_interval.previous(),
-            first_interval.current(fake_now)
-        );
+        assert_eq!(first_interval.previous(), first_interval.current(fake_now));
 
         // this interval (start boundary)
         assert_eq!(
@@ -355,10 +352,7 @@ mod tests {
             + first_interval.length
             + first_interval.length;
         assert_eq!(
-            first_interval
-                .next()
-                .next()
-                .next(),
+            first_interval.next().next().next(),
             first_interval.current(fake_now).unwrap()
         );
     }

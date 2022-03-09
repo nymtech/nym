@@ -403,7 +403,5 @@ pub fn new_advance_interval_event(interval: Interval) -> Event {
 }
 
 pub fn new_advance_epoch_event(interval: Interval) -> Event {
-    Event::new(ADVANCE_EPOCH_EVENT_TYPE)
-        .add_attribute(NEW_CURRENT_EPOCH_KEY, interval.to_string())
+    Event::new(ADVANCE_EPOCH_EVENT_TYPE).add_attribute(NEW_CURRENT_EPOCH_KEY, interval.to_string())
 }
-

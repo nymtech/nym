@@ -2,8 +2,8 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::error::MixnetContractError;
-use crate::reward_params::{RewardParams};
-use crate::{IdentityKey, SphinxKey, Delegation};
+use crate::reward_params::RewardParams;
+use crate::{Delegation, IdentityKey, SphinxKey};
 use crate::{ONE, U128};
 use az::CheckedCast;
 use cosmwasm_std::{coin, Addr, Coin, Uint128};

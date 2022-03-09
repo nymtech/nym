@@ -7,7 +7,7 @@ use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::{
     reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
     IdentityKey, Interval, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
-    RewardedSetUpdateDetails, MIXNODE_DELEGATORS_PAGE_LIMIT,
+    RewardedSetUpdateDetails,
 };
 use serde::Serialize;
 use std::sync::Arc;
@@ -95,6 +95,7 @@ impl Client<SigningNymdClient> {
 
 impl<C> Client<C> {
     // a helper function for the future to obtain the current block timestamp
+    #[allow(dead_code)]
     pub(crate) async fn current_block_timestamp(
         &self,
     ) -> Result<TendermintTime, ValidatorClientError>
@@ -170,6 +171,7 @@ impl<C> Client<C> {
         Ok(epoch_reward_params)
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn get_rewarding_status(
         &self,
         mix_identity: mixnet_contract_common::IdentityKey,
@@ -207,6 +209,7 @@ impl<C> Client<C> {
         Ok(hash)
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn get_mixnode_delegations(
         &self,
         identity: IdentityKey,
@@ -247,6 +250,7 @@ impl<C> Client<C> {
             .await
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn advance_current_interval(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -295,67 +299,6 @@ impl<C> Client<C> {
             .await?;
         Ok(())
     }
-
-    pub(crate) async fn reward_mixnode_and_all_delegators(
-        &self,
-        node: &MixnodeToReward,
-        interval_id: u32,
-    ) -> Result<(), RewardingError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        // start with the base call to reward operator and first page of delegators
-        let msgs = vec![(node.to_reward_execute_msg(interval_id), vec![])];
-        let memo = format!(
-            "operator + {} delegators rewarding",
-            MIXNODE_DELEGATORS_PAGE_LIMIT
-        );
-        self.execute_multiple_with_retry(msgs, Default::default(), memo)
-            .await?;
-
-        // reward rest of delegators (if applicable)
-        // if node.total_delegations > MIXNODE_DELEGATORS_PAGE_LIMIT {
-        //     // the first 'batch' of delegators has been rewarded while rewarding the operator
-        //     let mut remaining_delegators = node.total_delegations - MIXNODE_DELEGATORS_PAGE_LIMIT;
-        //     let delegator_rewarding_msg = (
-        //         node.to_next_delegator_reward_execute_msg(interval_id),
-        //         vec![],
-        //     );
-
-        //     while remaining_delegators > 0 {
-        //         let delegators_in_call = remaining_delegators.min(MIXNODE_DELEGATORS_PAGE_LIMIT);
-        //         let msgs = vec![delegator_rewarding_msg.clone()];
-        //         let memo = format!("rewarding another {} delegators", delegators_in_call);
-        //         self.execute_multiple_with_retry(msgs, Default::default(), memo)
-        //             .await?;
-
-        //         remaining_delegators =
-        //             remaining_delegators.saturating_sub(MIXNODE_DELEGATORS_PAGE_LIMIT)
-        //     }
-        // }
-
-        Ok(())
-    }
-
-    // pub(crate) async fn reward_mix_delegators(
-    //     &self,
-    //     node: &MixnodeToReward,
-    //     interval_id: u32,
-    // ) -> Result<(), RewardingError>
-    // where
-    //     C: SigningCosmWasmClient + Sync,
-    // {
-    //     // the fee is a tricky subject here because we don't know exactly how many delegators we missed,
-    //     // let's aim for the worst case scenario and assume it was the entire page
-    //     let delegator_rewarding_msg = (
-    //         node.to_next_delegator_reward_execute_msg(interval_id),
-    //         vec![],
-    //     );
-
-    //     let memo = "rewarding delegators".to_string();
-    //     self.execute_multiple_with_retry(vec![delegator_rewarding_msg], Default::default(), memo)
-    //         .await
-    // }
 
     pub(crate) async fn reward_mixnodes(
         &self,

@@ -17,7 +17,7 @@ pub(crate) fn query_gateways_paged(
     let limit = limit
         .unwrap_or(BOND_PAGE_DEFAULT_LIMIT)
         .min(BOND_PAGE_MAX_LIMIT) as usize;
-    
+
     let start = start_after.as_deref().map(Bound::exclusive);
 
     let nodes = storage::gateways()

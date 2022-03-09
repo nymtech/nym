@@ -9,12 +9,16 @@ use serde::{Deserialize, Serialize};
 pub struct NodeEpochRewards {
     params: NodeRewardParams,
     result: StoredNodeRewardResult,
-    epoch_id: u32
+    epoch_id: u32,
 }
 
 impl NodeEpochRewards {
     pub fn new(params: NodeRewardParams, result: StoredNodeRewardResult, epoch_id: u32) -> Self {
-        Self { params, result, epoch_id }
+        Self {
+            params,
+            result,
+            epoch_id,
+        }
     }
 
     pub fn epoch_id(&self) -> u32 {
@@ -30,7 +34,7 @@ impl NodeEpochRewards {
     }
 
     pub fn params(&self) -> NodeRewardParams {
-        self.params.clone()
+        self.params
     }
 
     pub fn reward(&self) -> Uint128 {
@@ -71,7 +75,7 @@ impl NodeEpochRewards {
         &self,
         delegation_amount: Uint128,
         profit_margin: U128,
-        epoch_reward_params: EpochRewardParams
+        epoch_reward_params: EpochRewardParams,
     ) -> Result<Uint128, MixnetContractError> {
         // change all values into their fixed representations
         let delegation_amount = U128::from_num(delegation_amount.u128());

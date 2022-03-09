@@ -24,8 +24,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Notify;
 use url::Url;
-use validator_client::nymd::SigningNymdClient;
-use validator_client::ValidatorClientError;
+// use validator_client::nymd::SigningNymdClient;
+// use validator_client::ValidatorClientError;
 
 use crate::rewarded_set_updater::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
@@ -356,6 +356,8 @@ fn setup_network_monitor<'a>(
     ))
 }
 
+// TODO: Remove if still unused
+#[allow(dead_code)]
 fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usize {
     let test_delay = config.get_network_monitor_run_interval();
 
@@ -461,7 +463,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             nymd_client,
             rewarded_set_update_notify,
             validator_cache.clone(),
-            storage
+            storage,
         );
 
         // spawn rewarded set updater

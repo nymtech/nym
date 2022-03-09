@@ -12,7 +12,7 @@ use cosmwasm_std::{
     wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Storage, Uint128,
 };
 use mixnet_contract_common::events::{
-    new_mixnode_bonding_event, new_mixnode_unbonding_event, new_checkpoint_mixnodes_event,
+    new_checkpoint_mixnodes_event, new_mixnode_bonding_event, new_mixnode_unbonding_event,
 };
 use mixnet_contract_common::MixNode;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;

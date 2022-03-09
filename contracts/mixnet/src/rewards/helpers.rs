@@ -4,9 +4,7 @@
 use super::storage;
 use crate::error::ContractError;
 use cosmwasm_std::Storage;
-use mixnet_contract_common::{
-    IdentityKey, RewardingResult, RewardingStatus,
-};
+use mixnet_contract_common::{IdentityKey, RewardingResult, RewardingStatus};
 
 pub(crate) fn update_rewarding_status(
     storage: &mut dyn Storage,

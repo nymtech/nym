@@ -14,8 +14,12 @@
 
 use crate::contract_cache::ValidatorCache;
 use crate::nymd_client::Client;
+use crate::storage::models::{
+    FailedMixnodeRewardChunk, PossiblyUnrewardedMixnode, RewardingReport,
+};
 use crate::storage::ValidatorApiStorage;
 use mixnet_contract_common::reward_params::NodeRewardParams;
+use mixnet_contract_common::ExecuteMsg;
 use mixnet_contract_common::{IdentityKey, Interval, MixNodeBond};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
@@ -26,7 +30,6 @@ use time::OffsetDateTime;
 use tokio::sync::Notify;
 use tokio::time::sleep;
 use validator_client::nymd::SigningNymdClient;
-use mixnet_contract_common::ExecuteMsg;
 
 pub(crate) mod error;
 
@@ -56,8 +59,6 @@ impl MixnodeToReward {
         }
     }
 }
-
-
 
 pub(crate) struct FailedMixnodeRewardChunkDetails {
     possibly_unrewarded: Vec<MixnodeToReward>,
@@ -127,15 +128,86 @@ impl RewardedSetUpdater {
             .collect()
     }
 
-    async fn reward_current_rewarded_set(
-        &self,
-    ) -> Result<(), RewardingError> {
+    async fn rewarding_happened_at_epoch(&self) -> Result<bool, RewardingError> {
+        if let Some(entry) = self
+            .storage
+            .get_interval_rewarding_entry(self.epoch.start_unix_timestamp())
+            .await?
+        {
+            // log error if the attempt wasn't finished. This error implies the process has crashed
+            // during the rewards distribution
+            if !entry.finished {
+                error!(
+                    "It seems that we haven't successfully finished distributing rewards at {}",
+                    self.epoch
+                )
+            }
+
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    async fn reward_current_rewarded_set(&self) -> Result<(), RewardingError> {
         let to_reward = self.nodes_to_reward().await?;
-        let failures = self.distribute_rewards(&to_reward, false).await;
-        error!(
-            "Failed to reward {} nodes",
-            failures.unwrap_or_default().len()
-        );
+
+        self.storage
+            .insert_started_epoch_rewarding(self.epoch)
+            .await?;
+
+        let failure_data = self.distribute_rewards(&to_reward, false).await;
+
+        let mut rewarding_report = RewardingReport {
+            interval_rewarding_id: self.epoch.id() as i64,
+            eligible_mixnodes: to_reward.len() as i64,
+            possibly_unrewarded_mixnodes: 0,
+        };
+
+        if let Some(failure_data) = failure_data {
+            rewarding_report.possibly_unrewarded_mixnodes =
+                failure_data.possibly_unrewarded.len() as i64;
+            if let Err(err) = self
+                .save_failure_information(failure_data, self.epoch.id() as i64)
+                .await
+            {
+                error!("failed to save information about rewarding failures!");
+                // TODO: should we just terminate the process here?
+                return Err(err);
+            }
+        }
+
+        self.storage
+            .finish_rewarding_interval_and_insert_report(rewarding_report)
+            .await?;
+        Ok(())
+    }
+
+    async fn save_failure_information(
+        &self,
+        failed_chunk: FailedMixnodeRewardChunkDetails,
+        interval_rewarding_id: i64,
+    ) -> Result<(), RewardingError> {
+        // save the chunk
+        let chunk_id = self
+            .storage
+            .insert_failed_mixnode_reward_chunk(FailedMixnodeRewardChunk {
+                interval_rewarding_id,
+                error_message: failed_chunk.error_message,
+            })
+            .await?;
+
+        // and then all associated nodes
+        for node in failed_chunk.possibly_unrewarded.into_iter() {
+            self.storage
+                .insert_possibly_unrewarded_mixnode(PossiblyUnrewardedMixnode {
+                    chunk_id,
+                    identity: node.identity,
+                    uptime: node.params.uptime() as u8,
+                })
+                .await?;
+        }
+
         Ok(())
     }
 
@@ -143,7 +215,7 @@ impl RewardedSetUpdater {
         &self,
         eligible_mixnodes: &[MixnodeToReward],
         retry: bool,
-    ) -> Option<Vec<FailedMixnodeRewardChunkDetails>> {
+    ) -> Option<FailedMixnodeRewardChunkDetails> {
         if retry {
             info!(
                 "Attempting to retry rewarding {} mixnodes...",
@@ -156,39 +228,51 @@ impl RewardedSetUpdater {
             )
         }
 
-        let mut failed_chunks = Vec::new();
+        let mut failed_chunks = None;
 
-        if let Err(err) = self
-            .nymd_client
-            .reward_mixnodes(eligible_mixnodes, self.epoch.id())
-            .await
-        {
-            // this is a super weird edge case that we didn't catch change to sequence and
-            // resent rewards unnecessarily, but the mempool saved us from executing it again
-            // however, still we want to wait until we're sure we're into the next block
-            if !err.is_tendermint_duplicate() {
-                error!("failed to reward mixnodes... - {}", err);
-                failed_chunks.push(FailedMixnodeRewardChunkDetails {
-                    possibly_unrewarded: eligible_mixnodes.to_vec(),
-                    error_message: err.to_string(),
-                });
+        let num_retries = 5;
+        let mut retry = 0;
+        let mut success = false;
+
+        loop {
+            match self
+                .nymd_client
+                .reward_mixnodes(eligible_mixnodes, self.epoch.id())
+                .await
+            {
+                Ok(_) => {
+                    let total_rewarded = eligible_mixnodes.len();
+                    info!("Rewarded {} mixnodes", total_rewarded);
+                    success = false;
+                    break;
+                }
+                Err(err) => {
+                    if num_retries <= retry {
+                        break;
+                    }
+                    retry += 1;
+                    // this is a super weird edge case that we didn't catch change to sequence and
+                    // resent rewards unnecessarily, but the mempool saved us from executing it again
+                    // however, still we want to wait until we're sure we're into the next block
+                    if !err.is_tendermint_duplicate() {
+                        error!("failed to reward mixnodes... - {}", err);
+                        failed_chunks = Some(FailedMixnodeRewardChunkDetails {
+                            possibly_unrewarded: eligible_mixnodes.to_vec(),
+                            error_message: err.to_string(),
+                        });
+                    }
+                    sleep(Duration::from_secs(11)).await;
+                }
             }
-            sleep(Duration::from_secs(11)).await;
         }
-
-        let total_rewarded = eligible_mixnodes.len();
-        info!("Rewarded {} mixndoes", total_rewarded);
-
-        if failed_chunks.is_empty() {
-            None
-        } else {
-            Some(failed_chunks)
+        // Its all or nothing since we do not chunk
+        if success {
+            failed_chunks = None
         }
+        failed_chunks
     }
 
-    async fn nodes_to_reward(
-        &self,
-    ) -> Result<Vec<MixnodeToReward>, RewardingError> {
+    async fn nodes_to_reward(&self) -> Result<Vec<MixnodeToReward>, RewardingError> {
         let active_set = self
             .validator_cache
             .active_set()
@@ -235,9 +319,11 @@ impl RewardedSetUpdater {
             .epoch_reward_params()
             .await
             .into_inner();
+
         // Reward all the nodes in the still current, soon to be previous rewarded set
-        self.reward_current_rewarded_set()
-            .await?;
+        if !self.rewarding_happened_at_epoch().await? {
+            self.reward_current_rewarded_set().await?;
+        }
 
         // Reconcile delegations from the previous epoch
         if let Err(err) = self.nymd_client.reconcile_delegations().await {
@@ -268,6 +354,10 @@ impl RewardedSetUpdater {
             // note that if the transaction failed to get executed because, I don't know, there was a networking hiccup
             // the cache will notify the updater on its next round
         }
+
+        let cutoff = (self.epoch.end() - Duration::from_secs(86400)).unix_timestamp();
+        self.storage.purge_old_statuses(cutoff).await?;
+
         Ok(())
     }
 

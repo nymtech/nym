@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd_client::Client;
-use mixnet_contract_common::reward_params::EpochRewardParams;
 use ::time::OffsetDateTime;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;
+use mixnet_contract_common::reward_params::EpochRewardParams;
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNodeBond, RewardedSetNodeStatus,
 };
@@ -133,10 +133,7 @@ impl<C> ValidatorCacheRefresher<C> {
         let (rewarded_set, active_set) =
             self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities);
 
-        let epoch_rewarding_params = self
-            .nymd_client
-            .get_current_epoch_reward_params()
-            .await?;
+        let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
         let current_interval = self.nymd_client.get_current_interval().await?;
 
         info!(
@@ -230,9 +227,7 @@ impl ValidatorCache {
         inner.gateways.update(gateways);
         inner.rewarded_set.update(rewarded_set);
         inner.active_set.update(active_set);
-        inner
-            .current_reward_params
-            .update(epoch_rewarding_params);
+        inner.current_reward_params.update(epoch_rewarding_params);
         inner.current_epoch.update(current_epoch);
     }
 

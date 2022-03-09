@@ -3,35 +3,39 @@
 
 [package]
 name = "nym-gateway"
-version = "0.11.0"
+version = "0.12.1"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
-edition = "2018"
+description = "Implementation of the Nym Mixnet Gateway"
+edition = "2021"
 rust-version = "1.56"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bs58 = "0.4.0"
+anyhow = "1.0.53"
+async-trait = { version = "0.1.51" }
 bip39 = "1.0.1"
-clap = "2.33.0"
+bs58 = "0.4.0"
+clap = { version = "3.0.10", features = ["cargo", "derive"] }
 colored = "2.0"
-dirs = "3.0"
 dashmap = "4.0"
+dirs = "3.0"
 dotenv = "0.15.0"
 futures = "0.3"
 humantime-serde = "1.0.1"
 log = "0.4"
+once_cell = "1.7.2"
 pretty_env_logger = "0.4"
 rand = "0.7"
 serde = { version = "1.0.104", features = ["derive"] }
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 subtle-encoding = { version = "0.5", features =  ["bech32-preview"]}
 thiserror = "1"
 tokio = { version = "1.4", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
-tokio-util = { version = "0.6", features = [ "codec" ] }
 tokio-stream = { version = "0.1", features = [ "fs" ] }
 tokio-tungstenite = "0.14"
+tokio-util = { version = "0.6", features = [ "codec" ] }
 url = { version = "2.2", features = [ "serde" ] }
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 web3 = "0.17.0"
 
 # internal
@@ -39,7 +43,7 @@ coconut-interface = { path = "../common/coconut-interface" , optional = true}
 credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
-erc20-bridge-contract = { path = "../common/erc20-bridge-contract" }
+bandwidth-claim-contract = { path = "../common/bandwidth-claim-contract" }
 gateway-requests = { path = "gateway-requests" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
@@ -52,6 +56,7 @@ version-checker = { path = "../common/version-checker" }
 
 [features]
 coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coconut"]
+eth = []
 
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }

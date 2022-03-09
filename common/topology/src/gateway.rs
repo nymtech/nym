@@ -3,7 +3,7 @@
 
 use crate::{filter, NetworkAddress};
 use crypto::asymmetric::{encryption, identity};
-use mixnet_contract::GatewayBond;
+use mixnet_contract_common::GatewayBond;
 use nymsphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nymsphinx_types::Node as SphinxNode;
 use std::convert::{TryFrom, TryInto};
@@ -33,7 +33,7 @@ impl From<identity::Ed25519RecoveryError> for GatewayConversionError {
 }
 
 impl Display for GatewayConversionError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             GatewayConversionError::InvalidIdentityKey(err) => write!(
                 f,

@@ -24,7 +24,7 @@ where
 pub fn connect_with_signer<U>(
     endpoint: U,
     signer: DirectSecp256k1HdWallet,
-    gas_price: Option<GasPrice>,
+    gas_price: GasPrice,
 ) -> Result<signing_client::Client, NymdError>
 where
     U: TryInto<HttpClientUrl, Error = TendermintRpcError>,

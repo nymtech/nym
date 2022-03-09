@@ -115,10 +115,15 @@ impl Config {
         }
 
         if self.gateway.persistent_storage.as_os_str().is_empty() {
-            self.gateway.persistent_storage = self::Gateway::default_database_path(&id)
+            self.gateway.persistent_storage = self::Gateway::default_database_path(&id);
         }
 
         self.gateway.id = id;
+        self
+    }
+
+    pub fn with_testnet_mode(mut self, testnet_mode: bool) -> Self {
+        self.gateway.testnet_mode = testnet_mode;
         self
     }
 
@@ -148,12 +153,12 @@ impl Config {
     pub fn with_listening_address<S: Into<String>>(mut self, listening_address: S) -> Self {
         let listening_address_string = listening_address.into();
         if let Ok(ip_addr) = listening_address_string.parse() {
-            self.gateway.listening_address = ip_addr
+            self.gateway.listening_address = ip_addr;
         } else {
             error!(
                 "failed to change listening address. the provided value ({}) was invalid",
                 listening_address_string
-            )
+            );
         }
         self
     }
@@ -188,9 +193,18 @@ impl Config {
         self
     }
 
+    pub fn with_wallet_address(mut self, wallet_address: &str) -> Self {
+        self.gateway.wallet_address = wallet_address.to_string();
+        self
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
+    }
+
+    pub fn get_testnet_mode(&self) -> bool {
+        self.gateway.testnet_mode
     }
 
     pub fn get_private_identity_key_file(&self) -> PathBuf {
@@ -271,6 +285,10 @@ impl Config {
     pub fn get_version(&self) -> &str {
         &self.gateway.version
     }
+
+    pub fn get_wallet_address(&self) -> &str {
+        &self.gateway.wallet_address
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -281,6 +299,11 @@ pub struct Gateway {
 
     /// ID specifies the human readable ID of this particular gateway.
     id: String,
+
+    /// Indicates whether this gateway is running in a testnet mode, thus allowing clients
+    /// to claim bandwidth without presenting bandwidth credentials.
+    #[serde(default)]
+    testnet_mode: bool,
 
     /// Address to which this mixnode will bind to and will be listening for packets.
     #[serde(default = "bind_all_address")]
@@ -336,6 +359,9 @@ pub struct Gateway {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys and available client bandwidths.
     persistent_storage: PathBuf,
+
+    /// The Cosmos wallet address that will control this gateway
+    wallet_address: String,
 }
 
 impl Gateway {
@@ -365,6 +391,7 @@ impl Default for Gateway {
         Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
+            testnet_mode: false,
             listening_address: bind_all_address(),
             announce_address: "127.0.0.1".to_string(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,
@@ -382,17 +409,18 @@ impl Default for Gateway {
             cosmos_mnemonic: "".to_string(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),
+            wallet_address: "nymXXXXXXXX".to_string(),
         }
     }
 }
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Logging {}
+struct Logging {}
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct Debug {
+struct Debug {
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
     #[serde(with = "humantime_serde")]

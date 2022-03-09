@@ -58,6 +58,7 @@ impl MessageReceiver {
     }
 
     /// Allows setting non-default number of expected mix hops in the network.
+    #[must_use]
     pub fn with_mix_hops(mut self, hops: u8) -> Self {
         self.num_mix_hops = hops;
         self
@@ -186,7 +187,7 @@ impl Default for MessageReceiver {
 mod message_receiver {
     use super::*;
     use crypto::asymmetric::identity;
-    use mixnet_contract::Layer;
+    use mixnet_contract_common::Layer;
     use nymsphinx_addressing::clients::Recipient;
     use rand::rngs::OsRng;
     use std::collections::HashMap;

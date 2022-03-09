@@ -5,11 +5,10 @@ use crate::mixnet_contract_settings::models::ContractState;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Storage;
 use cw_storage_plus::Item;
-use mixnet_contract::Layer;
-use mixnet_contract::LayerDistribution;
+use mixnet_contract_common::{Layer, LayerDistribution};
 
-pub(crate) const CONTRACT_STATE: Item<ContractState> = Item::new("config");
-pub(crate) const LAYERS: Item<LayerDistribution> = Item::new("layers");
+pub(crate) const CONTRACT_STATE: Item<'_, ContractState> = Item::new("config");
+pub(crate) const LAYERS: Item<'_, LayerDistribution> = Item::new("layers");
 
 pub fn increment_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
     LAYERS

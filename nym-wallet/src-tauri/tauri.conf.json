@@ -1,7 +1,7 @@
 {
   "package": {
     "productName": "nym-wallet",
-    "version": "0.1.0"
+    "version": "1.0.0"
   },
   "build": {
     "distDir": "../dist",
@@ -13,7 +13,7 @@
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "com.nymwallet.nymtech",
+      "identifier": "net.nymtech.wallet",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -23,9 +23,9 @@
       ],
       "resources": [],
       "externalBin": [],
-      "copyright": "",
-      "category": "DeveloperTool",
-      "shortDescription": "",
+      "copyright": "Copyright © 2021-2022 Nym Technologies SA",
+      "category": "Business",
+      "shortDescription": "Nym desktop wallet allows you to manage your Nym tokens",
       "longDescription": "",
       "deb": {
         "depends": [],
@@ -36,7 +36,7 @@
         "minimumSystemVersion": "",
         "useBootstrapper": false,
         "exceptionDomain": "",
-        "signingIdentity": null,
+        "signingIdentity": "Developer ID Application: Nym Technologies SA (VW5DZLFHM5)",
         "entitlements": null
       },
       "windows": {
@@ -49,13 +49,19 @@
       "active": false
     },
     "allowlist": {
+      "window": {
+        "maximize": true  
+      },
+      "clipboard": {
+        "all": true
+      },
       "shell": {
         "open": true
       }
     },
     "windows": [
       {
-        "title": "nym-wallet",
+        "title": "Nym Wallet",
         "width": 1268,
         "height": 768,
         "resizable": true

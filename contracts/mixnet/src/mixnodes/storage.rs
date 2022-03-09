@@ -3,21 +3,26 @@
 
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Map, UniqueIndex};
-use mixnet_contract::{Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond};
+use cw_storage_plus::{Index, IndexList, IndexedSnapshotMap, Map, Strategy, UniqueIndex};
+use mixnet_contract_common::U128;
+use mixnet_contract_common::{
+    reward_params::NodeEpochRewards, Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 // storage prefixes
 const TOTAL_DELEGATION_NAMESPACE: &str = "td";
 const MIXNODES_PK_NAMESPACE: &str = "mn";
+const MIXNODES_PK_CHECKPOINTS: &str = "mn__check";
+const MIXNODES_PK_CHANGELOG: &str = "mn__change";
 const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
 
 // paged retrieval limits for all queries and transactions
 pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;
 pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
-pub(crate) const TOTAL_DELEGATION: Map<IdentityKeyRef, Uint128> =
+pub(crate) const TOTAL_DELEGATION: Map<'_, IdentityKeyRef<'_>, Uint128> =
     Map::new(TOTAL_DELEGATION_NAMESPACE);
 
 pub(crate) struct MixnodeBondIndex<'a> {
@@ -35,11 +40,17 @@ impl<'a> IndexList<StoredMixnodeBond> for MixnodeBondIndex<'a> {
 
 // mixnodes() is the storage access function.
 pub(crate) fn mixnodes<'a>(
-) -> IndexedMap<'a, IdentityKeyRef<'a>, StoredMixnodeBond, MixnodeBondIndex<'a>> {
+) -> IndexedSnapshotMap<'a, IdentityKeyRef<'a>, StoredMixnodeBond, MixnodeBondIndex<'a>> {
     let indexes = MixnodeBondIndex {
         owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
     };
-    IndexedMap::new(MIXNODES_PK_NAMESPACE, indexes)
+    IndexedSnapshotMap::new(
+        MIXNODES_PK_NAMESPACE,
+        MIXNODES_PK_CHECKPOINTS,
+        MIXNODES_PK_CHANGELOG,
+        Strategy::Never,
+        indexes,
+    )
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -49,19 +60,37 @@ pub(crate) struct StoredMixnodeBond {
     pub layer: Layer,
     pub block_height: u64,
     pub mix_node: MixNode,
-    pub profit_margin_percent: Option<u8>,
     pub proxy: Option<Addr>,
+    pub accumulated_rewards: Uint128,
+    pub epoch_rewards: Option<NodeEpochRewards>,
+}
+
+impl From<MixNodeBond> for StoredMixnodeBond {
+    fn from(mixnode_bond: MixNodeBond) -> StoredMixnodeBond {
+        StoredMixnodeBond {
+            pledge_amount: mixnode_bond.pledge_amount,
+            owner: mixnode_bond.owner,
+            layer: mixnode_bond.layer,
+            block_height: mixnode_bond.block_height,
+            mix_node: mixnode_bond.mix_node,
+            proxy: mixnode_bond.proxy,
+            accumulated_rewards: mixnode_bond.accumulated_rewards,
+            epoch_rewards: None,
+        }
+    }
 }
 
 impl StoredMixnodeBond {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         pledge_amount: Coin,
         owner: Addr,
         layer: Layer,
         block_height: u64,
         mix_node: MixNode,
-        profit_margin_percent: Option<u8>,
         proxy: Option<Addr>,
+        accumulated_rewards: Uint128,
+        epoch_rewards: Option<NodeEpochRewards>,
     ) -> Self {
         StoredMixnodeBond {
             pledge_amount,
@@ -69,8 +98,9 @@ impl StoredMixnodeBond {
             layer,
             block_height,
             mix_node,
-            profit_margin_percent,
             proxy,
+            accumulated_rewards,
+            epoch_rewards,
         }
     }
 
@@ -86,6 +116,7 @@ impl StoredMixnodeBond {
             block_height: self.block_height,
             mix_node: self.mix_node,
             proxy: self.proxy,
+            accumulated_rewards: self.accumulated_rewards,
         }
     }
 
@@ -96,10 +127,14 @@ impl StoredMixnodeBond {
     pub(crate) fn pledge_amount(&self) -> Coin {
         self.pledge_amount.clone()
     }
+
+    pub fn profit_margin(&self) -> U128 {
+        U128::from_num(self.mix_node.profit_margin_percent) / U128::from_num(100)
+    }
 }
 
 impl Display for StoredMixnodeBond {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "amount: {}, owner: {}, identity: {}",
@@ -110,7 +145,7 @@ impl Display for StoredMixnodeBond {
 
 pub(crate) fn read_full_mixnode_bond(
     storage: &dyn Storage,
-    mix_identity: IdentityKeyRef,
+    mix_identity: IdentityKeyRef<'_>,
 ) -> StdResult<Option<MixNodeBond>> {
     let stored_bond = mixnodes().may_load(storage, mix_identity)?;
     match stored_bond {
@@ -128,6 +163,7 @@ pub(crate) fn read_full_mixnode_bond(
                 block_height: stored_bond.block_height,
                 mix_node: stored_bond.mix_node,
                 proxy: stored_bond.proxy,
+                accumulated_rewards: stored_bond.accumulated_rewards,
             }))
         }
     }
@@ -137,20 +173,19 @@ pub(crate) fn read_full_mixnode_bond(
 mod tests {
     use super::super::storage;
     use super::*;
-    use crate::support::tests::test_helpers;
+    use crate::support::tests;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::{coin, Addr, Uint128};
-    use mixnet_contract::IdentityKey;
-    use mixnet_contract::MixNode;
+    use mixnet_contract_common::{IdentityKey, MixNode};
 
     #[test]
     fn mixnode_single_read_retrieval() {
         let mut storage = MockStorage::new();
-        let bond1 = test_helpers::stored_mixnode_bond_fixture("owner1");
-        let bond2 = test_helpers::stored_mixnode_bond_fixture("owner2");
-        mixnodes().save(&mut storage, "bond1", &bond1).unwrap();
-        mixnodes().save(&mut storage, "bond2", &bond2).unwrap();
+        let bond1 = tests::fixtures::stored_mixnode_bond_fixture("owner1");
+        let bond2 = tests::fixtures::stored_mixnode_bond_fixture("owner2");
+        mixnodes().save(&mut storage, "bond1", &bond1, 1).unwrap();
+        mixnodes().save(&mut storage, "bond2", &bond2, 1).unwrap();
 
         let res1 = mixnodes().load(&storage, "bond1").unwrap();
         let res2 = mixnodes().load(&storage, "bond2").unwrap();
@@ -173,19 +208,20 @@ mod tests {
 
         let mixnode_bond = StoredMixnodeBond {
             pledge_amount: coin(pledge_value, DENOM),
-            owner: node_owner.clone(),
+            owner: node_owner,
             layer: Layer::One,
             block_height: 12_345,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
-                ..test_helpers::mix_node_fixture()
+                ..tests::fixtures::mix_node_fixture()
             },
-            profit_margin_percent: None,
             proxy: None,
+            accumulated_rewards: Uint128::zero(),
+            epoch_rewards: None,
         };
 
         storage::mixnodes()
-            .save(&mut mock_storage, &node_identity, &mixnode_bond)
+            .save(&mut mock_storage, &node_identity, &mixnode_bond, 1)
             .unwrap();
 
         assert_eq!(

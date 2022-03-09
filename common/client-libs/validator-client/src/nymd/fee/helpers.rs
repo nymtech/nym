@@ -7,7 +7,11 @@ use cosmrs::Coin;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(export, export_to = "../../../nym-wallet/src/types/rust/operation.ts")
+)]
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Operation {
     Upload,
@@ -20,6 +24,7 @@ pub enum Operation {
     BondMixnodeOnBehalf,
     UnbondMixnode,
     UnbondMixnodeOnBehalf,
+    UpdateMixnodeConfig,
     DelegateToMixnode,
     DelegateToMixnodeOnBehalf,
     UndelegateFromMixnode,
@@ -40,6 +45,14 @@ pub enum Operation {
     WithdrawVestedCoins,
     TrackUndelegation,
     CreatePeriodicVestingAccount,
+
+    AdvanceCurrentInterval,
+    AdvanceCurrentEpoch,
+    WriteRewardedSet,
+    ClearRewardedSet,
+    UpdateMixnetAddress,
+    CheckpointMixnodes,
+    ReconcileDelegations,
 }
 
 pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
@@ -57,6 +70,7 @@ impl fmt::Display for Operation {
             Operation::BondMixnode => f.write_str("BondMixnode"),
             Operation::BondMixnodeOnBehalf => f.write_str("BondMixnodeOnBehalf"),
             Operation::UnbondMixnode => f.write_str("UnbondMixnode"),
+            Operation::UpdateMixnodeConfig => f.write_str("UpdateMixnodeConfig"),
             Operation::UnbondMixnodeOnBehalf => f.write_str("UnbondMixnodeOnBehalf"),
             Operation::BondGateway => f.write_str("BondGateway"),
             Operation::BondGatewayOnBehalf => f.write_str("BondGatewayOnBehalf"),
@@ -76,6 +90,13 @@ impl fmt::Display for Operation {
             Operation::WithdrawVestedCoins => f.write_str("WithdrawVestedCoins"),
             Operation::TrackUndelegation => f.write_str("TrackUndelegation"),
             Operation::CreatePeriodicVestingAccount => f.write_str("CreatePeriodicVestingAccount"),
+            Operation::AdvanceCurrentInterval => f.write_str("AdvanceCurrentInterval"),
+            Operation::WriteRewardedSet => f.write_str("WriteRewardedSet"),
+            Operation::ClearRewardedSet => f.write_str("ClearRewardedSet"),
+            Operation::UpdateMixnetAddress => f.write_str("UpdateMixnetAddress"),
+            Operation::CheckpointMixnodes => f.write_str("CheckpointMixnodes"),
+            Operation::ReconcileDelegations => f.write_str("ReconcileDelegations"),
+            Operation::AdvanceCurrentEpoch => f.write_str("AdvanceCurrentEpoch"),
         }
     }
 }
@@ -94,6 +115,7 @@ impl Operation {
             Operation::BondMixnodeOnBehalf => 200_000u64.into(),
             Operation::UnbondMixnode => 175_000u64.into(),
             Operation::UnbondMixnodeOnBehalf => 175_000u64.into(),
+            Operation::UpdateMixnodeConfig => 175_000u64.into(),
             Operation::DelegateToMixnode => 175_000u64.into(),
             Operation::DelegateToMixnodeOnBehalf => 175_000u64.into(),
             Operation::UndelegateFromMixnode => 175_000u64.into(),
@@ -112,6 +134,13 @@ impl Operation {
             Operation::WithdrawVestedCoins => 175_000u64.into(),
             Operation::TrackUndelegation => 175_000u64.into(),
             Operation::CreatePeriodicVestingAccount => 175_000u64.into(),
+            Operation::AdvanceCurrentInterval => 175_000u64.into(),
+            Operation::WriteRewardedSet => 175_000u64.into(),
+            Operation::ClearRewardedSet => 175_000u64.into(),
+            Operation::UpdateMixnetAddress => 80_000u64.into(),
+            Operation::CheckpointMixnodes => 175_000u64.into(),
+            Operation::ReconcileDelegations => 500_000u64.into(),
+            Operation::AdvanceCurrentEpoch => 175_000u64.into(),
         }
     }
 

@@ -4,6 +4,7 @@ import { NymThemeProvider } from './theme'
 import { Form } from './components/form'
 import { Header } from './components/header'
 import { GlobalContextProvider } from './context'
+import { Subheader } from './components/subheader'
 
 export const App = () => {
   return (
@@ -26,6 +27,7 @@ export const App = () => {
         </AppBar>
         <Container fixed>
           <Header />
+          <Subheader />
           <Form />
         </Container>
       </GlobalContextProvider>

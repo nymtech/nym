@@ -7,7 +7,8 @@ pub mod client;
 pub mod commands;
 pub mod websocket;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     dotenv::dotenv().ok();
     setup_logging();
     println!("{}", banner());
@@ -22,13 +23,13 @@ fn main() {
         .subcommand(commands::upgrade::command_args())
         .get_matches();
 
-    execute(arg_matches);
+    execute(arg_matches).await;
 }
 
-fn execute(matches: ArgMatches) {
+async fn execute(matches: ArgMatches<'static>) {
     match matches.subcommand() {
-        ("init", Some(m)) => commands::init::execute(m),
-        ("run", Some(m)) => commands::run::execute(m),
+        ("init", Some(m)) => commands::init::execute(m.clone()).await,
+        ("run", Some(m)) => commands::run::execute(m.clone()).await,
         ("upgrade", Some(m)) => commands::upgrade::execute(m),
         _ => println!("{}", usage()),
     }

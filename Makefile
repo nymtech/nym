@@ -1,25 +1,46 @@
-all: clippy test fmt
-clippy: clippy-main clippy-contracts clippy-wallet
-test: test-main test-contracts test-wallet
+test: build clippy-all cargo-test wasm fmt
+happy: fmt clippy-happy test
+clippy-all: clippy-all-main clippy-all-contracts clippy-all-wallet
+clippy-happy: clippy-happy-main clippy-happy-contracts clippy-happy-wallet
+cargo-test: test-main test-contracts test-wallet
+build: build-contracts build-wallet build-main 
 fmt: fmt-main fmt-contracts fmt-wallet
 
-clippy-main:
+clippy-happy-main:
 	cargo clippy
 
-clippy-contracts:
-	cargo clippy --manifest-path contracts/Cargo.toml
+clippy-happy-contracts:
+	cargo clippy --manifest-path contracts/Cargo.toml --target wasm32-unknown-unknown
 
-clippy-wallet: 
+clippy-happy-wallet: 
 	cargo clippy --manifest-path nym-wallet/Cargo.toml
 
+clippy-all-main:
+	cargo clippy --all --all-features -- -D warnings 
+
+clippy-all-contracts:
+	cargo clippy --all --manifest-path contracts/Cargo.toml --all-features --target wasm32-unknown-unknown -- -D warnings
+
+clippy-all-wallet: 
+	cargo clippy --all --manifest-path nym-wallet/Cargo.toml --all-features -- -D warnings
+
 test-main:
-	cargo test
+	cargo test --all-features --all
 
 test-contracts:
-	cargo test --manifest-path contracts/Cargo.toml
+	cargo test --manifest-path contracts/Cargo.toml --all-features
 
 test-wallet:
-	cargo test --manifest-path nym-wallet/Cargo.toml
+	cargo test --manifest-path nym-wallet/Cargo.toml --all-features
+
+build-main:
+	cargo build --all
+
+build-contracts:
+	cargo build --manifest-path contracts/Cargo.toml --all
+
+build-wallet:
+	cargo build --manifest-path nym-wallet/Cargo.toml --all
 
 fmt-main:
 	cargo fmt --all
@@ -29,3 +50,6 @@ fmt-contracts:
 
 fmt-wallet:
 	cargo fmt --manifest-path nym-wallet/Cargo.toml --all
+
+wasm:
+	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown

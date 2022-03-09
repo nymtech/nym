@@ -23,13 +23,12 @@ impl TestRoute {
         l3_mix: mix::Node,
         gateway: gateway::Node,
     ) -> Self {
-        // When somebody gets to refactor this in the future and Rust 2021 is being used,
-        // the call could be changed to a simple `.into_iter()`
-        let layered_mixes = IntoIterator::into_iter([
+        let layered_mixes = [
             (1u8, vec![l1_mix]),
             (2u8, vec![l2_mix]),
             (3u8, vec![l3_mix]),
-        ])
+        ]
+        .into_iter()
         .collect();
 
         TestRoute {
@@ -67,6 +66,10 @@ impl TestRoute {
         self.gateway().identity_key
     }
 
+    pub(crate) fn gateway_owner(&self) -> String {
+        self.gateway().owner.clone()
+    }
+
     pub(crate) fn topology(&self) -> &NymTopology {
         &self.nodes
     }
@@ -99,7 +102,7 @@ impl TestRoute {
 }
 
 impl Debug for TestRoute {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "[v{}] Route {}: [G] {} => [M1] {} => [M2] {} => [M3] {}",

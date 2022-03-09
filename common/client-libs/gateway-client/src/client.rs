@@ -20,6 +20,7 @@ use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
+use network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nymsphinx::forwarding::packet::MixPacket;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
@@ -40,9 +41,11 @@ const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
 pub struct GatewayClient {
     authenticated: bool,
+    testnet_mode: bool,
     bandwidth_remaining: i64,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
+    gateway_owner: String,
     local_identity: Arc<identity::KeyPair>,
     shared_key: Option<Arc<SharedKeys>>,
     connection: SocketState,
@@ -67,6 +70,7 @@ impl GatewayClient {
         gateway_address: String,
         local_identity: Arc<identity::KeyPair>,
         gateway_identity: identity::PublicKey,
+        gateway_owner: String,
         shared_key: Option<Arc<SharedKeys>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
@@ -75,9 +79,11 @@ impl GatewayClient {
     ) -> Self {
         GatewayClient {
             authenticated: false,
+            testnet_mode: false,
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
+            gateway_owner,
             local_identity,
             shared_key,
             connection: SocketState::NotConnected,
@@ -88,6 +94,10 @@ impl GatewayClient {
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
         }
+    }
+
+    pub fn set_testnet_mode(&mut self, testnet_mode: bool) {
+        self.testnet_mode = testnet_mode
     }
 
     // TODO: later convert into proper builder methods
@@ -106,6 +116,7 @@ impl GatewayClient {
     pub fn new_init(
         gateway_address: String,
         gateway_identity: identity::PublicKey,
+        gateway_owner: String,
         local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
     ) -> Self {
@@ -119,9 +130,11 @@ impl GatewayClient {
 
         GatewayClient {
             authenticated: false,
+            testnet_mode: false,
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
+            gateway_owner,
             local_identity,
             shared_key: None,
             connection: SocketState::NotConnected,
@@ -513,6 +526,17 @@ impl GatewayClient {
         Ok(())
     }
 
+    async fn try_claim_testnet_bandwidth(&mut self) -> Result<(), GatewayClientError> {
+        let msg = ClientControlRequest::ClaimFreeTestnetBandwidth.into();
+        self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
+            ServerResponse::Bandwidth { available_total } => Ok(available_total),
+            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+            _ => Err(GatewayClientError::UnexpectedResponse),
+        }?;
+
+        Ok(())
+    }
+
     pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
@@ -525,6 +549,12 @@ impl GatewayClient {
         }
 
         warn!("Not enough bandwidth. Trying to get more bandwidth, this might take a while");
+        if self.testnet_mode {
+            info!("The client is running in testnet mode - attempting to claim bandwidth without a credential");
+            return self.try_claim_testnet_bandwidth().await;
+        }
+
+        let _gateway_owner = self.gateway_owner.clone();
 
         #[cfg(feature = "coconut")]
         let credential = self
@@ -538,7 +568,7 @@ impl GatewayClient {
             .bandwidth_controller
             .as_ref()
             .unwrap()
-            .prepare_token_credential(self.gateway_identity)
+            .prepare_token_credential(self.gateway_identity, _gateway_owner)
             .await?;
 
         #[cfg(feature = "coconut")]
@@ -562,15 +592,10 @@ impl GatewayClient {
             return Err(GatewayClientError::NotAuthenticated);
         }
         if self.estimate_required_bandwidth(&packets) > self.bandwidth_remaining {
-            // Try to claim more bandwidth first, and return an error only if that is still not
-            // enough (the current granularity for bandwidth should be sufficient)
-            self.claim_bandwidth().await?;
-            if self.estimate_required_bandwidth(&packets) > self.bandwidth_remaining {
-                return Err(GatewayClientError::NotEnoughBandwidth(
-                    self.estimate_required_bandwidth(&packets),
-                    self.bandwidth_remaining,
-                ));
-            }
+            return Err(GatewayClientError::NotEnoughBandwidth(
+                self.estimate_required_bandwidth(&packets),
+                self.bandwidth_remaining,
+            ));
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -637,15 +662,10 @@ impl GatewayClient {
             return Err(GatewayClientError::NotAuthenticated);
         }
         if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
-            // Try to claim more bandwidth first, and return an error only if that is still not
-            // enough
-            self.claim_bandwidth().await?;
-            if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
-                return Err(GatewayClientError::NotEnoughBandwidth(
-                    mix_packet.sphinx_packet().len() as i64,
-                    self.bandwidth_remaining,
-                ));
-            }
+            return Err(GatewayClientError::NotEnoughBandwidth(
+                mix_packet.sphinx_packet().len() as i64,
+                self.bandwidth_remaining,
+            ));
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -714,6 +734,12 @@ impl GatewayClient {
             self.establish_connection().await?;
         }
         let shared_key = self.perform_initial_authentication().await?;
+
+        if self.bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
+            info!("Claiming more bandwidth for your tokens. This will use {} token(s) from your wallet. \
+            Stop the process now if you don't want that to happen.", TOKENS_TO_BURN);
+            self.claim_bandwidth().await?;
+        }
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

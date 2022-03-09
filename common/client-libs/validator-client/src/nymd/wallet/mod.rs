@@ -57,18 +57,18 @@ pub struct DirectSecp256k1HdWallet {
 }
 
 impl DirectSecp256k1HdWallet {
-    pub fn builder() -> DirectSecp256k1HdWalletBuilder {
-        DirectSecp256k1HdWalletBuilder::default()
+    pub fn builder(prefix: &str) -> DirectSecp256k1HdWalletBuilder {
+        DirectSecp256k1HdWalletBuilder::new(prefix)
     }
 
     /// Restores a wallet from the given BIP39 mnemonic using default options.
-    pub fn from_mnemonic(mnemonic: bip39::Mnemonic) -> Result<Self, NymdError> {
-        DirectSecp256k1HdWalletBuilder::new().build(mnemonic)
+    pub fn from_mnemonic(prefix: &str, mnemonic: bip39::Mnemonic) -> Result<Self, NymdError> {
+        DirectSecp256k1HdWalletBuilder::new(prefix).build(mnemonic)
     }
 
-    pub fn generate(word_count: usize) -> Result<Self, NymdError> {
+    pub fn generate(prefix: &str, word_count: usize) -> Result<Self, NymdError> {
         let mneomonic = bip39::Mnemonic::generate(word_count)?;
-        Self::from_mnemonic(mneomonic)
+        Self::from_mnemonic(prefix, mneomonic)
     }
 
     fn derive_keypair(&self, hd_path: &DerivationPath) -> Result<Secp256k1Keypair, NymdError> {
@@ -133,6 +133,7 @@ impl DirectSecp256k1HdWallet {
     }
 }
 
+#[must_use]
 pub struct DirectSecp256k1HdWalletBuilder {
     /// The password to use when deriving a BIP39 seed from a mnemonic.
     bip39_password: String,
@@ -144,19 +145,13 @@ pub struct DirectSecp256k1HdWalletBuilder {
     prefix: String,
 }
 
-impl Default for DirectSecp256k1HdWalletBuilder {
-    fn default() -> Self {
+impl DirectSecp256k1HdWalletBuilder {
+    pub fn new(prefix: &str) -> Self {
         DirectSecp256k1HdWalletBuilder {
             bip39_password: String::new(),
             hd_paths: vec![defaults::COSMOS_DERIVATION_PATH.parse().unwrap()],
-            prefix: defaults::BECH32_PREFIX.to_string(),
+            prefix: prefix.into(),
         }
-    }
-}
-
-impl DirectSecp256k1HdWalletBuilder {
-    pub fn new() -> Self {
-        Default::default()
     }
 
     pub fn with_bip39_password<S: Into<String>>(mut self, password: S) -> Self {
@@ -202,18 +197,34 @@ impl DirectSecp256k1HdWalletBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use network_defaults::DEFAULT_NETWORK;
 
     #[test]
     fn generating_account_addresses() {
+        let (addr1, addr2, addr3) = match DEFAULT_NETWORK.bech32_prefix() {
+            "punk" => (
+                "punk1jw6mp7d5xqc7w6xm79lha27glmd0vdt32a3fj2",
+                "punk1h5hgn94nsq4kh99rjj794hr5h5q6yfm22mcqqn",
+                "punk17n9flp6jflljg6fp05dsy07wcprf2uuujse962",
+            ),
+            "nymt" => (
+                "nymt1jw6mp7d5xqc7w6xm79lha27glmd0vdt339me94",
+                "nymt1h5hgn94nsq4kh99rjj794hr5h5q6yfm23rjshv",
+                "nymt17n9flp6jflljg6fp05dsy07wcprf2uuufgn4d4",
+            ),
+            _ => panic!("Test needs to be updated with new bech32 prefix"),
+        };
         // test vectors produced from our js wallet
         let mnemonic_address = vec![
-            ("crush minute paddle tobacco message debate cabin peace bar jacket execute twenty winner view sure mask popular couch penalty fragile demise fresh pizza stove", "punk1jw6mp7d5xqc7w6xm79lha27glmd0vdt32a3fj2"),
-            ("acquire rebel spot skin gun such erupt pull swear must define ill chief turtle today flower chunk truth battle claw rigid detail gym feel", "punk1h5hgn94nsq4kh99rjj794hr5h5q6yfm22mcqqn"),
-            ("step income throw wheat mobile ship wave drink pool sudden upset jaguar bar globe rifle spice frost bless glimpse size regular carry aspect ball", "punk17n9flp6jflljg6fp05dsy07wcprf2uuujse962")
+            ("crush minute paddle tobacco message debate cabin peace bar jacket execute twenty winner view sure mask popular couch penalty fragile demise fresh pizza stove", addr1),
+            ("acquire rebel spot skin gun such erupt pull swear must define ill chief turtle today flower chunk truth battle claw rigid detail gym feel", addr2),
+            ("step income throw wheat mobile ship wave drink pool sudden upset jaguar bar globe rifle spice frost bless glimpse size regular carry aspect ball", addr3)
         ];
 
         for (mnemonic, address) in mnemonic_address.into_iter() {
-            let wallet = DirectSecp256k1HdWallet::from_mnemonic(mnemonic.parse().unwrap()).unwrap();
+            let prefix = DEFAULT_NETWORK.bech32_prefix();
+            let wallet =
+                DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.parse().unwrap()).unwrap();
             assert_eq!(
                 wallet.try_derive_accounts().unwrap()[0].address,
                 address.parse().unwrap()

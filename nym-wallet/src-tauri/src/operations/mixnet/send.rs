@@ -1,9 +1,8 @@
-use crate::client;
 use crate::coin::Coin;
 use crate::error::BackendError;
+use crate::nymd_client;
 use crate::state::State;
 use serde::{Deserialize, Serialize};
-use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
 use tendermint_rpc::endpoint::broadcast::tx_commit::Response;
@@ -11,6 +10,7 @@ use tokio::sync::RwLock;
 use validator_client::nymd::{AccountId, CosmosCoin};
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/tauritxresult.ts"))]
 #[derive(Deserialize, Serialize)]
 pub struct TauriTxResult {
   block_height: u64,
@@ -22,6 +22,10 @@ pub struct TauriTxResult {
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+  test,
+  ts(export, export_to = "../src/types/rust/transactiondetails.ts")
+)]
 #[derive(Deserialize, Serialize)]
 pub struct TransactionDetails {
   amount: Coin,
@@ -50,14 +54,15 @@ pub async fn send(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TauriTxResult, BackendError> {
   let address = AccountId::from_str(address)?;
-  let cosmos_amount: CosmosCoin = amount.clone().try_into()?;
-  let result = client!(state)
+  let network_denom = state.read().await.current_network().denom();
+  let cosmos_amount: CosmosCoin = amount.clone().into_cosmos_coin(&network_denom)?;
+  let result = nymd_client!(state)
     .send(&address, vec![cosmos_amount], memo)
     .await?;
   Ok(TauriTxResult::new(
     result,
     TransactionDetails {
-      from_address: client!(state).address().to_string(),
+      from_address: nymd_client!(state).address().to_string(),
       to_address: address.to_string(),
       amount,
     },

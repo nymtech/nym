@@ -5,15 +5,33 @@ export interface ClientConfig {
   version: string;
 }
 
+export interface SummaryOverviewResponse {
+  mixnodes: {
+    count: number;
+    activeset: {
+      active: number;
+      standby: number;
+      inactive: number;
+    };
+  };
+  gateways: {
+    count: number;
+  };
+  validators: {
+    count: number;
+  };
+}
+
 export interface MixNode {
   host: string;
-  location: string;
+  mix_port: number;
+  http_api_port: number;
+  verloc_port: number;
   sphinx_key: string;
   identity_key: string;
   version: string;
-  mix_port: number;
-  verloc_port: number;
-  http_api_port: number;
+  profit_margin_percent: number;
+  location: string;
 }
 
 export interface Gateway {
@@ -31,11 +49,34 @@ export interface Amount {
   amount: number;
 }
 
+export enum MixnodeStatus {
+  active = 'active', // in both the active set and the rewarded set
+  standby = 'standby', // only in the rewarded set
+  inactive = 'inactive', // in neither the rewarded set nor the active set
+}
+
+export enum MixnodeStatusWithAll {
+  active = 'active', // in both the active set and the rewarded set
+  standby = 'standby', // only in the rewarded set
+  inactive = 'inactive', // in neither the rewarded set nor the active set
+  all = 'all', // any status
+}
+
+export const toMixnodeStatus = (
+  status?: MixnodeStatusWithAll,
+): MixnodeStatus | undefined => {
+  if (!status || status === MixnodeStatusWithAll.all) {
+    return undefined;
+  }
+  return status as unknown as MixnodeStatus;
+};
+
 export interface MixNodeResponseItem {
-  bond_amount: Amount;
+  pledge_amount: Amount;
   total_delegation: Amount;
   owner: string;
   layer: string;
+  status: MixnodeStatus;
   location: {
     country_name: string;
     lat: number;
@@ -74,7 +115,7 @@ export type MixNodeHistoryResponse = StatsResponse;
 
 export interface GatewayResponseItem {
   block_height: number;
-  bond_amount: Amount;
+  pledge_amount: Amount;
   total_delegation: Amount;
   owner: string;
   gateway: Gateway;
@@ -156,8 +197,7 @@ export type StatusResponse = {
 
 export type UptimeTime = {
   date: string;
-  ipv4_uptime: number;
-  ipv6_uptime: number;
+  uptime: number;
 };
 
 export type UptimeStoryResponse = {

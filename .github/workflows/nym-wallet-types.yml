@@ -10,7 +10,10 @@ on:
 
 jobs:
   nym-wallet-types:
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, custom-linux-exoscale ]
+    # Enable sccache
+    env:
+      RUSTC_WRAPPER: /home/ubuntu/.cargo/bin/sccache
     if: ${{ github.event_name != 'pull_request' }}
     steps:
       - name: Prepare

@@ -29,9 +29,20 @@ Inside the `nym-wallet` directory, run the following command:
 ```
 yarn install
 ```
+
+## Populate environment variables
+
+The wallet requires you to supply a `.env` file, this populates values in the wallet once it's compiled.
+
+In the project roots there's a `.env.sample` file, these values currently match what the `.env` file should be populated with. However, if you want to change these values you can do so accordingly.
+
+- In the root directory, create a new file named `.env` 
+- Input the values against the variables
+
 ## Development mode
 
 You can compile the wallet in development mode by running the following command inside the `nym-wallet` directory:
+
 ```
 yarn dev
 ```
@@ -74,3 +85,5 @@ The output will compile different types of binaries dependent on your hardware /
 └───target/release/bundle/msi
 │   │─  nym-wallet_*_.msi
 ```
+
+For instructions on how to release the wallet, please see [RELEASE.md](./docs/release/RELEASE.md).

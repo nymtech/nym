@@ -2,14 +2,14 @@
 name = "nymsphinx-acknowledgements"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rand = {version = "0.7.3", features = ["wasm-bindgen"]}
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 
-crypto = { path = "../../crypto" }
+crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
 nymsphinx-addressing = { path = "../addressing" }
 nymsphinx-params = { path = "../params" }
 nymsphinx-types = { path = "../types" }

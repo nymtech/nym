@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::rewarding::{error::RewardingError, MixnodeToReward};
-use config::defaults::DEFAULT_VALIDATOR_API_PORT;
-use mixnet_contract::{
-    ContractStateParams, Delegation, ExecuteMsg, GatewayBond, IdentityKey, MixNodeBond,
-    MixnodeRewardingStatusResponse, RewardingIntervalResponse, MIXNODE_DELEGATORS_PAGE_LIMIT,
+use crate::rewarded_set_updater::{error::RewardingError, MixnodeToReward};
+use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
+use mixnet_contract_common::{
+    reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
+    IdentityKey, Interval, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
+    RewardedSetUpdateDetails,
 };
 use serde::Serialize;
 use std::sync::Arc;
@@ -36,14 +37,21 @@ impl Client<QueryNymdClient> {
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
+        let network = DEFAULT_NETWORK;
 
         let mixnet_contract = config
             .get_mixnet_contract_address()
             .parse()
             .expect("the mixnet contract address is invalid!");
 
-        let client_config =
-            validator_client::Config::new(nymd_url, api_url, Some(mixnet_contract), None);
+        let client_config = validator_client::Config::new(
+            network,
+            nymd_url,
+            api_url,
+            Some(mixnet_contract),
+            None,
+            None,
+        );
         let inner =
             validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!");
 
@@ -59,6 +67,7 @@ impl Client<SigningNymdClient> {
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
+        let network = DEFAULT_NETWORK;
 
         let mixnet_contract = config
             .get_mixnet_contract_address()
@@ -69,8 +78,14 @@ impl Client<SigningNymdClient> {
             .parse()
             .expect("the mnemonic is invalid!");
 
-        let client_config =
-            validator_client::Config::new(nymd_url, api_url, Some(mixnet_contract), None);
+        let client_config = validator_client::Config::new(
+            network,
+            nymd_url,
+            api_url,
+            Some(mixnet_contract),
+            None,
+            None,
+        );
         let inner = validator_client::Client::new_signing(client_config, mnemonic)
             .expect("Failed to connect to nymd!");
 
@@ -98,32 +113,11 @@ impl<C> Client<C> {
         Ok(time)
     }
 
-    pub(crate) async fn get_reward_pool(&self) -> Result<u128, ValidatorClientError>
+    pub(crate) async fn get_current_interval(&self) -> Result<Interval, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.0.read().await.get_reward_pool().await?)
-    }
-
-    pub(crate) async fn get_circulating_supply(&self) -> Result<u128, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.0.read().await.get_circulating_supply().await?)
-    }
-
-    pub(crate) async fn get_sybil_resistance_percent(&self) -> Result<u8, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.0.read().await.get_sybil_resistance_percent().await?)
-    }
-
-    pub(crate) async fn get_epoch_reward_percent(&self) -> Result<u8, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.0.read().await.get_epoch_reward_percent().await?)
+        self.0.read().await.get_current_interval().await
     }
 
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
@@ -140,6 +134,9 @@ impl<C> Client<C> {
         self.0.read().await.get_all_nymd_gateways().await
     }
 
+    #[allow(dead_code)]
+    // I've got a feeling we will need this again very soon, so I'd rather not remove this
+    // (and all subcalls in the various clients) just yet
     pub(crate) async fn get_contract_settings(
         &self,
     ) -> Result<ContractStateParams, ValidatorClientError>
@@ -149,19 +146,36 @@ impl<C> Client<C> {
         self.0.read().await.get_contract_settings().await
     }
 
-    pub(crate) async fn get_current_rewarding_interval(
+    pub(crate) async fn get_current_epoch_reward_params(
         &self,
-    ) -> Result<RewardingIntervalResponse, ValidatorClientError>
+    ) -> Result<EpochRewardParams, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        self.0.read().await.get_current_rewarding_interval().await
+        let this = self.0.read().await;
+
+        let state = this.get_contract_settings().await?;
+        let reward_pool = this.get_reward_pool().await?;
+        let interval_reward_percent = this.get_interval_reward_percent().await?;
+
+        let epoch_reward_params = EpochRewardParams::new(
+            (reward_pool / 100 / this.get_epochs_in_interval().await? as u128)
+                * interval_reward_percent as u128,
+            state.mixnode_rewarded_set_size as u128,
+            state.mixnode_active_set_size as u128,
+            this.get_circulating_supply().await?,
+            this.get_sybil_resistance_percent().await?,
+            this.get_active_set_work_factor().await?,
+        );
+
+        Ok(epoch_reward_params)
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn get_rewarding_status(
         &self,
-        mix_identity: mixnet_contract::IdentityKey,
-        rewarding_interval_nonce: u32,
+        mix_identity: mixnet_contract_common::IdentityKey,
+        interval_id: u32,
     ) -> Result<MixnodeRewardingStatusResponse, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -169,7 +183,7 @@ impl<C> Client<C> {
         self.0
             .read()
             .await
-            .get_rewarding_status(mix_identity, rewarding_interval_nonce)
+            .get_rewarding_status(mix_identity, interval_id)
             .await
     }
 
@@ -179,7 +193,8 @@ impl<C> Client<C> {
     /// # Arguments
     ///
     /// * `height`: height of the block for which we want to obtain the hash.
-    pub async fn get_block_hash(
+    #[allow(dead_code)]
+    pub(crate) async fn get_block_hash(
         &self,
         height: u32,
     ) -> Result<Option<[u8; SHA256_HASH_SIZE]>, ValidatorClientError>
@@ -194,6 +209,7 @@ impl<C> Client<C> {
         Ok(hash)
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn get_mixnode_delegations(
         &self,
         identity: IdentityKey,
@@ -208,10 +224,70 @@ impl<C> Client<C> {
             .await
     }
 
-    pub(crate) async fn begin_mixnode_rewarding(
+    pub(crate) async fn get_rewarded_set_identities(
         &self,
-        rewarding_interval_nonce: u32,
-    ) -> Result<(), RewardingError>
+    ) -> Result<Vec<(IdentityKey, RewardedSetNodeStatus)>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0
+            .read()
+            .await
+            .get_all_nymd_rewarded_set_mixnode_identities()
+            .await
+    }
+
+    pub(crate) async fn get_current_rewarded_set_update_details(
+        &self,
+    ) -> Result<RewardedSetUpdateDetails, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0
+            .read()
+            .await
+            .get_current_rewarded_set_update_details()
+            .await
+    }
+
+    #[allow(dead_code)]
+    pub(crate) async fn advance_current_interval(&self) -> Result<(), ValidatorClientError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0.write().await.nymd.advance_current_interval().await?;
+        Ok(())
+    }
+
+    pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0.write().await.nymd.advance_current_epoch().await?;
+        Ok(())
+    }
+
+    pub(crate) async fn checkpoint_mixnodes(&self) -> Result<(), ValidatorClientError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0.write().await.nymd.checkpoint_mixnodes().await?;
+        Ok(())
+    }
+
+    pub(crate) async fn reconcile_delegations(&self) -> Result<(), ValidatorClientError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0.write().await.nymd.reconcile_delegations().await?;
+        Ok(())
+    }
+
+    pub(crate) async fn write_rewarded_set(
+        &self,
+        rewarded_set: Vec<IdentityKey>,
+        expected_active_set_size: u32,
+    ) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -219,98 +295,22 @@ impl<C> Client<C> {
             .write()
             .await
             .nymd
-            .begin_mixnode_rewarding(rewarding_interval_nonce)
+            .write_rewarded_set(rewarded_set, expected_active_set_size)
             .await?;
         Ok(())
     }
 
-    pub(crate) async fn finish_mixnode_rewarding(
-        &self,
-        rewarding_interval_nonce: u32,
-    ) -> Result<(), RewardingError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        self.0
-            .write()
-            .await
-            .nymd
-            .finish_mixnode_rewarding(rewarding_interval_nonce)
-            .await?;
-        Ok(())
-    }
-
-    pub(crate) async fn reward_mixnode_and_all_delegators(
-        &self,
-        node: &MixnodeToReward,
-        rewarding_interval_nonce: u32,
-    ) -> Result<(), RewardingError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        // determine how many times we are going to have to call the delegator rewarding,
-        // note that it doesn't include the "base" call to `RewardMixnode` that rewards one page
-        let further_calls = node.total_delegations / MIXNODE_DELEGATORS_PAGE_LIMIT;
-
-        // start with the base call to reward operator and first page of delegators
-        let msgs = vec![(node.to_reward_execute_msg(rewarding_interval_nonce), vec![])];
-        let memo = format!(
-            "operator + {} delegators rewarding",
-            MIXNODE_DELEGATORS_PAGE_LIMIT
-        );
-        self.execute_multiple_with_retry(msgs, Default::default(), memo)
-            .await?;
-
-        // reward rest of delegators
-        let mut remaining_delegators = node.total_delegations - MIXNODE_DELEGATORS_PAGE_LIMIT;
-        let delegator_rewarding_msg = (
-            node.to_next_delegator_reward_execute_msg(rewarding_interval_nonce),
-            vec![],
-        );
-        for _ in 0..further_calls {
-            let delegators_in_call = remaining_delegators.min(MIXNODE_DELEGATORS_PAGE_LIMIT);
-            let msgs = vec![delegator_rewarding_msg.clone()];
-            let memo = format!("rewarding another {} delegators", delegators_in_call);
-            self.execute_multiple_with_retry(msgs, Default::default(), memo)
-                .await?;
-
-            remaining_delegators -= MIXNODE_DELEGATORS_PAGE_LIMIT;
-        }
-
-        Ok(())
-    }
-
-    pub(crate) async fn reward_mix_delegators(
-        &self,
-        node: &MixnodeToReward,
-        rewarding_interval_nonce: u32,
-    ) -> Result<(), RewardingError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        // the fee is a tricky subject here because we don't know exactly how many delegators we missed,
-        // let's aim for the worst case scenario and assume it was the entire page
-        let delegator_rewarding_msg = (
-            node.to_next_delegator_reward_execute_msg(rewarding_interval_nonce),
-            vec![],
-        );
-
-        let memo = "rewarding delegators".to_string();
-        self.execute_multiple_with_retry(vec![delegator_rewarding_msg], Default::default(), memo)
-            .await
-    }
-
-    pub(crate) async fn reward_mixnodes_with_single_page_of_delegators(
+    pub(crate) async fn reward_mixnodes(
         &self,
         nodes: &[MixnodeToReward],
-        rewarding_interval_nonce: u32,
+        interval_id: u32,
     ) -> Result<(), RewardingError>
     where
         C: SigningCosmWasmClient + Sync,
     {
         let msgs: Vec<(ExecuteMsg, _)> = nodes
             .iter()
-            .map(|node| node.to_reward_execute_msg(rewarding_interval_nonce))
+            .map(|node| node.to_reward_execute_msg(interval_id))
             .zip(std::iter::repeat(Vec::new()))
             .collect();
 

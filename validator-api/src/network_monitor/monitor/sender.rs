@@ -6,6 +6,7 @@ use crate::network_monitor::monitor::gateway_clients_cache::{
 };
 use crate::network_monitor::monitor::gateways_pinger::GatewayPinger;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
+use config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -27,9 +28,6 @@ use gateway_client::bandwidth::BandwidthController;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
-// If we're below 10MB of bandwidth, claim some more
-const REMAINING_BANDWIDTH_THRESHOLD: i64 = 10 * 1000 * 1000;
-
 pub(crate) struct GatewayPackets {
     /// Network address of the target gateway if wanted to be accessed by the client.
     /// It is a websocket address.
@@ -37,6 +35,9 @@ pub(crate) struct GatewayPackets {
 
     /// Public key of the target gateway.
     pub(crate) pub_key: identity::PublicKey,
+
+    /// The address of the gateway owner.
+    pub(crate) gateway_owner: String,
 
     /// All the packets that are going to get sent to the gateway.
     pub(crate) packets: Vec<MixPacket>,
@@ -46,19 +47,26 @@ impl GatewayPackets {
     pub(crate) fn new(
         clients_address: String,
         pub_key: identity::PublicKey,
+        gateway_owner: String,
         packets: Vec<MixPacket>,
     ) -> Self {
         GatewayPackets {
             clients_address,
             pub_key,
+            gateway_owner,
             packets,
         }
     }
 
-    pub(crate) fn empty(clients_address: String, pub_key: identity::PublicKey) -> Self {
+    pub(crate) fn empty(
+        clients_address: String,
+        pub_key: identity::PublicKey,
+        gateway_owner: String,
+    ) -> Self {
         GatewayPackets {
             clients_address,
             pub_key,
+            gateway_owner,
             packets: Vec::new(),
         }
     }
@@ -90,6 +98,7 @@ struct FreshGatewayClientData {
     // get things running we're re-using the same credential for all gateways all the time.
     // THIS IS VERY BAD!!
     bandwidth_controller: BandwidthController,
+    testnet_mode: bool,
 }
 
 impl FreshGatewayClientData {
@@ -138,6 +147,9 @@ pub(crate) struct PacketSender {
 }
 
 impl PacketSender {
+    // at this point I'm not entirely sure how to deal with this warning without
+    // some considerable refactoring
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         gateways_status_updater: GatewayClientUpdateSender,
         local_identity: Arc<identity::KeyPair>,
@@ -146,6 +158,7 @@ impl PacketSender {
         max_concurrent_clients: usize,
         max_sending_rate: usize,
         bandwidth_controller: BandwidthController,
+        testnet_mode: bool,
     ) -> Self {
         PacketSender {
             active_gateway_clients: ActiveGatewayClients::new(),
@@ -154,6 +167,7 @@ impl PacketSender {
                 local_identity,
                 gateway_response_timeout,
                 bandwidth_controller,
+                testnet_mode,
             }),
             gateway_connection_timeout,
             max_concurrent_clients,
@@ -176,6 +190,7 @@ impl PacketSender {
     fn new_gateway_client_handle(
         address: String,
         identity: identity::PublicKey,
+        owner: String,
         fresh_gateway_client_data: &FreshGatewayClientData,
     ) -> (
         GatewayClientHandle,
@@ -188,17 +203,24 @@ impl PacketSender {
         // currently we do not care about acks at all, but we must keep the channel alive
         // so that the gateway client would not crash
         let (ack_sender, ack_receiver) = mpsc::unbounded();
+        let mut gateway_client = GatewayClient::new(
+            address,
+            Arc::clone(&fresh_gateway_client_data.local_identity),
+            identity,
+            owner,
+            None,
+            message_sender,
+            ack_sender,
+            fresh_gateway_client_data.gateway_response_timeout,
+            Some(fresh_gateway_client_data.bandwidth_controller.clone()),
+        );
+
+        if fresh_gateway_client_data.testnet_mode {
+            gateway_client.set_testnet_mode(true)
+        }
+
         (
-            GatewayClientHandle::new(GatewayClient::new(
-                address,
-                Arc::clone(&fresh_gateway_client_data.local_identity),
-                identity,
-                None,
-                message_sender,
-                ack_sender,
-                fresh_gateway_client_data.gateway_response_timeout,
-                Some(fresh_gateway_client_data.bandwidth_controller.clone()),
-            )),
+            GatewayClientHandle::new(gateway_client),
             (message_receiver, ack_receiver),
         )
     }
@@ -267,6 +289,7 @@ impl PacketSender {
     async fn create_new_gateway_client_handle_and_authenticate(
         address: String,
         identity: identity::PublicKey,
+        owner: String,
         fresh_gateway_client_data: &FreshGatewayClientData,
         gateway_connection_timeout: Duration,
     ) -> Option<(
@@ -274,7 +297,7 @@ impl PacketSender {
         (MixnetMessageReceiver, AcknowledgementReceiver),
     )> {
         let (new_client, (message_receiver, ack_receiver)) =
-            Self::new_gateway_client_handle(address, identity, fresh_gateway_client_data);
+            Self::new_gateway_client_handle(address, identity, owner, fresh_gateway_client_data);
 
         // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
         // gets stuck in their TCP queue and just hangs on our end but does not terminate
@@ -317,11 +340,10 @@ impl PacketSender {
         client: &mut GatewayClient,
     ) -> Result<(), GatewayClientError> {
         if client.remaining_bandwidth() < REMAINING_BANDWIDTH_THRESHOLD {
-            info!(
-                "Client to gateway {} is running out of bandwidth... Claiming some more...",
-                client.gateway_identity().to_base58_string()
-            );
-            client.claim_bandwidth().await
+            Err(GatewayClientError::NotEnoughBandwidth(
+                REMAINING_BANDWIDTH_THRESHOLD,
+                client.remaining_bandwidth(),
+            ))
         } else {
             Ok(())
         }
@@ -352,6 +374,7 @@ impl PacketSender {
                 Self::create_new_gateway_client_handle_and_authenticate(
                     packets.clients_address,
                     packets.pub_key,
+                    packets.gateway_owner,
                     &fresh_gateway_client_data,
                     gateway_connection_timeout,
                 )

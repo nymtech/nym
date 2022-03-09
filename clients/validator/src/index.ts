@@ -64,15 +64,23 @@ export default class ValidatorClient implements INymClient {
 
   readonly vestingContract: string;
 
+  readonly mainnetDenom = "unym";
+
+  readonly mainnetPrefix = "n";
+
   private constructor(
     client: SigningClient | QueryClient,
     prefix: string,
     mixnetContract: string,
-    vestingContract: string,
+    vestingContract: string
   ) {
     this.client = client;
     this.prefix = prefix;
-    this.denom = `u${prefix}`;
+    if (prefix == this.mainnetPrefix) {
+      this.denom = this.mainnetDenom;
+    } else {
+      this.denom = `u${prefix}`;
+    }
 
     this.mixnetContract = mixnetContract;
     this.vestingContract = vestingContract;
@@ -180,8 +188,8 @@ export default class ValidatorClient implements INymClient {
     return this.client.getSybilResistancePercent(this.mixnetContract);
   }
 
-  public async getEpochRewardPercent(): Promise<number> {
-    return this.client.getEpochRewardPercent(this.mixnetContract);
+  public async getIntervalRewardPercent(): Promise<number> {
+    return this.client.getIntervalRewardPercent(this.mixnetContract);
   }
 
   public async getAllNymdMixnodes(): Promise<MixNodeBond[]> {
@@ -431,6 +439,14 @@ export default class ValidatorClient implements INymClient {
     memo?: string,
   ): Promise<ExecuteResult> {
     return (this.client as ISigningClient).undelegateFromMixNode(this.mixnetContract, mixIdentity, fee, memo);
+  }
+
+  public async updateMixnodeConfig(
+    mixIdentity: string,
+    fee: StdFee | 'auto' | number,
+    profitPercentage: number,
+  ): Promise<ExecuteResult> {
+    return (this.client as ISigningClient).updateMixnodeConfig(this.mixnetContract, mixIdentity, profitPercentage, fee);
   }
 
   public async updateContractStateParams(

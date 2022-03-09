@@ -3,7 +3,7 @@
 
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Index, IndexList, IndexedMap, UniqueIndex};
-use mixnet_contract::{GatewayBond, IdentityKeyRef};
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
 
 // storage prefixes
 const GATEWAYS_PK_NAMESPACE: &str = "gt";
@@ -35,20 +35,18 @@ pub(crate) fn gateways<'a>() -> IndexedMap<'a, IdentityKeyRef<'a>, GatewayBond, 
 #[cfg(test)]
 mod tests {
     use super::super::storage;
-    use crate::support::tests::test_helpers;
+    use crate::support::tests;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::StdResult;
     use cosmwasm_std::Storage;
     use cosmwasm_std::{coin, Addr, Uint128};
-    use mixnet_contract::GatewayBond;
-    use mixnet_contract::IdentityKey;
-    use mixnet_contract::{Gateway, IdentityKeyRef};
+    use mixnet_contract_common::{Gateway, GatewayBond, IdentityKey, IdentityKeyRef};
 
     // currently this is only used in tests but may become useful later on
     pub(crate) fn read_gateway_pledge_amount(
         storage: &dyn Storage,
-        identity: IdentityKeyRef,
+        identity: IdentityKeyRef<'_>,
     ) -> StdResult<cosmwasm_std::Uint128> {
         let node = storage::gateways().load(storage, identity)?;
         Ok(node.pledge_amount.amount)
@@ -57,8 +55,8 @@ mod tests {
     #[test]
     fn gateway_single_read_retrieval() {
         let mut storage = MockStorage::new();
-        let bond1 = test_helpers::gateway_bond_fixture("owner1");
-        let bond2 = test_helpers::gateway_bond_fixture("owner2");
+        let bond1 = tests::fixtures::gateway_bond_fixture("owner1");
+        let bond2 = tests::fixtures::gateway_bond_fixture("owner2");
         storage::gateways()
             .save(&mut storage, "bond1", &bond1)
             .unwrap();
@@ -87,11 +85,11 @@ mod tests {
 
         let gateway_bond = GatewayBond {
             pledge_amount: coin(pledge_amount, DENOM),
-            owner: node_owner.clone(),
+            owner: node_owner,
             block_height: 12_345,
             gateway: Gateway {
                 identity_key: node_identity.clone(),
-                ..test_helpers::gateway_fixture()
+                ..tests::fixtures::gateway_fixture()
             },
             proxy: None,
         };

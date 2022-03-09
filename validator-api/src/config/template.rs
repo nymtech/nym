@@ -23,6 +23,10 @@ mixnet_contract_address = '{{ base.mixnet_contract_address }}'
 # Specifies whether network monitoring service is enabled in this process.
 enabled = {{ network_monitor.enabled }}
 
+# Indicates whether this validator api is running in a testnet mode, thus attempting
+# to claim bandwidth without presenting bandwidth credentials.
+testnet_mode = {{ network_monitor.testnet_mode }}
+
 # Specifies list of all validators on the network issuing coconut credentials.
 # A special care must be taken to ensure they are in correct order.
 # The list must also contain THIS validator that is running the test
@@ -95,17 +99,10 @@ enabled = {{ rewarding.enabled }}
 # Mnemonic (currently of the network monitor) used for rewarding
 mnemonic = '{{ rewarding.mnemonic }}'
 
-# Datetime of the first rewarding epoch of the current length used for referencing
-# starting time of any subsequent epoch.
-first_rewarding_epoch = '{{ rewarding.first_rewarding_epoch }}'
-
-# Current length of the epoch. If modified `first_rewarding_epoch` should also get changed.
-epoch_length = '{{ rewarding.epoch_length }}'
-
 # Specifies the minimum percentage of monitor test run data present in order to
-# distribute rewards for given epoch.
+# distribute rewards for given interval.
 # Note, only values in range 0-100 are valid
-minimum_epoch_monitor_threshold = {{ rewarding.minimum_epoch_monitor_threshold }}
+minimum_interval_monitor_threshold = {{ rewarding.minimum_interval_monitor_threshold }}
 
 "#
 }

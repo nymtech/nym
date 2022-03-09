@@ -1,12 +1,16 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
+import { ClientContext } from '../context/main'
 import { checkGatewayOwnership, checkMixnodeOwnership } from '../requests'
 import { EnumNodeType, TNodeOwnership } from '../types'
 
+const initial = {
+  hasOwnership: false,
+  nodeType: undefined,
+}
+
 export const useCheckOwnership = () => {
-  const [ownership, setOwnership] = useState<TNodeOwnership>({
-    hasOwnership: false,
-    nodeType: undefined,
-  })
+  const { clientDetails } = useContext(ClientContext)
+  const [ownership, setOwnership] = useState<TNodeOwnership>(initial)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -32,8 +36,14 @@ export const useCheckOwnership = () => {
       setOwnership(status)
     } catch (e) {
       setError(e as string)
+      setIsLoading(false)
+      setOwnership(initial)
     }
   }, [])
+
+  useEffect(() => {
+    checkOwnership()
+  }, [clientDetails])
 
   return { isLoading, error, ownership, checkOwnership }
 }

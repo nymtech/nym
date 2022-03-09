@@ -1,0 +1,9 @@
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+> :rocket: {{ env.NYM_PROJECT_NAME }}
+> ✅ **SUCCESS**
+> `when` {{ timestamp }}
+> `branch` {{ env.GITHUB_SERVER_URL }}/{{ env.GITHUB_REPOSITORY }}/tree/{{ env.GIT_BRANCH_NAME }}
+> `commit` {{ env.GITHUB_SERVER_URL }}/{{ env.GITHUB_REPOSITORY }}/commit/{{ env.GITHUB_SHA }}
+> `build ` {{ env.GITHUB_SERVER_URL }}/{{ env.GITHUB_REPOSITORY }}/actions/runs/{{ env.GITHUB_RUN_ID }}
+
+{{ jobResults }}

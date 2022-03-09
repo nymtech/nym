@@ -1,6 +1,6 @@
 use crate::errors::ContractError;
 use cosmwasm_std::{Coin, Env, Response, Storage};
-use mixnet_contract::{Gateway, MixNode};
+use mixnet_contract_common::{Gateway, MixNode};
 
 pub trait MixnodeBondingAccount {
     fn try_bond_mixnode(
@@ -19,6 +19,12 @@ pub trait MixnodeBondingAccount {
         amount: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError>;
+
+    fn try_update_mixnode_config(
+        &self,
+        profit_margin_percent: u8,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError>;
 }
 
 pub trait GatewayBondingAccount {

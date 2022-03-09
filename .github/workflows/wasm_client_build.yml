@@ -19,30 +19,27 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-# token credentials (non-coconut) don't work for wasm right now
-#      - uses: actions-rs/cargo@v1
-#        with:
-#          command: build
-#          args: --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown
 
       - uses: actions-rs/cargo@v1
         with:
           command: build
           args: --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --features=coconut
 
-# for some reason this does not seem to work correctly, leave it for later, building is good enough for now
-#      - uses: actions-rs/cargo@v1
-#        with:
-#          command: test
-#          args: --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path clients/webassembly/Cargo.toml
 
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --manifest-path clients/webassembly/Cargo.toml -- --check
 
-# for some reason this does not seem to work correctly, leave it for later, building is good enough for now
-#      - uses: actions-rs/cargo@v1
-#        with:
-#          command: clippy
-#          args: --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown -- -D warnings

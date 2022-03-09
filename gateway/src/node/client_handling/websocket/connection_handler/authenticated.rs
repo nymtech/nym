@@ -4,6 +4,7 @@
 use crate::node::client_handling::websocket::connection_handler::{ClientDetails, FreshHandler};
 use crate::node::client_handling::websocket::message_receiver::MixMessageReceiver;
 use crate::node::storage::error::StorageError;
+use crate::node::storage::Storage;
 use futures::StreamExt;
 use gateway_requests::iv::IVConversionError;
 use gateway_requests::types::{BinaryRequest, ServerResponse};
@@ -18,6 +19,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 use crate::node::client_handling::bandwidth::Bandwidth;
+use crate::node::client_handling::FREE_TESTNET_BANDWIDTH_VALUE;
 use gateway_requests::iv::IV;
 
 #[derive(Debug, Error)]
@@ -42,6 +44,9 @@ pub(crate) enum RequestHandlingError {
 
     #[error("Provided bandwidth credential did not verify correctly")]
     InvalidBandwidthCredential,
+
+    #[error("This gateway is not running in the testnet mode")]
+    NotInTestnetMode,
 
     #[cfg(not(feature = "coconut"))]
     #[error("Ethereum web3 error")]
@@ -70,14 +75,29 @@ impl RequestHandlingError {
     }
 }
 
-pub(crate) struct AuthenticatedHandler<R, S> {
-    inner: FreshHandler<R, S>,
+/// Helper trait that allows converting result of handling client request into a websocket message
+// Note: I couldn't have implemented a normal "From" trait as both `Message` and `Result` are foreign types
+trait IntoWSMessage {
+    fn into_ws_message(self) -> Message;
+}
+
+impl IntoWSMessage for Result<ServerResponse, RequestHandlingError> {
+    fn into_ws_message(self) -> Message {
+        match self {
+            Ok(response) => response.into(),
+            Err(err) => err.into_error_message(),
+        }
+    }
+}
+
+pub(crate) struct AuthenticatedHandler<R, S, St> {
+    inner: FreshHandler<R, S, St>,
     client: ClientDetails,
     mix_receiver: MixMessageReceiver,
 }
 
 // explicitly remove handle from the global store upon being dropped
-impl<R, S> Drop for AuthenticatedHandler<R, S> {
+impl<R, S, St> Drop for AuthenticatedHandler<R, S, St> {
     fn drop(&mut self) {
         self.inner
             .active_clients_store
@@ -85,10 +105,11 @@ impl<R, S> Drop for AuthenticatedHandler<R, S> {
     }
 }
 
-impl<R, S> AuthenticatedHandler<R, S>
+impl<R, S, St> AuthenticatedHandler<R, S, St>
 where
     // TODO: those trait bounds here don't really make sense....
     R: Rng + CryptoRng,
+    St: Storage,
 {
     /// Upgrades `FreshHandler` into the Authenticated variant implying the client is now authenticated
     /// and thus allowed to perform more actions with the gateway, such as redeeming bandwidth or
@@ -100,7 +121,7 @@ where
     /// * `client`: details (i.e. address and shared keys) of the registered client
     /// * `mix_receiver`: channel used for receiving messages from the mixnet destined for this client.
     pub(crate) fn upgrade(
-        fresh: FreshHandler<R, S>,
+        fresh: FreshHandler<R, S, St>,
         client: ClientDetails,
         mix_receiver: MixMessageReceiver,
     ) -> Self {
@@ -229,15 +250,25 @@ where
             &self.client.shared_keys,
             iv,
         )?;
+        if !self
+            .inner
+            .check_local_identity(&credential.gateway_identity())
+        {
+            return Err(RequestHandlingError::InvalidBandwidthCredential);
+        }
 
-        debug!("Received bandwidth increase request. Verifying signature");
         if !credential.verify_signature() {
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
         debug!("Verifying Ethereum for token burn...");
-        self.inner
+        let gateway_owner = self
+            .inner
             .erc20_bridge
             .verify_eth_events(credential.verification_key())
+            .await?;
+        self.inner
+            .erc20_bridge
+            .verify_gateway_owner(gateway_owner, &credential.gateway_identity())
             .await?;
         debug!("Claim the token on Cosmos, to make sure it's not spent twice...");
         self.inner.erc20_bridge.claim_token(&credential).await?;
@@ -257,7 +288,6 @@ where
 
         self.increase_bandwidth(bandwidth_value as i64).await?;
         let available_total = self.get_available_bandwidth().await?;
-        debug!("Increased bandwidth for client: {:?}", self.client.address);
 
         Ok(ServerResponse::Bandwidth { available_total })
     }
@@ -271,6 +301,20 @@ where
         return self.handle_coconut_bandwidth(enc_credential, iv).await;
         #[cfg(not(feature = "coconut"))]
         return self.handle_token_bandwidth(enc_credential, iv).await;
+    }
+
+    async fn handle_claim_testnet_bandwidth(
+        &mut self,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        if !self.inner.testnet_mode {
+            return Err(RequestHandlingError::NotInTestnetMode);
+        }
+
+        self.increase_bandwidth(FREE_TESTNET_BANDWIDTH_VALUE)
+            .await?;
+        let available_total = self.get_available_bandwidth().await?;
+
+        Ok(ServerResponse::Bandwidth { available_total })
     }
 
     /// Tries to handle request to forward sphinx packet into the network. The request can only succeed
@@ -314,12 +358,10 @@ where
             Err(e) => RequestHandlingError::InvalidBinaryRequest(e).into_error_message(),
             Ok(request) => match request {
                 // currently only a single type exists
-                BinaryRequest::ForwardSphinx(mix_packet) => {
-                    match self.handle_forward_sphinx(mix_packet).await {
-                        Ok(response) => response.into(),
-                        Err(err) => err.into_error_message(),
-                    }
-                }
+                BinaryRequest::ForwardSphinx(mix_packet) => self
+                    .handle_forward_sphinx(mix_packet)
+                    .await
+                    .into_ws_message(),
             },
         }
     }
@@ -335,12 +377,14 @@ where
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
             Ok(request) => match request {
-                ClientControlRequest::BandwidthCredential { enc_credential, iv } => {
-                    match self.handle_bandwidth(enc_credential, iv).await {
-                        Ok(response) => response.into(),
-                        Err(err) => err.into_error_message(),
-                    }
-                }
+                ClientControlRequest::BandwidthCredential { enc_credential, iv } => self
+                    .handle_bandwidth(enc_credential, iv)
+                    .await
+                    .into_ws_message(),
+                ClientControlRequest::ClaimFreeTestnetBandwidth => self
+                    .handle_claim_testnet_bandwidth()
+                    .await
+                    .into_ws_message(),
                 _ => RequestHandlingError::IllegalRequest.into_error_message(),
             },
         }
@@ -368,6 +412,7 @@ where
     pub(crate) async fn listen_for_requests(mut self)
     where
         S: AsyncRead + AsyncWrite + Unpin,
+        St: Storage,
     {
         trace!("Started listening for ALL incoming requests...");
 

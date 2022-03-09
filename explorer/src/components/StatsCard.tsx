@@ -1,21 +1,15 @@
 import * as React from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  IconButton,
-  Typography,
-  useMediaQuery,
-} from '@mui/material';
+import { Box, Card, CardContent, IconButton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
+import EastIcon from '@mui/icons-material/East';
 
 interface StatsCardProps {
   icon: React.ReactNode;
   title: string;
-  count: string | number;
+  count?: string | number;
   errorMsg?: Error | string;
   onClick?: () => void;
+  color?: string;
 }
 export const StatsCard: React.FC<StatsCardProps> = ({
   icon,
@@ -23,59 +17,48 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   count,
   onClick,
   errorMsg,
+  color: colorProp,
 }) => {
   const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.down('sm'));
+  const color = colorProp || theme.palette.text.primary;
   return (
     <Card onClick={onClick} sx={{ height: '100%' }}>
       <CardContent
         sx={{
-          padding: 2,
+          padding: 1.5,
+          paddingLeft: 3,
           '&:last-child': {
-            paddingBottom: 2,
+            paddingBottom: 1.5,
           },
           cursor: 'pointer',
+          fontSize: 14,
+          fontWeight: 600,
         }}
       >
-        <Box
-          display="flex"
-          alignItems="center"
-          sx={{
-            color: theme.palette.text.primary,
-            fontSize: 18,
-            justifyContent: matches ? 'space-between' : 'flex-start',
-            maxWidth: matches ? 230 : null,
-          }}
-        >
-          {icon}
-
-          <Box
-            sx={{
-              color: theme.palette.text.primary,
-              display: 'flex',
-              flexDirection: 'row',
-              fontSize: 18,
-              justifyContent: matches ? 'space-between' : 'flex-start',
-              alignItems: 'center',
-              width: '100%',
-              maxWidth: matches ? 230 : null,
-            }}
-          >
+        <Box display="flex" alignItems="center" color={color}>
+          <Box display="flex">
+            {icon}
             <Typography
               ml={3}
               mr={0.75}
               fontSize="inherit"
+              fontWeight="inherit"
               data-testid={`${title}-amount`}
             >
-              {count}
+              {count === undefined || count === null ? '' : count}
             </Typography>
-            <Typography mr={1} fontSize="inherit" data-testid={title}>
+            <Typography
+              mr={1}
+              fontSize="inherit"
+              fontWeight="inherit"
+              data-testid={title}
+            >
               {title}
             </Typography>
-            <IconButton color="inherit">
-              <ArrowRightAltIcon />
-            </IconButton>
           </Box>
+          <IconButton color="inherit" sx={{ fontSize: '16px' }}>
+            <EastIcon fontSize="inherit" />
+          </IconButton>
         </Box>
         {errorMsg && (
           <Typography variant="body2" sx={{ color: 'danger', padding: 2 }}>
@@ -90,4 +73,6 @@ export const StatsCard: React.FC<StatsCardProps> = ({
 StatsCard.defaultProps = {
   onClick: undefined,
   errorMsg: undefined,
+  color: undefined,
+  count: undefined,
 };

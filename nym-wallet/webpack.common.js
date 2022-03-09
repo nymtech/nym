@@ -10,7 +10,7 @@ module.exports = {
       template: path.resolve(__dirname, 'public/index.html'),
       filename: 'index.html',
     }),
-    new FaviconsWebpackPlugin(path.resolve(__dirname, 'public/favicon.ico')),
+    new FaviconsWebpackPlugin(path.resolve(__dirname, 'public/favicon.png')),
     new Dotenv(),
   ],
   module: {

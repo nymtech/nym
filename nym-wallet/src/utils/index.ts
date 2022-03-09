@@ -1,8 +1,9 @@
 import { invoke } from '@tauri-apps/api'
+import { appWindow } from '@tauri-apps/api/window'
 import bs58 from 'bs58'
 import { minor, valid } from 'semver'
-import { userBalance, majorToMinor } from '../requests'
-import { Coin } from '../types'
+import { userBalance, majorToMinor, getGasFee } from '../requests'
+import { Coin, Network, Period, TCurrency } from '../types'
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key
@@ -86,8 +87,53 @@ export const validateRawPort = (rawPort: number): boolean => !isNaN(rawPort) && 
 
 export const truncate = (text: string, trim: number) => text.substring(0, trim) + '...'
 
+export const isGreaterThan = (a: number, b: number) => a > b
+
 export const checkHasEnoughFunds = async (allocationValue: string) => {
-  const minorValue = await majorToMinor(allocationValue)
-  const walletValue = await userBalance()
-  return !(+walletValue.coin.amount - +minorValue.amount < 0)
+  try {
+    const walletValue = await userBalance()
+    const minorValue = await majorToMinor(allocationValue)
+    const remainingBalance = +walletValue.coin.amount - +minorValue.amount
+    return isGreaterThan(remainingBalance, 0)
+  } catch (e) {
+    console.log(e)
+  }
+}
+
+export const randomNumberBetween = (min: number, max: number) => {
+  min = Math.ceil(min)
+  max = Math.floor(max)
+  return Math.floor(Math.random() * (max - min + 1) + min)
+}
+
+export const currencyMap = (network?: Network) => {
+  let currency = {
+    minor: 'UNYM',
+    major: 'NYM',
+  } as TCurrency
+
+  switch (network) {
+    case 'MAINNET':
+      currency.minor = 'UNYM'
+      currency.major = 'NYM'
+      break
+    case 'SANDBOX':
+      currency.minor = 'UNYMT'
+      currency.major = 'NYMT'
+      break
+  }
+
+  return currency
+}
+
+export const splice = (start: number, deleteCount: number, address?: string) => {
+  if (address) {
+    const array = address.split('')
+    array.splice(start, deleteCount, '...')
+    return array.join('')
+  }
+}
+
+export const maximizeWindow = async () => {
+  await appWindow.maximize()
 }

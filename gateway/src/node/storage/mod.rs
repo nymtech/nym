@@ -6,6 +6,7 @@ use crate::node::storage::error::StorageError;
 use crate::node::storage::inboxes::InboxManager;
 use crate::node::storage::models::{PersistedSharedKeys, StoredMessage};
 use crate::node::storage::shared_keys::SharedKeysManager;
+use async_trait::async_trait;
 use gateway_requests::registration::handshake::SharedKeys;
 use log::{debug, error};
 use nymsphinx::DestinationAddressBytes;
@@ -17,6 +18,123 @@ pub(crate) mod error;
 mod inboxes;
 mod models;
 mod shared_keys;
+
+#[async_trait]
+pub(crate) trait Storage: Send + Sync {
+    /// Inserts provided derived shared keys into the database.
+    /// If keys previously existed for the provided client, they are overwritten with the new data.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    /// * `shared_keys`: shared encryption (AES128CTR) and mac (hmac-blake3) derived shared keys to store.
+    async fn insert_shared_keys(
+        &self,
+        client_address: DestinationAddressBytes,
+        shared_keys: SharedKeys,
+    ) -> Result<(), StorageError>;
+
+    /// Tries to retrieve shared keys stored for the particular client.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    async fn get_shared_keys(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<Option<PersistedSharedKeys>, StorageError>;
+
+    /// Removes from the database shared keys derived with the particular client.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    // currently there is no code flow that causes removal (not overwriting)
+    // of the stored keys. However, retain the function for consistency and completion sake
+    #[allow(dead_code)]
+    async fn remove_shared_keys(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError>;
+
+    /// Inserts new message to the storage for an offline client for future retrieval.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    /// * `message`: raw message to store.
+    async fn store_message(
+        &self,
+        client_address: DestinationAddressBytes,
+        message: Vec<u8>,
+    ) -> Result<(), StorageError>;
+
+    /// Retrieves messages stored for the particular client specified by the provided address.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    /// * `start_after`: optional starting id of the messages to grab
+    ///
+    /// returns the retrieved messages alongside optional id of the last message retrieved if
+    /// there are more messages to retrieve.
+    async fn retrieve_messages(
+        &self,
+        client_address: DestinationAddressBytes,
+        start_after: Option<i64>,
+    ) -> Result<(Vec<StoredMessage>, Option<i64>), StorageError>;
+
+    /// Removes messages with the specified ids
+    ///
+    /// # Arguments
+    ///
+    /// * `ids`: ids of the messages to remove
+    async fn remove_messages(&self, ids: Vec<i64>) -> Result<(), StorageError>;
+
+    /// Creates a new bandwidth entry for the particular client.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    async fn create_bandwidth_entry(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError>;
+
+    /// Tries to retrieve available bandwidth for the particular client.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    async fn get_available_bandwidth(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<Option<i64>, StorageError>;
+
+    /// Increases available bandwidth of the particular client by the specified amount.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    /// * `amount`: amount of available bandwidth to be added to the client.
+    async fn increase_bandwidth(
+        &self,
+        client_address: DestinationAddressBytes,
+        amount: i64,
+    ) -> Result<(), StorageError>;
+
+    /// Decreases available bandwidth of the particular client by the specified amount.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    /// * `amount`: amount of available bandwidth to be removed from the client.
+    async fn consume_bandwidth(
+        &self,
+        client_address: DestinationAddressBytes,
+        amount: i64,
+    ) -> Result<(), StorageError>;
+}
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
@@ -33,7 +151,7 @@ impl PersistentStorage {
     ///
     /// * `database_path`: path to the database.
     /// * `message_retrieval_limit`: maximum number of stored client messages that can be retrieved at once.
-    pub(crate) async fn init<P: AsRef<Path>>(
+    pub async fn init<P: AsRef<Path> + Send>(
         database_path: P,
         message_retrieval_limit: i64,
     ) -> Result<Self, StorageError> {
@@ -72,15 +190,11 @@ impl PersistentStorage {
             bandwidth_manager: BandwidthManager::new(connection_pool),
         })
     }
+}
 
-    /// Inserts provided derived shared keys into the database.
-    /// If keys previously existed for the provided client, they are overwritten with the new data.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    /// * `shared_keys`: shared encryption (AES128CTR) and mac (hmac-blake3) derived shared keys to store.
-    pub(crate) async fn insert_shared_keys(
+#[async_trait]
+impl Storage for PersistentStorage {
+    async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
         shared_keys: SharedKeys,
@@ -95,12 +209,7 @@ impl PersistentStorage {
         Ok(())
     }
 
-    /// Tries to retrieve shared keys stored for the particular client.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    pub(crate) async fn get_shared_keys(
+    async fn get_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<Option<PersistedSharedKeys>, StorageError> {
@@ -111,15 +220,8 @@ impl PersistentStorage {
         Ok(keys)
     }
 
-    /// Removes from the database shared keys derived with the particular client.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    // currently there is no code flow that causes removal (not overwriting)
-    // of the stored keys. However, retain the function for consistency and completion sake
     #[allow(dead_code)]
-    pub(crate) async fn remove_shared_keys(
+    async fn remove_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError> {
@@ -129,13 +231,7 @@ impl PersistentStorage {
         Ok(())
     }
 
-    /// Inserts new message to the storage for an offline client for future retrieval.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    /// * `message`: raw message to store.
-    pub(crate) async fn store_message(
+    async fn store_message(
         &self,
         client_address: DestinationAddressBytes,
         message: Vec<u8>,
@@ -146,16 +242,7 @@ impl PersistentStorage {
         Ok(())
     }
 
-    /// Retrieves messages stored for the particular client specified by the provided address.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    /// * `start_after`: optional starting id of the messages to grab
-    ///
-    /// returns the retrieved messages alongside optional id of the last message retrieved if
-    /// there are more messages to retrieve.
-    pub(crate) async fn retrieve_messages(
+    async fn retrieve_messages(
         &self,
         client_address: DestinationAddressBytes,
         start_after: Option<i64>,
@@ -167,24 +254,14 @@ impl PersistentStorage {
         Ok(messages)
     }
 
-    /// Removes messages with the specified ids
-    ///
-    /// # Arguments
-    ///
-    /// * `ids`: ids of the messages to remove
-    pub(crate) async fn remove_messages(&self, ids: Vec<i64>) -> Result<(), StorageError> {
+    async fn remove_messages(&self, ids: Vec<i64>) -> Result<(), StorageError> {
         for id in ids {
             self.inbox_manager.remove_message(id).await?;
         }
         Ok(())
     }
 
-    /// Creates a new bandwidth entry for the particular client.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    pub(crate) async fn create_bandwidth_entry(
+    async fn create_bandwidth_entry(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError> {
@@ -194,12 +271,7 @@ impl PersistentStorage {
         Ok(())
     }
 
-    /// Tries to retrieve available bandwidth for the particular client.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    pub(crate) async fn get_available_bandwidth(
+    async fn get_available_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<Option<i64>, StorageError> {
@@ -211,13 +283,7 @@ impl PersistentStorage {
         Ok(res)
     }
 
-    /// Increases available bandwidth of the particular client by the specified amount.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    /// * `amount`: amount of available bandwidth to be added to the client.
-    pub(crate) async fn increase_bandwidth(
+    async fn increase_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
         amount: i64,
@@ -228,13 +294,7 @@ impl PersistentStorage {
         Ok(())
     }
 
-    /// Decreases available bandwidth of the particular client by the specified amount.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    /// * `amount`: amount of available bandwidth to be removed from the client.
-    pub(crate) async fn consume_bandwidth(
+    async fn consume_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
         amount: i64,
@@ -243,5 +303,94 @@ impl PersistentStorage {
             .decrease_available_bandwidth(&client_address.as_base58_string(), amount)
             .await?;
         Ok(())
+    }
+}
+
+/// In-memory implementation of `Storage`. The intention is primarily in testing environments.
+#[cfg(test)]
+#[derive(Clone)]
+pub(crate) struct InMemStorage;
+
+#[cfg(test)]
+impl InMemStorage {
+    #[allow(unused)]
+    async fn init<P: AsRef<Path> + Send>() -> Result<Self, StorageError> {
+        todo!()
+    }
+}
+
+#[cfg(test)]
+#[async_trait]
+impl Storage for InMemStorage {
+    async fn insert_shared_keys(
+        &self,
+        _client_address: DestinationAddressBytes,
+        _shared_keys: SharedKeys,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn get_shared_keys(
+        &self,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<Option<PersistedSharedKeys>, StorageError> {
+        todo!()
+    }
+
+    async fn remove_shared_keys(
+        &self,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn store_message(
+        &self,
+        _client_address: DestinationAddressBytes,
+        _message: Vec<u8>,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn retrieve_messages(
+        &self,
+        _client_address: DestinationAddressBytes,
+        _start_after: Option<i64>,
+    ) -> Result<(Vec<StoredMessage>, Option<i64>), StorageError> {
+        todo!()
+    }
+
+    async fn remove_messages(&self, _ids: Vec<i64>) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn create_bandwidth_entry(
+        &self,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn get_available_bandwidth(
+        &self,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<Option<i64>, StorageError> {
+        todo!()
+    }
+
+    async fn increase_bandwidth(
+        &self,
+        _client_address: DestinationAddressBytes,
+        _amount: i64,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn consume_bandwidth(
+        &self,
+        _client_address: DestinationAddressBytes,
+        _amount: i64,
+    ) -> Result<(), StorageError> {
+        todo!()
     }
 }

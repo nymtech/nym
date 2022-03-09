@@ -5,7 +5,7 @@ use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
-use crate::node::storage::PersistentStorage;
+use crate::node::storage::Storage;
 use futures::StreamExt;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
@@ -19,7 +19,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 
-pub(crate) struct ConnectionHandler {
+pub(crate) struct ConnectionHandler<St: Storage> {
     packet_processor: PacketProcessor,
 
     // TODO: investigate performance trade-offs for whether this cache even makes sense
@@ -28,11 +28,11 @@ pub(crate) struct ConnectionHandler {
     // and each `get` internally copies the channel, however, is it really that expensive?
     clients_store_cache: HashMap<DestinationAddressBytes, MixMessageSender>,
     active_clients_store: ActiveClientsStore,
-    storage: PersistentStorage,
+    storage: St,
     ack_sender: MixForwardingSender,
 }
 
-impl Clone for ConnectionHandler {
+impl<St: Storage + Clone> Clone for ConnectionHandler<St> {
     fn clone(&self) -> Self {
         // remove stale entries from the cache while cloning
         let mut clients_store_cache = HashMap::with_capacity(self.clients_store_cache.capacity());
@@ -52,10 +52,10 @@ impl Clone for ConnectionHandler {
     }
 }
 
-impl ConnectionHandler {
+impl<St: Storage> ConnectionHandler<St> {
     pub(crate) fn new(
         packet_processor: PacketProcessor,
-        storage: PersistentStorage,
+        storage: St,
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
     ) -> Self {

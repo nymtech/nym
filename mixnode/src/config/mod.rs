@@ -196,6 +196,11 @@ impl Config {
         self
     }
 
+    pub fn with_wallet_address(mut self, wallet_address: &str) -> Self {
+        self.mixnode.wallet_address = wallet_address.to_string();
+        self
+    }
+
     // getters
     pub fn get_id(&self) -> String {
         self.mixnode.id.clone()
@@ -300,10 +305,14 @@ impl Config {
     pub fn get_measurement_retry_timeout(&self) -> Duration {
         self.verloc.retry_timeout
     }
+
+    pub fn get_wallet_address(&self) -> &str {
+        &self.mixnode.wallet_address
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct MixNode {
+struct MixNode {
     /// Version of the mixnode for which this configuration was created.
     #[serde(default = "missing_string_value")]
     version: String,
@@ -355,6 +364,9 @@ pub struct MixNode {
     /// nym_home_directory specifies absolute path to the home nym MixNodes directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
+
+    /// The Cosmos wallet address that will control this mixnode
+    wallet_address: String,
 }
 
 impl MixNode {
@@ -391,17 +403,18 @@ impl Default for MixNode {
             public_sphinx_key_file: Default::default(),
             validator_api_urls: default_api_endpoints(),
             nym_root_directory: Config::default_root_directory(),
+            wallet_address: "nymXXXXXXXX".to_string(),
         }
     }
 }
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Logging {}
+struct Logging {}
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Verloc {
+struct Verloc {
     /// Specifies number of echo packets sent to each node during a measurement run.
     packets_per_node: usize,
 
@@ -441,7 +454,7 @@ impl Default for Verloc {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct Debug {
+struct Debug {
     /// Delay between each subsequent node statistics being logged to the console
     #[serde(with = "humantime_serde")]
     node_stats_logging_delay: Duration,

@@ -31,6 +31,12 @@ use url::Url;
 
 use crate::client::config::Config;
 use crate::commands::override_config;
+#[cfg(feature = "eth")]
+#[cfg(not(feature = "coconut"))]
+use crate::commands::{
+    DEFAULT_ETH_ENDPOINT, DEFAULT_ETH_PRIVATE_KEY, ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME,
+    TESTNET_MODE_ARG_NAME,
+};
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     let app = App::new("init")
@@ -66,18 +72,28 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .hidden(true) // this will prevent this flag from being displayed in `--help`
             .help("Mostly debug-related option to increase default traffic rate so that you would not need to modify config post init")
         );
+    #[cfg(feature = "eth")]
     #[cfg(not(feature = "coconut"))]
         let app = app
-        .arg(Arg::with_name("eth_endpoint")
-            .long("eth_endpoint")
-            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
+        .arg(
+            Arg::with_name(TESTNET_MODE_ARG_NAME)
+                .long(TESTNET_MODE_ARG_NAME)
+                .help("Set this client to work in a testnet mode that would attempt to use gateway without bandwidth credential requirement. If this value is set, --eth_endpoint and --eth_private_key don't need to be set.")
+                .conflicts_with_all(&[ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME])
+        )
+        .arg(Arg::with_name(ETH_ENDPOINT_ARG_NAME)
+            .long(ETH_ENDPOINT_ARG_NAME)
+            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens. If you don't want to set this value, use --testnet-mode instead")
             .takes_value(true)
+            .default_value_if(TESTNET_MODE_ARG_NAME, None, DEFAULT_ETH_ENDPOINT)
             .required(true))
-        .arg(Arg::with_name("eth_private_key")
-            .long("eth_private_key")
-            .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens")
+        .arg(Arg::with_name(ETH_PRIVATE_KEY_ARG_NAME)
+            .long(ETH_PRIVATE_KEY_ARG_NAME)
+            .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens. If you don't want to set this value, use --testnet-mode instead")
             .takes_value(true)
-            .required(true));
+            .default_value_if(TESTNET_MODE_ARG_NAME, None, DEFAULT_ETH_PRIVATE_KEY)
+            .required(true)
+        );
 
     app
 }
@@ -120,6 +136,7 @@ async fn register_with_gateway(
     let mut gateway_client = GatewayClient::new_init(
         gateway.clients_address(),
         gateway.identity_key,
+        gateway.owner.clone(),
         our_identity.clone(),
         timeout,
     );
@@ -203,7 +220,7 @@ fn show_address(config: &Config) {
     println!("\nThe address of this client is: {}", client_recipient);
 }
 
-pub fn execute(matches: &ArgMatches) {
+pub async fn execute(matches: ArgMatches<'static>) {
     println!("Initialising client...");
 
     let id = matches.value_of("id").unwrap(); // required for now
@@ -221,7 +238,7 @@ pub fn execute(matches: &ArgMatches) {
 
     // TODO: ideally that should be the last thing that's being done to config.
     // However, we are later further overriding it with gateway id
-    config = override_config(config, matches);
+    config = override_config(config, &matches);
     if matches.is_present("fastmode") {
         config.get_base_mut().set_high_default_traffic_volume();
     }
@@ -234,26 +251,19 @@ pub fn execute(matches: &ArgMatches) {
 
         let chosen_gateway_id = matches.value_of("gateway");
 
-        let registration_fut = async {
-            let gate_details = gateway_details(
-                config.get_base().get_validator_api_endpoints(),
-                chosen_gateway_id,
-            )
-            .await;
-            config
-                .get_base_mut()
-                .with_gateway_id(gate_details.identity_key.to_base58_string());
-            let shared_keys =
-                register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
-            (shared_keys, gate_details.clients_address())
-        };
+        let gateway_details = gateway_details(
+            config.get_base().get_validator_api_endpoints(),
+            chosen_gateway_id,
+        )
+        .await;
+        let shared_keys =
+            register_with_gateway(&gateway_details, key_manager.identity_keypair()).await;
 
-        // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let (shared_keys, gateway_listener) = rt.block_on(registration_fut);
-        config
-            .get_base_mut()
-            .with_gateway_listener(gateway_listener);
+        config.get_base_mut().with_gateway_endpoint(
+            gateway_details.identity_key.to_base58_string(),
+            gateway_details.owner.clone(),
+            gateway_details.clients_address(),
+        );
         key_manager.insert_gateway_shared_key(shared_keys);
 
         let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());

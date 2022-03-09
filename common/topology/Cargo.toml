@@ -2,7 +2,7 @@
 name = "topology"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,7 +13,7 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 
 ## internal
 crypto = { path = "../crypto" }
-mixnet-contract = { path = "../mixnet-contract" }
+mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nymsphinx-addressing = { path = "../nymsphinx/addressing" }
 nymsphinx-types = { path = "../nymsphinx/types" }
 version-checker = { path = "../version-checker" }

@@ -160,10 +160,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
     {
         let init_msg = cosmwasm::MsgInstantiateContract {
             sender: sender_address.clone(),
-            admin: options
-                .as_mut()
-                .map(|options| options.admin.take())
-                .flatten(),
+            admin: options.as_mut().and_then(|options| options.admin.take()),
             code_id,
             // now this is a weird one. the protobuf files say this field is optional,
             // but if you omit it, the initialisation will fail CheckTx
@@ -647,7 +644,7 @@ impl Client {
     pub fn connect_with_signer<U>(
         endpoint: U,
         signer: DirectSecp256k1HdWallet,
-        gas_price: Option<GasPrice>,
+        gas_price: GasPrice,
     ) -> Result<Self, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
@@ -656,7 +653,7 @@ impl Client {
         Ok(Client {
             rpc_client,
             signer,
-            gas_price: gas_price.unwrap_or_default(),
+            gas_price,
         })
     }
 }

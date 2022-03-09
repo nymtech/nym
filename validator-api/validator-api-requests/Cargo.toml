@@ -1,0 +1,12 @@
+[package]
+name = "validator-api-requests"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = "1.0"
+
+[dev-dependencies]
+ts-rs = "6.1.2"

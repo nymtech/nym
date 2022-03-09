@@ -1,11 +1,33 @@
-use std::sync::Arc;
-use std::time::SystemTime;
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
+use crate::cache::Cache;
+use crate::mix_nodes::location::Location;
+use mixnet_contract_common::{Addr, Coin, Layer, MixNode};
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::Arc;
+use std::time::SystemTime;
 use tokio::sync::RwLock;
 
-use crate::mix_node::cache::Cache;
+#[derive(Clone, Debug, Serialize, JsonSchema, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum MixnodeStatus {
+    Active,   // in both the active set and the rewarded set
+    Standby,  // only in the rewarded set
+    Inactive, // in neither the rewarded set nor the active set
+}
+
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub(crate) struct PrettyDetailedMixNodeBond {
+    pub location: Option<Location>,
+    pub status: MixnodeStatus,
+    pub pledge_amount: Coin,
+    pub total_delegation: Coin,
+    pub owner: Addr,
+    pub layer: Layer,
+    pub mix_node: MixNode,
+}
 
 pub(crate) struct MixNodeCache {
     pub(crate) descriptions: Cache<NodeDescription>,

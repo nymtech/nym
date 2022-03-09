@@ -3,7 +3,7 @@
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
-use crate::node::storage::PersistentStorage;
+use crate::node::storage::Storage;
 use crypto::asymmetric::identity;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
@@ -22,6 +22,7 @@ use crate::node::client_handling::websocket::connection_handler::eth_events::ERC
 pub(crate) struct Listener {
     address: SocketAddr,
     local_identity: Arc<identity::KeyPair>,
+    testnet_mode: bool,
 
     #[cfg(feature = "coconut")]
     aggregated_verification_key: VerificationKey,
@@ -34,12 +35,14 @@ impl Listener {
     pub(crate) fn new(
         address: SocketAddr,
         local_identity: Arc<identity::KeyPair>,
+        testnet_mode: bool,
         #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
         #[cfg(not(feature = "coconut"))] erc20_bridge: ERC20Bridge,
     ) -> Self {
         Listener {
             address,
             local_identity,
+            testnet_mode,
             #[cfg(feature = "coconut")]
             aggregated_verification_key,
             #[cfg(not(feature = "coconut"))]
@@ -49,12 +52,14 @@ impl Listener {
 
     // TODO: change the signature to pub(crate) async fn run(&self, handler: Handler)
 
-    pub(crate) async fn run(
+    pub(crate) async fn run<St>(
         &mut self,
         outbound_mix_sender: MixForwardingSender,
-        storage: PersistentStorage,
+        storage: St,
         active_clients_store: ActiveClientsStore,
-    ) {
+    ) where
+        St: Storage + Clone + 'static,
+    {
         info!("Starting websocket listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
@@ -73,6 +78,7 @@ impl Listener {
                     let handle = FreshHandler::new(
                         OsRng,
                         socket,
+                        self.testnet_mode,
                         outbound_mix_sender.clone(),
                         Arc::clone(&self.local_identity),
                         storage.clone(),
@@ -89,12 +95,15 @@ impl Listener {
         }
     }
 
-    pub(crate) fn start(
+    pub(crate) fn start<St>(
         mut self,
         outbound_mix_sender: MixForwardingSender,
-        storage: PersistentStorage,
+        storage: St,
         active_clients_store: ActiveClientsStore,
-    ) -> JoinHandle<()> {
+    ) -> JoinHandle<()>
+    where
+        St: Storage + Clone + 'static,
+    {
         tokio::spawn(async move {
             self.run(outbound_mix_sender, storage, active_clients_store)
                 .await

@@ -1,11 +1,37 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::ContractError;
-use crate::gateways::storage as gateways_storage;
 use crate::mixnodes::storage as mixnodes_storage;
+use crate::{constants, gateways::storage as gateways_storage};
+
+use crate::error::ContractError;
 use cosmwasm_std::{Addr, Deps, Storage};
-use mixnet_contract::IdentityKeyRef;
+use mixnet_contract_common::{reward_params::EpochRewardParams, IdentityKeyRef};
+
+pub(crate) fn epoch_reward_params(
+    epoch_id: u32,
+    storage: &mut dyn Storage,
+) -> Result<EpochRewardParams, ContractError> {
+    let state = crate::mixnet_contract_settings::storage::CONTRACT_STATE
+        .load(storage)
+        .map(|settings| settings.params)?;
+    let reward_pool = crate::rewards::storage::REWARD_POOL.load(storage)?;
+    let interval_reward_percent = crate::constants::INTERVAL_REWARD_PERCENT;
+    let epochs_in_interval = crate::constants::EPOCHS_IN_INTERVAL;
+
+    let epoch_reward_params = EpochRewardParams::new(
+        (reward_pool.u128() / 100 / epochs_in_interval as u128) * interval_reward_percent as u128,
+        state.mixnode_rewarded_set_size as u128,
+        state.mixnode_active_set_size as u128,
+        crate::rewards::storage::circulating_supply(storage)?.u128(),
+        constants::SYBIL_RESISTANCE_PERCENT,
+        constants::ACTIVE_SET_WORK_FACTOR,
+    );
+
+    crate::rewards::storage::EPOCH_REWARD_PARAMS.save(storage, epoch_id, &epoch_reward_params)?;
+
+    Ok(epoch_reward_params)
+}
 
 pub fn generate_storage_key(address: &Addr, proxy: Option<&Addr>) -> Vec<u8> {
     if let Some(proxy) = &proxy {
@@ -48,10 +74,10 @@ pub(crate) fn ensure_no_existing_bond(
 }
 
 pub(crate) fn validate_node_identity_signature(
-    deps: Deps,
+    deps: Deps<'_>,
     owner: &Addr,
     signature: String,
-    identity: IdentityKeyRef,
+    identity: IdentityKeyRef<'_>,
 ) -> Result<(), ContractError> {
     let owner_bytes = owner.as_bytes();
 

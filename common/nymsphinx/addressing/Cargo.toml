@@ -2,12 +2,12 @@
 name = "nymsphinx-addressing"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crypto = { path = "../../crypto" } # all addresses are expressed in terms on their crypto keys
+crypto = { path = "../../crypto", features = ["asymmetric"] } # all addresses are expressed in terms on their crypto keys
 nymsphinx-types = { path = "../types" } # we need to be able to refer to some types defined inside sphinx crate
 serde = "1.0" # implementing serialization/deserialization for some types, like `Recipient`
 

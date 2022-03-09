@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use config::defaults::{
-    default_api_endpoints, DEFAULT_EPOCH_LENGTH, DEFAULT_FIRST_EPOCH_START,
-    DEFAULT_MIXNET_CONTRACT_ADDRESS,
-};
+use config::defaults::{default_api_endpoints, DEFAULT_NETWORK};
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
-use time::OffsetDateTime;
 use url::Url;
 
 #[cfg(feature = "coconut")]
@@ -36,7 +32,7 @@ const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
 const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
-const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(10 * 60);
+const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(30);
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -101,7 +97,7 @@ impl Default for Base {
             local_validator: DEFAULT_LOCAL_VALIDATOR
                 .parse()
                 .expect("default local validator is malformed!"),
-            mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
+            mixnet_contract_address: DEFAULT_NETWORK.mixnet_contract_address().to_string(),
             #[cfg(feature = "coconut")]
             keypair_bs58: String::default(),
         }
@@ -113,6 +109,11 @@ impl Default for Base {
 pub struct NetworkMonitor {
     /// Specifies whether network monitoring service is enabled in this process.
     enabled: bool,
+
+    /// Indicates whether this validator api is running in a testnet mode, thus attempting
+    /// to claim bandwidth without presenting bandwidth credentials.
+    #[serde(default)]
+    testnet_mode: bool,
 
     /// Specifies list of all validators on the network issuing coconut credentials.
     /// A special care must be taken to ensure they are in correct order.
@@ -188,6 +189,7 @@ impl Default for NetworkMonitor {
     fn default() -> Self {
         NetworkMonitor {
             enabled: false,
+            testnet_mode: false,
             all_validator_apis: default_api_endpoints(),
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,
@@ -255,18 +257,10 @@ pub struct Rewarding {
     /// Mnemonic (currently of the network monitor) used for rewarding
     mnemonic: String,
 
-    /// Datetime of the first rewarding epoch of the current length used for referencing
-    /// starting time of any subsequent epoch.
-    first_rewarding_epoch: OffsetDateTime,
-
-    /// Current length of the epoch. If modified `first_rewarding_epoch` should also get changed.
-    #[serde(with = "humantime_serde")]
-    epoch_length: Duration,
-
     /// Specifies the minimum percentage of monitor test run data present in order to
-    /// distribute rewards for given epoch.
+    /// distribute rewards for given interval.
     /// Note, only values in range 0-100 are valid
-    minimum_epoch_monitor_threshold: u8,
+    minimum_interval_monitor_threshold: u8,
 }
 
 impl Default for Rewarding {
@@ -274,9 +268,7 @@ impl Default for Rewarding {
         Rewarding {
             enabled: false,
             mnemonic: String::default(),
-            first_rewarding_epoch: DEFAULT_FIRST_EPOCH_START,
-            epoch_length: DEFAULT_EPOCH_LENGTH,
-            minimum_epoch_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
+            minimum_interval_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
         }
     }
 }
@@ -293,6 +285,11 @@ impl Config {
 
     pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {
         self.network_monitor.enabled = enabled;
+        self
+    }
+
+    pub fn with_testnet_mode(mut self, testnet_mode: bool) -> Self {
+        self.network_monitor.testnet_mode = testnet_mode;
         self
     }
 
@@ -327,18 +324,8 @@ impl Config {
         self
     }
 
-    pub fn with_first_rewarding_epoch(mut self, first_epoch: OffsetDateTime) -> Self {
-        self.rewarding.first_rewarding_epoch = first_epoch;
-        self
-    }
-
-    pub fn with_epoch_length(mut self, epoch_length: Duration) -> Self {
-        self.rewarding.epoch_length = epoch_length;
-        self
-    }
-
-    pub fn with_minimum_epoch_monitor_threshold(mut self, threshold: u8) -> Self {
-        self.rewarding.minimum_epoch_monitor_threshold = threshold;
+    pub fn with_minimum_interval_monitor_threshold(mut self, threshold: u8) -> Self {
+        self.rewarding.minimum_interval_monitor_threshold = threshold;
         self
     }
 
@@ -358,6 +345,10 @@ impl Config {
         self.network_monitor.enabled
     }
 
+    pub fn get_testnet_mode(&self) -> bool {
+        self.network_monitor.testnet_mode
+    }
+
     #[cfg(not(feature = "coconut"))]
     pub fn get_backup_bandwidth_token_keys_dir(&self) -> PathBuf {
         self.network_monitor.backup_bandwidth_token_keys_dir.clone()
@@ -373,6 +364,8 @@ impl Config {
         self.network_monitor.eth_endpoint.clone()
     }
 
+    // TODO: Remove if still unused
+    #[allow(dead_code)]
     pub fn get_rewarding_enabled(&self) -> bool {
         self.rewarding.enabled
     }
@@ -447,15 +440,9 @@ impl Config {
         self.network_monitor.all_validator_apis.clone()
     }
 
-    pub fn get_first_rewarding_epoch(&self) -> OffsetDateTime {
-        self.rewarding.first_rewarding_epoch
-    }
-
-    pub fn get_epoch_length(&self) -> Duration {
-        self.rewarding.epoch_length
-    }
-
-    pub fn get_minimum_epoch_monitor_threshold(&self) -> u8 {
-        self.rewarding.minimum_epoch_monitor_threshold
+    // TODO: Remove if still unused
+    #[allow(dead_code)]
+    pub fn get_minimum_interval_monitor_threshold(&self) -> u8 {
+        self.rewarding.minimum_interval_monitor_threshold
     }
 }

@@ -1,11 +1,13 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::sign::load_identity_keys;
+use crate::commands::validate_bech32_address_or_exit;
 use crate::config::Config;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
-use crate::node::storage::PersistentStorage;
+use crate::node::storage::Storage;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
@@ -23,23 +25,44 @@ use coconut_interface::VerificationKey;
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
 
+use self::storage::PersistentStorage;
+
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
 pub(crate) mod storage;
 
-pub struct Gateway {
+/// Wire up and create Gateway instance
+pub(crate) async fn create_gateway(config: Config) -> Gateway<PersistentStorage> {
+    let storage = initialise_storage(&config).await;
+    Gateway::new(config, storage).await
+}
+
+async fn initialise_storage(config: &Config) -> PersistentStorage {
+    let path = config.get_persistent_store_path();
+    let retrieval_limit = config.get_message_retrieval_limit();
+    match PersistentStorage::init(path, retrieval_limit).await {
+        Err(err) => panic!("failed to initialise gateway storage - {}", err),
+        Ok(storage) => storage,
+    }
+}
+
+pub(crate) struct Gateway<St: Storage> {
     config: Config,
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     sphinx_keypair: Arc<encryption::KeyPair>,
-    storage: PersistentStorage,
+    storage: St,
 }
 
-impl Gateway {
-    pub async fn new(config: Config) -> Self {
-        let storage = Self::initialise_storage(&config).await;
+impl<St> Gateway<St>
+where
+    St: Storage + Clone + 'static,
+{
+    /// Construct from the given `Config` instance.
+    pub async fn new(config: Config, storage: St) -> Self {
         let pathfinder = GatewayPathfinder::new_from_config(&config);
+        // let storage = Self::initialise_storage(&config).await;
 
         Gateway {
             config,
@@ -49,12 +72,18 @@ impl Gateway {
         }
     }
 
-    async fn initialise_storage(config: &Config) -> PersistentStorage {
-        let path = config.get_persistent_store_path();
-        let retrieval_limit = config.get_message_retrieval_limit();
-        match PersistentStorage::init(path, retrieval_limit).await {
-            Err(err) => panic!("failed to initialise gateway storage - {}", err),
-            Ok(storage) => storage,
+    #[cfg(test)]
+    pub async fn new_from_keys_and_storage(
+        config: Config,
+        identity_keypair: identity::KeyPair,
+        sphinx_keypair: encryption::KeyPair,
+        storage: St,
+    ) -> Self {
+        Gateway {
+            config,
+            identity_keypair: Arc::new(identity_keypair),
+            sphinx_keypair: Arc::new(sphinx_keypair),
+            storage,
         }
     }
 
@@ -78,6 +107,17 @@ impl Gateway {
         sphinx_keypair
     }
 
+    /// Signs the node config's bech32 address to produce a verification code for use in the wallet.
+    /// Exits if the address isn't valid (which should protect against manual edits).
+    fn generate_owner_signature(&self) -> String {
+        let pathfinder = GatewayPathfinder::new_from_config(&self.config);
+        let identity_keypair = load_identity_keys(&pathfinder);
+        let address = self.config.get_wallet_address();
+        validate_bech32_address_or_exit(address);
+        let verification_code = identity_keypair.private_key().sign_text(address);
+        verification_code
+    }
+
     pub(crate) fn print_node_details(&self) {
         println!(
             "Identity Key: {}",
@@ -87,6 +127,7 @@ impl Gateway {
             "Sphinx Key: {}",
             self.sphinx_keypair.public_key().to_base58_string()
         );
+        println!("Owner Signature: {}", self.generate_owner_signature());
         println!(
             "Host: {} (bind address: {})",
             self.config.get_announce_address(),
@@ -147,6 +188,7 @@ impl Gateway {
         websocket::Listener::new(
             listening_address,
             Arc::clone(&self.identity_keypair),
+            self.config.get_testnet_mode(),
             #[cfg(feature = "coconut")]
             verification_key,
             #[cfg(not(feature = "coconut"))]

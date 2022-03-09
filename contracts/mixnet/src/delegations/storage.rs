@@ -1,25 +1,32 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
-use mixnet_contract::{Addr, Delegation, IdentityKey};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Map, MultiIndex};
+use mixnet_contract_common::{mixnode::DelegationEvent, Addr, Delegation, IdentityKey};
 
 // storage prefixes
 const DELEGATION_PK_NAMESPACE: &str = "dl";
 const DELEGATION_OWNER_IDX_NAMESPACE: &str = "dlo";
 const DELEGATION_MIXNODE_IDX_NAMESPACE: &str = "dlm";
 
+pub const PENDING_DELEGATION_EVENTS: Map<
+    (BlockHeight, IdentityKey, OwnerAddress),
+    DelegationEvent,
+> = Map::new("pend");
+
 // paged retrieval limits for all queries and transactions
 pub(crate) const DELEGATION_PAGE_MAX_LIMIT: u32 = 500;
 pub(crate) const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 250;
 
-// It's a composite key on node's identity and delegator address
-type PrimaryKey = Vec<u8>;
+type BlockHeight = u64;
+type OwnerAddress = Vec<u8>;
+// It's a composite key on node's identity, delegator address, and block height
+type PrimaryKey = (IdentityKey, OwnerAddress, BlockHeight);
 
 pub(crate) struct DelegationIndex<'a> {
-    pub(crate) owner: MultiIndex<'a, (Addr, PrimaryKey), Delegation>,
+    pub(crate) owner: MultiIndex<'a, Addr, Delegation>,
 
-    pub(crate) mixnode: MultiIndex<'a, (IdentityKey, PrimaryKey), Delegation>,
+    pub(crate) mixnode: MultiIndex<'a, IdentityKey, Delegation>,
 }
 
 impl<'a> IndexList<Delegation> for DelegationIndex<'a> {
@@ -46,12 +53,12 @@ impl<'a> IndexList<Delegation> for DelegationIndex<'a> {
 pub(crate) fn delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, DelegationIndex<'a>> {
     let indexes = DelegationIndex {
         owner: MultiIndex::new(
-            |d, pk| (d.owner.clone(), pk),
+            |d| d.owner.clone(),
             DELEGATION_PK_NAMESPACE,
             DELEGATION_OWNER_IDX_NAMESPACE,
         ),
         mixnode: MultiIndex::new(
-            |d, pk| (d.node_identity.clone(), pk),
+            |d| d.node_identity.clone(),
             DELEGATION_PK_NAMESPACE,
             DELEGATION_MIXNODE_IDX_NAMESPACE,
         ),
@@ -64,7 +71,7 @@ pub(crate) fn delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, Delega
 mod tests {
     use crate::delegations::storage;
     use cosmwasm_std::Addr;
-    use mixnet_contract::IdentityKey;
+    use mixnet_contract_common::IdentityKey;
 
     #[cfg(test)]
     mod reverse_mix_delegations {
@@ -73,8 +80,7 @@ mod tests {
         use config::defaults::DENOM;
         use cosmwasm_std::testing::mock_env;
         use cosmwasm_std::{coin, Order};
-        use cw_storage_plus::PrimaryKey;
-        use mixnet_contract::Delegation;
+        use mixnet_contract_common::Delegation;
 
         #[test]
         fn reverse_mix_delegation_exists() {
@@ -94,7 +100,7 @@ mod tests {
             storage::delegations()
                 .save(
                     &mut deps.storage,
-                    (node_identity.clone(), delegation_owner.clone()).joined_key(),
+                    (node_identity, delegation_owner.as_bytes().to_vec(), 0),
                     &dummy_data,
                 )
                 .unwrap();
@@ -124,14 +130,15 @@ mod tests {
             assert!(test_helpers::read_delegation(
                 deps.as_ref().storage,
                 &node_identity1,
-                &delegation_owner1
+                delegation_owner1.as_bytes(),
+                mock_env().block.height
             )
             .is_none());
 
             // add delegation for a different node
             let dummy_data = Delegation::new(
                 delegation_owner1.clone(),
-                node_identity2.clone(),
+                node_identity2,
                 delegation.clone(),
                 mock_env().block.height,
                 None,
@@ -139,7 +146,11 @@ mod tests {
             storage::delegations()
                 .save(
                     &mut deps.storage,
-                    (node_identity1.clone(), delegation_owner1.clone()).joined_key(),
+                    (
+                        node_identity1.clone(),
+                        delegation_owner1.as_bytes().to_vec(),
+                        0,
+                    ),
                     &dummy_data,
                 )
                 .unwrap();
@@ -156,14 +167,18 @@ mod tests {
             let dummy_data = Delegation::new(
                 delegation_owner2.clone(),
                 node_identity1.clone(),
-                delegation.clone(),
+                delegation,
                 mock_env().block.height,
                 None,
             );
             storage::delegations()
                 .save(
                     &mut deps.storage,
-                    (node_identity1.clone(), delegation_owner2.clone()).joined_key(),
+                    (
+                        node_identity1.clone(),
+                        delegation_owner2.as_bytes().to_vec(),
+                        0,
+                    ),
                     &dummy_data,
                 )
                 .unwrap();

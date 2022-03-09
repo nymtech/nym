@@ -57,7 +57,7 @@ fn blind_sign(request: InternalSignRequest, key_pair: &KeyPair) -> BlindedSignat
     .unwrap()
 }
 
-#[post("/blind_sign", data = "<blind_sign_request_body>")]
+#[post("/blind-sign", data = "<blind_sign_request_body>")]
 //  Until we have serialization and deserialization traits we'll be using a crutch
 pub async fn post_blind_sign(
     blind_sign_request_body: Json<BlindSignRequestBody>,
@@ -73,7 +73,7 @@ pub async fn post_blind_sign(
     Json(BlindedSignatureResponse::new(blinded_signature))
 }
 
-#[get("/verification_key")]
+#[get("/verification-key")]
 pub async fn get_verification_key(key_pair: &State<KeyPair>) -> Json<VerificationKeyResponse> {
     Json(VerificationKeyResponse::new(key_pair.verification_key()))
 }

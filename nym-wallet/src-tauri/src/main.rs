@@ -3,7 +3,7 @@
   windows_subsystem = "windows"
 )]
 
-use mixnet_contract::{Gateway, MixNode};
+use mixnet_contract_common::{Gateway, MixNode};
 use std::sync::Arc;
 use tauri::Menu;
 use tokio::sync::RwLock;
@@ -13,12 +13,17 @@ mod coin;
 mod config;
 mod error;
 mod menu;
+mod network;
 mod operations;
 mod state;
 mod utils;
+// temporarily until it is actually used
+#[allow(unused)]
+mod wallet_storage;
 
 use crate::menu::AddDefaultSubmenus;
 use crate::operations::mixnet;
+use crate::operations::validator_api;
 use crate::operations::vesting;
 
 use crate::state::State;
@@ -30,57 +35,54 @@ fn main() {
       mixnet::account::connect_with_mnemonic,
       mixnet::account::create_new_account,
       mixnet::account::get_balance,
+      mixnet::account::logout,
+      mixnet::account::switch_network,
       mixnet::admin::get_contract_settings,
       mixnet::admin::update_contract_settings,
       mixnet::bond::bond_gateway,
       mixnet::bond::bond_mixnode,
+      mixnet::bond::gateway_bond_details,
+      mixnet::bond::mixnode_bond_details,
       mixnet::bond::unbond_gateway,
       mixnet::bond::unbond_mixnode,
-      mixnet::bond::mixnode_bond_details,
-      mixnet::bond::gateway_bond_details,
+      mixnet::bond::update_mixnode,
       mixnet::delegate::delegate_to_mixnode,
       mixnet::delegate::get_reverse_mix_delegations_paged,
       mixnet::delegate::undelegate_from_mixnode,
       mixnet::send::send,
-      utils::get_approximate_fee,
       utils::major_to_minor,
       utils::minor_to_major,
+      utils::outdated_get_approximate_fee,
       utils::owns_gateway,
       utils::owns_mixnode,
+      validator_api::status::gateway_core_node_status,
+      validator_api::status::mixnode_core_node_status,
+      validator_api::status::mixnode_inclusion_probability,
+      validator_api::status::mixnode_reward_estimation,
+      validator_api::status::mixnode_stake_saturation,
+      validator_api::status::mixnode_status,
       vesting::bond::vesting_bond_gateway,
       vesting::bond::vesting_bond_mixnode,
       vesting::bond::vesting_unbond_gateway,
       vesting::bond::vesting_unbond_mixnode,
+      vesting::bond::withdraw_vested_coins,
       vesting::delegate::vesting_delegate_to_mixnode,
       vesting::delegate::vesting_undelegate_from_mixnode,
-      vesting::queries::locked_coins,
-      vesting::queries::spendable_coins,
-      vesting::queries::vesting_coins,
-      vesting::queries::vested_coins,
-      vesting::queries::vesting_start_time,
-      vesting::queries::vesting_end_time,
-      vesting::queries::original_vesting,
       vesting::queries::delegated_free,
       vesting::queries::delegated_vesting,
+      vesting::queries::get_account_info,
+      vesting::queries::get_current_vesting_period,
+      vesting::queries::locked_coins,
+      vesting::queries::original_vesting,
+      vesting::queries::spendable_coins,
+      vesting::queries::vested_coins,
+      vesting::queries::vesting_coins,
+      vesting::queries::vesting_end_time,
+      vesting::queries::vesting_get_gateway_pledge,
+      vesting::queries::vesting_get_mixnode_pledge,
+      vesting::queries::vesting_start_time,
     ])
     .menu(Menu::new().add_default_app_submenu_if_macos())
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
-}
-
-#[cfg(test)]
-mod test {
-  ts_rs::export! {
-    mixnet_contract::MixNode => "../src/types/rust/mixnode.ts",
-    crate::coin::Coin => "../src/types/rust/coin.ts",
-    crate::mixnet::account::Balance => "../src/types/rust/balance.ts",
-    mixnet_contract::Gateway => "../src/types/rust/gateway.ts",
-    crate::mixnet::send::TauriTxResult => "../src/types/rust/tauritxresult.ts",
-    crate::mixnet::send::TransactionDetails => "../src/types/rust/transactiondetails.ts",
-    validator_client::nymd::fee::helpers::Operation => "../src/types/rust/operation.ts",
-    crate::coin::Denom => "../src/types/rust/denom.ts",
-    crate::utils::DelegationResult => "../src/types/rust/delegationresult.ts",
-    crate::mixnet::account::Account => "../src/types/rust/account.ts",
-    crate::mixnet::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts"
-  }
 }

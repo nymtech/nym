@@ -31,7 +31,6 @@ import {
   PagedGatewayResponse,
   PagedMixDelegationsResponse,
   PagedMixnodeResponse,
-  RewardingIntervalResponse,
   RewardingStatus,
 } from './types';
 import ValidatorApiQuerier from './validator-api-querier';
@@ -178,6 +177,13 @@ export interface ISigningClient extends IQueryClient, ICosmWasmSigning, INymSign
     memo?: string,
   ): Promise<ExecuteResult>;
 
+  updateMixnodeConfig(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    profitMarginPercent: number,
+    fee: StdFee | 'auto' | number,
+  ): Promise<ExecuteResult>;
+
   updateContractStateParams(
     mixnetContractAddress: string,
     newParams: ContractStateParams,
@@ -250,10 +256,6 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nymdQuerier.getStateParams(mixnetContractAddress);
   }
 
-  getCurrentRewardingInterval(mixnetContractAddress: string): Promise<RewardingIntervalResponse> {
-    return this.nymdQuerier.getCurrentRewardingInterval(mixnetContractAddress);
-  }
-
   getAllNetworkDelegationsPaged(
     mixnetContractAddress: string,
     limit?: number,
@@ -296,8 +298,8 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nymdQuerier.getCirculatingSupply(mixnetContractAddress);
   }
 
-  getEpochRewardPercent(mixnetContractAddress: string): Promise<number> {
-    return this.nymdQuerier.getEpochRewardPercent(mixnetContractAddress);
+  getIntervalRewardPercent(mixnetContractAddress: string): Promise<number> {
+    return this.nymdQuerier.getIntervalRewardPercent(mixnetContractAddress);
   }
 
   getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {
@@ -445,6 +447,20 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
       },
       fee,
       memo,
+    );
+  }
+
+  updateMixnodeConfig(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    profitMarginPercent: number,
+    fee: StdFee | 'auto' | number,
+  ): Promise<ExecuteResult> {
+    return this.execute(
+      this.clientAddress,
+      mixnetContractAddress,
+      { update_mixnode_config: { profit_margin_percent: profitMarginPercent, mix_identity: mixIdentity } },
+      fee,
     );
   }
 

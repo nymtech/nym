@@ -1,4 +1,4 @@
-import { Coin } from '.'
+import { Coin, Denom, MixNode } from '.'
 
 export enum EnumNodeType {
   mixnode = 'mixnode',
@@ -11,8 +11,11 @@ export type TNodeOwnership = {
 }
 
 export type TClientDetails = {
-  client_address: string
-  contract_address: string
+  account: {
+    client_address: string
+    contract_address: string
+    demon: Denom
+  }
 }
 
 export type TSignInWithMnemonic = {
@@ -29,7 +32,31 @@ export type TFee = {
 }
 
 export type TDelegation = {
-  delegated_nodes: string[]
-  delegation_owner: string
+  owner: string
+  node_identity: string
+  amount: Coin
+  block_height: number
+  proxy: string // proxy address used to delegate the funds on behalf of anouther address
+}
+
+export type TPagedDelegations = {
+  delegations: TDelegation[]
   start_next_after: string
 }
+
+export type TMixnodeBondDetails = {
+  pledge_amount: Coin
+  total_delegation: Coin
+  owner: string
+  layer: string
+  block_height: number
+  mix_node: MixNode
+  proxy: any
+}
+
+export type TCurrency = {
+  minor: 'UNYM' | 'UNYMT'
+  major: 'NYM' | 'NYMT'
+}
+
+export type Period = 'Before' | { In: number } | 'After'

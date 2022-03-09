@@ -1,5 +1,6 @@
 use crate::errors::ContractError;
-use cosmwasm_std::{Coin, Env, Storage, Timestamp};
+use cosmwasm_std::{Addr, Coin, Env, Storage, Timestamp};
+use vesting_contract_common::OriginalVestingResponse;
 
 pub trait VestingAccount {
     // locked_coins returns the set of coins that are not spendable (can still be delegated tough) (i.e. locked),
@@ -37,7 +38,7 @@ pub trait VestingAccount {
     fn get_start_time(&self) -> Timestamp;
     fn get_end_time(&self) -> Timestamp;
 
-    fn get_original_vesting(&self) -> Coin;
+    fn get_original_vesting(&self) -> OriginalVestingResponse;
     fn get_delegated_free(
         &self,
         block_time: Option<Timestamp>,
@@ -62,4 +63,14 @@ pub trait VestingAccount {
         env: &Env,
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError>;
+    fn transfer_ownership(
+        &mut self,
+        to_address: &Addr,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError>;
+    fn update_staking_address(
+        &mut self,
+        to_address: Option<Addr>,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError>;
 }

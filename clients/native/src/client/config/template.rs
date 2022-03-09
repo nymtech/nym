@@ -5,7 +5,7 @@ pub(crate) fn config_template() -> &'static str {
     // While using normal toml marshalling would have been way simpler with less overhead,
     // I think it's useful to have comments attached to the saved config file to explain behaviour of
     // particular fields.
-    // Note: any changes to the template must be reflected in the appropriate structs in verloc.
+    // Note: any changes to the template must be reflected in the appropriate structs.
     r#"
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
@@ -18,6 +18,10 @@ version = '{{ client.version }}'
 
 # Human readable ID of this particular client.
 id = '{{ client.id }}'
+
+# Indicates whether this client is running in a testnet mode, thus attempting
+# to claim bandwidth without presenting bandwidth credentials.
+testnet_mode = {{ client.testnet_mode }}
 
 # Addresses to APIs running on validator from which the client gets the view of the network.
 validator_api_urls = [
@@ -55,12 +59,6 @@ eth_endpoint = '{{ client.eth_endpoint }}'
 
 ##### additional client config options #####
 
-# ID of the gateway from which the client should be fetching messages.
-gateway_id = '{{ client.gateway_id }}'
-
-# Address of the gateway listener to which all client requests should be sent.
-gateway_listener = '{{ client.gateway_listener }}'
-
 # A gateway specific, optional, base58 stringified shared key used for
 # communication with particular gateway.
 gateway_shared_key_file = '{{ client.gateway_shared_key_file }}'
@@ -73,6 +71,17 @@ ack_key_file = '{{ client.ack_key_file }}'
 
 # Absolute path to the home Nym Clients directory.
 nym_root_directory = '{{ client.nym_root_directory }}'
+
+[client.gateway_endpoint]
+# ID of the gateway from which the client should be fetching messages.
+gateway_id = '{{ client.gateway_endpoint.gateway_id }}'
+
+# Address of the gateway owner to which the client should send messages.
+gateway_owner = '{{ client.gateway_endpoint.gateway_owner }}'
+
+# Address of the gateway listener to which all client requests should be sent.
+gateway_listener = '{{ client.gateway_endpoint.gateway_listener }}'
+
 
 
 ##### socket config options #####

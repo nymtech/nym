@@ -1,0 +1,7 @@
+node_modules
+../.env
+.to_do.md
+
+#Hardhat files
+cache
+artifacts

@@ -36,3 +36,5 @@ contracts/mixnet/Makefile
 validator-config
 *.patch
 validator-api-config.toml
+dist
+storybook-static

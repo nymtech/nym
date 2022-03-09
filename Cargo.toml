@@ -11,13 +11,13 @@ panic = "abort"
 
 [workspace]
 
+resolver = "2"
 members = [
     "clients/client-core",
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
-    "clients/tauri-client/src-tauri",
-    "clients/webassembly",
+    # "clients/tauri-client/src-tauri",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
@@ -25,8 +25,10 @@ members = [
     "common/config",
     "common/credentials",
     "common/crypto",
-    "common/erc20-bridge-contract",
-    "common/mixnet-contract",
+    "common/bandwidth-claim-contract",
+    "common/cosmwasm-smart-contracts/contracts-common",
+    "common/cosmwasm-smart-contracts/mixnet-contract",
+    "common/cosmwasm-smart-contracts/vesting-contract",
     "common/mixnode-common",
     "common/network-defaults",
     "common/nonexhaustive-delayqueue",
@@ -52,12 +54,12 @@ members = [
     "mixnode",
     "service-providers/network-requester",
     "validator-api",
+    "validator-api/validator-api-requests",
 ]
 
 default-members = [
     "clients/native",
     "clients/socks5",
-#    "clients/webassembly",
     "gateway",
     "service-providers/network-requester",
     "mixnode",
@@ -65,4 +67,4 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "tokenomics-py"]
+exclude = ["explorer", "contracts", "tokenomics-py", "clients/webassembly"]

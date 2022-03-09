@@ -3,7 +3,6 @@
 
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
-use gateway_client::bandwidth::BandwidthController;
 use gateway_client::GatewayClient;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
@@ -27,6 +26,7 @@ const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 #[wasm_bindgen]
 pub struct NymClient {
     validator_server: Url,
+    testnet_mode: bool,
 
     // TODO: technically this doesn't need to be an Arc since wasm is run on a single thread
     // however, once we eventually combine this code with the native-client's, it will make things
@@ -72,6 +72,7 @@ impl NymClient {
 
             on_message: None,
             on_gateway_connect: None,
+            testnet_mode: false,
         }
     }
 
@@ -82,6 +83,11 @@ impl NymClient {
     pub fn set_on_gateway_connect(&mut self, on_connect: js_sys::Function) {
         console_log!("setting on connect...");
         self.on_gateway_connect = Some(on_connect)
+    }
+
+    pub fn set_testnet_mode(&mut self, testnet_mode: bool) {
+        console_log!("Setting testnet mode to {}", testnet_mode);
+        self.testnet_mode = testnet_mode;
     }
 
     fn self_recipient(&self) -> Recipient {
@@ -101,8 +107,10 @@ impl NymClient {
 
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
+        let testnet_mode = self.testnet_mode;
+
         #[cfg(feature = "coconut")]
-        let bandwidth_controller = Some(BandwidthController::new(
+        let bandwidth_controller = Some(gateway_client::bandwidth::BandwidthController::new(
             vec![self.validator_server.clone()],
             *self.identity.public_key(),
         ));
@@ -119,12 +127,17 @@ impl NymClient {
             gateway.clients_address(),
             Arc::clone(&client.identity),
             gateway.identity_key,
+            gateway.owner.clone(),
             None,
             mixnet_messages_sender,
             ack_sender,
             DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             bandwidth_controller,
         );
+
+        if testnet_mode {
+            gateway_client.set_testnet_mode(true)
+        }
 
         gateway_client
             .authenticate_and_start()

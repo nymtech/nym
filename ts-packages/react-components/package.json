@@ -8,14 +8,16 @@
     "@mui/material": ">= 5",
     "@mui/styles": ">= 5",
     "@mui/system": ">= 5",
+    "@mui/icons-material": ">= 5",
+    "@mui/lab": "^5.0.0-alpha.72",
     "@nymproject/mui-theme": "1",
     "react": "17",
-    "react-dom": "17"
+    "react-dom": "17",
+    "flat": ">= 5"
   },
   "devDependencies": {
     "@babel/core": "^7.17.5",
     "@nymproject/eslint-config-react-typescript": "^1.0.0",
-    "@mui/lab": "^5.0.0-alpha.72",
     "@storybook/addon-actions": "^6.4.19",
     "@storybook/addon-essentials": "^6.4.19",
     "@storybook/addon-interactions": "^6.4.19",
@@ -33,6 +35,7 @@
     "babel-plugin-root-import": "^5.1.0",
     "eslint": "^8.10.0",
     "eslint-config-airbnb": "^19.0.4",
+    "eslint-config-airbnb-typescript": "^16.1.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-import-resolver-root-import": "^1.0.4",
     "eslint-plugin-import": "^2.25.4",
@@ -41,6 +44,7 @@
     "eslint-plugin-prettier": "^4.0.0",
     "eslint-plugin-react": "^7.29.2",
     "eslint-plugin-react-hooks": "^4.3.0",
+    "eslint-plugin-storybook": "^0.5.7",
     "jest": "^27.1.0",
     "prettier": "^2.5.1",
     "rimraf": "^3.0.2",
@@ -52,12 +56,9 @@
     "clean": "rimraf dist",
     "build": "tsc --noEmit false",
     "watch": "tsc --noEmit false -w",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix",
+    "lint": "eslint src .storybook",
+    "lint:fix": "eslint src .storybook --fix",
     "storybook": "start-storybook -p 6006",
     "storybook:build": "build-storybook"
-  },
-  "dependencies": {
-    "flat": "^5.0.2"
   }
 }

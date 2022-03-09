@@ -5,6 +5,30 @@ import flatten from 'flat';
 
 const SWATCH_SIZE = '40px';
 
+const PaletteSwatch: React.FC<{
+  theme: Theme;
+  path: string;
+  value: string;
+  width?: string;
+}> = ({ theme, path, value, width }) => (
+  <>
+    <Box
+      sx={{
+        mr: 2,
+        height: SWATCH_SIZE,
+        width: SWATCH_SIZE,
+        background: value,
+        border: `1px solid ${theme.palette.text.primary}`,
+      }}
+    />
+    <Box>
+      <Typography minWidth={width} maxWidth={width} fontFamily="monospace" overflow="scroll" fontSize="12px">
+        {path}
+      </Typography>
+    </Box>
+  </>
+);
+
 export const PaletteSwatches: React.FC<{
   theme: Theme;
 }> = ({ theme }) => {
@@ -38,27 +62,3 @@ export const PaletteSwatchesList: React.FC<{
     </>
   );
 };
-
-const PaletteSwatch: React.FC<{
-  theme: Theme;
-  path: string;
-  value: string;
-  width?: string;
-}> = ({ theme, path, value, width }) => (
-  <>
-    <Box
-      sx={{
-        mr: 2,
-        height: SWATCH_SIZE,
-        width: SWATCH_SIZE,
-        background: value,
-        border: `1px solid ${theme.palette.text.primary}`,
-      }}
-    />
-    <Box>
-      <Typography minWidth={width} maxWidth={width} fontFamily="monospace" overflow="scroll" fontSize="12px">
-        {path}
-      </Typography>
-    </Box>
-  </>
-);

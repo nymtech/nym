@@ -7,10 +7,6 @@ export default {
   component: NymLogo,
 } as ComponentMeta<typeof NymLogo>;
 
-export function Logo() {
-  return <NymLogo height={250} />;
-}
+export const Logo = () => <NymLogo height={250} />;
 
-export function Wordmark() {
-  return <NymWordmark height={250} />;
-}
+export const Wordmark = () => <NymWordmark height={250} />;

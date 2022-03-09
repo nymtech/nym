@@ -10,15 +10,11 @@ export default {
   component: Playground,
 } as ComponentMeta<typeof Playground>;
 
-export function AllControls() {
-  return <Playground />;
-}
+export const AllControls = () => <Playground />;
 
-export function Palette() {
-  return <PlaygroundPalette />;
-}
+export const Palette = () => <PlaygroundPalette />;
 
-export function ThemeExplorer() {
+export const ThemeExplorer = () => {
   const theme = useTheme();
   return <MUIThemeExplorer theme={theme} />;
-}
+};

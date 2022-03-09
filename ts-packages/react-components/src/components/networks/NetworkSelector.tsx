@@ -11,6 +11,17 @@ const networks: { networkName: Network; name: string }[] = [
   { networkName: 'QA', name: 'QA' },
 ];
 
+const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () => void }> = ({
+  title,
+  isSelected,
+  onSelect,
+}) => (
+  <ListItem button onClick={onSelect}>
+    <ListItemIcon>{isSelected && <CheckSharp color="success" />}</ListItemIcon>
+    <ListItemText>{title}</ListItemText>
+  </ListItem>
+);
+
 export const NetworkSelector: React.FC<{
   network?: Network;
   onSwitchNetwork?: (newNetwork: Network) => void;
@@ -68,14 +79,3 @@ export const NetworkSelector: React.FC<{
     </>
   );
 };
-
-const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () => void }> = ({
-  title,
-  isSelected,
-  onSelect,
-}) => (
-  <ListItem button onClick={onSelect}>
-    <ListItemIcon>{isSelected && <CheckSharp color="success" />}</ListItemIcon>
-    <ListItemText>{title}</ListItemText>
-  </ListItem>
-);

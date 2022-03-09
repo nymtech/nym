@@ -13,7 +13,9 @@
     "build:react-example": "lerna run --scope @nymproject/react-webpack-with-theme-example build --stream",
     "build:playground": "lerna run --scope @nymproject/react storybook:build --stream",
     "build:ci": "yarn build && run-p build:react-example build:playground && yarn build:ci:collect-artifacts",
-    "build:ci:collect-artifacts": "mkdir -p ts-packages/dist && mv ts-packages/react-components/storybook-static ts-packages/dist/storybook && mv ts-packages/react-webpack-with-theme-example/dist ts-packages/dist/example"
+    "build:ci:collect-artifacts": "mkdir -p ts-packages/dist && mv ts-packages/react-components/storybook-static ts-packages/dist/storybook && mv ts-packages/react-webpack-with-theme-example/dist ts-packages/dist/example",
+    "lint": "lerna run lint --stream",
+    "lint:fix": "lerna run lint:fix --stream"
   },
   "devDependencies": {
     "lerna": "^4.0.0",

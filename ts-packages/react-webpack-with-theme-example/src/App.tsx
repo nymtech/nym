@@ -6,14 +6,6 @@ import { useTheme } from '@mui/material/styles';
 import { ThemeToggle } from './ThemeToggle';
 import { AppContextProvider, useAppContext } from './context';
 
-export const App: React.FC = () => (
-  <AppContextProvider>
-    <AppTheme>
-      <Content />
-    </AppTheme>
-  </AppContextProvider>
-);
-
 export const AppTheme: React.FC = ({ children }) => {
   const { mode } = useAppContext();
 
@@ -44,7 +36,7 @@ export const Content: React.FC = () => {
       <NymLogo height={50} />
       <h1>Example App</h1>
       <Box mb={10}>
-        <Typography sx={{ color: (theme) => theme.palette.nym.networkExplorer.mixnodes.status.active }}>
+        <Typography sx={{ color: ({ palette }) => palette.nym.networkExplorer.mixnodes.status.active }}>
           This is an example app that uses React, Typescript, Webpack and the Nym theme + components.
         </Typography>
         <h4>Some colours from the theme (mode = {mode}) are:</h4>
@@ -70,3 +62,11 @@ export const Content: React.FC = () => {
     </Container>
   );
 };
+
+export const App: React.FC = () => (
+  <AppContextProvider>
+    <AppTheme>
+      <Content />
+    </AppTheme>
+  </AppContextProvider>
+);

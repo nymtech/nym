@@ -1,3 +1,4 @@
+/* eslint-disable react/no-array-index-key */
 import { Theme } from '@mui/material/styles';
 import * as React from 'react';
 import TreeView from '@mui/lab/TreeView';
@@ -5,20 +6,6 @@ import TreeItem from '@mui/lab/TreeItem';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import { Box } from '@mui/material';
-
-export const MUIThemeExplorer: React.FC<{
-  theme: Theme;
-}> = ({ theme }) => (
-  <TreeView
-    defaultExpanded={['theme.palette', 'theme.palette.nym', 'theme.palette.nym.highlight']}
-    defaultCollapseIcon={<ArrowDropDownIcon />}
-    defaultExpandIcon={<ArrowRightIcon />}
-    defaultEndIcon={<div style={{ width: 24 }} />}
-    sx={{ height: 500, flexGrow: 1, width: '100%', overflowY: 'auto' }}
-  >
-    <MUIThemeExplorerItem theme={theme} item={theme.palette} parentKey="palette" path="theme.palette" />
-  </TreeView>
-);
 
 const MUIThemeExplorerItem: React.FC<{
   path: string;
@@ -94,3 +81,17 @@ const MUIThemeExplorerItem: React.FC<{
 
   return null;
 };
+
+export const MUIThemeExplorer: React.FC<{
+  theme: Theme;
+}> = ({ theme }) => (
+  <TreeView
+    defaultExpanded={['theme.palette', 'theme.palette.nym', 'theme.palette.nym.highlight']}
+    defaultCollapseIcon={<ArrowDropDownIcon />}
+    defaultExpandIcon={<ArrowRightIcon />}
+    defaultEndIcon={<div style={{ width: 24 }} />}
+    sx={{ height: 500, flexGrow: 1, width: '100%', overflowY: 'auto' }}
+  >
+    <MUIThemeExplorerItem theme={theme} item={theme.palette} parentKey="palette" path="theme.palette" />
+  </TreeView>
+);

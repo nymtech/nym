@@ -1,12 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use bls12_381::Scalar;
 use coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
     prove_bandwidth_credential, Attribute, BlindSignRequest, BlindSignRequestBody, Credential,
     Parameters, Signature, SignatureShare, VerificationKey,
 };
-use bls12_381::{Scalar};
 use url::Url;
 
 use crate::coconut::bandwidth::PRIVATE_ATTRIBUTES;
@@ -70,7 +70,6 @@ async fn obtain_partial_credential(
     client: &validator_client::ApiClient,
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
-
     let blind_sign_request_body = BlindSignRequestBody::new(
         blind_sign_request,
         public_attributes,
@@ -111,11 +110,8 @@ pub async fn obtain_aggregate_signature(
     let validator_partial_vk = client.get_coconut_verification_key().await?;
     validators_partial_vks.push(validator_partial_vk.key.clone());
 
-    let (pedersen_commitments_openings, blind_sign_request) = prepare_blind_sign(
-        params,
-        private_attributes,
-        public_attributes,
-    )?;
+    let (pedersen_commitments_openings, blind_sign_request) =
+        prepare_blind_sign(params, private_attributes, public_attributes)?;
 
     let first = obtain_partial_credential(
         params,

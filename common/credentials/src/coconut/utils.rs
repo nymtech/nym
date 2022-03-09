@@ -4,8 +4,9 @@
 use coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
     prove_bandwidth_credential, Attribute, BlindSignRequest, BlindSignRequestBody, Credential,
-    ElGamalKeyPair, Parameters, Signature, SignatureShare, VerificationKey,
+    Parameters, Signature, SignatureShare, VerificationKey,
 };
+use bls12_381::{Scalar};
 use url::Url;
 
 use crate::coconut::bandwidth::PRIVATE_ATTRIBUTES;
@@ -64,17 +65,14 @@ async fn obtain_partial_credential(
     params: &Parameters,
     public_attributes: &[Attribute],
     private_attributes: &[Attribute],
+    pedersen_commitments_openings: &[Scalar],
+    blind_sign_request: &BlindSignRequest,
     client: &validator_client::ApiClient,
     validator_vk: &VerificationKey,
-    blind_sign_request: &BlindSignRequest,
-    elgamal_keypair: &ElGamalKeyPair,
 ) -> Result<Signature, Error> {
 
-    let (pedersen_commitments_openings, blind_sign_request) =
-        prepare_blind_sign(params, private_attributes, public_attributes)?;
-
     let blind_sign_request_body = BlindSignRequestBody::new(
-        &blind_sign_request,
+        blind_sign_request,
         public_attributes,
         (public_attributes.len() + private_attributes.len()) as u32,
     );
@@ -113,10 +111,8 @@ pub async fn obtain_aggregate_signature(
     let validator_partial_vk = client.get_coconut_verification_key().await?;
     validators_partial_vks.push(validator_partial_vk.key.clone());
 
-    let elgamal_keypair = coconut_interface::elgamal_keygen(params);
-    let blind_sign_request = prepare_blind_sign(
+    let (pedersen_commitments_openings, blind_sign_request) = prepare_blind_sign(
         params,
-        &elgamal_keypair,
         private_attributes,
         public_attributes,
     )?;
@@ -125,10 +121,10 @@ pub async fn obtain_aggregate_signature(
         params,
         public_attributes,
         private_attributes,
+        &pedersen_commitments_openings,
+        &blind_sign_request,
         &client,
         &validator_partial_vk.key,
-        &blind_sign_request,
-        &elgamal_keypair,
     )
     .await?;
     shares.push(SignatureShare::new(first, 1));
@@ -141,10 +137,10 @@ pub async fn obtain_aggregate_signature(
             params,
             public_attributes,
             private_attributes,
+            &pedersen_commitments_openings,
+            &blind_sign_request,
             &client,
             &validator_partial_vk.key,
-            &blind_sign_request,
-            &elgamal_keypair,
         )
         .await?;
         let share = SignatureShare::new(signature, (id + 1) as u64);

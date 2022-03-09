@@ -14,6 +14,7 @@ import IconButton from '@mui/material/IconButton';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import { NymLogo } from '@nymproject/react';
 import { BIG_DIPPER, NYM_WEBSITE } from '../api/constants';
 import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
@@ -23,7 +24,6 @@ import { NodemapSVG } from '../icons/NodemapSVG';
 import { Socials } from './Socials';
 import { Footer } from './Footer';
 import { DarkLightSwitchDesktop } from './Switch';
-import { NymLogo } from '@nymproject/react';
 
 const drawerWidth = 300;
 

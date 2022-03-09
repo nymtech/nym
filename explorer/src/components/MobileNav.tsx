@@ -16,13 +16,13 @@ import {
   Typography,
 } from '@mui/material';
 import { Menu } from '@mui/icons-material';
+import { NymLogo } from '@nymproject/react';
 import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
 import { Footer } from './Footer';
 import { NYM_WEBSITE } from '../api/constants';
 import { ExpandableButton } from './Nav';
 import { DarkLightSwitchMobile } from './Switch';
-import { NymLogo } from '@nymproject/react';
 
 type MobileNavProps = {
   children: React.ReactNode;

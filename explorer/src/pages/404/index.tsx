@@ -2,8 +2,8 @@ import * as React from 'react';
 import { Box, Button, Grid, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useHistory } from 'react-router-dom';
-import { useMainContext } from '../../context/main';
 import { NymLogo } from '@nymproject/react';
+import { useMainContext } from '../../context/main';
 
 export const Page404: React.FC = () => {
   const history = useHistory();

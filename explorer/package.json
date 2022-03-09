@@ -89,12 +89,6 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
   "browserslist": {
     "production": [
       ">0.2%",

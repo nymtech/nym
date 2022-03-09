@@ -12,8 +12,8 @@
     "@mui/styles": "^5.0.1",
     "@mui/system": "^5.0.1",
     "@mui/x-data-grid": "^5.0.0-beta.5",
-    "@nymproject/nym-validator-client": "^0.18.0",
     "@nymproject/mui-theme": "^1.0.0",
+    "@nymproject/nym-validator-client": "^0.18.0",
     "@nymproject/react": "^1.0.0",
     "d3-scale": "^4.0.0",
     "date-fns": "^2.24.0",
@@ -25,7 +25,8 @@
     "react-router": "^5.2.1",
     "react-router-dom": "^5.3.0",
     "react-simple-maps": "^2.3.0",
-    "react-tooltip": "^4.2.21"
+    "react-tooltip": "^4.2.21",
+    "use-clipboard-copy": "^0.2.0"
   },
   "devDependencies": {
     "@nymproject/eslint-config-react-typescript": "^1.0.0",

@@ -6,6 +6,7 @@ import { SelectChangeEvent } from '@mui/material/Select';
 import { SxProps } from '@mui/system';
 import { Theme, useTheme } from '@mui/material/styles';
 import { useHistory } from 'react-router';
+import { CopyToClipboard } from '@nymproject/react';
 import { useMainContext } from '../../context/main';
 import { MixnodeRowType, mixnodeToGridRow } from '../../components/MixNodes';
 import { TableToolbar } from '../../components/TableToolbar';
@@ -18,16 +19,20 @@ import { currencyToString } from '../../utils/currency';
 import { getMixNodeStatusColor } from '../../components/MixNodes/Status';
 import { MixNodeStatusDropdown } from '../../components/MixNodes/StatusDropdown';
 
-const getCellStyles = (theme: Theme, row: MixnodeRowType): SxProps => {
+const getCellFontStyle = (theme: Theme, row: MixnodeRowType) => {
   const color = getMixNodeStatusColor(theme, row.status);
   return {
-    ...cellStyles,
-    // TODO: should these be here, or change in `cellStyles`??
     fontWeight: 400,
     fontSize: 12,
     color,
   };
 };
+
+const getCellStyles = (theme: Theme, row: MixnodeRowType): SxProps => ({
+  ...cellStyles,
+  // TODO: should these be here, or change in `cellStyles`??
+  ...getCellFontStyle(theme, row),
+});
 
 export const PageMixnodes: React.FC = () => {
   const { mixnodes, fetchMixnodes } = useMainContext();
@@ -102,14 +107,21 @@ export const PageMixnodes: React.FC = () => {
       width: 380,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={getCellStyles(theme, params.row)}
-          component={RRDLink}
-          to={`/network-components/mixnode/${params.value}`}
-          data-testid="identity-link"
-        >
-          {params.value}
-        </MuiLink>
+        <>
+          <CopyToClipboard
+            sx={{ ...getCellFontStyle(theme, params.row), mr: 1 }}
+            value={params.value}
+            tooltip={`Copy identity key ${params.value} to clipboard`}
+          />
+          <MuiLink
+            sx={getCellStyles(theme, params.row)}
+            component={RRDLink}
+            to={`/network-components/mixnode/${params.value}`}
+            data-testid="identity-link"
+          >
+            {params.value}
+          </MuiLink>
+        </>
       ),
     },
     {

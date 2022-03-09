@@ -1,0 +1,63 @@
+name: CI for ts-packages
+
+on:
+  push:
+    paths:
+      - 'ts-packages/**'
+
+jobs:
+  build:
+    runs-on: custom-runner-linux
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install rsync
+      run: sudo apt-get install rsync
+    - uses: rlespinasse/github-slug-action@v3.x
+    - uses: actions/setup-node@v2
+      with:
+        node-version: '16'
+    - name: Setup yarn
+      run: npm install -g yarn
+    - name: Build
+      run: yarn && yarn build && yarn build:ci
+    - name: Deploy branch to CI www (storybook)
+      continue-on-error: true
+      uses: easingthemes/ssh-deploy@main
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
+        ARGS: "-rltgoDzvO --delete"
+        SOURCE: "ts-packages/dist/storybook/"
+        REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
+        REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
+        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/ts-${{ env.GITHUB_REF_SLUG }}
+        EXCLUDE: "/dist/, /node_modules/"
+    - name: Deploy branch to CI www (example)
+      continue-on-error: true
+      uses: easingthemes/ssh-deploy@main
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
+        ARGS: "-rltgoDzvO --delete"
+        SOURCE: "ts-packages/dist/example/"
+        REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
+        REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
+        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/ts-${{ env.GITHUB_REF_SLUG }}-example
+        EXCLUDE: "/dist/, /node_modules/"
+    - name: Keybase - Node Install
+      run: npm install
+      working-directory: .github/workflows/support-files
+    - name: Keybase - Send Notification
+      env:
+        NYM_NOTIFICATION_KIND: ts-packages
+        NYM_PROJECT_NAME: "ts-packages"
+        NYM_CI_WWW_BASE: "${{ secrets.NYM_CI_WWW_BASE }}"
+        NYM_CI_WWW_LOCATION: "ts-${{ env.GITHUB_REF_SLUG }}"
+        GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
+        GIT_BRANCH: "${GITHUB_REF##*/}"
+        KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
+        KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
+        KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
+        KEYBASE_NYM_CHANNEL: "ci-ts-packages"
+        IS_SUCCESS: "${{ job.status == 'success' }}"
+      uses: docker://keybaseio/client:stable-node
+      with:
+        args: .github/workflows/support-files/notifications/entry_point.sh

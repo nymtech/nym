@@ -16,13 +16,13 @@ clippy-happy-wallet:
 	cargo clippy --manifest-path nym-wallet/Cargo.toml
 
 clippy-all-main:
-	cargo clippy --all-features -- -D warnings 
+	cargo clippy --all --all-features -- -D warnings 
 
 clippy-all-contracts:
-	cargo clippy --manifest-path contracts/Cargo.toml --all-features --target wasm32-unknown-unknown -- -D warnings
+	cargo clippy --all --manifest-path contracts/Cargo.toml --all-features --target wasm32-unknown-unknown -- -D warnings
 
 clippy-all-wallet: 
-	cargo clippy --manifest-path nym-wallet/Cargo.toml --all-features -- -D warnings
+	cargo clippy --all --manifest-path nym-wallet/Cargo.toml --all-features -- -D warnings
 
 test-main:
 	cargo test --all-features --all

@@ -204,7 +204,7 @@ impl Account {
 
             prev_len = block_heights.len();
 
-            start_after = block_heights.last().map(|last| Bound::exclusive_int(*last));
+            start_after = block_heights.last().map(|last| Bound::exclusive(*last));
             if start_after.is_none() {
                 break;
             }

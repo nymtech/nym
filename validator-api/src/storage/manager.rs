@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use mixnet_contract_common::Interval;
+
 use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
 use crate::node_status_api::utils::ActiveNodeStatuses;
@@ -673,18 +675,21 @@ impl StorageManager {
     ///
     /// * `interval_start_timestamp`: Unix timestamp of start of this rewarding interval.
     /// * `interval_end_timestamp`: Unix timestamp of end of this rewarding interval.
-    pub(super) async fn insert_new_interval_rewarding(
+    pub(super) async fn insert_new_epoch_rewarding(
         &self,
-        interval_start_timestamp: i64,
-        interval_end_timestamp: i64,
+        epoch: Interval,
     ) -> Result<i64, sqlx::Error> {
+        let id = epoch.id();
+        let start = epoch.start_unix_timestamp();
+        let end = epoch.end_unix_timestamp();
         let res = sqlx::query!(
             r#"
-                INSERT INTO interval_rewarding (interval_start_timestamp, interval_end_timestamp, finished)
-                VALUES (?, ?, 0) 
+                INSERT INTO interval_rewarding (id, interval_start_timestamp, interval_end_timestamp, finished)
+                VALUES (?, ?, ?, 0) 
             "#,
-            interval_start_timestamp,
-            interval_end_timestamp,
+            id,
+            start,
+            end,
         )
         .execute(&self.connection_pool)
         .await?;
@@ -697,10 +702,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `id`: id of the entry we want to update.
-    pub(super) async fn update_finished_interval_rewarding(
-        &self,
-        id: i64,
-    ) -> Result<(), sqlx::Error> {
+    pub async fn update_finished_interval_rewarding(&self, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 UPDATE interval_rewarding

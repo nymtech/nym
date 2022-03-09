@@ -3,12 +3,15 @@
 
 use super::storage;
 use crate::error::ContractError;
-use crate::error::ContractError::IntervalNotInProgress;
+use crate::error::ContractError::{EpochNotInProgress, IntervalNotInProgress};
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::events::{new_advance_interval_event, new_change_rewarded_set_event};
 use mixnet_contract_common::IdentityKey;
 
+// We've distributed the rewards to the rewarded set from the validator api before making this call (implicit order, should be solved in the future)
+// We now write the new rewarded set, snapshot the mixnodes and finally reconcile all delegations and undelegations. That way the rewards for the previous
+// epoch will be calculated correctly as the delegations and undelegations from the previous epoch will only take effect in the next (current) one.
 pub fn try_write_rewarded_set(
     deps: DepsMut<'_>,
     env: Env,
@@ -50,7 +53,7 @@ pub fn try_write_rewarded_set(
         });
     }
 
-    let current_interval = storage::CURRENT_INTERVAL.load(deps.storage)?.id();
+    let current_interval = storage::current_interval(deps.storage)?.id();
     let num_nodes = rewarded_set.len();
 
     storage::save_rewarded_set(deps.storage, block_height, active_set_size, rewarded_set)?;
@@ -76,8 +79,8 @@ pub fn try_advance_interval(
     // in theory, we could have just changed the state and relied on its reversal upon failed
     // execution, but better safe than sorry and do not modify the state at all unless we know
     // all checks have succeeded.
-    let current_interval = storage::CURRENT_INTERVAL.load(storage)?;
-    let next_interval = current_interval.next_interval();
+    let current_interval = storage::current_interval(storage)?;
+    let next_interval = current_interval.next();
 
     if next_interval.start_unix_timestamp() > env.block.time.seconds() as i64 {
         // the reason for this check is as follows:
@@ -95,9 +98,38 @@ pub fn try_advance_interval(
         });
     }
 
-    storage::CURRENT_INTERVAL.save(storage, &next_interval)?;
+    storage::save_interval(storage, &next_interval)?;
 
     Ok(Response::new().add_event(new_advance_interval_event(next_interval)))
+}
+
+pub fn try_advance_epoch(env: Env, storage: &mut dyn Storage) -> Result<Response, ContractError> {
+    // in theory, we could have just changed the state and relied on its reversal upon failed
+    // execution, but better safe than sorry and do not modify the state at all unless we know
+    // all checks have succeeded.
+    let current_epoch = storage::current_epoch(storage)?;
+    let next_epoch = current_epoch.next();
+
+    if next_epoch.start_unix_timestamp() > env.block.time.seconds() as i64 {
+        // the reason for this check is as follows:
+        // nobody, even trusted validators, should be able to continuously keep advancing epochs,
+        // because otherwise it would be possible for them to continuously keep rewarding nodes.
+        //
+        // Therefore, even if "trusted" validator, responsible for rewarding, is malicious,
+        // they can't send rewards more often than every `REWARDED_SET_REFRESH_BLOCKS`
+        // and changing this value requires going through governance and having agreement of
+        // the super-majority of the validators (by stake)
+        return Err(EpochNotInProgress {
+            current_block_time: env.block.time.seconds(),
+            epoch_start: next_epoch.start_unix_timestamp(),
+            epoch_end: next_epoch.end_unix_timestamp(),
+        });
+    }
+
+    storage::save_epoch(storage, &next_epoch)?;
+    storage::save_epoch_reward_params(next_epoch.id(), storage)?;
+
+    Ok(Response::new().add_event(new_advance_interval_event(next_epoch)))
 }
 
 #[cfg(test)]
@@ -251,10 +283,8 @@ mod tests {
             OffsetDateTime::from_unix_timestamp(1640995200).unwrap(),
             Duration::from_secs(60 * 60 * 720),
         );
-        let next_interval = current_interval.next_interval();
-        storage::CURRENT_INTERVAL
-            .save(deps.as_mut().storage, &current_interval)
-            .unwrap();
+        let next_interval = current_interval.next();
+        storage::save_interval(deps.as_mut().storage, &current_interval).unwrap();
 
         // fails if the current interval hasn't finished yet i.e. the new interval hasn't begun
         env.block.time = Timestamp::from_seconds(1641081600);
@@ -284,7 +314,7 @@ mod tests {
         // interval that has just finished
         env.block.time =
             Timestamp::from_seconds(next_interval.start_unix_timestamp() as u64 + 10000);
-        let expected_new_interval = current_interval.next_interval();
+        let expected_new_interval = current_interval.next();
         let expected_response =
             Response::new().add_event(new_advance_interval_event(expected_new_interval));
         assert_eq!(
@@ -294,10 +324,8 @@ mod tests {
 
         // interval way back in the past (i.e. 'somebody' failed to advance it for a long time)
         env.block.time = Timestamp::from_seconds(1672531200);
-        storage::CURRENT_INTERVAL
-            .save(deps.as_mut().storage, &current_interval)
-            .unwrap();
-        let expected_new_interval = current_interval.next_interval();
+        storage::save_interval(deps.as_mut().storage, &current_interval).unwrap();
+        let expected_new_interval = current_interval.next();
         let expected_response =
             Response::new().add_event(new_advance_interval_event(expected_new_interval));
         assert_eq!(

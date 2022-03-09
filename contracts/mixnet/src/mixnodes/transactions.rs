@@ -9,12 +9,30 @@ use crate::mixnodes::storage::StoredMixnodeBond;
 use crate::support::helpers::{ensure_no_existing_bond, validate_node_identity_signature};
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
+    wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Storage, Uint128,
 };
-use mixnet_contract_common::events::{new_mixnode_bonding_event, new_mixnode_unbonding_event};
+use mixnet_contract_common::events::{
+    new_checkpoint_mixnodes_event, new_mixnode_bonding_event, new_mixnode_unbonding_event,
+};
 use mixnet_contract_common::MixNode;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_ucoin;
+
+pub fn try_checkpoint_mixnodes(
+    storage: &mut dyn Storage,
+    block_height: u64,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let state = mixnet_params_storage::CONTRACT_STATE.load(storage)?;
+    // check if this is executed by the permitted validator, if not reject the transaction
+    if info.sender != state.rewarding_validator_address {
+        return Err(ContractError::Unauthorized);
+    }
+
+    crate::mixnodes::storage::mixnodes().add_checkpoint(storage, block_height)?;
+
+    Ok(Response::new().add_event(new_checkpoint_mixnodes_event(block_height)))
+}
 
 pub fn try_add_mixnode(
     deps: DepsMut<'_>,
@@ -117,12 +135,14 @@ fn _try_add_mixnode(
         env.block.height,
         mix_node,
         proxy.clone(),
+        Uint128::zero(),
+        None,
     );
 
     // technically we don't have to set the total_delegation bucket, but it makes things easier
     // in different places that we can guarantee that if node exists, so does the data behind the total delegation
     let identity = stored_bond.identity();
-    storage::mixnodes().save(deps.storage, identity, &stored_bond)?;
+    storage::mixnodes().save(deps.storage, identity, &stored_bond, env.block.height)?;
 
     // if this is a fresh mixnode - write 0 total delegation, otherwise, don't touch it since the node has just rebonded
     if storage::TOTAL_DELEGATION
@@ -144,24 +164,37 @@ fn _try_add_mixnode(
 }
 
 pub fn try_remove_mixnode_on_behalf(
+    env: Env,
     deps: DepsMut<'_>,
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, ContractError> {
     let proxy = info.sender;
-    _try_remove_mixnode(deps, &owner, Some(proxy))
+    _try_remove_mixnode(env, deps, &owner, Some(proxy))
 }
 
-pub fn try_remove_mixnode(deps: DepsMut<'_>, info: MessageInfo) -> Result<Response, ContractError> {
-    _try_remove_mixnode(deps, info.sender.as_ref(), None)
+pub fn try_remove_mixnode(
+    env: Env,
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    _try_remove_mixnode(env, deps, info.sender.as_ref(), None)
 }
 
 pub(crate) fn _try_remove_mixnode(
+    env: Env,
     deps: DepsMut<'_>,
     owner: &str,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
     let owner = deps.api.addr_validate(owner)?;
+
+    crate::rewards::transactions::_try_compound_operator_reward(
+        deps.storage,
+        env.block.height,
+        &owner,
+        None,
+    )?;
 
     // try to find the node of the sender
     let mixnode_bond = match storage::mixnodes()
@@ -188,7 +221,7 @@ pub(crate) fn _try_remove_mixnode(
     };
 
     // remove the bond
-    storage::mixnodes().remove(deps.storage, mixnode_bond.identity())?;
+    storage::mixnodes().remove(deps.storage, mixnode_bond.identity(), env.block.height)?;
 
     // decrement layer count
     mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
@@ -267,15 +300,20 @@ pub(crate) fn _try_update_mixnode_config(
         ));
     }
 
-    storage::mixnodes().update(deps.storage, mixnode_bond.identity(), |mixnode_bond_opt| {
-        mixnode_bond_opt
-            .map(|mut mixnode_bond| {
-                mixnode_bond.mix_node.profit_margin_percent = profit_margin_percent;
-                mixnode_bond.block_height = env.block.height;
-                mixnode_bond
-            })
-            .ok_or(ContractError::NoBondFound)
-    })?;
+    storage::mixnodes().update(
+        deps.storage,
+        mixnode_bond.identity(),
+        env.block.height,
+        |mixnode_bond_opt| {
+            mixnode_bond_opt
+                .map(|mut mixnode_bond| {
+                    mixnode_bond.mix_node.profit_margin_percent = profit_margin_percent;
+                    mixnode_bond.block_height = env.block.height;
+                    mixnode_bond
+                })
+                .ok_or(ContractError::NoBondFound)
+        },
+    )?;
 
     let mut response = Response::new();
 
@@ -607,7 +645,7 @@ pub mod tests {
                 .add_event(new_mixnode_unbonding_event(
                     &Addr::unchecked("fred"),
                     &None,
-                    &tests::fixtures::good_gateway_pledge()[0],
+                    &tests::fixtures::good_mixnode_pledge()[0],
                     &fred_identity,
                 ));
 
@@ -615,6 +653,7 @@ pub mod tests {
 
         // only 1 node now exists, owned by bob:
         let mix_node_bonds = tests::queries::get_mix_nodes(&mut deps);
+
         assert_eq!(1, mix_node_bonds.len());
         assert_eq!(&Addr::unchecked("bob"), mix_node_bonds[0].owner());
     }
@@ -642,7 +681,9 @@ pub mod tests {
         let info = mock_info("mix-owner", &[]);
         let msg = ExecuteMsg::UnbondMixnode {};
 
-        assert!(execute(deps.as_mut(), mock_env(), info, msg).is_ok());
+        let response = execute(deps.as_mut(), mock_env(), info, msg);
+
+        assert!(response.is_ok());
 
         assert!(storage::mixnodes()
             .idx

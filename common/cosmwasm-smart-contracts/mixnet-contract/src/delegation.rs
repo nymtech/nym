@@ -37,8 +37,12 @@ impl Delegation {
     }
 
     // TODO: change that to use .joined_key() and return Vec<u8>
-    pub fn storage_key(&self) -> (IdentityKey, Addr) {
-        (self.node_identity(), self.owner())
+    pub fn storage_key(&self) -> (IdentityKey, Vec<u8>, u64) {
+        (
+            self.node_identity(),
+            self.owner().as_bytes().to_vec(),
+            self.block_height(),
+        )
     }
 
     pub fn increment_amount(&mut self, amount: Uint128, at_height: Option<u64>) {
@@ -78,14 +82,14 @@ impl Display for Delegation {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedMixDelegationsResponse {
     pub delegations: Vec<Delegation>,
-    pub start_next_after: Option<String>,
+    pub start_next_after: Option<(String, u64)>,
 }
 
 impl PagedMixDelegationsResponse {
-    pub fn new(delegations: Vec<Delegation>, start_next_after: Option<Addr>) -> Self {
+    pub fn new(delegations: Vec<Delegation>, start_next_after: Option<(Addr, u64)>) -> Self {
         PagedMixDelegationsResponse {
             delegations,
-            start_next_after: start_next_after.map(|s| s.to_string()),
+            start_next_after: start_next_after.map(|(s, h)| (s.to_string(), h)),
         }
     }
 }
@@ -108,17 +112,17 @@ impl PagedDelegatorDelegationsResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedAllDelegationsResponse {
     pub delegations: Vec<Delegation>,
-    pub start_next_after: Option<(IdentityKey, String)>,
+    pub start_next_after: Option<(IdentityKey, Vec<u8>, u64)>,
 }
 
 impl PagedAllDelegationsResponse {
     pub fn new(
         delegations: Vec<Delegation>,
-        start_next_after: Option<(IdentityKey, Addr)>,
+        start_next_after: Option<(IdentityKey, Vec<u8>, u64)>,
     ) -> Self {
         PagedAllDelegationsResponse {
             delegations,
-            start_next_after: start_next_after.map(|(id, addr)| (id, addr.to_string())),
+            start_next_after: start_next_after.map(|(id, addr, height)| (id, addr, height)),
         }
     }
 }

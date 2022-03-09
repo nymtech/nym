@@ -7,13 +7,12 @@ use validator_client::nymd::error::NymdError;
 use validator_client::ValidatorClientError;
 
 #[derive(Debug, Error)]
-pub(crate) enum RewardingError {
+pub enum RewardingError {
     #[error("Could not distribute rewards as the contract address was unspecified")]
     UnspecifiedContractAddress,
 
-    #[error("There were no mixnodes to reward (network is dead)")]
-    NoMixnodesToReward,
-
+    // #[error("There were no mixnodes to reward (network is dead)")]
+    // NoMixnodesToReward,
     #[error("Failed to execute the smart contract - {0}")]
     ContractExecutionFailure(NymdError),
 

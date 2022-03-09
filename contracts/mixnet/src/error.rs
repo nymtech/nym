@@ -3,7 +3,7 @@
 
 use config::defaults::DENOM;
 use cosmwasm_std::{Addr, StdError};
-use mixnet_contract_common::IdentityKey;
+use mixnet_contract_common::{error::MixnetContractError, IdentityKey};
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.
@@ -69,7 +69,7 @@ pub enum ContractError {
     #[error("MIXNET ({}): Could not find any delegation information associated with mixnode {identity} for {address}", line!())]
     NoMixnodeDelegationFound {
         identity: IdentityKey,
-        address: Addr,
+        address: String,
     },
 
     #[error("MIXNET ({}): We tried to remove more funds then are available in the Reward pool. Wanted to remove {to_remove}, but have only {reward_pool}", line!())]
@@ -124,4 +124,21 @@ pub enum ContractError {
         interval_start: i64,
         interval_end: i64,
     },
+
+    #[error("MIXNET ({}): Can't change to the desired interval as it's not in progress yet. It starts at {epoch_start} and finishes at {epoch_end}, while the current block time is {current_block_time}", line!())]
+    EpochNotInProgress {
+        current_block_time: u64,
+        epoch_start: i64,
+        epoch_end: i64,
+    },
+
+    #[error("Could not cast reward to a u128, this should be impossible, at {}", line!())]
+    CastError,
+    #[error("{source}")]
+    MixnetCommonError {
+        #[from]
+        source: MixnetContractError,
+    },
+    #[error("No rewards to claim for mixnode {identity} for delegate {delegate}")]
+    NoRewardsToClaim { identity: String, delegate: String },
 }

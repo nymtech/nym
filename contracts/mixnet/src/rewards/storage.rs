@@ -5,11 +5,30 @@ use crate::error::ContractError;
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::{IdentityKey, RewardingStatus};
+use mixnet_contract_common::{reward_params::EpochRewardParams, IdentityKey, RewardingStatus};
+
+type BlockHeight = u64;
+type Address = String;
 
 pub(crate) const REWARD_POOL: Item<'_, Uint128> = Item::new("pool");
 // TODO: Do we need a migration for this?
 pub(crate) const REWARDING_STATUS: Map<'_, (u32, IdentityKey), RewardingStatus> = Map::new("rm");
+
+pub(crate) const DELEGATOR_REWARD_CLAIMED_HEIGHT: Map<'_, (Address, IdentityKey), BlockHeight> =
+    Map::new("drc");
+pub(crate) const OPERATOR_REWARD_CLAIMED_HEIGHT: Map<'_, (Address, IdentityKey), BlockHeight> =
+    Map::new("orc");
+
+type EpochId = u32;
+
+pub(crate) const EPOCH_REWARD_PARAMS: Map<'_, EpochId, EpochRewardParams> = Map::new("epr");
+
+pub fn epoch_reward_params_for_id(
+    storage: &dyn Storage,
+    id: EpochId,
+) -> StdResult<EpochRewardParams> {
+    EPOCH_REWARD_PARAMS.load(storage, id)
+}
 
 #[allow(dead_code)]
 pub fn incr_reward_pool(

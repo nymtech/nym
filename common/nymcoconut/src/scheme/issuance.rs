@@ -140,7 +140,7 @@ impl BlindSignRequest {
             params,
             &self.commitment,
             &self.private_attributes_commitments,
-            &public_attributes,
+            public_attributes,
         )
     }
 

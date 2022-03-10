@@ -1,8 +1,8 @@
 use serde::{Serialize, Serializer};
 use std::io;
 use thiserror::Error;
-use validator_client::nymd::error::NymdError;
 use validator_client::validator_api::error::ValidatorAPIError;
+use validator_client::{nymd::error::NymdError, ValidatorClientError};
 
 #[derive(Error, Debug)]
 pub enum BackendError {
@@ -51,6 +51,11 @@ pub enum BackendError {
     #[from]
     source: serde_json::Error,
   },
+  #[error("{source}")]
+  MalformedUrlProvided {
+    #[from]
+    source: url::ParseError,
+  },
   #[error("failed to encrypt the given data with the provided password")]
   EncryptionError,
   #[error("failed to decrypt the given data with the provided password")]
@@ -79,5 +84,15 @@ impl Serialize for BackendError {
     S: Serializer,
   {
     serializer.collect_str(self)
+  }
+}
+
+impl From<ValidatorClientError> for BackendError {
+  fn from(e: ValidatorClientError) -> Self {
+    match e {
+      ValidatorClientError::ValidatorAPIError { source } => source.into(),
+      ValidatorClientError::MalformedUrlProvided(e) => e.into(),
+      ValidatorClientError::NymdError(e) => e.into(),
+    }
   }
 }

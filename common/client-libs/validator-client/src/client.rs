@@ -92,7 +92,7 @@ impl Config {
 
 #[cfg(feature = "nymd-client")]
 pub struct Client<C> {
-    network: network_defaults::all::Network,
+    pub network: network_defaults::all::Network,
     mixnet_contract_address: Option<cosmrs::AccountId>,
     vesting_contract_address: Option<cosmrs::AccountId>,
     erc20_bridge_contract_address: Option<cosmrs::AccountId>,

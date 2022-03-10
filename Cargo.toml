@@ -14,6 +14,7 @@ panic = "abort"
 resolver = "2"
 members = [
     "clients/client-core",
+    "clients/credential",
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",

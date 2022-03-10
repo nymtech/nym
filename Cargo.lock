@@ -821,6 +821,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "credential"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "clap 3.1.5",
+ "tokio",
+]
+
+[[package]]
 name = "credentials"
 version = "0.1.0"
 dependencies = [

@@ -825,9 +825,17 @@ name = "credential"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bip39",
  "clap 3.1.5",
+ "crypto",
+ "network-defaults",
+ "pemstore",
  "pickledb",
+ "rand 0.7.3",
+ "serde",
  "tokio",
+ "url",
+ "validator-client",
 ]
 
 [[package]]

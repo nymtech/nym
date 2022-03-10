@@ -4,6 +4,12 @@
 use async_trait::async_trait;
 use clap::{Args, Subcommand};
 use pickledb::PickleDb;
+use rand::rngs::OsRng;
+
+use crypto::asymmetric::{encryption, identity};
+
+use crate::client::Client;
+use crate::state::{KeyPair, State};
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -27,7 +33,19 @@ pub(crate) struct Deposit {
 
 #[async_trait]
 impl Execute for Deposit {
-    async fn execute(&self, _db: &mut PickleDb) {}
+    async fn execute(&self, db: &mut PickleDb) {
+        let mut rng = OsRng;
+        let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
+        let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
+
+        let client = Client::new();
+
+        let state = State {
+            signing_keypair,
+            encryption_keypair,
+        };
+        db.set("000", &state).unwrap();
+    }
 }
 
 #[derive(Args, Clone)]

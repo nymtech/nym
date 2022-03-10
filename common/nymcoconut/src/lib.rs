@@ -5,6 +5,7 @@ use std::convert::TryInto;
 
 use bls12_381::Scalar;
 
+pub use crate::traits::Bytable;
 pub use elgamal::elgamal_keygen;
 pub use elgamal::ElGamalKeyPair;
 pub use elgamal::PublicKey;
@@ -27,8 +28,6 @@ pub use scheme::Signature;
 pub use scheme::SignatureShare;
 pub use traits::Base58;
 pub use utils::hash_to_scalar;
-
-use crate::traits::Bytable;
 
 pub mod elgamal;
 mod error;

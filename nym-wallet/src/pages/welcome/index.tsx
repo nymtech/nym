@@ -55,6 +55,7 @@ export const Welcome = () => {
               <WelcomeContent
                 onUseExisting={() => setPage('existing account')}
                 onCreateAccountComplete={() => setPage('legacy create account')}
+                page="welcome"
               />
 
               <CreateAccountContent page="legacy create account" showSignIn={() => setPage('existing account')} />
@@ -70,7 +71,7 @@ export const Welcome = () => {
               page="verify mnemonic"
             />
             <CreatePassword page="create password" /> */}
-              <ExistingAccount onPrev={() => setPage('welcome')} />
+              <ExistingAccount onPrev={() => setPage('welcome')} page="existing account" />
             </RenderPage>
           </Stack>
         )}

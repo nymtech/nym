@@ -1,5 +1,5 @@
 {
-  "name": "tauri-app",
+  "name": "@nymproject/nym-wallet-app",
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
@@ -9,7 +9,9 @@
     "tauri:dev": "yarn tauri dev",
     "tauri:build": "yarn tauri build",
     "dev": "yarn run webpack:dev & yarn run tauri:dev",
-    "build": "run-s webpack:prod tauri:build"
+    "build": "run-s webpack:prod tauri:build",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix"
   },
   "dependencies": {
     "@babel/preset-typescript": "^7.15.0",

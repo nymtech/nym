@@ -1,6 +1,3 @@
-import type { Denom } from './denom';
+import type { Denom } from "./denom";
 
-export interface Coin {
-  amount: string;
-  denom: Denom;
-}
+export interface Coin { amount: string, denom: Denom, }

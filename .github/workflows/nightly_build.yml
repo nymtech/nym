@@ -42,13 +42,13 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all
+          args: --workspace
 
       - name: Run all tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all
+          args: --workspace
 
       - name: Check formatting
         uses: actions-rs/cargo@v1
@@ -81,13 +81,13 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all --features=coconut
+          args: --workspace --features=coconut
 
       - name: Run all tests with coconut enabled
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all --features=coconut
+          args: --workspace --features=coconut
 
       - name: Run clippy with coconut enabled
         uses: actions-rs/cargo@v1

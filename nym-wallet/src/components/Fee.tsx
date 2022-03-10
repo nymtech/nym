@@ -9,8 +9,8 @@ export const Fee = ({ feeType }: { feeType: Operation }) => {
   const { currency } = useContext(ClientContext);
 
   const getFee = async () => {
-    const fee = await getGasFee(feeType);
-    setFee(fee.amount);
+    const res = await getGasFee(feeType);
+    setFee(res.amount);
   };
 
   useEffect(() => {

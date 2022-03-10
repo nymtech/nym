@@ -66,8 +66,8 @@ export const Nav = () => {
       }}
     >
       <List disablePadding>
-        {routesSchema.map(({ Icon, route, label }, i) => (
-          <ListItem disableGutters component={Link} to={route} key={i}>
+        {routesSchema.map(({ Icon, route, label }) => (
+          <ListItem disableGutters component={Link} to={route} key={label}>
             <ListItemIcon
               sx={{
                 minWidth: 30,

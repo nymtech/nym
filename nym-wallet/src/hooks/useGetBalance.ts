@@ -39,20 +39,9 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
   const [vestingAccountInfo, setVestingAccountInfo] = useState<VestingAccountInfo>();
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchBalance = useCallback(async () => {
-    setIsLoading(true);
-    setError(undefined);
-    try {
-      const balance = await invoke('get_balance');
-      setBalance(balance as Balance);
-    } catch (error) {
-      setError(error as string);
-    } finally {
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 1000);
-    }
-  }, []);
+  const clearBalance = () => setBalance(undefined);
+  const clearTokenAllocation = () => setTokenAllocation(undefined);
+  const clearOriginalVesting = () => setOriginalVesting(undefined);
 
   const fetchTokenAllocation = async () => {
     setIsLoading(true);
@@ -64,8 +53,8 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
           vestedCoins,
           lockedCoins,
           spendableCoins,
-          currentVestingPeriod,
-          vestingAccountInfo,
+          currentVestingPer,
+          vestingAccountDetail,
         ] = await Promise.all([
           getOriginalVesting(address),
           getVestingCoins(address),
@@ -76,14 +65,14 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
           getVestingAccountInfo(address),
         ]);
         setOriginalVesting(originalVestingValue);
-        setCurrentVestingPeriod(currentVestingPeriod);
+        setCurrentVestingPeriod(currentVestingPer);
         setTokenAllocation({
           vesting: vestingCoins.amount,
           vested: vestedCoins.amount,
           locked: lockedCoins.amount,
           spendable: spendableCoins.amount,
         });
-        setVestingAccountInfo(vestingAccountInfo);
+        setVestingAccountInfo(vestingAccountDetail);
       } catch (e) {
         clearTokenAllocation();
         clearOriginalVesting();
@@ -93,9 +82,20 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     setIsLoading(false);
   };
 
-  const clearBalance = () => setBalance(undefined);
-  const clearTokenAllocation = () => setTokenAllocation(undefined);
-  const clearOriginalVesting = () => setOriginalVesting(undefined);
+  const fetchBalance = useCallback(async () => {
+    setIsLoading(true);
+    setError(undefined);
+    try {
+      const bal = await invoke('get_balance');
+      setBalance(bal as Balance);
+    } catch (err) {
+      setError(err as string);
+    } finally {
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 1000);
+    }
+  }, []);
 
   const clearAll = () => {
     clearBalance();
@@ -103,18 +103,18 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     clearOriginalVesting();
   };
 
-  useEffect(() => {
-    handleRefresh(address);
-  }, [address]);
-
-  const handleRefresh = (address?: string) => {
-    if (address) {
+  const handleRefresh = (addr?: string) => {
+    if (addr) {
       fetchBalance();
       fetchTokenAllocation();
     } else {
       clearAll();
     }
   };
+
+  useEffect(() => {
+    handleRefresh(address);
+  }, [address]);
 
   return {
     error,

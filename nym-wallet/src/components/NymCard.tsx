@@ -3,6 +3,13 @@ import { Box, Card, CardContent, CardHeader } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { Title } from './Title';
 
+const CardContentNoPadding = styled(CardContent)(() => ({
+  padding: 0,
+  '&:last-child': {
+    paddingBottom: 0,
+  },
+}));
+
 export const NymCard: React.FC<{
   title: string | React.ReactElement;
   subheader?: string;
@@ -26,10 +33,3 @@ export const NymCard: React.FC<{
     )}
   </Card>
 );
-
-const CardContentNoPadding = styled(CardContent)(({ theme }) => ({
-  padding: 0,
-  '&:last-child': {
-    paddingBottom: 0,
-  },
-}));

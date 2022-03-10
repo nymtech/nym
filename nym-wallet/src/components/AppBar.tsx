@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { AppBar as MuiAppBar, Grid, IconButton, Toolbar, Typography } from '@mui/material';
+import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
 import { Logout } from '@mui/icons-material';
 import { ClientContext } from '../context/main';
 import { NetworkSelector } from '.';

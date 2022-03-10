@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 
 type TPool = 'balance' | 'locked';
 
-export const TokenPoolSelector: React.FC<{ onSelect: (pool: TPool) => void }> = ({ onSelect }) => {
-  const [value, setValue] = useState<TPool>();
+export const TokenPoolSelector: React.FC = () => {
+  const [value] = useState<TPool>();
 
   return (
     <Select label="Token Pool" value={value}>

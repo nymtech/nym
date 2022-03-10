@@ -2,7 +2,6 @@ import React from 'react';
 import { Box, Container } from '@mui/material';
 import Logo from '../images/logo-background.svg';
 import { AppBar, Nav } from '../components';
-import { PageLayout } from '.';
 
 export const ApplicationLayout: React.FC = ({ children }) => (
   <Box

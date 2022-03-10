@@ -54,7 +54,7 @@ export const Unbond = () => {
           </>
         ) : (
           <Alert severity="info" sx={{ m: 3 }} data-testid="no-bond">
-            You don't currently have a bonded node
+            You do not currently have a bonded node
           </Alert>
         )}
         {isLoading && (

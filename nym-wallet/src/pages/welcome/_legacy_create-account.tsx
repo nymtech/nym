@@ -4,9 +4,7 @@ import { createAccount } from '../../requests';
 import { TCreateAccount } from '../../types';
 import { CopyToClipboard } from '../../components';
 
-export const CreateAccountContent: React.FC<{ page: 'legacy create account'; showSignIn: () => void }> = ({
-  showSignIn,
-}) => {
+export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({ showSignIn }) => {
   const [accountDetails, setAccountDetails] = useState<TCreateAccount>();
   const [error, setError] = useState<Error>();
 
@@ -33,7 +31,7 @@ export const CreateAccountContent: React.FC<{ page: 'legacy create account'; sho
         Account setup complete!
       </Typography>
       <Alert severity="info" variant="outlined" sx={{ color: 'info.light' }} data-testid="mnemonic-warning">
-        <Typography>Please store your mnemonic in a safe place. You'll need it to access your account!</Typography>
+        <Typography>Please store your mnemonic in a safe place. You will need it to access your account!</Typography>
       </Alert>
       <Card variant="outlined" sx={{ bgcolor: 'transparent', p: 2, borderColor: 'common.white' }}>
         <CardHeader sx={{ color: 'common.white' }} title="Mnemonic" />

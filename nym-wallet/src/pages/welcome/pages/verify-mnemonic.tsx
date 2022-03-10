@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@mui/material';
-import { WordTiles, HiddenWords } from '../components/word-tiles';
-import { THiddenMnemonicWords, THiddenMnemonicWord, TMnemonicWord, TMnemonicWords } from '../types';
+import { HiddenWords, Subtitle, Title, WordTiles } from '../components';
+import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords } from '../types';
 import { randomNumberBetween } from '../../../utils';
-import { Title, Subtitle } from '../components';
 
 const numberOfRandomWords = 4;
 
@@ -11,7 +10,6 @@ export const VerifyMnemonic = ({
   mnemonicWords,
   onComplete,
 }: {
-  page: 'verify mnemonic';
   mnemonicWords?: TMnemonicWords;
   onComplete: () => void;
 }) => {
@@ -21,10 +19,10 @@ export const VerifyMnemonic = ({
 
   useEffect(() => {
     if (mnemonicWords) {
-      const randomWords = getRandomEntriesFromArray<TMnemonicWord>(mnemonicWords, numberOfRandomWords);
-      const withHiddenProperty = randomWords.map((word) => ({ ...word, hidden: true }));
+      const newRandomWords = getRandomEntriesFromArray<TMnemonicWord>(mnemonicWords, numberOfRandomWords);
+      const withHiddenProperty = newRandomWords.map((word) => ({ ...word, hidden: true }));
       const shuffled = getRandomEntriesFromArray<THiddenMnemonicWord>(withHiddenProperty, numberOfRandomWords);
-      setRandomWords(randomWords);
+      setRandomWords(newRandomWords);
       setHiddenRandomWords(shuffled);
     }
   }, [mnemonicWords]);
@@ -34,8 +32,8 @@ export const VerifyMnemonic = ({
       setHiddenRandomWords((hiddenWords) =>
         hiddenWords?.map((word) => (word.name === name ? { ...word, hidden: false } : word)),
       );
-      setRandomWords((randomWords) =>
-        randomWords?.map((word) => (word.name === name ? { ...word, disabled: true } : word)),
+      setRandomWords((argRandomWords) =>
+        argRandomWords?.map((word) => (word.name === name ? { ...word, disabled: true } : word)),
       );
       setCurrentSelection((current) => current + 1);
     }

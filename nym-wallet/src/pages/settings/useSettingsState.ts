@@ -21,30 +21,32 @@ export const useSettingsState = (shouldUpdate: boolean) => {
   const { mixnodeDetails } = useContext(ClientContext);
 
   const getStatus = async (mixnodeKey: string) => {
-    const status = await getMixnodeStatus(mixnodeKey);
-    setStatus(status.status);
+    const newStatus = await getMixnodeStatus(mixnodeKey);
+    setStatus(newStatus.status);
   };
 
   const getStakeSaturation = async (mixnodeKey: string) => {
-    const saturation = await getMixnodeStakeSaturation(mixnodeKey);
+    const newSaturation = await getMixnodeStakeSaturation(mixnodeKey);
 
-    if (saturation) {
-      setSaturation(Math.round(saturation.saturation * 100));
+    if (newSaturation) {
+      setSaturation(Math.round(newSaturation.saturation * 100));
     }
   };
 
   const getRewardEstimation = async (mixnodeKey: string) => {
-    const rewardEstimation = await getMixnodeRewardEstimation(mixnodeKey);
-    if (rewardEstimation) {
-      const toMajor = await minorToMajor(rewardEstimation.estimated_total_node_reward.toString());
-      setRewardEstimation(parseInt(toMajor.amount));
+    const newRewardEstimation = await getMixnodeRewardEstimation(mixnodeKey);
+    if (newRewardEstimation) {
+      const toMajor = await minorToMajor(newRewardEstimation.estimated_total_node_reward.toString());
+      setRewardEstimation(parseInt(toMajor.amount, Number(10)));
     }
   };
 
   const getMixnodeInclusionProbability = async (mixnodeKey: string) => {
     const probability = await getInclusionProbability(mixnodeKey);
     if (probability) {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       const in_active = Math.round(probability.in_active * 100);
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       const in_reserve = Math.round(probability.in_reserve * 100);
       setInclusionProbability({ in_active, in_reserve });
     }

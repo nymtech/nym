@@ -1,6 +1,5 @@
 import React from 'react';
-import { Box } from '@mui/system';
-import { Tab, Tabs as MuiTabs } from '@mui/material';
+import { Tab, Tabs as MuiTabs, Box } from '@mui/material';
 
 export const Tabs: React.FC<{
   tabs: string[];

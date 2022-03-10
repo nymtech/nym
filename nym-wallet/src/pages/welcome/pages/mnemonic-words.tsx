@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, Button, Typography } from '@mui/material';
-import { WordTiles } from '../components/word-tiles';
+import { WordTiles } from '../components';
 import { TMnemonicWords } from '../types';
 
 export const MnemonicWords = ({
@@ -9,7 +9,6 @@ export const MnemonicWords = ({
   onPrev,
 }: {
   mnemonicWords?: TMnemonicWords;
-  page: 'create account';
   onNext: () => void;
   onPrev: () => void;
 }) => (

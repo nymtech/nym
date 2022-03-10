@@ -3,7 +3,6 @@ import { Button, Stack } from '@mui/material';
 import { SubtitleSlick, Title } from '../components';
 
 export const WelcomeContent: React.FC<{
-  page: 'welcome';
   onUseExisting: () => void;
   onCreateAccountComplete: () => void;
 }> = ({ onUseExisting, onCreateAccountComplete }) => (

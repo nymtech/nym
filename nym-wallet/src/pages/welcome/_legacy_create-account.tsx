@@ -3,8 +3,9 @@ import { Alert, Button, Card, CardActions, CardContent, CardHeader, Stack, Typog
 import { createAccount } from '../../requests';
 import { TCreateAccount } from '../../types';
 import { CopyToClipboard } from '../../components';
+import { TPages } from './types';
 
-export const CreateAccountContent: React.FC<{ showSignIn: () => void }> = ({ showSignIn }) => {
+export const CreateAccountContent: React.FC<{ page: TPages; showSignIn: () => void }> = ({ page, showSignIn }) => {
   const [accountDetails, setAccountDetails] = useState<TCreateAccount>();
   const [error, setError] = useState<Error>();
 

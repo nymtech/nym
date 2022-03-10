@@ -10,7 +10,7 @@ import { updateMixnode } from '../../requests';
 import { ClientContext } from '../../context/main';
 
 type TFormData = {
-  profitMarginPercent: number;
+  profitMarginPercent: string;
 };
 
 const DataField = ({ title, info, Indicator }: { title: string; info: string; Indicator: React.ReactElement }) => (
@@ -76,7 +76,7 @@ export const SystemVariables = ({
 
   const onSubmit = async (data: TFormData) => {
     try {
-      await updateMixnode({ profitMarginPercent: data.profitMarginPercent });
+      await updateMixnode({ profitMarginPercent: +data.profitMarginPercent });
       await userBalance.fetchBalance();
       onUpdate();
       setNodeUpdateResponse('success');

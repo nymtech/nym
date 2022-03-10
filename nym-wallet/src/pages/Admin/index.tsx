@@ -29,93 +29,28 @@ const AdminForm: React.FC<{
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <TextField
-              {...register('minimum_mixnode_bond')}
+              {...register('minimum_mixnode_pledge')}
               required
               variant="outlined"
               id="minimum_mixnode_bond"
               name="minimum_mixnode_bond"
               label="Minumum mixnode bond"
               fullWidth
-              error={!!errors.minimum_mixnode_bond}
-              helperText={errors?.minimum_mixnode_bond?.message}
+              error={!!errors.minimum_mixnode_pledge}
+              helperText={errors?.minimum_mixnode_pledge?.message}
             />
           </Grid>
           <Grid item xs={12}>
             <TextField
-              {...register('minimum_gateway_bond')}
+              {...register('minimum_gateway_pledge')}
               required
               variant="outlined"
               id="minimum_gateway_bond"
               name="minimum_gateway_bond"
               label="Minumum gateway bond"
               fullWidth
-              error={!!errors.minimum_gateway_bond}
-              helperText={errors?.minimum_gateway_bond?.message}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              {...register('mixnode_bond_reward_rate')}
-              required
-              variant="outlined"
-              id="mixnode_bond_reward_rate"
-              name="mixnode_bond_reward_rate"
-              label="Mixnode bond reward rate"
-              fullWidth
-              error={!!errors.mixnode_bond_reward_rate}
-              helperText={errors?.mixnode_bond_reward_rate?.message}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              {...register('gateway_bond_reward_rate')}
-              required
-              variant="outlined"
-              id="gateway_bond_reward_rate"
-              name="gateway_bond_reward_rate"
-              label="Gateway bond reward rate"
-              fullWidth
-              error={!!errors.gateway_bond_reward_rate}
-              helperText={errors?.gateway_bond_reward_rate?.message}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              {...register('mixnode_delegation_reward_rate')}
-              required
-              variant="outlined"
-              id="mixnode_delegation_reward_rate"
-              name="mixnode_delegation_reward_rate"
-              label="Mixnode Delegation Reward Rate"
-              fullWidth
-              error={!!errors.mixnode_delegation_reward_rate}
-              helperText={errors?.mixnode_delegation_reward_rate?.message}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              {...register('gateway_delegation_reward_rate')}
-              required
-              variant="outlined"
-              id="gateway_delegation_reward_rate"
-              name="gateway_delegation_reward_rate"
-              label="Gateway Delegation Reward Rate"
-              fullWidth
-              error={!!errors.gateway_delegation_reward_rate}
-              helperText={errors?.gateway_delegation_reward_rate?.message}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              {...register('epoch_length')}
-              required
-              variant="outlined"
-              id="epochLength"
-              name="epochLength"
-              label="Epoch length (hours)"
-              fullWidth
-              error={!!errors.epoch_length}
-              helperText={errors?.epoch_length?.message}
+              error={!!errors.minimum_gateway_pledge}
+              helperText={errors?.minimum_gateway_pledge?.message}
             />
           </Grid>
           <Grid item xs={12}>

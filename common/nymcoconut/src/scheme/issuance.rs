@@ -342,13 +342,13 @@ mod tests {
 
     #[test]
     fn blind_sign_request_bytes_roundtrip() {
-        let mut params = Parameters::new(1).unwrap();
+        let params = Parameters::new(1).unwrap();
         let public_attributes = params.n_random_scalars(0);
         let private_attributes = params.n_random_scalars(1);
         let elgamal_keypair = elgamal::elgamal_keygen(&params);
 
         let lambda = prepare_blind_sign(
-            &mut params,
+            &params,
             &elgamal_keypair,
             &private_attributes,
             &public_attributes,
@@ -362,11 +362,11 @@ mod tests {
             lambda
         );
 
-        let mut params = Parameters::new(4).unwrap();
+        let params = Parameters::new(4).unwrap();
         let public_attributes = params.n_random_scalars(2);
         let private_attributes = params.n_random_scalars(2);
         let lambda = prepare_blind_sign(
-            &mut params,
+            &params,
             &elgamal_keypair,
             &private_attributes,
             &public_attributes,

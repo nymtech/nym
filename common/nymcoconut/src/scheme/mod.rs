@@ -239,17 +239,17 @@ mod tests {
 
     #[test]
     fn unblind_returns_error_if_integrity_check_on_commitment_hash_fails() {
-        let mut params = Parameters::new(2).unwrap();
+        let params = Parameters::new(2).unwrap();
         let private_attributes = params.n_random_scalars(2_usize);
-        let elgamal_keypair = elgamal::elgamal_keygen(&mut params);
+        let elgamal_keypair = elgamal::elgamal_keygen(&params);
 
         let lambda =
-            prepare_blind_sign(&mut params, &elgamal_keypair, &private_attributes, &[]).unwrap();
+            prepare_blind_sign(&params, &elgamal_keypair, &private_attributes, &[]).unwrap();
 
-        let keypair1 = keygen(&mut params);
+        let keypair1 = keygen(&params);
 
         let sig1 = blind_sign(
-            &mut params,
+            &params,
             &keypair1.secret_key(),
             elgamal_keypair.public_key(),
             &lambda,
@@ -274,18 +274,18 @@ mod tests {
 
     #[test]
     fn unblind_returns_error_if_signature_verification_fails() {
-        let mut params = Parameters::new(2).unwrap();
+        let params = Parameters::new(2).unwrap();
         let private_attributes = vec![hash_to_scalar("Attribute1"), hash_to_scalar("Attribute2")];
         let private_attributes2 = vec![hash_to_scalar("Attribute3"), hash_to_scalar("Attribute4")];
-        let elgamal_keypair = elgamal::elgamal_keygen(&mut params);
+        let elgamal_keypair = elgamal::elgamal_keygen(&params);
 
         let lambda =
-            prepare_blind_sign(&mut params, &elgamal_keypair, &private_attributes, &[]).unwrap();
+            prepare_blind_sign(&params, &elgamal_keypair, &private_attributes, &[]).unwrap();
 
-        let keypair1 = keygen(&mut params);
+        let keypair1 = keygen(&params);
 
         let sig1 = blind_sign(
-            &mut params,
+            &params,
             &keypair1.secret_key(),
             elgamal_keypair.public_key(),
             &lambda,
@@ -307,20 +307,20 @@ mod tests {
 
     #[test]
     fn verification_on_two_private_attributes() {
-        let mut params = Parameters::new(2).unwrap();
+        let params = Parameters::new(2).unwrap();
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
-        let elgamal_keypair = elgamal::elgamal_keygen(&mut params);
+        let elgamal_keypair = elgamal::elgamal_keygen(&params);
 
-        let keypair1 = keygen(&mut params);
-        let keypair2 = keygen(&mut params);
+        let keypair1 = keygen(&params);
+        let keypair2 = keygen(&params);
 
         let lambda =
-            prepare_blind_sign(&mut params, &elgamal_keypair, &private_attributes, &[]).unwrap();
+            prepare_blind_sign(&params, &elgamal_keypair, &private_attributes, &[]).unwrap();
 
         let sig1 = blind_sign(
-            &mut params,
+            &params,
             &keypair1.secret_key(),
             elgamal_keypair.public_key(),
             &lambda,
@@ -338,7 +338,7 @@ mod tests {
         .unwrap();
 
         let sig2 = blind_sign(
-            &mut params,
+            &params,
             &keypair2.secret_key(),
             elgamal_keypair.public_key(),
             &lambda,
@@ -356,7 +356,7 @@ mod tests {
         .unwrap();
 
         let theta1 = prove_bandwidth_credential(
-            &mut params,
+            &params,
             &keypair1.verification_key(),
             &sig1,
             serial_number,
@@ -365,7 +365,7 @@ mod tests {
         .unwrap();
 
         let theta2 = prove_bandwidth_credential(
-            &mut params,
+            &params,
             &keypair2.verification_key(),
             &sig2,
             serial_number,
@@ -400,8 +400,8 @@ mod tests {
         let mut params = Parameters::new(2).unwrap();
         let attributes = params.n_random_scalars(2);
 
-        let keypair1 = keygen(&mut params);
-        let keypair2 = keygen(&mut params);
+        let keypair1 = keygen(&params);
+        let keypair2 = keygen(&params);
         let sig1 = sign(&mut params, &keypair1.secret_key(), &attributes).unwrap();
         let sig2 = sign(&mut params, &keypair2.secret_key(), &attributes).unwrap();
 
@@ -429,18 +429,18 @@ mod tests {
 
     #[test]
     fn verification_on_two_public_and_two_private_attributes() {
-        let mut params = Parameters::new(4).unwrap();
+        let params = Parameters::new(4).unwrap();
         let public_attributes = params.n_random_scalars(2);
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
-        let elgamal_keypair = elgamal::elgamal_keygen(&mut params);
+        let elgamal_keypair = elgamal::elgamal_keygen(&params);
 
-        let keypair1 = keygen(&mut params);
-        let keypair2 = keygen(&mut params);
+        let keypair1 = keygen(&params);
+        let keypair2 = keygen(&params);
 
         let lambda = prepare_blind_sign(
-            &mut params,
+            &params,
             &elgamal_keypair,
             &private_attributes,
             &public_attributes,
@@ -448,7 +448,7 @@ mod tests {
         .unwrap();
 
         let sig1 = blind_sign(
-            &mut params,
+            &params,
             &keypair1.secret_key(),
             elgamal_keypair.public_key(),
             &lambda,
@@ -466,7 +466,7 @@ mod tests {
         .unwrap();
 
         let sig2 = blind_sign(
-            &mut params,
+            &params,
             &keypair2.secret_key(),
             elgamal_keypair.public_key(),
             &lambda,
@@ -484,7 +484,7 @@ mod tests {
         .unwrap();
 
         let theta1 = prove_bandwidth_credential(
-            &mut params,
+            &params,
             &keypair1.verification_key(),
             &sig1,
             serial_number,
@@ -493,7 +493,7 @@ mod tests {
         .unwrap();
 
         let theta2 = prove_bandwidth_credential(
-            &mut params,
+            &params,
             &keypair2.verification_key(),
             &sig2,
             serial_number,
@@ -525,17 +525,17 @@ mod tests {
 
     #[test]
     fn verification_on_two_public_and_two_private_attributes_from_two_signers() {
-        let mut params = Parameters::new(4).unwrap();
+        let params = Parameters::new(4).unwrap();
         let public_attributes = params.n_random_scalars(2);
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
         let elgamal_keypair = elgamal::elgamal_keygen(&params);
 
-        let keypairs = ttp_keygen(&mut params, 2, 3).unwrap();
+        let keypairs = ttp_keygen(&params, 2, 3).unwrap();
 
         let lambda = prepare_blind_sign(
-            &mut params,
+            &params,
             &elgamal_keypair,
             &private_attributes,
             &public_attributes,
@@ -546,7 +546,7 @@ mod tests {
             .iter()
             .map(|keypair| {
                 blind_sign(
-                    &mut params,
+                    &params,
                     &keypair.secret_key(),
                     elgamal_keypair.public_key(),
                     &lambda,
@@ -580,7 +580,7 @@ mod tests {
                 .unwrap();
 
         let theta = prove_bandwidth_credential(
-            &mut params,
+            &params,
             &aggr_vk,
             &aggr_sig,
             serial_number,
@@ -602,7 +602,7 @@ mod tests {
                 .unwrap();
 
         let theta = prove_bandwidth_credential(
-            &mut params,
+            &params,
             &aggr_vk,
             &aggr_sig,
             serial_number,

@@ -488,11 +488,11 @@ mod tests {
 
     #[test]
     fn keypair_bytes_roundtrip() {
-        let mut params1 = setup(1).unwrap();
-        let mut params5 = setup(5).unwrap();
+        let params1 = setup(1).unwrap();
+        let params5 = setup(5).unwrap();
 
-        let keypair1 = keygen(&mut params1);
-        let keypair5 = keygen(&mut params5);
+        let keypair1 = keygen(&params1);
+        let keypair5 = keygen(&params5);
 
         let bytes1 = keypair1.to_bytes();
         let bytes5 = keypair5.to_bytes();
@@ -503,11 +503,11 @@ mod tests {
 
     #[test]
     fn secret_key_bytes_roundtrip() {
-        let mut params1 = setup(1).unwrap();
-        let mut params5 = setup(5).unwrap();
+        let params1 = setup(1).unwrap();
+        let params5 = setup(5).unwrap();
 
-        let keypair1 = keygen(&mut params1);
-        let keypair5 = keygen(&mut params5);
+        let keypair1 = keygen(&params1);
+        let keypair5 = keygen(&params5);
 
         let bytes1 = keypair1.secret_key.to_bytes();
         let bytes5 = keypair5.secret_key.to_bytes();
@@ -518,11 +518,11 @@ mod tests {
 
     #[test]
     fn verification_key_bytes_roundtrip() {
-        let mut params1 = setup(1).unwrap();
-        let mut params5 = setup(5).unwrap();
+        let params1 = setup(1).unwrap();
+        let params5 = setup(5).unwrap();
 
-        let keypair1 = &keygen(&mut params1);
-        let keypair5 = &keygen(&mut params5);
+        let keypair1 = &keygen(&params1);
+        let keypair5 = &keygen(&params5);
 
         let bytes1: Vec<u8> = keypair1.verification_key.to_bytes();
         let bytes5: Vec<u8> = keypair5.verification_key.to_bytes();

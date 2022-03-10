@@ -1,28 +1,28 @@
-import React, { useEffect, useState } from 'react'
-import { Alert, Button, Card, CardActions, CardContent, CardHeader, Stack, Typography } from '@mui/material'
-import { createAccount } from '../../requests'
-import { TCreateAccount } from '../../types'
-import { CopyToClipboard } from '../../components'
+import React, { useEffect, useState } from 'react';
+import { Alert, Button, Card, CardActions, CardContent, CardHeader, Stack, Typography } from '@mui/material';
+import { createAccount } from '../../requests';
+import { TCreateAccount } from '../../types';
+import { CopyToClipboard } from '../../components';
 
 export const CreateAccountContent: React.FC<{ page: 'legacy create account'; showSignIn: () => void }> = ({
   showSignIn,
 }) => {
-  const [accountDetails, setAccountDetails] = useState<TCreateAccount>()
-  const [error, setError] = useState<Error>()
+  const [accountDetails, setAccountDetails] = useState<TCreateAccount>();
+  const [error, setError] = useState<Error>();
 
   const handleCreateAccount = async () => {
-    setError(undefined)
+    setError(undefined);
     try {
-      const account = await createAccount()
-      setAccountDetails(account)
+      const account = await createAccount();
+      setAccountDetails(account);
     } catch (e: any) {
-      setError(e)
+      setError(e);
     }
-  }
+  };
 
   useEffect(() => {
-    handleCreateAccount()
-  }, [])
+    handleCreateAccount();
+  }, []);
 
   return (
     <Stack spacing={4} alignItems="center" sx={{ width: 700 }}>
@@ -53,5 +53,5 @@ export const CreateAccountContent: React.FC<{ page: 'legacy create account'; sho
         Sign in
       </Button>
     </Stack>
-  )
-}
+  );
+};

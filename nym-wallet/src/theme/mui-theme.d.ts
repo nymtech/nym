@@ -1,6 +1,6 @@
 /* eslint-disable no-shadow,@typescript-eslint/no-unused-vars,@typescript-eslint/no-empty-interface */
-import { Theme, ThemeOptions, Palette, PaletteOptions } from '@mui/material/styles'
-import { PaletteMode } from '@mui/material'
+import { Theme, ThemeOptions, Palette, PaletteOptions } from '@mui/material/styles';
+import { PaletteMode } from '@mui/material';
 
 /**
  * If you are unfamiliar with Material UI theming, please read the following first:
@@ -28,43 +28,43 @@ declare module '@mui/material/styles' {
    * This interface defines a palette used across Nym for branding
    */
   interface NymPalette {
-    highlight: string
-    success: string
-    info: string
-    fee: string
-    background: { light: string; dark: string }
+    highlight: string;
+    success: string;
+    info: string;
+    fee: string;
+    background: { light: string; dark: string };
     text: {
-      light: string
-      dark: string
-    }
+      light: string;
+      dark: string;
+    };
   }
 
   interface NymPaletteVariant {
-    mode: PaletteMode
+    mode: PaletteMode;
     background: {
-      main: string
-      paper: string
-    }
+      main: string;
+      paper: string;
+    };
     text: {
-      main: string
-    }
+      main: string;
+    };
     topNav: {
-      background: string
-    }
+      background: string;
+    };
   }
 
   /**
    * A palette definition only for the Nym Wallet that extends the Nym palette
    */
   interface NymWalletPalette {
-    nymWallet: {}
+    nymWallet: {};
   }
 
   interface NymPaletteAndNymWalletPalette {
-    nym: NymPalette & NymWalletPalette
+    nym: NymPalette & NymWalletPalette;
   }
 
-  type NymPaletteAndNymWalletPaletteOptions = Partial<NymPaletteAndNymWalletPalette>
+  type NymPaletteAndNymWalletPaletteOptions = Partial<NymPaletteAndNymWalletPalette>;
 
   /**
    * Add anything not palette related to the theme here

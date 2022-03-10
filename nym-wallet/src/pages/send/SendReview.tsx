@@ -1,13 +1,13 @@
-import React, { useContext } from 'react'
-import { Card, Divider, Grid, Typography } from '@mui/material'
-import { useFormContext } from 'react-hook-form'
-import { ClientContext } from '../../context/main'
+import React, { useContext } from 'react';
+import { Card, Divider, Grid, Typography } from '@mui/material';
+import { useFormContext } from 'react-hook-form';
+import { ClientContext } from '../../context/main';
 
 export const SendReview = ({ transferFee }: { transferFee?: string }) => {
-  const { getValues } = useFormContext()
-  const { clientDetails, currency } = useContext(ClientContext)
+  const { getValues } = useFormContext();
+  const { clientDetails, currency } = useContext(ClientContext);
 
-  const values = getValues()
+  const values = getValues();
 
   return (
     <Card
@@ -44,16 +44,14 @@ export const SendReview = ({ transferFee }: { transferFee?: string }) => {
         </Grid>
       </Grid>
     </Card>
-  )
-}
+  );
+};
 
-export const SendReviewField = ({ title, subtitle, info }: { title: string; subtitle?: string; info?: boolean }) => {
-  return (
-    <>
-      <Typography sx={{ color: info ? 'nym.fee' : '' }}>{title}</Typography>
-      <Typography data-testid={title} sx={{ color: info ? 'nym.fee' : '', wordBreak: 'break-all' }}>
-        {subtitle}
-      </Typography>
-    </>
-  )
-}
+export const SendReviewField = ({ title, subtitle, info }: { title: string; subtitle?: string; info?: boolean }) => (
+  <>
+    <Typography sx={{ color: info ? 'nym.fee' : '' }}>{title}</Typography>
+    <Typography data-testid={title} sx={{ color: info ? 'nym.fee' : '', wordBreak: 'break-all' }}>
+      {subtitle}
+    </Typography>
+  </>
+);

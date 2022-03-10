@@ -1,32 +1,32 @@
-import React, { useContext, useState } from 'react'
-import { Button, CircularProgress, Grid, Stack, TextField, Typography, Alert } from '@mui/material'
-import { styled } from '@mui/material/styles'
-import { signInWithMnemonic } from '../../requests'
-import { ClientContext } from '../../context/main'
-import { NymLogo } from '../../components'
+import React, { useContext, useState } from 'react';
+import { Button, CircularProgress, Grid, Stack, TextField, Typography, Alert } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { signInWithMnemonic } from '../../requests';
+import { ClientContext } from '../../context/main';
+import { NymLogo } from '../../components';
 
 export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ showCreateAccount }) => {
-  const [mnemonic, setMnemonic] = useState<string>('')
-  const [inputError, setInputError] = useState<string>()
-  const [isLoading, setIsLoading] = useState(false)
+  const [mnemonic, setMnemonic] = useState<string>('');
+  const [inputError, setInputError] = useState<string>();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { logIn } = useContext(ClientContext)
+  const { logIn } = useContext(ClientContext);
 
   const handleSignIn = async (e: React.MouseEvent<HTMLElement>) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    setIsLoading(true)
-    setInputError(undefined)
+    setIsLoading(true);
+    setInputError(undefined);
 
     try {
-      await signInWithMnemonic(mnemonic || '')
-      setIsLoading(false)
-      logIn()
+      await signInWithMnemonic(mnemonic || '');
+      setIsLoading(false);
+      logIn();
     } catch (e: any) {
-      setIsLoading(false)
-      setInputError(e)
+      setIsLoading(false);
+      setInputError(e);
     }
-  }
+  };
 
   return (
     <Stack spacing={3} alignItems="center" sx={{ width: '80%' }}>
@@ -65,8 +65,8 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
         )}
       </Grid>
     </Stack>
-  )
-}
+  );
+};
 
 const StyledInput = styled((props) => <TextField {...props} />)(({ theme }) => ({
   '& input': {
@@ -86,4 +86,4 @@ const StyledInput = styled((props) => <TextField {...props} />)(({ theme }) => (
       borderColor: theme.palette.primary.main,
     },
   },
-}))
+}));

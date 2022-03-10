@@ -1,31 +1,31 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { Alert, Box, Button, CircularProgress } from '@mui/material'
-import { BondForm } from './BondForm'
-import { SuccessView } from './SuccessView'
-import { NymCard } from '../../components'
-import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
-import { unbond } from '../../requests'
-import { useCheckOwnership } from '../../hooks/useCheckOwnership'
-import { ClientContext } from '../../context/main'
-import { PageLayout } from '../../layouts'
+import React, { useContext, useEffect, useState } from 'react';
+import { Alert, Box, Button, CircularProgress } from '@mui/material';
+import { BondForm } from './BondForm';
+import { SuccessView } from './SuccessView';
+import { NymCard } from '../../components';
+import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus';
+import { unbond } from '../../requests';
+import { useCheckOwnership } from '../../hooks/useCheckOwnership';
+import { ClientContext } from '../../context/main';
+import { PageLayout } from '../../layouts';
 
 export const Bond = () => {
-  const [status, setStatus] = useState(EnumRequestStatus.initial)
-  const [error, setError] = useState<string>()
-  const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>()
+  const [status, setStatus] = useState(EnumRequestStatus.initial);
+  const [error, setError] = useState<string>();
+  const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>();
 
-  const { checkOwnership, ownership } = useCheckOwnership()
-  const { userBalance, getBondDetails } = useContext(ClientContext)
+  const { checkOwnership, ownership } = useCheckOwnership();
+  const { userBalance, getBondDetails } = useContext(ClientContext);
 
   useEffect(() => {
     if (status === EnumRequestStatus.initial) {
       const initialiseForm = async () => {
-        await checkOwnership()
-        setStatus(EnumRequestStatus.initial)
-      }
-      initialiseForm()
+        await checkOwnership();
+        setStatus(EnumRequestStatus.initial);
+      };
+      initialiseForm();
     }
-  }, [status])
+  }, [status]);
 
   return (
     <PageLayout>
@@ -43,11 +43,11 @@ export const Bond = () => {
                 <Button
                   disabled={status === EnumRequestStatus.loading}
                   onClick={async () => {
-                    setStatus(EnumRequestStatus.loading)
-                    await unbond(ownership.nodeType!)
-                    await getBondDetails()
-                    await userBalance.fetchBalance()
-                    setStatus(EnumRequestStatus.initial)
+                    setStatus(EnumRequestStatus.loading);
+                    await unbond(ownership.nodeType!);
+                    await getBondDetails();
+                    await userBalance.fetchBalance();
+                    setStatus(EnumRequestStatus.initial);
                   }}
                   data-testid="unBond"
                   color="inherit"
@@ -74,12 +74,12 @@ export const Bond = () => {
         {status === EnumRequestStatus.initial && (
           <BondForm
             onError={(e?: string) => {
-              setError(e)
-              setStatus(EnumRequestStatus.error)
+              setError(e);
+              setStatus(EnumRequestStatus.error);
             }}
             onSuccess={(details) => {
-              setSuccessDetails(details)
-              setStatus(EnumRequestStatus.success)
+              setSuccessDetails(details);
+              setStatus(EnumRequestStatus.success);
             }}
             disabled={ownership?.hasOwnership}
           />
@@ -106,8 +106,8 @@ export const Bond = () => {
             >
               <Button
                 onClick={() => {
-                  setStatus(EnumRequestStatus.initial)
-                  checkOwnership()
+                  setStatus(EnumRequestStatus.initial);
+                  checkOwnership();
                 }}
               >
                 {status === EnumRequestStatus.error ? 'Again?' : 'Finish'}
@@ -117,5 +117,5 @@ export const Bond = () => {
         )}
       </NymCard>
     </PageLayout>
-  )
-}
+  );
+};

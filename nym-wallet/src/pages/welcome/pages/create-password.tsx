@@ -1,13 +1,13 @@
-import React, { useState } from 'react'
-import { Button, FormControl, Grid, IconButton, Stack, TextField } from '@mui/material'
-import { VisibilityOff, Visibility } from '@mui/icons-material'
-import { Subtitle, Title, PasswordStrength } from '../components'
+import React, { useState } from 'react';
+import { Button, FormControl, Grid, IconButton, Stack, TextField } from '@mui/material';
+import { VisibilityOff, Visibility } from '@mui/icons-material';
+import { Subtitle, Title, PasswordStrength } from '../components';
 
 export const CreatePassword = ({}: { page: 'create password' }) => {
-  const [password, setPassword] = useState<string>('')
-  const [confirmedPassword, setConfirmedPassword] = useState<string>()
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmedPassword, setShowConfirmedPassword] = useState(false)
+  const [password, setPassword] = useState<string>('');
+  const [confirmedPassword, setConfirmedPassword] = useState<string>();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmedPassword, setShowConfirmedPassword] = useState(false);
 
   return (
     <>
@@ -56,5 +56,5 @@ export const CreatePassword = ({}: { page: 'create password' }) => {
         </Grid>
       </Grid>
     </>
-  )
-}
+  );
+};

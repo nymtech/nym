@@ -1,15 +1,15 @@
-import React, { useContext, useEffect } from 'react'
-import { Alert, Button, Grid, Link, Typography } from '@mui/material'
-import { OpenInNew } from '@mui/icons-material'
-import { NymCard, ClientAddress } from '../../components'
-import { ClientContext, urls } from '../../context/main'
+import React, { useContext, useEffect } from 'react';
+import { Alert, Button, Grid, Link, Typography } from '@mui/material';
+import { OpenInNew } from '@mui/icons-material';
+import { NymCard, ClientAddress } from '../../components';
+import { ClientContext, urls } from '../../context/main';
 
 export const BalanceCard = () => {
-  const { userBalance, clientDetails, network } = useContext(ClientContext)
+  const { userBalance, clientDetails, network } = useContext(ClientContext);
 
   useEffect(() => {
-    userBalance.fetchBalance()
-  }, [])
+    userBalance.fetchBalance();
+  }, []);
 
   return (
     <NymCard title="Balance" data-testid="check-balance" Action={<ClientAddress withCopy />}>
@@ -40,5 +40,5 @@ export const BalanceCard = () => {
         )}
       </Grid>
     </NymCard>
-  )
-}
+  );
+};

@@ -1,10 +1,10 @@
-import React, { useContext } from 'react'
-import { Box } from '@mui/system'
-import { SuccessReponse, TransactionDetails } from '../../components'
-import { ClientContext } from '../../context/main'
+import React, { useContext } from 'react';
+import { Box } from '@mui/system';
+import { SuccessReponse, TransactionDetails } from '../../components';
+import { ClientContext } from '../../context/main';
 
 export const SuccessView: React.FC<{ details?: { amount: string; address: string } }> = ({ details }) => {
-  const { userBalance, currency } = useContext(ClientContext)
+  const { userBalance, currency } = useContext(ClientContext);
   return (
     <>
       <SuccessReponse
@@ -23,5 +23,5 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
         </Box>
       )}
     </>
-  )
-}
+  );
+};

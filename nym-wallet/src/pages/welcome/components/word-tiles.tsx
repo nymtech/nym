@@ -1,30 +1,35 @@
-import React from 'react'
-import { Box, Card, CardHeader, Grid, Typography, Stack, Fade } from '@mui/material'
-import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWords } from '../types'
+import React from 'react';
+import { Box, Card, CardHeader, Grid, Typography, Stack, Fade } from '@mui/material';
+import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWords } from '../types';
 
 export const WordTiles = ({
   mnemonicWords,
   showIndex,
   onClick,
 }: {
-  mnemonicWords?: TMnemonicWords
-  showIndex?: boolean
-  onClick?: ({ name, index }: { name: string; index: number }) => void
+  mnemonicWords?: TMnemonicWords;
+  showIndex?: boolean;
+  onClick?: ({ name, index }: { name: string; index: number }) => void;
 }) => {
   if (mnemonicWords) {
     return (
       <Grid container spacing={3} justifyContent="center">
         {mnemonicWords.map(({ name, index, disabled }) => (
           <Grid item xs={2} key={index} onClick={() => onClick?.({ name, index })}>
-            <WordTile mnemonicWord={name} index={showIndex ? index : undefined} onClick={!!onClick} disabled={disabled}/>
+            <WordTile
+              mnemonicWord={name}
+              index={showIndex ? index : undefined}
+              onClick={!!onClick}
+              disabled={disabled}
+            />
           </Grid>
         ))}
       </Grid>
-    )
+    );
   }
 
-  return null
-}
+  return null;
+};
 
 export const WordTile = ({
   mnemonicWord,
@@ -32,10 +37,10 @@ export const WordTile = ({
   disabled,
   onClick,
 }: {
-  mnemonicWord: string
-  index?: number
-  disabled?: boolean
-  onClick?: boolean
+  mnemonicWord: string;
+  index?: number;
+  disabled?: boolean;
+  onClick?: boolean;
 }) => (
   <Card
     variant="outlined"
@@ -51,14 +56,14 @@ export const WordTile = ({
       titleTypographyProps={{ sx: { fontWeight: 700 }, variant: 'body1', textAlign: index ? 'left' : 'center' }}
       avatar={
         index && (
-          <Typography variant="caption" color={'#3A4053'}>
+          <Typography variant="caption" color="#3A4053">
             {index}
           </Typography>
         )
       }
     />
   </Card>
-)
+);
 
 export const HiddenWords = ({ mnemonicWords }: { mnemonicWords?: THiddenMnemonicWords }) => {
   if (mnemonicWords) {
@@ -70,22 +75,20 @@ export const HiddenWords = ({ mnemonicWords }: { mnemonicWords?: THiddenMnemonic
           </Grid>
         ))}
       </Grid>
-    )
+    );
   }
-  return null
-}
+  return null;
+};
 
-const HiddenWord = ({ mnemonicWord }: { mnemonicWord: THiddenMnemonicWord }) => {
-  return (
-    <Stack spacing={2} alignItems="center">
-      <Box borderBottom="1px solid #3A4053" sx={{ p: 2, width: '100%' }}>
-        <Fade in={!mnemonicWord.hidden}>
-          <Box>
-            <WordTile mnemonicWord={mnemonicWord.name} />
-          </Box>
-        </Fade>
-      </Box>
-      <Typography>{mnemonicWord.index}.</Typography>
-    </Stack>
-  )
-}
+const HiddenWord = ({ mnemonicWord }: { mnemonicWord: THiddenMnemonicWord }) => (
+  <Stack spacing={2} alignItems="center">
+    <Box borderBottom="1px solid #3A4053" sx={{ p: 2, width: '100%' }}>
+      <Fade in={!mnemonicWord.hidden}>
+        <Box>
+          <WordTile mnemonicWord={mnemonicWord.name} />
+        </Box>
+      </Fade>
+    </Box>
+    <Typography>{mnemonicWord.index}.</Typography>
+  </Stack>
+);

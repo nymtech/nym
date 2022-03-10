@@ -1,34 +1,34 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { Backdrop, Box, Button, CircularProgress, FormControl, Grid, Paper, Slide, TextField } from '@mui/material'
+import React, { useContext, useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Backdrop, Box, Button, CircularProgress, FormControl, Grid, Paper, Slide, TextField } from '@mui/material';
 
-import { ClientContext } from '../../context/main'
-import { NymCard } from '../../components'
-import { getContractParams, setContractParams } from '../../requests'
-import { TauriContractStateParams } from '../../types'
+import { ClientContext } from '../../context/main';
+import { NymCard } from '../../components';
+import { getContractParams, setContractParams } from '../../requests';
+import { TauriContractStateParams } from '../../types';
 
 export const Admin: React.FC = () => {
-  const { showAdmin, handleShowAdmin } = useContext(ClientContext)
-  const [isLoading, setIsLoading] = useState(false)
-  const [params, setParams] = useState<TauriContractStateParams>()
+  const { showAdmin, handleShowAdmin } = useContext(ClientContext);
+  const [isLoading, setIsLoading] = useState(false);
+  const [params, setParams] = useState<TauriContractStateParams>();
 
   const onCancel = () => {
-    setParams(undefined)
-    setIsLoading(false)
-    handleShowAdmin()
-  }
+    setParams(undefined);
+    setIsLoading(false);
+    handleShowAdmin();
+  };
 
   useEffect(() => {
     const requestContractParams = async () => {
       if (showAdmin) {
-        setIsLoading(true)
-        const params = await getContractParams()
-        setParams(params)
-        setIsLoading(false)
+        setIsLoading(true);
+        const params = await getContractParams();
+        setParams(params);
+        setIsLoading(false);
       }
-    }
-    requestContractParams()
-  }, [showAdmin])
+    };
+    requestContractParams();
+  }, [showAdmin]);
 
   return (
     <Backdrop open={showAdmin} style={{ zIndex: 2, overflow: 'auto' }}>
@@ -45,24 +45,24 @@ export const Admin: React.FC = () => {
         </Paper>
       </Slide>
     </Backdrop>
-  )
-}
+  );
+};
 
 const AdminForm: React.FC<{
-  params: TauriContractStateParams
-  onCancel: () => void
+  params: TauriContractStateParams;
+  onCancel: () => void;
 }> = ({ params, onCancel }) => {
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: { ...params } })
+  } = useForm({ defaultValues: { ...params } });
 
   const onSubmit = async (data: TauriContractStateParams) => {
-    await setContractParams(data)
-    console.log(data)
-    onCancel()
-  }
+    await setContractParams(data);
+    console.log(data);
+    onCancel();
+  };
 
   return (
     <FormControl fullWidth>
@@ -202,5 +202,5 @@ const AdminForm: React.FC<{
         </Grid>
       </Grid>
     </FormControl>
-  )
-}
+  );
+};

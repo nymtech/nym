@@ -1,12 +1,12 @@
-import React, { useContext } from 'react'
-import { AppBar as MuiAppBar, Grid, IconButton, Toolbar, Typography } from '@mui/material'
-import { Logout } from '@mui/icons-material'
-import { ClientContext } from '../context/main'
-import { NetworkSelector } from '.'
-import { Node as NodeIcon } from '../svg-icons/node'
+import React, { useContext } from 'react';
+import { AppBar as MuiAppBar, Grid, IconButton, Toolbar, Typography } from '@mui/material';
+import { Logout } from '@mui/icons-material';
+import { ClientContext } from '../context/main';
+import { NetworkSelector } from '.';
+import { Node as NodeIcon } from '../svg-icons/node';
 
 export const AppBar = () => {
-  const { showSettings, logOut, handleShowSettings } = useContext(ClientContext)
+  const { showSettings, logOut, handleShowSettings } = useContext(ClientContext);
 
   return (
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent' }}>
@@ -34,5 +34,5 @@ export const AppBar = () => {
         </Grid>
       </Toolbar>
     </MuiAppBar>
-  )
-}
+  );
+};

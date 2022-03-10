@@ -1,18 +1,18 @@
-import React, { useContext, useState } from 'react'
-import { Box, Button, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material'
-import { PercentOutlined } from '@mui/icons-material'
-import { yupResolver } from '@hookform/resolvers/yup'
-import { useForm } from 'react-hook-form'
-import { InfoTooltip } from '../../components/InfoToolTip'
-import { InclusionProbabilityResponse, TMixnodeBondDetails } from '../../types'
-import { validationSchema } from './validationSchema'
-import { updateMixnode } from '../../requests'
-import { ClientContext } from '../../context/main'
-import { Fee } from '../../components'
+import React, { useContext, useState } from 'react';
+import { Box, Button, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material';
+import { PercentOutlined } from '@mui/icons-material';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { useForm } from 'react-hook-form';
+import { InfoTooltip } from '../../components/InfoToolTip';
+import { InclusionProbabilityResponse, TMixnodeBondDetails } from '../../types';
+import { validationSchema } from './validationSchema';
+import { updateMixnode } from '../../requests';
+import { ClientContext } from '../../context/main';
+import { Fee } from '../../components';
 
 type TFormData = {
-  profitMarginPercent: number
-}
+  profitMarginPercent: number;
+};
 
 export const SystemVariables = ({
   mixnodeDetails,
@@ -21,13 +21,13 @@ export const SystemVariables = ({
   inclusionProbability,
   onUpdate,
 }: {
-  mixnodeDetails: TMixnodeBondDetails['mix_node']
-  saturation: number
-  rewardEstimation: number
-  inclusionProbability: InclusionProbabilityResponse
-  onUpdate: () => void
+  mixnodeDetails: TMixnodeBondDetails['mix_node'];
+  saturation: number;
+  rewardEstimation: number;
+  inclusionProbability: InclusionProbabilityResponse;
+  onUpdate: () => void;
 }) => {
-  const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>()
+  const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>();
 
   const {
     register,
@@ -36,21 +36,21 @@ export const SystemVariables = ({
   } = useForm({
     resolver: yupResolver(validationSchema),
     defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString() },
-  })
+  });
 
-  const { userBalance, currency } = useContext(ClientContext)
+  const { userBalance, currency } = useContext(ClientContext);
 
   const onSubmit = async (data: TFormData) => {
     try {
-      await updateMixnode({ profitMarginPercent: data.profitMarginPercent })
-      await userBalance.fetchBalance()
-      onUpdate()
-      setNodeUpdateResponse('success')
+      await updateMixnode({ profitMarginPercent: data.profitMarginPercent });
+      await userBalance.fetchBalance();
+      onUpdate();
+      setNodeUpdateResponse('success');
     } catch (e) {
-      setNodeUpdateResponse('failed')
-      console.log(e)
+      setNodeUpdateResponse('failed');
+      console.log(e);
     }
-  }
+  };
 
   return (
     <>
@@ -60,7 +60,7 @@ export const SystemVariables = ({
             {...register('profitMarginPercent', { valueAsNumber: true })}
             label="Profit margin"
             helperText={
-              !!errors.profitMarginPercent
+              errors.profitMarginPercent
                 ? errors.profitMarginPercent.message
                 : "The percentage of your delegators' rewards that you as the node operator will take"
             }
@@ -125,8 +125,8 @@ export const SystemVariables = ({
         </Button>
       </Box>
     </>
-  )
-}
+  );
+};
 
 const DataField = ({ title, info, Indicator }: { title: string; info: string; Indicator: React.ReactElement }) => (
   <Grid container justifyContent="space-between">
@@ -143,24 +143,22 @@ const DataField = ({ title, info, Indicator }: { title: string; info: string; In
       </Box>
     </Grid>
   </Grid>
-)
+);
 
-const PercentIndicator = ({ value, warning }: { value: number; warning?: boolean }) => {
-  return (
-    <Grid container alignItems="center">
-      <Grid item xs={2}>
-        <Typography component="span" sx={{ color: warning ? 'error.main' : 'nym.fee', fontWeight: 600 }}>
-          {value}%
-        </Typography>
-      </Grid>
-      <Grid item xs={10}>
-        <LinearProgress
-          color="inherit"
-          sx={{ color: warning ? 'error.main' : 'nym.fee' }}
-          variant="determinate"
-          value={value < 100 ? value : 100}
-        />
-      </Grid>
+const PercentIndicator = ({ value, warning }: { value: number; warning?: boolean }) => (
+  <Grid container alignItems="center">
+    <Grid item xs={2}>
+      <Typography component="span" sx={{ color: warning ? 'error.main' : 'nym.fee', fontWeight: 600 }}>
+        {value}%
+      </Typography>
     </Grid>
-  )
-}
+    <Grid item xs={10}>
+      <LinearProgress
+        color="inherit"
+        sx={{ color: warning ? 'error.main' : 'nym.fee' }}
+        variant="determinate"
+        value={value < 100 ? value : 100}
+      />
+    </Grid>
+  </Grid>
+);

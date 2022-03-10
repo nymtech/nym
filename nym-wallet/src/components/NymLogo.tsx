@@ -1,5 +1,5 @@
 import React from 'react';
-import Logo from '../images/logo-background.svg';
+import { NymLogo as NymLogoReact } from '@nymproject/react';
 
 const imgSize = {
   small: 40,
@@ -7,4 +7,6 @@ const imgSize = {
   large: 120,
 };
 
-export const NymLogo = ({ size = 'medium' }: { size?: 'small' | 'medium' | 'large' }) => <Logo width={imgSize[size]} />;
+export const NymLogo = ({ size = 'medium' }: { size?: 'small' | 'medium' | 'large' }) => (
+  <NymLogoReact width={imgSize[size]} />
+);

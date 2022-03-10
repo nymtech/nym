@@ -534,7 +534,6 @@ mod tests {
         // 0 public 1 private
         let pi_s = ProofCmCs::construct(&mut params, &cm, &r, &cms, &rs, &private_attributes);
 
-
         let bytes = pi_s.to_bytes();
         assert_eq!(ProofCmCs::from_bytes(&bytes).unwrap(), pi_s);
 

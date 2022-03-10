@@ -10,10 +10,13 @@ use config::defaults::ValidatorDetails;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::hash::Hash;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
+use tokio::time::error::Elapsed;
 use validator_client::nymd::error::NymdError;
 use validator_client::nymd::SigningNymdClient;
 use validator_client::Client;
@@ -150,7 +153,17 @@ async fn _connect_with_mnemonic(
     validators
       .entry(network)
       // We always have at least one hardcoded defalt validator
-      .or_insert_with(|| config.get_validators(network).next().unwrap().clone());
+      .or_insert_with(|| {
+        let default_validator = config.get_validators(network).next().unwrap().clone();
+        println!(
+          "Using default for {network}: {}, {}",
+          default_validator.nymd_url(),
+          default_validator
+            .api_url()
+            .map_or_else(|| "empty".to_string(), |url| url.to_string()),
+        );
+        default_validator
+      });
   }
 
   // Now we are ready to create the clients that we will use
@@ -203,21 +216,32 @@ async fn select_validators(
   config: &Config,
   mnemonic: &Mnemonic,
 ) -> Result<HashMap<Network, ValidatorDetails>, BackendError> {
+  use tokio::time::timeout;
   let validators = futures::future::join_all(Network::iter().map(|network| {
-    try_connect_to_validators(
-      config.get_validators(network),
-      config,
-      network,
-      mnemonic.clone(),
+    timeout(
+      Duration::from_millis(3000),
+      try_connect_to_validators(
+        config.get_validators(network),
+        config,
+        network,
+        mnemonic.clone(),
+      ),
     )
   }))
   .await;
 
-  // Collect for the purpose of returning any errors encountered
-  let validators = validators.into_iter().collect::<Result<Vec<_>, _>>()?;
+  let validators = validators
+    .into_iter()
+    // Filter out networks that timed out.
+    .filter_map(Result::ok)
+    // Rewrap so that the Result is outermost, so we can return any errors encountered
+    .collect::<Result<Vec<_>, _>>()?
+    .into_iter()
+    // Filter out networks where we exhausted all listed validators.
+    .flatten()
+    .collect::<HashMap<_, _>>();
 
-  // Filter out networks we were not able to connect to
-  Ok(validators.into_iter().flatten().collect::<HashMap<_, _>>())
+  Ok(validators)
 }
 
 async fn try_connect_to_validators(

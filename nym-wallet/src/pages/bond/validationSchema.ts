@@ -22,7 +22,7 @@ export const validationSchema = Yup.object().shape({
   profitMarginPercent: Yup.number().required('Profit Percentage is required').min(0).max(100),
   amount: Yup.string()
     .required('An amount is required')
-    .test('valid-amount', 'Pledge error', async (value) => {
+    .test('valid-amount', 'Pledge error', async function (value) {
       const isValid = await validateAmount(value || '', '100000000');
 
       if (!isValid) {

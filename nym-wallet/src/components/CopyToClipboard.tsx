@@ -14,9 +14,9 @@ export const CopyToClipboard = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = async (text: string) => {
+  const handleCopy = async (_text: string) => {
     try {
-      await clipboard.writeText(text);
+      await clipboard.writeText(_text);
       setCopied(true);
     } catch (e) {
       console.log(`failed to copy: ${e}`);

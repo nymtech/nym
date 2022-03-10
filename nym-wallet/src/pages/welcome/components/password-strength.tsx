@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { LockOutlined } from '@mui/icons-material';
-import { LinearProgress, Stack, Typography } from '@mui/material';
-import { Box } from '@mui/system';
+import { LinearProgress, Stack, Typography, Box } from '@mui/material';
 
 type TStrength = 'weak' | 'medium' | 'strong' | 'init';
 
-const strong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{8,})/;
+const strong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
 const medium = /^(((?=.*[a-z])(?=.*[A-Z]))|((?=.*[a-z])(?=.*[0-9]))|((?=.*[A-Z])(?=.*[0-9])))(?=.{6,})/;
 
 const colorMap = {
@@ -46,15 +45,18 @@ export const PasswordStrength = ({ password }: { password: string }) => {
 
   useEffect(() => {
     if (password.length === 0) {
-      return setStrength('init');
+      setStrength('init');
+      return;
     }
 
     if (password.match(strong)) {
-      return setStrength('strong');
+      setStrength('strong');
+      return;
     }
 
     if (password.match(medium)) {
-      return setStrength('medium');
+      setStrength('medium');
+      return;
     }
     setStrength('weak');
   }, [password]);

@@ -1,12 +1,10 @@
 import React, { useContext, useState } from 'react';
-import { Button, CircularProgress, Grid, Stack, TextField, Typography, Alert } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import { signInWithMnemonic } from '../../requests';
+import { Alert, Button, CircularProgress, Grid, Stack, Typography } from '@mui/material';
 import { ClientContext } from '../../context/main';
 import { NymLogo } from '../../components';
 
-export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ showCreateAccount }) => {
-  const [mnemonic, setMnemonic] = useState<string>('');
+export const SignInContent: React.FC = () => {
+  const [mnemonic] = useState<string>('');
   const [inputError, setInputError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -19,12 +17,11 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
     setInputError(undefined);
 
     try {
-      await signInWithMnemonic(mnemonic || '');
+      await logIn(mnemonic || '');
       setIsLoading(false);
-      logIn();
-    } catch (e: any) {
+    } catch (error: any) {
       setIsLoading(false);
-      setInputError(e);
+      setInputError(error);
     }
   };
 
@@ -67,23 +64,3 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
     </Stack>
   );
 };
-
-const StyledInput = styled((props) => <TextField {...props} />)(({ theme }) => ({
-  '& input': {
-    color: theme.palette.nym.text.light,
-  },
-  '& label': {
-    color: theme.palette.nym.text.light,
-  },
-  '& label.Mui-focused': {
-    color: theme.palette.primary.main,
-  },
-  '& .MuiOutlinedInput-root': {
-    '& fieldset': {
-      borderColor: theme.palette.common.white,
-    },
-    '&:hover fieldset': {
-      borderColor: theme.palette.primary.main,
-    },
-  },
-}));

@@ -13,5 +13,4 @@ export * from './AppBar';
 export * from './NetworkSelector';
 export * from './ClientAddress';
 export * from './InfoToolTip';
-export * from './Nav';
 export * from './Title';

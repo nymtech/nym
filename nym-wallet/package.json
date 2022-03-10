@@ -8,6 +8,7 @@
     "webpack:prod": "yarn webpack --progress --config webpack.prod.js",
     "tauri:dev": "yarn tauri dev",
     "tauri:build": "yarn tauri build",
+    "tsc": "tsc --noEmit true",
     "dev": "yarn run webpack:dev & yarn run tauri:dev",
     "build": "run-s webpack:prod tauri:build",
     "lint": "eslint src",

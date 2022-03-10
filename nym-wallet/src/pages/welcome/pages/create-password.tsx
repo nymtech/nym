@@ -3,7 +3,7 @@ import { Button, FormControl, Grid, IconButton, Stack, TextField } from '@mui/ma
 import { VisibilityOff, Visibility } from '@mui/icons-material';
 import { Subtitle, Title, PasswordStrength } from '../components';
 
-export const CreatePassword = ({}: { page: 'create password' }) => {
+export const CreatePassword = () => {
   const [password, setPassword] = useState<string>('');
   const [confirmedPassword, setConfirmedPassword] = useState<string>();
   const [showPassword, setShowPassword] = useState(false);

@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api';
 import { VestingAccountInfo } from 'src/types/rust/vestingaccountinfo';
-import { majorToMinor, minorToMajor } from '.';
+import { majorToMinor, minorToMajor } from './coin';
 import { Coin, DelegationResult, OriginalVestingResponse, Period } from '../types';
 
 export const getLockedCoins = async (address: string): Promise<Coin> => {

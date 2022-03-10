@@ -10,7 +10,18 @@ const networks: { networkName: Network; name: string }[] = [
   { networkName: 'QA', name: 'QA' },
 ];
 
-export var NetworkSelector = () => {
+const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () => void }> = ({
+  title,
+  isSelected,
+  onSelect,
+}) => (
+  <ListItem button onClick={onSelect}>
+    <ListItemIcon>{isSelected && <CheckSharp color="success" />}</ListItemIcon>
+    <ListItemText>{title}</ListItemText>
+  </ListItem>
+);
+
+export const NetworkSelector = () => {
   const { network, switchNetwork } = useContext(ClientContext);
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -47,7 +58,7 @@ export var NetworkSelector = () => {
         <List>
           <ListSubheader>Network selection</ListSubheader>
           {networks
-            .filter((network) => !(!IS_DEV_MODE && network.networkName === 'QA'))
+            .filter(({ networkName }) => !(!IS_DEV_MODE && networkName === 'QA'))
             .map(({ name, networkName }) => (
               <NetworkItem
                 key={networkName}
@@ -64,14 +75,3 @@ export var NetworkSelector = () => {
     </>
   );
 };
-
-const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () => void }> = ({
-  title,
-  isSelected,
-  onSelect,
-}) => (
-  <ListItem button onClick={onSelect}>
-    <ListItemIcon>{isSelected && <CheckSharp color="success" />}</ListItemIcon>
-    <ListItemText>{title}</ListItemText>
-  </ListItem>
-);

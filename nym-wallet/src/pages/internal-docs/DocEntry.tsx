@@ -1,3 +1,4 @@
+/* eslint-disable react/destructuring-assignment */
 import React from 'react';
 import { Button, Card, CardContent, TextField } from '@mui/material';
 import { invoke } from '@tauri-apps/api';
@@ -25,17 +26,15 @@ function collectArgs(functionName: string, args: ArgDef[]) {
     const elem: HTMLElement | null = document.getElementById(argKey(functionName, arg.name));
 
     if (arg.type === 'object') {
-      console.log(arg);
       invokeArgs[arg.name] = JSON.parse((elem as HTMLInputElement).value);
     } else {
       invokeArgs[arg.name] = (elem as HTMLInputElement).value || '';
     }
   });
-  console.log(invokeArgs);
   return invokeArgs;
 }
 
-export const DocEntry = (props: DocEntryProps) => {
+export const DocEntry: React.FC<DocEntryProps> = (props) => {
   const [card, setCard] = React.useState(<Card />);
 
   const onClick = () => {

@@ -1,4 +1,4 @@
-import { Coin, Denom, MixNode } from '.';
+import { Coin, Denom, MixNode } from './rust';
 
 export enum EnumNodeType {
   mixnode = 'mixnode',

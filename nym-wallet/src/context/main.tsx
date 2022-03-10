@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState } from 'react';
+import React, { createContext, useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
@@ -8,15 +8,15 @@ import { currencyMap } from '../utils';
 
 export const { ADMIN_ADDRESS, IS_DEV_MODE } = config;
 
-export const urls = (network?: Network) =>
-  network === 'MAINNET'
+export const urls = (networkName?: Network) =>
+  networkName === 'MAINNET'
     ? {
         blockExplorer: 'https://blocks.nymtech.net',
         networkExplorer: 'https://explorer.nymtech.net',
       }
     : {
-        blockExplorer: `https://${network}-blocks.nymtech.net`,
-        networkExplorer: `https://${network}-explorer.nymtech.net`,
+        blockExplorer: `https://${networkName}-blocks.nymtech.net`,
+        networkExplorer: `https://${networkName}-explorer.nymtech.net`,
       };
 
 type TClientContext = {
@@ -47,12 +47,33 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [currency, setCurrency] = useState<TCurrency>();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [mode, setMode] = useState<'light' | 'dark'>('light');
+  const [mode] = useState<'light' | 'dark'>('light');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
 
   const userBalance = useGetBalance(clientDetails?.client_address);
   const history = useHistory();
+
+  const loadAccount = async (n: Network) => {
+    try {
+      const client = await selectNetwork(n);
+      setClientDetails(client);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCurrency(currencyMap(n));
+    }
+  };
+
+  const getBondDetails = async () => {
+    setMixnodeDetails(undefined);
+    try {
+      const mixnode = await getMixnodeBondDetails();
+      setMixnodeDetails(mixnode);
+    } catch (e) {
+      console.log(e);
+    }
+  };
 
   useEffect(() => {
     const refreshAccount = async () => {
@@ -78,16 +99,6 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     }
   };
 
-  const loadAccount = async (network: Network) => {
-    try {
-      const clientDetails = await selectNetwork(network);
-      setClientDetails(clientDetails);
-    } catch (e) {
-    } finally {
-      setCurrency(currencyMap(network));
-    }
-  };
-
   const logOut = async () => {
     setClientDetails(undefined);
     setNetwork(undefined);
@@ -99,41 +110,29 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
   const handleShowSettings = () => setShowSettings((show) => !show);
+  const switchNetwork = (_network: Network) => setNetwork(_network);
 
-  const getBondDetails = async () => {
-    setMixnodeDetails(undefined);
-    try {
-      const mixnodeDetails = await getMixnodeBondDetails();
-      setMixnodeDetails(mixnodeDetails);
-    } catch (e) {
-      console.log(e);
-    }
-  };
-
-  const switchNetwork = (network: Network) => setNetwork(network);
-
-  return (
-    <ClientContext.Provider
-      value={{
-        mode,
-        isLoading,
-        error,
-        clientDetails,
-        mixnodeDetails,
-        userBalance,
-        showAdmin,
-        showSettings,
-        network,
-        currency,
-        switchNetwork,
-        getBondDetails,
-        handleShowSettings,
-        handleShowAdmin,
-        logIn,
-        logOut,
-      }}
-    >
-      {children}
-    </ClientContext.Provider>
+  const memoizedValue = useMemo(
+    () => ({
+      mode,
+      isLoading,
+      error,
+      clientDetails,
+      mixnodeDetails,
+      userBalance,
+      showAdmin,
+      showSettings,
+      network,
+      currency,
+      switchNetwork,
+      getBondDetails,
+      handleShowSettings,
+      handleShowAdmin,
+      logIn,
+      logOut,
+    }),
+    [mode, isLoading, error, clientDetails, mixnodeDetails, userBalance, showAdmin, showSettings, network, currency],
   );
+
+  return <ClientContext.Provider value={memoizedValue}>{children}</ClientContext.Provider>;
 };

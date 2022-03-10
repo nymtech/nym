@@ -2,8 +2,8 @@ import { invoke } from '@tauri-apps/api';
 import { appWindow } from '@tauri-apps/api/window';
 import bs58 from 'bs58';
 import { minor, valid } from 'semver';
-import { userBalance, majorToMinor, getGasFee } from '../requests';
-import { Coin, Network, Period, TCurrency } from '../types';
+import { majorToMinor, userBalance } from '../requests';
+import { Coin, Network, TCurrency } from '../types';
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key
@@ -15,6 +15,23 @@ export const validateKey = (key: string, bytesLength: number): boolean => {
     console.error(e);
     return false;
   }
+};
+
+export const basicRawCoinValueValidation = (rawAmount: string): boolean => {
+  const amountFloat = parseFloat(rawAmount);
+
+  // it cannot have more than 6 decimal places
+  if (amountFloat !== parseInt(amountFloat.toFixed(6), Number(10))) {
+    return false;
+  }
+
+  // it cannot be larger than the total supply
+  if (amountFloat > 1_000_000_000_000_000) {
+    return false;
+  }
+
+  // it can't be lower than one micro coin
+  return amountFloat >= 0.000001;
 };
 
 export const validateAmount = async (amount: string, minimum: string): Promise<boolean> => {
@@ -32,32 +49,15 @@ export const validateAmount = async (amount: string, minimum: string): Promise<b
       return false;
     }
 
-    const minorValue = parseInt(minorValueStr.amount);
+    const minorValue = parseInt(minorValueStr.amount, Number(10));
 
-    return minorValue >= parseInt(minimum);
+    return minorValue >= parseInt(minimum, Number(10));
   } catch (e) {
-    console.log(e);
+    console.error(e);
     return false;
   }
 
   // this conversion seems really iffy but I'm not sure how to better approach it
-};
-
-export const basicRawCoinValueValidation = (rawAmount: string): boolean => {
-  const amountFloat = parseFloat(rawAmount);
-
-  // it cannot have more than 6 decimal places
-  if (amountFloat !== parseInt(amountFloat.toFixed(6))) {
-    return false;
-  }
-
-  // it cannot be larger than the total supply
-  if (amountFloat > 1_000_000_000_000_000) {
-    return false;
-  }
-
-  // it can't be lower than one micro coin
-  return amountFloat >= 0.000001;
 };
 
 export const isValidHostname = (value: string) => {
@@ -82,55 +82,52 @@ export const validateLocation = (location: string): boolean =>
   // right now only perform the stupid check of whether the user copy-pasted the tooltip... (with or without brackets)
   !location.trim().includes('physical location of your node');
 
-export const validateRawPort = (rawPort: number): boolean => !isNaN(rawPort) && rawPort >= 1 && rawPort <= 65535;
+export const validateRawPort = (rawPort: number): boolean => !Number.isNaN(rawPort) && rawPort >= 1 && rawPort <= 65535;
 
 export const truncate = (text: string, trim: number) => `${text.substring(0, trim)}...`;
 
 export const isGreaterThan = (a: number, b: number) => a > b;
 
-export const checkHasEnoughFunds = async (allocationValue: string) => {
+export const checkHasEnoughFunds = async (allocationValue: string): Promise<boolean> => {
   try {
     const walletValue = await userBalance();
     const minorValue = await majorToMinor(allocationValue);
     const remainingBalance = +walletValue.coin.amount - +minorValue.amount;
     return isGreaterThan(remainingBalance, 0);
   } catch (e) {
-    console.log(e);
+    console.error(e);
   }
+  return false;
 };
 
 export const randomNumberBetween = (min: number, max: number) => {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1) + min);
+  const minCeil = Math.ceil(min);
+  const maxFloor = Math.floor(max);
+  return Math.floor(Math.random() * (maxFloor - minCeil + 1) + minCeil);
 };
 
-export const currencyMap = (network?: Network) => {
-  const currency = {
-    minor: 'UNYM',
-    major: 'NYM',
-  } as TCurrency;
-
+export const currencyMap = (network?: Network): TCurrency => {
   switch (network) {
     case 'MAINNET':
-      currency.minor = 'UNYM';
-      currency.major = 'NYM';
-      break;
-    case 'SANDBOX':
-      currency.minor = 'UNYMT';
-      currency.major = 'NYMT';
-      break;
+      return {
+        minor: 'UNYM',
+        major: 'NYM',
+      };
+    default:
+      return {
+        minor: 'UNYMT',
+        major: 'NYMT',
+      };
   }
-
-  return currency;
 };
 
-export const splice = (start: number, deleteCount: number, address?: string) => {
+export const splice = (start: number, deleteCount: number, address?: string): string => {
   if (address) {
     const array = address.split('');
     array.splice(start, deleteCount, '...');
     return array.join('');
   }
+  return '';
 };
 
 export const maximizeWindow = async () => {

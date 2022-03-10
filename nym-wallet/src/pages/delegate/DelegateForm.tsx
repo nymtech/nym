@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm } from 'react-hook-form';
 import { EnumNodeType } from '../../types';
@@ -30,7 +30,6 @@ export const DelegateForm = ({
 }) => {
   const {
     register,
-    watch,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
@@ -39,16 +38,15 @@ export const DelegateForm = ({
     resolver: yupResolver(validationSchema),
   });
 
-  const watchNodeType = watch('nodeType', defaultValues.nodeType);
-
   const { userBalance, currency } = useContext(ClientContext);
 
   const onSubmit = async (data: TDelegateForm) => {
     const hasEnoughFunds = await checkHasEnoughFunds(data.amount);
     if (!hasEnoughFunds) {
-      return setError('amount', {
+      setError('amount', {
         message: 'Not enough funds in wallet',
       });
+      return;
     }
 
     const amount = await majorToMinor(data.amount);

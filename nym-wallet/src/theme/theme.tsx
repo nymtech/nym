@@ -65,7 +65,7 @@ const lightMode: NymPaletteVariant = {
  * IMPORTANT: do not export this constant, always use the MUI `useTheme` hook to get the correct
  * colours for dark/light mode.
  */
-const nymWalletPalette = (variant: NymPaletteVariant): NymWalletPalette => ({
+const nymWalletPalette = (_variant: NymPaletteVariant): NymWalletPalette => ({
   nymWallet: {},
 });
 

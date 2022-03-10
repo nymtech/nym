@@ -3,7 +3,7 @@ import { Alert, Button, Stack, TextField } from '@mui/material';
 import { Subtitle } from '../components';
 import { ClientContext } from '../../../context/main';
 
-export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () => void }> = ({ onPrev }) => {
+export const ExistingAccount: React.FC<{ onPrev: () => void }> = ({ onPrev }) => {
   const [mnemonic, setMnemonic] = useState<string>('');
 
   const { logIn, error } = useContext(ClientContext);

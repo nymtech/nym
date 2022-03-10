@@ -1,6 +1,6 @@
 import React, { useContext, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { Box, Autocomplete, Button, CircularProgress, FormControl, Grid, TextField, Typography } from '@mui/material';
+import { Controller, useForm } from 'react-hook-form';
+import { Autocomplete, Box, Button, CircularProgress, FormControl, Grid, TextField } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { validationSchema } from './validationSchema';
 import { EnumNodeType, TDelegation, TFee } from '../../types';
@@ -19,7 +19,6 @@ const defaultValues = {
 };
 
 export const UndelegateForm = ({
-  fees,
   delegations,
   onError,
   onSuccess,

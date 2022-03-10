@@ -7,8 +7,6 @@ export * from './gateway';
 export * from './inclusionprobabilityresponse';
 export * from './mixnode';
 export * from './mixnodestatus';
-export * from './mixnodestatus';
-export * from './mixnodestatusresponse';
 export * from './mixnodestatusresponse';
 export * from './network';
 export * from './operation';

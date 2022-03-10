@@ -7,47 +7,6 @@ import { NymCard } from '../../components';
 import { getContractParams, setContractParams } from '../../requests';
 import { TauriContractStateParams } from '../../types';
 
-export const Admin: React.FC = () => {
-  const { showAdmin, handleShowAdmin } = useContext(ClientContext);
-  const [isLoading, setIsLoading] = useState(false);
-  const [params, setParams] = useState<TauriContractStateParams>();
-
-  const onCancel = () => {
-    setParams(undefined);
-    setIsLoading(false);
-    handleShowAdmin();
-  };
-
-  useEffect(() => {
-    const requestContractParams = async () => {
-      if (showAdmin) {
-        setIsLoading(true);
-        const params = await getContractParams();
-        setParams(params);
-        setIsLoading(false);
-      }
-    };
-    requestContractParams();
-  }, [showAdmin]);
-
-  return (
-    <Backdrop open={showAdmin} style={{ zIndex: 2, overflow: 'auto' }}>
-      <Slide in={showAdmin}>
-        <Paper style={{ margin: 'auto' }}>
-          <NymCard title="Admin" subheader="Contract administration" noPadding>
-            {isLoading && (
-              <Box style={{ display: 'flex', justifyContent: 'center' }}>
-                <CircularProgress size={48} />
-              </Box>
-            )}
-            {!isLoading && params && <AdminForm onCancel={onCancel} params={params} />}
-          </NymCard>
-        </Paper>
-      </Slide>
-    </Backdrop>
-  );
-};
-
 const AdminForm: React.FC<{
   params: TauriContractStateParams;
   onCancel: () => void;
@@ -202,5 +161,46 @@ const AdminForm: React.FC<{
         </Grid>
       </Grid>
     </FormControl>
+  );
+};
+
+export const Admin: React.FC = () => {
+  const { showAdmin, handleShowAdmin } = useContext(ClientContext);
+  const [isLoading, setIsLoading] = useState(false);
+  const [params, setParams] = useState<TauriContractStateParams>();
+
+  const onCancel = () => {
+    setParams(undefined);
+    setIsLoading(false);
+    handleShowAdmin();
+  };
+
+  useEffect(() => {
+    const requestContractParams = async () => {
+      if (showAdmin) {
+        setIsLoading(true);
+        const prms = await getContractParams();
+        setParams(prms);
+        setIsLoading(false);
+      }
+    };
+    requestContractParams();
+  }, [showAdmin]);
+
+  return (
+    <Backdrop open={showAdmin} style={{ zIndex: 2, overflow: 'auto' }}>
+      <Slide in={showAdmin}>
+        <Paper style={{ margin: 'auto' }}>
+          <NymCard title="Admin" subheader="Contract administration" noPadding>
+            {isLoading && (
+              <Box style={{ display: 'flex', justifyContent: 'center' }}>
+                <CircularProgress size={48} />
+              </Box>
+            )}
+            {!isLoading && params && <AdminForm onCancel={onCancel} params={params} />}
+          </NymCard>
+        </Paper>
+      </Slide>
+    </Backdrop>
   );
 };

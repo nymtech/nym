@@ -1,9 +1,20 @@
+/* eslint-disable react/no-array-index-key */
 import React, { useContext } from 'react';
 import { Box, Tooltip, Typography } from '@mui/material';
 import { format } from 'date-fns';
 import { ClientContext } from '../../../context/main';
 
 const calculateMarkerPosition = (arrLength: number, index: number) => (1 / arrLength) * 100 * index;
+
+const Marker: React.FC<{ tooltipText: string; color: string; position: string }> = ({
+  tooltipText,
+  color,
+  position,
+}) => (
+  <Tooltip title={tooltipText}>
+    <rect x={position} width="4" height="12" rx="1" fill={color} style={{ cursor: 'pointer' }} />
+  </Tooltip>
+);
 
 export const VestingTimeline: React.FC<{ percentageComplete: number }> = ({ percentageComplete }) => {
   const {
@@ -42,13 +53,3 @@ export const VestingTimeline: React.FC<{ percentageComplete: number }> = ({ perc
     </Box>
   );
 };
-
-const Marker: React.FC<{ tooltipText: string; color: string; position: string }> = ({
-  tooltipText,
-  color,
-  position,
-}) => (
-  <Tooltip title={tooltipText}>
-    <rect x={position} width="4" height="12" rx="1" fill={color} style={{ cursor: 'pointer' }} />
-  </Tooltip>
-);

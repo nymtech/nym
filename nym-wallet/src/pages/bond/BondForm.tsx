@@ -9,7 +9,6 @@ import {
   Grid,
   InputAdornment,
   TextField,
-  Typography,
 } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm } from 'react-hook-form';
@@ -278,7 +277,6 @@ export const BondForm = ({
                         shouldValidate: true,
                       });
                       setValue('withAdvancedOptions', false);
-                      resizeTo;
                     } else {
                       setValue('withAdvancedOptions', true);
                     }

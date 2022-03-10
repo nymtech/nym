@@ -2,35 +2,6 @@ import React from 'react';
 import { Box, Card, CardHeader, Grid, Typography, Stack, Fade } from '@mui/material';
 import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWords } from '../types';
 
-export const WordTiles = ({
-  mnemonicWords,
-  showIndex,
-  onClick,
-}: {
-  mnemonicWords?: TMnemonicWords;
-  showIndex?: boolean;
-  onClick?: ({ name, index }: { name: string; index: number }) => void;
-}) => {
-  if (mnemonicWords) {
-    return (
-      <Grid container spacing={3} justifyContent="center">
-        {mnemonicWords.map(({ name, index, disabled }) => (
-          <Grid item xs={2} key={index} onClick={() => onClick?.({ name, index })}>
-            <WordTile
-              mnemonicWord={name}
-              index={showIndex ? index : undefined}
-              onClick={!!onClick}
-              disabled={disabled}
-            />
-          </Grid>
-        ))}
-      </Grid>
-    );
-  }
-
-  return null;
-};
-
 export const WordTile = ({
   mnemonicWord,
   index,
@@ -65,18 +36,32 @@ export const WordTile = ({
   </Card>
 );
 
-export const HiddenWords = ({ mnemonicWords }: { mnemonicWords?: THiddenMnemonicWords }) => {
+export const WordTiles = ({
+  mnemonicWords,
+  showIndex,
+  onClick,
+}: {
+  mnemonicWords?: TMnemonicWords;
+  showIndex?: boolean;
+  onClick?: ({ name, index }: { name: string; index: number }) => void;
+}) => {
   if (mnemonicWords) {
     return (
       <Grid container spacing={3} justifyContent="center">
-        {mnemonicWords.map((mnemonicWord) => (
-          <Grid item xs={2} key={mnemonicWord.index}>
-            <HiddenWord mnemonicWord={mnemonicWord} />
+        {mnemonicWords.map(({ name, index, disabled }) => (
+          <Grid item xs={2} key={index} onClick={() => onClick?.({ name, index })}>
+            <WordTile
+              mnemonicWord={name}
+              index={showIndex ? index : undefined}
+              onClick={!!onClick}
+              disabled={disabled}
+            />
           </Grid>
         ))}
       </Grid>
     );
   }
+
   return null;
 };
 
@@ -92,3 +77,18 @@ const HiddenWord = ({ mnemonicWord }: { mnemonicWord: THiddenMnemonicWord }) => 
     <Typography>{mnemonicWord.index}.</Typography>
   </Stack>
 );
+
+export const HiddenWords = ({ mnemonicWords }: { mnemonicWords?: THiddenMnemonicWords }) => {
+  if (mnemonicWords) {
+    return (
+      <Grid container spacing={3} justifyContent="center">
+        {mnemonicWords.map((mnemonicWord) => (
+          <Grid item xs={2} key={mnemonicWord.index}>
+            <HiddenWord mnemonicWord={mnemonicWord} />
+          </Grid>
+        ))}
+      </Grid>
+    );
+  }
+  return null;
+};

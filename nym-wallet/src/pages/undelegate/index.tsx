@@ -1,8 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material';
-import { NymCard } from '../../components';
+import { EnumRequestStatus, NymCard, RequestStatus } from '../../components';
 import { UndelegateForm } from './UndelegateForm';
-import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus';
 import { getGasFee, getReverseMixDelegations } from '../../requests';
 import { TFee, TPagedDelegations } from '../../types';
 import { ClientContext } from '../../context/main';
@@ -16,10 +15,6 @@ export const Undelegate = () => {
   const [pagedDelegations, setPagesDelegations] = useState<TPagedDelegations>();
 
   const { clientDetails } = useContext(ClientContext);
-
-  useEffect(() => {
-    initialize();
-  }, [clientDetails]);
 
   const initialize = async () => {
     setStatus(EnumRequestStatus.initial);
@@ -44,6 +39,10 @@ export const Undelegate = () => {
     setIsLoading(false);
   };
 
+  useEffect(() => {
+    initialize();
+  }, [clientDetails]);
+
   return (
     <PageLayout>
       <NymCard title="Undelegate" subheader="Undelegate from a mixnode" noPadding>
@@ -63,12 +62,12 @@ export const Undelegate = () => {
             <UndelegateForm
               fees={fees}
               delegations={pagedDelegations?.delegations}
-              onError={(message) => {
-                setMessage(message);
+              onError={(m) => {
+                setMessage(m);
                 setStatus(EnumRequestStatus.error);
               }}
-              onSuccess={(message) => {
-                setMessage(message);
+              onSuccess={(m) => {
+                setMessage(m);
                 setStatus(EnumRequestStatus.success);
               }}
             />

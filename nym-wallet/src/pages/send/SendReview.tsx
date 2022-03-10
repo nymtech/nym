@@ -3,6 +3,15 @@ import { Card, Divider, Grid, Typography } from '@mui/material';
 import { useFormContext } from 'react-hook-form';
 import { ClientContext } from '../../context/main';
 
+const SendReviewField = ({ title, subtitle, info }: { title: string; subtitle?: string; info?: boolean }) => (
+  <>
+    <Typography sx={{ color: info ? 'nym.fee' : '' }}>{title}</Typography>
+    <Typography data-testid={title} sx={{ color: info ? 'nym.fee' : '', wordBreak: 'break-all' }}>
+      {subtitle}
+    </Typography>
+  </>
+);
+
 export const SendReview = ({ transferFee }: { transferFee?: string }) => {
   const { getValues } = useFormContext();
   const { clientDetails, currency } = useContext(ClientContext);
@@ -46,12 +55,3 @@ export const SendReview = ({ transferFee }: { transferFee?: string }) => {
     </Card>
   );
 };
-
-export const SendReviewField = ({ title, subtitle, info }: { title: string; subtitle?: string; info?: boolean }) => (
-  <>
-    <Typography sx={{ color: info ? 'nym.fee' : '' }}>{title}</Typography>
-    <Typography data-testid={title} sx={{ color: info ? 'nym.fee' : '', wordBreak: 'break-all' }}>
-      {subtitle}
-    </Typography>
-  </>
-);

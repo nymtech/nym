@@ -1,11 +1,10 @@
-import React, { useContext, useEffect } from 'react'
+import React, { useContext } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { Box, Autocomplete, Button, CircularProgress, FormControl, Grid, TextField } from '@mui/material'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { validationSchema } from './validationSchema'
-import { EnumNodeType, TDelegation, TFee } from '../../types'
-import { ClientContext } from '../../context/main'
-import { undelegate } from '../../requests'
+import { EnumNodeType, TDelegation } from '../../types'
+import { undelegate, vestingUnelegateFromMixnode } from '../../requests'
 import { Fee } from '../../components'
 
 type TFormData = {
@@ -19,12 +18,10 @@ const defaultValues = {
 }
 
 export const UndelegateForm = ({
-  fees,
   delegations,
   onError,
   onSuccess,
 }: {
-  fees: TFee
   delegations?: TDelegation[]
   onError: (message?: string) => void
   onSuccess: (message?: string) => void
@@ -33,30 +30,32 @@ export const UndelegateForm = ({
     control,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<TFormData>({
     defaultValues,
     resolver: yupResolver(validationSchema),
   })
-  const watchNodeType = watch('nodeType')
-
-  useEffect(() => {
-    setValue('identity', '')
-  }, [watchNodeType])
-
-  const { userBalance } = useContext(ClientContext)
 
   const onSubmit = async (data: TFormData) => {
-    await undelegate({
-      type: data.nodeType,
-      identity: data.identity,
-    })
-      .then(async (res) => {
-        onSuccess(`Successfully undelegated from ${res.target_address}`)
-        userBalance.fetchBalance()
+    let res
+    try {
+      res = await undelegate({
+        type: data.nodeType,
+        identity: data.identity,
       })
-      .catch((e) => onError(e))
+
+      if (!res) {
+        res = await vestingUnelegateFromMixnode(data.identity)
+      }
+
+      if (!res) {
+        onError('An error occurred when undelegating')
+      }
+
+      onSuccess(`Successfully undelegated from ${res.target_address}`)
+    } catch (e) {
+      onError(e as string)
+    }
   }
 
   return (

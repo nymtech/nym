@@ -22,7 +22,14 @@ export const undelegate = async ({
 }: {
   type: EnumNodeType
   identity: string
-}): Promise<DelegationResult> => await invoke(`undelegate_from_${type}`, { identity })
+}): Promise<DelegationResult | undefined> => {
+  try {
+    return await invoke(`undelegate_from_${type}`, { identity })
+  } catch (e) {
+    console.log(e)
+    return undefined
+  }
+}
 
 export const send = async (args: { amount: Coin; address: string; memo: string }): Promise<TauriTxResult> =>
   await invoke('send', args)

@@ -579,14 +579,9 @@ mod tests {
             aggregate_signatures(&params, &aggr_vk, &attributes, &sigs[..2], Some(&[1, 2]))
                 .unwrap();
 
-        let theta = prove_bandwidth_credential(
-            &params,
-            &aggr_vk,
-            &aggr_sig,
-            serial_number,
-            binding_number,
-        )
-        .unwrap();
+        let theta =
+            prove_bandwidth_credential(&params, &aggr_vk, &aggr_sig, serial_number, binding_number)
+                .unwrap();
 
         assert!(verify_credential(
             &params,
@@ -601,14 +596,9 @@ mod tests {
             aggregate_signatures(&params, &aggr_vk, &attributes, &sigs[1..], Some(&[2, 3]))
                 .unwrap();
 
-        let theta = prove_bandwidth_credential(
-            &params,
-            &aggr_vk,
-            &aggr_sig,
-            serial_number,
-            binding_number,
-        )
-        .unwrap();
+        let theta =
+            prove_bandwidth_credential(&params, &aggr_vk, &aggr_sig, serial_number, binding_number)
+                .unwrap();
 
         assert!(verify_credential(
             &params,

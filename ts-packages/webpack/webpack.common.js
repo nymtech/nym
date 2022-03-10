@@ -10,7 +10,7 @@ const path = require('path');
  * Creates the default Webpack config
  * @param baseDir The base directory path, e.g. pass `__dirname` of the webpack config file using this method
  */
-module.exports = (baseDir) => ({
+module.exports = (baseDir, htmlPath) => ({
   module: {
     rules: [
       {
@@ -56,7 +56,7 @@ module.exports = (baseDir) => ({
 
     new HtmlWebpackPlugin({
       filename: 'index.html',
-      template: path.resolve(baseDir, 'src/index.html'),
+      template: path.resolve(baseDir, htmlPath || 'src/index.html'),
     }),
 
     new ForkTsCheckerWebpackPlugin({

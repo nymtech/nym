@@ -73,7 +73,7 @@ jobs:
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: -- -D warnings
+          args: --workspace -- -D warnings
 
 
       # COCONUT stuff
@@ -94,7 +94,7 @@ jobs:
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --features=coconut -- -D warnings
+          args: --workspace --features=coconut -- -D warnings
   notification:
     needs: build
     runs-on: ubuntu-latest

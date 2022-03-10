@@ -1,6 +1,5 @@
 import React, { useContext } from 'react';
-import { Typography } from '@mui/material';
-import { Box } from '@mui/system';
+import { Box, Typography } from '@mui/material';
 import { ClientContext } from '../context/main';
 import { CopyToClipboard } from '.';
 import { splice } from '../utils';

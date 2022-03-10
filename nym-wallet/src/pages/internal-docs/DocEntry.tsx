@@ -3,7 +3,7 @@ import { Button, Card, CardContent, TextField } from '@mui/material';
 import { invoke } from '@tauri-apps/api';
 
 interface DocEntryProps {
-  function: FunctionDef;
+  func: FunctionDef;
 }
 
 interface FunctionDef {
@@ -35,11 +35,11 @@ function collectArgs(functionName: string, args: ArgDef[]) {
   return invokeArgs;
 }
 
-export const DocEntry = (props: DocEntryProps) => {
+export const DocEntry = ({ func }: DocEntryProps) => {
   const [card, setCard] = React.useState(<Card />);
 
   const onClick = () => {
-    invoke(props.function.name, collectArgs(props.function.name, props.function.args))
+    invoke(func.name, collectArgs(func.name, func.args))
       .then((result) => {
         setCard(
           <Card>
@@ -59,18 +59,14 @@ export const DocEntry = (props: DocEntryProps) => {
   return (
     <div>
       <Button variant="contained" color="primary" size="small" disableElevation onClick={onClick}>
-        {props.function.name}
+        {func.name}
       </Button>
       <Button variant="contained" size="small" disableElevation onClick={() => setCard(<Card />)}>
         X
       </Button>
       <div>
-        {props.function.args.map((arg) => (
-          <TextField
-            label={arg.name}
-            id={argKey(props.function.name, arg.name)}
-            key={argKey(props.function.name, arg.name)}
-          />
+        {func.args.map((arg) => (
+          <TextField label={arg.name} id={argKey(func.name, arg.name)} key={argKey(func.name, arg.name)} />
         ))}
       </div>
       <br />

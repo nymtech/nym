@@ -352,12 +352,12 @@ mod tests {
     #[test]
     fn blind_sign_request_bytes_roundtrip() {
         // 0 public and 1 private attribute
-        let mut params = Parameters::new(1).unwrap();
+        let params = Parameters::new(1).unwrap();
         let private_attributes = params.n_random_scalars(1);
         let public_attributes = params.n_random_scalars(0);
 
         let (_commitments_openings, lambda) =
-            prepare_blind_sign(&mut params, &private_attributes, &public_attributes).unwrap();
+            prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
 
         let bytes = lambda.to_bytes();
         assert_eq!(
@@ -366,12 +366,12 @@ mod tests {
         );
 
         // 2 public and 2 private attributes
-        let mut params = Parameters::new(4).unwrap();
+        let params = Parameters::new(4).unwrap();
         let private_attributes = params.n_random_scalars(2);
         let public_attributes = params.n_random_scalars(2);
 
         let (_commitments_openings, lambda) =
-            prepare_blind_sign(&mut params, &private_attributes, &public_attributes).unwrap();
+            prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
 
         let bytes = lambda.to_bytes();
         assert_eq!(

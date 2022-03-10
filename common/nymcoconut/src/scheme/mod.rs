@@ -250,15 +250,15 @@ mod tests {
 
     #[test]
     fn unblind_returns_error_if_integrity_check_on_commitment_hash_fails() {
-        let mut params = Parameters::new(2).unwrap();
+        let params = Parameters::new(2).unwrap();
         let private_attributes = params.n_random_scalars(2 as usize);
 
         let (_commitments_openings, lambda) =
-            prepare_blind_sign(&mut params, &private_attributes, &[]).unwrap();
+            prepare_blind_sign(&params, &private_attributes, &[]).unwrap();
 
-        let keypair1 = keygen(&mut params);
+        let keypair1 = keygen(&params);
 
-        let sig1 = blind_sign(&mut params, &keypair1.secret_key(), &lambda, &[]).unwrap();
+        let sig1 = blind_sign(&params, &keypair1.secret_key(), &lambda, &[]).unwrap();
 
         let wrong_commitment_opening = params.random_scalar();
         let wrong_commitment = params.gen1() * wrong_commitment_opening;
@@ -279,16 +279,16 @@ mod tests {
 
     #[test]
     fn unblind_returns_error_if_signature_verification_fails() {
-        let mut params = Parameters::new(2).unwrap();
+        let params = Parameters::new(2).unwrap();
         let private_attributes = vec![hash_to_scalar("Attribute1"), hash_to_scalar("Attribute2")];
         let private_attributes2 = vec![hash_to_scalar("Attribute3"), hash_to_scalar("Attribute4")];
 
         let (commitments_openings, lambda) =
-            prepare_blind_sign(&mut params, &private_attributes, &[]).unwrap();
+            prepare_blind_sign(&params, &private_attributes, &[]).unwrap();
 
-        let keypair1 = keygen(&mut params);
+        let keypair1 = keygen(&params);
 
-        let sig1 = blind_sign(&mut params, &keypair1.secret_key(), &lambda, &[]).unwrap();
+        let sig1 = blind_sign(&params, &keypair1.secret_key(), &lambda, &[]).unwrap();
 
         assert!(sig1
             .unblind(
@@ -304,18 +304,18 @@ mod tests {
 
     #[test]
     fn verification_on_two_private_attributes() {
-        let mut params = Parameters::new(2).unwrap();
+        let params = Parameters::new(2).unwrap();
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
 
-        let keypair1 = keygen(&mut params);
-        let keypair2 = keygen(&mut params);
+        let keypair1 = keygen(&params);
+        let keypair2 = keygen(&params);
 
         let (commitments_openings, lambda) =
-            prepare_blind_sign(&mut params, &private_attributes, &[]).unwrap();
+            prepare_blind_sign(&params, &private_attributes, &[]).unwrap();
 
-        let sig1 = blind_sign(&mut params, &keypair1.secret_key(), &lambda, &[])
+        let sig1 = blind_sign(&params, &keypair1.secret_key(), &lambda, &[])
             .unwrap()
             .unblind(
                 &params,
@@ -327,7 +327,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig2 = blind_sign(&mut params, &keypair2.secret_key(), &lambda, &[])
+        let sig2 = blind_sign(&params, &keypair2.secret_key(), &lambda, &[])
             .unwrap()
             .unblind(
                 &params,
@@ -340,7 +340,7 @@ mod tests {
             .unwrap();
 
         let theta1 = prove_bandwidth_credential(
-            &mut params,
+            &params,
             &keypair1.verification_key(),
             &sig1,
             serial_number,
@@ -349,7 +349,7 @@ mod tests {
         .unwrap();
 
         let theta2 = prove_bandwidth_credential(
-            &mut params,
+            &params,
             &keypair2.verification_key(),
             &sig2,
             serial_number,
@@ -384,8 +384,8 @@ mod tests {
         let mut params = Parameters::new(2).unwrap();
         let attributes = params.n_random_scalars(2);
 
-        let keypair1 = keygen(&mut params);
-        let keypair2 = keygen(&mut params);
+        let keypair1 = keygen(&params);
+        let keypair2 = keygen(&params);
         let sig1 = sign(&mut params, &keypair1.secret_key(), &attributes).unwrap();
         let sig2 = sign(&mut params, &keypair2.secret_key(), &attributes).unwrap();
 
@@ -413,54 +413,44 @@ mod tests {
 
     #[test]
     fn verification_on_two_public_and_two_private_attributes() {
-        let mut params = Parameters::new(4).unwrap();
+        let params = Parameters::new(4).unwrap();
         let public_attributes = params.n_random_scalars(2);
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
 
-        let keypair1 = keygen(&mut params);
-        let keypair2 = keygen(&mut params);
+        let keypair1 = keygen(&params);
+        let keypair2 = keygen(&params);
 
         let (commitments_openings, lambda) =
-            prepare_blind_sign(&mut params, &private_attributes, &public_attributes).unwrap();
+            prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
 
-        let sig1 = blind_sign(
-            &mut params,
-            &keypair1.secret_key(),
-            &lambda,
-            &public_attributes,
-        )
-        .unwrap()
-        .unblind(
-            &params,
-            &keypair1.verification_key(),
-            &private_attributes,
-            &public_attributes,
-            &lambda.get_commitment_hash(),
-            &commitments_openings,
-        )
-        .unwrap();
+        let sig1 = blind_sign(&params, &keypair1.secret_key(), &lambda, &public_attributes)
+            .unwrap()
+            .unblind(
+                &params,
+                &keypair1.verification_key(),
+                &private_attributes,
+                &public_attributes,
+                &lambda.get_commitment_hash(),
+                &commitments_openings,
+            )
+            .unwrap();
 
-        let sig2 = blind_sign(
-            &mut params,
-            &keypair2.secret_key(),
-            &lambda,
-            &public_attributes,
-        )
-        .unwrap()
-        .unblind(
-            &params,
-            &keypair2.verification_key(),
-            &private_attributes,
-            &public_attributes,
-            &lambda.get_commitment_hash(),
-            &commitments_openings,
-        )
-        .unwrap();
+        let sig2 = blind_sign(&params, &keypair2.secret_key(), &lambda, &public_attributes)
+            .unwrap()
+            .unblind(
+                &params,
+                &keypair2.verification_key(),
+                &private_attributes,
+                &public_attributes,
+                &lambda.get_commitment_hash(),
+                &commitments_openings,
+            )
+            .unwrap();
 
         let theta1 = prove_bandwidth_credential(
-            &mut params,
+            &params,
             &keypair1.verification_key(),
             &sig1,
             serial_number,
@@ -469,7 +459,7 @@ mod tests {
         .unwrap();
 
         let theta2 = prove_bandwidth_credential(
-            &mut params,
+            &params,
             &keypair2.verification_key(),
             &sig2,
             serial_number,
@@ -501,36 +491,31 @@ mod tests {
 
     #[test]
     fn verification_on_two_public_and_two_private_attributes_from_two_signers() {
-        let mut params = Parameters::new(4).unwrap();
+        let params = Parameters::new(4).unwrap();
         let public_attributes = params.n_random_scalars(2);
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
 
-        let keypairs = ttp_keygen(&mut params, 2, 3).unwrap();
+        let keypairs = ttp_keygen(&params, 2, 3).unwrap();
 
         let (commitments_openings, lambda) =
-            prepare_blind_sign(&mut params, &private_attributes, &public_attributes).unwrap();
+            prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
 
         let sigs = keypairs
             .iter()
             .map(|keypair| {
-                blind_sign(
-                    &mut params,
-                    &keypair.secret_key(),
-                    &lambda,
-                    &public_attributes,
-                )
-                .unwrap()
-                .unblind(
-                    &params,
-                    &keypair.verification_key(),
-                    &private_attributes,
-                    &public_attributes,
-                    &lambda.get_commitment_hash(),
-                    &commitments_openings,
-                )
-                .unwrap()
+                blind_sign(&params, &keypair.secret_key(), &lambda, &public_attributes)
+                    .unwrap()
+                    .unblind(
+                        &params,
+                        &keypair.verification_key(),
+                        &private_attributes,
+                        &public_attributes,
+                        &lambda.get_commitment_hash(),
+                        &commitments_openings,
+                    )
+                    .unwrap()
             })
             .collect::<Vec<_>>();
 
@@ -548,14 +533,9 @@ mod tests {
             aggregate_signatures(&params, &aggr_vk, &attributes, &sigs[..2], Some(&[1, 2]))
                 .unwrap();
 
-        let theta = prove_bandwidth_credential(
-            &mut params,
-            &aggr_vk,
-            &aggr_sig,
-            serial_number,
-            binding_number,
-        )
-        .unwrap();
+        let theta =
+            prove_bandwidth_credential(&params, &aggr_vk, &aggr_sig, serial_number, binding_number)
+                .unwrap();
 
         assert!(verify_credential(
             &params,
@@ -570,14 +550,9 @@ mod tests {
             aggregate_signatures(&params, &aggr_vk, &attributes, &sigs[1..], Some(&[2, 3]))
                 .unwrap();
 
-        let theta = prove_bandwidth_credential(
-            &mut params,
-            &aggr_vk,
-            &aggr_sig,
-            serial_number,
-            binding_number,
-        )
-        .unwrap();
+        let theta =
+            prove_bandwidth_credential(&params, &aggr_vk, &aggr_sig, serial_number, binding_number)
+                .unwrap();
 
         assert!(verify_credential(
             &params,

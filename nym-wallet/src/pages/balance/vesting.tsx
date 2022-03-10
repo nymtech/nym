@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -93,7 +93,7 @@ const VestingSchedule = () => {
 
 const TokenTransfer = () => {
   const { userBalance, currency } = useContext(ClientContext);
-  const icon = useMemo(
+  const icon = useCallback(
     () => (
       <Box sx={{ display: 'flex', mr: 1 }}>
         <InfoTooltip title="Unlocked tokens that are available to transfer to your balance" size="medium" />

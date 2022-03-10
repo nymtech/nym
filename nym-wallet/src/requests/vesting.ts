@@ -89,3 +89,7 @@ export const getVestingPledgeInfo = async ({
 
 export const vestingUpdateMixnode = async (profitMarginPercent: number) =>
   await invoke('vesting_update_mixnode', { profitMarginPercent })
+
+export const vestingDelegatedFree = async (vestingAccountAddress: string) => {
+  await invoke('delegated_free', { vestingAccountAddress })
+}

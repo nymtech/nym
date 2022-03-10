@@ -6,7 +6,6 @@ import { DelegationResult, EnumNodeType, TDelegateArgs } from '../../types'
 import { validationSchema } from './validationSchema'
 import { ClientContext } from '../../context/main'
 import { delegate, majorToMinor, vestingDelegateToMixnode } from '../../requests'
-import { checkHasEnoughFunds } from '../../utils'
 import { Fee, TokenPoolSelector } from '../../components'
 
 type TDelegateForm = {

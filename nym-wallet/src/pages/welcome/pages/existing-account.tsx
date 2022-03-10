@@ -7,15 +7,28 @@ export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () =>
   const [mnemonic, setMnemonic] = useState<string>('')
 
   const { logIn, error } = useContext(ClientContext)
-  const handleSignIn = async (e: React.MouseEvent<HTMLElement>) => {
-    e.preventDefault()
+
+  const handleSignIn = async ({ preventDefault }: React.MouseEvent<HTMLElement>) => {
     logIn(mnemonic)
+  }
+
+  const handleSignInOnEnter = ({ key }: React.KeyboardEvent<HTMLDivElement>) => {
+    if (key.toLowerCase() === 'enter') {
+      logIn(mnemonic)
+    }
   }
 
   return (
     <Stack spacing={2} sx={{ width: 400 }} alignItems="center">
       <Subtitle subtitle="Enter your mnemonic from existing wallet" />
-      <TextField value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} multiline rows={5} fullWidth />
+      <TextField
+        value={mnemonic}
+        onChange={(e) => setMnemonic(e.target.value)}
+        multiline
+        rows={5}
+        fullWidth
+        onKeyDown={handleSignInOnEnter}
+      />
       {error && (
         <Alert severity="error" variant="outlined" data-testid="error" sx={{ color: 'error.light', width: '100%' }}>
           {error}

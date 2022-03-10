@@ -14,20 +14,20 @@ export const validationSchema = Yup.object().shape({
     .required()
     .test('valid-amount', 'A valid amount is required', async function (value) {
       const isValid = await validateAmount(value || '', '0')
-      const hasEnoughBalance = await checkHasEnoughFunds(value || '')
-      const hasEnoughLocked = await checkHasEnoughLockedTokens(value || '')
 
       if (!isValid) {
         return this.createError({ message: `A valid amount is required` })
-      }
+      } else {
+        const hasEnoughBalance = await checkHasEnoughFunds(value || '')
+        const hasEnoughLocked = await checkHasEnoughLockedTokens(value || '')
 
-      if (this.parent.tokenPool === 'balance' && !hasEnoughBalance) {
-        console.log('here')
-        return this.createError({ message: 'Not enough funds in wallet' })
-      }
+        if (this.parent.tokenPool === 'balance' && !hasEnoughBalance) {
+          return this.createError({ message: 'Not enough funds in wallet' })
+        }
 
-      if (this.parent.tokenPool === 'locked' && !hasEnoughLocked) {
-        return this.createError({ message: 'Not enough locked tokens' })
+        if (this.parent.tokenPool === 'locked' && !hasEnoughLocked) {
+          return this.createError({ message: 'Not enough locked tokens' })
+        }
       }
 
       return true

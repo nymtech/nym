@@ -70,7 +70,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
           getOriginalVesting(address),
           getVestingCoins(address),
           getVestedCoins(address),
-          getLockedCoins(address),
+          getLockedCoins(),
           getSpendableCoins(address),
           getCurrentVestingPeriod(address),
           getVestingAccountInfo(address),

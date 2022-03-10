@@ -171,9 +171,9 @@ pub fn compute_attributes_commitment(
 
     // Produces h0 ^ m0 * h1^m1 * .... * hn^mn
     // where m0, m1, ...., mn are attributes
-    let attr_cm = [private_attributes, public_attributes]
-        .concat()
+    let attr_cm = private_attributes
         .iter()
+        .chain(public_attributes.iter())
         .zip(hs)
         .map(|(&m, h)| h * m)
         .sum::<G1Projective>();

@@ -15,7 +15,7 @@ fn main() -> Result<(), CoconutError> {
     let binding_number = params.random_scalar();
     let private_attributes = vec![serial_number, binding_number];
 
-    // generate commitment and encryption
+    // generate commitment
     let (commitments_openings, blind_sign_request) =
         prepare_blind_sign(&params, &private_attributes, &public_attributes)?;
 

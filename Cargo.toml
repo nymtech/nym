@@ -27,6 +27,7 @@ members = [
     "common/credentials",
     "common/crypto",
     "common/bandwidth-claim-contract",
+    "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/contracts-common",
     "common/cosmwasm-smart-contracts/mixnet-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",

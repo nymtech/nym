@@ -582,6 +582,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "coconut-bandwidth-contract"
+version = "0.1.0"
+dependencies = [
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "coconut-interface"
 version = "0.1.0"
 dependencies = [
@@ -826,7 +834,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bip39",
- "clap 3.1.5",
+ "clap 3.1.6",
  "crypto",
  "network-defaults",
  "pemstore",

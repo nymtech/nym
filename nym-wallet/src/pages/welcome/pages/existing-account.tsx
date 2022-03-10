@@ -1,9 +1,11 @@
+/* eslint-disable react/no-unused-prop-types */
 import React, { useContext, useState } from 'react';
 import { Alert, Button, Stack, TextField } from '@mui/material';
 import { Subtitle } from '../components';
 import { ClientContext } from '../../../context/main';
+import { TPages } from '../types';
 
-export const ExistingAccount: React.FC<{ onPrev: () => void }> = ({ onPrev }) => {
+export const ExistingAccount: React.FC<{ page: TPages; onPrev: () => void }> = ({ onPrev }) => {
   const [mnemonic, setMnemonic] = useState<string>('');
 
   const { logIn, error } = useContext(ClientContext);

@@ -1,8 +1,11 @@
+/* eslint-disable react/no-unused-prop-types */
 import React from 'react';
 import { Button, Stack } from '@mui/material';
 import { SubtitleSlick, Title } from '../components';
+import { TPages } from '../types';
 
 export const WelcomeContent: React.FC<{
+  page: TPages;
   onUseExisting: () => void;
   onCreateAccountComplete: () => void;
 }> = ({ onUseExisting, onCreateAccountComplete }) => (

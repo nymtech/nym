@@ -240,7 +240,7 @@ mod tests {
     #[test]
     fn unblind_returns_error_if_integrity_check_on_commitment_hash_fails() {
         let mut params = Parameters::new(2).unwrap();
-        let private_attributes = params.n_random_scalars(2 as usize);
+        let private_attributes = params.n_random_scalars(2_usize);
         let elgamal_keypair = elgamal::elgamal_keygen(&mut params);
 
         let lambda =

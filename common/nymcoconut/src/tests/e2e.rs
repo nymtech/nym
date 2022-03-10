@@ -41,7 +41,7 @@ fn main() -> Result<(), CoconutError> {
         let blinded_signature = blind_sign(
             &params,
             &keypair.secret_key(),
-            &elgamal_keypair.public_key(),
+            elgamal_keypair.public_key(),
             &blind_sign_request,
             &public_attributes,
         )?;
@@ -57,8 +57,8 @@ fn main() -> Result<(), CoconutError> {
             signature
                 .unblind(
                     &params,
-                    &elgamal_keypair.private_key(),
-                    &verification_key,
+                    elgamal_keypair.private_key(),
+                    verification_key,
                     &private_attributes,
                     &public_attributes,
                     &blind_sign_request.get_commitment_hash(),

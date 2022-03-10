@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     fn is_cover_works_for_identical_input() {
-        assert!(is_cover(&LOOP_COVER_MESSAGE_PAYLOAD))
+        assert!(is_cover(LOOP_COVER_MESSAGE_PAYLOAD))
     }
 
     #[test]

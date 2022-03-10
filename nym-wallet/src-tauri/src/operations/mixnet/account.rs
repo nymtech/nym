@@ -1,16 +1,23 @@
 use crate::coin::{Coin, Denom};
+use crate::config::Config;
 use crate::error::BackendError;
 use crate::network::Network;
 use crate::nymd_client;
 use crate::state::State;
 
 use bip39::{Language, Mnemonic};
+use config::defaults::ValidatorDetails;
 use serde::{Deserialize, Serialize};
-use std::convert::{TryFrom, TryInto};
+use std::collections::HashMap;
+use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
+use validator_client::nymd::error::NymdError;
+use validator_client::nymd::SigningNymdClient;
+use validator_client::Client;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/account.ts"))]
@@ -132,46 +139,162 @@ async fn _connect_with_mnemonic(
   mnemonic: Mnemonic,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
-  let default_network = Network::try_from(config::defaults::DEFAULT_NETWORK)?;
-  let mut default_account = None;
+  let default_network: Network = config::defaults::DEFAULT_NETWORK.into();
+  let config = state.read().await.config();
+
+  // Try to connect to validators on all networks
+  let mut validators = select_validators(&config, &mnemonic).await?;
+
+  // If we didn't manage to connect to any validators, just go ahead and try with the first in the
+  // list
   for network in Network::iter() {
-    let client = {
-      let config = state.read().await.config();
-      let nymd_url = config
-        .get_nymd_validator_url(network)
-        .ok_or(BackendError::NoNymdValidatorConfigured)?;
-      let api_url = config
-        .get_validator_api_url(network)
-        .ok_or(BackendError::NoValidatorApiUrlConfigured)?;
-      match validator_client::Client::new_signing(
-        validator_client::Config::new(
-          network.into(),
-          nymd_url,
-          api_url,
-          config.get_mixnet_contract_address(network),
-          config.get_vesting_contract_address(network),
-          config.get_bandwidth_claim_contract_address(network),
-        ),
-        mnemonic.clone(),
-      ) {
-        Ok(client) => client,
-        Err(e) => panic!("{}", e),
-      }
-    };
+    validators
+      .entry(network)
+      // We always have at least one hardcoded defalt validator
+      .or_insert_with(|| {
+        let default_validator = config.get_validators(network).next().unwrap().clone();
+        println!(
+          "Using default for {network}: {}, {}",
+          default_validator.nymd_url(),
+          default_validator
+            .api_url()
+            .map_or_else(|| "empty".to_string(), |url| url.to_string()),
+        );
+        default_validator
+      });
+  }
 
-    if network == default_network {
-      default_account = Some(Account::new(
-        client.nymd.mixnet_contract_address()?.to_string(),
-        client.nymd.address().to_string(),
-        network.denom().try_into()?,
-      ));
-    }
+  // Now we are ready to create the clients that we will use
+  let mut clients = Vec::new();
+  for network in Network::iter() {
+    let client = validator_client::Client::new_signing(
+      validator_client::Config::new(
+        network.into(),
+        validators[&network].nymd_url(),
+        validators[&network]
+          .api_url()
+          .ok_or(BackendError::NoValidatorApiUrlConfigured)?,
+        config.get_mixnet_contract_address(network),
+        config.get_vesting_contract_address(network),
+        config.get_bandwidth_claim_contract_address(network),
+      ),
+      mnemonic.clone(),
+    )?;
+    clients.push(client);
+  }
 
+  // Set the default account
+  let client_for_default_network = clients
+    .iter()
+    .find(|client| Network::from(client.network) == default_network);
+  let account_for_default_network = match client_for_default_network {
+    Some(client) => Ok(Account::new(
+      client.nymd.mixnet_contract_address()?.to_string(),
+      client.nymd.address().to_string(),
+      default_network.denom().try_into()?,
+    )),
+    None => Err(BackendError::NetworkNotSupported(
+      config::defaults::DEFAULT_NETWORK,
+    )),
+  };
+
+  // Register all the clients
+  for client in clients {
+    let network: Network = client.network.into();
     let mut w_state = state.write().await;
     w_state.add_client(network, client);
   }
 
-  default_account.ok_or(BackendError::NetworkNotSupported(
-    config::defaults::DEFAULT_NETWORK,
-  ))
+  account_for_default_network
+}
+
+// For each network, try the list of available validators one by one and use the first responding
+// one.
+async fn select_validators(
+  config: &Config,
+  mnemonic: &Mnemonic,
+) -> Result<HashMap<Network, ValidatorDetails>, BackendError> {
+  use tokio::time::timeout;
+  let validators = futures::future::join_all(Network::iter().map(|network| {
+    timeout(
+      Duration::from_millis(3000),
+      try_connect_to_validators(
+        config.get_validators(network),
+        config,
+        network,
+        mnemonic.clone(),
+      ),
+    )
+  }))
+  .await;
+
+  let validators = validators
+    .into_iter()
+    // Filter out networks that timed out.
+    .filter_map(Result::ok)
+    // Rewrap so that the Result is outermost, so we can return any errors encountered
+    .collect::<Result<Vec<_>, _>>()?
+    .into_iter()
+    // Filter out networks where we exhausted all listed validators.
+    .flatten()
+    .collect::<HashMap<_, _>>();
+
+  Ok(validators)
+}
+
+async fn try_connect_to_validators(
+  validators: impl Iterator<Item = &ValidatorDetails>,
+  config: &Config,
+  network: Network,
+  mnemonic: Mnemonic,
+) -> Result<Option<(Network, ValidatorDetails)>, BackendError> {
+  for validator in validators {
+    if let Some(responding_validator) =
+      try_connect_to_validator(validator, config, network, mnemonic.clone()).await?
+    {
+      // Pick the first successful one
+      return Ok(Some(responding_validator));
+    }
+  }
+  Ok(None)
+}
+
+async fn try_connect_to_validator(
+  validator: &ValidatorDetails,
+  config: &Config,
+  network: Network,
+  mnemonic: Mnemonic,
+) -> Result<Option<(Network, ValidatorDetails)>, BackendError> {
+  let nymd_url = validator.nymd_url();
+  let api_url = match validator.api_url() {
+    Some(url) => url,
+    None => return Ok(None),
+  };
+
+  let client = validator_client::Client::new_signing(
+    validator_client::Config::new(
+      network.into(),
+      nymd_url.clone(),
+      api_url.clone(),
+      config.get_mixnet_contract_address(network),
+      config.get_vesting_contract_address(network),
+      config.get_bandwidth_claim_contract_address(network),
+    ),
+    mnemonic,
+  )?;
+
+  if is_validator_connection_ok(&client).await {
+    println!("Connection ok for {network}: {nymd_url}, {api_url}");
+    Ok(Some((network, validator.clone())))
+  } else {
+    Ok(None)
+  }
+}
+
+// The criteria used to determina if a validator endpoint is to be used
+async fn is_validator_connection_ok(client: &Client<SigningNymdClient>) -> bool {
+  match client.get_mixnet_contract_version().await {
+    Err(NymdError::TendermintError(_)) => false,
+    Err(_) | Ok(_) => true,
+  }
 }

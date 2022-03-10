@@ -502,6 +502,7 @@ mod tests {
         let (commitments_openings, lambda) =
             prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
 
+
         let sigs = keypairs
             .iter()
             .map(|keypair| {

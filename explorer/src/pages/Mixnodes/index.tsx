@@ -3,32 +3,40 @@ import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { Button, Card, Grid, Link as MuiLink } from '@mui/material';
 import { Link as RRDLink, useParams } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
-import { useMainContext } from 'src/context/main';
-import { MixnodeRowType, mixnodeToGridRow } from 'src/components/MixNodes';
-import { TableToolbar } from 'src/components/TableToolbar';
-import {
-  MixNodeResponse,
-  MixnodeStatusWithAll,
-  toMixnodeStatus,
-} from 'src/typeDefs/explorer-api';
-import { BIG_DIPPER } from 'src/api/constants';
-import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
-import { Title } from 'src/components/Title';
-import {
-  cellStyles,
-  UniversalDataGrid,
-} from 'src/components/Universal-DataGrid';
 import { SxProps } from '@mui/system';
 import { Theme, useTheme } from '@mui/material/styles';
 import { useHistory } from 'react-router';
+import { CopyToClipboard } from '@nymproject/react';
+import { useMainContext } from '../../context/main';
+import { MixnodeRowType, mixnodeToGridRow } from '../../components/MixNodes';
+import { TableToolbar } from '../../components/TableToolbar';
+import { MixNodeResponse, MixnodeStatusWithAll, toMixnodeStatus } from '../../typeDefs/explorer-api';
+import { BIG_DIPPER } from '../../api/constants';
+import { CustomColumnHeading } from '../../components/CustomColumnHeading';
+import { Title } from '../../components/Title';
+import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { currencyToString } from '../../utils/currency';
 import { getMixNodeStatusColor } from '../../components/MixNodes/Status';
 import { MixNodeStatusDropdown } from '../../components/MixNodes/StatusDropdown';
 
+const getCellFontStyle = (theme: Theme, row: MixnodeRowType) => {
+  const color = getMixNodeStatusColor(theme, row.status);
+  return {
+    fontWeight: 400,
+    fontSize: 12,
+    color,
+  };
+};
+
+const getCellStyles = (theme: Theme, row: MixnodeRowType): SxProps => ({
+  ...cellStyles,
+  // TODO: should these be here, or change in `cellStyles`??
+  ...getCellFontStyle(theme, row),
+});
+
 export const PageMixnodes: React.FC = () => {
   const { mixnodes, fetchMixnodes } = useMainContext();
-  const [filteredMixnodes, setFilteredMixnodes] =
-    React.useState<MixNodeResponse>([]);
+  const [filteredMixnodes, setFilteredMixnodes] = React.useState<MixNodeResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('10');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
   const theme = useTheme();
@@ -99,14 +107,21 @@ export const PageMixnodes: React.FC = () => {
       width: 380,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={getCellStyles(theme, params.row)}
-          component={RRDLink}
-          to={`/network-components/mixnode/${params.value}`}
-          data-testid="identity-link"
-        >
-          {params.value}
-        </MuiLink>
+        <>
+          <CopyToClipboard
+            sx={{ ...getCellFontStyle(theme, params.row), mr: 1 }}
+            value={params.value}
+            tooltip={`Copy identity key ${params.value} to clipboard`}
+          />
+          <MuiLink
+            sx={getCellStyles(theme, params.row)}
+            component={RRDLink}
+            to={`/network-components/mixnode/${params.value}`}
+            data-testid="identity-link"
+          >
+            {params.value}
+          </MuiLink>
+        </>
       ),
     },
     {
@@ -217,11 +232,7 @@ export const PageMixnodes: React.FC = () => {
           >
             <TableToolbar
               childrenBefore={
-                <MixNodeStatusDropdown
-                  sx={{ mr: 2 }}
-                  status={status}
-                  onSelectionChanged={handleMixnodeStatusChanged}
-                />
+                <MixNodeStatusDropdown sx={{ mr: 2 }} status={status} onSelectionChanged={handleMixnodeStatusChanged} />
               }
               onChangeSearch={handleSearch}
               onChangePageSize={handlePageSize}
@@ -240,15 +251,4 @@ export const PageMixnodes: React.FC = () => {
       </Grid>
     </>
   );
-};
-
-const getCellStyles = (theme: Theme, row: MixnodeRowType): SxProps => {
-  const color = getMixNodeStatusColor(theme, row.status);
-  return {
-    ...cellStyles,
-    // TODO: should these be here, or change in `cellStyles`??
-    fontWeight: 400,
-    fontSize: 12,
-    color,
-  };
 };

@@ -9,10 +9,7 @@ export const currencyToString = (amount: string, denom: string = DENOM) =>
     denom,
   });
 
-export const stakingCurrencyToString = (
-  amount: string,
-  denom: string = DENOM_STAKING,
-) =>
+export const stakingCurrencyToString = (amount: string, denom: string = DENOM_STAKING) =>
   printableCoin({
     amount,
     denom,

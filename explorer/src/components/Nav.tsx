@@ -14,10 +14,10 @@ import IconButton from '@mui/material/IconButton';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import { NymLogoSVG } from 'src/icons/NymLogoSVG';
-import { BIG_DIPPER, NYM_WEBSITE } from 'src/api/constants';
-import { useMainContext } from 'src/context/main';
-import { MobileDrawerClose } from 'src/icons/MobileDrawerClose';
+import { NymLogo } from '@nymproject/react';
+import { BIG_DIPPER, NYM_WEBSITE } from '../api/constants';
+import { useMainContext } from '../context/main';
+import { MobileDrawerClose } from '../icons/MobileDrawerClose';
 import { OverviewSVG } from '../icons/OverviewSVG';
 import { NetworkComponentsSVG } from '../icons/NetworksSVG';
 import { NodemapSVG } from '../icons/NodemapSVG';
@@ -70,17 +70,17 @@ const Drawer = styled(MuiDrawer, {
   }),
 }));
 
-type navOptionType = {
+type NavOptionType = {
   id: number;
   isActive?: boolean;
   url: string;
   title: string;
   Icon?: React.ReactNode;
-  nested?: navOptionType[];
+  nested?: NavOptionType[];
   isExpandedChild?: boolean;
 };
 
-export const originalNavOptions: navOptionType[] = [
+export const originalNavOptions: NavOptionType[] = [
   {
     id: 0,
     isActive: false,
@@ -127,7 +127,7 @@ type ExpandableButtonType = {
   url: string;
   isActive?: boolean;
   Icon?: React.ReactNode;
-  nested?: navOptionType[];
+  nested?: NavOptionType[];
   isChild?: boolean;
   openDrawer: () => void;
   closeDrawer?: () => void;
@@ -226,9 +226,7 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
           sx={{
             pt: 2,
             pb: 2,
-            background: isChild
-              ? palette.nym.networkExplorer.nav.selected.nested
-              : 'none',
+            background: isChild ? palette.nym.networkExplorer.nav.selected.nested : 'none',
           }}
         >
           <ListItemIcon>{Icon}</ListItemIcon>
@@ -334,7 +332,7 @@ export const Nav: React.FC = ({ children }) => {
             }}
           >
             <IconButton component="a" href={NYM_WEBSITE} target="_blank">
-              <NymLogoSVG />
+              <NymLogo height="40px" width="40px" />
             </IconButton>
             <Typography
               variant="h6"
@@ -345,12 +343,7 @@ export const Nav: React.FC = ({ children }) => {
                 fontWeight: 600,
               }}
             >
-              <MuiLink
-                component={Link}
-                to="/overview"
-                underline="none"
-                color="inherit"
-              >
+              <MuiLink component={Link} to="/overview" underline="none" color="inherit">
                 Network Explorer
               </MuiLink>
             </Typography>
@@ -408,11 +401,7 @@ export const Nav: React.FC = ({ children }) => {
           </IconButton>
         </DrawerHeader>
 
-        <List
-          sx={{ pt: 0, pb: 0 }}
-          onMouseEnter={tempDrawerOpen}
-          onMouseLeave={tempDrawerClose}
-        >
+        <List sx={{ pt: 0, pb: 0 }} onMouseEnter={tempDrawerOpen} onMouseLeave={tempDrawerClose}>
           {navState.map((props) => (
             <ExpandableButton
               key={props.url}

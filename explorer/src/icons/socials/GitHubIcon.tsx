@@ -6,10 +6,7 @@ interface GitHubIconProps {
   color?: string;
 }
 
-export const GitHubIcon: React.FC<GitHubIconProps> = ({
-  size,
-  color: colorProp,
-}) => {
+export const GitHubIcon: React.FC<GitHubIconProps> = ({ size, color: colorProp }) => {
   const theme = useTheme();
   const color = colorProp || theme.palette.text.primary;
   return (

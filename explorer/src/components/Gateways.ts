@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { GatewayResponse } from '../typeDefs/explorer-api';
 
 export type GatewayRowType = {
@@ -10,9 +9,7 @@ export type GatewayRowType = {
   location: string;
 };
 
-export function gatewayToGridRow(
-  arrayOfGateways: GatewayResponse,
-): GatewayRowType[] {
+export function gatewayToGridRow(arrayOfGateways: GatewayResponse): GatewayRowType[] {
   return !arrayOfGateways
     ? []
     : arrayOfGateways.map((gw) => ({

@@ -1,31 +1,19 @@
 import * as React from 'react';
-import {
-  Alert,
-  Box,
-  CircularProgress,
-  Grid,
-  SelectChangeEvent,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, CircularProgress, Grid, SelectChangeEvent, Typography } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { ContentCard } from 'src/components/ContentCard';
-import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
-import { TableToolbar } from 'src/components/TableToolbar';
-import { Title } from 'src/components/Title';
-import {
-  UniversalDataGrid,
-  cellStyles,
-} from 'src/components/Universal-DataGrid';
-import { WorldMap } from 'src/components/WorldMap';
-import { useMainContext } from 'src/context/main';
-import { CountryDataRowType, countryDataToGridRow } from 'src/utils';
+import { ContentCard } from '../../components/ContentCard';
+import { CustomColumnHeading } from '../../components/CustomColumnHeading';
+import { TableToolbar } from '../../components/TableToolbar';
+import { Title } from '../../components/Title';
+import { UniversalDataGrid, cellStyles } from '../../components/Universal-DataGrid';
+import { WorldMap } from '../../components/WorldMap';
+import { useMainContext } from '../../context/main';
+import { CountryDataRowType, countryDataToGridRow } from '../../utils';
 
 export const PageMixnodesMap: React.FC = () => {
   const { countryData } = useMainContext();
   const [pageSize, setPageSize] = React.useState<string>('10');
-  const [formattedCountries, setFormattedCountries] = React.useState<
-    CountryDataRowType[]
-  >([]);
+  const [formattedCountries, setFormattedCountries] = React.useState<CountryDataRowType[]>([]);
   const [searchTerm, setSearchTerm] = React.useState<string>('');
 
   const handleSearch = (str: string) => {
@@ -51,9 +39,7 @@ export const PageMixnodesMap: React.FC = () => {
     },
     {
       field: 'nodes',
-      renderHeader: () => (
-        <CustomColumnHeading headingTitle="Number of Nodes" />
-      ),
+      renderHeader: () => <CustomColumnHeading headingTitle="Number of Nodes" />,
       flex: 1,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
@@ -79,15 +65,11 @@ export const PageMixnodesMap: React.FC = () => {
 
   React.useEffect(() => {
     if (countryData?.data && searchTerm === '') {
-      setFormattedCountries(
-        countryDataToGridRow(Object.values(countryData.data)),
-      );
+      setFormattedCountries(countryDataToGridRow(Object.values(countryData.data)));
     } else if (countryData?.data !== undefined && searchTerm !== '') {
       const formatted = countryDataToGridRow(Object.values(countryData?.data));
       const filtered = formatted.filter(
-        (m) =>
-          m?.countryName?.toLowerCase().includes(searchTerm) ||
-          m?.ISO3?.toLowerCase().includes(searchTerm),
+        (m) => m?.countryName?.toLowerCase().includes(searchTerm) || m?.ISO3?.toLowerCase().includes(searchTerm),
       );
       if (filtered) {
         setFormattedCountries(filtered);

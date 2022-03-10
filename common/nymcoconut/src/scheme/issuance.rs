@@ -359,6 +359,7 @@ mod tests {
         let (_commitments_openings, lambda) =
             prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
 
+
         let bytes = lambda.to_bytes();
         assert_eq!(
             BlindSignRequest::try_from(bytes.as_slice()).unwrap(),
@@ -372,6 +373,7 @@ mod tests {
 
         let (_commitments_openings, lambda) =
             prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
+
 
         let bytes = lambda.to_bytes();
         assert_eq!(

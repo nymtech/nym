@@ -522,8 +522,6 @@ mod tests {
 
     #[test]
     fn proof_cm_cs_bytes_roundtrip() {
-        // we don't care about 'correctness' of the proof. only whether we can correctly recover it from bytes
-
         let mut rng = thread_rng();
 
         let mut params = setup(1).unwrap();
@@ -535,6 +533,7 @@ mod tests {
 
         // 0 public 1 private
         let pi_s = ProofCmCs::construct(&mut params, &cm, &r, &cms, &rs, &private_attributes);
+
 
         let bytes = pi_s.to_bytes();
         assert_eq!(ProofCmCs::from_bytes(&bytes).unwrap(), pi_s);
@@ -558,9 +557,9 @@ mod tests {
 
     #[test]
     fn proof_kappa_zeta_bytes_roundtrip() {
-        let mut params = setup(4).unwrap();
+        let params = setup(4).unwrap();
 
-        let keypair = keygen(&mut params);
+        let keypair = keygen(&params);
 
         // we don't care about 'correctness' of the proof. only whether we can correctly recover it from bytes
         let serial_number = params.random_scalar();
@@ -573,7 +572,7 @@ mod tests {
 
         // 0 public 2 private
         let pi_v = ProofKappaZeta::construct(
-            &mut params,
+            &params,
             &keypair.verification_key(),
             &serial_number,
             &binding_number,
@@ -588,11 +587,11 @@ mod tests {
         assert_eq!(proof_from_bytes, pi_v);
 
         // 2 public 2 private
-        let mut params = setup(4).unwrap();
-        let keypair = keygen(&mut params);
+        let params = setup(4).unwrap();
+        let keypair = keygen(&params);
 
         let pi_v = ProofKappaZeta::construct(
-            &mut params,
+            &params,
             &keypair.verification_key(),
             &serial_number,
             &binding_number,

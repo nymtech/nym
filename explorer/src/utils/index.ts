@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import { MutableRefObject } from 'react';
-import { CountryData } from 'src/typeDefs/explorer-api';
 import { registerLocale, getName } from 'i18n-iso-countries';
+import { CountryData } from '../typeDefs/explorer-api';
 
 registerLocale(require('i18n-iso-countries/langs/en.json'));
 
@@ -9,9 +9,7 @@ export function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num);
 }
 
-export function scrollToRef(
-  ref: MutableRefObject<HTMLDivElement | undefined>,
-): void {
+export function scrollToRef(ref: MutableRefObject<HTMLDivElement | undefined>): void {
   if (ref?.current) ref.current.scrollIntoView();
 }
 
@@ -23,9 +21,7 @@ export type CountryDataRowType = {
   percentage: string;
 };
 
-export function countryDataToGridRow(
-  countriesData: CountryData[],
-): CountryDataRowType[] {
+export function countryDataToGridRow(countriesData: CountryData[]): CountryDataRowType[] {
   const totalNodes = countriesData.reduce((acc, obj) => acc + obj.nodes, 0);
   const formatted = countriesData.map((each: CountryData, index: number) => {
     const updatedCountryRecord: CountryDataRowType = {

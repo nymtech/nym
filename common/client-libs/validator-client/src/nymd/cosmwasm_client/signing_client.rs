@@ -641,7 +641,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn connect_with_signer<U>(
+    pub fn connect_with_signer<U: Clone>(
         endpoint: U,
         signer: DirectSecp256k1HdWallet,
         gas_price: GasPrice,

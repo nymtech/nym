@@ -273,9 +273,9 @@ mod tests {
 
     #[test]
     fn theta_bytes_roundtrip() {
-        let mut params = setup(2).unwrap();
+        let params = setup(2).unwrap();
 
-        let keypair = keygen(&mut params);
+        let keypair = keygen(&params);
         let r = params.random_scalar();
         let s = params.random_scalar();
 
@@ -284,7 +284,7 @@ mod tests {
         let binding_number = params.random_scalar();
 
         let theta = prove_bandwidth_credential(
-            &mut params,
+            &params,
             &keypair.verification_key(),
             &signature,
             serial_number,

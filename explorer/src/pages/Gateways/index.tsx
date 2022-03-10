@@ -2,22 +2,18 @@ import * as React from 'react';
 import { Button, Card, Grid, Typography } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SelectChangeEvent } from '@mui/material/Select';
-import { useMainContext } from 'src/context/main';
-import { gatewayToGridRow } from 'src/components/Gateways';
-import { GatewayResponse } from 'src/typeDefs/explorer-api';
-import { TableToolbar } from 'src/components/TableToolbar';
-import { CustomColumnHeading } from 'src/components/CustomColumnHeading';
-import { Title } from 'src/components/Title';
-import {
-  cellStyles,
-  UniversalDataGrid,
-} from 'src/components/Universal-DataGrid';
+import { useMainContext } from '../../context/main';
+import { gatewayToGridRow } from '../../components/Gateways';
+import { GatewayResponse } from '../../typeDefs/explorer-api';
+import { TableToolbar } from '../../components/TableToolbar';
+import { CustomColumnHeading } from '../../components/CustomColumnHeading';
+import { Title } from '../../components/Title';
+import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { currencyToString } from '../../utils/currency';
 
 export const PageGateways: React.FC = () => {
   const { gateways } = useMainContext();
-  const [filteredGateways, setFilteredGateways] =
-    React.useState<GatewayResponse>([]);
+  const [filteredGateways, setFilteredGateways] = React.useState<GatewayResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('50');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
 
@@ -137,11 +133,7 @@ export const PageGateways: React.FC = () => {
                 pageSize={pageSize}
                 searchTerm={searchTerm}
               />
-              <UniversalDataGrid
-                rows={gatewayToGridRow(filteredGateways)}
-                columns={columns}
-                pageSize={pageSize}
-              />
+              <UniversalDataGrid rows={gatewayToGridRow(filteredGateways)} columns={columns} pageSize={pageSize} />
             </Card>
           </Grid>
         </Grid>

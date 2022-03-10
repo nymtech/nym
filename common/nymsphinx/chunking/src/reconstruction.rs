@@ -446,7 +446,7 @@ mod reconstruction_buffer {
                 .collect();
 
         for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize - 1) {
-            buf.insert_fragment(Fragment::try_from_bytes(&raw_fragment).unwrap());
+            buf.insert_fragment(Fragment::try_from_bytes(raw_fragment).unwrap());
         }
 
         assert!(!buf.is_complete);
@@ -1268,7 +1268,7 @@ mod message_reconstructor {
                 .collect();
 
         for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize) {
-            set_buf1.insert_fragment(Fragment::try_from_bytes(&raw_fragment).unwrap());
+            set_buf1.insert_fragment(Fragment::try_from_bytes(raw_fragment).unwrap());
         }
 
         set_buf2.insert_fragment(Fragment::try_from_bytes(&raw_fragments[255]).unwrap());

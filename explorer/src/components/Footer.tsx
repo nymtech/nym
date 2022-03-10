@@ -39,7 +39,7 @@ export const Footer: React.FC = () => {
         sx={{
           fontSize: 12,
           textAlign: isMobile ? 'center' : 'end',
-          color: theme.palette.nym.text.footer,
+          color: theme.palette.nym.muted.onDarkBg,
         }}
       >
         © {new Date().getFullYear()} Nym Technologies SA, all rights reserved

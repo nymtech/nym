@@ -13,8 +13,8 @@ export const Tabs: React.FC<{
     sx={{ bgcolor: 'grey.200', borderTop: '1px solid', borderBottom: '1px solid', borderColor: 'grey.300' }}
     textColor="inherit"
   >
-    {tabs.map((tabName, index) => (
-      <Tab key={index} label={tabName} sx={{ textTransform: 'capitalize' }} disabled={disabled} />
+    {tabs.map((tabName) => (
+      <Tab key={tabName} label={tabName} sx={{ textTransform: 'capitalize' }} disabled={disabled} />
     ))}
   </MuiTabs>
 );

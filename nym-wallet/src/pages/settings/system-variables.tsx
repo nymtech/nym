@@ -82,7 +82,7 @@ export const SystemVariables = ({
       setNodeUpdateResponse('success');
     } catch (e) {
       setNodeUpdateResponse('failed');
-      console.log(e);
+      console.error(e);
     }
   };
 

@@ -69,7 +69,8 @@ export const SendWizard = () => {
       methods.setError('amount', {
         message: 'Not enough funds in wallet',
       });
-      return handlePreviousStep();
+      handlePreviousStep();
+      return;
     }
     setIsLoading(true);
     setActiveStep((s) => s + 1);
@@ -81,6 +82,7 @@ export const SendWizard = () => {
       memo: formState.memo,
     })
       .then((res: TauriTxResult) => {
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         const { details, tx_hash } = res;
 
         setActiveStep((s) => s + 1);
@@ -95,7 +97,7 @@ export const SendWizard = () => {
       .catch((e) => {
         setRequestError(e);
         setIsLoading(false);
-        console.log(e);
+        console.error(e);
       });
   };
 
@@ -108,8 +110,8 @@ export const SendWizard = () => {
             p: 2,
           }}
         >
-          {steps.map((s, i) => (
-            <Step key={i}>
+          {steps.map((s) => (
+            <Step key={s}>
               <StepLabel>{s}</StepLabel>
             </Step>
           ))}
@@ -125,7 +127,7 @@ export const SendWizard = () => {
           }}
         >
           {activeStep === 0 ? (
-            <SendForm transferFee={transferFee} />
+            <SendForm />
           ) : activeStep === 1 ? (
             <SendReview transferFee={transferFee} />
           ) : (

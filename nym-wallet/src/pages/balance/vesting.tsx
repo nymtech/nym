@@ -1,26 +1,123 @@
-import React, { useEffect, useContext, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
-  IconButton,
+  Box,
+  Button,
   CircularProgress,
-  LinearProgress,
+  Grid,
+  IconButton,
   Table,
   TableCell,
+  TableCellProps,
   TableContainer,
   TableHead,
   TableRow,
   Typography,
-  Box,
-  Button,
-  TableCellProps,
-  Grid,
 } from '@mui/material';
 import { InfoOutlined, Refresh } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
-import { NymCard, InfoTooltip, Title, Fee } from '../../components';
+import { Fee, InfoTooltip, NymCard, Title } from '../../components';
 import { ClientContext } from '../../context/main';
 import { withdrawVestedCoins } from '../../requests';
 import { Period } from '../../types';
 import { VestingTimeline } from './components/vesting-timeline';
+
+const columnsHeaders: Array<{ title: string; align: TableCellProps['align'] }> = [
+  { title: 'Locked', align: 'left' },
+  { title: 'Period', align: 'left' },
+  { title: 'Percentage Vested', align: 'left' },
+  { title: 'Unlocked', align: 'right' },
+];
+
+const vestingPeriod = (current?: Period, original?: number) => {
+  if (current === 'After') return 'Complete';
+
+  if (typeof current === 'object' && typeof original === 'number') return `${current.In + 1}/${original}`;
+
+  return 'N/A';
+};
+
+const VestingSchedule = () => {
+  const { userBalance, currency } = useContext(ClientContext);
+  const [vestedPercentage, setVestedPercentage] = useState(0);
+
+  const calculatePercentage = () => {
+    const { tokenAllocation, originalVesting } = userBalance;
+    if (tokenAllocation?.vesting && tokenAllocation.vested && tokenAllocation.vested !== '0' && originalVesting) {
+      const percentage = (+tokenAllocation.vested / +originalVesting.amount.amount) * 100;
+      const rounded = percentage.toFixed(2);
+      setVestedPercentage(+rounded);
+    } else {
+      setVestedPercentage(0);
+    }
+  };
+
+  useEffect(() => {
+    calculatePercentage();
+  }, [userBalance.tokenAllocation, calculatePercentage]);
+
+  return (
+    <TableContainer>
+      <Table>
+        <TableHead>
+          <TableRow>
+            {columnsHeaders.map((header) => (
+              <TableCell key={header.title} sx={{ color: 'grey.500' }} align={header.align}>
+                {header.title}
+              </TableCell>
+            ))}
+          </TableRow>
+          <TableRow>
+            <TableCell sx={{ borderBottom: 'none' }}>
+              {userBalance.tokenAllocation?.vesting || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
+              {currency?.major}
+            </TableCell>
+            <TableCell align="left" sx={{ borderBottom: 'none' }}>
+              {vestingPeriod(userBalance.currentVestingPeriod, userBalance.originalVesting?.number_of_periods)}
+            </TableCell>
+            <TableCell sx={{ borderBottom: 'none' }}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Typography variant="body2">{`${vestedPercentage}%`}</Typography>
+                <VestingTimeline percentageComplete={vestedPercentage} />
+              </Box>
+            </TableCell>
+            <TableCell sx={{ borderBottom: 'none' }} align="right">
+              {userBalance.tokenAllocation?.vested || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
+              {currency?.major}
+            </TableCell>
+          </TableRow>
+        </TableHead>
+      </Table>
+    </TableContainer>
+  );
+};
+
+const TokenTransfer = () => {
+  const { userBalance, currency } = useContext(ClientContext);
+  const icon = useMemo(
+    () => (
+      <Box sx={{ display: 'flex', mr: 1 }}>
+        <InfoTooltip title="Unlocked tokens that are available to transfer to your balance" size="medium" />
+      </Box>
+    ),
+    [],
+  );
+  return (
+    <Grid container sx={{ my: 2 }} direction="column" spacing={2}>
+      <Grid item>
+        <Title title="Transfer unlocked tokens" Icon={icon} />
+      </Grid>
+      <Grid item>
+        <Typography variant="subtitle2" sx={{ color: 'grey.500', mt: 2 }}>
+          Transferable tokens
+        </Typography>
+
+        <Typography data-testid="refresh-success" sx={{ color: 'nym.background.dark' }} variant="h5" fontWeight="700">
+          {userBalance.tokenAllocation?.spendable || 'n/a'} {currency?.major}
+        </Typography>
+      </Grid>
+    </Grid>
+  );
+};
 
 export const VestingCard = () => {
   const { userBalance } = useContext(ClientContext);
@@ -85,102 +182,5 @@ export const VestingCard = () => {
         </Button>
       </Box>
     </NymCard>
-  );
-};
-
-const columnsHeaders: Array<{ title: string; align: TableCellProps['align'] }> = [
-  { title: 'Locked', align: 'left' },
-  { title: 'Period', align: 'left' },
-  { title: 'Percentage Vested', align: 'left' },
-  { title: 'Unlocked', align: 'right' },
-];
-
-const VestingSchedule = () => {
-  const { userBalance, currency } = useContext(ClientContext);
-  const [vestedPercentage, setVestedPercentage] = useState(0);
-
-  const calculatePercentage = () => {
-    const { tokenAllocation, originalVesting } = userBalance;
-    if (tokenAllocation?.vesting && tokenAllocation.vested && tokenAllocation.vested !== '0' && originalVesting) {
-      const percentage = (+tokenAllocation.vested / +originalVesting?.amount.amount) * 100;
-      const rounded = percentage.toFixed(2);
-      setVestedPercentage(+rounded);
-    } else {
-      setVestedPercentage(0);
-    }
-  };
-
-  useEffect(() => {
-    calculatePercentage();
-  }, [userBalance.tokenAllocation, calculatePercentage]);
-
-  return (
-    <TableContainer>
-      <Table>
-        <TableHead>
-          <TableRow>
-            {columnsHeaders.map((header) => (
-              <TableCell key={header.title} sx={{ color: 'grey.500' }} align={header.align}>
-                {header.title}
-              </TableCell>
-            ))}
-          </TableRow>
-          <TableRow>
-            <TableCell sx={{ borderBottom: 'none' }}>
-              {userBalance.tokenAllocation?.vesting || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
-              {currency?.major}
-            </TableCell>
-            <TableCell align="left" sx={{ borderBottom: 'none' }}>
-              {vestingPeriod(userBalance.currentVestingPeriod, userBalance.originalVesting?.number_of_periods)}
-            </TableCell>
-            <TableCell sx={{ borderBottom: 'none' }}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <Typography variant="body2">{`${vestedPercentage}%`}</Typography>
-                <VestingTimeline percentageComplete={vestedPercentage} />
-              </Box>
-            </TableCell>
-            <TableCell sx={{ borderBottom: 'none' }} align="right">
-              {userBalance.tokenAllocation?.vested || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
-              {currency?.major}
-            </TableCell>
-          </TableRow>
-        </TableHead>
-      </Table>
-    </TableContainer>
-  );
-};
-
-const vestingPeriod = (current?: Period, original?: number) => {
-  if (current === 'After') return 'Complete';
-
-  if (typeof current === 'object' && typeof original === 'number') return `${current.In + 1}/${original}`;
-
-  return 'N/A';
-};
-
-const TokenTransfer = () => {
-  const { userBalance, currency } = useContext(ClientContext);
-  return (
-    <Grid container sx={{ my: 2 }} direction="column" spacing={2}>
-      <Grid item>
-        <Title
-          title="Transfer unlocked tokens"
-          Icon={() => (
-            <Box sx={{ display: 'flex', mr: 1 }}>
-              <InfoTooltip title="Unlocked tokens that are available to transfer to your balance" size="medium" />
-            </Box>
-          )}
-        />
-      </Grid>
-      <Grid item>
-        <Typography variant="subtitle2" sx={{ color: 'grey.500', mt: 2 }}>
-          Transferable tokens
-        </Typography>
-
-        <Typography data-testid="refresh-success" sx={{ color: 'nym.background.dark' }} variant="h5" fontWeight="700">
-          {userBalance.tokenAllocation?.spendable || 'n/a'} {currency?.major}
-        </Typography>
-      </Grid>
-    </Grid>
   );
 };

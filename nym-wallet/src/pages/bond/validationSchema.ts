@@ -22,7 +22,7 @@ export const validationSchema = Yup.object().shape({
   profitMarginPercent: Yup.number().required('Profit Percentage is required').min(0).max(100),
   amount: Yup.string()
     .required('An amount is required')
-    .test('valid-amount', 'Pledge error', async function (value) {
+    .test('valid-amount', 'Pledge error', async (value) => {
       const isValid = await validateAmount(value || '', '100000000');
 
       if (!isValid) {
@@ -41,11 +41,13 @@ export const validationSchema = Yup.object().shape({
   version: Yup.string()
     .required('A version is required')
     .test('valid-version', 'A valid version is required', (value) => (value ? validateVersion(value) : false)),
-  location: Yup.lazy((value) => {
-    if (value) {
+  location: Yup.lazy((locationValue) => {
+    if (locationValue) {
       return Yup.string()
         .required('A location is required')
-        .test('valid-location', 'A valid version is required', (value) => (value ? validateLocation(value) : false));
+        .test('valid-location', 'A valid version is required', (locationValueTest) =>
+          locationValueTest ? validateLocation(locationValueTest) : false,
+        );
     }
     return Yup.mixed().notRequired();
   }),

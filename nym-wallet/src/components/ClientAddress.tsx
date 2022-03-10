@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { Box, Typography } from '@mui/material';
 import { ClientContext } from '../context/main';
-import { CopyToClipboard } from '.';
+import { CopyToClipboard } from './CopyToClipboard';
 import { splice } from '../utils';
 
 export const ClientAddress = ({ withCopy }: { withCopy?: boolean }) => {

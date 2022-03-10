@@ -36,7 +36,7 @@ export const Settings = () => {
           <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} disabled={!mixnodeDetails} />
           {!mixnodeDetails && (
             <Alert severity="info" sx={{ m: 4 }}>
-              You don't currently have a node running
+              You do not currently have a node running
             </Alert>
           )}
           {selectedTab === 0 && mixnodeDetails && <Profile />}

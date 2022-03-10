@@ -1,6 +1,5 @@
 import React, { useContext } from 'react';
-import { Button, Divider, Stack, TextField, Typography } from '@mui/material';
-import { Box } from '@mui/system';
+import { Box, Button, Divider, Stack, TextField, Typography } from '@mui/material';
 import { ClientContext } from '../../context/main';
 
 export const Profile = () => {

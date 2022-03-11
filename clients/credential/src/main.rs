@@ -22,6 +22,7 @@ pub const SIGNER_AUTHORITIES: [&str; 3] = [
 ];
 
 pub const DEPOSITS_KEY: &str = "deposits";
+pub const SIGNATURES_KEY: &str = "signatures";
 
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about)]

@@ -8,7 +8,7 @@ use rand::rngs::OsRng;
 use std::str::FromStr;
 use url::Url;
 
-use coconut_interface::{hash_to_scalar, Parameters};
+use coconut_interface::{hash_to_scalar, Parameters, Signature};
 use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
@@ -16,7 +16,7 @@ use crypto::asymmetric::{encryption, identity};
 use crate::client::Client;
 use crate::error::{CredentialClientError, Result};
 use crate::state::{KeyPair, State};
-use crate::{DEPOSITS_KEY, SIGNER_AUTHORITIES};
+use crate::{DEPOSITS_KEY, SIGNATURES_KEY, SIGNER_AUTHORITIES};
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -116,8 +116,11 @@ impl Execute for GetCredential {
             self.tx_hash.clone(),
             state.signing_keypair.private_key,
         );
-        let _signature =
+        let signature =
             obtain_aggregate_signature(&params, &bandwidth_credential_attributes, &urls).await?;
+        let mut signatures = db.get::<Vec<Signature>>(SIGNATURES_KEY).unwrap_or(vec![]);
+        signatures.push(signature);
+        db.set(SIGNATURES_KEY, &signatures).unwrap();
         Ok(())
     }
 }

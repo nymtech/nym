@@ -123,7 +123,7 @@ mod tests {
         let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, data);
-        assert!(available_reader.next().await.is_none())
+        assert!(available_reader.next().await.is_none());
     }
 
     #[tokio::test]
@@ -135,7 +135,7 @@ mod tests {
         let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, data);
-        assert!(available_reader.next().await.is_none())
+        assert!(available_reader.next().await.is_none());
     }
 
     #[tokio::test]
@@ -157,7 +157,7 @@ mod tests {
 
         // before dropping the mock, we need to empty it
         let mut buf = vec![0u8; second_data_chunk.len()];
-        reader_mock.read(&mut buf).await.unwrap();
+        assert_eq!(reader_mock.read(&mut buf).await.unwrap(), 100);
     }
 
     #[tokio::test]
@@ -173,7 +173,7 @@ mod tests {
         let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, data);
-        assert!(available_reader.next().await.is_none())
+        assert!(available_reader.next().await.is_none());
     }
 
     // perhaps the issue of tokio io builder will be resolved in tokio 0.3?

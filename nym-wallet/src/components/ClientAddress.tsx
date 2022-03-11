@@ -1,12 +1,11 @@
-import React, { useContext } from 'react'
-import { Typography } from '@mui/material'
-import { Box } from '@mui/system'
-import { ClientContext } from '../context/main'
-import { CopyToClipboard } from '../components'
-import { splice } from '../utils'
+import React, { useContext } from 'react';
+import { Box, Typography } from '@mui/material';
+import { ClientContext } from '../context/main';
+import { CopyToClipboard } from './CopyToClipboard';
+import { splice } from '../utils';
 
 export const ClientAddress = ({ withCopy }: { withCopy?: boolean }) => {
-  const { clientDetails } = useContext(ClientContext)
+  const { clientDetails } = useContext(ClientContext);
   return (
     <Box>
       <Typography variant="body2" component="span" sx={{ color: 'grey.600' }}>
@@ -17,5 +16,5 @@ export const ClientAddress = ({ withCopy }: { withCopy?: boolean }) => {
       </Typography>
       {withCopy && <CopyToClipboard text={clientDetails?.client_address} iconButton />}
     </Box>
-  )
-}
+  );
+};

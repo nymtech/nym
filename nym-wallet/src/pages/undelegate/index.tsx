@@ -1,48 +1,47 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
-import { NymCard } from '../../components'
-import { UndelegateForm } from './UndelegateForm'
-import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
-import { getGasFee, getReverseMixDelegations } from '../../requests'
-import { TFee, TPagedDelegations } from '../../types'
-import { ClientContext } from '../../context/main'
-import { PageLayout } from '../../layouts'
+import React, { useContext, useEffect, useState } from 'react';
+import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material';
+import { EnumRequestStatus, NymCard, RequestStatus } from '../../components';
+import { UndelegateForm } from './UndelegateForm';
+import { getGasFee, getReverseMixDelegations } from '../../requests';
+import { TFee, TPagedDelegations } from '../../types';
+import { ClientContext } from '../../context/main';
+import { PageLayout } from '../../layouts';
 
 export const Undelegate = () => {
-  const [message, setMessage] = useState<string>()
-  const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial)
-  const [isLoading, setIsLoading] = useState(true)
-  const [fees, setFees] = useState<TFee>()
-  const [pagedDelegations, setPagesDelegations] = useState<TPagedDelegations>()
+  const [message, setMessage] = useState<string>();
+  const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fees, setFees] = useState<TFee>();
+  const [pagedDelegations, setPagesDelegations] = useState<TPagedDelegations>();
 
-  const { clientDetails } = useContext(ClientContext)
-
-  useEffect(() => {
-    initialize()
-  }, [clientDetails])
+  const { clientDetails } = useContext(ClientContext);
 
   const initialize = async () => {
-    setStatus(EnumRequestStatus.initial)
-    setIsLoading(true)
+    setStatus(EnumRequestStatus.initial);
+    setIsLoading(true);
 
     try {
       const [mixnodeFee, mixnodeDelegations] = await Promise.all([
         getGasFee('UndelegateFromMixnode'),
         getReverseMixDelegations(),
-      ])
+      ]);
 
       setFees({
         mixnode: mixnodeFee,
-      })
+      });
 
-      setPagesDelegations(mixnodeDelegations)
+      setPagesDelegations(mixnodeDelegations);
     } catch (e) {
-      setStatus(EnumRequestStatus.error)
-      setMessage(e as string)
+      setStatus(EnumRequestStatus.error);
+      setMessage(e as string);
     }
 
-    setIsLoading(false)
-  }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    initialize();
+  }, [clientDetails]);
 
   return (
     <PageLayout>
@@ -63,13 +62,13 @@ export const Undelegate = () => {
             <UndelegateForm
               fees={fees}
               delegations={pagedDelegations?.delegations}
-              onError={(message) => {
-                setMessage(message)
-                setStatus(EnumRequestStatus.error)
+              onError={(m) => {
+                setMessage(m);
+                setStatus(EnumRequestStatus.error);
               }}
-              onSuccess={(message) => {
-                setMessage(message)
-                setStatus(EnumRequestStatus.success)
+              onSuccess={(m) => {
+                setMessage(m);
+                setStatus(EnumRequestStatus.success);
               }}
             />
           )}
@@ -104,8 +103,8 @@ export const Undelegate = () => {
                   variant="contained"
                   disableElevation
                   onClick={() => {
-                    setStatus(EnumRequestStatus.initial)
-                    initialize()
+                    setStatus(EnumRequestStatus.initial);
+                    initialize();
                   }}
                   size="large"
                 >
@@ -117,5 +116,5 @@ export const Undelegate = () => {
         </>
       </NymCard>
     </PageLayout>
-  )
-}
+  );
+};

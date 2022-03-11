@@ -1,11 +1,11 @@
-import React, { useContext, useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material'
-import { AccountBalanceWalletOutlined, ArrowBack, ArrowForward, Description, Settings } from '@mui/icons-material'
-import { ADMIN_ADDRESS, ClientContext } from '../context/main'
-import { Bond, Delegate, Unbond, Undelegate } from '../svg-icons'
+import React, { useContext, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { AccountBalanceWalletOutlined, ArrowBack, ArrowForward, Description, Settings } from '@mui/icons-material';
+import { ADMIN_ADDRESS, ClientContext } from '../context/main';
+import { Bond, Delegate, Unbond, Undelegate } from '../svg-icons';
 
-let routesSchema = [
+const routesSchema = [
   {
     label: 'Balance',
     route: '/balance',
@@ -41,11 +41,11 @@ let routesSchema = [
     route: '/undelegate',
     Icon: Undelegate,
   },
-]
+];
 
 export const Nav = () => {
-  const { clientDetails, handleShowAdmin } = useContext(ClientContext)
-  const location = useLocation()
+  const { clientDetails, handleShowAdmin } = useContext(ClientContext);
+  const location = useLocation();
 
   useEffect(() => {
     if (clientDetails?.client_address === ADMIN_ADDRESS) {
@@ -53,9 +53,9 @@ export const Nav = () => {
         label: 'Docs',
         route: '/docs',
         Icon: Description,
-      })
+      });
     }
-  }, [])
+  }, []);
 
   return (
     <div
@@ -66,8 +66,8 @@ export const Nav = () => {
       }}
     >
       <List disablePadding>
-        {routesSchema.map(({ Icon, route, label }, i) => (
-          <ListItem disableGutters component={Link} to={route} key={i}>
+        {routesSchema.map(({ Icon, route, label }) => (
+          <ListItem disableGutters component={Link} to={route} key={label}>
             <ListItemIcon
               sx={{
                 minWidth: 30,
@@ -98,5 +98,5 @@ export const Nav = () => {
         )}
       </List>
     </div>
-  )
-}
+  );
+};

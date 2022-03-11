@@ -1,5 +1,5 @@
-import React from 'react'
-import { Box, Typography } from '@mui/material'
+import React from 'react';
+import { Box, Typography } from '@mui/material';
 
 export const Title: React.FC<{ title: string | React.ReactNode; Icon: any }> = ({ title, Icon }) => (
   <Box display="flex" alignItems="center">
@@ -8,4 +8,4 @@ export const Title: React.FC<{ title: string | React.ReactNode; Icon: any }> = (
       {title}
     </Typography>
   </Box>
-)
+);

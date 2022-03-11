@@ -1,33 +1,32 @@
-import React, { useContext, useEffect } from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { Box, Autocomplete, Button, CircularProgress, FormControl, Grid, TextField, Typography } from '@mui/material'
-import { yupResolver } from '@hookform/resolvers/yup'
-import { validationSchema } from './validationSchema'
-import { EnumNodeType, TDelegation, TFee } from '../../types'
-import { ClientContext } from '../../context/main'
-import { undelegate } from '../../requests'
-import { Fee } from '../../components'
+import React, { useContext, useEffect } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { Autocomplete, Box, Button, CircularProgress, FormControl, Grid, TextField } from '@mui/material';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { validationSchema } from './validationSchema';
+import { EnumNodeType, TDelegation, TFee } from '../../types';
+import { ClientContext } from '../../context/main';
+import { undelegate } from '../../requests';
+import { Fee } from '../../components';
 
 type TFormData = {
-  nodeType: EnumNodeType
-  identity: string
-}
+  nodeType: EnumNodeType;
+  identity: string;
+};
 
 const defaultValues = {
   nodeType: EnumNodeType.mixnode,
   identity: '',
-}
+};
 
 export const UndelegateForm = ({
-  fees,
   delegations,
   onError,
   onSuccess,
 }: {
-  fees: TFee
-  delegations?: TDelegation[]
-  onError: (message?: string) => void
-  onSuccess: (message?: string) => void
+  fees: TFee;
+  delegations?: TDelegation[];
+  onError: (message?: string) => void;
+  onSuccess: (message?: string) => void;
 }) => {
   const {
     control,
@@ -38,14 +37,14 @@ export const UndelegateForm = ({
   } = useForm<TFormData>({
     defaultValues,
     resolver: yupResolver(validationSchema),
-  })
-  const watchNodeType = watch('nodeType')
+  });
+  const watchNodeType = watch('nodeType');
 
   useEffect(() => {
-    setValue('identity', '')
-  }, [watchNodeType])
+    setValue('identity', '');
+  }, [watchNodeType]);
 
-  const { userBalance } = useContext(ClientContext)
+  const { userBalance } = useContext(ClientContext);
 
   const onSubmit = async (data: TFormData) => {
     await undelegate({
@@ -53,11 +52,11 @@ export const UndelegateForm = ({
       identity: data.identity,
     })
       .then(async (res) => {
-        onSuccess(`Successfully undelegated from ${res.target_address}`)
-        userBalance.fetchBalance()
+        onSuccess(`Successfully undelegated from ${res.target_address}`);
+        userBalance.fetchBalance();
       })
-      .catch((e) => onError(e))
-  }
+      .catch((e) => onError(e));
+  };
 
   return (
     <FormControl fullWidth>
@@ -118,5 +117,5 @@ export const UndelegateForm = ({
         </Button>
       </Box>
     </FormControl>
-  )
-}
+  );
+};

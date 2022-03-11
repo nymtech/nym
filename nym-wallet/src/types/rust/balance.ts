@@ -1,3 +1,6 @@
-import type { Coin } from "./coin";
+import type { Coin } from './coin';
 
-export interface Balance { coin: Coin, printable_balance: string, }
+export interface Balance {
+  coin: Coin;
+  printable_balance: string;
+}

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use thiserror::Error;
+
+use credentials::error::Error as CredentialError;
 use validator_client::nymd::error::NymdError;
 
 pub type Result<T> = std::result::Result<T, CredentialClientError>;
@@ -10,4 +12,7 @@ pub type Result<T> = std::result::Result<T, CredentialClientError>;
 pub enum CredentialClientError {
     #[error("Nymd error: {0}")]
     Nymd(#[from] NymdError),
+
+    #[error("Credential error: {0}")]
+    Credential(#[from] CredentialError),
 }

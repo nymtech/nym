@@ -5,12 +5,19 @@ use async_trait::async_trait;
 use clap::{Args, Subcommand};
 use pickledb::PickleDb;
 use rand::rngs::OsRng;
+use std::str::FromStr;
+use url::Url;
 
+use coconut_interface::{hash_to_scalar, Parameters};
+use credentials::coconut::bandwidth::{
+    obtain_signature, BandwidthVoucherAttributes, TOTAL_ATTRIBUTES,
+};
 use crypto::asymmetric::{encryption, identity};
 
 use crate::client::Client;
 use crate::error::Result;
 use crate::state::{KeyPair, State};
+use crate::SIGNER_AUTHORITIES;
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -49,6 +56,7 @@ impl Execute for Deposit {
             .await?;
 
         let state = State {
+            amount: self.amount,
             signing_keypair,
             encryption_keypair,
         };
@@ -67,7 +75,18 @@ pub(crate) struct GetCredential {
 
 #[async_trait]
 impl Execute for GetCredential {
-    async fn execute(&self, _db: &mut PickleDb) -> Result<()> {
+    async fn execute(&self, db: &mut PickleDb) -> Result<()> {
+        let state = db.get::<State>(&self.tx_hash).unwrap();
+        let urls = SIGNER_AUTHORITIES.map(|addr| Url::from_str(addr).unwrap());
+
+        let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
+        let bandwidth_credential_attributes = BandwidthVoucherAttributes {
+            serial_number: params.random_scalar(),
+            binding_number: params.random_scalar(),
+            voucher_value: hash_to_scalar(state.amount.to_be_bytes()),
+            voucher_info: hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
+        };
+        let _signature = obtain_signature(&params, &bandwidth_credential_attributes, &urls).await?;
         Ok(())
     }
 }

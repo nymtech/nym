@@ -836,6 +836,8 @@ dependencies = [
  "bip39",
  "clap 3.1.6",
  "coconut-bandwidth-contract",
+ "coconut-interface",
+ "credentials",
  "crypto",
  "network-defaults",
  "pemstore",

@@ -9,6 +9,7 @@ use rand::rngs::OsRng;
 use crypto::asymmetric::{encryption, identity};
 
 use crate::client::Client;
+use crate::error::Result;
 use crate::state::{KeyPair, State};
 
 #[derive(Subcommand)]
@@ -21,7 +22,7 @@ pub(crate) enum Commands {
 
 #[async_trait]
 pub(crate) trait Execute {
-    async fn execute(&self, db: &mut PickleDb);
+    async fn execute(&self, db: &mut PickleDb) -> Result<()>;
 }
 
 #[derive(Args, Clone)]
@@ -33,7 +34,7 @@ pub(crate) struct Deposit {
 
 #[async_trait]
 impl Execute for Deposit {
-    async fn execute(&self, db: &mut PickleDb) {
+    async fn execute(&self, db: &mut PickleDb) -> Result<()> {
         let mut rng = OsRng;
         let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
         let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
@@ -45,13 +46,15 @@ impl Execute for Deposit {
                 signing_keypair.public_key.clone(),
                 encryption_keypair.public_key.clone(),
             )
-            .await;
+            .await?;
 
         let state = State {
             signing_keypair,
             encryption_keypair,
         };
         db.set(&tx_hash, &state).unwrap();
+
+        Ok(())
     }
 }
 
@@ -64,7 +67,9 @@ pub(crate) struct GetCredential {
 
 #[async_trait]
 impl Execute for GetCredential {
-    async fn execute(&self, _db: &mut PickleDb) {}
+    async fn execute(&self, _db: &mut PickleDb) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Args, Clone)]
@@ -76,5 +81,7 @@ pub(crate) struct SpendCredential {
 
 #[async_trait]
 impl Execute for SpendCredential {
-    async fn execute(&self, _db: &mut PickleDb) {}
+    async fn execute(&self, _db: &mut PickleDb) -> Result<()> {
+        Ok(())
+    }
 }

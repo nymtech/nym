@@ -3,9 +3,11 @@
 
 mod client;
 mod commands;
+mod error;
 mod state;
 
 use commands::{Commands, Execute};
+use error::Result;
 
 use clap::Parser;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
@@ -22,7 +24,7 @@ struct Cli {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let args = Cli::parse();
     let mut db = match PickleDb::load(
         "credential.db",
@@ -38,7 +40,9 @@ async fn main() {
     };
 
     match &args.command {
-        Commands::Deposit(m) => m.execute(&mut db).await,
-        Commands::GetCredential(m) => m.execute(&mut db).await,
+        Commands::Deposit(m) => m.execute(&mut db).await?,
+        Commands::GetCredential(m) => m.execute(&mut db).await?,
     }
+
+    Ok(())
 }

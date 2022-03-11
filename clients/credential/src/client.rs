@@ -6,6 +6,7 @@ use coconut_bandwidth_contract::deposit::DepositData;
 use std::str::FromStr;
 use url::Url;
 
+use crate::error::Result;
 use crate::{CONTRACT_ADDRESS, MNEMONIC, NYMD_URL};
 
 use coconut_bandwidth_contract::msg::ExecuteMsg;
@@ -49,7 +50,7 @@ impl Client {
         amount: u64,
         verification_key: String,
         encryption_key: String,
-    ) -> String {
+    ) -> Result<String> {
         let req = ExecuteMsg::DepositFunds {
             data: DepositData::new(verification_key, encryption_key),
         };
@@ -57,11 +58,11 @@ impl Client {
             denom: self.denom.clone(),
             amount: Decimal::from(amount),
         }];
-        self.nymd_client
+        Ok(self
+            .nymd_client
             .execute(&self.contract_address, &req, Default::default(), "", funds)
-            .await
-            .unwrap()
+            .await?
             .transaction_hash
-            .to_string()
+            .to_string())
     }
 }

@@ -15,4 +15,7 @@ pub enum CredentialClientError {
 
     #[error("Credential error: {0}")]
     Credential(#[from] CredentialError),
+
+    #[error("No previous deposit with that tx hash")]
+    NoDeposit,
 }

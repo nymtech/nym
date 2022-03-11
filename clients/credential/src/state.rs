@@ -51,6 +51,7 @@ impl Into<encryption::KeyPair> for KeyPair {
 #[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct State {
     pub amount: u64,
+    pub tx_hash: String,
     pub signing_keypair: KeyPair,
     pub encryption_keypair: KeyPair,
 }

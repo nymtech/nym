@@ -21,6 +21,8 @@ pub const SIGNER_AUTHORITIES: [&str; 3] = [
     "http://127.0.0.1:8082",
 ];
 
+pub const DEPOSITS_KEY: &str = "deposits";
+
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about)]
 struct Cli {
@@ -46,6 +48,7 @@ async fn main() -> Result<()> {
 
     match &args.command {
         Commands::Deposit(m) => m.execute(&mut db).await?,
+        Commands::ListDeposits(m) => m.execute(&mut db).await?,
         Commands::GetCredential(m) => m.execute(&mut db).await?,
     }
 

@@ -15,14 +15,16 @@ use credentials::coconut::bandwidth::{
 use crypto::asymmetric::{encryption, identity};
 
 use crate::client::Client;
-use crate::error::Result;
+use crate::error::{CredentialClientError, Result};
 use crate::state::{KeyPair, State};
-use crate::SIGNER_AUTHORITIES;
+use crate::{DEPOSITS_KEY, SIGNER_AUTHORITIES};
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
     /// Deposit funds for buying coconut credential
     Deposit(Deposit),
+    /// Lists the tx hashes of previous deposits
+    ListDeposits(ListDeposits),
     /// Get a credential for a given deposit
     GetCredential(GetCredential),
 }
@@ -46,6 +48,8 @@ impl Execute for Deposit {
         let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
         let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
 
+        let mut states = db.get::<Vec<State>>(DEPOSITS_KEY).unwrap_or(vec![]);
+
         let client = Client::new();
         let tx_hash = client
             .deposit(
@@ -57,10 +61,30 @@ impl Execute for Deposit {
 
         let state = State {
             amount: self.amount,
+            tx_hash,
             signing_keypair,
             encryption_keypair,
         };
-        db.set(&tx_hash, &state).unwrap();
+        states.push(state);
+        db.set(DEPOSITS_KEY, &states).unwrap();
+
+        Ok(())
+    }
+}
+
+#[derive(Args, Clone)]
+pub(crate) struct ListDeposits {}
+
+#[async_trait]
+impl Execute for ListDeposits {
+    async fn execute(&self, db: &mut PickleDb) -> Result<()> {
+        let states: Vec<String> = db
+            .get::<Vec<State>>(DEPOSITS_KEY)
+            .unwrap_or(vec![])
+            .into_iter()
+            .map(|state| state.tx_hash)
+            .collect();
+        println!("Hashes for available deposits: {:?}", states);
 
         Ok(())
     }
@@ -76,7 +100,12 @@ pub(crate) struct GetCredential {
 #[async_trait]
 impl Execute for GetCredential {
     async fn execute(&self, db: &mut PickleDb) -> Result<()> {
-        let state = db.get::<State>(&self.tx_hash).unwrap();
+        let state = db
+            .get::<Vec<State>>(DEPOSITS_KEY)
+            .ok_or(CredentialClientError::NoDeposit)?
+            .into_iter()
+            .find(|state| state.tx_hash == self.tx_hash)
+            .ok_or(CredentialClientError::NoDeposit)?;
         let urls = SIGNER_AUTHORITIES.map(|addr| Url::from_str(addr).unwrap());
 
         let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();

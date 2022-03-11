@@ -4,6 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
+    "prewebpack:dev": "yarn --cwd .. build",
     "webpack:dev": "yarn webpack serve --config webpack.dev.js",
     "webpack:prod": "yarn webpack --progress --config webpack.prod.js",
     "tauri:dev": "yarn tauri dev",

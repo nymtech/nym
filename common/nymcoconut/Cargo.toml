@@ -32,9 +32,9 @@ doc-comment = "0.3"
 [dev-dependencies.bincode]
 version = "1"
 
-#[[bench]]
-#name = "benchmarks"
-#harness = false
+[[bench]]
+name = "benchmarks"
+harness = false
 
 [features]
 default = []

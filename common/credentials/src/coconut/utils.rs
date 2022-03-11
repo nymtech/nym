@@ -1,10 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use bls12_381::Scalar;
 use coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
     prove_bandwidth_credential, Attribute, BlindSignRequest, BlindSignRequestBody, Credential,
-    ElGamalKeyPair, Parameters, Signature, SignatureShare, VerificationKey,
+    Parameters, Signature, SignatureShare, VerificationKey,
 };
 use url::Url;
 
@@ -64,14 +65,13 @@ async fn obtain_partial_credential(
     params: &Parameters,
     public_attributes: &[Attribute],
     private_attributes: &[Attribute],
+    pedersen_commitments_openings: &[Scalar],
+    blind_sign_request: &BlindSignRequest,
     client: &validator_client::ApiClient,
     validator_vk: &VerificationKey,
-    blind_sign_request: &BlindSignRequest,
-    elgamal_keypair: &ElGamalKeyPair,
 ) -> Result<Signature, Error> {
     let blind_sign_request_body = BlindSignRequestBody::new(
         blind_sign_request,
-        elgamal_keypair.public_key(),
         public_attributes,
         (public_attributes.len() + private_attributes.len()) as u32,
     );
@@ -83,11 +83,11 @@ async fn obtain_partial_credential(
 
     let unblinded_signature = blinded_signature.unblind(
         params,
-        elgamal_keypair.private_key(),
         validator_vk,
         private_attributes,
         public_attributes,
         &blind_sign_request.get_commitment_hash(),
+        &*pedersen_commitments_openings,
     )?;
 
     Ok(unblinded_signature)
@@ -110,22 +110,17 @@ pub async fn obtain_aggregate_signature(
     let validator_partial_vk = client.get_coconut_verification_key().await?;
     validators_partial_vks.push(validator_partial_vk.key.clone());
 
-    let elgamal_keypair = coconut_interface::elgamal_keygen(params);
-    let blind_sign_request = prepare_blind_sign(
-        params,
-        &elgamal_keypair,
-        private_attributes,
-        public_attributes,
-    )?;
+    let (pedersen_commitments_openings, blind_sign_request) =
+        prepare_blind_sign(params, private_attributes, public_attributes)?;
 
     let first = obtain_partial_credential(
         params,
         public_attributes,
         private_attributes,
+        &pedersen_commitments_openings,
+        &blind_sign_request,
         &client,
         &validator_partial_vk.key,
-        &blind_sign_request,
-        &elgamal_keypair,
     )
     .await?;
     shares.push(SignatureShare::new(first, 1));
@@ -138,10 +133,10 @@ pub async fn obtain_aggregate_signature(
             params,
             public_attributes,
             private_attributes,
+            &pedersen_commitments_openings,
+            &blind_sign_request,
             &client,
             &validator_partial_vk.key,
-            &blind_sign_request,
-            &elgamal_keypair,
         )
         .await?;
         let share = SignatureShare::new(signature, (id + 1) as u64);

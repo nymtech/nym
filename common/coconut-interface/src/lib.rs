@@ -83,8 +83,6 @@ impl VerifyCredentialBody {
 pub struct BlindSignRequestBody {
     #[getset(get = "pub")]
     blind_sign_request: BlindSignRequest,
-    #[getset(get = "pub")]
-    public_key: nymcoconut::PublicKey,
     public_attributes: Vec<String>,
     #[getset(get = "pub")]
     total_params: u32,
@@ -93,13 +91,11 @@ pub struct BlindSignRequestBody {
 impl BlindSignRequestBody {
     pub fn new(
         blind_sign_request: &BlindSignRequest,
-        public_key: &nymcoconut::PublicKey,
         public_attributes: &[Attribute],
         total_params: u32,
     ) -> BlindSignRequestBody {
         BlindSignRequestBody {
             blind_sign_request: blind_sign_request.clone(),
-            public_key: public_key.clone(),
             public_attributes: public_attributes
                 .iter()
                 .map(|attr| attr.to_bs58())

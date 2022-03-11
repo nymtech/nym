@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { CircularProgress, Stack, Box } from '@mui/material';
 import { ExistingAccount, WelcomeContent } from './pages';
-import { NymLogo } from '../../components';
+import { NymLogo } from '@nymproject/react';
 import { TPages } from './types';
 import { RenderPage } from './components';
 import { CreateAccountContent } from './_legacy_create-account';
@@ -50,7 +50,7 @@ export const Welcome = () => {
           <CircularProgress size={72} />
         ) : (
           <Stack spacing={3} alignItems="center" sx={{ width: 1080 }}>
-            <NymLogo />
+            <NymLogo width={75} />
             <RenderPage page={page}>
               <WelcomeContent
                 onUseExisting={() => setPage('existing account')}

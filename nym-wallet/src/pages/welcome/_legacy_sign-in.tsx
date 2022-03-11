@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { Alert, Button, CircularProgress, Grid, Stack, Typography } from '@mui/material';
 import { ClientContext } from '../../context/main';
-import { NymLogo } from '../../components';
+import { NymLogo } from '@nymproject/react';
 
 export const SignInContent: React.FC = () => {
   const [mnemonic] = useState<string>('');
@@ -27,7 +27,7 @@ export const SignInContent: React.FC = () => {
 
   return (
     <Stack spacing={3} alignItems="center" sx={{ width: '80%' }}>
-      <NymLogo />
+      <NymLogo width={50} />
       <Typography sx={{ color: 'common.white', fontWeight: 600 }}>Welcome to NYM</Typography>
       <Typography variant="caption" sx={{ color: 'grey.800', textTransform: 'uppercase', letterSpacing: 4 }}>
         Next generation of privacy

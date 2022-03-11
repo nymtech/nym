@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Container } from '@mui/material';
-import Logo from '../images/logo-background.svg';
 import { AppBar, Nav } from '../components';
+import { NymLogo } from '@nymproject/react';
 
 export const ApplicationLayout: React.FC = ({ children }) => (
   <Box
@@ -27,7 +27,7 @@ export const ApplicationLayout: React.FC = ({ children }) => (
     >
       <Box>
         <Box sx={{ mb: 3 }}>
-          <Logo width={45} />
+          <NymLogo width={45} />
         </Box>
         <Nav />
       </Box>

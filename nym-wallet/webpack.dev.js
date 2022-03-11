@@ -50,7 +50,7 @@ module.exports = mergeWithRules({
     type: 'filesystem',
     buildDependencies: {
       // restart on config change
-      config: ['./webpack.config.js'],
+      config: ['./webpack.dev.js'],
     },
   },
 

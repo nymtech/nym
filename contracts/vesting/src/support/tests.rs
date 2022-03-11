@@ -18,7 +18,29 @@ pub mod helpers {
         return deps;
     }
 
-    pub fn vesting_account_fixture(storage: &mut dyn Storage, env: &Env) -> Account {
+    pub fn vesting_account_mid_fixture(storage: &mut dyn Storage, env: &Env) -> Account {
+        let start_time_ts = env.block.time.clone();
+        let start_time = env.block.time.seconds() - 7200;
+        let periods = populate_vesting_periods(
+            start_time,
+            VestingSpecification::new(None, Some(3600), None),
+        );
+
+        Account::new(
+            Addr::unchecked("owner"),
+            Some(Addr::unchecked("staking")),
+            Coin {
+                amount: Uint128::new(1_000_000_000_000),
+                denom: DENOM.to_string(),
+            },
+            start_time_ts,
+            periods,
+            storage,
+        )
+        .unwrap()
+    }
+
+    pub fn vesting_account_new_fixture(storage: &mut dyn Storage, env: &Env) -> Account {
         let start_time = env.block.time;
         let periods =
             populate_vesting_periods(start_time.seconds(), VestingSpecification::default());

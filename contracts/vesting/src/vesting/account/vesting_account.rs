@@ -114,7 +114,11 @@ impl VestingAccount for Account {
     ) -> Result<Coin, ContractError> {
         let block_time = block_time.unwrap_or(env.block.time);
         let period = self.get_current_vesting_period(block_time);
-        let max_vested = self.get_vested_coins(Some(block_time), env)?;
+        let withdrawn = self.load_withdrawn(storage)?;
+        let max_available = self
+            .get_vested_coins(Some(block_time), env)?
+            .amount
+            .saturating_sub(withdrawn);
         let start_time = match period {
             Period::Before => 0,
             Period::After => u64::MAX,
@@ -130,7 +134,7 @@ impl VestingAccount for Account {
                 acc + amount
             });
 
-        let amount = Uint128::new(coin.u128().min(max_vested.amount.u128()));
+        let amount = Uint128::new(coin.u128().min(max_available.u128()));
 
         Ok(Coin {
             amount,

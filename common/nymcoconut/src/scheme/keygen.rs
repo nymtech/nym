@@ -84,7 +84,7 @@ impl SecretKey {
 
     // x || ys.len() || ys
     pub fn to_bytes(&self) -> Vec<u8> {
-        let ys_len = self.ys.len() as u64;
+        let ys_len = self.ys.len();
         let mut bytes = Vec::with_capacity(8 + (ys_len + 1) as usize * 32);
 
         bytes.extend_from_slice(&self.x.to_bytes());
@@ -314,10 +314,9 @@ impl VerificationKey {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let beta_g1_len = self.beta_g1.len() as u64;
-        let beta_g2_len = self.beta_g2.len() as u64;
-        let mut bytes =
-            Vec::with_capacity(96 + 8 + beta_g1_len as usize * 48 + beta_g2_len as usize * 96);
+        let beta_g1_len = self.beta_g1.len();
+        let beta_g2_len = self.beta_g2.len();
+        let mut bytes = Vec::with_capacity(96 + 8 + beta_g1_len * 48 + beta_g2_len * 96);
 
         bytes.extend_from_slice(&self.alpha.to_affine().to_compressed());
 

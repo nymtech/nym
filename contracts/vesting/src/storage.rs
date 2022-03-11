@@ -11,6 +11,7 @@ pub const KEY: Item<'_, u32> = Item::new("key");
 const ACCOUNTS: Map<'_, String, Account> = Map::new("acc");
 // Holds data related to individual accounts
 const BALANCES: Map<'_, u32, Uint128> = Map::new("blc");
+const WITHDRAWNS: Map<'_, u32, Uint128> = Map::new("wthd");
 const BOND_PLEDGES: Map<'_, u32, PledgeData> = Map::new("bnd");
 const GATEWAY_PLEDGES: Map<'_, u32, PledgeData> = Map::new("gtw");
 pub const DELEGATIONS: Map<'_, (u32, IdentityKey, BlockHeight), Uint128> = Map::new("dlg");
@@ -39,6 +40,13 @@ pub fn delete_account(address: &Addr, storage: &mut dyn Storage) -> Result<(), C
     Ok(())
 }
 
+pub fn load_withdrawn(key: u32, storage: &dyn Storage) -> Result<Uint128, ContractError> {
+    Ok(WITHDRAWNS
+        .may_load(storage, key)
+        .unwrap_or(None)
+        .unwrap_or_else(Uint128::zero))
+}
+
 pub fn load_balance(key: u32, storage: &dyn Storage) -> Result<Uint128, ContractError> {
     Ok(BALANCES
         .may_load(storage, key)
@@ -52,6 +60,15 @@ pub fn save_balance(
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
     BALANCES.save(storage, key, &value)?;
+    Ok(())
+}
+
+pub fn save_withdrawn(
+    key: u32,
+    value: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<(), ContractError> {
+    WITHDRAWNS.save(storage, key, &value)?;
     Ok(())
 }
 

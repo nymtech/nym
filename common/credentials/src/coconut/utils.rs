@@ -9,7 +9,7 @@ use coconut_interface::{
 };
 use url::Url;
 
-use crate::coconut::bandwidth::PRIVATE_ATTRIBUTES;
+use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES};
 use crate::error::Error;
 
 /// Contacts all provided validators and then aggregate their verification keys.
@@ -63,16 +63,19 @@ pub async fn obtain_aggregate_verification_key(
 
 async fn obtain_partial_credential(
     params: &Parameters,
-    public_attributes: &[Attribute],
-    private_attributes: &[Attribute],
+    attributes: &BandwidthVoucher,
     pedersen_commitments_openings: &[Scalar],
     blind_sign_request: &BlindSignRequest,
     client: &validator_client::ApiClient,
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
+    let public_attributes = attributes.get_public_attributes();
+    let private_attributes = attributes.get_private_attributes();
     let blind_sign_request_body = BlindSignRequestBody::new(
         blind_sign_request,
-        public_attributes,
+        attributes.tx_hash().to_string(),
+        attributes.sign(blind_sign_request),
+        &public_attributes,
         (public_attributes.len() + private_attributes.len()) as u32,
     );
 
@@ -84,8 +87,8 @@ async fn obtain_partial_credential(
     let unblinded_signature = blinded_signature.unblind(
         params,
         validator_vk,
-        private_attributes,
-        public_attributes,
+        &private_attributes,
+        &public_attributes,
         &blind_sign_request.get_commitment_hash(),
         &*pedersen_commitments_openings,
     )?;
@@ -95,13 +98,14 @@ async fn obtain_partial_credential(
 
 pub async fn obtain_aggregate_signature(
     params: &Parameters,
-    public_attributes: &[Attribute],
-    private_attributes: &[Attribute],
+    attributes: &BandwidthVoucher,
     validators: &[Url],
 ) -> Result<Signature, Error> {
     if validators.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
+    let public_attributes = attributes.get_public_attributes();
+    let private_attributes = attributes.get_private_attributes();
 
     let mut shares = Vec::with_capacity(validators.len());
     let mut validators_partial_vks: Vec<VerificationKey> = Vec::with_capacity(validators.len());
@@ -111,12 +115,11 @@ pub async fn obtain_aggregate_signature(
     validators_partial_vks.push(validator_partial_vk.key.clone());
 
     let (pedersen_commitments_openings, blind_sign_request) =
-        prepare_blind_sign(params, private_attributes, public_attributes)?;
+        prepare_blind_sign(params, &private_attributes, &public_attributes)?;
 
     let first = obtain_partial_credential(
         params,
-        public_attributes,
-        private_attributes,
+        attributes,
         &pedersen_commitments_openings,
         &blind_sign_request,
         &client,
@@ -131,8 +134,7 @@ pub async fn obtain_aggregate_signature(
         validators_partial_vks.push(validator_partial_vk.key.clone());
         let signature = obtain_partial_credential(
             params,
-            public_attributes,
-            private_attributes,
+            attributes,
             &pedersen_commitments_openings,
             &blind_sign_request,
             &client,
@@ -144,8 +146,8 @@ pub async fn obtain_aggregate_signature(
     }
 
     let mut attributes = Vec::with_capacity(private_attributes.len() + public_attributes.len());
-    attributes.extend_from_slice(private_attributes);
-    attributes.extend_from_slice(public_attributes);
+    attributes.extend_from_slice(&private_attributes);
+    attributes.extend_from_slice(&public_attributes);
 
     let mut indices: Vec<u64> = Vec::with_capacity(validators_partial_vks.len());
     for i in 0..validators_partial_vks.len() {

@@ -3,10 +3,8 @@
 
 #[cfg(feature = "coconut")]
 use credentials::coconut::{
-    bandwidth::{
-        obtain_signature, prepare_for_spending, BandwidthVoucherAttributes, TOTAL_ATTRIBUTES,
-    },
-    utils::obtain_aggregate_verification_key,
+    bandwidth::{prepare_for_spending, BandwidthVoucher, TOTAL_ATTRIBUTES},
+    utils::{obtain_aggregate_signature, obtain_aggregate_verification_key},
 };
 #[cfg(not(feature = "coconut"))]
 use credentials::token::bandwidth::TokenCredential;
@@ -176,16 +174,16 @@ impl BandwidthController {
         let params = coconut_interface::Parameters::new(TOTAL_ATTRIBUTES).unwrap();
 
         // TODO: Decide what is the value and additional info associated with the bandwidth voucher
-        let bandwidth_credential_attributes = BandwidthVoucherAttributes {
-            serial_number: params.random_scalar(),
-            binding_number: params.random_scalar(),
-            voucher_value: coconut_interface::hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
-            voucher_info: coconut_interface::hash_to_scalar(
-                String::from("BandwidthVoucher").as_bytes(),
-            ),
-        };
+        let bandwidth_credential_attributes = BandwidthVoucher::new(
+            params.random_scalar(),
+            params.random_scalar(),
+            coconut_interface::hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
+            coconut_interface::hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
+            String::new(),
+            String::new(),
+        );
 
-        let bandwidth_credential = obtain_signature(
+        let bandwidth_credential = obtain_aggregate_signature(
             &params,
             &bandwidth_credential_attributes,
             &self.validator_endpoints,

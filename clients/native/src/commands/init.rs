@@ -8,8 +8,9 @@ use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use coconut_interface::{hash_to_scalar, Credential, Parameters};
 use config::NymConfig;
 #[cfg(feature = "coconut")]
-use credentials::coconut::bandwidth::{
-    obtain_signature, prepare_for_spending, BandwidthVoucherAttributes, TOTAL_ATTRIBUTES,
+use credentials::coconut::{
+    bandwidth::prepare_for_spending, bandwidth::BandwidthVoucher, bandwidth::TOTAL_ATTRIBUTES,
+    utils::obtain_aggregate_signature,
 };
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
@@ -107,15 +108,17 @@ async fn _prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) 
         .expect("could not obtain aggregate verification key of validators");
 
     let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-    let bandwidth_credential_attributes = BandwidthVoucherAttributes {
-        serial_number: params.random_scalar(),
-        binding_number: params.random_scalar(),
-        voucher_value: hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
-        voucher_info: hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
-    };
+    let bandwidth_credential_attributes = BandwidthVoucher::new(
+        params.random_scalar(),
+        params.random_scalar(),
+        hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
+        hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
+        String::new(),
+        String::new(),
+    );
 
     let bandwidth_credential =
-        obtain_signature(&params, &bandwidth_credential_attributes, validators)
+        obtain_aggregate_signature(&params, &bandwidth_credential_attributes, validators)
             .await
             .expect("could not obtain bandwidth credential");
 

@@ -9,9 +9,8 @@ use std::str::FromStr;
 use url::Url;
 
 use coconut_interface::{hash_to_scalar, Parameters};
-use credentials::coconut::bandwidth::{
-    obtain_signature, BandwidthVoucherAttributes, TOTAL_ATTRIBUTES,
-};
+use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
+use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
 
 use crate::client::Client;
@@ -109,13 +108,16 @@ impl Execute for GetCredential {
         let urls = SIGNER_AUTHORITIES.map(|addr| Url::from_str(addr).unwrap());
 
         let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-        let bandwidth_credential_attributes = BandwidthVoucherAttributes {
-            serial_number: params.random_scalar(),
-            binding_number: params.random_scalar(),
-            voucher_value: hash_to_scalar(state.amount.to_be_bytes()),
-            voucher_info: hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
-        };
-        let _signature = obtain_signature(&params, &bandwidth_credential_attributes, &urls).await?;
+        let bandwidth_credential_attributes = BandwidthVoucher::new(
+            params.random_scalar(),
+            params.random_scalar(),
+            coconut_interface::hash_to_scalar(state.amount.to_be_bytes()),
+            hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
+            self.tx_hash.clone(),
+            state.signing_keypair.private_key,
+        );
+        let _signature =
+            obtain_aggregate_signature(&params, &bandwidth_credential_attributes, &urls).await?;
         Ok(())
     }
 }

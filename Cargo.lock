@@ -835,6 +835,7 @@ dependencies = [
  "async-trait",
  "bip39",
  "clap 3.1.6",
+ "coconut-bandwidth-contract",
  "crypto",
  "network-defaults",
  "pemstore",

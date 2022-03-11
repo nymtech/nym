@@ -12,6 +12,7 @@ use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 
 pub const MNEMONIC: &str = "sun surge soon stomach flavor country gorilla dress oblige stamp attract hip soldier agree steel prize nuclear know enjoy arm bargain always theme matter";
 pub const NYMD_URL: &str = "http://127.0.0.1:26657";
+pub const CONTRACT_ADDRESS: &str = "nymt1sr06m8yqg0wzqqyqvzvp5t07dj4nevx9ejakul";
 
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about)]

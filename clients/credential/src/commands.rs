@@ -28,7 +28,7 @@ pub(crate) trait Execute {
 pub(crate) struct Deposit {
     /// The amount that needs to be deposited
     #[clap(long)]
-    amount: usize,
+    amount: u64,
 }
 
 #[async_trait]
@@ -39,12 +39,19 @@ impl Execute for Deposit {
         let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
 
         let client = Client::new();
+        let tx_hash = client
+            .deposit(
+                self.amount,
+                signing_keypair.public_key.clone(),
+                encryption_keypair.public_key.clone(),
+            )
+            .await;
 
         let state = State {
             signing_keypair,
             encryption_keypair,
         };
-        db.set("000", &state).unwrap();
+        db.set(&tx_hash, &state).unwrap();
     }
 }
 

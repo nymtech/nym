@@ -94,7 +94,7 @@ export const checkHasEnoughFunds = async (allocationValue: string) => {
     const walletValue = await userBalance()
     const minorValue = await majorToMinor(allocationValue)
     const remainingBalance = +walletValue.coin.amount - +minorValue.amount
-    return isGreaterThan(remainingBalance, 0)
+    return remainingBalance >= 0
   } catch (e) {
     console.log(e)
   }
@@ -104,7 +104,8 @@ export const checkHasEnoughLockedTokens = async (allocationValue: string) => {
   try {
     const lockedTokens = await getLockedCoins()
     const remainingBalance = +lockedTokens.amount - +allocationValue
-    return isGreaterThan(remainingBalance, 0)
+    console.log(remainingBalance)
+    return remainingBalance >= 0
   } catch (e) {
     console.log(e)
   }

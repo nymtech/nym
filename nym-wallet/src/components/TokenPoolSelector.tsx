@@ -1,31 +1,31 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { FormControl, InputLabel, ListItemText, MenuItem, Select, SelectChangeEvent } from '@mui/material'
-import { ClientContext } from '../context/main'
-import { useCheckOwnership } from '../hooks/useCheckOwnership'
+import React, { useContext, useEffect, useState } from 'react';
+import { FormControl, InputLabel, ListItemText, MenuItem, Select, SelectChangeEvent } from '@mui/material';
+import { ClientContext } from '../context/main';
+import { useCheckOwnership } from '../hooks/useCheckOwnership';
 
-type TPoolOption = 'balance' | 'locked'
+type TPoolOption = 'balance' | 'locked';
 
 export const TokenPoolSelector: React.FC<{ onSelect: (pool: TPoolOption) => void }> = ({ onSelect }) => {
-  const [value, setValue] = useState<TPoolOption>('balance')
+  const [value, setValue] = useState<TPoolOption>('balance');
   const {
     userBalance: { tokenAllocation, balance, fetchBalance, fetchTokenAllocation },
     currency,
-  } = useContext(ClientContext)
+  } = useContext(ClientContext);
 
-  const { ownership } = useCheckOwnership()
-
-  useEffect(() => {
-    ;(async () => {
-      await fetchBalance()
-      await fetchTokenAllocation()
-    })()
-  }, [])
+  const { ownership } = useCheckOwnership();
 
   useEffect(() => {
-    onSelect(value)
-  }, [value])
+    (async () => {
+      await fetchBalance();
+      await fetchTokenAllocation();
+    })();
+  }, []);
 
-  const handleChange = (e: SelectChangeEvent) => setValue(e.target.value as TPoolOption)
+  useEffect(() => {
+    onSelect(value);
+  }, [value]);
+
+  const handleChange = (e: SelectChangeEvent) => setValue(e.target.value as TPoolOption);
 
   return (
     <FormControl fullWidth>
@@ -43,5 +43,5 @@ export const TokenPoolSelector: React.FC<{ onSelect: (pool: TPoolOption) => void
         </MenuItem>
       </Select>
     </FormControl>
-  )
-}
+  );
+};

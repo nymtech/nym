@@ -364,6 +364,8 @@ impl Config {
         self.network_monitor.eth_endpoint.clone()
     }
 
+    // TODO: Remove if still unused
+    #[allow(dead_code)]
     pub fn get_rewarding_enabled(&self) -> bool {
         self.rewarding.enabled
     }
@@ -438,6 +440,8 @@ impl Config {
         self.network_monitor.all_validator_apis.clone()
     }
 
+    // TODO: Remove if still unused
+    #[allow(dead_code)]
     pub fn get_minimum_interval_monitor_threshold(&self) -> u8 {
         self.rewarding.minimum_interval_monitor_threshold
     }

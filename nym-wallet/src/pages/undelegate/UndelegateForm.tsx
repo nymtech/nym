@@ -1,30 +1,30 @@
-import React, { useContext } from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { Box, Autocomplete, Button, CircularProgress, FormControl, Grid, TextField } from '@mui/material'
-import { yupResolver } from '@hookform/resolvers/yup'
-import { validationSchema } from './validationSchema'
-import { EnumNodeType, TDelegation } from '../../types'
-import { undelegate, vestingUnelegateFromMixnode } from '../../requests'
-import { Fee } from '../../components'
+import React, { useContext } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { Box, Autocomplete, Button, CircularProgress, FormControl, Grid, TextField } from '@mui/material';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { validationSchema } from './validationSchema';
+import { EnumNodeType, TDelegation } from '../../types';
+import { undelegate, vestingUnelegateFromMixnode } from '../../requests';
+import { Fee } from '../../components';
 
 type TFormData = {
-  nodeType: EnumNodeType
-  identity: string
-}
+  nodeType: EnumNodeType;
+  identity: string;
+};
 
 const defaultValues = {
   nodeType: EnumNodeType.mixnode,
   identity: '',
-}
+};
 
 export const UndelegateForm = ({
   delegations,
   onError,
   onSuccess,
 }: {
-  delegations?: TDelegation[]
-  onError: (message?: string) => void
-  onSuccess: (message?: string) => void
+  delegations?: TDelegation[];
+  onError: (message?: string) => void;
+  onSuccess: (message?: string) => void;
 }) => {
   const {
     control,
@@ -34,29 +34,29 @@ export const UndelegateForm = ({
   } = useForm<TFormData>({
     defaultValues,
     resolver: yupResolver(validationSchema),
-  })
+  });
 
   const onSubmit = async (data: TFormData) => {
-    let res
+    let res;
     try {
       res = await undelegate({
         type: data.nodeType,
         identity: data.identity,
-      })
+      });
 
       if (!res) {
-        res = await vestingUnelegateFromMixnode(data.identity)
+        res = await vestingUnelegateFromMixnode(data.identity);
       }
 
       if (!res) {
-        onError('An error occurred when undelegating')
+        onError('An error occurred when undelegating');
       }
 
-      onSuccess(`Successfully undelegated from ${res.target_address}`)
+      onSuccess(`Successfully undelegated from ${res.target_address}`);
     } catch (e) {
-      onError(e as string)
+      onError(e as string);
     }
-  }
+  };
 
   return (
     <FormControl fullWidth>
@@ -117,5 +117,5 @@ export const UndelegateForm = ({
         </Button>
       </Box>
     </FormControl>
-  )
-}
+  );
+};

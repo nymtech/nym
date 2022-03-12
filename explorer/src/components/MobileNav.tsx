@@ -16,9 +16,9 @@ import {
   Typography,
 } from '@mui/material';
 import { Menu } from '@mui/icons-material';
-import { NymLogoSVG } from 'src/icons/NymLogoSVG';
-import { useMainContext } from 'src/context/main';
-import { MobileDrawerClose } from 'src/icons/MobileDrawerClose';
+import { NymLogo } from '@nymproject/react';
+import { useMainContext } from '../context/main';
+import { MobileDrawerClose } from '../icons/MobileDrawerClose';
 import { Footer } from './Footer';
 import { NYM_WEBSITE } from '../api/constants';
 import { ExpandableButton } from './Nav';
@@ -28,9 +28,7 @@ type MobileNavProps = {
   children: React.ReactNode;
 };
 
-export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}: MobileNavProps) => {
+export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }: MobileNavProps) => {
   const theme = useTheme();
   const { navState, updateNavState } = useMainContext();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -73,7 +71,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
             }}
           >
             <IconButton component="a" href={NYM_WEBSITE} target="_blank">
-              <NymLogoSVG />
+              <NymLogo height="40px" width="40px" />
             </IconButton>
             <Typography
               variant="h6"
@@ -85,12 +83,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({
                 ml: 2,
               }}
             >
-              <MuiLink
-                component={Link}
-                to="/overview"
-                underline="none"
-                color="inherit"
-              >
+              <MuiLink component={Link} to="/overview" underline="none" color="inherit">
                 Network Explorer
               </MuiLink>
             </Typography>

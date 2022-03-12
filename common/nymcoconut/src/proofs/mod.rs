@@ -13,12 +13,11 @@ use group::GroupEncoding;
 use itertools::izip;
 use sha2::Sha256;
 
-use crate::elgamal::Ciphertext;
 use crate::error::{CoconutError, Result};
 use crate::scheme::setup::Parameters;
 use crate::scheme::VerificationKey;
 use crate::utils::{hash_g1, try_deserialize_scalar, try_deserialize_scalar_vec};
-use crate::{elgamal, Attribute, ElGamalKeyPair};
+use crate::Attribute;
 
 // as per the reference python implementation
 type ChallengeDigest = Sha256;
@@ -28,8 +27,7 @@ type ChallengeDigest = Sha256;
 pub struct ProofCmCs {
     challenge: Scalar,
     response_opening: Scalar,
-    response_private_elgamal_key: Scalar,
-    response_keys: Vec<Scalar>,
+    response_openings: Vec<Scalar>,
     response_attributes: Vec<Scalar>,
 }
 
@@ -88,12 +86,11 @@ impl ProofCmCs {
     /// using the Fiat-Shamir heuristic.
     pub(crate) fn construct(
         params: &Parameters,
-        elgamal_keypair: &ElGamalKeyPair,
-        ephemeral_keys: &[elgamal::EphemeralKey],
         commitment: &G1Projective,
         commitment_opening: &Scalar,
+        commitments: &[G1Projective],
+        pedersen_commitments_openings: &[Scalar],
         private_attributes: &[Attribute],
-        priv_attributes_ciphertexts: &[Ciphertext],
     ) -> Self {
         // note: this is only called from `prepare_blind_sign` that already checks
         // whether private attributes are non-empty and whether we don't have too many
@@ -101,10 +98,9 @@ impl ProofCmCs {
         // we also know, due to the single call place, that ephemeral_keys.len() == private_attributes.len()
 
         // witness creation
-
         let witness_commitment_opening = params.random_scalar();
-        let witness_private_elgamal_key = params.random_scalar();
-        let witness_keys = params.n_random_scalars(ephemeral_keys.len());
+        let witness_pedersen_commitments_openings =
+            params.n_random_scalars(pedersen_commitments_openings.len());
         let witness_attributes = params.n_random_scalars(private_attributes.len());
 
         // recompute h
@@ -118,22 +114,6 @@ impl ProofCmCs {
         let g1 = params.gen1();
 
         // compute commitments
-        let commitment_private_key_elgamal = g1 * witness_private_elgamal_key;
-
-        // Aw[i] = (wk[i] * g1)
-        let commitment_keys1_bytes = witness_keys
-            .iter()
-            .map(|wk_i| g1 * wk_i)
-            .map(|witness| witness.to_bytes())
-            .collect::<Vec<_>>();
-
-        // Bw[i] = (wm[i] * h) + (wk[i] * gamma)
-        let commitment_keys2_bytes = witness_keys
-            .iter()
-            .zip(witness_attributes.iter())
-            .map(|(wk_i, wm_i)| elgamal_keypair.public_key() * wk_i + h * wm_i)
-            .map(|witness| witness.to_bytes())
-            .collect::<Vec<_>>();
 
         // zkp commitment for the attributes commitment cm
         // Ccm = (wr * g1) + (wm[0] * hs[0]) + ... + (wm[i] * hs[i])
@@ -144,9 +124,21 @@ impl ProofCmCs {
                 .map(|(wm_i, hs_i)| hs_i * wm_i)
                 .sum::<G1Projective>();
 
-        let ciphertexts_bytes = priv_attributes_ciphertexts
+        // zkp commitments for the individual attributes
+        let commitments_attributes = witness_pedersen_commitments_openings
             .iter()
-            .map(|c| c.to_bytes())
+            .zip(witness_attributes.iter())
+            .map(|(o_j, m_j)| g1 * o_j + h * m_j)
+            .collect::<Vec<_>>();
+
+        let commitments_bytes = commitments
+            .iter()
+            .map(|cm| cm.to_bytes())
+            .collect::<Vec<_>>();
+
+        let commitments_attributes_bytes = commitments_attributes
+            .iter()
+            .map(|cm| cm.to_bytes())
             .collect::<Vec<_>>();
 
         // compute challenge
@@ -154,28 +146,20 @@ impl ProofCmCs {
             std::iter::once(params.gen1().to_bytes().as_ref())
                 .chain(hs_bytes.iter().map(|hs| hs.as_ref()))
                 .chain(std::iter::once(h.to_bytes().as_ref()))
-                .chain(std::iter::once(
-                    elgamal_keypair.public_key().to_bytes().as_ref(),
-                ))
                 .chain(std::iter::once(commitment.to_bytes().as_ref()))
+                .chain(commitments_bytes.iter().map(|cm| cm.as_ref()))
                 .chain(std::iter::once(commitment_attributes.to_bytes().as_ref()))
-                .chain(std::iter::once(
-                    commitment_private_key_elgamal.to_bytes().as_ref(),
-                ))
-                .chain(commitment_keys1_bytes.iter().map(|aw| aw.as_ref()))
-                .chain(commitment_keys2_bytes.iter().map(|bw| bw.as_ref()))
-                .chain(ciphertexts_bytes.iter().map(|c| c.as_ref())),
+                .chain(commitments_attributes_bytes.iter().map(|cm| cm.as_ref())),
         );
 
         // Responses
         let response_opening =
             produce_response(&witness_commitment_opening, &challenge, commitment_opening);
-        let response_private_elgamal_key = produce_response(
-            &witness_private_elgamal_key,
+        let response_openings = produce_responses(
+            &witness_pedersen_commitments_openings,
             &challenge,
-            &elgamal_keypair.private_key().0,
+            &pedersen_commitments_openings.iter().collect::<Vec<_>>(),
         );
-        let response_keys = produce_responses(&witness_keys, &challenge, ephemeral_keys);
         let response_attributes = produce_responses(
             &witness_attributes,
             &challenge,
@@ -185,8 +169,7 @@ impl ProofCmCs {
         ProofCmCs {
             challenge,
             response_opening,
-            response_private_elgamal_key,
-            response_keys,
+            response_openings,
             response_attributes,
         }
     }
@@ -194,11 +177,11 @@ impl ProofCmCs {
     pub(crate) fn verify(
         &self,
         params: &Parameters,
-        pub_key: &elgamal::PublicKey,
         commitment: &G1Projective,
-        attributes_ciphertexts: &[elgamal::Ciphertext],
+        commitments: &[G1Projective],
+        public_attributes: &[Attribute],
     ) -> bool {
-        if self.response_keys.len() != attributes_ciphertexts.len() {
+        if self.response_attributes.len() != commitments.len() {
             return false;
         }
 
@@ -213,32 +196,14 @@ impl ProofCmCs {
             .collect::<Vec<_>>();
 
         // recompute witnesses commitments
-        let commitment_private_key_elgamal =
-            pub_key * &self.challenge + g1 * self.response_private_elgamal_key;
-
-        // Aw[i] = (c * c1[i]) + (rk[i] * g1)
-        let commitment_keys1_bytes = attributes_ciphertexts
-            .iter()
-            .map(|ciphertext| ciphertext.c1())
-            .zip(self.response_keys.iter())
-            .map(|(c1, res_k)| c1 * self.challenge + g1 * res_k)
-            .map(|witness| witness.to_bytes())
-            .collect::<Vec<_>>();
-
-        // Bw[i] = (c * c2[i]) + (rk[i] * gamma) + (rm[i] * h)
-        let commitment_keys2_bytes = izip!(
-            attributes_ciphertexts
-                .iter()
-                .map(|ciphertext| ciphertext.c2()),
-            self.response_keys.iter(),
-            self.response_attributes.iter()
-        )
-        .map(|(c2, res_key, res_attr)| c2 * self.challenge + pub_key * res_key + h * res_attr)
-        .map(|witness| witness.to_bytes())
-        .collect::<Vec<_>>();
-
         // Cw = (cm * c) + (rr * g1) + (rm[0] * hs[0]) + ... + (rm[n] * hs[n])
-        let commitment_attributes = commitment * self.challenge
+        let commitment_attributes = (commitment
+            - public_attributes
+                .iter()
+                .zip(params.gen_hs().iter().skip(self.response_attributes.len()))
+                .map(|(pub_attr, hs)| hs * pub_attr)
+                .sum::<G1Projective>())
+            * self.challenge
             + g1 * self.response_opening
             + self
                 .response_attributes
@@ -247,9 +212,22 @@ impl ProofCmCs {
                 .map(|(res_attr, hs)| hs * res_attr)
                 .sum::<G1Projective>();
 
-        let ciphertexts_bytes = attributes_ciphertexts
+        let commitments_attributes = izip!(
+            commitments.iter(),
+            self.response_openings.iter(),
+            self.response_attributes.iter()
+        )
+        .map(|(cm_j, r_o_j, r_m_j)| cm_j * self.challenge + g1 * r_o_j + h * r_m_j)
+        .collect::<Vec<_>>();
+
+        let commitments_bytes = commitments
             .iter()
-            .map(|c| c.to_bytes())
+            .map(|cm| cm.to_bytes())
+            .collect::<Vec<_>>();
+
+        let commitments_attributes_bytes = commitments_attributes
+            .iter()
+            .map(|cm| cm.to_bytes())
             .collect::<Vec<_>>();
 
         // re-compute the challenge
@@ -257,38 +235,32 @@ impl ProofCmCs {
             std::iter::once(params.gen1().to_bytes().as_ref())
                 .chain(hs_bytes.iter().map(|hs| hs.as_ref()))
                 .chain(std::iter::once(h.to_bytes().as_ref()))
-                .chain(std::iter::once(pub_key.to_bytes().as_ref()))
                 .chain(std::iter::once(commitment.to_bytes().as_ref()))
+                .chain(commitments_bytes.iter().map(|cm| cm.as_ref()))
                 .chain(std::iter::once(commitment_attributes.to_bytes().as_ref()))
-                .chain(std::iter::once(
-                    commitment_private_key_elgamal.to_bytes().as_ref(),
-                ))
-                .chain(commitment_keys1_bytes.iter().map(|aw| aw.as_ref()))
-                .chain(commitment_keys2_bytes.iter().map(|bw| bw.as_ref()))
-                .chain(ciphertexts_bytes.iter().map(|c| c.as_ref())),
+                .chain(commitments_attributes_bytes.iter().map(|cm| cm.as_ref())),
         );
 
         challenge == self.challenge
     }
 
-    // challenge || response opening || response private elgamal key || keys len || response keys || attributes len || response attributes
+    // challenge || response opening || openings len || response openings || attributes len ||
+    // response attributes
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        let keys_len = self.response_keys.len() as u64;
+        let openings_len = self.response_openings.len() as u64;
         let attributes_len = self.response_attributes.len() as u64;
 
-        let mut bytes = Vec::with_capacity(16 + (keys_len + attributes_len + 3) as usize * 32);
+        let mut bytes = Vec::with_capacity(16 + (2 + openings_len + attributes_len) as usize * 32);
 
         bytes.extend_from_slice(&self.challenge.to_bytes());
         bytes.extend_from_slice(&self.response_opening.to_bytes());
-        bytes.extend_from_slice(&self.response_private_elgamal_key.to_bytes());
-        bytes.extend_from_slice(&keys_len.to_le_bytes());
 
-        for rk in &self.response_keys {
-            bytes.extend_from_slice(&rk.to_bytes());
+        bytes.extend_from_slice(&openings_len.to_le_bytes());
+        for ro in &self.response_openings {
+            bytes.extend_from_slice(&ro.to_bytes());
         }
 
         bytes.extend_from_slice(&attributes_len.to_le_bytes());
-
         for rm in &self.response_attributes {
             bytes.extend_from_slice(&rm.to_bytes());
         }
@@ -298,11 +270,11 @@ impl ProofCmCs {
 
     pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Self> {
         // at the very minimum there must be a single attribute being proven
-        if bytes.len() < 32 * 5 + 16 || (bytes.len() - 16) % 32 != 0 {
-            return Err(
-                CoconutError::Deserialization(
-                    "tried to deserialize proof of ciphertexts and commitment with bytes of invalid length".to_string())
-            );
+        if bytes.len() < 32 * 4 + 16 || (bytes.len() - 16) % 32 != 0 {
+            return Err(CoconutError::Deserialization(
+                "tried to deserialize proof of commitments with bytes of invalid length"
+                    .to_string(),
+            ));
         }
 
         let mut idx = 0;
@@ -310,54 +282,46 @@ impl ProofCmCs {
         idx += 32;
         let response_opening_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
-        let response_private_elgamal_key_bytes = bytes[idx..idx + 32].try_into().unwrap();
-        idx += 32;
 
         let challenge = try_deserialize_scalar(
             &challenge_bytes,
             CoconutError::Deserialization("Failed to deserialize challenge".to_string()),
         )?;
+
         let response_opening = try_deserialize_scalar(
             &response_opening_bytes,
             CoconutError::Deserialization(
                 "Failed to deserialize the response to the random".to_string(),
             ),
         )?;
-        let response_private_elgamal_key = try_deserialize_scalar(
-            &response_private_elgamal_key_bytes,
-            CoconutError::Deserialization(
-                "Failed to deserialize the response to the private ElGamal key".to_string(),
-            ),
-        )?;
 
-        let rk_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap());
+        let ro_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap());
         idx += 8;
-        if bytes[idx..].len() < rk_len as usize * 32 + 8 {
+        if bytes[idx..].len() < ro_len as usize * 32 + 8 {
             return Err(
                 CoconutError::Deserialization(
                     "tried to deserialize proof of ciphertexts and commitment with insufficient number of bytes provided".to_string()),
             );
         }
 
-        let rk_end = idx + rk_len as usize * 32;
-        let response_keys = try_deserialize_scalar_vec(
-            rk_len,
-            &bytes[idx..rk_end],
-            CoconutError::Deserialization("Failed to deserialize keys response".to_string()),
+        let ro_end = idx + ro_len as usize * 32;
+        let response_openings = try_deserialize_scalar_vec(
+            ro_len,
+            &bytes[idx..ro_end],
+            CoconutError::Deserialization("Failed to deserialize openings response".to_string()),
         )?;
 
-        let rm_len = u64::from_le_bytes(bytes[rk_end..rk_end + 8].try_into().unwrap());
+        let rm_len = u64::from_le_bytes(bytes[ro_end..ro_end + 8].try_into().unwrap());
         let response_attributes = try_deserialize_scalar_vec(
             rm_len,
-            &bytes[rk_end + 8..],
+            &bytes[ro_end + 8..],
             CoconutError::Deserialization("Failed to deserialize attributes response".to_string()),
         )?;
 
         Ok(ProofCmCs {
             challenge,
             response_opening,
-            response_private_elgamal_key,
-            response_keys,
+            response_openings,
             response_attributes,
         })
     }
@@ -392,7 +356,7 @@ impl ProofKappaZeta {
         let witness_attributes = vec![witness_serial_number, witness_binding_number];
 
         let beta_bytes = verification_key
-            .beta
+            .beta_g2
             .iter()
             .map(|beta_i| beta_i.to_bytes())
             .collect::<Vec<_>>();
@@ -403,7 +367,7 @@ impl ProofKappaZeta {
             + verification_key.alpha
             + witness_attributes
                 .iter()
-                .zip(verification_key.beta.iter())
+                .zip(verification_key.beta_g2.iter())
                 .map(|(wm_i, beta_i)| beta_i * wm_i)
                 .sum::<G2Projective>();
 
@@ -447,7 +411,7 @@ impl ProofKappaZeta {
         zeta: &G2Projective,
     ) -> bool {
         let beta_bytes = verification_key
-            .beta
+            .beta_g2
             .iter()
             .map(|beta_i| beta_i.to_bytes())
             .collect::<Vec<_>>();
@@ -460,7 +424,7 @@ impl ProofKappaZeta {
             + verification_key.alpha * (Scalar::one() - self.challenge)
             + response_attributes
                 .iter()
-                .zip(verification_key.beta.iter())
+                .zip(verification_key.beta_g2.iter())
                 .map(|(priv_attr, beta_i)| beta_i * priv_attr)
                 .sum::<G2Projective>();
 
@@ -550,7 +514,6 @@ mod tests {
     use group::Group;
     use rand::thread_rng;
 
-    use crate::scheme::issuance::{compute_attribute_encryption, compute_commitment_hash};
     use crate::scheme::keygen::keygen;
     use crate::scheme::setup::setup;
     use crate::scheme::verification::{compute_kappa, compute_zeta};
@@ -560,51 +523,32 @@ mod tests {
     #[test]
     fn proof_cm_cs_bytes_roundtrip() {
         let mut rng = thread_rng();
+
         let mut params = setup(1).unwrap();
-
-        let elgamal_keypair = elgamal::elgamal_keygen(&params);
-        let private_attributes = params.n_random_scalars(1);
-
-        // we don't care about 'correctness' of the proof. only whether we can correctly recover it from bytes
         let cm = G1Projective::random(&mut rng);
         let r = params.random_scalar();
-
-        let commitment_hash = compute_commitment_hash(cm);
-        let (attributes_ciphertexts, _): (Vec<_>, Vec<_>) = compute_attribute_encryption(
-            &params,
-            private_attributes.as_ref(),
-            elgamal_keypair.public_key(),
-            commitment_hash,
-        );
-        let ephemeral_keys = params.n_random_scalars(1);
+        let cms: [G1Projective; 1] = [G1Projective::random(&mut rng)];
+        let rs = params.n_random_scalars(1);
+        let private_attributes = params.n_random_scalars(1);
 
         // 0 public 1 private
-        let pi_s = ProofCmCs::construct(
-            &mut params,
-            &elgamal_keypair,
-            &ephemeral_keys,
-            &cm,
-            &r,
-            &private_attributes,
-            &*attributes_ciphertexts,
-        );
+        let pi_s = ProofCmCs::construct(&mut params, &cm, &r, &cms, &rs, &private_attributes);
 
         let bytes = pi_s.to_bytes();
         assert_eq!(ProofCmCs::from_bytes(&bytes).unwrap(), pi_s);
 
-        // 2 private
+        let mut params = setup(2).unwrap();
+        let cm = G1Projective::random(&mut rng);
+        let r = params.random_scalar();
+        let cms: [G1Projective; 2] = [
+            G1Projective::random(&mut rng),
+            G1Projective::random(&mut rng),
+        ];
+        let rs = params.n_random_scalars(2);
         let private_attributes = params.n_random_scalars(2);
-        let ephemeral_keys = params.n_random_scalars(2);
 
-        let pi_s = ProofCmCs::construct(
-            &mut params,
-            &elgamal_keypair,
-            &ephemeral_keys,
-            &cm,
-            &r,
-            &private_attributes,
-            &*attributes_ciphertexts,
-        );
+        // 0 public 2 privates
+        let pi_s = ProofCmCs::construct(&mut params, &cm, &r, &cms, &rs, &private_attributes);
 
         let bytes = pi_s.to_bytes();
         assert_eq!(ProofCmCs::from_bytes(&bytes).unwrap(), pi_s);
@@ -612,9 +556,9 @@ mod tests {
 
     #[test]
     fn proof_kappa_zeta_bytes_roundtrip() {
-        let mut params = setup(4).unwrap();
+        let params = setup(4).unwrap();
 
-        let keypair = keygen(&mut params);
+        let keypair = keygen(&params);
 
         // we don't care about 'correctness' of the proof. only whether we can correctly recover it from bytes
         let serial_number = params.random_scalar();
@@ -627,7 +571,7 @@ mod tests {
 
         // 0 public 2 private
         let pi_v = ProofKappaZeta::construct(
-            &mut params,
+            &params,
             &keypair.verification_key(),
             &serial_number,
             &binding_number,
@@ -642,11 +586,11 @@ mod tests {
         assert_eq!(proof_from_bytes, pi_v);
 
         // 2 public 2 private
-        let mut params = setup(4).unwrap();
-        let keypair = keygen(&mut params);
+        let params = setup(4).unwrap();
+        let keypair = keygen(&params);
 
         let pi_v = ProofKappaZeta::construct(
-            &mut params,
+            &params,
             &keypair.verification_key(),
             &serial_number,
             &binding_number,

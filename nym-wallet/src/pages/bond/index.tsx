@@ -1,28 +1,28 @@
-import React, { useEffect, useState } from 'react'
-import { Alert, Box, Button, CircularProgress } from '@mui/material'
-import { BondForm } from './BondForm'
-import { SuccessView } from './SuccessView'
-import { NymCard } from '../../components'
-import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
-import { unbond, vestingUnbond } from '../../requests'
-import { useCheckOwnership } from '../../hooks/useCheckOwnership'
-import { PageLayout } from '../../layouts'
-import { useSnackbar } from 'notistack'
+import React, { useEffect, useState } from 'react';
+import { Alert, Box, Button, CircularProgress } from '@mui/material';
+import { BondForm } from './BondForm';
+import { SuccessView } from './SuccessView';
+import { NymCard } from '../../components';
+import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus';
+import { unbond, vestingUnbond } from '../../requests';
+import { useCheckOwnership } from '../../hooks/useCheckOwnership';
+import { PageLayout } from '../../layouts';
+import { useSnackbar } from 'notistack';
 
 export const Bond = () => {
-  const [status, setStatus] = useState(EnumRequestStatus.initial)
-  const [error, setError] = useState<string>()
-  const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>()
+  const [status, setStatus] = useState(EnumRequestStatus.initial);
+  const [error, setError] = useState<string>();
+  const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>();
 
-  const { checkOwnership, ownership, isLoading } = useCheckOwnership()
-  const { enqueueSnackbar } = useSnackbar()
+  const { checkOwnership, ownership, isLoading } = useCheckOwnership();
+  const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
     if (status === EnumRequestStatus.initial) {
-      const initialiseForm = async () => await checkOwnership()
-      initialiseForm()
+      const initialiseForm = async () => await checkOwnership();
+      initialiseForm();
     }
-  }, [status, checkOwnership])
+  }, [status, checkOwnership]);
 
   return (
     <PageLayout>
@@ -40,17 +40,17 @@ export const Bond = () => {
                 <Button
                   disabled={status === EnumRequestStatus.loading}
                   onClick={async () => {
-                    setStatus(EnumRequestStatus.loading)
+                    setStatus(EnumRequestStatus.loading);
                     try {
                       if (ownership.vestingPledge) {
-                        await vestingUnbond(ownership.nodeType!)
+                        await vestingUnbond(ownership.nodeType!);
                       } else {
-                        await unbond(ownership.nodeType!)
+                        await unbond(ownership.nodeType!);
                       }
                     } catch (e) {
-                      enqueueSnackbar(`Failed to unbond ${ownership.nodeType}}`, { variant: 'error' })
+                      enqueueSnackbar(`Failed to unbond ${ownership.nodeType}}`, { variant: 'error' });
                     } finally {
-                      setStatus(EnumRequestStatus.initial)
+                      setStatus(EnumRequestStatus.initial);
                     }
                   }}
                   data-testid="unBond"
@@ -78,12 +78,12 @@ export const Bond = () => {
         {status === EnumRequestStatus.initial && !ownership.hasOwnership && !isLoading && (
           <BondForm
             onError={(e?: string) => {
-              setError(e)
-              setStatus(EnumRequestStatus.error)
+              setError(e);
+              setStatus(EnumRequestStatus.error);
             }}
             onSuccess={(details) => {
-              setSuccessDetails(details)
-              setStatus(EnumRequestStatus.success)
+              setSuccessDetails(details);
+              setStatus(EnumRequestStatus.success);
             }}
             disabled={ownership?.hasOwnership}
           />
@@ -110,7 +110,7 @@ export const Bond = () => {
             >
               <Button
                 onClick={() => {
-                  setStatus(EnumRequestStatus.initial)
+                  setStatus(EnumRequestStatus.initial);
                 }}
                 variant="contained"
                 color="primary"
@@ -124,5 +124,5 @@ export const Bond = () => {
         )}
       </NymCard>
     </PageLayout>
-  )
-}
+  );
+};

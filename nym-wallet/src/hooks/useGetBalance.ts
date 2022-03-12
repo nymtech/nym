@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
-import { invoke } from '@tauri-apps/api'
-import { Balance, Coin, OriginalVestingResponse, Period } from '../types'
+import { useCallback, useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api';
+import { VestingAccountInfo } from 'src/types/rust/vestingaccountinfo';
+import { Balance, Coin, OriginalVestingResponse, Period } from '../types';
 import {
   getVestingCoins,
   getVestedCoins,
@@ -9,53 +10,41 @@ import {
   getOriginalVesting,
   getCurrentVestingPeriod,
   getVestingAccountInfo,
-} from '../requests'
-import { VestingAccountInfo } from 'src/types/rust/vestingaccountinfo'
+} from '../requests';
 
 type TTokenAllocation = {
-  [key in 'vesting' | 'vested' | 'locked' | 'spendable']: Coin['amount']
-}
+  [key in 'vesting' | 'vested' | 'locked' | 'spendable']: Coin['amount'];
+};
 
 export type TUseuserBalance = {
-  error?: string
-  balance?: Balance
-  tokenAllocation?: TTokenAllocation
-  originalVesting?: OriginalVestingResponse
-  currentVestingPeriod?: Period
-  vestingAccountInfo?: VestingAccountInfo
-  isLoading: boolean
-  fetchBalance: () => void
-  clearBalance: () => void
-  clearAll: () => void
-  fetchTokenAllocation: () => void
-}
+  error?: string;
+  balance?: Balance;
+  tokenAllocation?: TTokenAllocation;
+  originalVesting?: OriginalVestingResponse;
+  currentVestingPeriod?: Period;
+  vestingAccountInfo?: VestingAccountInfo;
+  isLoading: boolean;
+  fetchBalance: () => void;
+  clearBalance: () => void;
+  clearAll: () => void;
+  fetchTokenAllocation: () => void;
+};
 
 export const useGetBalance = (address?: string): TUseuserBalance => {
-  const [balance, setBalance] = useState<Balance>()
-  const [error, setError] = useState<string>()
-  const [tokenAllocation, setTokenAllocation] = useState<TTokenAllocation>()
-  const [originalVesting, setOriginalVesting] = useState<OriginalVestingResponse>()
-  const [currentVestingPeriod, setCurrentVestingPeriod] = useState<Period>()
-  const [vestingAccountInfo, setVestingAccountInfo] = useState<VestingAccountInfo>()
-  const [isLoading, setIsLoading] = useState(false)
+  const [balance, setBalance] = useState<Balance>();
+  const [error, setError] = useState<string>();
+  const [tokenAllocation, setTokenAllocation] = useState<TTokenAllocation>();
+  const [originalVesting, setOriginalVesting] = useState<OriginalVestingResponse>();
+  const [currentVestingPeriod, setCurrentVestingPeriod] = useState<Period>();
+  const [vestingAccountInfo, setVestingAccountInfo] = useState<VestingAccountInfo>();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const fetchBalance = useCallback(async () => {
-    setIsLoading(true)
-    setError(undefined)
-    try {
-      const balance = await invoke('get_balance')
-      setBalance(balance as Balance)
-    } catch (error) {
-      setError(error as string)
-    } finally {
-      setTimeout(() => {
-        setIsLoading(false)
-      }, 1000)
-    }
-  }, [])
+  const clearBalance = () => setBalance(undefined);
+  const clearTokenAllocation = () => setTokenAllocation(undefined);
+  const clearOriginalVesting = () => setOriginalVesting(undefined);
 
   const fetchTokenAllocation = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     if (address) {
       try {
         const [
@@ -64,8 +53,8 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
           vestedCoins,
           lockedCoins,
           spendableCoins,
-          currentVestingPeriod,
-          vestingAccountInfo,
+          currentVestingPer,
+          vestingAccountDetail,
         ] = await Promise.all([
           getOriginalVesting(address),
           getVestingCoins(address),
@@ -74,49 +63,58 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
           getSpendableCoins(address),
           getCurrentVestingPeriod(address),
           getVestingAccountInfo(address),
-        ])
-        setOriginalVesting(originalVestingValue)
-        setCurrentVestingPeriod(currentVestingPeriod)
+        ]);
+        setOriginalVesting(originalVestingValue);
+        setCurrentVestingPeriod(currentVestingPer);
         setTokenAllocation({
           vesting: vestingCoins.amount,
           vested: vestedCoins.amount,
           locked: lockedCoins.amount,
           spendable: spendableCoins.amount,
-        })
-        setVestingAccountInfo(vestingAccountInfo)
+        });
+        setVestingAccountInfo(vestingAccountDetail);
       } catch (e) {
-        clearTokenAllocation()
-        clearOriginalVesting()
-        console.error(e)
+        clearTokenAllocation();
+        clearOriginalVesting();
+        console.error(e);
       }
     }
-    setIsLoading(false)
-  }
+    setIsLoading(false);
+  };
 
-  const clearBalance = () => setBalance(undefined)
-  const clearTokenAllocation = () => setTokenAllocation(undefined)
-  const clearOriginalVesting = () => setOriginalVesting(undefined)
-  const clearVestingAccountInfo = () => setVestingAccountInfo(undefined)
+  const fetchBalance = useCallback(async () => {
+    setIsLoading(true);
+    setError(undefined);
+    try {
+      const bal = await invoke('get_balance');
+      setBalance(bal as Balance);
+    } catch (err) {
+      setError(err as string);
+    } finally {
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 1000);
+    }
+  }, []);
 
   const clearAll = () => {
-    clearBalance()
-    clearTokenAllocation()
-    clearOriginalVesting()
-    clearVestingAccountInfo()
-  }
+    clearBalance();
+    clearTokenAllocation();
+    clearOriginalVesting();
+  };
+
+  const handleRefresh = (addr?: string) => {
+    if (addr) {
+      fetchBalance();
+      fetchTokenAllocation();
+    } else {
+      clearAll();
+    }
+  };
 
   useEffect(() => {
-    handleRefresh(address)
-  }, [address])
-
-  const handleRefresh = (address?: string) => {
-    if (address) {
-      fetchBalance()
-      fetchTokenAllocation()
-    } else {
-      clearAll()
-    }
-  }
+    handleRefresh(address);
+  }, [address]);
 
   return {
     error,
@@ -130,5 +128,5 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     clearBalance,
     clearAll,
     fetchTokenAllocation,
-  }
-}
+  };
+};

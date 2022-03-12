@@ -38,7 +38,9 @@ pub fn populate_vesting_periods(
 mod tests {
     use crate::contract::execute;
     use crate::storage::load_account;
-    use crate::support::tests::helpers::{init_contract, vesting_account_fixture};
+    use crate::support::tests::helpers::{
+        init_contract, vesting_account_mid_fixture, vesting_account_new_fixture,
+    };
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
@@ -81,7 +83,7 @@ mod tests {
         let _response = execute(deps.as_mut(), env.clone(), info, msg.clone());
         assert!(response.is_err());
 
-        let account_again = vesting_account_fixture(&mut deps.storage, &env);
+        let account_again = vesting_account_new_fixture(&mut deps.storage, &env);
         assert_eq!(created_account.storage_key(), 1);
         assert_ne!(created_account.storage_key(), account_again.storage_key());
     }
@@ -91,7 +93,7 @@ mod tests {
         let mut deps = init_contract();
         let mut env = mock_env();
         let info = mock_info("owner", &[]);
-        let account = vesting_account_fixture(&mut deps.storage, &env);
+        let account = vesting_account_new_fixture(&mut deps.storage, &env);
         let msg = ExecuteMsg::TransferOwnership {
             to_address: "new_owner".to_string(),
         };
@@ -172,7 +174,7 @@ mod tests {
         let num_vesting_periods = 8;
         let vesting_period = 3 * 30 * 86400;
 
-        let account = vesting_account_fixture(&mut deps.storage, &env);
+        let account = vesting_account_new_fixture(&mut deps.storage, &env);
 
         assert_eq!(account.periods().len(), num_vesting_periods as usize);
 
@@ -237,11 +239,148 @@ mod tests {
     }
 
     #[test]
+    fn test_withdraw_case() {
+        let mut deps = init_contract();
+        let env = mock_env();
+        let account = vesting_account_mid_fixture(&mut deps.storage, &env);
+
+        let vested_coins = account.get_vested_coins(None, &env).unwrap();
+        let vesting_coins = account.get_vesting_coins(None, &env).unwrap();
+        let locked_coins = account.locked_coins(None, &env, &mut deps.storage).unwrap();
+        assert_eq!(vested_coins.amount, Uint128::new(250_000_000_000));
+        assert_eq!(vesting_coins.amount, Uint128::new(750_000_000_000));
+        assert_eq!(locked_coins.amount, Uint128::new(750_000_000_000));
+        let spendable = account
+            .spendable_coins(None, &env, &mut deps.storage)
+            .unwrap();
+        assert_eq!(spendable.amount, Uint128::new(250_000_000_000));
+        let withdrawn = account.load_withdrawn(&deps.storage).unwrap();
+        assert_eq!(withdrawn, Uint128::zero());
+
+        let mix_identity = "alice".to_string();
+
+        let delegation = Coin {
+            amount: Uint128::new(500_000_000_000),
+            denom: DENOM.to_string(),
+        };
+
+        let ok = account.try_delegate_to_mixnode(
+            mix_identity.clone(),
+            delegation.clone(),
+            &env,
+            &mut deps.storage,
+        );
+        assert!(ok.is_ok());
+
+        let vested_coins = account.get_vested_coins(None, &env).unwrap();
+        let vesting_coins = account.get_vesting_coins(None, &env).unwrap();
+        assert_eq!(vested_coins.amount, Uint128::new(250_000_000_000));
+        assert_eq!(vesting_coins.amount, Uint128::new(750_000_000_000));
+
+        let delegated_free = account
+            .get_delegated_free(None, &env, &mut deps.storage)
+            .unwrap();
+        let delegated_vesting = account
+            .get_delegated_vesting(None, &env, &mut deps.storage)
+            .unwrap();
+
+        assert_eq!(delegated_free.amount, Uint128::new(250_000_000_000));
+        assert_eq!(delegated_vesting.amount, Uint128::new(250_000_000_000));
+
+        let locked_coins = account.locked_coins(None, &env, &mut deps.storage).unwrap();
+        // vesting - delegated_vesting - pledged_vesting
+        assert_eq!(locked_coins.amount, Uint128::new(500_000_000_000));
+        let spendable = account
+            .spendable_coins(None, &env, &mut deps.storage)
+            .unwrap();
+        assert_eq!(spendable.amount, Uint128::zero());
+
+        let ok = account.try_undelegate_from_mixnode(mix_identity.clone(), &mut deps.storage);
+        assert!(ok.is_ok());
+
+        account
+            .track_undelegation(mix_identity.clone(), delegation.clone(), &mut deps.storage)
+            .unwrap();
+
+        let delegated_free = account
+            .get_delegated_free(None, &env, &mut deps.storage)
+            .unwrap();
+        let delegated_vesting = account
+            .get_delegated_vesting(None, &env, &mut deps.storage)
+            .unwrap();
+
+        assert_eq!(delegated_free.amount, Uint128::zero());
+        assert_eq!(delegated_vesting.amount, Uint128::zero());
+
+        assert_eq!(
+            account.load_balance(&deps.storage).unwrap(),
+            Uint128::new(1000_000_000_000)
+        );
+
+        account
+            .withdraw(
+                &account.spendable_coins(None, &env, &deps.storage).unwrap(),
+                &mut deps.storage,
+            )
+            .unwrap();
+
+        assert_eq!(
+            account.load_balance(&deps.storage).unwrap(),
+            Uint128::new(750_000_000_000)
+        );
+
+        let withdrawn = account.load_withdrawn(&deps.storage).unwrap();
+        assert_eq!(withdrawn, Uint128::new(250_000_000_000));
+
+        let vested_coins = account.get_vested_coins(None, &env).unwrap();
+        let vesting_coins = account.get_vesting_coins(None, &env).unwrap();
+        let locked_coins = account.locked_coins(None, &env, &mut deps.storage).unwrap();
+        assert_eq!(vested_coins.amount, Uint128::new(250_000_000_000));
+        assert_eq!(vesting_coins.amount, Uint128::new(750_000_000_000));
+        assert_eq!(locked_coins.amount, Uint128::new(750_000_000_000));
+        let spendable = account
+            .spendable_coins(None, &env, &mut deps.storage)
+            .unwrap();
+        assert_eq!(spendable.amount, Uint128::zero());
+
+        let ok = account.try_delegate_to_mixnode(
+            mix_identity.clone(),
+            delegation.clone(),
+            &env,
+            &mut deps.storage,
+        );
+        assert!(ok.is_ok());
+
+        let vested_coins = account.get_vested_coins(None, &env).unwrap();
+        let vesting_coins = account.get_vesting_coins(None, &env).unwrap();
+        let locked_coins = account.locked_coins(None, &env, &mut deps.storage).unwrap();
+        assert_eq!(vested_coins.amount, Uint128::new(250_000_000_000));
+        assert_eq!(vesting_coins.amount, Uint128::new(750_000_000_000));
+        let spendable = account
+            .spendable_coins(None, &env, &mut deps.storage)
+            .unwrap();
+        assert_eq!(spendable.amount, Uint128::zero());
+
+        let delegated_free = account
+            .get_delegated_free(None, &env, &mut deps.storage)
+            .unwrap();
+        let delegated_vesting = account
+            .get_delegated_vesting(None, &env, &mut deps.storage)
+            .unwrap();
+
+        assert_eq!(delegated_free.amount, Uint128::zero());
+        assert_eq!(delegated_vesting.amount, Uint128::new(500_000_000_000));
+
+        // vesting - delegated_vesting - pledged_vesting
+        assert_eq!(locked_coins.amount, Uint128::new(250_000_000_000));
+    }
+
+    #[test]
     fn test_delegations() {
         let mut deps = init_contract();
         let env = mock_env();
 
-        let account = vesting_account_fixture(&mut deps.storage, &env);
+        let account = vesting_account_new_fixture(&mut deps.storage, &env);
 
         // Try delegating too much
         let err = account.try_delegate_to_mixnode(
@@ -352,7 +491,7 @@ mod tests {
         let mut deps = init_contract();
         let env = mock_env();
 
-        let account = vesting_account_fixture(&mut deps.storage, &env);
+        let account = vesting_account_new_fixture(&mut deps.storage, &env);
 
         let mix_node = MixNode {
             host: "mix.node.org".to_string(),
@@ -472,7 +611,7 @@ mod tests {
         let mut deps = init_contract();
         let env = mock_env();
 
-        let account = vesting_account_fixture(&mut deps.storage, &env);
+        let account = vesting_account_new_fixture(&mut deps.storage, &env);
 
         let gateway = Gateway {
             host: "1.1.1.1".to_string(),

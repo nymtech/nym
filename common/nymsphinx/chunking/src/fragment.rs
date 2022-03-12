@@ -923,7 +923,7 @@ mod fragment_header {
 
             let header_bytes = fragmented_header.to_bytes();
             let header_bytes = &header_bytes[..header_bytes.len() - 1];
-            assert!(FragmentHeader::try_from_bytes(&header_bytes).is_err())
+            assert!(FragmentHeader::try_from_bytes(header_bytes).is_err())
         }
 
         #[test]

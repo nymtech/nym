@@ -1,5 +1,5 @@
-import * as Yup from 'yup'
-import { checkHasEnoughFunds, checkHasEnoughLockedTokens, validateAmount, validateKey } from '../../utils'
+import * as Yup from 'yup';
+import { checkHasEnoughFunds, checkHasEnoughLockedTokens, validateAmount, validateKey } from '../../utils';
 
 export const validationSchema = Yup.object().shape({
   identity: Yup.string()
@@ -7,29 +7,29 @@ export const validationSchema = Yup.object().shape({
     .test(
       'valid-id-key',
       'A valid identity key is required e.g. 824WyExLUWvLE2mpSHBatN4AoByuLzfnHFeHWiBYzg4z',
-      (value) => (!!value ? validateKey(value, 32) : false),
+      (value) => (value ? validateKey(value, 32) : false),
     ),
 
   amount: Yup.string()
     .required()
     .test('valid-amount', 'A valid amount is required', async function (value) {
-      const isValid = await validateAmount(value || '', '0')
+      const isValid = await validateAmount(value || '', '0');
 
       if (!isValid) {
-        return this.createError({ message: `A valid amount is required` })
+        return this.createError({ message: `A valid amount is required` });
       } else {
-        const hasEnoughBalance = await checkHasEnoughFunds(value || '')
-        const hasEnoughLocked = await checkHasEnoughLockedTokens(value || '')
+        const hasEnoughBalance = await checkHasEnoughFunds(value || '');
+        const hasEnoughLocked = await checkHasEnoughLockedTokens(value || '');
 
         if (this.parent.tokenPool === 'balance' && !hasEnoughBalance) {
-          return this.createError({ message: 'Not enough funds in wallet' })
+          return this.createError({ message: 'Not enough funds in wallet' });
         }
 
         if (this.parent.tokenPool === 'locked' && !hasEnoughLocked) {
-          return this.createError({ message: 'Not enough locked tokens' })
+          return this.createError({ message: 'Not enough locked tokens' });
         }
       }
 
-      return true
+      return true;
     }),
-})
+});

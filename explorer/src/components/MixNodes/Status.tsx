@@ -1,28 +1,12 @@
 import { Typography } from '@mui/material';
 import * as React from 'react';
 import { Theme, useTheme } from '@mui/material/styles';
-import { MixnodeRowType } from '.';
 import { getMixNodeIcon } from '../Icons';
 import { MixnodeStatus } from '../../typeDefs/explorer-api';
 
 interface MixNodeStatusProps {
   status: MixnodeStatus;
 }
-
-export const MixNodeStatus: React.FC<MixNodeStatusProps> = ({ status }) => {
-  const theme = useTheme();
-  const Icon = React.useMemo(() => getMixNodeIcon(status), [status]);
-  const color = React.useMemo(() => getMixNodeStatusColor(theme, status), [status, theme]);
-
-  return (
-    <Typography color={color} display="flex" alignItems="center">
-      <Icon />
-      <Typography ml={1} component="span" color="inherit">
-        {`${status[0].toUpperCase()}${status.slice(1)}`}
-      </Typography>
-    </Typography>
-  );
-};
 
 export const getMixNodeStatusColor = (theme: Theme, status: MixnodeStatus) => {
   let color;
@@ -50,4 +34,19 @@ export const getMixNodeStatusText = (status: MixnodeStatus) => {
     default:
       return 'inactive';
   }
+};
+
+export const MixNodeStatus: React.FC<MixNodeStatusProps> = ({ status }) => {
+  const theme = useTheme();
+  const Icon = React.useMemo(() => getMixNodeIcon(status), [status]);
+  const color = React.useMemo(() => getMixNodeStatusColor(theme, status), [status, theme]);
+
+  return (
+    <Typography color={color} display="flex" alignItems="center">
+      <Icon />
+      <Typography ml={1} component="span" color="inherit">
+        {`${status[0].toUpperCase()}${status.slice(1)}`}
+      </Typography>
+    </Typography>
+  );
 };

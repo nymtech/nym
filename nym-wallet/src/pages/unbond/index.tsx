@@ -1,22 +1,22 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { Alert, Box, Button, CircularProgress } from '@mui/material'
-import { Fee, NymCard } from '../../components'
-import { useCheckOwnership } from '../../hooks/useCheckOwnership'
-import { ClientContext } from '../../context/main'
-import { unbond } from '../../requests'
-import { PageLayout } from '../../layouts'
+import React, { useContext, useEffect, useState } from 'react';
+import { Alert, Box, Button, CircularProgress } from '@mui/material';
+import { Fee, NymCard } from '../../components';
+import { useCheckOwnership } from '../../hooks/useCheckOwnership';
+import { ClientContext } from '../../context/main';
+import { unbond } from '../../requests';
+import { PageLayout } from '../../layouts';
 
 export const Unbond = () => {
-  const [isLoading, setIsLoading] = useState(false)
-  const { checkOwnership, ownership } = useCheckOwnership()
-  const { userBalance, getBondDetails } = useContext(ClientContext)
+  const [isLoading, setIsLoading] = useState(false);
+  const { checkOwnership, ownership } = useCheckOwnership();
+  const { userBalance, getBondDetails } = useContext(ClientContext);
 
   useEffect(() => {
     const initialiseForm = async () => {
-      await checkOwnership()
-    }
-    initialiseForm()
-  }, [ownership.hasOwnership, checkOwnership])
+      await checkOwnership();
+    };
+    initialiseForm();
+  }, [ownership.hasOwnership, checkOwnership]);
 
   return (
     <PageLayout>
@@ -31,12 +31,12 @@ export const Unbond = () => {
                   data-testid="un-bond"
                   disabled={isLoading}
                   onClick={async () => {
-                    setIsLoading(true)
-                    await unbond(ownership.nodeType!)
-                    await userBalance.fetchBalance()
-                    await getBondDetails()
-                    await checkOwnership()
-                    setIsLoading(false)
+                    setIsLoading(true);
+                    await unbond(ownership.nodeType!);
+                    await userBalance.fetchBalance();
+                    await getBondDetails();
+                    await checkOwnership();
+                    setIsLoading(false);
                   }}
                   color="inherit"
                 >
@@ -54,7 +54,7 @@ export const Unbond = () => {
           </>
         ) : (
           <Alert severity="info" sx={{ m: 3 }} data-testid="no-bond">
-            You don't currently have a bonded node
+            You do not currently have a bonded node
           </Alert>
         )}
         {isLoading && (
@@ -71,5 +71,5 @@ export const Unbond = () => {
         )}
       </NymCard>
     </PageLayout>
-  )
-}
+  );
+};

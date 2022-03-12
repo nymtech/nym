@@ -823,6 +823,7 @@ dependencies = [
 name = "credentials"
 version = "0.1.0"
 dependencies = [
+ "bls12_381",
  "coconut-interface",
  "crypto",
  "network-defaults",
@@ -1071,6 +1072,17 @@ name = "cw-storage-plus"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d7ee1963302b0ac2a9d42fe0faec826209c17452bfd36fbfd9d002a88929261"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw-storage-plus"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c087ff98fb0475db4c2b5298a5fd12b2848d2854b39d1115d930ee6da24d1eed"
 dependencies = [
  "cosmwasm-std",
  "schemars",
@@ -6046,7 +6058,7 @@ version = "0.1.0"
 dependencies = [
  "config",
  "cosmwasm-std",
- "cw-storage-plus",
+ "cw-storage-plus 0.12.1",
  "mixnet-contract-common",
  "schemars",
  "serde",
@@ -6060,7 +6072,7 @@ version = "0.1.0"
 dependencies = [
  "config",
  "cosmwasm-std",
- "cw-storage-plus",
+ "cw-storage-plus 0.11.1",
  "mixnet-contract-common",
  "schemars",
  "serde",

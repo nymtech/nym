@@ -33,7 +33,7 @@ export type NymPaletteWithExtensionsOptions = Partial<NymPaletteWithExtensions>;
 /**
  * Returns the Nym palette for light mode.
  */
-const createLightModePalette = (): PaletteOptions & NymPaletteWithExtensionsOptions => ({
+export const createLightModePalette = (): PaletteOptions & NymPaletteWithExtensionsOptions => ({
   nym: {
     ...nymPalette,
     ...nymWalletPallete(lightMode),
@@ -45,7 +45,7 @@ const createLightModePalette = (): PaletteOptions & NymPaletteWithExtensionsOpti
 /**
  * Returns the Nym palette for dark mode.
  */
-const createDarkModePalette = (): PaletteOptions & NymPaletteWithExtensionsOptions => ({
+export const createDarkModePalette = (): PaletteOptions & NymPaletteWithExtensionsOptions => ({
   nym: {
     ...nymPalette,
     ...nymWalletPallete(darkMode),

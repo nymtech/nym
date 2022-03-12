@@ -3,9 +3,9 @@
 
 use super::storage;
 use crate::error::ContractError;
-use cosmwasm_std::Deps;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
+use cosmwasm_std::{Api, Deps, Storage};
 use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract_common::{
     Delegation, IdentityKey, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
@@ -14,16 +14,14 @@ use mixnet_contract_common::{
 
 pub(crate) fn query_all_network_delegations_paged(
     deps: Deps<'_>,
-    start_after: Option<(IdentityKey, String)>,
+    start_after: Option<(IdentityKey, Vec<u8>, u64)>,
     limit: Option<u32>,
 ) -> StdResult<PagedAllDelegationsResponse> {
     let limit = limit
         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
 
-    let start = start_after
-        .map(|start| start.joined_key())
-        .map(Bound::exclusive);
+    let start = start_after.map(Bound::exclusive);
 
     let delegations = storage::delegations()
         .range(deps.storage, start, None, Order::Ascending)
@@ -52,8 +50,9 @@ pub(crate) fn query_delegator_delegations_paged(
     let limit = limit
         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
-    let start = start_after
-        .map(|mix_identity| Bound::Exclusive((mix_identity, validated_owner.clone()).joined_key()));
+    let start = start_after.map(|mix_identity| {
+        Bound::ExclusiveRaw((mix_identity, validated_owner.clone()).joined_key())
+    });
 
     let delegations = storage::delegations()
         .idx
@@ -76,35 +75,47 @@ pub(crate) fn query_delegator_delegations_paged(
 
 // queries for delegation value of given address for particular node
 pub(crate) fn query_mixnode_delegation(
-    deps: Deps<'_>,
+    storage: &dyn Storage,
+    api: &dyn Api,
     mix_identity: IdentityKey,
     delegator: String,
-) -> Result<Delegation, ContractError> {
-    let validated_delegator = deps.api.addr_validate(&delegator)?;
-    let storage_key = (mix_identity.clone(), validated_delegator.clone()).joined_key();
+) -> Result<Vec<Delegation>, ContractError> {
+    let validated_delegator = api.addr_validate(&delegator)?;
+    let storage_key = (
+        mix_identity.clone(),
+        validated_delegator.as_bytes().to_vec(),
+    );
 
-    storage::delegations()
-        .may_load(deps.storage, storage_key)?
-        .ok_or(ContractError::NoMixnodeDelegationFound {
+    let delegations = storage::delegations()
+        .prefix(storage_key)
+        .range(storage, None, None, Order::Ascending)
+        .filter_map(|d| d.ok())
+        .map(|r| r.1)
+        .collect::<Vec<Delegation>>();
+
+    if delegations.is_empty() {
+        Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
-            address: validated_delegator,
+            address: delegator,
         })
+    } else {
+        Ok(delegations)
+    }
 }
 
 pub(crate) fn query_mixnode_delegations_paged(
     deps: Deps<'_>,
     mix_identity: IdentityKey,
-    start_after: Option<String>,
+    start_after: Option<(String, u64)>,
     limit: Option<u32>,
 ) -> StdResult<PagedMixDelegationsResponse> {
     let limit = limit
         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
 
-    let start = start_after
-        .map(|addr| deps.api.addr_validate(&addr))
-        .transpose()?
-        .map(|addr| Bound::Exclusive((mix_identity.clone(), addr).joined_key()));
+    let start = start_after.map(|(addr, height)| {
+        Bound::ExclusiveRaw((mix_identity.clone(), addr.as_bytes(), height).joined_key())
+    });
 
     let delegations = storage::delegations()
         .idx
@@ -115,7 +126,9 @@ pub(crate) fn query_mixnode_delegations_paged(
         .map(|record| record.map(|r| r.1))
         .collect::<StdResult<Vec<_>>>()?;
 
-    let start_next_after = delegations.last().map(|delegation| delegation.owner());
+    let start_next_after = delegations
+        .last()
+        .map(|delegation| (delegation.owner(), delegation.block_height()));
 
     Ok(PagedMixDelegationsResponse::new(
         delegations,
@@ -245,25 +258,26 @@ pub(crate) mod tests {
                 Option::from(per_page),
             )
             .unwrap();
+            // println!("{:?}", page1);
+            let start_after = page1.start_next_after.unwrap();
             assert_eq!(2, page1.delegations.len());
-            assert_eq!("200".to_string(), page1.start_next_after.unwrap());
+            assert_eq!(("200".to_string(), 12345), start_after);
 
             // retrieving the next page should start after the last key on this page
-            let start_after = "200".to_string();
+
             let page2 = query_mixnode_delegations_paged(
                 deps.as_ref(),
                 node_identity.clone(),
-                Option::from(start_after),
+                Option::from(start_after.clone()),
                 Option::from(per_page),
             )
             .unwrap();
-
+            // println!("{:?}", page2);
             assert_eq!(1, page2.delegations.len());
 
             // save another one
             test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "400");
 
-            let start_after = "200".to_string();
             let page2 = query_mixnode_delegations_paged(
                 deps.as_ref(),
                 node_identity,
@@ -271,6 +285,7 @@ pub(crate) mod tests {
                 Option::from(per_page),
             )
             .unwrap();
+            // println!("{:?}", page2);
 
             // now we have 2 pages, with 2 results on the second page
             assert_eq!(2, page2.delegations.len());
@@ -408,16 +423,17 @@ pub(crate) mod tests {
         );
 
         storage::delegations()
-            .save(
-                deps.as_mut().storage,
-                delegation.storage_key().joined_key(),
-                &delegation,
-            )
+            .save(deps.as_mut().storage, delegation.storage_key(), &delegation)
             .unwrap();
 
         assert_eq!(
-            Ok(delegation),
-            query_mixnode_delegation(deps.as_ref(), node_identity, delegation_owner.to_string())
+            Ok(vec![delegation]),
+            query_mixnode_delegation(
+                &deps.storage,
+                &deps.api,
+                node_identity,
+                delegation_owner.to_string()
+            )
         )
     }
 
@@ -433,10 +449,11 @@ pub(crate) mod tests {
         assert_eq!(
             Err(ContractError::NoMixnodeDelegationFound {
                 identity: node_identity1.clone(),
-                address: delegation_owner1.clone(),
+                address: delegation_owner1.to_string(),
             }),
             query_mixnode_delegation(
-                deps.as_ref(),
+                &deps.storage,
+                &deps.api,
                 node_identity1.clone(),
                 delegation_owner1.to_string()
             )
@@ -452,20 +469,17 @@ pub(crate) mod tests {
         );
 
         storage::delegations()
-            .save(
-                deps.as_mut().storage,
-                delegation.storage_key().joined_key(),
-                &delegation,
-            )
+            .save(deps.as_mut().storage, delegation.storage_key(), &delegation)
             .unwrap();
 
         assert_eq!(
             Err(ContractError::NoMixnodeDelegationFound {
                 identity: node_identity1.clone(),
-                address: delegation_owner1.clone(),
+                address: delegation_owner1.to_string(),
             }),
             query_mixnode_delegation(
-                deps.as_ref(),
+                &deps.storage,
+                &deps.api,
                 node_identity1.clone(),
                 delegation_owner1.to_string()
             )
@@ -481,19 +495,20 @@ pub(crate) mod tests {
         );
 
         storage::delegations()
-            .save(
-                deps.as_mut().storage,
-                delegation.storage_key().joined_key(),
-                &delegation,
-            )
+            .save(deps.as_mut().storage, delegation.storage_key(), &delegation)
             .unwrap();
 
         assert_eq!(
             Err(ContractError::NoMixnodeDelegationFound {
                 identity: node_identity1.clone(),
-                address: Addr::unchecked(delegation_owner1.clone())
+                address: delegation_owner1.to_string()
             }),
-            query_mixnode_delegation(deps.as_ref(), node_identity1, delegation_owner1.to_string())
+            query_mixnode_delegation(
+                &deps.storage,
+                &deps.api,
+                node_identity1,
+                delegation_owner1.to_string()
+            )
         )
     }
 

@@ -1,18 +1,18 @@
-import React, { useContext, useState } from 'react'
-import { Alert, AlertTitle, Box, Button, Link, Typography } from '@mui/material'
-import { DelegateForm } from './DelegateForm'
-import { NymCard } from '../../components'
-import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
-import { SuccessView } from './SuccessView'
-import { urls, ClientContext } from '../../context/main'
-import { PageLayout } from '../../layouts'
+import React, { useContext, useState } from 'react';
+import { Alert, AlertTitle, Box, Button, Link, Typography } from '@mui/material';
+import { DelegateForm } from './DelegateForm';
+import { NymCard } from '../../components';
+import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus';
+import { SuccessView } from './SuccessView';
+import { urls, ClientContext } from '../../context/main';
+import { PageLayout } from '../../layouts';
 
 export const Delegate = () => {
-  const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial)
-  const [error, setError] = useState<string>()
-  const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>()
+  const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial);
+  const [error, setError] = useState<string>();
+  const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>();
 
-  const { network } = useContext(ClientContext)
+  const { network } = useContext(ClientContext);
 
   return (
     <PageLayout>
@@ -26,12 +26,12 @@ export const Delegate = () => {
           {status === EnumRequestStatus.initial && (
             <DelegateForm
               onError={(message?: string) => {
-                setStatus(EnumRequestStatus.error)
-                setError(message)
+                setStatus(EnumRequestStatus.error);
+                setError(message);
               }}
               onSuccess={(details) => {
-                setStatus(EnumRequestStatus.success)
-                setSuccessDetails(details)
+                setStatus(EnumRequestStatus.success);
+                setSuccessDetails(details);
               }}
             />
           )}
@@ -63,7 +63,7 @@ export const Delegate = () => {
                   disableElevation
                   variant="contained"
                   onClick={() => {
-                    setStatus(EnumRequestStatus.initial)
+                    setStatus(EnumRequestStatus.initial);
                   }}
                 >
                   Finish
@@ -81,5 +81,5 @@ export const Delegate = () => {
         for uptime and performances to help make delegation decisions
       </Typography>
     </PageLayout>
-  )
-}
+  );
+};

@@ -1,22 +1,24 @@
-import React, { useContext, useState } from 'react'
-import { Alert, Button, Stack, TextField } from '@mui/material'
-import { Subtitle } from '../components'
-import { ClientContext } from '../../../context/main'
+/* eslint-disable react/no-unused-prop-types */
+import React, { useContext, useState } from 'react';
+import { Alert, Button, Stack, TextField } from '@mui/material';
+import { Subtitle } from '../components';
+import { ClientContext } from '../../../context/main';
+import { TPages } from '../types';
 
-export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () => void }> = ({ onPrev }) => {
-  const [mnemonic, setMnemonic] = useState<string>('')
+export const ExistingAccount: React.FC<{ page: TPages; onPrev: () => void }> = ({ onPrev }) => {
+  const [mnemonic, setMnemonic] = useState<string>('');
 
-  const { logIn, error } = useContext(ClientContext)
+  const { logIn, error } = useContext(ClientContext);
 
   const handleSignIn = async ({ preventDefault }: React.MouseEvent<HTMLElement>) => {
-    logIn(mnemonic)
-  }
+    logIn(mnemonic);
+  };
 
   const handleSignInOnEnter = ({ key }: React.KeyboardEvent<HTMLDivElement>) => {
     if (key.toLowerCase() === 'enter') {
-      logIn(mnemonic)
+      logIn(mnemonic);
     }
-  }
+  };
 
   return (
     <Stack spacing={2} sx={{ width: 400 }} alignItems="center">
@@ -49,5 +51,5 @@ export const ExistingAccount: React.FC<{ page: 'existing account'; onPrev: () =>
         Back
       </Button>
     </Stack>
-  )
-}
+  );
+};

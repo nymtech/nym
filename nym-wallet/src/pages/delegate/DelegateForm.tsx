@@ -1,33 +1,33 @@
-import React, { useEffect, useContext } from 'react'
-import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField, Typography } from '@mui/material'
-import { yupResolver } from '@hookform/resolvers/yup'
-import { useForm } from 'react-hook-form'
-import { DelegationResult, EnumNodeType, TDelegateArgs } from '../../types'
-import { validationSchema } from './validationSchema'
-import { ClientContext } from '../../context/main'
-import { delegate, majorToMinor, vestingDelegateToMixnode } from '../../requests'
-import { Fee, TokenPoolSelector } from '../../components'
+import React, { useEffect, useContext } from 'react';
+import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField, Typography } from '@mui/material';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { useForm } from 'react-hook-form';
+import { DelegationResult, EnumNodeType, TDelegateArgs } from '../../types';
+import { validationSchema } from './validationSchema';
+import { ClientContext } from '../../context/main';
+import { delegate, majorToMinor, vestingDelegateToMixnode } from '../../requests';
+import { Fee, TokenPoolSelector } from '../../components';
 
 type TDelegateForm = {
-  identity: string
-  amount: string
-  tokenPool: string
-  type: EnumNodeType
-}
+  identity: string;
+  amount: string;
+  tokenPool: string;
+  type: EnumNodeType;
+};
 
 const defaultValues: TDelegateForm = {
   identity: '',
   amount: '',
   tokenPool: 'balance',
   type: EnumNodeType.mixnode,
-}
+};
 
 export const DelegateForm = ({
   onError,
   onSuccess,
 }: {
-  onError: (message?: string) => void
-  onSuccess: (details: { amount: string; address: string }) => void
+  onError: (message?: string) => void;
+  onSuccess: (details: { amount: string; address: string }) => void;
 }) => {
   const {
     register,
@@ -38,16 +38,16 @@ export const DelegateForm = ({
   } = useForm<TDelegateForm>({
     defaultValues,
     resolver: yupResolver(validationSchema),
-  })
+  });
 
-  const { userBalance, currency, clientDetails } = useContext(ClientContext)
+  const { userBalance, currency, clientDetails } = useContext(ClientContext);
 
   useEffect(() => {
-    reset()
-  }, [clientDetails])
+    reset();
+  }, [clientDetails]);
 
   const onSubmit = async (data: TDelegateForm, cb: (data: TDelegateArgs) => Promise<DelegationResult>) => {
-    const amount = await majorToMinor(data.amount)
+    const amount = await majorToMinor(data.amount);
 
     await cb({
       type: data.type,
@@ -56,17 +56,17 @@ export const DelegateForm = ({
     })
       .then(async (res) => {
         if (data.tokenPool === 'balance') {
-          await userBalance.fetchBalance()
+          await userBalance.fetchBalance();
         } else {
-          await userBalance.fetchTokenAllocation()
+          await userBalance.fetchTokenAllocation();
         }
-        onSuccess({ amount: data.amount, address: res.target_address })
+        onSuccess({ amount: data.amount, address: res.target_address });
       })
       .catch((e) => {
-        console.log(e)
-        onError(e)
-      })
-  }
+        console.log(e);
+        onError(e);
+      });
+  };
 
   return (
     <FormControl fullWidth>
@@ -139,5 +139,5 @@ export const DelegateForm = ({
         </Button>
       </Box>
     </FormControl>
-  )
-}
+  );
+};

@@ -3,11 +3,10 @@
 
 use cosmrs::Denom;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::fmt;
 use std::str::FromStr;
 use strum::EnumIter;
 
-use crate::error::BackendError;
 use config::defaults::all::Network as ConfigNetwork;
 use config::defaults::{mainnet, qa, sandbox};
 
@@ -38,25 +37,28 @@ impl Default for Network {
   }
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<ConfigNetwork> for Network {
-  fn into(self) -> ConfigNetwork {
-    match self {
-      Network::QA => ConfigNetwork::QA,
-      Network::SANDBOX => ConfigNetwork::SANDBOX,
-      Network::MAINNET => ConfigNetwork::MAINNET,
+impl fmt::Display for Network {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{:?}", self)
+  }
+}
+
+impl From<ConfigNetwork> for Network {
+  fn from(network: ConfigNetwork) -> Self {
+    match network {
+      ConfigNetwork::QA => Network::QA,
+      ConfigNetwork::SANDBOX => Network::SANDBOX,
+      ConfigNetwork::MAINNET => Network::MAINNET,
     }
   }
 }
 
-impl TryFrom<ConfigNetwork> for Network {
-  type Error = BackendError;
-
-  fn try_from(value: ConfigNetwork) -> Result<Self, Self::Error> {
-    match value {
-      ConfigNetwork::QA => Ok(Network::QA),
-      ConfigNetwork::SANDBOX => Ok(Network::SANDBOX),
-      ConfigNetwork::MAINNET => Ok(Network::MAINNET),
+impl From<Network> for ConfigNetwork {
+  fn from(network: Network) -> Self {
+    match network {
+      Network::QA => ConfigNetwork::QA,
+      Network::SANDBOX => ConfigNetwork::SANDBOX,
+      Network::MAINNET => ConfigNetwork::MAINNET,
     }
   }
 }

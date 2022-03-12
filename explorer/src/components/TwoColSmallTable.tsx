@@ -31,23 +31,13 @@ export const TwoColSmallTable: React.FC<TableProps> = ({
   <>
     {title && <Typography sx={{ marginTop: 2 }}>{title}</Typography>}
 
-    <TableContainer
-      component={Paper}
-      sx={marginBottom ? { marginBottom: 4, marginTop: 2 } : { marginTop: 2 }}
-    >
+    <TableContainer component={Paper} sx={marginBottom ? { marginBottom: 4, marginTop: 2 } : { marginTop: 2 }}>
       <Table aria-label="two col small table">
         <TableBody>
           {keys.map((each: string, i: number) => (
             <TableRow key={each}>
-              {icons && (
-                <TableCell>
-                  {icons[i] ? <CheckCircleSharpIcon /> : <ErrorIcon />}
-                </TableCell>
-              )}
-              <TableCell
-                sx={error ? { opacity: 0.4 } : null}
-                data-testid={each.replace(/ /g, '')}
-              >
+              {icons && <TableCell>{icons[i] ? <CheckCircleSharpIcon /> : <ErrorIcon />}</TableCell>}
+              <TableCell sx={error ? { opacity: 0.4 } : null} data-testid={each.replace(/ /g, '')}>
                 {each}
               </TableCell>
               <TableCell

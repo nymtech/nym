@@ -1,147 +1,145 @@
-import React, { createContext, useEffect, useState } from 'react'
-import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types'
-import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance'
-import { config } from '../../config'
-import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signOut } from '../requests'
-import { currencyMap } from '../utils'
-import { useHistory } from 'react-router-dom'
-import { useSnackbar } from 'notistack'
+import React, { createContext, useEffect, useState } from 'react';
+import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types';
+import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
+import { config } from '../../config';
+import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signOut } from '../requests';
+import { currencyMap } from '../utils';
+import { useHistory } from 'react-router-dom';
+import { useSnackbar } from 'notistack';
+import { useMemo } from 'react';
 
-export const { ADMIN_ADDRESS, IS_DEV_MODE } = config
+export const { ADMIN_ADDRESS, IS_DEV_MODE } = config;
 
-export const urls = (network?: Network) =>
-  network === 'MAINNET'
+export const urls = (networkName?: Network) =>
+  networkName === 'MAINNET'
     ? {
         blockExplorer: 'https://blocks.nymtech.net',
         networkExplorer: 'https://explorer.nymtech.net',
       }
     : {
-        blockExplorer: `https://${network}-blocks.nymtech.net`,
-        networkExplorer: `https://${network}-explorer.nymtech.net`,
-      }
+        blockExplorer: `https://${networkName}-blocks.nymtech.net`,
+        networkExplorer: `https://${networkName}-explorer.nymtech.net`,
+      };
 
 type TClientContext = {
-  mode: 'light' | 'dark'
-  clientDetails?: Account
-  mixnodeDetails?: TMixnodeBondDetails | null
-  userBalance: TUseuserBalance
-  showAdmin: boolean
-  showSettings: boolean
-  network?: Network
-  currency?: TCurrency
-  isLoading: boolean
-  error?: string
-  switchNetwork: (network: Network) => void
-  getBondDetails: () => Promise<void>
-  handleShowSettings: () => void
-  handleShowAdmin: () => void
-  logIn: (mnemonic: string) => void
-  logOut: () => void
-}
+  mode: 'light' | 'dark';
+  clientDetails?: Account;
+  mixnodeDetails?: TMixnodeBondDetails | null;
+  userBalance: TUseuserBalance;
+  showAdmin: boolean;
+  showSettings: boolean;
+  network?: Network;
+  currency?: TCurrency;
+  isLoading: boolean;
+  error?: string;
+  switchNetwork: (network: Network) => void;
+  getBondDetails: () => Promise<void>;
+  handleShowSettings: () => void;
+  handleShowAdmin: () => void;
+  logIn: (mnemonic: string) => void;
+  logOut: () => void;
+};
 
-export const ClientContext = createContext({} as TClientContext)
+export const ClientContext = createContext({} as TClientContext);
 
 export const ClientContextProvider = ({ children }: { children: React.ReactNode }) => {
-  const [clientDetails, setClientDetails] = useState<Account>()
-  const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>()
-  const [network, setNetwork] = useState<Network | undefined>()
-  const [currency, setCurrency] = useState<TCurrency>()
-  const [showAdmin, setShowAdmin] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
-  const [mode, setMode] = useState<'light' | 'dark'>('light')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string>()
+  const [clientDetails, setClientDetails] = useState<Account>();
+  const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>();
+  const [network, setNetwork] = useState<Network | undefined>();
+  const [currency, setCurrency] = useState<TCurrency>();
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [mode] = useState<'light' | 'dark'>('light');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>();
 
-  const userBalance = useGetBalance(clientDetails?.client_address)
-  const history = useHistory()
-  const { enqueueSnackbar } = useSnackbar()
+  const userBalance = useGetBalance(clientDetails?.client_address);
+  const history = useHistory();
+  const { enqueueSnackbar } = useSnackbar();
+
+  const loadAccount = async (n: Network) => {
+    try {
+      const client = await selectNetwork(n);
+      setClientDetails(client);
+    } catch (e) {
+      enqueueSnackbar('Error loading account', { variant: 'error' });
+      console.error(e);
+    } finally {
+      setCurrency(currencyMap(n));
+    }
+  };
+
+  const getBondDetails = async () => {
+    setMixnodeDetails(undefined);
+    try {
+      const mixnode = await getMixnodeBondDetails();
+      setMixnodeDetails(mixnode);
+    } catch (e) {
+      console.log(e);
+    }
+  };
 
   useEffect(() => {
     const refreshAccount = async () => {
       if (network) {
-        await loadAccount(network)
-        await getBondDetails()
-        await userBalance.fetchBalance()
+        await loadAccount(network);
+        await getBondDetails();
+        await userBalance.fetchBalance();
       }
-    }
-    refreshAccount()
-  }, [network])
+    };
+    refreshAccount();
+  }, [network]);
 
   const logIn = async (mnemonic: string) => {
     try {
-      setIsLoading(true)
-      await signInWithMnemonic(mnemonic || '')
-      await getBondDetails()
-      setNetwork('MAINNET')
+      setIsLoading(true);
+      await signInWithMnemonic(mnemonic || '');
+      await getBondDetails();
+      setNetwork('MAINNET');
     } catch (e) {
-      setIsLoading(false)
-      setError(e as string)
+      setIsLoading(false);
+      setError(e as string);
     } finally {
-      history.push('/balance')
+      history.push('/balance');
     }
-  }
-
-  const getBondDetails = async () => {
-    setMixnodeDetails(undefined)
-    try {
-      const mixnodeDetails = await getMixnodeBondDetails()
-      setMixnodeDetails(mixnodeDetails)
-    } catch (e) {
-      console.log(`Error fetching bond details ${e}`)
-    }
-  }
-
-  const loadAccount = async (network: Network) => {
-    try {
-      const clientDetails = await selectNetwork(network)
-      setClientDetails(clientDetails)
-    } catch (e) {
-      enqueueSnackbar('Error loading account', { variant: 'error' })
-      console.log(`Load account error ${e}`)
-    } finally {
-      setCurrency(currencyMap(network))
-    }
-  }
+  };
 
   const logOut = async () => {
-    userBalance.clearAll()
-    setClientDetails(undefined)
-    setNetwork(undefined)
-    setError(undefined)
-    setIsLoading(false)
-    setMixnodeDetails(undefined)
-    await signOut()
-    enqueueSnackbar('Successfully logged out', { variant: 'success' })
-  }
+    userBalance.clearAll();
+    setClientDetails(undefined);
+    setNetwork(undefined);
+    setError(undefined);
+    setIsLoading(false);
+    setMixnodeDetails(undefined);
+    await signOut();
+    enqueueSnackbar('Successfully logged out', { variant: 'success' });
+  };
 
-  const handleShowAdmin = () => setShowAdmin((show) => !show)
+  const handleShowAdmin = () => setShowAdmin((show) => !show);
+  const handleShowSettings = () => setShowSettings((show) => !show);
+  const switchNetwork = (_network: Network) => setNetwork(_network);
 
-  const handleShowSettings = () => setShowSettings((show) => !show)
+  const memoizedValue = useMemo(
+    () => ({
+      mode,
+      isLoading,
+      error,
+      clientDetails,
+      mixnodeDetails,
+      userBalance,
+      showAdmin,
+      showSettings,
+      network,
+      currency,
+      switchNetwork,
+      getBondDetails,
+      handleShowSettings,
+      handleShowAdmin,
+      logIn,
+      logOut,
+    }),
+    [mode, isLoading, error, clientDetails, mixnodeDetails, userBalance, showAdmin, showSettings, network, currency],
+  );
 
-  const switchNetwork = (network: Network) => setNetwork(network)
-
-  return (
-    <ClientContext.Provider
-      value={{
-        mode,
-        isLoading,
-        error,
-        clientDetails,
-        mixnodeDetails,
-        userBalance,
-        showAdmin,
-        showSettings,
-        network,
-        currency,
-        switchNetwork,
-        getBondDetails,
-        handleShowSettings,
-        handleShowAdmin,
-        logIn,
-        logOut,
-      }}
-    >
-      {children}
-    </ClientContext.Provider>
-  )
-}
+  return <ClientContext.Provider value={memoizedValue}>{children}</ClientContext.Provider>;
+};

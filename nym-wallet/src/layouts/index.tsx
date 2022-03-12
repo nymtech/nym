@@ -1,2 +1,2 @@
-export * from './AppLayout'
-export * from './PageLayout'
+export * from './AppLayout';
+export * from './PageLayout';

@@ -13,6 +13,7 @@ use crate::error::{CoconutError, Result};
 use crate::scheme::setup::Parameters;
 use crate::traits::{Base58, Bytable};
 use crate::utils::{try_deserialize_g1_projective, try_deserialize_scalar};
+use crate::Attribute;
 
 /// Type alias for the ephemeral key generated during ElGamal encryption
 pub type EphemeralKey = Scalar;
@@ -220,6 +221,18 @@ pub fn elgamal_keygen(params: &Parameters) -> ElGamalKeyPair {
         private_key: PrivateKey(private_key),
         public_key: PublicKey(gamma),
     }
+}
+
+pub fn compute_attribute_encryption(
+    params: &Parameters,
+    private_attributes: &[Attribute],
+    pub_key: &PublicKey,
+    commitment_hash: G1Projective,
+) -> (Vec<Ciphertext>, Vec<EphemeralKey>) {
+    private_attributes
+        .iter()
+        .map(|m| pub_key.encrypt(params, &commitment_hash, m))
+        .unzip()
 }
 
 #[cfg(test)]

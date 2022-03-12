@@ -15,7 +15,6 @@ export const COUNTRY_DATA_API = `${API_BASE_URL}/countries`;
 export const UPTIME_STORY_API = `${VALIDATOR_API_BASE_URL}/api/v1/status/mixnode`; // add ID then '/history' to this.
 
 // errors
-export const MIXNODE_API_ERROR =
-  "We're having trouble finding that record, please try again or Contact Us.";
+export const MIXNODE_API_ERROR = "We're having trouble finding that record, please try again or Contact Us.";
 
 export const NYM_WEBSITE = 'https://nymtech.net';

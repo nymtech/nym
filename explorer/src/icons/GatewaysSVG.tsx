@@ -5,27 +5,9 @@ export const GatewaysSVG: React.FC = () => {
   const theme = useTheme();
   const color = theme.palette.text.primary;
   return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 26 26"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M16.2 12H22.7"
-        stroke={color}
-        strokeWidth="1.3"
-        strokeMiterlimit="10"
-        strokeLinecap="round"
-      />
-      <path
-        d="M1.30005 12H12"
-        stroke={color}
-        strokeWidth="1.3"
-        strokeMiterlimit="10"
-        strokeLinecap="round"
-      />
+    <svg width="24" height="24" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M16.2 12H22.7" stroke={color} strokeWidth="1.3" strokeMiterlimit="10" strokeLinecap="round" />
+      <path d="M1.30005 12H12" stroke={color} strokeWidth="1.3" strokeMiterlimit="10" strokeLinecap="round" />
       <path
         d="M20.1 9.40015L22.7 12.0001L20.1 14.6001"
         stroke={color}

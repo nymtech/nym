@@ -1,26 +1,25 @@
-import React, { useContext, useState } from 'react'
-import { Box } from '@mui/system'
-import { CircularProgress, Stack } from '@mui/material'
-import { WelcomeContent, VerifyMnemonic, MnemonicWords, CreatePassword, ExistingAccount } from './pages'
-import { NymLogo } from '../../components'
-import { TMnemonicWords, TPages } from './types'
-import { RenderPage } from './components'
-import { CreateAccountContent } from './_legacy_create-account'
-import { ClientContext } from '../../context/main'
+import React, { useContext, useState } from 'react';
+import { CircularProgress, Stack, Box } from '@mui/material';
+import { ExistingAccount, WelcomeContent } from './pages';
+import { NymLogo } from '@nymproject/react';
+import { TPages } from './types';
+import { RenderPage } from './components';
+import { CreateAccountContent } from './_legacy_create-account';
+import { ClientContext } from '../../context/main';
 
-const testMnemonic =
-  'futuristic big receptive caption saw hug odd spoon internal dime bike rake helpless left distribution gusty eyes beg enormous word influence trashy pets curl'
-
-const mnemonicToArray = (mnemonic: string): TMnemonicWords =>
-  mnemonic
-    .split(' ')
-    .reduce((a, c: string, index) => [...a, { name: c, index: index + 1, disabled: false }], [] as TMnemonicWords)
+// const testMnemonic =
+//   'futuristic big receptive caption saw hug odd spoon internal dime bike rake helpless left distribution gusty eyes beg enormous word influence trashy pets curl';
+//
+// const mnemonicToArray = (mnemonic: string): TMnemonicWords =>
+//   mnemonic
+//     .split(' ')
+//     .reduce((a, c: string, index) => [...a, { name: c, index: index + 1, disabled: false }], [] as TMnemonicWords);
 
 export const Welcome = () => {
-  const [page, setPage] = useState<TPages>('welcome')
-  const [mnemonicWords, setMnemonicWords] = useState<TMnemonicWords>()
+  const [page, setPage] = useState<TPages>('welcome');
+  // const [mnemonicWords, setMnemonicWords] = useState<TMnemonicWords>();
 
-  const { isLoading } = useContext(ClientContext)
+  const { isLoading } = useContext(ClientContext);
 
   // useEffect(() => {
   //   const mnemonicArray = mnemonicToArray(testMnemonic)
@@ -51,7 +50,7 @@ export const Welcome = () => {
           <CircularProgress size={72} />
         ) : (
           <Stack spacing={3} alignItems="center" sx={{ width: 1080 }}>
-            <NymLogo />
+            <NymLogo width={75} />
             <RenderPage page={page}>
               <WelcomeContent
                 onUseExisting={() => setPage('existing account')}
@@ -72,11 +71,11 @@ export const Welcome = () => {
               page="verify mnemonic"
             />
             <CreatePassword page="create password" /> */}
-              <ExistingAccount page="existing account" onPrev={() => setPage('welcome')} />
+              <ExistingAccount onPrev={() => setPage('welcome')} page="existing account" />
             </RenderPage>
           </Stack>
         )}
       </Box>
     </Box>
-  )
-}
+  );
+};

@@ -92,7 +92,7 @@ impl Config {
 
 #[cfg(feature = "nymd-client")]
 pub struct Client<C> {
-    network: network_defaults::all::Network,
+    pub network: network_defaults::all::Network,
     mixnet_contract_address: Option<cosmrs::AccountId>,
     vesting_contract_address: Option<cosmrs::AccountId>,
     erc20_bridge_contract_address: Option<cosmrs::AccountId>,
@@ -281,6 +281,13 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.nymd.get_current_interval().await?)
+    }
+
+    pub async fn get_epochs_in_interval(&self) -> Result<u64, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_epochs_in_interval().await?)
     }
 
     pub async fn get_circulating_supply(&self) -> Result<u128, ValidatorClientError>

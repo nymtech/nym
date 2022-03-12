@@ -5,13 +5,7 @@ export const NodemapSVG: React.FC = () => {
   const theme = useTheme();
   const color = theme.palette.nym.networkExplorer.nav.text;
   return (
-    <svg
-      width="25"
-      height="25"
-      viewBox="0 0 19 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width="25" height="25" viewBox="0 0 19 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M1 9.6999C1 5.0999 4.7 1.3999 9.3 1.3999C13.9 1.3999 17.6 5.0999 17.6 9.6999C17.6 14.2999 9.3 21.5999 9.3 21.5999C9.3 21.5999 1 14.2999 1 9.6999Z"
         stroke={color}
@@ -22,12 +16,7 @@ export const NodemapSVG: React.FC = () => {
         stroke={color}
         strokeMiterlimit="10"
       />
-      <path
-        d="M1.5 22.5999H17.1"
-        stroke={color}
-        strokeMiterlimit="10"
-        strokeLinecap="round"
-      />
+      <path d="M1.5 22.5999H17.1" stroke={color} strokeMiterlimit="10" strokeLinecap="round" />
     </svg>
   );
 };

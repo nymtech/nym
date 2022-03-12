@@ -1,11 +1,13 @@
-use crate::constants::{INTERVAL_REWARD_PERCENT, SYBIL_RESISTANCE_PERCENT};
-use crate::contract::{INITIAL_MIXNODE_PLEDGE, INITIAL_REWARD_POOL};
+use std::time::Duration;
+
+use crate::contract::INITIAL_MIXNODE_PLEDGE;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::{mixnodes::storage::StoredMixnodeBond, support::tests};
-use config::defaults::{DENOM, TOTAL_SUPPLY};
-use cosmwasm_std::{coin, Addr, Coin};
-use mixnet_contract_common::mixnode::NodeRewardParams;
-use mixnet_contract_common::{Gateway, GatewayBond, Layer, MixNode};
+use config::defaults::DENOM;
+use cosmwasm_std::{coin, Addr, Coin, Uint128};
+use mixnet_contract_common::reward_params::NodeRewardParams;
+use mixnet_contract_common::{Gateway, GatewayBond, Interval, Layer, MixNode};
+use time::OffsetDateTime;
 
 pub fn mix_node_fixture() -> MixNode {
     MixNode {
@@ -57,6 +59,8 @@ pub(crate) fn stored_mixnode_bond_fixture(owner: &str) -> mixnodes_storage::Stor
             ..super::fixtures::mix_node_fixture()
         },
         None,
+        Uint128::zero(),
+        None,
     )
 }
 
@@ -74,17 +78,10 @@ pub fn good_gateway_pledge() -> Vec<Coin> {
     }]
 }
 
-// when exact values are irrelevant and what matters is the action of rewarding
-pub fn node_rewarding_params_fixture(uptime: u128) -> NodeRewardParams {
-    NodeRewardParams::new(
-        (INITIAL_REWARD_POOL / 100) * INTERVAL_REWARD_PERCENT as u128,
-        50 as u128,
-        25 as u128,
-        0,
-        TOTAL_SUPPLY - INITIAL_REWARD_POOL,
-        uptime,
-        SYBIL_RESISTANCE_PERCENT,
-        true,
-        10,
-    )
+pub fn node_reward_params_fixture(uptime: u128) -> NodeRewardParams {
+    NodeRewardParams::new(0, uptime, true)
+}
+
+pub fn epoch_fixture() -> Interval {
+    Interval::new(1, OffsetDateTime::now_utc(), Duration::from_secs(3600))
 }

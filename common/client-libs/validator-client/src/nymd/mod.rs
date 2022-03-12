@@ -9,7 +9,8 @@ use crate::nymd::cosmwasm_client::types::{
 use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::rpc::endpoint::broadcast;
-use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
+use cosmrs::rpc::Error as TendermintRpcError;
+use cosmrs::rpc::HttpClientUrl;
 use cosmwasm_std::{Coin, Uint128};
 pub use fee::gas_price::GasPrice;
 use fee::helpers::Operation;
@@ -82,7 +83,7 @@ impl NymdClient<QueryNymdClient> {
 
 impl NymdClient<SigningNymdClient> {
     // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
-    pub fn connect_with_signer<U>(
+    pub fn connect_with_signer<U: Clone>(
         network: config::defaults::all::Network,
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
@@ -113,7 +114,7 @@ impl NymdClient<SigningNymdClient> {
         })
     }
 
-    pub fn connect_with_mnemonic<U>(
+    pub fn connect_with_mnemonic<U: Clone>(
         network: config::defaults::all::Network,
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
@@ -388,6 +389,16 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn get_epochs_in_interval(&self) -> Result<u64, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetEpochsInInterval {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
     pub async fn get_circulating_supply(&self) -> Result<Uint128, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -496,7 +507,7 @@ impl<C> NymdClient<C> {
     pub async fn get_mix_delegations_paged(
         &self,
         mix_identity: IdentityKey,
-        start_after: Option<String>,
+        start_after: Option<(String, u64)>,
         page_limit: Option<u32>,
     ) -> Result<PagedMixDelegationsResponse, NymdError>
     where
@@ -515,7 +526,7 @@ impl<C> NymdClient<C> {
     /// Gets list of all mixnode delegations on particular page.
     pub async fn get_all_network_delegations_paged(
         &self,
-        start_after: Option<(IdentityKey, String)>,
+        start_after: Option<(IdentityKey, Vec<u8>, u64)>,
         page_limit: Option<u32>,
     ) -> Result<PagedAllDelegationsResponse, NymdError>
     where
@@ -1175,6 +1186,25 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn advance_current_epoch(&self) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::AdvanceCurrentEpoch);
+
+        let req = ExecuteMsg::AdvanceCurrentEpoch {};
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Advance current epoch",
+                Vec::new(),
+            )
+            .await
+    }
+
     pub async fn advance_current_interval(&self) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -1189,6 +1219,44 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Advancing current interval",
+                Vec::new(),
+            )
+            .await
+    }
+
+    pub async fn reconcile_delegations(&self) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::ReconcileDelegations);
+
+        let req = ExecuteMsg::ReconcileDelegations {};
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Reconciling delegation events",
+                Vec::new(),
+            )
+            .await
+    }
+
+    pub async fn checkpoint_mixnodes(&self) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::CheckpointMixnodes);
+
+        let req = ExecuteMsg::CheckpointMixnodes {};
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Snapshotting mixnodes",
                 Vec::new(),
             )
             .await

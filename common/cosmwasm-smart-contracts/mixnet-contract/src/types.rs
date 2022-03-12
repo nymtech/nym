@@ -73,8 +73,7 @@ impl Display for ContractStateParams {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RewardingResult {
-    pub operator_reward: Uint128,
-    pub total_delegator_reward: Uint128,
+    pub node_reward: Uint128,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -124,7 +123,7 @@ pub type IdentityKey = String;
 pub type IdentityKeyRef<'a> = &'a str;
 pub type SphinxKey = String;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct PagedRewardedSetResponse {
     pub identities: Vec<(IdentityKey, RewardedSetNodeStatus)>,
     pub start_next_after: Option<IdentityKey>,

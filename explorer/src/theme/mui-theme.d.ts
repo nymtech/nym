@@ -1,11 +1,6 @@
-/* eslint-disable no-shadow,@typescript-eslint/no-unused-vars,@typescript-eslint/no-empty-interface */
-import {
-  Theme,
-  ThemeOptions,
-  Palette,
-  PaletteOptions,
-} from '@mui/material/styles';
-import { PaletteMode } from '@mui/material';
+/* eslint-disable no-shadow,@typescript-eslint/no-unused-vars,@typescript-eslint/no-empty-interface,import/no-extraneous-dependencies */
+import { Theme, ThemeOptions, Palette, PaletteOptions } from '@mui/material/styles';
+import { NymTheme, NymPaletteWithExtensions, NymPaletteWithExtensionsOptions } from '@nymproject/mui-theme';
 
 /**
  * If you are unfamiliar with Material UI theming, please read the following first:
@@ -30,92 +25,6 @@ import { PaletteMode } from '@mui/material';
 
 declare module '@mui/material/styles' {
   /**
-   * This interface defines a palette used across Nym for branding
-   */
-  interface NymPalette {
-    highlight: string;
-    text: {
-      nav: string;
-      footer: string;
-    };
-  }
-
-  interface NymPaletteVariant {
-    mode: PaletteMode;
-    background: {
-      main: string;
-      paper: string;
-    };
-    text: {
-      main: string;
-    };
-    topNav: {
-      background: string;
-    };
-    nav: {
-      background: string;
-      hover: string;
-    };
-    mixnodes: {
-      status: {
-        active: string;
-        standby: string;
-      };
-    };
-  }
-
-  /**
-   * A palette definition only for the Network Explorer that extends the Nym palette
-   */
-  interface NetworkExplorerPalette {
-    networkExplorer: {
-      map: {
-        stroke: string;
-        fills: string[];
-      };
-      background: {
-        tertiary: string;
-      };
-      topNav: {
-        background: string;
-        socialIcons: string;
-        appBar: string;
-      };
-      nav: {
-        selected: {
-          main: string;
-          nested: string;
-        };
-        background: string;
-        hover: string;
-        text: string;
-      };
-      footer: {
-        socialIcons: string;
-      };
-      mixnodes: {
-        status: {
-          active: string;
-          standby: string;
-          inactive: string;
-        };
-      };
-    };
-  }
-
-  interface NymPaletteAndNetworkExplorerPalette {
-    nym: NymPalette & NetworkExplorerPalette;
-  }
-
-  type NymPaletteAndNetworkExplorerPaletteOptions =
-    Partial<NymPaletteAndNetworkExplorerPalette>;
-
-  /**
-   * Add anything not palette related to the theme here
-   */
-  interface NymTheme {}
-
-  /**
    * This augments the definitions of the MUI Theme with the Nym theme, as well as
    * a partial `ThemeOptions` type used by `createTheme`
    *
@@ -123,6 +32,6 @@ declare module '@mui/material/styles' {
    */
   interface Theme extends NymTheme {}
   interface ThemeOptions extends Partial<NymTheme> {}
-  interface Palette extends NymPaletteAndNetworkExplorerPalette {}
-  interface PaletteOptions extends NymPaletteAndNetworkExplorerPaletteOptions {}
+  interface Palette extends NymPaletteWithExtensions {}
+  interface PaletteOptions extends NymPaletteWithExtensionsOptions {}
 }

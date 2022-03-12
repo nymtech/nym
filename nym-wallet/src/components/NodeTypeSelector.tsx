@@ -1,17 +1,17 @@
-import React from 'react'
-import { FormControl, FormControlLabel, FormLabel, Radio, RadioGroup } from '@mui/material'
-import { EnumNodeType } from '../types/global'
+import React from 'react';
+import { FormControl, FormControlLabel, FormLabel, Radio, RadioGroup } from '@mui/material';
+import { EnumNodeType } from '../types/global';
 
 export const NodeTypeSelector = ({
   disabled,
   nodeType,
   setNodeType,
 }: {
-  disabled: boolean
-  nodeType: EnumNodeType
-  setNodeType: (nodeType: EnumNodeType) => void
+  disabled: boolean;
+  nodeType: EnumNodeType;
+  setNodeType: (nodeType: EnumNodeType) => void;
 }) => {
-  const handleNodeTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => setNodeType(e.target.value as EnumNodeType)
+  const handleNodeTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => setNodeType(e.target.value as EnumNodeType);
 
   return (
     <FormControl component="fieldset">
@@ -39,5 +39,5 @@ export const NodeTypeSelector = ({
         />
       </RadioGroup>
     </FormControl>
-  )
-}
+  );
+};

@@ -1,9 +1,5 @@
 /* eslint-disable camelcase */
-import {
-  MixNodeResponse,
-  MixNodeResponseItem,
-  MixnodeStatus,
-} from '../../typeDefs/explorer-api';
+import { MixNodeResponse, MixNodeResponseItem, MixnodeStatus } from '../../typeDefs/explorer-api';
 
 export type MixnodeRowType = {
   id: string;
@@ -17,15 +13,11 @@ export type MixnodeRowType = {
   layer: string;
 };
 
-export function mixnodeToGridRow(
-  arrayOfMixnodes?: MixNodeResponse,
-): MixnodeRowType[] {
+export function mixnodeToGridRow(arrayOfMixnodes?: MixNodeResponse): MixnodeRowType[] {
   return (arrayOfMixnodes || []).map(mixNodeResponseItemToMixnodeRowType);
 }
 
-export function mixNodeResponseItemToMixnodeRowType(
-  item: MixNodeResponseItem,
-): MixnodeRowType {
+export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): MixnodeRowType {
   const pledge = Number(item.pledge_amount.amount) || 0;
   const delegations = Number(item.total_delegation.amount) || 0;
   const totalBond = pledge + delegations;

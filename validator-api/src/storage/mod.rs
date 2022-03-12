@@ -13,6 +13,7 @@ use crate::storage::models::{
     FailedMixnodeRewardChunk, IntervalRewarding, NodeStatus, PossiblyUnrewardedMixnode,
     RewardingReport, TestingRoute,
 };
+use mixnet_contract_common::Interval;
 use rocket::fairing::{self, AdHoc};
 use rocket::{Build, Rocket};
 use sqlx::ConnectOptions;
@@ -25,7 +26,7 @@ pub(crate) mod models;
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
 pub(crate) struct ValidatorApiStorage {
-    manager: StorageManager,
+    pub manager: StorageManager,
 }
 
 impl ValidatorApiStorage {
@@ -688,13 +689,12 @@ impl ValidatorApiStorage {
     ///
     /// * `interval_start_timestamp`: Unix timestamp of start of this rewarding interval.
     /// * `interval_end_timestamp`: Unix timestamp of end of this rewarding interval.
-    pub(crate) async fn insert_started_interval_rewarding(
+    pub(crate) async fn insert_started_epoch_rewarding(
         &self,
-        interval_start_timestamp: i64,
-        interval_end_timestamp: i64,
+        epoch: Interval,
     ) -> Result<i64, ValidatorApiStorageError> {
         self.manager
-            .insert_new_interval_rewarding(interval_start_timestamp, interval_end_timestamp)
+            .insert_new_epoch_rewarding(epoch)
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
     }

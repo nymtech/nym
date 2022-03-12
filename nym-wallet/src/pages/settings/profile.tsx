@@ -1,12 +1,11 @@
-import React, { useContext } from 'react'
-import { Button, Divider, Stack, TextField, Typography } from '@mui/material'
-import { Box } from '@mui/system'
-import { ClientContext } from '../../context/main'
+import React, { useContext } from 'react';
+import { Box, Button, Divider, Stack, TextField, Typography } from '@mui/material';
+import { ClientContext } from '../../context/main';
 
 export const Profile = () => {
-  const { mixnodeDetails } = useContext(ClientContext)
+  const { mixnodeDetails } = useContext(ClientContext);
 
-  if (!mixnodeDetails) return null
+  if (!mixnodeDetails) return null;
 
   return (
     <>
@@ -34,5 +33,5 @@ export const Profile = () => {
         </Button>
       </Box>
     </>
-  )
-}
+  );
+};

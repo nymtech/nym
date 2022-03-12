@@ -1,12 +1,12 @@
-import React, { useContext } from 'react'
-import { Box } from '@mui/system'
-import { SuccessReponse, TransactionDetails } from '../../components'
-import { ClientContext } from '../../context/main'
-import { useCheckOwnership } from '../../hooks/useCheckOwnership'
+import React, { useContext } from 'react';
+import { Box } from '@mui/system';
+import { SuccessReponse, TransactionDetails } from '../../components';
+import { ClientContext } from '../../context/main';
+import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 
 export const SuccessView: React.FC<{ details?: { amount: string; address: string } }> = ({ details }) => {
-  const { userBalance, currency } = useContext(ClientContext)
-  const { ownership } = useCheckOwnership()
+  const { userBalance, currency } = useContext(ClientContext);
+  const { ownership } = useCheckOwnership();
 
   return (
     <>
@@ -30,5 +30,5 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
         </Box>
       )}
     </>
-  )
-}
+  );
+};

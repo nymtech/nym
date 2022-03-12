@@ -5,10 +5,7 @@ import { SelectInputProps } from '@mui/material/Select/SelectInput';
 import { useTheme } from '@mui/material/styles';
 import { SxProps } from '@mui/system';
 import { MixNodeStatus } from './Status';
-import {
-  MixnodeStatus,
-  MixnodeStatusWithAll,
-} from '../../typeDefs/explorer-api';
+import { MixnodeStatus, MixnodeStatusWithAll } from '../../typeDefs/explorer-api';
 
 // TODO: replace with i18n
 const ALL_NODES = 'All nodes';
@@ -19,26 +16,19 @@ interface MixNodeStatusDropdownProps {
   onSelectionChanged?: (status?: MixnodeStatusWithAll) => void;
 }
 
-export const MixNodeStatusDropdown: React.FC<MixNodeStatusDropdownProps> = ({
-  status,
-  onSelectionChanged,
-  sx,
-}) => {
+export const MixNodeStatusDropdown: React.FC<MixNodeStatusDropdownProps> = ({ status, onSelectionChanged, sx }) => {
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
-  const [statusValue, setStatusValue] = React.useState<MixnodeStatusWithAll>(
-    status || MixnodeStatusWithAll.all,
+  const [statusValue, setStatusValue] = React.useState<MixnodeStatusWithAll>(status || MixnodeStatusWithAll.all);
+  const onChange: SelectInputProps<MixnodeStatusWithAll>['onChange'] = React.useCallback(
+    ({ target: { value } }) => {
+      setStatusValue(value);
+      if (onSelectionChanged) {
+        onSelectionChanged(value);
+      }
+    },
+    [onSelectionChanged],
   );
-  const onChange: SelectInputProps<MixnodeStatusWithAll>['onChange'] =
-    React.useCallback(
-      ({ target: { value } }) => {
-        setStatusValue(value);
-        if (onSelectionChanged) {
-          onSelectionChanged(value);
-        }
-      },
-      [onSelectionChanged],
-    );
 
   return (
     <Select
@@ -61,28 +51,16 @@ export const MixNodeStatusDropdown: React.FC<MixNodeStatusDropdownProps> = ({
         ...sx,
       }}
     >
-      <MenuItem
-        value={MixnodeStatus.active}
-        data-testid="mixnodeStatusSelectOption_active"
-      >
+      <MenuItem value={MixnodeStatus.active} data-testid="mixnodeStatusSelectOption_active">
         <MixNodeStatus status={MixnodeStatus.active} />
       </MenuItem>
-      <MenuItem
-        value={MixnodeStatus.standby}
-        data-testid="mixnodeStatusSelectOption_standby"
-      >
+      <MenuItem value={MixnodeStatus.standby} data-testid="mixnodeStatusSelectOption_standby">
         <MixNodeStatus status={MixnodeStatus.standby} />
       </MenuItem>
-      <MenuItem
-        value={MixnodeStatus.inactive}
-        data-testid="mixnodeStatusSelectOption_inactive"
-      >
+      <MenuItem value={MixnodeStatus.inactive} data-testid="mixnodeStatusSelectOption_inactive">
         <MixNodeStatus status={MixnodeStatus.inactive} />
       </MenuItem>
-      <MenuItem
-        value={MixnodeStatusWithAll.all}
-        data-testid="mixnodeStatusSelectOption_allNodes"
-      >
+      <MenuItem value={MixnodeStatusWithAll.all} data-testid="mixnodeStatusSelectOption_allNodes">
         {ALL_NODES}
       </MenuItem>
     </Select>

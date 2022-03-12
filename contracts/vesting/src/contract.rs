@@ -7,7 +7,7 @@ use crate::vesting::{populate_vesting_periods, Account};
 use config::defaults::DENOM;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Timestamp, Uint128,
+    Response, Timestamp,
 };
 use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use vesting_contract_common::events::{
@@ -146,11 +146,7 @@ pub fn try_withdraw_vested_coins(
     }
     let spendable_coins = account.spendable_coins(None, &env, deps.storage)?;
     if amount.amount <= spendable_coins.amount {
-        let new_balance = account
-            .load_balance(deps.storage)?
-            .u128()
-            .saturating_sub(amount.amount.u128());
-        account.save_balance(Uint128::new(new_balance), deps.storage)?;
+        let new_balance = account.withdraw(&amount, deps.storage)?;
 
         let send_tokens = BankMsg::Send {
             to_address: account.owner_address().as_str().to_string(),

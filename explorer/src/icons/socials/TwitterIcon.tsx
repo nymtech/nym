@@ -6,10 +6,7 @@ interface TwitterIconProps {
   color?: string;
 }
 
-export const TwitterIcon: React.FC<TwitterIconProps> = ({
-  size,
-  color: colorProp,
-}) => {
+export const TwitterIcon: React.FC<TwitterIconProps> = ({ size, color: colorProp }) => {
   const theme = useTheme();
   const color = colorProp || theme.palette.text.primary;
   return (

@@ -10,8 +10,8 @@ export const ExistingAccount: React.FC<{ page: TPages; onPrev: () => void }> = (
 
   const { logIn, error } = useContext(ClientContext);
 
-  const handleSignIn = async ({ preventDefault }: React.MouseEvent<HTMLElement>) => {
-    logIn(mnemonic);
+  const handleSignIn = async () => {
+    await logIn(mnemonic);
   };
 
   const handleSignInOnEnter = ({ key }: React.KeyboardEvent<HTMLDivElement>) => {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Box, Button, CircularProgress } from '@mui/material';
+import { useSnackbar } from 'notistack';
 import { BondForm } from './BondForm';
 import { SuccessView } from './SuccessView';
 import { NymCard } from '../../components';
@@ -7,7 +8,6 @@ import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus
 import { unbond, vestingUnbond } from '../../requests';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { PageLayout } from '../../layouts';
-import { useSnackbar } from 'notistack';
 
 export const Bond = () => {
   const [status, setStatus] = useState(EnumRequestStatus.initial);
@@ -19,7 +19,9 @@ export const Bond = () => {
 
   useEffect(() => {
     if (status === EnumRequestStatus.initial) {
-      const initialiseForm = async () => await checkOwnership();
+      const initialiseForm = async () => {
+        await checkOwnership();
+      };
       initialiseForm();
     }
   }, [status, checkOwnership]);

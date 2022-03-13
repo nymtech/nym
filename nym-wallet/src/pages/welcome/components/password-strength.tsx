@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 import React, { useEffect, useState } from 'react';
 import { LockOutlined } from '@mui/icons-material';
 import { LinearProgress, Stack, Typography, Box } from '@mui/material';

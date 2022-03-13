@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { ClientContext } from '../context/main';
 import { checkGatewayOwnership, checkMixnodeOwnership, getVestingPledgeInfo } from '../requests';
-import { EnumNodeType, TNodeOwnership, PledgeData } from '../types';
+import { EnumNodeType, TNodeOwnership } from '../types';
 
 const initial = {
   hasOwnership: false,

@@ -6,10 +6,9 @@ import { SnackbarProvider } from 'notistack';
 import { Routes } from './routes';
 import { ClientContext, ClientContextProvider } from './context/main';
 import { ApplicationLayout } from './layouts';
-import { Admin, Welcome } from './pages';
+import { Admin, Welcome, Settings } from './pages';
 import { ErrorFallback } from './components';
 import { NymWalletTheme, WelcomeTheme } from './theme';
-import { Settings } from './pages';
 import { maximizeWindow } from './utils';
 
 const App = () => {

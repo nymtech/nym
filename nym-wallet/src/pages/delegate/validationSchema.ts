@@ -16,18 +16,18 @@ export const validationSchema = Yup.object().shape({
       const isValid = await validateAmount(value || '', '0');
 
       if (!isValid) {
-        return this.createError({ message: `A valid amount is required` });
-      } else {
-        const hasEnoughBalance = await checkHasEnoughFunds(value || '');
-        const hasEnoughLocked = await checkHasEnoughLockedTokens(value || '');
+        return this.createError({ message: 'A valid amount is required' });
+      }
 
-        if (this.parent.tokenPool === 'balance' && !hasEnoughBalance) {
-          return this.createError({ message: 'Not enough funds in wallet' });
-        }
+      const hasEnoughBalance = await checkHasEnoughFunds(value || '');
+      const hasEnoughLocked = await checkHasEnoughLockedTokens(value || '');
 
-        if (this.parent.tokenPool === 'locked' && !hasEnoughLocked) {
-          return this.createError({ message: 'Not enough locked tokens' });
-        }
+      if (this.parent.tokenPool === 'balance' && !hasEnoughBalance) {
+        return this.createError({ message: 'Not enough funds in wallet' });
+      }
+
+      if (this.parent.tokenPool === 'locked' && !hasEnoughLocked) {
+        return this.createError({ message: 'Not enough locked tokens' });
       }
 
       return true;

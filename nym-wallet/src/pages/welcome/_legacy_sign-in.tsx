@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
+import { NymLogo } from '@nymproject/react';
 import { Alert, Button, CircularProgress, Grid, Stack, Typography } from '@mui/material';
 import { ClientContext } from '../../context/main';
-import { NymLogo } from '@nymproject/react';
 
 export const SignInContent: React.FC = () => {
   const [mnemonic] = useState<string>('');

@@ -120,9 +120,9 @@ const TokenTransfer = () => {
 };
 
 export const VestingCard = () => {
-  const { userBalance } = useContext(ClientContext);
   const [isLoading, setIsLoading] = useState(false);
 
+  const { userBalance } = useContext(ClientContext);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const refreshBalances = async () => {

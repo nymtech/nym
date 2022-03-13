@@ -1,4 +1,4 @@
-/* eslint-disable react/no-unused-prop-types */
+/* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Card, CardActions, CardContent, CardHeader, Stack, Typography } from '@mui/material';
 import { createAccount } from '../../requests';
@@ -25,7 +25,7 @@ export const CreateAccountContent: React.FC<{ page: TPages; showSignIn: () => vo
   }, []);
 
   return (
-    <Stack spacing={4} alignItems="center" sx={{ width: 700 }}>
+    <Stack spacing={4} alignItems="center" sx={{ width: 700 }} id={page}>
       <Typography sx={{ color: 'common.white' }} variant="h4">
         Congratulations
       </Typography>

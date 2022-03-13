@@ -39,7 +39,12 @@ export const TokenPoolSelector: React.FC<{ onSelect: (pool: TPoolOption) => void
           />
         </MenuItem>
         <MenuItem value="locked">
-          <ListItemText primary="Locked" secondary={`${tokenAllocation?.locked} ${currency?.major}`} />
+          {tokenAllocation && (
+            <ListItemText
+              primary="Locked"
+              secondary={`${+tokenAllocation.locked + +tokenAllocation.spendable} ${currency?.major}`}
+            />
+          )}
         </MenuItem>
       </Select>
     </FormControl>

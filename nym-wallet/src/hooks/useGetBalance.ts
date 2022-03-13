@@ -60,7 +60,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
           getVestingCoins(address),
           getVestedCoins(address),
           getLockedCoins(),
-          getSpendableCoins(address),
+          getSpendableCoins(),
           getCurrentVestingPeriod(address),
           getVestingAccountInfo(address),
         ]);
@@ -103,10 +103,10 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     clearOriginalVesting();
   };
 
-  const handleRefresh = (addr?: string) => {
+  const handleRefresh = async (addr?: string) => {
     if (addr) {
-      fetchBalance();
-      fetchTokenAllocation();
+      await fetchBalance();
+      await fetchTokenAllocation();
     } else {
       clearAll();
     }

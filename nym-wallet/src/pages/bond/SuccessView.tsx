@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { Box } from '@mui/system';
+import { Box } from '@mui/material';
 import { SuccessReponse, TransactionDetails } from '../../components';
 import { ClientContext } from '../../context/main';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';

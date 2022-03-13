@@ -29,14 +29,13 @@ pub async fn locked_coins(
 
 #[tauri::command]
 pub async fn spendable_coins(
-  vesting_account_address: &str,
   block_time: Option<u64>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Coin, BackendError> {
   Ok(
     nymd_client!(state)
       .spendable_coins(
-        vesting_account_address,
+        &nymd_client!(state).address().to_string(),
         block_time.map(Timestamp::from_seconds),
       )
       .await?

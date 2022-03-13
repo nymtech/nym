@@ -1,14 +1,15 @@
+/* eslint-disable no-nested-ternary */
 import React, { useContext, useState } from 'react';
 import { Box, Button, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material';
 import { PercentOutlined } from '@mui/icons-material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm } from 'react-hook-form';
+import { validationSchema } from './validationSchema';
 import { Fee, InfoTooltip } from '../../components';
 import { InclusionProbabilityResponse } from '../../types';
-import { validationSchema } from './validationSchema';
+import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { updateMixnode, vestingUpdateMixnode } from '../../requests';
 import { ClientContext } from '../../context/main';
-import { useCheckOwnership } from 'src/hooks/useCheckOwnership';
 
 const DataField = ({ title, info, Indicator }: { title: string; info: string; Indicator: React.ReactElement }) => (
   <Grid container justifyContent="space-between">
@@ -55,7 +56,7 @@ export const SystemVariables = ({
   inclusionProbability: InclusionProbabilityResponse;
 }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>();
-  const { currency, mixnodeDetails, getBondDetails } = useContext(ClientContext);
+  const { currency, mixnodeDetails } = useContext(ClientContext);
   const { ownership } = useCheckOwnership();
 
   const {

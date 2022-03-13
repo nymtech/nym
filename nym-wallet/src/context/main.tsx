@@ -1,12 +1,11 @@
-import React, { createContext, useEffect, useState } from 'react';
+import React, { useMemo, createContext, useEffect, useState } from 'react';
+import { useHistory } from 'react-router-dom';
+import { useSnackbar } from 'notistack';
 import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import { config } from '../../config';
 import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signOut } from '../requests';
 import { currencyMap } from '../utils';
-import { useHistory } from 'react-router-dom';
-import { useSnackbar } from 'notistack';
-import { useMemo } from 'react';
 
 export const { ADMIN_ADDRESS, IS_DEV_MODE } = config;
 

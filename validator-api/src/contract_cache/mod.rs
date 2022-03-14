@@ -134,7 +134,8 @@ impl<C> ValidatorCacheRefresher<C> {
             self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities);
 
         let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
-        let current_interval = self.nymd_client.get_current_interval().await?;
+        // TODO: Remove get_current_epoch from nymd client
+        let current_epoch = self.nymd_client.get_current_epoch().await?;
 
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
@@ -149,7 +150,7 @@ impl<C> ValidatorCacheRefresher<C> {
                 rewarded_set,
                 active_set,
                 epoch_rewarding_params,
-                current_interval,
+                current_epoch,
             )
             .await;
 

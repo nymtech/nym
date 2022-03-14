@@ -34,7 +34,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
+    ContractStateParams, Delegation, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
 };
 use time::OffsetDateTime;
 
@@ -374,7 +374,51 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    use crate::delegations::storage::{
+        DelegationIndex, DELEGATION_MIXNODE_IDX_NAMESPACE, DELEGATION_OWNER_IDX_NAMESPACE,
+        DELEGATION_PK_NAMESPACE,
+    };
+    use cosmwasm_std::Order;
+    use cw_storage_plus::{IndexedMap, MultiIndex};
+
+    type PrimaryKey = Vec<u8>;
+
+    fn old_delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, DelegationIndex<'a>> {
+        let indexes = DelegationIndex {
+            owner: MultiIndex::new(
+                |d| d.owner.clone(),
+                DELEGATION_PK_NAMESPACE,
+                DELEGATION_OWNER_IDX_NAMESPACE,
+            ),
+            mixnode: MultiIndex::new(
+                |d| d.node_identity.clone(),
+                DELEGATION_PK_NAMESPACE,
+                DELEGATION_MIXNODE_IDX_NAMESPACE,
+            ),
+        };
+
+        IndexedMap::new(DELEGATION_PK_NAMESPACE, indexes)
+    }
+
+    let old_delegations = old_delegations()
+        .range(deps.storage, None, None, Order::Ascending)
+        .filter_map(|r| r.ok())
+        .map(|(_key, delegation)| delegation)
+        .collect::<Vec<Delegation>>();
+
+    for delegation in old_delegations {
+        crate::delegations::storage::delegations().save(
+            deps.storage,
+            (
+                delegation.node_identity(),
+                delegation.owner().as_bytes().to_vec(),
+                delegation.block_height(),
+            ),
+            &delegation,
+        )?;
+    }
+
     Ok(Default::default())
 }
 

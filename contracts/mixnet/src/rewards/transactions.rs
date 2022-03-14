@@ -71,7 +71,7 @@ pub fn _try_compound_operator_reward(
 
     let mut updated_bond = bond.clone();
     let reward = calculate_operator_reward(storage, owner, &bond)?;
-    updated_bond.accumulated_rewards -= reward;
+    updated_bond.accumulated_rewards = Some(updated_bond.accumulated_rewards() - reward);
     updated_bond.pledge_amount.amount += reward;
     mixnodes().replace(
         storage,
@@ -216,7 +216,7 @@ pub fn _try_compound_delegator_reward(
     {
         // Node exists all is well, life goes on, if it does not exist we'll just return the reward to the caller as there is nothing to do on the bond
         if let Some(mut bond) = mixnodes().may_load(storage, mix_identity)? {
-            bond.accumulated_rewards -= reward;
+            bond.accumulated_rewards = Some(bond.accumulated_rewards() - reward);
             mixnodes().save(storage, mix_identity, &bond, block_height)?;
         }
     };
@@ -415,7 +415,8 @@ pub(crate) fn try_reward_mixnode(
     let node_reward_result = current_bond.reward(&reward_params);
     let stored_node_result: StoredNodeRewardResult = node_reward_result.try_into()?;
 
-    current_bond.accumulated_rewards += stored_node_result.reward();
+    current_bond.accumulated_rewards =
+        Some(current_bond.accumulated_rewards() + stored_node_result.reward());
     let mut stored_bond: StoredMixnodeBond = current_bond.into();
     // technically we don't have to set the total_delegation bucket, but it makes things easier
     // in different places that we can guarantee that if node exists, so does the data behind the total delegation
@@ -641,7 +642,7 @@ pub mod tests {
                 ..tests::fixtures::mix_node_fixture()
             },
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: None,
             epoch_rewards: None,
         };
 
@@ -734,7 +735,7 @@ pub mod tests {
             .load(&deps.storage, &node_identity)
             .unwrap();
 
-        assert!(mixnode.accumulated_rewards > Uint128::zero(),);
+        assert!(mixnode.accumulated_rewards > Some(Uint128::zero()),);
         assert_eq!(
             initial_delegation,
             mixnodes_storage::TOTAL_DELEGATION
@@ -934,7 +935,7 @@ pub mod tests {
             test_helpers::read_mixnode_pledge_amount(&deps.storage, &node_identity)
                 .unwrap()
                 .u128()
-                + mixnode.accumulated_rewards.u128(),
+                + mixnode.accumulated_rewards().u128(),
             pre_reward_bond
                 + mix1_operator_reward
                 + mix1_delegator1_reward

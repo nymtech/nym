@@ -75,7 +75,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       const mixnode = await getMixnodeBondDetails();
       setMixnodeDetails(mixnode);
     } catch (e) {
-      Console.error('It blew up');
+      Console.error(e as string);
     }
   };
 

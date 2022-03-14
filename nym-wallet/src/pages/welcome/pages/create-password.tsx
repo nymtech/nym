@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Button, FormControl, Grid, IconButton, Stack, TextField } from '@mui/material';
 import { VisibilityOff, Visibility } from '@mui/icons-material';
+import { TPages } from '../types';
 import { Subtitle, Title, PasswordStrength } from '../components';
 
-export const CreatePassword = () => {
+export const CreatePassword = ({ page, onPrev, onNext }: { page: TPages; onNext: () => void; onPrev: () => void }) => {
   const [password, setPassword] = useState<string>('');
   const [confirmedPassword, setConfirmedPassword] = useState<string>();
   const [showPassword, setShowPassword] = useState(false);
@@ -11,6 +12,7 @@ export const CreatePassword = () => {
 
   return (
     <>
+      <div id={page} />
       <Title title="Create password" />
       <Subtitle subtitle="Create a strong password. Min 8 characters, at least one capital letter, number and special symbol" />
       <Grid container justifyContent="center">
@@ -48,8 +50,20 @@ export const CreatePassword = () => {
                 size="large"
                 variant="contained"
                 disabled={password !== confirmedPassword || password.length === 0}
+                onClick={onNext}
               >
                 Next
+              </Button>
+              <Button
+                size="large"
+                onClick={onPrev}
+                sx={{
+                  color: 'common.white',
+                  border: '1px solid white',
+                  '&:hover': { border: '1px solid white', '&:hover': { background: 'none' } },
+                }}
+              >
+                Back
               </Button>
             </Stack>
           </FormControl>

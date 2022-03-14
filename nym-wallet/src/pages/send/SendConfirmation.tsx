@@ -16,6 +16,9 @@ export const SendConfirmation = ({
   isLoading: boolean;
 }) => {
   const { userBalance, currency, network } = useContext(ClientContext);
+
+  if (!data && !error && !isLoading) return null;
+
   return (
     <Box
       sx={{

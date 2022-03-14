@@ -126,13 +126,9 @@ export const SendWizard = () => {
             px: 3,
           }}
         >
-          {activeStep === 0 ? (
-            <SendForm />
-          ) : activeStep === 1 ? (
-            <SendReview transferFee={transferFee} />
-          ) : (
-            <SendConfirmation data={confirmedData} isLoading={isLoading} error={requestError} />
-          )}
+          {activeStep === 0 && <SendForm />}
+          {activeStep === 1 && <SendReview transferFee={transferFee} />}
+          <SendConfirmation data={confirmedData} isLoading={isLoading} error={requestError} />
         </Box>
         <Box
           sx={{
@@ -152,7 +148,16 @@ export const SendWizard = () => {
             color="primary"
             disableElevation
             data-testid="button"
-            onClick={activeStep === 0 ? handleNextStep : activeStep === 1 ? handleSend : handleFinish}
+            onClick={() => {
+              switch (activeStep) {
+                case 0:
+                  return handleNextStep();
+                case 1:
+                  return handleSend();
+                default:
+                  return handleFinish();
+              }
+            }}
             disabled={!!(methods.formState.errors.amount || methods.formState.errors.to || isLoading)}
             size="large"
           >

@@ -139,13 +139,13 @@ export const SystemVariables = ({
           pt: 0,
         }}
       >
-        {nodeUpdateResponse === 'success' ? (
+        {nodeUpdateResponse === 'success' && (
           <Typography sx={{ color: 'success.main', fontWeight: 600 }}>Node successfully updated</Typography>
-        ) : nodeUpdateResponse === 'failed' ? (
-          <Typography sx={{ color: 'error.main', fontWeight: 600 }}>Node update failed</Typography>
-        ) : (
-          <Fee feeType="UpdateMixnodeConfig" />
         )}
+        {nodeUpdateResponse === 'failed' && (
+          <Typography sx={{ color: 'error.main', fontWeight: 600 }}>Node update failed</Typography>
+        )}
+        {!nodeUpdateResponse && <Fee feeType="UpdateMixnodeConfig" />}
         <Button
           variant="contained"
           color="primary"

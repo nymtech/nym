@@ -40,6 +40,17 @@ const getTextColor = (strength: TStrength) => {
   }
 };
 
+const getPasswordStrength = (strength: TStrength) => {
+  switch (strength) {
+    case 'strong':
+      return 100;
+    case 'medium':
+      return 50;
+    default:
+      return 0;
+  }
+};
+
 export const PasswordStrength = ({ password }: { password: string }) => {
   const [strength, setStrength] = useState<TStrength>('init');
 
@@ -63,11 +74,7 @@ export const PasswordStrength = ({ password }: { password: string }) => {
 
   return (
     <Stack spacing={0.5}>
-      <LinearProgress
-        variant="determinate"
-        color={colorMap[strength]}
-        value={strength === 'strong' ? 100 : strength === 'medium' ? 50 : 0}
-      />
+      <LinearProgress variant="determinate" color={colorMap[strength]} value={getPasswordStrength(strength)} />
       <Box display="flex" alignItems="center">
         <LockOutlined sx={{ fontSize: 15, color: getTextColor(strength) }} />
         <Typography variant="caption" sx={{ ml: 0.5, color: getTextColor(strength) }}>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Container } from '@mui/material';
-import { AppBar, Nav } from '../components';
 import { NymLogo } from '@nymproject/react';
+import { AppBar, Nav } from '../components';
 
 export const ApplicationLayout: React.FC = ({ children }) => (
   <Box

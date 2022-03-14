@@ -30,11 +30,14 @@ type TClientContext = {
   currency?: TCurrency;
   isLoading: boolean;
   error?: string;
+  setIsLoading: (isLoading: boolean) => void;
+  setError: (value?: string) => void;
   switchNetwork: (network: Network) => void;
   getBondDetails: () => Promise<void>;
   handleShowSettings: () => void;
   handleShowAdmin: () => void;
   logIn: (mnemonic: string) => void;
+  signInWithPassword: (password: string) => void;
   logOut: () => void;
 };
 
@@ -90,7 +93,6 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     try {
       setIsLoading(true);
       await signInWithMnemonic(mnemonic || '');
-      await getBondDetails();
       setNetwork('MAINNET');
       history.push('/balance');
     } catch (e) {
@@ -98,6 +100,8 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       setError(e as string);
     }
   };
+
+  const signInWithPassword = (password: string) => password;
 
   const logOut = async () => {
     setClientDetails(undefined);
@@ -124,6 +128,9 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       showSettings,
       network,
       currency,
+      setIsLoading,
+      setError,
+      signInWithPassword,
       switchNetwork,
       getBondDetails,
       handleShowSettings,

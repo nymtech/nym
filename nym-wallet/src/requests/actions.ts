@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api';
+import { Console } from '../utils/console';
 import { Coin, DelegationResult, EnumNodeType, TauriTxResult, TBondArgs } from '../types';
 
 export const bond = async ({ type, data, pledge, ownerSignature }: TBondArgs): Promise<any> => {
@@ -33,7 +34,7 @@ export const undelegate = async ({
     const res: DelegationResult = await invoke(`undelegate_from_${type}`, { identity });
     return res;
   } catch (e) {
-    console.log(e);
+    Console.log(e as string);
     return undefined;
   }
 };

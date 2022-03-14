@@ -7,6 +7,7 @@ import { validationSchema } from './validationSchema';
 import { ClientContext } from '../../context/main';
 import { delegate, majorToMinor, vestingDelegateToMixnode } from '../../requests';
 import { Fee, TokenPoolSelector } from '../../components';
+import { Console } from '../../utils/console';
 
 type TDelegateForm = {
   identity: string;
@@ -63,7 +64,7 @@ export const DelegateForm = ({
         onSuccess({ amount: data.amount, address: res.target_address });
       })
       .catch((e) => {
-        console.log(e);
+        Console.error(e as string);
         onError(e);
       });
   };

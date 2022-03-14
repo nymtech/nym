@@ -11,6 +11,7 @@ import {
   getCurrentVestingPeriod,
   getVestingAccountInfo,
 } from '../requests';
+import { Console } from '../utils/console';
 
 type TTokenAllocation = {
   [key in 'vesting' | 'vested' | 'locked' | 'spendable']: Coin['amount'];
@@ -76,7 +77,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
       } catch (e) {
         clearTokenAllocation();
         clearOriginalVesting();
-        console.error(e);
+        Console.error(e as string);
       }
     }
     setIsLoading(false);

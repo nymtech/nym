@@ -11,6 +11,7 @@ import { validationSchema } from './validationSchema';
 import { TauriTxResult, TransactionDetails } from '../../types';
 import { getGasFee, majorToMinor, send } from '../../requests';
 import { checkHasEnoughFunds } from '../../utils';
+import { Console } from '../../utils/console';
 
 const defaultValues = {
   amount: '',
@@ -98,7 +99,7 @@ export const SendWizard = () => {
       .catch((e) => {
         setRequestError(e);
         setIsLoading(false);
-        console.error(e);
+        Console.error(e);
       });
   };
 

@@ -6,6 +6,7 @@ import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import { config } from '../../config';
 import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signOut } from '../requests';
 import { currencyMap } from '../utils';
+import { Console } from '../utils/console';
 
 export const { ADMIN_ADDRESS, IS_DEV_MODE } = config;
 
@@ -62,7 +63,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       setClientDetails(client);
     } catch (e) {
       enqueueSnackbar('Error loading account', { variant: 'error' });
-      console.error(e);
+      Console.error(e as string);
     } finally {
       setCurrency(currencyMap(n));
     }
@@ -74,7 +75,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       const mixnode = await getMixnodeBondDetails();
       setMixnodeDetails(mixnode);
     } catch (e) {
-      console.log(e);
+      Console.error(e as string);
     }
   };
 

@@ -10,6 +10,7 @@ import { InclusionProbabilityResponse } from '../../types';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { updateMixnode, vestingUpdateMixnode } from '../../requests';
 import { ClientContext } from '../../context/main';
+import { Console } from '../../utils/console';
 
 const DataField = ({ title, info, Indicator }: { title: string; info: string; Indicator: React.ReactElement }) => (
   <Grid container justifyContent="space-between">
@@ -78,7 +79,7 @@ export const SystemVariables = ({
         setNodeUpdateResponse('success');
       } catch (e) {
         setNodeUpdateResponse('failed');
-        console.log(e);
+        Console.log(e as string);
       }
     }
   };

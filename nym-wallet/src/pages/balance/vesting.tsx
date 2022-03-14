@@ -20,6 +20,7 @@ import { ClientContext } from '../../context/main';
 import { withdrawVestedCoins } from '../../requests';
 import { Period } from '../../types';
 import { VestingTimeline } from './components/vesting-timeline';
+import { Console } from '../../utils/console';
 
 const columnsHeaders: Array<{ title: string; align: TableCellProps['align'] }> = [
   { title: 'Locked', align: 'left' },
@@ -165,7 +166,7 @@ export const VestingCard = () => {
                 preventDuplicate: true,
               });
             } catch (e) {
-              console.log(e);
+              Console.error(e as string);
               enqueueSnackbar('Token transfer failed. You may not have any transferable tokens at this time', {
                 variant: 'error',
                 preventDuplicate: true,

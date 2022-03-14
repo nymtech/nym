@@ -4,6 +4,7 @@ import bs58 from 'bs58';
 import { minor, valid } from 'semver';
 import { userBalance, majorToMinor, getLockedCoins, getSpendableCoins } from '../requests';
 import { Coin, Network, TCurrency } from '../types';
+import { Console } from './console';
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key
@@ -12,7 +13,7 @@ export const validateKey = (key: string, bytesLength: number): boolean => {
     // of length 32
     return bytes.length === bytesLength;
   } catch (e) {
-    console.error(e);
+    Console.error(e as string);
     return false;
   }
 };
@@ -53,7 +54,7 @@ export const validateAmount = async (amount: string, minimum: string): Promise<b
 
     return minorValue >= parseInt(minimum, Number(10));
   } catch (e) {
-    console.error(e);
+    Console.error(e as string);
     return false;
   }
 
@@ -95,7 +96,7 @@ export const checkHasEnoughFunds = async (allocationValue: string): Promise<bool
     const remainingBalance = +walletValue.coin.amount - +minorValue.amount;
     return remainingBalance >= 0;
   } catch (e) {
-    console.log(e);
+    Console.log(e as string);
   }
   return false;
 };
@@ -107,7 +108,7 @@ export const checkHasEnoughLockedTokens = async (allocationValue: string) => {
     const remainingBalance = +lockedTokens.amount + +spendableTokens.amount - +allocationValue;
     return remainingBalance >= 0;
   } catch (e) {
-    console.error(e);
+    Console.error(e as string);
   }
   return false;
 };

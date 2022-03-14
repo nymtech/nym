@@ -263,8 +263,6 @@ impl OptionalValidators {
 
 #[cfg(test)]
 mod tests {
-  use tokio::time::Instant;
-
   use super::*;
 
   fn test_config() -> Config {

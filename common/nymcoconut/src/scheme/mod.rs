@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn unblind_returns_error_if_integrity_check_on_commitment_hash_fails() {
         let params = Parameters::new(2).unwrap();
-        let private_attributes = params.n_random_scalars(2 as usize);
+        let private_attributes = params.n_random_scalars(2_usize);
 
         let (_commitments_openings, lambda) =
             prepare_blind_sign(&params, &private_attributes, &[]).unwrap();

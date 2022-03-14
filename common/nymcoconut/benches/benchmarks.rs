@@ -14,12 +14,14 @@ use rand::seq::SliceRandom;
 use std::ops::Neg;
 use std::time::Duration;
 
+#[allow(unused)]
 fn double_pairing(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g22: &G2Affine) {
-    let gt1 = bls12_381::pairing(&g11, &g21);
-    let gt2 = bls12_381::pairing(&g12, &g22);
+    let gt1 = bls12_381::pairing(g11, g21);
+    let gt2 = bls12_381::pairing(g12, g22);
     assert_eq!(gt1, gt2)
 }
 
+#[allow(unused)]
 fn multi_miller_pairing_affine(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g22: &G2Affine) {
     let miller_loop_result = multi_miller_loop(&[
         (g11, &G2Prepared::from(*g21)),
@@ -30,19 +32,21 @@ fn multi_miller_pairing_affine(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g
     ))
 }
 
+#[allow(unused)]
 fn multi_miller_pairing_with_prepared(
     g11: &G1Affine,
     g21: &G2Prepared,
     g12: &G1Affine,
     g22: &G2Prepared,
 ) {
-    let miller_loop_result = multi_miller_loop(&[(g11, &g21), (&g12.neg(), &g22)]);
+    let miller_loop_result = multi_miller_loop(&[(g11, g21), (&g12.neg(), g22)]);
     assert!(bool::from(
         miller_loop_result.final_exponentiation().is_identity()
     ))
 }
 
 // the case of being able to prepare G2 generator
+#[allow(unused)]
 fn multi_miller_pairing_with_semi_prepared(
     g11: &G1Affine,
     g21: &G2Affine,
@@ -50,12 +54,13 @@ fn multi_miller_pairing_with_semi_prepared(
     g22: &G2Prepared,
 ) {
     let miller_loop_result =
-        multi_miller_loop(&[(g11, &G2Prepared::from(*g21)), (&g12.neg(), &g22)]);
+        multi_miller_loop(&[(g11, &G2Prepared::from(*g21)), (&g12.neg(), g22)]);
     assert!(bool::from(
         miller_loop_result.final_exponentiation().is_identity()
     ))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn unblind_and_aggregate(
     params: &Parameters,
     blinded_signatures: &[BlindedSignature],
@@ -73,12 +78,12 @@ fn unblind_and_aggregate(
         .map(|(signature, partial_verification_key)| {
             signature
                 .unblind(
-                    &params,
-                    &partial_verification_key,
-                    &private_attributes,
-                    &public_attributes,
-                    &commitment_hash,
-                    &pedersen_commitments_openings,
+                    params,
+                    partial_verification_key,
+                    private_attributes,
+                    public_attributes,
+                    commitment_hash,
+                    pedersen_commitments_openings,
                 )
                 .unwrap()
         })
@@ -94,8 +99,8 @@ fn unblind_and_aggregate(
     attributes.extend_from_slice(private_attributes);
     attributes.extend_from_slice(public_attributes);
     aggregate_signature_shares(
-        &params,
-        &verification_key,
+        params,
+        verification_key,
         &attributes,
         &unblinded_signature_shares,
     )
@@ -119,6 +124,7 @@ impl BenchCase {
     }
 }
 
+#[allow(unused)]
 fn bench_pairings(c: &mut Criterion) {
     let mut rng = rand::thread_rng();
 
@@ -162,14 +168,14 @@ fn bench_coconut(c: &mut Criterion) {
         num_private_attrs: 2,
     };
 
-    let params = setup((case.num_public_attrs + case.num_private_attrs)).unwrap();
+    let params = setup(case.num_public_attrs + case.num_private_attrs).unwrap();
 
     let public_attributes = params.n_random_scalars(case.num_public_attrs as usize);
     let serial_number = params.random_scalar();
     let binding_number = params.random_scalar();
     let private_attributes = vec![serial_number, binding_number];
 
-    let elgamal_keypair = elgamal_keygen(&params);
+    let _elgamal_keypair = elgamal_keygen(&params);
 
     // The prepare blind sign is performed by the user
     let (pedersen_commitments_openings, blind_sign_request) =

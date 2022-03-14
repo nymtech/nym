@@ -524,7 +524,7 @@ mod tests {
     fn proof_cm_cs_bytes_roundtrip() {
         let mut rng = thread_rng();
 
-        let mut params = setup(1).unwrap();
+        let params = setup(1).unwrap();
         let cm = G1Projective::random(&mut rng);
         let r = params.random_scalar();
         let cms: [G1Projective; 1] = [G1Projective::random(&mut rng)];
@@ -532,12 +532,12 @@ mod tests {
         let private_attributes = params.n_random_scalars(1);
 
         // 0 public 1 private
-        let pi_s = ProofCmCs::construct(&mut params, &cm, &r, &cms, &rs, &private_attributes);
+        let pi_s = ProofCmCs::construct(&params, &cm, &r, &cms, &rs, &private_attributes);
 
         let bytes = pi_s.to_bytes();
         assert_eq!(ProofCmCs::from_bytes(&bytes).unwrap(), pi_s);
 
-        let mut params = setup(2).unwrap();
+        let params = setup(2).unwrap();
         let cm = G1Projective::random(&mut rng);
         let r = params.random_scalar();
         let cms: [G1Projective; 2] = [
@@ -548,7 +548,7 @@ mod tests {
         let private_attributes = params.n_random_scalars(2);
 
         // 0 public 2 privates
-        let pi_s = ProofCmCs::construct(&mut params, &cm, &r, &cms, &rs, &private_attributes);
+        let pi_s = ProofCmCs::construct(&params, &cm, &r, &cms, &rs, &private_attributes);
 
         let bytes = pi_s.to_bytes();
         assert_eq!(ProofCmCs::from_bytes(&bytes).unwrap(), pi_s);

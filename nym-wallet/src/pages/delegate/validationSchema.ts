@@ -12,7 +12,7 @@ export const validationSchema = Yup.object().shape({
 
   amount: Yup.string()
     .required()
-    .test('valid-amount', 'A valid amount is required', async function (value) {
+    .test('valid-amount', 'A valid amount is required', async function isValidAmount(value) {
       const isValid = await validateAmount(value || '', '0');
 
       if (!isValid) {

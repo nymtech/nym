@@ -56,6 +56,11 @@ pub enum BackendError {
     #[from]
     source: url::ParseError,
   },
+  #[error("{source}")]
+  ReqwestError {
+    #[from]
+    source: reqwest::Error,
+  },
   #[error("failed to encrypt the given data with the provided password")]
   EncryptionError,
   #[error("failed to decrypt the given data with the provided password")]

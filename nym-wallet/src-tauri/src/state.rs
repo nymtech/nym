@@ -47,6 +47,10 @@ impl State {
   pub fn logout(&mut self) {
     self.signing_clients = HashMap::new();
   }
+
+  pub async fn fetch_updated_validator_urls(&mut self) -> Result<(), BackendError> {
+    self.config.fetch_updated_validator_urls().await
+  }
 }
 
 #[macro_export]

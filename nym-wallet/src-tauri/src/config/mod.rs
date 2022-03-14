@@ -4,7 +4,10 @@
 use crate::{error::BackendError, network::Network as WalletNetwork};
 use config::defaults::{all::SupportedNetworks, ValidatorDetails};
 use config::NymConfig;
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::iter::zip;
 use std::time::Duration;
 use std::{fs, io, path::PathBuf};
 use strum::IntoEnumIterator;
@@ -162,11 +165,61 @@ impl Config {
     self.base.fetched_validators = serde_json::from_str(&response.text().await?)?;
     Ok(())
   }
+
+  pub async fn check_validator_health(
+    &self,
+    network: WalletNetwork,
+  ) -> Result<Vec<(ValidatorDetails, StatusCode)>, BackendError> {
+    // Limit the number of validators we query
+    let max_validators = 200_usize;
+    let validators_to_query = || self.get_validators(network).take(max_validators).cloned();
+
+    let validator_urls = validators_to_query().map(|v| {
+      let mut health_url = v.nymd_url();
+      health_url.set_path("health");
+      (v, health_url)
+    });
+
+    let client = reqwest::Client::builder()
+      .timeout(Duration::from_secs(3))
+      .build()?;
+
+    let requests = validator_urls.map(|(_, url)| client.get(url).send());
+    let responses = futures::future::join_all(requests).await;
+
+    let validators_responding_success =
+      zip(validators_to_query(), responses).filter_map(|(v, r)| match r {
+        Ok(r) if r.status().is_success() => Some((v, r.status())),
+        _ => None,
+      });
+
+    Ok(validators_responding_success.collect::<Vec<_>>())
+  }
+
+  #[allow(unused)]
+  pub async fn check_validator_health_for_all_networks(
+    &self,
+  ) -> Result<HashMap<WalletNetwork, Vec<(ValidatorDetails, StatusCode)>>, BackendError> {
+    let validator_health_requests =
+      WalletNetwork::iter().map(|network| self.check_validator_health(network));
+
+    let responses_keyed_by_network = zip(
+      WalletNetwork::iter(),
+      futures::future::join_all(validator_health_requests).await,
+    );
+
+    // Iterate and collect manually to be able to return errors in the response
+    let mut responses = HashMap::new();
+    for (network, response) in responses_keyed_by_network {
+      responses.insert(network, response?);
+    }
+    Ok(responses)
+  }
 }
 
 // Unlike `ValidatorDetails` this represents validators which are always supposed to have a
 // validator-api endpoint running.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ValidatorWithApiEndpoint {
   pub nymd_url: Url,
   pub api_url: Url,
@@ -210,6 +263,8 @@ impl OptionalValidators {
 
 #[cfg(test)]
 mod tests {
+  use tokio::time::Instant;
+
   use super::*;
 
   fn test_config() -> Config {

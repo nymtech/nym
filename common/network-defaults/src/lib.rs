@@ -95,10 +95,9 @@ pub struct ValidatorDetails {
 
 impl ValidatorDetails {
     pub fn new(nymd_url: &str, api_url: Option<&str>) -> Self {
-        let api_url = api_url.map(|api_url_str| api_url_str.to_string());
         ValidatorDetails {
             nymd_url: nymd_url.to_string(),
-            api_url,
+            api_url: api_url.map(ToString::to_string),
         }
     }
 
@@ -118,14 +117,14 @@ impl ValidatorDetails {
 pub fn default_nymd_endpoints() -> Vec<Url> {
     DEFAULT_NETWORK
         .validators()
-        .map(|validator| validator.nymd_url())
+        .map(ValidatorDetails::nymd_url)
         .collect()
 }
 
 pub fn default_api_endpoints() -> Vec<Url> {
     DEFAULT_NETWORK
         .validators()
-        .filter_map(|validator| validator.api_url())
+        .filter_map(ValidatorDetails::api_url)
         .collect()
 }
 

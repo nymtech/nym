@@ -25,7 +25,7 @@ export const CreateAccountContent: React.FC<{ page: TPages; showSignIn: () => vo
   }, []);
 
   return (
-    <Stack spacing={4} alignItems="center" sx={{ width: 700 }}>
+    <Stack spacing={4} alignItems="center" sx={{ width: 700 }} id={page}>
       <Typography sx={{ color: 'common.white' }} variant="h4">
         Congratulations
       </Typography>

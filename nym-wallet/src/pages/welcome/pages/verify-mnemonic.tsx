@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Button } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import { HiddenWords, Subtitle, Title, WordTiles } from '../components';
-import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords } from '../types';
+import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords, TPages } from '../types';
 import { randomNumberBetween } from '../../../utils';
 
 const numberOfRandomWords = 4;
 
 export const VerifyMnemonic = ({
   mnemonicWords,
-  onComplete,
+  page,
+  onNext,
+  onPrev,
 }: {
   mnemonicWords?: TMnemonicWords;
-  onComplete: () => void;
+  page: TPages;
+  onNext: () => void;
+  onPrev: () => void;
 }) => {
   const [randomWords, setRandomWords] = useState<TMnemonicWords>();
   const [hiddenRandomWords, setHiddenRandomWords] = useState<THiddenMnemonicWords>();
@@ -42,6 +46,7 @@ export const VerifyMnemonic = ({
   if (randomWords && hiddenRandomWords) {
     return (
       <>
+        <div id={page} />
         <Title title="Verify your mnemonic" />
         <Subtitle subtitle="Select the words from your mnmonic based on their order" />
         <HiddenWords mnemonicWords={hiddenRandomWords} />
@@ -49,15 +54,29 @@ export const VerifyMnemonic = ({
           mnemonicWords={randomWords}
           onClick={currentSelection !== numberOfRandomWords ? revealWord : undefined}
         />
-        <Button
-          variant="contained"
-          sx={{ width: 300 }}
-          size="large"
-          disabled={currentSelection !== numberOfRandomWords}
-          onClick={onComplete}
-        >
-          Next
-        </Button>
+        <Stack spacing={3} sx={{ width: 300 }}>
+          <Button
+            variant="contained"
+            fullWidth
+            size="large"
+            disabled={currentSelection !== numberOfRandomWords}
+            onClick={onNext}
+          >
+            Next
+          </Button>
+          <Button
+            size="large"
+            onClick={onPrev}
+            fullWidth
+            sx={{
+              color: 'common.white',
+              border: '1px solid white',
+              '&:hover': { border: '1px solid white', '&:hover': { background: 'none' } },
+            }}
+          >
+            Back
+          </Button>
+        </Stack>
       </>
     );
   }

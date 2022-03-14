@@ -1,42 +1,53 @@
 /* eslint-disable react/no-unused-prop-types */
 import React, { useContext, useState } from 'react';
-import { Alert, Button, Stack, TextField } from '@mui/material';
+import { Button, FormControl, Grid, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { ClientContext } from 'src/context/main';
 import { Subtitle } from '../components';
-import { ClientContext } from '../../../context/main';
 import { TPages } from '../types';
+import { MnemonicInput, PasswordInput } from '../components/textfields';
 
 export const ExistingAccount: React.FC<{ page: TPages; onPrev: () => void }> = ({ onPrev }) => {
-  const [mnemonic, setMnemonic] = useState<string>('');
-
-  const { logIn, error } = useContext(ClientContext);
-  const handleSignIn = async (e: React.MouseEvent<HTMLElement>) => {
-    e.preventDefault();
-    logIn(mnemonic);
-  };
+  const [toggle, setToggle] = useState('mnemonic');
+  const { setError } = useContext(ClientContext);
 
   return (
-    <Stack spacing={2} sx={{ width: 400 }} alignItems="center">
-      <Subtitle subtitle="Enter your mnemonic from existing wallet" />
-      <TextField value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} multiline rows={5} fullWidth />
-      {error && (
-        <Alert severity="error" variant="outlined" data-testid="error" sx={{ color: 'error.light', width: '100%' }}>
-          {error}
-        </Alert>
-      )}
-
-      <Button variant="contained" size="large" fullWidth onClick={handleSignIn}>
-        Sign in
-      </Button>
-      <Button
-        variant="outlined"
-        disableElevation
-        size="large"
-        onClick={onPrev}
-        fullWidth
-        sx={{ color: 'common.white', border: '1px solid white', '&:hover': { border: '1px solid white' } }}
-      >
-        Back
-      </Button>
-    </Stack>
+    <>
+      <Subtitle subtitle={`Enter your ${toggle} from existing wallet`} />
+      <Grid container justifyContent="center">
+        <Grid item xs={6}>
+          <Stack spacing={2}>
+            <ToggleButtonGroup
+              fullWidth
+              value={toggle}
+              exclusive
+              onChange={(e: React.MouseEvent<HTMLElement>, value: string) => {
+                setError(undefined);
+                setToggle(value);
+              }}
+            >
+              <ToggleButton value="mnemonic">Mnemonic</ToggleButton>
+              <ToggleButton value="password">Password</ToggleButton>
+            </ToggleButtonGroup>
+            <FormControl fullWidth>
+              {toggle === 'mnemonic' && <MnemonicInput />}
+              {toggle === 'password' && <PasswordInput />}
+            </FormControl>
+            <Button
+              variant="outlined"
+              disableElevation
+              size="large"
+              onClick={() => {
+                setError(undefined);
+                onPrev();
+              }}
+              fullWidth
+              sx={{ color: 'common.white', border: '1px solid white', '&:hover': { border: '1px solid white' } }}
+            >
+              Back
+            </Button>
+          </Stack>
+        </Grid>
+      </Grid>
+    </>
   );
 };

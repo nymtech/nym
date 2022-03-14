@@ -7,20 +7,13 @@ import { TPages } from '../types';
 export const WelcomeContent: React.FC<{
   page: TPages;
   onUseExisting: () => void;
-  onCreateAccountComplete: () => void;
-}> = ({ onUseExisting, onCreateAccountComplete }) => (
+  onNext: () => void;
+}> = ({ onUseExisting, onNext }) => (
   <>
     <Title title="Welcome to NYM" />
     <SubtitleSlick subtitle="Next generation of privacy" />
     <Stack spacing={3} sx={{ width: 300 }}>
-      <Button
-        fullWidth
-        variant="contained"
-        color="primary"
-        disableElevation
-        size="large"
-        onClick={onCreateAccountComplete}
-      >
+      <Button fullWidth variant="contained" color="primary" disableElevation size="large" onClick={onNext}>
         Create Account
       </Button>
       <Button
@@ -35,7 +28,7 @@ export const WelcomeContent: React.FC<{
         onClick={onUseExisting}
         disableRipple
       >
-        Sign in
+        Use existing account
       </Button>
     </Stack>
   </>

@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
+import { Console } from '../utils/console';
 import { ClientContext } from '../context/main';
 import { checkGatewayOwnership, checkMixnodeOwnership, getVestingPledgeInfo } from '../requests';
 import { EnumNodeType, TNodeOwnership } from '../types';
@@ -21,6 +22,7 @@ export const useCheckOwnership = () => {
 
     try {
       const [ownsMixnode, ownsGateway] = await Promise.all([checkMixnodeOwnership(), checkGatewayOwnership()]);
+
       if (ownsMixnode) {
         status.hasOwnership = true;
         status.nodeType = EnumNodeType.mixnode;
@@ -41,6 +43,7 @@ export const useCheckOwnership = () => {
 
       setOwnership(status);
     } catch (e) {
+      Console.error(e as string);
       setError(e as string);
       setOwnership(initial);
     } finally {

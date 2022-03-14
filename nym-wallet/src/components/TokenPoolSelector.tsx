@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { FormControl, InputLabel, ListItemText, MenuItem, Select, SelectChangeEvent } from '@mui/material';
+import { FormControl, InputLabel, ListItemText, MenuItem, Select, SelectChangeEvent, Typography } from '@mui/material';
 import { ClientContext } from '../context/main';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 
@@ -30,7 +30,13 @@ export const TokenPoolSelector: React.FC<{ onSelect: (pool: TPoolOption) => void
   return (
     <FormControl fullWidth>
       <InputLabel>Token pool</InputLabel>
-      <Select label="Token Pool" onChange={handleChange} value={value} disabled={ownership.hasOwnership}>
+      <Select
+        label="Token Pool"
+        onChange={handleChange}
+        value={value}
+        disabled={ownership.hasOwnership}
+        renderValue={(value) => <Typography sx={{ textTransform: 'capitalize' }}>{value}</Typography>}
+      >
         <MenuItem value="balance">
           <ListItemText
             primary="Balance"

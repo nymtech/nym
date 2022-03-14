@@ -1,12 +1,17 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network::Network as WalletNetwork;
+use crate::{error::BackendError, network::Network as WalletNetwork};
 use config::defaults::{all::SupportedNetworks, ValidatorDetails};
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use std::{fs, io, path::PathBuf};
 use strum::IntoEnumIterator;
+use url::Url;
+
+const REMOTE_SOURCE_OF_VALIDATOR_URLS: &str =
+  "https://nymtech.net/.wellknown/wallet/validators.json";
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -16,7 +21,7 @@ pub struct Config {
   base: Base,
 
   // Network level configuration
-  network: Network,
+  network: OptionalValidators,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
@@ -24,15 +29,17 @@ pub struct Config {
 struct Base {
   /// Information on all the networks that the wallet connects to.
   networks: SupportedNetworks,
+
+  /// Validators that have been fetched dynamically, probably during startup.
+  fetched_validators: OptionalValidators,
 }
 
 impl Default for Base {
   fn default() -> Self {
-    let networks = WalletNetwork::iter()
-      .map(|network| network.into())
-      .collect();
+    let networks = WalletNetwork::iter().map(Into::into).collect();
     Base {
       networks: SupportedNetworks::new(networks),
+      fetched_validators: OptionalValidators::default(),
     }
   }
 }
@@ -86,14 +93,29 @@ impl NymConfig for Config {
 }
 
 impl Config {
+  /// Get the available validators in the order
+  /// 1. from the configuration file
+  /// 2. provided remotely
+  /// 3. hardcoded fallback
   pub fn get_validators(
     &self,
     network: WalletNetwork,
   ) -> impl Iterator<Item = &ValidatorDetails> + '_ {
     self
-      .network
+      .base
+      .fetched_validators
       .validators(network)
+      .chain(self.network.validators(network))
       .chain(self.base.networks.validators(network.into()))
+  }
+
+  pub fn get_validators_with_api_endpoint(
+    &self,
+    network: WalletNetwork,
+  ) -> impl Iterator<Item = ValidatorWithApiEndpoint> + '_ {
+    self
+      .get_validators(network)
+      .filter_map(|validator| ValidatorWithApiEndpoint::try_from(validator.clone()).ok())
   }
 
   pub fn get_mixnet_contract_address(&self, network: WalletNetwork) -> Option<cosmrs::AccountId> {
@@ -128,19 +150,53 @@ impl Config {
       .parse()
       .ok()
   }
+
+  pub async fn fetch_updated_validator_urls(&mut self) -> Result<(), BackendError> {
+    let client = reqwest::Client::builder()
+      .timeout(Duration::from_secs(3))
+      .build()?;
+    let response = client
+      .get(REMOTE_SOURCE_OF_VALIDATOR_URLS.to_string())
+      .send()
+      .await?;
+    self.base.fetched_validators = serde_json::from_str(&response.text().await?)?;
+    Ok(())
+  }
+}
+
+// Unlike `ValidatorDetails` this represents validators which are always supposed to have a
+// validator-api endpoint running.
+#[derive(Clone)]
+pub struct ValidatorWithApiEndpoint {
+  pub nymd_url: Url,
+  pub api_url: Url,
+}
+
+impl TryFrom<ValidatorDetails> for ValidatorWithApiEndpoint {
+  type Error = BackendError;
+
+  fn try_from(validator: ValidatorDetails) -> Result<Self, Self::Error> {
+    match validator.api_url() {
+      Some(api_url) => Ok(ValidatorWithApiEndpoint {
+        nymd_url: validator.nymd_url(),
+        api_url,
+      }),
+      None => Err(BackendError::NoValidatorApiUrlConfigured),
+    }
+  }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-struct Network {
+struct OptionalValidators {
   // User supplied additional validator urls in addition to the hardcoded ones.
-  // NOTE: these are separate fields, rather than a map, to force the serialization order.
+  // These are separate fields, rather than a map, to force the serialization order.
   mainnet: Option<Vec<ValidatorDetails>>,
   sandbox: Option<Vec<ValidatorDetails>>,
   qa: Option<Vec<ValidatorDetails>>,
 }
 
-impl Network {
+impl OptionalValidators {
   fn validators(&self, network: WalletNetwork) -> impl Iterator<Item = &ValidatorDetails> {
     match network {
       WalletNetwork::MAINNET => self.mainnet.as_ref(),
@@ -159,7 +215,7 @@ mod tests {
   fn test_config() -> Config {
     Config {
       base: Base::default(),
-      network: Network {
+      network: OptionalValidators {
         mainnet: Some(vec![
           ValidatorDetails {
             nymd_url: "https://foo".to_string(),

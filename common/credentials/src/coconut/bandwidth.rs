@@ -51,9 +51,9 @@ impl BandwidthVoucher {
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
         let voucher_value_plain = voucher_value.to_string();
+        let voucher_info_plain = voucher_info.to_string();
         let voucher_value = hash_to_scalar(voucher_value.as_bytes());
         let voucher_info = hash_to_scalar(voucher_info.as_bytes());
-        let voucher_info_plain = voucher_info.to_string();
         BandwidthVoucher {
             serial_number,
             binding_number,

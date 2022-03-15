@@ -1,6 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use rocket::http::Status;
+use rocket::response::Responder;
+use rocket::{response, Request};
 use thiserror::Error;
 
 use crypto::asymmetric::{
@@ -38,4 +41,11 @@ pub enum CoconutError {
         "Public attributes in request differ from the ones in deposit - Expected {0}, got {1}"
     )]
     DifferentPublicAttributes(String, String),
+}
+
+impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {
+    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'o> {
+        println!("Error: {}", self.to_string());
+        Err(Status::BadRequest)
+    }
 }

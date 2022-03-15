@@ -5,6 +5,8 @@ mod deposit;
 mod error;
 
 use crate::coconut::deposit::extract_encryption_key;
+use crate::coconut::error::Result;
+
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
     KeyPair, Parameters, VerificationKeyResponse,
@@ -66,21 +68,23 @@ fn blind_sign(request: InternalSignRequest, key_pair: &KeyPair) -> BlindedSignat
 pub async fn post_blind_sign(
     blind_sign_request_body: Json<BlindSignRequestBody>,
     key_pair: &State<KeyPair>,
-) -> Json<BlindedSignatureResponse> {
+) -> Result<Json<BlindedSignatureResponse>> {
     debug!("{:?}", blind_sign_request_body);
-    let _encryption_key = extract_encryption_key(&blind_sign_request_body)
-        .await
-        .unwrap();
+    let _encryption_key = extract_encryption_key(&blind_sign_request_body).await?;
     let internal_request = InternalSignRequest::new(
         *blind_sign_request_body.total_params(),
         blind_sign_request_body.public_attributes(),
         blind_sign_request_body.blind_sign_request().clone(),
     );
     let blinded_signature = blind_sign(internal_request, key_pair);
-    Json(BlindedSignatureResponse::new(blinded_signature))
+    Ok(Json(BlindedSignatureResponse::new(blinded_signature)))
 }
 
 #[get("/verification-key")]
-pub async fn get_verification_key(key_pair: &State<KeyPair>) -> Json<VerificationKeyResponse> {
-    Json(VerificationKeyResponse::new(key_pair.verification_key()))
+pub async fn get_verification_key(
+    key_pair: &State<KeyPair>,
+) -> Result<Json<VerificationKeyResponse>> {
+    Ok(Json(VerificationKeyResponse::new(
+        key_pair.verification_key(),
+    )))
 }

@@ -100,25 +100,31 @@ impl Config {
   /// 1. from the configuration file
   /// 2. provided remotely
   /// 3. hardcoded fallback
-  pub fn get_validators(
-    &self,
-    network: WalletNetwork,
-  ) -> impl Iterator<Item = &ValidatorDetails> + '_ {
+  pub fn get_validators(&self, network: WalletNetwork) -> impl Iterator<Item = ValidatorUrl> + '_ {
+    // The base validators are (currently) stored as strings
+    let base_validators = self.base.networks.validators(network.into()).map(|v| {
+      v.clone()
+        .try_into()
+        .expect("The hardcoded validators are assumed to be valid urls")
+    });
+
     self
       .base
       .fetched_validators
       .validators(network)
       .chain(self.network.validators(network))
-      .chain(self.base.networks.validators(network.into()))
+      .cloned()
+      .chain(base_validators)
   }
 
   pub fn get_validators_with_api_endpoint(
     &self,
     network: WalletNetwork,
-  ) -> impl Iterator<Item = ValidatorWithApiEndpoint> + '_ {
+  ) -> impl Iterator<Item = ValidatorUrlWithApiEndpoint> + '_ {
     self
       .get_validators(network)
-      .filter_map(|validator| ValidatorWithApiEndpoint::try_from(validator.clone()).ok())
+      .into_iter()
+      .filter_map(|validator| ValidatorUrlWithApiEndpoint::try_from(validator).ok())
   }
 
   pub fn get_mixnet_contract_address(&self, network: WalletNetwork) -> Option<cosmrs::AccountId> {
@@ -169,13 +175,13 @@ impl Config {
   pub async fn check_validator_health(
     &self,
     network: WalletNetwork,
-  ) -> Result<Vec<(ValidatorDetails, StatusCode)>, BackendError> {
+  ) -> Result<Vec<(ValidatorUrl, StatusCode)>, BackendError> {
     // Limit the number of validators we query
     let max_validators = 200_usize;
-    let validators_to_query = || self.get_validators(network).take(max_validators).cloned();
+    let validators_to_query = || self.get_validators(network).take(max_validators);
 
     let validator_urls = validators_to_query().map(|v| {
-      let mut health_url = v.nymd_url();
+      let mut health_url = v.nymd_url.clone();
       health_url.set_path("health");
       (v, health_url)
     });
@@ -199,7 +205,7 @@ impl Config {
   #[allow(unused)]
   pub async fn check_validator_health_for_all_networks(
     &self,
-  ) -> Result<HashMap<WalletNetwork, Vec<(ValidatorDetails, StatusCode)>>, BackendError> {
+  ) -> Result<HashMap<WalletNetwork, Vec<(ValidatorUrl, StatusCode)>>, BackendError> {
     let validator_health_requests =
       WalletNetwork::iter().map(|network| self.check_validator_health(network));
 
@@ -217,21 +223,39 @@ impl Config {
   }
 }
 
-// Unlike `ValidatorDetails` this represents validators which are always supposed to have a
-// validator-api endpoint running.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ValidatorUrl {
+  pub nymd_url: Url,
+  pub api_url: Option<Url>,
+}
+
+impl TryFrom<ValidatorDetails> for ValidatorUrl {
+  type Error = BackendError;
+
+  fn try_from(validator: ValidatorDetails) -> Result<Self, Self::Error> {
+    Ok(ValidatorUrl {
+      nymd_url: validator.nymd_url.parse()?,
+      api_url: match &validator.api_url {
+        Some(url) => Some(url.parse()?),
+        None => None,
+      },
+    })
+  }
+}
+
 #[derive(Clone, Debug)]
-pub struct ValidatorWithApiEndpoint {
+pub struct ValidatorUrlWithApiEndpoint {
   pub nymd_url: Url,
   pub api_url: Url,
 }
 
-impl TryFrom<ValidatorDetails> for ValidatorWithApiEndpoint {
+impl TryFrom<ValidatorUrl> for ValidatorUrlWithApiEndpoint {
   type Error = BackendError;
 
-  fn try_from(validator: ValidatorDetails) -> Result<Self, Self::Error> {
-    match validator.api_url() {
-      Some(api_url) => Ok(ValidatorWithApiEndpoint {
-        nymd_url: validator.nymd_url(),
+  fn try_from(validator: ValidatorUrl) -> Result<Self, Self::Error> {
+    match validator.api_url {
+      Some(api_url) => Ok(ValidatorUrlWithApiEndpoint {
+        nymd_url: validator.nymd_url,
         api_url,
       }),
       None => Err(BackendError::NoValidatorApiUrlConfigured),
@@ -244,13 +268,13 @@ impl TryFrom<ValidatorDetails> for ValidatorWithApiEndpoint {
 struct OptionalValidators {
   // User supplied additional validator urls in addition to the hardcoded ones.
   // These are separate fields, rather than a map, to force the serialization order.
-  mainnet: Option<Vec<ValidatorDetails>>,
-  sandbox: Option<Vec<ValidatorDetails>>,
-  qa: Option<Vec<ValidatorDetails>>,
+  mainnet: Option<Vec<ValidatorUrl>>,
+  sandbox: Option<Vec<ValidatorUrl>>,
+  qa: Option<Vec<ValidatorUrl>>,
 }
 
 impl OptionalValidators {
-  fn validators(&self, network: WalletNetwork) -> impl Iterator<Item = &ValidatorDetails> {
+  fn validators(&self, network: WalletNetwork) -> impl Iterator<Item = &ValidatorUrl> {
     match network {
       WalletNetwork::MAINNET => self.mainnet.as_ref(),
       WalletNetwork::SANDBOX => self.sandbox.as_ref(),
@@ -273,15 +297,17 @@ mod tests {
           ValidatorDetails {
             nymd_url: "https://foo".to_string(),
             api_url: None,
-          },
-          ValidatorDetails {
-            nymd_url: "https://baz".to_string(),
-            api_url: Some("https://baz/api".to_string()),
+          }
+          .try_into()
+          .unwrap(),
+          ValidatorUrl {
+            nymd_url: "https://baz".parse().unwrap(),
+            api_url: Some("https://baz/api".parse().unwrap()),
           },
         ]),
-        sandbox: Some(vec![ValidatorDetails {
-          nymd_url: "https://bar".to_string(),
-          api_url: Some("https://bar/api".to_string()),
+        sandbox: Some(vec![ValidatorUrl {
+          nymd_url: "https://bar".parse().unwrap(),
+          api_url: Some("https://bar/api".parse().unwrap()),
         }]),
         qa: None,
       },
@@ -293,14 +319,14 @@ mod tests {
     assert_eq!(
       toml::to_string_pretty(&test_config()).unwrap(),
       r#"[[network.mainnet]]
-nymd_url = 'https://foo'
+nymd_url = 'https://foo/'
 
 [[network.mainnet]]
-nymd_url = 'https://baz'
+nymd_url = 'https://baz/'
 api_url = 'https://baz/api'
 
 [[network.sandbox]]
-nymd_url = 'https://bar'
+nymd_url = 'https://bar/'
 api_url = 'https://bar/api'
 "#
     );
@@ -320,15 +346,15 @@ api_url = 'https://bar/api'
     let nymd_url = config
       .get_validators(WalletNetwork::MAINNET)
       .next()
-      .map(ValidatorDetails::nymd_url)
+      .map(|v| v.nymd_url)
       .unwrap();
-    assert_eq!(nymd_url.to_string(), "https://foo/".to_string());
+    assert_eq!(nymd_url.as_ref(), "https://foo/");
 
     // The first entry is missing an API URL
     let api_url = config
       .get_validators(WalletNetwork::MAINNET)
       .next()
-      .and_then(ValidatorDetails::api_url);
+      .and_then(|v| v.api_url);
     assert_eq!(api_url, None);
   }
 
@@ -339,21 +365,15 @@ api_url = 'https://bar/api'
     let nymd_url = config
       .get_validators(WalletNetwork::MAINNET)
       .next()
-      .map(ValidatorDetails::nymd_url)
+      .map(|v| v.nymd_url)
       .unwrap();
-    assert_eq!(
-      nymd_url.to_string(),
-      "https://rpc.nyx.nodes.guru/".to_string()
-    );
+    assert_eq!(nymd_url.as_ref(), "https://rpc.nyx.nodes.guru/");
 
     let api_url = config
       .get_validators(WalletNetwork::MAINNET)
       .next()
-      .and_then(ValidatorDetails::api_url)
+      .and_then(|v| v.api_url)
       .unwrap();
-    assert_eq!(
-      api_url.to_string(),
-      "https://api.nyx.nodes.guru/".to_string()
-    );
+    assert_eq!(api_url.as_ref(), "https://api.nyx.nodes.guru/",);
   }
 }

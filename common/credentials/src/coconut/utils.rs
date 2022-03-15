@@ -70,12 +70,14 @@ async fn obtain_partial_credential(
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
     let public_attributes = attributes.get_public_attributes();
+    let public_attributes_plain = attributes.get_public_attributes_plain();
     let private_attributes = attributes.get_private_attributes();
     let blind_sign_request_body = BlindSignRequestBody::new(
         blind_sign_request,
         attributes.tx_hash().to_string(),
         attributes.sign(blind_sign_request),
         &public_attributes,
+        public_attributes_plain,
         (public_attributes.len() + private_attributes.len()) as u32,
     );
 

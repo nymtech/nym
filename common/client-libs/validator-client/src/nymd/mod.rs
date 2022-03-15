@@ -29,6 +29,7 @@ pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::fee::Fee;
 use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
+pub use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 pub use cosmrs::rpc::endpoint::validators::Response as ValidatorResponse;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
 pub use cosmrs::rpc::Paging;
@@ -272,6 +273,13 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         self.client.get_balance(address, denom).await
+    }
+
+    pub async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client.get_tx(id).await
     }
 
     pub async fn get_total_supply(&self) -> Result<Vec<Coin>, NymdError>

@@ -175,10 +175,9 @@ impl BandwidthController {
 
         // TODO: Decide what is the value and additional info associated with the bandwidth voucher
         let bandwidth_credential_attributes = BandwidthVoucher::new(
-            params.random_scalar(),
-            params.random_scalar(),
-            coconut_interface::hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
-            coconut_interface::hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
+            &params,
+            &BANDWIDTH_VALUE.to_string(),
+            network_defaults::VOUCHER_INFO,
             String::new(),
             String::new(),
         );

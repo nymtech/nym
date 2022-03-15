@@ -48,11 +48,12 @@ impl Client {
     pub async fn deposit(
         &self,
         amount: u64,
+        info: &str,
         verification_key: String,
         encryption_key: String,
     ) -> Result<String> {
         let req = ExecuteMsg::DepositFunds {
-            data: DepositData::new(verification_key, encryption_key),
+            data: DepositData::new(info.to_string(), verification_key, encryption_key),
         };
         let funds = vec![CosmosCoin {
             denom: self.denom.clone(),

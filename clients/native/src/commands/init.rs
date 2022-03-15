@@ -5,7 +5,7 @@ use clap::{App, Arg, ArgMatches};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 #[cfg(feature = "coconut")]
-use coconut_interface::{hash_to_scalar, Credential, Parameters};
+use coconut_interface::{Credential, Parameters};
 use config::NymConfig;
 #[cfg(feature = "coconut")]
 use credentials::coconut::{
@@ -18,7 +18,7 @@ use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 #[cfg(feature = "coconut")]
-use network_defaults::BANDWIDTH_VALUE;
+use network_defaults::{BANDWIDTH_VALUE, VOUCHER_INFO};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use rand::rngs::OsRng;
@@ -109,10 +109,9 @@ async fn _prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) 
 
     let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
     let bandwidth_credential_attributes = BandwidthVoucher::new(
-        params.random_scalar(),
-        params.random_scalar(),
-        hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
-        hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
+        &params,
+        &BANDWIDTH_VALUE.to_string(),
+        VOUCHER_INFO,
         String::new(),
         String::new(),
     );

@@ -6,16 +6,22 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct DepositData {
+    deposit_info: String,
     verification_key: String,
     encryption_key: String,
 }
 
 impl DepositData {
-    pub fn new(verification_key: String, encryption_key: String) -> Self {
+    pub fn new(deposit_info: String, verification_key: String, encryption_key: String) -> Self {
         DepositData {
+            deposit_info,
             verification_key,
             encryption_key,
         }
+    }
+
+    pub fn deposit_info(&self) -> &str {
+        &self.deposit_info
     }
 
     pub fn verification_key(&self) -> &str {

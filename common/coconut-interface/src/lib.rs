@@ -89,6 +89,8 @@ pub struct BlindSignRequestBody {
     signature: String,
     public_attributes: Vec<String>,
     #[getset(get = "pub")]
+    public_attributes_plain: Vec<String>,
+    #[getset(get = "pub")]
     total_params: u32,
 }
 
@@ -98,6 +100,7 @@ impl BlindSignRequestBody {
         tx_hash: String,
         signature: String,
         public_attributes: &[Attribute],
+        public_attributes_plain: Vec<String>,
         total_params: u32,
     ) -> BlindSignRequestBody {
         BlindSignRequestBody {
@@ -108,6 +111,7 @@ impl BlindSignRequestBody {
                 .iter()
                 .map(|attr| attr.to_bs58())
                 .collect(),
+            public_attributes_plain,
             total_params,
         }
     }

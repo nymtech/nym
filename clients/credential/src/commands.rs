@@ -8,10 +8,11 @@ use rand::rngs::OsRng;
 use std::str::FromStr;
 use url::Url;
 
-use coconut_interface::{hash_to_scalar, Parameters, Signature};
+use coconut_interface::{Parameters, Signature};
 use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
+use network_defaults::VOUCHER_INFO;
 
 use crate::client::Client;
 use crate::error::{CredentialClientError, Result};
@@ -53,6 +54,7 @@ impl Execute for Deposit {
         let tx_hash = client
             .deposit(
                 self.amount,
+                VOUCHER_INFO,
                 signing_keypair.public_key.clone(),
                 encryption_keypair.public_key.clone(),
             )
@@ -109,10 +111,9 @@ impl Execute for GetCredential {
 
         let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
         let bandwidth_credential_attributes = BandwidthVoucher::new(
-            params.random_scalar(),
-            params.random_scalar(),
-            coconut_interface::hash_to_scalar(state.amount.to_be_bytes()),
-            hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
+            &params,
+            &state.amount.to_string(),
+            VOUCHER_INFO,
             self.tx_hash.clone(),
             state.signing_keypair.private_key,
         );

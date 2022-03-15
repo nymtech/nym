@@ -7,8 +7,8 @@
 // it's the simplest possible case
 
 use coconut_interface::{
-    BlindSignRequest, Credential, Parameters, PrivateAttribute, PublicAttribute, Signature,
-    VerificationKey,
+    hash_to_scalar, BlindSignRequest, Credential, Parameters, PrivateAttribute, PublicAttribute,
+    Signature, VerificationKey,
 };
 use crypto::asymmetric::identity::PrivateKey;
 use network_defaults::BANDWIDTH_VALUE;
@@ -28,8 +28,12 @@ pub struct BandwidthVoucher {
     binding_number: PrivateAttribute,
     // the value (e.g., bandwidth) encoded in this voucher
     voucher_value: PublicAttribute,
+    // the plain text value (e.g., bandwidth) encoded in this voucher
+    voucher_value_plain: String,
     // a field with public information, e.g., type of voucher, interval etc.
     voucher_info: PublicAttribute,
+    // the plain text information
+    voucher_info_plain: String,
     // the hash of the deposit transaction
     tx_hash: String,
     // base58 encoded key ensuring the depositer requested these attributes
@@ -38,21 +42,36 @@ pub struct BandwidthVoucher {
 
 impl BandwidthVoucher {
     pub fn new(
-        serial_number: PrivateAttribute,
-        binding_number: PrivateAttribute,
-        voucher_value: PublicAttribute,
-        voucher_info: PublicAttribute,
+        params: &Parameters,
+        voucher_value: &str,
+        voucher_info: &str,
         tx_hash: String,
         signing_key: String,
     ) -> Self {
+        let serial_number = params.random_scalar();
+        let binding_number = params.random_scalar();
+        let voucher_value_plain = voucher_value.to_string();
+        let voucher_value = hash_to_scalar(voucher_value.as_bytes());
+        let voucher_info = hash_to_scalar(voucher_info.as_bytes());
+        let voucher_info_plain = voucher_info.to_string();
         BandwidthVoucher {
             serial_number,
             binding_number,
             voucher_value,
+            voucher_value_plain,
             voucher_info,
+            voucher_info_plain,
             tx_hash,
             signing_key,
         }
+    }
+
+    /// Check if the plain values correspond to the PublicAttributes
+    pub fn verify_against_plain(values: &Vec<PublicAttribute>, plain_values: &Vec<String>) -> bool {
+        values.len() == 2
+            && plain_values.len() == 2
+            && values[0] == hash_to_scalar(&plain_values[0])
+            && values[1] == hash_to_scalar(&plain_values[1])
     }
 
     pub fn tx_hash(&self) -> &str {
@@ -61,6 +80,13 @@ impl BandwidthVoucher {
 
     pub fn get_public_attributes(&self) -> Vec<PublicAttribute> {
         vec![self.voucher_value, self.voucher_info]
+    }
+
+    pub fn get_public_attributes_plain(&self) -> Vec<String> {
+        vec![
+            self.voucher_value_plain.clone(),
+            self.voucher_info_plain.clone(),
+        ]
     }
 
     pub fn get_private_attributes(&self) -> Vec<PrivateAttribute> {

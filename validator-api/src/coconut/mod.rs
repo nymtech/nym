@@ -1,6 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+mod deposit;
+mod error;
+
+use crate::coconut::deposit::extract_encryption_key;
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
     KeyPair, Parameters, VerificationKeyResponse,
@@ -64,6 +68,9 @@ pub async fn post_blind_sign(
     key_pair: &State<KeyPair>,
 ) -> Json<BlindedSignatureResponse> {
     debug!("{:?}", blind_sign_request_body);
+    let _encryption_key = extract_encryption_key(&blind_sign_request_body)
+        .await
+        .unwrap();
     let internal_request = InternalSignRequest::new(
         *blind_sign_request_body.total_params(),
         blind_sign_request_body.public_attributes(),

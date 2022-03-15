@@ -43,6 +43,7 @@ sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros"
 
 
 ## internal
+coconut-bandwidth-contract = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 config = { path = "../common/config" }
 crypto = { path="../common/crypto" }
 gateway-client = { path="../common/client-libs/gateway-client" }

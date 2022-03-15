@@ -14,7 +14,7 @@ use coconut_interface::{Base58, KeyPair};
 
 mod template;
 
-const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
+pub const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
 
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 200;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;

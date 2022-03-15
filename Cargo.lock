@@ -3118,6 +3118,7 @@ dependencies = [
  "attohttpc",
  "cfg-if",
  "clap 2.34.0",
+ "coconut-bandwidth-contract",
  "coconut-interface",
  "config",
  "console-subscriber",

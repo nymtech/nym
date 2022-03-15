@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api';
-import { Account, TCreateAccount } from '../types';
+import { Account } from '../types';
 
-export const createAccount = async (): Promise<TCreateAccount> => invoke('create_new_account');
+export const createMnemonic = async (): Promise<string> => invoke('create_mnemonic');
 
 export const signInWithMnemonic = async (mnemonic: string): Promise<Account> =>
   invoke('connect_with_mnemonic', { mnemonic });

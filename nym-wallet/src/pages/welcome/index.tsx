@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { CircularProgress, Stack, Box } from '@mui/material';
 import { NymLogo } from '@nymproject/react';
-import { createAccount } from 'src/requests';
+import { createMnemonic } from 'src/requests';
 import { ClientContext } from 'src/context/main';
 import { CreatePassword, ExistingAccount, MnemonicWords, VerifyMnemonic, WelcomeContent } from './pages';
 import { TMnemonicWords, TPages } from './types';
@@ -17,14 +17,16 @@ export const Welcome = () => {
   const [mnemonicWords, setMnemonicWords] = useState<TMnemonicWords>();
   const [mnemonic, setMnemonic] = useState<string>();
 
+  console.log(mnemonic);
+
   const { isLoading, setIsLoading } = useContext(ClientContext);
 
-  const createMnemonic = async () => {
+  const generateMnemonic = async () => {
     setIsLoading(true);
-    const account = await createAccount();
-    const mnemonicPhrase = mnemonicToArray(account.mnemonic);
-    setMnemonic(account.mnemonic);
-    setMnemonicWords(mnemonicPhrase);
+    const mnemonicPhrase = await createMnemonic();
+    const mnemonicArray = mnemonicToArray(mnemonicPhrase);
+    setMnemonic(mnemonicPhrase);
+    setMnemonicWords(mnemonicArray);
     setIsLoading(false);
     setPage('create account');
   };
@@ -60,7 +62,7 @@ export const Welcome = () => {
                 onNext={() => setPage('create password')}
                 page="welcome"
               />
-              <CreatePassword page="create password" onPrev={() => setPage('welcome')} onNext={createMnemonic} />
+              <CreatePassword page="create password" onPrev={() => setPage('welcome')} onNext={generateMnemonic} />
               <MnemonicWords
                 mnemonicWords={mnemonicWords}
                 mnemonic={mnemonic}

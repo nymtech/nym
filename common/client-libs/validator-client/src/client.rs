@@ -3,7 +3,7 @@
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, Interval, MixNodeBond};
 use network_defaults::DEFAULT_NETWORK;
 use url::Url;
 use validator_api_requests::models::{
@@ -20,7 +20,7 @@ use mixnet_contract_common::ContractStateParams;
 
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
-    Delegation, IdentityKey, Interval, MixnetContractVersion, MixnodeRewardingStatusResponse,
+    Delegation, IdentityKey, MixnetContractVersion, MixnodeRewardingStatusResponse,
     RewardedSetNodeStatus, RewardedSetUpdateDetails,
 };
 #[cfg(feature = "nymd-client")]
@@ -248,6 +248,13 @@ impl<C> Client<C> {
         Ok(self.nymd.get_contract_settings().await?)
     }
 
+    pub async fn get_current_epoch(&self) -> Result<Option<Interval>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_current_epoch().await?)
+    }
+
     pub async fn get_mixnet_contract_version(&self) -> Result<MixnetContractVersion, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -276,20 +283,6 @@ impl<C> Client<C> {
         Ok(self.nymd.get_reward_pool().await?.u128())
     }
 
-    pub async fn get_current_interval(&self) -> Result<Interval, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.nymd.get_current_interval().await?)
-    }
-
-    pub async fn get_epochs_in_interval(&self) -> Result<u64, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.nymd.get_epochs_in_interval().await?)
-    }
-
     pub async fn get_circulating_supply(&self) -> Result<u128, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -309,6 +302,13 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.nymd.get_active_set_work_factor().await?)
+    }
+
+    pub async fn get_epochs_in_interval(&self) -> Result<u64, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_epochs_in_interval().await?)
     }
 
     pub async fn get_interval_reward_percent(&self) -> Result<u8, ValidatorClientError>

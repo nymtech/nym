@@ -16,10 +16,10 @@ pub use fee::gas_price::GasPrice;
 use fee::helpers::Operation;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
-    IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
+    IdentityKey, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
     MixnetContractVersion, MixnodeRewardingStatusResponse, PagedAllDelegationsResponse,
     PagedDelegatorDelegationsResponse, PagedGatewayResponse, PagedMixDelegationsResponse,
-    PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
+    PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails, Interval,
 };
 use serde::Serialize;
 use std::convert::TryInto;
@@ -290,6 +290,16 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn get_current_epoch(&self) -> Result<Option<Interval>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetCurrentEpoch {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
     pub async fn get_mixnet_contract_version(&self) -> Result<MixnetContractVersion, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -369,31 +379,11 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn get_current_interval(&self) -> Result<Interval, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::GetCurrentInterval {};
-        self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
-            .await
-    }
-
     pub async fn get_reward_pool(&self) -> Result<Uint128, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::GetRewardPool {};
-        self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
-            .await
-    }
-
-    pub async fn get_epochs_in_interval(&self) -> Result<u64, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::GetEpochsInInterval {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
@@ -434,6 +424,16 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::GetIntervalRewardPercent {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_epochs_in_interval(&self) -> Result<u64, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetEpochsInInterval {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
@@ -1200,25 +1200,6 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Advance current epoch",
-                Vec::new(),
-            )
-            .await
-    }
-
-    pub async fn advance_current_interval(&self) -> Result<ExecuteResult, NymdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let fee = self.operation_fee(Operation::AdvanceCurrentInterval);
-
-        let req = ExecuteMsg::AdvanceCurrentInterval {};
-        self.client
-            .execute(
-                self.address(),
-                self.mixnet_contract_address()?,
-                &req,
-                fee,
-                "Advancing current interval",
                 Vec::new(),
             )
             .await

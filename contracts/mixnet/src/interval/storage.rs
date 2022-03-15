@@ -25,8 +25,8 @@ pub(crate) const CURRENT_REWARDED_SET_HEIGHT: Item<'_, BlockHeight> = Item::new(
 
 // I've changed the `()` data to an `u8` as after serializing `()` is represented as "null",
 // taking more space than a single digit u8. If we don't care about what's there, why not go with more efficient approach? : )
-pub(crate) const REWARDED_SET_HEIGHTS_FOR_INTERVAL: Map<'_, (IntervalId, BlockHeight), u8> =
-    Map::new("rsh");
+// pub(crate) const REWARDED_SET_HEIGHTS_FOR_INTERVAL: Map<'_, (IntervalId, BlockHeight), u8> =
+//     Map::new("rsh");
 
 // pub(crate) const REWARDED_SET: Map<(u64, IdentityKey), NodeStatus> = Map::new("rs");
 pub(crate) const REWARDED_SET: Map<'_, (BlockHeight, IdentityKey), RewardedSetNodeStatus> =
@@ -67,8 +67,8 @@ pub fn current_interval(storage: &dyn Storage) -> Result<Interval, ContractError
     Ok(CURRENT_INTERVAL.load(storage)?)
 }
 
-pub fn current_epoch(storage: &dyn Storage) -> Result<Interval, ContractError> {
-    Ok(CURRENT_EPOCH.load(storage)?)
+pub fn current_epoch(storage: &dyn Storage) -> Result<Option<Interval>, ContractError> {
+    Ok(CURRENT_EPOCH.may_load(storage)?)
 }
 
 pub(crate) fn save_rewarded_set(

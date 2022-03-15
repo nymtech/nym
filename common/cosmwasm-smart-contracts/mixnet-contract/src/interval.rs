@@ -65,9 +65,9 @@ pub struct Interval {
 }
 
 impl Interval {
-    /// Creates new interval instance.
-    pub const fn new(id: u32, start: OffsetDateTime, length: Duration) -> Self {
-        Interval { id, start, length }
+    /// Initialize epoch in the contract with default values.
+    pub fn init_epoch() -> Self {
+        Interval { id: 0, start: OffsetDateTime::now_utc(), length: Duration::from_secs(3600) }
     }
 
     /// Returns the next interval.

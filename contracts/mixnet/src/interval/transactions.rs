@@ -7,7 +7,7 @@ use crate::error::ContractError::{EpochNotInProgress, IntervalNotInProgress};
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::events::{new_advance_interval_event, new_change_rewarded_set_event};
-use mixnet_contract_common::IdentityKey;
+use mixnet_contract_common::{IdentityKey, Interval};
 
 // We've distributed the rewards to the rewarded set from the validator api before making this call (implicit order, should be solved in the future)
 // We now write the new rewarded set, snapshot the mixnodes and finally reconcile all delegations and undelegations. That way the rewards for the previous
@@ -52,23 +52,15 @@ pub fn try_write_rewarded_set(
             current_height: block_height,
         });
     }
-
-    let current_interval = storage::current_interval(deps.storage)?.id();
     let num_nodes = rewarded_set.len();
 
     storage::save_rewarded_set(deps.storage, block_height, active_set_size, rewarded_set)?;
-    storage::REWARDED_SET_HEIGHTS_FOR_INTERVAL.save(
-        deps.storage,
-        (current_interval, block_height),
-        &0u8,
-    )?;
     storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &block_height)?;
 
     Ok(Response::new().add_event(new_change_rewarded_set_event(
         state.params.mixnode_active_set_size,
         state.params.mixnode_rewarded_set_size,
         num_nodes as u32,
-        current_interval,
     )))
 }
 
@@ -103,11 +95,21 @@ pub fn try_advance_interval(
     Ok(Response::new().add_event(new_advance_interval_event(next_interval)))
 }
 
+fn init_epoch(storage: &mut dyn Storage) -> Result<Interval, ContractError> {
+    let epoch = Interval::init_epoch();
+    storage::save_epoch(storage, &epoch)?;
+    Ok(epoch)
+}
+
 pub fn try_advance_epoch(env: Env, storage: &mut dyn Storage) -> Result<Response, ContractError> {
     // in theory, we could have just changed the state and relied on its reversal upon failed
     // execution, but better safe than sorry and do not modify the state at all unless we know
     // all checks have succeeded.
-    let current_epoch = storage::current_epoch(storage)?;
+    let current_epoch = if let Some(epoch) = storage::current_epoch(storage)? {
+        epoch
+    } else {
+        init_epoch(storage)?
+    };
     let next_epoch = current_epoch.next();
 
     if next_epoch.start_unix_timestamp() > env.block.time.seconds() as i64 {
@@ -226,7 +228,6 @@ mod tests {
             current_state.params.mixnode_active_set_size,
             current_state.params.mixnode_rewarded_set_size,
             full_rewarded_set.len() as u32,
-            0,
         ));
 
         assert_eq!(
@@ -257,8 +258,6 @@ mod tests {
                 )
             }
         }
-        assert!(storage::REWARDED_SET_HEIGHTS_FOR_INTERVAL
-            .has(deps.as_ref().storage, (0, env.block.height)));
         assert_eq!(
             env.block.height,
             storage::CURRENT_REWARDED_SET_HEIGHT
@@ -278,11 +277,7 @@ mod tests {
         // 1643673600 = 2022-02-01
         // 1672531200 = 2023-01-01
 
-        let current_interval = Interval::new(
-            0,
-            OffsetDateTime::from_unix_timestamp(1640995200).unwrap(),
-            Duration::from_secs(60 * 60 * 720),
-        );
+        let current_interval = Interval::init_epoch();
         let next_interval = current_interval.next();
         storage::save_interval(deps.as_mut().storage, &current_interval).unwrap();
 

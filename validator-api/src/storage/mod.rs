@@ -718,12 +718,12 @@ impl ValidatorApiStorage {
     /// # Arguments
     ///
     /// * `interval_timestamp`: Unix timestamp of this rewarding interval.
-    pub(super) async fn get_interval_rewarding_entry(
+    pub(super) async fn get_epoch_rewarding_entry(
         &self,
-        interval_timestamp: i64,
+        epoch_id: i64,
     ) -> Result<Option<IntervalRewarding>, ValidatorApiStorageError> {
         self.manager
-            .get_interval_rewarding_entry(interval_timestamp)
+            .get_epoch_rewarding_entry(epoch_id)
             .await
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(format!("{}", e)))
     }

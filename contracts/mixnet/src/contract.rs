@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{
-    ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, REWARDING_INTERVAL_LENGTH,
+    ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT,
     SYBIL_RESISTANCE_PERCENT,
 };
 use crate::delegations::queries::query_all_network_delegations_paged;
@@ -13,11 +13,11 @@ use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
 use crate::interval::queries::{
-    query_current_interval, query_current_rewarded_set_height, query_rewarded_set,
-    query_rewarded_set_heights_for_interval, query_rewarded_set_refresh_minimum_blocks,
-    query_rewarded_set_update_details,
+    query_current_rewarded_set_height, query_rewarded_set,
+    query_rewarded_set_refresh_minimum_blocks, query_rewarded_set_update_details,
 };
 use crate::interval::storage as interval_storage;
+use crate::interval::queries::query_current_epoch;
 use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::{
     query_contract_settings_params, query_contract_version,
@@ -80,8 +80,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let state = default_initial_state(info.sender, rewarding_validator_address);
-    let rewarding_interval =
-        Interval::new(0, DEFAULT_FIRST_INTERVAL_START, REWARDING_INTERVAL_LENGTH);
+    let rewarding_interval = Interval::init_epoch();
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
@@ -242,9 +241,6 @@ pub fn execute(
             rewarded_set,
             expected_active_set_size,
         ),
-        ExecuteMsg::AdvanceCurrentInterval {} => {
-            crate::interval::transactions::try_advance_interval(env, deps.storage)
-        }
         ExecuteMsg::AdvanceCurrentEpoch {} => {
             crate::interval::transactions::try_advance_epoch(env, deps.storage)
         }
@@ -354,20 +350,18 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             start_after,
             limit,
         )?),
-        QueryMsg::GetRewardedSetHeightsForInterval { interval_id } => to_binary(
-            &query_rewarded_set_heights_for_interval(deps.storage, interval_id)?,
-        ),
         QueryMsg::GetRewardedSetUpdateDetails {} => {
             to_binary(&query_rewarded_set_update_details(env, deps.storage)?)
         }
         QueryMsg::GetCurrentRewardedSetHeight {} => {
             to_binary(&query_current_rewarded_set_height(deps.storage)?)
         }
-        QueryMsg::GetCurrentInterval {} => to_binary(&query_current_interval(deps.storage)?),
+        // QueryMsg::GetCurrentInterval {} => to_binary(&query_current_interval(deps.storage)?),
         QueryMsg::GetRewardedSetRefreshBlocks {} => {
             to_binary(&query_rewarded_set_refresh_minimum_blocks())
         }
         QueryMsg::GetEpochsInInterval {} => to_binary(&crate::constants::EPOCHS_IN_INTERVAL),
+        QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
     };
 
     Ok(query_res?)

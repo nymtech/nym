@@ -388,13 +388,11 @@ pub fn new_change_rewarded_set_event(
     active_set_size: u32,
     rewarded_set_size: u32,
     nodes_in_rewarded_set: u32,
-    current_interval_id: u32,
 ) -> Event {
     Event::new(CHANGE_REWARDED_SET_EVENT_TYPE)
         .add_attribute(ACTIVE_SET_SIZE_KEY, active_set_size.to_string())
         .add_attribute(REWARDED_SET_SIZE_KEY, rewarded_set_size.to_string())
         .add_attribute(NODES_IN_REWARDED_SET_KEY, nodes_in_rewarded_set.to_string())
-        .add_attribute(CURRENT_INTERVAL_ID_KEY, current_interval_id.to_string())
 }
 
 pub fn new_advance_interval_event(interval: Interval) -> Event {

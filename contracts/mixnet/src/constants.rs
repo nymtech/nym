@@ -18,4 +18,4 @@ pub const ACTIVE_SET_WORK_FACTOR: u8 = 10;
 pub const REWARDED_SET_REFRESH_BLOCKS: u64 = 720; // with blocktime being approximately 5s, it should be roughly 1h
 pub const EPOCHS_IN_INTERVAL: u64 = 720; // Hours in a month
 
-pub const REWARDING_INTERVAL_LENGTH: Duration = Duration::from_secs(60 * 60 * 720); // 720h, i.e. 30 days
+pub const REWARDING_INTERVAL_LENGTH: Duration = Duration::from_secs(60 * 60); // 720h, i.e. 30 days

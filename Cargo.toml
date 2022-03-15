@@ -44,6 +44,7 @@ members = [
     "common/nymsphinx/params",
     "common/nymsphinx/types",
     "common/pemstore",
+    "common/primitives",
     "common/socks5/proxy-helpers",
     "common/socks5/requests",
     "common/topology",

@@ -6,7 +6,7 @@ use crate::rewarded_set_updater::{error::RewardingError, MixnodeToReward};
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::{
     reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
-    IdentityKey, Interval, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
+    IdentityKey, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
     RewardedSetUpdateDetails,
 };
 use serde::Serialize;
@@ -111,13 +111,6 @@ impl<C> Client<C> {
             .await?;
 
         Ok(time)
-    }
-
-    pub(crate) async fn get_current_interval(&self) -> Result<Interval, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0.read().await.get_current_interval().await
     }
 
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>

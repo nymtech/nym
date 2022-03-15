@@ -23,8 +23,6 @@ use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
 
-type Epoch = Interval;
-
 pub struct ValidatorCacheRefresher<C> {
     nymd_client: Client<C>,
     cache: ValidatorCache,
@@ -134,8 +132,6 @@ impl<C> ValidatorCacheRefresher<C> {
             self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities);
 
         let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
-        // TODO: Remove get_current_epoch from nymd client
-        let current_epoch = self.nymd_client.get_current_epoch().await?;
 
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
@@ -149,8 +145,7 @@ impl<C> ValidatorCacheRefresher<C> {
                 gateways,
                 rewarded_set,
                 active_set,
-                epoch_rewarding_params,
-                current_epoch,
+                epoch_rewarding_params, 
             )
             .await;
 
@@ -220,7 +215,6 @@ impl ValidatorCache {
         rewarded_set: Vec<MixNodeBond>,
         active_set: Vec<MixNodeBond>,
         epoch_rewarding_params: EpochRewardParams,
-        current_epoch: Epoch,
     ) {
         let mut inner = self.inner.write().await;
 
@@ -229,7 +223,6 @@ impl ValidatorCache {
         inner.rewarded_set.update(rewarded_set);
         inner.active_set.update(active_set);
         inner.current_reward_params.update(epoch_rewarding_params);
-        inner.current_epoch.update(current_epoch);
     }
 
     pub async fn mixnodes(&self) -> Cache<Vec<MixNodeBond>> {

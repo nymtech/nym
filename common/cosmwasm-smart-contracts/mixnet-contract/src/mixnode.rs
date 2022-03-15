@@ -618,7 +618,7 @@ mod tests {
             block_height: 100,
             mix_node: mixnode_fixture(),
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: Some(Uint128::zero()),
         };
 
         let mix2 = MixNodeBond {
@@ -629,7 +629,7 @@ mod tests {
             block_height: 120,
             mix_node: mixnode_fixture(),
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: Some(Uint128::zero()),
         };
 
         let mix3 = MixNodeBond {
@@ -640,7 +640,7 @@ mod tests {
             block_height: 120,
             mix_node: mixnode_fixture(),
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: Some(Uint128::zero()),
         };
 
         let mix4 = MixNodeBond {
@@ -651,7 +651,7 @@ mod tests {
             block_height: 120,
             mix_node: mixnode_fixture(),
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: Some(Uint128::zero()),
         };
 
         let mix5 = MixNodeBond {
@@ -662,7 +662,7 @@ mod tests {
             block_height: 120,
             mix_node: mixnode_fixture(),
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: Some(Uint128::zero()),
         };
 
         // summary:

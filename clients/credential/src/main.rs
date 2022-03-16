@@ -50,6 +50,7 @@ async fn main() -> Result<()> {
     match &args.command {
         Commands::Deposit(m) => m.execute(&mut db).await?,
         Commands::ListDeposits(m) => m.execute(&mut db).await?,
+        Commands::ListSignatures(m) => m.execute(&mut db).await?,
         Commands::GetCredential(m) => m.execute(&mut db).await?,
     }
 

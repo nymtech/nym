@@ -8,7 +8,7 @@ use rand::rngs::OsRng;
 use std::str::FromStr;
 use url::Url;
 
-use coconut_interface::{Parameters, Signature};
+use coconut_interface::{Base58, Parameters, Signature};
 use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
@@ -25,6 +25,8 @@ pub(crate) enum Commands {
     Deposit(Deposit),
     /// Lists the tx hashes of previous deposits
     ListDeposits(ListDeposits),
+    /// Lists the signatures obtained from signers
+    ListSignatures(ListSignatures),
     /// Get a credential for a given deposit
     GetCredential(GetCredential),
 }
@@ -79,16 +81,35 @@ pub(crate) struct ListDeposits {}
 #[async_trait]
 impl Execute for ListDeposits {
     async fn execute(&self, db: &mut PickleDb) -> Result<()> {
-        let states: Vec<(String, u64)> = db
+        let states: Vec<(String, String)> = db
             .get::<Vec<State>>(DEPOSITS_KEY)
             .unwrap_or(vec![])
             .into_iter()
-            .map(|state| (state.tx_hash, state.amount))
+            .map(|state| (state.tx_hash, format!("{}unym", state.amount)))
             .collect();
         println!(
             "Hashes for available deposits and their unym amount: {:?}",
             states
         );
+
+        Ok(())
+    }
+}
+
+#[derive(Args, Clone)]
+pub(crate) struct ListSignatures {}
+
+#[async_trait]
+impl Execute for ListSignatures {
+    async fn execute(&self, db: &mut PickleDb) -> Result<()> {
+        let states: Vec<(usize, String)> = db
+            .get::<Vec<Signature>>(SIGNATURES_KEY)
+            .unwrap_or(vec![])
+            .into_iter()
+            .map(|signature| signature.to_bs58())
+            .enumerate()
+            .collect();
+        println!("Signatures obtained and their indexes: {:?}", states);
 
         Ok(())
     }
@@ -104,14 +125,11 @@ pub(crate) struct GetCredential {
 #[async_trait]
 impl Execute for GetCredential {
     async fn execute(&self, db: &mut PickleDb) -> Result<()> {
-        let mut states = db
+        let state = db
             .get::<Vec<State>>(DEPOSITS_KEY)
-            .ok_or(CredentialClientError::NoDeposit)?;
-        let (idx, state) = states
-            .clone()
+            .ok_or(CredentialClientError::NoDeposit)?
             .into_iter()
-            .enumerate()
-            .find(|(_, state)| state.tx_hash == self.tx_hash)
+            .find(|state| state.tx_hash == self.tx_hash)
             .ok_or(CredentialClientError::NoDeposit)?;
         let urls = SIGNER_AUTHORITIES.map(|addr| Url::from_str(addr).unwrap());
 
@@ -130,7 +148,6 @@ impl Execute for GetCredential {
         signatures.push(signature);
         db.set(SIGNATURES_KEY, &signatures).unwrap();
 
-        states.swap_remove(idx);
         Ok(())
     }
 }

@@ -1,15 +1,18 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub(crate) use crate::wallet_storage::password::UserPassword;
+
 use crate::error::BackendError;
 use crate::wallet_storage::account_data::StoredAccount;
 use crate::wallet_storage::encryption::{encrypt_struct, EncryptedData};
-use crate::wallet_storage::password::UserPassword;
 use cosmrs::bip32::DerivationPath;
 use std::fs::{create_dir_all, OpenOptions};
 use std::path::PathBuf;
+
 pub(crate) mod account_data;
 pub(crate) mod encryption;
+
 mod password;
 
 const STORAGE_DIR_NAME: &str = "NymWallet";

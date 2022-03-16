@@ -34,7 +34,8 @@ pub(crate) struct MnemonicAccount {
 }
 
 // we only ever want to expose those getters in the test code
-#[cfg(test)]
+// WIP(JON): temporarily comment out
+//#[cfg(test)]
 impl MnemonicAccount {
   pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
     &self.mnemonic

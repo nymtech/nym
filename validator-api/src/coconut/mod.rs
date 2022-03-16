@@ -67,14 +67,14 @@ impl State {
         let encrypted_data =
             stream_cipher::encrypt::<ctr::Ctr64LE<Aes128>>(&shared_key, &zero_iv, &chunk_data);
 
+        let response =
+            BlindedSignatureResponse::new(encrypted_data.clone(), keypair.public_key().to_bytes());
+
         // Atomically insert data, only if there is no signature stored in the meantime
         // This prevents race conditions on storing two signatures for the same deposit transaction
         self.signed_deposits
-            .compare_and_swap(tx_hash, None as Option<&[u8]>, Some(encrypted_data.clone()))?
+            .compare_and_swap(tx_hash, None as Option<&[u8]>, Some(response.to_bytes()))?
             .map_err(|_| CoconutError::AlreadySigned)?;
-
-        let response =
-            BlindedSignatureResponse::new(encrypted_data, keypair.public_key().to_base58_string());
 
         Ok(response)
     }
@@ -155,6 +155,16 @@ pub async fn post_blind_sign(
 
     Ok(Json(response))
 }
+
+// #[get("/get-signature", data = "<deposit_tx_hash>")]
+// pub async fn get_signature(
+//     deposit_tx_hash: Json<String>,
+//     state: &RocketState<State>,
+// ) -> Result<Json<BlindedSignatureResponse>> {
+//     Ok(Json(VerificationKeyResponse::new(
+//         state.key_pair.verification_key(),
+//     )))
+// }
 
 #[get("/verification-key")]
 pub async fn get_verification_key(

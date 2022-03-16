@@ -88,7 +88,7 @@ async fn obtain_partial_credential(
 
     let response = client.blind_sign(&blind_sign_request_body).await?;
     let encrypted_signature = response.encrypted_signature;
-    let remote_key = PublicKey::from_base58_string(response.remote_key)?;
+    let remote_key = PublicKey::from_bytes(&response.remote_key)?;
     let local_key = PrivateKey::from_base58_string(attributes.encryption_key())?;
 
     let encryption_key =

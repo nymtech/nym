@@ -126,15 +126,31 @@ impl BlindSignRequestBody {
 
 #[derive(Serialize, Deserialize)]
 pub struct BlindedSignatureResponse {
+    pub remote_key: [u8; 32],
     pub encrypted_signature: Vec<u8>,
-    pub remote_key: String,
 }
 
 impl BlindedSignatureResponse {
-    pub fn new(encrypted_signature: Vec<u8>, remote_key: String) -> BlindedSignatureResponse {
+    pub fn new(encrypted_signature: Vec<u8>, remote_key: [u8; 32]) -> BlindedSignatureResponse {
         BlindedSignatureResponse {
             encrypted_signature,
             remote_key,
+        }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = self.encrypted_signature.clone();
+        bytes.extend_from_slice(&self.remote_key);
+        bytes
+    }
+
+    pub fn from_bytes(bytes: Vec<u8>) -> Self {
+        let mut remote_key = [0u8; 32];
+        remote_key.copy_from_slice(&bytes[..32]);
+        let encrypted_signature = bytes[32..].to_vec();
+        BlindedSignatureResponse {
+            remote_key,
+            encrypted_signature,
         }
     }
 }

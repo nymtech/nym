@@ -4,8 +4,11 @@ use crate::error::BackendError;
 use crate::network::Network;
 use crate::nymd_client;
 use crate::state::State;
+use crate::wallet_storage;
 
 use bip39::{Language, Mnemonic};
+use config::defaults::COSMOS_DERIVATION_PATH;
+use cosmrs::bip32::DerivationPath;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -315,4 +318,48 @@ async fn is_validator_connection_ok(client: &Client<SigningNymdClient>) -> bool 
     Err(NymdError::TendermintError(_)) => false,
     Err(_) | Ok(_) => true,
   }
+}
+
+#[tauri::command]
+pub fn does_password_file_exist() -> Result<bool, BackendError> {
+  println!("Checking wallet file");
+  let file = wallet_storage::wallet_login_filepath()?;
+  if file.is_file() {
+    println!("Exists: {}", file.to_string_lossy());
+  } else {
+    println!("Does not exist: {}", file.to_string_lossy());
+  }
+  Ok(file.is_file())
+}
+
+#[tauri::command]
+pub fn create_password(mnemonic: String, password: String) -> Result<(), BackendError> {
+  println!("Creating password");
+  if does_password_file_exist()? {
+    return Err(BackendError::WalletFileAlreadyExists);
+  }
+
+  let mnemonic = Mnemonic::from_str(&mnemonic)?;
+  let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+  let password = wallet_storage::UserPassword::new(password);
+  wallet_storage::store_wallet_login_information(mnemonic, hd_path, password)?;
+  Ok(())
+}
+
+#[tauri::command]
+pub async fn sign_in_with_password(
+  password: String,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Account, BackendError> {
+  println!("Signing in with password");
+  let password = wallet_storage::UserPassword::new(password);
+  let stored_accounts = wallet_storage::load_existing_wallet_login_information(&password)?;
+
+  // WIP: we are assuming just a single password is stored
+  let stored_account = stored_accounts.into_iter().next().unwrap();
+  let mnemonic = match stored_account {
+    wallet_storage::account_data::StoredAccount::Mnemonic(ref mn) => mn.mnemonic().clone(),
+  };
+
+  _connect_with_mnemonic(mnemonic, state).await
 }

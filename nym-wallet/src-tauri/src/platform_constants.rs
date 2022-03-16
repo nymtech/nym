@@ -16,4 +16,3 @@ cfg_if::cfg_if! {
         pub const WALLET_INFO_FILENAME: &str = "saved-wallet.json";
     }
 }
-

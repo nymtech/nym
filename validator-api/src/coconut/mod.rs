@@ -15,7 +15,21 @@ use config::defaults::VALIDATOR_API_VERSION;
 use getset::{CopyGetters, Getters};
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
-use rocket::State;
+use rocket::State as RocketState;
+
+pub struct State {
+    key_pair: KeyPair,
+    signed_deposits: sled::Db,
+}
+
+impl State {
+    pub fn new(key_pair: KeyPair, signed_deposits: sled::Db) -> Self {
+        Self {
+            key_pair,
+            signed_deposits,
+        }
+    }
+}
 
 #[derive(Getters, CopyGetters, Debug)]
 pub(crate) struct InternalSignRequest {
@@ -41,9 +55,10 @@ impl InternalSignRequest {
         }
     }
 
-    pub fn stage(key_pair: KeyPair) -> AdHoc {
+    pub fn stage(key_pair: KeyPair, signed_deposits: sled::Db) -> AdHoc {
+        let state = State::new(key_pair, signed_deposits);
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
-            rocket.manage(key_pair).mount(
+            rocket.manage(state).mount(
                 // this format! is so ugly...
                 format!("/{}", VALIDATOR_API_VERSION),
                 routes![post_blind_sign, get_verification_key],
@@ -67,7 +82,7 @@ fn blind_sign(request: InternalSignRequest, key_pair: &KeyPair) -> BlindedSignat
 //  Until we have serialization and deserialization traits we'll be using a crutch
 pub async fn post_blind_sign(
     blind_sign_request_body: Json<BlindSignRequestBody>,
-    key_pair: &State<KeyPair>,
+    state: &RocketState<State>,
 ) -> Result<Json<BlindedSignatureResponse>> {
     debug!("{:?}", blind_sign_request_body);
     let _encryption_key = extract_encryption_key(&blind_sign_request_body).await?;
@@ -76,15 +91,15 @@ pub async fn post_blind_sign(
         blind_sign_request_body.public_attributes(),
         blind_sign_request_body.blind_sign_request().clone(),
     );
-    let blinded_signature = blind_sign(internal_request, key_pair);
+    let blinded_signature = blind_sign(internal_request, &state.key_pair);
     Ok(Json(BlindedSignatureResponse::new(blinded_signature)))
 }
 
 #[get("/verification-key")]
 pub async fn get_verification_key(
-    key_pair: &State<KeyPair>,
+    state: &RocketState<State>,
 ) -> Result<Json<VerificationKeyResponse>> {
     Ok(Json(VerificationKeyResponse::new(
-        key_pair.verification_key(),
+        state.key_pair.verification_key(),
     )))
 }

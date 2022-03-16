@@ -55,6 +55,9 @@ const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
 const KEYPAIR_ARG: &str = "keypair";
 
 #[cfg(feature = "coconut")]
+const SIGNED_DEPOSITS_ARG: &str = "signed-deposits";
+
+#[cfg(feature = "coconut")]
 const COCONUT_ONLY_FLAG: &str = "coconut-only";
 
 #[cfg(not(feature = "coconut"))]
@@ -179,6 +182,11 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             .takes_value(true)
             .long(KEYPAIR_ARG),
     ).arg(
+        Arg::with_name(SIGNED_DEPOSITS_ARG)
+            .help("Path to the directory used to store the already signed deposit transactions. This prevents the validator for double signing for the same deposit")
+            .takes_value(true)
+            .long(SIGNED_DEPOSITS_ARG),
+    ).arg(
         Arg::with_name(COCONUT_ONLY_FLAG)
             .help("Flag to indicate whether validator api should only be used for credential issuance with no blockchain connection")
             .long(COCONUT_ONLY_FLAG),
@@ -285,6 +293,11 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
         config = config.with_keypair(keypair_bs58)
     }
 
+    #[cfg(feature = "coconut")]
+    if let Some(signed_deposits_path) = matches.value_of(SIGNED_DEPOSITS_ARG) {
+        config = config.with_signed_deposits(signed_deposits_path)
+    }
+
     #[cfg(not(feature = "coconut"))]
     if let Some(eth_private_key) = matches.value_of("eth_private_key") {
         config = config.with_eth_private_key(String::from(eth_private_key));
@@ -374,7 +387,10 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
         .attach(ValidatorCache::stage());
 
     #[cfg(feature = "coconut")]
-    let rocket = rocket.attach(InternalSignRequest::stage(config.keypair()));
+    let rocket = rocket.attach(InternalSignRequest::stage(
+        config.keypair(),
+        config.signed_deposits(),
+    ));
 
     // see if we should start up network monitor and if so, attach the node status api
     if config.get_network_monitor_enabled() {
@@ -423,7 +439,10 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         // this simplifies everything - we just want to run coconut things
         return rocket::build()
             .attach(setup_cors()?)
-            .attach(InternalSignRequest::stage(config.keypair()))
+            .attach(InternalSignRequest::stage(
+                config.keypair(),
+                config.signed_deposits(),
+            ))
             .launch()
             .await
             .map_err(|err| err.into());

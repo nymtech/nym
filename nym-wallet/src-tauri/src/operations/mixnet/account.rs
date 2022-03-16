@@ -1,5 +1,5 @@
 use crate::coin::{Coin, Denom};
-use crate::config::{Config, ValidatorWithApiEndpoint};
+use crate::config::{Config, ValidatorUrlWithApiEndpoint};
 use crate::error::BackendError;
 use crate::network::Network;
 use crate::nymd_client;
@@ -181,7 +181,7 @@ async fn _connect_with_mnemonic(
 }
 
 fn create_clients(
-  validators: &HashMap<Network, ValidatorWithApiEndpoint>,
+  validators: &HashMap<Network, ValidatorUrlWithApiEndpoint>,
   mnemonic: &Mnemonic,
   config: &Config,
 ) -> Result<Vec<Client<SigningNymdClient>>, BackendError> {
@@ -206,7 +206,7 @@ fn create_clients(
 async fn choose_validators(
   mnemonic: Mnemonic,
   state: &tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<HashMap<Network, ValidatorWithApiEndpoint>, BackendError> {
+) -> Result<HashMap<Network, ValidatorUrlWithApiEndpoint>, BackendError> {
   let config = state.read().await.config();
 
   // Try to connect to validators on all networks
@@ -236,7 +236,7 @@ async fn choose_validators(
 async fn select_responding_validators(
   config: &Config,
   mnemonic: &Mnemonic,
-) -> Result<HashMap<Network, ValidatorWithApiEndpoint>, BackendError> {
+) -> Result<HashMap<Network, ValidatorUrlWithApiEndpoint>, BackendError> {
   use tokio::time::timeout;
   let validators = futures::future::join_all(Network::iter().map(|network| {
     timeout(
@@ -264,11 +264,11 @@ async fn select_responding_validators(
 }
 
 async fn try_connect_to_validators(
-  validators: impl Iterator<Item = ValidatorWithApiEndpoint>,
+  validators: impl Iterator<Item = ValidatorUrlWithApiEndpoint>,
   config: &Config,
   network: Network,
   mnemonic: Mnemonic,
-) -> Result<Option<(Network, ValidatorWithApiEndpoint)>, BackendError> {
+) -> Result<Option<(Network, ValidatorUrlWithApiEndpoint)>, BackendError> {
   for validator in validators {
     if let Some(responding_validator) =
       try_connect_to_validator(&validator, config, network, mnemonic.clone()).await?
@@ -281,11 +281,11 @@ async fn try_connect_to_validators(
 }
 
 async fn try_connect_to_validator(
-  validator: &ValidatorWithApiEndpoint,
+  validator: &ValidatorUrlWithApiEndpoint,
   config: &Config,
   network: Network,
   mnemonic: Mnemonic,
-) -> Result<Option<(Network, ValidatorWithApiEndpoint)>, BackendError> {
+) -> Result<Option<(Network, ValidatorUrlWithApiEndpoint)>, BackendError> {
   let client = validator_client::Client::new_signing(
     validator_client::Config::new(
       network.into(),

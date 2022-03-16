@@ -77,23 +77,23 @@ pub fn try_advance_epoch(env: Env, storage: &mut dyn Storage) -> Result<Response
     let current_epoch = if let Some(epoch) = storage::current_epoch(storage)? {
         epoch
     } else {
-        let epoch = init_epoch(storage, env.clone())?;
+        let epoch = init_epoch(storage, env)?;
         return Ok(Response::new().add_event(new_advance_interval_event(epoch)));
     };
 
     if current_epoch.is_over(env.clone()) {
-        let next_epoch = current_epoch.next_on_chain(env.clone());
+        let next_epoch = current_epoch.next_on_chain(env);
 
         storage::save_epoch(storage, &next_epoch)?;
         storage::save_epoch_reward_params(next_epoch.id(), storage)?;
 
         return Ok(Response::new().add_event(new_advance_interval_event(next_epoch)));
     }
-    return Err(EpochInProgress {
+    Err(EpochInProgress {
         current_block_time: env.block.time.seconds(),
         epoch_start: current_epoch.start_unix_timestamp(),
         epoch_end: current_epoch.end_unix_timestamp(),
-    });
+    })
 }
 
 #[cfg(test)]

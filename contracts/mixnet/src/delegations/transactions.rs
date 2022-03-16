@@ -11,7 +11,8 @@ use cosmwasm_std::{
     Response, Storage, Uint128, WasmMsg,
 };
 use mixnet_contract_common::events::{
-    new_pending_delegation_event, new_pending_undelegation_event, new_undelegation_event,
+    new_error_event, new_pending_delegation_event, new_pending_undelegation_event,
+    new_undelegation_event,
 };
 use mixnet_contract_common::mixnode::{DelegationEvent, PendingUndelegate};
 use mixnet_contract_common::{Delegation, IdentityKey};
@@ -53,7 +54,9 @@ pub(crate) fn _try_reconcile_all_delegation_events(
                 let undelegate_response =
                     try_reconcile_undelegation(storage, api, &pending_undelegate)?;
                 response = response.add_event(undelegate_response.event);
-                response = response.add_message(undelegate_response.bank_msg);
+                if let Some(msg) = undelegate_response.bank_msg {
+                    response = response.add_message(msg);
+                }
                 if let Some(msg) = undelegate_response.wasm_msg {
                     response = response.add_message(msg);
                 }
@@ -232,7 +235,7 @@ pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
 }
 
 pub struct ReconcileUndelegateResponse {
-    bank_msg: BankMsg,
+    bank_msg: Option<BankMsg>,
     wasm_msg: Option<WasmMsg>,
     event: Event,
 }
@@ -283,9 +286,16 @@ pub(crate) fn try_reconcile_undelegation(
         .collect::<Vec<u64>>();
 
     if delegation_heights.is_empty() {
-        return Err(ContractError::NoMixnodeDelegationFound {
-            identity: pending_undelegate.mix_identity(),
-            address: pending_undelegate.delegate().to_string(),
+        return Ok(ReconcileUndelegateResponse {
+            bank_msg: None,
+            wasm_msg: None,
+            event: new_error_event(
+                ContractError::NoMixnodeDelegationFound {
+                    identity: pending_undelegate.mix_identity(),
+                    address: pending_undelegate.delegate().to_string(),
+                }
+                .to_string(),
+            ),
         });
     }
 
@@ -354,7 +364,7 @@ pub(crate) fn try_reconcile_undelegation(
     );
 
     Ok(ReconcileUndelegateResponse {
-        bank_msg,
+        bank_msg: Some(bank_msg),
         wasm_msg,
         event,
     })

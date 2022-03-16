@@ -224,9 +224,10 @@ async fn choose_validators(
         .next()
         // We always have at least one hardcoded default validator
         .unwrap();
-      println!(
+      log::info!(
         "Using default for {network}: {}, {}",
-        default_validator.nymd_url, default_validator.api_url,
+        default_validator.nymd_url,
+        default_validator.api_url,
       );
       default_validator
     });
@@ -302,9 +303,10 @@ async fn try_connect_to_validator(
   )?;
 
   if is_validator_connection_ok(&client).await {
-    println!(
+    log::info!(
       "Connection ok for {network}: {}, {}",
-      validator.nymd_url, validator.api_url
+      validator.nymd_url,
+      validator.api_url
     );
     Ok(Some((network, validator.clone())))
   } else {
@@ -322,19 +324,19 @@ async fn is_validator_connection_ok(client: &Client<SigningNymdClient>) -> bool 
 
 #[tauri::command]
 pub fn does_password_file_exist() -> Result<bool, BackendError> {
-  println!("Checking wallet file");
+  log::info!("Checking wallet file");
   let file = wallet_storage::wallet_login_filepath()?;
   if file.is_file() {
-    println!("Exists: {}", file.to_string_lossy());
+    log::info!("Exists: {}", file.to_string_lossy());
   } else {
-    println!("Does not exist: {}", file.to_string_lossy());
+    log::info!("Does not exist: {}", file.to_string_lossy());
   }
   Ok(file.is_file())
 }
 
 #[tauri::command]
 pub fn create_password(mnemonic: String, password: String) -> Result<(), BackendError> {
-  println!("Creating password");
+  log::info!("Creating password");
   if does_password_file_exist()? {
     return Err(BackendError::WalletFileAlreadyExists);
   }
@@ -342,7 +344,7 @@ pub fn create_password(mnemonic: String, password: String) -> Result<(), Backend
   let mnemonic = Mnemonic::from_str(&mnemonic)?;
   let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
   let password = wallet_storage::UserPassword::new(password);
-  wallet_storage::store_wallet_login_information(mnemonic, hd_path, password)?;
+  wallet_storage::store_wallet_login_information(mnemonic, hd_path, &password)?;
   Ok(())
 }
 
@@ -351,7 +353,7 @@ pub async fn sign_in_with_password(
   password: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
-  println!("Signing in with password");
+  log::info!("Signing in with password");
   let password = wallet_storage::UserPassword::new(password);
   let stored_accounts = wallet_storage::load_existing_wallet_login_information(&password)?;
 

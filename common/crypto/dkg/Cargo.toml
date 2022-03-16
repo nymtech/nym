@@ -16,13 +16,14 @@ bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", branch ="gt-seriali
 bs58 = "0.4"
 
 lazy_static = "1.4.0"
+rand = { version = "0.8.5", default-features = false}
+rand_chacha = "0.3"
 rand_core = "0.6.3"
 sha2 = "0.9"
 serde = "1.0"
 serde_derive = "1.0"
 thiserror = "1.0"
 zeroize = { version = "1.4", features = ["zeroize_derive"] }
-rand_chacha = "0.3"
 
 [dependencies.group]
 version = "0.11"
@@ -33,4 +34,3 @@ version = "0.11"
 default-features = false
 
 [dev-dependencies]
-#rand_chacha = "0.3"

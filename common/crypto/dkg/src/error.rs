@@ -28,4 +28,10 @@ pub enum DkgError {
 
     #[error("Tried to construct proof of sharing with an invalid instance")]
     MalformedProofOfSharingInstance,
+
+    #[error("Tried to construct proof of chunking with an invalid instance")]
+    MalformedProofOfChunkingInstance,
+
+    #[error("Aborted construction of proof of chunking - could not complete it within specified number of attempts")]
+    AbortedProofOfChunking,
 }

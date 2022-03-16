@@ -9,7 +9,7 @@ use bitvec::view::BitView;
 use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve};
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar};
 use ff::Field;
-use group::Curve;
+use group::{Curve, GroupEncoding};
 use lazy_static::lazy_static;
 use rand_core::RngCore;
 use std::collections::HashMap;
@@ -166,6 +166,10 @@ struct SingleChunkCiphertext {
 pub struct PublicKey(pub(crate) G1Projective);
 
 impl PublicKey {
+    pub(crate) fn inner(&self) -> &G1Projective {
+        &self.0
+    }
+
     pub fn verify(&self, proof: &ProofOfDiscreteLog) -> bool {
         proof.verify(&self.0)
     }

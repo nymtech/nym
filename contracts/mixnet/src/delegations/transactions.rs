@@ -263,9 +263,16 @@ pub(crate) fn try_reconcile_undelegation(
         .is_some();
 
     if !any_delegations {
-        return Err(ContractError::NoMixnodeDelegationFound {
-            identity: pending_undelegate.mix_identity(),
-            address: pending_undelegate.delegate().to_string(),
+        return Ok(ReconcileUndelegateResponse {
+            bank_msg: None,
+            wasm_msg: None,
+            event: new_error_event(
+                ContractError::NoMixnodeDelegationFound {
+                    identity: pending_undelegate.mix_identity(),
+                    address: pending_undelegate.delegate().to_string(),
+                }
+                .to_string(),
+            ),
         });
     }
 

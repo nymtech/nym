@@ -3,11 +3,11 @@ import { Button, FormControl, Grid, IconButton, Stack, TextField } from '@mui/ma
 import { VisibilityOff, Visibility } from '@mui/icons-material';
 import { TPages } from '../types';
 import { Subtitle, Title, PasswordStrength } from '../components';
+import { PasswordInput } from '../components/textfields';
 
 export const CreatePassword = ({ page, onPrev, onNext }: { page: TPages; onNext: () => void; onPrev: () => void }) => {
   const [password, setPassword] = useState<string>('');
   const [confirmedPassword, setConfirmedPassword] = useState<string>();
-  const [showPassword, setShowPassword] = useState(false);
   const [showConfirmedPassword, setShowConfirmedPassword] = useState(false);
 
   return (
@@ -19,20 +19,10 @@ export const CreatePassword = ({ page, onPrev, onNext }: { page: TPages; onNext:
         <Grid item xs={6}>
           <FormControl fullWidth>
             <Stack spacing={2}>
-              <TextField
-                label="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                type={showPassword ? 'input' : 'password'}
-                InputProps={{
-                  endAdornment: (
-                    <IconButton onClick={() => setShowPassword((show) => !show)}>
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  ),
-                }}
-              />
-              <PasswordStrength password={password} />
+              <>
+                <PasswordInput password={password} onUpdatePassword={(pswd) => setPassword(pswd)} />
+                <PasswordStrength password={password} />
+              </>
               <TextField
                 label="Confirm password"
                 value={confirmedPassword}

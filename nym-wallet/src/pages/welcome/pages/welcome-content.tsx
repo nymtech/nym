@@ -7,13 +7,13 @@ import { TPages } from '../types';
 export const WelcomeContent: React.FC<{
   page: TPages;
   onUseExisting: () => void;
-  onNext: () => void;
-}> = ({ onUseExisting, onNext }) => (
+  onCreateAccount: () => void;
+}> = ({ onUseExisting, onCreateAccount }) => (
   <>
     <Title title="Welcome to NYM" />
     <SubtitleSlick subtitle="Next generation of privacy" />
     <Stack spacing={3} sx={{ width: 300 }}>
-      <Button fullWidth variant="contained" color="primary" disableElevation size="large" onClick={onNext}>
+      <Button fullWidth variant="contained" color="primary" disableElevation size="large" onClick={onCreateAccount}>
         Create Account
       </Button>
       <Button

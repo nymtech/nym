@@ -1,6 +1,6 @@
 export type TPages =
   | 'welcome'
-  | 'create account'
+  | 'create mnemonic'
   | 'verify mnemonic'
   | 'create password'
   | 'existing account'

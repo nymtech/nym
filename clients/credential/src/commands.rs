@@ -79,13 +79,16 @@ pub(crate) struct ListDeposits {}
 #[async_trait]
 impl Execute for ListDeposits {
     async fn execute(&self, db: &mut PickleDb) -> Result<()> {
-        let states: Vec<String> = db
+        let states: Vec<(String, u64)> = db
             .get::<Vec<State>>(DEPOSITS_KEY)
             .unwrap_or(vec![])
             .into_iter()
-            .map(|state| state.tx_hash)
+            .map(|state| (state.tx_hash, state.amount))
             .collect();
-        println!("Hashes for available deposits: {:?}", states);
+        println!(
+            "Hashes for available deposits and their unym amount: {:?}",
+            states
+        );
 
         Ok(())
     }
@@ -101,11 +104,14 @@ pub(crate) struct GetCredential {
 #[async_trait]
 impl Execute for GetCredential {
     async fn execute(&self, db: &mut PickleDb) -> Result<()> {
-        let state = db
+        let mut states = db
             .get::<Vec<State>>(DEPOSITS_KEY)
-            .ok_or(CredentialClientError::NoDeposit)?
+            .ok_or(CredentialClientError::NoDeposit)?;
+        let (idx, state) = states
+            .clone()
             .into_iter()
-            .find(|state| state.tx_hash == self.tx_hash)
+            .enumerate()
+            .find(|(_, state)| state.tx_hash == self.tx_hash)
             .ok_or(CredentialClientError::NoDeposit)?;
         let urls = SIGNER_AUTHORITIES.map(|addr| Url::from_str(addr).unwrap());
 
@@ -123,6 +129,8 @@ impl Execute for GetCredential {
         let mut signatures = db.get::<Vec<Signature>>(SIGNATURES_KEY).unwrap_or(vec![]);
         signatures.push(signature);
         db.set(SIGNATURES_KEY, &signatures).unwrap();
+
+        states.swap_remove(idx);
         Ok(())
     }
 }

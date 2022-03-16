@@ -80,12 +80,12 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let state = default_initial_state(info.sender, rewarding_validator_address);
-    let rewarding_interval = Interval::init_epoch();
+    let rewarding_interval = Interval::init_epoch(env.clone());
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
-    interval_storage::save_interval(deps.storage, &rewarding_interval)?;
+    interval_storage::save_epoch(deps.storage, &rewarding_interval)?;
     interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Response::default())

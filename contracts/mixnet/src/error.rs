@@ -132,6 +132,20 @@ pub enum ContractError {
         epoch_end: i64,
     },
 
+    #[error("MIXNET ({}): Can't change to the desired interval as it hasn't started yet. It starts at {epoch_start} and finishes at {epoch_end}, while the current block time is {current_block_time}", line!())]
+    EpochNotStarted {
+        current_block_time: u64,
+        epoch_start: i64,
+        epoch_end: i64,
+    },
+
+    #[error("MIXNET ({}): Can't change to the desired interval as it's in progress. It starts at {epoch_start} and finishes at {epoch_end}, while the current block time is {current_block_time}", line!())]
+    EpochInProgress {
+        current_block_time: u64,
+        epoch_start: i64,
+        epoch_end: i64,
+    },
+
     #[error("Could not cast reward to a u128, this should be impossible, at {}", line!())]
     CastError,
     #[error("{source}")]
@@ -141,4 +155,7 @@ pub enum ContractError {
     },
     #[error("No rewards to claim for mixnode {identity} for delegate {delegate}")]
     NoRewardsToClaim { identity: String, delegate: String },
+
+    #[error("Epoch not initialized yet!")]
+    EpochNotInitialized
 }

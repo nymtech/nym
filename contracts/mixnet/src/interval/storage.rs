@@ -18,8 +18,7 @@ type IntervalId = u32;
 pub(crate) const REWARDED_NODE_DEFAULT_PAGE_LIMIT: u32 = 1000;
 pub(crate) const REWARDED_NODE_MAX_PAGE_LIMIT: u32 = 1500;
 
-const CURRENT_INTERVAL: Item<'_, Interval> = Item::new("cei");
-const CURRENT_EPOCH: Item<'_, Interval> = Item::new("cep");
+const CURRENT_EPOCH: Item<'_, Interval> = Item::new("ceph");
 const CURRENT_EPOCH_REWARD_PARAMS: Item<'_, EpochRewardParams> = Item::new("erp");
 pub(crate) const CURRENT_REWARDED_SET_HEIGHT: Item<'_, BlockHeight> = Item::new("crh");
 
@@ -35,15 +34,9 @@ pub(crate) const REWARDED_SET: Map<'_, (BlockHeight, IdentityKey), RewardedSetNo
 pub(crate) const INTERVALS: Map<'_, IntervalId, Interval> = Map::new("ins");
 pub(crate) const EPOCHS: Map<'_, IntervalId, Interval> = Map::new("ephs");
 
-pub fn save_interval(storage: &mut dyn Storage, interval: &Interval) -> Result<(), ContractError> {
-    CURRENT_INTERVAL.save(storage, interval)?;
-    INTERVALS.save(storage, interval.id(), interval)?;
-    Ok(())
-}
-
-pub fn save_epoch(storage: &mut dyn Storage, interval: &Interval) -> Result<(), ContractError> {
-    CURRENT_EPOCH.save(storage, interval)?;
-    EPOCHS.save(storage, interval.id(), interval)?;
+pub fn save_epoch(storage: &mut dyn Storage, epoch: &Interval) -> Result<(), ContractError> {
+    CURRENT_EPOCH.save(storage, epoch)?;
+    EPOCHS.save(storage, epoch.id(), epoch)?;
     Ok(())
 }
 
@@ -61,10 +54,6 @@ pub fn save_epoch_reward_params(
     CURRENT_EPOCH_REWARD_PARAMS.save(storage, &epoch_reward_params)?;
     crate::rewards::storage::EPOCH_REWARD_PARAMS.save(storage, epoch_id, &epoch_reward_params)?;
     Ok(())
-}
-
-pub fn current_interval(storage: &dyn Storage) -> Result<Interval, ContractError> {
-    Ok(CURRENT_INTERVAL.load(storage)?)
 }
 
 pub fn current_epoch(storage: &dyn Storage) -> Result<Option<Interval>, ContractError> {

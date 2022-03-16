@@ -82,7 +82,3 @@ pub fn good_gateway_pledge() -> Vec<Coin> {
 pub fn node_reward_params_fixture(uptime: u128) -> NodeRewardParams {
     NodeRewardParams::new(0, uptime, true)
 }
-
-pub fn epoch_fixture() -> Interval {
-    Interval::init_epoch()
-}

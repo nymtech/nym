@@ -318,7 +318,11 @@ fn verify_rewarding_state(
         return Err(ContractError::Unauthorized);
     }
 
-    let current_interval = interval_storage::current_interval(storage)?;
+    let current_interval = if let Some(epoch) = interval_storage::current_epoch(storage)? {
+        epoch
+    } else {
+        return Err(ContractError::EpochNotInitialized);
+    };
 
     // make sure the transaction is sent for the correct interval
     // (guard ourselves against somebody trying to send stale results;
@@ -466,23 +470,24 @@ pub mod tests {
     use crate::interval::storage::{
         current_epoch_reward_params, save_epoch, save_epoch_reward_params,
     };
+    use crate::interval::transactions::try_advance_epoch;
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::storage::StoredMixnodeBond;
     use crate::rewards::transactions::try_reward_mixnode;
     use crate::support::tests;
-    use crate::support::tests::fixtures::epoch_fixture;
     use crate::support::tests::test_helpers;
     use az::CheckedCast;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{coin, coins, Addr, Uint128};
+    use cosmwasm_std::{coin, coins, Addr, Timestamp, Uint128};
     use mixnet_contract_common::events::{
         must_find_attribute, BOND_TOO_FRESH_VALUE, NO_REWARD_REASON_KEY,
         OPERATOR_REWARDING_EVENT_TYPE,
     };
     use mixnet_contract_common::reward_params::{NodeRewardParams, RewardParams};
-    use mixnet_contract_common::{Delegation, IdentityKey, Layer, MixNode};
+    use mixnet_contract_common::{Delegation, IdentityKey, Interval, Layer, MixNode};
+    use time::OffsetDateTime;
 
     #[test]
     fn rewarding_mixnodes_with_incorrect_interval_id() {
@@ -621,6 +626,7 @@ pub mod tests {
     #[test]
     fn rewarding_mixnode_blockstamp_based() {
         let mut deps = test_helpers::init_contract();
+
         let mut env = mock_env();
         let current_state = mixnet_params_storage::CONTRACT_STATE
             .load(deps.as_mut().storage)
@@ -664,6 +670,7 @@ pub mod tests {
 
         // delegation happens later, but not later enough
         env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+        env.block.time = Timestamp::from_seconds(OffsetDateTime::now_utc().unix_timestamp() as u64);
 
         delegations_storage::delegations()
             .save(
@@ -680,6 +687,15 @@ pub mod tests {
             .unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+
+        let epoch = Interval::init_epoch(env.clone());
+        save_epoch(&mut deps.storage, &epoch).unwrap();
+        save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
+
+        let epoch_from_storage = interval_storage::current_epoch(&deps.storage)
+            .unwrap()
+            .unwrap();
+        assert_eq!(epoch_from_storage.id(), 0);
 
         let res = try_reward_mixnode(
             deps.as_mut(),
@@ -713,13 +729,10 @@ pub mod tests {
 
         // reward can happen now, but only for bonded node
         env.block.height += 1;
-        test_helpers::update_env_and_progress_interval(&mut env, deps.as_mut().storage);
+        env.block.time = Timestamp::from_seconds(epoch.next().start_unix_timestamp() as u64);
+        try_advance_epoch(env.clone(), &mut deps.storage).unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-
-        let epoch = epoch_fixture();
-        save_epoch(&mut deps.storage, &epoch).unwrap();
-        save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
 
         let res = try_reward_mixnode(
             deps.as_mut(),
@@ -864,7 +877,7 @@ pub mod tests {
             .unwrap();
         let mix_1_uptime = 100;
 
-        let epoch = epoch_fixture();
+        let epoch = Interval::init_epoch(env.clone());
         save_epoch(&mut deps.storage, &epoch).unwrap();
         save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
 
@@ -997,7 +1010,7 @@ pub mod tests {
 
             env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
-            let epoch = epoch_fixture();
+            let epoch = Interval::init_epoch(env.clone());
             save_epoch(&mut deps.storage, &epoch).unwrap();
             save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
 

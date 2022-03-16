@@ -5,29 +5,75 @@ mod deposit;
 mod error;
 
 use crate::coconut::deposit::extract_encryption_key;
-use crate::coconut::error::Result;
+use crate::coconut::error::{CoconutError, Result};
 
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
     KeyPair, Parameters, VerificationKeyResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
+use crypto::asymmetric::encryption;
+use crypto::shared_key::new_ephemeral_shared_key;
+use crypto::symmetric::stream_cipher;
+use crypto::{aes::Aes128, blake3, ctr};
+
 use getset::{CopyGetters, Getters};
+use rand_07::rngs::OsRng;
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub struct State {
     key_pair: KeyPair,
     signed_deposits: sled::Db,
+    rng: Arc<Mutex<OsRng>>,
 }
 
 impl State {
     pub fn new(key_pair: KeyPair, signed_deposits: sled::Db) -> Self {
+        let rng = Arc::new(Mutex::new(OsRng));
         Self {
             key_pair,
             signed_deposits,
+            rng,
         }
+    }
+
+    pub fn signed_before(&self, tx_hash: &[u8]) -> Result<bool> {
+        Ok(self.signed_deposits.get(tx_hash)?.is_some())
+    }
+
+    pub async fn encrypt_and_store(
+        &self,
+        tx_hash: &[u8],
+        remote_key: &encryption::PublicKey,
+        signature: &BlindedSignature,
+    ) -> Result<Vec<u8>> {
+        if self.signed_before(tx_hash)? {
+            return Err(CoconutError::AlreadySigned);
+        }
+        let (_, shared_key) = {
+            let mut rng = *self.rng.lock().await;
+            new_ephemeral_shared_key::<ctr::Ctr64LE<Aes128>, blake3::Hasher, _>(
+                &mut rng, remote_key,
+            )
+        };
+
+        let chunk_data = signature.to_bytes();
+
+        let zero_iv = stream_cipher::zero_iv::<ctr::Ctr64LE<Aes128>>();
+        let encrypted_data =
+            stream_cipher::encrypt::<ctr::Ctr64LE<Aes128>>(&shared_key, &zero_iv, &chunk_data);
+
+        // Atomically insert data, only if there is no signature stored in the meantime
+        // This prevents race conditions on storing two signatures for the same deposit transaction
+        self.signed_deposits
+            .compare_and_swap(tx_hash, None as Option<&[u8]>, Some(encrypted_data.clone()))?
+            .map_err(|_| CoconutError::AlreadySigned)?;
+
+        Ok(encrypted_data)
     }
 }
 
@@ -85,14 +131,26 @@ pub async fn post_blind_sign(
     state: &RocketState<State>,
 ) -> Result<Json<BlindedSignatureResponse>> {
     debug!("{:?}", blind_sign_request_body);
-    let _encryption_key = extract_encryption_key(&blind_sign_request_body).await?;
+    if state.signed_before(blind_sign_request_body.tx_hash().as_bytes())? {
+        return Err(CoconutError::AlreadySigned);
+    }
+    let encryption_key = extract_encryption_key(&blind_sign_request_body).await?;
     let internal_request = InternalSignRequest::new(
         *blind_sign_request_body.total_params(),
         blind_sign_request_body.public_attributes(),
         blind_sign_request_body.blind_sign_request().clone(),
     );
     let blinded_signature = blind_sign(internal_request, &state.key_pair);
-    Ok(Json(BlindedSignatureResponse::new(blinded_signature)))
+
+    let encrypted_signature = state
+        .encrypt_and_store(
+            blind_sign_request_body.tx_hash().as_bytes(),
+            &encryption_key,
+            &blinded_signature,
+        )
+        .await?;
+
+    Ok(Json(BlindedSignatureResponse::new(encrypted_signature)))
 }
 
 #[get("/verification-key")]

@@ -4,8 +4,8 @@
 use bls12_381::Scalar;
 use coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
-    prove_bandwidth_credential, Attribute, BlindSignRequest, BlindSignRequestBody, Credential,
-    Parameters, Signature, SignatureShare, VerificationKey,
+    prove_bandwidth_credential, Attribute, BlindSignRequest, BlindSignRequestBody,
+    BlindedSignature, Credential, Parameters, Signature, SignatureShare, VerificationKey,
 };
 use url::Url;
 
@@ -81,10 +81,11 @@ async fn obtain_partial_credential(
         (public_attributes.len() + private_attributes.len()) as u32,
     );
 
-    let blinded_signature = client
+    let encrypted_signature = client
         .blind_sign(&blind_sign_request_body)
         .await?
-        .blinded_signature;
+        .encrypted_signature;
+    let blinded_signature = BlindedSignature::from_bytes(&encrypted_signature).unwrap();
 
     let unblinded_signature = blinded_signature.unblind(
         params,

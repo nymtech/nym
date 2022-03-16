@@ -41,6 +41,12 @@ pub enum CoconutError {
         "Public attributes in request differ from the ones in deposit - Expected {0}, got {1}"
     )]
     DifferentPublicAttributes(String, String),
+
+    #[error("Sled error - {0}")]
+    SledError(#[from] sled::Error),
+
+    #[error("Already singed for this transaction")]
+    AlreadySigned,
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

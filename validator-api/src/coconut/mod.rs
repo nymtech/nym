@@ -50,11 +50,11 @@ impl State {
         tx_hash: &[u8],
         remote_key: &encryption::PublicKey,
         signature: &BlindedSignature,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<BlindedSignatureResponse> {
         if self.signed_before(tx_hash)? {
             return Err(CoconutError::AlreadySigned);
         }
-        let (_, shared_key) = {
+        let (keypair, shared_key) = {
             let mut rng = *self.rng.lock().await;
             new_ephemeral_shared_key::<ctr::Ctr64LE<Aes128>, blake3::Hasher, _>(
                 &mut rng, remote_key,
@@ -73,7 +73,10 @@ impl State {
             .compare_and_swap(tx_hash, None as Option<&[u8]>, Some(encrypted_data.clone()))?
             .map_err(|_| CoconutError::AlreadySigned)?;
 
-        Ok(encrypted_data)
+        let response =
+            BlindedSignatureResponse::new(encrypted_data, keypair.public_key().to_base58_string());
+
+        Ok(response)
     }
 }
 
@@ -142,7 +145,7 @@ pub async fn post_blind_sign(
     );
     let blinded_signature = blind_sign(internal_request, &state.key_pair);
 
-    let encrypted_signature = state
+    let response = state
         .encrypt_and_store(
             blind_sign_request_body.tx_hash().as_bytes(),
             &encryption_key,
@@ -150,7 +153,7 @@ pub async fn post_blind_sign(
         )
         .await?;
 
-    Ok(Json(BlindedSignatureResponse::new(encrypted_signature)))
+    Ok(Json(response))
 }
 
 #[get("/verification-key")]

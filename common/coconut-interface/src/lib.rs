@@ -127,12 +127,14 @@ impl BlindSignRequestBody {
 #[derive(Serialize, Deserialize)]
 pub struct BlindedSignatureResponse {
     pub encrypted_signature: Vec<u8>,
+    pub remote_key: String,
 }
 
 impl BlindedSignatureResponse {
-    pub fn new(encrypted_signature: Vec<u8>) -> BlindedSignatureResponse {
+    pub fn new(encrypted_signature: Vec<u8>, remote_key: String) -> BlindedSignatureResponse {
         BlindedSignatureResponse {
             encrypted_signature,
+            remote_key,
         }
     }
 }

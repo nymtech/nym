@@ -116,6 +116,7 @@ impl Execute for GetCredential {
             VOUCHER_INFO,
             self.tx_hash.clone(),
             state.signing_keypair.private_key,
+            state.encryption_keypair.private_key,
         );
         let signature =
             obtain_aggregate_signature(&params, &bandwidth_credential_attributes, &urls).await?;

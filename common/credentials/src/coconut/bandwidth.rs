@@ -36,8 +36,10 @@ pub struct BandwidthVoucher {
     voucher_info_plain: String,
     // the hash of the deposit transaction
     tx_hash: String,
-    // base58 encoded key ensuring the depositer requested these attributes
+    // base58 encoded private key ensuring the depositer requested these attributes
     signing_key: String,
+    // base58 encoded private key ensuring only this client receives the signature share
+    encryption_key: String,
 }
 
 impl BandwidthVoucher {
@@ -47,6 +49,7 @@ impl BandwidthVoucher {
         voucher_info: &str,
         tx_hash: String,
         signing_key: String,
+        encryption_key: String,
     ) -> Self {
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
@@ -63,6 +66,7 @@ impl BandwidthVoucher {
             voucher_info_plain,
             tx_hash,
             signing_key,
+            encryption_key,
         }
     }
 
@@ -80,6 +84,10 @@ impl BandwidthVoucher {
 
     pub fn get_public_attributes(&self) -> Vec<PublicAttribute> {
         vec![self.voucher_value, self.voucher_info]
+    }
+
+    pub fn encryption_key(&self) -> String {
+        self.encryption_key.clone()
     }
 
     pub fn get_public_attributes_plain(&self) -> Vec<String> {

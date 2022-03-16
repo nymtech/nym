@@ -180,6 +180,7 @@ impl BandwidthController {
             network_defaults::VOUCHER_INFO,
             String::new(),
             String::new(),
+            String::new(),
         );
 
         let bandwidth_credential = obtain_aggregate_signature(

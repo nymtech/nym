@@ -2,11 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use bls12_381::Scalar;
+
 use coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
     prove_bandwidth_credential, Attribute, BlindSignRequest, BlindSignRequestBody,
     BlindedSignature, Credential, Parameters, Signature, SignatureShare, VerificationKey,
 };
+use crypto::asymmetric::encryption::{PrivateKey, PublicKey};
+use crypto::shared_key::recompute_shared_key;
+use crypto::symmetric::stream_cipher;
+use crypto::{aes::Aes128, blake3, ctr};
 use url::Url;
 
 use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES};
@@ -81,11 +86,21 @@ async fn obtain_partial_credential(
         (public_attributes.len() + private_attributes.len()) as u32,
     );
 
-    let encrypted_signature = client
-        .blind_sign(&blind_sign_request_body)
-        .await?
-        .encrypted_signature;
-    let blinded_signature = BlindedSignature::from_bytes(&encrypted_signature).unwrap();
+    let response = client.blind_sign(&blind_sign_request_body).await?;
+    let encrypted_signature = response.encrypted_signature;
+    let remote_key = PublicKey::from_base58_string(response.remote_key)?;
+    let local_key = PrivateKey::from_base58_string(attributes.encryption_key())?;
+
+    let encryption_key =
+        recompute_shared_key::<ctr::Ctr64LE<Aes128>, blake3::Hasher>(&remote_key, &local_key);
+    let zero_iv = stream_cipher::zero_iv::<ctr::Ctr64LE<Aes128>>();
+    let blinded_signature_bytes = stream_cipher::decrypt::<ctr::Ctr64LE<Aes128>>(
+        &encryption_key,
+        &zero_iv,
+        &encrypted_signature,
+    );
+
+    let blinded_signature = BlindedSignature::from_bytes(&blinded_signature_bytes).unwrap();
 
     let unblinded_signature = blinded_signature.unblind(
         params,

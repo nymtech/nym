@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use coconut_interface::CoconutError;
-use thiserror::Error;
+use crypto::asymmetric::encryption::KeyRecoveryError;
 use validator_client::ValidatorClientError;
+
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -30,4 +32,7 @@ pub enum Error {
 
     #[error("There is not associated bandwidth for the given client")]
     MissingBandwidth,
+
+    #[error("Could not parse the key - {0}")]
+    ParsePublicKey(#[from] KeyRecoveryError),
 }

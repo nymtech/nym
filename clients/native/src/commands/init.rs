@@ -114,6 +114,7 @@ async fn _prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) 
         VOUCHER_INFO,
         String::new(),
         String::new(),
+        String::new(),
     );
 
     let bandwidth_credential =

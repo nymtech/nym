@@ -4,6 +4,7 @@
 pub(crate) use crate::wallet_storage::password::UserPassword;
 
 use crate::error::BackendError;
+use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use crate::wallet_storage::account_data::StoredAccount;
 use crate::wallet_storage::encryption::{encrypt_struct, EncryptedData};
 use cosmrs::bip32::DerivationPath;
@@ -14,9 +15,6 @@ pub(crate) mod account_data;
 pub(crate) mod encryption;
 
 mod password;
-
-const STORAGE_DIR_NAME: &str = "NymWallet";
-const WALLET_INFO_FILENAME: &str = "saved_wallet.json";
 
 fn get_storage_directory() -> Result<PathBuf, BackendError> {
   tauri::api::path::local_data_dir()
@@ -52,14 +50,14 @@ fn load_existing_wallet_login_information_at_file(
 pub(crate) fn store_wallet_login_information(
   mnemonic: bip39::Mnemonic,
   hd_path: DerivationPath,
-  password: UserPassword,
+  password: &UserPassword,
 ) -> Result<(), BackendError> {
   // make sure the entire directory structure exists
   let store_dir = get_storage_directory()?;
   create_dir_all(&store_dir)?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
 
-  store_wallet_login_information_at_file(filepath, mnemonic, hd_path, &password)
+  store_wallet_login_information_at_file(filepath, mnemonic, hd_path, password)
 }
 
 fn store_wallet_login_information_at_file(

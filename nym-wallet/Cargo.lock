@@ -2843,6 +2843,7 @@ dependencies = [
  "argon2",
  "base64",
  "bip39",
+ "cfg-if",
  "coconut-interface",
  "config",
  "cosmrs",

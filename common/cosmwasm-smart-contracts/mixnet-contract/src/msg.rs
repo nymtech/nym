@@ -99,7 +99,7 @@ pub enum ExecuteMsg {
         rewarded_set: Vec<IdentityKey>,
         expected_active_set_size: u32,
     },
-    AdvanceCurrentInterval {},
+    // AdvanceCurrentInterval {},
     AdvanceCurrentEpoch {},
 }
 
@@ -164,13 +164,10 @@ pub enum QueryMsg {
         start_after: Option<IdentityKey>,
         limit: Option<u32>,
     },
-    GetRewardedSetHeightsForInterval {
-        interval_id: u32,
-    },
     GetRewardedSetUpdateDetails {},
     GetCurrentRewardedSetHeight {},
-    GetCurrentInterval {},
     GetRewardedSetRefreshBlocks {},
+    GetCurrentEpoch {},
     GetEpochsInInterval {},
 }
 

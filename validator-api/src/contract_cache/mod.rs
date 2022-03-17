@@ -23,8 +23,6 @@ use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
 
-type Epoch = Interval;
-
 pub struct ValidatorCacheRefresher<C> {
     nymd_client: Client<C>,
     cache: ValidatorCache,
@@ -46,7 +44,7 @@ struct ValidatorCacheInner {
     active_set: Cache<Vec<MixNodeBond>>,
 
     current_reward_params: Cache<EpochRewardParams>,
-    current_epoch: Cache<Interval>,
+    current_epoch: Cache<Option<Interval>>,
 }
 
 fn current_unix_timestamp() -> i64 {
@@ -134,7 +132,6 @@ impl<C> ValidatorCacheRefresher<C> {
             self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities);
 
         let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
-        let current_interval = self.nymd_client.get_current_interval().await?;
 
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
@@ -149,7 +146,6 @@ impl<C> ValidatorCacheRefresher<C> {
                 rewarded_set,
                 active_set,
                 epoch_rewarding_params,
-                current_interval,
             )
             .await;
 
@@ -219,7 +215,6 @@ impl ValidatorCache {
         rewarded_set: Vec<MixNodeBond>,
         active_set: Vec<MixNodeBond>,
         epoch_rewarding_params: EpochRewardParams,
-        current_epoch: Epoch,
     ) {
         let mut inner = self.inner.write().await;
 
@@ -228,7 +223,6 @@ impl ValidatorCache {
         inner.rewarded_set.update(rewarded_set);
         inner.active_set.update(active_set);
         inner.current_reward_params.update(epoch_rewarding_params);
-        inner.current_epoch.update(current_epoch);
     }
 
     pub async fn mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
@@ -251,7 +245,7 @@ impl ValidatorCache {
         self.inner.read().await.current_reward_params.clone()
     }
 
-    pub(crate) async fn current_interval(&self) -> Cache<Interval> {
+    pub(crate) async fn current_epoch(&self) -> Cache<Option<Interval>> {
         self.inner.read().await.current_epoch.clone()
     }
 
@@ -320,11 +314,7 @@ impl ValidatorCacheInner {
             current_reward_params: Cache::new(EpochRewardParams::new_empty()),
             // setting it to a dummy value on creation is fine, as nothing will be able to ready from it
             // since 'initialised' flag won't be set
-            current_epoch: Cache::new(Interval::new(
-                u32::MAX,
-                OffsetDateTime::UNIX_EPOCH,
-                Duration::default(),
-            )),
+            current_epoch: Cache::new(None),
         }
     }
 }

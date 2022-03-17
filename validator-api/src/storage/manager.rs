@@ -742,17 +742,17 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `interval_start_timestamp`: Unix timestamp of the start of this rewarding interval.
-    pub(super) async fn get_interval_rewarding_entry(
+    pub(super) async fn get_epoch_rewarding_entry(
         &self,
-        interval_start_timestamp: i64,
+        epoch_id: i64,
     ) -> Result<Option<IntervalRewarding>, sqlx::Error> {
         sqlx::query_as!(
             IntervalRewarding,
             r#"
                 SELECT * FROM interval_rewarding
-                WHERE interval_start_timestamp = ?
+                WHERE id = ?
             "#,
-            interval_start_timestamp
+            epoch_id
         )
         .fetch_optional(&self.connection_pool)
         .await

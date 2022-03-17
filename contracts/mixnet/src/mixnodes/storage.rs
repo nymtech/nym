@@ -61,7 +61,7 @@ pub(crate) struct StoredMixnodeBond {
     pub block_height: u64,
     pub mix_node: MixNode,
     pub proxy: Option<Addr>,
-    pub accumulated_rewards: Uint128,
+    pub accumulated_rewards: Option<Uint128>,
     pub epoch_rewards: Option<NodeEpochRewards>,
 }
 
@@ -89,7 +89,7 @@ impl StoredMixnodeBond {
         block_height: u64,
         mix_node: MixNode,
         proxy: Option<Addr>,
-        accumulated_rewards: Uint128,
+        accumulated_rewards: Option<Uint128>,
         epoch_rewards: Option<NodeEpochRewards>,
     ) -> Self {
         StoredMixnodeBond {
@@ -102,6 +102,10 @@ impl StoredMixnodeBond {
             accumulated_rewards,
             epoch_rewards,
         }
+    }
+
+    pub(crate) fn accumulated_rewards(&self) -> Uint128 {
+        self.accumulated_rewards.unwrap_or_else(Uint128::zero)
     }
 
     pub(crate) fn attach_delegation(self, total_delegation: Uint128) -> MixNodeBond {
@@ -216,7 +220,7 @@ mod tests {
                 ..tests::fixtures::mix_node_fixture()
             },
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: None,
             epoch_rewards: None,
         };
 

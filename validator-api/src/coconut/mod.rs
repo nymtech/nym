@@ -5,7 +5,7 @@ mod deposit;
 mod error;
 
 use crate::coconut::deposit::extract_encryption_key;
-use crate::coconut::error::{CoconutError, Result};
+use crate::coconut::error::Result;
 
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
@@ -41,8 +41,11 @@ impl State {
         }
     }
 
-    pub fn signed_before(&self, tx_hash: &[u8]) -> Result<bool> {
-        Ok(self.signed_deposits.get(tx_hash)?.is_some())
+    pub fn signed_before(&self, tx_hash: &[u8]) -> Result<Option<BlindedSignatureResponse>> {
+        Ok(self
+            .signed_deposits
+            .get(tx_hash)?
+            .map(|b| BlindedSignatureResponse::from_bytes(b.to_vec())))
     }
 
     pub async fn encrypt_and_store(
@@ -51,9 +54,6 @@ impl State {
         remote_key: &encryption::PublicKey,
         signature: &BlindedSignature,
     ) -> Result<BlindedSignatureResponse> {
-        if self.signed_before(tx_hash)? {
-            return Err(CoconutError::AlreadySigned);
-        }
         let (keypair, shared_key) = {
             let mut rng = *self.rng.lock().await;
             new_ephemeral_shared_key::<ctr::Ctr64LE<Aes128>, blake3::Hasher, _>(
@@ -72,11 +72,17 @@ impl State {
 
         // Atomically insert data, only if there is no signature stored in the meantime
         // This prevents race conditions on storing two signatures for the same deposit transaction
-        self.signed_deposits
+        if self
+            .signed_deposits
             .compare_and_swap(tx_hash, None as Option<&[u8]>, Some(response.to_bytes()))?
-            .map_err(|_| CoconutError::AlreadySigned)?;
-
-        Ok(response)
+            .is_err()
+        {
+            Ok(self
+                .signed_before(tx_hash)?
+                .expect("The signature was expected to be there"))
+        } else {
+            Ok(response)
+        }
     }
 }
 
@@ -134,8 +140,8 @@ pub async fn post_blind_sign(
     state: &RocketState<State>,
 ) -> Result<Json<BlindedSignatureResponse>> {
     debug!("{:?}", blind_sign_request_body);
-    if state.signed_before(blind_sign_request_body.tx_hash().as_bytes())? {
-        return Err(CoconutError::AlreadySigned);
+    if let Some(response) = state.signed_before(blind_sign_request_body.tx_hash().as_bytes())? {
+        return Ok(Json(response));
     }
     let encryption_key = extract_encryption_key(&blind_sign_request_body).await?;
     let internal_request = InternalSignRequest::new(

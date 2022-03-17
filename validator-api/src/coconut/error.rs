@@ -45,9 +45,6 @@ pub enum CoconutError {
 
     #[error("Sled error - {0}")]
     SledError(#[from] sled::Error),
-
-    #[error("Already singed for this transaction")]
-    AlreadySigned,
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

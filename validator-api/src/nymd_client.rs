@@ -4,9 +4,10 @@
 use crate::config::Config;
 use crate::rewarded_set_updater::{error::RewardingError, MixnodeToReward};
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
+use mixnet_contract_common::Interval;
 use mixnet_contract_common::{
     reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
-    IdentityKey, Interval, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
+    IdentityKey, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
     RewardedSetUpdateDetails,
 };
 use serde::Serialize;
@@ -113,13 +114,6 @@ impl<C> Client<C> {
         Ok(time)
     }
 
-    pub(crate) async fn get_current_interval(&self) -> Result<Interval, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0.read().await.get_current_interval().await
-    }
-
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -144,6 +138,13 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         self.0.read().await.get_contract_settings().await
+    }
+
+    pub(crate) async fn get_current_epoch(&self) -> Result<Option<Interval>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.0.read().await.get_current_epoch().await?)
     }
 
     pub(crate) async fn get_current_epoch_reward_params(
@@ -248,15 +249,6 @@ impl<C> Client<C> {
             .await
             .get_current_rewarded_set_update_details()
             .await
-    }
-
-    #[allow(dead_code)]
-    pub(crate) async fn advance_current_interval(&self) -> Result<(), ValidatorClientError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        self.0.write().await.nymd.advance_current_interval().await?;
-        Ok(())
     }
 
     pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>

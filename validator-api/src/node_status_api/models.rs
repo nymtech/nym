@@ -239,7 +239,7 @@ pub enum ValidatorApiStorageError {
     GatewayUptimeHistoryNotFound(String),
 
     // I don't think we want to expose errors to the user about what really happened
-    InternalDatabaseError,
+    InternalDatabaseError(String),
 }
 
 impl Display for ValidatorApiStorageError {
@@ -265,8 +265,8 @@ impl Display for ValidatorApiStorageError {
                 "Could not find uptime history associated with gateway {}",
                 identity
             ),
-            ValidatorApiStorageError::InternalDatabaseError => {
-                write!(f, "The internal database has experienced an issue")
+            ValidatorApiStorageError::InternalDatabaseError(err) => {
+                write!(f, "The internal database has experienced an issue: {err}")
             }
         }
     }

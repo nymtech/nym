@@ -6,35 +6,16 @@ use crate::error::ContractError;
 use cosmwasm_std::{Env, Order, StdResult, Storage};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::{
-    IdentityKey, Interval, IntervalRewardedSetHeightsResponse, PagedRewardedSetResponse,
-    RewardedSetNodeStatus, RewardedSetUpdateDetails,
+    IdentityKey, Interval, PagedRewardedSetResponse, RewardedSetNodeStatus,
+    RewardedSetUpdateDetails,
 };
 
-pub fn query_current_interval(storage: &dyn Storage) -> Result<Interval, ContractError> {
-    storage::current_interval(storage)
+pub fn query_current_epoch(storage: &dyn Storage) -> Result<Option<Interval>, ContractError> {
+    storage::current_epoch(storage)
 }
 
 pub(crate) fn query_rewarded_set_refresh_minimum_blocks() -> u64 {
     crate::constants::REWARDED_SET_REFRESH_BLOCKS
-}
-
-pub fn query_rewarded_set_heights_for_interval(
-    storage: &dyn Storage,
-    interval_id: u32,
-) -> Result<IntervalRewardedSetHeightsResponse, ContractError> {
-    // I don't think we have to deal with paging here as at most we're going to have 720 values here
-    // and I think the validators are capable of performing 720 storage reads at once if they're only
-    // reading u64 (+ u8) values...
-    let heights = storage::REWARDED_SET_HEIGHTS_FOR_INTERVAL
-        .prefix(interval_id)
-        .range(storage, None, None, Order::Ascending)
-        .map(|val| val.map(|(height, _)| height))
-        .collect::<StdResult<Vec<_>>>()?;
-
-    Ok(IntervalRewardedSetHeightsResponse {
-        interval_id,
-        heights,
-    })
 }
 
 // note: I have removed the `query_rewarded_set_for_interval`, because I don't think it's appropriate
@@ -125,47 +106,6 @@ mod tests {
             .collect::<Vec<_>>();
         storage::save_rewarded_set(storage, height, active_set, identities.clone()).unwrap();
         identities
-    }
-
-    #[test]
-    fn querying_for_rewarded_set_heights_for_interval() {
-        let mut deps = test_helpers::init_contract();
-
-        // no data
-        assert!(
-            query_rewarded_set_heights_for_interval(deps.as_ref().storage, 0)
-                .unwrap()
-                .heights
-                .is_empty()
-        );
-
-        // 100 heights
-        for i in 0..100 {
-            storage::REWARDED_SET_HEIGHTS_FOR_INTERVAL
-                .save(deps.as_mut().storage, (1, i), &0u8)
-                .unwrap();
-        }
-        let expected = (0..100).collect::<Vec<_>>();
-        assert_eq!(
-            expected,
-            query_rewarded_set_heights_for_interval(deps.as_ref().storage, 1)
-                .unwrap()
-                .heights
-        );
-
-        // 100 heights for different interval
-        for i in 200..300 {
-            storage::REWARDED_SET_HEIGHTS_FOR_INTERVAL
-                .save(deps.as_mut().storage, (10, i), &0u8)
-                .unwrap();
-        }
-        let expected = (200..300).collect::<Vec<_>>();
-        assert_eq!(
-            expected,
-            query_rewarded_set_heights_for_interval(deps.as_ref().storage, 10)
-                .unwrap()
-                .heights
-        )
     }
 
     #[test]

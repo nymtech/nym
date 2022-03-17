@@ -3,6 +3,7 @@ use std::time::Duration;
 use crate::contract::INITIAL_MIXNODE_PLEDGE;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::{mixnodes::storage::StoredMixnodeBond, support::tests};
+use az::UnwrappedAs;
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Coin, Uint128};
 use mixnet_contract_common::reward_params::NodeRewardParams;
@@ -59,7 +60,7 @@ pub(crate) fn stored_mixnode_bond_fixture(owner: &str) -> mixnodes_storage::Stor
             ..super::fixtures::mix_node_fixture()
         },
         None,
-        Uint128::zero(),
+        None,
         None,
     )
 }
@@ -80,8 +81,4 @@ pub fn good_gateway_pledge() -> Vec<Coin> {
 
 pub fn node_reward_params_fixture(uptime: u128) -> NodeRewardParams {
     NodeRewardParams::new(0, uptime, true)
-}
-
-pub fn epoch_fixture() -> Interval {
-    Interval::new(1, OffsetDateTime::now_utc(), Duration::from_secs(3600))
 }

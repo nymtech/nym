@@ -5,9 +5,14 @@ use cw_storage_plus::{Index, IndexList, IndexedMap, Map, MultiIndex};
 use mixnet_contract_common::{mixnode::DelegationEvent, Addr, Delegation, IdentityKey};
 
 // storage prefixes
-const DELEGATION_PK_NAMESPACE: &str = "dl";
-const DELEGATION_OWNER_IDX_NAMESPACE: &str = "dlo";
-const DELEGATION_MIXNODE_IDX_NAMESPACE: &str = "dlm";
+pub const DELEGATION_PK_NAMESPACE: &str = "dl";
+pub const DELEGATION_OWNER_IDX_NAMESPACE: &str = "dlo";
+pub const DELEGATION_MIXNODE_IDX_NAMESPACE: &str = "dlm";
+
+pub const PENDING_DELEGATION_EVENTS: Map<
+    (BlockHeight, IdentityKey, OwnerAddress),
+    DelegationEvent,
+> = Map::new("pend");
 
 pub const PENDING_DELEGATION_EVENTS: Map<
     (BlockHeight, IdentityKey, OwnerAddress),

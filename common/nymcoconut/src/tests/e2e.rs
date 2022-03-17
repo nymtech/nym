@@ -49,7 +49,7 @@ fn main() -> Result<(), CoconutError> {
             .map(|(s, vk)| {
                 s.unblind(
                     &params,
-                    &vk,
+                    vk,
                     &private_attributes,
                     &public_attributes,
                     &blind_sign_request.get_commitment_hash(),

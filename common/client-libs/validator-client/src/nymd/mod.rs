@@ -290,6 +290,16 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn get_current_epoch(&self) -> Result<Option<Interval>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetCurrentEpoch {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
     pub async fn get_mixnet_contract_version(&self) -> Result<MixnetContractVersion, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -364,16 +374,6 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::LayerDistribution {};
-        self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
-            .await
-    }
-
-    pub async fn get_current_interval(&self) -> Result<Interval, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::GetCurrentInterval {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
@@ -1200,25 +1200,6 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Advance current epoch",
-                Vec::new(),
-            )
-            .await
-    }
-
-    pub async fn advance_current_interval(&self) -> Result<ExecuteResult, NymdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let fee = self.operation_fee(Operation::AdvanceCurrentInterval);
-
-        let req = ExecuteMsg::AdvanceCurrentInterval {};
-        self.client
-            .execute(
-                self.address(),
-                self.mixnet_contract_address()?,
-                &req,
-                fee,
-                "Advancing current interval",
                 Vec::new(),
             )
             .await

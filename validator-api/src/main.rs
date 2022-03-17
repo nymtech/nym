@@ -464,7 +464,8 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             rewarded_set_update_notify,
             validator_cache.clone(),
             storage,
-        );
+        )
+        .await?;
 
         // spawn rewarded set updater
         tokio::spawn(async move { rewarded_set_updater.run().await.unwrap() });

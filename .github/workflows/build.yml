@@ -57,7 +57,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: -- -D warnings
+          args: --workspace -- -D warnings
 
       - name: Build all binaries with coconut enabled
         uses: actions-rs/cargo@v1

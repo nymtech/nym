@@ -38,11 +38,10 @@ pub(crate) mod tests {
         use crate::delegations::transactions::try_delegate_to_mixnode;
         use crate::interval::storage::{save_epoch, save_epoch_reward_params};
         use crate::rewards::transactions::try_reward_mixnode;
-        use crate::{constants, support::tests::fixtures::epoch_fixture};
         use config::defaults::DENOM;
         use cosmwasm_std::{coin, Addr};
         use mixnet_contract_common::{
-            RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
+            Interval, RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
         };
 
         #[test]
@@ -107,7 +106,7 @@ pub(crate) mod tests {
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
 
-            let epoch = epoch_fixture();
+            let epoch = Interval::init_epoch(env.clone());
             save_epoch(&mut deps.storage, &epoch).unwrap();
             save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
 

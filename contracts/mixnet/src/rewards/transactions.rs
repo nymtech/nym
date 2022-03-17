@@ -71,7 +71,7 @@ pub fn _try_compound_operator_reward(
 
     let mut updated_bond = bond.clone();
     let reward = calculate_operator_reward(storage, owner, &bond)?;
-    updated_bond.accumulated_rewards -= reward;
+    updated_bond.accumulated_rewards = Some(updated_bond.accumulated_rewards() - reward);
     updated_bond.pledge_amount.amount += reward;
     mixnodes().replace(
         storage,
@@ -216,7 +216,7 @@ pub fn _try_compound_delegator_reward(
     {
         // Node exists all is well, life goes on, if it does not exist we'll just return the reward to the caller as there is nothing to do on the bond
         if let Some(mut bond) = mixnodes().may_load(storage, mix_identity)? {
-            bond.accumulated_rewards -= reward;
+            bond.accumulated_rewards = Some(bond.accumulated_rewards() - reward);
             mixnodes().save(storage, mix_identity, &bond, block_height)?;
         }
     };
@@ -318,7 +318,11 @@ fn verify_rewarding_state(
         return Err(ContractError::Unauthorized);
     }
 
-    let current_interval = interval_storage::current_interval(storage)?;
+    let current_interval = if let Some(epoch) = interval_storage::current_epoch(storage)? {
+        epoch
+    } else {
+        return Err(ContractError::EpochNotInitialized);
+    };
 
     // make sure the transaction is sent for the correct interval
     // (guard ourselves against somebody trying to send stale results;
@@ -415,7 +419,8 @@ pub(crate) fn try_reward_mixnode(
     let node_reward_result = current_bond.reward(&reward_params);
     let stored_node_result: StoredNodeRewardResult = node_reward_result.try_into()?;
 
-    current_bond.accumulated_rewards += stored_node_result.reward();
+    current_bond.accumulated_rewards =
+        Some(current_bond.accumulated_rewards() + stored_node_result.reward());
     let mut stored_bond: StoredMixnodeBond = current_bond.into();
     // technically we don't have to set the total_delegation bucket, but it makes things easier
     // in different places that we can guarantee that if node exists, so does the data behind the total delegation
@@ -465,6 +470,7 @@ pub mod tests {
     use crate::interval::storage::{
         current_epoch_reward_params, save_epoch, save_epoch_reward_params,
     };
+    use crate::interval::transactions::try_advance_epoch;
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::storage::StoredMixnodeBond;
@@ -475,13 +481,14 @@ pub mod tests {
     use az::CheckedCast;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{coin, coins, Addr, Uint128};
+    use cosmwasm_std::{coin, coins, Addr, Timestamp, Uint128};
     use mixnet_contract_common::events::{
         must_find_attribute, BOND_TOO_FRESH_VALUE, NO_REWARD_REASON_KEY,
         OPERATOR_REWARDING_EVENT_TYPE,
     };
     use mixnet_contract_common::reward_params::{NodeRewardParams, RewardParams};
-    use mixnet_contract_common::{Delegation, IdentityKey, Layer, MixNode};
+    use mixnet_contract_common::{Delegation, IdentityKey, Interval, Layer, MixNode};
+    use time::OffsetDateTime;
 
     #[test]
     fn rewarding_mixnodes_with_incorrect_interval_id() {
@@ -620,6 +627,7 @@ pub mod tests {
     #[test]
     fn rewarding_mixnode_blockstamp_based() {
         let mut deps = test_helpers::init_contract();
+
         let mut env = mock_env();
         let current_state = mixnet_params_storage::CONTRACT_STATE
             .load(deps.as_mut().storage)
@@ -641,7 +649,7 @@ pub mod tests {
                 ..tests::fixtures::mix_node_fixture()
             },
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: None,
             epoch_rewards: None,
         };
 
@@ -663,6 +671,7 @@ pub mod tests {
 
         // delegation happens later, but not later enough
         env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING - 1;
+        env.block.time = Timestamp::from_seconds(OffsetDateTime::now_utc().unix_timestamp() as u64);
 
         delegations_storage::delegations()
             .save(
@@ -679,6 +688,15 @@ pub mod tests {
             .unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+
+        let epoch = Interval::init_epoch(env.clone());
+        save_epoch(&mut deps.storage, &epoch).unwrap();
+        save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
+
+        let epoch_from_storage = interval_storage::current_epoch(&deps.storage)
+            .unwrap()
+            .unwrap();
+        assert_eq!(epoch_from_storage.id(), 0);
 
         let res = try_reward_mixnode(
             deps.as_mut(),
@@ -712,13 +730,10 @@ pub mod tests {
 
         // reward can happen now, but only for bonded node
         env.block.height += 1;
-        test_helpers::update_env_and_progress_interval(&mut env, deps.as_mut().storage);
+        env.block.time = Timestamp::from_seconds(epoch.next().start_unix_timestamp() as u64);
+        try_advance_epoch(env.clone(), &mut deps.storage).unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-
-        let epoch = epoch_fixture();
-        save_epoch(&mut deps.storage, &epoch).unwrap();
-        save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
 
         let res = try_reward_mixnode(
             deps.as_mut(),
@@ -734,7 +749,7 @@ pub mod tests {
             .load(&deps.storage, &node_identity)
             .unwrap();
 
-        assert!(mixnode.accumulated_rewards > Uint128::zero(),);
+        assert!(mixnode.accumulated_rewards > Some(Uint128::zero()),);
         assert_eq!(
             initial_delegation,
             mixnodes_storage::TOTAL_DELEGATION
@@ -863,7 +878,7 @@ pub mod tests {
             .unwrap();
         let mix_1_uptime = 100;
 
-        let epoch = epoch_fixture();
+        let epoch = Interval::init_epoch(env.clone());
         save_epoch(&mut deps.storage, &epoch).unwrap();
         save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
 
@@ -934,7 +949,7 @@ pub mod tests {
             test_helpers::read_mixnode_pledge_amount(&deps.storage, &node_identity)
                 .unwrap()
                 .u128()
-                + mixnode.accumulated_rewards.u128(),
+                + mixnode.accumulated_rewards().u128(),
             pre_reward_bond
                 + mix1_operator_reward
                 + mix1_delegator1_reward
@@ -996,7 +1011,7 @@ pub mod tests {
 
             env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
-            let epoch = epoch_fixture();
+            let epoch = Interval::init_epoch(env.clone());
             save_epoch(&mut deps.storage, &epoch).unwrap();
             save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
 

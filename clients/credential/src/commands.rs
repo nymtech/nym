@@ -92,6 +92,10 @@ pub(crate) struct GetCredential {
     /// The hash of a successful deposit transaction
     #[clap(long)]
     tx_hash: String,
+    /// If we want to get the signature without attaching a blind sign request; it is expected that
+    /// there is already a signature stored on the signer
+    #[clap(long, parse(from_flag))]
+    __no_request: bool,
 }
 
 #[async_trait]

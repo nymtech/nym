@@ -711,6 +711,13 @@ impl ApiClient {
         Ok(self.validator_api.blind_sign(request_body).await?)
     }
 
+    pub async fn signature(
+        &self,
+        request_body: &str,
+    ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
+        Ok(self.validator_api.signature(request_body).await?)
+    }
+
     pub async fn get_coconut_verification_key(
         &self,
     ) -> Result<VerificationKeyResponse, ValidatorClientError> {

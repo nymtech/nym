@@ -261,6 +261,18 @@ impl Client {
         .await
     }
 
+    pub async fn signature(
+        &self,
+        request_body: &str,
+    ) -> Result<BlindedSignatureResponse, ValidatorAPIError> {
+        self.post_validator_api(
+            &[routes::API_VERSION, routes::COCONUT_SIGNATURE],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
     pub async fn get_coconut_verification_key(
         &self,
     ) -> Result<VerificationKeyResponse, ValidatorAPIError> {

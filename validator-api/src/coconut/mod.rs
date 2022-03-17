@@ -5,7 +5,7 @@ mod deposit;
 mod error;
 
 use crate::coconut::deposit::extract_encryption_key;
-use crate::coconut::error::Result;
+use crate::coconut::error::{CoconutError, Result};
 
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
@@ -116,7 +116,7 @@ impl InternalSignRequest {
             rocket.manage(state).mount(
                 // this format! is so ugly...
                 format!("/{}", VALIDATOR_API_VERSION),
-                routes![post_blind_sign, get_verification_key],
+                routes![post_blind_sign, get_verification_key, get_signature],
             )
         })
     }
@@ -160,6 +160,18 @@ pub async fn post_blind_sign(
         .await?;
 
     Ok(Json(response))
+}
+
+#[get("/signature", data = "<tx_hash>")]
+pub async fn get_signature(
+    tx_hash: String,
+    state: &RocketState<State>,
+) -> Result<Json<BlindedSignatureResponse>> {
+    Ok(Json(
+        state
+            .signed_before(tx_hash.as_bytes())?
+            .ok_or(CoconutError::NoSignature)?,
+    ))
 }
 
 #[get("/verification-key")]

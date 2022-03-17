@@ -45,6 +45,9 @@ pub enum CoconutError {
 
     #[error("Sled error - {0}")]
     SledError(#[from] sled::Error),
+
+    #[error("No signature found")]
+    NoSignature,
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

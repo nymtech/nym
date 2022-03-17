@@ -1,8 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bls12_381::Scalar;
-
 // forward-secure public key encryption scheme
 pub(crate) mod bte;
 pub mod error;
@@ -13,13 +11,17 @@ mod interpolation;
 // secure channel encryption scheme, but I would assume that the top-level API would
 // remain more or less the same
 pub mod secure_channel;
+pub(crate) mod share;
 pub(crate) mod utils;
+
+pub use share::*;
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::interpolation::perform_lagrangian_interpolation_at_origin;
     use crate::interpolation::polynomial::Polynomial;
+    use bls12_381::Scalar;
     use rand_chacha::rand_core::SeedableRng;
 
     #[test]

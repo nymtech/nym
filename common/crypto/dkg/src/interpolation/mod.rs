@@ -1,13 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod polynomial;
-
 use crate::error::DkgError;
 use bls12_381::Scalar;
 use core::iter::Sum;
 use core::ops::Mul;
 use std::collections::HashSet;
+
+pub mod polynomial;
 
 fn contains_duplicates(vals: &[Scalar]) -> bool {
     let mut set = HashSet::new();

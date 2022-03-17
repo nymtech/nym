@@ -1,27 +1,16 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::bte::{Chunk, ChunkedShare, Ciphertext, PublicKey, Share, CHUNK_SIZE, NUM_CHUNKS};
+use crate::bte::{Chunk, Ciphertext, PublicKey, Share, CHUNK_SIZE, NUM_CHUNKS};
 use crate::error::DkgError;
-use crate::utils::{hash_to_scalar, hash_to_scalars};
-use bls12_381::{G1Projective, G2Projective, Scalar};
+use crate::ensure_len;
+use crate::utils::hash_to_scalar;
+use crate::utils::RandomOracleBuilder;
+use bls12_381::{G1Projective, Scalar};
 use ff::Field;
 use group::{Group, GroupEncoding};
 use rand::Rng;
 use rand_core::{RngCore, SeedableRng};
-use sha2::{Digest, Sha256};
-use std::mem;
-use zeroize::Zeroize;
-
-macro_rules! ensure_len {
-    ($a:expr, $b:expr) => {
-        if $a.len() != $b {
-            return false;
-        }
-    };
-}
-
-pub(crate) use ensure_len;
 
 const CHUNKING_ORACLE_DOMAIN: &[u8] =
     b"NYM_COCONUT_NIDKG_V01_CS01_SHA-256_CHACHA20_CHUNKING_ORACLE";
@@ -535,35 +524,6 @@ impl ProofOfChunking {
         bytes.extend_from_slice(y.to_bytes().as_ref());
 
         hash_to_scalar(bytes, SECOND_CHALLENGE_DOMAIN)
-    }
-}
-
-// TODO: perhaps move to a common/utils part of the dkg crate?
-struct RandomOracleBuilder {
-    inner_state: Sha256,
-}
-
-impl RandomOracleBuilder {
-    fn new(domain: &[u8]) -> Self {
-        let mut inner_state = Sha256::new();
-        inner_state.update(domain);
-
-        RandomOracleBuilder { inner_state }
-    }
-
-    fn update(&mut self, data: impl AsRef<[u8]>) {
-        self.inner_state.update(data)
-    }
-
-    fn update_with_g1_elements<'a, I>(&mut self, items: I)
-    where
-        I: Iterator<Item = &'a G1Projective>,
-    {
-        items.for_each(|item| self.update(item.to_bytes()))
-    }
-
-    fn finalize(self) -> [u8; 32] {
-        self.inner_state.finalize().into()
     }
 }
 

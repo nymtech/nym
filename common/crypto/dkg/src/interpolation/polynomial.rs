@@ -4,9 +4,7 @@
 use bls12_381::{G2Projective, Scalar};
 use ff::Field;
 use rand_core::RngCore;
-use std::borrow::Borrow;
-use std::ops;
-use std::ops::{Add, AddAssign, Index, IndexMut, MulAssign, SubAssign};
+use std::ops::{Add, Index, IndexMut};
 use zeroize::Zeroize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Zeroize)]

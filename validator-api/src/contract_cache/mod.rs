@@ -145,7 +145,7 @@ impl<C> ValidatorCacheRefresher<C> {
                 gateways,
                 rewarded_set,
                 active_set,
-                epoch_rewarding_params, 
+                epoch_rewarding_params,
             )
             .await;
 
@@ -314,7 +314,7 @@ impl ValidatorCacheInner {
             current_reward_params: Cache::new(EpochRewardParams::new_empty()),
             // setting it to a dummy value on creation is fine, as nothing will be able to ready from it
             // since 'initialised' flag won't be set
-            current_epoch: Cache::new(None)
+            current_epoch: Cache::new(None),
         }
     }
 }

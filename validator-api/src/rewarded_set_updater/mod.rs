@@ -77,7 +77,9 @@ pub struct RewardedSetUpdater {
 
 impl RewardedSetUpdater {
     pub(crate) fn epoch(&self) -> Result<Epoch, RewardingError> {
-        self.epoch.clone().ok_or_else(|| RewardingError::EpochNotInitialized)
+        self.epoch
+            .clone()
+            .ok_or_else(|| RewardingError::EpochNotInitialized)
     }
 
     pub(crate) async fn new(

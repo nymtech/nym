@@ -245,7 +245,7 @@ checksum = "873faa4363bfc54c36a48321da034c92a0645a363eed34d948683ffc1706e37f"
 dependencies = [
  "bs58",
  "hmac 0.11.0",
- "k256 0.10.3",
+ "k256 0.10.4",
  "once_cell",
  "pbkdf2",
  "rand_core 0.6.3",
@@ -736,7 +736,7 @@ dependencies = [
  "ecdsa 0.13.4",
  "eyre",
  "getrandom 0.2.5",
- "k256 0.10.3",
+ "k256 0.10.4",
  "prost",
  "prost-types",
  "rand_core 0.6.3",
@@ -1269,9 +1269,9 @@ checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
 name = "dyn-clone"
-version = "1.0.4"
+version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee2626afccd7561a06cf1367e2950c4718ea04565e20fb5029b6c7d8ad09abcf"
+checksum = "21e50f3adc76d6a43f5ed73b698a87d0760ca74617f60f7c3b879003536fdd28"
 
 [[package]]
 name = "ecdsa"
@@ -2502,9 +2502,9 @@ dependencies = [
 
 [[package]]
 name = "k256"
-version = "0.10.3"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "587f53e46eb6dc82b53cda7ebf3ae3ad568ed987ced60962fc845f7fe22904e3"
+checksum = "19c3a5e0a0b8450278feda242592512e09f61c72e018b8cd5c859482802daf2d"
 dependencies = [
  "cfg-if",
  "ecdsa 0.13.4",
@@ -2893,9 +2893,9 @@ dependencies = [
 
 [[package]]
 name = "num_threads"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c539a50b93a303167eded6e8dff5220cd39447409fb659f4cd24b1f72fe4f133"
+checksum = "aba1801fb138d8e85e11d0fc70baf4fe1cdfffda7c6cd34a854905df588e5ed0"
 dependencies = [
  "libc",
 ]
@@ -5216,9 +5216,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.88"
+version = "1.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebd69e719f31e88618baa1eaa6ee2de5c9a1c004f1e9ecdb58e8352a13f20a01"
+checksum = "ea297be220d52398dcc07ce15a209fce436d361735ac1db700cab3b6cdfb9f54"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5269,7 +5269,7 @@ dependencies = [
  "ed25519-dalek",
  "flex-error",
  "futures",
- "k256 0.10.3",
+ "k256 0.10.4",
  "num-traits",
  "once_cell",
  "prost",

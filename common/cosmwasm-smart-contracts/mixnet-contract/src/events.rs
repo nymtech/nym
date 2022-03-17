@@ -87,7 +87,7 @@ pub fn new_checkpoint_mixnodes_event(block_height: u64) -> Event {
 }
 
 pub fn new_error_event(err: String) -> Event {
-    Event::new(RECONCILIATION_ERROR_EVENT).add_attribute("error", err.to_string())
+    Event::new(RECONCILIATION_ERROR_EVENT).add_attribute("error", err)
 }
 
 pub fn new_delegation_event(

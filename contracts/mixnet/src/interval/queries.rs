@@ -6,8 +6,8 @@ use crate::error::ContractError;
 use cosmwasm_std::{Env, Order, StdResult, Storage};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::{
-    IdentityKey, Interval, PagedRewardedSetResponse,
-    RewardedSetNodeStatus, RewardedSetUpdateDetails,
+    IdentityKey, Interval, PagedRewardedSetResponse, RewardedSetNodeStatus,
+    RewardedSetUpdateDetails,
 };
 
 pub fn query_current_epoch(storage: &dyn Storage) -> Result<Option<Interval>, ContractError> {

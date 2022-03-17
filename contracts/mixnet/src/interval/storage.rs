@@ -31,7 +31,6 @@ pub(crate) const CURRENT_REWARDED_SET_HEIGHT: Item<'_, BlockHeight> = Item::new(
 pub(crate) const REWARDED_SET: Map<'_, (BlockHeight, IdentityKey), RewardedSetNodeStatus> =
     Map::new("rs");
 
-pub(crate) const INTERVALS: Map<'_, IntervalId, Interval> = Map::new("ins");
 pub(crate) const EPOCHS: Map<'_, IntervalId, Interval> = Map::new("ephs");
 
 pub fn save_epoch(storage: &mut dyn Storage, epoch: &Interval) -> Result<(), ContractError> {

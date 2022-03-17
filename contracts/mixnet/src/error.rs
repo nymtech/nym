@@ -157,5 +157,5 @@ pub enum ContractError {
     NoRewardsToClaim { identity: String, delegate: String },
 
     #[error("Epoch not initialized yet!")]
-    EpochNotInitialized
+    EpochNotInitialized,
 }

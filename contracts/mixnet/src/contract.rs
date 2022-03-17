@@ -1,10 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::constants::{
-    ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT,
-    SYBIL_RESISTANCE_PERCENT,
-};
+use crate::constants::{ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, SYBIL_RESISTANCE_PERCENT};
 use crate::delegations::queries::query_all_network_delegations_paged;
 use crate::delegations::queries::query_delegator_delegations_paged;
 use crate::delegations::queries::query_mixnode_delegation;
@@ -12,12 +9,12 @@ use crate::delegations::queries::query_mixnode_delegations_paged;
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
+use crate::interval::queries::query_current_epoch;
 use crate::interval::queries::{
     query_current_rewarded_set_height, query_rewarded_set,
     query_rewarded_set_refresh_minimum_blocks, query_rewarded_set_update_details,
 };
 use crate::interval::storage as interval_storage;
-use crate::interval::queries::query_current_epoch;
 use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::{
     query_contract_settings_params, query_contract_version,

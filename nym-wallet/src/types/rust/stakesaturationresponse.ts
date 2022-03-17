@@ -1,4 +1,2 @@
-export interface StakeSaturationResponse {
-  saturation: number;
-  as_at: bigint;
-}
+
+export interface StakeSaturationResponse { saturation: number, as_at: bigint, }

@@ -16,10 +16,10 @@ pub use fee::gas_price::GasPrice;
 use fee::helpers::Operation;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
-    IdentityKey, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
+    IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
     MixnetContractVersion, MixnodeRewardingStatusResponse, PagedAllDelegationsResponse,
     PagedDelegatorDelegationsResponse, PagedGatewayResponse, PagedMixDelegationsResponse,
-    PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails, Interval,
+    PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
 };
 use serde::Serialize;
 use std::convert::TryInto;

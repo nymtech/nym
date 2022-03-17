@@ -269,8 +269,136 @@ impl ProofOfChunking {
         })
     }
 
-    pub(crate) fn verify(&self) -> bool {
-        false
+    pub(crate) fn verify(&self, instance: Instance) -> bool {
+        if !instance.validate() {
+            return false;
+        }
+
+        let g1 = G1Projective::generator();
+        let n = instance.public_keys.len();
+        let m = instance.randomizers_r.len();
+
+        ensure_len!(&self.bb, PARALLEL_RUNS);
+        ensure_len!(&self.cc, PARALLEL_RUNS);
+        ensure_len!(&self.dd, n + 1);
+        ensure_len!(&self.responses_r, n);
+        ensure_len!(&self.responses_chunks, PARALLEL_RUNS);
+
+        let ee = 1 << NUM_CHALLENGE_BITS;
+
+        // CHUNK_MAX corresponds to paper's B
+        let ss = (n * m * (CHUNK_MAX - 1) * (ee - 1)) as u64;
+        let zz = 2 * (PARALLEL_RUNS as u64) * ss;
+
+        let mut zz_be_bytes = Scalar::from(zz).to_bytes();
+        zz_be_bytes.reverse();
+
+        for response_chunk in &self.responses_chunks {
+            // technically it doesn't really make much sense as there's no such thing as ordering in finite fields,
+            // but that's the best we can do to follow the requirements
+            let mut z_sk_be_bytes = response_chunk.to_bytes();
+            z_sk_be_bytes.reverse();
+
+            if z_sk_be_bytes >= zz_be_bytes {
+                return false;
+            }
+        }
+
+        let first_challenge =
+            Self::compute_first_challenge(&instance, &self.y0, &self.bb, &self.cc, n, m);
+
+        let second_challenge = Self::compute_second_challenge(
+            &first_challenge,
+            &self.responses_chunks,
+            &self.dd,
+            &self.yy,
+        );
+
+        // memoise chlg^k for k in 1..l since they're used in multiple checks, so there's
+        // no point in recomputing them every time
+        let mut challenge_pows = Vec::with_capacity(PARALLEL_RUNS);
+        challenge_pows.push(second_challenge);
+        for k in 1..PARALLEL_RUNS {
+            challenge_pows.push(challenge_pows[k - 1] * second_challenge)
+        }
+
+        // for i in [1..n] check if:
+        // R_1 ^ (e_{i,1,1} * chlg^1 + ... + e_{i,1,l} * chlg^l) • ... • R_m ^ (e_{i,m,1} * chlg^1 + ... + e_{i,m,l} * chlg^l) • D_i
+        // ==
+        // g1^reponses_r_i
+        for (i, response_r_i) in self.responses_r.iter().enumerate() {
+            // rhs = D_i
+            let mut product = self.dd[i + 1];
+            for (j, e_ij) in first_challenge[i].iter().enumerate() {
+                // intermediate (e_{i,j,1} * chlg^1 + ... + e_{i,j,l} * chlg^l) sum
+                let mut sum = Scalar::zero();
+                for (k, e_ijk) in e_ij.iter().enumerate() {
+                    sum += e_ijk * challenge_pows[k]
+                }
+                // for j in [1..m]
+                // rhs = D_i • R_1 ^ sum_1 • ... • R_m ^ sum_m
+                product += instance.randomizers_r[j] * sum
+            }
+
+            if product != g1 * response_r_i {
+                return false;
+            }
+        }
+
+        // check if B_{1}^{chlg^1} • ... • B_{l}^{chlg^l} • D_0 == g1^{response_beta}
+        let mut product = self.dd[0];
+        for (k, b_k) in self.bb.iter().enumerate() {
+            product += b_k * challenge_pows[k]
+        }
+
+        if product != g1 * self.response_beta {
+            return false;
+        }
+
+        // check if
+        // (C_{1,1} ^ e_{1,1,1} • ... • C_{n,m} ^ e_{n,m,1}) ^ chlg^1 • ... (C_{1,1} ^ e_{1,1,l} • ... • C_{n,m} ^ e_{n,m,l}) ^ chlg^l  • Y
+        // ==
+        // pk_1 ^ responses_r_1 • ... • pk_n ^ responses_r_n • y_0^{response_beta} • g1^{response_chunks_1 • chlg^1 + ... + response_chunks_l • chlg^l}
+
+        let mut lhs = self.yy;
+
+        // compute product (C_{1,1} ^ e_{1,1,1} • ... • C_{n,m} ^ e_{n,m,1}) ^ chlg^1 • ... (C_{1,1} ^ e_{1,1,l} • ... • C_{n,m} ^ e_{n,m,l}) ^ chlg^l
+        for k in 0..PARALLEL_RUNS {
+            let mut inner_acc = G1Projective::identity();
+            for (i, c_i) in instance.ciphertext_chunks.iter().enumerate() {
+                for (j, c_ij) in c_i.iter().enumerate() {
+                    inner_acc += c_ij * first_challenge[i][j][k];
+                }
+            }
+            // TODO: can this be simplified?
+            inner_acc *= challenge_pows[k];
+            lhs += inner_acc
+        }
+
+        // finally multiply by C_{1}^{chlg^1} • ... • C_{l}^{chlg^l}
+        for (k, c) in self.cc.iter().enumerate() {
+            lhs += c * challenge_pows[k]
+        }
+
+        // calculate intermediate product pk_1 ^ responses_r_1 • ... • pk_n ^ responses_r_n
+        let mut product = G1Projective::identity();
+        for (i, pk) in instance.public_keys.iter().enumerate() {
+            product += pk.0 * self.responses_r[i]
+        }
+
+        // calculate intermediate sum response_chunks_1 • chlg^1 + ... + response_chunks_l • chlg^l
+        let mut sum = Scalar::zero();
+        for (k, response_chunk) in self.responses_chunks.iter().enumerate() {
+            sum += response_chunk * challenge_pows[k]
+        }
+
+        let rhs = product + self.y0 * self.response_beta + g1 * sum;
+
+        if lhs != rhs {
+            return false;
+        }
+
+        true
     }
 
     // note for future self: this doesn't work as challenge items need to be in the [0, E - 1] range...
@@ -408,3 +536,13 @@ impl RandomOracleBuilder {
         self.inner_state.finalize().into()
     }
 }
+
+macro_rules! ensure_len {
+    ($a:expr, $b:expr) => {
+        if $a.len() != $b {
+            return false;
+        }
+    };
+}
+
+pub(crate) use ensure_len;

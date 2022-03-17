@@ -7,8 +7,8 @@
 // it's the simplest possible case
 
 use coconut_interface::{
-    hash_to_scalar, BlindSignRequest, Credential, Parameters, PrivateAttribute, PublicAttribute,
-    Signature, VerificationKey,
+    hash_to_scalar, prepare_blind_sign, Attribute, BlindSignRequest, Credential, Parameters,
+    PrivateAttribute, PublicAttribute, Signature, VerificationKey,
 };
 use crypto::asymmetric::identity::PrivateKey;
 use network_defaults::BANDWIDTH_VALUE;
@@ -40,6 +40,8 @@ pub struct BandwidthVoucher {
     signing_key: String,
     // base58 encoded private key ensuring only this client receives the signature share
     encryption_key: String,
+    pedersen_commitments_openings: Vec<Attribute>,
+    blind_sign_request: BlindSignRequest,
 }
 
 impl BandwidthVoucher {
@@ -57,6 +59,12 @@ impl BandwidthVoucher {
         let voucher_info_plain = voucher_info.to_string();
         let voucher_value = hash_to_scalar(voucher_value.as_bytes());
         let voucher_info = hash_to_scalar(voucher_info.as_bytes());
+        let (pedersen_commitments_openings, blind_sign_request) = prepare_blind_sign(
+            params,
+            &vec![serial_number, binding_number],
+            &vec![voucher_value, voucher_info],
+        )
+        .unwrap();
         BandwidthVoucher {
             serial_number,
             binding_number,
@@ -67,6 +75,8 @@ impl BandwidthVoucher {
             tx_hash,
             signing_key,
             encryption_key,
+            pedersen_commitments_openings,
+            blind_sign_request,
         }
     }
 
@@ -88,6 +98,14 @@ impl BandwidthVoucher {
 
     pub fn encryption_key(&self) -> String {
         self.encryption_key.clone()
+    }
+
+    pub fn pedersen_commitments_openings(&self) -> &Vec<Attribute> {
+        &self.pedersen_commitments_openings
+    }
+
+    pub fn blind_sign_request(&self) -> &BlindSignRequest {
+        &self.blind_sign_request
     }
 
     pub fn get_public_attributes_plain(&self) -> Vec<String> {

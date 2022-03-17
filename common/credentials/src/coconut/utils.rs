@@ -1,12 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bls12_381::Scalar;
-
 use coconut_interface::{
-    aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
-    prove_bandwidth_credential, Attribute, BlindSignRequest, BlindSignRequestBody,
-    BlindedSignature, Credential, Parameters, Signature, SignatureShare, VerificationKey,
+    aggregate_signature_shares, aggregate_verification_keys, prove_bandwidth_credential, Attribute,
+    BlindSignRequestBody, BlindedSignature, Credential, Parameters, Signature, SignatureShare,
+    VerificationKey,
 };
 use crypto::asymmetric::encryption::{PrivateKey, PublicKey};
 use crypto::shared_key::recompute_shared_key;
@@ -69,14 +67,13 @@ pub async fn obtain_aggregate_verification_key(
 async fn obtain_partial_credential(
     params: &Parameters,
     attributes: &BandwidthVoucher,
-    pedersen_commitments_openings: &[Scalar],
-    blind_sign_request: &BlindSignRequest,
     client: &validator_client::ApiClient,
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
     let public_attributes = attributes.get_public_attributes();
     let public_attributes_plain = attributes.get_public_attributes_plain();
     let private_attributes = attributes.get_private_attributes();
+    let blind_sign_request = attributes.blind_sign_request();
     let blind_sign_request_body = BlindSignRequestBody::new(
         blind_sign_request,
         attributes.tx_hash().to_string(),
@@ -108,7 +105,7 @@ async fn obtain_partial_credential(
         &private_attributes,
         &public_attributes,
         &blind_sign_request.get_commitment_hash(),
-        &*pedersen_commitments_openings,
+        attributes.pedersen_commitments_openings(),
     )?;
 
     Ok(unblinded_signature)
@@ -132,33 +129,17 @@ pub async fn obtain_aggregate_signature(
     let validator_partial_vk = client.get_coconut_verification_key().await?;
     validators_partial_vks.push(validator_partial_vk.key.clone());
 
-    let (pedersen_commitments_openings, blind_sign_request) =
-        prepare_blind_sign(params, &private_attributes, &public_attributes)?;
-
-    let first = obtain_partial_credential(
-        params,
-        attributes,
-        &pedersen_commitments_openings,
-        &blind_sign_request,
-        &client,
-        &validator_partial_vk.key,
-    )
-    .await?;
+    let first =
+        obtain_partial_credential(params, attributes, &client, &validator_partial_vk.key).await?;
     shares.push(SignatureShare::new(first, 1));
 
     for (id, validator_url) in validators.iter().enumerate().skip(1) {
         client.change_validator_api(validator_url.clone());
         let validator_partial_vk = client.get_coconut_verification_key().await?;
         validators_partial_vks.push(validator_partial_vk.key.clone());
-        let signature = obtain_partial_credential(
-            params,
-            attributes,
-            &pedersen_commitments_openings,
-            &blind_sign_request,
-            &client,
-            &validator_partial_vk.key,
-        )
-        .await?;
+        let signature =
+            obtain_partial_credential(params, attributes, &client, &validator_partial_vk.key)
+                .await?;
         let share = SignatureShare::new(signature, (id + 1) as u64);
         shares.push(share)
     }

@@ -99,20 +99,23 @@ impl Share {
     }
 }
 
-// TODO: rename
 #[derive(Default, Zeroize)]
+#[cfg_attr(test, derive(Clone))]
 #[zeroize(drop)]
 pub(crate) struct ChunkedShare {
     pub(crate) chunks: [Chunk; NUM_CHUNKS],
 }
 
+// if this type is changed, one must ensure all values can fit in it
 pub type Chunk = u16;
 
 // note: CHUNK_BYTES * NUM_CHUNKS must equal to SCALAR_SIZE
 pub const CHUNK_BYTES: usize = 2;
 pub const NUM_CHUNKS: usize = 16;
 pub const SCALAR_SIZE: usize = 32;
-pub const CHUNK_MAX: usize = 1 << (CHUNK_BYTES << 3);
+
+/// In paper B; number of distinct chunks
+pub const CHUNK_SIZE: usize = 1 << (CHUNK_BYTES << 3);
 
 // pub type Chunk = u32;
 //
@@ -510,7 +513,7 @@ impl BabyStepGiantStepLookup {
         let mut g = Gt::identity();
 
         // 1. m ← Ceiling(√n)
-        let m = (CHUNK_MAX as f32).sqrt().ceil() as Chunk;
+        let m = (CHUNK_SIZE as f32).sqrt().ceil() as Chunk;
 
         // 2. For all j where 0 ≤ j < m:
         for j in 0..m {
@@ -573,7 +576,7 @@ pub fn baby_step_giant_step(
 ) -> Result<Chunk, DkgError> {
     if let Some(lookup_table) = lookup_table {
         // compute expected m to make sure the provided lookup is valid
-        let m = (CHUNK_MAX as f32).sqrt().ceil() as Chunk;
+        let m = (CHUNK_SIZE as f32).sqrt().ceil() as Chunk;
 
         if &lookup_table.base != base || lookup_table.lookup.len() != m as usize {
             return Err(DkgError::MismatchedLookupTable);
@@ -598,7 +601,7 @@ mod tests {
 
         for i in 0u64..100 {
             let base = Gt::random(&mut rng);
-            let x = (rng.next_u64() + i) % CHUNK_MAX as u64;
+            let x = (rng.next_u64() + i) % CHUNK_SIZE as u64;
             let target = base * Scalar::from(x);
 
             assert_eq!(
@@ -617,7 +620,7 @@ mod tests {
         let table = Some(&lookup_table);
 
         for i in 0u64..100 {
-            let x = (rng.next_u64() + i) % CHUNK_MAX as u64;
+            let x = (rng.next_u64() + i) % CHUNK_SIZE as u64;
             let target = base * Scalar::from(x);
 
             assert_eq!(
@@ -637,7 +640,7 @@ mod tests {
         let epoch = Epoch::new(0);
 
         for i in 0u64..100 {
-            let m = ((rng.next_u64() + i) % CHUNK_MAX as u64) as Chunk;
+            let m = ((rng.next_u64() + i) % CHUNK_SIZE as u64) as Chunk;
             let ciphertext = encrypt_chunk(&m, &public_key.key, &epoch, &params, &mut rng);
 
             let recovered = decrypt_chunk(

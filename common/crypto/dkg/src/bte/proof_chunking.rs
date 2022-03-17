@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::bte::{Chunk, ChunkedShare, Ciphertext, PublicKey, Share, CHUNK_MAX, NUM_CHUNKS};
+use crate::bte::{Chunk, ChunkedShare, Ciphertext, PublicKey, Share, CHUNK_SIZE, NUM_CHUNKS};
 use crate::error::DkgError;
 use crate::utils::{hash_to_scalar, hash_to_scalars};
 use bls12_381::{G1Projective, G2Projective, Scalar};
@@ -89,7 +89,7 @@ impl<'a> Instance<'a> {
     }
 
     fn validate(&self) -> bool {
-        if self.public_keys.is_empty() || self.randomizers_r.is_empty() {
+        if self.public_keys.is_empty() {
             return false;
         }
 
@@ -149,7 +149,7 @@ impl ProofOfChunking {
         let ee = 1 << NUM_CHALLENGE_BITS;
 
         // CHUNK_MAX corresponds to paper's B
-        let ss = (n * m * (CHUNK_MAX - 1) * (ee - 1)) as u64;
+        let ss = (n * m * (CHUNK_SIZE - 1) * (ee - 1)) as u64;
         let zz = (2 * (PARALLEL_RUNS as u64))
             .checked_mul(ss)
             .expect("overflow in Z = 2 * l * S");
@@ -313,7 +313,7 @@ impl ProofOfChunking {
         let ee = 1 << NUM_CHALLENGE_BITS;
 
         // CHUNK_MAX corresponds to paper's B
-        let ss = (n * m * (CHUNK_MAX - 1) * (ee - 1)) as u64;
+        let ss = (n * m * (CHUNK_SIZE - 1) * (ee - 1)) as u64;
         let zz = 2 * (PARALLEL_RUNS as u64) * ss;
 
         // let mut zz_be_bytes = Scalar::from(zz).to_bytes();
@@ -631,6 +631,60 @@ mod tests {
     fn should_fail_to_create_proof_with_invalid_instance() {
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (owned_instance, _, _) = setup(&mut rng);
+        let good_instance = Instance {
+            public_keys: &owned_instance.public_keys,
+            randomizers_r: &owned_instance.randomizers_r,
+            ciphertext_chunks: &owned_instance.ciphertext_chunks,
+        };
+
+        // sanity check
+        assert!(good_instance.validate());
+
+        // no keys
+        let mut bad_instance = good_instance.clone();
+        bad_instance.public_keys = &[];
+        assert!(!bad_instance.validate());
+
+        // too many keys
+        let mut bad_keys = owned_instance.public_keys.clone();
+        bad_keys.push(PublicKey(
+            G1Projective::generator() * Scalar::random(&mut rng),
+        ));
+
+        let mut bad_instance = good_instance.clone();
+        bad_instance.public_keys = &bad_keys;
+        assert!(!bad_instance.validate());
+
+        // too few keys
+        let mut bad_keys = owned_instance.public_keys.clone();
+        bad_keys.truncate(bad_keys.len() - 1);
+
+        let mut bad_instance = good_instance.clone();
+        bad_instance.public_keys = &bad_keys;
+        assert!(!bad_instance.validate());
+
+        // no ciphertexts
+        let mut bad_instance = good_instance.clone();
+        bad_instance.ciphertext_chunks = &[];
+        assert!(!bad_instance.validate());
+
+        // too many ciphertexts
+        let mut bad_ciphertexts = owned_instance.ciphertext_chunks.clone();
+        bad_ciphertexts.push(Default::default());
+
+        let mut bad_instance = good_instance.clone();
+        bad_instance.ciphertext_chunks = &bad_ciphertexts;
+        assert!(!bad_instance.validate());
+
+        // too few ciphertexts
+        let mut bad_ciphertexts = owned_instance.ciphertext_chunks.clone();
+        bad_ciphertexts.truncate(bad_ciphertexts.len() - 1);
+
+        let mut bad_instance = good_instance.clone();
+        bad_instance.ciphertext_chunks = &bad_ciphertexts;
+        assert!(!bad_instance.validate());
     }
 
     #[test]
@@ -654,25 +708,279 @@ mod tests {
 
     #[test]
     fn works_with_chunks_of_extreme_sizes() {
+        // Note: by extreme I mean CHUNK_MAX or 0
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let g1 = G1Projective::generator();
+
+        let mut pks = Vec::with_capacity(3);
+
+        for _ in 0..3 {
+            pks.push(PublicKey(g1 * Scalar::random(&mut rng)));
+        }
+
+        let mut r = Vec::with_capacity(NUM_CHUNKS);
+        let mut rr = Vec::with_capacity(NUM_CHUNKS);
+
+        for _ in 0..NUM_CHUNKS {
+            let r_i = Scalar::random(&mut rng);
+            rr.push(g1 * r_i);
+            r.push(r_i);
+        }
+
+        let mut ciphertext_chunks = Vec::with_capacity(3);
+
+        let share1 = Share(Scalar::zero());
+        let share2 = Share(Scalar::one());
+
+        let chunks1 = share1.to_chunks();
+        let chunks2 = share2.to_chunks();
+
+        // note that we can't have just [Chunk::MAX; NUM_CHUNKS] as it cannot be converted
+        // back to scalar since its byte representation would be just 1s and it's not a canonical
+        // Scalar reduced mod q
+        let chunks3 = ChunkedShare {
+            chunks: [
+                1,
+                Chunk::MAX,
+                3,
+                4,
+                Chunk::MAX,
+                Chunk::MAX - 1,
+                0,
+                0,
+                0,
+                0,
+                42,
+                0,
+                0,
+                Chunk::MAX,
+                0,
+                0,
+            ],
+        };
+
+        let share3 = chunks3.clone().try_into().unwrap();
+
+        let shares = vec![share1, share2, share3];
+        let chunks = vec![chunks1, chunks2, chunks3];
+
+        for (i, pk_i) in pks.iter().enumerate() {
+            let mut ciphertext_chunk_i = Vec::with_capacity(NUM_CHUNKS);
+            for (j, chunk) in chunks[i].chunks.iter().enumerate() {
+                let c = pk_i.0 * r[j] + g1 * Scalar::from(*chunk as u64);
+                ciphertext_chunk_i.push(c)
+            }
+
+            ciphertext_chunks.push(ciphertext_chunk_i.try_into().unwrap());
+        }
+
+        let randomizers_r = rr.try_into().unwrap();
+        let witness_r = r.try_into().unwrap();
+
+        let instance = Instance {
+            public_keys: &pks,
+            randomizers_r: &randomizers_r,
+            ciphertext_chunks: &ciphertext_chunks,
+        };
+
+        let chunking_proof =
+            ProofOfChunking::construct(&mut rng, instance.clone(), &witness_r, &shares).unwrap();
+
+        assert!(chunking_proof.verify(instance))
     }
 
     #[test]
     fn should_fail_to_verify_proof_with_invalid_instance() {
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (owned_instance, r, shares) = setup(&mut rng);
+        let good_instance = Instance {
+            public_keys: &owned_instance.public_keys,
+            randomizers_r: &owned_instance.randomizers_r,
+            ciphertext_chunks: &owned_instance.ciphertext_chunks,
+        };
+
+        let chunking_proof =
+            ProofOfChunking::construct(&mut rng, good_instance.clone(), &r, &shares).unwrap();
+
+        // no keys
+        let mut bad_instance = good_instance.clone();
+        bad_instance.public_keys = &[];
+        assert!(!chunking_proof.verify(bad_instance));
+
+        // too many keys
+        let mut bad_keys = owned_instance.public_keys.clone();
+        bad_keys.push(PublicKey(
+            G1Projective::generator() * Scalar::random(&mut rng),
+        ));
+
+        let mut bad_instance = good_instance.clone();
+        bad_instance.public_keys = &bad_keys;
+        assert!(!chunking_proof.verify(bad_instance));
+
+        // too few keys
+        let mut bad_keys = owned_instance.public_keys.clone();
+        bad_keys.truncate(bad_keys.len() - 1);
+
+        let mut bad_instance = good_instance.clone();
+        bad_instance.public_keys = &bad_keys;
+        assert!(!chunking_proof.verify(bad_instance));
+
+        // no ciphertexts
+        let mut bad_instance = good_instance.clone();
+        bad_instance.ciphertext_chunks = &[];
+        assert!(!chunking_proof.verify(bad_instance));
+
+        // too many ciphertexts
+        let mut bad_ciphertexts = owned_instance.ciphertext_chunks.clone();
+        bad_ciphertexts.push(Default::default());
+
+        let mut bad_instance = good_instance.clone();
+        bad_instance.ciphertext_chunks = &bad_ciphertexts;
+        assert!(!chunking_proof.verify(bad_instance));
+
+        // too few ciphertexts
+        let mut bad_ciphertexts = owned_instance.ciphertext_chunks.clone();
+        bad_ciphertexts.truncate(bad_ciphertexts.len() - 1);
+
+        let mut bad_instance = good_instance.clone();
+        bad_instance.ciphertext_chunks = &bad_ciphertexts;
+        assert!(!chunking_proof.verify(bad_instance));
     }
 
     #[test]
     fn should_fail_to_verify_proof_with_wrong_instance() {
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (owned_instance, r, shares) = setup(&mut rng);
+        let instance = Instance {
+            public_keys: &owned_instance.public_keys,
+            randomizers_r: &owned_instance.randomizers_r,
+            ciphertext_chunks: &owned_instance.ciphertext_chunks,
+        };
+
+        let chunking_proof =
+            ProofOfChunking::construct(&mut rng, instance.clone(), &r, &shares).unwrap();
+
+        let (owned_instance2, _, _) = setup(&mut rng);
+        let bad_instance = Instance {
+            public_keys: &owned_instance2.public_keys,
+            randomizers_r: &owned_instance2.randomizers_r,
+            ciphertext_chunks: &owned_instance2.ciphertext_chunks,
+        };
+
+        assert!(!chunking_proof.verify(bad_instance));
     }
 
     #[test]
     fn should_fail_to_verify_invalid_proof() {
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (owned_instance, r, shares) = setup(&mut rng);
+        let instance = Instance {
+            public_keys: &owned_instance.public_keys,
+            randomizers_r: &owned_instance.randomizers_r,
+            ciphertext_chunks: &owned_instance.ciphertext_chunks,
+        };
+
+        let good_proof =
+            ProofOfChunking::construct(&mut rng, instance.clone(), &r, &shares).unwrap();
+
+        // essentially mess with every field in some way
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.y0 = G1Projective::generator();
+        assert!(!bad_proof.verify(instance.clone()));
+
+        ////
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.bb[0] = G1Projective::generator();
+        assert!(!bad_proof.verify(instance.clone()));
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.bb.push(G1Projective::generator());
+        assert!(!bad_proof.verify(instance.clone()));
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.bb.truncate(bad_proof.bb.len() - 1);
+        assert!(!bad_proof.verify(instance.clone()));
+
+        ////
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.cc[0] = G1Projective::generator();
+        assert!(!bad_proof.verify(instance.clone()));
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.cc.push(G1Projective::generator());
+        assert!(!bad_proof.verify(instance.clone()));
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.cc.truncate(bad_proof.cc.len() - 1);
+        assert!(!bad_proof.verify(instance.clone()));
+
+        ////
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.dd[0] = G1Projective::generator();
+        assert!(!bad_proof.verify(instance.clone()));
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.dd.push(G1Projective::generator());
+        assert!(!bad_proof.verify(instance.clone()));
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.dd.truncate(bad_proof.dd.len() - 1);
+        assert!(!bad_proof.verify(instance.clone()));
+
+        ////
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.yy = G1Projective::generator();
+        assert!(!bad_proof.verify(instance.clone()));
+
+        ////
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.responses_r[0] = Scalar::one();
+        assert!(!bad_proof.verify(instance.clone()));
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.responses_r.push(Scalar::one());
+        assert!(!bad_proof.verify(instance.clone()));
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof
+            .responses_r
+            .truncate(bad_proof.responses_r.len() - 1);
+        assert!(!bad_proof.verify(instance.clone()));
+
+        ////
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.responses_chunks[0] = 12345;
+        assert!(!bad_proof.verify(instance.clone()));
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof.responses_chunks.push(12345);
+        assert!(!bad_proof.verify(instance.clone()));
+
+        let mut bad_proof = good_proof.clone();
+        bad_proof
+            .responses_chunks
+            .truncate(bad_proof.responses_chunks.len() - 1);
+        assert!(!bad_proof.verify(instance.clone()));
+
+        ////
+
+        let mut bad_proof = good_proof;
+        bad_proof.response_beta = Scalar::one();
+        assert!(!bad_proof.verify(instance));
     }
 }

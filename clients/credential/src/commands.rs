@@ -8,7 +8,7 @@ use rand::rngs::OsRng;
 use std::str::FromStr;
 use url::Url;
 
-use coconut_interface::{Base58, Parameters, Signature};
+use coconut_interface::{Base58, Parameters};
 use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
@@ -17,7 +17,7 @@ use network_defaults::VOUCHER_INFO;
 use crate::client::Client;
 use crate::error::{CredentialClientError, Result};
 use crate::state::{KeyPair, State};
-use crate::{DEPOSITS_KEY, SIGNATURES_KEY, SIGNER_AUTHORITIES};
+use crate::SIGNER_AUTHORITIES;
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -25,8 +25,6 @@ pub(crate) enum Commands {
     Deposit(Deposit),
     /// Lists the tx hashes of previous deposits
     ListDeposits(ListDeposits),
-    /// Lists the signatures obtained from signers
-    ListSignatures(ListSignatures),
     /// Get a credential for a given deposit
     GetCredential(GetCredential),
 }
@@ -50,8 +48,6 @@ impl Execute for Deposit {
         let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
         let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
 
-        let mut states = db.get::<Vec<State>>(DEPOSITS_KEY).unwrap_or(vec![]);
-
         let client = Client::new();
         let tx_hash = client
             .deposit(
@@ -64,12 +60,14 @@ impl Execute for Deposit {
 
         let state = State {
             amount: self.amount,
-            tx_hash,
+            tx_hash: tx_hash.clone(),
             signing_keypair,
             encryption_keypair,
+            signature: None,
         };
-        states.push(state);
-        db.set(DEPOSITS_KEY, &states).unwrap();
+        db.set(&tx_hash, &state).unwrap();
+
+        println!("{:?}", state);
 
         Ok(())
     }
@@ -81,35 +79,9 @@ pub(crate) struct ListDeposits {}
 #[async_trait]
 impl Execute for ListDeposits {
     async fn execute(&self, db: &mut PickleDb) -> Result<()> {
-        let states: Vec<(String, String)> = db
-            .get::<Vec<State>>(DEPOSITS_KEY)
-            .unwrap_or(vec![])
-            .into_iter()
-            .map(|state| (state.tx_hash, format!("{}unym", state.amount)))
-            .collect();
-        println!(
-            "Hashes for available deposits and their unym amount: {:?}",
-            states
-        );
-
-        Ok(())
-    }
-}
-
-#[derive(Args, Clone)]
-pub(crate) struct ListSignatures {}
-
-#[async_trait]
-impl Execute for ListSignatures {
-    async fn execute(&self, db: &mut PickleDb) -> Result<()> {
-        let states: Vec<(usize, String)> = db
-            .get::<Vec<Signature>>(SIGNATURES_KEY)
-            .unwrap_or(vec![])
-            .into_iter()
-            .map(|signature| signature.to_bs58())
-            .enumerate()
-            .collect();
-        println!("Signatures obtained and their indexes: {:?}", states);
+        for kv in db.iter() {
+            println!("{:?}", kv.get_value::<State>());
+        }
 
         Ok(())
     }
@@ -125,11 +97,8 @@ pub(crate) struct GetCredential {
 #[async_trait]
 impl Execute for GetCredential {
     async fn execute(&self, db: &mut PickleDb) -> Result<()> {
-        let state = db
-            .get::<Vec<State>>(DEPOSITS_KEY)
-            .ok_or(CredentialClientError::NoDeposit)?
-            .into_iter()
-            .find(|state| state.tx_hash == self.tx_hash)
+        let mut state = db
+            .get::<State>(&self.tx_hash)
             .ok_or(CredentialClientError::NoDeposit)?;
         let urls = SIGNER_AUTHORITIES.map(|addr| Url::from_str(addr).unwrap());
 
@@ -139,14 +108,15 @@ impl Execute for GetCredential {
             &state.amount.to_string(),
             VOUCHER_INFO,
             self.tx_hash.clone(),
-            state.signing_keypair.private_key,
-            state.encryption_keypair.private_key,
+            state.signing_keypair.private_key.clone(),
+            state.encryption_keypair.private_key.clone(),
         );
         let signature =
             obtain_aggregate_signature(&params, &bandwidth_credential_attributes, &urls).await?;
-        let mut signatures = db.get::<Vec<Signature>>(SIGNATURES_KEY).unwrap_or(vec![]);
-        signatures.push(signature);
-        db.set(SIGNATURES_KEY, &signatures).unwrap();
+        state.signature = Some(signature.to_bs58());
+        db.set(&self.tx_hash, &state).unwrap();
+
+        println!("Signature: {:?}", state.signature);
 
         Ok(())
     }

@@ -89,7 +89,7 @@ export const DelegateForm = ({
 
           {userBalance.originalVesting && (
             <Grid item xs={6}>
-              <TokenPoolSelector onSelect={(pool) => setValue('tokenPool', pool)} />
+              <TokenPoolSelector onSelect={(pool) => setValue('tokenPool', pool)} disabled={false} />
             </Grid>
           )}
 

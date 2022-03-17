@@ -185,7 +185,7 @@ export const BondForm = ({
 
           {userBalance.originalVesting && (
             <Grid item xs={12} sm={6}>
-              <TokenPoolSelector onSelect={(pool) => setValue('tokenPool', pool)} />
+              <TokenPoolSelector onSelect={(pool) => setValue('tokenPool', pool)} disabled={disabled} />
             </Grid>
           )}
 

@@ -13,9 +13,8 @@ use coconut_interface::{
 use crypto::asymmetric::identity::PrivateKey;
 use network_defaults::BANDWIDTH_VALUE;
 
-use crate::error::Error;
-
 use super::utils::prepare_credential_for_spending;
+use crate::error::Error;
 
 pub const PUBLIC_ATTRIBUTES: u32 = 2;
 pub const PRIVATE_ATTRIBUTES: u32 = 2;

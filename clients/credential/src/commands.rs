@@ -16,7 +16,7 @@ use network_defaults::VOUCHER_INFO;
 
 use crate::client::Client;
 use crate::error::{CredentialClientError, Result};
-use crate::state::{KeyPair, State};
+use crate::state::{KeyPair, RequestData, State};
 use crate::SIGNER_AUTHORITIES;
 
 #[derive(Subcommand)]
@@ -63,6 +63,7 @@ impl Execute for Deposit {
             tx_hash: tx_hash.clone(),
             signing_keypair,
             encryption_keypair,
+            blind_request_data: None,
             signature: None,
         };
         db.set(&tx_hash, &state).unwrap();
@@ -115,6 +116,14 @@ impl Execute for GetCredential {
             state.signing_keypair.private_key.clone(),
             state.encryption_keypair.private_key.clone(),
         );
+
+        // Back up the blind sign req data, in case of sporadic failures
+        state.blind_request_data = Some(RequestData::new(
+            &bandwidth_credential_attributes.pedersen_commitments_openings(),
+            bandwidth_credential_attributes.blind_sign_request(),
+        )?);
+        db.set(&self.tx_hash, &state).unwrap();
+
         let signature =
             obtain_aggregate_signature(&params, &bandwidth_credential_attributes, &urls).await?;
         state.signature = Some(signature.to_bs58());

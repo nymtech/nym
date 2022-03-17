@@ -1,10 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use coconut_interface::{Attribute, BlindSignRequest};
 use serde::{Deserialize, Serialize};
 
 use crypto::asymmetric::{encryption, identity};
 use pemstore::traits::PemStorableKeyPair;
+
+use crate::error::{CredentialClientError, Result};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct KeyPair {
@@ -54,5 +57,27 @@ pub(crate) struct State {
     pub tx_hash: String,
     pub signing_keypair: KeyPair,
     pub encryption_keypair: KeyPair,
+    pub blind_request_data: Option<RequestData>,
     pub signature: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub(crate) struct RequestData {
+    first_attribute: [u8; 32],
+    second_attribute: [u8; 32],
+    blind_sign_req: Vec<u8>,
+}
+
+impl RequestData {
+    pub fn new(attributes: &[Attribute], blind_sign_request: &BlindSignRequest) -> Result<Self> {
+        if attributes.len() != 2 {
+            Err(CredentialClientError::WrongAttributeNumber)
+        } else {
+            Ok(RequestData {
+                first_attribute: attributes[0].to_bytes(),
+                second_attribute: attributes[1].to_bytes(),
+                blind_sign_req: blind_sign_request.to_bytes(),
+            })
+        }
+    }
 }

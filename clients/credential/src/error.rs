@@ -18,4 +18,7 @@ pub enum CredentialClientError {
 
     #[error("No previous deposit with that tx hash")]
     NoDeposit,
+
+    #[error("Wrong number of attributes")]
+    WrongAttributeNumber,
 }

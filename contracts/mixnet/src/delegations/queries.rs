@@ -7,10 +7,23 @@ use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::{Api, Deps, Storage};
 use cw_storage_plus::{Bound, PrimaryKey};
+use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     Delegation, IdentityKey, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedMixDelegationsResponse,
 };
+
+pub(crate) fn query_pending_delegation_events(
+    storage: &dyn Storage,
+    owner_address: String,
+) -> Result<Vec<DelegationEvent>, ContractError> {
+    Ok(storage::PENDING_DELEGATION_EVENTS
+        .sub_prefix(owner_address.as_bytes().to_vec())
+        .range(storage, None, None, Order::Ascending)
+        .filter_map(|r| r.ok())
+        .map(|(_key, delegation_event)| delegation_event)
+        .collect::<Vec<DelegationEvent>>())
+}
 
 pub(crate) fn query_all_network_delegations_paged(
     deps: Deps<'_>,

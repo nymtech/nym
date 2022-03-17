@@ -5,7 +5,9 @@ use crate::constants::{ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, SYBIL_RE
 use crate::delegations::queries::query_all_network_delegations_paged;
 use crate::delegations::queries::query_delegator_delegations_paged;
 use crate::delegations::queries::query_mixnode_delegation;
-use crate::delegations::queries::query_mixnode_delegations_paged;
+use crate::delegations::queries::{
+    query_mixnode_delegations_paged, query_pending_delegation_events,
+};
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
@@ -370,13 +372,18 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             address,
             mix_identity,
         )?),
+        QueryMsg::GetPendingDelegationEvents { owner_address } => to_binary(
+            &query_pending_delegation_events(deps.storage, owner_address)?,
+        ),
     };
 
     Ok(query_res?)
 }
 
-#[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+// MIGRATE OLD DELEGATION STORAGE
+// applied on QAnet
+#[allow(dead_code)]
+fn migrate_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
     use crate::delegations::storage::{
         DelegationIndex, DELEGATION_MIXNODE_IDX_NAMESPACE, DELEGATION_OWNER_IDX_NAMESPACE,
         DELEGATION_PK_NAMESPACE,
@@ -420,6 +427,13 @@ pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respons
             &delegation,
         )?;
     }
+    Ok(())
+}
+
+#[entry_point]
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    // TODO: Uncomment for sandbox and mainnet
+    // migrate_delegations(deps)?;
 
     Ok(Default::default())
 }

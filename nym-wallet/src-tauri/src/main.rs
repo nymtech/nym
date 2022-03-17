@@ -54,6 +54,7 @@ fn main() {
       mixnet::delegate::get_delegator_rewards,
       mixnet::delegate::get_reverse_mix_delegations_paged,
       mixnet::delegate::undelegate_from_mixnode,
+      mixnet::delegate::get_pending_delegation_events,
       mixnet::send::send,
       utils::major_to_minor,
       utils::minor_to_major,

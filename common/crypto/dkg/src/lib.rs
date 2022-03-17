@@ -15,10 +15,6 @@ mod interpolation;
 pub mod secure_channel;
 pub(crate) mod utils;
 
-pub struct Share(Scalar);
-
-impl Share {}
-
 #[cfg(test)]
 mod tests {
     use super::*;

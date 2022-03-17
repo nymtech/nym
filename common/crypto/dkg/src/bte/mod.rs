@@ -73,12 +73,37 @@ impl Zeroize for Epoch {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-struct Share(Scalar);
+#[derive(PartialEq, Eq, Debug, Zeroize)]
+#[cfg_attr(test, derive(Clone))]
+#[zeroize(drop)]
+pub struct Share(pub(crate) Scalar);
 
-#[derive(Clone, Copy, Default)]
-struct ShareEncryptionPlaintext {
-    chunks: [Chunk; NUM_CHUNKS],
+impl Share {
+    #[cfg(test)]
+    pub(crate) fn random(mut rng: impl RngCore) -> Self {
+        Share(Scalar::random(&mut rng))
+    }
+
+    pub(crate) fn to_chunks(&self) -> ChunkedShare {
+        let mut chunks = [0; NUM_CHUNKS];
+        let mut bytes = self.0.to_bytes();
+
+        for (chunk, chunk_bytes) in chunks.iter_mut().zip(bytes[..].chunks_exact(CHUNK_BYTES)) {
+            let mut tmp = [0u8; CHUNK_BYTES];
+            tmp.copy_from_slice(chunk_bytes);
+            *chunk = Chunk::from_be_bytes(tmp)
+        }
+
+        bytes.zeroize();
+        ChunkedShare { chunks }
+    }
+}
+
+// TODO: rename
+#[derive(Default, Zeroize)]
+#[zeroize(drop)]
+pub(crate) struct ChunkedShare {
+    pub(crate) chunks: [Chunk; NUM_CHUNKS],
 }
 
 pub type Chunk = u16;
@@ -96,26 +121,18 @@ pub const CHUNK_MAX: usize = 1 << (CHUNK_BYTES << 3);
 // pub const SCALAR_SIZE: usize = 32;
 // pub const CHUNK_MAX: usize = 1 << (CHUNK_BYTES << 3);
 
-impl From<Share> for ShareEncryptionPlaintext {
-    fn from(share: Share) -> ShareEncryptionPlaintext {
-        let mut chunks = [0; NUM_CHUNKS];
-        let bytes = share.0.to_bytes();
-
-        for (chunk, chunk_bytes) in chunks.iter_mut().zip(bytes[..].chunks_exact(CHUNK_BYTES)) {
-            let mut tmp = [0u8; CHUNK_BYTES];
-            tmp.copy_from_slice(chunk_bytes);
-            *chunk = Chunk::from_be_bytes(tmp)
-        }
-        ShareEncryptionPlaintext { chunks }
+impl From<Share> for ChunkedShare {
+    fn from(share: Share) -> ChunkedShare {
+        share.to_chunks()
     }
 }
 
-impl TryFrom<ShareEncryptionPlaintext> for Share {
+impl TryFrom<ChunkedShare> for Share {
     type Error = DkgError;
 
-    fn try_from(plaintext: ShareEncryptionPlaintext) -> Result<Share, Self::Error> {
+    fn try_from(chunked: ChunkedShare) -> Result<Share, Self::Error> {
         let mut bytes = [0u8; SCALAR_SIZE];
-        for (chunk, chunk_bytes) in plaintext
+        for (chunk, chunk_bytes) in chunked
             .chunks
             .iter()
             .zip(bytes[..].chunks_exact_mut(CHUNK_BYTES))
@@ -124,9 +141,12 @@ impl TryFrom<ShareEncryptionPlaintext> for Share {
             chunk_bytes.copy_from_slice(&tmp[..]);
         }
 
-        Option::from(Scalar::from_bytes(&bytes))
+        let recovered = Option::from(Scalar::from_bytes(&bytes))
             .map(Share)
-            .ok_or(DkgError::MalformedShare)
+            .ok_or(DkgError::MalformedShare)?;
+
+        bytes.zeroize();
+        Ok(recovered)
     }
 }
 
@@ -361,7 +381,7 @@ fn encrypt_shares(
     let mut cc = Vec::with_capacity(shares.len());
 
     for (share, pk) in shares {
-        let m: ShareEncryptionPlaintext = (*share).into();
+        let m = share.to_chunks();
 
         let mut ci = Vec::with_capacity(NUM_CHUNKS);
 
@@ -457,7 +477,7 @@ fn decrypt_share(
     epoch: &Epoch,
     lookup_table: Option<&BabyStepGiantStepLookup>,
 ) -> Result<Share, DkgError> {
-    let mut plaintext = ShareEncryptionPlaintext::default();
+    let mut plaintext = ChunkedShare::default();
 
     if i >= ciphertext.ciphertext_chunks.len() {
         return Err(DkgError::UnavailableCiphertext(i));
@@ -647,9 +667,12 @@ mod tests {
         let lookup_table = &DEFAULT_BSGS_TABLE;
 
         for _ in 0..10 {
-            let m1 = Share(Scalar::random(&mut rng));
-            let m2 = Share(Scalar::random(&mut rng));
-            let shares = &[(m1, &public_key1.key), (m2, &public_key2.key)];
+            let m1 = Share::random(&mut rng);
+            let m2 = Share::random(&mut rng);
+            let shares = &[
+                (m1.clone(), &public_key1.key),
+                (m2.clone(), &public_key2.key),
+            ];
 
             let ciphertext = encrypt_shares(shares, &epoch, &params, &mut rng);
 

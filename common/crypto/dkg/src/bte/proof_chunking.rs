@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::bte::{Ciphertext, PublicKey, CHUNK_MAX, NUM_CHUNKS};
+use crate::bte::{Chunk, ChunkedShare, Ciphertext, PublicKey, Share, CHUNK_MAX, NUM_CHUNKS};
 use crate::error::DkgError;
 use crate::utils::{hash_to_scalar, hash_to_scalars};
 use bls12_381::{G1Projective, G2Projective, Scalar};
@@ -10,7 +10,18 @@ use group::{Group, GroupEncoding};
 use rand::Rng;
 use rand_core::{RngCore, SeedableRng};
 use sha2::{Digest, Sha256};
+use std::mem;
 use zeroize::Zeroize;
+
+macro_rules! ensure_len {
+    ($a:expr, $b:expr) => {
+        if $a.len() != $b {
+            return false;
+        }
+    };
+}
+
+pub(crate) use ensure_len;
 
 const CHUNKING_ORACLE_DOMAIN: &[u8] =
     b"NYM_COCONUT_NIDKG_V01_CS01_SHA-256_CHACHA20_CHUNKING_ORACLE";
@@ -30,7 +41,7 @@ const SECURITY_PARAMETER: usize = 256;
 const NUM_CHALLENGE_BITS: usize = (SECURITY_PARAMETER + PARALLEL_RUNS - 1) / PARALLEL_RUNS;
 
 // type alias for ease of use
-type FirstChallenge = Vec<Vec<Vec<Scalar>>>;
+type FirstChallenge = Vec<Vec<Vec<u64>>>;
 
 // TODO: perhaps break it down into separate arguments after all
 #[cfg_attr(test, derive(Clone))]
@@ -99,17 +110,30 @@ pub struct ProofOfChunking {
     dd: Vec<G1Projective>,
     yy: G1Projective,
     responses_r: Vec<Scalar>,
-    responses_chunks: Vec<Scalar>,
+    responses_chunks: Vec<u64>,
     response_beta: Scalar,
 }
 
 impl ProofOfChunking {
+    // Some decisions made in this function code can be questionable, however, I will attempt to justify them.
+    // I decided to operate on u64 when constructing responses for the chunks rather than using
+    // `Scalar` directly that could have future-proofed everything in case we decided to significantly
+    // increase our chunk sizes alongside PARALLEL_RUNS, number of nodes, etc. such that it would no longer
+    // fit within u64. However, this is not very likely and runtime checks are in place to ensure it hasn't happened.
+    //
+    // As for the actual issue, at the time of writing this code, there is no way of ordering two Scalars.
+    // And conceptually it makes sense as ordering of scalars in finite fields doesn't make much
+    // sense mathematically. Anyway, in my original proof of concept code I had to compare byte representations
+    // of the scalars. While in principle it still makes sense (assuming they're in the canonical representations),
+    // we run into a problem if say we wanted to compare Scalar(1) with Scalar(-1). Logically the -1 variant
+    // should have been smaller. However, internally everything is represented mod field order and thus
+    // Scalar(-1) would in reality be Scalar(q - 1), which is greater than Scalar(1) and opposite to
+    // what we wanted.
     pub(crate) fn construct(
         mut rng: impl RngCore,
         instance: Instance,
         witness_r: &[Scalar; NUM_CHUNKS],
-        // TODO: is it `Scalar` or `Chunk`?
-        witnesses_s: &[[Scalar; NUM_CHUNKS]],
+        witnesses_s: &[Share],
     ) -> Result<Self, DkgError> {
         if !instance.validate() {
             return Err(DkgError::MalformedProofOfChunkingInstance);
@@ -126,14 +150,17 @@ impl ProofOfChunking {
 
         // CHUNK_MAX corresponds to paper's B
         let ss = (n * m * (CHUNK_MAX - 1) * (ee - 1)) as u64;
-        let zz = 2 * (PARALLEL_RUNS as u64) * ss;
+        let zz = (2 * (PARALLEL_RUNS as u64))
+            .checked_mul(ss)
+            .expect("overflow in Z = 2 * l * S");
 
         let ss_scalar = Scalar::from(ss);
 
-        // generating pseudorandom values uniformly in range is way simpler with u64 compared to Scalars,
-        // plus the absolute upper bound, i.e. z - 1 + s + 1 is way smaller than u64::MAX so it's safe
-        // to do it this way
-        let combined_upper_range = zz - 1 + ss + 1;
+        // rather than generating blinding factors in [-S, Z-1] directly,
+        // do it via [0, Z - 1 + S + 1] and deal with the shift later.
+        let combined_upper_range = (zz - 1)
+            .checked_add(ss + 1)
+            .expect("overflow in Z - 1 + S + 1");
 
         let mut betas = Vec::with_capacity(PARALLEL_RUNS);
         let mut bs = Vec::with_capacity(PARALLEL_RUNS);
@@ -148,9 +175,6 @@ impl ProofOfChunking {
             bs.push(bb);
         }
 
-        let mut zz_be_bytes = Scalar::from(zz).to_bytes();
-        zz_be_bytes.reverse();
-
         let mut attempt = 0;
         let (first_challenge, responses_chunks, cs) = 'retry_loop: loop {
             attempt += 1;
@@ -158,20 +182,22 @@ impl ProofOfChunking {
                 return Err(DkgError::AbortedProofOfChunking);
             }
 
-            let mut blinding_factors = Vec::with_capacity(PARALLEL_RUNS);
+            // let mut blinding_factors = Vec::with_capacity(PARALLEL_RUNS);
+            let mut shifted_blinding_factors = Vec::with_capacity(PARALLEL_RUNS);
             let mut cs = Vec::with_capacity(PARALLEL_RUNS);
 
             for i in 0..PARALLEL_RUNS {
                 // scalar in range of [0, Z - 1 + S]
-                let shifted = Scalar::from(rng.gen_range(0..=combined_upper_range));
+                let shifted = rng.gen_range(0..=combined_upper_range);
                 // [-S, Z - 1] as required
                 // TODO: CHECK FOR OFF BY ONE ERRORS
-                let blinding_factor = shifted - ss_scalar;
+                let blinding_factor = Scalar::from(shifted) - ss_scalar;
 
                 // y0 ^ beta_l • g1 ^ sigma_l
                 let cc = y0 * betas[i] + g1 * blinding_factor;
 
-                blinding_factors.push(blinding_factor);
+                // blinding_factors.push(blinding_factor);
+                shifted_blinding_factors.push(shifted);
                 cs.push(cc);
             }
 
@@ -185,24 +211,24 @@ impl ProofOfChunking {
             let mut responses_chunks = Vec::with_capacity(PARALLEL_RUNS);
 
             for l in 0..PARALLEL_RUNS {
-                let mut acc = Scalar::zero();
-                for (i, e_i) in first_challenge.iter().enumerate() {
-                    for (j, e_ij) in e_i.iter().enumerate() {
-                        acc += e_ij[l] * witnesses_s[i][j]
+                let mut sum = 0;
+
+                for (i, witness_i) in witnesses_s.iter().enumerate() {
+                    for (j, witness_ij) in witness_i.to_chunks().chunks.iter().enumerate() {
+                        debug_assert!(std::mem::size_of::<Chunk>() <= std::mem::size_of::<u64>());
+                        sum += first_challenge[i][j][l] * (*witness_ij as u64)
                     }
                 }
-                acc += blinding_factors[l];
 
-                // technically it doesn't really make much sense as there's no such thing as ordering in finite fields,
-                // but that's the best we can do to follow the requirements
-                let mut acc_be_bytes = acc.to_bytes();
-                acc_be_bytes.reverse();
-
-                if acc_be_bytes >= zz_be_bytes {
-                    println!("{:?} >= {:?}", acc, zz);
+                if sum + shifted_blinding_factors[l] < ss {
                     continue 'retry_loop;
+                }
+                // shifted_blinding_factors[l] - ss restores it to "proper" [-S, Z - 1] range
+                let response = sum + shifted_blinding_factors[l] - ss;
+                if response < zz {
+                    responses_chunks.push(response)
                 } else {
-                    responses_chunks.push(acc)
+                    continue 'retry_loop;
                 }
             }
 
@@ -240,7 +266,7 @@ impl ProofOfChunking {
                 // c^1 in first iteration, c^k in the last
                 let mut challenge_pow = second_challenge;
                 for e_ijk in e_ij.iter() {
-                    response_r_k += (e_ijk * witness_r[j] * challenge_pow);
+                    response_r_k += Scalar::from(*e_ijk) * witness_r[j] * challenge_pow;
                     challenge_pow *= second_challenge
                 }
             }
@@ -290,18 +316,22 @@ impl ProofOfChunking {
         let ss = (n * m * (CHUNK_MAX - 1) * (ee - 1)) as u64;
         let zz = 2 * (PARALLEL_RUNS as u64) * ss;
 
-        let mut zz_be_bytes = Scalar::from(zz).to_bytes();
-        zz_be_bytes.reverse();
+        // let mut zz_be_bytes = Scalar::from(zz).to_bytes();
+        // zz_be_bytes.reverse();
 
         for response_chunk in &self.responses_chunks {
-            // technically it doesn't really make much sense as there's no such thing as ordering in finite fields,
-            // but that's the best we can do to follow the requirements
-            let mut z_sk_be_bytes = response_chunk.to_bytes();
-            z_sk_be_bytes.reverse();
-
-            if z_sk_be_bytes >= zz_be_bytes {
+            if response_chunk >= &zz {
                 return false;
             }
+
+            // // technically it doesn't really make much sense as there's no such thing as ordering in finite fields,
+            // // but that's the best we can do to follow the requirements
+            // let mut z_sk_be_bytes = response_chunk.to_bytes();
+            // z_sk_be_bytes.reverse();
+            //
+            // if z_sk_be_bytes >= zz_be_bytes {
+            //     return false;
+            // }
         }
 
         let first_challenge =
@@ -333,7 +363,7 @@ impl ProofOfChunking {
                 // intermediate (e_{i,j,1} * chlg^1 + ... + e_{i,j,l} * chlg^l) sum
                 let mut sum = Scalar::zero();
                 for (k, e_ijk) in e_ij.iter().enumerate() {
-                    sum += e_ijk * challenge_pows[k]
+                    sum += Scalar::from(*e_ijk) * challenge_pows[k]
                 }
                 // for j in [1..m]
                 // rhs = D_i • R_1 ^ sum_1 • ... • R_m ^ sum_m
@@ -367,7 +397,7 @@ impl ProofOfChunking {
             let mut inner_acc = G1Projective::identity();
             for (i, c_i) in instance.ciphertext_chunks.iter().enumerate() {
                 for (j, c_ij) in c_i.iter().enumerate() {
-                    inner_acc += c_ij * first_challenge[i][j][k];
+                    inner_acc += c_ij * Scalar::from(first_challenge[i][j][k]);
                 }
             }
             // TODO: can this be simplified?
@@ -389,7 +419,7 @@ impl ProofOfChunking {
         // calculate intermediate sum response_chunks_1 • chlg^1 + ... + response_chunks_l • chlg^l
         let mut sum = Scalar::zero();
         for (k, response_chunk) in self.responses_chunks.iter().enumerate() {
-            sum += response_chunk * challenge_pows[k]
+            sum += Scalar::from(*response_chunk) * challenge_pows[k]
         }
 
         let rhs = product + self.y0 * self.response_beta + g1 * sum;
@@ -465,7 +495,7 @@ impl ProofOfChunking {
                 (0..m)
                     .map(|_| {
                         (0..PARALLEL_RUNS)
-                            .map(|_| Scalar::from(oracle.gen_range(0..range_max_excl)))
+                            .map(|_| oracle.gen_range(0..range_max_excl))
                             .collect()
                     })
                     .collect()
@@ -475,7 +505,7 @@ impl ProofOfChunking {
 
     fn compute_second_challenge(
         first_challenge: &FirstChallenge,
-        responses_chunks: &[Scalar],
+        responses_chunks: &[u64],
         ds: &[G1Projective],
         y: &G1Projective,
     ) -> Scalar {
@@ -489,13 +519,13 @@ impl ProofOfChunking {
         for e_i in first_challenge {
             for e_ij in e_i {
                 for e_ijk in e_ij {
-                    bytes.extend_from_slice(e_ijk.to_bytes().as_ref());
+                    bytes.extend_from_slice(e_ijk.to_be_bytes().as_ref());
                 }
             }
         }
 
         for z in responses_chunks {
-            bytes.extend_from_slice(z.to_bytes().as_ref())
+            bytes.extend_from_slice(z.to_be_bytes().as_ref())
         }
 
         for d in ds {
@@ -537,12 +567,112 @@ impl RandomOracleBuilder {
     }
 }
 
-macro_rules! ensure_len {
-    ($a:expr, $b:expr) => {
-        if $a.len() != $b {
-            return false;
-        }
-    };
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bte::{ChunkedShare, Share};
 
-pub(crate) use ensure_len;
+    // limit number of nodes to some reasonable-ish value, as it significantly affects
+    // time it takes to compute and verify the proof
+    const NODES: usize = 20;
+
+    struct OwnedInstance {
+        public_keys: Vec<PublicKey>,
+        randomizers_r: [G1Projective; NUM_CHUNKS],
+        ciphertext_chunks: Vec<[G1Projective; NUM_CHUNKS]>,
+    }
+
+    fn setup(mut rng: impl RngCore) -> (OwnedInstance, [Scalar; NUM_CHUNKS], Vec<Share>) {
+        let g1 = G1Projective::generator();
+
+        let mut pks = Vec::with_capacity(NODES);
+
+        for _ in 0..NODES {
+            pks.push(PublicKey(g1 * Scalar::random(&mut rng)));
+        }
+
+        let mut r = Vec::with_capacity(NUM_CHUNKS);
+        let mut rr = Vec::with_capacity(NUM_CHUNKS);
+
+        for _ in 0..NUM_CHUNKS {
+            let r_i = Scalar::random(&mut rng);
+            rr.push(g1 * r_i);
+            r.push(r_i);
+        }
+
+        let mut ciphertext_chunks = Vec::with_capacity(NODES);
+        let mut shares = Vec::with_capacity(NODES);
+
+        for pk_i in &pks {
+            let share = Share::random(&mut rng);
+
+            let mut ciphertext_chunk_i = Vec::with_capacity(NUM_CHUNKS);
+            for (j, chunk) in share.to_chunks().chunks.iter().enumerate() {
+                let c = pk_i.0 * r[j] + g1 * Scalar::from(*chunk as u64);
+                ciphertext_chunk_i.push(c)
+            }
+
+            ciphertext_chunks.push(ciphertext_chunk_i.try_into().unwrap());
+            shares.push(share);
+        }
+
+        (
+            OwnedInstance {
+                public_keys: pks,
+                randomizers_r: rr.try_into().unwrap(),
+                ciphertext_chunks,
+            },
+            r.try_into().unwrap(),
+            shares,
+        )
+    }
+
+    #[test]
+    fn should_fail_to_create_proof_with_invalid_instance() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    }
+
+    #[test]
+    fn should_verify_a_valid_proof() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (owned_instance, r, shares) = setup(&mut rng);
+
+        let instance = Instance {
+            public_keys: &owned_instance.public_keys,
+            randomizers_r: &owned_instance.randomizers_r,
+            ciphertext_chunks: &owned_instance.ciphertext_chunks,
+        };
+
+        let chunking_proof =
+            ProofOfChunking::construct(&mut rng, instance.clone(), &r, &shares).unwrap();
+
+        assert!(chunking_proof.verify(instance))
+    }
+
+    #[test]
+    fn works_with_chunks_of_extreme_sizes() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    }
+
+    #[test]
+    fn should_fail_to_verify_proof_with_invalid_instance() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    }
+
+    #[test]
+    fn should_fail_to_verify_proof_with_wrong_instance() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    }
+
+    #[test]
+    fn should_fail_to_verify_invalid_proof() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    }
+}

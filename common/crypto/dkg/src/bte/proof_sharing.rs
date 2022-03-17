@@ -76,6 +76,7 @@ impl ProofOfSecretSharing {
         mut rng: impl RngCore,
         instance: Instance,
         witness_r: &Scalar,
+        // TODO: are those just shares?
         witnesses_s: &[Scalar],
     ) -> Result<Self, DkgError> {
         if !instance.validate() {

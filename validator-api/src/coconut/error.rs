@@ -1,9 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use rocket::http::Status;
+use rocket::http::{ContentType, Status};
 use rocket::response::Responder;
-use rocket::{response, Request};
+use rocket::{response, Request, Response};
+use std::io::Cursor;
 use thiserror::Error;
 
 use crypto::asymmetric::{
@@ -51,7 +52,11 @@ pub enum CoconutError {
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'o> {
-        println!("Error: {}", self.to_string());
-        Err(Status::BadRequest)
+        let err_msg = self.to_string();
+        Response::build()
+            .header(ContentType::Plain)
+            .sized_body(err_msg.len(), Cursor::new(err_msg))
+            .status(Status::BadRequest)
+            .ok()
     }
 }

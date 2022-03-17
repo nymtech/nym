@@ -66,14 +66,14 @@ impl Client {
         V: AsRef<str>,
     {
         let url = create_api_url(&self.url, path, params);
-        Ok(self
-            .reqwest_client
-            .post(url)
-            .json(json_body)
-            .send()
-            .await?
-            .json()
-            .await?)
+        let response = self.reqwest_client.post(url).json(json_body).send().await?;
+        if response.status().is_success() {
+            Ok(response.json().await?)
+        } else {
+            Err(ValidatorAPIError::GenericRequestFailure(
+                response.text().await?,
+            ))
+        }
     }
 
     pub async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorAPIError> {

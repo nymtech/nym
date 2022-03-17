@@ -156,16 +156,6 @@ pub async fn post_blind_sign(
     Ok(Json(response))
 }
 
-// #[get("/get-signature", data = "<deposit_tx_hash>")]
-// pub async fn get_signature(
-//     deposit_tx_hash: Json<String>,
-//     state: &RocketState<State>,
-// ) -> Result<Json<BlindedSignatureResponse>> {
-//     Ok(Json(VerificationKeyResponse::new(
-//         state.key_pair.verification_key(),
-//     )))
-// }
-
 #[get("/verification-key")]
 pub async fn get_verification_key(
     state: &RocketState<State>,

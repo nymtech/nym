@@ -14,11 +14,6 @@ pub const PENDING_DELEGATION_EVENTS: Map<
     DelegationEvent,
 > = Map::new("pend");
 
-pub const PENDING_DELEGATION_EVENTS: Map<
-    (BlockHeight, IdentityKey, OwnerAddress),
-    DelegationEvent,
-> = Map::new("pend");
-
 // paged retrieval limits for all queries and transactions
 pub(crate) const DELEGATION_PAGE_MAX_LIMIT: u32 = 500;
 pub(crate) const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 250;

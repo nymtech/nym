@@ -383,16 +383,6 @@ impl<C> NymdClient<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetRewardPool {};
-        self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
-            .await
-    }
-
-    pub async fn get_epochs_in_interval(&self) -> Result<u64, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
         let request = QueryMsg::GetEpochsInInterval {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
@@ -434,6 +424,16 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::GetIntervalRewardPercent {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_epochs_in_interval(&self) -> Result<u64, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetEpochsInInterval {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await

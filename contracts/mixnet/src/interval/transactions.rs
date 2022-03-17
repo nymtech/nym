@@ -96,35 +96,6 @@ pub fn try_advance_epoch(env: Env, storage: &mut dyn Storage) -> Result<Response
     })
 }
 
-pub fn try_advance_epoch(env: Env, storage: &mut dyn Storage) -> Result<Response, ContractError> {
-    // in theory, we could have just changed the state and relied on its reversal upon failed
-    // execution, but better safe than sorry and do not modify the state at all unless we know
-    // all checks have succeeded.
-    let current_epoch = storage::current_epoch(storage)?;
-    let next_epoch = current_epoch.next();
-
-    if next_epoch.start_unix_timestamp() > env.block.time.seconds() as i64 {
-        // the reason for this check is as follows:
-        // nobody, even trusted validators, should be able to continuously keep advancing epochs,
-        // because otherwise it would be possible for them to continuously keep rewarding nodes.
-        //
-        // Therefore, even if "trusted" validator, responsible for rewarding, is malicious,
-        // they can't send rewards more often than every `REWARDED_SET_REFRESH_BLOCKS`
-        // and changing this value requires going through governance and having agreement of
-        // the super-majority of the validators (by stake)
-        return Err(EpochNotInProgress {
-            current_block_time: env.block.time.seconds(),
-            epoch_start: next_epoch.start_unix_timestamp(),
-            epoch_end: next_epoch.end_unix_timestamp(),
-        });
-    }
-
-    storage::save_epoch(storage, &next_epoch)?;
-    storage::save_epoch_reward_params(next_epoch.id(), storage)?;
-
-    Ok(Response::new().add_event(new_advance_interval_event(next_epoch)))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

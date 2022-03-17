@@ -6,6 +6,11 @@ export const createAccount = async (): Promise<TCreateAccount> => {
   return res;
 };
 
+export const createMnemonic = async (): Promise<string> => {
+  const res: string = await invoke('create_new_mnemonic');
+  return res;
+};
+
 export const signInWithMnemonic = async (mnemonic: string): Promise<Account> => {
   const res: Account = await invoke('connect_with_mnemonic', { mnemonic });
   return res;

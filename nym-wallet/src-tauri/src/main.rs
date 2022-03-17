@@ -36,6 +36,7 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       mixnet::account::connect_with_mnemonic,
       mixnet::account::create_new_account,
+      mixnet::account::create_new_mnemonic,
       mixnet::account::get_balance,
       mixnet::account::logout,
       mixnet::account::switch_network,

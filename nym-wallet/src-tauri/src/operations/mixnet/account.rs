@@ -101,6 +101,12 @@ pub async fn create_new_account(
 }
 
 #[tauri::command]
+pub async fn create_new_mnemonic() -> Result<String, BackendError> {
+  let rand_mnemonic = random_mnemonic();
+  Ok(rand_mnemonic.to_string())
+}
+
+#[tauri::command]
 pub async fn switch_network(
   state: tauri::State<'_, Arc<RwLock<State>>>,
   network: Network,

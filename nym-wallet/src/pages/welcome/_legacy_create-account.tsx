@@ -1,27 +1,26 @@
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Card, CardActions, CardContent, CardHeader, Stack, Typography } from '@mui/material';
-import { createAccount } from '../../requests';
-import { TCreateAccount } from '../../types';
+import { createMnemonic } from '../../requests';
 import { CopyToClipboard } from '../../components';
 import { TPages } from './types';
 
 export const CreateAccountContent: React.FC<{ page: TPages; showSignIn: () => void }> = ({ page, showSignIn }) => {
-  const [accountDetails, setAccountDetails] = useState<TCreateAccount>();
+  const [mnemonic, setMnemonic] = useState<string>();
   const [error, setError] = useState<Error>();
 
-  const handleCreateAccount = async () => {
+  const handleCreateMnemonic = async () => {
     setError(undefined);
     try {
-      const account = await createAccount();
-      setAccountDetails(account);
+      const newMnemonic = await createMnemonic();
+      setMnemonic(newMnemonic);
     } catch (e: any) {
       setError(e);
     }
   };
 
   useEffect(() => {
-    handleCreateAccount();
+    handleCreateMnemonic();
   }, []);
 
   return (
@@ -38,10 +37,10 @@ export const CreateAccountContent: React.FC<{ page: TPages; showSignIn: () => vo
       <Card variant="outlined" sx={{ bgcolor: 'transparent', p: 2, borderColor: 'common.white' }}>
         <CardHeader sx={{ color: 'common.white' }} title="Mnemonic" />
         <CardContent sx={{ color: 'common.white' }} data-testid="mnemonic-phrase">
-          {accountDetails?.mnemonic}
+          {mnemonic}
         </CardContent>
         <CardActions sx={{ justifyContent: 'flex-end' }}>
-          <CopyToClipboard text={accountDetails?.mnemonic || ''} light />
+          <CopyToClipboard text={mnemonic || ''} light />
         </CardActions>
       </Card>
       {error && (

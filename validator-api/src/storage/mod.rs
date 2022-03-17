@@ -416,36 +416,28 @@ impl ValidatorApiStorage {
             .get_mixnode_id(&test_route.layer_one_mix().identity_key.to_base58_string())
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?
-            .ok_or(ValidatorApiStorageError::InternalDatabaseError(
-                "".to_string(),
-            ))?;
+            .ok_or_else(|| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?;
 
         let layer2_mix_id = self
             .manager
             .get_mixnode_id(&test_route.layer_two_mix().identity_key.to_base58_string())
             .await
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?
-            .ok_or(ValidatorApiStorageError::InternalDatabaseError(
-                "".to_string(),
-            ))?;
+            .ok_or_else(|| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?;
 
         let layer3_mix_id = self
             .manager
             .get_mixnode_id(&test_route.layer_three_mix().identity_key.to_base58_string())
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?
-            .ok_or(ValidatorApiStorageError::InternalDatabaseError(
-                "".to_string(),
-            ))?;
+            .ok_or_else(|| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?;
 
         let gateway_id = self
             .manager
             .get_gateway_id(&test_route.gateway().identity_key.to_base58_string())
             .await
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?
-            .ok_or(ValidatorApiStorageError::InternalDatabaseError(
-                "".to_string(),
-            ))?;
+            .ok_or_else(|| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?;
 
         self.manager
             .submit_testing_route_used(TestingRoute {

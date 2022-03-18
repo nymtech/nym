@@ -8,6 +8,74 @@ use std::fmt::Formatter;
 use zeroize::Zeroize;
 use zeroize::Zeroizing;
 
+use crate::error::BackendError;
+
+use super::encryption::EncryptedData;
+use super::password::UserId;
+use super::UserPassword;
+
+const CURRENT_WALLET_FILE_VERSION: u32 = 1;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct StoredWallet {
+  pub version: u32,
+  pub accounts: Vec<EncryptedAccount>,
+}
+
+impl StoredWallet {
+  pub fn is_empty(&self) -> bool {
+    self.accounts.is_empty()
+  }
+
+  pub fn len(&self) -> usize {
+    self.accounts.len()
+  }
+
+  fn encrypted_account(&self, id: &UserId) -> Result<&EncryptedData<StoredAccount>, BackendError> {
+    self
+      .accounts
+      .iter()
+      .find(|account| &account.id == id)
+      .map(|account| &account.account)
+      .ok_or(BackendError::NoSuchWalletId)
+  }
+
+  pub fn decrypt_account(
+    &self,
+    id: &UserId,
+    password: &UserPassword,
+  ) -> Result<StoredAccount, BackendError> {
+    self.encrypted_account(id)?.decrypt_struct(password)
+  }
+
+  pub fn decrypt_all(&self, password: &UserPassword) -> Result<Vec<StoredAccount>, BackendError> {
+    self
+      .accounts
+      .iter()
+      .map(|account| account.account.decrypt_struct(password))
+      .collect::<Result<Vec<_>, _>>()
+  }
+
+  pub fn password_can_decrypt_all(&self, password: &UserPassword) -> bool {
+    self.decrypt_all(password).is_ok()
+  }
+}
+
+impl Default for StoredWallet {
+  fn default() -> Self {
+    StoredWallet {
+      version: CURRENT_WALLET_FILE_VERSION,
+      accounts: Vec::new(),
+    }
+  }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct EncryptedAccount {
+  pub id: UserId,
+  pub account: EncryptedData<StoredAccount>,
+}
+
 // future-proofing
 #[derive(Serialize, Deserialize, Debug, Zeroize)]
 #[serde(untagged)]

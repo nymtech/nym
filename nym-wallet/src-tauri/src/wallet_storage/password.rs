@@ -3,6 +3,24 @@
 
 use zeroize::Zeroize;
 
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct UserId(String);
+
+impl UserId {
+    // WIP(JON): consider making inner String pub
+  pub(crate) fn new(id: String) -> UserId {
+    UserId(id)
+  }
+}
+
+impl AsRef<str> for UserId {
+  fn as_ref(&self) -> &str {
+    self.0.as_ref()
+  }
+}
+
 // simple wrapper for String that will get zeroized on drop
 #[derive(Zeroize)]
 #[zeroize(drop)]

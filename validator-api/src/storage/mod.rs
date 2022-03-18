@@ -10,10 +10,8 @@ use crate::node_status_api::models::{
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    FailedMixnodeRewardChunk, IntervalRewarding, NodeStatus, PossiblyUnrewardedMixnode,
-    RewardingReport, TestingRoute,
+    FailedMixnodeRewardChunk, NodeStatus, PossiblyUnrewardedMixnode, RewardingReport, TestingRoute,
 };
-use mixnet_contract_common::Interval;
 use rocket::fairing::{self, AdHoc};
 use rocket::{Build, Rocket};
 use sqlx::ConnectOptions;
@@ -676,77 +674,6 @@ impl ValidatorApiStorage {
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
         self.manager
             .purge_old_gateway_statuses(until)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
-    }
-
-    ////////////////////////////////////////////////////////////////////////
-    // TODO: Should all of the below really return a "ValidatorApiStorageError" Errors?
-    ////////////////////////////////////////////////////////////////////////
-
-    /// Inserts information about starting new interval rewarding into the database.
-    /// Returns id of the newly created entry.
-    ///
-    /// # Arguments
-    ///
-    /// * `interval_start_timestamp`: Unix timestamp of start of this rewarding interval.
-    /// * `interval_end_timestamp`: Unix timestamp of end of this rewarding interval.
-    pub(crate) async fn insert_started_epoch_rewarding(
-        &self,
-        epoch: Interval,
-    ) -> Result<i64, ValidatorApiStorageError> {
-        self.manager
-            .insert_new_epoch_rewarding(epoch)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
-    }
-
-    // /// Tries to obtain the most recent interval rewarding entry currently stored.
-    // ///
-    // /// Returns None if no data exists.
-    // pub(crate) async fn get_most_recent_interval_rewarding_entry(
-    //     &self,
-    // ) -> Result<Option<IntervalRewarding>, ValidatorApiStorageError> {
-    //     self.manager
-    //         .get_most_recent_interval_rewarding_entry()
-    //         .await
-    //         .map_err(|_| ValidatorApiStorageError::InternalDatabaseError)
-    // }
-
-    /// Tries to obtain the interval rewarding entry that has the provided timestamp.
-    ///
-    /// Returns None if no data exists.
-    ///
-    /// # Arguments
-    ///
-    /// * `interval_timestamp`: Unix timestamp of this rewarding interval.
-    pub(super) async fn get_epoch_rewarding_entry(
-        &self,
-        epoch_id: i64,
-    ) -> Result<Option<IntervalRewarding>, ValidatorApiStorageError> {
-        self.manager
-            .get_epoch_rewarding_entry(epoch_id)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(format!("{}", e)))
-    }
-
-    /// Sets the `finished` field on the interval rewarding to true and inserts the rewarding report into
-    /// the database.
-    ///
-    /// # Arguments
-    ///
-    /// * `report`: report to insert into the database
-    pub(crate) async fn finish_rewarding_interval_and_insert_report(
-        &self,
-        report: RewardingReport,
-    ) -> Result<(), ValidatorApiStorageError> {
-        self.manager
-            .update_finished_interval_rewarding(report.interval_rewarding_id)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
-
-        self.manager
-            .insert_rewarding_report(report)
             .await
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
     }

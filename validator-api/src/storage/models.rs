@@ -22,16 +22,6 @@ pub(crate) struct TestingRoute {
     pub(crate) monitor_run_id: i64,
 }
 
-pub(crate) struct IntervalRewarding {
-    #[allow(dead_code)]
-    pub(crate) id: i64,
-    #[allow(dead_code)]
-    pub(crate) interval_start_timestamp: i64,
-    #[allow(dead_code)]
-    pub(crate) interval_end_timestamp: i64,
-    pub(crate) finished: bool,
-}
-
 pub(crate) struct RewardingReport {
     // references particular interval_rewarding
     pub(crate) interval_rewarding_id: i64,

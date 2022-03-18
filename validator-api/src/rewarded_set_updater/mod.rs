@@ -128,28 +128,6 @@ impl RewardedSetUpdater {
             .collect()
     }
 
-    async fn rewarding_happened_at_epoch(&self) -> Result<bool, RewardingError> {
-        let epoch = self.epoch().await?;
-        if let Some(entry) = self
-            .storage
-            .get_epoch_rewarding_entry(epoch.id().into())
-            .await?
-        {
-            // log error if the attempt wasn't finished. This error implies the process has crashed
-            // during the rewards distribution
-            if !entry.finished {
-                error!(
-                    "It seems that we haven't successfully finished distributing rewards at {:?}",
-                    epoch
-                )
-            }
-
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
     async fn reward_current_rewarded_set(&self) -> Result<(), RewardingError> {
         let to_reward = self.nodes_to_reward().await?;
         let epoch = self.epoch().await?;
@@ -331,45 +309,20 @@ impl RewardedSetUpdater {
             log::info!("Rewarded current rewarded set... SUCCESS");
         }
 
-        // Reconcile delegations from the previous epoch
-        log::info!("Reconciling delegations...");
-        if let Err(err) = self.nymd_client.reconcile_delegations().await {
-            log::error!("FAILED to reconcile delegations - {}", err);
-        } else {
-            log::info!("Reconciling delegations... SUCCESS");
-        }
-        // Snapshot mixnodes for the next epoch
-        log::info!("Snapshotting mixnodes...");
-        if let Err(err) = self.nymd_client.checkpoint_mixnodes().await {
-            log::error!("FAILED to checkpoint mixnodes - {}", err);
-        } else {
-            log::info!("Snapshotting mixnodes... SUCCESS");
-        }
-
-        log::info!("Advancing epoch...");
-        if let Err(err) = self.nymd_client.advance_current_epoch().await {
-            log::error!("FAILED to advance_epoch - {}", err);
-        } else {
-            log::info!("Advancing epoch... SUCCESS");
-        }
-
         let rewarded_set_size = epoch_reward_params.rewarded_set_size() as u32;
         let active_set_size = epoch_reward_params.active_set_size() as u32;
 
         // note that top k nodes are in the active set
         let new_rewarded_set = self.determine_rewarded_set(all_nodes, rewarded_set_size);
-        log::info!("Updating rewarded set to {}", new_rewarded_set.len());
 
         if let Err(err) = self
             .nymd_client
-            .write_rewarded_set(new_rewarded_set, active_set_size)
+            .epoch_operations(new_rewarded_set, active_set_size)
             .await
         {
-            log::error!("FAILED to update the rewarded set - {}", err);
-            // note that if the transaction failed to get executed because, I don't know, there was a networking hiccup
-            // the cache will notify the updater on its next round
+            log::error!("FAILED epoch operations - {}", err);
         } else {
-            log::info!("Updating rewarded... SUCCESS");
+            log::info!("Epoch operations... SUCCESS");
         }
 
         let cutoff = (epoch.end() - Duration::from_secs(86400)).unix_timestamp();

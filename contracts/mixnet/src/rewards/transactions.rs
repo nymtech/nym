@@ -6,8 +6,6 @@ use crate::constants;
 use crate::delegations::storage as delegations_storage;
 use crate::delegations::transactions::_try_delegate_to_mixnode;
 use crate::error::ContractError;
-use crate::interval::storage::{self as interval_storage};
-use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage::mixnodes;
 use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
 use crate::rewards::helpers;
@@ -295,43 +293,6 @@ pub fn calculate_delegator_reward(
         )?;
 
     Ok(accumulated_rewards)
-}
-
-/// Checks whether under the current context, any rewarding-related functionalities can be called.
-/// The following must be true:
-/// - the call has originated from the address of the authorised rewarding validator,
-/// - the call has been made with the nonce corresponding to the current rewarding procedure,
-///
-/// # Arguments
-///
-/// * `storage`: reference (kinda) to the underlying storage pool of the contract used to read the current state
-/// * `info`: contains the essential info for authorization, such as identity of the call
-/// * `interval_id`: expected id of the current interval sent alongside the call
-fn verify_rewarding_state(
-    storage: &dyn Storage,
-    info: MessageInfo,
-    interval_id: u32,
-) -> Result<(), ContractError> {
-    let state = mixnet_params_storage::CONTRACT_STATE.load(storage)?;
-
-    // check if this is executed by the permitted validator, if not reject the transaction
-    if info.sender != state.rewarding_validator_address {
-        return Err(ContractError::Unauthorized);
-    }
-
-    let current_interval = interval_storage::current_epoch(storage)?;
-
-    // make sure the transaction is sent for the correct interval
-    // (guard ourselves against somebody trying to send stale results;
-    // realistically it's never going to happen in a single rewarding validator case
-    if interval_id != current_interval.id() {
-        Err(ContractError::InvalidIntervalId {
-            received: interval_id,
-            expected: current_interval.id(),
-        })
-    } else {
-        Ok(())
-    }
 }
 
 pub(crate) fn try_reward_mixnode(
@@ -690,7 +651,7 @@ pub mod tests {
         save_epoch(&mut deps.storage, &epoch).unwrap();
         save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
 
-        let epoch_from_storage = interval_storage::current_epoch(&deps.storage).unwrap();
+        let epoch_from_storage = crate::interval::storage::current_epoch(&deps.storage).unwrap();
         assert_eq!(epoch_from_storage.id(), 0);
 
         let res = try_reward_mixnode(

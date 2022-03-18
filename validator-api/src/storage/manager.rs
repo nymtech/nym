@@ -1,14 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use mixnet_contract_common::Interval;
-
 use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
 use crate::node_status_api::utils::ActiveNodeStatuses;
 use crate::storage::models::{
-    ActiveNode, FailedMixnodeRewardChunk, IntervalRewarding, NodeStatus, PossiblyUnrewardedMixnode,
-    RewardingReport, TestingRoute,
+    ActiveNode, FailedMixnodeRewardChunk, NodeStatus, PossiblyUnrewardedMixnode, RewardingReport,
+    TestingRoute,
 };
 use std::convert::TryFrom;
 
@@ -668,55 +665,6 @@ impl StorageManager {
         .await
     }
 
-    /// Inserts information about starting new interval rewarding into the database.
-    /// Returns id of the newly created entry.
-    ///
-    /// # Arguments
-    ///
-    /// * `interval_start_timestamp`: Unix timestamp of start of this rewarding interval.
-    /// * `interval_end_timestamp`: Unix timestamp of end of this rewarding interval.
-    pub(super) async fn insert_new_epoch_rewarding(
-        &self,
-        epoch: Interval,
-    ) -> Result<i64, sqlx::Error> {
-        let id = epoch.id();
-        let start = epoch.start_unix_timestamp();
-        let end = epoch.end_unix_timestamp();
-        let res = sqlx::query!(
-            r#"
-                INSERT INTO interval_rewarding (id, interval_start_timestamp, interval_end_timestamp, finished)
-                VALUES (?, ?, ?, 0) 
-            "#,
-            id,
-            start,
-            end,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-
-        Ok(res.last_insert_rowid())
-    }
-
-    /// Sets the `finished` field on the interval rewarding to true.
-    ///
-    /// # Arguments
-    ///
-    /// * `id`: id of the entry we want to update.
-    pub async fn update_finished_interval_rewarding(&self, id: i64) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                UPDATE interval_rewarding
-                SET finished = 1
-                WHERE id = ?
-            "#,
-            id
-        )
-        .execute(&self.connection_pool)
-        .await?;
-
-        Ok(())
-    }
-
     // /// Tries to obtain the most recent interval rewarding entry currently stored.
     // ///
     // /// Returns None if no data exists.
@@ -734,29 +682,6 @@ impl StorageManager {
     //     .fetch_optional(&self.connection_pool)
     //     .await
     // }
-
-    /// Tries to obtain the interval rewarding entry that has the provided timestamp.
-    ///
-    /// Returns None if no data exists.
-    ///
-    /// # Arguments
-    ///
-    /// * `interval_start_timestamp`: Unix timestamp of the start of this rewarding interval.
-    pub(super) async fn get_epoch_rewarding_entry(
-        &self,
-        epoch_id: i64,
-    ) -> Result<Option<IntervalRewarding>, sqlx::Error> {
-        sqlx::query_as!(
-            IntervalRewarding,
-            r#"
-                SELECT * FROM interval_rewarding
-                WHERE id = ?
-            "#,
-            epoch_id
-        )
-        .fetch_optional(&self.connection_pool)
-        .await
-    }
 
     /// Inserts new rewarding report into the database.
     ///

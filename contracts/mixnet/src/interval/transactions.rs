@@ -5,7 +5,6 @@ use super::storage;
 use crate::error::ContractError;
 use crate::error::ContractError::EpochInProgress;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::mixnet_contract_settings::storage::rewarding_validator_address;
 use crate::support::helpers::is_authorized;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::events::{new_advance_interval_event, new_change_rewarded_set_event};

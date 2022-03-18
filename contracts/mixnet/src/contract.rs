@@ -16,7 +16,6 @@ use crate::interval::queries::{
     query_current_rewarded_set_height, query_rewarded_set,
     query_rewarded_set_refresh_minimum_blocks, query_rewarded_set_update_details,
 };
-use crate::interval::storage as interval_storage;
 use crate::interval::transactions::init_epoch;
 use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::{
@@ -34,7 +33,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
 use mixnet_contract_common::{
-    ContractStateParams, Delegation, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
+    ContractStateParams, Delegation, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
 use time::OffsetDateTime;
 
@@ -147,6 +146,8 @@ pub fn execute(
                 deps, info, params,
             )
         }
+        #[allow(unused_variables)]
+        // FIXME: remove interval_id
         ExecuteMsg::RewardMixnode {
             identity,
             params,

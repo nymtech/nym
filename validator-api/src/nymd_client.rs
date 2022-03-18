@@ -278,6 +278,7 @@ impl<C> Client<C> {
             .await
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -286,6 +287,7 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn checkpoint_mixnodes(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -294,6 +296,7 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn reconcile_delegations(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -302,6 +305,7 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn write_rewarded_set(
         &self,
         rewarded_set: Vec<IdentityKey>,
@@ -315,6 +319,34 @@ impl<C> Client<C> {
             .await
             .nymd
             .write_rewarded_set(rewarded_set, expected_active_set_size)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn epoch_operations(
+        &self,
+        rewarded_set: Vec<IdentityKey>,
+        expected_active_set_size: u32,
+    ) -> Result<(), RewardingError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let msgs = vec![
+            (ExecuteMsg::ReconcileDelegations {}, vec![]),
+            (ExecuteMsg::CheckpointMixnodes {}, vec![]),
+            (ExecuteMsg::AdvanceCurrentEpoch {}, vec![]),
+            (
+                ExecuteMsg::WriteRewardedSet {
+                    rewarded_set,
+                    expected_active_set_size,
+                },
+                vec![],
+            ),
+        ];
+
+        let memo = "Performing epoch operations".to_string();
+
+        self.execute_multiple_with_retry(msgs, Default::default(), memo)
             .await?;
         Ok(())
     }

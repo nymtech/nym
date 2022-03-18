@@ -126,10 +126,8 @@ impl Execute for GetCredential {
                     BlindSignRequest::from_bytes(blind_request_data.blind_sign_req.as_slice())
                         .map_err(|_| CredentialClientError::CorruptedBlindSignRequest)?;
                 BandwidthVoucher::new_with_blind_sign_req(
-                    serial_number,
-                    binding_number,
-                    &state.amount.to_string(),
-                    VOUCHER_INFO,
+                    [serial_number, binding_number],
+                    [&state.amount.to_string(), VOUCHER_INFO],
                     self.tx_hash.clone(),
                     state.signing_keypair.private_key.clone(),
                     state.encryption_keypair.private_key.clone(),
@@ -153,7 +151,7 @@ impl Execute for GetCredential {
         // Back up the blind sign req data, in case of sporadic failures
         state.blind_request_data = Some(RequestData::new(
             bandwidth_credential_attributes.get_private_attributes(),
-            &bandwidth_credential_attributes.pedersen_commitments_openings(),
+            bandwidth_credential_attributes.pedersen_commitments_openings(),
             bandwidth_credential_attributes.blind_sign_request(),
         )?);
         db.set(&self.tx_hash, &state).unwrap();

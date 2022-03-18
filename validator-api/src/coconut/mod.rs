@@ -68,7 +68,7 @@ impl State {
             stream_cipher::encrypt::<ctr::Ctr64LE<Aes128>>(&shared_key, &zero_iv, &chunk_data);
 
         let response =
-            BlindedSignatureResponse::new(encrypted_data.clone(), keypair.public_key().to_bytes());
+            BlindedSignatureResponse::new(encrypted_data, keypair.public_key().to_bytes());
 
         // Atomically insert data, only if there is no signature stored in the meantime
         // This prevents race conditions on storing two signatures for the same deposit transaction

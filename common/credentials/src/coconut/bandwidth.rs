@@ -46,24 +46,24 @@ pub struct BandwidthVoucher {
 
 impl BandwidthVoucher {
     pub fn new_with_blind_sign_req(
-        serial_number: PrivateAttribute,
-        binding_number: PrivateAttribute,
-        voucher_value: &str,
-        voucher_info: &str,
+        private_attributes: [PrivateAttribute; 2],
+        public_attributes_plain: [&str; 2],
         tx_hash: String,
         signing_key: String,
         encryption_key: String,
         pedersen_commitments_openings: Vec<Attribute>,
         blind_sign_request: BlindSignRequest,
     ) -> Self {
+        let voucher_value = public_attributes_plain[0];
+        let voucher_info = public_attributes_plain[1];
         let voucher_value_plain = voucher_value.to_string();
         let voucher_info_plain = voucher_info.to_string();
         let voucher_value = hash_to_scalar(voucher_value.as_bytes());
         let voucher_info = hash_to_scalar(voucher_info.as_bytes());
 
         BandwidthVoucher {
-            serial_number,
-            binding_number,
+            serial_number: private_attributes[0],
+            binding_number: private_attributes[1],
             voucher_value,
             voucher_value_plain,
             voucher_info,
@@ -92,8 +92,8 @@ impl BandwidthVoucher {
         let voucher_info = hash_to_scalar(voucher_info.as_bytes());
         let (pedersen_commitments_openings, blind_sign_request) = prepare_blind_sign(
             params,
-            &vec![serial_number, binding_number],
-            &vec![voucher_value, voucher_info],
+            &[serial_number, binding_number],
+            &[voucher_value, voucher_info],
         )
         .unwrap();
         BandwidthVoucher {
@@ -113,7 +113,7 @@ impl BandwidthVoucher {
     }
 
     /// Check if the plain values correspond to the PublicAttributes
-    pub fn verify_against_plain(values: &Vec<PublicAttribute>, plain_values: &Vec<String>) -> bool {
+    pub fn verify_against_plain(values: &[PublicAttribute], plain_values: &[String]) -> bool {
         values.len() == 2
             && plain_values.len() == 2
             && values[0] == hash_to_scalar(&plain_values[0])

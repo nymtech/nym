@@ -5,7 +5,6 @@ use coconut_interface::{Attribute, BlindSignRequest, Bytable, PrivateAttribute};
 use serde::{Deserialize, Serialize};
 
 use crypto::asymmetric::{encryption, identity};
-use pemstore::traits::PemStorableKeyPair;
 
 use crate::error::{CredentialClientError, Result};
 
@@ -30,24 +29,6 @@ impl From<encryption::KeyPair> for KeyPair {
             public_key: kp.public_key().to_base58_string(),
             private_key: kp.private_key().to_base58_string(),
         }
-    }
-}
-
-impl Into<identity::KeyPair> for KeyPair {
-    fn into(self) -> identity::KeyPair {
-        identity::KeyPair::from_keys(
-            identity::PrivateKey::from_base58_string(self.private_key).unwrap(),
-            identity::PublicKey::from_base58_string(self.public_key).unwrap(),
-        )
-    }
-}
-
-impl Into<encryption::KeyPair> for KeyPair {
-    fn into(self) -> encryption::KeyPair {
-        encryption::KeyPair::from_keys(
-            encryption::PrivateKey::from_base58_string(self.private_key).unwrap(),
-            encryption::PublicKey::from_base58_string(self.public_key).unwrap(),
-        )
     }
 }
 

@@ -53,14 +53,11 @@ pub async fn extract_encryption_key(
         .ok_or(CoconutError::InvalidTx)?
         .value
         .as_ref();
-    let deposit_value_plain = public_attributes_plain
-        .get(0)
-        .cloned()
-        .unwrap_or(String::new());
+    let deposit_value_plain = public_attributes_plain.get(0).cloned().unwrap_or_default();
     if deposit_value != deposit_value_plain {
         return Err(CoconutError::DifferentPublicAttributes(
             deposit_value.to_string(),
-            deposit_value_plain.to_string(),
+            deposit_value_plain,
         ));
     }
 
@@ -70,14 +67,11 @@ pub async fn extract_encryption_key(
         .ok_or(CoconutError::InvalidTx)?
         .value
         .as_ref();
-    let deposit_info_plain = public_attributes_plain
-        .get(1)
-        .cloned()
-        .unwrap_or(String::new());
+    let deposit_info_plain = public_attributes_plain.get(1).cloned().unwrap_or_default();
     if deposit_info != deposit_info_plain {
         return Err(CoconutError::DifferentPublicAttributes(
             deposit_info.to_string(),
-            deposit_info_plain.to_string(),
+            deposit_info_plain,
         ));
     }
 

@@ -46,7 +46,7 @@ impl Epoch {
         Epoch(epoch.view_bits().to_bitvec())
     }
 
-    fn extend(&self) -> Self {
+    fn extend(&self, oracle_output: &[u8]) -> Self {
         todo!()
     }
 
@@ -183,7 +183,7 @@ fn setup() -> Params {
 }
 
 // produces public key and a decryption key for the root of the tree
-fn keygen(params: &Params, mut rng: impl RngCore) -> (PublicKeyWithProof, DecryptionKey) {
+fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicKeyWithProof) {
     let g1 = G1Projective::generator();
     let g2 = G2Projective::generator();
 
@@ -195,7 +195,7 @@ fn keygen(params: &Params, mut rng: impl RngCore) -> (PublicKeyWithProof, Decryp
     let mut rho = Scalar::random(&mut rng);
 
     let a = g1 * rho;
-    let b = g2 * x;
+    let b = g2 * x + params.f0 * rho;
 
     let ds = params.fs.iter().map(|f_i| f_i * rho).collect();
     let e = params.h * rho;
@@ -219,7 +219,7 @@ fn keygen(params: &Params, mut rng: impl RngCore) -> (PublicKeyWithProof, Decryp
     x.zeroize();
     rho.zeroize();
 
-    (key_with_proof, dk)
+    (dk, key_with_proof)
 }
 
 fn verify_key(pk: &PublicKey, proof: &ProofOfDiscreteLog) -> bool {
@@ -241,6 +241,9 @@ fn encrypt_chunk(
     params: &Params,
     mut rng: impl RngCore,
 ) -> SingleChunkCiphertext {
+    // TODO:
+    let extended_epoch = epoch;
+
     let g1 = G1Projective::generator();
 
     // $r,s \leftarrow \mathbb{Z}_p$
@@ -255,9 +258,8 @@ fn encrypt_chunk(
     // can't really have a more efficient implementation until https://github.com/zkcrypto/bls12_381/pull/70 is merged...
     let c = pk.0 * rand_r + g1 * Scalar::from(*m as u64);
 
-    // f0 * f1^t1 * ... * fi^ti * h^s
-    // let z = epoch.evaluate_f(params) + params.h * rand_s;
-    let z = params.h * rand_s;
+    // (f0 * f1^t1 * ... * fi^ti)^r * h^s
+    let z = extended_epoch.evaluate_f(params) * rand_r + params.h * rand_s;
 
     SingleChunkCiphertext { r, s, z, c }
 }
@@ -278,6 +280,8 @@ fn encrypt_shares(
     let mut ss = Vec::with_capacity(NUM_CHUNKS);
     let mut zs = Vec::with_capacity(NUM_CHUNKS);
 
+    let f = epoch.evaluate_f(params);
+
     // generate relevant re-usable pseudorandom data
     for _ in 0..NUM_CHUNKS {
         let rand_r = Scalar::random(&mut rng);
@@ -288,9 +292,7 @@ fn encrypt_shares(
         // g1^s
         let s = g1 * rand_s;
 
-        // z will require additional fancy operations to make it work 'properly', but at the current
-        // step it's fine
-        let z = params.h * rand_s;
+        let z = f * rand_r + params.h * rand_s;
 
         rand_rs.push(rand_r);
         rand_ss.push(rand_s);
@@ -324,41 +326,6 @@ fn encrypt_shares(
         z: zs.try_into().unwrap(),
         ciphertext_chunks: cc,
     }
-
-    // ciphertext data
-
-    // let mut cs = Vec::with_capacity(NUM_CHUNKS);
-    // let mut zs = Vec::with_capacity(NUM_CHUNKS);
-    //
-    // for chunk in m.chunks.iter() {
-    //     let rand_r = Scalar::random(&mut rng);
-    //     let rand_s = Scalar::random(&mut rng);
-    //
-    //     // g1^r
-    //     let r = g1 * rand_r;
-    //     // g1^s
-    //     let s = g1 * rand_s;
-    //
-    //     let c = pk.0 * rand_r + g1 * Scalar::from(*chunk as u64);
-    //     // let z = epoch.evaluate_f(params) + params.h * rand_s;
-    //     let z = params.h * rand_s;
-    //
-    //     rand_rs.push(rand_r);
-    //     rand_ss.push(rand_s);
-    //
-    //     rs.push(r);
-    //     ss.push(s);
-    //     cs.push(c);
-    //     zs.push(z);
-    // }
-    //
-    // // we know the conversions must succeed since `ShareEncryptionPlaintext` must also have `NUM_CHUNKS` chunks
-    // Ciphertext {
-    //     r: rs.try_into().unwrap(),
-    //     s: ss.try_into().unwrap(),
-    //     z: zs.try_into().unwrap(),
-    //     ciphertext_chunks: vec![cs.try_into().unwrap()],
-    // }
 }
 
 #[inline]
@@ -373,7 +340,24 @@ fn decrypt_chunk(
 ) -> Result<Chunk, DkgError> {
     // TODO: if we go with forward secrecy then we presumably need to evolve dk
 
-    // TODO2: verify the pairing from descryption 1.1.5, i.e. e(g1, Z_j) = e(R_j, f0*PROD(fi^ti) * e(Oj, h)
+    // TODO2: verify the pairing from description 1.1.5, i.e. e(g1, Z_j) = e(R_j, f0*PROD(fi^ti) * e(Oj, h)
+
+    /*
+        let mut bneg = dk.b.clone();
+    let mut l = dk.tau.len();
+    for tmp in dk.d_t.iter() {
+        if extended_tau[l] == Bit::One {
+            bneg.add(tmp);
+        }
+        l += 1
+    }
+    for k in 0..LAMBDA_H {
+        if extended_tau[LAMBDA_T + k] == Bit::One {
+            bneg.add(&dk.d_h[k]);
+        }
+    }
+    bneg.neg();
+     */
 
     let b_neg = dk.nodes[0].b.neg().to_affine();
     let e_neg = dk.nodes[0].e.neg().to_affine();
@@ -556,7 +540,7 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
         let params = setup();
 
-        let (public_key, decryption_key) = keygen(&params, &mut rng);
+        let (decryption_key, public_key) = keygen(&params, &mut rng);
         let epoch = Epoch::new(0);
 
         for i in 0u64..100 {
@@ -583,8 +567,8 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
         let params = setup();
 
-        let (public_key1, decryption_key1) = keygen(&params, &mut rng);
-        let (public_key2, decryption_key2) = keygen(&params, &mut rng);
+        let (decryption_key1, public_key1) = keygen(&params, &mut rng);
+        let (decryption_key2, public_key2) = keygen(&params, &mut rng);
         let epoch = Epoch::new(0);
 
         let lookup_table = &DEFAULT_BSGS_TABLE;

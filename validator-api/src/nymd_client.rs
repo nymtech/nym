@@ -140,6 +140,33 @@ impl<C> Client<C> {
         self.0.read().await.get_contract_settings().await
     }
 
+    #[allow(dead_code)]
+    pub(crate) async fn get_operator_rewards(
+        &self,
+        address: String,
+    ) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0.read().await.get_operator_rewards(address).await
+    }
+
+    #[allow(dead_code)]
+    pub(crate) async fn get_delegator_rewards(
+        &self,
+        address: String,
+        mix_identity: IdentityKey,
+    ) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0
+            .read()
+            .await
+            .get_delegator_rewards(address, mix_identity)
+            .await
+    }
+
     pub(crate) async fn get_current_epoch(&self) -> Result<Option<Interval>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,

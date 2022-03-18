@@ -90,7 +90,7 @@ pub fn _try_compound_operator_reward(
     Ok(reward)
 }
 
-fn calculate_operator_reward(
+pub fn calculate_operator_reward(
     storage: &dyn Storage,
     owner: &Addr,
     bond: &StoredMixnodeBond,
@@ -233,7 +233,7 @@ pub fn _try_compound_delegator_reward(
 // TODO: Test
 // + last_reward_claimed_height is updated
 // + last_reward_claimed height is correctly used
-fn calculate_delegator_reward(
+pub fn calculate_delegator_reward(
     storage: &dyn Storage,
     owner_address: &str,
     mix_identity: &str,

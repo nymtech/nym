@@ -422,19 +422,21 @@ pub(crate) fn try_reward_mixnode(
     let mut stored_bond: StoredMixnodeBond = current_bond.into();
     // technically we don't have to set the total_delegation bucket, but it makes things easier
     // in different places that we can guarantee that if node exists, so does the data behind the total delegation
-    let identity = stored_bond.identity();
-    crate::mixnodes::storage::mixnodes().save(
-        deps.storage,
-        identity,
-        &stored_bond,
-        env.block.height,
-    )?;
 
     stored_bond.epoch_rewards = Some(NodeEpochRewards::new(
         node_reward_params,
         stored_node_result,
         epoch.id(),
     ));
+
+    let identity = stored_bond.identity();
+
+    crate::mixnodes::storage::mixnodes().save(
+        deps.storage,
+        identity,
+        &stored_bond,
+        env.block.height,
+    )?;
 
     // Take rewards out of the rewarding pool
     storage::decr_reward_pool(deps.storage, stored_node_result.reward())?;

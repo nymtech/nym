@@ -74,16 +74,20 @@ async fn obtain_partial_credential(
     let public_attributes_plain = attributes.get_public_attributes_plain();
     let private_attributes = attributes.get_private_attributes();
     let blind_sign_request = attributes.blind_sign_request();
-    let blind_sign_request_body = BlindSignRequestBody::new(
-        blind_sign_request,
-        attributes.tx_hash().to_string(),
-        attributes.sign(blind_sign_request),
-        &public_attributes,
-        public_attributes_plain,
-        (public_attributes.len() + private_attributes.len()) as u32,
-    );
 
-    let response = client.blind_sign(&blind_sign_request_body).await?;
+    let response = if attributes.use_request() {
+        let blind_sign_request_body = BlindSignRequestBody::new(
+            blind_sign_request,
+            attributes.tx_hash().to_string(),
+            attributes.sign(blind_sign_request),
+            &public_attributes,
+            public_attributes_plain,
+            (public_attributes.len() + private_attributes.len()) as u32,
+        );
+        client.blind_sign(&blind_sign_request_body).await?
+    } else {
+        client.signature(attributes.tx_hash()).await?
+    };
     let encrypted_signature = response.encrypted_signature;
     let remote_key = PublicKey::from_bytes(&response.remote_key)?;
     let local_key = PrivateKey::from_base58_string(attributes.encryption_key())?;

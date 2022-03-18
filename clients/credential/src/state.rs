@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_interface::{Attribute, BlindSignRequest};
+use coconut_interface::{Attribute, BlindSignRequest, Bytable, PrivateAttribute};
 use serde::{Deserialize, Serialize};
 
 use crypto::asymmetric::{encryption, identity};
@@ -63,19 +63,27 @@ pub(crate) struct State {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct RequestData {
-    first_attribute: [u8; 32],
-    second_attribute: [u8; 32],
-    blind_sign_req: Vec<u8>,
+    pub serial_number: Vec<u8>,
+    pub binding_number: Vec<u8>,
+    pub first_attribute: Vec<u8>,
+    pub second_attribute: Vec<u8>,
+    pub blind_sign_req: Vec<u8>,
 }
 
 impl RequestData {
-    pub fn new(attributes: &[Attribute], blind_sign_request: &BlindSignRequest) -> Result<Self> {
-        if attributes.len() != 2 {
+    pub fn new(
+        private_attributes: Vec<PrivateAttribute>,
+        attributes: &[Attribute],
+        blind_sign_request: &BlindSignRequest,
+    ) -> Result<Self> {
+        if private_attributes.len() != 2 || attributes.len() != 2 {
             Err(CredentialClientError::WrongAttributeNumber)
         } else {
             Ok(RequestData {
-                first_attribute: attributes[0].to_bytes(),
-                second_attribute: attributes[1].to_bytes(),
+                serial_number: private_attributes[0].to_byte_vec(),
+                binding_number: private_attributes[1].to_byte_vec(),
+                first_attribute: attributes[0].to_byte_vec(),
+                second_attribute: attributes[1].to_byte_vec(),
                 blind_sign_req: blind_sign_request.to_bytes(),
             })
         }

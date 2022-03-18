@@ -8,7 +8,7 @@ use rand::rngs::OsRng;
 use std::str::FromStr;
 use url::Url;
 
-use coconut_interface::{Base58, Parameters};
+use coconut_interface::{Attribute, Base58, BlindSignRequest, Bytable, Parameters};
 use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
@@ -108,17 +108,51 @@ impl Execute for GetCredential {
         let urls = SIGNER_AUTHORITIES.map(|addr| Url::from_str(addr).unwrap());
 
         let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-        let bandwidth_credential_attributes = BandwidthVoucher::new(
-            &params,
-            &state.amount.to_string(),
-            VOUCHER_INFO,
-            self.tx_hash.clone(),
-            state.signing_keypair.private_key.clone(),
-            state.encryption_keypair.private_key.clone(),
-        );
+        let bandwidth_credential_attributes = if self.__no_request {
+            if let Some(blind_request_data) = state.blind_request_data {
+                let serial_number =
+                    Attribute::try_from_byte_slice(&blind_request_data.serial_number)
+                        .map_err(|_| CredentialClientError::CorruptedBlindSignRequest)?;
+                let binding_number =
+                    Attribute::try_from_byte_slice(&blind_request_data.binding_number)
+                        .map_err(|_| CredentialClientError::CorruptedBlindSignRequest)?;
+                let pedersen_commitments_openings = vec![
+                    Attribute::try_from_byte_slice(&blind_request_data.first_attribute)
+                        .map_err(|_| CredentialClientError::CorruptedBlindSignRequest)?,
+                    Attribute::try_from_byte_slice(&blind_request_data.second_attribute)
+                        .map_err(|_| CredentialClientError::CorruptedBlindSignRequest)?,
+                ];
+                let blind_sign_request =
+                    BlindSignRequest::from_bytes(blind_request_data.blind_sign_req.as_slice())
+                        .map_err(|_| CredentialClientError::CorruptedBlindSignRequest)?;
+                BandwidthVoucher::new_with_blind_sign_req(
+                    serial_number,
+                    binding_number,
+                    &state.amount.to_string(),
+                    VOUCHER_INFO,
+                    self.tx_hash.clone(),
+                    state.signing_keypair.private_key.clone(),
+                    state.encryption_keypair.private_key.clone(),
+                    pedersen_commitments_openings,
+                    blind_sign_request,
+                )
+            } else {
+                return Err(CredentialClientError::NoLocalBlindSignRequest);
+            }
+        } else {
+            BandwidthVoucher::new(
+                &params,
+                &state.amount.to_string(),
+                VOUCHER_INFO,
+                self.tx_hash.clone(),
+                state.signing_keypair.private_key.clone(),
+                state.encryption_keypair.private_key.clone(),
+            )
+        };
 
         // Back up the blind sign req data, in case of sporadic failures
         state.blind_request_data = Some(RequestData::new(
+            bandwidth_credential_attributes.get_private_attributes(),
             &bandwidth_credential_attributes.pedersen_commitments_openings(),
             bandwidth_credential_attributes.blind_sign_request(),
         )?);

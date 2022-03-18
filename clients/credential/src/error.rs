@@ -21,4 +21,10 @@ pub enum CredentialClientError {
 
     #[error("Wrong number of attributes")]
     WrongAttributeNumber,
+
+    #[error("Could not find any backed up blind sign request data")]
+    NoLocalBlindSignRequest,
+
+    #[error("The local blind sign request data is corrupted")]
+    CorruptedBlindSignRequest,
 }

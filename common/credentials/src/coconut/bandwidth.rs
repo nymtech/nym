@@ -41,9 +41,41 @@ pub struct BandwidthVoucher {
     encryption_key: String,
     pedersen_commitments_openings: Vec<Attribute>,
     blind_sign_request: BlindSignRequest,
+    use_request: bool,
 }
 
 impl BandwidthVoucher {
+    pub fn new_with_blind_sign_req(
+        serial_number: PrivateAttribute,
+        binding_number: PrivateAttribute,
+        voucher_value: &str,
+        voucher_info: &str,
+        tx_hash: String,
+        signing_key: String,
+        encryption_key: String,
+        pedersen_commitments_openings: Vec<Attribute>,
+        blind_sign_request: BlindSignRequest,
+    ) -> Self {
+        let voucher_value_plain = voucher_value.to_string();
+        let voucher_info_plain = voucher_info.to_string();
+        let voucher_value = hash_to_scalar(voucher_value.as_bytes());
+        let voucher_info = hash_to_scalar(voucher_info.as_bytes());
+
+        BandwidthVoucher {
+            serial_number,
+            binding_number,
+            voucher_value,
+            voucher_value_plain,
+            voucher_info,
+            voucher_info_plain,
+            tx_hash,
+            signing_key,
+            encryption_key,
+            pedersen_commitments_openings,
+            blind_sign_request,
+            use_request: false,
+        }
+    }
     pub fn new(
         params: &Parameters,
         voucher_value: &str,
@@ -76,6 +108,7 @@ impl BandwidthVoucher {
             encryption_key,
             pedersen_commitments_openings,
             blind_sign_request,
+            use_request: true,
         }
     }
 
@@ -105,6 +138,10 @@ impl BandwidthVoucher {
 
     pub fn blind_sign_request(&self) -> &BlindSignRequest {
         &self.blind_sign_request
+    }
+
+    pub fn use_request(&self) -> bool {
+        self.use_request
     }
 
     pub fn get_public_attributes_plain(&self) -> Vec<String> {

@@ -83,6 +83,12 @@ pub enum BackendError {
   NoValidatorApiUrlConfigured,
   #[error("The wallet file already exists")]
   WalletFileAlreadyExists,
+  #[error("The wallet file is not found")]
+  WalletNotFound,
+  #[error("Account ID not found in wallet")]
+  NoSuchWalletId,
+  #[error("Adding a different password to the wallet not currently supported")]
+  WalletDifferentPasswordDetected,
 }
 
 impl Serialize for BackendError {

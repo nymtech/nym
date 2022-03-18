@@ -326,26 +326,28 @@ async fn is_validator_connection_ok(client: &Client<SigningNymdClient>) -> bool 
 pub fn does_password_file_exist() -> Result<bool, BackendError> {
   log::info!("Checking wallet file");
   let file = wallet_storage::wallet_login_filepath()?;
-  if file.is_file() {
+  if file.exists() {
     log::info!("Exists: {}", file.to_string_lossy());
   } else {
     log::info!("Does not exist: {}", file.to_string_lossy());
   }
-  Ok(file.is_file())
+  Ok(file.exists())
 }
 
 #[tauri::command]
 pub fn create_password(mnemonic: String, password: String) -> Result<(), BackendError> {
-  log::info!("Creating password");
   if does_password_file_exist()? {
     return Err(BackendError::WalletFileAlreadyExists);
   }
+  log::info!("Creating password");
 
   let mnemonic = Mnemonic::from_str(&mnemonic)?;
   let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
   let password = wallet_storage::UserPassword::new(password);
-  wallet_storage::store_wallet_login_information(mnemonic, hd_path, &password)?;
-  Ok(())
+  // WIP(JON): extract this one out
+  let id = wallet_storage::UserId::new("default".to_string());
+
+  wallet_storage::store_wallet_login_information(mnemonic, hd_path, id, &password)
 }
 
 #[tauri::command]
@@ -355,10 +357,9 @@ pub async fn sign_in_with_password(
 ) -> Result<Account, BackendError> {
   log::info!("Signing in with password");
   let password = wallet_storage::UserPassword::new(password);
-  let stored_accounts = wallet_storage::load_existing_wallet_login_information(&password)?;
+  let id = wallet_storage::UserId::new("default".to_string());
+  let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
 
-  // WIP: we are assuming just a single password is stored
-  let stored_account = stored_accounts.into_iter().next().unwrap();
   let mnemonic = match stored_account {
     wallet_storage::account_data::StoredAccount::Mnemonic(ref mn) => mn.mnemonic().clone(),
   };

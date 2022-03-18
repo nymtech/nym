@@ -284,7 +284,7 @@ impl<C> Client<C> {
             .await?)
     }
 
-    pub async fn get_current_epoch(&self) -> Result<Option<Interval>, ValidatorClientError>
+    pub async fn get_current_epoch(&self) -> Result<Interval, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {

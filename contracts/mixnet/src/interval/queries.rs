@@ -10,7 +10,7 @@ use mixnet_contract_common::{
     RewardedSetUpdateDetails,
 };
 
-pub fn query_current_epoch(storage: &dyn Storage) -> Result<Option<Interval>, ContractError> {
+pub fn query_current_epoch(storage: &dyn Storage) -> Result<Interval, ContractError> {
     storage::current_epoch(storage)
 }
 

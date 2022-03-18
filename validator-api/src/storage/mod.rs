@@ -751,6 +751,16 @@ impl ValidatorApiStorage {
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
     }
 
+    pub(crate) async fn insert_rewarding_report(
+        &self,
+        report: RewardingReport,
+    ) -> Result<(), ValidatorApiStorageError> {
+        self.manager
+            .insert_rewarding_report(report)
+            .await
+            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+    }
+
     /// Inserts new failed mixnode reward chunk information into the database.
     /// Returns id of the newly created entry.
     ///

@@ -1,14 +1,10 @@
-use std::time::Duration;
-
 use crate::contract::INITIAL_MIXNODE_PLEDGE;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::{mixnodes::storage::StoredMixnodeBond, support::tests};
-use az::UnwrappedAs;
 use config::defaults::DENOM;
 use cosmwasm_std::{coin, Addr, Coin, Uint128};
 use mixnet_contract_common::reward_params::NodeRewardParams;
 use mixnet_contract_common::{Gateway, GatewayBond, Interval, Layer, MixNode};
-use time::OffsetDateTime;
 
 pub fn mix_node_fixture() -> MixNode {
     MixNode {

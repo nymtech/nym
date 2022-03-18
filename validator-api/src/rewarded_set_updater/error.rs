@@ -28,9 +28,6 @@ pub enum RewardingError {
         #[from]
         source: std::num::TryFromIntError,
     },
-
-    #[error("Epoch not initialized yet!")]
-    EpochNotInitialized,
 }
 
 impl From<NymdError> for RewardingError {

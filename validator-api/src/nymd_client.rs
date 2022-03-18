@@ -167,7 +167,7 @@ impl<C> Client<C> {
             .await
     }
 
-    pub(crate) async fn get_current_epoch(&self) -> Result<Option<Interval>, ValidatorClientError>
+    pub(crate) async fn get_current_epoch(&self) -> Result<Interval, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {

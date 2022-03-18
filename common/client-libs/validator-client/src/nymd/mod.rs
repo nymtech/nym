@@ -331,7 +331,7 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn get_current_epoch(&self) -> Result<Option<Interval>, NymdError>
+    pub async fn get_current_epoch(&self) -> Result<Interval, NymdError>
     where
         C: CosmWasmClient + Sync,
     {

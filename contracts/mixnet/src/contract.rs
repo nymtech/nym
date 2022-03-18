@@ -17,6 +17,7 @@ use crate::interval::queries::{
     query_rewarded_set_refresh_minimum_blocks, query_rewarded_set_update_details,
 };
 use crate::interval::storage as interval_storage;
+use crate::interval::transactions::init_epoch;
 use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::{
     query_contract_settings_params, query_contract_version,
@@ -79,13 +80,11 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let state = default_initial_state(info.sender, rewarding_validator_address);
-    let rewarding_interval = Interval::init_epoch(env.clone());
+    init_epoch(deps.storage, env)?;
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
-    interval_storage::save_epoch(deps.storage, &rewarding_interval)?;
-    interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Response::default())
 }
@@ -152,14 +151,7 @@ pub fn execute(
             identity,
             params,
             interval_id,
-        } => crate::rewards::transactions::try_reward_mixnode(
-            deps,
-            env,
-            info,
-            identity,
-            params,
-            interval_id,
-        ),
+        } => crate::rewards::transactions::try_reward_mixnode(deps, env, info, identity, params),
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }
@@ -240,9 +232,11 @@ pub fn execute(
             rewarded_set,
             expected_active_set_size,
         ),
-        ExecuteMsg::AdvanceCurrentEpoch {} => {
-            crate::interval::transactions::try_advance_epoch(env, deps.storage)
-        }
+        ExecuteMsg::AdvanceCurrentEpoch {} => crate::interval::transactions::try_advance_epoch(
+            env,
+            deps.storage,
+            info.sender.to_string(),
+        ),
         ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
             crate::rewards::transactions::try_compound_delegator_reward(
                 deps,

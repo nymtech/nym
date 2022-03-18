@@ -103,10 +103,9 @@ pub(crate) mod tests {
             try_reward_mixnode(
                 deps.as_mut(),
                 env,
-                info,
+                info.clone(),
                 node_identity.clone(),
                 tests::fixtures::node_reward_params_fixture(100),
-                0,
             )
             .unwrap();
 
@@ -145,10 +144,9 @@ pub(crate) mod tests {
             try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
-                info,
+                info.clone(),
                 node_identity.clone(),
                 tests::fixtures::node_reward_params_fixture(100),
-                0,
             )
             .unwrap();
 
@@ -188,10 +186,9 @@ pub(crate) mod tests {
             try_reward_mixnode(
                 deps.as_mut(),
                 env,
-                info.clone(),
+                info,
                 node_identity.clone(),
                 tests::fixtures::node_reward_params_fixture(100),
-                1,
             )
             .unwrap();
 

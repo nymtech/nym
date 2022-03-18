@@ -359,6 +359,17 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         }
         QueryMsg::GetEpochsInInterval {} => to_binary(&crate::constants::EPOCHS_IN_INTERVAL),
         QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
+        QueryMsg::QueryOperatorReward { address } => to_binary(
+            &crate::rewards::queries::query_operator_reward(deps, address)?,
+        ),
+        QueryMsg::QueryDelegatorReward {
+            address,
+            mix_identity,
+        } => to_binary(&crate::rewards::queries::query_delegator_reward(
+            deps,
+            address,
+            mix_identity,
+        )?),
     };
 
     Ok(query_res?)

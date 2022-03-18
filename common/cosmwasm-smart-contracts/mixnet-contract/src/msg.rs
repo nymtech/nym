@@ -169,6 +169,13 @@ pub enum QueryMsg {
     GetRewardedSetRefreshBlocks {},
     GetCurrentEpoch {},
     GetEpochsInInterval {},
+    QueryOperatorReward {
+        address: String,
+    },
+    QueryDelegatorReward {
+        address: String,
+        mix_identity: IdentityKey,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

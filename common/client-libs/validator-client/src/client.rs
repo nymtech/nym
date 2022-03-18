@@ -248,6 +248,28 @@ impl<C> Client<C> {
         Ok(self.nymd.get_contract_settings().await?)
     }
 
+    pub async fn get_operator_rewards(&self, address: String) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_operator_rewards(address).await?.u128())
+    }
+
+    pub async fn get_delegator_rewards(
+        &self,
+        address: String,
+        mix_identity: IdentityKey,
+    ) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self
+            .nymd
+            .get_delegator_rewards(address, mix_identity)
+            .await?
+            .u128())
+    }
+
     pub async fn get_current_epoch(&self) -> Result<Option<Interval>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,

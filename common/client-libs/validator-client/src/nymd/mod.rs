@@ -290,6 +290,33 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn get_operator_rewards(&self, address: String) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::QueryOperatorReward { address };
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_delegator_rewards(
+        &self,
+        address: String,
+        mix_identity: IdentityKey,
+    ) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::QueryDelegatorReward {
+            address,
+            mix_identity,
+        };
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
     pub async fn get_current_epoch(&self) -> Result<Option<Interval>, NymdError>
     where
         C: CosmWasmClient + Sync,

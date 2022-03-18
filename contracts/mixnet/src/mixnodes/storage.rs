@@ -54,7 +54,7 @@ pub(crate) fn mixnodes<'a>(
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub(crate) struct StoredMixnodeBond {
+pub struct StoredMixnodeBond {
     pub pledge_amount: Coin,
     pub owner: Addr,
     pub layer: Layer,

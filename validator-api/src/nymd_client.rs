@@ -327,14 +327,18 @@ impl<C> Client<C> {
         &self,
         rewarded_set: Vec<IdentityKey>,
         expected_active_set_size: u32,
+        reward_msgs: Vec<(ExecuteMsg, Vec<CosmosCoin>)>,
     ) -> Result<(), RewardingError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let msgs = vec![
+        let mut msgs = vec![(ExecuteMsg::AdvanceCurrentEpoch {}, vec![])];
+        
+        msgs.extend(reward_msgs);
+
+        let epoch_msgs = vec![
             (ExecuteMsg::ReconcileDelegations {}, vec![]),
             (ExecuteMsg::CheckpointMixnodes {}, vec![]),
-            (ExecuteMsg::AdvanceCurrentEpoch {}, vec![]),
             (
                 ExecuteMsg::WriteRewardedSet {
                     rewarded_set,
@@ -343,6 +347,8 @@ impl<C> Client<C> {
                 vec![],
             ),
         ];
+
+        msgs.extend_from_slice(&epoch_msgs);
 
         let memo = "Performing epoch operations".to_string();
 
@@ -355,7 +361,7 @@ impl<C> Client<C> {
         &self,
         nodes: &[MixnodeToReward],
         interval_id: u32,
-    ) -> Result<(), RewardingError>
+    ) -> Result<Vec<(ExecuteMsg, Vec<CosmosCoin>)>, RewardingError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -365,10 +371,12 @@ impl<C> Client<C> {
             .zip(std::iter::repeat(Vec::new()))
             .collect();
 
-        let memo = format!("rewarding {} mixnodes", msgs.len());
+        // let memo = format!("rewarding {} mixnodes", msgs.len());
 
-        self.execute_multiple_with_retry(msgs, Default::default(), memo)
-            .await
+        // self.execute_multiple_with_retry(msgs, Default::default(), memo)
+        //     .await
+
+        Ok(msgs)
     }
 
     async fn execute_multiple_with_retry<M>(

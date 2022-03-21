@@ -4,7 +4,7 @@ use crate::error::BackendError;
 use crate::network::Network;
 use crate::nymd_client;
 use crate::state::State;
-use crate::wallet_storage::{self, DEFAULT_WALLET_ID};
+use crate::wallet_storage::{self, DEFAULT_WALLET_ACCOUNT_ID};
 
 use bip39::{Language, Mnemonic};
 use config::defaults::COSMOS_DERIVATION_PATH;
@@ -351,7 +351,7 @@ pub fn create_password(mnemonic: String, password: String) -> Result<(), Backend
   let mnemonic = Mnemonic::from_str(&mnemonic)?;
   let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
   // Currently we only support a single, default, id in the wallet
-  let id = wallet_storage::UserId::new(DEFAULT_WALLET_ID.to_string());
+  let id = wallet_storage::WalletAccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
   wallet_storage::store_wallet_login_information(mnemonic, hd_path, id, &password)
 }
@@ -364,7 +364,7 @@ pub async fn sign_in_with_password(
   log::info!("Signing in with password");
 
   // Currently we only support a single, default, id in the wallet
-  let id = wallet_storage::UserId::new(DEFAULT_WALLET_ID.to_string());
+  let id = wallet_storage::WalletAccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
   let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
   _connect_with_mnemonic(stored_account.mnemonic().clone(), state).await

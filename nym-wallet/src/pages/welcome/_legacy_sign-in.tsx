@@ -17,7 +17,7 @@ export const SignInContent: React.FC = () => {
     setInputError(undefined);
 
     try {
-      await logIn(mnemonic || '');
+      await logIn({ type: 'mnemonic', value: mnemonic });
       setIsLoading(false);
     } catch (error: any) {
       setIsLoading(false);

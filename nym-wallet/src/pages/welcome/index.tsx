@@ -1,35 +1,14 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { Stack, Box, CircularProgress } from '@mui/material';
 import { NymLogo } from '@nymproject/react';
-import { createMnemonic } from 'src/requests';
-import { CreatePassword, ExistingAccount, CreateAccount, VerifyMnemonic, WelcomeContent } from './pages';
-import { TMnemonicWords, TPages } from './types';
+import { CreatePassword, ExistingAccount, CreateMnemonic, VerifyMnemonic, WelcomeContent } from './pages';
+import { TPages } from './types';
 import { RenderPage } from './components';
-import { ClientContext } from 'src/context/main';
-
-const mnemonicToArray = (mnemonic: string): TMnemonicWords =>
-  mnemonic
-    .split(' ')
-    .reduce((a, c: string, index) => [...a, { name: c, index: index + 1, disabled: false }], [] as TMnemonicWords);
+import { ClientContext } from '../../context/main';
 
 export const Welcome = () => {
   const [page, setPage] = useState<TPages>('welcome');
-  const [mnemonicWords, setMnemonicWords] = useState<TMnemonicWords>([]);
-  const [mnemonic, setMnemonic] = useState<string>('');
   const { isLoading } = useContext(ClientContext);
-
-  const generateMnemonic = async () => {
-    const mnemonicPhrase = await createMnemonic();
-    setMnemonic(mnemonicPhrase);
-    setPage('create mnemonic');
-  };
-
-  useEffect(() => {
-    if (mnemonic?.length > 0) {
-      const mnemonicArray = mnemonicToArray(mnemonic);
-      setMnemonicWords(mnemonicArray);
-    }
-  }, [mnemonic]);
 
   return (
     <Box
@@ -64,28 +43,27 @@ export const Welcome = () => {
                 page="welcome"
               />
               <CreatePassword
-                page="create password"
                 onPrev={() => setPage('welcome')}
-                onNext={() => setPage('create mnemonic')}
+                onNext={() => {
+                  setPage('create mnemonic');
+                }}
+                page="create password"
               />
-              <CreateAccount
-                mnemonicWords={mnemonicWords}
-                mnemonic={mnemonic}
+              <CreateMnemonic
                 onNext={() => setPage('verify mnemonic')}
                 onPrev={() => setPage('create password')}
-                onUseNew={generateMnemonic}
+                onComplete={() => setPage('existing account')}
                 page="create mnemonic"
               />
               <VerifyMnemonic
-                mnemonicWords={mnemonicWords}
                 onNext={() => setPage('existing account')}
                 onPrev={() => setPage('create mnemonic')}
                 page="verify mnemonic"
               />
               <ExistingAccount
                 onPrev={() => setPage('welcome')}
-                page="existing account"
                 onCreatePassword={() => setPage('create password')}
+                page="existing account"
               />
             </RenderPage>
           </Stack>

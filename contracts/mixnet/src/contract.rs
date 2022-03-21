@@ -146,13 +146,9 @@ pub fn execute(
                 deps, info, params,
             )
         }
-        #[allow(unused_variables)]
-        // FIXME: remove interval_id
-        ExecuteMsg::RewardMixnode {
-            identity,
-            params,
-            interval_id,
-        } => crate::rewards::transactions::try_reward_mixnode(deps, env, info, identity, params),
+        ExecuteMsg::RewardMixnode { identity, params } => {
+            crate::rewards::transactions::try_reward_mixnode(deps, env, info, identity, params)
+        }
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }

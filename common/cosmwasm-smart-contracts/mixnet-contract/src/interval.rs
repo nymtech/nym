@@ -67,11 +67,12 @@ pub struct Interval {
 
 impl Interval {
     /// Initialize epoch in the contract with default values.
-    /// FIXME: THIS unwrap!
     pub fn init_epoch(env: Env) -> Self {
         Interval {
             id: 0,
-            start: OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64).unwrap(),
+            // I really don't see a way for this to fail, unless the blockchain is lying to us
+            start: OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64)
+                .expect("Invalid timestamp from env.block.time"),
             length: Duration::from_secs(3600),
         }
     }

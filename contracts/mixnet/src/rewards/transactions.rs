@@ -6,11 +6,10 @@ use crate::constants;
 use crate::delegations::storage as delegations_storage;
 use crate::delegations::transactions::_try_delegate_to_mixnode;
 use crate::error::ContractError;
-use crate::interval::storage::{self as interval_storage};
-use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage::mixnodes;
 use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
 use crate::rewards::helpers;
+use crate::support::helpers::is_authorized;
 use config::defaults::DENOM;
 use cosmwasm_std::{Addr, Api, Coin, DepsMut, Env, MessageInfo, Order, Response, Storage, Uint128};
 use mixnet_contract_common::events::{
@@ -90,7 +89,7 @@ pub fn _try_compound_operator_reward(
     Ok(reward)
 }
 
-fn calculate_operator_reward(
+pub fn calculate_operator_reward(
     storage: &dyn Storage,
     owner: &Addr,
     bond: &StoredMixnodeBond,
@@ -233,7 +232,7 @@ pub fn _try_compound_delegator_reward(
 // TODO: Test
 // + last_reward_claimed_height is updated
 // + last_reward_claimed height is correctly used
-fn calculate_delegator_reward(
+pub fn calculate_delegator_reward(
     storage: &dyn Storage,
     owner_address: &str,
     mix_identity: &str,
@@ -296,59 +295,19 @@ fn calculate_delegator_reward(
     Ok(accumulated_rewards)
 }
 
-/// Checks whether under the current context, any rewarding-related functionalities can be called.
-/// The following must be true:
-/// - the call has originated from the address of the authorised rewarding validator,
-/// - the call has been made with the nonce corresponding to the current rewarding procedure,
-///
-/// # Arguments
-///
-/// * `storage`: reference (kinda) to the underlying storage pool of the contract used to read the current state
-/// * `info`: contains the essential info for authorization, such as identity of the call
-/// * `interval_id`: expected id of the current interval sent alongside the call
-fn verify_rewarding_state(
-    storage: &dyn Storage,
-    info: MessageInfo,
-    interval_id: u32,
-) -> Result<(), ContractError> {
-    let state = mixnet_params_storage::CONTRACT_STATE.load(storage)?;
-
-    // check if this is executed by the permitted validator, if not reject the transaction
-    if info.sender != state.rewarding_validator_address {
-        return Err(ContractError::Unauthorized);
-    }
-
-    let current_interval = if let Some(epoch) = interval_storage::current_epoch(storage)? {
-        epoch
-    } else {
-        return Err(ContractError::EpochNotInitialized);
-    };
-
-    // make sure the transaction is sent for the correct interval
-    // (guard ourselves against somebody trying to send stale results;
-    // realistically it's never going to happen in a single rewarding validator case
-    if interval_id != current_interval.id() {
-        Err(ContractError::InvalidIntervalId {
-            received: interval_id,
-            expected: current_interval.id(),
-        })
-    } else {
-        Ok(())
-    }
-}
-
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     mix_identity: IdentityKey,
     params: NodeRewardParams,
-    epoch_id: u32,
 ) -> Result<Response, ContractError> {
-    verify_rewarding_state(deps.storage, info, epoch_id)?;
+    is_authorized(info.sender.to_string(), deps.storage)?;
+    // verify_rewarding_state(deps.storage, info, epoch_id)?;
+    let epoch = crate::interval::storage::current_epoch(deps.storage)?;
 
     // check if the mixnode hasn't been rewarded in this rewarding interval already
-    match storage::REWARDING_STATUS.may_load(deps.storage, (epoch_id, mix_identity.clone()))? {
+    match storage::REWARDING_STATUS.may_load(deps.storage, (epoch.id(), mix_identity.clone()))? {
         None => (),
         Some(RewardingStatus::Complete(_)) => {
             return Err(ContractError::MixnodeAlreadyRewarded {
@@ -369,7 +328,7 @@ pub(crate) fn try_reward_mixnode(
             None => {
                 return Ok(
                     Response::new().add_event(new_not_found_mix_operator_rewarding_event(
-                        epoch_id,
+                        epoch.id(),
                         &mix_identity,
                     )),
                 )
@@ -380,13 +339,13 @@ pub(crate) fn try_reward_mixnode(
     if current_bond.block_height + constants::MINIMUM_BLOCK_AGE_FOR_REWARDING > env.block.height {
         storage::REWARDING_STATUS.save(
             deps.storage,
-            (epoch_id, mix_identity.clone()),
+            (epoch.id(), mix_identity.clone()),
             &RewardingStatus::Complete(Default::default()),
         )?;
 
         return Ok(
             Response::new().add_event(new_too_fresh_bond_mix_operator_rewarding_event(
-                epoch_id,
+                epoch.id(),
                 &mix_identity,
             )),
         );
@@ -399,13 +358,13 @@ pub(crate) fn try_reward_mixnode(
     if params.uptime() == 0 {
         storage::REWARDING_STATUS.save(
             deps.storage,
-            (epoch_id, mix_identity.clone()),
+            (epoch.id(), mix_identity.clone()),
             &RewardingStatus::Complete(Default::default()),
         )?;
 
         return Ok(
             Response::new().add_event(new_zero_uptime_mix_operator_rewarding_event(
-                epoch_id,
+                epoch.id(),
                 &mix_identity,
             )),
         );
@@ -424,19 +383,21 @@ pub(crate) fn try_reward_mixnode(
     let mut stored_bond: StoredMixnodeBond = current_bond.into();
     // technically we don't have to set the total_delegation bucket, but it makes things easier
     // in different places that we can guarantee that if node exists, so does the data behind the total delegation
+
+    stored_bond.epoch_rewards = Some(NodeEpochRewards::new(
+        node_reward_params,
+        stored_node_result,
+        epoch.id(),
+    ));
+
     let identity = stored_bond.identity();
+
     crate::mixnodes::storage::mixnodes().save(
         deps.storage,
         identity,
         &stored_bond,
         env.block.height,
     )?;
-
-    stored_bond.epoch_rewards = Some(NodeEpochRewards::new(
-        node_reward_params,
-        stored_node_result,
-        epoch_id,
-    ));
 
     // Take rewards out of the rewarding pool
     storage::decr_reward_pool(deps.storage, stored_node_result.reward())?;
@@ -447,13 +408,13 @@ pub(crate) fn try_reward_mixnode(
 
     helpers::update_rewarding_status(
         deps.storage,
-        epoch_id,
+        epoch.id(),
         mix_identity.clone(),
         rewarding_result,
     )?;
 
     Ok(Response::new().add_event(new_mix_operator_rewarding_event(
-        epoch_id,
+        epoch.id(),
         &mix_identity,
         node_reward_result,
         node_pledge,
@@ -471,7 +432,9 @@ pub mod tests {
         current_epoch_reward_params, save_epoch, save_epoch_reward_params,
     };
     use crate::interval::transactions::try_advance_epoch;
-    use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+    use crate::mixnet_contract_settings::storage::{
+        self as mixnet_params_storage, rewarding_validator_address,
+    };
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::storage::StoredMixnodeBond;
     use crate::rewards::transactions::try_reward_mixnode;
@@ -494,10 +457,9 @@ pub mod tests {
     fn rewarding_mixnodes_with_incorrect_interval_id() {
         let mut deps = test_helpers::init_contract();
         let mut env = mock_env();
-        let current_state = mixnet_params_storage::CONTRACT_STATE
-            .load(deps.as_mut().storage)
-            .unwrap();
-        let rewarding_validator_address = current_state.rewarding_validator_address;
+        let sender = rewarding_validator_address(&deps.storage).unwrap();
+        let info = mock_info(&sender, &coins(1000, DENOM));
+        crate::interval::transactions::init_epoch(&mut deps.storage, env.clone()).unwrap();
 
         // bond the node
         let node_owner: Addr = Addr::unchecked("node-owner");
@@ -507,7 +469,15 @@ pub mod tests {
             deps.as_mut(),
         );
 
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+        // Reward once
+        let res = try_reward_mixnode(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            node_identity.clone(),
+            tests::fixtures::node_reward_params_fixture(100),
+        );
+        assert!(res.is_ok());
 
         let res = try_reward_mixnode(
             deps.as_mut(),
@@ -515,15 +485,25 @@ pub mod tests {
             info.clone(),
             node_identity.clone(),
             tests::fixtures::node_reward_params_fixture(100),
-            1,
         );
-        assert_eq!(
-            Err(ContractError::InvalidIntervalId {
-                received: 1,
-                expected: 0
-            }),
-            res
+        // Fails since mixnode was already rewarded in this epoch
+        assert!(res.is_err());
+
+        let rewarding_validator_address = rewarding_validator_address(&deps.storage).unwrap();
+
+        // Advance epoch
+        let premature_advance = try_advance_epoch(
+            env.clone(),
+            &mut deps.storage,
+            rewarding_validator_address.clone(),
         );
+        assert!(premature_advance.is_err());
+
+        env.block.time = Timestamp::from_seconds(env.block.time.seconds() + 3600);
+
+        let timely_advance =
+            try_advance_epoch(env.clone(), &mut deps.storage, rewarding_validator_address);
+        assert!(timely_advance.is_ok());
 
         let res = try_reward_mixnode(
             deps.as_mut(),
@@ -531,23 +511,6 @@ pub mod tests {
             info.clone(),
             node_identity.clone(),
             tests::fixtures::node_reward_params_fixture(100),
-            2,
-        );
-        assert_eq!(
-            Err(ContractError::InvalidIntervalId {
-                received: 2,
-                expected: 0
-            }),
-            res
-        );
-
-        let res = try_reward_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            node_identity.clone(),
-            tests::fixtures::node_reward_params_fixture(100),
-            0,
         );
         assert!(res.is_ok());
 
@@ -556,10 +519,9 @@ pub mod tests {
         let res = try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
-            info,
+            info.clone(),
             node_identity,
             tests::fixtures::node_reward_params_fixture(100),
-            1,
         );
         assert!(res.is_ok());
     }
@@ -590,7 +552,6 @@ pub mod tests {
             info.clone(),
             node_identity.clone(),
             tests::fixtures::node_reward_params_fixture(100),
-            0,
         );
         assert!(res.is_ok());
 
@@ -601,7 +562,6 @@ pub mod tests {
             info.clone(),
             node_identity.clone(),
             tests::fixtures::node_reward_params_fixture(100),
-            0,
         );
         assert_eq!(
             Err(ContractError::MixnodeAlreadyRewarded {
@@ -616,10 +576,9 @@ pub mod tests {
         let res = try_reward_mixnode(
             deps.as_mut(),
             env,
-            info,
+            info.clone(),
             node_identity,
             tests::fixtures::node_reward_params_fixture(100),
-            1,
         );
         assert!(res.is_ok());
     }
@@ -693,9 +652,7 @@ pub mod tests {
         save_epoch(&mut deps.storage, &epoch).unwrap();
         save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
 
-        let epoch_from_storage = interval_storage::current_epoch(&deps.storage)
-            .unwrap()
-            .unwrap();
+        let epoch_from_storage = crate::interval::storage::current_epoch(&deps.storage).unwrap();
         assert_eq!(epoch_from_storage.id(), 0);
 
         let res = try_reward_mixnode(
@@ -704,7 +661,6 @@ pub mod tests {
             info.clone(),
             node_identity.clone(),
             tests::fixtures::node_reward_params_fixture(100),
-            0,
         )
         .unwrap();
 
@@ -731,7 +687,10 @@ pub mod tests {
         // reward can happen now, but only for bonded node
         env.block.height += 1;
         env.block.time = Timestamp::from_seconds(epoch.next().start_unix_timestamp() as u64);
-        try_advance_epoch(env.clone(), &mut deps.storage).unwrap();
+        let sender =
+            crate::mixnet_contract_settings::storage::rewarding_validator_address(&deps.storage)
+                .unwrap();
+        try_advance_epoch(env.clone(), &mut deps.storage, sender).unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
 
@@ -741,7 +700,6 @@ pub mod tests {
             info.clone(),
             node_identity.clone(),
             tests::fixtures::node_reward_params_fixture(100),
-            1,
         )
         .unwrap();
 
@@ -788,7 +746,6 @@ pub mod tests {
             info.clone(),
             node_identity.clone(),
             tests::fixtures::node_reward_params_fixture(100),
-            2,
         )
         .unwrap();
 
@@ -934,10 +891,9 @@ pub mod tests {
         try_reward_mixnode(
             deps.as_mut(),
             env,
-            info,
+            info.clone(),
             node_identity.clone(),
             node_reward_params,
-            0,
         )
         .unwrap();
 
@@ -1015,13 +971,14 @@ pub mod tests {
             save_epoch(&mut deps.storage, &epoch).unwrap();
             save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
 
+            let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+
             try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
-                mock_info(rewarding_validator_address.as_ref(), &[]),
+                info.clone(),
                 node_identity.clone(),
                 tests::fixtures::node_reward_params_fixture(100),
-                0,
             )
             .unwrap();
 
@@ -1052,10 +1009,9 @@ pub mod tests {
             try_reward_mixnode(
                 deps.as_mut(),
                 env,
-                info,
+                info.clone(),
                 node_identity.clone(),
                 tests::fixtures::node_reward_params_fixture(100),
-                1,
             )
             .unwrap();
         }

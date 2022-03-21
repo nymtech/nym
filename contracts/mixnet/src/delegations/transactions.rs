@@ -40,7 +40,7 @@ pub(crate) fn _try_reconcile_all_delegation_events(
     let pending_delegation_events = PENDING_DELEGATION_EVENTS
         .range(storage, None, None, Order::Ascending)
         .filter_map(|r| r.ok())
-        .collect::<Vec<((u64, String, Vec<u8>), DelegationEvent)>>();
+        .collect::<Vec<((Vec<u8>, u64, String), DelegationEvent)>>();
 
     let mut response = Response::new();
 
@@ -193,7 +193,7 @@ pub(crate) fn _try_delegate_to_mixnode(
     }
 
     let maybe_proxy_storage = generate_storage_key(&delegate, proxy.as_ref());
-    let storage_key = (block_height, mix_identity.to_string(), maybe_proxy_storage);
+    let storage_key = (maybe_proxy_storage, block_height, mix_identity.to_string());
 
     storage::PENDING_DELEGATION_EVENTS.save(
         storage,
@@ -389,9 +389,9 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
     PENDING_DELEGATION_EVENTS.save(
         deps.storage,
         (
+            delegate.as_bytes().to_vec(),
             env.block.height,
             mix_identity.to_string(),
-            delegate.as_bytes().to_vec(),
         ),
         &DelegationEvent::Undelegate(PendingUndelegate::new(
             mix_identity.to_string(),
@@ -1069,7 +1069,7 @@ mod tests {
 
             _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
-            let delegation = query_mixnode_delegation(
+            let _delegation = query_mixnode_delegation(
                 &deps.storage,
                 &deps.api,
                 identity.clone(),

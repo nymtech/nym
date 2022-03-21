@@ -8,6 +8,13 @@ use crate::error::ContractError;
 use cosmwasm_std::{Addr, Deps, Storage};
 use mixnet_contract_common::{reward_params::EpochRewardParams, IdentityKeyRef};
 
+pub(crate) fn is_authorized(sender: String, storage: &dyn Storage) -> Result<(), ContractError> {
+    if sender != crate::mixnet_contract_settings::storage::rewarding_validator_address(storage)? {
+        return Err(ContractError::Unauthorized);
+    }
+    Ok(())
+}
+
 pub(crate) fn epoch_reward_params(
     epoch_id: u32,
     storage: &mut dyn Storage,

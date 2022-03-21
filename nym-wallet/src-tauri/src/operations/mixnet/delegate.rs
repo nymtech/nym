@@ -2,11 +2,27 @@ use crate::coin::Coin;
 use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
+use crate::utils::DelegationEvent;
 use crate::utils::DelegationResult;
-use cosmwasm_std::Coin as CosmWasmCoin;
-use mixnet_contract_common::PagedDelegatorDelegationsResponse;
+use cosmwasm_std::{Coin as CosmWasmCoin, Uint128};
+use mixnet_contract_common::{IdentityKey, PagedDelegatorDelegationsResponse};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+
+#[tauri::command]
+pub async fn get_pending_delegation_events(
+  owner_address: String,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Vec<DelegationEvent>, BackendError> {
+  Ok(
+    nymd_client!(state)
+      .get_pending_delegation_events(owner_address)
+      .await?
+      .into_iter()
+      .map(|delegation_event| delegation_event.into())
+      .collect::<Vec<DelegationEvent>>(),
+  )
+}
 
 #[tauri::command]
 pub async fn delegate_to_mixnode(
@@ -48,6 +64,19 @@ pub async fn get_reverse_mix_delegations_paged(
   Ok(
     nymd_client!(state)
       .get_delegator_delegations_paged(nymd_client!(state).address().to_string(), None, None)
+      .await?,
+  )
+}
+
+#[tauri::command]
+pub async fn get_delegator_rewards(
+  address: String,
+  mix_identity: IdentityKey,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Uint128, BackendError> {
+  Ok(
+    nymd_client!(state)
+      .get_delegator_rewards(address, mix_identity)
       .await?,
   )
 }

@@ -140,11 +140,38 @@ impl<C> Client<C> {
         self.0.read().await.get_contract_settings().await
     }
 
-    pub(crate) async fn get_current_epoch(&self) -> Result<Option<Interval>, ValidatorClientError>
+    #[allow(dead_code)]
+    pub(crate) async fn get_operator_rewards(
+        &self,
+        address: String,
+    ) -> Result<u128, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.0.read().await.get_current_epoch().await?)
+        self.0.read().await.get_operator_rewards(address).await
+    }
+
+    #[allow(dead_code)]
+    pub(crate) async fn get_delegator_rewards(
+        &self,
+        address: String,
+        mix_identity: IdentityKey,
+    ) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0
+            .read()
+            .await
+            .get_delegator_rewards(address, mix_identity)
+            .await
+    }
+
+    pub(crate) async fn get_current_epoch(&self) -> Result<Interval, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0.read().await.get_current_epoch().await
     }
 
     pub(crate) async fn get_current_epoch_reward_params(
@@ -251,6 +278,7 @@ impl<C> Client<C> {
             .await
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -259,6 +287,7 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn checkpoint_mixnodes(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -267,6 +296,7 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn reconcile_delegations(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -275,6 +305,7 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn write_rewarded_set(
         &self,
         rewarded_set: Vec<IdentityKey>,
@@ -292,11 +323,45 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    pub(crate) async fn epoch_operations(
+        &self,
+        rewarded_set: Vec<IdentityKey>,
+        expected_active_set_size: u32,
+        reward_msgs: Vec<(ExecuteMsg, Vec<CosmosCoin>)>,
+    ) -> Result<(), RewardingError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let mut msgs = vec![(ExecuteMsg::AdvanceCurrentEpoch {}, vec![])];
+
+        msgs.extend(reward_msgs);
+
+        let epoch_msgs = vec![
+            (ExecuteMsg::ReconcileDelegations {}, vec![]),
+            (ExecuteMsg::CheckpointMixnodes {}, vec![]),
+            (
+                ExecuteMsg::WriteRewardedSet {
+                    rewarded_set,
+                    expected_active_set_size,
+                },
+                vec![],
+            ),
+        ];
+
+        msgs.extend_from_slice(&epoch_msgs);
+
+        let memo = "Performing epoch operations".to_string();
+
+        self.execute_multiple_with_retry(msgs, Default::default(), memo)
+            .await?;
+        Ok(())
+    }
+
     pub(crate) async fn reward_mixnodes(
         &self,
         nodes: &[MixnodeToReward],
         interval_id: u32,
-    ) -> Result<(), RewardingError>
+    ) -> Result<Vec<(ExecuteMsg, Vec<CosmosCoin>)>, RewardingError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -306,10 +371,12 @@ impl<C> Client<C> {
             .zip(std::iter::repeat(Vec::new()))
             .collect();
 
-        let memo = format!("rewarding {} mixnodes", msgs.len());
+        // let memo = format!("rewarding {} mixnodes", msgs.len());
 
-        self.execute_multiple_with_retry(msgs, Default::default(), memo)
-            .await
+        // self.execute_multiple_with_retry(msgs, Default::default(), memo)
+        //     .await
+
+        Ok(msgs)
     }
 
     async fn execute_multiple_with_retry<M>(

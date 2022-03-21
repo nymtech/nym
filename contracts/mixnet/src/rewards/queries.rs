@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::error::ContractError;
 use cosmwasm_std::Uint128;
 use cosmwasm_std::{Deps, StdResult};
 use mixnet_contract_common::{IdentityKey, MixnodeRewardingStatusResponse};
@@ -22,6 +23,36 @@ pub(crate) fn query_rewarding_status(
     let status = storage::REWARDING_STATUS.may_load(deps.storage, (interval_id, mix_identity))?;
 
     Ok(MixnodeRewardingStatusResponse { status })
+}
+
+pub fn query_operator_reward(deps: Deps, owner: String) -> Result<Uint128, ContractError> {
+    let owner_address = deps.api.addr_validate(&owner)?;
+    let bond = match crate::mixnodes::storage::mixnodes()
+        .idx
+        .owner
+        .item(deps.storage, owner_address.clone())?
+    {
+        Some(record) => record.1,
+        None => {
+            // Return if bond does not exist
+            return Ok(Uint128::zero());
+        }
+    };
+
+    super::transactions::calculate_operator_reward(deps.storage, &owner_address, &bond)
+}
+
+pub fn query_delegator_reward(
+    deps: Deps,
+    owner: String,
+    mix_identity: IdentityKey,
+) -> Result<Uint128, ContractError> {
+    let owner_address = deps.api.addr_validate(&owner)?;
+    super::transactions::calculate_delegator_reward(
+        deps.storage,
+        owner_address.as_str(),
+        &mix_identity,
+    )
 }
 
 #[cfg(test)]
@@ -71,10 +102,9 @@ pub(crate) mod tests {
             try_reward_mixnode(
                 deps.as_mut(),
                 env,
-                info,
+                info.clone(),
                 node_identity.clone(),
                 tests::fixtures::node_reward_params_fixture(100),
-                0,
             )
             .unwrap();
 
@@ -113,10 +143,9 @@ pub(crate) mod tests {
             try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
-                info,
+                info.clone(),
                 node_identity.clone(),
                 tests::fixtures::node_reward_params_fixture(100),
-                0,
             )
             .unwrap();
 
@@ -156,10 +185,9 @@ pub(crate) mod tests {
             try_reward_mixnode(
                 deps.as_mut(),
                 env,
-                info.clone(),
+                info,
                 node_identity.clone(),
                 tests::fixtures::node_reward_params_fixture(100),
-                1,
             )
             .unwrap();
 

@@ -3,6 +3,7 @@ use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
 use crate::{Gateway, MixNode};
+use cosmwasm_std::Uint128;
 use mixnet_contract_common::{GatewayBond, MixNodeBond};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -82,4 +83,12 @@ pub async fn gateway_bond_details(
   let client = guard.current_client()?;
   let bond = client.nymd.owns_gateway(client.nymd.address()).await?;
   Ok(bond)
+}
+
+#[tauri::command]
+pub async fn get_operator_rewards(
+  address: String,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Uint128, BackendError> {
+  Ok(nymd_client!(state).get_operator_rewards(address).await?)
 }

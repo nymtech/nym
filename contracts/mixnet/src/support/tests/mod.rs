@@ -133,12 +133,14 @@ pub mod test_helpers {
         env.block.time = Timestamp::from_seconds(
             (interval_storage::current_epoch(storage)
                 .unwrap()
-                .unwrap()
                 .next()
                 .start_unix_timestamp()
                 + 123) as u64,
         );
 
-        interval::transactions::try_advance_epoch(env.clone(), storage).unwrap();
+        let sender =
+            crate::mixnet_contract_settings::storage::rewarding_validator_address(storage).unwrap();
+
+        interval::transactions::try_advance_epoch(env.clone(), storage, sender).unwrap();
     }
 }

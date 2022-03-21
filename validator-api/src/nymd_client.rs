@@ -171,7 +171,7 @@ impl<C> Client<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.0.read().await.get_current_epoch().await?)
+        self.0.read().await.get_current_epoch().await
     }
 
     pub(crate) async fn get_current_epoch_reward_params(

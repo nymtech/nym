@@ -1,15 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use zeroize::Zeroize;
-
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use zeroize::Zeroize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct UserId(String);
 
 impl UserId {
-    // WIP(JON): consider making inner String pub
   pub(crate) fn new(id: String) -> UserId {
     UserId(id)
   }

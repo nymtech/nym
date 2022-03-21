@@ -4,7 +4,7 @@ use crate::error::BackendError;
 use crate::network::Network;
 use crate::nymd_client;
 use crate::state::State;
-use crate::wallet_storage;
+use crate::wallet_storage::{self, DEFAULT_WALLET_ID};
 
 use bip39::{Language, Mnemonic};
 use config::defaults::COSMOS_DERIVATION_PATH;
@@ -328,10 +328,11 @@ pub fn does_password_file_exist() -> Result<bool, BackendError> {
   let file = wallet_storage::wallet_login_filepath()?;
   if file.exists() {
     log::info!("Exists: {}", file.to_string_lossy());
+    Ok(true)
   } else {
     log::info!("Does not exist: {}", file.to_string_lossy());
+    Ok(false)
   }
-  Ok(file.exists())
 }
 
 #[tauri::command]
@@ -343,10 +344,9 @@ pub fn create_password(mnemonic: String, password: String) -> Result<(), Backend
 
   let mnemonic = Mnemonic::from_str(&mnemonic)?;
   let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+  // Currently we only support a single, default, id in the wallet
+  let id = wallet_storage::UserId::new(DEFAULT_WALLET_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
-  // WIP(JON): extract this one out
-  let id = wallet_storage::UserId::new("default".to_string());
-
   wallet_storage::store_wallet_login_information(mnemonic, hd_path, id, &password)
 }
 
@@ -356,13 +356,10 @@ pub async fn sign_in_with_password(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
   log::info!("Signing in with password");
+
+  // Currently we only support a single, default, id in the wallet
+  let id = wallet_storage::UserId::new(DEFAULT_WALLET_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
-  let id = wallet_storage::UserId::new("default".to_string());
   let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
-
-  let mnemonic = match stored_account {
-    wallet_storage::account_data::StoredAccount::Mnemonic(ref mn) => mn.mnemonic().clone(),
-  };
-
-  _connect_with_mnemonic(mnemonic, state).await
+  _connect_with_mnemonic(stored_account.mnemonic().clone(), state).await
 }

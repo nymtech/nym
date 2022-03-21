@@ -16,11 +16,4 @@ pub mod helpers {
         instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
         return deps;
     }
-
-    // pub fn payment_fixture() -> Payment {
-    //     let public_key = PublicKey::new([1; 32]);
-    //     let gateway_identity = PublicKey::new([2; 32]);
-    //     let bandwidth = 42;
-    //     Payment::new(public_key, gateway_identity, bandwidth)
-    // }
 }

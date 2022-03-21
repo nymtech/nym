@@ -2,18 +2,19 @@
 import React, { useContext, useState } from 'react';
 import { Alert, Button, FormControl, Grid, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { ClientContext } from 'src/context/main';
-import { Subtitle } from '../components';
+import { Subtitle, MnemonicInput, PasswordInput } from '../components';
 import { TPages } from '../types';
-import { MnemonicInput, PasswordInput } from '../components/textfields';
+
+type TToggle = 'mnemonic' | 'password';
 
 export const ExistingAccount: React.FC<{ page: TPages; onPrev: () => void; onCreatePassword: () => void }> = ({
   onPrev,
   onCreatePassword,
 }) => {
-  const [toggle, setToggle] = useState('mnemonic');
+  const [toggle, setToggle] = useState<TToggle>('mnemonic');
   const [password, setPassword] = useState('');
   const [mnemonic, setMnemonic] = useState('');
-  const { setError, logIn } = useContext(ClientContext);
+  const { setError, logIn, error } = useContext(ClientContext);
 
   return (
     <>
@@ -38,7 +39,7 @@ export const ExistingAccount: React.FC<{ page: TPages; onPrev: () => void; onCre
               fullWidth
               value={toggle}
               exclusive
-              onChange={(e: React.MouseEvent<HTMLElement>, value: string) => {
+              onChange={(_: React.MouseEvent<HTMLElement>, value: TToggle) => {
                 setError(undefined);
                 setToggle(value);
               }}
@@ -49,13 +50,23 @@ export const ExistingAccount: React.FC<{ page: TPages; onPrev: () => void; onCre
             <FormControl fullWidth>
               <Stack spacing={2}>
                 {toggle === 'mnemonic' && (
-                  <MnemonicInput mnemonic={mnemonic} onUpdateMnemonic={(mnc) => setMnemonic(mnc)} />
+                  <MnemonicInput mnemonic={mnemonic} onUpdateMnemonic={(mnc) => setMnemonic(mnc)} error={error} />
                 )}
                 {toggle === 'password' && (
-                  <PasswordInput password={password} onUpdatePassword={(pswd) => setPassword(pswd)} />
+                  <PasswordInput
+                    password={password}
+                    onUpdatePassword={(pswd) => setPassword(pswd)}
+                    label="Password"
+                    error={error}
+                  />
                 )}
 
-                <Button variant="contained" size="large" fullWidth onClick={() => logIn(mnemonic)}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  onClick={() => logIn({ type: toggle, value: toggle === 'mnemonic' ? mnemonic : password })}
+                >
                   {`Sign in with ${toggle}`}
                 </Button>
                 <Button

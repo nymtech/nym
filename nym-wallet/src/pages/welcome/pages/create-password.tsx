@@ -1,14 +1,19 @@
-import React, { useState } from 'react';
-import { Button, FormControl, Grid, IconButton, Stack, TextField } from '@mui/material';
-import { VisibilityOff, Visibility } from '@mui/icons-material';
+import React, { useContext, useState } from 'react';
+import { Button, FormControl, Grid, Stack } from '@mui/material';
 import { TPages } from '../types';
 import { Subtitle, Title, PasswordStrength } from '../components';
 import { PasswordInput } from '../components/textfields';
+import { SignInContext } from '../context';
 
 export const CreatePassword = ({ page, onPrev, onNext }: { page: TPages; onNext: () => void; onPrev: () => void }) => {
-  const [password, setPassword] = useState<string>('');
-  const [confirmedPassword, setConfirmedPassword] = useState<string>();
-  const [showConfirmedPassword, setShowConfirmedPassword] = useState(false);
+  const { password, setPassword } = useContext(SignInContext);
+  const [confirmedPassword, setConfirmedPassword] = useState<string>('');
+  const [isStrongPassword, setIsStrongPassword] = useState(false);
+
+  const handleOnPrev = () => {
+    setPassword('');
+    onPrev();
+  };
 
   return (
     <>
@@ -20,33 +25,25 @@ export const CreatePassword = ({ page, onPrev, onNext }: { page: TPages; onNext:
           <FormControl fullWidth>
             <Stack spacing={2}>
               <>
-                <PasswordInput password={password} onUpdatePassword={(pswd) => setPassword(pswd)} />
-                <PasswordStrength password={password} />
+                <PasswordInput password={password} onUpdatePassword={(pswd) => setPassword(pswd)} label="Password" />
+                <PasswordStrength password={password} onChange={(isStrong) => setIsStrongPassword(isStrong)} />
               </>
-              <TextField
+              <PasswordInput
+                password={confirmedPassword}
+                onUpdatePassword={(pswd) => setConfirmedPassword(pswd)}
                 label="Confirm password"
-                value={confirmedPassword}
-                onChange={(e) => setConfirmedPassword(e.target.value)}
-                type={showConfirmedPassword ? 'input' : 'password'}
-                InputProps={{
-                  endAdornment: (
-                    <IconButton onClick={() => setShowConfirmedPassword((show) => !show)}>
-                      {showConfirmedPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  ),
-                }}
               />
               <Button
                 size="large"
                 variant="contained"
-                disabled={password !== confirmedPassword || password.length === 0}
+                disabled={password !== confirmedPassword || password.length === 0 || !isStrongPassword}
                 onClick={onNext}
               >
                 Next
               </Button>
               <Button
                 size="large"
-                onClick={onPrev}
+                onClick={handleOnPrev}
                 sx={{
                   color: 'common.white',
                   border: '1px solid white',

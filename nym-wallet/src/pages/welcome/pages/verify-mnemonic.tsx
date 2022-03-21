@@ -1,25 +1,34 @@
-import React, { useEffect, useState } from 'react';
-import { Button, Stack } from '@mui/material';
+import React, { useContext, useEffect, useState } from 'react';
+import { Button, CircularProgress, Stack } from '@mui/material';
+import { useSnackbar } from 'notistack';
 import { HiddenWords, Subtitle, Title, WordTiles } from '../components';
 import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords, TPages } from '../types';
 import { randomNumberBetween } from '../../../utils';
+import { SignInContext } from '../context';
+import { createPassword } from '../../../requests';
 
-const numberOfRandomWords = 4;
+const numberOfRandomWords = 6;
 
-export const VerifyMnemonic = ({
-  mnemonicWords,
-  page,
-  onNext,
-  onPrev,
-}: {
-  mnemonicWords?: TMnemonicWords;
-  page: TPages;
-  onNext: () => void;
-  onPrev: () => void;
-}) => {
+export const VerifyMnemonic = ({ page, onNext, onPrev }: { page: TPages; onNext: () => void; onPrev: () => void }) => {
   const [randomWords, setRandomWords] = useState<TMnemonicWords>();
   const [hiddenRandomWords, setHiddenRandomWords] = useState<THiddenMnemonicWords>();
   const [currentSelection, setCurrentSelection] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { mnemonicWords, mnemonic, password } = useContext(SignInContext);
+  const { enqueueSnackbar } = useSnackbar();
+
+  const storePassword = async () => {
+    try {
+      setIsLoading(true);
+      await createPassword({ mnemonic, password });
+      enqueueSnackbar('Password successfully created', { variant: 'success' });
+    } catch (e) {
+      enqueueSnackbar(e as string, { variant: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (mnemonicWords) {
@@ -59,8 +68,12 @@ export const VerifyMnemonic = ({
             variant="contained"
             fullWidth
             size="large"
-            disabled={currentSelection !== numberOfRandomWords}
-            onClick={onNext}
+            disabled={currentSelection !== numberOfRandomWords || isLoading}
+            onClick={async () => {
+              await storePassword();
+              onNext();
+            }}
+            endIcon={isLoading && <CircularProgress />}
           >
             Next
           </Button>

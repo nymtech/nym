@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::rewarded_set_updater::{error::RewardingError, MixnodeToReward};
+use crate::rewarded_set_updater::error::RewardingError;
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::Interval;
 use mixnet_contract_common::{
@@ -355,34 +355,6 @@ impl<C> Client<C> {
         self.execute_multiple_with_retry(msgs, Default::default(), memo)
             .await?;
         Ok(())
-    }
-
-    pub(crate) async fn reward_mixnodes(
-        &self,
-        nodes: &[MixnodeToReward],
-        interval_id: u32,
-    ) -> Result<Vec<(ExecuteMsg, Vec<CosmosCoin>)>, RewardingError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "no-reward")] {
-                Ok(vec![])
-            } else {
-                let msgs: Vec<(ExecuteMsg, _)> = nodes
-            .iter()
-            .map(|node| node.to_reward_execute_msg(interval_id))
-            .zip(std::iter::repeat(Vec::new()))
-            .collect();
-
-                Ok(msgs)
-            }
-        }
-
-        // let memo = format!("rewarding {} mixnodes", msgs.len());
-
-        // self.execute_multiple_with_retry(msgs, Default::default(), memo)
-        //     .await
     }
 
     async fn execute_multiple_with_retry<M>(

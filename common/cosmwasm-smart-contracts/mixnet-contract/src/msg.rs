@@ -62,9 +62,6 @@ pub enum ExecuteMsg {
         identity: IdentityKey,
         // percentage value in range 0-100
         params: NodeRewardParams,
-
-        // id of the current rewarding interval
-        interval_id: u32,
     },
     // RewardNextMixDelegators {
     //     mix_identity: IdentityKey,

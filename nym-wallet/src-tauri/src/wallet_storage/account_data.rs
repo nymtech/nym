@@ -37,7 +37,7 @@ impl StoredWallet {
       .iter()
       .find(|account| &account.id == id)
       .map(|account| &account.account)
-      .ok_or(BackendError::NoSuchWalletId)
+      .ok_or(BackendError::NoSuchIdInWallet)
   }
 
   pub fn decrypt_account(

@@ -365,18 +365,24 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let msgs: Vec<(ExecuteMsg, _)> = nodes
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "no-reward")] {
+                Ok(vec![])
+            } else {
+                let msgs: Vec<(ExecuteMsg, _)> = nodes
             .iter()
             .map(|node| node.to_reward_execute_msg(interval_id))
             .zip(std::iter::repeat(Vec::new()))
             .collect();
 
+                Ok(msgs)
+            }
+        }
+
         // let memo = format!("rewarding {} mixnodes", msgs.len());
 
         // self.execute_multiple_with_retry(msgs, Default::default(), memo)
         //     .await
-
-        Ok(msgs)
     }
 
     async fn execute_multiple_with_retry<M>(

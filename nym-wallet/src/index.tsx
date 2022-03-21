@@ -10,6 +10,7 @@ import { Admin, Welcome, Settings } from './pages';
 import { ErrorFallback } from './components';
 import { NymWalletTheme, WelcomeTheme } from './theme';
 import { maximizeWindow } from './utils';
+import { SignInProvider } from './pages/welcome/context';
 
 const App = () => {
   const { clientDetails } = useContext(ClientContext);
@@ -20,7 +21,9 @@ const App = () => {
 
   return !clientDetails ? (
     <WelcomeTheme>
-      <Welcome />
+      <SignInProvider>
+        <Welcome />
+      </SignInProvider>
     </WelcomeTheme>
   ) : (
     <NymWalletTheme>

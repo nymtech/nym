@@ -3,7 +3,7 @@ import { useHistory } from 'react-router-dom';
 import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import { config } from '../../config';
-import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signOut } from '../requests';
+import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signInWithPassword, signOut } from '../requests';
 import { currencyMap } from '../utils';
 
 export const { ADMIN_ADDRESS, IS_DEV_MODE } = config;
@@ -36,7 +36,7 @@ type TClientContext = {
   getBondDetails: () => Promise<void>;
   handleShowSettings: () => void;
   handleShowAdmin: () => void;
-  logIn: (mnemonic: string) => void;
+  logIn: (opts: { type: 'mnemonic' | 'password'; value: string }) => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
 };
@@ -89,19 +89,22 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     refreshAccount();
   }, [network]);
 
-  const logIn = async (mnemonic: string) => {
+  const logIn = async ({ type, value }: { type: 'mnemonic' | 'password'; value: string }) => {
     try {
       setIsLoading(true);
-      await signInWithMnemonic(mnemonic || '');
+      if (type === 'mnemonic') {
+        await signInWithMnemonic(value);
+      } else {
+        await signInWithPassword(value);
+      }
       setNetwork('MAINNET');
       history.push('/balance');
     } catch (e) {
-      setIsLoading(false);
       setError(e as string);
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  const signInWithPassword = (password: string) => password;
 
   const logOut = async () => {
     setClientDetails(undefined);

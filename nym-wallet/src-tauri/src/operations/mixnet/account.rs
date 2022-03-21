@@ -1,11 +1,14 @@
 use crate::coin::{Coin, Denom};
-use crate::config::{Config, ValidatorWithApiEndpoint};
+use crate::config::{Config, ValidatorUrlWithApiEndpoint};
 use crate::error::BackendError;
 use crate::network::Network;
 use crate::nymd_client;
 use crate::state::State;
+use crate::wallet_storage;
 
 use bip39::{Language, Mnemonic};
+use config::defaults::COSMOS_DERIVATION_PATH;
+use cosmrs::bip32::DerivationPath;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -40,7 +43,6 @@ impl Account {
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/createdaccount.ts"))]
-#[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/balance.ts"))]
 #[derive(Serialize, Deserialize)]
 
@@ -171,7 +173,7 @@ async fn _connect_with_mnemonic(
 }
 
 fn create_clients(
-  validators: &HashMap<Network, ValidatorWithApiEndpoint>,
+  validators: &HashMap<Network, ValidatorUrlWithApiEndpoint>,
   mnemonic: &Mnemonic,
   config: &Config,
 ) -> Result<Vec<Client<SigningNymdClient>>, BackendError> {
@@ -196,7 +198,7 @@ fn create_clients(
 async fn choose_validators(
   mnemonic: Mnemonic,
   state: &tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<HashMap<Network, ValidatorWithApiEndpoint>, BackendError> {
+) -> Result<HashMap<Network, ValidatorUrlWithApiEndpoint>, BackendError> {
   let config = state.read().await.config();
 
   // Try to connect to validators on all networks
@@ -211,9 +213,10 @@ async fn choose_validators(
         .next()
         // We always have at least one hardcoded default validator
         .unwrap();
-      println!(
+      log::info!(
         "Using default for {network}: {}, {}",
-        default_validator.nymd_url, default_validator.api_url,
+        default_validator.nymd_url,
+        default_validator.api_url,
       );
       default_validator
     });
@@ -226,7 +229,7 @@ async fn choose_validators(
 async fn select_responding_validators(
   config: &Config,
   mnemonic: &Mnemonic,
-) -> Result<HashMap<Network, ValidatorWithApiEndpoint>, BackendError> {
+) -> Result<HashMap<Network, ValidatorUrlWithApiEndpoint>, BackendError> {
   use tokio::time::timeout;
   let validators = futures::future::join_all(Network::iter().map(|network| {
     timeout(
@@ -254,11 +257,11 @@ async fn select_responding_validators(
 }
 
 async fn try_connect_to_validators(
-  validators: impl Iterator<Item = ValidatorWithApiEndpoint>,
+  validators: impl Iterator<Item = ValidatorUrlWithApiEndpoint>,
   config: &Config,
   network: Network,
   mnemonic: Mnemonic,
-) -> Result<Option<(Network, ValidatorWithApiEndpoint)>, BackendError> {
+) -> Result<Option<(Network, ValidatorUrlWithApiEndpoint)>, BackendError> {
   for validator in validators {
     if let Some(responding_validator) =
       try_connect_to_validator(&validator, config, network, mnemonic.clone()).await?
@@ -271,11 +274,11 @@ async fn try_connect_to_validators(
 }
 
 async fn try_connect_to_validator(
-  validator: &ValidatorWithApiEndpoint,
+  validator: &ValidatorUrlWithApiEndpoint,
   config: &Config,
   network: Network,
   mnemonic: Mnemonic,
-) -> Result<Option<(Network, ValidatorWithApiEndpoint)>, BackendError> {
+) -> Result<Option<(Network, ValidatorUrlWithApiEndpoint)>, BackendError> {
   let client = validator_client::Client::new_signing(
     validator_client::Config::new(
       network.into(),
@@ -289,9 +292,10 @@ async fn try_connect_to_validator(
   )?;
 
   if is_validator_connection_ok(&client).await {
-    println!(
+    log::info!(
       "Connection ok for {network}: {}, {}",
-      validator.nymd_url, validator.api_url
+      validator.nymd_url,
+      validator.api_url
     );
     Ok(Some((network, validator.clone())))
   } else {
@@ -305,4 +309,48 @@ async fn is_validator_connection_ok(client: &Client<SigningNymdClient>) -> bool 
     Err(NymdError::TendermintError(_)) => false,
     Err(_) | Ok(_) => true,
   }
+}
+
+#[tauri::command]
+pub fn does_password_file_exist() -> Result<bool, BackendError> {
+  log::info!("Checking wallet file");
+  let file = wallet_storage::wallet_login_filepath()?;
+  if file.is_file() {
+    log::info!("Exists: {}", file.to_string_lossy());
+  } else {
+    log::info!("Does not exist: {}", file.to_string_lossy());
+  }
+  Ok(file.is_file())
+}
+
+#[tauri::command]
+pub fn create_password(mnemonic: String, password: String) -> Result<(), BackendError> {
+  log::info!("Creating password");
+  if does_password_file_exist()? {
+    return Err(BackendError::WalletFileAlreadyExists);
+  }
+
+  let mnemonic = Mnemonic::from_str(&mnemonic)?;
+  let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+  let password = wallet_storage::UserPassword::new(password);
+  wallet_storage::store_wallet_login_information(mnemonic, hd_path, &password)?;
+  Ok(())
+}
+
+#[tauri::command]
+pub async fn sign_in_with_password(
+  password: String,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Account, BackendError> {
+  log::info!("Signing in with password");
+  let password = wallet_storage::UserPassword::new(password);
+  let stored_accounts = wallet_storage::load_existing_wallet_login_information(&password)?;
+
+  // WIP: we are assuming just a single password is stored
+  let stored_account = stored_accounts.into_iter().next().unwrap();
+  let mnemonic = match stored_account {
+    wallet_storage::account_data::StoredAccount::Mnemonic(ref mn) => mn.mnemonic().clone(),
+  };
+
+  _connect_with_mnemonic(mnemonic, state).await
 }

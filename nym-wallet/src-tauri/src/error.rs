@@ -81,6 +81,8 @@ pub enum BackendError {
   NoNymdValidatorConfigured,
   #[error("No validator API URL configured")]
   NoValidatorApiUrlConfigured,
+  #[error("The wallet file already exists")]
+  WalletFileAlreadyExists,
 }
 
 impl Serialize for BackendError {

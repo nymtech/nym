@@ -1,0 +1,6 @@
+{
+  "mainnet":[{
+    "nymd_url":"https://rpc.nyx.nodes.guru/",
+    "api_url":"https://api.nyx.nodes.guru/"
+  }]
+}

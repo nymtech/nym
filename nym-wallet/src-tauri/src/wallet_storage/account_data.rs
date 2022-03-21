@@ -11,7 +11,7 @@ use zeroize::Zeroizing;
 use crate::error::BackendError;
 
 use super::encryption::EncryptedData;
-use super::password::UserId;
+use super::password::WalletAccountId;
 use super::UserPassword;
 
 const CURRENT_WALLET_FILE_VERSION: u32 = 1;
@@ -31,7 +31,10 @@ impl StoredWallet {
     self.accounts.len()
   }
 
-  fn encrypted_account(&self, id: &UserId) -> Result<&EncryptedData<StoredAccount>, BackendError> {
+  fn encrypted_account(
+    &self,
+    id: &WalletAccountId,
+  ) -> Result<&EncryptedData<StoredAccount>, BackendError> {
     self
       .accounts
       .iter()
@@ -42,7 +45,7 @@ impl StoredWallet {
 
   pub fn decrypt_account(
     &self,
-    id: &UserId,
+    id: &WalletAccountId,
     password: &UserPassword,
   ) -> Result<StoredAccount, BackendError> {
     self.encrypted_account(id)?.decrypt_struct(password)
@@ -72,7 +75,7 @@ impl Default for StoredWallet {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct EncryptedAccount {
-  pub id: UserId,
+  pub id: WalletAccountId,
   pub account: EncryptedData<StoredAccount>,
 }
 

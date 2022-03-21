@@ -5,15 +5,15 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct UserId(String);
+pub(crate) struct WalletAccountId(String);
 
-impl UserId {
-  pub(crate) fn new(id: String) -> UserId {
-    UserId(id)
+impl WalletAccountId {
+  pub(crate) fn new(id: String) -> WalletAccountId {
+    WalletAccountId(id)
   }
 }
 
-impl AsRef<str> for UserId {
+impl AsRef<str> for WalletAccountId {
   fn as_ref(&self) -> &str {
     self.0.as_ref()
   }

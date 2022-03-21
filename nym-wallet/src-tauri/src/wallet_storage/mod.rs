@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) use crate::wallet_storage::password::{UserId, UserPassword};
+pub(crate) use crate::wallet_storage::password::{UserPassword, WalletAccountId};
 
 use crate::error::BackendError;
 use crate::operations::mixnet::account::create_new_account;
@@ -20,7 +20,7 @@ pub(crate) mod encryption;
 
 mod password;
 
-pub(crate) const DEFAULT_WALLET_ID: &str = "default";
+pub(crate) const DEFAULT_WALLET_ACCOUNT_ID: &str = "default";
 
 fn get_storage_directory() -> Result<PathBuf, BackendError> {
   tauri::api::path::local_data_dir()
@@ -48,7 +48,7 @@ fn load_existing_wallet_at_file(filepath: PathBuf) -> Result<StoredWallet, Backe
 }
 
 pub(crate) fn load_existing_wallet_login_information(
-  id: &UserId,
+  id: &WalletAccountId,
   password: &UserPassword,
 ) -> Result<StoredAccount, BackendError> {
   let store_dir = get_storage_directory()?;
@@ -58,7 +58,7 @@ pub(crate) fn load_existing_wallet_login_information(
 
 fn load_existing_wallet_login_information_at_file(
   filepath: PathBuf,
-  id: &UserId,
+  id: &WalletAccountId,
   password: &UserPassword,
 ) -> Result<StoredAccount, BackendError> {
   load_existing_wallet_at_file(filepath)?.decrypt_account(id, password)
@@ -67,7 +67,7 @@ fn load_existing_wallet_login_information_at_file(
 pub(crate) fn store_wallet_login_information(
   mnemonic: bip39::Mnemonic,
   hd_path: DerivationPath,
-  id: UserId,
+  id: WalletAccountId,
   password: &UserPassword,
 ) -> Result<(), BackendError> {
   // make sure the entire directory structure exists
@@ -82,7 +82,7 @@ fn store_wallet_login_information_at_file(
   filepath: PathBuf,
   mnemonic: bip39::Mnemonic,
   hd_path: DerivationPath,
-  id: UserId,
+  id: WalletAccountId,
   password: &UserPassword,
 ) -> Result<(), BackendError> {
   let mut stored_wallet = match load_existing_wallet_at_file(filepath.clone()) {
@@ -139,8 +139,8 @@ mod tests {
     let password = UserPassword::new("password".to_string());
     let bad_password = UserPassword::new("bad-password".to_string());
 
-    let id1 = UserId::new("first".to_string());
-    let id2 = UserId::new("second".to_string());
+    let id1 = WalletAccountId::new("first".to_string());
+    let id2 = WalletAccountId::new("second".to_string());
 
     // Nothing was stored on the disk
     assert!(matches!(
@@ -166,7 +166,7 @@ mod tests {
     assert_eq!(stored_wallet.len(), 1);
     assert_eq!(
       stored_wallet.accounts[0].id,
-      UserId::new("first".to_string())
+      WalletAccountId::new("first".to_string())
     );
     let encrypted_blob = &stored_wallet.accounts[0].account;
 

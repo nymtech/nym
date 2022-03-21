@@ -77,16 +77,14 @@ pub enum BackendError {
   NetworkNotSupported(config::defaults::all::Network),
   #[error("Could not access the local data storage directory")]
   UnknownStorageDirectory,
-  #[error("No nymd validator configured")]
-  NoNymdValidatorConfigured,
   #[error("No validator API URL configured")]
   NoValidatorApiUrlConfigured,
   #[error("The wallet file already exists")]
   WalletFileAlreadyExists,
   #[error("The wallet file is not found")]
-  WalletNotFound,
+  WalletFileNotFound,
   #[error("Account ID not found in wallet")]
-  NoSuchWalletId,
+  NoSuchIdInWallet,
   #[error("Adding a different password to the wallet not currently supported")]
   WalletDifferentPasswordDetected,
 }

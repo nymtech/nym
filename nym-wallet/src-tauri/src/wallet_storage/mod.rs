@@ -38,7 +38,7 @@ pub(crate) fn load_existing_wallet(password: &UserPassword) -> Result<StoredWall
 
 fn load_existing_wallet_at_file(filepath: PathBuf) -> Result<StoredWallet, BackendError> {
   if !filepath.exists() {
-    return Err(BackendError::WalletNotFound);
+    return Err(BackendError::WalletFileNotFound);
   }
   let file = OpenOptions::new().read(true).open(filepath)?;
   let wallet: StoredWallet = serde_json::from_reader(file)?;
@@ -84,7 +84,7 @@ fn store_wallet_login_information_at_file(
   password: &UserPassword,
 ) -> Result<(), BackendError> {
   let mut stored_wallet = match load_existing_wallet_at_file(filepath.clone()) {
-    Err(BackendError::WalletNotFound) => StoredWallet::default(),
+    Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
     result => result?,
   };
 
@@ -144,11 +144,11 @@ mod tests {
     // Nothing was stored on the disk
     assert!(matches!(
       load_existing_wallet_at_file(wallet_file.clone()),
-      Err(BackendError::WalletNotFound),
+      Err(BackendError::WalletFileNotFound),
     ));
     assert!(matches!(
       load_existing_wallet_login_information_at_file(wallet_file.clone(), &id1, &password),
-      Err(BackendError::WalletNotFound),
+      Err(BackendError::WalletFileNotFound),
     ));
 
     // Store the first account
@@ -184,7 +184,7 @@ mod tests {
     // and with the wrong id also fails
     assert!(matches!(
       load_existing_wallet_login_information_at_file(wallet_file.clone(), &id2, &password),
-      Err(BackendError::NoSuchWalletId),
+      Err(BackendError::NoSuchIdInWallet),
     ));
 
     let loaded_account =

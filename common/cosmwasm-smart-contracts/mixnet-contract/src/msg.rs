@@ -176,6 +176,9 @@ pub enum QueryMsg {
         address: String,
         mix_identity: IdentityKey,
     },
+    GetPendingDelegationEvents {
+        owner_address: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

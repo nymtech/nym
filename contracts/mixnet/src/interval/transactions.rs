@@ -5,6 +5,7 @@ use super::storage;
 use crate::error::ContractError;
 use crate::error::ContractError::EpochInProgress;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::support::helpers::is_authorized;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::events::{new_advance_interval_event, new_change_rewarded_set_event};
 use mixnet_contract_common::{IdentityKey, Interval};
@@ -64,23 +65,26 @@ pub fn try_write_rewarded_set(
     )))
 }
 
-fn init_epoch(storage: &mut dyn Storage, env: Env) -> Result<Interval, ContractError> {
+pub fn init_epoch(storage: &mut dyn Storage, env: Env) -> Result<Interval, ContractError> {
     let epoch = Interval::init_epoch(env);
     storage::save_epoch(storage, &epoch)?;
     Ok(epoch)
 }
 
-pub fn try_advance_epoch(env: Env, storage: &mut dyn Storage) -> Result<Response, ContractError> {
+pub fn try_advance_epoch(
+    env: Env,
+    storage: &mut dyn Storage,
+    sender: String,
+) -> Result<Response, ContractError> {
     // in theory, we could have just changed the state and relied on its reversal upon failed
     // execution, but better safe than sorry and do not modify the state at all unless we know
     // all checks have succeeded.
-    let current_epoch = if let Some(epoch) = storage::current_epoch(storage)? {
-        epoch
-    } else {
-        let epoch = init_epoch(storage, env)?;
-        return Ok(Response::new().add_event(new_advance_interval_event(epoch)));
-    };
 
+    // Only rewarding validator can attempt to advance epoch
+
+    is_authorized(sender, storage)?;
+
+    let current_epoch = storage::current_epoch(storage)?;
     if current_epoch.is_over(env.clone()) {
         let next_epoch = current_epoch.next_on_chain(env);
 
@@ -102,9 +106,8 @@ mod tests {
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Timestamp;
-    use mixnet_contract_common::{Interval, RewardedSetNodeStatus};
-    use std::time::Duration;
-    use time::OffsetDateTime;
+    use mixnet_contract_common::RewardedSetNodeStatus;
+    use mixnet_params_storage::rewarding_validator_address;
 
     #[test]
     fn writing_rewarded_set() {
@@ -232,22 +235,15 @@ mod tests {
     fn advancing_epoch() {
         let mut env = mock_env();
         let mut deps = test_helpers::init_contract();
-
-        // 1609459200 = 2021-01-01
-        // 1640995200 = 2022-01-01
-        // 1641081600 = 2022-01-02
-        // 1643673600 = 2022-02-01
-        // 1672531200 = 2023-01-01
+        let sender = rewarding_validator_address(&deps.storage).unwrap();
 
         let _current_epoch = init_epoch(&mut deps.storage, env.clone()).unwrap();
 
         // Works as its after the current epoch
         env.block.time = Timestamp::from_seconds(1641081600);
-        assert!(try_advance_epoch(env.clone(), deps.as_mut().storage).is_ok());
+        assert!(try_advance_epoch(env.clone(), deps.as_mut().storage, sender.clone()).is_ok());
 
-        let current_epoch = crate::interval::storage::current_epoch(&mut deps.storage)
-            .unwrap()
-            .unwrap();
+        let current_epoch = crate::interval::storage::current_epoch(&mut deps.storage).unwrap();
 
         // same if the current blocktime is set to BEFORE the first interval has even begun
         // (say we decided to set the first interval to be some time in the future at initialisation)
@@ -258,7 +254,7 @@ mod tests {
                 epoch_start: current_epoch.start_unix_timestamp(),
                 epoch_end: current_epoch.end_unix_timestamp()
             }),
-            try_advance_epoch(env.clone(), deps.as_mut().storage)
+            try_advance_epoch(env.clone(), deps.as_mut().storage, sender.clone(),)
         );
 
         // works otherwise
@@ -271,7 +267,7 @@ mod tests {
             Response::new().add_event(new_advance_interval_event(expected_new_epoch));
         assert_eq!(
             Ok(expected_response),
-            try_advance_epoch(env.clone(), deps.as_mut().storage)
+            try_advance_epoch(env.clone(), deps.as_mut().storage, sender)
         );
 
         // interval way back in the past (i.e. 'somebody' failed to advance it for a long time)
@@ -280,9 +276,10 @@ mod tests {
         let expected_new_epoch = current_epoch.next_on_chain(env.clone());
         let expected_response =
             Response::new().add_event(new_advance_interval_event(expected_new_epoch));
+        let sender = rewarding_validator_address(&deps.storage).unwrap();
         assert_eq!(
             Ok(expected_response),
-            try_advance_epoch(env.clone(), deps.as_mut().storage)
+            try_advance_epoch(env.clone(), deps.as_mut().storage, sender)
         );
     }
 }

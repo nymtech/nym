@@ -3,6 +3,7 @@
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
+use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, Interval, MixNodeBond};
 use network_defaults::DEFAULT_NETWORK;
 use url::Url;
@@ -270,7 +271,20 @@ impl<C> Client<C> {
             .u128())
     }
 
-    pub async fn get_current_epoch(&self) -> Result<Option<Interval>, ValidatorClientError>
+    pub async fn get_pending_delegation_events(
+        &self,
+        owner_address: String,
+    ) -> Result<Vec<DelegationEvent>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self
+            .nymd
+            .get_pending_delegation_events(owner_address)
+            .await?)
+    }
+
+    pub async fn get_current_epoch(&self) -> Result<Interval, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {

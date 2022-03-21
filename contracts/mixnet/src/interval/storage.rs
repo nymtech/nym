@@ -55,8 +55,10 @@ pub fn save_epoch_reward_params(
     Ok(())
 }
 
-pub fn current_epoch(storage: &dyn Storage) -> Result<Option<Interval>, ContractError> {
-    Ok(CURRENT_EPOCH.may_load(storage)?)
+pub fn current_epoch(storage: &dyn Storage) -> Result<Interval, ContractError> {
+    CURRENT_EPOCH
+        .load(storage)
+        .map_err(|_| ContractError::EpochNotInitialized)
 }
 
 pub(crate) fn save_rewarded_set(

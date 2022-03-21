@@ -14,6 +14,7 @@ use cosmrs::rpc::HttpClientUrl;
 use cosmwasm_std::{Coin, Uint128};
 pub use fee::gas_price::GasPrice;
 use fee::helpers::Operation;
+use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
     IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
@@ -317,7 +318,20 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn get_current_epoch(&self) -> Result<Option<Interval>, NymdError>
+    pub async fn get_pending_delegation_events(
+        &self,
+        owner_address: String,
+    ) -> Result<Vec<DelegationEvent>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetPendingDelegationEvents { owner_address };
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_current_epoch(&self) -> Result<Interval, NymdError>
     where
         C: CosmWasmClient + Sync,
     {

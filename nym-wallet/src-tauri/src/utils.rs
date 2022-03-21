@@ -3,6 +3,9 @@ use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
 use crate::Operation;
+use mixnet_contract_common::mixnode::DelegationEvent as ContractDelegationEvent;
+use mixnet_contract_common::mixnode::PendingUndelegate as ContractPendingUndelegate;
+use mixnet_contract_common::Delegation;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -73,6 +76,56 @@ impl DelegationResult {
       source_address: source_address.to_string(),
       target_address: target_address.to_string(),
       amount,
+    }
+  }
+}
+
+impl From<Delegation> for DelegationResult {
+  fn from(delegation: Delegation) -> Self {
+    DelegationResult {
+      source_address: delegation.owner().to_string(),
+      target_address: delegation.node_identity(),
+      amount: Some(delegation.amount.into()),
+    }
+  }
+}
+
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/delegationevent.ts"))]
+#[derive(Deserialize, Serialize)]
+pub enum DelegationEvent {
+  Delegate(DelegationResult),
+  Undelegate(PendingUndelegate),
+}
+
+impl From<ContractDelegationEvent> for DelegationEvent {
+  fn from(event: ContractDelegationEvent) -> Self {
+    match event {
+      ContractDelegationEvent::Delegate(delegation) => DelegationEvent::Delegate(delegation.into()),
+      ContractDelegationEvent::Undelegate(pending_undelegate) => {
+        DelegationEvent::Undelegate(pending_undelegate.into())
+      }
+    }
+  }
+}
+
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/pendingundelegate.ts"))]
+#[derive(Deserialize, Serialize)]
+pub struct PendingUndelegate {
+  mix_identity: String,
+  delegate: String,
+  proxy: Option<String>,
+  block_height: u64,
+}
+
+impl From<ContractPendingUndelegate> for PendingUndelegate {
+  fn from(pending_undelegate: ContractPendingUndelegate) -> Self {
+    PendingUndelegate {
+      mix_identity: pending_undelegate.mix_identity(),
+      delegate: pending_undelegate.delegate().to_string(),
+      proxy: pending_undelegate.proxy().map(|p| p.to_string()),
+      block_height: pending_undelegate.block_height(),
     }
   }
 }

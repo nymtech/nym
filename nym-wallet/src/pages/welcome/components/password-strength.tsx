@@ -51,7 +51,13 @@ const getPasswordStrength = (strength: TStrength) => {
   }
 };
 
-export const PasswordStrength = ({ password }: { password: string }) => {
+export const PasswordStrength = ({
+  password,
+  onChange,
+}: {
+  password: string;
+  onChange: (isStrong: boolean) => void;
+}) => {
   const [strength, setStrength] = useState<TStrength>('init');
 
   useEffect(() => {
@@ -71,6 +77,14 @@ export const PasswordStrength = ({ password }: { password: string }) => {
     }
     setStrength('weak');
   }, [password]);
+
+  useEffect(() => {
+    if (strength === 'strong') {
+      onChange(true);
+    } else {
+      onChange(false);
+    }
+  }, [strength]);
 
   return (
     <Stack spacing={0.5}>

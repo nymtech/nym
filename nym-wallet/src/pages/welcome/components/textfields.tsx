@@ -1,43 +1,38 @@
-import React, { useContext, useState } from 'react';
-import { Alert, Button, IconButton, Stack, TextField } from '@mui/material';
+import React, { useState } from 'react';
+import { IconButton, Stack, TextField } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { ClientContext } from '../../../context/main';
+import { Error } from './error';
 
-export const MnemonicInput: React.FC<{ mnemonic: string; onUpdateMnemonic: (mnemonic: string) => void }> = ({
-  mnemonic,
-  onUpdateMnemonic,
-}) => {
-  const { error } = useContext(ClientContext);
-  return (
-    <Stack spacing={2}>
-      <TextField
-        placeholder="Mnemonic"
-        value={mnemonic}
-        onChange={(e) => onUpdateMnemonic(e.target.value)}
-        multiline
-        rows={5}
-        fullWidth
-      />
-      {error && (
-        <Alert severity="error" variant="outlined" data-testid="error" sx={{ color: 'error.light', width: '100%' }}>
-          {error}
-        </Alert>
-      )}
-    </Stack>
-  );
-};
+export const MnemonicInput: React.FC<{
+  mnemonic: string;
+  error?: string;
+  onUpdateMnemonic: (mnemonic: string) => void;
+}> = ({ mnemonic, error, onUpdateMnemonic }) => (
+  <Stack spacing={2}>
+    <TextField
+      placeholder="Mnemonic"
+      value={mnemonic}
+      onChange={(e) => onUpdateMnemonic(e.target.value)}
+      multiline
+      rows={5}
+      fullWidth
+    />
+    {error && <Error message={error} />}
+  </Stack>
+);
 
-export const PasswordInput: React.FC<{ password: string; onUpdatePassword: (password: string) => void }> = ({
-  password,
-  onUpdatePassword,
-}) => {
+export const PasswordInput: React.FC<{
+  password: string;
+  error?: string;
+  label: string;
+  onUpdatePassword: (password: string) => void;
+}> = ({ password, label, error, onUpdatePassword }) => {
   const [showPassword, setShowPassword] = useState(false);
-  const { error } = useContext(ClientContext);
 
   return (
     <Stack spacing={2}>
       <TextField
-        label="Password"
+        label={label}
         fullWidth
         value={password}
         onChange={(e) => onUpdatePassword(e.target.value)}
@@ -50,11 +45,7 @@ export const PasswordInput: React.FC<{ password: string; onUpdatePassword: (pass
           ),
         }}
       />
-      {error && (
-        <Alert severity="error" variant="outlined" data-testid="error" sx={{ color: 'error.light', width: '100%' }}>
-          {error}
-        </Alert>
-      )}
+      {error && <Error message={error} />}
     </Stack>
   );
 };

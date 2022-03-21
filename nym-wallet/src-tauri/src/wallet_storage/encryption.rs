@@ -182,7 +182,6 @@ where
   T: Serialize,
 {
   let bytes = serde_json::to_vec(data).map_err(|_| BackendError::EncryptionError)?;
-  //dbg!(&bytes);
 
   let (salt, iv) = random_salt_and_iv();
   let ciphertext = encrypt(&bytes, password, &salt, &iv)?;

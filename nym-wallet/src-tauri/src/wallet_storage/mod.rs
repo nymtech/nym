@@ -1,10 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::operations::mixnet::account::create_new_account;
 pub(crate) use crate::wallet_storage::password::{UserId, UserPassword};
 
 use crate::error::BackendError;
+use crate::operations::mixnet::account::create_new_account;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use crate::wallet_storage::account_data::StoredAccount;
 use crate::wallet_storage::encryption::{encrypt_struct, EncryptedData};
@@ -19,6 +19,8 @@ pub(crate) mod account_data;
 pub(crate) mod encryption;
 
 mod password;
+
+pub(crate) const DEFAULT_WALLET_ID: &str = "default";
 
 fn get_storage_directory() -> Result<PathBuf, BackendError> {
   tauri::api::path::local_data_dir()
@@ -117,9 +119,8 @@ fn store_wallet_login_information_at_file(
 
 #[cfg(test)]
 mod tests {
-  use crate::wallet_storage::encryption::encrypt_data;
-
   use super::*;
+  use crate::wallet_storage::encryption::encrypt_data;
   use config::defaults::COSMOS_DERIVATION_PATH;
   use std::path::Path;
   use tempfile::tempdir;

@@ -92,6 +92,14 @@ impl StoredAccount {
   ) -> StoredAccount {
     StoredAccount::Mnemonic(MnemonicAccount { mnemonic, hd_path })
   }
+
+  // If we add accounts backed by something that is not a mnemonic, this should probably be changed
+  // to return `Option<..>`.
+  pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
+    match self {
+      StoredAccount::Mnemonic(account) => account.mnemonic(),
+    }
+  }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -101,9 +109,6 @@ pub(crate) struct MnemonicAccount {
   hd_path: DerivationPath,
 }
 
-// we only ever want to expose those getters in the test code
-// WIP(JON): temporarily comment out
-//#[cfg(test)]
 impl MnemonicAccount {
   pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
     &self.mnemonic

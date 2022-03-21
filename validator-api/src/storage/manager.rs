@@ -3,10 +3,7 @@
 use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
 use crate::node_status_api::utils::ActiveNodeStatuses;
-use crate::storage::models::{
-    ActiveNode, FailedMixnodeRewardChunk, NodeStatus, PossiblyUnrewardedMixnode, RewardingReport,
-    TestingRoute,
-};
+use crate::storage::models::{ActiveNode, NodeStatus, RewardingReport, TestingRoute};
 use std::convert::TryFrom;
 
 #[derive(Clone)]
@@ -704,47 +701,6 @@ impl StorageManager {
         )
         .execute(&self.connection_pool)
         .await?;
-        Ok(())
-    }
-
-    /// Inserts new failed mixnode reward chunk information into the database.
-    /// Returns id of the newly created entry.
-    ///
-    /// # Arguments
-    ///
-    /// * `failed_chunk`: chunk information to insert.
-    pub(super) async fn insert_failed_mixnode_reward_chunk(
-        &self,
-        failed_chunk: FailedMixnodeRewardChunk,
-    ) -> Result<i64, sqlx::Error> {
-        let res = sqlx::query!(
-            r#"
-                INSERT INTO failed_mixnode_reward_chunk (error_message, reward_summary_id) VALUES (?, ?)
-            "#,
-            failed_chunk.error_message,
-            failed_chunk.interval_rewarding_id,
-        ).execute(&self.connection_pool).await?;
-
-        Ok(res.last_insert_rowid())
-    }
-
-    /// Inserts information into the database about a mixnode that might have been unfairly unrewarded this interval.
-    ///
-    /// # Arguments
-    ///
-    /// * `mixnode`: mixnode information to insert.
-    pub(super) async fn insert_possibly_unrewarded_mixnode(
-        &self,
-        mixnode: PossiblyUnrewardedMixnode,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO possibly_unrewarded_mixnode (identity, uptime, failed_mixnode_reward_chunk_id) VALUES (?, ?, ?)
-            "#,
-            mixnode.identity,
-            mixnode.uptime,
-            mixnode.chunk_id
-        ).execute(&self.connection_pool).await?;
         Ok(())
     }
 

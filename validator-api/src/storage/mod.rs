@@ -9,9 +9,7 @@ use crate::node_status_api::models::{
 };
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
-use crate::storage::models::{
-    FailedMixnodeRewardChunk, NodeStatus, PossiblyUnrewardedMixnode, RewardingReport, TestingRoute,
-};
+use crate::storage::models::{NodeStatus, RewardingReport, TestingRoute};
 use rocket::fairing::{self, AdHoc};
 use rocket::{Build, Rocket};
 use sqlx::ConnectOptions;
@@ -684,37 +682,6 @@ impl ValidatorApiStorage {
     ) -> Result<(), ValidatorApiStorageError> {
         self.manager
             .insert_rewarding_report(report)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
-    }
-
-    /// Inserts new failed mixnode reward chunk information into the database.
-    /// Returns id of the newly created entry.
-    ///
-    /// # Arguments
-    ///
-    /// * `failed_chunk`: chunk information to insert.
-    pub(crate) async fn insert_failed_mixnode_reward_chunk(
-        &self,
-        failed_chunk: FailedMixnodeRewardChunk,
-    ) -> Result<i64, ValidatorApiStorageError> {
-        self.manager
-            .insert_failed_mixnode_reward_chunk(failed_chunk)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
-    }
-
-    /// Inserts information into the database about a mixnode that might have been unfairly unrewarded this interval.
-    ///
-    /// # Arguments
-    ///
-    /// * `mixnode`: mixnode information to insert.
-    pub(crate) async fn insert_possibly_unrewarded_mixnode(
-        &self,
-        mixnode: PossiblyUnrewardedMixnode,
-    ) -> Result<(), ValidatorApiStorageError> {
-        self.manager
-            .insert_possibly_unrewarded_mixnode(mixnode)
             .await
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
     }

@@ -270,7 +270,7 @@ impl<C> Client<C> {
             .await?
             .u128())
     }
-    
+
     pub async fn get_pending_delegation_events(
         &self,
         owner_address: String,

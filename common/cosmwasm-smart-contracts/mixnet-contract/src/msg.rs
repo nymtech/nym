@@ -174,7 +174,7 @@ pub enum QueryMsg {
     },
     QueryDelegatorReward {
         address: String,
-        mix_identity: IdentityKey, 
+        mix_identity: IdentityKey,
     },
     GetPendingDelegationEvents {
         owner_address: String,

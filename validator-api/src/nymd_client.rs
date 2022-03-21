@@ -333,7 +333,7 @@ impl<C> Client<C> {
         C: SigningCosmWasmClient + Sync,
     {
         let mut msgs = vec![(ExecuteMsg::AdvanceCurrentEpoch {}, vec![])];
-        
+
         msgs.extend(reward_msgs);
 
         let epoch_msgs = vec![

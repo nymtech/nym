@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 cosmrs = { version = "0.4.1", features = ["rpc", "bip32", "cosmwasm"] }
 cosmwasm-std = "1.0.0-beta3"
+thiserror = "1.0"

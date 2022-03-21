@@ -3045,6 +3045,7 @@ version = "0.1.0"
 dependencies = [
  "cosmrs",
  "cosmwasm-std",
+ "thiserror",
 ]
 
 [[package]]

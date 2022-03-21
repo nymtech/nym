@@ -8,6 +8,18 @@ edition = "2021"
 
 [dependencies]
 bls12_381 = { version = "0.5", default-features = false, features = ["pairings", "alloc", "experimental"] }
+nymcoconut = { path = "../nymcoconut" }
+rand = "0.8"
+thiserror = "1.0"
+sha2 = "0.9"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }
+
+[dependencies.ff]
+version = "0.10"
+default-features = false
+
+[dependencies.group]
+version = "0.10"
+default-features = false

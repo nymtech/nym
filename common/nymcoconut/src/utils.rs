@@ -5,8 +5,8 @@ use core::iter::Sum;
 use core::ops::Mul;
 use std::convert::TryInto;
 
-use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
+use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use ff::Field;
 
 use crate::error::{CoconutError, Result};
@@ -81,9 +81,9 @@ pub(crate) fn perform_lagrangian_interpolation_at_origin<T>(
     points: &[SignerIndex],
     values: &[T],
 ) -> Result<T>
-where
-    T: Sum,
-    for<'a> &'a T: Mul<Scalar, Output = T>,
+    where
+        T: Sum,
+        for<'a> &'a T: Mul<Scalar, Output=T>,
 {
     if points.is_empty() || values.is_empty() {
         return Err(CoconutError::Interpolation(
@@ -122,7 +122,7 @@ const G1_HASH_DOMAIN: &[u8] = b"QUUX-V01-CS02-with-BLS12381G1_XMD:SHA-256_SSWU_R
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#appendix-K.1
 const SCALAR_HASH_DOMAIN: &[u8] = b"QUUX-V01-CS02-with-expander";
 
-pub(crate) fn hash_g1<M: AsRef<[u8]>>(msg: M) -> G1Projective {
+pub fn hash_g1<M: AsRef<[u8]>>(msg: M) -> G1Projective {
     <G1Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(msg, G1_HASH_DOMAIN)
 }
 
@@ -137,7 +137,7 @@ pub fn hash_to_scalar<M: AsRef<[u8]>>(msg: M) -> Scalar {
     output[0]
 }
 
-pub(crate) fn try_deserialize_scalar_vec(
+pub fn try_deserialize_scalar_vec(
     expected_len: u64,
     bytes: &[u8],
     err: CoconutError,
@@ -159,11 +159,11 @@ pub(crate) fn try_deserialize_scalar_vec(
     Ok(out)
 }
 
-pub(crate) fn try_deserialize_scalar(bytes: &[u8; 32], err: CoconutError) -> Result<Scalar> {
+pub fn try_deserialize_scalar(bytes: &[u8; 32], err: CoconutError) -> Result<Scalar> {
     Into::<Option<Scalar>>::into(Scalar::from_bytes(bytes)).ok_or(err)
 }
 
-pub(crate) fn try_deserialize_g1_projective(
+pub fn try_deserialize_g1_projective(
     bytes: &[u8; 48],
     err: CoconutError,
 ) -> Result<G1Projective> {
@@ -172,7 +172,7 @@ pub(crate) fn try_deserialize_g1_projective(
         .map(G1Projective::from)
 }
 
-pub(crate) fn try_deserialize_g2_projective(
+pub fn try_deserialize_g2_projective(
     bytes: &[u8; 96],
     err: CoconutError,
 ) -> Result<G2Projective> {

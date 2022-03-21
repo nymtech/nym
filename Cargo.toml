@@ -33,6 +33,7 @@ members = [
     "common/network-defaults",
     "common/nonexhaustive-delayqueue",
     "common/nymcoconut",
+    "common/nym-compact-ecash",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",

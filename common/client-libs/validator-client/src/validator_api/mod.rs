@@ -14,7 +14,7 @@ use validator_api_requests::models::{
 };
 
 pub mod error;
-pub(crate) mod routes;
+pub mod routes;
 
 type PathSegments<'a> = &'a [&'a str];
 type Params<'a, K, V> = &'a [(K, V)];

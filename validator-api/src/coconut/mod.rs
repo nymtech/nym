@@ -4,6 +4,9 @@
 mod deposit;
 mod error;
 
+#[cfg(test)]
+mod tests;
+
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
 

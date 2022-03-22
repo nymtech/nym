@@ -3132,6 +3132,7 @@ dependencies = [
  "humantime-serde",
  "log",
  "mixnet-contract-common",
+ "nymcoconut",
  "nymsphinx",
  "pin-project",
  "pretty_env_logger",

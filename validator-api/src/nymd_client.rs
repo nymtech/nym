@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::rewarded_set_updater::{error::RewardingError, MixnodeToReward};
+use crate::rewarded_set_updater::error::RewardingError;
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::Interval;
 use mixnet_contract_common::{
@@ -332,13 +332,12 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let mut msgs = vec![(ExecuteMsg::AdvanceCurrentEpoch {}, vec![])];
-
-        msgs.extend(reward_msgs);
+        let mut msgs = reward_msgs;
 
         let epoch_msgs = vec![
             (ExecuteMsg::ReconcileDelegations {}, vec![]),
             (ExecuteMsg::CheckpointMixnodes {}, vec![]),
+            (ExecuteMsg::AdvanceCurrentEpoch {}, vec![]),
             (
                 ExecuteMsg::WriteRewardedSet {
                     rewarded_set,
@@ -355,28 +354,6 @@ impl<C> Client<C> {
         self.execute_multiple_with_retry(msgs, Default::default(), memo)
             .await?;
         Ok(())
-    }
-
-    pub(crate) async fn reward_mixnodes(
-        &self,
-        nodes: &[MixnodeToReward],
-        interval_id: u32,
-    ) -> Result<Vec<(ExecuteMsg, Vec<CosmosCoin>)>, RewardingError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let msgs: Vec<(ExecuteMsg, _)> = nodes
-            .iter()
-            .map(|node| node.to_reward_execute_msg(interval_id))
-            .zip(std::iter::repeat(Vec::new()))
-            .collect();
-
-        // let memo = format!("rewarding {} mixnodes", msgs.len());
-
-        // self.execute_multiple_with_retry(msgs, Default::default(), memo)
-        //     .await
-
-        Ok(msgs)
     }
 
     async fn execute_multiple_with_retry<M>(

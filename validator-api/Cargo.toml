@@ -60,6 +60,7 @@ cfg-if = "1.0"
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
+no-reward = []
 
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }

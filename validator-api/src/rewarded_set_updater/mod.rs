@@ -43,15 +43,16 @@ pub(crate) struct MixnodeToReward {
 }
 
 impl MixnodeToReward {
+    #[allow(dead_code)]
     fn params(&self) -> NodeRewardParams {
         self.params
     }
 
-    pub(crate) fn to_reward_execute_msg(&self, interval_id: u32) -> ExecuteMsg {
+    #[allow(dead_code)]
+    pub(crate) fn to_reward_execute_msg(&self) -> ExecuteMsg {
         ExecuteMsg::RewardMixnode {
             identity: self.identity.clone(),
             params: self.params(),
-            interval_id,
         }
     }
 }
@@ -138,20 +139,25 @@ impl RewardedSetUpdater {
             .insert_rewarding_report(rewarding_report)
             .await?;
 
-        Ok(self.distribute_rewards(&to_reward).await?)
+        Ok(self.generate_reward_messages(&to_reward).await?)
     }
 
-    async fn distribute_rewards(
+    #[allow(unused_variables)]
+    async fn generate_reward_messages(
         &self,
         eligible_mixnodes: &[MixnodeToReward],
     ) -> Result<Vec<(ExecuteMsg, Vec<CosmosCoin>)>, RewardingError> {
-        let epoch = self.epoch().await?;
-
-        let reward_msgs = self
-            .nymd_client
-            .reward_mixnodes(eligible_mixnodes, epoch.id())
-            .await?;
-        Ok(reward_msgs)
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "no-reward")] {
+                Ok(vec![])
+            } else {
+                Ok(eligible_mixnodes
+                    .iter()
+                    .map(|node| node.to_reward_execute_msg())
+                    .zip(std::iter::repeat(Vec::new()))
+                    .collect())
+            }
+        }
     }
 
     async fn nodes_to_reward(&self) -> Result<Vec<MixnodeToReward>, RewardingError> {

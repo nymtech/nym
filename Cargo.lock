@@ -3115,6 +3115,7 @@ name = "nym-validator-api"
 version = "0.12.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "attohttpc",
  "cfg-if",
  "clap 2.34.0",

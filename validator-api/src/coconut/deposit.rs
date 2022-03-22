@@ -9,14 +9,13 @@ use coconut_interface::BlindSignRequestBody;
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use crypto::asymmetric::encryption;
 use crypto::asymmetric::identity::{self, Signature};
-use validator_client::nymd::tx::Hash;
-use validator_client::nymd::NymdClient;
+use validator_client::nymd::TxResponse;
 
 use super::error::{CoconutError, Result};
-use crate::config::DEFAULT_LOCAL_VALIDATOR;
 
 pub async fn extract_encryption_key(
     blind_sign_request_body: &BlindSignRequestBody,
+    tx: TxResponse,
 ) -> Result<encryption::PublicKey> {
     let blind_sign_request = blind_sign_request_body.blind_sign_request();
     let public_attributes = blind_sign_request_body.public_attributes();
@@ -26,18 +25,12 @@ pub async fn extract_encryption_key(
         return Err(CoconutError::InconsistentPublicAttributes);
     }
 
-    let tx_hash = blind_sign_request_body.tx_hash();
+    let tx_hash_str = blind_sign_request_body.tx_hash();
     let mut message = blind_sign_request.to_bytes();
-    message.extend_from_slice(tx_hash.as_bytes());
+    message.extend_from_slice(tx_hash_str.as_bytes());
 
     let signature = Signature::from_base58_string(blind_sign_request_body.signature())?;
-    let tx_hash = tx_hash
-        .parse::<Hash>()
-        .map_err(|_| CoconutError::TxHashParseError)?;
 
-    let nymd_client = NymdClient::connect(DEFAULT_LOCAL_VALIDATOR, None, None, None)?;
-
-    let tx = nymd_client.get_tx(tx_hash).await?;
     let attributes: &Vec<_> = tx
         .tx_result
         .events

@@ -29,7 +29,7 @@ use url::Url;
 
 use crate::rewarded_set_updater::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
-use coconut::InternalSignRequest;
+use coconut::{client::QueryClient, InternalSignRequest};
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
@@ -388,6 +388,7 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
 
     #[cfg(feature = "coconut")]
     let rocket = rocket.attach(InternalSignRequest::stage(
+        QueryClient::new()?,
         config.keypair(),
         config.signed_deposits(),
     ));
@@ -440,6 +441,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         return rocket::build()
             .attach(setup_cors()?)
             .attach(InternalSignRequest::stage(
+                QueryClient::new()?,
                 config.keypair(),
                 config.signed_deposits(),
             ))

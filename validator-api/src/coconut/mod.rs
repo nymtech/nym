@@ -1,12 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub(crate) mod client;
 mod deposit;
 mod error;
-
 #[cfg(test)]
 mod tests;
 
+use crate::coconut::client::Client as LocalClient;
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
 
@@ -26,18 +27,24 @@ use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 pub struct State {
+    client: Arc<RwLock<dyn LocalClient + Send + Sync>>,
     key_pair: KeyPair,
     signed_deposits: sled::Db,
     rng: Arc<Mutex<OsRng>>,
 }
 
 impl State {
-    pub fn new(key_pair: KeyPair, signed_deposits: sled::Db) -> Self {
+    pub fn new<C>(client: C, key_pair: KeyPair, signed_deposits: sled::Db) -> Self
+    where
+        C: LocalClient + Send + Sync + 'static,
+    {
+        let client = Arc::new(RwLock::new(client));
         let rng = Arc::new(Mutex::new(OsRng));
         Self {
+            client,
             key_pair,
             signed_deposits,
             rng,
@@ -113,8 +120,11 @@ impl InternalSignRequest {
         }
     }
 
-    pub fn stage(key_pair: KeyPair, signed_deposits: sled::Db) -> AdHoc {
-        let state = State::new(key_pair, signed_deposits);
+    pub fn stage<C>(client: C, key_pair: KeyPair, signed_deposits: sled::Db) -> AdHoc
+    where
+        C: LocalClient + Send + Sync + 'static,
+    {
+        let state = State::new(client, key_pair, signed_deposits);
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(
                 // this format! is so ugly...
@@ -146,7 +156,13 @@ pub async fn post_blind_sign(
     if let Some(response) = state.signed_before(blind_sign_request_body.tx_hash().as_bytes())? {
         return Ok(Json(response));
     }
-    let encryption_key = extract_encryption_key(&blind_sign_request_body).await?;
+    let tx = state
+        .client
+        .read()
+        .await
+        .get_tx(&blind_sign_request_body.tx_hash())
+        .await?;
+    let encryption_key = extract_encryption_key(&blind_sign_request_body, tx).await?;
     let internal_request = InternalSignRequest::new(
         *blind_sign_request_body.total_params(),
         blind_sign_request_body.public_attributes(),

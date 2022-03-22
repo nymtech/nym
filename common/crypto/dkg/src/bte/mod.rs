@@ -5,14 +5,17 @@ use crate::bte::proof_discrete_log::ProofOfDiscreteLog;
 use crate::error::DkgError;
 use crate::utils::hash_g2;
 use crate::{Chunk, ChunkedShare, Share, CHUNK_SIZE, NUM_CHUNKS};
+use bitvec::order::Msb0;
+use bitvec::prelude::Lsb0;
 use bitvec::vec::BitVec;
 use bitvec::view::BitView;
+use bitvec::{bits, bitvec};
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar};
 use ff::Field;
 use group::Curve;
 use lazy_static::lazy_static;
 use rand_core::RngCore;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::ops::Neg;
 use zeroize::Zeroize;
 
@@ -38,16 +41,60 @@ lazy_static! {
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
 const SETUP_DOMAIN: &[u8] = b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381G2_XMD:SHA-256_SSWU_RO_SETUP";
 
-#[derive(Clone)]
-struct Epoch(BitVec<u32>);
+#[derive(Clone, Debug, PartialEq)]
+// None empty bitvec implies this is a root node
+pub struct Tau(BitVec<u32, Msb0>);
 
-impl Epoch {
+impl Tau {
+    fn new_root() -> Self {
+        Tau(BitVec::new())
+    }
+
     fn new(epoch: u32) -> Self {
-        Epoch(epoch.view_bits().to_bitvec())
+        Tau(epoch.view_bits().to_bitvec())
+    }
+
+    fn push_left(&mut self) {
+        self.0.push(false)
+    }
+
+    fn push_right(&mut self) {
+        self.0.push(true)
+    }
+
+    fn is_leaf(&self, params: &Params) -> bool {
+        self.len() == params.tree_height
+    }
+
+    // essentially is this those prefixing the other
+    fn is_parent_of(&self, other: &Tau) -> bool {
+        if self.0.len() > other.0.len() {
+            return false;
+        }
+
+        for (i, b) in self.0.iter().enumerate() {
+            if b != other.0[i] {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    // essentially height of the tree this tau represents
+    fn len(&self) -> usize {
+        self.0.len()
     }
 
     fn extend(&self, oracle_output: &[u8]) -> Self {
-        todo!()
+        let mut extended_tau = self.clone();
+        for byte in oracle_output {
+            extended_tau
+                .0
+                .extend_from_bitslice(byte.view_bits::<Lsb0>())
+        }
+
+        extended_tau
     }
 
     fn evaluate_f(&self, params: &Params) -> G2Projective {
@@ -65,7 +112,7 @@ impl Epoch {
     }
 }
 
-impl Zeroize for Epoch {
+impl Zeroize for Tau {
     fn zeroize(&mut self) {
         for v in self.0.as_raw_mut_slice() {
             v.zeroize()
@@ -96,6 +143,12 @@ pub struct Ciphertext {
     pub s: [G1Projective; NUM_CHUNKS],
     pub z: [G2Projective; NUM_CHUNKS],
     pub ciphertext_chunks: Vec<[G1Projective; NUM_CHUNKS]>,
+}
+
+impl Ciphertext {
+    pub fn verify_integrity(&self) -> bool {
+        true
+    }
 }
 
 struct SingleChunkCiphertext {
@@ -132,20 +185,128 @@ impl PublicKeyWithProof {
 }
 
 pub struct DecryptionKey {
-    // TODO: why not just a single node?
+    // TODO: wait, what was wrong with normal Vec again?
+    // nodes: VecDeque<Node>,
+    // note that the nodes are ordered from "right" to "left"
     nodes: Vec<Node>,
 }
 
-impl DecryptionKey {
-    fn update(&mut self) {
-        //
+impl Zeroize for DecryptionKey {
+    fn zeroize(&mut self) {
+        for node in self.nodes.iter_mut() {
+            node.zeroize()
+        }
+        self.nodes.clear();
     }
 }
 
-#[derive(Zeroize)]
+impl Drop for DecryptionKey {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl DecryptionKey {
+    fn new_root(root_node: Node) -> Self {
+        // let mut nodes = VecDeque::new();
+        // nodes.push_front(root_node);
+
+        let mut nodes = Vec::new();
+        nodes.push(root_node);
+
+        DecryptionKey { nodes }
+    }
+
+    fn update(&mut self) {
+        //
+    }
+
+    fn current(&self) -> Result<&Node, DkgError> {
+        // we must have at least a single node, otherwise we have a malformed key
+        self.nodes.last().ok_or(DkgError::MalformedDecryptionKey)
+    }
+
+    fn current_epoch(&self) -> Result<&Tau, DkgError> {
+        self.current().map(|node| &node.tau)
+    }
+
+    /// Attempts to update `self` to the provided `epoch`. If the update is not possible,
+    /// because the target was in the past or the key is malformed, an error is returned.
+    ///
+    /// Note that this method mutates the key in place and if the original key was malformed,
+    /// there are no guarantees about its internal state post-call.    
+    pub fn try_update_to(
+        &mut self,
+        target_epoch: &Tau,
+        params: &Params,
+        mut rng: impl RngCore,
+    ) -> Result<(), DkgError> {
+        println!("updating to {}", target_epoch.0);
+        if self.nodes.is_empty() {
+            // somehow we have an empty decryption key
+            return Err(DkgError::MalformedDecryptionKey);
+        }
+
+        if !target_epoch.is_leaf(params) {
+            return Err(DkgError::MalformedEpoch);
+        }
+
+        // TODO: here be some check between self.nodes.last().epoch and target_epoch
+        // if current_epoch == target_epoch, we're done
+        // if current_epoch > target_epoch, return an error
+
+        // drop the nodes that are no longer required and get the most direct parent for the target epoch available
+        let parent = loop {
+            if let Some(tail) = self.nodes.pop() {
+                if tail.tau.is_parent_of(target_epoch) {
+                    break tail;
+                }
+            } else {
+                // the key is malformed since we checked that the target_epoch > current_epoch,
+                // hence the update should have been possible
+                return Err(DkgError::MalformedDecryptionKey);
+            }
+        };
+
+        // temporarily ignore node internals, just make sure to derive nodes with correct tau
+        // and in correct order
+
+        // let height = parent.tau.as_ref().map(|t| t.len()).unwrap_or_default();
+
+        let mut tau = parent.tau.clone();
+        // path to the child from the parent
+        for (i, bit) in target_epoch.0.iter().by_vals().enumerate().skip(tau.len()) {
+            // if the bit is NOT set..., push the right '1' subtree (for future keys)
+            if !bit {
+                let mut right_branch = tau.clone();
+                right_branch.push_right();
+                let right = Node::temp_with_tau(right_branch);
+
+                self.nodes.push(right);
+            } else {
+                // in the internal-less world, going left does "nothing" as unless this is a leaf node,
+                // we don't need to keep it
+            }
+
+            // continue going to the child
+            tau.0.push(bit);
+        }
+
+        debug_assert_eq!(tau.0, target_epoch.0);
+
+        // finally derive the actual target node
+
+        self.nodes.push(Node::temp_with_tau(tau));
+
+        Ok(())
+    }
+}
+
+#[derive(Zeroize, Debug)]
+#[cfg_attr(test, derive(Clone, PartialEq))]
 #[zeroize(drop)]
 pub(crate) struct Node {
-    epoch: Epoch,
+    tau: Tau,
 
     // g1^rho
     a: G1Projective,
@@ -158,6 +319,55 @@ pub(crate) struct Node {
 
     // h^rho
     e: G2Projective,
+}
+
+impl Node {
+    fn temp_with_tau(tau: Tau) -> Self {
+        Node {
+            tau: tau,
+            a: Default::default(),
+            b: Default::default(),
+            ds: vec![],
+            e: Default::default(),
+        }
+    }
+
+    fn new_root(a: G1Projective, b: G2Projective, ds: Vec<G2Projective>, e: G2Projective) -> Self {
+        Node {
+            tau: Tau::new_root(),
+            a,
+            b,
+            ds,
+            e,
+        }
+    }
+
+    fn is_root(&self) -> bool {
+        self.tau.0.is_empty()
+    }
+
+    // tau_l == 0
+    fn derive_left_child(&self) -> Self {
+        todo!()
+    }
+
+    // tau_l == 1
+    fn derive_right_child(&self) -> Self {
+        // this is probably missing A LOT OF arguments, but lets leave it like this temporarily
+
+        let mut new_tau = self.tau.clone();
+        new_tau.0.push(true);
+
+        Node {
+            tau: new_tau,
+
+            // THOSE ARE WRONG BTW
+            a: self.a,
+            b: self.b,
+            ds: self.ds.clone(),
+            e: self.e,
+        }
+    }
 }
 
 // params include message space M and height \lambda for a binary tree
@@ -200,15 +410,7 @@ fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicKeyWi
     let ds = params.fs.iter().map(|f_i| f_i * rho).collect();
     let e = params.h * rho;
 
-    let dk = DecryptionKey {
-        nodes: vec![Node {
-            epoch: Epoch::new(0),
-            a,
-            b,
-            ds,
-            e,
-        }],
-    };
+    let dk = DecryptionKey::new_root(Node::new_root(a, b, ds, e));
 
     let public_key = PublicKey(y);
     let key_with_proof = PublicKeyWithProof {
@@ -229,7 +431,7 @@ fn verify_key(pk: &PublicKey, proof: &ProofOfDiscreteLog) -> bool {
 // evolve?
 // update?
 // epoch is epoch_bit I think
-fn derive_key(dk: DecryptionKey, epoch: Epoch) -> DecryptionKey {
+fn derive_key(dk: DecryptionKey, epoch: Tau) -> DecryptionKey {
     todo!()
 }
 
@@ -237,7 +439,7 @@ fn derive_key(dk: DecryptionKey, epoch: Epoch) -> DecryptionKey {
 fn encrypt_chunk(
     m: &Chunk,
     pk: &PublicKey,
-    epoch: &Epoch,
+    epoch: &Tau,
     params: &Params,
     mut rng: impl RngCore,
 ) -> SingleChunkCiphertext {
@@ -266,7 +468,7 @@ fn encrypt_chunk(
 
 fn encrypt_shares(
     shares: &[(Share, &PublicKey)],
-    epoch: &Epoch,
+    epoch: &Tau,
     params: &Params,
     mut rng: impl RngCore,
 ) -> Ciphertext {
@@ -335,7 +537,7 @@ fn decrypt_chunk(
     s: &G1Projective,
     z: &G2Projective,
     c: &G1Projective,
-    epoch: &Epoch,
+    epoch: &Tau,
     lookup_table: Option<&BabyStepGiantStepLookup>,
 ) -> Result<Chunk, DkgError> {
     // TODO: if we go with forward secrecy then we presumably need to evolve dk
@@ -343,7 +545,7 @@ fn decrypt_chunk(
     // TODO2: verify the pairing from description 1.1.5, i.e. e(g1, Z_j) = e(R_j, f0*PROD(fi^ti) * e(Oj, h)
 
     /*
-        let mut bneg = dk.b.clone();
+    let mut bneg = dk.b.clone();
     let mut l = dk.tau.len();
     for tmp in dk.d_t.iter() {
         if extended_tau[l] == Bit::One {
@@ -381,7 +583,7 @@ fn decrypt_share(
     // in the case of multiple receivers, specifies which index of ciphertext chunks should be used
     i: usize,
     ciphertext: &Ciphertext,
-    epoch: &Epoch,
+    epoch: &Tau,
     lookup_table: Option<&BabyStepGiantStepLookup>,
 ) -> Result<Share, DkgError> {
     let mut plaintext = ChunkedShare::default();
@@ -495,6 +697,7 @@ pub fn baby_step_giant_step(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bitvec::order::Msb0;
     use group::Group;
     use rand_core::SeedableRng;
 
@@ -541,7 +744,7 @@ mod tests {
         let params = setup();
 
         let (decryption_key, public_key) = keygen(&params, &mut rng);
-        let epoch = Epoch::new(0);
+        let epoch = Tau::new(0);
 
         for i in 0u64..100 {
             let m = ((rng.next_u64() + i) % CHUNK_SIZE as u64) as Chunk;
@@ -569,7 +772,7 @@ mod tests {
 
         let (decryption_key1, public_key1) = keygen(&params, &mut rng);
         let (decryption_key2, public_key2) = keygen(&params, &mut rng);
-        let epoch = Epoch::new(0);
+        let epoch = Tau::new(0);
 
         let lookup_table = &DEFAULT_BSGS_TABLE;
 
@@ -593,4 +796,136 @@ mod tests {
             assert_eq!(m2, recovered2);
         }
     }
+
+    #[test]
+    fn creating_tau_from_epoch() {
+        assert!(Tau::new_root().0.is_empty());
+
+        let zero = Tau::new(0);
+        assert!(zero.0.iter().by_vals().all(|b| !b));
+
+        let one = Tau::new(1);
+        let mut iter = one.0.iter().by_vals();
+        // first 31 bits are 0, the last one is 1
+        for _ in 0..31 {
+            assert!(!iter.next().unwrap())
+        }
+        assert!(iter.next().unwrap());
+
+        // 101010 in binary
+        let forty_two = Tau::new(42);
+        // first 26 bits are not set
+        let mut iter = forty_two.0.iter().by_vals();
+        for _ in 0..26 {
+            assert!(!iter.next().unwrap())
+        }
+        assert!(iter.next().unwrap());
+        assert!(!iter.next().unwrap());
+        assert!(iter.next().unwrap());
+        assert!(!iter.next().unwrap());
+        assert!(iter.next().unwrap());
+        assert!(!iter.next().unwrap());
+
+        // value that requires an actual u32 (i.e. takes 4 bytes to represent)
+        // 11000100_01000000_01001001_01101011 in binary
+        let big_val = Tau::new(3292547435);
+        let expected = bitvec![
+            1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1,
+            0, 1, 1
+        ];
+        assert_eq!(expected, big_val.0)
+    }
+
+    #[test]
+    fn basic_coverage_nodes() {
+        // it's some basic test I've been performing when writing the update function, but figured
+        // might as well put it into a unit test. note that it doesn't check the entire structure,
+        // but just the few last nodes of low height
+
+        let params = setup();
+
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (mut dk, _) = keygen(&params, &mut rng);
+
+        let root_node_copy = dk.nodes.clone();
+
+        // this is a root node
+        assert_eq!(dk.nodes.len(), 1);
+        assert!(dk.nodes[0].is_root());
+
+        // we have to have a node for right branch on each height (1, 01, 001, ... etc)
+        // plus an additional one for the two left-most leaves (epochs "0" and "1")
+        dk.try_update_to(&Tau::new(0), &params, &mut rng).unwrap();
+        assert_eq!(dk.nodes.len(), 33);
+
+        let expected_last = Tau::new(0);
+        // (and yes, I had to look up those names in a thesaurus)
+        let expected_penultimate = Tau::new(1);
+        // note that this value is 31bit long
+        let expected_antepenultimate = Tau(bitvec![u32, Msb0;
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 1
+        ]);
+
+        let mut nodes_iter = dk.nodes.iter().rev();
+        assert_eq!(expected_last, nodes_iter.next().unwrap().tau);
+        assert_eq!(expected_penultimate, nodes_iter.next().unwrap().tau);
+        assert_eq!(expected_antepenultimate, nodes_iter.next().unwrap().tau);
+
+        let mut epoch_zero_nodes = dk.nodes.clone();
+
+        // nodes for epoch1 should be identical for those for epoch0 minus the 00..00 leaf
+        dk.try_update_to(&Tau::new(1), &params, &mut rng).unwrap();
+        assert_eq!(dk.nodes.len(), 32);
+        epoch_zero_nodes.pop().unwrap();
+        assert_eq!(epoch_zero_nodes, dk.nodes);
+
+        dk.try_update_to(&Tau::new(2), &params, &mut rng).unwrap();
+        dk.try_update_to(&Tau::new(3), &params, &mut rng).unwrap();
+        dk.try_update_to(&Tau::new(4), &params, &mut rng).unwrap();
+
+        let expected_last = Tau::new(4);
+        let expected_penultimate = Tau::new(5);
+        let expected_antepenultimate = Tau(bitvec![u32, Msb0;
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
+        ]);
+        let expected_preantepenultimate = Tau(bitvec![u32, Msb0;
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+        ]);
+        assert_eq!(dk.nodes.len(), 32);
+        let mut nodes_iter = dk.nodes.iter().rev();
+        assert_eq!(expected_last, nodes_iter.next().unwrap().tau);
+        assert_eq!(expected_penultimate, nodes_iter.next().unwrap().tau);
+        assert_eq!(expected_antepenultimate, nodes_iter.next().unwrap().tau);
+        assert_eq!(expected_preantepenultimate, nodes_iter.next().unwrap().tau);
+
+        // the result should be the same of regardless if we update incrementally or go to the target immediately
+        let mut new_root = DecryptionKey {
+            nodes: root_node_copy,
+        };
+        new_root
+            .try_update_to(&Tau::new(4), &params, &mut rng)
+            .unwrap();
+        assert_eq!(dk.nodes, new_root.nodes);
+
+        // getting expected nodes for those epochs is non-trivial for test purposes, but the last node
+        // should ALWAYS be equal to the target epoch
+        dk.try_update_to(&Tau::new(42), &params, &mut rng).unwrap();
+        assert_eq!(dk.nodes.last().unwrap().tau, Tau::new(42));
+        dk.try_update_to(&Tau::new(123456), &params, &mut rng)
+            .unwrap();
+        assert_eq!(dk.nodes.last().unwrap().tau, Tau::new(123456));
+        dk.try_update_to(&Tau::new(3292547435), &params, &mut rng)
+            .unwrap();
+        assert_eq!(dk.nodes.last().unwrap().tau, Tau::new(3292547435));
+
+        // trying to go to past epochs fails
+        assert!(dk.try_update_to(&Tau::new(531), &params, &mut rng).is_err())
+    }
 }
+
+// TODO: write a sanity-check test to see if root node allows you to decrypt everything
+
+// TODO: benchmark whether for key updates it's quicker to do a^delta as opposed to a + g1^delta (same for b, d, e, etc.)

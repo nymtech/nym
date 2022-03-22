@@ -11,6 +11,9 @@ pub enum DkgError {
     #[error("The public key is malformed")]
     MalformedPublicKey,
 
+    #[error("The decryption key is malformed")]
+    MalformedDecryptionKey,
+
     #[error("Could not solve the discrete log")]
     UnsolvableDiscreteLog,
 
@@ -34,4 +37,10 @@ pub enum DkgError {
 
     #[error("Aborted construction of proof of chunking - could not complete it within specified number of attempts")]
     AbortedProofOfChunking,
+
+    #[error("Tried to update the decryption key to an epoch in the past")]
+    TargetEpochUpdateInThePast,
+
+    #[error("Provided epoch is malformed")]
+    MalformedEpoch,
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   ListItem,
@@ -12,10 +12,10 @@ import {
   TextField,
 } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { addHours, format } from 'date-fns';
+import { format } from 'date-fns';
 import { validationSchema } from './validationSchema';
-import { EnumNodeType, PendingUndelegate, TDelegation } from '../../types';
-import { undelegate, vestingUnelegateFromMixnode } from '../../requests';
+import { EnumNodeType, Epoch, PendingUndelegate, TDelegation } from '../../types';
+import { getCurrentEpoch, undelegate, vestingUnelegateFromMixnode } from '../../requests';
 import { Fee } from '../../components';
 
 type TFormData = {
@@ -48,6 +48,15 @@ export const UndelegateForm = ({
     defaultValues,
     resolver: yupResolver(validationSchema),
   });
+
+  const [currentEndEpoch, setCurrentEndEpoch] = useState<Epoch['end']>();
+
+  useEffect(() => {
+    (async () => {
+      const epoch = await getCurrentEpoch();
+      setCurrentEndEpoch(epoch.end);
+    })();
+  }, []);
 
   const onSubmit = async (data: TFormData) => {
     let res;
@@ -83,23 +92,27 @@ export const UndelegateForm = ({
               render={() => (
                 <Autocomplete
                   disabled={isSubmitting}
-                  getOptionDisabled={(opt) => pendingUndelegations?.some((item) => item.mix_identity === opt) || false}
-                  options={delegations?.map((d) => d.node_identity) || []}
+                  getOptionDisabled={(opt) =>
+                    pendingUndelegations?.some((item) => item.mix_identity === opt.node_identity) || false
+                  }
+                  options={delegations || []}
                   renderOption={(props, opt) => (
                     <ListItem
                       {...props}
                       onClick={(e: React.MouseEvent<HTMLLIElement>) => {
-                        setValue('identity', opt);
+                        setValue('identity', opt.node_identity);
                         props.onClick!(e);
                       }}
                       disablePadding
                       disableGutters
                     >
                       <ListItemText
-                        primary={opt}
+                        primary={opt.node_identity}
                         secondary={
-                          pendingUndelegations?.some((item) => item.mix_identity === opt)
-                            ? `Pending - Expected time of completion: ${format(addHours(new Date(), 1), 'HH:00')}`
+                          pendingUndelegations?.some((item) => item.mix_identity === opt.node_identity)
+                            ? `Pending - Expected time of completion: ${
+                                currentEndEpoch ? format(new Date(Number(currentEndEpoch) * 1000), 'HH:mm') : 'N/A'
+                              }`
                             : undefined
                         }
                       />

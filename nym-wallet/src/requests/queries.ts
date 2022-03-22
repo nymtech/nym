@@ -10,6 +10,7 @@ import {
   StakeSaturationResponse,
   TMixnodeBondDetails,
   TPagedDelegations,
+  Epoch,
 } from '../types';
 
 export const getReverseMixDelegations = async (): Promise<TPagedDelegations> => {
@@ -74,8 +75,7 @@ export const userBalance = async (): Promise<Balance> => {
   return res;
 };
 
-export const getCurrentEpoch = async (): Promise<any> => {
-  const res: any = await invoke('get_current_epoch');
-  console.log(res);
+export const getCurrentEpoch = async (): Promise<Epoch> => {
+  const res: Epoch = await invoke('get_current_epoch');
   return res;
 };

@@ -24,7 +24,7 @@ export const Undelegate = () => {
       const mixnodeDelegations = await getReverseMixDelegations();
       const pendingEvents = await getPendingDelegations();
       await getCurrentEpoch();
-      console.log({ mixnodeDelegations, pendingEvents });
+
       const pendingUndelegationEvents = pendingEvents
         .filter((evt): evt is { Undelegate: PendingUndelegate } => 'Undelegate' in evt)
         .map((e) => ({ ...e.Undelegate }));

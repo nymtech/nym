@@ -16,7 +16,7 @@ use crate::interval::queries::{
     query_current_rewarded_set_height, query_rewarded_set,
     query_rewarded_set_refresh_minimum_blocks, query_rewarded_set_update_details,
 };
-use crate::interval::transactions::init_epoch;
+use crate::interval::transactions::{init_epoch, try_init_epoch};
 use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::{
     query_contract_settings_params, query_contract_version,
@@ -97,6 +97,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
         ExecuteMsg::BondMixnode {
             mix_node,
             owner_signature,

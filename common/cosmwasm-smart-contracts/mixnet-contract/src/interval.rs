@@ -56,7 +56,6 @@ pub(crate) mod string_rfc3339_offset_date_time {
     }
 }
 
-/// Representation of rewarding interval.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
 pub struct Interval {
     id: u32,

@@ -779,6 +779,171 @@ pub mod tests {
     }
 
     #[test]
+    fn test_reward_additivity() {
+        use crate::constants::INTERVAL_REWARD_PERCENT;
+        use crate::contract::INITIAL_REWARD_POOL;
+
+        type U128 = fixed::types::U75F53;
+
+        let mut deps = test_helpers::init_contract();
+        let mut env = mock_env();
+        let current_state = mixnet_params_storage::CONTRACT_STATE
+            .load(deps.as_ref().storage)
+            .unwrap();
+        let rewarding_validator_address = current_state.rewarding_validator_address;
+        let period_reward_pool = (INITIAL_REWARD_POOL / 100 / EPOCHS_IN_INTERVAL as u128)
+            * INTERVAL_REWARD_PERCENT as u128;
+        assert_eq!(period_reward_pool, 6_944_444_444);
+        let circulating_supply = storage::circulating_supply(&deps.storage).unwrap().u128();
+        assert_eq!(circulating_supply, 750_000_000_000_000u128);
+
+        let node_owner: Addr = Addr::unchecked("alice");
+        let node_identity = test_helpers::add_mixnode(
+            node_owner.as_str(),
+            coins(10_000_000_000, DENOM),
+            deps.as_mut(),
+        );
+
+        try_delegate_to_mixnode(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("alice_d1", &[coin(8000_000000, DENOM)]),
+            node_identity.clone(),
+        )
+        .unwrap();
+
+        try_delegate_to_mixnode(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("alice_d2", &[coin(2000_000000, DENOM)]),
+            node_identity.clone(),
+        )
+        .unwrap();
+
+        let node_owner: Addr = Addr::unchecked("bob");
+        let node_identity_2 = test_helpers::add_mixnode(
+            node_owner.as_str(),
+            coins(10_000_000_000, DENOM),
+            deps.as_mut(),
+        );
+
+        try_delegate_to_mixnode(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("bob_d1", &[coin(8000_000000, DENOM)]),
+            node_identity_2.clone(),
+        )
+        .unwrap();
+
+        try_delegate_to_mixnode(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("bob_d2", &[coin(2000_000000, DENOM)]),
+            node_identity_2.clone(),
+        )
+        .unwrap();
+
+        let node_owner: Addr = Addr::unchecked("alicebob");
+        let node_identity_3 = test_helpers::add_mixnode(
+            node_owner.as_str(),
+            coins(10_000_000_000 * 2, DENOM),
+            deps.as_mut(),
+        );
+
+        try_delegate_to_mixnode(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("alicebob_d1", &[coin(8000_000000 * 2, DENOM)]),
+            node_identity_3.clone(),
+        )
+        .unwrap();
+
+        try_delegate_to_mixnode(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("alicebob_d2", &[coin(2000_000000 * 2, DENOM)]),
+            node_identity_3.clone(),
+        )
+        .unwrap();
+
+        crate::delegations::transactions::_try_reconcile_all_delegation_events(
+            &mut deps.storage,
+            &deps.api,
+        )
+        .unwrap();
+
+        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+        env.block.height += 2 * constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
+
+        let mix_1 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, &node_identity)
+            .unwrap()
+            .unwrap();
+        let mix_1_uptime = 100;
+
+        let mix_2 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, &node_identity_2)
+            .unwrap()
+            .unwrap();
+        let mix_2_uptime = 50;
+
+        let mix_3 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, &node_identity_3)
+            .unwrap()
+            .unwrap();
+
+        // average of 1 and 2
+        let mix_3_uptime = 75;
+
+        let epoch = Interval::init_epoch(env.clone());
+        save_epoch(&mut deps.storage, &epoch).unwrap();
+        save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
+
+        let interval_reward_params = current_epoch_reward_params(&deps.storage).unwrap();
+
+        let node_reward_params = NodeRewardParams::new(0, mix_1_uptime, true);
+        let node_reward_params_2 = NodeRewardParams::new(0, mix_2_uptime, true);
+        let node_reward_params_3 = NodeRewardParams::new(0, mix_3_uptime, true);
+
+        let mut params = RewardParams::new(interval_reward_params, node_reward_params);
+        let mut params2 = RewardParams::new(interval_reward_params, node_reward_params_2);
+        let mut params3 = RewardParams::new(interval_reward_params, node_reward_params_3);
+
+        params.set_reward_blockstamp(env.block.height);
+        params2.set_reward_blockstamp(env.block.height);
+        params3.set_reward_blockstamp(env.block.height);
+
+        assert_eq!(params.performance(), U128::from_num(1u32));
+        assert_eq!(params2.performance(), U128::from_num(0.5f32));
+        assert_eq!(params3.performance(), U128::from_num(0.75f32));
+
+        let mix_1_reward_result = mix_1.reward(&params);
+
+        assert_eq!(
+            mix_1_reward_result.sigma(),
+            U128::from_num(0.0000266666666666f64)
+        );
+        assert_eq!(
+            mix_1_reward_result.lambda(),
+            U128::from_num(0.0000133333333333f64)
+        );
+        assert_eq!(mix_1_reward_result.reward().int(), 259114u128);
+
+        let mix_2_reward_result = mix_2.reward(&params2);
+
+        assert_eq!(
+            mix_2_reward_result.sigma(),
+            U128::from_num(0.0000266666666666f64)
+        );
+        assert_eq!(
+            mix_2_reward_result.lambda(),
+            U128::from_num(0.0000133333333333f64)
+        );
+        assert_eq!(mix_2_reward_result.reward().int(), 129557u128);
+
+        let mix_3_reward_result = mix_3.reward(&params3);
+
+        // assert_eq!(mix_3_reward_result.reward().int(), mix_1_reward_result.reward().int() + mix_2_reward_result.reward().int());
+    }
+
+    #[test]
     fn test_tokenomics_rewarding() {
         use crate::constants::INTERVAL_REWARD_PERCENT;
         use crate::contract::INITIAL_REWARD_POOL;

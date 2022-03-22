@@ -1,6 +1,6 @@
 use bls12_381::{G1Affine, G2Affine, Scalar};
 use ff::Field;
-use group::Curve;
+use group::{Curve, GroupEncoding};
 use rand::thread_rng;
 
 use crate::error::Result;
@@ -41,7 +41,9 @@ impl Parameters {
         &self.g2
     }
 
-    pub(crate) fn gammas(&self) -> &Vec<G1Affine> { &self.gammas }
+    pub(crate) fn gammas(&self) -> &Vec<G1Affine> {
+        &self.gammas
+    }
 
     pub fn random_scalar(&self) -> Scalar {
         // lazily-initialized thread-local random number generator, seeded by the system

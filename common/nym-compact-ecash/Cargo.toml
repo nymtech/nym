@@ -9,6 +9,8 @@ edition = "2021"
 [dependencies]
 bls12_381 = { version = "0.5", default-features = false, features = ["pairings", "alloc", "experimental"] }
 nymcoconut = { path = "../nymcoconut" }
+itertools = "0.10"
+digest = "0.9"
 rand = "0.8"
 thiserror = "1.0"
 sha2 = "0.9"

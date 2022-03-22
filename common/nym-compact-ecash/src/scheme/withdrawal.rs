@@ -1,19 +1,19 @@
 use bls12_381::{G1Projective, Scalar};
-use group::{Curve, GroupEncoding};
+use group::GroupEncoding;
 
 use nymcoconut::utils::hash_g1;
 
 use crate::error::{CompactEcashError, Result};
-use crate::proofs::WithdrawalProof;
-use crate::scheme::BlindedSignature;
+use crate::proofs::{WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness};
 use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser};
 use crate::scheme::setup::Parameters;
+use crate::scheme::BlindedSignature;
 
 pub struct WithdrawalRequest {
     commitment_hash: G1Projective,
     attrs_commitment: G1Projective,
     pc_commitments: Vec<G1Projective>,
-    zk_proof: WithdrawalProof,
+    zk_proof: WithdrawalReqProof,
 }
 
 pub struct RequestInfo {
@@ -24,65 +24,123 @@ pub struct RequestInfo {
     t: Scalar,
 }
 
-pub fn withdrawal_request(params: &Parameters, skUser: SecretKeyUser) {
+pub fn withdrawal_request(
+    params: &Parameters,
+    sk_user: &SecretKeyUser,
+) -> Result<(WithdrawalRequest, RequestInfo)> {
     let v = params.random_scalar();
     let t = params.random_scalar();
 
-    let attributes = [skUser.sk, v, t];
+    let attributes = vec![sk_user.sk, v, t];
     let gammas = params.gammas();
     let attrs_commitment_opening = params.random_scalar();
-    let attribute_commitment = attributes
+    let attrs_commitment = attributes
         .iter()
-        .zip(gammas).map(|(&m, gamma)| gamma * m)
+        .zip(gammas)
+        .map(|(&m, gamma)| gamma * m)
         .sum::<G1Projective>();
 
-    let commitment_hash = hash_g1(attribute_commitment.to_bytes());
+    let attrs_commitment_hash = hash_g1(attrs_commitment.to_bytes());
 
     let pc_openings = params.n_random_scalars(attributes.len());
 
     // Compute Pedersen commitment for each attribute
-    let pc_attributes = pc_openings
+    let pc_commitments = pc_openings
         .iter()
         .zip(attributes.iter())
-        .map(|(o_j, m_j)| params.gen1() * o_j + commitment_hash * m_j)
+        .map(|(o_j, m_j)| params.gen1() * o_j + attrs_commitment_hash * m_j)
         .collect::<Vec<_>>();
 
     // construct a zk proof of knowledge proving possession of m1, m2, m3, o, o1, o2, o3
+    let instance = WithdrawalReqInstance {
+        g1_gen: *params.gen1(),
+        gammas: gammas.clone(),
+        attrs_commitment,
+        attrs_commitment_hash,
+        pc_commitments: pc_commitments.clone(),
+        pk_user: PublicKeyUser {
+            pk: params.gen1() * sk_user.sk,
+        },
+    };
+
+    let witness = WithdrawalReqWitness {
+        attributes,
+        attrs_commitment_opening,
+        pc_openings: pc_openings.clone(),
+    };
+
+    let zk_proof = WithdrawalReqProof::construct(&params, &instance, &witness);
+
+    let req = WithdrawalRequest {
+        commitment_hash: attrs_commitment_hash,
+        attrs_commitment,
+        pc_commitments: pc_commitments.clone(),
+        zk_proof,
+    };
 
     let req_info = RequestInfo {
-        commitment_hash,
+        commitment_hash: attrs_commitment_hash,
         attrs_commitment_opening,
-        pc_openings,
+        pc_openings: pc_openings.clone(),
         v,
         t,
     };
+
+    Ok((req, req_info))
 }
 
-pub fn issue(params: &Parameters, skAuth: SecretKeyAuth, pkUser: PublicKeyUser, withReq: &WithdrawalRequest) -> Result<BlindedSignature> {
-    let h = hash_g1(withReq.attrs_commitment.to_bytes());
-    if !(h == withReq.commitment_hash) {
-        return Err(CompactEcashError::WithdrawalVerification(
+pub fn issue(
+    params: &Parameters,
+    sk_auth: SecretKeyAuth,
+    pk_user: PublicKeyUser,
+    withdrawal_req: &WithdrawalRequest,
+) -> Result<BlindedSignature> {
+    let h = hash_g1(withdrawal_req.attrs_commitment.to_bytes());
+    if !(h == withdrawal_req.commitment_hash) {
+        return Err(CompactEcashError::WithdrawalRequestVerification(
             "Failed to verify the commitment hash".to_string(),
         ));
     }
 
-    let sig = withReq.pc_commitments
-        .iter()
-        .zip(skAuth.ys.iter())
-        .map(|(pc, yi)| pc * yi)
-        .chain(std::iter::once(h * skAuth.x)).sum();
     // verify zk proof
+    let instance = WithdrawalReqInstance {
+        g1_gen: *params.gen1(),
+        gammas: params.gammas().clone(),
+        attrs_commitment: withdrawal_req.attrs_commitment,
+        attrs_commitment_hash: withdrawal_req.commitment_hash,
+        pc_commitments: withdrawal_req.pc_commitments.clone(),
+        pk_user,
+    };
+    if !withdrawal_req.zk_proof.verify(&instance) {
+        return Err(CompactEcashError::WithdrawalRequestVerification(
+            "Failed to verify the proof of knowledge".to_string(),
+        ));
+    }
+
+    let sig = withdrawal_req
+        .pc_commitments
+        .iter()
+        .zip(sk_auth.ys.iter())
+        .map(|(pc, yi)| pc * yi)
+        .chain(std::iter::once(h * sk_auth.x))
+        .sum();
 
     Ok(BlindedSignature(h, sig))
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn withdrawal_request() {
+    fn withdrawal_request_test() {
         let params = Parameters::new().unwrap();
+        let sk_user = SecretKeyUser {
+            sk: params.random_scalar(),
+        };
+        let pk_user = PublicKeyUser {
+            pk: params.gen1() * sk_user.sk,
+        };
+        let (req, req_info) = withdrawal_request(&params, &sk_user).unwrap();
     }
 }

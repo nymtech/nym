@@ -2940,8 +2940,10 @@ version = "0.1.0"
 dependencies = [
  "bls12_381",
  "criterion",
+ "digest 0.9.0",
  "ff 0.10.1",
  "group 0.10.0",
+ "itertools",
  "nymcoconut",
  "rand 0.8.5",
  "sha2",

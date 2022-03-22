@@ -5,8 +5,8 @@ use core::iter::Sum;
 use core::ops::Mul;
 use std::convert::TryInto;
 
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
 use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
 use ff::Field;
 
 use crate::error::{CoconutError, Result};
@@ -81,9 +81,9 @@ pub(crate) fn perform_lagrangian_interpolation_at_origin<T>(
     points: &[SignerIndex],
     values: &[T],
 ) -> Result<T>
-    where
-        T: Sum,
-        for<'a> &'a T: Mul<Scalar, Output=T>,
+where
+    T: Sum,
+    for<'a> &'a T: Mul<Scalar, Output = T>,
 {
     if points.is_empty() || values.is_empty() {
         return Err(CoconutError::Interpolation(
@@ -163,19 +163,13 @@ pub fn try_deserialize_scalar(bytes: &[u8; 32], err: CoconutError) -> Result<Sca
     Into::<Option<Scalar>>::into(Scalar::from_bytes(bytes)).ok_or(err)
 }
 
-pub fn try_deserialize_g1_projective(
-    bytes: &[u8; 48],
-    err: CoconutError,
-) -> Result<G1Projective> {
+pub fn try_deserialize_g1_projective(bytes: &[u8; 48], err: CoconutError) -> Result<G1Projective> {
     Into::<Option<G1Affine>>::into(G1Affine::from_compressed(bytes))
         .ok_or(err)
         .map(G1Projective::from)
 }
 
-pub fn try_deserialize_g2_projective(
-    bytes: &[u8; 96],
-    err: CoconutError,
-) -> Result<G2Projective> {
+pub fn try_deserialize_g2_projective(bytes: &[u8; 96], err: CoconutError) -> Result<G2Projective> {
     Into::<Option<G2Affine>>::into(G2Affine::from_compressed(bytes))
         .ok_or(err)
         .map(G2Projective::from)

@@ -8,7 +8,7 @@ pub enum CompactEcashError {
     Setup(String),
 
     #[error("Withdrawal Request Verification related error: {0}")]
-    WithdrawalVerification(String),
+    WithdrawalRequestVerification(String),
 
     #[error("Deserialization error: {0}")]
     Deserialization(String),

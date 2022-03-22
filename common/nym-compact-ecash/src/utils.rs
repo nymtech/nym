@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
 use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
 
 use crate::error::{CompactEcashError, Result};
 

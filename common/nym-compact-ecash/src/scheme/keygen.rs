@@ -5,7 +5,10 @@ use bls12_381::{G1Projective, G2Projective, Scalar};
 
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::setup::Parameters;
-use crate::utils::{try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar, try_deserialize_scalar_vec};
+use crate::utils::{
+    try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar,
+    try_deserialize_scalar_vec,
+};
 
 pub struct SecretKeyAuth {
     pub(crate) x: Scalar,
@@ -41,12 +44,16 @@ impl TryFrom<&[u8]> for SecretKeyAuth {
 
         let x = try_deserialize_scalar(
             &x_bytes,
-            CompactEcashError::Deserialization("Failed to deserialize secret key scalar".to_string()),
+            CompactEcashError::Deserialization(
+                "Failed to deserialize secret key scalar".to_string(),
+            ),
         )?;
         let ys = try_deserialize_scalar_vec(
             ys_len,
             &bytes[40..],
-            CompactEcashError::Deserialization("Failed to deserialize secret key scalars".to_string()),
+            CompactEcashError::Deserialization(
+                "Failed to deserialize secret key scalars".to_string(),
+            ),
         )?;
 
         Ok(SecretKeyAuth { x, ys })
@@ -164,6 +171,14 @@ impl TryFrom<&[u8]> for VerificationKeyAuth {
 
 pub struct SecretKeyUser {
     pub(crate) sk: Scalar,
+}
+
+impl SecretKeyUser {
+    pub fn public_key(&self, params: &Parameters) -> PublicKeyUser {
+        PublicKeyUser {
+            pk: params.gen1() * self.sk,
+        }
+    }
 }
 
 pub struct PublicKeyUser {

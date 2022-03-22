@@ -2,16 +2,58 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::InternalSignRequest;
-use crate::coconut::error::CoconutError;
+use crate::coconut::error::{CoconutError, Result};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use config::defaults::VOUCHER_INFO;
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use nymcoconut::{prepare_blind_sign, ttp_keygen, Base58, KeyPair, Parameters};
-use rocket::http::Status;
-use rocket::local::blocking::Client;
+use validator_client::nymd::{tx::Hash, DeliverTx, TxResponse};
 use validator_client::validator_api::routes::{
     API_VERSION, COCONUT_BLIND_SIGN, COCONUT_VERIFICATION_KEY,
 };
+
+use async_trait::async_trait;
+use rocket::http::Status;
+use rocket::local::blocking::Client;
+use std::collections::HashMap;
+use std::str::FromStr;
+
+struct DummyClient {
+    db: HashMap<String, TxResponse>,
+}
+
+impl DummyClient {
+    pub fn new(db: HashMap<String, TxResponse>) -> Self {
+        Self { db }
+    }
+}
+
+#[async_trait]
+impl super::client::Client for DummyClient {
+    async fn get_tx(&self, tx_hash: &str) -> Result<TxResponse> {
+        self.db.get(tx_hash).cloned().ok_or(CoconutError::InvalidTx)
+    }
+}
+
+fn tx_entry_fixture(tx_hash: &str) -> TxResponse {
+    TxResponse {
+        hash: Hash::from_str(tx_hash).unwrap(),
+        height: Default::default(),
+        index: 0,
+        tx_result: DeliverTx {
+            code: Default::default(),
+            data: Default::default(),
+            log: Default::default(),
+            info: Default::default(),
+            gas_wanted: Default::default(),
+            gas_used: Default::default(),
+            events: vec![],
+            codespace: Default::default(),
+        },
+        tx: vec![].into(),
+        proof: None,
+    }
+}
 
 fn check_signer_verif_key(key_pair: KeyPair) {
     let verification_key = key_pair.verification_key();
@@ -19,8 +61,9 @@ fn check_signer_verif_key(key_pair: KeyPair) {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&verification_key.to_bs58()[..8]);
     let db = sled::open(db_dir).unwrap();
+    let nymd_client = DummyClient::new(HashMap::new());
 
-    let rocket = rocket::build().attach(InternalSignRequest::stage(key_pair, db));
+    let rocket = rocket::build().attach(InternalSignRequest::stage(nymd_client, key_pair, db));
 
     let client = Client::tracked(rocket).expect("valid rocket instance");
 
@@ -73,8 +116,15 @@ fn blind_sign() {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let db = sled::open(db_dir).unwrap();
+    let mut nymd_db = HashMap::new();
+    nymd_db.insert(tx_hash.clone(), tx_entry_fixture(&tx_hash));
+    let nymd_client = DummyClient::new(nymd_db);
 
-    let rocket = rocket::build().attach(InternalSignRequest::stage(key_pair, db.clone()));
+    let rocket = rocket::build().attach(InternalSignRequest::stage(
+        nymd_client,
+        key_pair,
+        db.clone(),
+    ));
     let client = Client::tracked(rocket).expect("valid rocket instance");
 
     let request_body = BlindSignRequestBody::new(
@@ -126,7 +176,7 @@ fn blind_sign() {
 
     let request_body = BlindSignRequestBody::new(
         &blind_sign_req,
-        String::from("Wrong tx hash"),
+        tx_hash.clone(),
         signature.clone(),
         &voucher.get_public_attributes(),
         voucher.get_public_attributes_plain(),
@@ -140,7 +190,7 @@ fn blind_sign() {
     assert_eq!(response.status(), Status::BadRequest);
     assert_eq!(
         response.into_string().unwrap(),
-        CoconutError::TxHashParseError.to_string()
+        CoconutError::InvalidTx.to_string()
     );
 
     let request_body = BlindSignRequestBody::new(

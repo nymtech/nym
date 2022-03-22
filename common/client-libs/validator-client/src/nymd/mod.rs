@@ -33,6 +33,7 @@ pub use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 pub use cosmrs::rpc::endpoint::validators::Response as ValidatorResponse;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
 pub use cosmrs::rpc::Paging;
+pub use cosmrs::tendermint::abci::responses::DeliverTx;
 pub use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::hash;
 pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;

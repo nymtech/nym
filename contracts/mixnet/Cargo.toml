@@ -36,7 +36,7 @@ cosmwasm-schema = "1.0.0-beta3"
 fixed = "1.1"
 rand_chacha = "0.2"
 rand = "0.7"
-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
+crypto = { path = "../../common/crypto" }
 
 [build-dependencies]
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc"] }

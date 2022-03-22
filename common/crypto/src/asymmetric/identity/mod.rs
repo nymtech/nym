@@ -6,7 +6,6 @@ pub use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
 use nymsphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
-#[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 
@@ -46,7 +45,6 @@ pub struct KeyPair {
 }
 
 impl KeyPair {
-    #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
         let ed25519_keypair = ed25519_dalek::Keypair::generate(rng);
 

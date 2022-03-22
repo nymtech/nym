@@ -7,9 +7,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand = {version = "0.7.3", features = ["wasm-bindgen"]}
 
-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
+crypto = { path = "../../crypto" }
 nymsphinx-addressing = { path = "../addressing" }
 nymsphinx-params = { path = "../params" }
 nymsphinx-types = { path = "../types" }

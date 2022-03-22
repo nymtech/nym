@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
-#[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 
@@ -47,7 +46,6 @@ pub struct KeyPair {
 }
 
 impl KeyPair {
-    #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
         let private_key = x25519_dalek::StaticSecret::new(rng);
         let public_key = (&private_key).into();

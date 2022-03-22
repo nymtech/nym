@@ -7,5 +7,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crypto = { path = "../../crypto", features = ["hashing", "symmetric"] }
+crypto = { path = "../../crypto" }
 nymsphinx-types = { path = "../types" }

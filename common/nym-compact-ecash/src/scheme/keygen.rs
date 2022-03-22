@@ -5,11 +5,14 @@ use bls12_381::{G1Projective, G2Projective, Scalar};
 
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::setup::Parameters;
+use crate::scheme::SignerIndex;
 use crate::utils::{
     try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar,
     try_deserialize_scalar_vec,
 };
+use crate::utils::Polynomial;
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyAuth {
     pub(crate) x: Scalar,
     pub(crate) ys: Vec<Scalar>,
@@ -87,6 +90,7 @@ impl SecretKeyAuth {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct VerificationKeyAuth {
     pub(crate) alpha: G2Projective,
     pub(crate) beta_g1: Vec<G1Projective>,
@@ -169,6 +173,7 @@ impl TryFrom<&[u8]> for VerificationKeyAuth {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyUser {
     pub(crate) sk: Scalar,
 }
@@ -181,6 +186,109 @@ impl SecretKeyUser {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct PublicKeyUser {
     pub(crate) pk: G1Projective,
+}
+
+pub struct KeyPairAuth {
+    secret_key: SecretKeyAuth,
+    verification_key: VerificationKeyAuth,
+    /// Optional index value specifying polynomial point used during threshold key generation.
+    pub index: Option<SignerIndex>,
+}
+
+impl KeyPairAuth {
+    pub fn secret_key(&self) -> SecretKeyAuth {
+        self.secret_key.clone()
+    }
+
+    pub fn verification_key(&self) -> VerificationKeyAuth { self.verification_key.clone() }
+}
+
+pub struct KeyPairUser {
+    secret_key: SecretKeyUser,
+    public_key: PublicKeyUser,
+}
+
+impl KeyPairUser {
+    pub fn secret_key(&self) -> SecretKeyUser {
+        self.secret_key.clone()
+    }
+
+    pub fn public_key(&self) -> PublicKeyUser {
+        self.public_key.clone()
+    }
+}
+
+pub fn generate_keypair_user(params: &Parameters) -> KeyPairUser {
+    let sk_user = SecretKeyUser {
+        sk: params.random_scalar(),
+    };
+    let pk_user = PublicKeyUser {
+        pk: params.gen1() * sk_user.sk,
+    };
+
+    KeyPairUser {
+        secret_key: sk_user,
+        public_key: pk_user,
+    }
+}
+
+pub fn ttp_keygen(
+    params: &Parameters,
+    threshold: u64,
+    num_authorities: u64,
+) -> Result<Vec<KeyPairAuth>> {
+    if threshold == 0 {
+        return Err(CompactEcashError::Setup(
+            "Tried to generate threshold keys with a 0 threshold value".to_string(),
+        ));
+    }
+
+    if threshold > num_authorities {
+        return Err(
+            CompactEcashError::Setup(
+                "Tried to generate threshold keys for threshold value being higher than number of the signing authorities".to_string(),
+            ));
+    }
+
+    let attributes = params.gammas().len();
+
+    // generate polynomials
+    let v = Polynomial::new_random(params, threshold - 1);
+    let ws = (0..attributes)
+        .map(|_| Polynomial::new_random(params, threshold - 1))
+        .collect::<Vec<_>>();
+
+    // TODO: potentially if we had some known authority identifier we could use that instead
+    // of the increasing (1,2,3,...) sequence
+    let polynomial_indices = (1..=num_authorities).collect::<Vec<_>>();
+
+    // generate polynomial shares
+    let x = polynomial_indices
+        .iter()
+        .map(|&id| v.evaluate(&Scalar::from(id)));
+    let ys = polynomial_indices.iter().map(|&id| {
+        ws.iter()
+            .map(|w| w.evaluate(&Scalar::from(id)))
+            .collect::<Vec<_>>()
+    });
+
+    // finally set the keys
+    let secret_keys = x.zip(ys).map(|(x, ys)| SecretKeyAuth { x, ys });
+
+    let keypairs = secret_keys
+        .zip(polynomial_indices.iter())
+        .map(|(secret_key, index)| {
+            let verification_key = secret_key.verification_key(params);
+            KeyPairAuth {
+                secret_key,
+                verification_key,
+                index: Some(*index),
+            }
+        })
+        .collect();
+
+    Ok(keypairs)
 }

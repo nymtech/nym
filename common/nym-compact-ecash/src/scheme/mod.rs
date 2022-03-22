@@ -6,6 +6,8 @@ pub mod setup;
 pub mod spend;
 pub mod withdrawal;
 
+pub type SignerIndex = u64;
+
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct BlindedSignature(G1Projective, G1Projective);

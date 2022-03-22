@@ -1,13 +1,13 @@
 use bls12_381::{G1Projective, Scalar};
 use group::GroupEncoding;
 
-use nymcoconut::utils::hash_g1;
-
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::{WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness};
-use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser};
-use crate::scheme::setup::Parameters;
 use crate::scheme::BlindedSignature;
+use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser};
+use crate::scheme::keygen::ttp_keygen;
+use crate::scheme::setup::Parameters;
+use crate::utils::hash_g1;
 
 pub struct WithdrawalRequest {
     commitment_hash: G1Projective,
@@ -89,7 +89,7 @@ pub fn withdrawal_request(
     Ok((req, req_info))
 }
 
-pub fn issue(
+pub fn issue_wallet(
     params: &Parameters,
     sk_auth: SecretKeyAuth,
     pk_user: PublicKeyUser,
@@ -128,19 +128,8 @@ pub fn issue(
     Ok(BlindedSignature(h, sig))
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn withdrawal_request_test() {
-        let params = Parameters::new().unwrap();
-        let sk_user = SecretKeyUser {
-            sk: params.random_scalar(),
-        };
-        let pk_user = PublicKeyUser {
-            pk: params.gen1() * sk_user.sk,
-        };
-        let (req, req_info) = withdrawal_request(&params, &sk_user).unwrap();
-    }
 }

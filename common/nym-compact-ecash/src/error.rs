@@ -13,6 +13,9 @@ pub enum CompactEcashError {
     #[error("Deserialization error: {0}")]
     Deserialization(String),
 
+    #[error("Interpolation error: {0}")]
+    Interpolation(String),
+
     #[error("Tried to deserialize {object} with bytes of invalid length. Expected {actual} < {} or {modulus_target} % {modulus} == 0")]
     DeserializationInvalidLength {
         actual: usize,

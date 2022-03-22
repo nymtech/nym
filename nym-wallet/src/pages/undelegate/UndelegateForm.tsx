@@ -92,24 +92,22 @@ export const UndelegateForm = ({
               render={() => (
                 <Autocomplete
                   disabled={isSubmitting}
-                  getOptionDisabled={(opt) =>
-                    pendingUndelegations?.some((item) => item.mix_identity === opt.node_identity) || false
-                  }
-                  options={delegations || []}
+                  getOptionDisabled={(opt) => pendingUndelegations?.some((item) => item.mix_identity === opt) || false}
+                  options={delegations?.map((d) => d.node_identity) || []}
                   renderOption={(props, opt) => (
                     <ListItem
                       {...props}
                       onClick={(e: React.MouseEvent<HTMLLIElement>) => {
-                        setValue('identity', opt.node_identity);
+                        setValue('identity', opt);
                         props.onClick!(e);
                       }}
                       disablePadding
                       disableGutters
                     >
                       <ListItemText
-                        primary={opt.node_identity}
+                        primary={opt}
                         secondary={
-                          pendingUndelegations?.some((item) => item.mix_identity === opt.node_identity)
+                          pendingUndelegations?.some((item) => item.mix_identity === opt)
                             ? `Pending - Expected time of completion: ${
                                 currentEndEpoch ? format(new Date(Number(currentEndEpoch) * 1000), 'HH:mm') : 'N/A'
                               }`

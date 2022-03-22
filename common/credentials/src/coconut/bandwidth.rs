@@ -185,3 +185,55 @@ pub fn prepare_for_spending(
         verification_key,
     )
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn voucher_consistency() {
+        let params = Parameters::new(4).unwrap();
+        let voucher = BandwidthVoucher::new(
+            &params,
+            "1234",
+            "voucher info",
+            String::from("tx hash"),
+            String::from("signing key"),
+            String::from("encryption key"),
+        );
+        assert!(!BandwidthVoucher::verify_against_plain(
+            &[],
+            &voucher.get_public_attributes_plain()
+        ));
+        assert!(!BandwidthVoucher::verify_against_plain(
+            &voucher.get_public_attributes(),
+            &vec![],
+        ));
+        assert!(!BandwidthVoucher::verify_against_plain(
+            &voucher.get_public_attributes(),
+            &[
+                voucher.get_public_attributes_plain()[0].clone(),
+                String::new()
+            ]
+        ));
+        assert!(!BandwidthVoucher::verify_against_plain(
+            &voucher.get_public_attributes(),
+            &[
+                String::new(),
+                voucher.get_public_attributes_plain()[1].clone()
+            ]
+        ));
+        assert!(!BandwidthVoucher::verify_against_plain(
+            &[voucher.get_public_attributes()[0], Attribute::one()],
+            &voucher.get_public_attributes_plain()
+        ));
+        assert!(!BandwidthVoucher::verify_against_plain(
+            &[Attribute::one(), voucher.get_public_attributes()[1]],
+            &voucher.get_public_attributes_plain()
+        ));
+        assert!(BandwidthVoucher::verify_against_plain(
+            &voucher.get_public_attributes(),
+            &voucher.get_public_attributes_plain()
+        ));
+    }
+}

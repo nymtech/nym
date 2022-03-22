@@ -2,8 +2,8 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material';
 import { EnumRequestStatus, NymCard, RequestStatus } from '../../components';
 import { UndelegateForm } from './UndelegateForm';
-import { getReverseMixDelegations } from '../../requests';
-import { TPagedDelegations } from '../../types';
+import { getCurrentEpoch, getPendingDelegations, getReverseMixDelegations } from '../../requests';
+import { PendingUndelegate, TPagedDelegations } from '../../types';
 import { ClientContext } from '../../context/main';
 import { PageLayout } from '../../layouts';
 
@@ -12,6 +12,7 @@ export const Undelegate = () => {
   const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial);
   const [isLoading, setIsLoading] = useState(true);
   const [pagedDelegations, setPagesDelegations] = useState<TPagedDelegations>();
+  const [pendingUndelegations, setPendingUndelegations] = useState<PendingUndelegate[]>();
 
   const { clientDetails } = useContext(ClientContext);
 
@@ -21,6 +22,14 @@ export const Undelegate = () => {
 
     try {
       const mixnodeDelegations = await getReverseMixDelegations();
+      const pendingEvents = await getPendingDelegations();
+      await getCurrentEpoch();
+      console.log({ mixnodeDelegations, pendingEvents });
+      const pendingUndelegationEvents = pendingEvents
+        .filter((evt): evt is { Undelegate: PendingUndelegate } => 'Undelegate' in evt)
+        .map((e) => ({ ...e.Undelegate }));
+
+      setPendingUndelegations(pendingUndelegationEvents);
       setPagesDelegations(mixnodeDelegations);
     } catch (e) {
       setStatus(EnumRequestStatus.error);
@@ -52,6 +61,7 @@ export const Undelegate = () => {
           {status === EnumRequestStatus.initial && pagedDelegations && (
             <UndelegateForm
               delegations={pagedDelegations?.delegations}
+              pendingUndelegations={pendingUndelegations}
               onError={(m) => {
                 setMessage(m);
                 setStatus(EnumRequestStatus.error);
@@ -73,8 +83,7 @@ export const Undelegate = () => {
                 }
                 Success={
                   <Alert severity="success">
-                    {' '}
-                    <AlertTitle data-testid="undelegate-success">Undelegation complete</AlertTitle>
+                    <AlertTitle data-testid="undelegate-success">Undelegation request complete</AlertTitle>
                     {message}
                   </Alert>
                 }

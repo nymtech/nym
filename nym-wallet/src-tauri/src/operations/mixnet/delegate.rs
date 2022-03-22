@@ -11,12 +11,11 @@ use tokio::sync::RwLock;
 
 #[tauri::command]
 pub async fn get_pending_delegation_events(
-  owner_address: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Vec<DelegationEvent>, BackendError> {
   Ok(
     nymd_client!(state)
-      .get_pending_delegation_events(owner_address)
+      .get_pending_delegation_events(nymd_client!(state).address().to_string())
       .await?
       .into_iter()
       .map(|delegation_event| delegation_event.into())

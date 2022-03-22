@@ -1,9 +1,20 @@
 import React from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { Box, Autocomplete, Button, CircularProgress, FormControl, Grid, TextField } from '@mui/material';
+import {
+  ListItem,
+  ListItemText,
+  Box,
+  Autocomplete,
+  Button,
+  CircularProgress,
+  FormControl,
+  Grid,
+  TextField,
+} from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { addHours, format } from 'date-fns';
 import { validationSchema } from './validationSchema';
-import { EnumNodeType, TDelegation } from '../../types';
+import { EnumNodeType, PendingUndelegate, TDelegation } from '../../types';
 import { undelegate, vestingUnelegateFromMixnode } from '../../requests';
 import { Fee } from '../../components';
 
@@ -19,10 +30,12 @@ const defaultValues = {
 
 export const UndelegateForm = ({
   delegations,
+  pendingUndelegations,
   onError,
   onSuccess,
 }: {
   delegations?: TDelegation[];
+  pendingUndelegations?: PendingUndelegate[];
   onError: (message?: string) => void;
   onSuccess: (message?: string) => void;
 }) => {
@@ -50,9 +63,10 @@ export const UndelegateForm = ({
 
       if (!res) {
         onError('An error occurred when undelegating');
+        return;
       }
 
-      onSuccess(`Successfully undelegated from ${res.target_address}`);
+      onSuccess(`Successfully requested undelegation from ${res.target_address}`);
     } catch (e) {
       onError(e as string);
     }
@@ -69,8 +83,28 @@ export const UndelegateForm = ({
               render={() => (
                 <Autocomplete
                   disabled={isSubmitting}
-                  onChange={(_, value) => setValue('identity', value || '')}
+                  getOptionDisabled={(opt) => pendingUndelegations?.some((item) => item.mix_identity === opt) || false}
                   options={delegations?.map((d) => d.node_identity) || []}
+                  renderOption={(props, opt) => (
+                    <ListItem
+                      {...props}
+                      onClick={(e: React.MouseEvent<HTMLLIElement>) => {
+                        setValue('identity', opt);
+                        props.onClick!(e);
+                      }}
+                      disablePadding
+                      disableGutters
+                    >
+                      <ListItemText
+                        primary={opt}
+                        secondary={
+                          pendingUndelegations?.some((item) => item.mix_identity === opt)
+                            ? `Pending - Expected time of completion: ${format(addHours(new Date(), 1), 'HH:00')}`
+                            : undefined
+                        }
+                      />
+                    </ListItem>
+                  )}
                   renderInput={(params) => (
                     <TextField
                       {...params}

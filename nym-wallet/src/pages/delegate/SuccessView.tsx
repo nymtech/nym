@@ -8,8 +8,8 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
   return (
     <>
       <SuccessReponse
-        title="Delegation Complete"
-        subtitle="Successfully delegated to node with following details"
+        title="Delegation Request Complete"
+        subtitle="Successfully requested delegation to node. Note it may take up to 1 hour to take effect "
         caption={`Your current balance is: ${userBalance.balance?.printable_balance}`}
       />
       {details && (

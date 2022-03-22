@@ -20,3 +20,5 @@ export * from './transactiondetails';
 export * from './vestingaccountinfo';
 export * from './pledgedata';
 export * from './vestingperiod';
+export * from './pendingundelegate';
+export * from './delegationevent';

@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api';
+import { DelegationEvent } from 'src/types/rust/delegationevent';
 import {
   Balance,
   Coin,
@@ -18,6 +19,11 @@ export const getReverseMixDelegations = async (): Promise<TPagedDelegations> => 
 
 export const getReverseGatewayDelegations = async (): Promise<TPagedDelegations> => {
   const res: TPagedDelegations = await invoke('get_reverse_gateway_delegations_paged');
+  return res;
+};
+
+export const getPendingDelegations = async (): Promise<DelegationEvent[]> => {
+  const res: DelegationEvent[] = await invoke('get_pending_delegation_events');
   return res;
 };
 
@@ -65,5 +71,11 @@ export const getInclusionProbability = async (identity: string): Promise<Inclusi
 
 export const userBalance = async (): Promise<Balance> => {
   const res: Balance = await invoke('get_balance');
+  return res;
+};
+
+export const getCurrentEpoch = async (): Promise<any> => {
+  const res: any = await invoke('get_current_epoch');
+  console.log(res);
   return res;
 };

@@ -1,4 +1,4 @@
-use bls12_381::{G1Affine, G2Affine, Scalar};
+use bls12_381::{G1Affine, G2Affine, G2Prepared, Scalar};
 use ff::Field;
 use group::{Curve, GroupEncoding};
 use rand::thread_rng;
@@ -18,6 +18,8 @@ pub struct Parameters {
     gammas: Vec<G1Affine>,
     /// Value of wallet
     L: usize,
+    /// Precomputed G2 generator used for the miller loop
+    _g2_prepared_miller: G2Prepared,
 }
 
 impl Parameters {
@@ -30,6 +32,7 @@ impl Parameters {
             g2: G2Affine::generator(),
             gammas,
             L: MAX_COIN_VALUE,
+            _g2_prepared_miller: G2Prepared::from(G2Affine::generator()),
         })
     }
 
@@ -44,6 +47,7 @@ impl Parameters {
     pub(crate) fn gammas(&self) -> &Vec<G1Affine> {
         &self.gammas
     }
+    
 
     pub fn random_scalar(&self) -> Scalar {
         // lazily-initialized thread-local random number generator, seeded by the system
@@ -53,6 +57,10 @@ impl Parameters {
 
     pub fn n_random_scalars(&self, n: usize) -> Vec<Scalar> {
         (0..n).map(|_| self.random_scalar()).collect()
+    }
+
+    pub(crate) fn prepared_miller_g2(&self) -> &G2Prepared {
+        &self._g2_prepared_miller
     }
 }
 

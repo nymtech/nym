@@ -11,6 +11,7 @@
     "tauri:build": "yarn tauri build",
     "tsc": "tsc --noEmit true",
     "dev": "yarn run webpack:dev & yarn run tauri:dev",
+    "prebuild": "yarn --cwd .. build",
     "build": "run-s webpack:prod tauri:build",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix"

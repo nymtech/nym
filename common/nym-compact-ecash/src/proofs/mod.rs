@@ -3,8 +3,8 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use bls12_381::{G1Affine, G1Projective, Scalar};
-use digest::Digest;
 use digest::generic_array::typenum::Unsigned;
+use digest::Digest;
 use group::GroupEncoding;
 use itertools::izip;
 use sha2::Sha256;
@@ -18,10 +18,10 @@ type ChallengeDigest = Sha256;
 
 /// Generates a Scalar [or Fp] challenge by hashing a number of elliptic curve points.
 fn compute_challenge<D, I, B>(iter: I) -> Scalar
-    where
-        D: Digest,
-        I: Iterator<Item=B>,
-        B: AsRef<[u8]>,
+where
+    D: Digest,
+    I: Iterator<Item = B>,
+    B: AsRef<[u8]>,
 {
     let mut h = D::new();
     for point_representation in iter {
@@ -49,8 +49,8 @@ fn produce_response(witness_replacement: &Scalar, challenge: &Scalar, secret: &S
 
 // note: it's caller's responsibility to ensure witnesses.len() = secrets.len()
 fn produce_responses<S>(witnesses: &[Scalar], challenge: &Scalar, secrets: &[S]) -> Vec<Scalar>
-    where
-        S: Borrow<Scalar>,
+where
+    S: Borrow<Scalar>,
 {
     debug_assert_eq!(witnesses.len(), secrets.len());
 
@@ -91,16 +91,12 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
         let com_bytes: [u8; 48] = bytes[..48].try_into().unwrap();
         let com = try_deserialize_g1_projective(
             &com_bytes,
-            CompactEcashError::Deserialization(
-                "Failed to deserialize com".to_string(),
-            ),
+            CompactEcashError::Deserialization("Failed to deserialize com".to_string()),
         )?;
         let h_bytes: [u8; 48] = bytes[48..96].try_into().unwrap();
         let h = try_deserialize_g1_projective(
             &h_bytes,
-            CompactEcashError::Deserialization(
-                "Failed to deserialize h".to_string(),
-            ),
+            CompactEcashError::Deserialization("Failed to deserialize h".to_string()),
         )?;
         let pc_coms_len = u64::from_le_bytes(bytes[96..104].try_into().unwrap());
         let actual_pc_coms_len = (bytes.len() - 152) / 48;
@@ -191,10 +187,10 @@ impl WithdrawalReqProof {
         // compute zkp commitments for each instance
         let zkcm_com = params.gen1() * r_com_opening
             + r_attributes
-            .iter()
-            .zip(params.gammas().iter())
-            .map(|(rm_i, gamma_i)| gamma_i * rm_i)
-            .sum::<G1Projective>();
+                .iter()
+                .zip(params.gammas().iter())
+                .map(|(rm_i, gamma_i)| gamma_i * rm_i)
+                .sum::<G1Projective>();
 
         let zkcm_pedcom = r_pedcom_openings
             .iter()
@@ -216,7 +212,6 @@ impl WithdrawalReqProof {
             .map(|cm| cm.to_bytes())
             .collect::<Vec<_>>();
 
-        println!("Zk commitments to com {:?}", zkcm_com.to_bytes());
         // compute zkp challenge using g1, gammas, c, h, c1, c2, c3, zk commitments
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(params.gen1().to_bytes().as_ref())
@@ -228,11 +223,7 @@ impl WithdrawalReqProof {
         );
 
         // compute response
-        let response_opening = produce_response(
-            &r_com_opening,
-            &challenge,
-            &witness.com_opening,
-        );
+        let response_opening = produce_response(&r_com_opening, &challenge, &witness.com_opening);
         let response_openings = produce_responses(
             &r_pedcom_openings,
             &challenge,
@@ -257,20 +248,24 @@ impl WithdrawalReqProof {
         let zkcm_com = instance.com * self.challenge
             + params.gen1() * self.response_opening
             + self
-            .response_attributes
-            .iter()
-            .zip(params.gammas().iter())
-            .map(|(m_i, gamma_i)| gamma_i * m_i)
-            .sum::<G1Projective>();
+                .response_attributes
+                .iter()
+                .zip(params.gammas().iter())
+                .map(|(m_i, gamma_i)| gamma_i * m_i)
+                .sum::<G1Projective>();
 
         let zkcm_pedcom = izip!(
             instance.pc_coms.iter(),
             self.response_openings.iter(),
-            self.response_attributes.iter())
-            .map(|(cm_j, resp_o_j, resp_m_j)| cm_j * self.challenge + params.gen1() * resp_o_j + instance.h * resp_m_j)
-            .collect::<Vec<_>>();
+            self.response_attributes.iter()
+        )
+        .map(|(cm_j, resp_o_j, resp_m_j)| {
+            cm_j * self.challenge + params.gen1() * resp_o_j + instance.h * resp_m_j
+        })
+        .collect::<Vec<_>>();
 
-        let zk_commitment_user_sk = instance.pk_user.pk * self.challenge + params.gen1() * self.response_attributes[0];
+        let zk_commitment_user_sk =
+            instance.pk_user.pk * self.challenge + params.gen1() * self.response_attributes[0];
 
         // covert to bytes
         let gammas_bytes = params
@@ -284,8 +279,6 @@ impl WithdrawalReqProof {
             .map(|cm| cm.to_bytes())
             .collect::<Vec<_>>();
 
-        println!("Zk commitments to com Vfy {:?}", zkcm_com.to_bytes());
-
         // recompute zkp challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(params.gen1().to_bytes().as_ref())
@@ -296,8 +289,6 @@ impl WithdrawalReqProof {
                 .chain(std::iter::once(zk_commitment_user_sk.to_bytes().as_ref())),
         );
 
-        println!("Original challenge: {:?}", self.challenge);
-        println!("Recomputed challenge: {:?}", challenge);
         challenge == self.challenge
     }
 }
@@ -318,8 +309,14 @@ mod tests {
         let instance = WithdrawalReqInstance {
             com: G1Projective::random(&mut rng),
             h: G1Projective::random(&mut rng),
-            pc_coms: vec![G1Projective::random(&mut rng), G1Projective::random(&mut rng), G1Projective::random(&mut rng)],
-            pk_user: PublicKeyUser { pk: params.gen1() * params.random_scalar() },
+            pc_coms: vec![
+                G1Projective::random(&mut rng),
+                G1Projective::random(&mut rng),
+                G1Projective::random(&mut rng),
+            ],
+            pk_user: PublicKeyUser {
+                pk: params.gen1() * params.random_scalar(),
+            },
         };
 
         let instance_bytes = instance.to_bytes();
@@ -332,17 +329,20 @@ mod tests {
         let mut rng = thread_rng();
         let params = Parameters::new().unwrap();
         let sk = params.random_scalar();
-        let pk_user = PublicKeyUser { pk: params.gen1() * sk };
+        let pk_user = PublicKeyUser {
+            pk: params.gen1() * sk,
+        };
         let v = params.random_scalar();
         let t = params.random_scalar();
         let attr = vec![sk, v, t];
 
         let com_opening = params.random_scalar();
-        let com = params.gen1() * com_opening + attr
-            .iter()
-            .zip(params.gammas())
-            .map(|(&m, gamma)| gamma * m)
-            .sum::<G1Projective>();
+        let com = params.gen1() * com_opening
+            + attr
+                .iter()
+                .zip(params.gammas())
+                .map(|(&m, gamma)| gamma * m)
+                .sum::<G1Projective>();
         let h = hash_g1(com.to_bytes());
 
         let pc_openings = params.n_random_scalars(attr.len());

@@ -24,7 +24,6 @@ pub struct RequestInfo {
     t: Scalar,
 }
 
-
 pub fn withdrawal_request(
     params: &Parameters,
     sk_user: &SecretKeyUser,
@@ -35,7 +34,8 @@ pub fn withdrawal_request(
     let attributes = vec![sk_user.sk, v, t];
     let gammas = params.gammas();
     let com_opening = params.random_scalar();
-    let com = params.gen1() * com_opening + attributes
+    let com = params.gen1() * com_opening
+        + attributes
         .iter()
         .zip(gammas)
         .map(|(&m, gamma)| gamma * m)
@@ -58,7 +58,9 @@ pub fn withdrawal_request(
         com,
         h: com_hash,
         pc_coms: pc_coms.clone(),
-        pk_user: PublicKeyUser { pk: params.gen1() * sk_user.sk },
+        pk_user: PublicKeyUser {
+            pk: params.gen1() * sk_user.sk,
+        },
     };
 
     let witness = WithdrawalReqWitness {
@@ -124,20 +126,25 @@ pub fn issue_wallet(
     Ok(BlindedSignature(h, sig))
 }
 
-
-pub fn issue_verify(params: &Parameters, vk_auth: &VerificationKeyAuth, sk_user: &SecretKeyUser, blind_signature: &BlindedSignature, req_info: &RequestInfo) -> Result<Wallet> {
+pub fn issue_verify(
+    params: &Parameters,
+    vk_auth: &VerificationKeyAuth,
+    sk_user: &SecretKeyUser,
+    blind_signature: &BlindedSignature,
+    req_info: &RequestInfo,
+) -> Result<Wallet> {
     // Parse the blinded signature
     let h = blind_signature.0;
     let c = blind_signature.1;
 
-    // Verify the integrity of the reponse from the authority
+    // Verify the integrity of the response from the authority
     if !(req_info.com_hash == h) {
         return Err(CompactEcashError::IssuanceVfy(
-            "Failed to verify the proof of knowledge".to_string(),
+            "Integrity verification failed".to_string(),
         ));
     }
 
-    // Unblind the blinded signature
+    // Unblind the blinded signature on the partial wallet
     let blinding_removers = vk_auth
         .beta_g1
         .iter()
@@ -148,7 +155,7 @@ pub fn issue_verify(params: &Parameters, vk_auth: &VerificationKeyAuth, sk_user:
     let unblinded_c = c - blinding_removers;
 
     // Verify the signature correctness on the wallet share
-    let attr = vec![sk_user.sk, req_info.v];
+    let attr = vec![sk_user.sk, req_info.v, req_info.t];
 
     let signed_attributes = attr
         .iter()
@@ -167,10 +174,8 @@ pub fn issue_verify(params: &Parameters, vk_auth: &VerificationKeyAuth, sk_user:
         ));
     }
 
-
     Ok(Wallet {
-        sig: Signature(h,
-                       unblinded_c),
+        sig: Signature(h, unblinded_c),
         v: req_info.v,
         idx: None,
     })

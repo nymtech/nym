@@ -154,7 +154,6 @@ pub fn issue_verify(
 
     let unblinded_c = c - blinding_removers;
 
-    // Verify the signature correctness on the wallet share
     let attr = vec![sk_user.sk, req_info.v, req_info.t];
 
     let signed_attributes = attr
@@ -163,6 +162,7 @@ pub fn issue_verify(
         .map(|(attr, beta_i)| beta_i * attr)
         .sum::<G2Projective>();
 
+    // Verify the signature correctness on the wallet share
     if !check_bilinear_pairing(
         &h.to_affine(),
         &G2Prepared::from((vk_auth.alpha + signed_attributes).to_affine()),

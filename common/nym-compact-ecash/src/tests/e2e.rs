@@ -1,13 +1,13 @@
 use itertools::izip;
 
 use crate::error::CompactEcashError;
+use crate::scheme::aggregation::aggregate_verification_keys;
 use crate::scheme::keygen::{
-    generate_keypair_user, ttp_keygen, PublicKeyUser, SecretKeyUser, VerificationKeyAuth,
+    generate_keypair_user, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth,
 };
 use crate::scheme::setup::Parameters;
-use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
 use crate::scheme::Wallet;
-use crate::VerificationKey;
+use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
 
 #[test]
 fn main() -> Result<(), CompactEcashError> {
@@ -21,6 +21,8 @@ fn main() -> Result<(), CompactEcashError> {
         .iter()
         .map(|keypair| keypair.verification_key())
         .collect();
+
+    let verification_key = aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3]))?;
 
     let mut wallet_blinded_signatures = Vec::new();
     for auth_keypair in authorities_keypairs {
@@ -37,8 +39,8 @@ fn main() -> Result<(), CompactEcashError> {
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
-    .map(|(w, vk)| issue_verify(&params, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-    .collect();
+        .map(|(w, vk)| issue_verify(&params, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+        .collect();
 
     Ok(())
 }

@@ -7,6 +7,9 @@ pub enum CompactEcashError {
     #[error("Setup error: {0}")]
     Setup(String),
 
+    #[error("Aggregation error: {0}")]
+    Aggregation(String),
+
     #[error("Withdrawal Request Verification related error: {0}")]
     WithdrawalRequestVerification(String),
 

@@ -1,12 +1,12 @@
 use itertools::izip;
 
 use crate::error::CompactEcashError;
-use crate::scheme::aggregation::aggregate_verification_keys;
+use crate::scheme::{SignatureShare, Wallet};
+use crate::scheme::aggregation::{aggregate_signature_shares, aggregate_verification_keys};
 use crate::scheme::keygen::{
     generate_keypair_user, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth,
 };
 use crate::scheme::setup::Parameters;
-use crate::scheme::Wallet;
 use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
 
 #[test]
@@ -41,6 +41,17 @@ fn main() -> Result<(), CompactEcashError> {
     )
         .map(|(w, vk)| issue_verify(&params, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
         .collect();
+
+    // Aggregate partial wallets
+    let signature_shares: Vec<SignatureShare> = unblinded_wallet_shares
+        .iter()
+        .enumerate()
+        .map(|(idx, wallet)| SignatureShare::new(*wallet.signature(), (idx + 1) as u64))
+        .collect();
+
+    let attributes = vec![user_keypair.secret_key().sk, req_info.get_v(), req_info.get_t()];
+    let aggregated_signature =
+        aggregate_signature_shares(&params, &verification_key, &attributes, &signature_shares)?;
 
     Ok(())
 }

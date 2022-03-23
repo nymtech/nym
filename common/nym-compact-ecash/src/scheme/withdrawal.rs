@@ -24,6 +24,14 @@ pub struct RequestInfo {
     t: Scalar,
 }
 
+impl RequestInfo {
+    pub fn get_com(&self) -> G1Projective { self.com_hash }
+    pub fn get_com_openings(&self) -> Scalar { self.com_opening }
+    pub fn get_pc_coms_openings(&self) -> &Vec<Scalar> { &self.pc_coms_openings }
+    pub fn get_v(&self) -> Scalar { self.v }
+    pub fn get_t(&self) -> Scalar { self.t }
+}
+
 pub fn withdrawal_request(
     params: &Parameters,
     sk_user: &SecretKeyUser,

@@ -36,13 +36,16 @@ jobs:
           Remove-Item -path certificate -include tempCert.txt
           Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
 
-      - name: Install app dependencies and build it
+      - name: Install app dependencies
+        run: yarn
+
+      - name: Build and sign it
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ENABLE_CODE_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        run: yarn && yarn build
+        run: yarn build
 
 #       - name: Upload to release based on tag name
 #         uses: softprops/action-gh-release@v1

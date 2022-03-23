@@ -1,4 +1,6 @@
 use std::borrow::Borrow;
+use std::convert::TryFrom;
+use std::convert::TryInto;
 
 use bls12_381::{G1Affine, G1Projective, Scalar};
 use digest::Digest;
@@ -7,8 +9,10 @@ use group::GroupEncoding;
 use itertools::izip;
 use sha2::Sha256;
 
+use crate::error::{CompactEcashError, Result};
 use crate::scheme::keygen::PublicKeyUser;
 use crate::scheme::setup::Parameters;
+use crate::utils::try_deserialize_g1_projective;
 
 type ChallengeDigest = Sha256;
 
@@ -57,6 +61,8 @@ fn produce_responses<S>(witnesses: &[Scalar], challenge: &Scalar, secrets: &[S])
         .collect()
 }
 
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 // instance: g, gamma1, gamma2, gamma3, com, h, com1, com2, com3, pkUser
 pub struct WithdrawalReqInstance {
     // Joined commitment to all attributes
@@ -67,6 +73,92 @@ pub struct WithdrawalReqInstance {
     pub pc_coms: Vec<G1Projective>,
     // Public key of a user
     pub pk_user: PublicKeyUser,
+}
+
+impl TryFrom<&[u8]> for WithdrawalReqInstance {
+    type Error = CompactEcashError;
+
+    fn try_from(bytes: &[u8]) -> Result<WithdrawalReqInstance> {
+        if bytes.len() < 48 * 4 + 8 || (bytes.len() - 8) % 48 != 0 {
+            return Err(CompactEcashError::DeserializationInvalidLength {
+                actual: bytes.len(),
+                modulus_target: bytes.len() - 8,
+                target: 48 * 4 + 8,
+                modulus: 48,
+                object: "secret key".to_string(),
+            });
+        }
+        let com_bytes: [u8; 48] = bytes[..48].try_into().unwrap();
+        let com = try_deserialize_g1_projective(
+            &com_bytes,
+            CompactEcashError::Deserialization(
+                "Failed to deserialize com".to_string(),
+            ),
+        )?;
+        let h_bytes: [u8; 48] = bytes[48..96].try_into().unwrap();
+        let h = try_deserialize_g1_projective(
+            &h_bytes,
+            CompactEcashError::Deserialization(
+                "Failed to deserialize h".to_string(),
+            ),
+        )?;
+        let pc_coms_len = u64::from_le_bytes(bytes[96..104].try_into().unwrap());
+        let actual_pc_coms_len = (bytes.len() - 152) / 48;
+        if pc_coms_len as usize != actual_pc_coms_len {
+            return Err(CompactEcashError::Deserialization(format!(
+                "Tried to deserialize pedersen commitments with inconsistent pc_coms_len (expected {}, got {})",
+                pc_coms_len, actual_pc_coms_len
+            )));
+        }
+        let mut pc_coms = Vec::new();
+        let mut pc_coms_end: usize = 0;
+        for i in 0..pc_coms_len {
+            let start = (104 + i * 48) as usize;
+            let end = (start + 48) as usize;
+            let pc_i_bytes = bytes[start..end].try_into().unwrap();
+            let pc_i = try_deserialize_g1_projective(
+                &pc_i_bytes,
+                CompactEcashError::Deserialization(
+                    "Failed to deserialize pedersen commitment".to_string(),
+                ),
+            )?;
+            pc_coms_end = end;
+            pc_coms.push(pc_i);
+        }
+        let pk_bytes = bytes[pc_coms_end..].try_into().unwrap();
+        let pk = try_deserialize_g1_projective(
+            &pk_bytes,
+            CompactEcashError::Deserialization(
+                "Failed to deserialize user's public key".to_string(),
+            ),
+        )?;
+
+        Ok(WithdrawalReqInstance {
+            com,
+            h,
+            pc_coms,
+            pk_user: PublicKeyUser { pk },
+        })
+    }
+}
+
+impl WithdrawalReqInstance {
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+        let pc_coms_len = self.pc_coms.len();
+        let mut bytes = Vec::with_capacity(8 + (pc_coms_len + 3) as usize * 48);
+        bytes.extend_from_slice(self.com.to_bytes().as_ref());
+        bytes.extend_from_slice(self.h.to_bytes().as_ref());
+        bytes.extend_from_slice(&pc_coms_len.to_le_bytes());
+        for pc in self.pc_coms.iter() {
+            bytes.extend_from_slice((pc.to_bytes()).as_ref());
+        }
+        bytes.extend_from_slice(self.pk_user.pk.to_bytes().as_ref());
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<WithdrawalReqInstance> {
+        WithdrawalReqInstance::try_from(bytes)
+    }
 }
 
 // witness: m1, m2, m3, o, o1, o2, o3,
@@ -119,12 +211,6 @@ impl WithdrawalReqProof {
             .map(|gamma| gamma.to_bytes())
             .collect::<Vec<_>>();
 
-        let pc_coms_bytes = instance
-            .pc_coms
-            .iter()
-            .map(|cm| cm.to_bytes())
-            .collect::<Vec<_>>();
-
         let zkcm_pedcom_bytes = zkcm_pedcom
             .iter()
             .map(|cm| cm.to_bytes())
@@ -135,9 +221,7 @@ impl WithdrawalReqProof {
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(params.gen1().to_bytes().as_ref())
                 .chain(gammas_bytes.iter().map(|gamma| gamma.as_ref()))
-                .chain(std::iter::once(instance.com.to_bytes().as_ref()))
-                .chain(std::iter::once(instance.h.to_bytes().as_ref()))
-                .chain(pc_coms_bytes.iter().map(|pcm| pcm.as_ref()))
+                .chain(std::iter::once(instance.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_com.to_bytes().as_ref()))
                 .chain(zkcm_pedcom_bytes.iter().map(|c| c.as_ref()))
                 .chain(std::iter::once(zkcm_user_sk.to_bytes().as_ref())),
@@ -195,12 +279,6 @@ impl WithdrawalReqProof {
             .map(|gamma| gamma.to_bytes())
             .collect::<Vec<_>>();
 
-        let pc_coms_bytes = instance
-            .pc_coms
-            .iter()
-            .map(|cm| cm.to_bytes())
-            .collect::<Vec<_>>();
-
         let zkcm_pedcom_bytes = zkcm_pedcom
             .iter()
             .map(|cm| cm.to_bytes())
@@ -212,9 +290,7 @@ impl WithdrawalReqProof {
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(params.gen1().to_bytes().as_ref())
                 .chain(gammas_bytes.iter().map(|hs| hs.as_ref()))
-                .chain(std::iter::once(instance.com.to_bytes().as_ref()))
-                .chain(std::iter::once(instance.h.to_bytes().as_ref()))
-                .chain(pc_coms_bytes.iter().map(|pcm| pcm.as_ref()))
+                .chain(std::iter::once(instance.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_com.to_bytes().as_ref()))
                 .chain(zkcm_pedcom_bytes.iter().map(|c| c.as_ref()))
                 .chain(std::iter::once(zk_commitment_user_sk.to_bytes().as_ref())),
@@ -234,6 +310,22 @@ mod tests {
     use crate::utils::hash_g1;
 
     use super::*;
+
+    #[test]
+    fn withdrawal_request_instance_roundtrip() {
+        let mut rng = thread_rng();
+        let params = Parameters::new().unwrap();
+        let instance = WithdrawalReqInstance {
+            com: G1Projective::random(&mut rng),
+            h: G1Projective::random(&mut rng),
+            pc_coms: vec![G1Projective::random(&mut rng), G1Projective::random(&mut rng), G1Projective::random(&mut rng)],
+            pk_user: PublicKeyUser { pk: params.gen1() * params.random_scalar() },
+        };
+
+        let instance_bytes = instance.to_bytes();
+        let instance_p = WithdrawalReqInstance::from_bytes(&instance_bytes).unwrap();
+        assert_eq!(instance, instance_p)
+    }
 
     #[test]
     fn withdrawal_proof_construct_and_verify() {

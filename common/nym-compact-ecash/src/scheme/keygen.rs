@@ -6,11 +6,11 @@ use bls12_381::{G1Projective, G2Projective, Scalar};
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::setup::Parameters;
 use crate::scheme::SignerIndex;
+use crate::utils::Polynomial;
 use crate::utils::{
     try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar,
     try_deserialize_scalar_vec,
 };
-use crate::utils::Polynomial;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyAuth {
@@ -203,7 +203,9 @@ impl KeyPairAuth {
         self.secret_key.clone()
     }
 
-    pub fn verification_key(&self) -> VerificationKeyAuth { self.verification_key.clone() }
+    pub fn verification_key(&self) -> VerificationKeyAuth {
+        self.verification_key.clone()
+    }
 }
 
 pub struct KeyPairUser {

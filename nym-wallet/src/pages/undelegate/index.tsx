@@ -3,9 +3,10 @@ import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material'
 import { EnumRequestStatus, NymCard, RequestStatus } from '../../components';
 import { UndelegateForm } from './UndelegateForm';
 import { getCurrentEpoch, getPendingDelegations, getReverseMixDelegations } from '../../requests';
-import { PendingUndelegate, TPagedDelegations } from '../../types';
+import { Epoch, PendingUndelegate, TPagedDelegations } from '../../types';
 import { ClientContext } from '../../context/main';
 import { PageLayout } from '../../layouts';
+import { removeObjectDuplicates } from '../../utils';
 
 export const Undelegate = () => {
   const [message, setMessage] = useState<string>();
@@ -13,6 +14,7 @@ export const Undelegate = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [pagedDelegations, setPagesDelegations] = useState<TPagedDelegations>();
   const [pendingUndelegations, setPendingUndelegations] = useState<PendingUndelegate[]>();
+  const [currentEndEpoch, setCurrentEndEpoch] = useState<Epoch['end']>();
 
   const { clientDetails } = useContext(ClientContext);
 
@@ -23,14 +25,17 @@ export const Undelegate = () => {
     try {
       const mixnodeDelegations = await getReverseMixDelegations();
       const pendingEvents = await getPendingDelegations();
-      await getCurrentEpoch();
-
       const pendingUndelegationEvents = pendingEvents
         .filter((evt): evt is { Undelegate: PendingUndelegate } => 'Undelegate' in evt)
         .map((e) => ({ ...e.Undelegate }));
+      const epoch = await getCurrentEpoch();
 
+      setCurrentEndEpoch(epoch.end);
       setPendingUndelegations(pendingUndelegationEvents);
-      setPagesDelegations(mixnodeDelegations);
+      setPagesDelegations({
+        ...mixnodeDelegations,
+        delegations: removeObjectDuplicates(mixnodeDelegations.delegations, 'node_identity'),
+      });
     } catch (e) {
       setStatus(EnumRequestStatus.error);
       setMessage(e as string);
@@ -62,6 +67,7 @@ export const Undelegate = () => {
             <UndelegateForm
               delegations={pagedDelegations?.delegations}
               pendingUndelegations={pendingUndelegations}
+              currentEndEpoch={currentEndEpoch}
               onError={(m) => {
                 setMessage(m);
                 setStatus(EnumRequestStatus.error);

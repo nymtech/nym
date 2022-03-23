@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   ListItem,
@@ -14,8 +14,8 @@ import {
 import { yupResolver } from '@hookform/resolvers/yup';
 import { format } from 'date-fns';
 import { validationSchema } from './validationSchema';
-import { EnumNodeType, Epoch, PendingUndelegate, TDelegation } from '../../types';
-import { getCurrentEpoch, undelegate, vestingUnelegateFromMixnode } from '../../requests';
+import { EnumNodeType, PendingUndelegate, TDelegation } from '../../types';
+import { undelegate, vestingUnelegateFromMixnode } from '../../requests';
 import { Fee } from '../../components';
 
 type TFormData = {
@@ -31,11 +31,13 @@ const defaultValues = {
 export const UndelegateForm = ({
   delegations,
   pendingUndelegations,
+  currentEndEpoch,
   onError,
   onSuccess,
 }: {
   delegations?: TDelegation[];
   pendingUndelegations?: PendingUndelegate[];
+  currentEndEpoch?: BigInt;
   onError: (message?: string) => void;
   onSuccess: (message?: string) => void;
 }) => {
@@ -48,15 +50,6 @@ export const UndelegateForm = ({
     defaultValues,
     resolver: yupResolver(validationSchema),
   });
-
-  const [currentEndEpoch, setCurrentEndEpoch] = useState<Epoch['end']>();
-
-  useEffect(() => {
-    (async () => {
-      const epoch = await getCurrentEpoch();
-      setCurrentEndEpoch(epoch.end);
-    })();
-  }, []);
 
   const onSubmit = async (data: TFormData) => {
     let res;

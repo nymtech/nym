@@ -146,3 +146,7 @@ export const splice = (start: number, deleteCount: number, address?: string): st
 export const maximizeWindow = async () => {
   await appWindow.maximize();
 };
+
+export function removeObjectDuplicates<T extends object, K extends keyof T>(arr: T[], id: K) {
+  return arr.filter((v, i, a) => a.findIndex((v2) => v2[id] === v[id]) === i);
+}

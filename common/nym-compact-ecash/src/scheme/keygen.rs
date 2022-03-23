@@ -1,16 +1,21 @@
+use core::borrow::Borrow;
+use core::iter::Sum;
+use core::ops::{Add, Mul};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use bls12_381::{G1Projective, G2Projective, Scalar};
+use group::Curve;
 
 use crate::error::{CompactEcashError, Result};
+use crate::scheme::aggregation::aggregate_verification_keys;
 use crate::scheme::setup::Parameters;
 use crate::scheme::SignerIndex;
-use crate::utils::Polynomial;
 use crate::utils::{
     try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar,
     try_deserialize_scalar_vec,
 };
+use crate::utils::Polynomial;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyAuth {
@@ -170,6 +175,146 @@ impl TryFrom<&[u8]> for VerificationKeyAuth {
             beta_g1,
             beta_g2,
         })
+    }
+}
+
+impl<'b> Add<&'b VerificationKeyAuth> for VerificationKeyAuth {
+    type Output = VerificationKeyAuth;
+
+    #[inline]
+    fn add(self, rhs: &'b VerificationKeyAuth) -> VerificationKeyAuth {
+        // If you're trying to add two keys together that were created
+        // for different number of attributes, just panic as it's a
+        // nonsense operation.
+        assert_eq!(
+            self.beta_g1.len(),
+            rhs.beta_g1.len(),
+            "trying to add verification keys generated for different number of attributes [G1]"
+        );
+
+        assert_eq!(
+            self.beta_g2.len(),
+            rhs.beta_g2.len(),
+            "trying to add verification keys generated for different number of attributes [G2]"
+        );
+
+        assert_eq!(
+            self.beta_g1.len(),
+            self.beta_g2.len(),
+            "this key is incorrect - the number of elements G1 and G2 does not match"
+        );
+
+        assert_eq!(
+            rhs.beta_g1.len(),
+            rhs.beta_g2.len(),
+            "they key you want to add is incorrect - the number of elements G1 and G2 does not match"
+        );
+
+        VerificationKeyAuth {
+            alpha: self.alpha + rhs.alpha,
+            beta_g1: self
+                .beta_g1
+                .iter()
+                .zip(rhs.beta_g1.iter())
+                .map(|(self_beta_g1, rhs_beta_g1)| self_beta_g1 + rhs_beta_g1)
+                .collect(),
+            beta_g2: self
+                .beta_g2
+                .iter()
+                .zip(rhs.beta_g2.iter())
+                .map(|(self_beta_g2, rhs_beta_g2)| self_beta_g2 + rhs_beta_g2)
+                .collect(),
+        }
+    }
+}
+
+impl<'a> Mul<Scalar> for &'a VerificationKeyAuth {
+    type Output = VerificationKeyAuth;
+
+    #[inline]
+    fn mul(self, rhs: Scalar) -> Self::Output {
+        VerificationKeyAuth {
+            alpha: self.alpha * rhs,
+            beta_g1: self.beta_g1.iter().map(|b_i| b_i * rhs).collect(),
+            beta_g2: self.beta_g2.iter().map(|b_i| b_i * rhs).collect(),
+        }
+    }
+}
+
+impl<T> Sum<T> for VerificationKeyAuth
+    where
+        T: Borrow<VerificationKeyAuth>,
+{
+    #[inline]
+    fn sum<I>(iter: I) -> Self
+        where
+            I: Iterator<Item=T>,
+    {
+        let mut peekable = iter.peekable();
+        let head_attributes = match peekable.peek() {
+            Some(head) => head.borrow().beta_g2.len(),
+            None => {
+                // TODO: this is a really weird edge case. You're trying to sum an EMPTY iterator
+                // of VerificationKey. So should it panic here or just return some nonsense value?
+                return VerificationKeyAuth::identity(0);
+            }
+        };
+
+        peekable.fold(VerificationKeyAuth::identity(head_attributes), |acc, item| {
+            acc + item.borrow()
+        })
+    }
+}
+
+impl VerificationKeyAuth {
+    /// Create a (kinda) identity verification key using specified
+    /// number of 'beta' elements
+    pub(crate) fn identity(beta_size: usize) -> Self {
+        VerificationKeyAuth {
+            alpha: G2Projective::identity(),
+            beta_g1: vec![G1Projective::identity(); beta_size],
+            beta_g2: vec![G2Projective::identity(); beta_size],
+        }
+    }
+
+    pub fn aggregate(sigs: &[Self], indices: Option<&[SignerIndex]>) -> Result<Self> {
+        aggregate_verification_keys(sigs, indices)
+    }
+
+    pub fn alpha(&self) -> &G2Projective {
+        &self.alpha
+    }
+
+    pub fn beta_g1(&self) -> &Vec<G1Projective> {
+        &self.beta_g1
+    }
+
+    pub fn beta_g2(&self) -> &Vec<G2Projective> {
+        &self.beta_g2
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let beta_g1_len = self.beta_g1.len();
+        let beta_g2_len = self.beta_g2.len();
+        let mut bytes = Vec::with_capacity(96 + 8 + beta_g1_len * 48 + beta_g2_len * 96);
+
+        bytes.extend_from_slice(&self.alpha.to_affine().to_compressed());
+
+        bytes.extend_from_slice(&beta_g1_len.to_le_bytes());
+
+        for beta_g1 in self.beta_g1.iter() {
+            bytes.extend_from_slice(&beta_g1.to_affine().to_compressed())
+        }
+
+        for beta_g2 in self.beta_g2.iter() {
+            bytes.extend_from_slice(&beta_g2.to_affine().to_compressed())
+        }
+
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<VerificationKeyAuth> {
+        VerificationKeyAuth::try_from(bytes)
     }
 }
 

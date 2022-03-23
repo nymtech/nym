@@ -1,9 +1,21 @@
 import { invoke } from '@tauri-apps/api';
 import { Account, TCreateAccount } from '../types';
 
-export const createAccount = async (): Promise<TCreateAccount> => invoke('create_new_account');
+export const createAccount = async (): Promise<TCreateAccount> => {
+  const res: TCreateAccount = await invoke('create_new_account');
+  return res;
+};
 
-export const signInWithMnemonic = async (mnemonic: string): Promise<Account> =>
-  invoke('connect_with_mnemonic', { mnemonic });
+export const createMnemonic = async (): Promise<string> => {
+  const res: string = await invoke('create_new_mnemonic');
+  return res;
+};
 
-export const signOut = async () => invoke('logout');
+export const signInWithMnemonic = async (mnemonic: string): Promise<Account> => {
+  const res: Account = await invoke('connect_with_mnemonic', { mnemonic });
+  return res;
+};
+
+export const signOut = async (): Promise<void> => {
+  await invoke('logout');
+};

@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -12,17 +12,17 @@ import {
 } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm } from 'react-hook-form';
-import { EnumNodeType } from '../../types/global';
 import { NodeTypeSelector } from '../../components/NodeTypeSelector';
-import { bond, majorToMinor } from '../../requests';
+import { bond, vestingBond, majorToMinor } from '../../requests';
 import { validationSchema } from './validationSchema';
-import { Gateway, MixNode } from '../../types';
+import { Gateway, MixNode, TBondArgs, EnumNodeType } from '../../types';
 import { ClientContext } from '../../context/main';
-import { Fee } from '../../components';
+import { Fee, TokenPoolSelector } from '../../components';
 
 type TBondFormFields = {
   withAdvancedOptions: boolean;
   nodeType: EnumNodeType;
+  tokenPool: string;
   ownerSignature: string;
   identityKey: string;
   sphinxKey: string;
@@ -40,6 +40,7 @@ type TBondFormFields = {
 const defaultValues = {
   withAdvancedOptions: false,
   nodeType: EnumNodeType.mixnode,
+  tokenPool: 'balance',
   identityKey: '',
   sphinxKey: '',
   ownerSignature: '',
@@ -88,25 +89,33 @@ export const BondForm = ({
     handleSubmit,
     setValue,
     watch,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<TBondFormFields>({
     resolver: yupResolver(validationSchema),
     defaultValues,
   });
 
-  const { userBalance, currency, getBondDetails } = useContext(ClientContext);
+  const { userBalance, currency, clientDetails } = useContext(ClientContext);
+
+  useEffect(() => {
+    reset();
+  }, [clientDetails]);
 
   const watchNodeType = watch('nodeType', defaultValues.nodeType);
   const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions);
 
-  const onSubmit = async (data: TBondFormFields) => {
+  const onSubmit = async (data: TBondFormFields, cb: (data: TBondArgs) => Promise<void>) => {
     const formattedData = formatData(data);
     const pledge = await majorToMinor(data.amount);
 
-    await bond({ type: data.nodeType, ownerSignature: data.ownerSignature, data: formattedData, pledge })
+    await cb({ type: data.nodeType, ownerSignature: data.ownerSignature, data: formattedData, pledge })
       .then(async () => {
-        await getBondDetails();
-        userBalance.fetchBalance();
+        if (data.tokenPool === 'balance') {
+          await userBalance.fetchBalance();
+        } else {
+          await userBalance.fetchTokenAllocation();
+        }
         onSuccess({ address: data.identityKey, amount: data.amount });
       })
       .catch((e) => {
@@ -173,6 +182,12 @@ export const BondForm = ({
               disabled={disabled}
             />
           </Grid>
+
+          {userBalance.originalVesting && (
+            <Grid item xs={12} sm={6}>
+              <TokenPoolSelector onSelect={(pool) => setValue('tokenPool', pool)} disabled={disabled} />
+            </Grid>
+          )}
 
           <Grid item xs={12} sm={6}>
             <TextField
@@ -348,7 +363,7 @@ export const BondForm = ({
               )}
             </>
           )}
-          <Grid item>
+          <Grid item xs={12}>
             {!disabled ? <Fee feeType={EnumNodeType.mixnode ? 'BondMixnode' : 'BondGateway'} /> : <div />}
           </Grid>
         </Grid>
@@ -369,7 +384,7 @@ export const BondForm = ({
           type="submit"
           data-testid="submit-button"
           disableElevation
-          onClick={handleSubmit(onSubmit)}
+          onClick={handleSubmit((data) => onSubmit(data, data.tokenPool === 'balance' ? bond : vestingBond))}
           endIcon={isSubmitting && <CircularProgress size={20} />}
           size="large"
         >

@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
+import { NymLogo } from '@nymproject/react';
 import { CircularProgress, Stack, Box } from '@mui/material';
 import { ExistingAccount, WelcomeContent } from './pages';
-import { NymLogo } from '@nymproject/react';
 import { TPages } from './types';
 import { RenderPage } from './components';
 import { CreateAccountContent } from './_legacy_create-account';

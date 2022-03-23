@@ -11,6 +11,7 @@ import {
   getCurrentVestingPeriod,
   getVestingAccountInfo,
 } from '../requests';
+import { Console } from '../utils/console';
 
 type TTokenAllocation = {
   [key in 'vesting' | 'vested' | 'locked' | 'spendable']: Coin['amount'];
@@ -59,8 +60,8 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
           getOriginalVesting(address),
           getVestingCoins(address),
           getVestedCoins(address),
-          getLockedCoins(address),
-          getSpendableCoins(address),
+          getLockedCoins(),
+          getSpendableCoins(),
           getCurrentVestingPeriod(address),
           getVestingAccountInfo(address),
         ]);
@@ -76,7 +77,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
       } catch (e) {
         clearTokenAllocation();
         clearOriginalVesting();
-        console.error(e);
+        Console.error(e as string);
       }
     }
     setIsLoading(false);
@@ -103,10 +104,10 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     clearOriginalVesting();
   };
 
-  const handleRefresh = (addr?: string) => {
+  const handleRefresh = async (addr?: string) => {
     if (addr) {
-      fetchBalance();
-      fetchTokenAllocation();
+      await fetchBalance();
+      await fetchTokenAllocation();
     } else {
       clearAll();
     }

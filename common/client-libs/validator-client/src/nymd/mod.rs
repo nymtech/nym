@@ -424,7 +424,7 @@ impl<C> NymdClient<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetRewardPool {};
+        let request = QueryMsg::GetEpochsInInterval {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await

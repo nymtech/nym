@@ -36,6 +36,7 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       mixnet::account::connect_with_mnemonic,
       mixnet::account::create_new_account,
+      mixnet::account::create_new_mnemonic,
       mixnet::account::get_balance,
       mixnet::account::logout,
       mixnet::account::switch_network,
@@ -73,6 +74,7 @@ fn main() {
       vesting::bond::vesting_unbond_gateway,
       vesting::bond::vesting_unbond_mixnode,
       vesting::bond::withdraw_vested_coins,
+      vesting::bond::vesting_update_mixnode,
       vesting::delegate::vesting_delegate_to_mixnode,
       vesting::delegate::vesting_undelegate_from_mixnode,
       vesting::queries::delegated_free,

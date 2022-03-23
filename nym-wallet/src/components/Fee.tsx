@@ -20,7 +20,7 @@ export const Fee = ({ feeType }: { feeType: Operation }) => {
   if (fee) {
     return (
       <Typography sx={{ color: 'nym.fee', fontWeight: 600 }}>
-        Fee for this transaction: {`${fee} ${currency?.major}`}{' '}
+        Estimated fee for this transaction: {`${fee} ${currency?.major}`}{' '}
       </Typography>
     );
   }

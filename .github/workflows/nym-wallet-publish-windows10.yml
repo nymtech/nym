@@ -44,7 +44,7 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: yarn && yarn build
 
-      - name: Upload to release based on tag name
-        uses: softprops/action-gh-release@v1
-        with:
-          files: nym-wallet/target/release/bundle/msi/*.msi
+#       - name: Upload to release based on tag name
+#         uses: softprops/action-gh-release@v1
+#         with:
+#           files: nym-wallet/target/release/bundle/msi/*.msi

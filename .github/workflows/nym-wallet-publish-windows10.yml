@@ -17,6 +17,8 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Clean up first
+        continue-on-error: true
+        working-directory: .
         run: |
           cd ..
           del /s /q /A:H nym

@@ -1,7 +1,7 @@
 name: Publish Nym Wallet (Windows 10)
-on: [push, workflow_dispatch]
-#   release:
-#     types: [created]
+on:
+  release:
+    types: [created]
 
 defaults:
   run:
@@ -18,12 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-#      - name: Check the release tag starts with `nym-wallet-`
-#        if: startsWith(github.ref, 'refs/tags/nym-wallet-') == false
-#        uses: actions/github-script@v3
-#        with:
-#          script: |
-#            core.setFailed('Release tag did not start with nym-wallet-...')
+      - name: Check the release tag starts with `nym-wallet-`
+        if: startsWith(github.ref, 'refs/tags/nym-wallet-') == false
+        uses: actions/github-script@v3
+        with:
+          script: |
+            core.setFailed('Release tag did not start with nym-wallet-...')
 
       - name: Import signing certificate
         env:
@@ -57,7 +57,7 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: yarn build
 
-#       - name: Upload to release based on tag name
-#         uses: softprops/action-gh-release@v1
-#         with:
-#           files: nym-wallet/target/release/bundle/msi/*.msi
+      - name: Upload to release based on tag name
+        uses: softprops/action-gh-release@v1
+        with:
+          files: nym-wallet/target/release/bundle/msi/*.msi

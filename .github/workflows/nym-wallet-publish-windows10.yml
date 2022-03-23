@@ -41,6 +41,11 @@ jobs:
         with:
           node-version: 16.x
 
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
       - name: Install app dependencies
         run: yarn
 

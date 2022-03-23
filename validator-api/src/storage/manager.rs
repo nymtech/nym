@@ -169,9 +169,9 @@ impl StorageManager {
         // filter out nodes with valid uptime (in theory all should be 100% valid since we insert them ourselves, but
         // better safe than sorry and not use an unwrap)
         .filter_map(|row| {
-            Uptime::try_from(row.uptime)
+            Uptime::try_from(row.uptime.unwrap_or_default())
                 .map(|uptime| HistoricalUptime {
-                    date: row.date,
+                    date: row.date.unwrap_or_default(),
                     uptime,
                 })
                 .ok()
@@ -207,9 +207,9 @@ impl StorageManager {
         // filter out nodes with valid uptime (in theory all should be 100% valid since we insert them ourselves, but
         // better safe than sorry and not use an unwrap)
         .filter_map(|row| {
-            Uptime::try_from(row.uptime)
+            Uptime::try_from(row.uptime.unwrap_or_default())
                 .map(|uptime| HistoricalUptime {
-                    date: row.date,
+                    date: row.date.unwrap_or_default(),
                     uptime,
                 })
                 .ok()

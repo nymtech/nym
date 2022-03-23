@@ -48,20 +48,20 @@ impl NodeUptimes {
             last_day
                 .iter()
                 .take(last_day_test_runs)
-                .map(|report| report.reliability as f32)
+                .map(|report| report.reliability() as f32)
                 .sum()
         } else {
             // we average over expected number of test runs so if a node was not online for some of them
             // it's treated as if it had a "zero" status.
             last_day
                 .iter()
-                .map(|report| report.reliability as f32)
+                .map(|report| report.reliability() as f32)
                 .sum()
         };
 
         let last_hour_reports = last_day
             .iter()
-            .filter(|report| report.timestamp >= hour_ago)
+            .filter(|report| report.timestamp() >= hour_ago)
             .count();
 
         let last_hour_sum: f32 = if last_hour_reports > last_hour_test_runs {
@@ -72,25 +72,25 @@ impl NodeUptimes {
             );
             last_day
                 .iter()
-                .filter(|report| report.timestamp >= hour_ago)
+                .filter(|report| report.timestamp() >= hour_ago)
                 .take(last_hour_test_runs)
-                .map(|report| report.reliability as f32)
+                .map(|report| report.reliability() as f32)
                 .sum()
         } else {
             last_day
                 .iter()
-                .filter(|report| report.timestamp >= hour_ago)
-                .map(|report| report.reliability as f32)
+                .filter(|report| report.timestamp() >= hour_ago)
+                .map(|report| report.reliability() as f32)
                 .sum()
         };
 
         // find the most recent
-        let most_recent_report = last_day.iter().max_by_key(|report| report.timestamp);
+        let most_recent_report = last_day.iter().max_by_key(|report| report.timestamp());
 
         let most_recent = if let Some(most_recent_report) = most_recent_report {
             // make sure its within last 15min
-            if most_recent_report.timestamp >= fifteen_minutes_ago {
-                most_recent_report.reliability
+            if most_recent_report.timestamp() >= fifteen_minutes_ago {
+                most_recent_report.reliability()
             } else {
                 0
             }

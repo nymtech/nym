@@ -3,15 +3,11 @@
 
 use super::InternalSignRequest;
 use crate::coconut::error::{CoconutError, Result};
-use coconut_bandwidth_contract::events::{
-    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_INFO, DEPOSIT_VALUE,
-    DEPOSIT_VERIFICATION_KEY,
-};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use config::defaults::VOUCHER_INFO;
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use nymcoconut::{prepare_blind_sign, ttp_keygen, Base58, KeyPair, Parameters};
-use validator_client::nymd::{tx::Hash, DeliverTx, Event, Tag, TxResponse};
+use validator_client::nymd::{tx::Hash, DeliverTx, TxResponse};
 use validator_client::validator_api::routes::{
     API_VERSION, COCONUT_BLIND_SIGN, COCONUT_VERIFICATION_KEY,
 };
@@ -46,7 +42,7 @@ impl super::client::Client for DummyClient {
     }
 }
 
-fn tx_entry_fixture(tx_hash: &str) -> TxResponse {
+pub fn tx_entry_fixture(tx_hash: &str) -> TxResponse {
     TxResponse {
         hash: Hash::from_str(tx_hash).unwrap(),
         height: Default::default(),
@@ -88,19 +84,6 @@ fn check_signer_verif_key(key_pair: KeyPair) {
     assert_eq!(verification_key_response.key, verification_key);
 }
 
-fn post_and_check_error(
-    client: &Client,
-    request_body: BlindSignRequestBody,
-    expected_error: String,
-) {
-    let response = client
-        .post(format!("/{}/{}", API_VERSION, COCONUT_BLIND_SIGN))
-        .json(&request_body)
-        .dispatch();
-    assert_eq!(response.status(), Status::BadRequest);
-    assert_eq!(response.into_string().unwrap(), expected_error);
-}
-
 #[test]
 fn multiple_verification_key() {
     let params = Parameters::new(4).unwrap();
@@ -113,9 +96,9 @@ fn multiple_verification_key() {
 }
 
 #[test]
-fn blind_sign() {
+fn signed_before() {
     let tx_hash = String::from("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E");
-    let mut tx_entry = tx_entry_fixture(&tx_hash);
+    let tx_entry = tx_entry_fixture(&tx_hash);
     let signature = String::from(
         "2DHbEZ6pzToGpsAXJrqJi7Wj1pAXeT18283q2YEEyNH5gTymwRozWBdja6SMAVt1dyYmUnM4ZNhsJ4wxZyGh4Z6J",
     );
@@ -155,268 +138,6 @@ fn blind_sign() {
         db.clone(),
     ));
     let client = Client::tracked(rocket).expect("valid rocket instance");
-
-    post_and_check_error(
-        &client,
-        BlindSignRequestBody::new(
-            &blind_sign_req,
-            tx_hash.clone(),
-            signature.clone(),
-            &voucher.get_public_attributes(),
-            vec![
-                String::from("First wrong plain"),
-                String::from("Second wrong plain"),
-            ],
-            4,
-        ),
-        CoconutError::InconsistentPublicAttributes.to_string(),
-    );
-    post_and_check_error(
-        &client,
-        BlindSignRequestBody::new(
-            &blind_sign_req,
-            tx_hash.clone(),
-            String::from("Invalid signature"),
-            &voucher.get_public_attributes(),
-            voucher.get_public_attributes_plain(),
-            4,
-        ),
-        CoconutError::Ed25519ParseError(
-            // this is really just a useless, dummy error value needed to generate the error type
-            // and get its string representation
-            crypto::asymmetric::identity::Ed25519RecoveryError::MalformedBytes(
-                crypto::asymmetric::identity::SignatureError::new(),
-            ),
-        )
-        .to_string(),
-    );
-
-    let correct_request = BlindSignRequestBody::new(
-        &blind_sign_req,
-        tx_hash.clone(),
-        signature.clone(),
-        &voucher.get_public_attributes(),
-        voucher.get_public_attributes_plain(),
-        4,
-    );
-    post_and_check_error(
-        &client,
-        correct_request.clone(),
-        CoconutError::DepositEventNotFound.to_string(),
-    );
-
-    tx_entry.tx_result.events.push(Event {
-        type_str: format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE),
-        attributes: vec![],
-    });
-    nymd_db
-        .write()
-        .unwrap()
-        .insert(tx_hash.clone(), tx_entry.clone());
-    post_and_check_error(
-        &client,
-        correct_request.clone(),
-        CoconutError::DepositValueNotFound.to_string(),
-    );
-
-    tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![Tag {
-        key: DEPOSIT_VALUE.parse().unwrap(),
-        value: "10".parse().unwrap(),
-    }];
-    nymd_db
-        .write()
-        .unwrap()
-        .insert(tx_hash.clone(), tx_entry.clone());
-    post_and_check_error(
-        &client,
-        correct_request.clone(),
-        CoconutError::DifferentPublicAttributes(10.to_string(), 1234.to_string()).to_string(),
-    );
-
-    tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![Tag {
-        key: DEPOSIT_VALUE.parse().unwrap(),
-        value: "1234".parse().unwrap(),
-    }];
-    nymd_db
-        .write()
-        .unwrap()
-        .insert(tx_hash.clone(), tx_entry.clone());
-    post_and_check_error(
-        &client,
-        correct_request.clone(),
-        CoconutError::DepositInfoNotFound.to_string(),
-    );
-
-    tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-        Tag {
-            key: DEPOSIT_VALUE.parse().unwrap(),
-            value: "1234".parse().unwrap(),
-        },
-        Tag {
-            key: DEPOSIT_INFO.parse().unwrap(),
-            value: "bandwidth deposit info".parse().unwrap(),
-        },
-    ];
-    nymd_db
-        .write()
-        .unwrap()
-        .insert(tx_hash.clone(), tx_entry.clone());
-    post_and_check_error(
-        &client,
-        correct_request.clone(),
-        CoconutError::DifferentPublicAttributes(
-            "bandwidth deposit info".to_string(),
-            VOUCHER_INFO.to_string(),
-        )
-        .to_string(),
-    );
-
-    tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-        Tag {
-            key: DEPOSIT_VALUE.parse().unwrap(),
-            value: "1234".parse().unwrap(),
-        },
-        Tag {
-            key: DEPOSIT_INFO.parse().unwrap(),
-            value: VOUCHER_INFO.parse().unwrap(),
-        },
-    ];
-    nymd_db
-        .write()
-        .unwrap()
-        .insert(tx_hash.clone(), tx_entry.clone());
-    post_and_check_error(
-        &client,
-        correct_request.clone(),
-        CoconutError::DepositVerifKeyNotFound.to_string(),
-    );
-
-    tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-        Tag {
-            key: DEPOSIT_VALUE.parse().unwrap(),
-            value: "1234".parse().unwrap(),
-        },
-        Tag {
-            key: DEPOSIT_INFO.parse().unwrap(),
-            value: VOUCHER_INFO.parse().unwrap(),
-        },
-        Tag {
-            key: DEPOSIT_VERIFICATION_KEY.parse().unwrap(),
-            value: "verification key".parse().unwrap(),
-        },
-    ];
-    nymd_db
-        .write()
-        .unwrap()
-        .insert(tx_hash.clone(), tx_entry.clone());
-    post_and_check_error(
-        &client,
-        correct_request.clone(),
-        CoconutError::Ed25519ParseError(
-            // this is really just a useless, dummy error value needed to generate the error type
-            // and get its string representation
-            crypto::asymmetric::identity::Ed25519RecoveryError::MalformedBytes(
-                crypto::asymmetric::identity::SignatureError::new(),
-            ),
-        )
-        .to_string(),
-    );
-
-    tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-        Tag {
-            key: DEPOSIT_VALUE.parse().unwrap(),
-            value: "1234".parse().unwrap(),
-        },
-        Tag {
-            key: DEPOSIT_INFO.parse().unwrap(),
-            value: VOUCHER_INFO.parse().unwrap(),
-        },
-        Tag {
-            key: DEPOSIT_VERIFICATION_KEY.parse().unwrap(),
-            value: "2eSxwquNJb2nZTEW5p4rbqjHfBaz9UaNhjHHiexPN4He"
-                .parse()
-                .unwrap(),
-        },
-    ];
-    nymd_db
-        .write()
-        .unwrap()
-        .insert(tx_hash.clone(), tx_entry.clone());
-    post_and_check_error(
-        &client,
-        correct_request.clone(),
-        CoconutError::DepositEncrKeyNotFound.to_string(),
-    );
-
-    tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-        Tag {
-            key: DEPOSIT_VALUE.parse().unwrap(),
-            value: "1234".parse().unwrap(),
-        },
-        Tag {
-            key: DEPOSIT_INFO.parse().unwrap(),
-            value: VOUCHER_INFO.parse().unwrap(),
-        },
-        Tag {
-            key: DEPOSIT_VERIFICATION_KEY.parse().unwrap(),
-            value: "6EJGMdEq7t8Npz54uPkftGsdmj7DKntLVputAnDfVZB2"
-                .parse()
-                .unwrap(),
-        },
-        Tag {
-            key: DEPOSIT_ENCRYPTION_KEY.parse().unwrap(),
-            value: "encryption key".parse().unwrap(),
-        },
-    ];
-    nymd_db
-        .write()
-        .unwrap()
-        .insert(tx_hash.clone(), tx_entry.clone());
-    post_and_check_error(
-        &client,
-        correct_request.clone(),
-        CoconutError::X25519ParseError(
-            // this is really just a useless, dummy error value needed to generate the error type
-            // and get its string representation
-            crypto::asymmetric::encryption::KeyRecoveryError::InvalidPublicKeyBytes,
-        )
-        .to_string(),
-    );
-
-    tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-        Tag {
-            key: DEPOSIT_VALUE.parse().unwrap(),
-            value: "1234".parse().unwrap(),
-        },
-        Tag {
-            key: DEPOSIT_INFO.parse().unwrap(),
-            value: VOUCHER_INFO.parse().unwrap(),
-        },
-        Tag {
-            key: DEPOSIT_VERIFICATION_KEY.parse().unwrap(),
-            value: "6EJGMdEq7t8Npz54uPkftGsdmj7DKntLVputAnDfVZB2"
-                .parse()
-                .unwrap(),
-        },
-        Tag {
-            key: DEPOSIT_ENCRYPTION_KEY.parse().unwrap(),
-            value: "6EJGMdEq7t8Npz54uPkftGsdmj7DKntLVputAnDfVZB2"
-                .parse()
-                .unwrap(),
-        },
-    ];
-    nymd_db
-        .write()
-        .unwrap()
-        .insert(tx_hash.clone(), tx_entry.clone());
-    post_and_check_error(
-        &client,
-        correct_request.clone(),
-        CoconutError::SignatureVerificationError(
-            crypto::asymmetric::identity::SignatureError::default(),
-        )
-        .to_string(),
-    );
 
     let request_body = BlindSignRequestBody::new(
         &blind_sign_req,

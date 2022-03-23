@@ -77,7 +77,7 @@ module.exports = (baseDir, htmlPath) => ({
     }),
 
     new WebpackFavicons({
-      src: path.resolve(__dirname, '../../assets/favicon/favicon.svg'), // the asset directory is relative to THIS file
+      src: path.resolve(__dirname, '../../assets/favicon/favicon.png'), // the asset directory is relative to THIS file
     }),
 
     new Dotenv(),

@@ -36,14 +36,14 @@ pub async fn extract_encryption_key(
         .events
         .iter()
         .find(|event| event.type_str == format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE))
-        .ok_or(CoconutError::InvalidTx)?
+        .ok_or(CoconutError::DepositEventNotFound)?
         .attributes
         .as_ref();
 
     let deposit_value = attributes
         .iter()
         .find(|tag| tag.key.as_ref() == DEPOSIT_VALUE)
-        .ok_or(CoconutError::InvalidTx)?
+        .ok_or(CoconutError::DepositValueNotFound)?
         .value
         .as_ref();
     let deposit_value_plain = public_attributes_plain.get(0).cloned().unwrap_or_default();
@@ -57,7 +57,7 @@ pub async fn extract_encryption_key(
     let deposit_info = attributes
         .iter()
         .find(|tag| tag.key.as_ref() == DEPOSIT_INFO)
-        .ok_or(CoconutError::InvalidTx)?
+        .ok_or(CoconutError::DepositInfoNotFound)?
         .value
         .as_ref();
     let deposit_info_plain = public_attributes_plain.get(1).cloned().unwrap_or_default();
@@ -72,20 +72,21 @@ pub async fn extract_encryption_key(
         attributes
             .iter()
             .find(|tag| tag.key.as_ref() == DEPOSIT_VERIFICATION_KEY)
-            .ok_or(CoconutError::InvalidTx)?
+            .ok_or(CoconutError::DepositVerifKeyNotFound)?
             .value
             .as_ref(),
     )?;
-    verification_key.verify(&message, &signature)?;
 
     let encryption_key = encryption::PublicKey::from_base58_string(
         attributes
             .iter()
             .find(|tag| tag.key.as_ref() == DEPOSIT_ENCRYPTION_KEY)
-            .ok_or(CoconutError::InvalidTx)?
+            .ok_or(CoconutError::DepositEncrKeyNotFound)?
             .value
             .as_ref(),
     )?;
+
+    verification_key.verify(&message, &signature)?;
 
     Ok(encryption_key)
 }

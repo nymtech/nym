@@ -79,7 +79,7 @@ impl VerifyCredentialBody {
     }
 }
 //  All strings are base58 encoded representations of structs
-#[derive(Serialize, Deserialize, Debug, Getters, CopyGetters)]
+#[derive(Clone, Serialize, Deserialize, Debug, Getters, CopyGetters)]
 pub struct BlindSignRequestBody {
     #[getset(get = "pub")]
     blind_sign_request: BlindSignRequest,

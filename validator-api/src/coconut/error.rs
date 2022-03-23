@@ -29,10 +29,22 @@ pub enum CoconutError {
     #[error("Nymd error - {0}")]
     NymdError(#[from] NymdError),
 
-    #[error("Invalid tx provided")]
-    InvalidTx,
+    #[error("Could not find a deposit event in the transaction provided")]
+    DepositEventNotFound,
 
-    #[error("Signature didn't verify correctly = {0}")]
+    #[error("Could not find the deposit value in the event")]
+    DepositValueNotFound,
+
+    #[error("Could not find the deposit info in the event")]
+    DepositInfoNotFound,
+
+    #[error("Could not find the verification key in the event")]
+    DepositVerifKeyNotFound,
+
+    #[error("Could not find the encryption key in the event")]
+    DepositEncrKeyNotFound,
+
+    #[error("Signature didn't verify correctly")]
     SignatureVerificationError(#[from] SignatureError),
 
     #[error("Inconsistent public attributes")]

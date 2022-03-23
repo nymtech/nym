@@ -123,3 +123,13 @@ pub struct Wallet {
     v: Scalar,
     idx: Option<SignerIndex>,
 }
+
+impl Wallet {
+    pub fn signature(&self) -> &Signature { &self.sig }
+    pub fn v(&self) -> Scalar {
+        self.v
+    }
+    pub fn index(&self) -> Option<SignerIndex> {
+        self.idx
+    }
+}

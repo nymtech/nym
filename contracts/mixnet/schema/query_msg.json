@@ -1,7 +1,19 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "QueryMsg",
-  "anyOf": [
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "get_contract_version"
+      ],
+      "properties": {
+        "get_contract_version": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
     {
       "type": "object",
       "required": [
@@ -71,7 +83,7 @@
           ],
           "properties": {
             "address": {
-              "$ref": "#/definitions/Addr"
+              "type": "string"
             }
           }
         }
@@ -91,7 +103,7 @@
           ],
           "properties": {
             "address": {
-              "$ref": "#/definitions/Addr"
+              "type": "string"
             }
           }
         }
@@ -101,10 +113,10 @@
     {
       "type": "object",
       "required": [
-        "contract_settings_params"
+        "state_params"
       ],
       "properties": {
-        "contract_settings_params": {
+        "state_params": {
           "type": "object"
         }
       },
@@ -113,10 +125,58 @@
     {
       "type": "object",
       "required": [
-        "get_mix_delegations"
+        "get_all_network_delegations"
       ],
       "properties": {
-        "get_mix_delegations": {
+        "get_all_network_delegations": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "uint8",
+                    "minimum": 0.0
+                  }
+                },
+                {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              ],
+              "maxItems": 3,
+              "minItems": 3
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_mixnode_delegations"
+      ],
+      "properties": {
+        "get_mixnode_delegations": {
           "type": "object",
           "required": [
             "mix_identity"
@@ -134,14 +194,22 @@
               "type": "string"
             },
             "start_after": {
-              "anyOf": [
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": [
                 {
-                  "$ref": "#/definitions/Addr"
+                  "type": "string"
                 },
                 {
-                  "type": "null"
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
                 }
-              ]
+              ],
+              "maxItems": 2,
+              "minItems": 2
             }
           }
         }
@@ -151,17 +219,17 @@
     {
       "type": "object",
       "required": [
-        "get_reverse_mix_delegations"
+        "get_delegator_delegations"
       ],
       "properties": {
-        "get_reverse_mix_delegations": {
+        "get_delegator_delegations": {
           "type": "object",
           "required": [
-            "delegation_owner"
+            "delegator"
           ],
           "properties": {
-            "delegation_owner": {
-              "$ref": "#/definitions/Addr"
+            "delegator": {
+              "type": "string"
             },
             "limit": {
               "type": [
@@ -185,116 +253,20 @@
     {
       "type": "object",
       "required": [
-        "get_mix_delegation"
+        "get_delegation_details"
       ],
       "properties": {
-        "get_mix_delegation": {
+        "get_delegation_details": {
           "type": "object",
           "required": [
-            "address",
+            "delegator",
             "mix_identity"
           ],
           "properties": {
-            "address": {
-              "$ref": "#/definitions/Addr"
+            "delegator": {
+              "type": "string"
             },
             "mix_identity": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "get_gateway_delegations"
-      ],
-      "properties": {
-        "get_gateway_delegations": {
-          "type": "object",
-          "required": [
-            "gateway_identity"
-          ],
-          "properties": {
-            "gateway_identity": {
-              "type": "string"
-            },
-            "limit": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint32",
-              "minimum": 0.0
-            },
-            "start_after": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/Addr"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "get_reverse_gateway_delegations"
-      ],
-      "properties": {
-        "get_reverse_gateway_delegations": {
-          "type": "object",
-          "required": [
-            "delegation_owner"
-          ],
-          "properties": {
-            "delegation_owner": {
-              "$ref": "#/definitions/Addr"
-            },
-            "limit": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint32",
-              "minimum": 0.0
-            },
-            "start_after": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "get_gateway_delegation"
-      ],
-      "properties": {
-        "get_gateway_delegation": {
-          "type": "object",
-          "required": [
-            "address",
-            "gateway_identity"
-          ],
-          "properties": {
-            "address": {
-              "$ref": "#/definitions/Addr"
-            },
-            "gateway_identity": {
               "type": "string"
             }
           }
@@ -313,12 +285,252 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_reward_pool"
+      ],
+      "properties": {
+        "get_reward_pool": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_circulating_supply"
+      ],
+      "properties": {
+        "get_circulating_supply": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_interval_reward_percent"
+      ],
+      "properties": {
+        "get_interval_reward_percent": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_sybil_resistance_percent"
+      ],
+      "properties": {
+        "get_sybil_resistance_percent": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_active_set_work_factor"
+      ],
+      "properties": {
+        "get_active_set_work_factor": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_rewarding_status"
+      ],
+      "properties": {
+        "get_rewarding_status": {
+          "type": "object",
+          "required": [
+            "interval_id",
+            "mix_identity"
+          ],
+          "properties": {
+            "interval_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "mix_identity": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_rewarded_set"
+      ],
+      "properties": {
+        "get_rewarded_set": {
+          "type": "object",
+          "properties": {
+            "height": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_rewarded_set_update_details"
+      ],
+      "properties": {
+        "get_rewarded_set_update_details": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_current_rewarded_set_height"
+      ],
+      "properties": {
+        "get_current_rewarded_set_height": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_rewarded_set_refresh_blocks"
+      ],
+      "properties": {
+        "get_rewarded_set_refresh_blocks": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_current_epoch"
+      ],
+      "properties": {
+        "get_current_epoch": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_epochs_in_interval"
+      ],
+      "properties": {
+        "get_epochs_in_interval": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "query_operator_reward"
+      ],
+      "properties": {
+        "query_operator_reward": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "query_delegator_reward"
+      ],
+      "properties": {
+        "query_delegator_reward": {
+          "type": "object",
+          "required": [
+            "address",
+            "mix_identity"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "mix_identity": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_pending_delegation_events"
+      ],
+      "properties": {
+        "get_pending_delegation_events": {
+          "type": "object",
+          "required": [
+            "owner_address"
+          ],
+          "properties": {
+            "owner_address": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
     }
-  ],
-  "definitions": {
-    "Addr": {
-      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
-      "type": "string"
-    }
-  }
+  ]
 }

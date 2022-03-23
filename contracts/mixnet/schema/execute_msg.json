@@ -1,7 +1,107 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ExecuteMsg",
-  "anyOf": [
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "reconcile_delegations"
+      ],
+      "properties": {
+        "reconcile_delegations": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "checkpoint_mixnodes"
+      ],
+      "properties": {
+        "checkpoint_mixnodes": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "compound_operator_reward_on_behalf"
+      ],
+      "properties": {
+        "compound_operator_reward_on_behalf": {
+          "type": "object",
+          "required": [
+            "owner"
+          ],
+          "properties": {
+            "owner": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "compound_delegator_reward_on_behalf"
+      ],
+      "properties": {
+        "compound_delegator_reward_on_behalf": {
+          "type": "object",
+          "required": [
+            "mix_identity",
+            "owner"
+          ],
+          "properties": {
+            "mix_identity": {
+              "type": "string"
+            },
+            "owner": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "compound_operator_reward"
+      ],
+      "properties": {
+        "compound_operator_reward": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "compound_delegator_reward"
+      ],
+      "properties": {
+        "compound_delegator_reward": {
+          "type": "object",
+          "required": [
+            "mix_identity"
+          ],
+          "properties": {
+            "mix_identity": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     {
       "type": "object",
       "required": [
@@ -11,11 +111,15 @@
         "bond_mixnode": {
           "type": "object",
           "required": [
-            "mix_node"
+            "mix_node",
+            "owner_signature"
           ],
           "properties": {
             "mix_node": {
               "$ref": "#/definitions/MixNode"
+            },
+            "owner_signature": {
+              "type": "string"
             }
           }
         }
@@ -37,17 +141,69 @@
     {
       "type": "object",
       "required": [
+        "update_mixnode_config"
+      ],
+      "properties": {
+        "update_mixnode_config": {
+          "type": "object",
+          "required": [
+            "profit_margin_percent"
+          ],
+          "properties": {
+            "profit_margin_percent": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "update_mixnode_config_on_behalf"
+      ],
+      "properties": {
+        "update_mixnode_config_on_behalf": {
+          "type": "object",
+          "required": [
+            "owner",
+            "profit_margin_percent"
+          ],
+          "properties": {
+            "owner": {
+              "type": "string"
+            },
+            "profit_margin_percent": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "bond_gateway"
       ],
       "properties": {
         "bond_gateway": {
           "type": "object",
           "required": [
-            "gateway"
+            "gateway",
+            "owner_signature"
           ],
           "properties": {
             "gateway": {
               "$ref": "#/definitions/Gateway"
+            },
+            "owner_signature": {
+              "type": "string"
             }
           }
         }
@@ -69,11 +225,11 @@
     {
       "type": "object",
       "required": [
-        "update_contract_settings"
+        "update_contract_state_params"
       ],
       "properties": {
-        "update_contract_settings": {
-          "$ref": "#/definitions/StateParams"
+        "update_contract_state_params": {
+          "$ref": "#/definitions/ContractStateParams"
         }
       },
       "additionalProperties": false
@@ -121,46 +277,6 @@
     {
       "type": "object",
       "required": [
-        "delegate_to_gateway"
-      ],
-      "properties": {
-        "delegate_to_gateway": {
-          "type": "object",
-          "required": [
-            "gateway_identity"
-          ],
-          "properties": {
-            "gateway_identity": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "undelegate_from_gateway"
-      ],
-      "properties": {
-        "undelegate_from_gateway": {
-          "type": "object",
-          "required": [
-            "gateway_identity"
-          ],
-          "properties": {
-            "gateway_identity": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
         "reward_mixnode"
       ],
       "properties": {
@@ -168,16 +284,14 @@
           "type": "object",
           "required": [
             "identity",
-            "uptime"
+            "params"
           ],
           "properties": {
             "identity": {
               "type": "string"
             },
-            "uptime": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
+            "params": {
+              "$ref": "#/definitions/NodeRewardParams"
             }
           }
         }
@@ -187,34 +301,216 @@
     {
       "type": "object",
       "required": [
-        "reward_gateway"
+        "delegate_to_mixnode_on_behalf"
       ],
       "properties": {
-        "reward_gateway": {
+        "delegate_to_mixnode_on_behalf": {
           "type": "object",
           "required": [
-            "identity",
-            "uptime"
+            "delegate",
+            "mix_identity"
           ],
           "properties": {
-            "identity": {
+            "delegate": {
               "type": "string"
             },
-            "uptime": {
+            "mix_identity": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "undelegate_from_mixnode_on_behalf"
+      ],
+      "properties": {
+        "undelegate_from_mixnode_on_behalf": {
+          "type": "object",
+          "required": [
+            "delegate",
+            "mix_identity"
+          ],
+          "properties": {
+            "delegate": {
+              "type": "string"
+            },
+            "mix_identity": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "bond_mixnode_on_behalf"
+      ],
+      "properties": {
+        "bond_mixnode_on_behalf": {
+          "type": "object",
+          "required": [
+            "mix_node",
+            "owner",
+            "owner_signature"
+          ],
+          "properties": {
+            "mix_node": {
+              "$ref": "#/definitions/MixNode"
+            },
+            "owner": {
+              "type": "string"
+            },
+            "owner_signature": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "unbond_mixnode_on_behalf"
+      ],
+      "properties": {
+        "unbond_mixnode_on_behalf": {
+          "type": "object",
+          "required": [
+            "owner"
+          ],
+          "properties": {
+            "owner": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "bond_gateway_on_behalf"
+      ],
+      "properties": {
+        "bond_gateway_on_behalf": {
+          "type": "object",
+          "required": [
+            "gateway",
+            "owner",
+            "owner_signature"
+          ],
+          "properties": {
+            "gateway": {
+              "$ref": "#/definitions/Gateway"
+            },
+            "owner": {
+              "type": "string"
+            },
+            "owner_signature": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "unbond_gateway_on_behalf"
+      ],
+      "properties": {
+        "unbond_gateway_on_behalf": {
+          "type": "object",
+          "required": [
+            "owner"
+          ],
+          "properties": {
+            "owner": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "write_rewarded_set"
+      ],
+      "properties": {
+        "write_rewarded_set": {
+          "type": "object",
+          "required": [
+            "expected_active_set_size",
+            "rewarded_set"
+          ],
+          "properties": {
+            "expected_active_set_size": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
+            },
+            "rewarded_set": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "advance_current_epoch"
+      ],
+      "properties": {
+        "advance_current_epoch": {
+          "type": "object"
         }
       },
       "additionalProperties": false
     }
   ],
   "definitions": {
-    "Decimal": {
-      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
-      "type": "string"
+    "ContractStateParams": {
+      "type": "object",
+      "required": [
+        "minimum_gateway_pledge",
+        "minimum_mixnode_pledge",
+        "mixnode_active_set_size",
+        "mixnode_rewarded_set_size"
+      ],
+      "properties": {
+        "minimum_gateway_pledge": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "minimum_mixnode_pledge": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "mixnode_active_set_size": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "mixnode_rewarded_set_size": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      }
     },
     "Gateway": {
       "type": "object",
@@ -263,6 +559,7 @@
         "http_api_port",
         "identity_key",
         "mix_port",
+        "profit_margin_percent",
         "sphinx_key",
         "verloc_port",
         "version"
@@ -285,6 +582,11 @@
           "format": "uint16",
           "minimum": 0.0
         },
+        "profit_margin_percent": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
         "sphinx_key": {
           "type": "string"
         },
@@ -298,46 +600,24 @@
         }
       }
     },
-    "StateParams": {
+    "NodeRewardParams": {
       "type": "object",
       "required": [
-        "epoch_length",
-        "gateway_bond_reward_rate",
-        "gateway_delegation_reward_rate",
-        "minimum_gateway_bond",
-        "minimum_mixnode_bond",
-        "mixnode_active_set_size",
-        "mixnode_bond_reward_rate",
-        "mixnode_delegation_reward_rate"
+        "in_active_set",
+        "reward_blockstamp",
+        "uptime"
       ],
       "properties": {
-        "epoch_length": {
+        "in_active_set": {
+          "type": "boolean"
+        },
+        "reward_blockstamp": {
           "type": "integer",
-          "format": "uint32",
+          "format": "uint64",
           "minimum": 0.0
         },
-        "gateway_bond_reward_rate": {
-          "$ref": "#/definitions/Decimal"
-        },
-        "gateway_delegation_reward_rate": {
-          "$ref": "#/definitions/Decimal"
-        },
-        "minimum_gateway_bond": {
+        "uptime": {
           "$ref": "#/definitions/Uint128"
-        },
-        "minimum_mixnode_bond": {
-          "$ref": "#/definitions/Uint128"
-        },
-        "mixnode_active_set_size": {
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
-        },
-        "mixnode_bond_reward_rate": {
-          "$ref": "#/definitions/Decimal"
-        },
-        "mixnode_delegation_reward_rate": {
-          "$ref": "#/definitions/Decimal"
         }
       }
     },

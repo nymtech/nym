@@ -72,6 +72,7 @@ impl State {
         };
 
         let chunk_data = signature.to_bytes();
+        println!("Blinded signature bytes {:?}", chunk_data);
 
         let zero_iv = stream_cipher::zero_iv::<ctr::Ctr64LE<Aes128>>();
         let encrypted_data =

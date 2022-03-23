@@ -18,7 +18,7 @@ use nymcoconut::{
 };
 use validator_client::nymd::{tx::Hash, DeliverTx, Event, Tag, TxResponse};
 use validator_client::validator_api::routes::{
-    API_VERSION, COCONUT_BLIND_SIGN, COCONUT_VERIFICATION_KEY,
+    API_VERSION, COCONUT_BLIND_SIGN, COCONUT_SIGNATURE, COCONUT_VERIFICATION_KEY,
 };
 
 use crate::coconut::State;
@@ -386,4 +386,50 @@ fn blind_sign_correct() {
         .dispatch();
     assert_eq!(response.status(), Status::Ok);
     assert!(response.into_json::<BlindedSignatureResponse>().is_some());
+}
+
+#[test]
+fn signature_test() {
+    let tx_hash = String::from("7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B");
+    let params = Parameters::new(4).unwrap();
+
+    let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
+    let mut db_dir = std::env::temp_dir();
+    db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
+    let db = sled::open(db_dir).unwrap();
+    let nymd_db = Arc::new(RwLock::new(HashMap::new()));
+    let nymd_client = DummyClient::new(&nymd_db);
+
+    let rocket = rocket::build().attach(InternalSignRequest::stage(
+        nymd_client,
+        key_pair,
+        db.clone(),
+    ));
+    let client = Client::tracked(rocket).expect("valid rocket instance");
+
+    let response = client
+        .post(format!("/{}/{}", API_VERSION, COCONUT_SIGNATURE))
+        .json(&tx_hash)
+        .dispatch();
+    assert_eq!(response.status(), Status::BadRequest);
+    assert_eq!(
+        response.into_string().unwrap(),
+        CoconutError::NoSignature.to_string()
+    );
+
+    let encrypted_signature = vec![1, 2, 3, 4];
+    let remote_key = [42; 32];
+    let expected_response = BlindedSignatureResponse::new(encrypted_signature, remote_key);
+    db.insert(tx_hash.as_bytes(), expected_response.to_bytes())
+        .unwrap();
+    let response = client
+        .post(format!("/{}/{}", API_VERSION, COCONUT_SIGNATURE))
+        .json(&tx_hash)
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    let blinded_signature_response = response.into_json::<BlindedSignatureResponse>().unwrap();
+    assert_eq!(
+        blinded_signature_response.to_bytes(),
+        expected_response.to_bytes()
+    );
 }

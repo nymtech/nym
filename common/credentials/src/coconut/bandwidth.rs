@@ -159,9 +159,7 @@ impl BandwidthVoucher {
         let private_key = PrivateKey::from_base58_string(&self.signing_key).unwrap();
         let mut message = request.to_bytes();
         message.extend_from_slice(self.tx_hash.as_bytes());
-        let sig = private_key.sign(&message).to_base58_string();
-        println!("Signature {}", sig);
-        sig
+        private_key.sign(&message).to_base58_string()
     }
 }
 

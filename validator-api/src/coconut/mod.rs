@@ -160,7 +160,7 @@ pub async fn post_blind_sign(
         .client
         .read()
         .await
-        .get_tx(&blind_sign_request_body.tx_hash())
+        .get_tx(blind_sign_request_body.tx_hash())
         .await?;
     let encryption_key = extract_encryption_key(&blind_sign_request_body, tx).await?;
     let internal_request = InternalSignRequest::new(

@@ -96,11 +96,11 @@ mod test {
     use super::*;
     use crate::coconut::tests::tx_entry_fixture;
     use config::defaults::VOUCHER_INFO;
-    use nymcoconut::{prepare_blind_sign, Parameters};
+    use nymcoconut::{prepare_blind_sign, BlindSignRequest, Parameters};
     use validator_client::nymd::{Event, Tag};
 
     #[tokio::test]
-    async fn extract_encryption_key_errors() {
+    async fn extract_encryption_key_test() {
         let tx_hash =
             "6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E".to_string();
         let mut tx_entry = tx_entry_fixture(&tx_hash);
@@ -334,6 +334,7 @@ mod test {
             .to_string(),
         );
 
+        let expected_encryption_key = "HxnTpWTkgigSTAysVKLE8pEiUULHdTT1BxFfzfJvQRi6";
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
             Tag {
                 key: DEPOSIT_VALUE.parse().unwrap(),
@@ -351,9 +352,7 @@ mod test {
             },
             Tag {
                 key: DEPOSIT_ENCRYPTION_KEY.parse().unwrap(),
-                value: "6EJGMdEq7t8Npz54uPkftGsdmj7DKntLVputAnDfVZB2"
-                    .parse()
-                    .unwrap(),
+                value: expected_encryption_key.parse().unwrap(),
             },
         ];
         let err = extract_encryption_key(&correct_request, tx_entry.clone())
@@ -366,5 +365,66 @@ mod test {
             )
             .to_string(),
         );
+
+        // hard-coded values, that generate a correct signature
+        let blind_sign_req = BlindSignRequest::from_bytes(&[
+            176, 113, 19, 237, 218, 252, 113, 20, 225, 238, 59, 88, 217, 45, 233, 178, 65, 28, 242,
+            0, 222, 48, 110, 216, 26, 111, 51, 235, 61, 74, 200, 15, 130, 245, 45, 170, 155, 190,
+            156, 77, 180, 142, 29, 63, 15, 224, 150, 31, 139, 24, 65, 175, 143, 153, 11, 203, 33,
+            16, 152, 22, 221, 203, 99, 233, 208, 142, 161, 194, 46, 227, 177, 96, 119, 30, 175, 69,
+            104, 14, 2, 191, 26, 94, 30, 165, 15, 28, 40, 176, 1, 78, 253, 79, 20, 137, 102, 74, 2,
+            0, 0, 0, 0, 0, 0, 0, 131, 133, 112, 115, 53, 98, 58, 166, 240, 70, 185, 210, 203, 12,
+            114, 66, 180, 38, 139, 12, 187, 45, 250, 201, 68, 102, 159, 172, 218, 124, 151, 23,
+            172, 18, 216, 122, 246, 7, 185, 76, 20, 167, 123, 122, 152, 241, 175, 226, 176, 8, 170,
+            70, 140, 252, 36, 130, 67, 204, 111, 116, 107, 92, 200, 77, 252, 31, 138, 18, 10, 215,
+            165, 243, 95, 199, 193, 61, 200, 187, 22, 198, 109, 213, 145, 71, 171, 132, 174, 68,
+            105, 248, 0, 115, 50, 55, 199, 84, 67, 16, 125, 216, 250, 154, 115, 174, 9, 206, 44,
+            88, 63, 163, 124, 10, 239, 64, 158, 191, 27, 169, 177, 194, 223, 142, 202, 206, 189,
+            122, 123, 91, 171, 15, 40, 192, 148, 75, 174, 24, 116, 229, 127, 170, 110, 183, 151, 2,
+            118, 168, 22, 113, 87, 237, 91, 228, 249, 120, 114, 255, 53, 175, 245, 39, 2, 0, 0, 0,
+            0, 0, 0, 0, 225, 45, 230, 25, 62, 202, 96, 166, 171, 241, 206, 137, 254, 51, 154, 255,
+            122, 130, 107, 54, 5, 206, 207, 120, 193, 214, 64, 10, 111, 195, 86, 55, 201, 36, 10,
+            18, 154, 158, 183, 87, 185, 59, 228, 89, 134, 193, 217, 188, 64, 164, 249, 21, 248, 20,
+            207, 58, 31, 10, 19, 176, 246, 150, 45, 48, 2, 0, 0, 0, 0, 0, 0, 0, 173, 60, 65, 209,
+            100, 114, 138, 186, 158, 150, 109, 230, 111, 86, 101, 72, 194, 237, 173, 195, 139, 175,
+            238, 25, 169, 18, 188, 75, 77, 54, 111, 20, 115, 235, 195, 2, 123, 133, 164, 81, 15,
+            45, 11, 84, 139, 38, 8, 224, 197, 181, 95, 147, 49, 77, 193, 207, 52, 141, 195, 195,
+            66, 137, 17, 32,
+        ])
+        .unwrap();
+        let correct_request = BlindSignRequestBody::new(
+            &blind_sign_req,
+            "7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B".to_string(),
+            "gSFgpma5GAVMcsmZwKieqGNHNd3dPzcfa8eT2Qn2LoBccSeyiJdphREbNrkuh5XWxMe2hUsranaYzLro48L9Qhd".to_string(),
+            &voucher.get_public_attributes(),
+            voucher.get_public_attributes_plain(),
+            4,
+        );
+        tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
+            Tag {
+                key: DEPOSIT_VALUE.parse().unwrap(),
+                value: "1234".parse().unwrap(),
+            },
+            Tag {
+                key: DEPOSIT_INFO.parse().unwrap(),
+                value: VOUCHER_INFO.parse().unwrap(),
+            },
+            Tag {
+                key: DEPOSIT_VERIFICATION_KEY.parse().unwrap(),
+                value: "64auwDkWan7R8yH1Mwe9dS4qXgrDBCUNDg3Q4KFnd2P5"
+                    .parse()
+                    .unwrap(),
+            },
+            Tag {
+                key: DEPOSIT_ENCRYPTION_KEY.parse().unwrap(),
+                value: "HxnTpWTkgigSTAysVKLE8pEiUULHdTT1BxFfzfJvQRi6"
+                    .parse()
+                    .unwrap(),
+            },
+        ];
+        let encryption_key = extract_encryption_key(&correct_request, tx_entry.clone())
+            .await
+            .unwrap();
+        assert_eq!(encryption_key.to_base58_string(), expected_encryption_key);
     }
 }

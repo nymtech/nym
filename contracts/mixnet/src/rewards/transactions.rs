@@ -439,7 +439,6 @@ pub mod tests {
     use crate::mixnodes::storage::StoredMixnodeBond;
     use crate::rewards::transactions::try_reward_mixnode;
     use crate::support::tests;
-    use crate::support::tests::fixtures::epoch_fixture;
     use crate::support::tests::test_helpers;
     use az::CheckedCast;
     use config::defaults::DENOM;

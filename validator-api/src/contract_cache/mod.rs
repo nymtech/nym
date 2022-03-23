@@ -23,8 +23,6 @@ use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
 
-type Epoch = Interval;
-
 pub struct ValidatorCacheRefresher<C> {
     nymd_client: Client<C>,
     cache: ValidatorCache,

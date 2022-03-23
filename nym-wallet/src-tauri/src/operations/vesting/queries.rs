@@ -19,7 +19,7 @@ pub async fn locked_coins(
   Ok(
     nymd_client!(state)
       .locked_coins(
-        &nymd_client!(state).address().to_string(),
+        nymd_client!(state).address().as_ref(),
         block_time.map(Timestamp::from_seconds),
       )
       .await?
@@ -35,7 +35,7 @@ pub async fn spendable_coins(
   Ok(
     nymd_client!(state)
       .spendable_coins(
-        &nymd_client!(state).address().to_string(),
+        nymd_client!(state).address().as_ref(),
         block_time.map(Timestamp::from_seconds),
       )
       .await?

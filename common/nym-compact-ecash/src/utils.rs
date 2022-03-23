@@ -4,10 +4,12 @@
 use core::iter::Sum;
 use core::ops::Mul;
 use std::convert::TryInto;
+use std::ops::Neg;
 
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, multi_miller_loop, Scalar};
 use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use ff::Field;
+use group::Group;
 
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::setup::Parameters;
@@ -175,6 +177,17 @@ pub fn try_deserialize_g2_projective(bytes: &[u8; 96], err: CompactEcashError) -
         .map(G2Projective::from)
 }
 
+/// Checks whether e(P, Q) * e(-R, S) == id
+pub fn check_bilinear_pairing(p: &G1Affine, q: &G2Prepared, r: &G1Affine, s: &G2Prepared) -> bool {
+    // checking e(P, Q) * e(-R, S) == id
+    // is equivalent to checking e(P, Q) == e(R, S)
+    // but requires only a single final exponentiation rather than two of them
+    // and therefore, as seen via benchmarks.rs, is almost 50% faster
+    // (1.47ms vs 2.45ms, tested on R9 5900X)
+
+    let multi_miller = multi_miller_loop(&[(p, q), (&r.neg(), s)]);
+    multi_miller.final_exponentiation().is_identity().into()
+}
 
 #[cfg(test)]
 mod tests {

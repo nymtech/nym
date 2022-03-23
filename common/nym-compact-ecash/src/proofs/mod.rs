@@ -1,9 +1,10 @@
 use std::borrow::Borrow;
 
 use bls12_381::{G1Affine, G1Projective, Scalar};
-use digest::generic_array::typenum::Unsigned;
 use digest::Digest;
+use digest::generic_array::typenum::Unsigned;
 use group::GroupEncoding;
+use itertools::izip;
 use sha2::Sha256;
 
 use crate::scheme::keygen::PublicKeyUser;
@@ -13,10 +14,10 @@ type ChallengeDigest = Sha256;
 
 /// Generates a Scalar [or Fp] challenge by hashing a number of elliptic curve points.
 fn compute_challenge<D, I, B>(iter: I) -> Scalar
-where
-    D: Digest,
-    I: Iterator<Item = B>,
-    B: AsRef<[u8]>,
+    where
+        D: Digest,
+        I: Iterator<Item=B>,
+        B: AsRef<[u8]>,
 {
     let mut h = D::new();
     for point_representation in iter {
@@ -38,14 +39,14 @@ where
     Scalar::from_bytes_wide(&bytes)
 }
 
-fn produce_response(witness: &Scalar, challenge: &Scalar, secret: &Scalar) -> Scalar {
-    witness - challenge * secret
+fn produce_response(witness_replacement: &Scalar, challenge: &Scalar, secret: &Scalar) -> Scalar {
+    witness_replacement - challenge * secret
 }
 
 // note: it's caller's responsibility to ensure witnesses.len() = secrets.len()
 fn produce_responses<S>(witnesses: &[Scalar], challenge: &Scalar, secrets: &[S]) -> Vec<Scalar>
-where
-    S: Borrow<Scalar>,
+    where
+        S: Borrow<Scalar>,
 {
     debug_assert_eq!(witnesses.len(), secrets.len());
 
@@ -58,19 +59,23 @@ where
 
 // instance: g, gamma1, gamma2, gamma3, com, h, com1, com2, com3, pkUser
 pub struct WithdrawalReqInstance {
-    pub g1_gen: G1Affine,
-    pub gammas: Vec<G1Affine>,
-    pub attrs_commitment: G1Projective,
-    pub attrs_commitment_hash: G1Projective,
-    pub pc_commitments: Vec<G1Projective>,
+    // Joined commitment to all attributes
+    pub com: G1Projective,
+    // Hash of the joined commitment com
+    pub h: G1Projective,
+    // Pedersen commitments to each attribute
+    pub pc_coms: Vec<G1Projective>,
+    // Public key of a user
     pub pk_user: PublicKeyUser,
 }
 
 // witness: m1, m2, m3, o, o1, o2, o3,
 pub struct WithdrawalReqWitness {
     pub attributes: Vec<Scalar>,
-    pub attrs_commitment_opening: Scalar,
-    pub pc_openings: Vec<Scalar>,
+    // Opening for the joined commitment com
+    pub com_opening: Scalar,
+    // Openings for the pedersen commitments
+    pub pc_coms_openings: Vec<Scalar>,
 }
 
 pub struct WithdrawalReqProof {
@@ -87,75 +92,70 @@ impl WithdrawalReqProof {
         witness: &WithdrawalReqWitness,
     ) -> Self {
         // generate random values to replace the witnesses
-        let r_commitment_opening = params.random_scalar();
-        let r_pedersen_commitments_openings = params.n_random_scalars(witness.pc_openings.len());
-        let r_witness_attributes = params.n_random_scalars(witness.attributes.len());
+        let r_com_opening = params.random_scalar();
+        let r_pedcom_openings = params.n_random_scalars(witness.pc_coms_openings.len());
+        let r_attributes = params.n_random_scalars(witness.attributes.len());
 
-        // compute zkp commitments
-        let zk_commitment_attributes = instance.g1_gen * r_commitment_opening
-            + r_witness_attributes
-                .iter()
-                .zip(instance.gammas.iter())
-                .map(|(wm_i, gamma_i)| gamma_i * wm_i)
-                .sum::<G1Projective>();
-
-        let zk_pc_commitments_attributes = r_pedersen_commitments_openings
+        // compute zkp commitments for each instance
+        let zkcm_com = params.gen1() * r_com_opening
+            + r_attributes
             .iter()
-            .zip(r_witness_attributes.iter())
-            .map(|(o_j, m_j)| instance.g1_gen * o_j + instance.attrs_commitment_hash * m_j)
+            .zip(params.gammas().iter())
+            .map(|(rm_i, gamma_i)| gamma_i * rm_i)
+            .sum::<G1Projective>();
+
+        let zkcm_pedcom = r_pedcom_openings
+            .iter()
+            .zip(r_attributes.iter())
+            .map(|(o_j, m_j)| params.gen1() * o_j + instance.h * m_j)
             .collect::<Vec<_>>();
 
-        let zk_commitment_user_sk = instance.g1_gen * r_witness_attributes[0];
+        let zkcm_user_sk = params.gen1() * r_attributes[0];
 
         // covert to bytes
-        let gammas_bytes = instance
-            .gammas
+        let gammas_bytes = params
+            .gammas()
             .iter()
             .map(|gamma| gamma.to_bytes())
             .collect::<Vec<_>>();
 
-        let pc_commitments_bytes = instance
-            .pc_commitments
+        let pc_coms_bytes = instance
+            .pc_coms
             .iter()
             .map(|cm| cm.to_bytes())
             .collect::<Vec<_>>();
 
-        let zk_commitments_attributes_bytes = zk_pc_commitments_attributes
+        let zkcm_pedcom_bytes = zkcm_pedcom
             .iter()
             .map(|cm| cm.to_bytes())
             .collect::<Vec<_>>();
 
-        // compute zkp challenge
+        println!("Zk commitments to com {:?}", zkcm_com.to_bytes());
+        // compute zkp challenge using g1, gammas, c, h, c1, c2, c3, zk commitments
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
-            std::iter::once(instance.g1_gen.to_bytes().as_ref())
-                .chain(gammas_bytes.iter().map(|hs| hs.as_ref()))
-                .chain(std::iter::once(
-                    instance.attrs_commitment.to_bytes().as_ref(),
-                ))
-                .chain(std::iter::once(
-                    instance.attrs_commitment_hash.to_bytes().as_ref(),
-                ))
-                .chain(pc_commitments_bytes.iter().map(|pcm| pcm.as_ref()))
-                .chain(std::iter::once(
-                    zk_commitment_attributes.to_bytes().as_ref(),
-                ))
-                .chain(zk_commitments_attributes_bytes.iter().map(|c| c.as_ref()))
-                .chain(std::iter::once(zk_commitment_user_sk.to_bytes().as_ref())),
+            std::iter::once(params.gen1().to_bytes().as_ref())
+                .chain(gammas_bytes.iter().map(|gamma| gamma.as_ref()))
+                .chain(std::iter::once(instance.com.to_bytes().as_ref()))
+                .chain(std::iter::once(instance.h.to_bytes().as_ref()))
+                .chain(pc_coms_bytes.iter().map(|pcm| pcm.as_ref()))
+                .chain(std::iter::once(zkcm_com.to_bytes().as_ref()))
+                .chain(zkcm_pedcom_bytes.iter().map(|c| c.as_ref()))
+                .chain(std::iter::once(zkcm_user_sk.to_bytes().as_ref())),
         );
 
         // compute response
         let response_opening = produce_response(
-            &r_commitment_opening,
+            &r_com_opening,
             &challenge,
-            &witness.attrs_commitment_opening,
+            &witness.com_opening,
         );
         let response_openings = produce_responses(
-            &r_pedersen_commitments_openings,
+            &r_pedcom_openings,
             &challenge,
-            &witness.pc_openings.iter().collect::<Vec<_>>(),
+            &witness.pc_coms_openings.iter().collect::<Vec<_>>(),
         );
         let response_attributes = produce_responses(
-            &r_witness_attributes,
+            &r_attributes,
             &challenge,
             &witness.attributes.iter().collect::<Vec<_>>(),
         );
@@ -168,61 +168,111 @@ impl WithdrawalReqProof {
         }
     }
 
-    pub(crate) fn verify(&self, instance: &WithdrawalReqInstance) -> bool {
-        // recompute zk commitments
-        let zk_commitment_attributes = instance.g1_gen * self.response_opening
+    pub(crate) fn verify(&self, params: &Parameters, instance: &WithdrawalReqInstance) -> bool {
+        // recompute zk commitments for each instance
+        let zkcm_com = instance.com * self.challenge
+            + params.gen1() * self.response_opening
             + self
-                .response_attributes
-                .iter()
-                .zip(instance.gammas.iter())
-                .map(|(wm_i, gamma_i)| gamma_i * wm_i)
-                .sum::<G1Projective>();
-
-        let zk_pc_commitments_attributes = self
-            .response_openings
+            .response_attributes
             .iter()
-            .zip(self.response_attributes.iter())
-            .map(|(o_j, m_j)| instance.g1_gen * o_j + instance.attrs_commitment_hash * m_j)
+            .zip(params.gammas().iter())
+            .map(|(m_i, gamma_i)| gamma_i * m_i)
+            .sum::<G1Projective>();
+
+        let zkcm_pedcom = izip!(
+            instance.pc_coms.iter(),
+            self.response_openings.iter(),
+            self.response_attributes.iter())
+            .map(|(cm_j, resp_o_j, resp_m_j)| cm_j * self.challenge + params.gen1() * resp_o_j + instance.h * resp_m_j)
             .collect::<Vec<_>>();
 
-        let zk_commitment_user_sk = instance.g1_gen * self.response_attributes[0];
+        let zk_commitment_user_sk = instance.pk_user.pk * self.challenge + params.gen1() * self.response_attributes[0];
 
         // covert to bytes
-        let gammas_bytes = instance
-            .gammas
+        let gammas_bytes = params
+            .gammas()
             .iter()
             .map(|gamma| gamma.to_bytes())
             .collect::<Vec<_>>();
 
-        let pc_commitments_bytes = instance
-            .pc_commitments
+        let pc_coms_bytes = instance
+            .pc_coms
             .iter()
             .map(|cm| cm.to_bytes())
             .collect::<Vec<_>>();
 
-        let zk_commitments_attributes_bytes = zk_pc_commitments_attributes
+        let zkcm_pedcom_bytes = zkcm_pedcom
             .iter()
             .map(|cm| cm.to_bytes())
             .collect::<Vec<_>>();
+
+        println!("Zk commitments to com Vfy {:?}", zkcm_com.to_bytes());
 
         // recompute zkp challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
-            std::iter::once(instance.g1_gen.to_bytes().as_ref())
+            std::iter::once(params.gen1().to_bytes().as_ref())
                 .chain(gammas_bytes.iter().map(|hs| hs.as_ref()))
-                .chain(std::iter::once(
-                    instance.attrs_commitment.to_bytes().as_ref(),
-                ))
-                .chain(std::iter::once(
-                    instance.attrs_commitment_hash.to_bytes().as_ref(),
-                ))
-                .chain(pc_commitments_bytes.iter().map(|pcm| pcm.as_ref()))
-                .chain(std::iter::once(
-                    zk_commitment_attributes.to_bytes().as_ref(),
-                ))
-                .chain(zk_commitments_attributes_bytes.iter().map(|c| c.as_ref()))
+                .chain(std::iter::once(instance.com.to_bytes().as_ref()))
+                .chain(std::iter::once(instance.h.to_bytes().as_ref()))
+                .chain(pc_coms_bytes.iter().map(|pcm| pcm.as_ref()))
+                .chain(std::iter::once(zkcm_com.to_bytes().as_ref()))
+                .chain(zkcm_pedcom_bytes.iter().map(|c| c.as_ref()))
                 .chain(std::iter::once(zk_commitment_user_sk.to_bytes().as_ref())),
         );
 
+        println!("Original challenge: {:?}", self.challenge);
+        println!("Recomputed challenge: {:?}", challenge);
         challenge == self.challenge
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use group::Group;
+    use rand::thread_rng;
+
+    use crate::utils::hash_g1;
+
+    use super::*;
+
+    #[test]
+    fn withdrawal_proof_construct_and_verify() {
+        let mut rng = thread_rng();
+        let params = Parameters::new().unwrap();
+        let sk = params.random_scalar();
+        let pk_user = PublicKeyUser { pk: params.gen1() * sk };
+        let v = params.random_scalar();
+        let t = params.random_scalar();
+        let attr = vec![sk, v, t];
+
+        let com_opening = params.random_scalar();
+        let com = params.gen1() * com_opening + attr
+            .iter()
+            .zip(params.gammas())
+            .map(|(&m, gamma)| gamma * m)
+            .sum::<G1Projective>();
+        let h = hash_g1(com.to_bytes());
+
+        let pc_openings = params.n_random_scalars(attr.len());
+        let pc_coms = pc_openings
+            .iter()
+            .zip(attr.iter())
+            .map(|(o_j, m_j)| params.gen1() * o_j + h * m_j)
+            .collect::<Vec<_>>();
+
+        let instance = WithdrawalReqInstance {
+            com,
+            h,
+            pc_coms,
+            pk_user,
+        };
+
+        let witness = WithdrawalReqWitness {
+            attributes: attr,
+            com_opening,
+            pc_coms_openings: pc_openings,
+        };
+        let zk_proof = WithdrawalReqProof::construct(&params, &instance, &witness);
+        assert!(zk_proof.verify(&params, &instance))
     }
 }

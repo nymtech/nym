@@ -9,7 +9,7 @@ use cosmwasm_std::{Api, Deps, Storage};
 use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
-    Delegation, IdentityKey, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    Delegation, IdentityKey, PagedDelegatorDelegationsResponse,
     PagedMixDelegationsResponse,
 };
 
@@ -23,33 +23,6 @@ pub(crate) fn query_pending_delegation_events(
         .filter_map(|r| r.ok())
         .map(|(_key, delegation_event)| delegation_event)
         .collect::<Vec<DelegationEvent>>())
-}
-
-pub(crate) fn query_all_network_delegations_paged(
-    deps: Deps<'_>,
-    start_after: Option<(IdentityKey, Vec<u8>, u64)>,
-    limit: Option<u32>,
-) -> StdResult<PagedAllDelegationsResponse> {
-    let limit = limit
-        .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
-        .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
-
-    let start = start_after.map(Bound::exclusive);
-
-    let delegations = storage::delegations()
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|record| record.map(|r| r.1))
-        .collect::<StdResult<Vec<_>>>()?;
-
-    let start_next_after = delegations
-        .last()
-        .map(|delegation| delegation.storage_key());
-
-    Ok(PagedAllDelegationsResponse::new(
-        delegations,
-        start_next_after,
-    ))
 }
 
 pub(crate) fn query_delegator_delegations_paged(

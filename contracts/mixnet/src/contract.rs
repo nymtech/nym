@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, SYBIL_RESISTANCE_PERCENT};
-use crate::delegations::queries::query_all_network_delegations_paged;
 use crate::delegations::queries::query_delegator_delegations_paged;
 use crate::delegations::queries::query_mixnode_delegation;
 use crate::delegations::queries::{
@@ -300,9 +299,6 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             start_after,
             limit,
         )?),
-        QueryMsg::GetAllNetworkDelegations { start_after, limit } => to_binary(
-            &query_all_network_delegations_paged(deps, start_after, limit)?,
-        ),
         QueryMsg::GetDelegatorDelegations {
             delegator: delegation_owner,
             start_after,
@@ -423,9 +419,9 @@ fn migrate_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     // TODO: Uncomment for sandbox and mainnet
-    // migrate_delegations(deps)?;
+    migrate_delegations(deps)?;
 
     Ok(Default::default())
 }

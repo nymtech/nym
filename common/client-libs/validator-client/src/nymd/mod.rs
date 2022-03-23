@@ -18,7 +18,7 @@ use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
     IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
-    MixnetContractVersion, MixnodeRewardingStatusResponse, PagedAllDelegationsResponse,
+    MixnetContractVersion, MixnodeRewardingStatusResponse,
     PagedDelegatorDelegationsResponse, PagedGatewayResponse, PagedMixDelegationsResponse,
     PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
 };
@@ -556,24 +556,6 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetMixnodeDelegations {
             mix_identity: mix_identity.to_owned(),
-            start_after,
-            limit: page_limit,
-        };
-        self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
-            .await
-    }
-
-    /// Gets list of all mixnode delegations on particular page.
-    pub async fn get_all_network_delegations_paged(
-        &self,
-        start_after: Option<(IdentityKey, Vec<u8>, u64)>,
-        page_limit: Option<u32>,
-    ) -> Result<PagedAllDelegationsResponse, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::GetAllNetworkDelegations {
             start_after,
             limit: page_limit,
         };
